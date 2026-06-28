@@ -20,7 +20,7 @@
 | `src/lib/services/calendar-sync.ts` | 649 |
 | `src/lib/services/candidate-scoring.ts` | 407 |
 | `src/lib/services/checkout-policies.ts` | 32 |
-| `src/lib/services/dashboard-counts.ts` | 111 |
+| `src/lib/services/dashboard-counts.ts` | 116 |
 | `src/lib/services/event-defaults.ts` | 69 |
 | `src/lib/services/firmware-watch.ts` | 299 |
 | `src/lib/services/hidden-users-cleanup.ts` | 126 |
@@ -95,11 +95,11 @@
 | `src/lib/fetch-with-timeout.ts` | 23 |
 | `src/lib/firmware-watch-targets.ts` | 124 |
 | `src/lib/format.ts` | 266 |
-| `src/lib/guide-categories.ts` | 39 |
+| `src/lib/guide-categories.ts` | 135 |
 | `src/lib/guide-content.ts` | 260 |
 | `src/lib/guide-freshness.ts` | 81 |
 | `src/lib/guide-ranking.ts` | 78 |
-| `src/lib/guides.ts` | 322 |
+| `src/lib/guides.ts` | 329 |
 | `src/lib/http.ts` | 90 |
 | `src/lib/image-search-modal.ts` | 59 |
 | `src/lib/image-search.ts` | 239 |
@@ -137,7 +137,7 @@
 | `src/lib/url-sync.ts` | 16 |
 | `src/lib/user-visibility.ts` | 45 |
 | `src/lib/utils.ts` | 7 |
-| `src/lib/validation.ts` | 534 |
+| `src/lib/validation.ts` | 536 |
 | `src/lib/venue-mapping-audit.ts` | 56 |
 | `src/lib/venue-mapping-contract.ts` | 46 |
 | `src/lib/venue-tone.ts` | 74 |

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parseResourceFilter, parseResourceSort } from "@/app/(app)/resources/filters";
+import {
+  parseResourceFilter,
+  parseResourceLayout,
+  parseResourceSort,
+} from "@/app/(app)/resources/filters";
 
 function params(query: string) {
   return new URLSearchParams(query);
@@ -27,5 +31,12 @@ describe("resources URL filters", () => {
     expect(parseResourceSort("missing")).toBe("personalized");
     expect(parseResourceSort("title")).toBe("title");
     expect(parseResourceSort("RECENT")).toBe("recent");
+  });
+
+  it("parses guide layout separately from legacy view filters", () => {
+    expect(parseResourceLayout("list")).toBe("list");
+    expect(parseResourceLayout("cards")).toBe("cards");
+    expect(parseResourceLayout("unknown")).toBe("cards");
+    expect(parseResourceFilter(params("layout=list&view=media-drive"))).toBe("media-drive");
   });
 });

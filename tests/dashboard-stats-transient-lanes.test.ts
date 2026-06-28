@@ -13,6 +13,15 @@ describe("dashboard stats transient-lane counts", () => {
     expect(route).toContain("staleReservationTotal: c.staleReservationTotal");
   });
 
+  it("stats endpoint exposes a user-scoped due-today count for sidebar chrome", () => {
+    const route = source("src/app/api/dashboard/stats/route.ts");
+    const reader = source("src/lib/services/dashboard-counts.ts");
+
+    expect(reader).toContain("AS my_due_today");
+    expect(reader).toContain("myDueToday: Number(c.my_due_today)");
+    expect(route).toContain("myDueTodayCount: c.myDueToday");
+  });
+
   it("both dashboard routes consume the shared count reader", () => {
     const stats = source("src/app/api/dashboard/stats/route.ts");
     const full = source("src/app/api/dashboard/route.ts");

@@ -3,7 +3,7 @@
 **Target:** `src/components/Sidebar.tsx` + `src/components/AppShell.tsx`
 **Created:** 2026-03-24
 **Revised:** 2026-03-25 (full refresh — V1 shipped, V2 partially shipped)
-**Status:** V1 shipped (2026-03-24), V2 partial (groups + quick-create shipped, shortcuts pending)
+**Status:** V1 shipped (2026-03-24), V2 mostly shipped (groups, quick-create, Lookup, user-scoped due-today badge, and shortcut hints shipped; Settings sub-nav superseded by the role-aware Settings rail)
 
 ---
 
@@ -116,7 +116,7 @@
 
 **Principle:** Now that badges and groups work, make navigation faster and smarter. Add convenience features that reduce clicks and improve discoverability.
 
-**Status:** Partially shipped (groups + quick-create). Remaining items below.
+**Status:** Mostly shipped. Lookup, user-scoped due-today badge, and shortcut hints shipped on 2026-06-28. Settings sub-navigation is superseded by the current role-aware Settings rail and command palette because Settings now has many Personal and admin sections, not the original six-page admin-only shape.
 
 ### Features
 
@@ -132,6 +132,7 @@
 - All roles use it for item lookup; checkout pickup and return scans happen at kiosks
 - Closes the gap where desktop users have no sidebar path to `/scan`
 - Bottom nav already has Lookup; sidebar should match
+- 2026-06-28: Shipped as `Lookup` in the web sidebar Operations group, using `/scan` as a lookup-only route.
 
 **3. Settings collapsible sub-navigation**
 - Settings has 6 sub-pages: calendar-sources, sports, categories, database, escalation, venue-mappings
@@ -140,12 +141,14 @@
 - Sub-items: Calendar Sources, Sports, Categories, Escalation, Venue Mappings, Database
 - Admin-only (same as Settings parent)
 - In icon-only collapsed mode: clicking Settings icon navigates to `/settings` (no sub-nav)
+- 2026-06-28: Superseded. Settings is now available to every authenticated user and owns its full role-aware rail/search palette inside `/settings`, so the global sidebar keeps a single top-level Settings link instead of duplicating every sub-page.
 
 **4. Keyboard shortcut hints + navigation**
 - Register `Cmd+1` through `Cmd+6` in AppShell for top 6 Operations nav items
 - Show shortcut hint in tooltip when sidebar is collapsed: "Dashboard (⌘1)"
 - `Cmd+K` (search) and `Cmd+B` (toggle sidebar) remain unchanged
 - Implementation: single `keydown` listener in AppShell, `router.push()` on match
+- 2026-06-28: Shipped for the first six primary sidebar destinations with collapsed-tooltip hints.
 
 **5. Due-today secondary badge on Bookings**
 - Currently shows overdue count only
@@ -153,6 +156,7 @@
 - When both overdue AND due-today exist, show overdue only (red takes priority)
 - Data already available: `dashJson.data.myCheckouts.dueToday`
 - Tooltip updates: "Bookings · 2 overdue" or "Bookings · 1 due today"
+- 2026-06-28: Shipped using `myDueTodayCount` from `/api/dashboard/stats`, so the sidebar badge stays user-scoped like the existing overdue badge.
 
 ### What V1 features get enhanced
 - Bookings badge: gains due-today secondary count

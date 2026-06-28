@@ -12,6 +12,7 @@ export type DashboardStats = {
   overdueCount: number;
   myCheckoutsTotal: number;
   myOverdueCount: number;
+  myDueTodayCount: number;
   teamCheckoutsTotal: number;
   teamCheckoutsOverdue: number;
   teamReservationsTotal: number;

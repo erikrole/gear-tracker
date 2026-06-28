@@ -140,7 +140,8 @@ extension CachedBooking {
             serializedItems: [],
             bulkItems: [],
             event: nil,
-            updatedAt: nil
+            updatedAt: nil,
+            pickupKioskDevice: nil
         )
     }
 }

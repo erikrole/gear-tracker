@@ -1,6 +1,56 @@
 # Task Queue
 
-Last updated: 2026-06-27
+Last updated: 2026-06-28
+
+---
+
+## Active: web sidebar polish (2026-06-28)
+
+Plan: improve the web sidebar only, leaving mobile bottom nav and native iOS surfaces untouched.
+
+- [x] Audit sidebar roadmap, design language, Settings role rules, dashboard count source, and current shell code.
+- [x] Add Lookup to the sidebar, expose Settings to all authenticated roles, and keep admin tools role-gated.
+- [x] Add user-scoped due-today badge support behind overdue priority.
+- [x] Add sidebar shortcut wiring and collapsed tooltip hints for primary destinations.
+- [x] Sync sidebar/settings docs and add focused source-contract tests.
+- [x] Run focused tests, TypeScript, docs/codemap checks as safe, whitespace checks, build, and protected-route/browser smoke as available.
+
+### Review
+- 2026-06-28: Web sidebar polish shipped locally. The desktop sidebar now includes Lookup to `/scan`, keeps Settings visible to all authenticated roles, keeps Admin role-gated, shows Bookings overdue first and then a user-scoped due-today badge, and exposes primary destination shortcuts in collapsed tooltips with shell-level Cmd/Ctrl+number routing. Mobile bottom nav and native iOS views were not changed. Verification passed with focused Vitest, `npx tsc --noEmit`, focused `git diff --check`, and `npm run db:migrate:check`. `npm run verify:docs` remains blocked by pre-existing codemap drift in `docs/CODEMAPS/{architecture,backend,frontend}.md`; `npm run build:app` remains blocked by the existing `/resources` prerender failure in the dirty worktree. Runtime smoke was not completed because the sandbox blocked local Next.js port binding with `listen EPERM`, and the escalated retry was unavailable due the current Codex usage limit.
+
+---
+
+## Active: iOS launch and data loading (2026-06-28)
+
+Plan: `tasks/ios-launch-data-loading-plan.md`
+
+- [x] Add a lean iOS Home dashboard scope without changing the default web dashboard payload.
+- [x] Make native Home request the scoped payload.
+- [x] Add source-contract coverage and sync Dashboard/Mobile docs.
+- [x] Run focused tests, TypeScript, iOS drift/gap checks, whitespace checks, and the iOS simulator build.
+- [x] Fix the unrelated Resources page build blocker surfaced by the first slice.
+- [x] Add native timing logs for session restore, app-state badge refresh, Home dashboard load/cache skips, and first useful Home render.
+- [x] Re-run focused build and iOS verification for the timing slice.
+
+### Review
+- 2026-06-28: iOS Home launch/data-loading slice shipped locally. Native Home now requests `/api/dashboard?scope=ios-home`, and the API keeps the default web payload unchanged while skipping iOS-unused row-heavy sections in scoped mode. Verification passed with focused Vitest, TypeScript, iOS drift, iOS gap audit, codemap/docs checks, whitespace check, and a Wisconsin simulator build/run. `npm run build:app` is blocked by unrelated Resources page type errors in the existing dirty worktree.
+- 2026-06-28 follow-up: Fixed the active Resources page type issue and confirmed `npm run build:app` passes. Added low-overhead `Launch` OSLog timing around native session restore, app-state badge refresh, Home dashboard loads, cache/in-flight skips, and first useful Home render so the next launch pass can use measured phase timings.
+
+---
+
+## Active: Resources first-class Guide library (2026-06-28)
+
+Plan: `tasks/resources-first-class-plan.md`
+
+- [x] User approved the first-class Resources plan checkpoint.
+- [x] Ship typed resource contract.
+- [x] Rebuild `/resources` as a focused Guide library with cards/list browsing and area-focused guide collections.
+- [x] Refresh `/resources/[slug]` reader.
+- [x] Refresh `/resources/new` and `/resources/[slug]/edit` authoring.
+- [ ] Sync docs and run focused tests, schema checks, typecheck, docs/codemap checks, build, and browser smoke as available.
+
+### Review
+- 2026-06-28: Implemented the Resources first-class Guide library pass. Added typed `ResourceType` focus with migration/backfill, preserved legacy URL filters while adding `layout=cards/list`, rebuilt `/resources` around Guide collections, area lanes, cards/list results, and supporting live Contacts, and updated reader/create/edit to expose Guide focus. Verification passed with focused Resources Vitest, Prisma format/generate, migration-prefix check, TypeScript, codemap/docs checks, whitespace check, and `npm run build:app`. Authenticated browser smoke logged in locally and confirmed `/resources` renders the new shell, collection tiles, layout control, Contacts section, and empty All Guides state; full runtime smoke remains blocked until migration `0087_resource_type` is applied to the current Neon database because `/api/resources` returns Prisma P2022 for missing `resources.type`.
 
 ---
 

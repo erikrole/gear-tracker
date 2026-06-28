@@ -9,9 +9,16 @@ export type ResourceFilterKey =
   | "contacts"
   | "building-numbers"
   | "media-drive"
-  | "server-paths";
+  | "server-paths"
+  | "sop"
+  | "how-to"
+  | "troubleshooting"
+  | "account-note"
+  | "event-ops"
+  | "general";
 
 export type ResourceSortKey = "personalized" | "recent" | "title";
+export type ResourceLayoutKey = "cards" | "list";
 
 const FILTER_PARAM_MAP: Record<string, ResourceFilterKey> = {
   recent: "recent",
@@ -24,6 +31,14 @@ const FILTER_PARAM_MAP: Record<string, ResourceFilterKey> = {
   "building-numbers": "building-numbers",
   "media-drive": "media-drive",
   "server-paths": "server-paths",
+  sop: "sop",
+  sops: "sop",
+  "how-to": "how-to",
+  troubleshooting: "troubleshooting",
+  "account-note": "account-note",
+  "account-notes": "account-note",
+  "event-ops": "event-ops",
+  general: "general",
 };
 
 const LEGACY_AREA_PARAM_MAP: Record<string, ResourceFilterKey> = {
@@ -34,6 +49,7 @@ const LEGACY_AREA_PARAM_MAP: Record<string, ResourceFilterKey> = {
 };
 
 const SORT_PARAM_VALUES = new Set<ResourceSortKey>(["personalized", "recent", "title"]);
+const LAYOUT_PARAM_VALUES = new Set<ResourceLayoutKey>(["cards", "list"]);
 
 function normalizeParam(value: string | null) {
   return value?.trim().toLowerCase() ?? "";
@@ -57,4 +73,11 @@ export function parseResourceSort(value: string | null): ResourceSortKey {
   return SORT_PARAM_VALUES.has(normalized as ResourceSortKey)
     ? (normalized as ResourceSortKey)
     : "personalized";
+}
+
+export function parseResourceLayout(value: string | null): ResourceLayoutKey {
+  const normalized = normalizeParam(value);
+  return LAYOUT_PARAM_VALUES.has(normalized as ResourceLayoutKey)
+    ? (normalized as ResourceLayoutKey)
+    : "cards";
 }

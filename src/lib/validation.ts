@@ -1,4 +1,4 @@
-import { Role, ShiftArea, ShiftWorkerType, StudentYear } from "@prisma/client";
+import { ResourceType, Role, ShiftArea, ShiftWorkerType, StudentYear } from "@prisma/client";
 import { z } from "zod";
 import { sanitizeText } from "./sanitize";
 import { isSportCode, normalizeSportCode } from "./sports";
@@ -507,6 +507,7 @@ export const createAllowedEmailBulkSchema = z.object({
 
 export const createGuideSchema = z.object({
   title: z.string().min(1, "Title is required").max(200),
+  type: z.nativeEnum(ResourceType).optional().default(ResourceType.GENERAL),
   category: z.string().min(1, "Category is required").max(100),
   content: z.unknown().optional(),
   markdown: z.string().max(200_000).optional(),
@@ -519,6 +520,7 @@ export const createGuideSchema = z.object({
 
 export const updateGuideSchema = z.object({
   title: z.string().min(1).max(200).optional(),
+  type: z.nativeEnum(ResourceType).optional(),
   category: z.string().min(1).max(100).optional(),
   content: z.unknown().optional(),
   markdown: z.string().max(200_000).optional(),

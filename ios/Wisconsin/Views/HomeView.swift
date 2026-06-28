@@ -1,5 +1,12 @@
 import SwiftUI
 import UIKit
+import os
+
+private let homePerformanceLog = Logger(subsystem: "com.erikrole.Wisconsin", category: "Launch")
+
+private func elapsedMilliseconds(since start: Date) -> Int {
+    Int(Date().timeIntervalSince(start) * 1_000)
+}
 
 @MainActor
 @Observable
@@ -14,21 +21,30 @@ final class HomeViewModel {
     private static let freshnessWindow: TimeInterval = 60
 
     func load(appState: AppState? = nil, forceRefresh: Bool = false) async {
-        guard !isLoading else { return }
+        let startedAt = Date()
+        guard !isLoading else {
+            homePerformanceLog.debug("launch.home.dashboardLoad result=skipped reason=inFlight durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public)")
+            return
+        }
         if !forceRefresh, let last = lastLoadedAt, Date().timeIntervalSince(last) < Self.freshnessWindow {
+            let ageSeconds = Int(Date().timeIntervalSince(last))
+            homePerformanceLog.debug("launch.home.dashboardLoad result=skipped reason=fresh ageSeconds=\(ageSeconds, privacy: .public) durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public)")
             return
         }
         isLoading = true
         do {
-            dashboard = try await APIClient.shared.dashboard()
+            let loadedDashboard = try await APIClient.shared.dashboard()
+            dashboard = loadedDashboard
             if let appState {
-                appState.overdueCount = dashboard?.overdueCount ?? 0
-                appState.myShiftCount = dashboard?.myEventWork.count ?? 0
+                appState.overdueCount = loadedDashboard.overdueCount
+                appState.myShiftCount = loadedDashboard.myEventWork.count
             }
             error = nil
             lastLoadedAt = Date()
+            homePerformanceLog.info("launch.home.dashboardLoad result=success durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public) checkouts=\(loadedDashboard.myCheckouts.items.count, privacy: .public) reservations=\(loadedDashboard.myReservations.count, privacy: .public) pendingPickups=\(loadedDashboard.pendingPickups.items.count, privacy: .public) eventWork=\(loadedDashboard.myEventWork.count, privacy: .public) flagged=\(loadedDashboard.flaggedItems.count, privacy: .public)")
         } catch {
             self.error = error.localizedDescription
+            homePerformanceLog.error("launch.home.dashboardLoad result=failure durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public)")
         }
         isLoading = false
     }
@@ -46,6 +62,8 @@ struct HomeView: View {
     @State private var pendingUserId: String?
     @State private var pendingShowTrades = false
     @State private var selectedEventWork: DashboardEventWork?
+    @State private var firstUsefulRenderStartedAt = Date()
+    @State private var didLogFirstUsefulRender = false
     @Environment(AppState.self) private var appState
     @Environment(SessionStore.self) private var session
 
@@ -79,7 +97,14 @@ struct HomeView: View {
             }
         } else if let dash = vm.dashboard {
             dashboardScrollView(dash)
+                .onAppear { logFirstUsefulRender(dash) }
         }
+    }
+
+    private func logFirstUsefulRender(_ dash: DashboardData) {
+        guard !didLogFirstUsefulRender else { return }
+        didLogFirstUsefulRender = true
+        homePerformanceLog.info("launch.home.firstUsefulRender durationMs=\(elapsedMilliseconds(since: firstUsefulRenderStartedAt), privacy: .public) checkouts=\(dash.myCheckouts.items.count, privacy: .public) reservations=\(dash.myReservations.count, privacy: .public) pendingPickups=\(dash.pendingPickups.items.count, privacy: .public) eventWork=\(dash.myEventWork.count, privacy: .public)")
     }
 
     private func isAllEmpty(_ dash: DashboardData) -> Bool {

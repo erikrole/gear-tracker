@@ -25,6 +25,7 @@ export type DashboardCounts = {
   teamReservationsTotal: number;
   myCheckoutsTotal: number;
   myOverdue: number;
+  myDueToday: number;
   totalCheckedOut: number;
   totalOverdue: number;
   totalReserved: number;
@@ -39,6 +40,7 @@ type CountRow = {
   team_reservations: bigint;
   my_checkouts: bigint;
   my_overdue: bigint;
+  my_due_today: bigint;
   total_checked_out: bigint;
   total_overdue: bigint;
   total_reserved: bigint;
@@ -65,6 +67,7 @@ export async function readDashboardCounts(inputs: DashboardCountInputs): Promise
       COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id != ${userId} AND ends_at < ${now}) AS team_checkouts_overdue,
       COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id = ${userId}) AS my_checkouts,
       COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id = ${userId} AND ends_at < ${now}) AS my_overdue,
+      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id = ${userId} AND ends_at >= ${startOfToday} AND ends_at < ${startOfTomorrow}) AS my_due_today,
       COUNT(*) FILTER (WHERE kind = 'RESERVATION' AND status = 'BOOKED' AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow}) AS total_reserved,
       COUNT(*) FILTER (WHERE kind = 'RESERVATION' AND status = 'BOOKED' AND requester_user_id != ${userId} AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow}) AS team_reservations,
       COUNT(*) FILTER (WHERE status = 'PENDING_PICKUP') AS pending_pickup,
@@ -85,6 +88,7 @@ export async function readDashboardCounts(inputs: DashboardCountInputs): Promise
     teamReservationsTotal: Number(c.team_reservations),
     myCheckoutsTotal: Number(c.my_checkouts),
     myOverdue: Number(c.my_overdue),
+    myDueToday: Number(c.my_due_today),
     totalCheckedOut: Number(c.total_checked_out),
     totalOverdue: Number(c.total_overdue),
     totalReserved: Number(c.total_reserved),
@@ -101,6 +105,7 @@ export const zeroDashboardCounts: DashboardCounts = {
   teamReservationsTotal: 0,
   myCheckoutsTotal: 0,
   myOverdue: 0,
+  myDueToday: 0,
   totalCheckedOut: 0,
   totalOverdue: 0,
   totalReserved: 0,

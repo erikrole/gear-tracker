@@ -1402,32 +1402,38 @@ Indexes and constraints:
 - `@@index([sessionExpiresAt])`
 - `@@map("kiosk_devices")`
 
+## Enum `ResourceType`
+
+Values: `CONTACTS`, `BUILDING_NUMBERS`, `MEDIA_DRIVE`, `SERVER_PATHS`, `SOP`, `HOW_TO`, `TROUBLESHOOTING`, `ACCOUNT_NOTE`, `EVENT_OPS`, `GENERAL`
+
 ## Model `Resource`
 
-Fields: 18
+Fields: 19
 
-- `id               String      @id @default(cuid())`
+- `id               String       @id @default(cuid())`
 - `title            String`
-- `slug             String      @unique`
+- `slug             String       @unique`
+- `type             ResourceType @default(GENERAL)`
 - `category         String`
 - `content          Json`
-- `markdown         String?     @db.Text`
-- `targetRoles      Role[]      @default([]) @map("target_roles")`
-- `targetAreas      ShiftArea[] @default([]) @map("target_areas")`
-- `featured         Boolean     @default(false)`
-- `featuredRank     Int?        @map("featured_rank")`
-- `published        Boolean     @default(false)`
-- `authorId         String      @map("author_id")`
-- `lastVerifiedAt   DateTime?   @map("last_verified_at")`
-- `lastVerifiedById String?     @map("last_verified_by_id")`
-- `createdAt        DateTime    @default(now()) @map("created_at")`
-- `updatedAt        DateTime    @updatedAt @map("updated_at")`
+- `markdown         String?      @db.Text`
+- `targetRoles      Role[]       @default([]) @map("target_roles")`
+- `targetAreas      ShiftArea[]  @default([]) @map("target_areas")`
+- `featured         Boolean      @default(false)`
+- `featuredRank     Int?         @map("featured_rank")`
+- `published        Boolean      @default(false)`
+- `authorId         String       @map("author_id")`
+- `lastVerifiedAt   DateTime?    @map("last_verified_at")`
+- `lastVerifiedById String?      @map("last_verified_by_id")`
+- `createdAt        DateTime     @default(now()) @map("created_at")`
+- `updatedAt        DateTime     @updatedAt @map("updated_at")`
 - `author         User  @relation(fields: [authorId], references: [id], onDelete: Restrict)`
 - `lastVerifiedBy User? @relation("ResourceLastVerifiedBy", fields: [lastVerifiedById], references: [id], onDelete: SetNull)`
 
 Indexes and constraints:
 
 - `@@index([category])`
+- `@@index([type])`
 - `@@index([featured, featuredRank])`
 - `@@index([lastVerifiedAt])`
 - `@@index([lastVerifiedById])`

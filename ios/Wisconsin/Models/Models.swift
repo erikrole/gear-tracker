@@ -166,6 +166,17 @@ struct BulkSku: Codable, Identifiable {
     let name: String
     let unit: String?
     let imageUrl: String?
+    let trackByNumber: Bool?
+}
+
+/// One numbered unit (e.g. battery #19) allocated to a bulk line item. Present
+/// only for unit-tracked SKUs; mirrors the web `unitAllocations[].bulkSkuUnit`.
+struct BookingBulkUnitAllocation: Codable {
+    let bulkSkuUnit: BulkSkuUnitRef
+
+    struct BulkSkuUnitRef: Codable {
+        let unitNumber: Int
+    }
 }
 
 struct BookingBulkItem: Codable, Identifiable {
@@ -174,6 +185,13 @@ struct BookingBulkItem: Codable, Identifiable {
     let checkedOutQuantity: Int
     let checkedInQuantity: Int
     let bulkSku: BulkSku
+    let unitAllocations: [BookingBulkUnitAllocation]?
+
+    /// Sorted unit numbers when this is a unit-tracked SKU with allocations.
+    var assignedUnitNumbers: [Int] {
+        guard bulkSku.trackByNumber == true else { return [] }
+        return (unitAllocations ?? []).map(\.bulkSkuUnit.unitNumber).sorted()
+    }
 }
 
 struct BookingEvent: Codable, Identifiable {
@@ -182,6 +200,14 @@ struct BookingEvent: Codable, Identifiable {
     let sportCode: String?
     let opponent: String?
     let isHome: Bool?
+}
+
+/// The kiosk device that handled pickup. Captured at kiosk custody transitions;
+/// its location is the context for future return-to-location suggestions.
+struct PickupKioskDevice: Codable, Identifiable {
+    let id: String
+    let name: String
+    let location: BookingLocation
 }
 
 struct Booking: Codable, Identifiable, Hashable {
@@ -202,6 +228,7 @@ struct Booking: Codable, Identifiable, Hashable {
     let bulkItems: [BookingBulkItem]
     let event: BookingEvent?
     let updatedAt: Date?
+    let pickupKioskDevice: PickupKioskDevice?
 }
 
 struct BookingStub: Codable { let id: String }

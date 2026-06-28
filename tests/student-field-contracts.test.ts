@@ -22,6 +22,17 @@ describe("student field mobile contracts", () => {
     expect(apiClient).toContain(".init(name: \"status_in\", value: statusList.map(\\.rawValue).joined(separator: \",\"))");
   });
 
+  it("keeps iOS Home on the lean dashboard payload", () => {
+    const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
+    const route = source("src/app/api/dashboard/route.ts");
+
+    expect(apiClient).toContain(".init(name: \"scope\", value: \"ios-home\")");
+    expect(route).toContain("const isIosHomeScope = scope === \"ios-home\"");
+    expect(route).toContain("isIosHomeScope");
+    expect(route).toContain("? Promise.resolve([])");
+    expect(route).toContain("db.calendarEvent.findMany");
+  });
+
   it("keeps iOS booking edits on the optimistic-lock contract", () => {
     const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
     const models = source("ios/Wisconsin/Models/Models.swift");
@@ -82,7 +93,8 @@ describe("student field mobile contracts", () => {
     const itemsView = source("ios/Wisconsin/Views/ItemsView.swift");
 
     expect(itemsView).toContain("itemsControlStrip");
-    expect(itemsView).toContain("Label(\"Favorites\"");
+    expect(itemsView).toContain("ItemControlPill(");
+    expect(itemsView).toContain("title: \"Favorites\"");
     expect(itemsView).toContain("AssetStatusFilterMenu(selected: $vm.selectedStatuses)");
     expect(itemsView).toContain("selected.isEmpty ? \"All statuses\" : \"\\(selected.count) statuses\"");
     expect(itemsView).not.toContain("ToolbarItem(placement: .topBarTrailing)");

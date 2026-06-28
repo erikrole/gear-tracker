@@ -122,10 +122,12 @@ function gearStatusPriority(status: string) {
   }
 }
 
-export const GET = withAuth(async (_req, { user }) => {
+export const GET = withAuth(async (req, { user }) => {
   const { allowed } = await checkRateLimit(`dashboard:full:${user.id}`, DASHBOARD_LIMIT);
   if (!allowed) throw new HttpError(429, "Too many requests. Please wait a moment.");
 
+  const scope = new URL(req.url).searchParams.get("scope");
+  const isIosHomeScope = scope === "ios-home";
   const now = new Date();
   const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
@@ -196,26 +198,32 @@ export const GET = withAuth(async (_req, { user }) => {
   ] = await Promise.allSettled([
     countsPromise,
     // Team checkouts (excl. me)
-    db.booking.findMany({
-      where: { kind: "CHECKOUT", status: "OPEN", requesterUserId: { not: user.id } },
-      orderBy: { endsAt: "asc" },
-      take: 5,
-      include: bookingInclude,
-    }),
+    isIosHomeScope
+      ? Promise.resolve([])
+      : db.booking.findMany({
+          where: { kind: "CHECKOUT", status: "OPEN", requesterUserId: { not: user.id } },
+          orderBy: { endsAt: "asc" },
+          take: 5,
+          include: bookingInclude,
+        }),
     // Team reservations (excl. me) — next 7 days only (AC-4)
-    db.booking.findMany({
-      where: { kind: "RESERVATION", status: "BOOKED", requesterUserId: { not: user.id }, startsAt: { gte: now, lte: sevenDaysFromNow } },
-      orderBy: { startsAt: "asc" },
-      take: 5,
-      include: bookingInclude,
-    }),
+    isIosHomeScope
+      ? Promise.resolve([])
+      : db.booking.findMany({
+          where: { kind: "RESERVATION", status: "BOOKED", requesterUserId: { not: user.id }, startsAt: { gte: now, lte: sevenDaysFromNow } },
+          orderBy: { startsAt: "asc" },
+          take: 5,
+          include: bookingInclude,
+        }),
     // Stale reservations — planning cleanup, not checkout custody overdue
-    db.booking.findMany({
-      where: { kind: "RESERVATION", status: "BOOKED", endsAt: { lt: now } },
-      orderBy: { endsAt: "asc" },
-      take: 5,
-      include: bookingInclude,
-    }),
+    isIosHomeScope
+      ? Promise.resolve([])
+      : db.booking.findMany({
+          where: { kind: "RESERVATION", status: "BOOKED", endsAt: { lt: now } },
+          orderBy: { endsAt: "asc" },
+          take: 5,
+          include: bookingInclude,
+        }),
     // My checkouts (booking-level summaries)
     db.booking.findMany({
       where: { kind: "CHECKOUT", status: "OPEN", requesterUserId: user.id },
@@ -227,31 +235,33 @@ export const GET = withAuth(async (_req, { user }) => {
     // today visible until local midnight (endsAt > start of today), so an
     // all-day event doesn't vanish at 12:00am and a 7pm game isn't hidden the
     // moment it ends. Encoding-independent for all-day events.
-    db.calendarEvent.findMany({
-      where: {
-        startsAt: { lte: sevenDaysFromNow },
-        endsAt: { gt: startOfToday },
-        status: "CONFIRMED",
-        isHidden: false,
-      },
-      orderBy: { startsAt: "asc" },
-      take: 20,
-      include: {
-        location: { select: { id: true, name: true } },
-        shiftGroup: {
+    isIosHomeScope
+      ? Promise.resolve([])
+      : db.calendarEvent.findMany({
+          where: {
+            startsAt: { lte: sevenDaysFromNow },
+            endsAt: { gt: startOfToday },
+            status: "CONFIRMED",
+            isHidden: false,
+          },
+          orderBy: { startsAt: "asc" },
+          take: 20,
           include: {
-            shifts: {
+            location: { select: { id: true, name: true } },
+            shiftGroup: {
               include: {
-                assignments: {
-                  where: { status: { in: ["DIRECT_ASSIGNED", "APPROVED"] } },
-                  include: { user: { select: { id: true, name: true, avatarUrl: true } } },
+                shifts: {
+                  include: {
+                    assignments: {
+                      where: { status: { in: ["DIRECT_ASSIGNED", "APPROVED"] } },
+                      include: { user: { select: { id: true, name: true, avatarUrl: true } } },
+                    },
+                  },
                 },
               },
             },
           },
-        },
-      },
-    }),
+        }),
     // My reservations — next 7 days only (AC-4)
     db.booking.findMany({
       where: {
@@ -265,33 +275,37 @@ export const GET = withAuth(async (_req, { user }) => {
       include: bookingInclude,
     }),
     // Top overdue for banner — all roles see all overdue
-    db.booking.findMany({
-      where: {
-        kind: "CHECKOUT",
-        status: "OPEN",
-        endsAt: { lt: now },
-      },
-      orderBy: { endsAt: "asc" },
-      take: 5,
-      include: {
-        requester: { select: { id: true, name: true, avatarUrl: true } },
-        serializedItems: {
-          take: 3,
-          include: {
-            asset: { select: { id: true, assetTag: true, name: true, imageUrl: true } },
+    isIosHomeScope
+      ? Promise.resolve([])
+      : db.booking.findMany({
+          where: {
+            kind: "CHECKOUT",
+            status: "OPEN",
+            endsAt: { lt: now },
           },
-        },
-      },
-    }),
+          orderBy: { endsAt: "asc" },
+          take: 5,
+          include: {
+            requester: { select: { id: true, name: true, avatarUrl: true } },
+            serializedItems: {
+              take: 3,
+              include: {
+                asset: { select: { id: true, assetTag: true, name: true, imageUrl: true } },
+              },
+            },
+          },
+        }),
     // Drafts: current user's in-progress work
-    db.booking.findMany({
-      where: { status: "DRAFT", createdBy: user.id },
-      orderBy: { updatedAt: "desc" },
-      take: 5,
-      include: {
-        _count: { select: { serializedItems: true, bulkItems: true } },
-      },
-    }),
+    isIosHomeScope && user.role === "STUDENT"
+      ? Promise.resolve([])
+      : db.booking.findMany({
+          where: { status: "DRAFT", createdBy: user.id },
+          orderBy: { updatedAt: "desc" },
+          take: 5,
+          include: {
+            _count: { select: { serializedItems: true, bulkItems: true } },
+          },
+        }),
     // Pending pickups (checkouts marked ready but not yet picked up)
     // Order: pickups whose start time has passed first (most urgent),
     // then by earliest start time. Cap at 5 for the dashboard preview.

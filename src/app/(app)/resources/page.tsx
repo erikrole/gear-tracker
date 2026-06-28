@@ -1,50 +1,75 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Role, ShiftArea } from "@prisma/client";
+import { ResourceType, Role, ShiftArea } from "@prisma/client";
+import type { LucideIcon } from "lucide-react";
 import {
+  BookOpenIcon,
   BriefcaseBusinessIcon,
   Building2Icon,
-  CameraIcon,
-  ClockIcon,
+  ClipboardListIcon,
   FileTextIcon,
-  FilterIcon,
   FolderTreeIcon,
   HardDriveIcon,
-  LayersIcon,
+  LayoutGridIcon,
+  ListIcon,
   MailIcon,
   MapPinIcon,
-  MessageSquareIcon,
-  PaletteIcon,
   PhoneIcon,
   PlusIcon,
   SearchIcon,
   SlackIcon,
   SparklesIcon,
-  TargetIcon,
+  UsersIcon,
   VideoIcon,
+  WrenchIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import EmptyState from "@/components/EmptyState";
+import {
+  OperationalActiveFilterChips,
+  OperationalToolbar,
+  type OperationalActiveFilter,
+} from "@/components/OperationalToolbar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import EmptyState from "@/components/EmptyState";
-import { OperationalActiveFilterChips, type OperationalActiveFilter } from "@/components/OperationalToolbar";
-import { UserAvatar } from "@/components/UserAvatar";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useFetch } from "@/hooks/use-fetch";
+import {
+  inferResourceTypeFromCategory,
+  RESOURCE_TYPE_DESCRIPTIONS,
+  RESOURCE_TYPE_LABELS,
+} from "@/lib/guide-categories";
 import { getGuideFreshness } from "@/lib/guide-freshness";
 import type { GuideListItem } from "@/lib/guides";
 import { cn } from "@/lib/utils";
 import {
   parseResourceFilter,
+  parseResourceLayout,
   parseResourceSort,
   type ResourceFilterKey as FilterKey,
+  type ResourceLayoutKey as LayoutKey,
   type ResourceSortKey as SortKey,
 } from "./filters";
 
@@ -75,31 +100,16 @@ type ContactRoleFilter = "ALL" | Role;
 type ContactAreaFilter = "ALL" | ShiftArea | "UNASSIGNED";
 type ContactHygieneFilter = "ALL" | "MISSING_PHONE" | "MISSING_SLACK";
 
-type RailItem = {
-  key: FilterKey;
+type ScopeOption = {
+  value: FilterKey;
   label: string;
-  icon: typeof PhoneIcon;
-  category?: string;
-  area?: ShiftArea;
+  description?: string;
 };
 
-const AREA_FILTERS: RailItem[] = [
-  { key: "area-video", label: "Video", icon: VideoIcon, area: ShiftArea.VIDEO },
-  { key: "area-photo", label: "Photo", icon: CameraIcon, area: ShiftArea.PHOTO },
-  { key: "area-graphics", label: "Graphics", icon: PaletteIcon, area: ShiftArea.GRAPHICS },
-  { key: "area-comms", label: "Comms", icon: MessageSquareIcon, area: ShiftArea.COMMS },
-];
-
-const REFERENCE_FILTERS: RailItem[] = [
-  { key: "contacts", label: "Contacts", icon: PhoneIcon, category: "contacts" },
-  { key: "building-numbers", label: "Building Numbers", icon: Building2Icon, category: "building numbers" },
-  { key: "media-drive", label: "Media Drive", icon: HardDriveIcon, category: "media drive" },
-  { key: "server-paths", label: "Server Paths", icon: FolderTreeIcon, category: "server paths" },
-];
-
-const SMART_FILTERS: RailItem[] = [
-  { key: "recent", label: "Recently Updated", icon: ClockIcon },
-  { key: "my-area", label: "My Area", icon: TargetIcon },
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "personalized", label: "Recommended" },
+  { value: "recent", label: "Recently updated" },
+  { value: "title", label: "Title A-Z" },
 ];
 
 const CONTACT_ROLE_FILTERS: { value: ContactRoleFilter; label: string }[] = [
@@ -124,23 +134,55 @@ const CONTACT_HYGIENE_FILTERS: { value: ContactHygieneFilter; label: string }[] 
   { value: "MISSING_SLACK", label: "Missing Slack" },
 ];
 
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: "personalized", label: "Personalized" },
-  { value: "recent", label: "Recently updated" },
-  { value: "title", label: "Title A-Z" },
+const RESOURCE_TYPE_FILTERS: { key: FilterKey; type: ResourceType; icon: LucideIcon }[] = [
+  { key: "contacts", type: ResourceType.CONTACTS, icon: PhoneIcon },
+  { key: "building-numbers", type: ResourceType.BUILDING_NUMBERS, icon: Building2Icon },
+  { key: "media-drive", type: ResourceType.MEDIA_DRIVE, icon: HardDriveIcon },
+  { key: "server-paths", type: ResourceType.SERVER_PATHS, icon: FolderTreeIcon },
+  { key: "sop", type: ResourceType.SOP, icon: ClipboardListIcon },
+  { key: "how-to", type: ResourceType.HOW_TO, icon: BookOpenIcon },
+  { key: "troubleshooting", type: ResourceType.TROUBLESHOOTING, icon: WrenchIcon },
+  { key: "account-note", type: ResourceType.ACCOUNT_NOTE, icon: BriefcaseBusinessIcon },
+  { key: "event-ops", type: ResourceType.EVENT_OPS, icon: VideoIcon },
+  { key: "general", type: ResourceType.GENERAL, icon: FileTextIcon },
 ];
 
-function normalizeCategory(category: string) {
-  return category.trim().toLowerCase();
+const AREA_FILTERS: (ScopeOption & { area: ShiftArea })[] = [
+  { value: "area-video", label: "Video", area: ShiftArea.VIDEO },
+  { value: "area-photo", label: "Photo", area: ShiftArea.PHOTO },
+  { value: "area-graphics", label: "Graphics", area: ShiftArea.GRAPHICS },
+  { value: "area-comms", label: "Comms", area: ShiftArea.COMMS },
+];
+
+const SMART_FILTERS: ScopeOption[] = [
+  { value: "all", label: "All guides" },
+  { value: "recent", label: "Recently updated" },
+  { value: "my-area", label: "My area" },
+];
+
+const SCOPE_OPTIONS: ScopeOption[] = [
+  ...SMART_FILTERS,
+  ...RESOURCE_TYPE_FILTERS.map((item) => ({
+    value: item.key,
+    label: RESOURCE_TYPE_LABELS[item.type],
+    description: RESOURCE_TYPE_DESCRIPTIONS[item.type],
+  })),
+  ...AREA_FILTERS,
+];
+
+function resourceTypeOf(guide: GuideListItem) {
+  return guide.type ?? inferResourceTypeFromCategory(guide.category);
 }
 
 function guideSearchText(guide: GuideListItem) {
-  // Include the full body (markdown) so search matches document content, not
-  // just title/category/author/summary. The body is already in the list
-  // payload, and this mirrors the server-side `listGuides` search.
-  return [guide.title, guide.category, guide.author.name, guide.summary, guide.markdown]
-    .join(" ")
-    .toLowerCase();
+  return [
+    guide.title,
+    guide.category,
+    RESOURCE_TYPE_LABELS[resourceTypeOf(guide)],
+    guide.author.name,
+    guide.summary,
+    guide.markdown,
+  ].join(" ").toLowerCase();
 }
 
 function contactSearchText(user: ContactUser) {
@@ -164,6 +206,14 @@ function contactSearchText(user: ContactUser) {
 
 function formatShortDate(value: Date | string) {
   return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function formatFullDate(value: Date | string) {
+  return new Date(value).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 function formatArea(area: ShiftArea | null) {
@@ -193,274 +243,335 @@ function contactSubtitle(user: ContactUser) {
   return user.role === Role.STUDENT ? formatStudentYear(user) : user.title;
 }
 
-function hasSlackContact(user: ContactUser) {
-  return Boolean(displaySlackHandle(user.slackHandle) || user.slackProfileUrl);
-}
-
 function displaySlackHandle(value: string | null) {
   if (!value) return null;
   const normalized = value.trim().replace(/^@+/, "");
   return normalized ? `@${normalized}` : null;
 }
 
+function hasSlackContact(user: ContactUser) {
+  return Boolean(displaySlackHandle(user.slackHandle) || user.slackProfileUrl);
+}
+
+function typeForFilter(filter: FilterKey) {
+  return RESOURCE_TYPE_FILTERS.find((item) => item.key === filter)?.type ?? null;
+}
+
+function areaForFilter(filter: FilterKey) {
+  return AREA_FILTERS.find((item) => item.value === filter)?.area ?? null;
+}
+
 function matchesFilter(guide: GuideListItem, filter: FilterKey): boolean {
-  switch (filter) {
-    case "all":
-    case "recent":
-      return true;
-    case "my-area":
-      return guide.targetAreas.length > 0 && guide.personalizationReason !== "General";
-    case "area-video":
-      return guide.targetAreas.includes(ShiftArea.VIDEO);
-    case "area-photo":
-      return guide.targetAreas.includes(ShiftArea.PHOTO);
-    case "area-graphics":
-      return guide.targetAreas.includes(ShiftArea.GRAPHICS);
-    case "area-comms":
-      return guide.targetAreas.includes(ShiftArea.COMMS);
-    case "contacts":
-      return normalizeCategory(guide.category) === "contacts";
-    case "building-numbers":
-      return normalizeCategory(guide.category) === "building numbers";
-    case "media-drive":
-      return normalizeCategory(guide.category) === "media drive";
-    case "server-paths":
-      return normalizeCategory(guide.category) === "server paths";
+  if (filter === "all" || filter === "recent") return true;
+  if (filter === "my-area") {
+    return guide.targetAreas.length > 0 && guide.personalizationReason !== "General";
   }
+  const area = areaForFilter(filter);
+  if (area) return guide.targetAreas.includes(area);
+  const type = typeForFilter(filter);
+  if (type) return resourceTypeOf(guide) === type;
+  return true;
 }
 
 function countMatching(guides: GuideListItem[] | null, filter: FilterKey) {
   if (!guides) return 0;
   if (filter === "all") return guides.length;
-  return guides.reduce((sum, g) => (matchesFilter(g, filter) ? sum + 1 : sum), 0);
+  return guides.reduce((sum, guide) => (matchesFilter(guide, filter) ? sum + 1 : sum), 0);
 }
 
-function ResourceCard({ guide }: { guide: GuideListItem }) {
+function getFilterLabel(filter: FilterKey) {
+  return SCOPE_OPTIONS.find((option) => option.value === filter)?.label ?? "Filtered";
+}
+
+function audienceLabel(guide: GuideListItem) {
+  if (guide.targetRoles.length === 0 && guide.targetAreas.length === 0) return "Everyone";
+  const parts = [
+    ...guide.targetRoles.map(formatRole),
+    ...guide.targetAreas.map((area) => formatArea(area) ?? area),
+  ];
+  return parts.join(", ");
+}
+
+function ResourcesSkeleton() {
+  return (
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <Skeleton key={index} className="h-44 rounded-lg" />
+      ))}
+    </div>
+  );
+}
+
+function ResourceTypeIcon({ type, className }: { type: ResourceType; className?: string }) {
+  const Icon = RESOURCE_TYPE_FILTERS.find((item) => item.type === type)?.icon ?? FileTextIcon;
+  return <Icon className={cn("size-4", className)} aria-hidden="true" />;
+}
+
+function GuideCard({ guide, compact = false }: { guide: GuideListItem; compact?: boolean }) {
+  const type = resourceTypeOf(guide);
   const freshness = getGuideFreshness(guide);
 
   return (
     <Link
       href={`/resources/${guide.slug}`}
-      className="group flex h-full flex-col rounded-lg border bg-card p-4 transition-[border-color,box-shadow,scale] hover:border-foreground/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-[0.99]"
+      className="group block h-full rounded-lg focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
     >
-      <div className="mb-3 flex items-start gap-3">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-          {guide.featured ? <SparklesIcon className="size-4" /> : <FileTextIcon className="size-4" />}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <span className="line-clamp-2 text-sm font-semibold leading-snug group-hover:text-foreground">
-              {guide.title}
-            </span>
-            <div className="flex shrink-0 flex-col items-end gap-1">
-              {guide.featured && (
-                <Badge variant="purple" className="text-[10px]">
-                  Featured
-                </Badge>
-              )}
-              {!guide.published && (
-                <Badge variant="outline" className="text-[10px]">
-                  Draft
-                </Badge>
+      <Card
+        elevation="flat"
+        className={cn(
+          "h-full min-h-44 transition-[border-color,box-shadow,scale] group-hover:border-foreground/30 group-hover:shadow-sm group-active:scale-[0.99]",
+          compact && "min-h-36",
+        )}
+      >
+        <CardHeader className="gap-3 p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+              {guide.featured ? (
+                <SparklesIcon className="size-4" aria-hidden="true" />
+              ) : (
+                <ResourceTypeIcon type={type} />
               )}
             </div>
+            <div className="min-w-0 flex-1">
+              <CardTitle className="line-clamp-2 text-sm leading-snug text-foreground">
+                {guide.title}
+              </CardTitle>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <Badge variant="secondary" size="sm">
+                  {RESOURCE_TYPE_LABELS[type]}
+                </Badge>
+                {!guide.published && (
+                  <Badge variant="outline" size="sm">
+                    Draft
+                  </Badge>
+                )}
+              </div>
+            </div>
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            <Badge variant="secondary" className="text-[10px]">
-              {guide.category}
-            </Badge>
+        </CardHeader>
+
+        <CardContent className="flex flex-1 flex-col gap-3 px-4 pb-4 pt-0">
+          {!compact && (
+            <p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground text-pretty">
+              {guide.summary || "No preview text yet."}
+            </p>
+          )}
+          <div className="mt-auto flex flex-wrap items-center gap-2">
             <Badge
               variant={freshness.status === "verified" ? "green" : "orange"}
-              className="text-[10px]"
+              size="sm"
               title={freshness.detail}
             >
               {freshness.label}
             </Badge>
+            <span className="text-xs text-muted-foreground">{audienceLabel(guide)}</span>
           </div>
+        </CardContent>
+
+        <CardFooter className="justify-between gap-3 px-4 pb-4 pt-0 text-xs text-muted-foreground">
+          <span className="truncate">By {guide.author.name}</span>
+          <span className="shrink-0 tabular-nums" title={`Updated ${formatFullDate(guide.updatedAt)}`}>
+            {formatShortDate(guide.updatedAt)}
+          </span>
+        </CardFooter>
+      </Card>
+    </Link>
+  );
+}
+
+function GuideListRow({ guide }: { guide: GuideListItem }) {
+  const type = resourceTypeOf(guide);
+  const freshness = getGuideFreshness(guide);
+
+  return (
+    <Link
+      href={`/resources/${guide.slug}`}
+      className="group grid min-h-24 gap-3 rounded-lg border bg-card p-4 text-card-foreground transition-[border-color,box-shadow,scale] hover:border-foreground/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-[0.99] md:grid-cols-[minmax(0,1fr)_auto]"
+    >
+      <div className="flex min-w-0 gap-3">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+          <ResourceTypeIcon type={type} />
+        </div>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="line-clamp-1 text-sm font-semibold text-foreground">{guide.title}</h3>
+            {!guide.published && (
+              <Badge variant="outline" size="sm">
+                Draft
+              </Badge>
+            )}
+          </div>
+          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground text-pretty">
+            {guide.summary || "No preview text yet."}
+          </p>
         </div>
       </div>
-      <p className="line-clamp-3 flex-1 text-sm text-muted-foreground">
-        {guide.summary || "No preview text yet."}
-      </p>
-      <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-        <span className="truncate">{guide.author.name}</span>
-        <span className="shrink-0 tabular-nums">{formatShortDate(guide.updatedAt)}</span>
+      <div className="flex flex-wrap items-center gap-2 md:justify-end">
+        <Badge variant="secondary" size="sm">
+          {RESOURCE_TYPE_LABELS[type]}
+        </Badge>
+        <Badge
+          variant={freshness.status === "verified" ? "green" : "orange"}
+          size="sm"
+          title={freshness.detail}
+        >
+          {freshness.label}
+        </Badge>
+        <span className="text-xs text-muted-foreground tabular-nums">{formatShortDate(guide.updatedAt)}</span>
       </div>
     </Link>
   );
 }
 
-function RailButton({
-  item,
-  active,
-  count,
-  onSelect,
-}: {
-  item: RailItem;
-  active: boolean;
-  count: number;
-  onSelect: (key: FilterKey) => void;
-}) {
-  const Icon = item.icon;
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(item.key)}
-      className={cn(
-        "flex min-h-10 w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
-        active
-          ? "bg-muted text-foreground"
-          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-      )}
-    >
-      <span className="flex min-w-0 items-center gap-2">
-        <Icon className="size-4 shrink-0" />
-        <span className="truncate">{item.label}</span>
-      </span>
-      <span
-        className={cn(
-          "shrink-0 rounded-md px-1.5 py-0.5 text-[11px] tabular-nums",
-          active ? "bg-background text-foreground" : "bg-muted text-muted-foreground",
-        )}
-      >
-        {count}
-      </span>
-    </button>
-  );
-}
-
-function RailSection({
+function SectionHeader({
   title,
-  children,
+  description,
+  action,
 }: {
   title: string;
-  children: React.ReactNode;
+  description?: string;
+  action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1">
-      <div className="px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-        {title}
+    <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="min-w-0">
+        <h2 className="text-base font-semibold tracking-tight">{title}</h2>
+        {description && (
+          <p className="mt-1 max-w-3xl text-sm text-muted-foreground text-pretty">{description}</p>
+        )}
       </div>
-      {children}
+      {action}
     </div>
   );
 }
 
-function CategoryButton({
-  label,
-  active,
+function GuideResults({
+  guides,
+  layout,
+  compact = false,
+}: {
+  guides: GuideListItem[];
+  layout: LayoutKey;
+  compact?: boolean;
+}) {
+  if (layout === "list") {
+    return (
+      <div className="flex flex-col gap-2">
+        {guides.map((guide) => (
+          <GuideListRow key={guide.id} guide={guide} />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      {guides.map((guide) => (
+        <GuideCard key={guide.id} guide={guide} compact={compact} />
+      ))}
+    </div>
+  );
+}
+
+function GuideCollectionTiles({
+  guides,
+  contactCount,
+  activeFilter,
   onSelect,
 }: {
-  label: string;
-  active: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={cn(
-        "flex min-h-10 w-full items-center rounded-md px-2.5 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
-        active
-          ? "bg-muted text-foreground"
-          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-      )}
-    >
-      <span className="truncate">{label}</span>
-    </button>
-  );
-}
-
-function FilterRail({
-  guides,
-  contactsTotal,
-  activeFilter,
-  categories,
-  activeCategory,
-  onFilterSelect,
-  onCategorySelect,
-}: {
   guides: GuideListItem[] | null;
-  contactsTotal: number;
+  contactCount: number;
   activeFilter: FilterKey;
-  categories: string[];
-  activeCategory: string;
-  onFilterSelect: (key: FilterKey) => void;
-  onCategorySelect: (category: string) => void;
+  onSelect: (filter: FilterKey) => void;
 }) {
-  const allCount = guides?.length ?? 0;
-  const allActive = activeFilter === "all" && activeCategory === "All";
-
   return (
-    <nav aria-label="Resource filters" className="flex flex-col gap-3">
-      <RailButton
-        item={{ key: "all", label: "All resources", icon: LayersIcon }}
-        active={allActive}
-        count={allCount}
-        onSelect={onFilterSelect}
+    <section className="flex flex-col gap-3">
+      <SectionHeader
+        title="Guide collections"
+        description="Start with the focus area, then drill into the smaller Guides that replaced the master doc."
       />
-
-      <Separator />
-
-      <RailSection title="Smart">
-        {SMART_FILTERS.map((item) => (
-          <RailButton
-            key={item.key}
-            item={item}
-            active={activeFilter === item.key}
-            count={countMatching(guides, item.key)}
-            onSelect={onFilterSelect}
-          />
-        ))}
-      </RailSection>
-
-      <RailSection title="By area">
-        {AREA_FILTERS.map((item) => (
-          <RailButton
-            key={item.key}
-            item={item}
-            active={activeFilter === item.key}
-            count={countMatching(guides, item.key)}
-            onSelect={onFilterSelect}
-          />
-        ))}
-      </RailSection>
-
-      <RailSection title="Reference">
-        {REFERENCE_FILTERS.map((item) => {
-          const count = item.key === "contacts" ? contactsTotal : countMatching(guides, item.key);
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {RESOURCE_TYPE_FILTERS.map((item) => {
+          const authoredCount = countMatching(guides, item.key);
+          const count = item.type === ResourceType.CONTACTS ? authoredCount + contactCount : authoredCount;
+          const active = activeFilter === item.key;
+          const Icon = item.icon;
           return (
-            <RailButton
+            <Button
               key={item.key}
-              item={item}
-              active={activeFilter === item.key}
-              count={count}
-              onSelect={onFilterSelect}
-            />
+              type="button"
+              variant={active ? "secondary" : "outline"}
+              className="h-auto min-h-24 justify-start p-3 text-left"
+              onClick={() => onSelect(item.key)}
+            >
+              <span className="flex min-w-0 flex-col gap-2">
+                <span className="flex items-center gap-2">
+                  <Icon data-icon="inline-start" />
+                  <span className="truncate font-semibold">{RESOURCE_TYPE_LABELS[item.type]}</span>
+                </span>
+                <span className="line-clamp-2 text-xs font-normal text-muted-foreground text-pretty">
+                  {RESOURCE_TYPE_DESCRIPTIONS[item.type]}
+                </span>
+                <span className="text-xs font-medium tabular-nums text-muted-foreground">
+                  {count} {item.type === ResourceType.CONTACTS
+                    ? count === 1 ? "reference" : "references"
+                    : count === 1 ? "guide" : "guides"}
+                </span>
+              </span>
+            </Button>
           );
         })}
-      </RailSection>
-
-      {categories.length > 0 && (
-        <RailSection title="All categories">
-          {categories.map((category) => (
-            <CategoryButton
-              key={category}
-              label={category}
-              active={activeCategory === category}
-              onSelect={() => onCategorySelect(category)}
-            />
-          ))}
-        </RailSection>
-      )}
-    </nav>
+      </div>
+    </section>
   );
 }
 
-function getFilterLabel(filter: FilterKey) {
-  if (filter === "all") return "All resources";
-  const all = [...SMART_FILTERS, ...AREA_FILTERS, ...REFERENCE_FILTERS];
-  return all.find((i) => i.key === filter)?.label ?? "Filtered";
+function AreaGuideLanes({
+  guides,
+  layout,
+  onSelect,
+}: {
+  guides: GuideListItem[];
+  layout: LayoutKey;
+  onSelect: (filter: FilterKey) => void;
+}) {
+  const lanes = AREA_FILTERS.map((option) => {
+    const areaGuides = guides.filter((guide) => guide.targetAreas.includes(option.area));
+    return { ...option, guides: areaGuides.slice(0, 3), total: areaGuides.length };
+  }).filter((lane) => lane.total > 0);
+
+  if (lanes.length === 0) return null;
+
+  return (
+    <section className="flex flex-col gap-4">
+      <SectionHeader
+        title="Area guide lanes"
+        description="Focused Guides grouped by the Creative area they support."
+      />
+      <div className="grid gap-5 xl:grid-cols-2">
+        {lanes.map((lane) => (
+          <section key={lane.value} className="flex min-w-0 flex-col gap-3">
+            <SectionHeader
+              title={`${lane.label} guides`}
+              description={`${lane.total} ${lane.total === 1 ? "guide" : "guides"} targeted to ${lane.label}.`}
+              action={(
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-10"
+                  onClick={() => onSelect(lane.value)}
+                >
+                  View all
+                </Button>
+              )}
+            />
+            <GuideResults guides={lane.guides} layout={layout} compact />
+          </section>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 export default function ResourcesPage() {
@@ -471,7 +582,7 @@ export default function ResourcesPage() {
   const activeCategory = searchParams.get("category") ?? "All";
   const activeFilter = parseResourceFilter(searchParams);
   const sort = parseResourceSort(searchParams.get("sort"));
-  const [railOpen, setRailOpen] = useState(false);
+  const layout = parseResourceLayout(searchParams.get("layout"));
   const [contactRoleFilter, setContactRoleFilter] = useState<ContactRoleFilter>("ALL");
   const [contactAreaFilter, setContactAreaFilter] = useState<ContactAreaFilter>("ALL");
   const [contactHygieneFilter, setContactHygieneFilter] = useState<ContactHygieneFilter>("ALL");
@@ -499,24 +610,19 @@ export default function ResourcesPage() {
       if (key === "all") params.delete("filter");
       else params.set("filter", key);
     });
-    setRailOpen(false);
-  };
-
-  const setCategory = (category: string) => {
-    replaceParams((params) => {
-      params.delete("filter");
-      params.delete("view");
-      params.delete("area");
-      if (category === "All") params.delete("category");
-      else params.set("category", category);
-    });
-    setRailOpen(false);
   };
 
   const setSort = (value: SortKey) => {
     replaceParams((params) => {
       if (value === "personalized") params.delete("sort");
       else params.set("sort", value);
+    });
+  };
+
+  const setLayout = (value: LayoutKey) => {
+    replaceParams((params) => {
+      if (value === "cards") params.delete("layout");
+      else params.set("layout", value);
     });
   };
 
@@ -530,24 +636,13 @@ export default function ResourcesPage() {
     transform: (json) => (json as { user: MeResponse }).user,
   });
 
-  const isStaffOrAdmin =
-    meData?.role === Role.STAFF || meData?.role === Role.ADMIN;
+  const isStaffOrAdmin = meData?.role === Role.STAFF || meData?.role === Role.ADMIN;
 
   const { data: contactUsers, loading: contactsLoading } = useFetch<ContactUsersResponse>({
     url: "/api/users?limit=200&sort=name",
     refetchOnFocus: true,
     transform: (json) => json as unknown as ContactUsersResponse,
   });
-
-  const showContactsDirectory =
-    activeFilter === "contacts" || activeCategory === "Contacts";
-
-  const categories = useMemo(() => {
-    if (!guides) return [];
-    const seen = new Set<string>();
-    for (const guide of guides) seen.add(guide.category);
-    return [...seen].sort();
-  }, [guides]);
 
   const filtered = useMemo(() => {
     if (!guides) return [];
@@ -558,9 +653,9 @@ export default function ResourcesPage() {
       return matchesSearch && matchesCategory && matchesFilter(guide, activeFilter);
     });
     if (sort === "recent" || activeFilter === "recent") {
-      return [...base].sort(
-        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-      );
+      return [...base].sort((a, b) => (
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      ));
     }
     if (sort === "title") {
       return [...base].sort((a, b) => a.title.localeCompare(b.title));
@@ -595,16 +690,6 @@ export default function ResourcesPage() {
     };
   }, [contactUsers, filteredContactUsers.length]);
 
-  const clearAll = () => {
-    router.replace(pathname, { scroll: false });
-    setContactRoleFilter("ALL");
-    setContactAreaFilter("ALL");
-    setContactHygieneFilter("ALL");
-  };
-
-  const hasAnyFilter =
-    Boolean(search) || activeCategory !== "All" || activeFilter !== "all" || sort !== "personalized";
-
   const activeFilters: OperationalActiveFilter[] = [
     ...(activeFilter !== "all"
       ? [{
@@ -617,7 +702,9 @@ export default function ResourcesPage() {
       ? [{
           key: "category",
           label: activeCategory,
-          onRemove: () => setCategory("All"),
+          onRemove: () => {
+            replaceParams((params) => params.delete("category"));
+          },
         }]
       : []),
     ...(search
@@ -636,103 +723,163 @@ export default function ResourcesPage() {
       : []),
   ];
 
-  const sortLabel = SORT_OPTIONS.find((option) => option.value === sort)?.label ?? "Personalized";
-
-  const railProps = {
-    guides,
-    contactsTotal: contactUsers?.total ?? 0,
-    activeFilter,
-    categories,
-    activeCategory,
-    onFilterSelect: setFilter,
-    onCategorySelect: setCategory,
+  const clearAll = () => {
+    router.replace(pathname, { scroll: false });
+    setContactRoleFilter("ALL");
+    setContactAreaFilter("ALL");
+    setContactHygieneFilter("ALL");
   };
+
+  const hasAnyFilter =
+    Boolean(search) || activeCategory !== "All" || activeFilter !== "all" || sort !== "personalized";
+  const homeView = !hasAnyFilter;
+  const totalGuides = guides?.length ?? 0;
+  const featuredGuides = homeView
+    ? filtered.filter((guide) => guide.featured).slice(0, 6)
+    : [];
+  const recentGuides = homeView
+    ? [...filtered].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 6)
+    : [];
+  const contactDirectoryVisible =
+    activeFilter === "contacts" ||
+    homeView ||
+    (Boolean(search.trim()) && filteredContactUsers.length > 0);
+  const contactDirectoryCompact = activeFilter !== "contacts" && !search.trim();
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Resources"
-        description="Area guides, contacts, building numbers, Media Drive, server paths, and SOPs -- one searchable directory."
+        description="Focused Creative Guides broken out by area, workflow, contact set, path, and operating reference."
       >
         {isStaffOrAdmin && (
           <Button asChild size="sm" className="h-10">
             <Link href="/resources/new">
-              <PlusIcon className="size-4 mr-1.5" />
-              New Resource
+              <PlusIcon data-icon="inline-start" />
+              New guide
             </Link>
           </Button>
         )}
       </PageHeader>
 
-      <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)]">
-        <aside className="hidden lg:block">
-          <div className="sticky top-6 max-h-[calc(100vh-3rem)] overflow-y-auto rounded-lg border bg-card p-3">
-            <FilterRail {...railProps} />
+      <OperationalToolbar aria-label="Guide search and filters">
+        <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
+          <div className="relative min-w-0 flex-1">
+            <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="resources-search"
+              name="resources-search"
+              placeholder="Search guides, contacts, paths, workflows, and notes..."
+              value={search}
+              onChange={(event) => setSearchParam(event.target.value)}
+              className="h-10 pl-9"
+            />
           </div>
-        </aside>
-
-        <div className="flex min-w-0 flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-0 flex-1">
-              <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-              <Input
-                id="resources-search"
-                name="resources-search"
-                placeholder="Search titles, categories, authors, text..."
-                value={search}
-                onChange={(event) => setSearchParam(event.target.value)}
-                className="h-10 pl-9"
-              />
-            </div>
-            <Sheet open={railOpen} onOpenChange={setRailOpen}>
-              <SheetTrigger asChild>
-                <Button variant="outline" size="sm" className="h-10 lg:hidden">
-                  <FilterIcon className="size-4 mr-1.5" />
-                  Filters
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-72 overflow-y-auto p-4">
-                <SheetHeader className="mb-3 p-0">
-                  <SheetTitle>Filters</SheetTitle>
-                </SheetHeader>
-                <FilterRail {...railProps} />
-              </SheetContent>
-            </Sheet>
-            <Select
-              value={sort}
-              onValueChange={(value) => setSort(value as SortKey)}
-            >
-              <SelectTrigger className="h-10 w-[180px]" aria-label="Sort resources">
-                <span className="truncate">{sortLabel}</span>
+          <div className="grid gap-2 sm:grid-cols-2 lg:flex lg:shrink-0">
+            <Select value={activeFilter} onValueChange={(value) => setFilter(value as FilterKey)}>
+              <SelectTrigger className="h-10 lg:w-[210px]" aria-label="Guide focus">
+                <SelectValue placeholder="All guides" />
               </SelectTrigger>
               <SelectContent>
-                {SORT_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  <SelectLabel>Smart</SelectLabel>
+                  {SMART_FILTERS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+                <SelectGroup>
+                  <SelectLabel>Guide focus</SelectLabel>
+                  {RESOURCE_TYPE_FILTERS.map((item) => (
+                    <SelectItem key={item.key} value={item.key}>
+                      {RESOURCE_TYPE_LABELS[item.type]}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+                <SelectGroup>
+                  <SelectLabel>Creative area</SelectLabel>
+                  {AREA_FILTERS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
-          </div>
 
-          {hasAnyFilter && (
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <OperationalActiveFilterChips filters={activeFilters} />
+            <Select value={sort} onValueChange={(value) => setSort(value as SortKey)}>
+              <SelectTrigger className="h-10 lg:w-[180px]" aria-label="Sort guides">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>Sort</SelectLabel>
+                  {SORT_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+
+            <ToggleGroup
+              type="single"
+              value={layout}
+              onValueChange={(value) => {
+                if (value) setLayout(value as LayoutKey);
+              }}
+              className="min-h-10 justify-self-start [&_svg]:size-4"
+              aria-label="Guide layout"
+            >
+              <ToggleGroupItem value="cards" aria-label="Cards" className="min-h-9 px-3">
+                <LayoutGridIcon aria-hidden="true" />
+                <span className="hidden sm:inline">Cards</span>
+              </ToggleGroupItem>
+              <ToggleGroupItem value="list" aria-label="List" className="min-h-9 px-3">
+                <ListIcon aria-hidden="true" />
+                <span className="hidden sm:inline">List</span>
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+        </div>
+
+        {(activeFilters.length > 0 || hasAnyFilter) && (
+          <div className="flex flex-wrap items-center gap-2">
+            <OperationalActiveFilterChips filters={activeFilters} />
+            {hasAnyFilter && (
               <Button variant="ghost" size="sm" className="h-10" onClick={clearAll}>
                 Clear all
               </Button>
-              <span className="ml-auto tabular-nums">
-                {filtered.length} {filtered.length === 1 ? "result" : "results"}
+            )}
+            {!guidesLoading && (
+              <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                {filtered.length} of {totalGuides} guides
               </span>
-            </div>
-          )}
+            )}
+          </div>
+        )}
+      </OperationalToolbar>
 
-          {showContactsDirectory && (
+      {homeView && (
+        <GuideCollectionTiles
+          guides={guides}
+          contactCount={contactUsers?.total ?? contactUsers?.data?.length ?? 0}
+          activeFilter={activeFilter}
+          onSelect={setFilter}
+        />
+      )}
+
+      {guidesLoading ? (
+        <ResourcesSkeleton />
+      ) : filtered.length === 0 && !homeView ? (
+        <>
+          {contactDirectoryVisible && (
             <LiveContactsDirectory
               users={filteredContactUsers}
               loading={contactsLoading}
               total={contactUsers?.total ?? 0}
-              hasGuideResults={filtered.length > 0}
               search={search}
               roleFilter={contactRoleFilter}
               areaFilter={contactAreaFilter}
@@ -742,46 +889,116 @@ export default function ResourcesPage() {
               onHygieneFilterChange={setContactHygieneFilter}
               stats={contactStats}
               canSeeContactHygiene={isStaffOrAdmin}
+              compact={contactDirectoryCompact}
+              onShowAll={() => setFilter("contacts")}
+            />
+          )}
+          <EmptyState
+            icon="search"
+            title="No guides match this view"
+            description="Try a different keyword, focus area, Creative area, or sort."
+            actionLabel="Clear filters"
+            onAction={clearAll}
+          />
+        </>
+      ) : homeView ? (
+        <div className="flex flex-col gap-8">
+          {featuredGuides.length > 0 && (
+            <section className="flex flex-col gap-3">
+              <SectionHeader
+                title="Featured guides"
+                description="Curated breakouts worth keeping close."
+              />
+              <GuideResults guides={featuredGuides} layout={layout} />
+            </section>
+          )}
+
+          <AreaGuideLanes guides={filtered} layout={layout} onSelect={setFilter} />
+
+          {recentGuides.length > 0 && (
+            <section className="flex flex-col gap-3">
+              <SectionHeader
+                title="Recently updated"
+                description="Fresh guide edits and recently verified references."
+                action={(
+                  <Button type="button" variant="outline" size="sm" className="h-10" onClick={() => setFilter("recent")}>
+                    View recent
+                  </Button>
+                )}
+              />
+              <GuideResults guides={recentGuides} layout={layout} compact />
+            </section>
+          )}
+
+          {contactDirectoryVisible && (
+            <LiveContactsDirectory
+              users={filteredContactUsers}
+              loading={contactsLoading}
+              total={contactUsers?.total ?? 0}
+              search={search}
+              roleFilter={contactRoleFilter}
+              areaFilter={contactAreaFilter}
+              hygieneFilter={contactHygieneFilter}
+              onRoleFilterChange={setContactRoleFilter}
+              onAreaFilterChange={setContactAreaFilter}
+              onHygieneFilterChange={setContactHygieneFilter}
+              stats={contactStats}
+              canSeeContactHygiene={isStaffOrAdmin}
+              compact={contactDirectoryCompact}
+              onShowAll={() => setFilter("contacts")}
             />
           )}
 
-          {guidesLoading ? (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <Skeleton key={index} className="h-40 rounded-lg" />
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            showContactsDirectory ? null : hasAnyFilter ? (
-              <EmptyState
-                icon="search"
-                title="No resources match your filters"
-                description="Try a different keyword, category, or filter."
-                actionLabel="Clear filters"
-                onAction={clearAll}
-              />
+          <section className="flex flex-col gap-3">
+            <SectionHeader
+              title="All guides"
+              description="Every published and draft Guide you can access."
+            />
+            {filtered.length > 0 ? (
+              <GuideResults guides={filtered} layout={layout} />
             ) : (
               <EmptyState
+                inline
                 icon="folder"
-                title="No resources yet"
-                description={
-                  isStaffOrAdmin
-                    ? "Add the first contact list, server path, SOP, or general reference note."
-                    : "Check back later for Creative operations references."
-                }
-                actionLabel={isStaffOrAdmin ? "New Resource" : undefined}
-                actionHref={isStaffOrAdmin ? "/resources/new" : undefined}
+                title="No guides yet"
+                description="Create focused Guides from the current master doc as each area is ready."
               />
-            )
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {filtered.map((guide) => (
-                <ResourceCard key={guide.id} guide={guide} />
-              ))}
-            </div>
-          )}
+            )}
+          </section>
         </div>
-      </div>
+      ) : (
+        <div className="flex flex-col gap-6">
+          {contactDirectoryVisible && (
+            <LiveContactsDirectory
+              users={filteredContactUsers}
+              loading={contactsLoading}
+              total={contactUsers?.total ?? 0}
+              search={search}
+              roleFilter={contactRoleFilter}
+              areaFilter={contactAreaFilter}
+              hygieneFilter={contactHygieneFilter}
+              onRoleFilterChange={setContactRoleFilter}
+              onAreaFilterChange={setContactAreaFilter}
+              onHygieneFilterChange={setContactHygieneFilter}
+              stats={contactStats}
+              canSeeContactHygiene={isStaffOrAdmin}
+              compact={contactDirectoryCompact}
+              onShowAll={() => setFilter("contacts")}
+            />
+          )}
+          <section className="flex flex-col gap-3">
+            <SectionHeader
+              title={getFilterLabel(activeFilter)}
+              description={
+                activeFilter === "contacts"
+                  ? "Authored contact Guides are listed here. Live team contacts stay alongside them."
+                  : "Filtered Guides from the library."
+              }
+            />
+            <GuideResults guides={filtered} layout={layout} />
+          </section>
+        </div>
+      )}
     </div>
   );
 }
@@ -790,7 +1007,6 @@ function LiveContactsDirectory({
   users,
   loading,
   total,
-  hasGuideResults,
   search,
   roleFilter,
   areaFilter,
@@ -800,11 +1016,12 @@ function LiveContactsDirectory({
   onHygieneFilterChange,
   stats,
   canSeeContactHygiene,
+  compact,
+  onShowAll,
 }: {
   users: ContactUser[];
   loading: boolean;
   total: number;
-  hasGuideResults: boolean;
   search: string;
   roleFilter: ContactRoleFilter;
   areaFilter: ContactAreaFilter;
@@ -819,20 +1036,22 @@ function LiveContactsDirectory({
     missingSlack: number;
   };
   canSeeContactHygiene: boolean;
+  compact: boolean;
+  onShowAll: () => void;
 }) {
-  const hasContactFilters =
-    roleFilter !== "ALL" || areaFilter !== "ALL" || hygieneFilter !== "ALL";
+  const shownUsers = compact ? users.slice(0, 6) : users;
+  const hasContactFilters = roleFilter !== "ALL" || areaFilter !== "ALL" || hygieneFilter !== "ALL";
 
   return (
-    <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+    <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <PhoneIcon className="size-4 text-muted-foreground" />
+          <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight">
+            <UsersIcon className="size-4 text-muted-foreground" aria-hidden="true" />
             Team contacts
           </h2>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Pulled from active user profiles. Update someone&apos;s phone, title, area, or location on their user profile and this directory follows.
+          <p className="mt-1 max-w-3xl text-sm text-muted-foreground text-pretty">
+            Profile-backed contacts support the Guide library without duplicating phone and Slack details in Markdown.
           </p>
         </div>
         {!loading && (
@@ -848,13 +1067,13 @@ function LiveContactsDirectory({
               </Badge>
             )}
             <Badge variant="secondary" className="tabular-nums">
-              {stats.visible}/{total} shown
+              {compact ? Math.min(users.length, 6) : stats.visible}/{total} shown
             </Badge>
           </div>
         )}
       </div>
 
-      {!loading && (
+      {!compact && !loading && (
         <ContactDirectoryFilters
           roleFilter={roleFilter}
           areaFilter={areaFilter}
@@ -868,28 +1087,35 @@ function LiveContactsDirectory({
 
       {loading ? (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, index) => (
+          {Array.from({ length: compact ? 3 : 6 }).map((_, index) => (
             <Skeleton key={index} className="h-32 rounded-lg" />
           ))}
         </div>
-      ) : users.length === 0 ? (
-        <div className="rounded-md border border-dashed p-5 text-sm text-muted-foreground">
-          {search.trim() || hasContactFilters
-            ? "No active users match these Contacts filters."
-            : "No active users are available for the live contact directory."}
-        </div>
+      ) : shownUsers.length === 0 ? (
+        <EmptyState
+          inline
+          icon="users"
+          title="No contacts match this view"
+          description={
+            search.trim() || hasContactFilters
+              ? "Try a different contact search or filter."
+              : "No active users are available for the live contact directory."
+          }
+        />
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {users.map((user) => (
+          {shownUsers.map((user) => (
             <ContactCard key={user.id} user={user} />
           ))}
         </div>
       )}
 
-      {hasGuideResults && (
-        <p className="text-xs text-muted-foreground">
-          Authored Contacts resources are listed below for vendor numbers, escalation notes, and anything that does not belong on a user profile.
-        </p>
+      {compact && users.length > 6 && (
+        <div className="flex justify-end">
+          <Button type="button" variant="outline" size="sm" className="h-10" onClick={onShowAll}>
+            Show all contacts
+          </Button>
+        </div>
       )}
     </section>
   );
@@ -914,23 +1140,23 @@ function ContactDirectoryFilters({
 }) {
   return (
     <div className="grid gap-3 rounded-md bg-muted/30 p-3 md:grid-cols-2 xl:grid-cols-3">
-      <ContactFilterGroup
+      <ContactSelect
         label="Role"
-        options={CONTACT_ROLE_FILTERS}
         value={roleFilter}
+        options={CONTACT_ROLE_FILTERS}
         onChange={onRoleFilterChange}
       />
-      <ContactFilterGroup
+      <ContactSelect
         label="Area"
-        options={CONTACT_AREA_FILTERS}
         value={areaFilter}
+        options={CONTACT_AREA_FILTERS}
         onChange={onAreaFilterChange}
       />
       {canSeeContactHygiene && (
-        <ContactFilterGroup
+        <ContactSelect
           label="Cleanup"
-          options={CONTACT_HYGIENE_FILTERS}
           value={hygieneFilter}
+          options={CONTACT_HYGIENE_FILTERS}
           onChange={onHygieneFilterChange}
         />
       )}
@@ -938,37 +1164,36 @@ function ContactDirectoryFilters({
   );
 }
 
-function ContactFilterGroup<TValue extends string>({
+function ContactSelect<TValue extends string>({
   label,
-  options,
   value,
+  options,
   onChange,
 }: {
   label: string;
-  options: { value: TValue; label: string }[];
   value: TValue;
+  options: { value: TValue; label: string }[];
   onChange: (value: TValue) => void;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-2">
-      <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </span>
-      <div className="flex flex-wrap gap-1.5">
-        {options.map((option) => (
-          <Button
-            key={option.value}
-            type="button"
-            variant={value === option.value ? "secondary" : "outline"}
-            size="sm"
-            className="h-10 rounded-md px-3 text-xs active:scale-[0.96] transition-transform"
-            onClick={() => onChange(option.value)}
-          >
-            {option.label}
-          </Button>
-        ))}
-      </div>
-    </div>
+    <label className="flex min-w-0 flex-col gap-1.5 text-xs font-medium text-muted-foreground">
+      {label}
+      <Select value={value} onValueChange={(next) => onChange(next as TValue)}>
+        <SelectTrigger className="h-10 bg-background text-foreground" aria-label={`${label} contact filter`}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            <SelectLabel>{label}</SelectLabel>
+            {options.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    </label>
   );
 }
 
@@ -978,34 +1203,32 @@ function ContactCard({ user }: { user: ContactUser }) {
   const slackHandle = displaySlackHandle(user.slackHandle);
 
   return (
-    <article className="flex min-h-32 flex-col rounded-lg border bg-background p-4 transition-[border-color,box-shadow] hover:border-foreground/30 hover:shadow-sm">
-      <div className="flex items-start gap-3">
-        <UserAvatar
-          name={user.name}
-          avatarUrl={user.avatarUrl}
-          size="lg"
-          className="shrink-0 ring-1 ring-border"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <h3 className="truncate text-sm font-semibold leading-tight">
-                {user.name}
-              </h3>
-              {subtitle && (
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {subtitle}
-                </p>
-              )}
+    <Card elevation="flat" className="min-h-32 transition-[border-color,box-shadow] hover:border-foreground/30 hover:shadow-sm">
+      <CardHeader className="p-4 pb-0">
+        <div className="flex items-start gap-3">
+          <UserAvatar
+            name={user.name}
+            avatarUrl={user.avatarUrl}
+            size="lg"
+            className="shrink-0 ring-1 ring-border"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <CardTitle className="truncate text-sm leading-tight">{user.name}</CardTitle>
+                {subtitle && (
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{subtitle}</p>
+                )}
+              </div>
+              <Badge variant="secondary" size="sm" className="shrink-0">
+                {formatRole(user.role)}
+              </Badge>
             </div>
-            <Badge variant="secondary" className="shrink-0 text-[10px]">
-              {formatRole(user.role)}
-            </Badge>
           </div>
         </div>
-      </div>
+      </CardHeader>
 
-      <div className="mt-4 grid flex-1 content-start gap-2 text-xs text-muted-foreground">
+      <CardContent className="grid flex-1 content-start gap-2 p-4 text-xs text-muted-foreground">
         <ContactLine icon={MailIcon} label={user.email} href={`mailto:${user.email}`} />
         <ContactLine
           icon={PhoneIcon}
@@ -1020,25 +1243,25 @@ function ContactCard({ user }: { user: ContactUser }) {
         <div className="flex min-w-0 flex-wrap gap-2">
           {area && (
             <span className="inline-flex min-w-0 items-center gap-1 rounded-md bg-muted px-2 py-1">
-              <BriefcaseBusinessIcon className="size-3.5 shrink-0" />
+              <BriefcaseBusinessIcon className="size-3.5 shrink-0" aria-hidden="true" />
               <span className="truncate">{area}</span>
             </span>
           )}
           {user.location && (
             <span className="inline-flex min-w-0 items-center gap-1 rounded-md bg-muted px-2 py-1">
-              <MapPinIcon className="size-3.5 shrink-0" />
+              <MapPinIcon className="size-3.5 shrink-0" aria-hidden="true" />
               <span className="truncate">{user.location}</span>
             </span>
           )}
         </div>
-      </div>
+      </CardContent>
 
-      <div className="mt-4">
+      <CardFooter className="px-4 pb-4 pt-0">
         <Button asChild variant="outline" size="sm" className="h-10 w-full justify-center">
           <Link href={`/users/${user.id}`}>View profile</Link>
         </Button>
-      </div>
-    </article>
+      </CardFooter>
+    </Card>
   );
 }
 
@@ -1047,13 +1270,13 @@ function ContactLine({
   label,
   href,
 }: {
-  icon: typeof PhoneIcon;
+  icon: LucideIcon;
   label: string;
   href?: string;
 }) {
   const content = (
     <>
-      <Icon className="size-3.5 shrink-0 text-muted-foreground" />
+      <Icon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
       <span className="truncate">{label}</span>
     </>
   );
@@ -1063,13 +1286,11 @@ function ContactLine({
   }
 
   return (
-    <span className="flex min-w-0 items-center gap-2 text-muted-foreground transition-colors hover:text-foreground">
-      <a
-        href={href}
-        className="flex min-h-10 min-w-0 items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-      >
-        {content}
-      </a>
-    </span>
+    <a
+      href={href}
+      className="flex min-h-10 min-w-0 items-center gap-2 rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+    >
+      {content}
+    </a>
   );
 }

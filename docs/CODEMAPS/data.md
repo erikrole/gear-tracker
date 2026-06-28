@@ -63,7 +63,7 @@
 | `BookingPhoto` | 8 | 2 |
 | `CheckinItemReport` | 11 | 3 |
 | `KioskDevice` | 13 | 3 |
-| `Resource` | 18 | 6 |
+| `Resource` | 19 | 7 |
 | `EventTravelMember` | 7 | 3 |
 
 ## Enums
@@ -248,3 +248,16 @@
 - `APPROVED`
 - `COMPLETED`
 - `CANCELLED`
+
+### `ResourceType`
+
+- `CONTACTS`
+- `BUILDING_NUMBERS`
+- `MEDIA_DRIVE`
+- `SERVER_PATHS`
+- `SOP`
+- `HOW_TO`
+- `TROUBLESHOOTING`
+- `ACCOUNT_NOTE`
+- `EVENT_OPS`
+- `GENERAL`

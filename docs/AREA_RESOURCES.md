@@ -6,21 +6,22 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped
 - Created: 2026-04-14
-- Last Updated: 2026-05-25
+- Last Updated: 2026-06-28
 - Brief: `tasks/guides-plan.md` (archived)
 
 ## Description
-In-app Markdown knowledge base for Wisconsin Athletics Creative operational reference: contact numbers, building numbers, Media Drive context, server paths, SOPs, how-to guides, account notes, troubleshooting steps, and general information. Staff author documents in a Markdown WYSIWYG editor; students read published entries in-app. The landing page is role- and area-aware: admin-curated featured guides appear first, then users can browse by Creative area or reference category while ranked entries stay personalized for the viewer's app role and Creative area.
+In-app Markdown Guide library for Wisconsin Athletics Creative operational reference: contact numbers, building numbers, Media Drive context, server paths, SOPs, how-to guides, account notes, troubleshooting steps, event operations, and general information. Staff break broad reference material into focused Guides in a Markdown WYSIWYG editor; students read published Guides in-app. The landing page is role- and area-aware: admin-curated featured Guides appear first, guide collections group records by typed focus, Creative-area lanes surface targeted Guides, and cards/list browsing keeps the library scannable.
 
 ## Components
-- `/resources` — directory landing page with a sticky left filter rail (All / Smart: Recently Updated, My Area / By area: Video, Photo, Graphics, Comms / Reference: Contacts, Building Numbers, Media Drive, Server Paths / category list), a top search + sort (Personalized, Recently updated, Title A-Z) toolbar, active-filter chips, resource freshness badges, Featured badge on cards, and a live Contacts directory that appears only when the Contacts filter is active. Rail collapses into a Filters sheet on mobile. URL-backed via `filter`, `category`, `q`, `sort` params.
+- `/resources` — first-class Guide library landing page with a top operational toolbar for search, guide focus, sort, and cards/list layout. It shows Guide collection tiles, Featured Guides, Creative-area guide lanes, Recently updated Guides, All Guides, active-filter chips, guide freshness badges, typed focus badges, and a supporting live Contacts directory. URL-backed via `filter`, `category`, `q`, `sort`, and `layout` params while preserving legacy `view` and `area` compatibility.
 - `/resources/[slug]` — Markdown reader with editorial document styling, polished image treatment, sticky desktop table of contents, verification metadata, and an allowed-editor Mark verified action
-- `/resources/new` — create page (Staff/Admin only) with starter templates for Contacts, Building Numbers, Media Drive, Server Paths, SOPs, and Troubleshooting
-- `/resources/[slug]/edit` — edit page with publish toggle and admin delete
+- `/resources/new` — create page (Staff/Admin only) with a typed Guide focus selector and starter templates for Contacts, Building Numbers, Media Drive, Server Paths, SOPs, and Troubleshooting
+- `/resources/[slug]/edit` — edit page with typed Guide focus, publish toggle, unsaved-change guard, and admin delete
 
 ## Data Model
 `Resource` model in `prisma/schema.prisma`:
 - `id`, `title`, `slug` (unique, auto-generated from title), `category` (freeform)
+- `type` (`ResourceType` enum: Contacts, Building Numbers, Media Drive, Server Paths, SOP, How-to, Troubleshooting, Account Note, Event Ops, General)
 - `markdown` (Text — Markdown source of truth)
 - `targetRoles` (`Role[]` — empty means all roles)
 - `targetAreas` (`ShiftArea[]` — empty means all areas)
@@ -30,7 +31,7 @@ In-app Markdown knowledge base for Wisconsin Athletics Creative operational refe
 - `published` (boolean, default false)
 - `authorId` → `User` (Restrict on delete)
 
-Migrations: `prisma/migrations/0032_add_guides/migration.sql`, `prisma/migrations/0045_drop_guide_order/migration.sql` (drops unused `order` column), `prisma/migrations/0057_add_guide_markdown/migration.sql`, `prisma/migrations/0058_guide_personalization/migration.sql`, `prisma/migrations/0061_add_guide_freshness/migration.sql`, `prisma/migrations/0068_rename_guides_to_resources/migration.sql`
+Migrations: `prisma/migrations/0032_add_guides/migration.sql`, `prisma/migrations/0045_drop_guide_order/migration.sql` (drops unused `order` column), `prisma/migrations/0057_add_guide_markdown/migration.sql`, `prisma/migrations/0058_guide_personalization/migration.sql`, `prisma/migrations/0061_add_guide_freshness/migration.sql`, `prisma/migrations/0068_rename_guides_to_resources/migration.sql`, `prisma/migrations/0087_resource_type/migration.sql`
 
 ## Auth Rules
 | Action | Roles |
@@ -73,15 +74,17 @@ All mutations use `createAuditEntry` per D-007.
 | AC-5 | Guide reader renders cleanly on mobile | ✅ Complete (max-w-5xl, responsive) |
 | AC-6 | Every mutation is audit-logged | ✅ Complete |
 | AC-7 | `npm run build` passes | ✅ Complete |
-| AC-8 | Guides function as a general knowledge base for contacts, building numbers, Media Drive, server paths, SOPs, and reference notes | ✅ Complete |
+| AC-8 | Guides function as a focused library for contacts, building numbers, Media Drive, server paths, SOPs, how-to guides, troubleshooting, accounts, event ops, and reference notes | ✅ Complete |
 | AC-9 | Guides landing page prioritizes admin-featured entries and role/area-relevant guides | ✅ Complete |
 | AC-10 | Individual guides render as polished editorial knowledge-base articles with theme-aware styling, photos, and desktop TOC | ✅ Complete |
 | AC-11 | Contacts reference view can surface current user profile contact fields without duplicating them in Markdown | ✅ Complete |
 | AC-12 | Living guides expose freshness state and can be marked verified by allowed editors | ✅ Complete |
+| AC-13 | Resources supports cards/list browsing, typed Guide focus filters, and Creative-area Guide lanes for breaking broad docs into smaller Guides | ✅ Complete |
 
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-06-28 | Resources first-class Guide library pass: added `ResourceType` typed focus with migration/backfill, preserved legacy URL filter compatibility while adding `layout=cards/list`, rebuilt `/resources` around Guide collections, area guide lanes, cards/list results, and supporting Contacts, and updated create/edit/reader surfaces to expose typed Guide focus. Verified with focused Resources tests, Prisma format/generate, TypeScript, docs checks, whitespace check, and build-app. |
 | 2026-06-03 | Fixed a search regression: the `/resources` landing search again matches full document body text, not just title/category/author/summary. The 2026-05-19 directory rebuild had dropped the body (Markdown) term from the client-side `guideSearchText`, silently regressing the body-text search shipped 2026-05-10/2026-05-09. The body is already in the list payload, so the fix is client-side and mirrors the server `listGuides` search. Verified with `npx tsc --noEmit` and `npx next build`. |
 | 2026-05-25 | Web bug sweep Batch 26 hardened Resources URL parsing and sort control display. `/resources` now preserves compatibility with legacy guide links using `view=` and `area=`, invalid `sort=` params fall back to Personalized, and the closed sort trigger shows the selected label instead of an empty combobox. |
 | 2026-05-24 | Web bug sweep Batch 9 hardened Resources create/edit/delete/image-upload/mark-verified actions with shared auth redirect handling, safe JSON parsing, clearer server-error toasts, incomplete-response guards, and ref-backed duplicate-action prevention. |

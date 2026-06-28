@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { SearchIcon, ClipboardCheckIcon, CalendarCheckIcon, BellIcon, UserIcon, LayoutGridIcon, LayersIcon, CalendarPlusIcon, ScanIcon, ArrowRightIcon } from "lucide-react";
-import AppSidebar from "./Sidebar";
+import AppSidebar, { SIDEBAR_SHORTCUT_TARGETS } from "./Sidebar";
 import { AssetImage } from "@/components/AssetImage";
 import { OperationalPartialResultsAlert } from "@/components/OperationalFeedback";
 import { OperationalLoadingState } from "@/components/OperationalLoadingState";
@@ -85,6 +85,7 @@ type NotificationCountResponse = {
 type DashboardStatsBadgeResponse = {
   data?: {
     myOverdueCount?: unknown;
+    myDueTodayCount?: unknown;
   };
 };
 
@@ -116,6 +117,7 @@ export default function AppShell({
   const [loggingOut, setLoggingOut] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [overdueBadgeCount, setOverdueBadgeCount] = useState(0);
+  const [dueTodayBadgeCount, setDueTodayBadgeCount] = useState(0);
 
   useEffect(() => {
     if (!isLoading && !user) router.replace("/login");
@@ -149,9 +151,13 @@ export default function AppShell({
           if (dashboardResult.value.ok) {
             const json = await parseJsonSafely<DashboardStatsBadgeResponse>(dashboardResult.value);
             const count = json?.data?.myOverdueCount;
+            const dueToday = json?.data?.myDueTodayCount;
             // User-scoped overdue count so STUDENT sees only their own overdue
             if (typeof count === "number") {
               setOverdueBadgeCount(count);
+            }
+            if (typeof dueToday === "number") {
+              setDueTodayBadgeCount(dueToday);
             }
           }
         }
@@ -184,6 +190,22 @@ export default function AppShell({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      const targetRoute = SIDEBAR_SHORTCUT_TARGETS.find((item) => item.shortcut === e.key);
+      if (!targetRoute) return;
+
+      e.preventDefault();
+      router.push(targetRoute.href);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [router]);
 
   // Live search when query changes
   useEffect(() => {
@@ -509,6 +531,7 @@ export default function AppShell({
         onSignOut={handleLogout}
         isLoggingOut={loggingOut}
         overdueBadgeCount={overdueBadgeCount}
+        dueTodayBadgeCount={dueTodayBadgeCount}
         unreadNotifications={unreadNotifications}
       />
 

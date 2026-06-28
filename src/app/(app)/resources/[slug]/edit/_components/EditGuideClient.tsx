@@ -7,6 +7,15 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
@@ -22,9 +31,15 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useFetch } from "@/hooks/use-fetch";
-import { Role, ShiftArea } from "@prisma/client";
+import { ResourceType, Role, ShiftArea } from "@prisma/client";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
-import { KNOWLEDGE_BASE_CATEGORY_SUGGESTIONS } from "@/lib/guide-categories";
+import {
+  defaultCategoryForResourceType,
+  GUIDE_CATEGORY_SUGGESTIONS,
+  RESOURCE_TYPE_DESCRIPTIONS,
+  RESOURCE_TYPE_LABELS,
+  RESOURCE_TYPE_OPTIONS,
+} from "@/lib/guide-categories";
 import { legacyGuideMarkdown } from "@/lib/guide-content";
 import { GuideTargetingControls } from "@/components/resources/GuideTargetingControls";
 import { MarkdownEditor } from "@/components/resources/MarkdownEditor";
@@ -33,6 +48,7 @@ type Guide = {
   id: string;
   title: string;
   slug: string;
+  type: ResourceType;
   category: string;
   markdown: string | null;
   targetRoles: Role[];
@@ -61,6 +77,7 @@ export function EditGuideClient({ slug, userRole }: Props) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [title, setTitle] = useState("");
+  const [type, setType] = useState<ResourceType>(ResourceType.GENERAL);
   const [category, setCategory] = useState("");
   const [markdown, setMarkdown] = useState("");
   const [targetRoles, setTargetRoles] = useState<Role[]>([]);
@@ -94,6 +111,7 @@ export function EditGuideClient({ slug, userRole }: Props) {
   const populate = useCallback(
     (g: Guide) => {
       setTitle(g.title);
+      setType(g.type ?? ResourceType.GENERAL);
       setCategory(g.category);
       setMarkdown(legacyGuideMarkdown(g.markdown, g.content));
       setTargetRoles(g.targetRoles ?? []);
@@ -122,6 +140,16 @@ export function EditGuideClient({ slug, userRole }: Props) {
 
   const canDelete = userRole === Role.ADMIN;
 
+  function updateType(nextType: ResourceType) {
+    setCategory((current) => {
+      const currentDefault = defaultCategoryForResourceType(type);
+      if (!current.trim() || current === currentDefault) return defaultCategoryForResourceType(nextType);
+      return current;
+    });
+    setType(nextType);
+    setDirty(true);
+  }
+
   async function submit() {
     if (submittingRef.current) return;
     if (!title.trim()) { toast.error("Title is required"); return; }
@@ -134,6 +162,7 @@ export function EditGuideClient({ slug, userRole }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
+          type,
           category: category.trim(),
           markdown,
           targetRoles,
@@ -146,16 +175,16 @@ export function EditGuideClient({ slug, userRole }: Props) {
       });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        toast.error(await parseErrorMessage(res, "Failed to save resource"));
+        toast.error(await parseErrorMessage(res, "Failed to save guide"));
         return;
       }
       const json = await parseJsonSafely<ResourceMutationResponse>(res);
       if (!json?.data?.slug) {
-        toast.error("Resource was saved, but the response was incomplete. Refresh resources and try again.");
+        toast.error("Guide was saved, but the response was incomplete. Refresh Resources and try again.");
         return;
       }
       setDirty(false);
-      toast.success("Resource saved");
+      toast.success("Guide saved");
       router.push(`/resources/${json.data.slug}`);
     } catch {
       toast.error("Network error. Try again.");
@@ -173,10 +202,10 @@ export function EditGuideClient({ slug, userRole }: Props) {
       const res = await fetch(`/api/resources/${guideId}`, { method: "DELETE" });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        toast.error(await parseErrorMessage(res, "Failed to delete resource"));
+        toast.error(await parseErrorMessage(res, "Failed to delete guide"));
         return;
       }
-      toast.success("Resource deleted");
+      toast.success("Guide deleted");
       router.push("/resources");
     } catch {
       toast.error("Network error. Try again.");
@@ -209,7 +238,7 @@ export function EditGuideClient({ slug, userRole }: Props) {
                 className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 <ArrowLeftIcon className="size-3.5" />
-                Back to resource
+                Back to guide
               </button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -233,12 +262,12 @@ export function EditGuideClient({ slug, userRole }: Props) {
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeftIcon className="size-3.5" />
-            Back to resource
+            Back to guide
           </Link>
         )}
       </div>
 
-      <h1 className="text-2xl font-bold">Edit Resource</h1>
+      <h1 className="text-2xl font-bold">Edit Guide</h1>
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
@@ -251,20 +280,44 @@ export function EditGuideClient({ slug, userRole }: Props) {
           />
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="category">Category</Label>
-          <Input
-            id="category"
-            value={category}
-            onChange={(e) => { setCategory(e.target.value); setDirty(true); }}
-            list="knowledge-category-suggestions"
-            disabled={submitting}
-          />
-          <datalist id="knowledge-category-suggestions">
-            {KNOWLEDGE_BASE_CATEGORY_SUGGESTIONS.map((cat) => (
-              <option key={cat} value={cat} />
-            ))}
-          </datalist>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="guide-type">Guide focus</Label>
+            <Select value={type} onValueChange={(value) => updateType(value as ResourceType)} disabled={submitting}>
+              <SelectTrigger id="guide-type" className="h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>Guide focus</SelectLabel>
+                  {RESOURCE_TYPE_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {RESOURCE_TYPE_LABELS[option]}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground text-pretty">
+              {RESOURCE_TYPE_DESCRIPTIONS[type]}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="category">Category</Label>
+            <Input
+              id="category"
+              value={category}
+              onChange={(e) => { setCategory(e.target.value); setDirty(true); }}
+              list="guide-category-suggestions"
+              disabled={submitting}
+            />
+            <datalist id="guide-category-suggestions">
+              {GUIDE_CATEGORY_SUGGESTIONS.map((cat) => (
+                <option key={cat} value={cat} />
+              ))}
+            </datalist>
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
@@ -345,13 +398,13 @@ export function EditGuideClient({ slug, userRole }: Props) {
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" size="sm" disabled={submitting}>
-                <Trash2Icon className="size-4 mr-1.5" />
+                <Trash2Icon data-icon="inline-start" />
                 Delete
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Delete resource?</AlertDialogTitle>
+                <AlertDialogTitle>Delete guide?</AlertDialogTitle>
                 <AlertDialogDescription>
                   This will permanently delete &ldquo;{title}&rdquo;. This action cannot be undone.
                 </AlertDialogDescription>

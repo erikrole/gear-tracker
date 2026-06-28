@@ -1,4 +1,11 @@
 import Foundation
+import os
+
+private let appStatePerformanceLog = Logger(subsystem: "com.erikrole.Wisconsin", category: "Launch")
+
+private func elapsedMilliseconds(since start: Date) -> Int {
+    Int(Date().timeIntervalSince(start) * 1_000)
+}
 
 // Used by AppDelegate to post push destinations without importing SwiftUI
 nonisolated(unsafe) var sharedAppState: AppState?
@@ -33,10 +40,16 @@ final class AppState {
     }
 
     func refresh(forceRefresh: Bool = false) async {
-        guard !isRefreshing else { return }
+        let startedAt = Date()
+        guard !isRefreshing else {
+            appStatePerformanceLog.debug("launch.appState.refresh result=skipped reason=inFlight durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public)")
+            return
+        }
         if !forceRefresh,
            let lastRefreshAttemptAt,
            Date().timeIntervalSince(lastRefreshAttemptAt) < minimumRefreshInterval {
+            let ageSeconds = Int(Date().timeIntervalSince(lastRefreshAttemptAt))
+            appStatePerformanceLog.debug("launch.appState.refresh result=skipped reason=fresh ageSeconds=\(ageSeconds, privacy: .public) durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public)")
             return
         }
         isRefreshing = true
@@ -53,8 +66,10 @@ final class AppState {
             myShiftCount = stats.myShiftsCount
             unreadNotifCount = count
             openTradeCount = min(trades.total, 9)
+            appStatePerformanceLog.info("launch.appState.refresh result=success durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public) overdue=\(self.overdueCount, privacy: .public) shifts=\(self.myShiftCount, privacy: .public) unread=\(self.unreadNotifCount, privacy: .public) openTrades=\(self.openTradeCount, privacy: .public)")
         } catch {
             // Non-critical
+            appStatePerformanceLog.error("launch.appState.refresh result=failure durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public)")
         }
     }
 

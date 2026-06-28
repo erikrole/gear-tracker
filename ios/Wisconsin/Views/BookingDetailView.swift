@@ -387,7 +387,13 @@ private struct HeaderSection: View {
             Label(booking.location.name, systemImage: "mappin.circle")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-                .accessibilityLabel("Location: \(booking.location.name)")
+                .accessibilityLabel("Pickup location: \(booking.location.name)")
+            if let kiosk = booking.pickupKioskDevice {
+                Label("Picked up at \(kiosk.name) · \(kiosk.location.name)", systemImage: "barcode.viewfinder")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Picked up at \(kiosk.name), \(kiosk.location.name)")
+            }
             Label {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(booking.startsAt.gearLong)
@@ -543,17 +549,36 @@ private struct EquipmentSection: View {
 
     @ViewBuilder
     private func bulkRow(_ item: BookingBulkItem) -> some View {
+        let units = item.assignedUnitNumbers
         HStack(spacing: 10) {
             BulkThumbnail(imageUrl: item.bulkSku.imageUrl, size: 40)
-            Text(item.bulkSku.name)
-                .font(.subheadline)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.bulkSku.name)
+                    .font(.subheadline)
+                if !units.isEmpty {
+                    // Unit-tracked SKUs (e.g. numbered batteries) carry specific
+                    // unit numbers — surface them like the web "#19 #27" chips.
+                    Text(units.map { "#\($0)" }.joined(separator: " "))
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
             Spacer()
             Text("×\(item.plannedQuantity)")
                 .font(.subheadline.monospacedDigit())
                 .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(item.bulkSku.name), quantity \(item.plannedQuantity)")
+        .accessibilityLabel(bulkRowAccessibilityLabel(name: item.bulkSku.name, quantity: item.plannedQuantity, units: units))
+    }
+
+    private func bulkRowAccessibilityLabel(name: String, quantity: Int, units: [Int]) -> String {
+        var label = "\(name), quantity \(quantity)"
+        if !units.isEmpty {
+            label += ", units " + units.map(String.init).joined(separator: ", ")
+        }
+        return label
     }
 
     private func rowAccessibilityLabel(item: BookingSerializedItem, conflict: AssetConflict?) -> String {

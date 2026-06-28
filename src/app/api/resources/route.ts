@@ -27,6 +27,7 @@ export const POST = withAuth(async (req, { user }) => {
   const body = createGuideSchema.parse(await req.json());
   const guide = await createGuide({
     title: body.title,
+    type: body.type,
     category: body.category,
     content: body.content,
     markdown: body.markdown,
@@ -46,6 +47,7 @@ export const POST = withAuth(async (req, { user }) => {
     action: "resource_created",
     after: {
       title: guide.title,
+      type: guide.type,
       category: guide.category,
       published: guide.published,
       featured: guide.featured,

@@ -18,6 +18,7 @@ const APP_SCAN_LINK_SURFACES = [
   "src/app/(app)/dashboard/overdue-banner.tsx",
   "src/app/(app)/scan/page.tsx",
   "src/components/AppShell.tsx",
+  "src/components/Sidebar.tsx",
 ] as const;
 
 function sourceFor(relativeFile: string) {
@@ -41,5 +42,6 @@ describe("app scan route gate contract", () => {
 
     expect(staleLinks).toEqual([]);
     expect(sourceFor("src/components/AppShell.tsx")).toContain('label: "Lookup", href: "/scan"');
+    expect(sourceFor("src/components/Sidebar.tsx")).toContain('{ label: "Lookup", href: "/scan"');
   });
 });

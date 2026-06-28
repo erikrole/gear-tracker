@@ -48,7 +48,7 @@ export function GuideTargetingControls({
           <div className="min-w-0">
             <h2 className="text-sm font-semibold">Landing page priority</h2>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Feature important entries and rank them for the roles and Creative areas that need them first.
+              Feature important Guides and rank them for the roles and Creative areas that need them first.
             </p>
           </div>
           <div className="flex items-center gap-3">

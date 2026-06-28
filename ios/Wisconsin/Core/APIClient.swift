@@ -405,7 +405,7 @@ final class APIClient {
     // MARK: - Dashboard
 
     func dashboard() async throws -> DashboardData {
-        let req = request(path: "/api/dashboard")
+        let req = request(path: "/api/dashboard", queryItems: [.init(name: "scope", value: "ios-home")])
         let resp: DataWrapper<DashboardData> = try await perform(req)
         return resp.data
     }

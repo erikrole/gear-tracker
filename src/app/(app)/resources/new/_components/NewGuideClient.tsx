@@ -14,21 +14,37 @@ import {
 import Link from "next/link";
 import type { ComponentType } from "react";
 import type { MDXEditorMethods } from "@mdxeditor/editor";
-import { Role, ShiftArea } from "@prisma/client";
+import { ResourceType, Role, ShiftArea } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { useFetch } from "@/hooks/use-fetch";
 import type { GuideListItem } from "@/lib/guides";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
-import { KNOWLEDGE_BASE_CATEGORY_SUGGESTIONS } from "@/lib/guide-categories";
+import {
+  defaultCategoryForResourceType,
+  GUIDE_CATEGORY_SUGGESTIONS,
+  RESOURCE_TYPE_DESCRIPTIONS,
+  RESOURCE_TYPE_LABELS,
+  RESOURCE_TYPE_OPTIONS,
+} from "@/lib/guide-categories";
 import { GuideTargetingControls } from "@/components/resources/GuideTargetingControls";
 import { MarkdownEditor } from "@/components/resources/MarkdownEditor";
 
 type GuideTemplate = {
   id: string;
   label: string;
+  type: ResourceType;
   category: string;
   title: string;
   icon: ComponentType<{ className?: string }>;
@@ -49,12 +65,13 @@ const GUIDE_TEMPLATES: GuideTemplate[] = [
   {
     id: "contacts",
     label: "Contacts",
+    type: ResourceType.CONTACTS,
     category: "Contacts",
     title: "Key contacts",
     icon: PhoneIcon,
     markdown: `# Key contacts
 
-Use this entry for phone numbers, escalation contacts, vendor contacts, and internal owners.
+Use this Guide for phone numbers, escalation contacts, vendor contacts, and internal owners.
 
 > Keep this current. Put the owner in the table so people know who can fix stale contact details.
 
@@ -89,12 +106,13 @@ ACCOUNT-OR-REFERENCE
   {
     id: "building-numbers",
     label: "Building Numbers",
+    type: ResourceType.BUILDING_NUMBERS,
     category: "Building Numbers",
     title: "Building numbers",
     icon: Building2Icon,
     markdown: `# Building numbers
 
-Use this entry for building phone numbers, room numbers, elevator or dock notes, and location-specific reference details.
+Use this Guide for building phone numbers, room numbers, elevator or dock notes, and location-specific reference details.
 
 > Keep access-sensitive details limited to what staff and students are allowed to use.
 
@@ -127,12 +145,13 @@ BUILDING OR LOCATION - 0000 - purpose
   {
     id: "media-drive",
     label: "Media Drive",
+    type: ResourceType.MEDIA_DRIVE,
     category: "Media Drive",
     title: "Media Drive overview",
     icon: HardDriveIcon,
     markdown: `# Media Drive overview
 
-Use this entry as the map for the Media Drive, the server that houses Creative files.
+Use this Guide as the map for the Media Drive, the server that houses Creative files.
 
 ## What lives here
 
@@ -174,6 +193,7 @@ smb://media-drive/share
   {
     id: "server-paths",
     label: "Server Paths",
+    type: ResourceType.SERVER_PATHS,
     category: "Server Paths",
     title: "Server paths",
     icon: FolderTreeIcon,
@@ -212,6 +232,7 @@ smb://server/share/folder
   {
     id: "sop",
     label: "SOP",
+    type: ResourceType.SOP,
     category: "SOPs",
     title: "Standard operating procedure",
     icon: ClipboardListIcon,
@@ -257,6 +278,7 @@ Paste any path, naming string, command, or metadata template here
   {
     id: "troubleshooting",
     label: "Troubleshooting",
+    type: ResourceType.TROUBLESHOOTING,
     category: "Troubleshooting",
     title: "Troubleshooting note",
     icon: WrenchIcon,
@@ -304,6 +326,7 @@ export function NewGuideClient() {
   const router = useRouter();
   const editorRef = useRef<MDXEditorMethods>(null);
   const [title, setTitle] = useState("");
+  const [type, setType] = useState<ResourceType>(ResourceType.GENERAL);
   const [category, setCategory] = useState("");
   const [markdown, setMarkdown] = useState("");
   const [targetRoles, setTargetRoles] = useState<Role[]>([]);
@@ -330,16 +353,26 @@ export function NewGuideClient() {
   });
 
   const existingCategories = useMemo(() => {
-    const seen = new Set<string>(KNOWLEDGE_BASE_CATEGORY_SUGGESTIONS);
+    const seen = new Set<string>(GUIDE_CATEGORY_SUGGESTIONS);
     for (const g of guides ?? []) seen.add(g.category);
     return [...seen].sort();
   }, [guides]);
 
   function applyTemplate(template: GuideTemplate) {
     if (!title.trim()) setTitle(template.title);
+    setType(template.type);
     setCategory(template.category);
     setMarkdown(template.markdown);
     editorRef.current?.setMarkdown(template.markdown);
+  }
+
+  function updateType(nextType: ResourceType) {
+    setCategory((current) => {
+      const currentDefault = defaultCategoryForResourceType(type);
+      if (!current.trim() || current === currentDefault) return defaultCategoryForResourceType(nextType);
+      return current;
+    });
+    setType(nextType);
   }
 
   async function submit(published: boolean) {
@@ -360,6 +393,7 @@ export function NewGuideClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
+          type,
           category: category.trim(),
           markdown,
           targetRoles,
@@ -371,15 +405,15 @@ export function NewGuideClient() {
       });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        toast.error(await parseErrorMessage(res, "Failed to create resource"));
+        toast.error(await parseErrorMessage(res, "Failed to create guide"));
         return;
       }
       const json = await parseJsonSafely<ResourceMutationResponse>(res);
       if (!json?.data?.slug) {
-        toast.error("Resource was created, but the response was incomplete. Refresh resources and try again.");
+        toast.error("Guide was created, but the response was incomplete. Refresh Resources and try again.");
         return;
       }
-      toast.success(published ? "Resource published" : "Draft saved");
+      toast.success(published ? "Guide published" : "Draft saved");
       router.push(`/resources/${json.data.slug}`);
     } catch {
       toast.error("Network error. Try again.");
@@ -401,10 +435,10 @@ export function NewGuideClient() {
         </Link>
       </div>
 
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold">New Resource</h1>
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-bold">New Guide</h1>
         <p className="text-sm text-muted-foreground">
-          Capture reusable Creative operations context: contacts, building numbers, Media Drive details, server paths, SOPs, how-to steps, or general reference notes.
+          Create a focused Guide for one workflow, area, contact set, path, or operating reference.
         </p>
       </div>
 
@@ -420,7 +454,7 @@ export function NewGuideClient() {
               onClick={() => applyTemplate(template)}
               disabled={submitting}
             >
-              <Icon className="size-4 shrink-0 text-muted-foreground" />
+              <Icon data-icon="inline-start" />
               <span className="min-w-0 text-sm font-medium">{template.label}</span>
             </Button>
           );
@@ -439,23 +473,47 @@ export function NewGuideClient() {
           />
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="category">Category</Label>
-          <Input
-            id="category"
-            placeholder="e.g. Contacts, Media Drive, Server Paths, SOPs"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            list="category-suggestions"
-            disabled={submitting}
-          />
-          {existingCategories.length > 0 && (
-            <datalist id="category-suggestions">
-              {existingCategories.map((cat) => (
-                <option key={cat} value={cat} />
-              ))}
-            </datalist>
-          )}
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="guide-type">Guide focus</Label>
+            <Select value={type} onValueChange={(value) => updateType(value as ResourceType)} disabled={submitting}>
+              <SelectTrigger id="guide-type" className="h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>Guide focus</SelectLabel>
+                  {RESOURCE_TYPE_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {RESOURCE_TYPE_LABELS[option]}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground text-pretty">
+              {RESOURCE_TYPE_DESCRIPTIONS[type]}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="category">Category</Label>
+            <Input
+              id="category"
+              placeholder="e.g. Contacts, Media Drive, Server Paths, SOPs"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              list="guide-category-suggestions"
+              disabled={submitting}
+            />
+            {existingCategories.length > 0 && (
+              <datalist id="guide-category-suggestions">
+                {existingCategories.map((cat) => (
+                  <option key={cat} value={cat} />
+                ))}
+              </datalist>
+            )}
+          </div>
         </div>
       </div>
 
@@ -491,7 +549,7 @@ export function NewGuideClient() {
           variant="outline"
           disabled={submitting}
         >
-          Save as Draft
+          Save draft
         </Button>
         <Button onClick={() => submit(true)} disabled={submitting}>
           Publish

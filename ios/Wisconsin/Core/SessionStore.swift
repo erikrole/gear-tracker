@@ -1,4 +1,11 @@
 import SwiftUI
+import os
+
+private let sessionPerformanceLog = Logger(subsystem: "com.erikrole.Wisconsin", category: "Launch")
+
+private func elapsedMilliseconds(since start: Date) -> Int {
+    Int(Date().timeIntervalSince(start) * 1_000)
+}
 
 @MainActor
 @Observable
@@ -69,15 +76,23 @@ final class SessionStore {
     }
 
     private func restoreSession() async {
-        defer { isRestoring = false }
+        let startedAt = Date()
+        var result = "unknown"
+        defer {
+            isRestoring = false
+            sessionPerformanceLog.info("launch.session.restore result=\(result, privacy: .public) durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public)")
+        }
         do {
             currentUser = try await APIClient.shared.me()
             isOffline = false
+            result = "authenticated"
         } catch APIError.unauthorized {
             currentUser = nil
+            result = "unauthorized"
         } catch {
             // Network failure — don't clear session state; let user retry
             isOffline = true
+            result = "offline"
         }
     }
 }

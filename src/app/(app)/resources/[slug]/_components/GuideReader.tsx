@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { ResourceType } from "@prisma/client";
 import { ArrowLeftIcon, CheckCircle2Icon, PencilIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -10,12 +11,14 @@ import { MarkdownReader } from "@/components/resources/MarkdownReader";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { formatFreshnessDate, getGuideFreshness } from "@/lib/guide-freshness";
 import { legacyGuideMarkdown, markdownHeadings } from "@/lib/guide-content";
+import { inferResourceTypeFromCategory, RESOURCE_TYPE_LABELS } from "@/lib/guide-categories";
 import { cn } from "@/lib/utils";
 
 type Guide = {
   id: string;
   title: string;
   slug: string;
+  type: ResourceType;
   category: string;
   markdown: string | null;
   published: boolean;
@@ -59,7 +62,7 @@ function TableOfContents({ items, activeId }: { items: TocItem[]; activeId: stri
         >
           On this page
         </p>
-        <div className="space-y-1">
+        <div className="flex flex-col gap-1">
           {items.map((item) => (
             <button
               key={item.id}
@@ -112,18 +115,18 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
       });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        toast.error(await parseErrorMessage(res, "Failed to mark resource verified"));
+        toast.error(await parseErrorMessage(res, "Failed to mark guide verified"));
         return;
       }
       const json = await parseJsonSafely<ResourceVerifyResponse>(res);
       if (!json?.data?.updatedAt) {
-        toast.error("Resource was verified, but the response was incomplete. Refresh and try again.");
+        toast.error("Guide was verified, but the response was incomplete. Refresh and try again.");
         return;
       }
       setLastVerifiedAt(json.data.lastVerifiedAt ?? null);
       setLastVerifiedBy(json.data.lastVerifiedBy ?? null);
       setUpdatedAt(json.data.updatedAt);
-      toast.success("Resource marked verified");
+      toast.success("Guide marked verified");
     } catch {
       toast.error("Network error. Try again.");
     } finally {
@@ -165,6 +168,8 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
   }, [guide.id, headings]);
 
   const hasToC = headings.length >= 2;
+  const guideType = guide.type ?? inferResourceTypeFromCategory(guide.category);
+  const typeLabel = RESOURCE_TYPE_LABELS[guideType];
 
   return (
     <div className="guide-reader-shell mx-auto flex w-full max-w-[1280px] flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
@@ -174,7 +179,7 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
           className="inline-flex min-h-10 items-center gap-2 rounded-md text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeftIcon className="size-3.5" />
-          Guides
+          All guides
         </Link>
       </div>
 
@@ -182,7 +187,10 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
         <div className="flex min-w-0 max-w-4xl flex-col gap-3">
           <h1 className="guide-reader-title">{guide.title}</h1>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">{guide.category}</Badge>
+            <Badge variant="secondary">{typeLabel}</Badge>
+            {guide.category && guide.category !== typeLabel && (
+              <Badge variant="outline">{guide.category}</Badge>
+            )}
             {!guide.published && (
               <Badge variant="outline" className="text-[10px]">Draft</Badge>
             )}
@@ -214,15 +222,16 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
               variant="outline"
               size="sm"
               className="shrink-0"
+              loading={verifying}
               disabled={verifying}
               onClick={markVerified}
             >
-              <CheckCircle2Icon className="mr-1.5 size-3.5" />
-              {verifying ? "Verifying..." : "Mark verified"}
+              {!verifying && <CheckCircle2Icon data-icon="inline-start" />}
+              Mark verified
             </Button>
             <Button asChild variant="outline" size="sm" className="shrink-0">
               <Link href={`/resources/${slug}/edit`}>
-                <PencilIcon className="mr-1.5 size-3.5" />
+                <PencilIcon data-icon="inline-start" />
                 Edit
               </Link>
             </Button>

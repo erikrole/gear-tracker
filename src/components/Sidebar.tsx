@@ -31,6 +31,7 @@ import {
   HelpCircleIcon,
   LogOutIcon,
   BellIcon,
+  ScanIcon,
   PlusIcon,
   KeyIcon,
   BatteryChargingIcon,
@@ -58,6 +59,7 @@ type NavItem = {
   badge?: string;
   quickCreateHref?: string;
   requiredRole?: "ADMIN" | "STAFF";
+  shortcut?: string;
 };
 
 type NavGroup = {
@@ -69,13 +71,15 @@ type NavGroup = {
 const navGroups: NavGroup[] = [
   {
     items: [
-      { label: "Dashboard", href: "/", icon: LayoutGridIcon },
-      { label: "Schedule", href: "/schedule", icon: CalendarIcon },
-      { label: "Items", href: "/items", icon: LayersIcon },
-      { label: "Bookings", href: "/bookings", icon: BookOpenIcon, quickCreateHref: "/bookings?create=true" },
-      { label: "Resources", href: "/resources", icon: ScrollTextIcon },
+      { label: "Dashboard", href: "/", icon: LayoutGridIcon, shortcut: "1" },
+      { label: "Schedule", href: "/schedule", icon: CalendarIcon, shortcut: "2" },
+      { label: "Items", href: "/items", icon: LayersIcon, shortcut: "3" },
+      { label: "Bookings", href: "/bookings", icon: BookOpenIcon, quickCreateHref: "/bookings?create=true", shortcut: "4" },
+      { label: "Lookup", href: "/scan", icon: ScanIcon, shortcut: "5" },
+      { label: "Resources", href: "/resources", icon: ScrollTextIcon, shortcut: "6" },
       { label: "Licenses", href: "/licenses", icon: KeyIcon },
       { label: "Notifications", href: "/notifications", icon: BellIcon },
+      { label: "Settings", href: "/settings", icon: SettingsIcon },
     ],
   },
   {
@@ -88,16 +92,22 @@ const navGroups: NavGroup[] = [
       { label: "Hygiene", href: "/items/hygiene", icon: ClipboardCheckIcon },
       { label: "Users", href: "/users", icon: UsersIcon },
       { label: "Reports", href: "/reports", icon: BarChart3Icon },
-      { label: "Settings", href: "/settings", icon: SettingsIcon },
     ],
   },
 ];
+
+const primaryNavItems = navGroups[0]?.items ?? [];
+
+export const SIDEBAR_SHORTCUT_TARGETS = primaryNavItems
+  .filter((item): item is NavItem & { shortcut: string } => Boolean(item.shortcut))
+  .map(({ shortcut, label, href }) => ({ shortcut, label, href }));
 
 type AppSidebarProps = {
   user: { id: string; name: string; email: string; role?: string; avatarUrl?: string | null } | null;
   onSignOut?: () => void;
   isLoggingOut?: boolean;
   overdueBadgeCount?: number;
+  dueTodayBadgeCount?: number;
   unreadNotifications?: number;
 };
 
@@ -129,6 +139,7 @@ export default function AppSidebar({
   onSignOut,
   isLoggingOut = false,
   overdueBadgeCount = 0,
+  dueTodayBadgeCount = 0,
   unreadNotifications = 0,
 }: AppSidebarProps) {
   const pathname = usePathname();
@@ -252,15 +263,18 @@ export default function AppSidebar({
 
                   const badgeCfg =
                     href === "/bookings" && overdueBadgeCount > 0
-                      ? { count: overdueBadgeCount, suffix: "overdue" }
+                      ? { count: overdueBadgeCount, suffix: "overdue", tone: "red" as const }
+                      : href === "/bookings" && dueTodayBadgeCount > 0
+                      ? { count: dueTodayBadgeCount, suffix: "due today", tone: "orange" as const }
                       : href === "/notifications" && unreadNotifications > 0
-                      ? { count: unreadNotifications, suffix: "unread" }
+                      ? { count: unreadNotifications, suffix: "unread", tone: "red" as const }
                       : null;
                   const badgeCount = badgeCfg?.count ?? 0;
                   const badgeLabel = item.badge;
-                  const tooltip = badgeCfg
+                  const tooltipBase = badgeCfg
                     ? `${item.label} · ${badgeCfg.count} ${badgeCfg.suffix}`
                     : item.label;
+                  const tooltip = item.shortcut ? `${tooltipBase} · ⌘${item.shortcut}` : tooltipBase;
 
                   return (
                     <SidebarMenuItem key={item.label}>
@@ -283,7 +297,13 @@ export default function AppSidebar({
                       </SidebarMenuButton>
 
                       {badgeCount > 0 && (
-                        <SidebarMenuBadge className="bg-[var(--wi-red)] text-white text-[length:var(--text-2xs)] font-semibold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1">
+                        <SidebarMenuBadge
+                          className={
+                            badgeCfg?.tone === "orange"
+                              ? "bg-[var(--orange-bg)] text-[var(--orange-text)] text-[length:var(--text-2xs)] font-semibold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1"
+                              : "bg-[var(--wi-red)] text-white text-[length:var(--text-2xs)] font-semibold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1"
+                          }
+                        >
                           <span className="sr-only">
                             {badgeCfg!.count} {badgeCfg!.suffix}
                           </span>

@@ -73,6 +73,7 @@ export const GET = withAuth(async (_req, { user }) => {
       overdueCount: c.totalOverdue,
       myCheckoutsTotal: c.myCheckoutsTotal,
       myOverdueCount: c.myOverdue,
+      myDueTodayCount: c.myDueToday,
       teamCheckoutsTotal: c.teamCheckoutsTotal,
       teamCheckoutsOverdue: c.teamCheckoutsOverdue,
       teamReservationsTotal: c.teamReservationsTotal,

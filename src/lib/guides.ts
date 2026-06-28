@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
-import { Role, ShiftArea } from "@prisma/client";
+import { ResourceType, Role, ShiftArea } from "@prisma/client";
 import { sanitizeJsonStrings, sanitizeText } from "@/lib/sanitize";
 import {
   legacyGuideMarkdown,
@@ -44,6 +44,7 @@ export type GuideListItem = {
   id: string;
   title: string;
   slug: string;
+  type: ResourceType;
   category: string;
   summary: string;
   markdown: string;
@@ -92,6 +93,7 @@ export async function listGuides(opts: {
       id: true,
       title: true,
       slug: true,
+      type: true,
       category: true,
       content: true,
       markdown: true,
@@ -121,6 +123,7 @@ export async function listGuides(opts: {
         id: guide.id,
         title: guide.title,
         slug: guide.slug,
+        type: guide.type,
         category: guide.category,
         summary,
         markdown,
@@ -186,6 +189,7 @@ export async function getGuideBySlug(slug: string) {
 
 export async function createGuide(data: {
   title: string;
+  type?: ResourceType;
   category: string;
   content?: unknown;
   markdown?: string;
@@ -204,6 +208,7 @@ export async function createGuide(data: {
     data: {
       title: data.title,
       slug,
+      type: data.type ?? ResourceType.GENERAL,
       category: data.category,
       content: sanitizeJsonStrings(data.content ?? []) as never,
       markdown,
@@ -225,6 +230,7 @@ export async function updateGuide(
   id: string,
   patch: {
     title?: string;
+    type?: ResourceType;
     category?: string;
     content?: unknown;
     markdown?: string;
@@ -290,6 +296,7 @@ export async function updateGuide(
     data: {
       ...(patch.title !== undefined && { title: patch.title }),
       ...(slug !== undefined && { slug }),
+      ...(patch.type !== undefined && { type: patch.type }),
       ...(patch.category !== undefined && { category: patch.category }),
       ...(patch.content !== undefined && { content: sanitizeJsonStrings(patch.content) as never }),
       ...(patch.markdown !== undefined && { markdown: sanitizeText(patch.markdown) }),

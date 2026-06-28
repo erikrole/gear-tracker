@@ -43,6 +43,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     action,
     before: {
       title: before.title,
+      type: before.type,
       category: before.category,
       published: before.published,
       featured: before.featured,
@@ -54,6 +55,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     },
     after: {
       title: updated.title,
+      type: updated.type,
       category: updated.category,
       published: updated.published,
       featured: updated.featured,
@@ -80,7 +82,7 @@ export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) =>
     entityType: "resource",
     entityId: params.id,
     action: "resource_deleted",
-    before: { title: guide.title, category: guide.category },
+    before: { title: guide.title, type: guide.type, category: guide.category },
   });
 
   return ok({ data: { deleted: true } });
