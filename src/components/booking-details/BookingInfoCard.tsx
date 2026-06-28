@@ -117,7 +117,7 @@ export default function BookingInfoCard({
       </FieldGroup>
 
       <FieldGroup label="Context">
-        <SaveableField label="Location">
+        <SaveableField label="Pickup location">
           <span className="text-sm">{booking.location?.name ?? "—"}</span>
         </SaveableField>
         {booking.pickupKioskDevice && (

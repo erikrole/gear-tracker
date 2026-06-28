@@ -462,12 +462,6 @@ export default function BookingDetailsSheet({
                     {booking.refNumber && <span className="font-mono">{booking.refNumber}</span>}
                     {booking.refNumber && <span aria-hidden="true">/</span>}
                     <span>{booking.bookingType}</span>
-                    {booking.location?.name && (
-                      <>
-                        <span aria-hidden="true">/</span>
-                        <span>{booking.location.name}</span>
-                      </>
-                    )}
                   </p>
                 )}
               </div>
@@ -613,7 +607,7 @@ export default function BookingDetailsSheet({
                   )}
                   <BookingInfoCard
                     booking={booking}
-                    canEdit={!!canEdit}
+                    canEdit={false}
                     onSave={handleSaveField}
                     onPatch={mergeBooking}
                     bare

@@ -106,10 +106,9 @@ export const POST = withKiosk(async (req, { kiosk }) => {
         if (!title) {
           throw new HttpError(400, "Select an event or enter what this checkout is for");
         }
-        const notes = [
-          `Created via kiosk at ${kiosk.locationName}`,
-          event && customPurpose ? `Purpose: ${customPurpose}` : null,
-        ].filter(Boolean).join("\n");
+        // The pickup kiosk is captured on `pickupKioskDeviceId`, so we no longer
+        // duplicate it as a note. Keep only a real user-entered purpose.
+        const notes = event && customPurpose ? `Purpose: ${customPurpose}` : null;
 
         const availability = await checkAvailability(tx, {
           locationId,
