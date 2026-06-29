@@ -11,7 +11,7 @@
 
 | Model | Fields | Model-level indexes/constraints |
 |---|---:|---:|
-| `User` | 70 | 3 |
+| `User` | 71 | 3 |
 | `Session` | 6 | 2 |
 | `PasswordResetToken` | 6 | 2 |
 | `Location` | 17 | 1 |
@@ -19,7 +19,7 @@
 | `Category` | 9 | 3 |
 | `Asset` | 41 | 7 |
 | `FirmwareWatchTarget` | 17 | 3 |
-| `Booking` | 39 | 14 |
+| `Booking` | 40 | 14 |
 | `BookingSerializedItem` | 7 | 3 |
 | `BookingBulkItem` | 10 | 3 |
 | `AssetAllocation` | 11 | 4 |
@@ -40,6 +40,7 @@
 | `BookingEvent` | 7 | 4 |
 | `LocationMapping` | 6 | 1 |
 | `DeviceToken` | 9 | 2 |
+| `LiveActivityToken` | 10 | 3 |
 | `Notification` | 12 | 5 |
 | `EscalationRule` | 10 | 1 |
 | `FavoriteItem` | 6 | 3 |

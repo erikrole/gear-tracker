@@ -13,6 +13,7 @@ import { createAuditEntryTx, lookupActorRole } from "@/lib/audit";
 import { badges } from "@/lib/badges";
 import { upsertBulkBalancesAndMovements } from "./bookings-helpers";
 import { assetLocationEvidence, reconcileAssetLocationToKiosk, type KioskLocationEvidence } from "./kiosk-location";
+import { endCheckoutReturnLiveActivities } from "./live-activities";
 
 function wasReturnedOnTime(endsAt: Date, completedAt: Date) {
   return completedAt.getTime() <= endsAt.getTime() + 15 * 60 * 1000;
@@ -214,6 +215,7 @@ export async function markCheckoutCompleted(bookingId: string, actorUserId: stri
     wasOnTime: result.wasOnTime,
     sourceKey: bookingId,
   });
+  await endCheckoutReturnLiveActivities(bookingId);
 
   return { success: true };
 }
@@ -377,6 +379,7 @@ export async function forceCompleteCheckout(args: {
     wasOnTime: result.wasOnTime,
     sourceKey: args.bookingId,
   });
+  await endCheckoutReturnLiveActivities(args.bookingId);
 
   return { success: true };
 }
@@ -481,6 +484,7 @@ export async function checkinItems(
   ).then(async (result) => {
     if (result.badgeEvent) {
       await badges.onCheckoutReturned(result.badgeEvent);
+      await endCheckoutReturnLiveActivities(bookingId);
     }
     return {
       success: result.success,
@@ -662,6 +666,7 @@ export async function kioskCompleteCheckin(args: {
   ).then(async (result) => {
     if (result.badgeEvent) {
       await badges.onCheckoutReturned(result.badgeEvent);
+      await endCheckoutReturnLiveActivities(args.bookingId);
     }
     return {
       refNumber: result.refNumber,
@@ -762,6 +767,7 @@ export async function checkinBulkItem(
   ).then(async (result) => {
     if (result.badgeEvent) {
       await badges.onCheckoutReturned(result.badgeEvent);
+      await endCheckoutReturnLiveActivities(bookingId);
     }
     return {
       success: result.success,

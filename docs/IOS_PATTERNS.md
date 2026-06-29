@@ -68,7 +68,7 @@ VStack(spacing: Brand.Space.sm) { … }
 BrandSectionHeader("Next Up", subtitle: "Upcoming pickups, reservations, shifts.")
 ```
 
-> **Tab shell caveat (still in force).** Do not migrate `AppTabView` to the value-based `Tab(...)` API. `TabView` + `.tabItem`/`.tag` is the locked-in path — see `tasks/lessons.md` "UI Reliability".
+> **Native tab shell.** `AppTabView` uses SwiftUI's built-in value-based `Tab(...)` API. The compact iPhone tab set is Home, Bookings/My Gear, Items, Schedule, and Scan. Compact iPhone uses `.tabBarOnly`; Scan is tab value `3` with `role: .search` and pinned placement so the system owns the dedicated trailing search/scan placement. Regular-width layouts use `.sidebarAdaptable` plus sidebar-only secondary destinations for Resources and Admin areas, including Guides, Users, and Licenses. Compact iPhone reaches those secondary destinations through Profile/Settings > Directory, not through extra tab-bar items. Do not stack a custom bottom bar over the native tab bar, and do not add a sixth compact tab that forces Scan into More.
 
 ---
 

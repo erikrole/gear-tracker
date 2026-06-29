@@ -213,6 +213,7 @@
 - `/api/licenses/my/history` -> `src/app/api/licenses/my/history/route.ts`
 - `/api/licenses/my` -> `src/app/api/licenses/my/route.ts`
 - `/api/licenses` -> `src/app/api/licenses/route.ts`
+- `/api/live-activities/checkout-return` -> `src/app/api/live-activities/checkout-return/route.ts`
 - `/api/location-mappings/[id]` -> `src/app/api/location-mappings/[id]/route.ts`
 - `/api/location-mappings/audit` -> `src/app/api/location-mappings/audit/route.ts`
 - `/api/location-mappings` -> `src/app/api/location-mappings/route.ts`

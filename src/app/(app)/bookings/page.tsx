@@ -31,7 +31,7 @@ function parseBookingSheetSection(value: string | null): BookingSheetSection | n
 const ACTIVE_STATUS_OPTIONS = [
   { value: "OPEN", label: "Open" },
   { value: "DRAFT", label: "Draft" },
-  { value: "BOOKED", label: "Booked" },
+  { value: "BOOKED", label: "Reserved" },
   { value: "PENDING_PICKUP", label: "Pending pickup" },
 ];
 
@@ -254,7 +254,7 @@ export default function BookingsPage() {
     statusOptions: isPastScope
       ? PAST_STATUS_OPTIONS
       : [
-          { value: "OPEN", label: "Checked out" },
+          { value: "OPEN", label: "Checked Out" },
           { value: "PENDING_PICKUP", label: "Pending pickup" },
         ],
     defaultTieToEvent: true,
@@ -304,7 +304,7 @@ export default function BookingsPage() {
       ? PAST_STATUS_OPTIONS
       : [
           { value: "DRAFT", label: "Draft" },
-          { value: "BOOKED", label: "Booked" },
+          { value: "BOOKED", label: "Reserved" },
         ],
     defaultTieToEvent: true,
     hasSportFilter: true,

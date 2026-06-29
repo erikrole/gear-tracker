@@ -18,13 +18,13 @@ final class AppState {
     var unreadNotifCount = 0
     var openTradeCount = 0
     var pendingPushBookingId: String?
+    var pendingExtendBookingId: String?
     var pendingPushEventId: String?
     var selectedTab: Int = 0
     var resetTab: Int?
     var tabResetToken = 0
-    /// Requests the Bookings tab open on a specific sub-tab (e.g. the dashboard
-    /// "Overdue" tile deep-links into Checkouts). BookingsView consumes and
-    /// clears it. Raw value matches `BookingTab` ("Reservations"/"Checkouts").
+    /// Legacy dashboard hint for opening Bookings from a specific summary.
+    /// BookingsView now renders a unified list and only consumes/clears this.
     var pendingBookingsTab: String?
     private var isRefreshing = false
     private var lastRefreshAttemptAt: Date?
@@ -37,6 +37,10 @@ final class AppState {
         } else {
             selectedTab = tab
         }
+    }
+
+    func presentScanLookup() {
+        selectTab(3)
     }
 
     func refresh(forceRefresh: Bool = false) async {

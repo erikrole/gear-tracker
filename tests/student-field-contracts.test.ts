@@ -45,17 +45,23 @@ describe("student field mobile contracts", () => {
     expect(detail).toContain("updatedAt: booking.updatedAt");
   });
 
-  it("keeps iOS booking tabs and toolbar buttons field-readable", () => {
+  it("keeps iOS bookings unified and toolbar buttons field-readable", () => {
     const appTab = source("ios/Wisconsin/Views/AppTabView.swift");
     const bookingsView = source("ios/Wisconsin/Views/BookingsView.swift");
 
     expect(appTab).toContain("isStaffOrAdmin ? \"Bookings\" : \"My Gear\"");
     expect(appTab).toContain("if isStaffOrAdmin");
     expect(bookingsView).toContain("mineOnly = currentUserRole == \"STUDENT\"");
-    expect(bookingsView).toContain("vm.tab == .reservations ? \"No Reservations\" : \"No Checkouts\"");
+    expect(bookingsView).toContain('BookingListSection(title: "Checkouts"');
+    expect(bookingsView).toContain('BookingListSection(title: "Reservations"');
+    expect(bookingsView).toContain('"Search bookings..."');
+    expect(bookingsView).toContain("APIClient.shared.checkouts(");
+    expect(bookingsView).toContain("APIClient.shared.reservations(");
+    expect(bookingsView.match(/activeOnly: true/g)?.length).toBeGreaterThanOrEqual(2);
     expect(bookingsView).toContain("Label(vm.mineOnly ? \"Mine\" : \"All\"");
     expect(bookingsView).toContain("Label(\"New\", systemImage: \"plus\")");
-    expect(bookingsView).toContain("Picker(\"Booking type\"");
+    expect(bookingsView).not.toContain("Picker(\"Booking type\"");
+    expect(bookingsView).not.toContain("enum BookingTab");
   });
 
   it("keeps iOS Schedule controls self-describing", () => {
@@ -106,6 +112,10 @@ describe("student field mobile contracts", () => {
     const detail = source("ios/Wisconsin/Views/BookingDetailView.swift");
 
     expect(detail).toContain("Label(\"Edit\", systemImage: \"pencil\")");
+    expect(detail).toContain("TextEditor(text: $notes)");
+    expect(detail).toContain("accessibilityLabel(\"Booking notes\")");
+    expect(detail).toContain("notes.trimmingCharacters(in: .whitespacesAndNewlines)");
+    expect(detail).not.toContain("notes.isEmpty ? nil : notes");
     expect(detail).toContain("BookingEditLockedNotice");
     expect(detail).toContain("Text(\"Editing locked\")");
     expect(detail).toContain("Use Extend Return Date");

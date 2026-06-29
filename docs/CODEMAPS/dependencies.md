@@ -90,6 +90,10 @@
 - `drift:ios:warn`: `bash scripts/ios-drift-check.sh --warn`
 - `import:cheqroom`: `node scripts/import-cheqroom-items.mjs`
 - `ios:project:check`: `node scripts/check-ios-project.mjs`
+- `ios:xcode:build:device`: `xcodebuild -project ios/Wisconsin.xcodeproj -scheme Wisconsin -destination 'generic/platform=iOS' -configuration Debug build`
+- `ios:xcode:build:sim`: `xcodebuild -project ios/Wisconsin.xcodeproj -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build`
+- `ios:xcode:verify`: `bash scripts/ios-xcode-verify.sh`
+- `ios:xcode:verify:kiosk`: `IOS_SCHEME=WisconsinKiosk bash scripts/ios-xcode-verify.sh`
 - `lint`: `eslint .`
 - `lint:summary`: `node scripts/lint-summary.mjs`
 - `migrate`: `node scripts/prisma-migrate-deploy.mjs`

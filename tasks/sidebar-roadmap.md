@@ -3,7 +3,7 @@
 **Target:** `src/components/Sidebar.tsx` + `src/components/AppShell.tsx`
 **Created:** 2026-03-24
 **Revised:** 2026-03-25 (full refresh — V1 shipped, V2 partially shipped)
-**Status:** V1 shipped (2026-03-24), V2 mostly shipped (groups, quick-create, Lookup, user-scoped due-today badge, and shortcut hints shipped; Settings sub-nav superseded by the role-aware Settings rail)
+**Status:** V1 shipped (2026-03-24), V2 partially shipped (groups, quick-create, and user-scoped due-today badge shipped; Settings sub-nav superseded by the role-aware Settings rail; desktop Lookup and sidebar shortcuts intentionally removed)
 
 ---
 
@@ -53,14 +53,14 @@
 
 | Gap | Severity | Version target |
 |-----|----------|---------------|
-| No keyboard shortcuts for nav items (Cmd+1–5) | Low | V2 |
+| No keyboard shortcuts for nav items (Cmd+1–5) | Closed | N/A |
 | Bottom nav has no badge counts — urgency invisible on mobile home screen | Medium | V3 |
 | Badge counts only refresh on full page navigation (no polling) | Medium | V3 |
 | Settings has 6 sub-pages but sidebar link goes to flat `/settings` | Low | V2 |
 | Kits "Soon" badge is stale — Kits V1+V2 shipped 2026-03-24/25 | Bug | V1 fix |
 | No game-day/event context in sidebar — staff don't see what's happening today | Medium | V3 |
 | Bookings nav item merges checkouts + reservations — no separate counts | Low | V3 |
-| No "Scan" in sidebar (only in bottom nav) — desktop users must navigate manually | Low | V2 |
+| No "Scan" in sidebar (only in bottom nav) — intentional; web is laptop/desktop text-search work, not camera/hand-scan work | Closed | N/A |
 
 ### Data available but not surfaced in sidebar
 - `/api/dashboard` → `data.myCheckouts.overdue`, `data.myCheckouts.dueToday`, reservation counts
@@ -116,7 +116,7 @@
 
 **Principle:** Now that badges and groups work, make navigation faster and smarter. Add convenience features that reduce clicks and improve discoverability.
 
-**Status:** Mostly shipped. Lookup, user-scoped due-today badge, and shortcut hints shipped on 2026-06-28. Settings sub-navigation is superseded by the current role-aware Settings rail and command palette because Settings now has many Personal and admin sections, not the original six-page admin-only shape.
+**Status:** Partially shipped. User-scoped due-today badge shipped on 2026-06-28. Settings sub-navigation is superseded by the current role-aware Settings rail and command palette because Settings now has many Personal and admin sections, not the original six-page admin-only shape. Lookup was removed from the web sidebar on 2026-06-28 because laptop/desktop use relies on text search rather than scan posture. Sidebar Cmd/Ctrl+number shortcuts were removed because they conflict with browser and system shortcuts.
 
 ### Features
 
@@ -126,13 +126,11 @@
 - Remove the `badge: "Soon"` from the Kits nav item — it's misleading now
 - Keep Kits in Admin group (admin/staff only)
 
-**2. Lookup nav item in sidebar**
-- Add `{ label: "Lookup", href: "/scan", icon: ScanBarcodeIcon }` to the Operations group
-- Position: after Bookings, before Notifications
-- All roles use it for item lookup; checkout pickup and return scans happen at kiosks
-- Closes the gap where desktop users have no sidebar path to `/scan`
-- Bottom nav already has Lookup; sidebar should match
-- 2026-06-28: Shipped as `Lookup` in the web sidebar Operations group, using `/scan` as a lookup-only route.
+**2. Lookup stays out of the web sidebar**
+- Removed from V2 scope.
+- Web is used on laptops and desktops, where the command palette/search bar is the correct text lookup path.
+- Mobile and native scan entry points remain the scan posture surfaces.
+- 2026-06-28: Removed after review; do not add `/scan` to the web sidebar unless the desktop workflow changes.
 
 **3. Settings collapsible sub-navigation**
 - Settings has 6 sub-pages: calendar-sources, sports, categories, database, escalation, venue-mappings
@@ -143,12 +141,11 @@
 - In icon-only collapsed mode: clicking Settings icon navigates to `/settings` (no sub-nav)
 - 2026-06-28: Superseded. Settings is now available to every authenticated user and owns its full role-aware rail/search palette inside `/settings`, so the global sidebar keeps a single top-level Settings link instead of duplicating every sub-page.
 
-**4. Keyboard shortcut hints + navigation**
-- Register `Cmd+1` through `Cmd+6` in AppShell for top 6 Operations nav items
-- Show shortcut hint in tooltip when sidebar is collapsed: "Dashboard (⌘1)"
-- `Cmd+K` (search) and `Cmd+B` (toggle sidebar) remain unchanged
-- Implementation: single `keydown` listener in AppShell, `router.push()` on match
-- 2026-06-28: Shipped for the first six primary sidebar destinations with collapsed-tooltip hints.
+**4. Sidebar shortcuts removed**
+- Removed from V2 scope.
+- Do not register Cmd/Ctrl+number navigation from the app shell; those chords overlap browser tab switching and system expectations.
+- `Cmd+K` (search) remains the only global app-owned shortcut in this slice.
+- 2026-06-28: Removed after review.
 
 **5. Due-today secondary badge on Bookings**
 - Currently shows overdue count only
@@ -160,9 +157,9 @@
 
 ### What V1 features get enhanced
 - Bookings badge: gains due-today secondary count
-- Nav items: Scan added to Operations group
+- Nav items: no Scan/Lookup entry on web; use command palette/search bar for text lookup.
 - Settings: gains collapsible sub-nav
-- All tooltips: gain keyboard shortcut hints
+- Tooltips stay label/count-only; no shortcut hints.
 
 ### What's NOT in V2
 - No live polling (still refresh-on-navigate only)
@@ -174,18 +171,18 @@
 - None new. Due-today count already in `/api/dashboard` response.
 
 ### RBAC
-- Scan: all roles
+- Scan: not a web-sidebar destination; mobile/native scan entry points remain role-scoped by their existing surfaces.
 - Settings sub-nav: admin only (STAFF can see Settings parent per current group config)
-- Keyboard shortcuts: all roles (only Operations items have shortcuts)
+- Keyboard shortcuts: no sidebar shortcuts; global search keeps existing Cmd/Ctrl+K behavior.
 
 ### Loading/error/empty states
 - Settings sub-nav: renders immediately (no data fetch — static links)
 - Due-today badge: same pattern as overdue — absent while loading, hidden on error
 
 ### Mobile behavior
-- Scan item visible in sidebar Sheet drawer (already in bottom nav)
+- No Scan item in the web sidebar drawer; bottom nav and native iOS scan surfaces remain unchanged.
 - Settings sub-nav: fully functional in Sheet drawer
-- Keyboard shortcuts: desktop only (no change on mobile)
+- Keyboard shortcuts: no sidebar shortcuts.
 - Due-today badge: visible in Sheet drawer same as overdue badge
 
 ### shadcn components used
@@ -193,8 +190,8 @@
 - `SidebarMenuSub`, `SidebarMenuSubItem`, `SidebarMenuSubButton` (part of sidebar.tsx)
 
 ### Files changed
-- `src/components/Sidebar.tsx` — remove Kits "Soon" badge, add Scan item, add Settings collapsible sub-nav, add due-today badge logic
-- `src/components/AppShell.tsx` — register Cmd+1–6 shortcuts, pass `dueTodayCount` prop
+- `src/components/Sidebar.tsx` — remove Kits "Soon" badge, keep scan out of web sidebar, add due-today badge logic
+- `src/components/AppShell.tsx` — pass `dueTodayCount` prop; keep only existing global search shortcut
 
 ---
 
@@ -315,7 +312,7 @@
 - "Add Reservations as separate nav item" — **DEFER.** Bookings is unified per D-002. Separate items would contradict the data model.
 
 ### V2 YAGNI
-- **Keyboard shortcuts (Cmd+1–5)**: Low usage likelihood. If users don't use `Cmd+B` (sidebar toggle), they won't discover Cmd+1. Consider shipping as hidden feature without tooltip hints — observe adoption before investing in discoverability.
+- **Keyboard shortcuts (Cmd+1–5)**: **DO NOT SHIP.** These conflict with browser tab switching and system shortcut expectations.
 - **Settings sub-nav**: Only useful if staff visit Settings frequently. Currently Settings is low-traffic (calendar sources + escalation config are set-once). May not justify the UI complexity. **Mitigation:** Ship collapsible-collapsed-by-default so it doesn't add visual weight.
 
 ### V3 scope traps
@@ -336,7 +333,7 @@
 2. Add Scan nav item to Operations group (10 min)
 3. Add due-today secondary badge logic (15 min)
 4. Settings collapsible sub-nav with `SidebarMenuSub` (30 min)
-5. Keyboard shortcuts in AppShell (20 min)
+5. Remove sidebar keyboard shortcuts from AppShell (done 2026-06-28)
 6. Verify STUDENT role sees correct items, test collapsed mode (10 min)
 
 ### V3 (estimated: 2 sessions)
@@ -354,7 +351,7 @@
 
 | Principle | V1 (shipped) | V2 | V3 |
 |-----------|-------------|----|----|
-| Operational speed | Overdue visible without navigating | Quick Scan access, keyboard shortcuts | Counts update live; context cards surface what's next |
+| Operational speed | Overdue visible without navigating | Due-today urgency without conflicting shortcuts | Counts update live; context cards surface what's next |
 | Mobile-first | Sheet drawer badges work | Scan in sidebar matches bottom nav | Bottom nav badges close mobile urgency gap |
 | Student-first | Own overdue only; admin group hidden | Scan prominently placed | Shift context card; scoped counts |
 | Event-driven | N/A | N/A | Game-day context card links to schedule |

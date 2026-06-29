@@ -7,10 +7,12 @@ function source(relativeFile: string) {
 }
 
 describe("web sidebar source contract", () => {
-  it("keeps lookup in the web sidebar without turning app scan into custody scan", () => {
+  it("keeps lookup out of the web sidebar because desktop search is text-first", () => {
     const sidebar = source("src/components/Sidebar.tsx");
 
-    expect(sidebar).toContain('{ label: "Lookup", href: "/scan", icon: ScanIcon, shortcut: "5" }');
+    expect(sidebar).not.toContain('label: "Lookup"');
+    expect(sidebar).not.toContain('href: "/scan"');
+    expect(sidebar).not.toContain("ScanIcon");
     expect(sidebar).not.toContain("/scan?checkout");
   });
 
@@ -38,15 +40,15 @@ describe("web sidebar source contract", () => {
     expect(sidebar).toContain("bg-[var(--orange-bg)] text-[var(--orange-text)]");
   });
 
-  it("wires sidebar keyboard shortcuts from one exported target list", () => {
+  it("does not wire sidebar keyboard shortcuts that conflict with browser shortcuts", () => {
     const appShell = source("src/components/AppShell.tsx");
     const sidebar = source("src/components/Sidebar.tsx");
 
-    expect(sidebar).toContain("export const SIDEBAR_SHORTCUT_TARGETS");
-    expect(sidebar).toContain("⌘");
-    expect(appShell).toContain('import AppSidebar, { SIDEBAR_SHORTCUT_TARGETS } from "./Sidebar";');
-    expect(appShell).toContain("SIDEBAR_SHORTCUT_TARGETS.find");
-    expect(appShell).toContain("router.push(targetRoute.href)");
-    expect(appShell).toContain('[contenteditable="true"]');
+    expect(sidebar).not.toContain("shortcut:");
+    expect(sidebar).not.toContain("SIDEBAR_SHORTCUT_TARGETS");
+    expect(sidebar).not.toContain("⌘");
+    expect(appShell).not.toContain("SIDEBAR_SHORTCUT_TARGETS");
+    expect(appShell).not.toContain("targetRoute.href");
+    expect(appShell).toContain('e.key === "k"');
   });
 });

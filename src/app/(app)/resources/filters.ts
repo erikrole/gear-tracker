@@ -2,6 +2,7 @@ export type ResourceFilterKey =
   | "all"
   | "recent"
   | "my-area"
+  | "assignments"
   | "area-video"
   | "area-photo"
   | "area-graphics"
@@ -23,6 +24,8 @@ export type ResourceLayoutKey = "cards" | "list";
 const FILTER_PARAM_MAP: Record<string, ResourceFilterKey> = {
   recent: "recent",
   "my-area": "my-area",
+  assignments: "assignments",
+  "sport-assignments": "assignments",
   "area-video": "area-video",
   "area-photo": "area-photo",
   "area-graphics": "area-graphics",

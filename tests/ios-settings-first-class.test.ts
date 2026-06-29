@@ -26,6 +26,7 @@ describe("iOS Settings hub", () => {
     for (const section of [
       "headerSection",
       "scheduleSection",
+      "directorySection",
       "accountSection",
       "notificationsSection",
       "appearanceSection",
@@ -55,6 +56,23 @@ describe("iOS Settings hub", () => {
     expect(scheduleSection).toContain("if isStudent");
     expect(scheduleSection).toContain("title: \"My Availability\"");
     expect(scheduleSection).toContain("Availability blocks are advisory");
+  });
+
+  it("keeps compact iPhone access to directory pages outside the primary tab bar", () => {
+    const profile = source("ios/Wisconsin/Views/ProfileView.swift");
+    const directorySection = bodyBetween(profile, "private var directorySection", "private var toolsSection");
+
+    expect(directorySection).toContain("Section(\"Directory\")");
+    expect(directorySection).toContain("NavigationLink {");
+    expect(directorySection).toContain("title: \"Guides\"");
+    expect(directorySection).toContain("if isStaffOrAdmin");
+    expect(directorySection).toContain("UsersView()");
+    expect(directorySection).toContain("title: \"Users\"");
+    expect(directorySection).toContain("title: \"Licenses\"");
+    expect(directorySection.match(/wrapsInNavigationStack: false/g)).toHaveLength(2);
+    expect(profile).not.toContain("case .guides:");
+    expect(profile).not.toContain("case .users:");
+    expect(profile).not.toContain("case .licenses:");
   });
 
   it("keeps notification and app settings honest at the menu level", () => {

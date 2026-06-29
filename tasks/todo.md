@@ -1,6 +1,128 @@
 # Task Queue
 
-Last updated: 2026-06-28
+Last updated: 2026-06-29
+
+---
+
+## Active: Kiosk active battery quantity display hotfix (2026-06-29)
+
+Plan: show active checkout batteries in kiosk even when the checkout has bulk quantities but no exact numbered-unit allocation rows.
+
+- [x] Patch `/api/kiosk/dashboard` checkout previews and Items Out fallback rows for active bulk quantities without unit allocations.
+- [x] Patch `/api/kiosk/checkout/[id]` detail rows so active bulk quantities appear in the drawer.
+- [x] Keep generic quantity rows read-only in the native drawer because they do not identify an exact removable unit.
+- [x] Fix the root clobber path so detail-only checkout edits preserve numbered bulk allocation rows.
+- [x] Add focused regressions and run kiosk/iOS verification.
+
+### Review
+- 2026-06-29: Root cause found in the general `/api/bookings/[id]` checkout update path, not the kiosk scanner path. `updateCheckout` rebuilt equipment rows on every detail edit because omitted equipment fields were defaulted from existing rows before delete/recreate. For numbered bulk, deleting `booking_bulk_items` cascaded `booking_bulk_unit_allocations`, leaving the web with a quantity-only Sony Battery row. The service now updates detail fields and allocation dates in place unless the request explicitly supplies equipment changes. Kiosk dashboard/detail payloads also show a read-only `bulk_quantity` fallback for already-damaged quantity-only data. Live DB inspection found checkout `CO-0053` / title `Chris Hall` with Sony Battery planned quantity 4 and zero allocation rows; Sony Battery units `#19`, `#27`, `#30`, and `#39` are the four units currently marked checked out and are the likely repair set. Verification passed with focused Vitest, TypeScript, iOS drift, iOS audit gaps, docs/codemap check, whitespace check, and `npm run ios:xcode:verify:kiosk` outside the sandbox.
+
+---
+
+## Active: iOS Bookings unified list polish (2026-06-29)
+
+Plan: make native Bookings read as one operational list instead of two separated top tabs.
+
+- [x] Remove the Reservations/Checkouts segmented top control.
+- [x] Load active checkouts and reservations together, with Checkouts above Reservations and newest rows first inside each section.
+- [x] Keep requester avatar photos wired from `requester.avatarUrl`.
+- [x] Replace Confirmed/Booked/Open display copy with Reserved/Checked Out/Overdue status language.
+- [x] Sync docs and focused source coverage.
+
+### Review
+- 2026-06-29: iOS Bookings unified list polish shipped locally. Native Bookings now searches one list, renders Checkouts first and Reservations second, sorts each section newest-first, keeps the Mine/All and New Reservation toolbar actions, and clears legacy sub-tab deep-link hints without reintroducing a top segmented control. Booking rows continue to use `UserAvatarView` with `booking.requester.avatarUrl`, and booking status display copy now maps `BOOKED` to `Reserved`, `OPEN` to `Checked Out`, and overdue open checkouts to red `Overdue`. Verification is recorded in the active turn notes.
+
+---
+
+## Active: iOS booking notes edit recovery (2026-06-29)
+
+Plan: fix native booking note edits so clearing notes is a real save and multi-line editing avoids text-field layout churn.
+
+- [x] Audit the pasted console log, native booking detail sheet, API update client, and `/api/bookings/[id]` patch contract.
+- [x] Patch iOS update payload encoding to distinguish unchanged fields from an explicit cleared notes value.
+- [x] Use a multi-line notes editor in the native booking edit sheet.
+- [x] Add focused source coverage and sync docs.
+- [x] Run focused tests, TypeScript if shared code changes, iOS drift/gap checks, whitespace check, and Xcode verification.
+
+### Review
+- 2026-06-29: Native Booking Detail notes edits now use a multiline `TextEditor` with an explicit placeholder and accessibility label. Clearing the notes field sends a trimmed empty string through the existing optimistic-lock `/api/bookings/[id]` PATCH path instead of omitting `notes`, so a cleared notes section persists and disappears after reload. The pasted console's text-prediction and alert layout lines are system UI noise around editing/confirmation controls, but this slice removes the vertical `TextField` from the notes path. Verification passed with focused Vitest, TypeScript, iOS drift, iOS gap audit, docs verification, focused whitespace, and `npm run ios:xcode:verify`.
+
+---
+
+## Active: iOS Home visual polish (2026-06-29)
+
+Plan: remove noisy Home chrome from the screenshot while keeping the action queue and existing booking creation flows intact.
+
+- [x] Remove the floating Home plus button and its sheet state from `HomeView`.
+- [x] Strengthen the Due Today clock icon tile while preserving the orange text tone.
+- [x] Improve the synced timestamp contrast so Home status is readable.
+- [x] Add focused source coverage and sync Mobile/Dashboard docs.
+
+### Review
+- 2026-06-29: iOS Home visual polish shipped locally. Home no longer overlays a 58pt floating create button on top of Next Up. The orange text tone remains unchanged, while compact orange status icon tiles such as the Due Today clock now use a stronger light-mode fill (`#ffedd5`) so the icon box does not wash out. The Home synced timestamp uses secondary text instead of tertiary text. Source coverage now guards the no-floating-create Home contract and the stronger clock-tile fill. Verification is recorded in the active turn notes.
+
+---
+
+## Active: iOS console/runtime calming (2026-06-29)
+
+Plan: reduce Xcode console noise and make native Home launch measurements match user-visible work without changing dashboard data contracts.
+
+- [x] Split Home dashboard load timing from checkout-return Live Activity reconciliation.
+- [x] Defer and gate Apple Foundation Models header generation so system Biome instrumentation noise stays out of normal launch runs.
+- [x] Add disk-aware thumbnail caching for remote gear/person images while preserving decoded in-memory cache behavior.
+- [x] Sync Mobile/Dashboard docs and run iOS verification gates.
+
+### Review
+- 2026-06-29: iOS console/runtime calming shipped locally. Home dashboard load now logs and clears the critical payload path before checkout-return Live Activity reconciliation, with reconciliation logged separately as `launch.home.liveActivityReconcile`. Apple Foundation Models header generation is now local opt-in via `WisconsinHomeGeneratedHeaderEnabled` and delayed 1.5 seconds after Home appears, so deterministic fallback copy is the normal launch path and Xcode console is not flooded by Apple Biome instrumentation on every launch. `CachedThumbnail` now keeps the decoded in-memory cache while adding a bounded `WisconsinThumbnailURLCache` disk cache for remote image bytes. Verification passed with focused Vitest, focused whitespace check, iOS drift, iOS gap audit, docs/codemap verification, and `npm run ios:xcode:verify`.
+
+---
+
+## Active: iOS isolated scan action (2026-06-29)
+
+Plan: `tasks/ios-isolated-scan-tab-plan.md`
+
+- [x] Audit current iOS tab crash history, mobile/scan/search docs, schema, and source.
+- [x] Replace the custom bottom bar with SwiftUI's native value-based `Tab(...)` API.
+- [x] Mark Scan as the native trailing search-role tab and keep the compact tab set to five destinations.
+- [x] Route Home scan shortcuts through app state instead of hardcoding tab `3`.
+- [x] Sync docs, add focused source coverage, and rerun iOS verification after the correction.
+
+### Review
+- 2026-06-29: Initial attempt was wrong: it made Scan a floating action/full-screen cover instead of the Apple HIG trailing search-tab pattern. Corrected locally by keeping Scan as stable tab tag `3`, hiding the system tab bar, and rendering a custom bottom bar with the main navigation grouped in one pill and Scan as the dedicated trailing circular tab. Home's all-clear shortcut uses `AppState.presentScanLookup()` instead of hardcoding tab `3`. Scan stays lookup-only and kiosk pickup/return custody routes did not change.
+- 2026-06-29 follow-up: Tab-bar correction verified. Focused source coverage passes in `tests/ios-tabbar-stability.test.ts`, iOS drift and gap audits pass through `npm run ios:xcode:verify`, and both main-app and kiosk Xcode verification commands pass. The remaining proof to capture, if needed, is a fresh authenticated Simulator screenshot.
+- 2026-06-29 native correction: User rejected the custom fallback and requested the built-in tab bar component. `AppTabView` now uses SwiftUI's native value-based `Tab(...)` API, removes the custom `AppTabBar`, removes `.toolbar(.hidden, for: .tabBar)`, marks Scan with `role: .search`, and keeps the compact iPhone tab set to five destinations so Scan does not fall into the system More tab. Staff-only Users is removed from the compact tab bar. Verification passed with focused Vitest, `npm run ios:xcode:verify`, `npm run verify:docs`, focused whitespace check, and iOS 27 simulator screenshot `/private/tmp/wisconsin-native-tabbar-final.png`.
+- 2026-06-29 sidebar correction: Secondary native destinations now live behind `.sidebarAdaptable` regular-width sidebar sections instead of compact iPhone tabs. Guides and Licenses appear as sidebar-only web fallbacks, Users is a sidebar-only native staff/admin destination, and compact iPhone remains Home, Bookings/My Gear, Items, Schedule, and pinned Scan. Verification passed with focused Vitest and `npm run ios:xcode:verify`.
+- 2026-06-29 compact access correction: The sidebar-only fix was incomplete on iPhone because compact width has no visible sidebar switcher. Profile/Settings now includes a Directory section so compact iPhone can reach Guides, Users, and Licenses without adding a sixth tab or hiding Scan behind More.
+
+---
+
+## Active: iOS Xcode debugging workflow (2026-06-29)
+
+Plan: make the default native app debugging, testing, and review path repeatable from one command while keeping the manual Xcode and Simulator workflow documented.
+
+- [x] Audit current iOS README, testing guide, package scripts, and Xcode project-check tooling.
+- [x] Add a serialized Xcode verification script with isolated DerivedData.
+- [x] Wire package scripts for main-app and kiosk target Xcode closeout.
+- [x] Document the Xcode, Simulator, and Codex/XcodeBuildMCP workflow.
+- [x] Run the new Xcode verification command and record results.
+
+### Review
+- 2026-06-29: Xcode workflow setup shipped locally. Added `scripts/ios-xcode-verify.sh`, package scripts for main app and kiosk closeout, and `docs/IOS_XCODE_WORKFLOW.md` covering Xcode, Simulator, and Codex/XcodeBuildMCP usage. The verification script serializes project drift, iOS drift, gap audit, simulator build, and generic iOS build with isolated DerivedData, quiet output by default, and a verbose escape hatch for build-system debugging. Also fixed `scripts/check-ios-project.mjs` so the XcodeGen drift check copies `WisconsinLiveActivities` before regenerating the temp project. Verification passed with `npm run ios:xcode:verify`, `npm run ios:xcode:verify:kiosk`, `npm run verify:docs`, and focused `git diff --check`.
+
+---
+
+## Active: iOS checkout return Live Activity (2026-06-28)
+
+Plan: add a native Live Activity for the signed-in user's most urgent active checkout return countdown.
+
+- [x] Add ActivityKit attributes, widget extension UI, and project wiring.
+- [x] Add an iOS coordinator that starts one checkout return Live Activity, updates urgency/next-need state, and ends it when the booking is no longer open.
+- [x] Reuse availability next-use data for smart early start, conflict-aware red treatment, and gated Extend deep link.
+- [x] Route Live Activity taps to booking detail and open Extend only when no upcoming need blocks extension.
+- [x] Sync Mobile/Checkout docs, add focused source-contract coverage, and run iOS verification.
+
+### Review
+- 2026-06-28: iOS checkout return Live Activity shipped locally. The native app starts one ActivityKit return countdown for the signed-in user's most urgent `OPEN` checkout when it is due within 30 minutes or earlier for near next-use gear, shows booking title, requester identity, listed return time, seconds on focused Dynamic Island surfaces, minutes on lock-screen glance surfaces, and a dark red gradient that intensifies through warning, critical, and overdue states. Next-use availability context gates the Extend deep link, and tapping the activity routes to booking detail with Extend opening only when no upcoming need blocks it. The app now registers Live Activity push tokens, the server stores them in `live_activity_tokens`, and checkout completion paths send APNs liveactivity end pushes so returned checkouts dismiss even when the phone is suspended. Verification passed with Prisma generate, XcodeGen, focused Vitest, TypeScript, iOS drift, iOS gap audit, migration-prefix check, codemap/docs checks, whitespace check, Next build, and a Wisconsin iOS Simulator Debug build.
 
 ---
 
@@ -9,14 +131,29 @@ Last updated: 2026-06-28
 Plan: improve the web sidebar only, leaving mobile bottom nav and native iOS surfaces untouched.
 
 - [x] Audit sidebar roadmap, design language, Settings role rules, dashboard count source, and current shell code.
-- [x] Add Lookup to the sidebar, expose Settings to all authenticated roles, and keep admin tools role-gated.
+- [x] Keep Lookup out of the web sidebar, expose Settings to all authenticated roles, and keep admin tools role-gated.
 - [x] Add user-scoped due-today badge support behind overdue priority.
-- [x] Add sidebar shortcut wiring and collapsed tooltip hints for primary destinations.
+- [x] Remove sidebar shortcut wiring and collapsed tooltip hints to avoid browser/system conflicts.
 - [x] Sync sidebar/settings docs and add focused source-contract tests.
 - [x] Run focused tests, TypeScript, docs/codemap checks as safe, whitespace checks, build, and protected-route/browser smoke as available.
 
 ### Review
-- 2026-06-28: Web sidebar polish shipped locally. The desktop sidebar now includes Lookup to `/scan`, keeps Settings visible to all authenticated roles, keeps Admin role-gated, shows Bookings overdue first and then a user-scoped due-today badge, and exposes primary destination shortcuts in collapsed tooltips with shell-level Cmd/Ctrl+number routing. Mobile bottom nav and native iOS views were not changed. Verification passed with focused Vitest, `npx tsc --noEmit`, focused `git diff --check`, and `npm run db:migrate:check`. `npm run verify:docs` remains blocked by pre-existing codemap drift in `docs/CODEMAPS/{architecture,backend,frontend}.md`; `npm run build:app` remains blocked by the existing `/resources` prerender failure in the dirty worktree. Runtime smoke was not completed because the sandbox blocked local Next.js port binding with `listen EPERM`, and the escalated retry was unavailable due the current Codex usage limit.
+- 2026-06-28: Web sidebar polish shipped locally. The desktop sidebar keeps Lookup out because laptop/desktop work uses text search, keeps Settings visible to all authenticated roles, keeps Admin role-gated, shows Bookings overdue first and then a user-scoped due-today badge, and removes sidebar Cmd/Ctrl+number shortcuts to avoid browser/system conflicts. Mobile bottom nav and native iOS views were not changed. Verification passed with focused Vitest, `npx tsc --noEmit`, focused `git diff --check`, and `npm run db:migrate:check`. `npm run verify:docs` remains blocked by pre-existing codemap drift in `docs/CODEMAPS/{architecture,backend,frontend}.md`; `npm run build:app` remains blocked by the existing `/resources` prerender failure in the dirty worktree. Runtime smoke was not completed because the sandbox blocked local Next.js port binding with `listen EPERM`, and the escalated retry was unavailable due the current Codex usage limit.
+
+---
+
+## Active: iOS Home AFM header line (2026-06-28)
+
+Plan: use Apple Foundation Models on device only for the native Home header flavor line, with deterministic fallback and no API payload changes.
+
+- [x] Verify current Home header and local FoundationModels SDK symbols.
+- [x] Add bounded AFM generation behind `SystemLanguageModel` availability.
+- [x] Keep dashboard counts and rows authoritative, with generated copy validated before display.
+- [x] Add source-contract coverage and sync Mobile/Dashboard docs.
+- [x] Run focused tests, iOS drift/gap checks, whitespace checks, and simulator build as available.
+
+### Review
+- 2026-06-28: Native Home now adds one optional Apple Foundation Models header flavor line from count-only dashboard signals. The deterministic fallback remains first-class when AFM is unavailable, generation fails, or output validation rejects the line. Verification passed with focused Vitest, `npx tsc --noEmit`, iOS drift, iOS gap audit, and focused whitespace checks. Xcode compilation reached Swift driver startup with no Swift diagnostics shown, but both simulator and generic iOS builds failed in `actool` because CoreSimulator runtimes were unavailable in the sandbox.
 
 ---
 
@@ -38,18 +175,21 @@ Plan: `tasks/ios-launch-data-loading-plan.md`
 
 ---
 
-## Active: Resources first-class Guide library (2026-06-28)
+## Active: Resources landing cleanup (2026-06-29)
 
 Plan: `tasks/resources-first-class-plan.md`
 
-- [x] User approved the first-class Resources plan checkpoint.
-- [x] Ship typed resource contract.
-- [x] Rebuild `/resources` as a focused Guide library with cards/list browsing and area-focused guide collections.
-- [x] Refresh `/resources/[slug]` reader.
-- [x] Refresh `/resources/new` and `/resources/[slug]/edit` authoring.
-- [ ] Sync docs and run focused tests, schema checks, typecheck, docs/codemap checks, build, and browser smoke as available.
+- [x] Capture corrected Resources direction: Guides first, server path as a compact copy utility, contacts and sport assignments as reference, buildings deferred.
+- [x] User approves the cleanup plan before implementation.
+- [x] Slice 1: Guide-first landing cleanup.
+- [x] Slice 2: Server path utility.
+- [x] Slice 3: Compact Contacts and Sport assignments reference modules.
+- [x] Slice 4: Guide card/list polish.
+- [x] Slice 5: Docs, focused tests, typecheck, build, and browser smoke as available.
 
 ### Review
+- 2026-06-29: Resources landing cleanup Slices 1-5 shipped locally. `/resources` now leads with Guides, removes the Featured guides block and Guide collection tile wall, adds a compact copyable Media Drive server path header utility, keeps Contacts as a compact landing reference with the full directory behind the Contacts filter, adds `filter=assignments` for read-only sport assignments from user profiles, and exposes `/api/users` `sportAssignments` for that reference. Focused Resources/Users Vitest, TypeScript, docs/codemap verification, focused whitespace checks, and `npm run build:app` passed. Local built-route smoke confirmed protected Resources routes redirect to `/login`; full authenticated visual smoke still needs a localhost session.
+- 2026-06-29: Rewrote the active Resources plan around the corrected landing-page IA. The next implementation should remove pinned/featured treatment, avoid empty taxonomy tiles, keep server path as a small top-right copy affordance, and keep contacts plus sport assignments as compact references behind the Guide library.
 - 2026-06-28: Implemented the Resources first-class Guide library pass. Added typed `ResourceType` focus with migration/backfill, preserved legacy URL filters while adding `layout=cards/list`, rebuilt `/resources` around Guide collections, area lanes, cards/list results, and supporting live Contacts, and updated reader/create/edit to expose Guide focus. Verification passed with focused Resources Vitest, Prisma format/generate, migration-prefix check, TypeScript, codemap/docs checks, whitespace check, and `npm run build:app`. Authenticated browser smoke logged in locally and confirmed `/resources` renders the new shell, collection tiles, layout control, Contacts section, and empty All Guides state; full runtime smoke remains blocked until migration `0087_resource_type` is applied to the current Neon database because `/api/resources` returns Prisma P2022 for missing `resources.type`.
 
 ---

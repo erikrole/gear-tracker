@@ -34,6 +34,11 @@ struct BulkReservationRequest: Encodable, Equatable {
     let quantity: Int
 }
 
+struct CheckoutReturnInsight {
+    let nextNeedAt: Date?
+    let hasUpcomingNeed: Bool
+}
+
 extension Notification.Name {
     /// Fired when any API call returns 401. SessionStore listens and clears
     /// `currentUser`, which lets RootView swap to LoginView automatically —
@@ -96,6 +101,16 @@ final class APIClient {
 
     func revokeAllDeviceTokens() async throws {
         let req = request(path: "/api/devices", method: "DELETE")
+        let _: SuccessResponse = try await perform(req)
+    }
+
+    func registerCheckoutReturnLiveActivity(bookingId: String, token: String) async throws {
+        struct Body: Encodable {
+            let bookingId: String
+            let token: String
+        }
+        var req = request(path: "/api/live-activities/checkout-return", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(bookingId: bookingId, token: token))
         let _: SuccessResponse = try await perform(req)
     }
 
@@ -339,6 +354,52 @@ final class APIClient {
         var map: [String: AssetConflict] = [:]
         for conflict in resp.conflicts ?? [] { map[conflict.assetId] = conflict }
         return map
+    }
+
+    func checkoutReturnInsight(for booking: Booking) async -> CheckoutReturnInsight {
+        guard !booking.serializedItems.isEmpty, !booking.location.id.isEmpty else {
+            return CheckoutReturnInsight(nextNeedAt: nil, hasUpcomingNeed: false)
+        }
+        struct Body: Encodable {
+            let locationId: String
+            let serializedAssetIds: [String]
+            let startsAt: String
+            let endsAt: String
+            let excludeBookingId: String?
+        }
+        struct UpcomingCommitment: Decodable {
+            let startsAt: Date
+        }
+        struct CheckResponse: Decodable {
+            let upcomingCommitments: [UpcomingCommitment]?
+        }
+
+        var req = request(path: "/api/availability/check", method: "POST")
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let body = try? JSONEncoder().encode(Body(
+            locationId: booking.location.id,
+            serializedAssetIds: booking.serializedItems.map(\.assetId),
+            startsAt: iso.string(from: booking.startsAt),
+            endsAt: iso.string(from: booking.endsAt),
+            excludeBookingId: booking.id
+        )) else { return CheckoutReturnInsight(nextNeedAt: nil, hasUpcomingNeed: false) }
+        req.httpBody = body
+
+        guard let (data, response) = try? await session.data(for: req),
+              let http = response as? HTTPURLResponse else {
+            return CheckoutReturnInsight(nextNeedAt: nil, hasUpcomingNeed: false)
+        }
+        if http.statusCode == 401 {
+            NotificationCenter.default.post(name: .sessionDidExpire, object: nil)
+            return CheckoutReturnInsight(nextNeedAt: nil, hasUpcomingNeed: false)
+        }
+        guard (200...299).contains(http.statusCode),
+              let resp = try? decoder.decode(CheckResponse.self, from: data) else {
+            return CheckoutReturnInsight(nextNeedAt: nil, hasUpcomingNeed: false)
+        }
+        let nextNeedAt = resp.upcomingCommitments?.map(\.startsAt).min()
+        return CheckoutReturnInsight(nextNeedAt: nextNeedAt, hasUpcomingNeed: nextNeedAt != nil)
     }
 
     /// Availability conflicts for a shift, keyed by userId → human note (e.g.

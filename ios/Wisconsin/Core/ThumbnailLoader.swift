@@ -2,6 +2,12 @@ import SwiftUI
 import UIKit
 import ImageIO
 
+private let thumbnailURLCache = URLCache(
+    memoryCapacity: 4_000_000,
+    diskCapacity: 50_000_000,
+    diskPath: "WisconsinThumbnailURLCache"
+)
+
 // Downsamples image data to a target pixel size using ImageIO (no full-res decode).
 private func downsample(data: Data, maxPixels: CGFloat, scale: CGFloat) -> UIImage? {
     let sourceOptions: [CFString: Any] = [kCGImageSourceShouldCache: false]
@@ -41,11 +47,12 @@ final class ThumbnailCache {
     }
 }
 
-// Dedicated session that skips URLCache so raw image Data isn't double-stored
-// alongside the decoded UIImage already held in ThumbnailCache.
+// Dedicated session with a bounded disk cache so cold launches don't refetch
+// every remote thumbnail before the decoded in-memory cache is rebuilt.
 private let thumbnailSession: URLSession = {
     let config = URLSessionConfiguration.default
-    config.urlCache = nil
+    config.urlCache = thumbnailURLCache
+    config.requestCachePolicy = .returnCacheDataElseLoad
     config.waitsForConnectivity = false
     config.timeoutIntervalForRequest = 15
     config.timeoutIntervalForResource = 30
@@ -90,7 +97,9 @@ struct CachedThumbnail: View {
             uiImage = cached
             return
         }
-        guard let (data, _) = try? await thumbnailSession.data(from: url),
+        var request = URLRequest(url: url)
+        request.cachePolicy = .returnCacheDataElseLoad
+        guard let (data, _) = try? await thumbnailSession.data(for: request),
               !Task.isCancelled else { return }
         let pixels = size * scale
         guard pixels > 0,

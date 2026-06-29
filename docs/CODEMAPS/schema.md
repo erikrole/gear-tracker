@@ -75,7 +75,7 @@ Values: `ACTIVE`, `MAINTENANCE`, `UNKNOWN`
 
 ## Model `User`
 
-Fields: 70
+Fields: 71
 
 - `id                   String                     @id @default(cuid())`
 - `name                 String`
@@ -118,6 +118,7 @@ Fields: 70
 - `passwordResetTokens  PasswordResetToken[]`
 - `notifications        Notification[]`
 - `deviceTokens         DeviceToken[]`
+- `liveActivityTokens   LiveActivityToken[]`
 - `bookingPhotos        BookingPhoto[]             @relation("BookingPhotoActor")`
 - `checkinReports       CheckinItemReport[]        @relation("CheckinReports")`
 - `allowedEmailsCreated AllowedEmail[]             @relation("AllowedEmailCreator")`
@@ -334,7 +335,7 @@ Indexes and constraints:
 
 ## Model `Booking`
 
-Fields: 39
+Fields: 40
 
 - `id                  String                  @id @default(cuid())`
 - `kind                BookingKind`
@@ -375,6 +376,7 @@ Fields: 39
 - `bulkMovements       BulkStockMovement[]`
 - `photos              BookingPhoto[]`
 - `checkinReports      CheckinItemReport[]`
+- `liveActivityTokens  LiveActivityToken[]`
 
 Indexes and constraints:
 
@@ -857,6 +859,27 @@ Indexes and constraints:
 
 - `@@index([userId, revokedAt])`
 - `@@map("device_tokens")`
+
+## Model `LiveActivityToken`
+
+Fields: 10
+
+- `id          String    @id @default(cuid())`
+- `userId      String    @map("user_id")`
+- `bookingId   String    @map("booking_id")`
+- `token       String    @unique`
+- `activity    String`
+- `lastSeenAt  DateTime  @default(now()) @map("last_seen_at")`
+- `createdAt   DateTime  @default(now()) @map("created_at")`
+- `endedAt     DateTime? @map("ended_at")`
+- `user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)`
+- `booking     Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)`
+
+Indexes and constraints:
+
+- `@@index([bookingId, endedAt])`
+- `@@index([userId, activity, endedAt])`
+- `@@map("live_activity_tokens")`
 
 ## Model `Notification`
 

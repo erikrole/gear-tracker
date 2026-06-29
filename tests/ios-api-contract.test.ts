@@ -66,6 +66,20 @@ describe("iOS API contracts — reservation create payload", () => {
   });
 });
 
+describe("iOS API contracts — booking list avatars", () => {
+  it("keeps requester avatar URLs in booking list responses", () => {
+    const listQueries = source("src/lib/services/bookings-queries.ts");
+    const combinedRoute = source("src/app/api/bookings/route.ts");
+    const models = source("ios/Wisconsin/Models/Models.swift");
+    const bookingsView = source("ios/Wisconsin/Views/BookingsView.swift");
+
+    expect(listQueries).toContain("requester: { select: { id: true, name: true, email: true, avatarUrl: true } }");
+    expect(combinedRoute).toContain("requester: { select: { id: true, name: true, email: true, avatarUrl: true } }");
+    expect(models).toContain("let avatarUrl: String?");
+    expect(bookingsView).toContain("UserAvatarView(name: booking.requester.name, avatarUrl: booking.requester.avatarUrl");
+  });
+});
+
 describe("iOS API contracts — asset lookup item families", () => {
   it("iOS decodes /api/assets bulkItems and treats them as scan/search results", () => {
     const route = source("src/app/api/assets/route.ts");

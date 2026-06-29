@@ -31,7 +31,6 @@ import {
   HelpCircleIcon,
   LogOutIcon,
   BellIcon,
-  ScanIcon,
   PlusIcon,
   KeyIcon,
   BatteryChargingIcon,
@@ -59,7 +58,6 @@ type NavItem = {
   badge?: string;
   quickCreateHref?: string;
   requiredRole?: "ADMIN" | "STAFF";
-  shortcut?: string;
 };
 
 type NavGroup = {
@@ -71,12 +69,11 @@ type NavGroup = {
 const navGroups: NavGroup[] = [
   {
     items: [
-      { label: "Dashboard", href: "/", icon: LayoutGridIcon, shortcut: "1" },
-      { label: "Schedule", href: "/schedule", icon: CalendarIcon, shortcut: "2" },
-      { label: "Items", href: "/items", icon: LayersIcon, shortcut: "3" },
-      { label: "Bookings", href: "/bookings", icon: BookOpenIcon, quickCreateHref: "/bookings?create=true", shortcut: "4" },
-      { label: "Lookup", href: "/scan", icon: ScanIcon, shortcut: "5" },
-      { label: "Resources", href: "/resources", icon: ScrollTextIcon, shortcut: "6" },
+      { label: "Dashboard", href: "/", icon: LayoutGridIcon },
+      { label: "Schedule", href: "/schedule", icon: CalendarIcon },
+      { label: "Items", href: "/items", icon: LayersIcon },
+      { label: "Bookings", href: "/bookings", icon: BookOpenIcon, quickCreateHref: "/bookings?create=true" },
+      { label: "Resources", href: "/resources", icon: ScrollTextIcon },
       { label: "Licenses", href: "/licenses", icon: KeyIcon },
       { label: "Notifications", href: "/notifications", icon: BellIcon },
       { label: "Settings", href: "/settings", icon: SettingsIcon },
@@ -95,12 +92,6 @@ const navGroups: NavGroup[] = [
     ],
   },
 ];
-
-const primaryNavItems = navGroups[0]?.items ?? [];
-
-export const SIDEBAR_SHORTCUT_TARGETS = primaryNavItems
-  .filter((item): item is NavItem & { shortcut: string } => Boolean(item.shortcut))
-  .map(({ shortcut, label, href }) => ({ shortcut, label, href }));
 
 type AppSidebarProps = {
   user: { id: string; name: string; email: string; role?: string; avatarUrl?: string | null } | null;
@@ -274,14 +265,13 @@ export default function AppSidebar({
                   const tooltipBase = badgeCfg
                     ? `${item.label} · ${badgeCfg.count} ${badgeCfg.suffix}`
                     : item.label;
-                  const tooltip = item.shortcut ? `${tooltipBase} · ⌘${item.shortcut}` : tooltipBase;
 
                   return (
                     <SidebarMenuItem key={item.label}>
                       <SidebarMenuButton
                         asChild
                         isActive={isActive}
-                        tooltip={tooltip}
+                        tooltip={tooltipBase}
                         className={
                           isActive
                             ? "data-[active=true]:bg-[var(--wi-red)]/12 data-[active=true]:text-white border-l-2 border-l-[var(--wi-red)] rounded-r-md rounded-l-none pl-[calc(0.5rem-2px)] transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.96] group-data-[collapsible=icon]:rounded-md group-data-[collapsible=icon]:border-l-transparent group-data-[collapsible=icon]:bg-white/[0.08] group-data-[collapsible=icon]:pl-2!"

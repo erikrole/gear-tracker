@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MarkdownReader } from "@/components/resources/MarkdownReader";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
-import { formatFreshnessDate, getGuideFreshness } from "@/lib/guide-freshness";
 import { legacyGuideMarkdown, markdownHeadings } from "@/lib/guide-content";
 import { inferResourceTypeFromCategory, RESOURCE_TYPE_LABELS } from "@/lib/guide-categories";
 import { cn } from "@/lib/utils";
@@ -39,8 +38,6 @@ type TocItem = { id: string; level: number; text: string };
 
 type ResourceVerifyResponse = {
   data?: {
-    lastVerifiedAt?: string | null;
-    lastVerifiedBy?: { id: string; name: string } | null;
     updatedAt?: string;
   };
 };
@@ -87,8 +84,6 @@ function TableOfContents({ items, activeId }: { items: TocItem[]; activeId: stri
 }
 
 export function GuideReader({ guide, canEdit, slug }: Props) {
-  const [lastVerifiedAt, setLastVerifiedAt] = useState<Date | string | null>(guide.lastVerifiedAt);
-  const [lastVerifiedBy, setLastVerifiedBy] = useState<{ id: string; name: string } | null>(guide.lastVerifiedBy);
   const [updatedAt, setUpdatedAt] = useState<Date | string>(guide.updatedAt);
   const [verifying, setVerifying] = useState(false);
   const verifyingRef = useRef(false);
@@ -96,7 +91,6 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
     () => legacyGuideMarkdown(guide.markdown, guide.content),
     [guide.content, guide.markdown],
   );
-  const freshness = getGuideFreshness({ updatedAt, lastVerifiedAt });
   const headings = useMemo(() => markdownHeadings(markdown), [markdown]);
   const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null);
 
@@ -123,8 +117,6 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
         toast.error("Guide was verified, but the response was incomplete. Refresh and try again.");
         return;
       }
-      setLastVerifiedAt(json.data.lastVerifiedAt ?? null);
-      setLastVerifiedBy(json.data.lastVerifiedBy ?? null);
       setUpdatedAt(json.data.updatedAt);
       toast.success("Guide marked verified");
     } catch {
@@ -201,17 +193,6 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
                 day: "numeric",
                 year: "numeric",
               })}
-            </span>
-            <Badge
-              variant={freshness.status === "verified" ? "green" : "orange"}
-              title={freshness.detail}
-            >
-              {freshness.label}
-            </Badge>
-            <span className="text-xs text-muted-foreground">
-              {lastVerifiedAt
-                ? `Last verified ${formatFreshnessDate(lastVerifiedAt)}${lastVerifiedBy ? ` by ${lastVerifiedBy.name}` : ""}`
-                : "Never verified"}
             </span>
           </div>
         </div>

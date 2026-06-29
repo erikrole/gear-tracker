@@ -120,6 +120,48 @@ beforeEach(() => {
 });
 
 describe("GET /api/users", () => {
+  it("returns sportAssignments when present in the users list response", async () => {
+    vi.mocked(db.user.findMany).mockResolvedValue(userRows([
+      makeUser({
+        id: targetId,
+        name: "Student One",
+        sportAssignments: [
+          { sportCode: "VB", defaultTraveler: true },
+          { sportCode: "FB", defaultTraveler: false },
+        ],
+        location: { id: "loc-1", name: "Camp Randall" },
+      }),
+    ]));
+    vi.mocked(db.user.count).mockResolvedValue(1);
+    vi.mocked(db.user.groupBy).mockResolvedValue(roleGroups([
+      { role: "STUDENT", _count: { _all: 1 } },
+    ]));
+
+    const res = await GET(
+      new Request("https://app.example.com/api/users"),
+      { params: Promise.resolve({}) },
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(db.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          sportAssignments: {
+            select: {
+              sportCode: true,
+              defaultTraveler: true,
+            },
+          },
+        }),
+      }),
+    );
+    expect(body.data[0].sportAssignments).toEqual([
+      { sportCode: "VB", defaultTraveler: true },
+      { sportCode: "FB", defaultTraveler: false },
+    ]);
+  });
+
   it("returns lastActiveAt and supports last-active sorting", async () => {
     const lastActiveAt = new Date("2026-05-13T14:00:00.000Z");
     vi.mocked(db.user.findMany).mockResolvedValue(userRows([

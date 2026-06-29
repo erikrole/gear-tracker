@@ -97,12 +97,12 @@
 | `src/components/ChooseImageModal.tsx` | 716 |
 | `src/components/booking-wizard/BookingWizard.tsx` | 710 |
 | `src/components/BookingDetailsSheet.tsx` | 686 |
-| `src/components/AppShell.tsx` | 658 |
+| `src/components/AppShell.tsx` | 642 |
 | `src/components/booking-wizard/WizardStep1.tsx` | 570 |
 | `src/components/BookingListPage.tsx` | 512 |
 | `src/components/ui/heatmap.tsx` | 422 |
-| `src/components/Sidebar.tsx` | 393 |
 | `src/components/ui/chart.tsx` | 389 |
+| `src/components/Sidebar.tsx` | 383 |
 | `src/components/PageBreadcrumb.tsx` | 379 |
 | `src/components/shift-detail/ShiftSlotCard.tsx` | 375 |
 | `src/components/booking-details/BookingInfoCard.tsx` | 342 |

@@ -183,6 +183,52 @@ describe("kiosk dashboard route", () => {
     expect(body.partialFailures).toEqual([]);
   });
 
+  it("shows active bulk checkout quantity even when exact unit allocations are missing", async () => {
+    mockDb.$queryRaw.mockResolvedValue([{ items_out: 8n, checkouts: 1n, overdue: 0n }]);
+    mockDb.calendarEvent.findMany.mockResolvedValue([]);
+    mockDb.bookingBulkUnitAllocation.findMany.mockResolvedValue([]);
+    mockDb.booking.findMany.mockResolvedValue([
+      {
+        id: "booking-1",
+        title: "Chris Hall checkout",
+        endsAt: new Date("2026-06-29T23:00:00.000Z"),
+        requester: { id: "user-chris", name: "Chris Hall", avatarUrl: null },
+        serializedItems: [],
+        bulkItems: [{
+          id: "bulk-item-1",
+          checkedOutQuantity: 8,
+          checkedInQuantity: 0,
+          bulkSku: { id: "sku-sony", name: "Sony Battery", imageUrl: null },
+          unitAllocations: [],
+        }],
+        _count: { serializedItems: 0 },
+      },
+    ]);
+
+    const res = await GET(request(), { params: Promise.resolve({}) });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.activeItems).toEqual([
+      expect.objectContaining({
+        id: "booking-1:bulk-item-1:bulk-quantity",
+        name: "Sony Battery x8",
+        tagName: "x8",
+        bulkSkuId: "sku-sony",
+        unitNumber: null,
+        checkoutId: "booking-1",
+        requesterName: "Chris Hall",
+      }),
+    ]);
+    expect(body.checkouts).toEqual([
+      expect.objectContaining({
+        id: "booking-1",
+        itemCount: 8,
+        items: [{ name: "Sony Battery x8" }],
+      }),
+    ]);
+  });
+
   it("returns safe fallback sections when one dashboard query fails", async () => {
     mockDb.$queryRaw.mockRejectedValue(new Error("stats failed"));
     mockDb.calendarEvent.findMany.mockResolvedValue([]);

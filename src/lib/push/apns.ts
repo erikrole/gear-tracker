@@ -31,15 +31,16 @@ function sendOne(
   client: http2.ClientHttp2Session,
   jwt: string,
   token: string,
-  notification: object
+  notification: object,
+  opts: { topic: string; pushType: "alert" | "liveactivity" }
 ): Promise<SendResult> {
   return new Promise((resolve) => {
     const req = client.request({
       ":method": "POST",
       ":path": `/3/device/${token}`,
       authorization: `bearer ${jwt}`,
-      "apns-topic": process.env.APNS_BUNDLE_ID!,
-      "apns-push-type": "alert",
+      "apns-topic": opts.topic,
+      "apns-push-type": opts.pushType,
       "content-type": "application/json",
     });
 
@@ -106,12 +107,59 @@ export async function sendPush(
   try {
     await Promise.all(
       deviceTokens.map(async (token) => {
-        const result = await sendOne(client, jwt, token, notification);
+        const result = await sendOne(client, jwt, token, notification, {
+          topic: process.env.APNS_BUNDLE_ID!,
+          pushType: "alert",
+        });
         if (result === "revoked") revoked.push(token);
       })
     );
   } catch (err) {
     console.error("[APNS] sendPush error:", err);
+  } finally {
+    client.destroy();
+  }
+
+  return { revoked };
+}
+
+export async function endCheckoutReturnLiveActivityTokens(
+  tokens: string[]
+): Promise<{ revoked: string[] }> {
+  if (!isConfigured() || tokens.length === 0) return { revoked: [] };
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const notification = {
+    aps: {
+      timestamp: nowSeconds,
+      event: "end",
+      "dismissal-date": nowSeconds,
+      "content-state": {
+        endsAt: new Date().toISOString(),
+        now: new Date().toISOString(),
+        nextNeedAt: null,
+        allowsExtend: false,
+        urgency: "overdue",
+      },
+    },
+  };
+
+  const jwt = makeJWT();
+  const client = http2.connect(APNS_HOST);
+  const revoked: string[] = [];
+
+  try {
+    await Promise.all(
+      tokens.map(async (token) => {
+        const result = await sendOne(client, jwt, token, notification, {
+          topic: `${process.env.APNS_BUNDLE_ID!}.push-type.liveactivity`,
+          pushType: "liveactivity",
+        });
+        if (result === "revoked") revoked.push(token);
+      })
+    );
+  } catch (err) {
+    console.error("[APNS] endCheckoutReturnLiveActivityTokens error:", err);
   } finally {
     client.destroy();
   }

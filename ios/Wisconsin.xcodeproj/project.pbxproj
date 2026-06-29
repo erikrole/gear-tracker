@@ -18,10 +18,12 @@
 		1055262B6F98F58C10AC34F1 /* Gotham-Black.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 25CAFE07992F1EB02F507AE2 /* Gotham-Black.ttf */; };
 		126FE69C0DCDD7F917CE6580 /* KioskShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5A80EBE9AE9D0094E70FBB /* KioskShellView.swift */; };
 		12BE5380A72CE66E23CA39CD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 592769886AB12F6A842CC8CF /* Assets.xcassets */; };
+		157E1E0021A0F88C78E3590E /* SidebarWebDestinationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B76322B9A6F0D5B70487D0F2 /* SidebarWebDestinationView.swift */; };
 		16180470B97E979363856F90 /* Gotham-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F79BD5C4616572A064F43254 /* Gotham-Bold.ttf */; };
 		1AC641AD94A229A52FE17AE0 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ED3D57FAA3E94281C3FF27C /* APIClient.swift */; };
 		1C2E6D4D0BA7A114FB6E9DB7 /* Toast.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D900B3FE267BAB0F0904D07 /* Toast.swift */; };
 		1E84624B222CD81665D2EC79 /* StatusPill.swift in Sources */ = {isa = PBXBuildFile; fileRef = A97E29E06DBD7A4474F9E66A /* StatusPill.swift */; };
+		1EC76C21F12315FFEA89CD45 /* WisconsinLiveActivities.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 88F162C9B5233CB44C35E9E5 /* WisconsinLiveActivities.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		237DD2AF7BCC2631721C737C /* CreateBookingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F3FA2D4C06E966E6BA030B /* CreateBookingSheet.swift */; };
 		23D18DF0CCE1DFC0E4CAD69E /* ScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37FF31264347D4D6932C4DBB /* ScanView.swift */; };
 		24A80894586E46E13F2E4E41 /* KioskStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA38BB094C95612DBF9F1C24 /* KioskStore.swift */; };
@@ -44,6 +46,7 @@
 		3EA409C06E497D3FCA3ECF8B /* KioskColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF17654612E5CA2EBF575539 /* KioskColors.swift */; };
 		411CF014B25A6515F8E6869E /* CreateBookingEquipmentRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4C885700380306D486A94C9 /* CreateBookingEquipmentRows.swift */; };
 		41891E6B69644BB1DB025CB9 /* Brand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A9DAB950F60885A23620BEC /* Brand.swift */; };
+		41B304E3F5ABE1BF6F9B94BB /* CheckoutReturnActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E11254A1E4647B8B02F4890A /* CheckoutReturnActivityAttributes.swift */; };
 		41B90D7E34083A1070406934 /* KioskModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02B29E7150D396D5C8236398 /* KioskModels.swift */; };
 		470F79B703DF9EB55FECE070 /* FormModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6148A160C162A021FF9DE4C0 /* FormModels.swift */; };
 		48F535BD8B55E06D80C25E2B /* KioskDesign.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07116906C1A1FF6F5D10BFA1 /* KioskDesign.swift */; };
@@ -53,6 +56,7 @@
 		521817F1F579897074A3B1D4 /* CreateBookingEventViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88FF0CACAB4BD4886FD0219B /* CreateBookingEventViews.swift */; };
 		5222CCDEB1C3A451B2B7EDED /* PostTradeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C76AD0C31463DD95EE65E1E6 /* PostTradeSheet.swift */; };
 		56A81DDDEF06AB1D40D13B33 /* AvailabilityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE250FADCDB66EDCBD5DF234 /* AvailabilityView.swift */; };
+		59A62659B5B66ECB9776D716 /* CheckoutReturnLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B440FC4AD4F07C1163F8856 /* CheckoutReturnLiveActivityWidget.swift */; };
 		5BFCE075814954BB59669481 /* Skeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 468E248680EC5A61BEC1EE38 /* Skeleton.swift */; };
 		5D716269ED62B3BCD83B904B /* NotificationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 229CAC26AA9E3BB5EEC36678 /* NotificationModels.swift */; };
 		5FC271E1656B8281545DA61D /* KioskBarcodeCameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06C085E7CDEC3CCE6DFDD630 /* KioskBarcodeCameraView.swift */; };
@@ -103,7 +107,9 @@
 		C72EB6E27A3B853D2B074874 /* KioskNativeTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046675A42DFADB1133461EDD /* KioskNativeTextField.swift */; };
 		CB5A9F4D1449DDAFF063E6A6 /* KioskOnlyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B24728E65A42F40EDB0BBCF8 /* KioskOnlyApp.swift */; };
 		CE860A32B56D88E0802D8EFE /* DashboardModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB8C14E1F7005B408A6A4CCD /* DashboardModels.swift */; };
+		D1BE91AB2F76BE372F49B448 /* CheckoutReturnLiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2228C8C2447924ED80ABD8C4 /* CheckoutReturnLiveActivityManager.swift */; };
 		D24677599DC4E06E3E093A81 /* PushPrePromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A2DFDC7A0C7BD6C018D43D2 /* PushPrePromptView.swift */; };
+		D4355A04DA0626C754E3993C /* CheckoutReturnActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E11254A1E4647B8B02F4890A /* CheckoutReturnActivityAttributes.swift */; };
 		DACC18C0E1181FD912992FEE /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D6258D04F2CBF34C14EBB69 /* LoginView.swift */; };
 		DBB620395B1140D1777AD0B2 /* KioskPickupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB5E4D4F3F432CE124DE63A8 /* KioskPickupView.swift */; };
 		DC10577F4AF30D4E44E08B63 /* AssignStudentSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9374732F63AA4EA283094F0 /* AssignStudentSheet.swift */; };
@@ -126,7 +132,28 @@
 			remoteGlobalIDString = 5731E598F30EDA43B52B4002;
 			remoteInfo = Wisconsin;
 		};
+		8D1698B724DB02A1A7D0427E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 335BE05E032A4F56E50B98CC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AE5BC122AAA548CB394E1598;
+			remoteInfo = WisconsinLiveActivities;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		E8E4190341EF62FD1DBC213B /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				1EC76C21F12315FFEA89CD45 /* WisconsinLiveActivities.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		0189482D68508F45B086F46F /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
@@ -140,11 +167,13 @@
 		0E5A80EBE9AE9D0094E70FBB /* KioskShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskShellView.swift; sourceTree = "<group>"; };
 		13D2A559654212BD133FB74F /* KioskStudentHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskStudentHubView.swift; sourceTree = "<group>"; };
 		1770023701735D8701DCAA5B /* OverdueReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverdueReportView.swift; sourceTree = "<group>"; };
+		1B440FC4AD4F07C1163F8856 /* CheckoutReturnLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckoutReturnLiveActivityWidget.swift; sourceTree = "<group>"; };
 		2228A84C3CCBC90ABF9103F1 /* BookingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingsView.swift; sourceTree = "<group>"; };
+		2228C8C2447924ED80ABD8C4 /* CheckoutReturnLiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckoutReturnLiveActivityManager.swift; sourceTree = "<group>"; };
 		229CAC26AA9E3BB5EEC36678 /* NotificationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationModels.swift; sourceTree = "<group>"; };
 		2536547429CB16E12CB069C0 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		25CAFE07992F1EB02F507AE2 /* Gotham-Black.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Gotham-Black.ttf"; sourceTree = "<group>"; };
-		294553EF02A8AC64D71ED849 /* Wisconsin.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Wisconsin.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		294553EF02A8AC64D71ED849 /* Wisconsin.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Wisconsin.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2A73B2A1C9B274552CBA7C8B /* Haptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; };
 		2B0058FB3644F501479BA0D5 /* ExtendBookingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtendBookingSheet.swift; sourceTree = "<group>"; };
 		2DCFCD62823EAF922978F5E0 /* PasswordSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordSetupView.swift; sourceTree = "<group>"; };
@@ -177,10 +206,11 @@
 		74157D1DF3F4EF9F53F70494 /* ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleView.swift; sourceTree = "<group>"; };
 		74EFD042F26EA7BE52FA67E3 /* SearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchService.swift; sourceTree = "<group>"; };
 		783E3F89AF08A64D8BE2685D /* KioskActivationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskActivationView.swift; sourceTree = "<group>"; };
-		80B4D45C3B7B120931B9ACC0 /* Wisconsin Kiosk.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Wisconsin Kiosk.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		80B4D45C3B7B120931B9ACC0 /* WisconsinKiosk.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = WisconsinKiosk.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		80CA4880F08046F8E23F079B /* ItemDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemDetailView.swift; sourceTree = "<group>"; };
 		843772771897AABEF8DD1F93 /* BannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerView.swift; sourceTree = "<group>"; };
 		87AF393E027CAF24A08F414E /* WeatherKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WeatherKit.framework; path = System/Library/Frameworks/WeatherKit.framework; sourceTree = SDKROOT; };
+		88F162C9B5233CB44C35E9E5 /* WisconsinLiveActivities.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = WisconsinLiveActivities.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		88FF0CACAB4BD4886FD0219B /* CreateBookingEventViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateBookingEventViews.swift; sourceTree = "<group>"; };
 		8F94CA79BF538DBB6FF7F225 /* UsersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsersView.swift; sourceTree = "<group>"; };
 		93A02FB7D1B8ADC547189F1A /* ScanPrePromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanPrePromptView.swift; sourceTree = "<group>"; };
@@ -194,9 +224,11 @@
 		A97E29E06DBD7A4474F9E66A /* StatusPill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusPill.swift; sourceTree = "<group>"; };
 		AB412E1DD8493D282F261563 /* CreateBookingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateBookingViewModel.swift; sourceTree = "<group>"; };
 		AD7494E64F4395E73A7AA6C1 /* SearchResultRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResultRow.swift; sourceTree = "<group>"; };
+		B037789B5F94297AC27AA18B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		B04517A8131BAA862DB3FF5E /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		B208F1EB8DD4DA49DADC1CAB /* AppTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTabView.swift; sourceTree = "<group>"; };
 		B24728E65A42F40EDB0BBCF8 /* KioskOnlyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskOnlyApp.swift; sourceTree = "<group>"; };
+		B76322B9A6F0D5B70487D0F2 /* SidebarWebDestinationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarWebDestinationView.swift; sourceTree = "<group>"; };
 		BA04562F7C424114F304B494 /* BookingDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingDetailView.swift; sourceTree = "<group>"; };
 		BA5C2531E017BDBDE5EFDDFE /* KioskAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskAPIClient.swift; sourceTree = "<group>"; };
 		BB8C14E1F7005B408A6A4CCD /* DashboardModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardModels.swift; sourceTree = "<group>"; };
@@ -205,7 +237,7 @@
 		C2BBAACBEA87B1EE9FEBC287 /* UserAvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserAvatarView.swift; sourceTree = "<group>"; };
 		C6D1B302F1FC5245180A17CD /* ThumbnailLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailLoader.swift; sourceTree = "<group>"; };
 		C76AD0C31463DD95EE65E1E6 /* PostTradeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostTradeSheet.swift; sourceTree = "<group>"; };
-		D2CCD2319C4A2279FAAB048E /* WisconsinTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WisconsinTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D2CCD2319C4A2279FAAB048E /* WisconsinTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = WisconsinTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D3BDE438C8F05EAA14B299BB /* WisconsinApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WisconsinApp.swift; sourceTree = "<group>"; };
 		D4C885700380306D486A94C9 /* CreateBookingEquipmentRows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateBookingEquipmentRows.swift; sourceTree = "<group>"; };
 		D50B2D1EA31765C957FED322 /* ScheduleModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleModels.swift; sourceTree = "<group>"; };
@@ -213,6 +245,7 @@
 		DB5E4D4F3F432CE124DE63A8 /* KioskPickupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskPickupView.swift; sourceTree = "<group>"; };
 		DE250FADCDB66EDCBD5DF234 /* AvailabilityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvailabilityView.swift; sourceTree = "<group>"; };
 		DF17654612E5CA2EBF575539 /* KioskColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskColors.swift; sourceTree = "<group>"; };
+		E11254A1E4647B8B02F4890A /* CheckoutReturnActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckoutReturnActivityAttributes.swift; sourceTree = "<group>"; };
 		E968BAF46C8E557831F73C27 /* KioskSuccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskSuccessView.swift; sourceTree = "<group>"; };
 		EB6A309FA698276EE001EE07 /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
 		EC21A466188CE0D3011728F2 /* ShiftTradeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftTradeModels.swift; sourceTree = "<group>"; };
@@ -247,6 +280,7 @@
 				E1B33BB857133B356F794A8B /* Core */,
 				B98530FDE6F2D3820422A8EF /* Kiosk */,
 				7E86B77AC3A3DFF7175FFCA4 /* KioskOnly */,
+				7185FFCB990BED0343A334A5 /* LiveActivities */,
 				81829E068FCED51275ACCDFB /* Models */,
 				32C26FE34A33AD88F5196A5D /* Resources */,
 				348EF5C26E708380D994ED22 /* Supporting */,
@@ -269,6 +303,15 @@
 				9CDE77AE37C01B8DA663C7CE /* Info.plist */,
 			);
 			path = Supporting;
+			sourceTree = "<group>";
+		};
+		4000675A530740785C2DA0A8 /* WisconsinLiveActivities */ = {
+			isa = PBXGroup;
+			children = (
+				1B440FC4AD4F07C1163F8856 /* CheckoutReturnLiveActivityWidget.swift */,
+				B037789B5F94297AC27AA18B /* Info.plist */,
+			);
+			path = WisconsinLiveActivities;
 			sourceTree = "<group>";
 		};
 		4E310D05AC0591B9C424B405 /* Components */ = {
@@ -304,10 +347,20 @@
 			isa = PBXGroup;
 			children = (
 				1414D7CCBD97C717AE465FD0 /* Wisconsin */,
+				4000675A530740785C2DA0A8 /* WisconsinLiveActivities */,
 				EDA403CEE6E28FEE6DB3375A /* WisconsinTests */,
 				56BA9B99E8BB9A2E7D01253E /* Frameworks */,
 				FAC33595C52A409299C15513 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		7185FFCB990BED0343A334A5 /* LiveActivities */ = {
+			isa = PBXGroup;
+			children = (
+				E11254A1E4647B8B02F4890A /* CheckoutReturnActivityAttributes.swift */,
+				2228C8C2447924ED80ABD8C4 /* CheckoutReturnLiveActivityManager.swift */,
+			);
+			path = LiveActivities;
 			sourceTree = "<group>";
 		};
 		7E86B77AC3A3DFF7175FFCA4 /* KioskOnly */ = {
@@ -442,6 +495,7 @@
 				93A02FB7D1B8ADC547189F1A /* ScanPrePromptView.swift */,
 				37FF31264347D4D6932C4DBB /* ScanView.swift */,
 				74157D1DF3F4EF9F53F70494 /* ScheduleView.swift */,
+				B76322B9A6F0D5B70487D0F2 /* SidebarWebDestinationView.swift */,
 				6B64F325136AF7626ECECE8C /* UserDetailView.swift */,
 				8F94CA79BF538DBB6FF7F225 /* UsersView.swift */,
 				4E310D05AC0591B9C424B405 /* Components */,
@@ -477,7 +531,8 @@
 			isa = PBXGroup;
 			children = (
 				294553EF02A8AC64D71ED849 /* Wisconsin.app */,
-				80B4D45C3B7B120931B9ACC0 /* Wisconsin Kiosk.app */,
+				80B4D45C3B7B120931B9ACC0 /* WisconsinKiosk.app */,
+				88F162C9B5233CB44C35E9E5 /* WisconsinLiveActivities.appex */,
 				D2CCD2319C4A2279FAAB048E /* WisconsinTests.xctest */,
 			);
 			name = Products;
@@ -493,10 +548,12 @@
 				ABB8BC4733CB796A48A557D1 /* Sources */,
 				028CA1F838882E12487697F8 /* Resources */,
 				4131A75354D9B9C47C13175A /* Frameworks */,
+				E8E4190341EF62FD1DBC213B /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				3F644F8F87D6D51846AF5ECC /* PBXTargetDependency */,
 			);
 			name = Wisconsin;
 			packageProductDependencies = (
@@ -520,8 +577,25 @@
 			packageProductDependencies = (
 			);
 			productName = WisconsinKiosk;
-			productReference = 80B4D45C3B7B120931B9ACC0 /* Wisconsin Kiosk.app */;
+			productReference = 80B4D45C3B7B120931B9ACC0 /* WisconsinKiosk.app */;
 			productType = "com.apple.product-type.application";
+		};
+		AE5BC122AAA548CB394E1598 /* WisconsinLiveActivities */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 05D72B203B988EFC32B2A88B /* Build configuration list for PBXNativeTarget "WisconsinLiveActivities" */;
+			buildPhases = (
+				9873F6963E4E58809C13D3AC /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = WisconsinLiveActivities;
+			packageProductDependencies = (
+			);
+			productName = WisconsinLiveActivities;
+			productReference = 88F162C9B5233CB44C35E9E5 /* WisconsinLiveActivities.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 		EB002774201125D2164CE813 /* WisconsinTests */ = {
 			isa = PBXNativeTarget;
@@ -548,12 +622,15 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 2700;
+				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					5731E598F30EDA43B52B4002 = {
 						DevelopmentTeam = T26T3G8C7Q;
 					};
 					58413BF8F25E6ACC210F6B81 = {
+						DevelopmentTeam = T26T3G8C7Q;
+					};
+					AE5BC122AAA548CB394E1598 = {
 						DevelopmentTeam = T26T3G8C7Q;
 					};
 					EB002774201125D2164CE813 = {
@@ -577,6 +654,7 @@
 			targets = (
 				5731E598F30EDA43B52B4002 /* Wisconsin */,
 				58413BF8F25E6ACC210F6B81 /* WisconsinKiosk */,
+				AE5BC122AAA548CB394E1598 /* WisconsinLiveActivities */,
 				EB002774201125D2164CE813 /* WisconsinTests */,
 			);
 		};
@@ -639,6 +717,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		9873F6963E4E58809C13D3AC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D4355A04DA0626C754E3993C /* CheckoutReturnActivityAttributes.swift in Sources */,
+				59A62659B5B66ECB9776D716 /* CheckoutReturnLiveActivityWidget.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		ABB8BC4733CB796A48A557D1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -657,6 +744,8 @@
 				69DD68092CDC35D6924052DF /* BookingDetailView.swift in Sources */,
 				B2FEB545EEB4F42FE18F292F /* BookingsView.swift in Sources */,
 				41891E6B69644BB1DB025CB9 /* Brand.swift in Sources */,
+				41B304E3F5ABE1BF6F9B94BB /* CheckoutReturnActivityAttributes.swift in Sources */,
+				D1BE91AB2F76BE372F49B448 /* CheckoutReturnLiveActivityManager.swift in Sources */,
 				411CF014B25A6515F8E6869E /* CreateBookingEquipmentRows.swift in Sources */,
 				521817F1F579897074A3B1D4 /* CreateBookingEventViews.swift in Sources */,
 				27614B86498B5D98CC600630 /* CreateBookingFormRows.swift in Sources */,
@@ -717,6 +806,7 @@
 				A2F31705FBCCCE502A3B6C1A /* SearchService.swift in Sources */,
 				81413B070B47866D2C7DB337 /* SessionStore.swift in Sources */,
 				889D5483CAC2EA6C8E25DDFD /* ShiftTradeModels.swift in Sources */,
+				157E1E0021A0F88C78E3590E /* SidebarWebDestinationView.swift in Sources */,
 				5BFCE075814954BB59669481 /* Skeleton.swift in Sources */,
 				1E84624B222CD81665D2EC79 /* StatusPill.swift in Sources */,
 				BA09B1B0BD9687C63E73E59D /* ThumbnailLoader.swift in Sources */,
@@ -732,6 +822,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		3F644F8F87D6D51846AF5ECC /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AE5BC122AAA548CB394E1598 /* WisconsinLiveActivities */;
+			targetProxy = 8D1698B724DB02A1A7D0427E /* PBXContainerItemProxy */;
+		};
 		7F8C5DBF52138F73AC28AB84 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 5731E598F30EDA43B52B4002 /* Wisconsin */;
@@ -740,10 +835,49 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		1BA982764C6C3AA316526245 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
+				INFOPLIST_FILE = WisconsinLiveActivities/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.erikrole.Wisconsin.LiveActivities;
+				PRODUCT_NAME = WisconsinLiveActivities;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		1C7A9E3F9981CB6998B50F08 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
+				INFOPLIST_FILE = WisconsinLiveActivities/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.erikrole.Wisconsin.LiveActivities;
+				PRODUCT_NAME = WisconsinLiveActivities;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		421F863027CCDA1914F9D3F3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -766,6 +900,7 @@
 				CODE_SIGN_ENTITLEMENTS = Wisconsin/Wisconsin.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				INFOPLIST_FILE = Wisconsin/Supporting/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -788,6 +923,7 @@
 				CODE_SIGN_ENTITLEMENTS = Wisconsin/Wisconsin.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				INFOPLIST_FILE = Wisconsin/Supporting/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -806,7 +942,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -838,11 +973,9 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_PREVIEWS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -856,7 +989,6 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.10;
@@ -867,7 +999,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -899,11 +1030,9 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				ENABLE_PREVIEWS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -924,7 +1053,6 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.10;
@@ -937,6 +1065,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				INFOPLIST_FILE = Wisconsin/KioskOnly/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -957,6 +1086,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				INFOPLIST_FILE = Wisconsin/KioskOnly/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -976,6 +1106,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -994,6 +1125,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		05D72B203B988EFC32B2A88B /* Build configuration list for PBXNativeTarget "WisconsinLiveActivities" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1BA982764C6C3AA316526245 /* Debug */,
+				1C7A9E3F9981CB6998B50F08 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		179CEE1BC96BDC8C5316C0E3 /* Build configuration list for PBXNativeTarget "WisconsinTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

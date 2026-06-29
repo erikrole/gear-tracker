@@ -158,8 +158,8 @@ const FIELD_LABELS: Record<string, string> = {
 /** Status vocabulary mapping */
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: "Draft",
-  BOOKED: "Confirmed",
-  OPEN: "Checked out",
+  BOOKED: "Reserved",
+  OPEN: "Checked Out",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
 };

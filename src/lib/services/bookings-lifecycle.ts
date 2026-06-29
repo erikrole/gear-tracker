@@ -613,6 +613,7 @@ export async function updateCheckout(
           bulkSkuId: item.bulkSkuId,
           quantity: item.plannedQuantity
         }));
+      const updatesEquipment = updates.serializedAssetIds !== undefined || updates.bulkItems !== undefined;
 
       const availability = await checkAvailability(tx, {
         locationId: nextLocationId,
@@ -637,40 +638,51 @@ export async function updateCheckout(
         }
       });
 
-      // Rebuild allocations with possibly changed items/dates
-      await tx.bookingSerializedItem.deleteMany({ where: { bookingId } });
-      await tx.assetAllocation.deleteMany({ where: { bookingId } });
-      await tx.bookingBulkItem.deleteMany({ where: { bookingId } });
-
-      if (serializedAssetIds.length > 0) {
-        await tx.bookingSerializedItem.createMany({
-          data: serializedAssetIds.map((assetId) => ({
-            bookingId,
-            assetId,
-            allocationStatus: "active"
-          }))
-        });
-
-        await tx.assetAllocation.createMany({
-          data: serializedAssetIds.map((assetId) => ({
-            bookingId,
-            assetId,
+      if (!updatesEquipment) {
+        await tx.assetAllocation.updateMany({
+          where: { bookingId },
+          data: {
             startsAt: nextStartsAt,
             endsAt: nextEndsAt,
-            active: true,
-            kind: "CHECKOUT"
-          }))
+          },
         });
-      }
+      } else {
+        // Rebuild allocations only when the caller explicitly changed equipment.
+        // Detail-only edits must not cascade-delete numbered bulk unit history.
+        await tx.bookingSerializedItem.deleteMany({ where: { bookingId } });
+        await tx.assetAllocation.deleteMany({ where: { bookingId } });
+        await tx.bookingBulkItem.deleteMany({ where: { bookingId } });
 
-      if (bulkItems.length > 0) {
-        await tx.bookingBulkItem.createMany({
-          data: bulkItems.map((item) => ({
-            bookingId,
-            bulkSkuId: item.bulkSkuId,
-            plannedQuantity: item.quantity,
-          }))
-        });
+        if (serializedAssetIds.length > 0) {
+          await tx.bookingSerializedItem.createMany({
+            data: serializedAssetIds.map((assetId) => ({
+              bookingId,
+              assetId,
+              allocationStatus: "active"
+            }))
+          });
+
+          await tx.assetAllocation.createMany({
+            data: serializedAssetIds.map((assetId) => ({
+              bookingId,
+              assetId,
+              startsAt: nextStartsAt,
+              endsAt: nextEndsAt,
+              active: true,
+              kind: "CHECKOUT"
+            }))
+          });
+        }
+
+        if (bulkItems.length > 0) {
+          await tx.bookingBulkItem.createMany({
+            data: bulkItems.map((item) => ({
+              bookingId,
+              bulkSkuId: item.bulkSkuId,
+              plannedQuantity: item.quantity,
+            }))
+          });
+        }
       }
 
       // Granular equipment audit entries

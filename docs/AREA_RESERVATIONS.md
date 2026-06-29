@@ -241,6 +241,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - Mobile operations contract from `AREA_MOBILE.md`.
 
 ## Change Log
+- 2026-06-29: Native iOS reservation detail notes editing now uses a multiline editor and preserves the existing optimistic-lock PATCH path while sending an explicit empty string when notes are cleared. This fixes the native clear-notes path without changing reservation lifecycle, kiosk pickup, or server mutation contracts.
 - 2026-06-27: Shared booking-list extension and initial-load failures now use reservation-safe recovery copy that says the booking was not extended or the list should be retried before acting, replacing generic network and temporary-error wording.
 - 2026-06-26: Reservation list and full reservation detail now surface the shared booking-change sync health via the shadcn-backed status indicator. The existing committed-change invalidation remains unchanged; this makes visible whether reservation freshness is live, paused, offline, or retrying.
 - 2026-06-24: Booking real-time sync partial AC-12 proof. Web reservation list and an already-open detail sheet now refresh from committed edit/cancel changes without manual refresh via the shared booking-change signal; the browser smoke also caught and fixed the detail-sheet local-state gap. Kiosk pickup fulfillment remains the unproven part of AC-12.

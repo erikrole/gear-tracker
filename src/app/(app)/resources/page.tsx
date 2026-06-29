@@ -21,7 +21,7 @@ import {
   PlusIcon,
   SearchIcon,
   SlackIcon,
-  SparklesIcon,
+  TrophyIcon,
   UsersIcon,
   VideoIcon,
   WrenchIcon,
@@ -55,14 +55,14 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ServerPathCopy } from "@/components/resources/ServerPathCopy";
 import { useFetch } from "@/hooks/use-fetch";
 import {
   inferResourceTypeFromCategory,
-  RESOURCE_TYPE_DESCRIPTIONS,
   RESOURCE_TYPE_LABELS,
 } from "@/lib/guide-categories";
-import { getGuideFreshness } from "@/lib/guide-freshness";
 import type { GuideListItem } from "@/lib/guides";
+import { sportLabel } from "@/lib/sports";
 import { cn } from "@/lib/utils";
 import {
   parseResourceFilter,
@@ -89,6 +89,10 @@ type ContactUser = {
   title: string | null;
   gradYear: number | null;
   studentYearOverride: "FRESHMAN" | "SOPHOMORE" | "JUNIOR" | "SENIOR" | "GRAD" | null;
+  sportAssignments: {
+    sportCode: string;
+    defaultTraveler: boolean;
+  }[];
 };
 
 type ContactUsersResponse = {
@@ -160,12 +164,16 @@ const SMART_FILTERS: ScopeOption[] = [
   { value: "my-area", label: "My area" },
 ];
 
+const REFERENCE_FILTERS: ScopeOption[] = [
+  { value: "assignments", label: "Sport assignments" },
+];
+
 const SCOPE_OPTIONS: ScopeOption[] = [
   ...SMART_FILTERS,
+  ...REFERENCE_FILTERS,
   ...RESOURCE_TYPE_FILTERS.map((item) => ({
     value: item.key,
     label: RESOURCE_TYPE_LABELS[item.type],
-    description: RESOURCE_TYPE_DESCRIPTIONS[item.type],
   })),
   ...AREA_FILTERS,
 ];
@@ -196,6 +204,11 @@ function contactSearchText(user: ContactUser) {
     user.role,
     user.primaryArea,
     user.location,
+    ...(user.sportAssignments ?? []).flatMap((assignment) => [
+      assignment.sportCode,
+      sportLabel(assignment.sportCode),
+      assignment.defaultTraveler ? "default traveler" : null,
+    ]),
     user.gradYear ? String(user.gradYear) : null,
     user.studentYearOverride,
   ]
@@ -263,6 +276,7 @@ function areaForFilter(filter: FilterKey) {
 
 function matchesFilter(guide: GuideListItem, filter: FilterKey): boolean {
   if (filter === "all" || filter === "recent") return true;
+  if (filter === "assignments") return false;
   if (filter === "my-area") {
     return guide.targetAreas.length > 0 && guide.personalizationReason !== "General";
   }
@@ -271,12 +285,6 @@ function matchesFilter(guide: GuideListItem, filter: FilterKey): boolean {
   const type = typeForFilter(filter);
   if (type) return resourceTypeOf(guide) === type;
   return true;
-}
-
-function countMatching(guides: GuideListItem[] | null, filter: FilterKey) {
-  if (!guides) return 0;
-  if (filter === "all") return guides.length;
-  return guides.reduce((sum, guide) => (matchesFilter(guide, filter) ? sum + 1 : sum), 0);
 }
 
 function getFilterLabel(filter: FilterKey) {
@@ -309,7 +317,6 @@ function ResourceTypeIcon({ type, className }: { type: ResourceType; className?:
 
 function GuideCard({ guide, compact = false }: { guide: GuideListItem; compact?: boolean }) {
   const type = resourceTypeOf(guide);
-  const freshness = getGuideFreshness(guide);
 
   return (
     <Link
@@ -326,11 +333,7 @@ function GuideCard({ guide, compact = false }: { guide: GuideListItem; compact?:
         <CardHeader className="gap-3 p-4">
           <div className="flex items-start gap-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-              {guide.featured ? (
-                <SparklesIcon className="size-4" aria-hidden="true" />
-              ) : (
-                <ResourceTypeIcon type={type} />
-              )}
+              <ResourceTypeIcon type={type} />
             </div>
             <div className="min-w-0 flex-1">
               <CardTitle className="line-clamp-2 text-sm leading-snug text-foreground">
@@ -357,13 +360,6 @@ function GuideCard({ guide, compact = false }: { guide: GuideListItem; compact?:
             </p>
           )}
           <div className="mt-auto flex flex-wrap items-center gap-2">
-            <Badge
-              variant={freshness.status === "verified" ? "green" : "orange"}
-              size="sm"
-              title={freshness.detail}
-            >
-              {freshness.label}
-            </Badge>
             <span className="text-xs text-muted-foreground">{audienceLabel(guide)}</span>
           </div>
         </CardContent>
@@ -381,7 +377,6 @@ function GuideCard({ guide, compact = false }: { guide: GuideListItem; compact?:
 
 function GuideListRow({ guide }: { guide: GuideListItem }) {
   const type = resourceTypeOf(guide);
-  const freshness = getGuideFreshness(guide);
 
   return (
     <Link
@@ -409,13 +404,6 @@ function GuideListRow({ guide }: { guide: GuideListItem }) {
       <div className="flex flex-wrap items-center gap-2 md:justify-end">
         <Badge variant="secondary" size="sm">
           {RESOURCE_TYPE_LABELS[type]}
-        </Badge>
-        <Badge
-          variant={freshness.status === "verified" ? "green" : "orange"}
-          size="sm"
-          title={freshness.detail}
-        >
-          {freshness.label}
         </Badge>
         <span className="text-xs text-muted-foreground tabular-nums">{formatShortDate(guide.updatedAt)}</span>
       </div>
@@ -473,57 +461,41 @@ function GuideResults({
   );
 }
 
-function GuideCollectionTiles({
-  guides,
-  contactCount,
-  activeFilter,
-  onSelect,
-}: {
-  guides: GuideListItem[] | null;
-  contactCount: number;
-  activeFilter: FilterKey;
-  onSelect: (filter: FilterKey) => void;
-}) {
-  return (
-    <section className="flex flex-col gap-3">
-      <SectionHeader
-        title="Guide collections"
-        description="Start with the focus area, then drill into the smaller Guides that replaced the master doc."
-      />
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {RESOURCE_TYPE_FILTERS.map((item) => {
-          const authoredCount = countMatching(guides, item.key);
-          const count = item.type === ResourceType.CONTACTS ? authoredCount + contactCount : authoredCount;
-          const active = activeFilter === item.key;
-          const Icon = item.icon;
-          return (
-            <Button
-              key={item.key}
-              type="button"
-              variant={active ? "secondary" : "outline"}
-              className="h-auto min-h-24 justify-start p-3 text-left"
-              onClick={() => onSelect(item.key)}
-            >
-              <span className="flex min-w-0 flex-col gap-2">
-                <span className="flex items-center gap-2">
-                  <Icon data-icon="inline-start" />
-                  <span className="truncate font-semibold">{RESOURCE_TYPE_LABELS[item.type]}</span>
-                </span>
-                <span className="line-clamp-2 text-xs font-normal text-muted-foreground text-pretty">
-                  {RESOURCE_TYPE_DESCRIPTIONS[item.type]}
-                </span>
-                <span className="text-xs font-medium tabular-nums text-muted-foreground">
-                  {count} {item.type === ResourceType.CONTACTS
-                    ? count === 1 ? "reference" : "references"
-                    : count === 1 ? "guide" : "guides"}
-                </span>
-              </span>
-            </Button>
-          );
-        })}
-      </div>
-    </section>
-  );
+type SportAssignmentGroup = {
+  sportCode: string;
+  label: string;
+  users: ContactUser[];
+  defaultTravelers: ContactUser[];
+};
+
+function buildSportAssignmentGroups(users: ContactUser[]): SportAssignmentGroup[] {
+  const bySport = new Map<string, { users: ContactUser[]; defaultTravelers: ContactUser[] }>();
+
+  for (const user of users) {
+    for (const assignment of user.sportAssignments ?? []) {
+      const group = bySport.get(assignment.sportCode) ?? { users: [], defaultTravelers: [] };
+      group.users.push(user);
+      if (assignment.defaultTraveler) group.defaultTravelers.push(user);
+      bySport.set(assignment.sportCode, group);
+    }
+  }
+
+  return [...bySport.entries()]
+    .map(([sportCode, group]) => ({
+      sportCode,
+      label: sportLabel(sportCode),
+      users: group.users.sort((a, b) => a.name.localeCompare(b.name)),
+      defaultTravelers: group.defaultTravelers.sort((a, b) => a.name.localeCompare(b.name)),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function totalAssignedPeople(groups: SportAssignmentGroup[]) {
+  return new Set(groups.flatMap((group) => group.users.map((user) => user.id))).size;
+}
+
+function totalDefaultTravelers(groups: SportAssignmentGroup[]) {
+  return new Set(groups.flatMap((group) => group.defaultTravelers.map((user) => user.id))).size;
 }
 
 function AreaGuideLanes({
@@ -690,6 +662,11 @@ export default function ResourcesPage() {
     };
   }, [contactUsers, filteredContactUsers.length]);
 
+  const sportAssignmentGroups = useMemo(
+    () => buildSportAssignmentGroups(filteredContactUsers),
+    [filteredContactUsers],
+  );
+
   const activeFilters: OperationalActiveFilter[] = [
     ...(activeFilter !== "all"
       ? [{
@@ -733,33 +710,30 @@ export default function ResourcesPage() {
   const hasAnyFilter =
     Boolean(search) || activeCategory !== "All" || activeFilter !== "all" || sort !== "personalized";
   const homeView = !hasAnyFilter;
+  const assignmentsView = activeFilter === "assignments";
   const totalGuides = guides?.length ?? 0;
-  const featuredGuides = homeView
-    ? filtered.filter((guide) => guide.featured).slice(0, 6)
-    : [];
-  const recentGuides = homeView
-    ? [...filtered].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 6)
-    : [];
   const contactDirectoryVisible =
     activeFilter === "contacts" ||
-    homeView ||
-    (Boolean(search.trim()) && filteredContactUsers.length > 0);
+    (Boolean(search.trim()) && !assignmentsView && filteredContactUsers.length > 0);
   const contactDirectoryCompact = activeFilter !== "contacts" && !search.trim();
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Resources"
-        description="Focused Creative Guides broken out by area, workflow, contact set, path, and operating reference."
+        description="Find Creative guides, contacts, assignments, and the Media Drive path."
       >
-        {isStaffOrAdmin && (
-          <Button asChild size="sm" className="h-10">
-            <Link href="/resources/new">
-              <PlusIcon data-icon="inline-start" />
-              New guide
-            </Link>
-          </Button>
-        )}
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+          {isStaffOrAdmin && (
+            <Button asChild size="sm" className="h-10">
+              <Link href="/resources/new">
+                <PlusIcon data-icon="inline-start" />
+                New guide
+              </Link>
+            </Button>
+          )}
+          <ServerPathCopy path="smb://ath01-nas.uwia.wisc.edu/users/" />
+        </div>
       </PageHeader>
 
       <OperationalToolbar aria-label="Guide search and filters">
@@ -784,6 +758,14 @@ export default function ResourcesPage() {
                 <SelectGroup>
                   <SelectLabel>Smart</SelectLabel>
                   {SMART_FILTERS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+                <SelectGroup>
+                  <SelectLabel>References</SelectLabel>
+                  {REFERENCE_FILTERS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>
@@ -853,7 +835,7 @@ export default function ResourcesPage() {
                 Clear all
               </Button>
             )}
-            {!guidesLoading && (
+            {!guidesLoading && !assignmentsView && (
               <span className="ml-auto text-xs text-muted-foreground tabular-nums">
                 {filtered.length} of {totalGuides} guides
               </span>
@@ -862,17 +844,14 @@ export default function ResourcesPage() {
         )}
       </OperationalToolbar>
 
-      {homeView && (
-        <GuideCollectionTiles
-          guides={guides}
-          contactCount={contactUsers?.total ?? contactUsers?.data?.length ?? 0}
-          activeFilter={activeFilter}
-          onSelect={setFilter}
-        />
-      )}
-
       {guidesLoading ? (
         <ResourcesSkeleton />
+      ) : assignmentsView ? (
+        <SportAssignmentsDirectory
+          groups={sportAssignmentGroups}
+          loading={contactsLoading}
+          search={search}
+        />
       ) : filtered.length === 0 && !homeView ? (
         <>
           {contactDirectoryVisible && (
@@ -903,56 +882,10 @@ export default function ResourcesPage() {
         </>
       ) : homeView ? (
         <div className="flex flex-col gap-8">
-          {featuredGuides.length > 0 && (
-            <section className="flex flex-col gap-3">
-              <SectionHeader
-                title="Featured guides"
-                description="Curated breakouts worth keeping close."
-              />
-              <GuideResults guides={featuredGuides} layout={layout} />
-            </section>
-          )}
-
-          <AreaGuideLanes guides={filtered} layout={layout} onSelect={setFilter} />
-
-          {recentGuides.length > 0 && (
-            <section className="flex flex-col gap-3">
-              <SectionHeader
-                title="Recently updated"
-                description="Fresh guide edits and recently verified references."
-                action={(
-                  <Button type="button" variant="outline" size="sm" className="h-10" onClick={() => setFilter("recent")}>
-                    View recent
-                  </Button>
-                )}
-              />
-              <GuideResults guides={recentGuides} layout={layout} compact />
-            </section>
-          )}
-
-          {contactDirectoryVisible && (
-            <LiveContactsDirectory
-              users={filteredContactUsers}
-              loading={contactsLoading}
-              total={contactUsers?.total ?? 0}
-              search={search}
-              roleFilter={contactRoleFilter}
-              areaFilter={contactAreaFilter}
-              hygieneFilter={contactHygieneFilter}
-              onRoleFilterChange={setContactRoleFilter}
-              onAreaFilterChange={setContactAreaFilter}
-              onHygieneFilterChange={setContactHygieneFilter}
-              stats={contactStats}
-              canSeeContactHygiene={isStaffOrAdmin}
-              compact={contactDirectoryCompact}
-              onShowAll={() => setFilter("contacts")}
-            />
-          )}
-
           <section className="flex flex-col gap-3">
             <SectionHeader
-              title="All guides"
-              description="Every published and draft Guide you can access."
+              title="Guides"
+              description="Browse the full library. Use the filters above to narrow by focus, area, or sort."
             />
             {filtered.length > 0 ? (
               <GuideResults guides={filtered} layout={layout} />
@@ -965,6 +898,17 @@ export default function ResourcesPage() {
               />
             )}
           </section>
+
+          <ReferenceSummaryStrip
+            loading={contactsLoading}
+            contactStats={contactStats}
+            canSeeContactHygiene={isStaffOrAdmin}
+            sportAssignmentGroups={sportAssignmentGroups}
+            onShowContacts={() => setFilter("contacts")}
+            onShowAssignments={() => setFilter("assignments")}
+          />
+
+          <AreaGuideLanes guides={filtered} layout={layout} onSelect={setFilter} />
         </div>
       ) : (
         <div className="flex flex-col gap-6">
@@ -1000,6 +944,222 @@ export default function ResourcesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function ReferenceSummaryStrip({
+  loading,
+  contactStats,
+  canSeeContactHygiene,
+  sportAssignmentGroups,
+  onShowContacts,
+  onShowAssignments,
+}: {
+  loading: boolean;
+  contactStats: {
+    visible: number;
+    total: number;
+    missingPhone: number;
+    missingSlack: number;
+  };
+  canSeeContactHygiene: boolean;
+  sportAssignmentGroups: SportAssignmentGroup[];
+  onShowContacts: () => void;
+  onShowAssignments: () => void;
+}) {
+  if (loading) {
+    return (
+      <section className="grid gap-3 lg:grid-cols-2" aria-label="Reference summaries">
+        <Skeleton className="h-36 rounded-lg" />
+        <Skeleton className="h-36 rounded-lg" />
+      </section>
+    );
+  }
+
+  const hasContacts = contactStats.total > 0;
+  const hasAssignments = sportAssignmentGroups.length > 0;
+  if (!hasContacts && !hasAssignments) return null;
+
+  return (
+    <section className="flex flex-col gap-3" aria-label="Reference summaries">
+      <SectionHeader
+        title="References"
+        description="Quick lookup material that supports the guide library."
+      />
+      <div className="grid gap-3 lg:grid-cols-2">
+        {hasContacts && (
+          <Card elevation="flat">
+            <CardHeader className="gap-2 p-4 pb-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <UsersIcon className="size-4 text-muted-foreground" aria-hidden="true" />
+                    Contacts
+                  </CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground text-pretty">
+                    Profile-backed names, emails, phone numbers, Slack, area, and location.
+                  </p>
+                </div>
+                <Badge variant="secondary" className="shrink-0 tabular-nums">
+                  {contactStats.total}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2 p-4 text-xs text-muted-foreground">
+              {canSeeContactHygiene && contactStats.missingPhone > 0 && (
+                <Badge variant="outline" className="tabular-nums">
+                  {contactStats.missingPhone} missing phone
+                </Badge>
+              )}
+              {canSeeContactHygiene && contactStats.missingSlack > 0 && (
+                <Badge variant="outline" className="tabular-nums">
+                  {contactStats.missingSlack} missing Slack
+                </Badge>
+              )}
+            </CardContent>
+            <CardFooter className="px-4 pb-4 pt-0">
+              <Button type="button" variant="outline" size="sm" className="h-10" onClick={onShowContacts}>
+                View contacts
+              </Button>
+            </CardFooter>
+          </Card>
+        )}
+
+        {hasAssignments && (
+          <Card elevation="flat">
+            <CardHeader className="gap-2 p-4 pb-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <TrophyIcon className="size-4 text-muted-foreground" aria-hidden="true" />
+                    Sport assignments
+                  </CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground text-pretty">
+                    Read-only sport coverage from user profile assignments.
+                  </p>
+                </div>
+                <Badge variant="secondary" className="shrink-0 tabular-nums">
+                  {sportAssignmentGroups.length}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2 p-4 text-xs text-muted-foreground">
+              <Badge variant="outline" className="tabular-nums">
+                {totalAssignedPeople(sportAssignmentGroups)} people
+              </Badge>
+              {totalDefaultTravelers(sportAssignmentGroups) > 0 && (
+                <Badge variant="outline" className="tabular-nums">
+                  {totalDefaultTravelers(sportAssignmentGroups)} default travelers
+                </Badge>
+              )}
+            </CardContent>
+            <CardFooter className="px-4 pb-4 pt-0">
+              <Button type="button" variant="outline" size="sm" className="h-10" onClick={onShowAssignments}>
+                View assignments
+              </Button>
+            </CardFooter>
+          </Card>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function SportAssignmentsDirectory({
+  groups,
+  loading,
+  search,
+}: {
+  groups: SportAssignmentGroup[];
+  loading: boolean;
+  search: string;
+}) {
+  if (loading) {
+    return (
+      <section className="flex flex-col gap-3">
+        <SectionHeader
+          title="Sport assignments"
+          description="Read-only sport coverage sourced from user profile assignments."
+        />
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <Skeleton key={index} className="h-36 rounded-lg" />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="flex flex-col gap-3">
+      <SectionHeader
+        title="Sport assignments"
+        description="Read-only sport coverage sourced from user profile assignments."
+      />
+      {groups.length === 0 ? (
+        <EmptyState
+          inline
+          icon="users"
+          title="No sport assignments match this view"
+          description={
+            search.trim()
+              ? "Try a different search across people, sport codes, or sport names."
+              : "No active user profiles have sport assignments yet."
+          }
+        />
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {groups.map((group) => (
+            <Card key={group.sportCode} elevation="flat" className="min-h-36">
+              <CardHeader className="gap-2 p-4 pb-0">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <CardTitle className="truncate text-sm">{group.label}</CardTitle>
+                    <p className="mt-1 text-xs text-muted-foreground">{group.sportCode}</p>
+                  </div>
+                  <Badge variant="secondary" className="shrink-0 tabular-nums">
+                    {group.users.length}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3 p-4">
+                {group.defaultTravelers.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.defaultTravelers.map((user) => (
+                      <Badge key={user.id} variant="outline" className="max-w-full">
+                        <span className="truncate">{user.name}</span>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-col gap-2">
+                  {group.users.slice(0, 5).map((user) => (
+                    <Link
+                      key={user.id}
+                      href={`/users/${user.id}`}
+                      className="flex min-h-10 min-w-0 items-center gap-2 rounded-md px-1 text-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    >
+                      <UserAvatar
+                        name={user.name}
+                        avatarUrl={user.avatarUrl}
+                        size="sm"
+                        className="shrink-0"
+                      />
+                      <span className="truncate">{user.name}</span>
+                    </Link>
+                  ))}
+                  {group.users.length > 5 && (
+                    <p className="text-xs text-muted-foreground tabular-nums">
+                      +{group.users.length - 5} more
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

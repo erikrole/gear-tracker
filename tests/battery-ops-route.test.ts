@@ -131,6 +131,22 @@ describe("battery ops live counts", () => {
         category: { name: "Cameras" },
       },
     ]));
+    vi.mocked(db.bookingBulkUnitAllocation.findMany).mockResolvedValue(unitAllocations([
+      {
+        bulkSkuUnitId: "unit-2",
+        checkedOutAt: new Date("2026-05-20T12:00:00.000Z"),
+        createdAt: new Date("2026-05-20T12:00:00.000Z"),
+        bookingBulkItem: {
+          booking: {
+            id: "booking-1",
+            title: "Game day",
+            refNumber: "CO-1001",
+            endsAt: new Date("2026-05-31T18:00:00.000Z"),
+            requester: { name: "Bucky Badger" },
+          },
+        },
+      },
+    ]));
 
     const res = await getBatteryOps(makeGetRequest("/api/bulk-skus/batteries"), noParams);
     const body = await res.json();
@@ -295,7 +311,7 @@ describe("battery ops live counts", () => {
     }));
   });
 
-  it("BUG: falls back to open checkout bulk items for orphaned checked-out units", async () => {
+  it("does not infer checked-out custody from open bulk-item quantity without active unit allocations", async () => {
     vi.mocked(db.bulkSku.findMany).mockResolvedValue(batterySkus([
       {
         id: "sku-battery",
@@ -334,37 +350,15 @@ describe("battery ops live counts", () => {
       },
     ]));
     vi.mocked(db.asset.findMany).mockResolvedValue(cameraAssets([]));
-    vi.mocked(db.bookingBulkItem.findMany).mockResolvedValue(bookingBulkItems([
-      {
-        bulkSkuId: "sku-battery",
-        plannedQuantity: 1,
-        checkedInQuantity: 0,
-        unitAllocations: [],
-        booking: {
-          id: "booking-48",
-          title: "Alternate Jersey Shoot",
-          refNumber: "CO-0048",
-          startsAt: new Date("2026-06-24T00:50:02.347Z"),
-          endsAt: new Date("2026-06-24T19:00:00.000Z"),
-          requester: { name: "Jacob Phillips" },
-        },
-      },
-    ]));
-
     const res = await getBatteryOps(makeGetRequest("/api/bulk-skus/batteries"), noParams);
     const body = await res.json();
     const units = body.data.skus[0].units;
 
     expect(units[0]).toEqual(expect.objectContaining({
       unitNumber: 2,
-      checkedOutAt: "2026-06-24T00:50:02.347Z",
-      booking: {
-        id: "booking-48",
-        title: "Alternate Jersey Shoot",
-        refNumber: "CO-0048",
-        endsAt: "2026-06-24T19:00:00.000Z",
-        requesterName: "Jacob Phillips",
-      },
+      status: BulkUnitStatus.AVAILABLE,
+      checkedOutAt: null,
+      booking: null,
     }));
     expect(units[1]).toEqual(expect.objectContaining({
       unitNumber: 29,
@@ -374,11 +368,31 @@ describe("battery ops live counts", () => {
     }));
     expect(body.data.skus[0].counts).toEqual({
       total: 2,
-      available: 1,
-      checkedOut: 1,
+      available: 2,
+      checkedOut: 0,
       lost: 0,
       retired: 0,
     });
+    expect(body.data.integrity).toEqual({
+      staleCheckedOutCount: 2,
+      staleCheckedOutUnits: [
+        {
+          id: "unit-2",
+          skuId: "sku-battery",
+          skuName: "Sony Battery",
+          locationName: "Camp Randall",
+          unitNumber: 2,
+        },
+        {
+          id: "unit-29",
+          skuId: "sku-battery",
+          skuName: "Sony Battery",
+          locationName: "Camp Randall",
+          unitNumber: 29,
+        },
+      ],
+    });
+    expect(db.bookingBulkItem.findMany).not.toHaveBeenCalled();
   });
 
   it("BUG: treats stale checked-out units without active checkout context as available", async () => {

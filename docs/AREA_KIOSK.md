@@ -4,7 +4,7 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped — iOS canonical (web kiosk deprecated 2026-04-24)
 - Created: 2026-04-07
-- Last Updated: 2026-06-25
+- Last Updated: 2026-06-29
 - Brief: `BRIEF_KIOSK.md`
 - Decision Refs: D-030, D-040
 
@@ -109,6 +109,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-06-29 | Active checkout numbered-battery preservation fixed. General booking detail edits on an `OPEN` checkout now preserve existing equipment rows and numbered bulk unit allocations unless the request explicitly changes equipment, preventing a title/notes/return-time edit from collapsing Sony Battery `#19/#27/#30/#39` into a quantity-only `4`. Kiosk dashboard and checkout detail payloads also render a read-only quantity fallback when legacy/live data has bulk quantity without allocation rows, so the iPad no longer shows an empty active checkout. |
 | 2026-06-25 | Admin checkout close-without-scan exception shipped on web. Kiosk remains the standard return surface, while admins can now close an `OPEN` checkout from detail only after entering a reason and physically verifying returned gear. The route writes override and audit evidence, restores outstanding bulk/numbered-unit availability, and leaves app/web check-in endpoints blocked. |
 | 2026-06-23 | Native kiosk idle sleep mode now uses the app timezone for night-hours standby, so evening Central-time kiosks no longer show Night Sleep Mode because the server is on UTC. The iOS client also defensively downgrades stale `night_hours` responses to idle or active-window behavior when the iPad clock is outside 10 PM-6 AM. The iOS sleep-dismissal grace survives navigation away from and back to idle, and the dim standby overlay text is brighter while preserving burn-in mitigation. |
 | 2026-06-23 | Native kiosk checkout scanner capture is now explicitly armed only after Start Scanning. Completing checkout details no longer mounts the hidden HID scanner field by itself, and scanner capture is disabled again when editing context, leaving checkout, or completing checkout so native text fields and return-time pickers keep focus before scan mode. |

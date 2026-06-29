@@ -15,4 +15,22 @@ describe("iOS bookings empty state recovery", () => {
     expect(source).toContain("vm.mineOnly = false");
     expect(source.match(/Task \{ await vm\.load\(reset: true\) \}/g)?.length).toBeGreaterThanOrEqual(2);
   });
+
+  it("renders one grouped chronological list instead of separated top tabs", () => {
+    expect(source).toContain("var sortedCheckouts: [Booking]");
+    expect(source).toContain("var sortedReservations: [Booking]");
+    expect(source).toContain("lhs.startsAt > rhs.startsAt");
+    expect(source).toContain('BookingListSection(title: "Checkouts"');
+    expect(source).toContain('BookingListSection(title: "Reservations"');
+    expect(source).toContain('"Search bookings..."');
+    expect(source).not.toContain("Picker(\"Booking type\"");
+    expect(source).not.toContain("enum BookingTab");
+  });
+
+  it("uses requester avatar photos and operational status labels", () => {
+    expect(source).toContain("UserAvatarView(name: booking.requester.name, avatarUrl: booking.requester.avatarUrl");
+    expect(source).toContain('if isOverdue { return "Overdue" }');
+    expect(source).toContain('if status == .booked { return "Reserved" }');
+    expect(source).toContain('if status == .open { return "Checked Out" }');
+  });
 });

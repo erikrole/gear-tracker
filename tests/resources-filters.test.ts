@@ -12,6 +12,8 @@ function params(query: string) {
 describe("resources URL filters", () => {
   it("parses current filter params", () => {
     expect(parseResourceFilter(params("filter=contacts"))).toBe("contacts");
+    expect(parseResourceFilter(params("filter=assignments"))).toBe("assignments");
+    expect(parseResourceFilter(params("filter=sport-assignments"))).toBe("assignments");
     expect(parseResourceFilter(params("filter=area-video"))).toBe("area-video");
   });
 

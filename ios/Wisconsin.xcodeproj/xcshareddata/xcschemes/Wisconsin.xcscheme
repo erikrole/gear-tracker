@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
-   LastUpgradeVersion = "2700"
+   LastUpgradeVersion = "1600"
    version = "1.3">
    <BuildAction
       parallelizeBuildables = "YES"
@@ -17,6 +17,20 @@
                BlueprintIdentifier = "5731E598F30EDA43B52B4002"
                BuildableName = "Wisconsin.app"
                BlueprintName = "Wisconsin"
+               ReferencedContainer = "container:Wisconsin.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "AE5BC122AAA548CB394E1598"
+               BuildableName = "WisconsinLiveActivities.appex"
+               BlueprintName = "WisconsinLiveActivities"
                ReferencedContainer = "container:Wisconsin.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>

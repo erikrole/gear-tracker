@@ -579,6 +579,8 @@ struct KioskCheckoutDetail: Decodable {
         let imageUrl: String?
 
         var isNumberedBulk: Bool { type == "numbered_bulk" }
+        var isBulkQuantity: Bool { type == "bulk_quantity" }
+        var isBulkDisplay: Bool { isNumberedBulk || isBulkQuantity || bulkSkuId != nil }
     }
 
     var numberedBulkItems: [ReturnItem] {

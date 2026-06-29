@@ -27,11 +27,11 @@ export function bookingStatusLabel(status: string, kind?: BookingDisplayKind): s
     case "DRAFT":
       return "Draft";
     case "BOOKED":
-      return kind === "CHECKOUT" ? "Booked" : "Confirmed";
+      return "Reserved";
     case "PENDING_PICKUP":
       return "Awaiting Pickup";
     case "OPEN":
-      return "Checked out";
+      return "Checked Out";
     case "COMPLETED":
       return "Completed";
     case "CANCELLED":
@@ -44,7 +44,7 @@ export function bookingStatusLabel(status: string, kind?: BookingDisplayKind): s
 export function bookingStatusBadgeVariant(status: string, kind?: BookingDisplayKind): BookingStatusBadgeVariant {
   switch (status) {
     case "BOOKED":
-      return kind === "RESERVATION" ? "purple" : "blue";
+      return "purple";
     case "OPEN":
       return "blue";
     case "PENDING_PICKUP":

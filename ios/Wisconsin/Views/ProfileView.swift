@@ -43,6 +43,7 @@ struct ProfileView: View {
             List {
                 headerSection
                 scheduleSection
+                directorySection
                 accountSection
                 notificationsSection
                 appearanceSection
@@ -251,6 +252,62 @@ struct ProfileView: View {
         } footer: {
             if isStudent {
                 Text("Availability blocks are advisory. Staff can still override after confirming.")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var directorySection: some View {
+        Section("Directory") {
+            NavigationLink {
+                SidebarWebDestinationView(
+                    title: "Guides",
+                    systemImage: "book.closed",
+                    description: "Reference docs, checklists, contacts, venue notes, and team workflows.",
+                    destination: URL(string: "https://gear.erikrole.com/resources")!,
+                    wrapsInNavigationStack: false
+                )
+            } label: {
+                SettingsMenuRow(
+                    title: "Guides",
+                    subtitle: "Reference docs, contacts, venue notes, and team workflows.",
+                    systemImage: "book.closed",
+                    tint: Color.statusText(.purple)
+                ) {
+                    EmptyView()
+                }
+            }
+            if isStaffOrAdmin {
+                NavigationLink {
+                    UsersView()
+                } label: {
+                    SettingsMenuRow(
+                        title: "Users",
+                        subtitle: "Find people, roles, contact details, and active status.",
+                        systemImage: "person.2",
+                        tint: Color.statusText(.blue)
+                    ) {
+                        EmptyView()
+                    }
+                }
+                NavigationLink {
+                    SidebarWebDestinationView(
+                        title: "Licenses",
+                        systemImage: "key",
+                        description: "Manage software license codes, active claims, renewals, and open slots.",
+                        destination: URL(string: "https://gear.erikrole.com/licenses")!,
+                        wrapsInNavigationStack: false
+                    )
+                } label: {
+                    SettingsMenuRow(
+                        title: "Licenses",
+                        subtitle: "Manage software license codes, claims, and renewals.",
+                        systemImage: "key",
+                        tint: Color.statusText(.orange)
+                    ) {
+                        EmptyView()
+                    }
+                }
             }
         }
     }
@@ -575,12 +632,10 @@ private struct ProfilePlaceholderView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: destination == .upcomingShifts ? "calendar" : "calendar.badge.exclamationmark")
+            Image(systemName: systemImage)
                 .font(.largeTitle)
                 .foregroundStyle(.secondary)
-            Text(destination == .upcomingShifts
-                ? "Open the Schedule tab to see your shifts."
-                : "Open the Bookings tab to see overdue items.")
+            Text(message)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -588,7 +643,40 @@ private struct ProfilePlaceholderView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(.systemGroupedBackground))
-        .navigationTitle(destination == .upcomingShifts ? "My Shifts" : "Overdue")
+        .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var systemImage: String {
+        switch destination {
+        case .upcomingShifts:
+            "calendar"
+        case .overdueBookings:
+            "calendar.badge.exclamationmark"
+        default:
+            "lock"
+        }
+    }
+
+    private var title: String {
+        switch destination {
+        case .upcomingShifts:
+            "My Shifts"
+        case .overdueBookings:
+            "Overdue"
+        default:
+            "Unavailable"
+        }
+    }
+
+    private var message: String {
+        switch destination {
+        case .upcomingShifts:
+            "Open the Schedule tab to see your shifts."
+        case .overdueBookings:
+            "Open the Bookings tab to see overdue items."
+        default:
+            "This page is not available for your role on this device."
+        }
     }
 }

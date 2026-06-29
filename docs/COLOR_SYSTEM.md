@@ -25,15 +25,15 @@ These rules take priority over any component-level decision:
 | Status | Kind context | Color | Web variant | iOS color | Label (web) | Label (iOS) |
 |--------|-------------|-------|-------------|-----------|-------------|-------------|
 | DRAFT | — | gray | `gray` | `.gray` | Draft | Draft |
-| BOOKED | CHECKOUT | blue | `blue` | `.blue` | Booked | Booked |
-| BOOKED | RESERVATION | purple | `purple` | `.purple` | Confirmed | Confirmed |
+| BOOKED | CHECKOUT | purple | `purple` | `.purple` | Reserved | Reserved |
+| BOOKED | RESERVATION | purple | `purple` | `.purple` | Reserved | Reserved |
 | PENDING_PICKUP | — | orange | `orange` | `.orange` | Awaiting Pickup | Awaiting Pickup |
 | OPEN | CHECKOUT only | blue | `blue` | `.blue` | Checked Out | Checked Out |
 | COMPLETED | — | gray | `gray` | `.gray` | Completed | Completed |
 | CANCELLED | — | gray + strikethrough | `gray` | `.gray` | Cancelled | Cancelled |
 | OVERDUE | derived (not a DB status) | red | `red` | `.red` | Overdue | Overdue |
 
-> **Kind rule:** `BOOKED` is the only status that changes color based on kind. `OPEN` is checkout-only so it's always blue. When `kind` is unknown or unavailable at a call site, default to blue.
+> **Kind rule:** `BOOKED` is reserved/claimed work and uses purple for both checkout and reservation contexts. `OPEN` is checkout-only so it's always blue.
 
 ### Item / asset status
 
@@ -109,7 +109,7 @@ List rows use CSS variable dot colors, not Badge variants:
 
 | State | Dot color CSS var |
 |-------|-----------------|
-| BOOKED (checkout) | `var(--blue)` |
+| BOOKED (checkout) | `var(--purple)` |
 | BOOKED (reservation) | `var(--purple)` |
 | PENDING_PICKUP | `var(--orange)` |
 | OPEN | `var(--blue)` |
@@ -127,8 +127,8 @@ SwiftUI system colors adapt automatically to light/dark mode.
 | Color name | Light approx | Dark approx | Used for |
 |-----------|-------------|-------------|---------|
 | `.green` | `#34C759` | `#30D158` | Available |
-| `.blue` | `#007AFF` | `#0A84FF` | BOOKED checkout, OPEN |
-| `.purple` | `#AF52DE` | `#BF5AF2` | BOOKED reservation, Reserved |
+| `.blue` | `#007AFF` | `#0A84FF` | OPEN |
+| `.purple` | `#AF52DE` | `#BF5AF2` | BOOKED, Reserved |
 | `.orange` | `#FF9500` | `#FF9F0A` | PENDING_PICKUP, Maintenance |
 | `.red` | `#FF3B30` | `#FF453A` | Overdue |
 | `.gray` | `#8E8E93` | `#8E8E93` | Draft, Completed, Cancelled (terminal states) |
@@ -208,8 +208,8 @@ Badge text is `text-xs font-semibold` (12px / ~9pt). At this size, WCAG 2.1 AA r
 
 1. **New status added to Prisma but not handled in color switch** → falls through to default, silently gray with no intent
 2. **New UI surface defines badge color inline** instead of importing from source-of-truth files
-3. **`kind` not threaded to `StatusBadge` on iOS** → BOOKED always shows blue instead of purple for reservations
-4. **`kind` not passed to `getStatusVisual` / `statusBadgeVariant`** → same issue on web
+3. **BOOKED status rendered as blue** → reserved/claimed work reads like active custody instead of a reservation
+4. **`kind` not passed to overdue/status helpers** → reservations and checkouts can lose their derived Overdue context
 5. **`var(--X)` used in dot color without confirming token exists** in `globals.css`
-6. **iOS `BookingStatus.label` used directly without kind check** → BOOKED says "Booked" instead of "Confirmed" for reservations
+6. **iOS `BookingStatus.label` used directly** → BOOKED says "Booked" instead of "Reserved"
 7. **Green used for active/checked-out state** — violates semantic rule #1

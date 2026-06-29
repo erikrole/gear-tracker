@@ -5,6 +5,7 @@ struct BookingDetailView: View {
 
     @State private var booking: Booking?
     @State private var conflicts: [String: AssetConflict] = [:]
+    @State private var returnInsight = CheckoutReturnInsight(nextNeedAt: nil, hasUpcomingNeed: false)
     @State private var isLoading = true
     @State private var error: String?
     @State private var showCancelConfirm = false
@@ -12,6 +13,7 @@ struct BookingDetailView: View {
     @State private var showEdit = false
     @State private var isActioning = false
     @Environment(SessionStore.self) private var session
+    @Environment(AppState.self) private var appState
 
     private var canEditBooking: Bool {
         guard let booking, let user = session.currentUser else { return false }
@@ -73,6 +75,7 @@ struct BookingDetailView: View {
                            booking.status == .booked || booking.status == .pendingPickup || booking.status == .open {
                             ActionsSection(
                                 booking: booking,
+                                returnInsight: returnInsight,
                                 isActioning: isActioning,
                                 onExtend: { showExtend = true },
                                 onCancel: { showCancelConfirm = true }
@@ -137,6 +140,9 @@ struct BookingDetailView: View {
             booking = loaded
             isLoading = false
             await loadConflicts(for: loaded)
+            await loadReturnInsight(for: loaded)
+            await reconcileLiveActivity(afterLoading: loaded)
+            openPendingExtendIfAllowed(for: loaded)
         } catch {
             self.error = error.localizedDescription
             isLoading = false
@@ -159,6 +165,31 @@ struct BookingDetailView: View {
             endsAt: booking.endsAt,
             excludeBookingId: booking.id
         )
+    }
+
+    private func loadReturnInsight(for booking: Booking) async {
+        guard booking.kind == .checkout, booking.status == .open else {
+            returnInsight = CheckoutReturnInsight(nextNeedAt: nil, hasUpcomingNeed: false)
+            return
+        }
+        returnInsight = await APIClient.shared.checkoutReturnInsight(for: booking)
+    }
+
+    private func reconcileLiveActivity(afterLoading booking: Booking) async {
+        if booking.kind == .checkout, booking.status != .open {
+            await CheckoutReturnLiveActivityManager.shared.endAll()
+        } else {
+            await CheckoutReturnLiveActivityManager.shared.reconcileCurrentUserCheckouts(
+                requesterId: session.currentUser?.id
+            )
+        }
+    }
+
+    private func openPendingExtendIfAllowed(for booking: Booking) {
+        guard appState.pendingExtendBookingId == booking.id else { return }
+        appState.pendingExtendBookingId = nil
+        guard canActOnBooking, booking.status == .open, !returnInsight.hasUpcomingNeed else { return }
+        showExtend = true
     }
 
     private func cancelBooking() async {
@@ -221,8 +252,25 @@ struct EditBookingSheet: View {
                         DatePicker("To", selection: $endsAt, in: startsAt..., displayedComponents: [.date, .hourAndMinute])
                     }
                     FormCard {
-                        TextField("Notes…", text: $notes, axis: .vertical)
-                            .lineLimit(3...6)
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Notes")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .textCase(.uppercase)
+                            ZStack(alignment: .topLeading) {
+                                if notes.isEmpty {
+                                    Text("Add booking notes")
+                                        .foregroundStyle(.tertiary)
+                                        .padding(.top, 8)
+                                        .padding(.leading, 5)
+                                        .allowsHitTesting(false)
+                                }
+                                TextEditor(text: $notes)
+                                    .frame(minHeight: 120)
+                                    .scrollContentBackground(.hidden)
+                                    .accessibilityLabel("Booking notes")
+                            }
+                        }
                     }
                     if let error {
                         Text(error).foregroundStyle(Color.statusText(.red)).font(.footnote)
@@ -280,7 +328,7 @@ struct EditBookingSheet: View {
             try await APIClient.shared.updateBooking(
                 id: booking.id,
                 title: title != booking.title ? title.trimmingCharacters(in: .whitespaces) : nil,
-                notes: notes != (booking.notes ?? "") ? (notes.isEmpty ? nil : notes) : nil,
+                notes: notes != (booking.notes ?? "") ? notes.trimmingCharacters(in: .whitespacesAndNewlines) : nil,
                 startsAt: startsAt != booking.startsAt ? startsAt : nil,
                 endsAt: endsAt != booking.endsAt ? endsAt : nil,
                 updatedAt: booking.updatedAt
@@ -684,6 +732,7 @@ private struct BookingEditLockedNotice: View {
 
 private struct ActionsSection: View {
     let booking: Booking
+    let returnInsight: CheckoutReturnInsight
     let isActioning: Bool
     let onExtend: () -> Void
     let onCancel: () -> Void
@@ -693,7 +742,8 @@ private struct ActionsSection: View {
     /// PENDING_PICKUP: [edit, cancel], so an Awaiting-Pickup booking must not
     /// offer "Extend Return Date" (there is no return date to extend yet).
     private var canExtend: Bool {
-        booking.status == .booked || booking.status == .open
+        if booking.status == .open, returnInsight.hasUpcomingNeed { return false }
+        return booking.status == .booked || booking.status == .open
     }
 
     /// Cancel is allowed before custody transfers (BOOKED, PENDING_PICKUP).

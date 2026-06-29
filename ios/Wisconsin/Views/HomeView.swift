@@ -1,8 +1,10 @@
 import SwiftUI
 import UIKit
 import os
+import FoundationModels
 
 private let homePerformanceLog = Logger(subsystem: "com.erikrole.Wisconsin", category: "Launch")
+private let homeGeneratedHeaderDefaultsKey = "WisconsinHomeGeneratedHeaderEnabled"
 
 private func elapsedMilliseconds(since start: Date) -> Int {
     Int(Date().timeIntervalSince(start) * 1_000)
@@ -20,7 +22,7 @@ final class HomeViewModel {
     /// so without a freshness check we'd hammer the endpoint on every tab switch.
     private static let freshnessWindow: TimeInterval = 60
 
-    func load(appState: AppState? = nil, forceRefresh: Bool = false) async {
+    func load(appState: AppState? = nil, requesterId: String? = nil, forceRefresh: Bool = false) async {
         let startedAt = Date()
         guard !isLoading else {
             homePerformanceLog.debug("launch.home.dashboardLoad result=skipped reason=inFlight durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public)")
@@ -42,11 +44,18 @@ final class HomeViewModel {
             error = nil
             lastLoadedAt = Date()
             homePerformanceLog.info("launch.home.dashboardLoad result=success durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public) checkouts=\(loadedDashboard.myCheckouts.items.count, privacy: .public) reservations=\(loadedDashboard.myReservations.count, privacy: .public) pendingPickups=\(loadedDashboard.pendingPickups.items.count, privacy: .public) eventWork=\(loadedDashboard.myEventWork.count, privacy: .public) flagged=\(loadedDashboard.flaggedItems.count, privacy: .public)")
+            Task { await Self.reconcileCheckoutReturnLiveActivity(requesterId: requesterId) }
         } catch {
             self.error = error.localizedDescription
             homePerformanceLog.error("launch.home.dashboardLoad result=failure durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public)")
         }
         isLoading = false
+    }
+
+    private static func reconcileCheckoutReturnLiveActivity(requesterId: String?) async {
+        let startedAt = Date()
+        await CheckoutReturnLiveActivityManager.shared.reconcileCurrentUserCheckouts(requesterId: requesterId)
+        homePerformanceLog.debug("launch.home.liveActivityReconcile durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public)")
     }
 }
 
@@ -55,7 +64,6 @@ struct HomeView: View {
     @State private var showNotifications = false
     @State private var showTrades = false
     @State private var showProfile = false
-    @State private var showCreate = false
     @State private var navigationPath = NavigationPath()
     @State private var pendingBookingId: String?
     @State private var pendingAssetId: String?
@@ -92,7 +100,7 @@ struct HomeView: View {
             } description: {
                 Text(error)
             } actions: {
-                Button("Retry") { Task { await vm.load(appState: appState, forceRefresh: true) } }
+                Button("Retry") { Task { await vm.load(appState: appState, requesterId: session.currentUser?.id, forceRefresh: true) } }
                     .buttonStyle(.borderedProminent)
             }
         } else if let dash = vm.dashboard {
@@ -126,7 +134,10 @@ struct HomeView: View {
     @ViewBuilder private func dashboardScrollView(_ dash: DashboardData) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Brand.Space.lg) {
-                DashboardHero(name: session.currentUser?.name ?? "")
+                DashboardHero(
+                    name: session.currentUser?.name ?? "",
+                    signal: HomeHeaderSignal(dashboard: dash, currentUserId: session.currentUser?.id)
+                )
                 if vm.error != nil {
                     RefreshFailurePill(message: vm.error ?? "")
                 }
@@ -137,7 +148,7 @@ struct HomeView: View {
                     lastLoadedAt: vm.lastLoadedAt,
                     openBookings: { appState.selectedTab = 1 },
                     openCheckouts: {
-                        appState.pendingBookingsTab = BookingTab.checkouts.rawValue
+                        appState.pendingBookingsTab = "Checkouts"
                         appState.selectedTab = 1
                     },
                     openSchedule: { appState.selectedTab = 4 }
@@ -150,7 +161,7 @@ struct HomeView: View {
                         currentUserId: session.currentUser?.id
                     )
                 } else if isAllEmpty(dash) || !hasStaffFollowUp(dash) {
-                    AllClearEmptyState(openScan: { appState.selectedTab = 3 })
+                    AllClearEmptyState(openScan: { appState.presentScanLookup() })
                 }
                 if dash.isStaff {
                     staffExceptionSection(dash)
@@ -195,19 +206,6 @@ struct HomeView: View {
                 .background(Color(.systemGroupedBackground).ignoresSafeArea())
                 .navigationTitle("")
                 .navigationBarTitleDisplayMode(.inline)
-                .overlay(alignment: .bottomTrailing) {
-                    Button {
-                        showCreate = true
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.title3.weight(.semibold))
-                            .frame(width: 58, height: 58)
-                    }
-                    .buttonStyle(.glassProminent)
-                    .accessibilityLabel("Create booking")
-                    .padding(.trailing, 18)
-                    .padding(.bottom, 22)
-                }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -230,8 +228,8 @@ struct HomeView: View {
                     .accessibilityLabel(appState.unreadNotifCount > 0 ? "\(appState.unreadNotifCount) unread notifications" : "Notifications")
                 }
             }
-            .refreshable { await vm.load(appState: appState, forceRefresh: true) }
-            .task { await vm.load(appState: appState) }
+            .refreshable { await vm.load(appState: appState, requesterId: session.currentUser?.id, forceRefresh: true) }
+            .task { await vm.load(appState: appState, requesterId: session.currentUser?.id) }
             .onChange(of: appState.pendingPushBookingId) { _, id in
                 if let id {
                     navigationPath.append(id)
@@ -250,7 +248,6 @@ struct HomeView: View {
                 showNotifications = false
                 showTrades = false
                 showProfile = false
-                showCreate = false
                 selectedEventWork = nil
             }
             .navigationDestination(for: BookingSummary.self) { summary in
@@ -298,15 +295,6 @@ struct HomeView: View {
             .sheet(isPresented: $showTrades) {
                 TradeBoardSheet(myShifts: [], currentUserId: session.currentUser?.id ?? "")
             }
-            .sheet(isPresented: $showCreate) {
-                CreateBookingSheet { newId in
-                    showCreate = false
-                    Task {
-                        await vm.load(appState: appState, forceRefresh: true)
-                        navigationPath.append(newId)
-                    }
-                }
-            }
             .sheet(isPresented: $showProfile) {
                 ProfileView()
                     .presentationDetents([.medium, .large])
@@ -320,6 +308,8 @@ struct HomeView: View {
 
 private struct DashboardHero: View {
     let name: String
+    let signal: HomeHeaderSignal
+    @State private var generatedMessage: String?
 
     private var firstName: String {
         name.split(separator: " ").first.map(String.init) ?? ""
@@ -334,8 +324,12 @@ private struct DashboardHero: View {
         }
     }
 
+    private var headerMessage: String {
+        generatedMessage ?? signal.fallbackMessage
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 5) {
             Text(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
@@ -349,11 +343,126 @@ private struct DashboardHero: View {
                     .font(.gothamBlack(size: 30))
                     .foregroundStyle(Color.brandPrimary)
             }
+            Text(headerMessage)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, Brand.Space.xs)
+        .task(id: signal.cacheKey) {
+            await generateHeaderMessage()
+        }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(firstName.isEmpty ? greeting : "\(greeting), \(firstName)")
+        .accessibilityLabel(firstName.isEmpty ? "\(greeting). \(headerMessage)" : "\(greeting), \(firstName). \(headerMessage)")
+    }
+
+    private func generateHeaderMessage() async {
+        generatedMessage = nil
+        guard UserDefaults.standard.bool(forKey: homeGeneratedHeaderDefaultsKey) else { return }
+        try? await Task.sleep(for: .milliseconds(1_500))
+        guard !Task.isCancelled else { return }
+        guard SystemLanguageModel.default.availability == .available else { return }
+
+        let instructions = """
+        You write one short iOS Home header line for Wisconsin Creative Gear Tracker.
+        Output only one sentence under 90 characters.
+        Be specific to the provided counts.
+        Some lines can be fun, some informative, but keep it calm and useful.
+        Do not invent tasks, names, games, locations, or counts.
+        No emoji. No hashtags. No quotation marks.
+        """
+        let prompt = """
+        First name: \(firstName.isEmpty ? "the signed-in user" : firstName)
+        Current deterministic fallback: \(signal.fallbackMessage)
+        Dashboard signals:
+        - Overdue checkouts: \(signal.overdueCount)
+        - Due today: \(signal.dueTodayCount)
+        - Pending pickups: \(signal.pendingPickupCount)
+        - Upcoming reservations: \(signal.reservationCount)
+        - Shift/event prep items: \(signal.eventWorkCount)
+        - Staff follow-up items: \(signal.staffFollowUpCount)
+        Write the header line now.
+        """
+
+        do {
+            let session = LanguageModelSession(instructions: instructions)
+            let response = try await session.respond(
+                to: prompt,
+                options: GenerationOptions(temperature: 0.8, maximumResponseTokens: 28)
+            )
+            if let cleaned = HomeHeaderSignal.validatedGeneratedMessage(response.content) {
+                generatedMessage = cleaned
+            }
+        } catch {
+            generatedMessage = nil
+        }
+    }
+}
+
+private struct HomeHeaderSignal: Equatable {
+    let overdueCount: Int
+    let dueTodayCount: Int
+    let pendingPickupCount: Int
+    let reservationCount: Int
+    let eventWorkCount: Int
+    let staffFollowUpCount: Int
+
+    init(dashboard: DashboardData, currentUserId: String?) {
+        overdueCount = dashboard.myCheckouts.items.filter(\.isOverdue).count
+        dueTodayCount = dashboard.myCheckouts.items.filter { summary in
+            !summary.isOverdue && Calendar.current.isDateInToday(summary.endsAt)
+        }.count
+        pendingPickupCount = currentUserId.map { id in
+            dashboard.pendingPickups.items.filter { $0.requesterUserId == id }.count
+        } ?? 0
+        reservationCount = dashboard.myReservations.count
+        eventWorkCount = dashboard.myEventWork.count
+        staffFollowUpCount = dashboard.flaggedItems.count + dashboard.lostBulkUnits.reduce(0) { $0 + $1.count } + dashboard.drafts.count
+    }
+
+    var cacheKey: String {
+        [
+            overdueCount,
+            dueTodayCount,
+            pendingPickupCount,
+            reservationCount,
+            eventWorkCount,
+            staffFollowUpCount,
+        ].map(String.init).joined(separator: "-")
+    }
+
+    var fallbackMessage: String {
+        if overdueCount > 0 {
+            return overdueCount == 1 ? "One overdue checkout needs attention." : "\(overdueCount) overdue checkouts need attention."
+        }
+        if dueTodayCount > 0 {
+            return dueTodayCount == 1 ? "One return is due today." : "\(dueTodayCount) returns are due today."
+        }
+        if pendingPickupCount > 0 {
+            return pendingPickupCount == 1 ? "One pickup is ready for you." : "\(pendingPickupCount) pickups are ready for you."
+        }
+        if eventWorkCount > 0 {
+            return eventWorkCount == 1 ? "One event has gear or shift prep waiting." : "\(eventWorkCount) events have gear or shift prep waiting."
+        }
+        if reservationCount > 0 {
+            return reservationCount == 1 ? "One reservation is coming up." : "\(reservationCount) reservations are coming up."
+        }
+        if staffFollowUpCount > 0 {
+            return staffFollowUpCount == 1 ? "One staff follow-up needs review." : "\(staffFollowUpCount) staff follow-ups need review."
+        }
+        return "Nothing urgent. The gear room gets a clean lane."
+    }
+
+    static func validatedGeneratedMessage(_ raw: String) -> String? {
+        let trimmed = raw
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+        guard !trimmed.isEmpty, trimmed.count <= 90 else { return nil }
+        guard trimmed.unicodeScalars.allSatisfy({ !$0.properties.isEmojiPresentation }) else { return nil }
+        guard !trimmed.contains("\n"), !trimmed.contains("#") else { return nil }
+        return trimmed
     }
 }
 
@@ -395,7 +504,7 @@ private struct StatStrip: View {
                         .font(.caption2)
                         .monospacedDigit()
                 }
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
                 .accessibilityLabel("Dashboard synced \(lastLoadedAt.formatted(.relative(presentation: .named)))")
             }
         }
@@ -420,7 +529,7 @@ private struct StatCard: View {
             HStack(spacing: Brand.Space.sm) {
                 ZStack {
                     RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous)
-                        .fill(active ? Color.statusBackground(tone) : Color.secondary.opacity(0.12))
+                        .fill(active ? Color.statusIconBackground(tone) : Color.secondary.opacity(0.12))
                     Image(systemName: systemImage)
                         .font(.headline)
                         .foregroundStyle(active ? Color.statusText(tone) : Color.secondary)

@@ -109,6 +109,22 @@ function isAllDaySpan(startsAt: Date, endsAt: Date | null, timeZone: string) {
   return startsAtMidnight && endsAtMidnight && crossesDay;
 }
 
+function activeBulkQuantity(item: { checkedOutQuantity: number; checkedInQuantity: number }) {
+  return Math.max(0, item.checkedOutQuantity - item.checkedInQuantity);
+}
+
+function missingAllocatedBulkQuantity(item: {
+  checkedOutQuantity: number;
+  checkedInQuantity: number;
+  unitAllocations: unknown[];
+}) {
+  return Math.max(0, activeBulkQuantity(item) - item.unitAllocations.length);
+}
+
+function quantityLabel(name: string, quantity: number) {
+  return quantity === 1 ? name : `${name} x${quantity}`;
+}
+
 /** Kiosk idle screen data: stats, nearby events, active items, and active checkouts. */
 export const GET = withKiosk(async (_req, { kiosk }) => {
   const now = new Date();
@@ -319,10 +335,11 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
         },
         bulkItems: {
           select: {
+            id: true,
             checkedOutQuantity: true,
             checkedInQuantity: true,
             bulkSku: {
-              select: { name: true },
+              select: { id: true, name: true, imageUrl: true },
             },
             unitAllocations: {
               where: {
@@ -407,9 +424,10 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
       requester: { id: string; name: string; avatarUrl: string | null };
       serializedItems: Array<{ asset: { assetTag: string; name: string | null } }>;
       bulkItems: Array<{
+        id: string;
         checkedOutQuantity: number;
         checkedInQuantity: number;
-        bulkSku: { name: string };
+        bulkSku: { id: string; name: string; imageUrl: string | null };
         unitAllocations: Array<{ bulkSkuUnit: { unitNumber: number } }>;
       }>;
       _count: { serializedItems: number };
@@ -568,17 +586,41 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
         endsAt: entry.bookingBulkItem.booking.endsAt,
         isOverdue: entry.bookingBulkItem.booking.endsAt < now,
       })),
+      ...checkouts.flatMap((checkout) =>
+        checkout.bulkItems.flatMap((item) => {
+          const missingQuantity = missingAllocatedBulkQuantity(item);
+          if (missingQuantity <= 0) return [];
+          return [{
+            id: `${checkout.id}:${item.id}:bulk-quantity`,
+            name: quantityLabel(item.bulkSku.name, missingQuantity),
+            tagName: `x${missingQuantity}`,
+            imageUrl: item.bulkSku.imageUrl,
+            bulkSkuId: item.bulkSku.id,
+            unitNumber: null,
+            checkoutId: checkout.id,
+            checkoutTitle: checkout.title,
+            requesterId: checkout.requester.id,
+            requesterName: checkout.requester.name,
+            requesterAvatarUrl: checkout.requester.avatarUrl,
+            requesterInitials: getInitials(checkout.requester.name),
+            endsAt: checkout.endsAt,
+            isOverdue: checkout.endsAt < now,
+          }];
+        })
+      ),
     ],
     checkouts: checkouts.map((c) => {
-      const bulkPreviewItems = c.bulkItems.flatMap((bi) =>
-        bi.unitAllocations.map((allocation) => ({
+      const bulkPreviewItems = c.bulkItems.flatMap((bi) => {
+        const allocatedItems = bi.unitAllocations.map((allocation) => ({
           name: `${bi.bulkSku.name} #${allocation.bulkSkuUnit.unitNumber}`,
-        }))
-      );
+        }));
+        const missingQuantity = missingAllocatedBulkQuantity(bi);
+        return missingQuantity > 0
+          ? allocatedItems.concat({ name: quantityLabel(bi.bulkSku.name, missingQuantity) })
+          : allocatedItems;
+      });
       const bulkItemCount = c.bulkItems.reduce((sum, bi) => {
-        const allocatedCount = bi.unitAllocations.length;
-        if (allocatedCount > 0) return sum + allocatedCount;
-        return sum + Math.max(0, bi.checkedOutQuantity - bi.checkedInQuantity);
+        return sum + Math.max(bi.unitAllocations.length, activeBulkQuantity(bi));
       }, 0);
 
       return {

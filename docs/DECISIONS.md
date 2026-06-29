@@ -505,9 +505,9 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - Decision: Introduce `statusLabel(status, kind)` helper in `src/components/booking-details/helpers.ts` that maps DB enum to user-facing labels. DB enum, API responses, and business logic remain unchanged.
 - Label mapping:
   - DRAFT → "Draft"
-  - BOOKED → "Confirmed" (reservations) / "Booked" (checkouts)
+  - BOOKED → "Reserved"
   - PENDING_PICKUP → "Awaiting Pickup"
-  - OPEN → "Checked out"
+  - OPEN → "Checked Out"
   - COMPLETED → "Completed"
   - CANCELLED → "Cancelled"
 - Constraint: All UI surfaces must use `statusLabel()` for display. Never show raw enum values to users.
@@ -808,7 +808,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-03-16: Shipped D-017 (DRAFT booking lifecycle). Shipped D-018 (asset financial fields — Procurement section in item detail).
 - 2026-03-16: Added D-024 (booking reference numbers — CO/RV kind prefix + global sequence).
 - 2026-03-22: Updated D-002 — UI layer now unified. Checkout and reservation detail pages share single `BookingDetailPage` component. API routes consolidated to `/api/bookings/[id]`.
-- 2026-03-22: Added D-025 — user-facing status labels (OPEN→"Checked out", BOOKED→"Confirmed") via `statusLabel()` helper. DB enum unchanged.
+- 2026-03-22: Added D-025 — user-facing status labels via `statusLabel()` helper. DB enum unchanged.
 - 2026-03-24: Added D-026 (event sync hourly cron + staleness indicator — resolves PD-3) and D-027 (venue mapping admin-only + pattern validation — resolves PD-2). All pending decisions now resolved.
 - 2026-03-25: Doc sync — resolved PD-4 (student KPIs defined). Updated D-010 to reflect shipped state (B&H withdrawn, notification center shipped, student dashboard shipped). Updated D-009 email channel from "Phase B" to "Shipped 2026-03-16". Updated D-019 from "Phase B" to "Shipped 2026-03-21" (department filter + combobox).
 - 2026-03-30: Added D-028 (photo requirement on checkout/checkin — camera-only capture, scan-only checkin, BookingPhoto model).

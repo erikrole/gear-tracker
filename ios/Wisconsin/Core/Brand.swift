@@ -138,10 +138,24 @@ extension Color {
         case .orange:
             return Color(UIColor(dynamicProvider: { $0.userInterfaceStyle == .dark
                 ? UIColor(red: 1.0, green: 0.70, blue: 0.30, alpha: 0.18)
-                : UIColor(red: 1.0, green: 0.984, blue: 0.922, alpha: 1) // #fffbeb
+                : UIColor(red: 1.0, green: 0.969, blue: 0.929, alpha: 1) // #fff7ed
             }))
         case .gray:
             return Color.secondary.opacity(0.12)
+        }
+    }
+
+    /// Compact icon tile fill for status summaries. Stronger than
+    /// `statusBackground` because the tile is small and otherwise washes out.
+    static func statusIconBackground(_ tone: StatusTone) -> Color {
+        switch tone {
+        case .orange:
+            return Color(UIColor(dynamicProvider: { $0.userInterfaceStyle == .dark
+                ? UIColor(red: 1.0, green: 0.70, blue: 0.30, alpha: 0.28)
+                : UIColor(red: 1.0, green: 0.929, blue: 0.835, alpha: 1) // #ffedd5
+            }))
+        default:
+            return statusBackground(tone)
         }
     }
 }

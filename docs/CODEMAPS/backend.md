@@ -10,9 +10,9 @@
 | `src/lib/services/availability.ts` | 554 |
 | `src/lib/services/booking-ref.ts` | 26 |
 | `src/lib/services/booking-rules.ts` | 105 |
-| `src/lib/services/bookings-checkin.ts` | 775 |
+| `src/lib/services/bookings-checkin.ts` | 781 |
 | `src/lib/services/bookings-helpers.ts` | 197 |
-| `src/lib/services/bookings-lifecycle.ts` | 903 |
+| `src/lib/services/bookings-lifecycle.ts` | 915 |
 | `src/lib/services/bookings-queries.ts` | 235 |
 | `src/lib/services/bookings.ts` | 4 |
 | `src/lib/services/bulk-unit-scans.ts` | 597 |
@@ -29,6 +29,7 @@
 | `src/lib/services/kiosk-scan.ts` | 36 |
 | `src/lib/services/kits.ts` | 327 |
 | `src/lib/services/licenses.ts` | 490 |
+| `src/lib/services/live-activities.ts` | 78 |
 | `src/lib/services/notification-prefs.ts` | 103 |
 | `src/lib/services/notifications.ts` | 819 |
 | `src/lib/services/onboarding-lifecycle.ts` | 503 |
@@ -361,6 +362,10 @@
 - `/api/licenses/my/history`
 - `/api/licenses/my`
 - `/api/licenses`
+
+### `/api/live-activities`
+
+- `/api/live-activities/checkout-return`
 
 ### `/api/location-mappings`
 

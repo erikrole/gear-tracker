@@ -27,6 +27,18 @@ describe("iOS runtime warning cleanup", () => {
     expect(kiosk).toContain("config.multipathServiceType = .none");
   });
 
+  it("uses a bounded URL cache for remote thumbnails without replacing decoded image caching", () => {
+    const thumbnails = source("ios/Wisconsin/Core/ThumbnailLoader.swift");
+
+    expect(thumbnails).toContain("private let thumbnailURLCache = URLCache(");
+    expect(thumbnails).toContain('diskPath: "WisconsinThumbnailURLCache"');
+    expect(thumbnails).toContain("config.urlCache = thumbnailURLCache");
+    expect(thumbnails).toContain("config.requestCachePolicy = .returnCacheDataElseLoad");
+    expect(thumbnails).toContain("request.cachePolicy = .returnCacheDataElseLoad");
+    expect(thumbnails).toContain("ThumbnailCache.shared.image(for: cacheKey)");
+    expect(thumbnails).toContain("ThumbnailCache.shared.store(image, for: cacheKey)");
+  });
+
   it("does not restart VisionKit behind the Scan result sheet", () => {
     const scanView = source("ios/Wisconsin/Views/ScanView.swift");
     const resultBranch = scanView.slice(

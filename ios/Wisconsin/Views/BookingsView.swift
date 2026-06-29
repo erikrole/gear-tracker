@@ -1,32 +1,46 @@
 import SwiftUI
 
-enum BookingTab: String, CaseIterable {
-    case reservations = "Reservations"
-    case checkouts = "Checkouts"
-}
-
 @MainActor
 @Observable
 final class BookingsViewModel {
-    var bookings: [Booking] = []
+    var checkouts: [Booking] = []
+    var reservations: [Booking] = []
     var isLoading = false
     var error: String?
     var pageError: String?
     var lastLoadedAt: Date?
     var searchText = ""
-    var tab: BookingTab = .reservations
-    var hasMore = true
+    var hasMoreCheckouts = true
+    var hasMoreReservations = true
     /// "Mine" filter — when on, list only shows bookings the current user
     /// requested. Mirrors the staff floor pattern of "what's mine right now".
     var mineOnly = false
     var currentUserId: String?
     var currentUserRole = ""
 
-    private var offset = 0
+    private var checkoutOffset = 0
+    private var reservationOffset = 0
     private let limit = 30
     private var searchTask: Task<Void, Never>?
     private var loadTask: Task<Void, Never>?
     private var didApplyUserDefault = false
+
+    var isEmpty: Bool { checkouts.isEmpty && reservations.isEmpty }
+    var hasMore: Bool { hasMoreCheckouts || hasMoreReservations }
+
+    var sortedCheckouts: [Booking] {
+        checkouts.sorted { lhs, rhs in
+            if lhs.startsAt != rhs.startsAt { return lhs.startsAt > rhs.startsAt }
+            return lhs.id < rhs.id
+        }
+    }
+
+    var sortedReservations: [Booking] {
+        reservations.sorted { lhs, rhs in
+            if lhs.startsAt != rhs.startsAt { return lhs.startsAt > rhs.startsAt }
+            return lhs.id < rhs.id
+        }
+    }
 
     func applyUserContext(id: String?, role: String?) {
         currentUserId = id
@@ -51,15 +65,20 @@ final class BookingsViewModel {
 
     private func performLoad(reset: Bool) async {
         if reset {
-            offset = 0
-            hasMore = true
+            checkoutOffset = 0
+            reservationOffset = 0
+            hasMoreCheckouts = true
+            hasMoreReservations = true
             pageError = nil
             // Seed from cache immediately on unfiltered first-page load.
             // Skip when "Mine" is on — cache contains everyone's bookings.
             if searchText.isEmpty && !mineOnly {
-                let kindKey = tab == .reservations ? "RESERVATION" : "CHECKOUT"
-                let cached = GearStore.shared.cachedBookings(kind: kindKey)
-                if !cached.isEmpty { bookings = cached.map(\.asBooking) }
+                let cachedCheckouts = GearStore.shared.cachedBookings(kind: "CHECKOUT").map(\.asBooking)
+                let cachedReservations = GearStore.shared.cachedBookings(kind: "RESERVATION").map(\.asBooking)
+                if !cachedCheckouts.isEmpty || !cachedReservations.isEmpty {
+                    checkouts = cachedCheckouts
+                    reservations = cachedReservations
+                }
             }
         }
         isLoading = true
@@ -67,21 +86,29 @@ final class BookingsViewModel {
         do {
             let search = searchText.isEmpty ? nil : searchText
             let requesterId = mineOnly ? currentUserId : nil
-            let result: PaginatedResponse<Booking> = switch tab {
-            case .reservations:
-                try await APIClient.shared.reservations(activeOnly: true, search: search, requesterId: requesterId, limit: limit, offset: offset)
-            case .checkouts:
-                try await APIClient.shared.checkouts(activeOnly: true, search: search, requesterId: requesterId, limit: limit, offset: offset)
-            }
+            async let checkoutPage = fetchCheckouts(search: search, requesterId: requesterId)
+            async let reservationPage = fetchReservations(search: search, requesterId: requesterId)
+            let (checkoutResult, reservationResult) = try await (checkoutPage, reservationPage)
             if Task.isCancelled { isLoading = false; return }
-            if reset { bookings = result.data } else { bookings += result.data }
-            offset += result.data.count
-            hasMore = offset < result.total
+            if reset {
+                checkouts = checkoutResult.data
+                reservations = reservationResult.data
+            } else {
+                checkouts += checkoutResult.data
+                reservations += reservationResult.data
+            }
+            checkoutOffset += checkoutResult.data.count
+            reservationOffset += reservationResult.data.count
+            hasMoreCheckouts = checkoutOffset < checkoutResult.total
+            hasMoreReservations = reservationOffset < reservationResult.total
             pageError = nil
             lastLoadedAt = Date()
-            if reset && offset == result.data.count && searchText.isEmpty && !mineOnly {
-                GearStore.shared.seedBookings(result.data)
+            if reset && searchText.isEmpty && !mineOnly {
+                GearStore.shared.seedBookings(checkoutResult.data + reservationResult.data)
             }
+            await CheckoutReturnLiveActivityManager.shared.reconcileCurrentUserCheckouts(
+                requesterId: currentUserId
+            )
         } catch is CancellationError {
             // Superseded by a newer load; leave state alone.
         } catch {
@@ -89,15 +116,43 @@ final class BookingsViewModel {
                 self.error = error.localizedDescription
             } else {
                 self.pageError = error.localizedDescription
-                hasMore = false
+                hasMoreCheckouts = false
+                hasMoreReservations = false
             }
         }
         isLoading = false
     }
 
+    private func fetchCheckouts(search: String?, requesterId: String?) async throws -> PaginatedResponse<Booking> {
+        guard hasMoreCheckouts else {
+            return PaginatedResponse(data: [], total: checkoutOffset, limit: limit, offset: checkoutOffset)
+        }
+        return try await APIClient.shared.checkouts(
+            activeOnly: true,
+            search: search,
+            requesterId: requesterId,
+            limit: limit,
+            offset: checkoutOffset
+        )
+    }
+
+    private func fetchReservations(search: String?, requesterId: String?) async throws -> PaginatedResponse<Booking> {
+        guard hasMoreReservations else {
+            return PaginatedResponse(data: [], total: reservationOffset, limit: limit, offset: reservationOffset)
+        }
+        return try await APIClient.shared.reservations(
+            activeOnly: true,
+            search: search,
+            requesterId: requesterId,
+            limit: limit,
+            offset: reservationOffset
+        )
+    }
+
     func retryPage() async {
         pageError = nil
-        hasMore = true
+        hasMoreCheckouts = true
+        hasMoreReservations = true
         await load()
     }
 
@@ -114,11 +169,13 @@ final class BookingsViewModel {
         searchTask?.cancel()
         loadTask?.cancel()
         searchText = ""
-        tab = .reservations
         mineOnly = currentUserRole == "STUDENT"
-        bookings = []
-        offset = 0
-        hasMore = true
+        checkouts = []
+        reservations = []
+        checkoutOffset = 0
+        reservationOffset = 0
+        hasMoreCheckouts = true
+        hasMoreReservations = true
         error = nil
         pageError = nil
     }
@@ -143,35 +200,26 @@ struct BookingsView: View {
 
     private var emptyTitle: String {
         guard vm.searchText.isEmpty else { return "No Results" }
-        if vm.mineOnly {
-            return vm.tab == .reservations ? "No Reservations" : "No Checkouts"
-        }
-        return vm.tab == .reservations ? "No Active Reservations" : "No Active Checkouts"
+        return vm.mineOnly ? "No Bookings" : "No Active Bookings"
     }
 
     private var emptyDescription: String {
         if !vm.searchText.isEmpty { return "No results for \"\(vm.searchText)\"." }
         if vm.mineOnly {
-            return vm.tab == .reservations
-                ? "Nothing reserved by you yet. Reserve gear ahead to hold it for an upcoming shoot."
-                : "Nothing checked out by you. Pick up reserved gear at a kiosk to start a checkout."
+            return "Your active checkouts and reservations will appear here together."
         }
-        return vm.tab == .reservations
-            ? "Reserve gear ahead of a shoot to guarantee it's held for the dates you need."
-            : "Active checkouts appear here once gear is picked up at a kiosk."
+        return "Active checkouts and reservations appear here in one chronological list."
     }
 
-    /// Honor a deep-linked sub-tab request (e.g. dashboard "Overdue" tile),
-    /// then clear it so a later manual switch sticks.
+    /// Clear legacy deep-link sub-tab hints. The unified list includes both
+    /// booking types, with checkouts always above reservations.
     private func consumePendingTab() {
-        guard let raw = appState.pendingBookingsTab,
-              let requested = BookingTab(rawValue: raw) else { return }
+        guard appState.pendingBookingsTab != nil else { return }
         appState.pendingBookingsTab = nil
-        if vm.tab != requested { vm.tab = requested }
     }
 
     private var searchPrompt: String {
-        vm.tab == .reservations ? "Search reservations..." : "Search checkouts..."
+        "Search bookings..."
     }
 
     var body: some View {
@@ -179,7 +227,7 @@ struct BookingsView: View {
         @Bindable var vm = vm
         return NavigationStack(path: $navigationPath) {
             Group {
-                if let error = vm.error, vm.bookings.isEmpty {
+                if let error = vm.error, vm.isEmpty {
                     ContentUnavailableView {
                         Label("Couldn't load bookings", systemImage: "exclamationmark.triangle")
                     } description: {
@@ -188,7 +236,7 @@ struct BookingsView: View {
                         Button("Retry") { Task { await vm.load(reset: true) } }
                             .buttonStyle(.borderedProminent)
                     }
-                } else if vm.bookings.isEmpty && vm.isLoading {
+                } else if vm.isEmpty && vm.isLoading {
                     List {
                         ForEach(0..<8, id: \.self) { _ in
                             BookingRowSkeleton()
@@ -202,7 +250,7 @@ struct BookingsView: View {
                     .background(Color(.systemGroupedBackground))
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)  // Don't pollute VO with placeholder shapes.
-                } else if vm.bookings.isEmpty {
+                } else if vm.isEmpty {
                     ContentUnavailableView {
                         Label(emptyTitle, systemImage: "archivebox")
                     } description: {
@@ -212,17 +260,19 @@ struct BookingsView: View {
                     }
                 } else {
                     List {
-                        ForEach(vm.bookings) { booking in
-                            // Hidden NavigationLink behind the card removes the
-                            // default List disclosure chevron; the card draws its
-                            // own affordance and sits flush on the grouped bg.
-                            ZStack {
-                                NavigationLink(value: booking) { EmptyView() }.opacity(0)
-                                BookingRow(booking: booking)
+                        if !vm.sortedCheckouts.isEmpty {
+                            BookingListSection(title: "Checkouts", count: vm.sortedCheckouts.count) {
+                                ForEach(vm.sortedCheckouts) { booking in
+                                    BookingRowLink(booking: booking)
+                                }
                             }
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+                        }
+                        if !vm.sortedReservations.isEmpty {
+                            BookingListSection(title: "Reservations", count: vm.sortedReservations.count) {
+                                ForEach(vm.sortedReservations) { booking in
+                                    BookingRowLink(booking: booking)
+                                }
+                            }
                         }
                         if let pageError = vm.pageError {
                             VStack(spacing: 8) {
@@ -242,7 +292,7 @@ struct BookingsView: View {
                                 .frame(maxWidth: .infinity)
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
-                                .task(id: vm.bookings.count) {
+                                .task(id: "\(vm.checkouts.count)-\(vm.reservations.count)") {
                                     await vm.load()
                                 }
                         }
@@ -252,12 +302,9 @@ struct BookingsView: View {
                     .background(Color(.systemGroupedBackground))
                 }
             }
-            // Generic title: the segmented control names the sub-tab, so a
-            // dynamic "Reservations"/"Checkouts" title would just echo it.
             .navigationTitle("Bookings")
             .searchable(text: $vm.searchText, prompt: searchPrompt)
             .onChange(of: vm.searchText) { vm.onSearchChange() }
-            .onChange(of: vm.tab) { Task { await vm.load(reset: true) } }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -272,7 +319,7 @@ struct BookingsView: View {
                     .accessibilityLabel(vm.mineOnly ? "Showing my bookings" : "Showing all visible bookings")
                     .sensoryFeedback(.selection, trigger: vm.mineOnly)
                 }
-                if vm.tab == .reservations && canCreate {
+                if canCreate {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button { showCreate = true } label: {
                             Label("New", systemImage: "plus")
@@ -280,17 +327,6 @@ struct BookingsView: View {
                         }
                         .accessibilityLabel("New Reservation")
                     }
-                }
-                ToolbarItem(placement: .principal) {
-                    Picker("Booking type", selection: $vm.tab) {
-                        ForEach(BookingTab.allCases, id: \.self) { tab in
-                            Text(tab.rawValue).tag(tab)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(maxWidth: 260)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityLabel("Booking type")
                 }
             }
             .sheet(isPresented: $showCreate) {
@@ -309,8 +345,8 @@ struct BookingsView: View {
             }
             .onChange(of: appState.pendingBookingsTab) { _, _ in
                 // A deep link arrived while this tab was already alive (e.g. the
-                // dashboard "Overdue" tile). Switch sub-tabs; the tab change
-                // triggers the reload via onChange(of: vm.tab).
+                // dashboard "Overdue" tile). The unified list already includes
+                // both booking types, so only clear the consumed hint.
                 consumePendingTab()
             }
             .onChange(of: appState.tabResetToken) { _, _ in
@@ -347,7 +383,7 @@ struct BookingsView: View {
                 Label("Show all visible bookings", systemImage: "person.2")
             }
             .buttonStyle(.borderedProminent)
-        } else if vm.tab == .reservations && canCreate {
+        } else if canCreate {
             Button {
                 showCreate = true
             } label: {
@@ -355,6 +391,42 @@ struct BookingsView: View {
             }
             .buttonStyle(.borderedProminent)
         }
+    }
+}
+
+private struct BookingListSection<Content: View>: View {
+    let title: String
+    let count: Int
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        Section {
+            content()
+        } header: {
+            HStack(spacing: 6) {
+                Text(title)
+                Text("\(count)")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .textCase(.none)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct BookingRowLink: View {
+    let booking: Booking
+
+    var body: some View {
+        ZStack {
+            NavigationLink(value: booking) { EmptyView() }.opacity(0)
+            BookingRow(booking: booking)
+        }
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
     }
 }
 
@@ -392,7 +464,7 @@ struct BookingRow: View {
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
                     Spacer()
-                    StatusBadge(status: booking.status, kind: booking.kind)
+                    StatusBadge(status: booking.status, kind: booking.kind, isOverdue: isOverdue)
                 }
                 HStack(spacing: 4) {
                     Text(booking.requester.name)
@@ -470,7 +542,7 @@ struct BookingRow: View {
         parts.append(booking.requester.name)
         parts.append(booking.location.name)
         if itemCount > 0 { parts.append("\(itemCount) item\(itemCount == 1 ? "" : "s")") }
-        parts.append(StatusBadge.label(for: booking.status, kind: booking.kind))
+        parts.append(StatusBadge.label(for: booking.status, kind: booking.kind, isOverdue: isOverdue))
         if booking.kind == .checkout {
             parts.append("Due \(booking.endsAt.formatted(date: .abbreviated, time: .shortened))")
         } else {
@@ -484,23 +556,27 @@ struct BookingRow: View {
 struct StatusBadge: View {
     let status: BookingStatus
     var kind: BookingKind = .unknown
+    var isOverdue = false
 
     var body: some View {
-        StatusPill(label: Self.label(for: status, kind: kind), tone: tone)
+        StatusPill(label: Self.label(for: status, kind: kind, isOverdue: isOverdue), tone: tone)
     }
 
     /// Public static so accessibility-label builders can speak the same
     /// label the visible pill renders, without duplicating the BOOKED-vs-
     /// reservation/checkout split logic.
-    static func label(for status: BookingStatus, kind: BookingKind) -> String {
-        if status == .booked { return kind == .reservation ? "Confirmed" : "Booked" }
+    static func label(for status: BookingStatus, kind: BookingKind, isOverdue: Bool = false) -> String {
+        if isOverdue { return "Overdue" }
+        if status == .booked { return "Reserved" }
+        if status == .open { return "Checked Out" }
         return status.label
     }
 
     private var tone: StatusTone {
+        if isOverdue { return .red }
         switch status {
         case .draft: return .gray
-        case .booked: return kind == .reservation ? .purple : .blue
+        case .booked: return .purple
         case .pendingPickup: return .orange
         case .open: return .blue
         case .completed: return .gray

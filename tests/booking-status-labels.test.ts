@@ -20,8 +20,12 @@ describe("booking status labels", () => {
     expect(statusLabel("CANCELLED", "CHECKOUT")).toBe("Cancelled");
     expect(statusLabel("COMPLETED", "RESERVATION")).toBe("Completed");
     expect(bookingStatusDisplay("BOOKED", "RESERVATION")).toEqual({
-      label: "Confirmed",
+      label: "Reserved",
       variant: "purple",
+    });
+    expect(bookingStatusDisplay("OPEN", "CHECKOUT")).toEqual({
+      label: "Checked Out",
+      variant: "blue",
     });
     expect(getStatusVisual("OPEN", true, "CHECKOUT")).toMatchObject({
       dot: "var(--red)",
@@ -41,5 +45,14 @@ describe("booking status labels", () => {
     expect(source).toContain("bookingStatusDisplay");
     expect(source).not.toContain("function bookingStatusLabel");
     expect(source).not.toMatch(/case\s+"(?:CHECKED_OUT|RETURNED|CONVERTED|CLOSED)"/);
+  });
+
+  it("keeps global search status copy aligned with booking labels", () => {
+    const source = readFileSync(join(process.cwd(), "src/app/(app)/search/page.tsx"), "utf8");
+
+    expect(source).toContain('case "OPEN": return "Checked Out"');
+    expect(source).toContain('case "BOOKED": return "Reserved"');
+    expect(source).not.toContain('case "OPEN": return "Checked out"');
+    expect(source).not.toContain('case "BOOKED": return "Booked"');
   });
 });

@@ -30,6 +30,9 @@ const workDir = mkdtempSync(join(tmpdir(), "gear-tracker-ios-project-"));
 try {
   cpSync(join(iosDir, "project.yml"), join(workDir, "project.yml"));
   cpSync(join(iosDir, "Wisconsin"), join(workDir, "Wisconsin"), { recursive: true });
+  if (existsSync(join(iosDir, "WisconsinLiveActivities"))) {
+    cpSync(join(iosDir, "WisconsinLiveActivities"), join(workDir, "WisconsinLiveActivities"), { recursive: true });
+  }
   if (existsSync(join(iosDir, "WisconsinTests"))) {
     cpSync(join(iosDir, "WisconsinTests"), join(workDir, "WisconsinTests"), { recursive: true });
   }

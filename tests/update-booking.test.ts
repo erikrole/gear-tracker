@@ -6,7 +6,7 @@ type UpdateBookingTx = {
   booking: Record<"findUnique" | "findUniqueOrThrow" | "update", MockFn>;
   bookingSerializedItem: Record<"deleteMany" | "createMany", MockFn>;
   bookingBulkItem: Record<"deleteMany" | "createMany", MockFn>;
-  assetAllocation: Record<"deleteMany" | "createMany", MockFn>;
+  assetAllocation: Record<"deleteMany" | "createMany" | "updateMany", MockFn>;
   auditLog: Record<"create" | "createMany", MockFn>;
   user: Record<"findUnique", MockFn>;
 };
@@ -20,7 +20,7 @@ vi.mock("@/lib/db", () => {
     booking: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn() },
     bookingSerializedItem: { deleteMany: vi.fn(), createMany: vi.fn() },
     bookingBulkItem: { deleteMany: vi.fn(), createMany: vi.fn() },
-    assetAllocation: { deleteMany: vi.fn(), createMany: vi.fn() },
+    assetAllocation: { deleteMany: vi.fn(), createMany: vi.fn(), updateMany: vi.fn() },
     auditLog: { create: vi.fn(), createMany: vi.fn() },
     user: { findUnique: vi.fn().mockResolvedValue({ role: "ADMIN" }) },
   };
@@ -101,6 +101,7 @@ beforeEach(() => {
   mockTx.bookingBulkItem.createMany.mockResolvedValue({});
   mockTx.assetAllocation.deleteMany.mockResolvedValue({});
   mockTx.assetAllocation.createMany.mockResolvedValue({});
+  mockTx.assetAllocation.updateMany.mockResolvedValue({});
   mockTx.auditLog.create.mockResolvedValue({});
   mockTx.auditLog.createMany.mockResolvedValue({});
   vi.mocked(checkAvailability).mockResolvedValue({
@@ -253,6 +254,23 @@ describe("updateCheckout", () => {
         data: expect.objectContaining({ title: "New Title", endsAt: newEnd }),
       })
     );
+  });
+
+  it("preserves checkout equipment rows when only details change", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout());
+
+    await updateCheckout("c-1", "actor-1", { title: "New Title" });
+
+    expect(mockTx.bookingSerializedItem.deleteMany).not.toHaveBeenCalled();
+    expect(mockTx.bookingBulkItem.deleteMany).not.toHaveBeenCalled();
+    expect(mockTx.assetAllocation.deleteMany).not.toHaveBeenCalled();
+    expect(mockTx.assetAllocation.updateMany).toHaveBeenCalledWith({
+      where: { bookingId: "c-1" },
+      data: {
+        startsAt,
+        endsAt,
+      },
+    });
   });
 
   it("checks availability with excludeBookingId", async () => {

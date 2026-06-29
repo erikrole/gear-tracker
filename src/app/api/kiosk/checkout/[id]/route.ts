@@ -47,6 +47,14 @@ async function requireEditableCheckout(
   return booking;
 }
 
+function activeBulkQuantity(item: { checkedOutQuantity: number; checkedInQuantity: number }) {
+  return Math.max(0, item.checkedOutQuantity - item.checkedInQuantity);
+}
+
+function quantityLabel(name: string, quantity: number) {
+  return quantity === 1 ? name : `${name} x${quantity}`;
+}
+
 /** Get checkout details for kiosk return and pickup flows */
 export const GET = withKiosk<{ id: string }>(async (_req, { params }) => {
   const booking = await db.booking.findUnique({
@@ -181,8 +189,8 @@ export const GET = withKiosk<{ id: string }>(async (_req, { params }) => {
           };
         });
       })
-    : booking.bulkItems.flatMap((bi) =>
-        bi.unitAllocations.map((allocation) => ({
+    : booking.bulkItems.flatMap((bi) => {
+        const activeAllocations = bi.unitAllocations.map((allocation) => ({
           id: allocation.bulkSkuUnit.id,
           tagName: `#${allocation.bulkSkuUnit.unitNumber}`,
           name: `${bi.bulkSku.name} #${allocation.bulkSkuUnit.unitNumber}`,
@@ -192,12 +200,28 @@ export const GET = withKiosk<{ id: string }>(async (_req, { params }) => {
           bulkSkuName: bi.bulkSku.name,
           unitNumber: allocation.bulkSkuUnit.unitNumber,
           imageUrl: bi.bulkSku.imageUrl,
-        }))
-      );
+        }));
+        const missingQuantity = Math.max(0, activeBulkQuantity(bi) - bi.unitAllocations.length);
+        if (missingQuantity <= 0) return activeAllocations;
+        return [
+          ...activeAllocations,
+          {
+            id: `${bi.id}:bulk-quantity`,
+            tagName: `x${missingQuantity}`,
+            name: quantityLabel(bi.bulkSku.name, missingQuantity),
+            returned: false,
+            type: "bulk_quantity" as const,
+            bulkSkuId: bi.bulkSku.id,
+            bulkSkuName: bi.bulkSku.name,
+            unitNumber: null,
+            imageUrl: bi.bulkSku.imageUrl,
+          },
+        ];
+      });
   const numberedBulkItems = booking.bulkItems.filter((bi) => bi.bulkSku.trackByNumber);
   const numberedBulkTotal = isPickupChecklist
     ? numberedBulkItems.reduce((sum, bi) => sum + bi.plannedQuantity, 0)
-    : numberedBulkItems.reduce((sum, bi) => sum + bi.unitAllocations.length, 0);
+    : numberedBulkItems.reduce((sum, bi) => sum + Math.max(bi.unitAllocations.length, bi.checkedOutQuantity), 0);
   const scannedBulkCounts = scanEvents
     .filter((event) => event.scanType === "BULK_BIN" && event.bulkSkuId)
     .reduce((counts, event) => {
@@ -212,7 +236,10 @@ export const GET = withKiosk<{ id: string }>(async (_req, { params }) => {
         0,
       )
     : numberedBulkItems.reduce(
-        (sum, bi) => sum + bi.unitAllocations.filter((allocation) => !!allocation.checkedInAt).length,
+        (sum, bi) => sum + Math.max(
+          bi.checkedInQuantity,
+          bi.unitAllocations.filter((allocation) => !!allocation.checkedInAt).length,
+        ),
         0,
       );
 

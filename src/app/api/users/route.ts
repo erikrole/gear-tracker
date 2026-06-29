@@ -126,6 +126,12 @@ export const GET = withAuth(async (req, { user }) => {
       skip: offset,
       include: {
         location: { select: { id: true, name: true } },
+        sportAssignments: {
+          select: {
+            sportCode: true,
+            defaultTraveler: true,
+          },
+        },
       },
     }),
     db.user.count({ where }),
@@ -164,6 +170,10 @@ export const GET = withAuth(async (req, { user }) => {
       avatarUrl: u.avatarUrl ?? null,
       active: u.active,
       hiddenFromRoster: u.hiddenFromRoster,
+      sportAssignments: u.sportAssignments.map((assignment) => ({
+        sportCode: assignment.sportCode,
+        defaultTraveler: assignment.defaultTraveler,
+      })),
       title: u.title ?? null,
       gradYear: u.gradYear ?? null,
       studentYearOverride: u.studentYearOverride ?? null,

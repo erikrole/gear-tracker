@@ -27,18 +27,29 @@ struct WisconsinApp: App {
                 .onChange(of: session.currentUser) { old, user in
                     if user == nil, old != nil {
                         GearStore.shared.clearAll()
+                        Task { await CheckoutReturnLiveActivityManager.shared.endAll() }
                     }
                     // Push permission is now requested via PushPrePromptView,
                     // not as a cold OS alert on login.
                     if user?.forcePasswordChange == false {
                         // If the user previously granted permission, keep the token fresh.
                         Task { await registerForPushIfAuthorized() }
+                        Task {
+                            await CheckoutReturnLiveActivityManager.shared.reconcileCurrentUserCheckouts(
+                                requesterId: user?.id
+                            )
+                        }
                     }
                 }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active && session.currentUser?.forcePasswordChange == false {
                         // Refresh tab badge state regardless of which tab the user is on.
-                        Task { await appState.refresh() }
+                        Task {
+                            await appState.refresh()
+                            await CheckoutReturnLiveActivityManager.shared.reconcileCurrentUserCheckouts(
+                                requesterId: session.currentUser?.id
+                            )
+                        }
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
@@ -50,6 +61,15 @@ struct WisconsinApp: App {
                 .onOpenURL { url in
                     if url.scheme == "wisconsin", url.host == "kiosk" {
                         kioskStore.enterKiosk()
+                    } else if url.scheme == "wisconsin", url.host == "booking" {
+                        let bookingId = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                        guard !bookingId.isEmpty else { return }
+                        appState.pendingPushBookingId = bookingId
+                        if URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                            .queryItems?
+                            .contains(where: { $0.name == "action" && $0.value == "extend" }) == true {
+                            appState.pendingExtendBookingId = bookingId
+                        }
                     }
                 }
                 .tint(.brandPrimary)

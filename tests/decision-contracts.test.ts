@@ -16,15 +16,15 @@ function source(relativePath: string) {
 describe("documented decision contracts", () => {
   it("D-025 keeps booking status labels display-only and kind-aware", () => {
     expect(bookingStatusDisplay("BOOKED", "RESERVATION")).toEqual({
-      label: "Confirmed",
+      label: "Reserved",
       variant: "purple",
     });
     expect(bookingStatusDisplay("BOOKED", "CHECKOUT")).toEqual({
-      label: "Booked",
-      variant: "blue",
+      label: "Reserved",
+      variant: "purple",
     });
     expect(bookingStatusDisplay("OPEN", "CHECKOUT")).toMatchObject({
-      label: "Checked out",
+      label: "Checked Out",
       variant: "blue",
     });
     expect(bookingStatusVisual("OPEN", { overdue: true, kind: "CHECKOUT" })).toMatchObject({

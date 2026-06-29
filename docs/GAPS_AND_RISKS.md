@@ -120,6 +120,8 @@ _2026-06-19 update: Category cleanup wizard and picker visibility shipped withou
 
 _2026-06-26 update: Item-data cleanup shipped without opening a new gap. Existing Asset, BulkSku, Category, Department, scan identity, and audit-log contracts supported the data-only pass. Serialized category, department, and primary-scan gaps are now 0; active item-family category and department gaps are now 0; cross-table duplicate scan identities are now 0. Nine possible cage/top-plate/lens-cap attachments remain an operator physical-mapping review because the database does not prove their parent asset._
 
+_2026-06-29 update: iOS console/runtime calming shipped without opening a new gap. The slice changed native client launch timing, optional AFM header gating, and thumbnail caching only; dashboard payload shape, Live Activity API contracts, and mobile navigation/custody behavior did not change._
+
 | ID | Description | Owner Area | Priority | Blocker? |
 |---|---|---|---|---|
 | ~~PD-1~~ | ~~D-009: Escalation recipient model~~ | ~~AREA_NOTIFICATIONS~~ | ~~Resolved~~ | ~~Requester + all admins; admin-configurable fatigue controls~~ |
@@ -268,6 +270,9 @@ _2026-06-26 update: Item-data cleanup shipped without opening a new gap. Existin
 ---
 
 ## Change Log
+- 2026-06-29: iOS Bookings unified list polish shipped without opening a new gap. Existing `/api/checkouts`, `/api/reservations`, requester avatar selection, booking status display helpers, and kiosk custody boundaries supported the one-list native Bookings treatment without schema or mutation-contract changes.
+- 2026-06-29: iOS Home visual polish shipped without opening a new gap. Existing Home action queue, booking creation, dashboard stats, and semantic status-token contracts supported removing the noisy floating Home create button and improving the due-today clock tile fill without schema, API, or custody changes.
+- 2026-06-28: iOS checkout return Live Activity shipped without opening a new gap. Existing Booking, availability, checkout completion, APNs credential, and kiosk return contracts support the slice; the only schema addition is `live_activity_tokens` so the native app can register ActivityKit push tokens and checkout completion can remotely end the active return countdown.
 - 2026-06-26: Items list niceties shipped without opening a new gap. Item-family favorites are now durable through the new `favorite_item_families` table and mirror serialized favorite permission/audit behavior; Favorites filtering includes item-family rows; compact and hyphenated asset-tag search aliases are shared by Items and picker search; and item-family rows expose only valid row actions.
 - 2026-06-26: iOS Items web-parity slice shipped without opening a new gap. Existing `/api/assets`, `itemOrder`, `bulkItems`, item-family, reservation prefill, and avatar fields were enough for native Items to render mixed serialized/family rows, Asset tag and Most popular sorts, web-aligned family labels, and holder-avatar status badges.
 - 2026-06-26: Item department/category/QR cleanup shipped without opening a new gap. The data-only pass used existing Asset, BulkSku, Category, Department, scan identity, and audit-log contracts. All current `Video` department rows now point to `Creative`; deterministic category corrections were applied for teleconverters, monitor arms, and flash/trigger rows; 11 stale `E1-###` primary scan codes were replaced only where a unique alphanumeric `qrCodeValue` was already stored. Thirty legacy QR rows remain as a physical/source lookup queue in `tasks/item-qr-physical-review.md` because the database has no safe replacement value.

@@ -162,6 +162,7 @@ model User {
   passwordResetTokens  PasswordResetToken[]
   notifications        Notification[]
   deviceTokens         DeviceToken[]
+  liveActivityTokens   LiveActivityToken[]
   bookingPhotos        BookingPhoto[]             @relation("BookingPhotoActor")
   checkinReports       CheckinItemReport[]        @relation("CheckinReports")
   allowedEmailsCreated AllowedEmail[]             @relation("AllowedEmailCreator")
@@ -388,6 +389,7 @@ model Booking {
   bulkMovements       BulkStockMovement[]
   photos              BookingPhoto[]
   checkinReports      CheckinItemReport[]
+  liveActivityTokens  LiveActivityToken[]
 
   @@index([locationId, startsAt, endsAt])
   @@index([status, kind])
@@ -802,6 +804,23 @@ model DeviceToken {
 
   @@index([userId, revokedAt])
   @@map("device_tokens")
+}
+
+model LiveActivityToken {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  bookingId   String    @map("booking_id")
+  token       String    @unique
+  activity    String
+  lastSeenAt  DateTime  @default(now()) @map("last_seen_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  endedAt     DateTime? @map("ended_at")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  booking     Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, endedAt])
+  @@index([userId, activity, endedAt])
+  @@map("live_activity_tokens")
 }
 
 model Notification {

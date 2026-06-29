@@ -71,8 +71,8 @@ const SEARCH_RESULT_SOURCES = {
 function formatStatusLabel(status: string): string {
   switch (status) {
     case "PENDING_PICKUP": return "Awaiting pickup";
-    case "OPEN": return "Checked out";
-    case "BOOKED": return "Booked";
+    case "OPEN": return "Checked Out";
+    case "BOOKED": return "Reserved";
     case "DRAFT": return "Draft";
     case "COMPLETED": return "Completed";
     case "CANCELLED": return "Cancelled";

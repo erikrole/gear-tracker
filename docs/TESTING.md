@@ -61,7 +61,7 @@ Default local closeout for web/API cleanup slices:
 5. `git diff --check`.
 6. `npm run build:app` before declaring a shippable local slice.
 
-Run `npm test` when shared behavior, auth, route wrappers, booking lifecycle, or broad service helpers change enough that focused files do not cover the risk. For iOS source slices, also run `npm run drift:ios` and `npm run audit:ios:gaps`; use an XcodeBuildMCP simulator build when Swift compile or UI proof is part of the slice.
+Run `npm test` when shared behavior, auth, route wrappers, booking lifecycle, or broad service helpers change enough that focused files do not cover the risk. For iOS source slices, also run `npm run drift:ios` and `npm run audit:ios:gaps`; use `npm run ios:xcode:verify` for serialized Xcode compile proof. Use XcodeBuildMCP or Simulator screenshots when Swift runtime, navigation, visual layout, or UI proof is part of the slice. The full native workflow lives in `docs/IOS_XCODE_WORKFLOW.md`.
 
 For operator-facing booking freshness work, add authenticated browser proof after the focused automated gates: create or mutate one visible booking from another authenticated client, confirm Dashboard counts/rows and `/bookings` list rows converge without using the manual refresh button, verify an already-open booking detail sheet updates for the changed booking id, then reload Dashboard to prove persisted cache does not resurrect stale rows. Store proof notes or screenshots under `tasks/archive/proofs/`.
 

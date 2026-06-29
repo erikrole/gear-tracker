@@ -39,6 +39,10 @@ targets:
         NSLocationWhenInUseUsageDescription: "Show nearby gear locations"
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: false
+        NSSupportsLiveActivities: true
+        CFBundleURLTypes:
+          - CFBundleURLSchemes:
+              - wisconsin
         UIAppFonts:
           - Gotham-Black.ttf
           - Gotham-Bold.ttf
@@ -50,6 +54,7 @@ targets:
     dependencies:
       - sdk: WeatherKit.framework
         embed: false
+      - target: WisconsinLiveActivities
     settings:
       base:
         PRODUCT_NAME: Wisconsin
@@ -117,11 +122,32 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.erikrole.WisconsinTests
         DEVELOPMENT_TEAM: T26T3G8C7Q
 
+  WisconsinLiveActivities:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "26.0"
+    bundleId: com.erikrole.Wisconsin.LiveActivities
+    sources:
+      - path: WisconsinLiveActivities
+      - path: Wisconsin/LiveActivities/CheckoutReturnActivityAttributes.swift
+    info:
+      path: WisconsinLiveActivities/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_NAME: WisconsinLiveActivities
+        PRODUCT_BUNDLE_IDENTIFIER: com.erikrole.Wisconsin.LiveActivities
+        DEVELOPMENT_TEAM: T26T3G8C7Q
+        SKIP_INSTALL: YES
+
 schemes:
   Wisconsin:
     build:
       targets:
         Wisconsin: all
+        WisconsinLiveActivities: all
     test:
       targets:
         - WisconsinTests

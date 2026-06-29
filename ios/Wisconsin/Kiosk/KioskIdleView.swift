@@ -1526,7 +1526,7 @@ private struct KioskCheckoutDetailSheet: View {
         let id: String
         var items: [KioskCheckoutDetail.ReturnItem]
         var first: KioskCheckoutDetail.ReturnItem { items[0] }
-        var isBulkGroup: Bool { first.isNumberedBulk }
+        var isBulkGroup: Bool { first.isBulkDisplay }
         var count: Int { items.count }
         var title: String {
             guard isBulkGroup else { return first.name }
@@ -1828,7 +1828,7 @@ private struct KioskCheckoutDetailSheet: View {
     }
 
     private func removableItem(in group: ItemGroup) -> KioskCheckoutDetail.ReturnItem? {
-        group.items.first { !$0.returned }
+        group.items.first { !$0.returned && (!$0.isBulkDisplay || $0.unitNumber != nil) }
     }
 
     @ViewBuilder

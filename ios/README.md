@@ -35,6 +35,13 @@ To verify the checked-in project matches `project.yml` without mutating the work
 npm run ios:project:check
 ```
 
+For the standard debug, test, and review path, see `docs/IOS_XCODE_WORKFLOW.md`.
+The default closeout command is:
+
+```bash
+npm run ios:xcode:verify
+```
+
 ## TestFlight
 
 1. Select **Any iOS Device (arm64)** as destination

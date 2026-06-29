@@ -193,6 +193,15 @@
 - [x] Update focused tab-shell coverage and mobile/HIG docs.
 - [x] Roll back again after user retest confirmed Schedule selection still crashes with the modern `Tab(...)` shell.
 
+## Slice 21 — Trailing Scan Tab
+
+- [x] Keep Home, My Gear/Bookings, Items, Scan, Schedule, and staff-only Users on the stable `.tabItem`/`.tag` shell.
+- [x] Hide the system tab bar and render a custom bottom tab bar that groups main tabs in one pill.
+- [x] Render Scan as the dedicated trailing circular tab at tab-bar level, matching Apple's search-tab guidance.
+- [x] Route Home all-clear lookup through `AppState.presentScanLookup()` instead of hardcoding tab tag `3`.
+- [x] Preserve lookup-only scan scope and kiosk-owned custody routes.
+- [ ] Verify focused tab shell tests, iOS drift/gap checks, whitespace, and simulator build after correction.
+
 ## iOS 27 Watch Items
 
 - [ ] Re-check Apple HIG and developer sessions after the June 8 Keynote and Platforms State of the Union.
@@ -246,3 +255,5 @@
 - 2026-06-06: Verified the Schedule list Dynamic Type slice with `npx vitest run tests/ios-schedule-dynamic-type.test.ts tests/ios-schedule-calendar-hit-targets.test.ts`, `npm run drift:ios`, `npm run audit:ios:gaps`, `git diff --check`, and `xcodebuild -project ios/Wisconsin.xcodeproj -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build`. XcodeBuildMCP was unavailable because `session_show_defaults` closed its transport twice, so the build used the shell fallback. `npx tsc --noEmit` was not needed because no shared TypeScript or API route code changed; the new TypeScript file is a focused Vitest source contract.
 - 2026-06-06: Shipped the Scan result retry-recovery slice. Native Scan lookup failures now show Try again before Type code instead, retry the last scanned code in place, and clear the same-code dedupe guard before retrying so the recovery action is immediate. The slice keeps lookup-only scope, kiosk custody boundaries, camera permission recovery, torch/manual entry, and single-asset auto-jump behavior intact. Added `tests/ios-scan-result-retry.test.ts`.
 - 2026-06-06: Verified the Scan result retry-recovery slice with `npx vitest run tests/ios-scan-result-retry.test.ts`, `npm run drift:ios`, `npm run audit:ios:gaps`, `git diff --check`, and `xcodebuild -project ios/Wisconsin.xcodeproj -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build`. XcodeBuildMCP was unavailable because `session_show_defaults` closed its transport, so the build used the shell fallback. `npx tsc --noEmit` was not needed because no shared TypeScript or API route code changed.
+- 2026-06-29: Started Slice 21 after HIG tab-bar review and prior crash evidence. The implementation keeps the stable tab shell and intentionally does not restore `TabRole.search` because the modern tab shell previously crashed on Schedule selection in this app.
+- 2026-06-29: User correction accepted: the first implementation was a floating action/full-screen cover, not Apple's trailing search-tab pattern. Reworked the slice so Scan remains tab tag `3`, the system tab bar is hidden, and a custom bottom bar renders main tabs in one pill with Scan as the dedicated trailing circular tab.

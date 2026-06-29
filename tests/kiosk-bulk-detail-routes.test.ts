@@ -246,6 +246,54 @@ describe("kiosk checkout detail bulk units", () => {
     });
   });
 
+  it("includes checked-out battery quantity when unit allocation rows are missing", async () => {
+    mocks.bookingFindUnique.mockResolvedValue({
+      id: "booking-1",
+      title: "Chris Hall checkout",
+      refNumber: "CO-1001",
+      status: "OPEN",
+      kind: "CHECKOUT",
+      requesterUserId: "user-chris",
+      endsAt: new Date("2026-06-29T23:00:00.000Z"),
+      scanEvents: [],
+      serializedItems: [],
+      bulkItems: [{
+        id: "bulk-item-1",
+        plannedQuantity: 8,
+        checkedOutQuantity: 8,
+        checkedInQuantity: 0,
+        bulkSku: {
+          id: "sku-sony",
+          name: "Sony Battery",
+          category: "Batteries",
+          trackByNumber: true,
+        },
+        unitAllocations: [],
+      }],
+    });
+
+    const res = await getKioskCheckoutDetail(new Request("http://test"), routeCtx("booking-1"));
+    const json = await res.json();
+
+    expect(json.items).toEqual([
+      {
+        id: "bulk-item-1:bulk-quantity",
+        tagName: "x8",
+        name: "Sony Battery x8",
+        returned: false,
+        type: "bulk_quantity",
+        bulkSkuId: "sku-sony",
+        bulkSkuName: "Sony Battery",
+        unitNumber: null,
+      },
+    ]);
+    expect(json.scanSummary).toEqual({
+      serializedTotal: 0,
+      numberedBulkTotal: 8,
+      numberedBulkCompleted: 0,
+    });
+  });
+
   it("marks already-picked battery slots when a pending pickup is resumed", async () => {
     mocks.bookingFindUnique.mockResolvedValue({
       id: "booking-1",
@@ -522,7 +570,7 @@ describe("kiosk pickup serialized scan guard", () => {
     expect(json.success).toBe(true);
     expect(mocks.bookingUpdateMany).toHaveBeenCalledWith({
       where: { id: "booking-1", status: "PENDING_PICKUP" },
-      data: { status: "OPEN" },
+      data: { status: "OPEN", pickupKioskDeviceId: "kiosk-1" },
     });
     expect(mocks.createAuditEntryTx).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       actorId: "user-1",
