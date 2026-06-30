@@ -106,31 +106,22 @@ struct EventDetailSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Text(event.summary)
+                    Text("Event")
                         .font(.headline)
                         .lineLimit(1)
                 }
-                if canManageShifts && vm.shiftGroup != nil {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button { showAddShift = true } label: {
-                            Label("Add shift", systemImage: "plus.circle")
-                        }
-                    }
-                }
-                if canPrepGear {
-                    ToolbarItem(placement: .bottomBar) {
-                        Button {
-                            prepGearOpen = true
-                        } label: {
-                            Label("Prep gear", systemImage: "archivebox")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .padding(.horizontal)
-                    }
-                }
-                ToolbarItem(placement: .confirmationAction) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
+                }
+                if canManageShifts && vm.shiftGroup != nil {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            showAddShift = true
+                        } label: {
+                            Label("Add shift", systemImage: "plus")
+                        }
+                        .labelStyle(.titleAndIcon)
+                    }
                 }
             }
             .task { await vm.load() }
@@ -370,7 +361,7 @@ struct EventDetailSheet: View {
     @ViewBuilder
     private var gearAndCallSection: some View {
         VStack(alignment: .leading, spacing: Brand.Space.sm) {
-            BrandSectionHeader("Your Event", systemImage: "person.crop.circle.badge.checkmark")
+            EventDetailSectionHeader("Your Event", systemImage: "person.crop.circle.badge.checkmark")
 
             VStack(alignment: .leading, spacing: 10) {
                 if let gear = eventWork?.primaryGear, eventWork?.needsGear == false {
@@ -487,7 +478,7 @@ struct EventDetailSheet: View {
 
             // Title
             Text(event.summary)
-                .font(.gothamBold(size: 22))
+                .font(.title3.weight(.semibold))
                 .lineLimit(3)
 
             // Date + time
@@ -534,7 +525,7 @@ struct EventDetailSheet: View {
 
     private var crewSection: some View {
         VStack(alignment: .leading, spacing: Brand.Space.sm) {
-            BrandSectionHeader(title: "Crew", systemImage: "person.2.fill") {
+            EventDetailSectionHeader(title: "Crew", systemImage: "person.2.fill") {
                 if let coverage = vm.shiftGroup?.coverage {
                     CoveragePill(coverage: coverage)
                 }
@@ -644,6 +635,37 @@ struct EventDetailSheet: View {
                 )
             }
         }
+    }
+}
+
+// MARK: - Section Header
+
+private struct EventDetailSectionHeader<Trailing: View>: View {
+    let title: String
+    var systemImage: String? = nil
+    @ViewBuilder var trailing: () -> Trailing
+
+    var body: some View {
+        HStack(alignment: .center, spacing: Brand.Space.sm) {
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+            }
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(.primary)
+                .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: Brand.Space.sm)
+            trailing()
+        }
+    }
+}
+
+private extension EventDetailSectionHeader where Trailing == EmptyView {
+    init(_ title: String, systemImage: String? = nil) {
+        self.init(title: title, systemImage: systemImage, trailing: { EmptyView() })
     }
 }
 
@@ -834,18 +856,9 @@ struct ShiftRow: View {
             assignedPersonView
 
             Spacer()
-
-            // My-shift indicator dot
-            if isHighlighted {
-                Circle()
-                    .fill(Color.statusText(.blue))
-                    .frame(width: 7, height: 7)
-                    .accessibilityHidden(true)
-            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(isHighlighted ? Color.statusText(.blue).opacity(0.06) : Color.clear)
         .contentShape(.contextMenuPreview, Rectangle())
         .contextMenu { rowContextMenu }
         .accessibilityElement(children: .combine)
@@ -966,9 +979,13 @@ struct ShiftRow: View {
                         .font(.subheadline)
                         .foregroundStyle(isMe ? Color.primary : Color.secondary)
                     if isMe {
-                        Image(systemName: "person.fill")
-                            .font(.caption2)
+                        Text("You")
+                            .font(.caption2.weight(.semibold))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.statusBackground(.blue))
                             .foregroundStyle(Color.statusText(.blue))
+                            .clipShape(Capsule())
                     }
                     if assignment.status == "REQUESTED" {
                         StatusPill(label: "Pending", tone: .orange)

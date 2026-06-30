@@ -193,6 +193,7 @@ struct BookingDetailView: View {
     }
 
     private func cancelBooking() async {
+        if isActioning { return }
         isActioning = true
         do {
             try await APIClient.shared.cancelBooking(id: bookingId)
@@ -323,6 +324,7 @@ struct EditBookingSheet: View {
     }
 
     private func save() async {
+        if isSaving { return }
         isSaving = true
         do {
             try await APIClient.shared.updateBooking(
@@ -761,7 +763,8 @@ private struct ActionsSection: View {
                     Label("Extend Return Date", systemImage: "clock.arrow.circlepath")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
                 .controlSize(.large)
                 .tint(Color.statusText(.blue))
                 .disabled(isActioning)
@@ -781,7 +784,8 @@ private struct ActionsSection: View {
                     }
                     .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
                 .controlSize(.large)
                 .tint(Color.statusText(.red))
                 .disabled(isActioning)

@@ -23,10 +23,11 @@ describe("iOS Schedule Dynamic Type", () => {
       "// MARK: - Event Row",
     );
 
-    expect(dateHeader).toContain(".font(.caption2.weight(.semibold))");
-    expect(dateHeader).toContain(".font(.title2.weight(.bold))");
-    expect(dateHeader).toContain(".frame(width: 44)");
+    expect(dateHeader).toContain(".font(.subheadline.weight(.semibold))");
+    expect(dateHeader).toContain(".font(.caption)");
     expect(dateHeader).not.toContain(".font(.system(size:");
+    expect(dateHeader).not.toContain(".font(.title2.weight(.bold))");
+    expect(dateHeader).not.toContain(".frame(width: 44)");
   });
 
   it("keeps schedule row microcopy on semantic Dynamic Type styles", () => {

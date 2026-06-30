@@ -487,6 +487,48 @@ final class APIClient {
         return try await perform(req)
     }
 
+    // MARK: - Licenses
+
+    func licenses() async throws -> [LicenseCode] {
+        let req = request(path: "/api/licenses")
+        let resp: DataWrapper<[LicenseCode]> = try await perform(req)
+        return resp.data
+    }
+
+    func myLicense() async throws -> ActiveLicenseClaim? {
+        let req = request(path: "/api/licenses/my")
+        let resp: DataWrapper<ActiveLicenseClaim?> = try await perform(req)
+        return resp.data
+    }
+
+    func claimLicense(id: String) async throws -> LicenseClaimResult {
+        let req = request(path: "/api/licenses/\(id)/claim", method: "POST")
+        let resp: DataWrapper<LicenseClaimResult> = try await perform(req)
+        return resp.data
+    }
+
+    @discardableResult
+    func releaseLicense(id: String) async throws -> LicenseCode {
+        var req = request(path: "/api/licenses/\(id)/release", method: "POST")
+        req.httpBody = Data()
+        let resp: DataWrapper<LicenseCode> = try await perform(req)
+        return resp.data
+    }
+
+    // MARK: - Resources
+
+    func guides(search: String? = nil, category: String? = nil) async throws -> [GuideListItem] {
+        var items: [URLQueryItem] = []
+        if let search, !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            items.append(.init(name: "q", value: search))
+        }
+        if let category, !category.isEmpty {
+            items.append(.init(name: "category", value: category))
+        }
+        let resp: DataWrapper<[GuideListItem]> = try await perform(request(path: "/api/resources", queryItems: items))
+        return resp.data
+    }
+
     // MARK: - Assets
 
     func assets(
@@ -723,6 +765,13 @@ final class APIClient {
         return try await perform(request(path: "/api/shift-trades", queryItems: items))
     }
 
+    func scheduleOpenWork(area: String? = nil) async throws -> OpenWorkResponse {
+        var items: [URLQueryItem] = []
+        if let area { items.append(.init(name: "area", value: area)) }
+        let resp: DataWrapper<OpenWorkResponse> = try await perform(request(path: "/api/schedule/open-work", queryItems: items))
+        return resp.data
+    }
+
     func postShiftTrade(assignmentId: String, notes: String?) async throws -> ShiftTrade {
         struct Body: Encodable { let shiftAssignmentId: String; let notes: String? }
         var req = request(path: "/api/shift-trades", method: "POST")
@@ -737,10 +786,29 @@ final class APIClient {
         return resp.data
     }
 
+    func approveShiftTrade(id: String) async throws -> ShiftTrade {
+        let req = request(path: "/api/shift-trades/\(id)/approve", method: "PATCH")
+        let resp: DataWrapper<ShiftTrade> = try await perform(req)
+        return resp.data
+    }
+
+    func declineShiftTrade(id: String) async throws -> ShiftTrade {
+        let req = request(path: "/api/shift-trades/\(id)/decline", method: "PATCH")
+        let resp: DataWrapper<ShiftTrade> = try await perform(req)
+        return resp.data
+    }
+
     func cancelShiftTrade(id: String) async throws -> ShiftTrade {
         let req = request(path: "/api/shift-trades/\(id)/cancel", method: "PATCH")
         let resp: DataWrapper<ShiftTrade> = try await perform(req)
         return resp.data
+    }
+
+    func pickupOpenShift(id: String) async throws {
+        struct Body: Encodable { let shiftId: String }
+        var req = request(path: "/api/shift-assignments/pickup", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(shiftId: id))
+        let _: DataWrapper<ShiftAssignmentActionResponse> = try await perform(req)
     }
 
     // MARK: - Shift assignment / authoring

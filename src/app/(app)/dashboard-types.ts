@@ -18,6 +18,8 @@ export type DashboardStats = {
   teamReservationsTotal: number;
   pendingPickupTotal: number;
   staleReservationTotal: number;
+  myShiftsCount: number;
+  myShiftsTodayCount: number;
 };
 
 export type ItemThumb = {

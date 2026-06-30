@@ -181,89 +181,107 @@ struct ItemsView: View {
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
-            VStack(spacing: 0) {
-                itemsControlStrip
-                Group {
-                    if let error = vm.error, vm.rows.isEmpty {
-                        ContentUnavailableView {
-                            Label("Couldn't load items", systemImage: "exclamationmark.triangle")
-                        } description: {
-                            Text(error)
-                        } actions: {
-                            Button("Retry") { Task { await vm.load(reset: true) } }
-                                .buttonStyle(.borderedProminent)
-                        }
-                    } else if vm.rows.isEmpty && vm.isLoading {
-                        List {
-                            ForEach(0..<10, id: \.self) { _ in
-                                ItemRowSkeleton()
-                                    .listRowSeparator(.hidden)
-                                    .listRowBackground(Color.clear)
-                                    .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
-                            }
-                        }
-                        .listStyle(.plain)
-                        .scrollContentBackground(.hidden)
-                        .background(Color(.systemGroupedBackground))
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)  // Don't pollute VO with placeholder shapes during initial load.
-                    } else if vm.rows.isEmpty {
-                        ContentUnavailableView {
-                            Label(
-                                vm.favoritesOnly ? "No Favorites" : "No Items",
-                                systemImage: vm.favoritesOnly ? "star" : "archivebox"
-                            )
-                        } description: {
-                            Text(vm.searchText.isEmpty
-                                ? (vm.favoritesOnly ? "Star items to add them here." : "No gear found.")
-                                : "No results for \"\(vm.searchText)\".")
-                        } actions: {
-                            emptyStateActions
-                        }
-                    } else {
-                        List {
-                            ForEach(vm.rows) { row in
-                                itemRow(row)
-                            }
-                            if let pageError = vm.pageError {
-                                VStack(spacing: 8) {
-                                    Text(pageError)
-                                        .font(.footnote)
-                                        .foregroundStyle(.secondary)
-                                        .multilineTextAlignment(.center)
-                                    Button("Retry") { Task { await vm.retryPage() } }
-                                        .buttonStyle(.bordered)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
+            Group {
+                if let error = vm.error, vm.rows.isEmpty {
+                    ContentUnavailableView {
+                        Label("Couldn't load items", systemImage: "exclamationmark.triangle")
+                    } description: {
+                        Text(error)
+                    } actions: {
+                        Button("Retry") { Task { await vm.load(reset: true) } }
+                            .buttonStyle(.borderedProminent)
+                    }
+                } else if vm.rows.isEmpty && vm.isLoading {
+                    List {
+                        ForEach(0..<10, id: \.self) { _ in
+                            ItemRowSkeleton()
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
-                            } else if vm.hasMore {
-                                ProgressView()
-                                    .frame(maxWidth: .infinity)
-                                    .listRowSeparator(.hidden)
-                                    .listRowBackground(Color.clear)
-                                    .task(id: vm.rows.count) { await vm.load() }
-                            } else if vm.rows.count > 10 {
-                                Text("End of list")
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
-                                    .frame(maxWidth: .infinity, alignment: .center)
-                                    .padding(.vertical, 12)
-                                    .listRowSeparator(.hidden)
-                                    .listRowBackground(Color.clear)
-                            }
+                                .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
                         }
-                        .listStyle(.plain)
-                        .scrollContentBackground(.hidden)
-                        .contentMargins(.bottom, 96, for: .scrollContent)
-                        .background(Color(.systemGroupedBackground))
                     }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .background(Color(.systemGroupedBackground))
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)  // Don't pollute VO with placeholder shapes during initial load.
+                } else if vm.rows.isEmpty {
+                    ContentUnavailableView {
+                        Label(
+                            vm.favoritesOnly ? "No Favorites" : "No Items",
+                            systemImage: vm.favoritesOnly ? "star" : "archivebox"
+                        )
+                    } description: {
+                        Text(vm.searchText.isEmpty
+                            ? (vm.favoritesOnly ? "Star items to add them here." : "No gear found.")
+                            : "No results for \"\(vm.searchText)\".")
+                    } actions: {
+                        emptyStateActions
+                    }
+                } else {
+                    List {
+                        ForEach(vm.rows) { row in
+                            itemRow(row)
+                        }
+                        if let pageError = vm.pageError {
+                            VStack(spacing: 8) {
+                                Text(pageError)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                                Button("Retry") { Task { await vm.retryPage() } }
+                                    .buttonStyle(.bordered)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                        } else if vm.hasMore {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                                .task(id: vm.rows.count) { await vm.load() }
+                        } else if vm.rows.count > 10 {
+                            Text("End of list")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.vertical, 12)
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                        }
+                    }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .contentMargins(.bottom, 96, for: .scrollContent)
+                    .background(Color(.systemGroupedBackground))
                 }
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Items")
             .searchable(text: $vm.searchText, prompt: "Search tag, model, serial, location")
+            .toolbar {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button {
+                        vm.favoritesOnly.toggle()
+                        Task { await vm.load(reset: true) }
+                    } label: {
+                        Label("Favorites", systemImage: vm.favoritesOnly ? "star.fill" : "star")
+                    }
+                    .tint(Color.statusText(.orange))
+                    .accessibilityLabel(vm.favoritesOnly ? "Favorites on" : "Favorites off")
+                    .sensoryFeedback(.selection, trigger: vm.favoritesOnly)
+
+                    AssetStatusFilterMenu(selected: $vm.selectedStatuses) {
+                        Task { await vm.load(reset: true) }
+                    }
+
+                    ItemSortMenu(selected: $vm.sortOption) {
+                        Task { await vm.load(reset: true) }
+                    }
+                }
+            }
             .onChange(of: vm.searchText) { vm.onSearchChange() }
             .refreshable { await vm.load(reset: true) }
             .task { await vm.load(reset: true) }
@@ -415,37 +433,6 @@ struct ItemsView: View {
         }
     }
 
-    private var itemsControlStrip: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                Button {
-                    vm.favoritesOnly.toggle()
-                    Task { await vm.load(reset: true) }
-                } label: {
-                    ItemControlPill(
-                        title: "Favorites",
-                        systemImage: vm.favoritesOnly ? "star.fill" : "star",
-                        isActive: vm.favoritesOnly,
-                        tone: .orange
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(vm.favoritesOnly ? "Favorites on" : "Favorites off")
-                .sensoryFeedback(.selection, trigger: vm.favoritesOnly)
-
-                AssetStatusFilterMenu(selected: $vm.selectedStatuses) {
-                    Task { await vm.load(reset: true) }
-                }
-
-                ItemSortMenu(selected: $vm.sortOption) {
-                    Task { await vm.load(reset: true) }
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-        }
-        .background(Color(.systemGroupedBackground))
-    }
 }
 
 
@@ -792,13 +779,12 @@ struct AssetStatusFilterMenu: View {
                 }
             }
         } label: {
-            ItemControlPill(
-                title: statusFilterTitle,
-                systemImage: "line.3.horizontal.decrease.circle\(selected.isEmpty ? "" : ".fill")",
-                isActive: !selected.isEmpty,
-                tone: .blue
+            Label(
+                statusFilterTitle,
+                systemImage: "line.3.horizontal.decrease.circle\(selected.isEmpty ? "" : ".fill")"
             )
         }
+        .tint(Color.statusText(.blue))
         .accessibilityLabel(selected.isEmpty ? "Filter by status" : "Filtering by \(selected.count) statuses")
     }
 
@@ -826,36 +812,9 @@ struct ItemSortMenu: View {
                 }
             }
         } label: {
-            ItemControlPill(
-                title: selected.label,
-                systemImage: "arrow.up.arrow.down",
-                isActive: selected != .assetTag,
-                tone: .red
-            )
+            Label(selected.label, systemImage: "arrow.up.arrow.down")
         }
+        .tint(Color.statusText(.blue))
         .accessibilityLabel("Sort items by \(selected.label)")
-    }
-}
-
-private struct ItemControlPill: View {
-    let title: String
-    let systemImage: String
-    let isActive: Bool
-    let tone: StatusTone
-
-    var body: some View {
-        Label(title, systemImage: systemImage)
-            .font(.subheadline.weight(.semibold))
-            .lineLimit(1)
-            .foregroundStyle(isActive ? Color.statusText(tone) : Color.primary)
-            .padding(.horizontal, 12)
-            .frame(minHeight: 44)
-            .background {
-                Capsule().fill(isActive ? Color.statusBackground(tone) : Color(.secondarySystemBackground))
-                Capsule().strokeBorder(
-                    isActive ? Color.statusText(tone).opacity(0.35) : Color.primary.opacity(0.12),
-                    lineWidth: 1
-                )
-            }
     }
 }

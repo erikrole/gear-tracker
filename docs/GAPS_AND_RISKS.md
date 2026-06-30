@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-26
+- Last Updated: 2026-06-30
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -109,6 +109,10 @@ _2026-06-22 update: Kiosk active checkout edits shipped without opening a new ga
 _2026-06-19 update: Schedule data-quality queue shipped without opening a new gap. The queue is read-only, uses existing CalendarEvent, ShiftGroup, Location, and archive fields, and routes cleanup through current Event detail and Settings ownership surfaces._
 
 _2026-06-19 update: Schedule event identity normalization shipped without opening a new gap. Shared helper code now normalizes opponent and venue strings at ingest/edit/display boundaries, preserving raw calendar venue evidence and the existing pickup-location separation._
+
+_2026-06-30 update: Personal shift calendar subscription hardening shipped without opening a new gap. The feed reuses existing CalendarEvent identity fields, Shift and ShiftAssignment call-window overrides, ShiftTrade open/claimed state, and active assignment statuses; completed swaps already remove the original worker's assignment from the active feed._
+
+_2026-06-30 update: Trade Board Open Work hardening shipped without opening a new gap. Web and iOS reuse existing ShiftTrade, ShiftAssignment, pickup-request, publication, worker-class, and effective call-window contracts; the change clarifies grouping, consequence copy, and race checks without introducing a new scheduling model._
 
 _2026-06-20 update: Explicit Schedule worker-class model shipped and closed PENDING-SCHEDULE-01. `User.staffingType` is now the Staff/Student scheduling source while `User.role` remains the permissions source._
 

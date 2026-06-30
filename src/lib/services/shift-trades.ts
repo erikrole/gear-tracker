@@ -16,6 +16,42 @@ function assertShiftNotStarted(startsAt: Date) {
   }
 }
 
+function effectiveAssignmentWindow(assignment: {
+  callStartsAt?: Date | null;
+  callEndsAt?: Date | null;
+  shift: {
+    startsAt: Date;
+    endsAt: Date;
+    callStartsAt?: Date | null;
+    callEndsAt?: Date | null;
+  };
+}) {
+  return {
+    startsAt: assignment.callStartsAt ?? assignment.shift.callStartsAt ?? assignment.shift.startsAt,
+    endsAt: assignment.callEndsAt ?? assignment.shift.callEndsAt ?? assignment.shift.endsAt,
+  };
+}
+
+function futureEffectiveAssignmentWhere(now: Date): Prisma.ShiftAssignmentWhereInput {
+  return {
+    OR: [
+      { callStartsAt: { gt: now } },
+      { callStartsAt: null, shift: { callStartsAt: { gt: now } } },
+      { callStartsAt: null, shift: { callStartsAt: null, startsAt: { gt: now } } },
+    ],
+  };
+}
+
+function staleEffectiveAssignmentWhere(now: Date): Prisma.ShiftAssignmentWhereInput {
+  return {
+    OR: [
+      { callStartsAt: { lt: now } },
+      { callStartsAt: null, shift: { callStartsAt: { lt: now } } },
+      { callStartsAt: null, shift: { callStartsAt: null, startsAt: { lt: now } } },
+    ],
+  };
+}
+
 /* ── In-app notification helper ─────────────────────────────────────── */
 
 async function notify(
@@ -69,7 +105,7 @@ export async function postTrade(
     ) {
       throw new HttpError(400, "Only active assignments can be traded");
     }
-    assertShiftNotStarted(assignment.shift.startsAt);
+    assertShiftNotStarted(effectiveAssignmentWindow(assignment).startsAt);
 
     // Check no existing open trade for this assignment
     const existing = await tx.shiftTrade.findFirst({
@@ -137,8 +173,9 @@ export async function claimTrade(tradeId: string, userId: string) {
 
     // Validate claimant doesn't have a conflicting shift during this time
     const shift = trade.shiftAssignment.shift;
-    assertShiftNotStarted(shift.startsAt);
-    await checkTimeConflict(tx, userId, shift.startsAt, shift.endsAt);
+    const window = effectiveAssignmentWindow(trade.shiftAssignment);
+    assertShiftNotStarted(window.startsAt);
+    await checkTimeConflict(tx, userId, window.startsAt, window.endsAt);
 
     // Validate claimant's primary area matches the shift area
     const claimant = await tx.user.findUnique({
@@ -322,7 +359,7 @@ export async function approveTrade(tradeId: string) {
     if (!trade.claimedByUserId) {
       throw new HttpError(400, "Trade has no claimer");
     }
-    assertShiftNotStarted(trade.shiftAssignment.shift.startsAt);
+    assertShiftNotStarted(effectiveAssignmentWindow(trade.shiftAssignment).startsAt);
 
     await executeSwap(tx, trade.shiftAssignment.id, trade.claimedByUserId, trade.postedByUserId);
 
@@ -531,13 +568,14 @@ export async function listTrades(filters: {
     and.push({ shiftAssignment: { shift: { area: filters.area as ShiftArea } } });
   }
   const actionableStatuses: ShiftTradeStatus[] = ["OPEN", "CLAIMED"];
+  const now = new Date();
   if (filters.status && actionableStatuses.includes(filters.status)) {
-    and.push({ shiftAssignment: { shift: { startsAt: { gt: new Date() } } } });
+    and.push({ shiftAssignment: futureEffectiveAssignmentWhere(now) });
   } else if (!filters.status) {
     and.push({
       OR: [
         { status: { notIn: actionableStatuses } },
-        { shiftAssignment: { shift: { startsAt: { gt: new Date() } } } },
+        { shiftAssignment: futureEffectiveAssignmentWhere(now) },
       ],
     });
   }
@@ -592,9 +630,7 @@ export async function expireOpenTrades(): Promise<{ expired: number }> {
   const staleTrades = await db.shiftTrade.findMany({
     where: {
       status: { in: ["OPEN", "CLAIMED"] },
-      shiftAssignment: {
-        shift: { startsAt: { lt: now } },
-      },
+      shiftAssignment: staleEffectiveAssignmentWhere(now),
     },
     select: {
       id: true,
@@ -658,10 +694,7 @@ async function executeSwap(tx: Prisma.TransactionClient, assignmentId: string, t
     include: { shift: true },
   });
   if (!assignment) throw new HttpError(404, "Assignment not found during swap");
-  const effectiveWindow = {
-    startsAt: assignment.callStartsAt ?? assignment.shift.callStartsAt ?? assignment.shift.startsAt,
-    endsAt: assignment.callEndsAt ?? assignment.shift.callEndsAt ?? assignment.shift.endsAt,
-  };
+  const effectiveWindow = effectiveAssignmentWindow(assignment);
 
   // Validate target user has no conflicting shifts (exclude the assignment being swapped)
   await checkTimeConflict(tx, targetUserId, effectiveWindow.startsAt, effectiveWindow.endsAt, assignmentId);

@@ -26,4 +26,19 @@ describe("iOS AppState refresh energy budget", () => {
     expect(home).toContain("Task { await appState.refresh(forceRefresh: true) }");
     expect(schedule).toContain("Task { await appState.refresh(forceRefresh: true) }");
   });
+
+  it("keeps the Schedule tab badge scoped to today's shifts", () => {
+    const appState = source("ios/Wisconsin/Core/AppState.swift");
+    const appTab = source("ios/Wisconsin/Views/AppTabView.swift");
+    const models = source("ios/Wisconsin/Models/DashboardModels.swift");
+
+    expect(models).toContain("let myShiftsTodayCount: Int?");
+    expect(appState).toContain("var myShiftTodayCount = 0");
+    expect(appState).toContain("myShiftCount = stats.myShiftsCount");
+    expect(appState).toContain("myShiftTodayCount = stats.myShiftsTodayCount ?? 0");
+    expect(appTab).toContain(".badge(appState.myShiftTodayCount)");
+    expect(appTab).toContain("\"Schedule, \\(appState.myShiftTodayCount) shifts today\"");
+    expect(appTab).not.toContain(".badge(appState.myShiftCount)");
+    expect(appTab).not.toContain("upcoming shifts");
+  });
 });

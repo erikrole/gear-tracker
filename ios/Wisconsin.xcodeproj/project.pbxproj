@@ -13,6 +13,7 @@
 		021A7B27623C3C8544FE58BB /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B04517A8131BAA862DB3FF5E /* ProfileView.swift */; };
 		03D13CE00A34B9C6DD2AB6EF /* KioskPickupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB5E4D4F3F432CE124DE63A8 /* KioskPickupView.swift */; };
 		085E8467FC2D0385A67DD157 /* QRScannerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44E5D1DB0C8CBAD5E452E807 /* QRScannerSheet.swift */; };
+		089493883612791C05515FAE /* LicensesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B3D4226E94BA750868A4D0B /* LicensesView.swift */; };
 		0B3D380ACF389083C083FC5A /* ScanPrePromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93A02FB7D1B8ADC547189F1A /* ScanPrePromptView.swift */; };
 		0FC9DC340824D39EB558E913 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B540C9027D1885BCBEA2E4D /* Models.swift */; };
 		1055262B6F98F58C10AC34F1 /* Gotham-Black.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 25CAFE07992F1EB02F507AE2 /* Gotham-Black.ttf */; };
@@ -29,6 +30,7 @@
 		24A80894586E46E13F2E4E41 /* KioskStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA38BB094C95612DBF9F1C24 /* KioskStore.swift */; };
 		2516A89A0CD4284023B38A28 /* ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74157D1DF3F4EF9F53F70494 /* ScheduleView.swift */; };
 		27614B86498B5D98CC600630 /* CreateBookingFormRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = 089FAA6DDBB831B89ED4E5F5 /* CreateBookingFormRows.swift */; };
+		27ECC333F667B220F460C700 /* GuidesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14DA88A1DF6F8D23066A07BC /* GuidesView.swift */; };
 		2A37E7B9C1A68005651FAC4A /* CreateBookingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB412E1DD8493D282F261563 /* CreateBookingViewModel.swift */; };
 		2CED1D2B5A4282EB13E29796 /* ScheduleModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D50B2D1EA31765C957FED322 /* ScheduleModels.swift */; };
 		2DF5EDC0EA7BAAF2547F1035 /* LinkStickerWizard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41D51AC00210AD1B6DE0E466 /* LinkStickerWizard.swift */; };
@@ -66,6 +68,7 @@
 		6A2AF05B82DC2BA24217048C /* BannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 843772771897AABEF8DD1F93 /* BannerView.swift */; };
 		6B9E7D074E50DBAB24DAC522 /* Haptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A73B2A1C9B274552CBA7C8B /* Haptics.swift */; };
 		713FB9080DFAA1073EE5FA8C /* EventDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FB4AEDFE7F83CC6E155C12D /* EventDetailSheet.swift */; };
+		71675D3559403AAD9354C225 /* BrowseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58ABE954706326D6137979FB /* BrowseView.swift */; };
 		7252EE41C4BE6C9946F7A7BA /* KioskColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF17654612E5CA2EBF575539 /* KioskColors.swift */; };
 		73A936392B03FBB5779475D6 /* KioskAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA5C2531E017BDBDE5EFDDFE /* KioskAPIClient.swift */; };
 		7507BE07B0E40EAA31B9DBE9 /* DateFormats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39565FFA7236A61DAD12D9BB /* DateFormats.swift */; };
@@ -163,9 +166,11 @@
 		07116906C1A1FF6F5D10BFA1 /* KioskDesign.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskDesign.swift; sourceTree = "<group>"; };
 		073F98039DAC37B5AC72487C /* AccountAvatar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountAvatar.swift; sourceTree = "<group>"; };
 		089FAA6DDBB831B89ED4E5F5 /* CreateBookingFormRows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateBookingFormRows.swift; sourceTree = "<group>"; };
+		0B3D4226E94BA750868A4D0B /* LicensesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LicensesView.swift; sourceTree = "<group>"; };
 		0D900B3FE267BAB0F0904D07 /* Toast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Toast.swift; sourceTree = "<group>"; };
 		0E5A80EBE9AE9D0094E70FBB /* KioskShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskShellView.swift; sourceTree = "<group>"; };
 		13D2A559654212BD133FB74F /* KioskStudentHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskStudentHubView.swift; sourceTree = "<group>"; };
+		14DA88A1DF6F8D23066A07BC /* GuidesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuidesView.swift; sourceTree = "<group>"; };
 		1770023701735D8701DCAA5B /* OverdueReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverdueReportView.swift; sourceTree = "<group>"; };
 		1B440FC4AD4F07C1163F8856 /* CheckoutReturnLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckoutReturnLiveActivityWidget.swift; sourceTree = "<group>"; };
 		2228A84C3CCBC90ABF9103F1 /* BookingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingsView.swift; sourceTree = "<group>"; };
@@ -189,6 +194,7 @@
 		4A9DAB950F60885A23620BEC /* Brand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Brand.swift; sourceTree = "<group>"; };
 		51D3A73950E2AF7A4B427DAC /* EventWeatherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventWeatherService.swift; sourceTree = "<group>"; };
 		552E4A9FC0A2CB73C36F51C6 /* AccountSecuritySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSecuritySettingsView.swift; sourceTree = "<group>"; };
+		58ABE954706326D6137979FB /* BrowseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseView.swift; sourceTree = "<group>"; };
 		592769886AB12F6A842CC8CF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		59BEC868CE07F10941FEBB5C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		5B540C9027D1885BCBEA2E4D /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
@@ -479,12 +485,15 @@
 				DE250FADCDB66EDCBD5DF234 /* AvailabilityView.swift */,
 				BA04562F7C424114F304B494 /* BookingDetailView.swift */,
 				2228A84C3CCBC90ABF9103F1 /* BookingsView.swift */,
+				58ABE954706326D6137979FB /* BrowseView.swift */,
 				F1F3FA2D4C06E966E6BA030B /* CreateBookingSheet.swift */,
 				5FB4AEDFE7F83CC6E155C12D /* EventDetailSheet.swift */,
 				2B0058FB3644F501479BA0D5 /* ExtendBookingSheet.swift */,
+				14DA88A1DF6F8D23066A07BC /* GuidesView.swift */,
 				64F14676788E6FA7CDD08D48 /* HomeView.swift */,
 				80CA4880F08046F8E23F079B /* ItemDetailView.swift */,
 				F12684601FE641B454D0219B /* ItemsView.swift */,
+				0B3D4226E94BA750868A4D0B /* LicensesView.swift */,
 				6D6258D04F2CBF34C14EBB69 /* LoginView.swift */,
 				C2159F738CA242773EA9D438 /* NotificationSettingsView.swift */,
 				9E58906A0DD7BCF5024161BE /* NotificationsSheet.swift */,
@@ -744,6 +753,7 @@
 				69DD68092CDC35D6924052DF /* BookingDetailView.swift in Sources */,
 				B2FEB545EEB4F42FE18F292F /* BookingsView.swift in Sources */,
 				41891E6B69644BB1DB025CB9 /* Brand.swift in Sources */,
+				71675D3559403AAD9354C225 /* BrowseView.swift in Sources */,
 				41B304E3F5ABE1BF6F9B94BB /* CheckoutReturnActivityAttributes.swift in Sources */,
 				D1BE91AB2F76BE372F49B448 /* CheckoutReturnLiveActivityManager.swift in Sources */,
 				411CF014B25A6515F8E6869E /* CreateBookingEquipmentRows.swift in Sources */,
@@ -761,6 +771,7 @@
 				470F79B703DF9EB55FECE070 /* FormModels.swift in Sources */,
 				795277BA3B90A0AB27B5C672 /* GearStore.swift in Sources */,
 				AF66ADDE1D3CF5B16155A3BA /* GlobalSearchSheet.swift in Sources */,
+				27ECC333F667B220F460C700 /* GuidesView.swift in Sources */,
 				6B9E7D074E50DBAB24DAC522 /* Haptics.swift in Sources */,
 				B1DDE3C06BD40F1F8615A227 /* HomeView.swift in Sources */,
 				FC55F8C00EAB32F578B178F0 /* ItemDetailView.swift in Sources */,
@@ -782,6 +793,7 @@
 				24A80894586E46E13F2E4E41 /* KioskStore.swift in Sources */,
 				37D62305D3F8AD03285EBFCE /* KioskStudentHubView.swift in Sources */,
 				C0CE6BBE698F81A5E6397D98 /* KioskSuccessView.swift in Sources */,
+				089493883612791C05515FAE /* LicensesView.swift in Sources */,
 				2DF5EDC0EA7BAAF2547F1035 /* LinkStickerWizard.swift in Sources */,
 				DACC18C0E1181FD912992FEE /* LoginView.swift in Sources */,
 				0FC9DC340824D39EB558E913 /* Models.swift in Sources */,

@@ -1,6 +1,181 @@
 # Task Queue
 
-Last updated: 2026-06-29
+Last updated: 2026-06-30
+
+---
+
+## Active: Trade Board Open Work hardening (2026-06-30)
+
+Plan: `tasks/trade-board-open-work-hardening-plan.md`
+
+- [x] Audit current web Trade Board, open-work service, trade service, routes, schema, area docs, and source-contract tests.
+- [x] Slice 1: upgrade canonical web Trade Board grouping and consequence copy.
+- [x] Slice 2: harden trade/open-work API lifecycle consistency.
+- [x] Slice 3: add web/iOS parity contracts.
+- [x] Slice 4: update native iOS Trade Board.
+- [x] Run full requested verification gates.
+
+### Review
+- 2026-06-30: Trade Board Open Work hardening shipped locally. The web Trade Board now groups rows by decision state instead of backend source: Staff Review, Available Now, Approval Required, My Posts, Waiting or Blocked, Posted Trades, and Resolved. Consequence copy now says whether a pickup assigns immediately, sends a staff request, or only removes a post while keeping the original assignment. Trade lifecycle and Open Work pickup checks now use effective personal call windows for posting, claiming, approving, listing, expiration, pickup visibility, and conflict checks. Native iOS now consumes `/api/schedule/open-work` alongside trade posts, decodes open shifts and pickup requests, passes role into the sheet, and mirrors the same section names and action consequence copy. Verification passed with focused Vitest, TypeScript, iOS drift, iOS gap audit, docs/codemap checks, whitespace check, `npm run build:app`, and XcodeBuildMCP simulator build. The app build still reports the existing unused `kind` warnings in `src/lib/booking-status-display.ts`.
+
+---
+
+## Active: Personal calendar subscription sync hardening (2026-06-30)
+
+Plan: make subscribed worker calendars glanceable and state-trustworthy without carrying internal gear-prep noise into external calendar apps.
+
+- [x] Audit the current ICS token/feed route, shift call-window fields, calendar event identity fields, and trade swap lifecycle.
+- [x] Rename subscription events to `Area: SPORT vs/at Opponent` with fallback cleanup for non-game summaries.
+- [x] Use the effective assignment call start/end window for subscribed event times.
+- [x] Include a Gear Tracker event deep link, omit descriptions, and remove gear-prep copy from the feed.
+- [x] Prefix active open/claimed trade-board posts with `🔁` and rely on active assignment status to remove completed swaps from the original worker feed.
+- [x] Add focused ICS regression coverage and sync area docs.
+- [x] Run focused verification.
+
+### Review
+- 2026-06-30: Personal shift calendar subscription sync now emits compact worker-facing titles like `Photo: MBB vs Iowa`, uses effective assignment/shift call windows for calendar event times, includes a Gear Tracker event URL, omits descriptions and gear-prep copy, prefixes active open/claimed trade posts with `🔁`, and leaves completed trade removals to the existing `SWAPPED` assignment lifecycle. Verification passed with focused ICS Vitest, whitespace check, docs verification, and `npm run build:app`; the build still reports the existing unused-parameter warnings in `src/lib/booking-status-display.ts`.
+
+---
+
+## Active: iOS Schedule tab badge today scope (2026-06-30)
+
+Plan: keep upcoming-shift context available, but badge Schedule only for shifts on today's institution-timezone date.
+
+- [x] Audit native tab badge source, dashboard stats API, shift date semantics, and existing contract tests.
+- [x] Add a dedicated `myShiftsTodayCount` to `/api/dashboard/stats`.
+- [x] Decode/store the today count in native `AppState` without replacing the broader upcoming `myShiftCount`.
+- [x] Point the Schedule tab badge and accessibility label at the today-only count.
+- [x] Update focused source-contract tests and area docs.
+- [x] Run focused verification.
+
+### Review
+- 2026-06-30: Native iOS Schedule tab badge now uses a separate today-only count instead of the broader upcoming shift total. `/api/dashboard/stats` returns both `myShiftsCount` and `myShiftsTodayCount`; native `AppState` keeps both so Profile/Home-style context can still show upcoming shifts, while `AppTabView` badges Schedule only for today's assignments and names that correctly for VoiceOver. Focused Vitest, whitespace, iOS drift, iOS gap audit, docs verification, `npm run ios:xcode:verify` outside the sandbox, and `npm run build:app` passed. The sandboxed Xcode run failed only because CoreSimulator and the Swift macro plugin server were blocked.
+
+---
+
+## Active: iOS Browse tab native menu (2026-06-30)
+
+Plan: `tasks/ios-browse-tab-plan.md`
+
+- [x] Audit current mobile, items, users, resources, licenses, settings, schema, and iOS shell contracts.
+- [x] Add a native SwiftUI `BrowseView` using system list and navigation patterns.
+- [x] Wire `BrowseView` into `AppTabView` in the old Items tab slot.
+- [x] Move regular-width Users into a non-admin Resources sidebar destination.
+- [x] Keep Profile/Settings Directory as a fallback and ungate its Users row.
+- [x] Add focused source-contract tests for Browse and update old tab/sidebar expectations.
+- [x] Sync area docs, iOS patterns, audit inventory, and task review notes.
+- [x] Run focused tests and iOS verification gates.
+
+### Review
+- 2026-06-30: Native Browse tab shipped locally. Compact iPhone now uses `Browse` in the old Items slot, opening a native grouped SwiftUI menu for Items, Guides, Licenses, and Users. Search remains the pinned trailing search tab with scan inside Search, so the tab shell stays at five compact destinations and avoids More. Users is visible to every authenticated role from Browse, Settings Directory, and regular-width Resources sidebar; edit/admin powers remain governed by existing Users permissions and APIs. Settings Directory remains a fallback path for Guides, Users, and Licenses. Verification passed with focused Vitest, XcodeGen project check, iOS drift, iOS gap audit, docs/codemap check, whitespace check, and `npm run ios:xcode:verify` outside the sandbox. The first sandboxed Xcode run failed from CoreSimulator and Swift macro plugin restrictions; the approved unsandboxed rerun passed.
+
+---
+
+## Active: iOS native Guides page (2026-06-30)
+
+Plan: `tasks/ios-guides-native-page-plan.md`
+
+- [x] Audit current Resources docs, API shape, iOS shell, Settings directory, and source-contract tests.
+- [x] Add Swift resource models and API client reads.
+- [x] Build `GuidesView` with loading, error, empty, pull-to-refresh, native search, focus filtering, and read-only article rendering.
+- [x] Replace Guides web fallbacks in `AppTabView` and `ProfileView`.
+- [x] Add focused source-contract coverage for the native Guides route.
+- [x] Sync Mobile and Resources area docs plus task review notes.
+- [x] Run focused tests and iOS verification gates.
+
+### Review
+- 2026-06-30: Native iOS Guides shipped locally. `GuidesView.swift` now uses the existing read-only `/api/resources` contract to load Guides, search locally, filter by focus, sort, pull to refresh, and read guide Markdown with native SwiftUI rendering. Compact iPhone opens Guides from Settings > Directory, and regular-width iPad uses the sidebar-only Guides destination. Authoring, deletion, verification, image upload, Contacts, and sport-assignment reference tools stay web-owned. Verification passed with focused Vitest, XcodeGen project check, iOS drift, iOS gap audit, docs/codemap check, whitespace check, and `npm run ios:xcode:verify` outside the sandbox. The first sandboxed Xcode run failed from CoreSimulator and Swift macro plugin restrictions; the approved unsandboxed rerun passed.
+
+---
+
+## Active: iOS Search tab with scan action (2026-06-30)
+
+Plan: `tasks/ios-search-tab-scan-action-plan.md`
+
+- [x] Audit current Scan tab, global search, Home shortcut, docs, and source tests.
+- [x] Replace compact Scan tab content with the native global Search surface.
+- [x] Keep QR scanning as an action inside Search.
+- [x] Update tests, docs, and lessons for Search-tab ownership.
+- [x] Run focused tests and iOS verification gates.
+
+### Review
+- 2026-06-30: Native Search tab shipped locally. The compact trailing tab is now `Search` with the magnifying-glass icon and `role: .search`, backed by `GlobalSearchSheet(showsCancelButton: false)`. Scan remains inside Search as the QR toolbar action, matching shopping-app behavior. Home's all-clear button routes to `presentSearch()`, while `presentScanLookup()` remains as a compatibility alias. Focused Vitest, iOS drift, iOS gap audit, whitespace, XcodeGen project check, docs verification, and `npm run ios:xcode:verify` passed. The first sandboxed Xcode run failed from CoreSimulator and Swift macro plugin restrictions; the approved unsandboxed rerun passed.
+
+---
+
+## Active: iOS native control cleanup (2026-06-30)
+
+Plan: `tasks/ios-native-control-cleanup-plan.md`
+
+- [x] Confirm accepted cleanup scope: Global Search, Items filters, Create Booking equipment search, and Booking Detail actions.
+- [x] Replace accepted hand-rolled controls with native SwiftUI search, toolbar menu, and bordered button patterns.
+- [x] Add focused source-contract coverage.
+- [x] Sync relevant area docs and review notes.
+- [x] Run focused tests, iOS drift/gap checks, docs checks, and Xcode verification as available.
+
+### Review
+- 2026-06-30: Native-control cleanup shipped locally for the accepted scope. Global Search now uses SwiftUI `.searchable` with a toolbar scanner action and keeps Return/submit recent-search behavior. Items filters now live in toolbar Favorites plus native Status/Sort menus instead of a custom horizontal pill strip. Create Booking's Equipment step uses native `.searchable`, and Booking Detail Extend/Cancel use SwiftUI bordered system buttons. Focused Vitest, iOS drift, iOS gap audit, whitespace, XcodeGen project check, docs verification, and `npm run ios:xcode:verify` passed. The first sandboxed Xcode run failed from CoreSimulator and Swift macro plugin restrictions; the approved unsandboxed rerun passed.
+
+---
+
+## Active: iOS native Licenses page (2026-06-30)
+
+Plan: `tasks/ios-licenses-native-page-plan.md`
+
+- [x] Audit licenses, mobile/settings, decisions, gaps, Prisma schema, API routes, and current iOS navigation.
+- [x] Add Swift models and `APIClient` methods for the existing license APIs.
+- [x] Build native `LicensesView` with loading, error, empty, active-license, pool, claim, return, copy, and admin web-link states.
+- [x] Replace iOS Licenses web fallbacks with the native page in Profile/Settings and regular-width sidebar navigation.
+- [x] Add focused source-contract tests.
+- [x] Sync `AREA_LICENSES`, `AREA_MOBILE`, `AREA_SETTINGS`, and task review notes.
+- [x] Regenerate Xcode project and run verification gates.
+- [x] Screenshot follow-up: remove contradictory pool-row copy, make Copy Code neutral, keep Return destructive, and reduce active-license action weight.
+- [x] App Store-style follow-up: use native SwiftUI text-only capsule buttons for Claim, Copy Code, and Return License without custom badge/icon styling.
+
+### Review
+- 2026-06-30 App Store-style native button follow-up: Real iPhone screenshots showed the icon-backed license actions still looked custom, and the App Store reference pointed toward text-only system capsules. Claim now uses SwiftUI's native bordered-prominent capsule with green tint, Copy Code uses a blue bordered capsule, and Return License uses a destructive bordered capsule. No custom badge view or action icon styling is used. Focused Vitest, iOS drift, iOS gap audit, XcodeGen project check, whitespace check, and docs check passed. The sandboxed `npm run ios:xcode:verify` failed before meaningful Swift diagnostics because CoreSimulator and Swift macro plugin services were unavailable; the required unsandboxed rerun was blocked by the Codex usage limit before approval.
+- 2026-06-30 native-control follow-up: Real iPhone screenshots showed the green filled Claim capsules and active-license pills still felt custom, and Copy Code had a red icon despite the blue action label. The follow-up removes the custom capsule/background treatment from Claim, Copy Code, and Return License. Claim is now a text-only green borderless list action, Copy Code is a blue monochrome borderless action, and Return License stays borderless/destructive red. Verification passed with focused Vitest, iOS drift, iOS gap audit, XcodeGen project check, whitespace check, and `npm run ios:xcode:verify` outside the sandbox.
+- 2026-06-30 claim tint follow-up: Real iPhone screenshots showed Claim buttons and the claim confirmation action inheriting the app's red accent, which made claiming look destructive. Claim now uses the green status tint in both the pool row and the confirmation dialog; Return License remains the only red/destructive action. Focused source coverage pins the positive Claim tint. Verification passed with focused Vitest, iOS drift, iOS gap audit, XcodeGen project check, whitespace check, and `npm run ios:xcode:verify` outside the sandbox.
+- 2026-06-30 gating follow-up: Verified `/api/licenses` strips unheld code strings for students, then added a native defense-in-depth guard so `LicensePoolRow` only reveals row codes to staff/admin or the current holder. Students can still claim an available slot, but cannot see or copy a code before claiming it. Focused source coverage now pins both the API sanitizer and the native reveal guard. Verification passed with focused Vitest, iOS drift, iOS gap audit, XcodeGen project check, whitespace check, and `npm run ios:xcode:verify` outside the sandbox.
+- 2026-06-30 screenshot follow-up: Real iPhone screenshots showed pool rows displaying `Available` and `Already claimed` at the same time, and the active-license action row made Copy Code look destructive. The follow-up removes repeated unavailable copy from pool rows when the user already has an active license, keeps claim buttons only when `activeClaimId == nil`, makes Copy Code a small blue bordered capsule, and leaves Return License as the only destructive action. Verification passed with focused Vitest, iOS drift, iOS gap audit, XcodeGen project check, whitespace check, and `npm run ios:xcode:verify` outside the sandbox.
+- 2026-06-30: Native iOS Licenses shipped locally. `LicensesView.swift` now uses the existing license APIs to load the pool, show the signed-in user's active Photo Mechanic code, claim one open slot with confirmation, copy the active code, and return only the signed-in user's own active slot. Profile/Settings > Directory opens the native page for every authenticated role, and regular-width iPad exposes Licenses as a sidebar-only Resources destination. Staff/admin create, renew, retire, export, unknown occupant, and full-history workflows stay linked to the web Licenses page. Verification passed with focused Vitest, XcodeGen project check, iOS drift, iOS gap audit, docs/codemap check, whitespace check, and `npm run ios:xcode:verify` outside the sandbox. The sandboxed Xcode run failed before useful compile output because CoreSimulator and Swift macro plugin services were blocked; the unsandboxed rerun passed.
+
+---
+
+## Active: iOS Schedule UI cleanup (2026-06-29)
+
+Plan: `tasks/ios-schedule-ui-cleanup-plan.md`
+
+- [x] Collapse venue, sport, My shifts, and Past events controls into one filter sheet with a compact active-filter summary.
+- [x] Keep the List/Calendar segmented control visible and self-describing.
+- [x] Calm toolbar actions so routine actions do not read as destructive.
+- [x] Simplify date headers and event rows so cards do not look selected by default.
+- [x] Add bottom scroll clearance above the native tab bar.
+- [x] Apply screenshot follow-up: neutral Filters control, native sheet action order, calmer My shift rows, and calendar/list row alignment.
+- [x] Remove the duplicated Event detail bottom-bar prep-gear action that overlapped Crew rows in the medium sheet.
+- [x] Polish Event detail hierarchy: quiet section icons, lighter title, Crew-scoped Add shift, and one inline You cue.
+- [x] Sync Mobile/Schedule docs, add focused source coverage, and run iOS verification gates.
+
+### Review
+- 2026-06-29: Native iOS Schedule cleanup shipped locally. The first viewport now keeps List/Calendar plus a compact filter summary and one Filters button instead of multiple chip rows. The Filters sheet owns My shifts, Past events, venue, and sport controls, and calendar day counts/dots now honor the same venue/sport/my-shifts filters as the list. Event rows use a neutral hairline card with a subtle My shift cue instead of blue selection-like outlines, multi-day copy uses secondary text, date headers are lighter, and both list surfaces reserve bottom scroll clearance above the native tab bar. Verification passed with focused Vitest, iOS drift, iOS gap audit, docs/codemap verification, focused whitespace check, and `npm run ios:xcode:verify` outside the sandbox. The first sandboxed Xcode run failed from CoreSimulator permission and Swift macro plugin service errors, then passed when rerun with approved unsandboxed access.
+- 2026-06-29 screenshot follow-up: Real iPhone screenshots showed the first pass still overweighted filters and assigned-shift state. The follow-up makes the Filters control neutral, restores Clear/Done sheet placement, changes My shift from red fill/text to neutral row plus blue personal-scope label, keeps staff coverage chips in the calendar selected-day list, and uses clearer generic empty-state copy when multiple filters are active.
+- 2026-06-29 detail follow-up: Event detail screenshots showed the bottom-bar Prep gear action duplicating the inline Reserve gear row and overlapping Crew content in the medium detent. The duplicate bottom toolbar action was removed, the inline Reserve gear row remains the prep path, and the sheet title was shortened to Event so the toolbar no longer repeats a truncated event title.
+- 2026-06-29 detail polish follow-up: Event detail now uses secondary section-header icons, a lighter semantic event title, native toolbar Add shift, and one inline You capsule for the signed-in assignment instead of a row-wide highlight plus extra indicators. After screenshot feedback, Add shift was revised from a large bordered icon-only treatment to native SwiftUI toolbar chrome with a title-and-symbol label, matching recent sheet action patterns while keeping Crew focused on coverage. Verification re-ran with focused Vitest, iOS drift, iOS gap audit, docs/codemap check, focused whitespace check, and `npm run ios:xcode:verify`.
+
+---
+
+## Active: iOS booking action duplicate-submit recovery (2026-06-29)
+
+Plan: stop successful native booking edits from showing a stale-write error when Save is tapped rapidly, and harden adjacent booking actions with the same handler-level guard.
+
+- [x] Audit the native edit sheet, iOS API client, `/api/bookings/[id]` optimistic-lock route, schema, docs, and existing source-contract tests.
+- [x] Patch the iOS edit-sheet Save handler with a self-guard before the optimistic-lock PATCH request.
+- [x] Patch adjacent native Extend and Cancel handlers with self-guards before their booking mutation requests.
+- [x] Add focused source-contract coverage for the duplicate-action guards.
+- [x] Run focused tests, iOS drift/gap checks, docs check, whitespace check, and iOS build verification.
+
+### Review
+- 2026-06-29: Root cause was a native duplicate-submit race in the edit sheet. A rapid second Save could reuse the old `updatedAt` value after the first PATCH had already updated the booking, so the API correctly returned the stale-write "modified by someone else" message even though Ryan Dean's return-date change went through. `EditBookingSheet.save()` now exits immediately when `isSaving` is already true, before sending another optimistic-lock request. Adjacent native Extend and Cancel handlers now also self-guard before their booking mutation requests, so visual disabling is backed by handler-level race protection. Focused source coverage pins all three guards. Verification passed with focused Vitest, iOS drift, iOS gap audit, docs/codemap check, whitespace check, and `npm run ios:xcode:verify` outside the sandbox.
 
 ---
 

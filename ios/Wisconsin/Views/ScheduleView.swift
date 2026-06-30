@@ -136,6 +136,7 @@ struct ScheduleView: View {
     @State private var viewMode: ScheduleViewMode = .list
     @State private var calendarSelectedDate: Date = .now
     @State private var showTradeBoard = false
+    @State private var showFilters = false
     @State private var toast: Toast?
     @State private var isSubscribing = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -168,6 +169,24 @@ struct ScheduleView: View {
     private var availableSportCodes: [String] {
         let codes = Set(vm.events.compactMap { $0.sportCode })
         return codes.sorted { scheduleSportLabel($0) < scheduleSportLabel($1) }
+    }
+
+    private var activeFilterCount: Int {
+        var count = 0
+        if myShiftsOnly { count += 1 }
+        if canSeePastEvents && vm.includePast { count += 1 }
+        if homeAwayFilter != .all { count += 1 }
+        if sportFilter != nil { count += 1 }
+        return count
+    }
+
+    private var activeFilterSummary: String {
+        var parts: [String] = []
+        if myShiftsOnly { parts.append("My shifts") }
+        if homeAwayFilter != .all { parts.append(homeAwayFilter.rawValue) }
+        if let sportFilter { parts.append(scheduleSportLabel(sportFilter)) }
+        if canSeePastEvents && vm.includePast { parts.append("Past") }
+        return parts.isEmpty ? "All upcoming events" : parts.joined(separator: " · ")
     }
 
     var body: some View {
@@ -215,7 +234,9 @@ struct ScheduleView: View {
                                 selectedDate: $calendarSelectedDate,
                                 eventsByDay: vm.eventsByDay,
                                 myShiftsOnly: myShiftsOnly,
+                                homeAwayFilter: homeAwayFilter,
                                 sportFilter: sportFilter,
+                                showCoverage: canSeePastEvents,
                                 shiftsByEventId: vm.shiftsByEventId,
                                 onSelectEvent: { selectedEvent = $0 }
                             )
@@ -273,8 +294,10 @@ struct ScheduleView: View {
                     Button {
                         showTradeBoard = true
                     } label: {
-                        HStack(spacing: 5) {
-                            Label("Trades", systemImage: "arrow.left.arrow.right")
+                        ZStack(alignment: .topTrailing) {
+                            Image(systemName: "arrow.left.arrow.right")
+                                .font(.body.weight(.semibold))
+                                .frame(width: 44, height: 44)
                             if appState.openTradeCount > 0 {
                                 Text("\(appState.openTradeCount)")
                                     .font(.caption2.weight(.semibold).monospacedDigit())
@@ -282,9 +305,10 @@ struct ScheduleView: View {
                                     .padding(.vertical, 1)
                                     .background(Color.statusText(.orange), in: Capsule())
                                     .foregroundStyle(.white)
+                                    .offset(x: 4, y: -2)
                             }
                         }
-                        .frame(minHeight: 44)
+                        .foregroundStyle(Color.primary)
                     }
                     .accessibilityLabel(appState.openTradeCount > 0
                         ? "Trade Board, \(appState.openTradeCount) open"
@@ -293,8 +317,10 @@ struct ScheduleView: View {
                     Button {
                         Task { await subscribeToCalendar() }
                     } label: {
-                        Label("Calendar", systemImage: isSubscribing ? "calendar" : "calendar.badge.plus")
-                            .frame(minHeight: 44)
+                        Image(systemName: isSubscribing ? "calendar" : "calendar.badge.plus")
+                            .font(.body.weight(.semibold))
+                            .frame(width: 44, height: 44)
+                            .foregroundStyle(Color.primary)
                     }
                     .disabled(isSubscribing)
                     .accessibilityLabel("Subscribe to shifts in Calendar")
@@ -321,6 +347,7 @@ struct ScheduleView: View {
                 sportFilter = nil
                 viewMode = .list
                 calendarSelectedDate = .now
+                showFilters = false
                 showTradeBoard = false
                 if vm.includePast {
                     vm.includePast = false
@@ -355,12 +382,28 @@ struct ScheduleView: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
             }
+            .sheet(isPresented: $showFilters) {
+                ScheduleFilterSheet(
+                    myShiftsOnly: $myShiftsOnly,
+                    homeAwayFilter: $homeAwayFilter,
+                    sportFilter: $sportFilter,
+                    includePast: vm.includePast,
+                    canSeePastEvents: canSeePastEvents,
+                    availableSportCodes: availableSportCodes,
+                    activeFilterCount: activeFilterCount,
+                    onTogglePast: togglePastEvents,
+                    onClear: clearScheduleFilters
+                )
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+            }
             .sheet(isPresented: $showTradeBoard, onDismiss: {
                 Task { await appState.refresh(forceRefresh: true) }
             }) {
                 TradeBoardSheet(
                     myShifts: vm.myShifts,
                     currentUserId: session.currentUser?.id ?? "",
+                    currentUserRole: session.currentUser?.role ?? "",
                     onTradePosted: { area in
                         toast = Toast(message: "Posted \(area) shift to the trade board", icon: "checkmark.circle.fill", role: .success)
                     },
@@ -369,6 +412,22 @@ struct ScheduleView: View {
                     }
                 )
             }
+        }
+    }
+
+    private func togglePastEvents() {
+        vm.includePast.toggle()
+        Task { await vm.load(forceRefresh: true) }
+    }
+
+    private func clearScheduleFilters() {
+        let shouldReload = vm.includePast
+        myShiftsOnly = false
+        homeAwayFilter = .all
+        sportFilter = nil
+        if shouldReload {
+            vm.includePast = false
+            Task { await vm.load(forceRefresh: true) }
         }
     }
 
@@ -384,37 +443,47 @@ struct ScheduleView: View {
             .pickerStyle(.segmented)
             .accessibilityLabel("Schedule view")
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    FilterChip(
-                        label: "My shifts",
-                        systemImage: myShiftsOnly ? "person.fill" : "person",
-                        isOn: myShiftsOnly
-                    ) {
-                        myShiftsOnly.toggle()
-                    }
+            HStack(spacing: 12) {
+                Text(activeFilterSummary)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
-                    if viewMode == .list && canSeePastEvents {
-                        FilterChip(
-                            label: "Past events",
-                            systemImage: vm.includePast ? "clock.arrow.circlepath" : "clock",
-                            isOn: vm.includePast
-                        ) {
-                            vm.includePast.toggle()
-                            Task { await vm.load(forceRefresh: true) }
+                Button {
+                    showFilters = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "line.3.horizontal.decrease.circle")
+                            .font(.subheadline.weight(.semibold))
+                        Text("Filters")
+                        if activeFilterCount > 0 {
+                            Text("\(activeFilterCount)")
+                                .font(.caption2.weight(.semibold).monospacedDigit())
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1)
+                                .background(Color.brandPrimary, in: Capsule())
+                                .accessibilityHidden(true)
                         }
                     }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.primary)
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 44)
+                    .background(Color.cardSurfaceRaised, in: Capsule())
+                    .overlay(Capsule().strokeBorder(Color.hairline, lineWidth: 0.5))
                 }
-                .padding(.horizontal, 2)
-                .padding(.vertical, 2)
+                .buttonStyle(.plain)
+                .accessibilityLabel(activeFilterCount > 0 ? "Filters, \(activeFilterCount) active" : "Filters")
             }
         }
         .padding(.horizontal, Brand.Space.md)
-        .padding(.vertical, Brand.Space.sm)
+        .padding(.top, Brand.Space.sm)
+        .padding(.bottom, Brand.Space.xs)
         .background(Color(.systemGroupedBackground))
         .sensoryFeedback(.selection, trigger: viewMode)
-        .sensoryFeedback(.selection, trigger: myShiftsOnly)
-        .sensoryFeedback(.selection, trigger: vm.includePast)
+        .sensoryFeedback(.selection, trigger: activeFilterCount)
     }
 
     private func subscribeToCalendar() async {
@@ -442,53 +511,19 @@ struct ScheduleView: View {
 
     @ViewBuilder
     private var eventList: some View {
-        if displayedGroups.isEmpty && myShiftsOnly {
-            ContentUnavailableView(
-                "No shifts assigned to you",
-                systemImage: "calendar",
-                description: Text("Your schedule will show up here when staff confirm.")
-            )
+        if displayedGroups.isEmpty {
+            ContentUnavailableView {
+                Label(filteredEmptyTitle, systemImage: "calendar")
+            } description: {
+                Text(filteredEmptyDescription)
+            } actions: {
+                if activeFilterCount > 0 {
+                    Button("Clear Filters") { clearScheduleFilters() }
+                        .buttonStyle(.borderedProminent)
+                }
+            }
         } else {
             List {
-                Section {
-                    VStack(spacing: 8) {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(HomeAwayFilter.allCases, id: \.self) { filter in
-                                    FilterChip(label: filter.rawValue, isOn: homeAwayFilter == filter) {
-                                        homeAwayFilter = filter
-                                    }
-                                }
-                            }
-                            .padding(.horizontal, 2)
-                            .padding(.vertical, 2)
-                        }
-                        .sensoryFeedback(.selection, trigger: homeAwayFilter)
-
-                        // Sport filter — only worth showing when the schedule spans
-                        // more than one sport. Cuts the firehose to one team's events.
-                        if availableSportCodes.count > 1 {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    FilterChip(label: "All Sports", isOn: sportFilter == nil) {
-                                        sportFilter = nil
-                                    }
-                                    ForEach(availableSportCodes, id: \.self) { code in
-                                        FilterChip(label: scheduleSportLabel(code), isOn: sportFilter == code) {
-                                            sportFilter = sportFilter == code ? nil : code
-                                        }
-                                    }
-                                }
-                                .padding(.horizontal, 2)
-                                .padding(.vertical, 2)
-                            }
-                            .sensoryFeedback(.selection, trigger: sportFilter)
-                        }
-                    }
-                }
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 4, leading: 14, bottom: 0, trailing: 14))
                 ForEach(displayedGroups, id: \.date) { group in
                     Section {
                         ForEach(group.events) { event in
@@ -517,7 +552,98 @@ struct ScheduleView: View {
             .listStyle(.plain)
             .listSectionSpacing(.compact)
             .scrollContentBackground(.hidden)
+            .contentMargins(.bottom, 96, for: .scrollContent)
             .background(Color(.systemGroupedBackground))
+        }
+    }
+
+    private var filteredEmptyTitle: String {
+        if myShiftsOnly && activeFilterCount == 1 {
+            return "No shifts assigned to you"
+        }
+        return "No matching events"
+    }
+
+    private var filteredEmptyDescription: String {
+        if myShiftsOnly && activeFilterCount == 1 {
+            return "Your schedule will show up here when staff confirm."
+        }
+        return "Clear filters or try a broader sport or venue."
+    }
+}
+
+// MARK: - Filter Sheet
+
+private struct ScheduleFilterSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var myShiftsOnly: Bool
+    @Binding var homeAwayFilter: HomeAwayFilter
+    @Binding var sportFilter: String?
+    let includePast: Bool
+    let canSeePastEvents: Bool
+    let availableSportCodes: [String]
+    let activeFilterCount: Int
+    let onTogglePast: () -> Void
+    let onClear: () -> Void
+
+    private static let allSports = "__all_sports__"
+
+    private var sportSelection: Binding<String> {
+        Binding {
+            sportFilter ?? Self.allSports
+        } set: { newValue in
+            sportFilter = newValue == Self.allSports ? nil : newValue
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Scope") {
+                    Toggle(isOn: $myShiftsOnly) {
+                        Label("My shifts", systemImage: myShiftsOnly ? "person.fill" : "person")
+                            .foregroundStyle(.primary)
+                    }
+
+                    if canSeePastEvents {
+                        Toggle(isOn: Binding(get: { includePast }, set: { _ in onTogglePast() })) {
+                            Label("Past events", systemImage: includePast ? "clock.arrow.circlepath" : "clock")
+                                .foregroundStyle(.primary)
+                        }
+                    }
+                }
+
+                Section("Venue") {
+                    Picker("Venue", selection: $homeAwayFilter) {
+                        ForEach(HomeAwayFilter.allCases, id: \.self) { filter in
+                            Text(filter.rawValue).tag(filter)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                if availableSportCodes.count > 1 {
+                    Section("Sport") {
+                        Picker("Sport", selection: sportSelection) {
+                            Text("All Sports").tag(Self.allSports)
+                            ForEach(availableSportCodes, id: \.self) { code in
+                                Text(scheduleSportLabel(code)).tag(code)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Filters")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Clear") { onClear() }
+                        .disabled(activeFilterCount == 0)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
         }
     }
 }
@@ -528,7 +654,9 @@ struct ScheduleCalendarView: View {
     @Binding var selectedDate: Date
     let eventsByDay: [Date: [ScheduleEvent]]
     let myShiftsOnly: Bool
+    let homeAwayFilter: HomeAwayFilter
     var sportFilter: String?
+    let showCoverage: Bool
     let shiftsByEventId: [String: MyShift]
     let onSelectEvent: (ScheduleEvent) -> Void
 
@@ -542,9 +670,19 @@ struct ScheduleCalendarView: View {
     private let weekdayLabels = ["S", "M", "T", "W", "T", "F", "S"]
 
     private var selectedDayEvents: [ScheduleEvent] {
-        let day = calendar.startOfDay(for: selectedDate)
+        filteredEvents(on: selectedDate)
+    }
+
+    private func filteredEvents(on date: Date) -> [ScheduleEvent] {
+        let day = calendar.startOfDay(for: date)
         var all = eventsByDay[day] ?? []
         if myShiftsOnly { all = all.filter { shiftsByEventId[$0.id] != nil } }
+        switch homeAwayFilter {
+        case .home: all = all.filter { $0.isHome == true }
+        case .away: all = all.filter { $0.isHome == false }
+        case .neutral: all = all.filter { $0.isHome == nil }
+        case .all: break
+        }
         if let sportFilter { all = all.filter { $0.sportCode == sportFilter } }
         return all
     }
@@ -571,8 +709,8 @@ struct ScheduleCalendarView: View {
             LazyVGrid(columns: columns, spacing: 2) {
                 ForEach(Array(daysInMonth().enumerated()), id: \.offset) { _, day in
                     if let day {
+                        let visibleEvents = filteredEvents(on: day)
                         let dots = dotInfo(for: day)
-                        let eventCount = (eventsByDay[calendar.startOfDay(for: day)] ?? []).count
                         Button {
                             withAnimation(.easeInOut(duration: 0.15)) {
                                 selectedDate = day
@@ -585,7 +723,7 @@ struct ScheduleCalendarView: View {
                                 isToday: calendar.isDateInToday(day),
                                 isSelected: calendar.isDate(day, inSameDayAs: selectedDate),
                                 dots: dots,
-                                eventCount: eventCount
+                                eventCount: visibleEvents.count
                             )
                         }
                         .buttonStyle(.plain)
@@ -621,7 +759,7 @@ struct ScheduleCalendarView: View {
 
     private var dotLegend: some View {
         HStack(spacing: 12) {
-            LegendDot(color: Color.statusText(.blue), label: "My Shift")
+            LegendDot(color: Color.statusText(.blue), label: "My shift")
             LegendDot(color: Color.statusText(.green), label: "Home")
             LegendDot(color: Color.statusText(.orange), label: "Away")
         }
@@ -664,7 +802,8 @@ struct ScheduleCalendarView: View {
                 Image(systemName: "chevron.left")
                     .font(.body.weight(.semibold))
                     .frame(width: 44, height: 44)
-                    .background(.quaternary, in: Circle())
+                    .background(Color.cardSurfaceRaised, in: Circle())
+                    .overlay(Circle().strokeBorder(Color.hairline, lineWidth: 0.5))
                     .contentShape(Circle())
             }
             .buttonStyle(ScalePressStyle())
@@ -689,7 +828,8 @@ struct ScheduleCalendarView: View {
                 Image(systemName: "chevron.right")
                     .font(.body.weight(.semibold))
                     .frame(width: 44, height: 44)
-                    .background(.quaternary, in: Circle())
+                    .background(Color.cardSurfaceRaised, in: Circle())
+                    .overlay(Circle().strokeBorder(Color.hairline, lineWidth: 0.5))
                     .contentShape(Circle())
             }
             .buttonStyle(ScalePressStyle())
@@ -714,15 +854,22 @@ struct ScheduleCalendarView: View {
             List {
                 ForEach(selectedDayEvents) { event in
                     Button { onSelectEvent(event) } label: {
-                        EventRow(event: event, myShift: shiftsByEventId[event.id], contextDay: calendar.startOfDay(for: selectedDate))
+                        EventRow(
+                            event: event,
+                            myShift: shiftsByEventId[event.id],
+                            showCoverage: showCoverage,
+                            contextDay: calendar.startOfDay(for: selectedDate)
+                        )
                     }
                     .buttonStyle(.plain)
                     .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
                     .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
                 }
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
+            .contentMargins(.bottom, 96, for: .scrollContent)
             .background(Color(.systemGroupedBackground))
         }
     }
@@ -743,9 +890,7 @@ struct ScheduleCalendarView: View {
     // Dot color encodes home (green) / away (orange) / neutral (secondary).
     // My-shift events get an accent-colored dot regardless of home/away.
     private func dotInfo(for date: Date) -> [DotInfo] {
-        var visible = eventsByDay[date] ?? []
-        if myShiftsOnly { visible = visible.filter { shiftsByEventId[$0.id] != nil } }
-        if let sportFilter { visible = visible.filter { $0.sportCode == sportFilter } }
+        let visible = filteredEvents(on: date)
         return visible.prefix(3).map { event in
             let isShift = shiftsByEventId[event.id] != nil
             let color: Color
@@ -867,31 +1012,12 @@ private struct ScheduleDateHeader: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            // Apple Calendar-style agenda tile: weekday over the day number, with
-            // today's number in a brand circle — no heavy filled box per day.
-            VStack(spacing: 3) {
-                Text(date.formatted(.dateTime.weekday(.abbreviated)).uppercased())
-                    .font(.caption2.weight(.semibold))
-                    .kerning(0.5)
-                    .foregroundStyle(isToday ? AnyShapeStyle(Color.brandPrimary) : AnyShapeStyle(.secondary))
-                Text(date.formatted(.dateTime.day()))
-                    .font(.title2.weight(.bold))
-                    .monospacedDigit()
-                    .foregroundStyle(isToday ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
-                    .frame(width: 34, height: 34)
-                    .background(
-                        isToday ? AnyShapeStyle(Color.brandPrimary) : AnyShapeStyle(Color.clear),
-                        in: Circle()
-                    )
-            }
-            .frame(width: 44)
-
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(primaryLabel)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(isToday ? Color.brandPrimary : .primary)
-                Text(date.formatted(.dateTime.month(.wide).day().year()))
+                Text(date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().year()))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -909,7 +1035,7 @@ private struct ScheduleDateHeader: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, Brand.Space.sm)
+        .padding(.top, Brand.Space.md)
         .padding(.bottom, 6)
         .background(Color(.systemGroupedBackground))
         .accessibilityElement(children: .ignore)
@@ -1004,14 +1130,9 @@ struct EventRow: View {
         .background(Color.cardSurface)
         .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
         .overlay(
-            // Accent stroke = "this is my shift"; hairline otherwise.
             RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
-                .strokeBorder(
-                    myShift != nil ? Color.statusText(.blue) : Color.hairline,
-                    lineWidth: myShift != nil ? 1.5 : 0.5
-                )
+                .strokeBorder(Color.hairline, lineWidth: 0.5)
         )
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 3)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(rowAccessibilityLabel)
     }
@@ -1022,7 +1143,7 @@ struct EventRow: View {
         HStack(spacing: 5) {
             if let isHome = event.isHome {
                 Text(isHome ? "Home" : "Away")
-                    .foregroundStyle(isHome ? Color.statusText(.green) : Color.statusText(.orange))
+                    .foregroundStyle(.secondary)
                 metaDot
             }
             Text(timeRowText)
@@ -1031,7 +1152,12 @@ struct EventRow: View {
             if let seg = segment {
                 metaDot
                 Text("Day \(seg.index) of \(seg.total)")
-                    .foregroundStyle(Color.statusText(.purple))
+                    .foregroundStyle(.secondary)
+            }
+            if myShift != nil {
+                metaDot
+                Text("My shift")
+                    .foregroundStyle(Color.statusText(.blue))
             }
         }
         .font(.subheadline)

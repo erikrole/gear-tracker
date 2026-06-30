@@ -15,6 +15,7 @@ nonisolated(unsafe) var sharedAppState: AppState?
 final class AppState {
     var overdueCount = 0
     var myShiftCount = 0
+    var myShiftTodayCount = 0
     var unreadNotifCount = 0
     var openTradeCount = 0
     var pendingPushBookingId: String?
@@ -39,8 +40,12 @@ final class AppState {
         }
     }
 
-    func presentScanLookup() {
+    func presentSearch() {
         selectTab(3)
+    }
+
+    func presentScanLookup() {
+        presentSearch()
     }
 
     func refresh(forceRefresh: Bool = false) async {
@@ -60,17 +65,17 @@ final class AppState {
         lastRefreshAttemptAt = Date()
         defer { isRefreshing = false }
         do {
-            // Use the lightweight stats endpoint instead of the full dashboard payload —
-            // we only need overdueCount and myShiftsCount here.
+            // Use the lightweight stats endpoint instead of the full dashboard payload.
             async let statsTask = APIClient.shared.dashboardStats()
             async let countTask = APIClient.shared.notificationUnreadCount()
             async let tradesTask = APIClient.shared.shiftTrades(status: "OPEN", limit: 1)
             let (stats, count, trades) = try await (statsTask, countTask, tradesTask)
             overdueCount = stats.overdueCount
             myShiftCount = stats.myShiftsCount
+            myShiftTodayCount = stats.myShiftsTodayCount ?? 0
             unreadNotifCount = count
             openTradeCount = min(trades.total, 9)
-            appStatePerformanceLog.info("launch.appState.refresh result=success durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public) overdue=\(self.overdueCount, privacy: .public) shifts=\(self.myShiftCount, privacy: .public) unread=\(self.unreadNotifCount, privacy: .public) openTrades=\(self.openTradeCount, privacy: .public)")
+            appStatePerformanceLog.info("launch.appState.refresh result=success durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public) overdue=\(self.overdueCount, privacy: .public) shifts=\(self.myShiftCount, privacy: .public) shiftsToday=\(self.myShiftTodayCount, privacy: .public) unread=\(self.unreadNotifCount, privacy: .public) openTrades=\(self.openTradeCount, privacy: .public)")
         } catch {
             // Non-critical
             appStatePerformanceLog.error("launch.appState.refresh result=failure durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public)")

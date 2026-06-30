@@ -68,7 +68,7 @@ VStack(spacing: Brand.Space.sm) { … }
 BrandSectionHeader("Next Up", subtitle: "Upcoming pickups, reservations, shifts.")
 ```
 
-> **Native tab shell.** `AppTabView` uses SwiftUI's built-in value-based `Tab(...)` API. The compact iPhone tab set is Home, Bookings/My Gear, Items, Schedule, and Scan. Compact iPhone uses `.tabBarOnly`; Scan is tab value `3` with `role: .search` and pinned placement so the system owns the dedicated trailing search/scan placement. Regular-width layouts use `.sidebarAdaptable` plus sidebar-only secondary destinations for Resources and Admin areas, including Guides, Users, and Licenses. Compact iPhone reaches those secondary destinations through Profile/Settings > Directory, not through extra tab-bar items. Do not stack a custom bottom bar over the native tab bar, and do not add a sixth compact tab that forces Scan into More.
+> **Native tab shell.** `AppTabView` uses SwiftUI's built-in value-based `Tab(...)` API. The compact iPhone tab set is Home, Bookings/My Gear, Browse, Schedule, and Search. Compact iPhone uses `.tabBarOnly`; Search is tab value `3` with `role: .search` and pinned placement so the system owns the dedicated trailing search placement. Browse is tab value `2` and opens Items, Guides, Licenses, and Users with a native grouped-list menu. Regular-width layouts use `.sidebarAdaptable` plus sidebar-only Resources destinations for Guides, Licenses, and Users. Settings > Directory remains a fallback for secondary destinations. Do not stack a custom bottom bar over the native tab bar, and do not add a sixth compact tab that forces Search into More.
 
 ---
 

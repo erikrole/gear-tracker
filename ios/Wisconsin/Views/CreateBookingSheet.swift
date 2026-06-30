@@ -343,11 +343,6 @@ struct CreateBookingSheet: View {
             }
 
             Section {
-                TextField("Search equipment…", text: $vm.assetSearch)
-                    .onChange(of: vm.assetSearch) { vm.onSearchChange() }
-            }
-
-            Section {
                 Button {
                     showScanner = true
                 } label: {
@@ -492,6 +487,12 @@ struct CreateBookingSheet: View {
 
         }
         .listStyle(.insetGrouped)
+        .searchable(
+            text: $vm.assetSearch,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: Text("Search equipment")
+        )
+        .onChange(of: vm.assetSearch) { vm.onSearchChange() }
         .scrollDismissesKeyboard(.immediately)
     }
 

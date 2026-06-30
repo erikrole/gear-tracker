@@ -51,7 +51,9 @@ describe("iOS Home AFM header source contract", () => {
     expect(home).not.toContain(".overlay(alignment: .bottomTrailing)");
     expect(home).not.toContain("CreateBookingSheet { newId in");
     expect(home).toContain("HomeActionQueue(");
-    expect(home).toContain("AllClearEmptyState(openScan: { appState.presentScanLookup() })");
+    expect(home).toContain("AllClearEmptyState(openSearch: { appState.presentSearch() })");
+    expect(home).toContain('Text("Use Search when you need to look up gear.")');
+    expect(home).toContain('Label("Search gear", systemImage: "magnifyingglass")');
   });
 
   it("uses a stronger due-today icon tile while preserving the orange text tone", () => {

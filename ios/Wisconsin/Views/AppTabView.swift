@@ -39,57 +39,38 @@ struct AppTabView: View {
                 .badge(appState.overdueCount)
                 .accessibilityLabel(appState.overdueCount > 0 ? "\(gearTabLabel), \(appState.overdueCount) overdue" : gearTabLabel)
 
-            Tab("Items", systemImage: "archivebox", value: 2) {
-                ItemsView()
+            Tab("Browse", systemImage: "square.grid.2x2", value: 2) {
+                BrowseView()
             }
 
             Tab("Schedule", systemImage: "calendar", value: 4) {
                 ScheduleView()
             }
-                .badge(appState.myShiftCount)
-                .accessibilityLabel(appState.myShiftCount > 0 ? "Schedule, \(appState.myShiftCount) upcoming shifts" : "Schedule")
+                .badge(appState.myShiftTodayCount)
+                .accessibilityLabel(appState.myShiftTodayCount > 0 ? "Schedule, \(appState.myShiftTodayCount) shifts today" : "Schedule")
 
-            Tab("Scan", systemImage: "barcode.viewfinder", value: 3, role: .search) {
-                ScanView()
+            Tab("Search", systemImage: "magnifyingglass", value: 3, role: .search) {
+                GlobalSearchSheet(showsCancelButton: false)
             }
             .tabPlacement(.pinned)
 
             if showsSidebarDestinations {
                 TabSection("Resources") {
                     Tab("Guides", systemImage: "book.closed", value: 6) {
-                        SidebarWebDestinationView(
-                            title: "Guides",
-                            systemImage: "book.closed",
-                            description: "Reference docs, checklists, contacts, venue notes, and team workflows.",
-                            destination: URL(string: "https://gear.erikrole.com/resources")!
-                        )
+                        GuidesView()
+                    }
+                    .tabPlacement(.sidebarOnly)
+
+                    Tab("Licenses", systemImage: "key", value: 7) {
+                        LicensesView()
+                    }
+                    .tabPlacement(.sidebarOnly)
+
+                    Tab("Users", systemImage: "person.2", value: 5) {
+                        UsersView()
                     }
                     .tabPlacement(.sidebarOnly)
                 }
-
-                if isStaffOrAdmin {
-                    TabSection("Admin") {
-                        Tab("Users", systemImage: "person.2", value: 5) {
-                            UsersView()
-                        }
-                        .tabPlacement(.sidebarOnly)
-
-                        Tab("Licenses", systemImage: "key", value: 7) {
-                            SidebarWebDestinationView(
-                                title: "Licenses",
-                                systemImage: "key",
-                                description: "Manage software license codes, active claims, renewals, and open slots.",
-                                destination: URL(string: "https://gear.erikrole.com/licenses")!
-                            )
-                        }
-                        .tabPlacement(.sidebarOnly)
-                    }
-                }
-            }
-        }
-        .onChange(of: isStaffOrAdmin) { _, canSeeUsers in
-            if !canSeeUsers && appState.selectedTab == 5 {
-                appState.selectedTab = 0
             }
         }
         .onChange(of: showsSidebarDestinations) { _, canShowSidebarDestinations in

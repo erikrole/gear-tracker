@@ -6,7 +6,7 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped
 - Created: 2026-04-14
-- Last Updated: 2026-06-29
+- Last Updated: 2026-06-30
 - Brief: `tasks/guides-plan.md` (archived)
 
 ## Description
@@ -17,6 +17,7 @@ In-app Markdown Guide library for Wisconsin Athletics Creative operational refer
 - `/resources/[slug]` — Markdown reader with editorial document styling, polished image treatment, sticky desktop table of contents, quiet update metadata, and an allowed-editor Mark verified action
 - `/resources/new` — create page (Staff/Admin only) with a typed Guide focus selector and starter templates for Contacts, Building Numbers, Media Drive, Server Paths, SOPs, and Troubleshooting
 - `/resources/[slug]/edit` — edit page with typed Guide focus, publish toggle, unsaved-change guard, and admin delete
+- Native iOS Guides - read-only SwiftUI list and reader backed by `/api/resources`, reachable from compact Browse and Settings > Directory on iPhone and as a sidebar-only Resources destination on regular-width iPad. Authoring, deletion, verification, Contacts, and sport-assignment reference tools remain web-owned.
 
 ## Data Model
 `Resource` model in `prisma/schema.prisma`:
@@ -84,6 +85,8 @@ All mutations use `createAuditEntry` per D-007.
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-06-30 | Native iOS Browse now makes Guides a first-class compact tab destination through the system Browse menu. Settings > Directory remains a fallback path, and regular-width iPad still exposes Guides as a sidebar-only Resources destination. |
+| 2026-06-30 | Native iOS Guides replaced the previous web fallback with a read-only SwiftUI page. The native page loads the existing Resources list contract, supports pull-to-refresh, native search, focus filtering, recommended/recent/title sorting, and a lightweight Markdown reader for published guides and staff/admin draft visibility. No edit, delete, mark-verified, Contacts, or sport-assignment tools moved to iOS. |
 | 2026-06-29 | Resources landing cleanup made Guides the first default section, removed the Guide collection tile wall and Featured guides block, added a compact header copy control for `smb://ath01-nas.uwia.wisc.edu/users/`, demoted Contacts into a compact reference summary on the landing page, and added read-only Sport assignments through `filter=assignments` backed by `/api/users` sport assignment data. |
 | 2026-06-29 | Resources cleanup removed visible Verified/Needs review freshness badges from landing guide cards, list rows, and reader headers while preserving stored verification metadata and the allowed-editor Mark verified action. |
 | 2026-06-28 | Resources first-class Guide library pass: added `ResourceType` typed focus with migration/backfill, preserved legacy URL filter compatibility while adding `layout=cards/list`, rebuilt `/resources` around Guide collections, area guide lanes, cards/list results, and supporting Contacts, and updated create/edit/reader surfaces to expose typed Guide focus. Verified with focused Resources tests, Prisma format/generate, TypeScript, docs checks, whitespace check, and build-app. |

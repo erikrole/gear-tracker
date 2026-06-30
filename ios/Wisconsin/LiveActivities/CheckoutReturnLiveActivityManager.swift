@@ -86,6 +86,7 @@ final class CheckoutReturnLiveActivityManager {
             bookingTitle: candidate.booking.title,
             requesterName: candidate.booking.requester.name,
             requesterInitials: initials(for: candidate.booking.requester.name),
+            requesterAvatarUrl: candidate.booking.requester.avatarUrl,
             returnTimeText: "Return \(candidate.booking.endsAt.gearTime)"
         )
         let content = ActivityContent(

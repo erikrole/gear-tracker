@@ -1,36 +1,56 @@
-# Audit: licenses (iOS) — 2026-04-24
+# Audit: licenses (iOS) — 2026-06-30
 
-**MVP verdict:** N/A — out of scope for iOS V1
+**MVP verdict:** ships for native self-service
 **Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class
 **Audit type:** static source (no build/run/UI tests)
 
 ## Scope check
-No iOS license screen exists — `ios/Wisconsin/Views/` has no `LicensesView.swift` or equivalent. `docs/AREA_MOBILE.md:24-30` defines V1 primary destinations as Dashboard, Items, Reservations, Check-outs, Scan — licenses are intentionally absent. `docs/AREA_LICENSES.md` describes a web-only area.
+Native iOS now has `ios/Wisconsin/Views/LicensesView.swift`, reachable from compact Browse, compact Profile/Settings > Directory fallback, and the regular-width sidebar. The screen uses the existing web-backed license routes:
 
-This audit therefore has no source to evaluate. Web audit (`tasks/audit-licenses-web.md`) covers the licenses surface.
+- `GET /api/licenses`
+- `GET /api/licenses/my`
+- `POST /api/licenses/[id]/claim`
+- `POST /api/licenses/[id]/release`
+
+The native scope is self-service only: view pool state, claim one slot, copy the active code, and return the signed-in user's own slot. Staff/admin management workflows remain on the web Licenses page.
 
 ## P0 — blocks MVP
-_None — feature is intentionally web-only for V1._
-
-## P1 — polish before ship
 _None._
 
+## P1 — polish before ship
+- [x] [Flows] **Release must not expose the admin "release all active claims" fallback.** The server permits staff/admin release without `claimId` to release all active claims on a code when the requester does not personally hold that code. Native iOS only calls `releaseLicense(id:)` from `releaseActiveClaim()`, guarded by `activeClaim.id`, and the pool rows do not expose arbitrary release buttons.
+
+- [x] [Flows] **Claim and return need native confirmations.** `LicensesView.swift` uses separate `confirmationDialog` flows for claiming and returning so one tap on a row never mutates custody silently.
+
+- [x] [Hardening] **License dates should not brick the screen on fractional ISO strings.** License model date fields decode as strings, and the view formats them through fractional and standard ISO parsers. One malformed optional date degrades to neutral copy instead of failing the entire response decode.
+
+- [x] [Accessibility] **Embedded row actions must stay reachable.** Pool and active-license rows keep Claim, Copy Code, and Return License as real buttons instead of combining the whole row into one accessibility element.
+
 ## P2 — post-MVP
-- [ ] [Parity] Add a student-facing iOS view for "My license" so a student can see/copy their active code without opening the web app, and release it on the go. Would slot under a "More" tab or under Profile. Not blocking — students at MVP open the web app for license actions; the current 2-day rotation nag includes a push notification, so awareness is fine.
+- [x] [Parity] Add a student-facing iOS view for "My license" so a student can see/copy their active code without opening the web app, and release it on the go. Closed by `LicensesView.swift`.
+- [ ] [Parity] Full native admin management, including create, bulk create, renew, retire, export, unknown occupants, and full per-code history. Deferred to web control room.
 
 ## Lenses checked
-- [x] Gaps — feature explicitly out of iOS V1 scope
-- [x] Flows — N/A (no screen)
-- [x] UI polish — N/A
-- [x] Hardening — N/A (backend already hardened per web audit)
-- [x] Breaking — N/A
-- [x] Parity (informational) — web-only is intentional per AREA_MOBILE V1
+- [x] Gaps
+- [x] Flows
+- [x] UI polish
+- [x] Hardening
+- [x] Breaking
+- [x] Parity
 
 ## Files read
 - docs/AREA_MOBILE.md
 - docs/AREA_LICENSES.md
-- ios/Wisconsin/Views/ (directory listing)
+- docs/AREA_SETTINGS.md
+- prisma/schema.prisma
+- src/app/api/licenses/**
+- src/lib/services/licenses.ts
+- ios/Wisconsin/Views/LicensesView.swift
+- ios/Wisconsin/Views/ProfileView.swift
+- ios/Wisconsin/Views/AppTabView.swift
+- ios/Wisconsin/Core/APIClient.swift
+- ios/Wisconsin/Models/Models.swift
 
 ## Notes
-- iOS push for license expiry/nag *is* wired (see `licenses.ts` `processExpiryWarnings` and `processLicenseNags` calling `sendPushToUser`) — students get notified even without a license screen.
-- When licenses lands on iOS, scope it as a single screen: list (read-only for students, full for staff), claim/release sheet mirroring web confirmations, and a "Your license" banner on the Profile or Home tab.
+- iOS push for license expiry/nag is wired through `licenses.ts` `processExpiryWarnings` and `processLicenseNags`.
+- The native page intentionally keeps destructive or admin-heavy management on web.

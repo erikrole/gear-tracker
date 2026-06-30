@@ -143,6 +143,7 @@ struct ExtendBookingSheet: View {
     }
 
     private func extend() async {
+        if isLoading { return }
         isLoading = true
         error = nil
         do {

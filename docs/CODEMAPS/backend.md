@@ -12,7 +12,7 @@
 | `src/lib/services/booking-rules.ts` | 105 |
 | `src/lib/services/bookings-checkin.ts` | 781 |
 | `src/lib/services/bookings-helpers.ts` | 197 |
-| `src/lib/services/bookings-lifecycle.ts` | 915 |
+| `src/lib/services/bookings-lifecycle.ts` | 946 |
 | `src/lib/services/bookings-queries.ts` | 235 |
 | `src/lib/services/bookings.ts` | 4 |
 | `src/lib/services/bulk-unit-scans.ts` | 597 |
@@ -29,7 +29,7 @@
 | `src/lib/services/kiosk-scan.ts` | 36 |
 | `src/lib/services/kits.ts` | 327 |
 | `src/lib/services/licenses.ts` | 490 |
-| `src/lib/services/live-activities.ts` | 78 |
+| `src/lib/services/live-activities.ts` | 132 |
 | `src/lib/services/notification-prefs.ts` | 103 |
 | `src/lib/services/notifications.ts` | 819 |
 | `src/lib/services/onboarding-lifecycle.ts` | 503 |
@@ -42,13 +42,13 @@
 | `src/lib/services/schedule-exports.ts` | 495 |
 | `src/lib/services/schedule-health.ts` | 378 |
 | `src/lib/services/schedule-notification-policy.ts` | 106 |
-| `src/lib/services/schedule-open-work.ts` | 426 |
+| `src/lib/services/schedule-open-work.ts` | 435 |
 | `src/lib/services/schedule-publication.ts` | 263 |
 | `src/lib/services/schedule-template-review.ts` | 551 |
 | `src/lib/services/shift-assignments.ts` | 587 |
 | `src/lib/services/shift-generation.ts` | 378 |
 | `src/lib/services/shift-trade-emails.ts` | 72 |
-| `src/lib/services/shift-trades.ts` | 755 |
+| `src/lib/services/shift-trades.ts` | 788 |
 | `src/lib/services/sport-configs.ts` | 257 |
 | `src/lib/services/status.ts` | 439 |
 | `src/lib/services/user-deactivation.ts` | 111 |

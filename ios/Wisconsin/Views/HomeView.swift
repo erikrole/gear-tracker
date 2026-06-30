@@ -161,7 +161,7 @@ struct HomeView: View {
                         currentUserId: session.currentUser?.id
                     )
                 } else if isAllEmpty(dash) || !hasStaffFollowUp(dash) {
-                    AllClearEmptyState(openScan: { appState.presentScanLookup() })
+                    AllClearEmptyState(openSearch: { appState.presentSearch() })
                 }
                 if dash.isStaff {
                     staffExceptionSection(dash)
@@ -293,7 +293,11 @@ struct HomeView: View {
                 )
             }
             .sheet(isPresented: $showTrades) {
-                TradeBoardSheet(myShifts: [], currentUserId: session.currentUser?.id ?? "")
+                TradeBoardSheet(
+                    myShifts: [],
+                    currentUserId: session.currentUser?.id ?? "",
+                    currentUserRole: session.currentUser?.role ?? ""
+                )
             }
             .sheet(isPresented: $showProfile) {
                 ProfileView()
@@ -981,7 +985,7 @@ private struct RefreshFailurePill: View {
 // MARK: - All Clear Empty State
 
 private struct AllClearEmptyState: View {
-    let openScan: () -> Void
+    let openSearch: () -> Void
 
     var body: some View {
         VStack(spacing: 10) {
@@ -991,15 +995,15 @@ private struct AllClearEmptyState: View {
                 .accessibilityHidden(true)
             Text("You're all set")
                 .font(.headline)
-            Text("Use the Scan tab when you need to look up gear.")
+            Text("Use Search when you need to look up gear.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             Button {
                 Haptics.tap()
-                openScan()
+                openSearch()
             } label: {
-                Label("Look up gear", systemImage: "barcode.viewfinder")
+                Label("Search gear", systemImage: "magnifyingglass")
                     .font(.subheadline.weight(.semibold))
             }
             .buttonStyle(.borderedProminent)

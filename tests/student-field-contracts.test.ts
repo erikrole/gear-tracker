@@ -50,7 +50,9 @@ describe("student field mobile contracts", () => {
     const bookingsView = source("ios/Wisconsin/Views/BookingsView.swift");
 
     expect(appTab).toContain("isStaffOrAdmin ? \"Bookings\" : \"My Gear\"");
-    expect(appTab).toContain("if isStaffOrAdmin");
+    expect(appTab).toContain('Tab("Browse", systemImage: "square.grid.2x2", value: 2)');
+    expect(appTab).toContain('Tab("Users", systemImage: "person.2", value: 5)');
+    expect(appTab).not.toMatch(/if isStaffOrAdmin \{[\s\S]*?Tab\("Users"/);
     expect(bookingsView).toContain("mineOnly = currentUserRole == \"STUDENT\"");
     expect(bookingsView).toContain('BookingListSection(title: "Checkouts"');
     expect(bookingsView).toContain('BookingListSection(title: "Reservations"');
@@ -69,11 +71,17 @@ describe("student field mobile contracts", () => {
 
     expect(scheduleView).toContain("scheduleControlStrip");
     expect(scheduleView).toContain("Picker(\"Schedule view\"");
+    expect(scheduleView).toContain("@State private var showFilters = false");
+    expect(scheduleView).toContain("activeFilterSummary");
+    expect(scheduleView).toContain("private struct ScheduleFilterSheet");
     expect(scheduleView).toContain("\"My shifts\"");
-    expect(scheduleView).toContain("FilterChip(");
     expect(scheduleView).toContain("\"Past events\"");
-    expect(scheduleView).toContain("Label(\"Trades\", systemImage: \"arrow.left.arrow.right\")");
-    expect(scheduleView).toContain("Label(\"Calendar\", systemImage: isSubscribing ? \"calendar\" : \"calendar.badge.plus\")");
+    expect(scheduleView).toContain("Picker(\"Venue\"");
+    expect(scheduleView).toContain("Picker(\"Sport\"");
+    expect(scheduleView).toContain("Image(systemName: \"arrow.left.arrow.right\")");
+    expect(scheduleView).toContain("Image(systemName: isSubscribing ? \"calendar\" : \"calendar.badge.plus\")");
+    expect(scheduleView).toContain("accessibilityLabel(activeFilterCount > 0 ? \"Filters, \\(activeFilterCount) active\" : \"Filters\")");
+    expect(scheduleView).toContain("accessibilityLabel(\"Subscribe to shifts in Calendar\")");
     expect(scheduleView).not.toContain("Switch to calendar view");
     expect(scheduleView).not.toContain("Switch to list view");
   });
@@ -83,14 +91,29 @@ describe("student field mobile contracts", () => {
     const tradeBoard = source("ios/Wisconsin/Views/Schedule/TradeBoardSheet.swift");
     const postTrade = source("ios/Wisconsin/Views/Schedule/PostTradeSheet.swift");
 
-    expect(eventDetail).toContain("Label(\"Add shift\", systemImage: \"plus.circle\")");
+    expect(eventDetail).toContain("Label(\"Add shift\", systemImage: \"plus\")");
     expect(eventDetail).toContain("Label(\"Assign person\", systemImage: \"plus.circle.fill\")");
     expect(eventDetail).toContain("Label(\"Request shift\", systemImage: \"hand.raised.fill\")");
     expect(eventDetail).toContain("Button(\"Approve \\(assignment.user.name)\")");
     expect(eventDetail).toContain("Button(\"Decline \\(assignment.user.name)\")");
+    expect(eventDetail).toContain("Text(\"Event\")");
+    expect(eventDetail).toContain("title: \"Reserve gear now\"");
+    expect(eventDetail).not.toContain("ToolbarItem(placement: .bottomBar)");
+    expect(eventDetail).not.toContain("Label(\"Prep gear\", systemImage: \"archivebox\")");
     expect(tradeBoard).toContain("Label(\"Post trade\", systemImage: \"plus\")");
-    expect(tradeBoard).toContain("Text(\"\\(shift.area.shiftAreaLabel) shift\")");
-    expect(tradeBoard).toContain("Text(\"Claim this shift\")");
+    expect(tradeBoard).toContain(".navigationTitle(\"Open Work\")");
+    expect(tradeBoard).toContain("APIClient.shared.scheduleOpenWork()");
+    expect(tradeBoard).toContain("Staff Review");
+    expect(tradeBoard).toContain("Available Now");
+    expect(tradeBoard).toContain("Approval Required");
+    expect(tradeBoard).toContain("My Posts");
+    expect(tradeBoard).toContain("Waiting or Blocked");
+    expect(tradeBoard).toContain("item.action == \"request\" ? \"Request shift\" : \"Claim shift\"");
+    expect(tradeBoard).toContain("context == .staffReview ? \"Review\" : \"Claim this shift\"");
+    expect(tradeBoard).toContain("Text(\"Review request\")");
+    expect(tradeBoard).toContain("Text(\"Cancel post\")");
+    expect(tradeBoard).toContain("Canceling removes the post; the shift stays assigned to you.");
+    expect(tradeBoard).toContain("You will be assigned immediately.");
     expect(postTrade).toContain("Section(\"Choose Shift to Trade\")");
     expect(postTrade).toContain("Text(\"Post Trade\").fontWeight(.semibold)");
   });
@@ -98,18 +121,21 @@ describe("student field mobile contracts", () => {
   it("keeps iOS Items controls self-describing", () => {
     const itemsView = source("ios/Wisconsin/Views/ItemsView.swift");
 
-    expect(itemsView).toContain("itemsControlStrip");
-    expect(itemsView).toContain("ItemControlPill(");
-    expect(itemsView).toContain("title: \"Favorites\"");
+    expect(itemsView).toContain(".searchable(text: $vm.searchText, prompt: \"Search tag, model, serial, location\")");
+    expect(itemsView).toContain("ToolbarItemGroup(placement: .topBarTrailing)");
+    expect(itemsView).toContain("Label(\"Favorites\", systemImage: vm.favoritesOnly ? \"star.fill\" : \"star\")");
     expect(itemsView).toContain("AssetStatusFilterMenu(selected: $vm.selectedStatuses)");
+    expect(itemsView).toContain("ItemSortMenu(selected: $vm.sortOption)");
     expect(itemsView).toContain("selected.isEmpty ? \"All statuses\" : \"\\(selected.count) statuses\"");
-    expect(itemsView).not.toContain("ToolbarItem(placement: .topBarTrailing)");
+    expect(itemsView).not.toContain("itemsControlStrip");
+    expect(itemsView).not.toContain("ItemControlPill(");
     expect(itemsView).not.toContain("Showing favorites");
     expect(itemsView).not.toContain("Show favorites");
   });
 
   it("keeps iOS Booking Detail edit state self-describing", () => {
     const detail = source("ios/Wisconsin/Views/BookingDetailView.swift");
+    const extendSheet = source("ios/Wisconsin/Views/ExtendBookingSheet.swift");
 
     expect(detail).toContain("Label(\"Edit\", systemImage: \"pencil\")");
     expect(detail).toContain("TextEditor(text: $notes)");
@@ -121,6 +147,9 @@ describe("student field mobile contracts", () => {
     expect(detail).toContain("Use Extend Return Date");
     expect(detail).toContain("pickup and return stay at a kiosk");
     expect(detail).toContain("if canActOnBooking && !canEditBooking");
+    expect(detail).toContain("if isSaving { return }");
+    expect(detail).toContain("if isActioning { return }");
+    expect(extendSheet).toContain("if isLoading { return }");
     expect(detail).not.toContain("Image(systemName: \"pencil\")");
   });
 

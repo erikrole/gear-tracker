@@ -166,3 +166,51 @@ export async function endCheckoutReturnLiveActivityTokens(
 
   return { revoked };
 }
+
+export async function updateCheckoutReturnLiveActivityTokens(
+  tokens: string[],
+  state: {
+    endsAt: Date;
+    nextNeedAt?: Date | null;
+    allowsExtend: boolean;
+    urgency: "normal" | "warning" | "critical" | "overdue";
+  }
+): Promise<{ revoked: string[] }> {
+  if (!isConfigured() || tokens.length === 0) return { revoked: [] };
+
+  const notification = {
+    aps: {
+      timestamp: Math.floor(Date.now() / 1000),
+      event: "update",
+      "content-state": {
+        endsAt: state.endsAt.toISOString(),
+        now: new Date().toISOString(),
+        nextNeedAt: state.nextNeedAt?.toISOString() ?? null,
+        allowsExtend: state.allowsExtend,
+        urgency: state.urgency,
+      },
+    },
+  };
+
+  const jwt = makeJWT();
+  const client = http2.connect(APNS_HOST);
+  const revoked: string[] = [];
+
+  try {
+    await Promise.all(
+      tokens.map(async (token) => {
+        const result = await sendOne(client, jwt, token, notification, {
+          topic: `${process.env.APNS_BUNDLE_ID!}.push-type.liveactivity`,
+          pushType: "liveactivity",
+        });
+        if (result === "revoked") revoked.push(token);
+      })
+    );
+  } catch (err) {
+    console.error("[APNS] updateCheckoutReturnLiveActivityTokens error:", err);
+  } finally {
+    client.destroy();
+  }
+
+  return { revoked };
+}

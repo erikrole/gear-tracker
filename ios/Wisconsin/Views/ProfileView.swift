@@ -260,13 +260,7 @@ struct ProfileView: View {
     private var directorySection: some View {
         Section("Directory") {
             NavigationLink {
-                SidebarWebDestinationView(
-                    title: "Guides",
-                    systemImage: "book.closed",
-                    description: "Reference docs, checklists, contacts, venue notes, and team workflows.",
-                    destination: URL(string: "https://gear.erikrole.com/resources")!,
-                    wrapsInNavigationStack: false
-                )
+                GuidesView(wrapsInNavigationStack: false)
             } label: {
                 SettingsMenuRow(
                     title: "Guides",
@@ -277,36 +271,30 @@ struct ProfileView: View {
                     EmptyView()
                 }
             }
-            if isStaffOrAdmin {
-                NavigationLink {
-                    UsersView()
-                } label: {
-                    SettingsMenuRow(
-                        title: "Users",
-                        subtitle: "Find people, roles, contact details, and active status.",
-                        systemImage: "person.2",
-                        tint: Color.statusText(.blue)
-                    ) {
-                        EmptyView()
-                    }
+            NavigationLink {
+                UsersView()
+            } label: {
+                SettingsMenuRow(
+                    title: "Users",
+                    subtitle: "Find people, roles, contact details, and active status.",
+                    systemImage: "person.2",
+                    tint: Color.statusText(.blue)
+                ) {
+                    EmptyView()
                 }
-                NavigationLink {
-                    SidebarWebDestinationView(
-                        title: "Licenses",
-                        systemImage: "key",
-                        description: "Manage software license codes, active claims, renewals, and open slots.",
-                        destination: URL(string: "https://gear.erikrole.com/licenses")!,
-                        wrapsInNavigationStack: false
-                    )
-                } label: {
-                    SettingsMenuRow(
-                        title: "Licenses",
-                        subtitle: "Manage software license codes, claims, and renewals.",
-                        systemImage: "key",
-                        tint: Color.statusText(.orange)
-                    ) {
-                        EmptyView()
-                    }
+            }
+            NavigationLink {
+                LicensesView(wrapsInNavigationStack: false)
+            } label: {
+                SettingsMenuRow(
+                    title: "Licenses",
+                    subtitle: isStaffOrAdmin
+                        ? "Claim, copy, return, or open web management."
+                        : "Claim, copy, or return a Photo Mechanic license.",
+                    systemImage: "key",
+                    tint: Color.statusText(.orange)
+                ) {
+                    EmptyView()
                 }
             }
         }

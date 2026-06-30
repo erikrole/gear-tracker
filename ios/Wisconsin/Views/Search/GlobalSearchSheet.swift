@@ -8,6 +8,7 @@ enum SearchDestination: Hashable {
 }
 
 struct GlobalSearchSheet: View {
+    var showsCancelButton = true
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""
     @State private var results = SearchResults()
@@ -16,7 +17,6 @@ struct GlobalSearchSheet: View {
     @State private var showScanner = false
     @State private var debounceTask: Task<Void, Never>?
     @State private var navigationPath = NavigationPath()
-    @FocusState private var fieldFocused: Bool
 
     @State private var recentSearches: [String] = {
         (UserDefaults.standard.stringArray(forKey: "recentSearches") ?? [])
@@ -24,32 +24,42 @@ struct GlobalSearchSheet: View {
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
-            VStack(spacing: 0) {
-                searchBar
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-
-                Divider()
-
-                Group {
-                    if query.isEmpty {
-                        recentsView
-                    } else if isSearching && results.isEmpty {
-                        searchingView
-                    } else if !results.isEmpty {
-                        resultsList
-                    } else if let searchError, !isSearching {
-                        errorView(message: searchError)
-                    } else if !isSearching {
-                        noResultsView
+            Group {
+                if query.isEmpty {
+                    recentsView
+                } else if isSearching && results.isEmpty {
+                    searchingView
+                } else if !results.isEmpty {
+                    resultsList
+                } else if let searchError, !isSearching {
+                    errorView(message: searchError)
+                } else if !isSearching {
+                    noResultsView
+                }
+            }
+            .frame(maxHeight: .infinity, alignment: .top)
+            .navigationTitle("Search")
+            .navigationBarTitleDisplayMode(.inline)
+            .searchable(
+                text: $query,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: Text("Search items, bookings, people")
+            )
+            .autocorrectionDisabled()
+            .textInputAutocapitalization(.never)
+            .onSubmit(of: .search) { commitSearch() }
+            .toolbar {
+                if showsCancelButton {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { dismiss() }
                     }
                 }
-                .frame(maxHeight: .infinity, alignment: .top)
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showScanner = true
+                    } label: {
+                        Label("Scan QR code", systemImage: "qrcode.viewfinder")
+                    }
                 }
             }
             .navigationDestination(for: SearchDestination.self) { destination in
@@ -61,11 +71,6 @@ struct GlobalSearchSheet: View {
                 case .user(let id):
                     UserDetailView(userId: id)
                 }
-            }
-        }
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                fieldFocused = true
             }
         }
         .fullScreenCover(isPresented: $showScanner) {
@@ -85,47 +90,6 @@ struct GlobalSearchSheet: View {
         .onChange(of: query) { _, newValue in
             scheduleSearch(query: newValue)
         }
-    }
-
-    // MARK: - Search bar
-
-    private var searchBar: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-                .frame(width: 20)
-
-            TextField("Search items, bookings, people…", text: $query)
-                .focused($fieldFocused)
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
-                .submitLabel(.search)
-                .onSubmit { commitSearch() }
-
-            if !query.isEmpty {
-                Button {
-                    query = ""
-                    results = SearchResults()
-                    searchError = nil
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                }
-                .accessibilityLabel("Clear search")
-            }
-
-            Button {
-                fieldFocused = false
-                showScanner = true
-            } label: {
-                Image(systemName: "qrcode.viewfinder")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(Color.accentColor)
-            }
-            .accessibilityLabel("Scan QR code")
-        }
-        .padding(10)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - States

@@ -58,17 +58,17 @@ describe("iOS Settings hub", () => {
     expect(scheduleSection).toContain("Availability blocks are advisory");
   });
 
-  it("keeps compact iPhone access to directory pages outside the primary tab bar", () => {
+  it("keeps Settings Directory as a fallback for Browse destinations", () => {
     const profile = source("ios/Wisconsin/Views/ProfileView.swift");
     const directorySection = bodyBetween(profile, "private var directorySection", "private var toolsSection");
 
     expect(directorySection).toContain("Section(\"Directory\")");
     expect(directorySection).toContain("NavigationLink {");
     expect(directorySection).toContain("title: \"Guides\"");
-    expect(directorySection).toContain("if isStaffOrAdmin");
     expect(directorySection).toContain("UsersView()");
     expect(directorySection).toContain("title: \"Users\"");
     expect(directorySection).toContain("title: \"Licenses\"");
+    expect(directorySection).not.toContain("if isStaffOrAdmin");
     expect(directorySection.match(/wrapsInNavigationStack: false/g)).toHaveLength(2);
     expect(profile).not.toContain("case .guides:");
     expect(profile).not.toContain("case .users:");

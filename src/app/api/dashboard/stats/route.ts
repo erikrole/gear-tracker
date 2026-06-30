@@ -38,7 +38,7 @@ export const GET = withAuth(async (_req, { user }) => {
   const startOfToday = startOfDayInAppTz(now, 0);
   const startOfTomorrow = startOfDayInAppTz(now, 1);
 
-  const [countsResult, myShiftsCountResult] = await Promise.allSettled([
+  const [countsResult, myShiftsCountResult, myShiftsTodayCountResult] = await Promise.allSettled([
     readDashboardCounts({
       userId: user.id,
       now,
@@ -46,20 +46,35 @@ export const GET = withAuth(async (_req, { user }) => {
       startOfToday,
       startOfTomorrow,
     }),
-    // Kept for iOS: drives the Schedule tab badge via the lightweight stats endpoint
+    // Kept for iOS/Profile: upcoming/on-deck shift count without loading the full dashboard.
     db.shiftAssignment.count({
       where: {
         userId: user.id,
         status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
-        // Keep today's shifts counted until local midnight (endsAt past the
-        // start of today) so all-day / evening shifts don't drop to 0 early.
         shift: { shiftGroup: { event: { endsAt: { gt: startOfToday }, status: "CONFIRMED" } } },
+      },
+    }),
+    // Drives the iOS Schedule tab badge only when the user has work today.
+    db.shiftAssignment.count({
+      where: {
+        userId: user.id,
+        status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
+        shift: {
+          shiftGroup: {
+            event: {
+              startsAt: { lt: startOfTomorrow },
+              endsAt: { gt: startOfToday },
+              status: "CONFIRMED",
+            },
+          },
+        },
       },
     }),
   ]);
   const partialFailures: string[] = [];
   const c: DashboardCounts = settledValue(countsResult, zeroDashboardCounts, "counts", partialFailures);
   const myShiftsCount = settledValue(myShiftsCountResult, 0, "myShiftsCount", partialFailures);
+  const myShiftsTodayCount = settledValue(myShiftsTodayCountResult, 0, "myShiftsTodayCount", partialFailures);
 
   return ok({
     data: {
@@ -80,6 +95,7 @@ export const GET = withAuth(async (_req, { user }) => {
       pendingPickupTotal: c.pendingPickupTotal,
       staleReservationTotal: c.staleReservationTotal,
       myShiftsCount,
+      myShiftsTodayCount,
     },
     partialFailures,
   });

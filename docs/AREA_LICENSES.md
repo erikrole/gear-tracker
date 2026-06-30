@@ -3,8 +3,8 @@
 ## Document Control
 - Area: Photo Mechanic license pool
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-25
-- Status: Active — 2-slot model, expiry tracking, unknown occupants, CSV export shipped
+- Last Updated: 2026-06-30
+- Status: Active — 2-slot model, expiry tracking, unknown occupants, CSV export, and native iOS self-service shipped
 - Version: V2
 
 ## Direction
@@ -58,6 +58,10 @@ Replace the Google Sheet at `licenses.xlsx` with an in-app pool that mirrors how
 ## UI
 
 - Page: `src/app/(app)/licenses/page.tsx`
+- Native iOS page: `ios/Wisconsin/Views/LicensesView.swift`
+  - Every authenticated role can open Licenses from Browse or Settings > Directory, view the license pool, claim one open slot, copy their active code, and return their own slot.
+  - Student pool rows hide code strings unless the row is their active claim; staff/admin rows can reveal pool codes.
+  - Staff/admin users get a web-management link for create, bulk create, renew, retire, export, unknown occupants, and full history workflows.
 - Components:
   - `MyLicensePanel.tsx` — student banner showing their active code with copy + return
   - `MyLicenseHistoryDialog.tsx` — user-visible recent claim/return history from the active-license banner
@@ -114,12 +118,15 @@ Implementation: `processLicenseNags` and `processExpiryWarnings` in `src/lib/ser
 - [x] Codes are masked to non-holders/non-admins
 - [x] Destructive actions (delete, retire) require confirmation
 - [x] CSV export available to admins
+- [x] Native iOS self-service available for view, claim, copy, and return
 
 ## Known Gaps / Deferred
 - No full history pagination UI yet; API history reads are bounded.
 - No full admin per-user license usage report beyond the user's own recent history and per-code admin history
 
 ## Change Log
+- **2026-06-30 (Native iOS Browse reachability)**: Licenses is now a first-class compact Browse destination in native iOS, with Settings > Directory kept as a fallback and regular-width iPad still exposing Licenses as a sidebar-only Resources destination. Self-service behavior and web-owned management workflows did not change.
+- **2026-06-30 (Native iOS self-service)**: Added `LicensesView.swift` backed by the existing `/api/licenses`, `/api/licenses/my`, claim, and release routes. Compact iPhone reaches Licenses from Profile/Settings > Directory, regular-width iPad exposes Licenses as a sidebar-only native Resources destination, and the page supports loading/error/empty states, pull-to-refresh, claim confirmation, copy-to-clipboard, and return confirmation. Admin create/edit/renew/retire/export/history workflows remain on the web management page. Screenshot follow-up removed contradictory `Available` + `Already claimed` pool-row copy when the user already holds a license, made Copy Code neutral/blue, tints Claim as a positive action, and kept Return License as the only destructive action. Student code visibility is also masked client-side unless the row is the student's active claim, matching the API sanitizer. App Store-style follow-up uses native SwiftUI text-only capsule buttons: green bordered-prominent Claim, blue bordered Copy Code, and destructive bordered Return License, with no custom badge or action-icon styling.
 - **2026-05-25 (Web bug sweep Batch 31)**: Admin table row clicks now prioritize inspection over self-claiming, so staff/admin users can manage open or partially used license codes from the table instead of being dropped into the student claim dialog.
 - **2026-05-25 (Web bug sweep Batch 30)**: Admin license sheets now show a retryable error when claim history fails instead of looking empty, abort stale history loads when switching sheets, expose stable form metadata on occupant/account/expiry inputs, and guard retire/delete actions while the request is in flight.
 - **2026-05-24 (Client reliability sweep)**: License dialogs and sheets now use the shared safe error helpers for add, bulk add, bulk renew, claim, return, user history, and admin claim-management actions. These flows now handle expired sessions through the shared login redirect and no longer assume failed API responses are JSON.

@@ -1,6 +1,6 @@
 # AREA: Shift Calendar & Scheduling
 
-> Status: **Implemented** | Owner: TBD | Last Updated: 2026-06-20
+> Status: **Implemented** | Owner: TBD | Last Updated: 2026-06-30
 
 ## Purpose
 
@@ -49,6 +49,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - [x] In-season automation review: Schedule surfaces read-only automation suggestions for staffing gaps, auto-fill preview, publish readiness, risk blockers, stale sources, and daily cleanup without silently mutating worker-facing commitments
 - [x] Auto-fill and manual crew review: staff/admin can preview auto-fill recommendations before applying assignments through existing safety checks. Template-review UI is retired to keep Event detail focused.
 - [x] Gear readiness: Schedule health carries event and assignment gear readiness across primary event, linked-event, and shift-assignment booking paths, while detailed gear prep stays on Event detail and gear queues instead of the main Schedule list
+- [x] Personal calendar subscriptions: worker ICS feeds use the effective personal call window, concise area-plus-matchup titles, event deep links, active trade-board indicators, and remove swapped-away assignments when another worker takes the shift
 
 ## Information Architecture
 
@@ -89,6 +90,10 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-06-30: Trade Board and Open Work hardening shipped. The canonical web Trade Board now groups work by decision state: Staff Review, Available Now, Approval Required, My Posts, Waiting or Blocked, Posted Trades, and Resolved. Rows explain whether an action assigns immediately, sends a request to staff, or only removes a post while keeping the original assignment. Trade lifecycle and Open Work pickup freshness now use effective personal call windows for posting, claiming, approving, listing, expiration, pickup visibility, and conflict checks so assignment and shift call overrides are authoritative. Native iOS decodes the same Open Work payload, uses the same section names and consequence copy, and routes staff approval, open-shift pickup, trade claim, and cancel actions through the shared APIs.
+- 2026-06-30: Personal shift calendar subscription hardening shipped. `/api/shifts/ics/[token]` now titles events as area plus compact matchup context, for example `Photo: MBB vs Iowa` or `Video: FB at Penn State`; active open/claimed trade posts get a `🔁` prefix. Feed events use the effective assignment call start/end window, include a deep link back to the Gear Tracker event, omit description/gear-prep copy, carry `LAST-MODIFIED` and `SEQUENCE`, and continue to emit only active `DIRECT_ASSIGNED`/`APPROVED` assignments so completed trade swaps disappear from the original worker's calendar after ownership changes.
+- 2026-06-30: Native iOS Schedule tab badge scope shipped. `/api/dashboard/stats` now returns separate `myShiftsCount` and `myShiftsTodayCount` values. `myShiftsCount` keeps Profile/Home on-deck context, while the native Schedule tab badge and accessibility label use only today's confirmed assigned shifts based on institution-timezone day overlap.
+- 2026-06-29: Native iOS Schedule UI cleanup shipped. The iPhone Schedule control strip now shows List/Calendar plus one compact active-filter summary and a Filters sheet for My shifts, Past events, venue, and sport. Screenshot follow-up tightened the Filters button to a neutral compact control, restored Clear/Done sheet action placement, kept My shift rows neutral with a blue personal-scope cue instead of red warning-like fill, and aligned calendar selected-day rows with list rows and staff coverage chips. Event detail now keeps prep gear as an inline Your Event action, removes the duplicated bottom-bar button that overlapped Crew rows in medium sheets, quiets section icons, uses a lighter semantic event title, moves Add shift into native toolbar chrome as a title-and-symbol action, and represents the signed-in assignment with one inline You cue. List and calendar filtering now share the same venue/sport/my-shifts logic, date headers are lighter, and both list surfaces keep bottom scroll clearance above the native tab bar. No Schedule API, shift, trade, coverage, all-day, or multi-day contract changed.
 - 2026-06-27: Trade Board claim, approve, decline, cancel, open-shift pickup, and pickup-request failures now use outcome-specific recovery copy that names the trade, shift, or request consequence instead of generic failed-action or network wording.
 - 2026-06-24: Hidden smoke users are excluded from live scheduling decisions. Candidate scoring, auto-fill preview candidates, and assignment conflict maps now use the shared visible-active user filter so active hidden smoke/test identities do not appear as staffing options or conflict rows.
 - 2026-06-20: Explicit Schedule worker-class model shipped. `User.staffingType` now separates Staff/Student scheduling identity from app permission role, backfills existing users from role, appears as Scheduling class on user detail, and drives Schedule labels, assignment routing, candidate scoring, copy-forward, auto-fill preview, exports, data-quality checks, Open Work pickup, and trade eligibility.

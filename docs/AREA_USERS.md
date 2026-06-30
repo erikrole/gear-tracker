@@ -115,6 +115,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+- 2026-06-30: Native iOS Browse now exposes Users to every authenticated role as a directory destination. This matches the existing policy that students can view all users while edit, role-management, onboarding, and admin mutations remain role-gated.
 - 2026-06-29: Resources assignment reference support shipped. `GET /api/users` now includes each returned user's narrow `sportAssignments` rows (`sportCode`, `defaultTraveler`) so `/resources?filter=assignments` can render a read-only sport assignment directory without duplicating assignment ownership outside the Users profile controls.
 - 2026-06-24: Hidden smoke user onboarding cleanup shipped. `/api/allowed-emails` now excludes allowlist rows claimed by hidden users by default, so `/users/onboarding-status` no longer surfaces claimed smoke/test accounts in daily onboarding review.
 - 2026-06-24: Hidden smoke user operational sweep shipped. The org chart now uses the shared visible-active user filter, and live user-picking helpers exclude active hidden smoke/test users while preserving historical user attribution.

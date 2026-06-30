@@ -81,7 +81,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/licenses`
 - APIs: `/api/licenses/[id]/claim`, `/api/licenses/[id]/history`, `/api/licenses/[id]/occupy`, `/api/licenses/[id]/release`, `/api/licenses/[id]`, `/api/licenses/bulk`, `/api/licenses/export`, `/api/licenses/my/history`, `/api/licenses/my`, `/api/licenses`
 - Services: `src/lib/services/licenses.ts`
-- Tests: _none matched_
+- Tests: `tests/ios-licenses-native-page.test.ts`
 
 ## mobile
 
@@ -89,7 +89,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/settings/kiosk-devices`
 - APIs: `/api/kiosk-devices/[id]/regenerate-code`, `/api/kiosk-devices/[id]`, `/api/kiosk-devices`, `/api/kiosk/activate`, `/api/kiosk/checkin/[id]/complete`, `/api/kiosk/checkin/[id]/scan`, `/api/kiosk/checkout/[id]`, `/api/kiosk/checkout/availability`, `/api/kiosk/checkout/complete`, `/api/kiosk/checkout/scan`
 - Services: `src/lib/services/kiosk-checkout-complete.ts`, `src/lib/services/kiosk-location.ts`, `src/lib/services/kiosk-scan.ts`
-- Tests: `tests/bulk-unit-kiosk-scans.test.ts`, `tests/ios-api-contract.test.ts`, `tests/ios-appstate-refresh.test.ts`, `tests/ios-bookings-empty-state.test.ts`, `tests/ios-checkout-return-live-activity-source.test.ts`, `tests/ios-create-booking-picker-parity.test.ts`, `tests/ios-forced-password.test.ts`, `tests/ios-home-afm-header-source.test.ts`
+- Tests: `tests/bulk-unit-kiosk-scans.test.ts`, `tests/ios-api-contract.test.ts`, `tests/ios-appstate-refresh.test.ts`, `tests/ios-bookings-empty-state.test.ts`, `tests/ios-browse-tab.test.ts`, `tests/ios-checkout-return-live-activity-source.test.ts`, `tests/ios-create-booking-picker-parity.test.ts`, `tests/ios-forced-password.test.ts`
 
 ## notifications
 
@@ -153,7 +153,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/schedule/assign`, `/schedule`
 - APIs: `/api/my-shifts`, `/api/schedule/automation`, `/api/schedule/export`, `/api/schedule/health`, `/api/schedule/open-work`, `/api/shift-assignments/[id]/acknowledge`, `/api/shift-assignments/[id]/approve`, `/api/shift-assignments/[id]/attendance`, `/api/shift-assignments/[id]/decline`, `/api/shift-assignments/[id]/repair-role-slot`
 - Services: `src/lib/services/schedule-automation.ts`, `src/lib/services/schedule-change-history.ts`, `src/lib/services/schedule-exports.ts`, `src/lib/services/schedule-health.ts`, `src/lib/services/schedule-notification-policy.ts`, `src/lib/services/schedule-open-work.ts`, `src/lib/services/schedule-publication.ts`, `src/lib/services/schedule-template-review.ts`
-- Tests: `tests/ios-schedule-all-day-display.test.ts`, `tests/ios-schedule-calendar-hit-targets.test.ts`, `tests/ios-schedule-dynamic-type.test.ts`, `tests/schedule-assign-source.test.ts`, `tests/schedule-automation-source.test.ts`, `tests/schedule-automation.test.ts`, `tests/schedule-change-history.test.ts`, `tests/schedule-data-quality.test.ts`
+- Tests: `tests/ios-schedule-all-day-display.test.ts`, `tests/ios-schedule-calendar-hit-targets.test.ts`, `tests/ios-schedule-dynamic-type.test.ts`, `tests/ios-schedule-ui-cleanup.test.ts`, `tests/schedule-assign-source.test.ts`, `tests/schedule-automation-source.test.ts`, `tests/schedule-automation.test.ts`, `tests/schedule-change-history.test.ts`
 
 ## users
 

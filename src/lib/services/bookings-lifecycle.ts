@@ -23,6 +23,10 @@ import {
   upsertBulkBalancesAndMovements,
   type AuditJson,
 } from "./bookings-helpers";
+import {
+  endCheckoutReturnLiveActivities,
+  updateCheckoutReturnLiveActivities,
+} from "./live-activities";
 
 type CreateBookingInput = {
   kind: BookingKind;
@@ -578,7 +582,7 @@ export async function updateCheckout(
   actorUserId: string,
   updates: UpdateBookingInput
 ) {
-  return db.$transaction(
+  const updated = await db.$transaction(
     async (tx) => {
       const existing = await tx.booking.findUnique({
         where: { id: bookingId },
@@ -738,6 +742,15 @@ export async function updateCheckout(
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
   );
+
+  if (updated.kind === BookingKind.CHECKOUT && updated.status === BookingStatus.OPEN) {
+    await updateCheckoutReturnLiveActivities({
+      bookingId,
+      endsAt: updated.endsAt,
+    });
+  }
+
+  return updated;
 }
 
 export async function extendBooking(
@@ -745,7 +758,7 @@ export async function extendBooking(
   actorUserId: string,
   newEndsAt: Date
 ) {
-  return db.$transaction(
+  const updated = await db.$transaction(
     async (tx) => {
       const existing = await tx.booking.findUnique({
         where: { id: bookingId },
@@ -816,10 +829,19 @@ export async function extendBooking(
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
   );
+
+  if (updated.kind === BookingKind.CHECKOUT && updated.status === BookingStatus.OPEN) {
+    await updateCheckoutReturnLiveActivities({
+      bookingId,
+      endsAt: updated.endsAt,
+    });
+  }
+
+  return updated;
 }
 
 export async function cancelBooking(bookingId: string, actorUserId: string) {
-  return db.$transaction(async (tx) => {
+  const result = await db.$transaction(async (tx) => {
     const booking = await tx.booking.findUnique({
       where: { id: bookingId },
       include: {
@@ -909,6 +931,15 @@ export async function cancelBooking(bookingId: string, actorUserId: string) {
       action: "cancelled",
     });
 
-    return { success: true };
+    return {
+      success: true,
+      shouldEndLiveActivity: booking.kind === BookingKind.CHECKOUT && booking.status === BookingStatus.OPEN,
+    };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+  if (result.shouldEndLiveActivity) {
+    await endCheckoutReturnLiveActivities(bookingId);
+  }
+
+  return { success: true };
 }

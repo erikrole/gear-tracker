@@ -38,12 +38,13 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 4. User opens row details or row actions.
 
 ### Native iOS Items
-1. Search stays in the native search bar.
-2. Favorites and Status scope controls are visible named controls above the list, not icon-only toolbar buttons.
-3. Row actions remain swipe and context-menu based: Favorite, Reserve, and Copy Asset Tag.
-4. The mobile Items list supports the web-backed `Asset tag` and `Most popular` sorts through a compact native menu.
-5. The mobile Items list renders serialized assets and item families in the server-provided mixed order; unit-tracked and quantity-tracked families keep the same naming as web rows.
-6. The mobile Items list intentionally avoids desktop-only bulk actions and advanced filter density.
+1. Items is the first destination inside the compact native Browse tab, not a standalone compact tab.
+2. Search stays in the native search bar.
+3. Favorites, Status, and Sort live in native toolbar buttons and menus so the list avoids custom pill chrome while keeping the current filter state discoverable.
+4. Row actions remain swipe and context-menu based: Favorite, Reserve, and Copy Asset Tag.
+5. The mobile Items list supports the web-backed `Asset tag` and `Most popular` sorts through a compact native menu.
+6. The mobile Items list renders serialized assets and item families in the server-provided mixed order; unit-tracked and quantity-tracked families keep the same naming as web rows.
+7. The mobile Items list intentionally avoids desktop-only bulk actions and advanced filter density.
 
 ### Inventory Hygiene
 1. Staff/admin opens `/items/hygiene` from the Admin nav.
@@ -425,6 +426,7 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-06-30: Native iOS Items control cleanup moved Favorites, Status, and Sort from the horizontal custom pill strip into SwiftUI toolbar controls and native `Menu`s while preserving the existing `.searchable` list search, row actions, web-backed sort choices, and reload behavior.
 - 2026-06-27: Inventory Hygiene checklist health indicator. `/items/hygiene` now maps needs-work, partial-data, and clean checklist state through the shared shadcn-backed status indicator in the page header and checklist health card while keeping the page read-only and repair-surface linked.
 - 2026-06-26: Items list niceties shipped. The web sort selector now names the default sort `Asset tag`; item-family rows can be favorited through the same star and context-menu paths as standard items; `/api/assets?favorites_only=true` now includes favorited item families instead of silently filtering them out; shared asset-tag search aliases let compact and hyphenated family tags such as `70200` and `70-200` find each other in Items and picker search; and item-family row actions now expose valid shortcuts only, including inventory management and numbered-unit label export.
 - 2026-06-26: Asset-tag sort now groups repeated equipment families before operational prefixes. Tags such as `70-200 1`, `70-200 2`, `70200 4`, and then `FB 70-200 1` sort as one readable family block instead of alternating by copy number across unprefixed and team-prefixed rows.

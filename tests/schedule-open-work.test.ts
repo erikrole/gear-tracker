@@ -115,6 +115,14 @@ describe("schedule open work", () => {
 
     expect(mockDb.shift.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({
+        AND: [
+          {
+            OR: [
+              { callStartsAt: null, startsAt: { gt: now } },
+              { callStartsAt: { gt: now } },
+            ],
+          },
+        ],
         workerType: "ST",
         assignments: { none: { status: { in: ["DIRECT_ASSIGNED", "APPROVED"] } } },
         shiftGroup: expect.objectContaining({
@@ -128,6 +136,32 @@ describe("schedule open work", () => {
       action: "claim",
       canAct: true,
       requestCount: 0,
+    }));
+  });
+
+  it("lists open work by effective call start instead of raw shift start", async () => {
+    mockDb.user.findUnique.mockResolvedValue(activeStudent());
+    mockDb.shiftAssignment.findMany.mockResolvedValue([]);
+    mockDb.shift.findMany.mockResolvedValue([]);
+
+    await getScheduleOpenWork({
+      userId: "student-1",
+      role: "STUDENT",
+      now,
+    });
+
+    expect(mockDb.shift.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        AND: [
+          {
+            OR: [
+              { callStartsAt: null, startsAt: { gt: now } },
+              { callStartsAt: { gt: now } },
+            ],
+          },
+        ],
+      }),
+      orderBy: { startsAt: "asc" },
     }));
   });
 
@@ -236,5 +270,18 @@ describe("schedule open work", () => {
     mockDb._mockTx.user.findUnique.mockResolvedValue(activeStudent());
 
     await expect(pickupOpenShift("shift-1", "student-1")).rejects.toThrow("already has an active assignment");
+  });
+
+  it("rejects pickup after the effective call start even when raw shift start is future", async () => {
+    mockDb._mockTx.shift.findUnique.mockResolvedValue(baseShift({
+      startsAt: new Date("2999-09-05T16:00:00Z"),
+      endsAt: new Date("2999-09-05T21:00:00Z"),
+      callStartsAt: new Date("2000-09-05T14:00:00Z"),
+      callEndsAt: new Date("2999-09-05T21:00:00Z"),
+    }));
+    mockDb._mockTx.user.findUnique.mockResolvedValue(activeStudent());
+
+    await expect(pickupOpenShift("shift-1", "student-1")).rejects.toThrow("This shift has already started");
+    expect(mockDb._mockTx.shiftAssignment.create).not.toHaveBeenCalled();
   });
 });

@@ -167,6 +167,27 @@ describe("postTrade", () => {
     expect(mockTx.shiftTrade.create).not.toHaveBeenCalled();
   });
 
+  it("uses the effective assignment call start when deciding if a post is stale", async () => {
+    const assignment = {
+      ...makeShiftAssignment({
+        userId: "user-1",
+        callStartsAt: new Date("2026-03-01T11:00:00.000Z"),
+        callEndsAt: new Date("2026-03-01T15:00:00.000Z"),
+      }),
+      shift: {
+        ...makeShift({
+          startsAt: new Date("2026-03-01T13:00:00.000Z"),
+          endsAt: new Date("2026-03-01T16:00:00.000Z"),
+        }),
+        shiftGroup: { isPremier: false },
+      },
+    };
+    mockTx.shiftAssignment.findUnique.mockResolvedValue(assignment);
+
+    await expect(postTrade(assignment.id, "user-1")).rejects.toThrow("already started");
+    expect(mockTx.shiftTrade.create).not.toHaveBeenCalled();
+  });
+
   it("sets requiresApproval=true for premier shift groups", async () => {
     const userId = "user-1";
     const assignment = {
@@ -237,19 +258,27 @@ describe("claimTrade", () => {
     await expect(claimTrade("trade-1", "user-1")).rejects.toThrow("cannot claim your own");
   });
 
-  it("calls checkTimeConflict for the claimant", async () => {
-    const trade = openTrade();
+  it("checks conflicts against the effective assignment call window", async () => {
+    const callStartsAt = new Date("2026-04-01T10:00:00.000Z");
+    const callEndsAt = new Date("2026-04-01T14:00:00.000Z");
+    const trade = openTrade({
+      requiresApproval: true,
+      shiftAssignment: {
+        ...makeShiftAssignment({ callStartsAt, callEndsAt }),
+        shift: {
+          ...shift,
+          shiftGroup: { event: { summary: "Wisconsin vs Iowa" } },
+        },
+      },
+    });
     mockTx.shiftTrade.findUnique.mockResolvedValue(trade);
     mockTx.user.findUnique.mockResolvedValue(makeUser({ primaryArea: "Field" }));
-    mockTx.shiftAssignment.findUnique.mockResolvedValue({ ...trade.shiftAssignment });
-    mockTx.shiftAssignment.update.mockResolvedValue({});
-    mockTx.shiftAssignment.create.mockResolvedValue({});
-    mockTx.shiftTrade.update.mockResolvedValue({ ...trade, claimedByUserId: "claimer-1", status: "COMPLETED" });
+    mockTx.shiftTrade.update.mockResolvedValue({ ...trade, claimedByUserId: "claimer-1", status: "CLAIMED" });
 
     await claimTrade(trade.id, "claimer-1");
 
     expect(checkTimeConflict).toHaveBeenCalledWith(
-      mockTx, "claimer-1", shift.startsAt, shift.endsAt
+      mockTx, "claimer-1", callStartsAt, callEndsAt
     );
   });
 
@@ -268,6 +297,29 @@ describe("claimTrade", () => {
             area: "Field",
             startsAt: new Date("2026-03-01T11:00:00.000Z"),
             endsAt: new Date("2026-03-01T14:00:00.000Z"),
+          }),
+          shiftGroup: { event: { summary: "Wisconsin vs Iowa" } },
+        },
+      },
+    }));
+
+    await expect(claimTrade("trade-1", "claimer-1")).rejects.toThrow("already started");
+    expect(checkTimeConflict).not.toHaveBeenCalled();
+    expect(mockTx.shiftTrade.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects claims after the effective call start even if the raw shift start is future", async () => {
+    mockTx.shiftTrade.findUnique.mockResolvedValue(openTrade({
+      shiftAssignment: {
+        ...makeShiftAssignment({
+          callStartsAt: new Date("2026-03-01T11:00:00.000Z"),
+          callEndsAt: new Date("2026-03-01T15:00:00.000Z"),
+        }),
+        shift: {
+          ...makeShift({
+            area: "Field",
+            startsAt: new Date("2026-03-01T13:00:00.000Z"),
+            endsAt: new Date("2026-03-01T16:00:00.000Z"),
           }),
           shiftGroup: { event: { summary: "Wisconsin vs Iowa" } },
         },
@@ -434,6 +486,30 @@ describe("approveTrade", () => {
     expect(mockTx.shiftAssignment.update).not.toHaveBeenCalled();
     expect(mockTx.shiftTrade.update).not.toHaveBeenCalled();
   });
+
+  it("rejects approval after the effective call start even if the raw shift start is future", async () => {
+    const trade = {
+      ...makeShiftTrade({ status: "CLAIMED", claimedByUserId: "claimer-1", postedByUserId: "poster-1" }),
+      shiftAssignment: {
+        ...makeShiftAssignment({
+          callStartsAt: new Date("2026-03-01T11:00:00.000Z"),
+          callEndsAt: new Date("2026-03-01T15:00:00.000Z"),
+        }),
+        shift: {
+          ...makeShift({
+            startsAt: new Date("2026-03-01T13:00:00.000Z"),
+            endsAt: new Date("2026-03-01T16:00:00.000Z"),
+          }),
+          shiftGroup: { event: { summary: "Wisconsin vs Iowa" } },
+        },
+      },
+    };
+    mockTx.shiftTrade.findUnique.mockResolvedValue(trade);
+
+    await expect(approveTrade(trade.id)).rejects.toThrow("already started");
+    expect(mockTx.shiftAssignment.update).not.toHaveBeenCalled();
+    expect(mockTx.shiftTrade.update).not.toHaveBeenCalled();
+  });
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -543,7 +619,13 @@ describe("listTrades", () => {
             {
               OR: [
                 { status: { notIn: ["OPEN", "CLAIMED"] } },
-                { shiftAssignment: { shift: { startsAt: { gt: new Date("2026-03-01T12:00:00.000Z") } } } },
+                { shiftAssignment: expect.objectContaining({
+                  OR: expect.arrayContaining([
+                    { callStartsAt: { gt: new Date("2026-03-01T12:00:00.000Z") } },
+                    { callStartsAt: null, shift: { callStartsAt: { gt: new Date("2026-03-01T12:00:00.000Z") } } },
+                    { callStartsAt: null, shift: { callStartsAt: null, startsAt: { gt: new Date("2026-03-01T12:00:00.000Z") } } },
+                  ]),
+                }) },
               ],
             },
           ]),
@@ -564,7 +646,13 @@ describe("listTrades", () => {
           status: "OPEN",
           AND: expect.arrayContaining([
             { shiftAssignment: { shift: { area: "VIDEO" } } },
-            { shiftAssignment: { shift: { startsAt: { gt: new Date("2026-03-01T12:00:00.000Z") } } } },
+            { shiftAssignment: expect.objectContaining({
+              OR: expect.arrayContaining([
+                { callStartsAt: { gt: new Date("2026-03-01T12:00:00.000Z") } },
+                { callStartsAt: null, shift: { callStartsAt: { gt: new Date("2026-03-01T12:00:00.000Z") } } },
+                { callStartsAt: null, shift: { callStartsAt: null, startsAt: { gt: new Date("2026-03-01T12:00:00.000Z") } } },
+              ]),
+            }) },
           ]),
         }),
       }),

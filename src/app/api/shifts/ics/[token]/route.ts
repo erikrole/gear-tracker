@@ -1,5 +1,7 @@
 import { db } from "@/lib/db";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { cleanSourceSummary, normalizeOpponentName } from "@/lib/schedule-event-identity";
+import { AREA_LABELS } from "@/types/areas";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +16,31 @@ function icsEscape(s: string): string {
 
 function icsDate(d: Date): string {
   return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+}
+
+function latestDate(dates: Date[]): Date {
+  return new Date(Math.max(...dates.map((d) => d.getTime())));
+}
+
+function eventTitle(event: {
+  summary: string;
+  sportCode: string | null;
+  opponent: string | null;
+  isHome: boolean | null;
+}) {
+  if (event.sportCode && event.opponent) {
+    const opponent = normalizeOpponentName(event.opponent) ?? event.opponent;
+    const venueWord = event.isHome === false ? "at" : "vs";
+    return `${event.sportCode} ${venueWord} ${opponent}`;
+  }
+
+  return cleanSourceSummary(event.summary);
+}
+
+function shiftSummary(area: string, title: string, isPosted: boolean) {
+  const areaLabel = AREA_LABELS[area] ?? area;
+  const prefix = isPosted ? "🔁 " : "";
+  return `${prefix}${areaLabel}: ${title}`;
 }
 
 export async function GET(
@@ -63,11 +90,26 @@ export async function GET(
           shiftGroup: {
             include: {
               event: {
-                select: { summary: true, locationId: true, location: { select: { name: true } } },
+                select: {
+                  id: true,
+                  summary: true,
+                  sportCode: true,
+                  opponent: true,
+                  isHome: true,
+                  locationId: true,
+                  updatedAt: true,
+                  location: { select: { name: true } },
+                },
               },
             },
           },
         },
+      },
+      trades: {
+        where: { status: { in: ["OPEN", "CLAIMED"] } },
+        select: { id: true, status: true, updatedAt: true },
+        orderBy: { updatedAt: "desc" },
+        take: 1,
       },
     },
     orderBy: { shift: { startsAt: "asc" } },
@@ -88,20 +130,34 @@ export async function GET(
     const shift = a.shift;
     const event = shift.shiftGroup.event;
     const location = event.location?.name;
-    const summary = `${icsEscape(event.summary)} (${shift.area})`;
-    const dtStart = icsDate(shift.startsAt);
-    const dtEnd = icsDate(shift.endsAt);
+    const activeTrade = a.trades[0];
+    const startsAt = a.callStartsAt ?? shift.callStartsAt ?? shift.startsAt;
+    const endsAt = a.callEndsAt ?? shift.callEndsAt ?? shift.endsAt;
+    const title = shiftSummary(shift.area, eventTitle(event), Boolean(activeTrade));
+    const dtStart = icsDate(startsAt);
+    const dtEnd = icsDate(endsAt);
     const uid = `shift-${a.id}@wisconsin.creative`;
-    const dtstamp = icsDate(new Date());
+    const lastModified = latestDate([
+      a.updatedAt,
+      shift.updatedAt,
+      event.updatedAt,
+      ...(activeTrade ? [activeTrade.updatedAt] : []),
+    ]);
+    const dtstamp = icsDate(lastModified);
+    const sequence = Math.floor(lastModified.getTime() / 1000);
+    const eventUrl = `${new URL(req.url).origin}/events/${event.id}`;
 
     lines.push("BEGIN:VEVENT");
     lines.push(`UID:${uid}`);
     lines.push(`DTSTAMP:${dtstamp}`);
+    lines.push(`LAST-MODIFIED:${dtstamp}`);
+    lines.push(`SEQUENCE:${sequence}`);
     lines.push(`DTSTART:${dtStart}`);
     lines.push(`DTEND:${dtEnd}`);
-    lines.push(`SUMMARY:${summary}`);
+    lines.push(`SUMMARY:${icsEscape(title)}`);
     if (location) lines.push(`LOCATION:${icsEscape(location)}`);
-    if (shift.notes) lines.push(`DESCRIPTION:${icsEscape(shift.notes)}`);
+    lines.push(`URL:${eventUrl}`);
+    lines.push("TRANSP:OPAQUE");
     lines.push("END:VEVENT");
   }
 

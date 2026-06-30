@@ -305,4 +305,5 @@ struct DashboardStatsPayload: Codable {
     let stats: DashboardStats
     let overdueCount: Int
     let myShiftsCount: Int
+    let myShiftsTodayCount: Int?
 }

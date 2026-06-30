@@ -22,6 +22,18 @@ describe("dashboard stats transient-lane counts", () => {
     expect(route).toContain("myDueTodayCount: c.myDueToday");
   });
 
+  it("stats endpoint exposes separate upcoming and today shift counts", () => {
+    const route = source("src/app/api/dashboard/stats/route.ts");
+    const types = source("src/app/(app)/dashboard-types.ts");
+
+    expect(route).toContain("myShiftsCount");
+    expect(route).toContain("myShiftsTodayCount");
+    expect(route).toContain("startsAt: { lt: startOfTomorrow }");
+    expect(route).toContain("endsAt: { gt: startOfToday }");
+    expect(types).toContain("myShiftsCount: number");
+    expect(types).toContain("myShiftsTodayCount: number");
+  });
+
   it("both dashboard routes consume the shared count reader", () => {
     const stats = source("src/app/api/dashboard/stats/route.ts");
     const full = source("src/app/api/dashboard/route.ts");

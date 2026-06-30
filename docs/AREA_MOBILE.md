@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Mobile Operations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-29
+- Last Updated: 2026-06-30
 - Status: Active
 - Version: V1
 
@@ -26,11 +26,11 @@ Cheqroom mobile patterns show useful primitives but too much menu depth and too 
 ## Mobile Navigation Contract (V1)
 1. Primary destinations:
    - Dashboard
-   - Items
-   - Reservations
-   - Check-outs
-   - Scan entry point
-2. Navigation can use drawer or tab patterns, but must expose scan in one tap.
+   - Bookings / My Gear
+   - Browse, with Items, Guides, Licenses, and Users
+   - Schedule
+   - Search, with scan as an in-surface action
+2. Native iOS uses the system tab bar. Browse is the compact directory tab; do not add a hamburger drawer or a sixth compact tab that forces Search into More.
 3. Student view should hide admin-only create/manage affordances outside allowed ownership scope.
 4. Badge counts can appear on Reservations and Check-outs for overdue or due-today urgency.
 
@@ -43,7 +43,7 @@ Cheqroom mobile patterns show useful primitives but too much menu depth and too 
    - Awaiting pickup
    - Upcoming reservations
    - My upcoming shift
-   - Scan lookup stays one tap in the tab bar, not as repeated Home queue actions
+   - Search stays one tap in the tab bar, with scan available inside Search instead of repeated Home queue actions
 4. Do not add chart-first widgets in V1.
 5. Do not add standalone Upcoming Events section in V1.
 6. Staff/admin exception work can appear below the action queue, but routine admin configuration stays web-only.
@@ -60,7 +60,7 @@ Cheqroom mobile patterns show useful primitives but too much menu depth and too 
 4. Search and quick filters stay pinned near top for long lists.
 
 ## Scan Experience Contract
-1. Scan entry is always reachable in one tap from mobile shell.
+1. Search is always reachable in one tap from the mobile shell, and scan is reachable from Search.
 2. Camera permission failure path must include clear fallback instructions.
 3. Scan results should route directly to item or booking context when possible.
 4. Failed scans must show retry without losing workflow state.
@@ -81,7 +81,7 @@ Cheqroom mobile patterns show useful primitives but too much menu depth and too 
 - [x] AC-1: Student can find and act on own due or overdue check-outs within two taps from dashboard.
 - [x] AC-2: Mobile reservations and check-outs views support search, status scope, and row-to-detail navigation.
 - [x] AC-3: Overdue visual treatment is red across dashboard and list contexts.
-- [x] AC-4: Scan entry point is always one tap from primary mobile navigation.
+- [x] AC-4: Search is always one tap from primary mobile navigation, with scan available from Search.
 - [x] AC-5: Role-based action visibility on mobile matches `AREA_USERS.md` and server authorization.
 - [x] AC-6: Dashboard remains chart-light and action-first in V1.
 
@@ -101,7 +101,7 @@ Cheqroom mobile patterns show useful primitives but too much menu depth and too 
 ## Developer Brief (No Code)
 1. Define a shared mobile interaction contract for row tap, action sheet, and quick actions.
 2. Ensure dashboard and list surfaces prioritize due/overdue execution over reporting widgets.
-3. Keep scan entry global and fast, with explicit permission and failure handling.
+3. Keep search global and fast, with scan entry inside Search plus explicit permission and failure handling.
 4. Enforce role-adaptive visibility so student mobile stays uncluttered and policy-safe.
 5. Add mobile regression coverage for ownership gating, overdue styling, and row action parity.
 
@@ -125,12 +125,22 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 - **V3 (later)**: Bottom nav badge counts via live `/api/nav-counts` polling, game-day/shift context cards
 
 ## Change Log
+- 2026-06-30: **iOS Open Work Trade Board parity** - native iOS Trade Board now consumes the same `/api/schedule/open-work` read model as web, alongside shift trade posts. It uses state-based sections for Staff Review, Available Now, Approval Required, My Posts, Waiting or Blocked, Posted Trades, and Resolved, keeps Add/Post trade in native toolbar chrome, and shows action consequence copy before claim, request, approval, decline, or cancel mutations. The sheet remains role-adaptive: staff can review pickup requests and claimed premier trades, while students see claim/request/cancel actions scoped to their state.
+- 2026-06-30: **iOS Browse tab** - compact native iOS now uses a system `Browse` tab in the old Items slot. Browse opens a native grouped menu for Items, Guides, Licenses, and Users, while Search remains the pinned trailing search tab with scan inside Search. Users is visible to every authenticated role as a directory; edit/admin capabilities remain role-gated by existing Users permissions and APIs. Settings > Directory remains a fallback path for secondary destinations.
+- 2026-06-30: **iOS Schedule tab badge scope** - the native Schedule tab badge now uses a dedicated `myShiftsTodayCount` from `/api/dashboard/stats`, so the tab only badges when the signed-in user has a confirmed assignment on today's institution-timezone date. The existing `myShiftsCount` remains available for upcoming/on-deck Profile and Home context.
+- 2026-06-30: **iOS native Guides page** - native iOS now replaces the Guides web fallback with `GuidesView.swift`. The page uses the existing `/api/resources` read contract, keeps the surface read-only, supports native search, focus filtering, recommended/recent/title sorting, pull-to-refresh, error/empty states, and a lightweight Markdown reader. Compact iPhone reaches it from Profile/Settings > Directory; regular-width iPad exposes it as a sidebar-only Resources destination. Guide authoring, deletion, verification, Contacts, and sport-assignment reference tools remain web-owned.
+- 2026-06-30: **iOS Search tab with scan action** - the compact native trailing tab is now Search with the system magnifying-glass icon and `role: .search`. It opens `GlobalSearchSheet` directly as a tab surface, while QR scanning remains inside Search as the toolbar action. Home's all-clear recovery now routes to Search. Lookup-only behavior and kiosk pickup/return custody boundaries did not change.
+- 2026-06-30: **iOS native control cleanup** - native iOS Global Search now uses SwiftUI `.searchable` with a toolbar scanner action instead of a custom search bar. Items moved Favorites, Status, and Sort into native toolbar buttons and menus. Create Booking's Equipment step uses native `.searchable` instead of an inline list field. Booking Detail Extend and Cancel actions use SwiftUI bordered system button styles. Guides and Home card cleanup remain deferred.
+- 2026-06-30: **iOS native Licenses page** - native iOS now replaces the Licenses web fallback with `LicensesView.swift`. The page uses the existing license API contracts to show the pool, the signed-in user's active code, claim confirmation, copy-to-clipboard, return confirmation, error/empty states, and pull-to-refresh. Compact iPhone reaches it from Profile/Settings > Directory; regular-width iPad exposes it as a sidebar-only Resources destination. Staff/admin management workflows such as create, renew, retire, export, unknown occupants, and full history stay on the web Licenses page. Screenshot follow-up keeps pool rows visually coherent when a user already holds a license, makes Copy Code read as neutral, tints Claim as a positive action instead of the destructive red accent, and uses native SwiftUI text-only capsule buttons in the App Store style instead of custom badge or action-icon styling.
+- 2026-06-29: **iOS Schedule UI cleanup** - native Schedule now keeps the List/Calendar segmented control visible while moving My shifts, Past events, venue, and sport filters into one Filters sheet with a compact active-filter summary. The screenshot follow-up keeps the Filters control neutral with only the count badge in brand red, restores Clear/Done sheet action placement, and shows assigned shifts as neutral rows with a blue My shift cue instead of red warning-like fill. Date headers and event rows use quieter list styling, routine toolbar actions render as neutral icon buttons with accessibility labels, calendar selected-day rows keep staff coverage chips, and Schedule lists reserve bottom scroll clearance above the native tab bar. Event detail keeps prep-gear action inline in the Your Event card, removes the duplicated bottom-bar action that overlapped Crew rows in medium sheets, quiets section icons, uses a lighter semantic event title, moves Add shift into native toolbar chrome as a title-and-symbol action, and represents the signed-in assignment with one inline You cue. Schedule data contracts, Trade Board, Calendar subscription, crew coverage, all-day, and multi-day behavior did not change.
+- 2026-06-29: **iOS checkout return Live Activity overdue/update polish** - checkout return Live Activities now compute lock-screen overdue labels from current render time, producing fixed minute-only copy such as `3 min overdue` instead of truncated relative seconds. The card also derives overdue/critical gradient intensity locally, fills the full Live Activity surface so the system background does not create black bars around the overdue gradient, while server-known checkout changes push ActivityKit updates: return-time edits and Extend update the Live Activity without launching the app, and cancellation dismisses it like completed return.
+- 2026-06-29: **iOS booking action duplicate-submit recovery** - native Booking Detail now guards Save, Extend, and Cancel handlers themselves before sending booking mutation requests. Rapid repeated taps can no longer send a second stale optimistic-lock edit after the first save succeeds, or duplicate adjacent extend/cancel actions while the first request is in flight.
 - 2026-06-29: **iOS kiosk active battery fallback** - native kiosk checkout details now decode `bulk_quantity` fallback rows and group them as read-only bulk display rows when the API has quantity-only live data. Exact numbered battery rows remain removable; generic fallback rows do not offer Remove because they do not identify a specific unit. The root API fix preserves numbered battery allocations on detail-only checkout edits going forward.
 - 2026-06-29: **iOS booking notes edit recovery** - native Booking Detail now edits notes with a multiline `TextEditor` instead of a vertical `TextField`, reducing keyboard/prediction layout churn while editing longer notes. Clearing the notes field now sends an explicit empty string through the existing `/api/bookings/[id]` optimistic-lock PATCH path instead of omitting the `notes` key, so the server records the clear and the detail reload hides the empty Notes card.
 - 2026-06-29: **iOS Bookings unified list polish** - native Bookings no longer splits Reservations and Checkouts into a top segmented control. The screen now searches one active-bookings surface, renders Checkouts above Reservations, and sorts each section newest-first while keeping Mine/All scoping and New Reservation access. Booking rows keep requester photo avatars wired through `requester.avatarUrl`, and status display copy now uses Reserved, Checked Out, and red Overdue labels instead of Confirmed/Open wording. API status enums, kiosk custody boundaries, and booking mutations did not change.
 - 2026-06-29: **iOS Home visual polish** - native Home removed the large floating create button from the action queue surface so Next Up rows stay unobstructed and quiet. Due Today keeps its existing orange text tone, while compact orange status icon tiles such as the clock tile use a stronger light-mode fill so the icon box does not wash out. The synced timestamp uses secondary text so the refresh state remains legible. Booking creation flows and dashboard payload contracts did not change.
 - 2026-06-29: **iOS console/runtime calming** - native Home now logs dashboard payload completion before checkout-return Live Activity reconciliation, then records Live Activity reconciliation separately so launch timing reflects user-visible Home data. The optional Apple Foundation Models Home header line is local opt-in and delayed after first render, keeping deterministic fallback copy as the normal launch path and reducing Apple Biome instrumentation noise in Xcode console. Remote thumbnails now use a bounded disk URL cache in addition to the decoded in-memory image cache, reducing cold-launch image refetches for gear and people.
-- 2026-06-29: **iOS native trailing Scan tab and sidebar split** - native iOS now uses SwiftUI's built-in value-based `Tab(...)` API with Scan as tab value `3`, `role: .search`, and pinned placement. Compact iPhone uses `.tabBarOnly` so the system owns the dedicated trailing search/scan placement without sidebar-adaptable attachment. The custom bottom tab overlay was removed so the app no longer stacks two tab bars. Staff-only Users is no longer part of the compact iPhone tab set because a sixth native tab forces the system More tab and hides Scan; regular-width layouts expose sidebar-only Resources/Admin destinations for Guides, Users, and Licenses through `.sidebarAdaptable`, while compact iPhone exposes the same secondary areas from Profile/Settings > Directory. Guides and Licenses use lightweight web fallbacks until native screens exist. Scan remains lookup-only; kiosk pickup/return custody boundaries and API payloads did not change.
+- 2026-06-29: **iOS native trailing Scan tab and sidebar split** - native iOS used SwiftUI's built-in value-based `Tab(...)` API with Scan as tab value `3`, `role: .search`, and pinned placement. Compact iPhone used `.tabBarOnly` so the system owned the dedicated trailing search/scan placement without sidebar-adaptable attachment. The custom bottom tab overlay was removed so the app no longer stacked two tab bars. Staff-only Users was no longer part of the compact iPhone tab set because a sixth native tab forced the system More tab and hid Scan; regular-width layouts exposed sidebar-only Resources/Admin destinations for Guides, Users, and Licenses through `.sidebarAdaptable`, while compact iPhone exposed the same secondary areas from Profile/Settings > Directory. Guides still used a lightweight web fallback; Licenses now has a native self-service page. Superseded 2026-06-30 by the Search tab with scan action.
 - 2026-06-28: **iOS checkout return Live Activity** - native iOS now starts one checkout-return Live Activity for the signed-in user's most urgent `OPEN` checkout when it is due within 30 minutes, or earlier when the same gear has a near next use. The card uses the booking title, listed return time, requester identity, a dark red urgency gradient, seconds in focused Dynamic Island surfaces, minutes on lock-screen glance surfaces, next-needed context when applicable, and an Extend deep link only when upcoming need does not block extension. The app registers ActivityKit push tokens so checkout completion can remotely end the Live Activity after kiosk return even if the phone is suspended.
 - 2026-06-28: **iOS Home AFM header line** - native Home can use Apple Foundation Models on device to generate a short optional header flavor line from count-only dashboard signals. The deterministic line remains the fallback, dashboard counts and rows remain authoritative, and no API payload or mobile navigation behavior changed.
 - 2026-06-28: **Web sidebar polish** - the web sidebar keeps Settings reachable for every authenticated role while preserving admin-only tool gating and shows a user-scoped orange due-today Bookings badge only when there is no overdue badge. Lookup remains out of the web sidebar because laptop/desktop lookup is text-search driven, and sidebar Cmd/Ctrl+number shortcuts were removed to avoid browser/system shortcut conflicts. Native iOS tab views and the mobile bottom nav were not changed.

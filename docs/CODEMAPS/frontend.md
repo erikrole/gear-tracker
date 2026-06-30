@@ -88,8 +88,8 @@
 
 | File | Lines |
 |---|---:|
+| `src/components/TradeBoard.tsx` | 1546 |
 | `src/components/EquipmentPicker.tsx` | 996 |
-| `src/components/TradeBoard.tsx` | 965 |
 | `src/components/ActivityTimeline.tsx` | 906 |
 | `src/components/ShiftDetailPanel.tsx` | 807 |
 | `src/components/onboarding/OnboardingDialog.tsx` | 768 |

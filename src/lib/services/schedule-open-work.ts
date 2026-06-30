@@ -30,6 +30,15 @@ function effectiveWindow(item: {
   };
 }
 
+function futureEffectiveShiftWhere(now: Date): Prisma.ShiftWhereInput {
+  return {
+    OR: [
+      { callStartsAt: null, startsAt: { gt: now } },
+      { callStartsAt: { gt: now } },
+    ],
+  };
+}
+
 function addDays(value: Date, days: number) {
   const next = new Date(value);
   next.setUTCDate(next.getUTCDate() + days);
@@ -155,7 +164,7 @@ async function loadOpenShiftRows(filters: OpenWorkFilters) {
   const now = filters.now ?? new Date();
   return db.shift.findMany({
     where: {
-      startsAt: { gt: now },
+      AND: [futureEffectiveShiftWhere(now)],
       ...(filters.area ? { area: filters.area } : {}),
       workerType: "ST",
       assignments: {
@@ -264,8 +273,8 @@ export async function getScheduleOpenWork(filters: OpenWorkFilters) {
           status: "REQUESTED",
           ...(filters.area ? { shift: { area: filters.area } } : {}),
           shift: {
+            AND: [futureEffectiveShiftWhere(now)],
             ...(filters.area ? { area: filters.area } : {}),
-            startsAt: { gt: now },
             shiftGroup: {
               publishedAt: { not: null },
               archivedAt: null,
@@ -364,7 +373,8 @@ export async function pickupOpenShift(shiftId: string, userId: string) {
     if (shift.shiftGroup.archivedAt || shift.shiftGroup.event.archivedAt || shift.shiftGroup.event.isHidden || shift.shiftGroup.event.status === "CANCELLED") {
       throw new HttpError(400, "This shift is not open for pickup");
     }
-    if (shift.startsAt <= new Date()) throw new HttpError(400, "This shift has already started");
+    const window = effectiveWindow(shift);
+    if (window.startsAt <= new Date()) throw new HttpError(400, "This shift has already started");
 
     const activeAssignment = shift.assignments.find((assignment) =>
       (ACTIVE_STATUSES as readonly ShiftAssignmentStatus[]).includes(assignment.status)
@@ -376,7 +386,6 @@ export async function pickupOpenShift(shiftId: string, userId: string) {
     );
     if (existingRequest) throw new HttpError(409, "You have already requested this shift");
 
-    const window = effectiveWindow(shift);
     const conflictWhere: Prisma.ShiftAssignmentWhereInput = {
       userId,
       status: { in: ACTIVE_STATUSES },

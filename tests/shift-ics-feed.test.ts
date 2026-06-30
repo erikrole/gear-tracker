@@ -51,19 +51,31 @@ beforeEach(() => {
   vi.mocked(db.shiftAssignment.findMany).mockResolvedValue(shiftAssignments([
     {
       id: "assignment-1",
+      callStartsAt: new Date("2026-05-10T14:30:00.000Z"),
+      callEndsAt: null,
+      updatedAt: new Date("2026-05-01T12:00:00.000Z"),
       shift: {
         startsAt: new Date("2026-05-10T15:00:00.000Z"),
         endsAt: new Date("2026-05-10T17:00:00.000Z"),
+        callStartsAt: null,
+        callEndsAt: null,
         area: "PHOTO",
         notes: "Bring camera, vest",
+        updatedAt: new Date("2026-05-01T13:00:00.000Z"),
         shiftGroup: {
           event: {
-            summary: "Wisconsin vs Iowa",
+            id: "event-1",
+            summary: "Wisconsin Athletics Men's Basketball vs Iowa",
+            sportCode: "MBB",
+            opponent: "Iowa",
+            isHome: true,
             locationId: "loc-1",
+            updatedAt: new Date("2026-05-01T14:00:00.000Z"),
             location: { name: "Camp Randall" },
           },
         },
       },
+      trades: [],
     },
   ]));
 });
@@ -105,6 +117,27 @@ describe("shift ICS feed hardening", () => {
           status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
           shift: { startsAt: { gte: expect.any(Date), lte: expect.any(Date) } },
         }),
+        include: expect.objectContaining({
+          shift: expect.objectContaining({
+            include: expect.objectContaining({
+              shiftGroup: expect.objectContaining({
+                include: expect.objectContaining({
+                  event: expect.objectContaining({
+                    select: expect.objectContaining({
+                      id: true,
+                      sportCode: true,
+                      opponent: true,
+                      isHome: true,
+                    }),
+                  }),
+                }),
+              }),
+            }),
+          }),
+          trades: expect.objectContaining({
+            where: { status: { in: ["OPEN", "CLAIMED"] } },
+          }),
+        }),
         take: 500,
       }),
     );
@@ -117,8 +150,53 @@ describe("shift ICS feed hardening", () => {
 
     expect(res.headers.get("Content-Type")).toContain("text/calendar");
     expect(body).toContain("BEGIN:VCALENDAR");
-    expect(body).toContain("SUMMARY:Wisconsin vs Iowa (PHOTO)");
+    expect(body).toContain("SUMMARY:Photo: MBB vs Iowa");
+    expect(body).toContain("DTSTART:20260510T143000Z");
+    expect(body).toContain("DTEND:20260510T170000Z");
     expect(body).toContain("LOCATION:Camp Randall");
-    expect(body).toContain("DESCRIPTION:Bring camera\\, vest");
+    expect(body).toContain("URL:https://app.example.com/events/event-1");
+    expect(body).toContain("LAST-MODIFIED:20260501T140000Z");
+    expect(body).toContain("SEQUENCE:");
+    expect(body).toContain("TRANSP:OPAQUE");
+    expect(body).not.toContain("DESCRIPTION:");
+  });
+
+  it("marks active trade-board posts in the shift title", async () => {
+    vi.mocked(db.shiftAssignment.findMany).mockResolvedValueOnce(shiftAssignments([
+      {
+        id: "assignment-1",
+        callStartsAt: null,
+        callEndsAt: null,
+        updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+        shift: {
+          startsAt: new Date("2026-05-10T15:00:00.000Z"),
+          endsAt: new Date("2026-05-10T17:00:00.000Z"),
+          callStartsAt: null,
+          callEndsAt: null,
+          area: "PHOTO",
+          notes: null,
+          updatedAt: new Date("2026-05-01T13:00:00.000Z"),
+          shiftGroup: {
+            event: {
+              id: "event-1",
+              summary: "Wisconsin Athletics Men's Basketball vs Iowa",
+              sportCode: "MBB",
+              opponent: "Iowa",
+              isHome: true,
+              locationId: "loc-1",
+              updatedAt: new Date("2026-05-01T14:00:00.000Z"),
+              location: { name: "Camp Randall" },
+            },
+          },
+        },
+        trades: [{ id: "trade-1", status: "OPEN", updatedAt: new Date("2026-05-02T12:00:00.000Z") }],
+      },
+    ]));
+
+    const res = await GET(request(), { params: Promise.resolve({ token: validToken }) });
+    const body = await res.text();
+
+    expect(body).toContain("SUMMARY:🔁 Photo: MBB vs Iowa");
+    expect(body).toContain("LAST-MODIFIED:20260502T120000Z");
   });
 });

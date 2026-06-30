@@ -16,9 +16,11 @@ describe("iOS tab bar stability", () => {
 
     expect(appTab).toContain("TabView(selection:");
     expect(appTab).toContain('Tab("Home", systemImage: "house", value: 0)');
-    expect(appTab).toContain('Tab("Items", systemImage: "archivebox", value: 2)');
+    expect(appTab).toContain('Tab("Browse", systemImage: "square.grid.2x2", value: 2)');
+    expect(appTab).toContain("BrowseView()");
     expect(appTab).toContain('Tab("Schedule", systemImage: "calendar", value: 4)');
-    expect(appTab).toContain('Tab("Scan", systemImage: "barcode.viewfinder", value: 3, role: .search)');
+    expect(appTab).toContain('Tab("Search", systemImage: "magnifyingglass", value: 3, role: .search)');
+    expect(appTab).toContain("GlobalSearchSheet(showsCancelButton: false)");
     expect(appTab).toContain(".tabPlacement(.pinned)");
     expect(appTab).toContain("AppTabShellStyle(usesSidebarAdaptableStyle: showsSidebarDestinations)");
     expect(appTab).toContain("content.tabViewStyle(.tabBarOnly)");
@@ -27,34 +29,39 @@ describe("iOS tab bar stability", () => {
     expect(appTab).toContain("horizontalSizeClass == .regular");
     expect(appTab).toContain('TabSection("Resources")');
     expect(appTab).toContain('Tab("Guides", systemImage: "book.closed", value: 6)');
-    expect(appTab).toContain('TabSection("Admin")');
     expect(appTab).toContain('Tab("Users", systemImage: "person.2", value: 5)');
     expect(appTab).toContain('Tab("Licenses", systemImage: "key", value: 7)');
     expect(appTab.match(/\.tabPlacement\(\.sidebarOnly\)/g)).toHaveLength(3);
+    expect(appTab).not.toContain('TabSection("Admin")');
+    expect(appTab).not.toContain('Tab("Items", systemImage: "archivebox", value: 2)');
     expect(appTab).not.toContain(".tabItem");
     expect(appTab).not.toContain(".tag(");
     expect(appTab).not.toContain(".toolbar(.hidden, for: .tabBar)");
     expect(appTab).not.toContain(".tabBarMinimizeBehavior(");
   });
 
-  it("renders scan through the native trailing search tab role, not a custom overlay", () => {
+  it("renders global Search through the native trailing search tab role, with scan inside Search", () => {
     const appTab = appTabViewShell();
     const appState = source("ios/Wisconsin/Core/AppState.swift");
     const home = source("ios/Wisconsin/Views/HomeView.swift");
-    const scan = source("ios/Wisconsin/Views/ScanView.swift");
+    const search = source("ios/Wisconsin/Views/Search/GlobalSearchSheet.swift");
 
     expect(appTab).toContain("role: .search");
+    expect(appTab).toContain("GlobalSearchSheet(showsCancelButton: false)");
+    expect(appTab).not.toContain("ScanView()");
     expect(appTab).not.toContain("private struct AppTabBar");
     expect(appTab).not.toContain("private var scanTabButton");
     expect(appTab).not.toContain(".safeAreaInset(edge: .bottom");
     expect(appTab).not.toContain(".fullScreenCover(isPresented: $showScanLookup)");
     expect(appTab).not.toContain(".overlay(alignment: .bottomTrailing)");
+    expect(appState).toContain("func presentSearch()");
     expect(appState).toContain("func presentScanLookup()");
-    expect(appState).toContain("selectTab(3)");
-    expect(home).toContain("AllClearEmptyState(openScan: { appState.presentScanLookup() })");
+    expect(appState).toContain("presentSearch()");
+    expect(home).toContain("AllClearEmptyState(openSearch: { appState.presentSearch() })");
     expect(home).not.toContain("appState.selectedTab = 3");
-    expect(scan).not.toContain("showsDismissButton");
-    expect(scan).not.toContain("Button(\"Done\") { dismiss() }");
+    expect(search).toContain('Label("Scan QR code", systemImage: "qrcode.viewfinder")');
+    expect(search).toContain("var showsCancelButton = true");
+    expect(search).toContain("if showsCancelButton");
   });
 
   it("keeps secondary sidebar destinations out of the compact tab shell", () => {
@@ -64,6 +71,7 @@ describe("iOS tab bar stability", () => {
     expect(appTab).toContain("selectedTabIsSidebarOnly");
     expect(appTab).toContain("!showsSidebarDestinations && selectedTabIsSidebarOnly");
     expect(appTab).toContain("appState.selectedTab = 0");
+    expect(appTab).not.toMatch(/if isStaffOrAdmin \{[\s\S]*?Tab\("Users"/);
   });
 
   it("uses lightweight web fallbacks only for sidebar destinations without native iOS screens", () => {
@@ -73,7 +81,9 @@ describe("iOS tab bar stability", () => {
     expect(sidebarDestination).toContain("ContentUnavailableView");
     expect(sidebarDestination).toContain("var wrapsInNavigationStack = true");
     expect(sidebarDestination).toContain('Link("Open on web", destination: destination)');
-    expect(appTab).toContain("https://gear.erikrole.com/resources");
-    expect(appTab).toContain("https://gear.erikrole.com/licenses");
+    expect(appTab).toContain("GuidesView()");
+    expect(appTab).not.toContain("https://gear.erikrole.com/resources");
+    expect(appTab).toContain("LicensesView()");
+    expect(appTab).not.toContain("https://gear.erikrole.com/licenses");
   });
 });

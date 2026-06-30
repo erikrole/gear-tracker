@@ -12,10 +12,12 @@ struct WisconsinLiveActivitiesBundle: WidgetBundle {
 struct CheckoutReturnLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: CheckoutReturnActivityAttributes.self) { context in
-            CheckoutReturnCard(context: context, showsSeconds: false)
-                .activityBackgroundTint(.black)
-                .activitySystemActionForegroundColor(.white)
-                .widgetURL(deepLink(for: context))
+            TimelineView(.periodic(from: .now, by: 60)) { timeline in
+                CheckoutReturnCard(context: context, showsSeconds: false, now: timeline.date)
+                    .activityBackgroundTint(.clear)
+                    .activitySystemActionForegroundColor(.white)
+                    .widgetURL(deepLink(for: context))
+            }
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -25,20 +27,26 @@ struct CheckoutReturnLiveActivityWidget: Widget {
                     returnTime(context)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    CheckoutReturnCard(context: context, showsSeconds: true)
-                        .widgetURL(deepLink(for: context))
+                    TimelineView(.periodic(from: .now, by: 1)) { timeline in
+                        CheckoutReturnCard(context: context, showsSeconds: true, now: timeline.date)
+                            .widgetURL(deepLink(for: context))
+                    }
                 }
             } compactLeading: {
-                Text(context.state.endsAt, style: .relative)
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.white)
+                TimelineView(.periodic(from: .now, by: 60)) { timeline in
+                    Text(context.state.minuteLabel(at: timeline.date))
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.white)
+                }
             } compactTrailing: {
                 Text(context.attributes.requesterInitials)
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(.white)
             } minimal: {
-                Image(systemName: context.state.isOverdue ? "exclamationmark.circle.fill" : "clock.fill")
-                    .foregroundStyle(.white)
+                TimelineView(.periodic(from: .now, by: 60)) { timeline in
+                    Image(systemName: context.state.isOverdue(at: timeline.date) ? "exclamationmark.circle.fill" : "clock.fill")
+                        .foregroundStyle(.white)
+                }
             }
             .widgetURL(deepLink(for: context))
         }
@@ -57,7 +65,11 @@ struct CheckoutReturnLiveActivityWidget: Widget {
 
     private func requester(_ context: ActivityViewContext<CheckoutReturnActivityAttributes>) -> some View {
         HStack(spacing: 6) {
-            AvatarDisc(initials: context.attributes.requesterInitials, size: 24)
+            LiveActivityAvatar(
+                initials: context.attributes.requesterInitials,
+                avatarUrl: context.attributes.requesterAvatarUrl,
+                size: 24
+            )
             Text(context.attributes.requesterName)
                 .font(.caption.weight(.semibold))
                 .lineLimit(1)
@@ -74,11 +86,16 @@ struct CheckoutReturnLiveActivityWidget: Widget {
 private struct CheckoutReturnCard: View {
     let context: ActivityViewContext<CheckoutReturnActivityAttributes>
     let showsSeconds: Bool
+    let now: Date
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 10) {
-                AvatarDisc(initials: context.attributes.requesterInitials, size: 34)
+                LiveActivityAvatar(
+                    initials: context.attributes.requesterInitials,
+                    avatarUrl: context.attributes.requesterAvatarUrl,
+                    size: 34
+                )
                 VStack(alignment: .leading, spacing: 2) {
                     Text(context.attributes.bookingTitle)
                         .font(.headline.weight(.semibold))
@@ -96,6 +113,8 @@ private struct CheckoutReturnCard: View {
 
             HStack(alignment: .lastTextBaseline) {
                 countdown
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
                 Spacer(minLength: 8)
                 if let nextNeedAt = context.state.nextNeedAt {
                     Text("Needed next \(nextNeedAt, style: .time)")
@@ -106,8 +125,10 @@ private struct CheckoutReturnCard: View {
             }
         }
         .padding(16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .foregroundStyle(.white)
         .background(background)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
     @ViewBuilder
@@ -115,7 +136,7 @@ private struct CheckoutReturnCard: View {
         if showsSeconds {
             Text(
                 timerInterval: timerRange,
-                countsDown: !context.state.isOverdue,
+                countsDown: !context.state.isOverdue(at: now),
                 showsHours: false
             )
                  .font(.system(size: 40, weight: .bold, design: .rounded).monospacedDigit())
@@ -126,50 +147,65 @@ private struct CheckoutReturnCard: View {
     }
 
     private var minuteOnlyCountdown: Text {
-        if context.state.isOverdue {
-            Text("Overdue ") + Text(context.state.endsAt, style: .relative)
-        } else {
-            Text(context.state.endsAt, style: .relative)
-        }
+        Text(context.state.minuteLabel(at: now))
     }
 
     private var timerRange: ClosedRange<Date> {
-        context.state.isOverdue
-            ? context.state.endsAt...context.state.now
-            : context.state.now...context.state.endsAt
+        context.state.isOverdue(at: now)
+            ? context.state.endsAt...now
+            : now...context.state.endsAt
     }
 
     private var background: some View {
-        let redOpacity: Double = switch context.state.urgency {
+        let redOpacity: Double = switch context.state.urgency(at: now) {
         case .normal: 0.30
         case .warning: 0.54
         case .critical: 0.76
         case .overdue: 0.92
         }
-        return RoundedRectangle(cornerRadius: 22, style: .continuous)
-            .fill(
-                LinearGradient(
-                    colors: [
-                        Color.black,
-                        Color(red: 0.18, green: 0.0, blue: 0.02).opacity(redOpacity),
-                        Color(red: 0.48, green: 0.0, blue: 0.04).opacity(redOpacity),
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+        return ZStack {
+            LinearGradient(
+                colors: [
+                    Color.black,
+                    Color(red: 0.18, green: 0.0, blue: 0.02).opacity(redOpacity),
+                    Color(red: 0.48, green: 0.0, blue: 0.04).opacity(redOpacity),
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(Color.white.opacity(0.10), lineWidth: 1)
-            )
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(Color.white.opacity(0.10), lineWidth: 1)
+        }
     }
 }
 
-private struct AvatarDisc: View {
+private struct LiveActivityAvatar: View {
     let initials: String
+    let avatarUrl: String?
     let size: CGFloat
 
     var body: some View {
+        if let avatarUrl, let url = URL(string: avatarUrl) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: size, height: size)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 1))
+                default:
+                    fallback
+                }
+            }
+            .frame(width: size, height: size)
+        } else {
+            fallback
+        }
+    }
+
+    private var fallback: some View {
         Text(initials)
             .font(.system(size: size * 0.34, weight: .bold, design: .rounded))
             .foregroundStyle(.white)

@@ -37,7 +37,7 @@ Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
 Native iOS creation mirrors the three-step reservation rhythm while staying mobile-first:
 1. Details preserves duration when the start date moves.
 2. Details can link up to 3 upcoming calendar events. Selected events auto-fill the title and pickup/return window until the user edits those fields, then submit through the existing `eventIds[]` reservation API. Pickup location remains the booking pickup location and is not silently copied from event venue. Event-launched prep-gear flows keep the prefilled `eventId`/`shiftAssignmentId` contract unless the user explicitly picks events in the sheet.
-3. Equipment supports searchable serialized assets grouped by category for the selected pickup location and ordered by the displayed product name, scan-to-add through the shared QR scanner, and countable bulk/battery quantities from `/api/form-options`; bulk/battery rows use SKU photos when available and fall back to the box placeholder inside the same Equipment flow as serialized gear.
+3. Equipment uses SwiftUI's native search field for searchable serialized assets grouped by category for the selected pickup location and ordered by the displayed product name, scan-to-add through the shared QR scanner, and countable bulk/battery quantities from `/api/form-options`; bulk/battery rows use SKU photos when available and fall back to the box placeholder inside the same Equipment flow as serialized gear.
 4. Review counts serialized assets plus selected bulk quantities, uses pickup/return language, shows thumbnail-led serialized and counted equipment rows, summarizes linked events inline, and submits typed `bulkItems` alongside `serializedAssetIds`.
 5. Serialized conflict hints stay advisory before submit; server-side availability and bulk shortage checks remain authoritative.
 
@@ -241,6 +241,8 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - Mobile operations contract from `AREA_MOBILE.md`.
 
 ## Change Log
+- 2026-06-30: Native iOS reservation creation now uses SwiftUI `.searchable` for the Equipment step instead of an inline custom search row. Scan-to-add, grouped asset rows, selected equipment recovery, bulk quantities, and server-side availability checks stay on the existing paths.
+- 2026-06-29: Native iOS reservation detail now guards Save, Extend, and Cancel handlers before sending booking mutations. A rapid duplicate tap can no longer make a successful return-window edit show the stale-write "modified by someone else" message or duplicate adjacent reservation actions while the first request is in flight.
 - 2026-06-29: Native iOS reservation detail notes editing now uses a multiline editor and preserves the existing optimistic-lock PATCH path while sending an explicit empty string when notes are cleared. This fixes the native clear-notes path without changing reservation lifecycle, kiosk pickup, or server mutation contracts.
 - 2026-06-27: Shared booking-list extension and initial-load failures now use reservation-safe recovery copy that says the booking was not extended or the list should be retried before acting, replacing generic network and temporary-error wording.
 - 2026-06-26: Reservation list and full reservation detail now surface the shared booking-change sync health via the shadcn-backed status indicator. The existing committed-change invalidation remains unchanged; this makes visible whether reservation freshness is live, paused, offline, or retrying.
