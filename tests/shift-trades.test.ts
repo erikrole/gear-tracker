@@ -11,6 +11,7 @@ type ShiftTradesTx = {
 type ShiftTradesDb = {
   _mockTx: ShiftTradesTx;
   shiftTrade: Record<"findMany" | "count", MockFn>;
+  user: Record<"findMany", MockFn>;
 };
 
 // ─── Transaction tracking ───────────────────────────────────────────────────
@@ -44,6 +45,9 @@ vi.mock("@/lib/db", () => {
       shiftTrade: {
         findMany: vi.fn(),
         count: vi.fn(),
+      },
+      user: {
+        findMany: vi.fn(),
       },
       _mockTx: mockTx,
     },
@@ -83,6 +87,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-03-01T12:00:00.000Z"));
+  mockDb.user.findMany.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -286,6 +291,25 @@ describe("claimTrade", () => {
     mockTx.shiftTrade.findUnique.mockResolvedValue(openTrade());
     mockTx.user.findUnique.mockResolvedValue(makeUser({ primaryArea: "Courts" }));
     await expect(claimTrade("trade-1", "claimer-1")).rejects.toThrow("does not match");
+  });
+
+  it("rejects claims blocked by approved time off before staff review", async () => {
+    mockTx.shiftTrade.findUnique.mockResolvedValue(openTrade({ requiresApproval: true }));
+    mockTx.user.findUnique.mockResolvedValue(makeUser({
+      primaryArea: "Field",
+      availabilityBlocks: [{
+        kind: "AD_HOC",
+        intent: "TIME_OFF",
+        status: "APPROVED",
+        date: "2026-04-01",
+        startsAt: "02:00",
+        endsAt: "12:00",
+        label: "Family trip",
+      }],
+    }));
+
+    await expect(claimTrade("trade-1", "claimer-1")).rejects.toThrow("Approved time off: Family trip");
+    expect(mockTx.shiftTrade.update).not.toHaveBeenCalled();
   });
 
   it("throws 400 when claiming after the shift has started", async () => {
@@ -657,5 +681,77 @@ describe("listTrades", () => {
         }),
       }),
     );
+  });
+
+  it("adds viewer and claimed-by availability context to listed trades", async () => {
+    const shift = {
+      ...makeShift({
+        area: "VIDEO",
+        startsAt: new Date("2026-04-01T08:00:00.000Z"),
+        endsAt: new Date("2026-04-01T16:00:00.000Z"),
+      }),
+      shiftGroup: { event: { summary: "Wisconsin vs Iowa" } },
+    };
+    const trade = {
+      ...makeShiftTrade({
+        id: "trade-1",
+        postedByUserId: "poster-1",
+        claimedByUserId: "claimer-1",
+        status: "CLAIMED",
+      }),
+      shiftAssignment: {
+        ...makeShiftAssignment(),
+        callStartsAt: null,
+        callEndsAt: null,
+        shift,
+        user: { id: "poster-1", name: "Poster", primaryArea: "VIDEO" },
+      },
+      postedBy: { id: "poster-1", name: "Poster" },
+      claimedBy: { id: "claimer-1", name: "Claimer" },
+    };
+    mockDb.shiftTrade.findMany.mockResolvedValue([trade]);
+    mockDb.shiftTrade.count.mockResolvedValue(1);
+    mockDb.user.findMany.mockResolvedValue([
+      {
+        id: "viewer-1",
+        availabilityBlocks: [{
+          kind: "AD_HOC",
+          intent: "PREFER",
+          status: "APPROVED",
+          date: "2026-04-01",
+          startsAt: "02:00",
+          endsAt: "12:00",
+          label: "Video games",
+        }],
+      },
+      {
+        id: "claimer-1",
+        availabilityBlocks: [{
+          kind: "AD_HOC",
+          intent: "TIME_OFF",
+          status: "APPROVED",
+          date: "2026-04-01",
+          startsAt: "02:00",
+          endsAt: "12:00",
+          label: "Family trip",
+        }],
+      },
+    ]);
+
+    const result = await listTrades({ userId: "viewer-1", limit: 100, offset: 0 });
+
+    expect(mockDb.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: { in: ["viewer-1", "claimer-1"] } },
+    }));
+    expect(result.data[0]).toEqual(expect.objectContaining({
+      viewerAvailabilityContext: expect.objectContaining({
+        state: "preferred",
+        detail: "Prefers Video games (02:00-12:00)",
+      }),
+      claimedByAvailabilityContext: expect.objectContaining({
+        state: "blocked",
+        detail: "Approved time off: Family trip (02:00-12:00)",
+      }),
+    }));
   });
 });

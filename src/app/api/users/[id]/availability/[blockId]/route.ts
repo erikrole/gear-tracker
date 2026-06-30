@@ -4,6 +4,7 @@ import { HttpError, ok } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
 import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 import { createAuditEntry } from "@/lib/audit";
+import { recomputeFutureAssignmentAvailabilityConflictsForUser } from "@/lib/services/availability-conflict-recompute";
 import { z } from "zod";
 
 const updateBlockSchema = z.object({
@@ -170,6 +171,8 @@ export const PATCH = withAuth<{ id: string; blockId: string }>(async (req, { use
     await notifyTimeOffReview(block, block.status);
   }
 
+  await recomputeFutureAssignmentAvailabilityConflictsForUser(id);
+
   return ok({ data: block });
 });
 
@@ -194,6 +197,8 @@ export const DELETE = withAuth<{ id: string; blockId: string }>(async (_req, { u
     action: "student_availability_deleted",
     before: auditShape(block),
   });
+
+  await recomputeFutureAssignmentAvailabilityConflictsForUser(id);
 
   return ok({ data: null });
 });

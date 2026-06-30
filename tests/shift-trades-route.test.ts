@@ -48,6 +48,7 @@ describe("shift trades route", () => {
       area: "VIDEO",
       limit: 100,
       offset: 20,
+      userId: "staff-1",
     });
   });
 

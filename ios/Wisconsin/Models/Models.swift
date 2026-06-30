@@ -7,6 +7,7 @@ struct CurrentUser: Codable, Identifiable, Equatable {
     let name: String
     let email: String
     let role: String
+    let staffingType: String?
     let avatarUrl: String?
     let forcePasswordChange: Bool
 
@@ -15,6 +16,7 @@ struct CurrentUser: Codable, Identifiable, Equatable {
         case name
         case email
         case role
+        case staffingType
         case avatarUrl
         case forcePasswordChange
     }
@@ -24,6 +26,7 @@ struct CurrentUser: Codable, Identifiable, Equatable {
         name: String,
         email: String,
         role: String,
+        staffingType: String? = nil,
         avatarUrl: String?,
         forcePasswordChange: Bool = false
     ) {
@@ -31,6 +34,7 @@ struct CurrentUser: Codable, Identifiable, Equatable {
         self.name = name
         self.email = email
         self.role = role
+        self.staffingType = staffingType
         self.avatarUrl = avatarUrl
         self.forcePasswordChange = forcePasswordChange
     }
@@ -41,6 +45,7 @@ struct CurrentUser: Codable, Identifiable, Equatable {
         name = try container.decode(String.self, forKey: .name)
         email = try container.decode(String.self, forKey: .email)
         role = try container.decode(String.self, forKey: .role)
+        staffingType = try container.decodeIfPresent(String.self, forKey: .staffingType)
         avatarUrl = try container.decodeIfPresent(String.self, forKey: .avatarUrl)
         forcePasswordChange = try container.decodeIfPresent(Bool.self, forKey: .forcePasswordChange) ?? false
     }

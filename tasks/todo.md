@@ -4,6 +4,32 @@ Last updated: 2026-06-30
 
 ---
 
+## Active: Student availability scheduling contract (2026-06-30)
+
+Plan: `tasks/student-availability-scheduling-contract-plan.md`
+
+- [x] Slice 1: Align availability ownership and profile entry points with scheduling class.
+- [x] Slice 2: Add profile availability impact summary and clearer buckets.
+- [x] Slice 3: Improve auto-fill skipped-reason explanations.
+- [x] Slice 4: Surface availability blockers and preferences earlier in Open Work and Trade Board rows.
+- [x] Slice 5: Expand native iOS availability display and creation parity.
+- [x] Slice 6: Recompute future active assignment conflict state after availability changes.
+- [x] Add source-contract coverage for web, API, and iOS session behavior.
+- [x] Add source-contract coverage for profile availability impact copy.
+- [x] Sync Schedule, Users, Mobile, and Student Availability docs.
+- [x] Run focused verification gates.
+
+### Review
+- 2026-06-30: Student availability now follows Scheduling class instead of app permission role. Staff-access users whose `staffingType` is Student can own availability blocks, see the web profile Availability tab, and reach native iOS My Availability; Staff-scheduling-class targets are rejected from availability creation. `/api/me` and login responses now include `staffingType` so native session state can apply the same contract. Focused Vitest, TypeScript, iOS drift, iOS gap audit, codemap/docs checks, whitespace, `npm run build:app`, and unsandboxed `npm run ios:xcode:verify` passed. Authenticated browser smoke remains blocked without an active local authenticated browser session.
+- 2026-06-30: Profile Availability impact summary shipped locally. The tab now distinguishes blocking approved time off from advisory conflicts and preferred windows, names the next upcoming dated exception, skips denied time-off rows for that next-exception cue, and uses broader weekly/dated bucket labels for class conflicts, preferences, and time-off requests. Focused Vitest, TypeScript, codemap/docs check, whitespace, and `npm run build:app` passed. Authenticated browser smoke remains blocked without an active local authenticated browser session.
+- 2026-06-30: Auto-fill skipped-reason explanations shipped locally. Preview skipped rows now carry stable reason codes and supporting counts for candidate pool size, scheduling-class match, area fit, approved time off, overlapping assignments, and candidates already proposed earlier in the same preview. Shift Detail and Event detail render the concise reason plus detail bullets before staff apply recommended assignments. Focused auto-fill Vitest, TypeScript, codemap/docs checks, whitespace check, and `npm run build:app` passed; the app build still reports the existing unused `kind` warnings in `src/lib/booking-status-display.ts`.
+- 2026-06-30: Open Work and Trade Board availability context shipped locally. Open Student shift rows now show approved time off, advisory availability, pending time off, and preferred-window context before claim/request actions. Trade rows now include viewer and claimed-worker availability context, move approved-time-off blocked claims into Waiting or Blocked, and reject approved-time-off trade claims before staff review. Focused Open Work/Trade Board Vitest and TypeScript passed.
+- 2026-06-30: Native iOS My Availability parity shipped locally. The screen now displays weekly and one-time availability records, preference, dislike, and time-off status; summarizes blocking time off, advisory signals, and preferred windows; and creates weekly or one-time records through the existing availability API while keeping decoded new fields optional for rollout safety. Focused source-contract Vitest, TypeScript, iOS drift, iOS gap audit, codemap/docs checks, whitespace check, and `npm run build:app` passed. Sandboxed Xcode exposed a Swift compile issue that was fixed; the unsandboxed rerun was blocked by approval rejection before it could execute.
+- 2026-06-30: Availability conflict refresh shipped locally. Availability create, update, review, and delete now recompute future active assignment `hasConflict` and `conflictNote` from the worker's effective assignment call window. Approved time off approved after assignment now surfaces as a persisted Schedule conflict, and deleted/changed availability clears stale conflict notes. Focused availability route Vitest, TypeScript, codemap/docs checks, whitespace check, and `npm run build:app` passed; the app build still reports the existing unused `kind` warnings in `src/lib/booking-status-display.ts`.
+- 2026-06-30 continuation proof audit: Combined availability-focused Vitest passed across route, source-contract, profile UI, auto-fill, Open Work, and Trade Board coverage (`87` tests), and `npm run drift:ios` plus `npm run audit:ios:gaps` passed. Native runtime proof passed through XcodeBuildMCP: simulator build succeeded with no diagnostics, build/install/launch succeeded on the configured iPhone 17 simulator, and a UI snapshot confirmed the launched Wisconsin Creative sign-in screen. Browser smoke remains blocked: sandboxed `npm run dev` failed with `listen EPERM`, and the unsandboxed dev-server request was rejected before execution. Keep this plan active until authenticated browser proof can run or source/build proof substitution is explicitly accepted.
+
+---
+
 ## Active: Trade Board Open Work hardening (2026-06-30)
 
 Plan: `tasks/trade-board-open-work-hardening-plan.md`

@@ -4,6 +4,7 @@ import { HttpError } from "@/lib/http";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { scoreCandidatesForShift, type CandidateScoringUser } from "@/lib/services/candidate-scoring";
 import { evaluateAvailabilityPreferences } from "@/lib/student-availability";
+import { availabilityContextFromCandidate } from "@/lib/schedule-availability-context";
 import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
 
 const ACTIVE_STATUSES = ACTIVE_ASSIGNMENT_STATUSES as ShiftAssignmentStatus[];
@@ -199,6 +200,15 @@ function shiftToScoreInput(shift: OpenWorkShift) {
   };
 }
 
+function openShiftBlockedReason(recommendation: ReturnType<typeof scoreCandidatesForShift>[number] | null) {
+  const approvedTimeOff = recommendation?.warnings.find((warning) => warning.code === "approved_time_off");
+  if (approvedTimeOff) return approvedTimeOff.label;
+  const overlappingAssignment = recommendation?.warnings.find((warning) => warning.code === "overlapping_assignment");
+  if (overlappingAssignment) return overlappingAssignment.label;
+  if (recommendation?.blockingConflict) return recommendation.advisoryConflictNote ?? "This shift is blocked by your current schedule.";
+  return null;
+}
+
 function serializeOpenShift(shift: OpenWorkShift, args: {
   userId: string;
   role: Role;
@@ -214,6 +224,8 @@ function serializeOpenShift(shift: OpenWorkShift, args: {
     : null;
   const ownRequest = shift.assignments.find((assignment) => assignment.userId === args.userId) ?? null;
   const isStudentWorker = args.candidate?.staffingType === "ST";
+  const availabilityContext = availabilityContextFromCandidate(recommendation);
+  const blockedReason = openShiftBlockedReason(recommendation);
   const canAct = isStudentWorker && shift.workerType === "ST" && !recommendation?.blockingConflict && !ownRequest;
   const action = !canAct || !isStudentWorker || shift.workerType !== "ST" || ownRequest || recommendation?.blockingConflict
     ? "none"
@@ -226,11 +238,12 @@ function serializeOpenShift(shift: OpenWorkShift, args: {
     canAct,
     reason: ownRequest
       ? "Request pending"
-      : recommendation?.blockingConflict
-        ? "Already assigned during this call window"
+      : blockedReason
+        ? blockedReason
         : shift.shiftGroup.isPremier
           ? "Staff approval required"
           : "Instant pickup",
+    availabilityContext,
     score: recommendation?.score ?? null,
     bucket: recommendation?.bucket ?? null,
     advisoryConflict: recommendation?.advisoryConflict ?? false,

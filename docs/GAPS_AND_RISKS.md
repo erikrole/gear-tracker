@@ -114,6 +114,16 @@ _2026-06-30 update: Personal shift calendar subscription hardening shipped witho
 
 _2026-06-30 update: Trade Board Open Work hardening shipped without opening a new gap. Web and iOS reuse existing ShiftTrade, ShiftAssignment, pickup-request, publication, worker-class, and effective call-window contracts; the change clarifies grouping, consequence copy, and race checks without introducing a new scheduling model._
 
+_2026-06-30 update: Student availability scheduling-class contract shipped without opening a new gap. Existing `User.staffingType` and `StudentAvailabilityBlock` contracts now align so availability follows Student scheduling class while app permission role remains the RBAC source._
+
+_2026-06-30 update: Student availability profile impact summary shipped without opening a new gap. The web profile tab reuses existing `StudentAvailabilityBlock` intent/status data to distinguish blocking approved time off from advisory conflicts and preferences before listing weekly and dated saved blocks._
+
+_2026-06-30 update: Auto-fill skipped-reason explanations shipped without opening a new gap. The preview reuses existing candidate scoring warnings, `User.staffingType`, area-fit signals, and per-preview duplicate prevention to explain why a slot stayed open before staff apply assignments._
+
+_2026-06-30 update: Open Work and Trade Board availability context shipped without opening a new gap. The read models reuse existing `StudentAvailabilityBlock`, candidate scoring, effective call-window, and trade lifecycle contracts to show blockers/preferences before action and reject approved-time-off trade claims before staff review._
+
+_2026-06-30 update: Student availability conflict refresh shipped without opening a new gap. Availability mutations now recompute future active assignment conflict flags from existing `StudentAvailabilityBlock`, `ShiftAssignment`, and effective call-window contracts so Schedule queues and exports do not preserve stale conflict notes._
+
 _2026-06-20 update: Explicit Schedule worker-class model shipped and closed PENDING-SCHEDULE-01. `User.staffingType` is now the Staff/Student scheduling source while `User.role` remains the permissions source._
 
 _2026-06-25 update: Admin close-without-scan for checkouts shipped without opening a new gap. The slice reuses existing Booking, OverrideEvent, audit, bulk-stock, numbered-unit, scan-session, and badge-return contracts to provide an admin-only reasoned exception while leaving D-040 kiosk-owned standard return flows intact._

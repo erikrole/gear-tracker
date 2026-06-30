@@ -4,6 +4,7 @@ import { HttpError, ok } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
 import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 import { createAuditEntry } from "@/lib/audit";
+import { recomputeFutureAssignmentAvailabilityConflictsForUser } from "@/lib/services/availability-conflict-recompute";
 import { z } from "zod";
 
 const createBlockSchema = z.object({
@@ -53,10 +54,12 @@ function assertBlockShape(body: z.infer<typeof createBlockSchema>) {
   }
 }
 
-async function assertTargetStudent(id: string) {
-  const target = await db.user.findUnique({ where: { id }, select: { id: true, role: true } });
+async function assertTargetStudentWorker(id: string) {
+  const target = await db.user.findUnique({ where: { id }, select: { id: true, staffingType: true } });
   if (!target) throw new HttpError(404, "User not found");
-  if (target.role !== "STUDENT") throw new HttpError(400, "Availability is only available for students");
+  if (target.staffingType !== "ST") {
+    throw new HttpError(400, "Availability is only available for Student scheduling class");
+  }
 }
 
 export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
@@ -84,7 +87,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   }
   await enforceRateLimit(`availability:${user.id}`, SETTINGS_MUTATION_LIMIT);
 
-  await assertTargetStudent(id);
+  await assertTargetStudentWorker(id);
 
   const body = createBlockSchema.parse(await req.json());
   assertBlockShape(body);
@@ -137,6 +140,8 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
       reviewNote: block.reviewNote,
     },
   });
+
+  await recomputeFutureAssignmentAvailabilityConflictsForUser(id);
 
   return ok({ data: block }, 201);
 });

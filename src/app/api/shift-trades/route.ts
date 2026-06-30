@@ -39,6 +39,7 @@ export const GET = withAuth(async (req, { user }) => {
     area,
     limit,
     offset,
+    userId: user.id,
   });
 
   return ok({ data: trades, total });

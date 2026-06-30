@@ -5,11 +5,12 @@ import type { CandidateRecommendation } from "@/lib/candidate-scoring-types";
 import type {
   AutoFillPreviewProposal,
   AutoFillPreviewResponse,
+  AutoFillPreviewSkippedReasonCode,
   AutoFillPreviewSkippedSlot,
 } from "@/lib/auto-fill-preview-types";
 import { getCandidateScoresForShift } from "@/lib/services/candidate-scoring";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
-import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
+import { shiftWorkerLabel, shiftWorkerTypeForProfile } from "@/lib/shift-display";
 import { visibleActiveUserWhere } from "@/lib/user-visibility";
 
 type PreviewShift = {
@@ -53,6 +54,89 @@ function hasAreaFit(score: CandidateRecommendation) {
   return score.reasons.some((reason) => reason.code === "primary_area" || reason.code === "area_assignment");
 }
 
+function hasWarning(score: CandidateRecommendation, code: string) {
+  return score.warnings.some((warning) => warning.code === code);
+}
+
+function formatAreaLabel(area: string) {
+  return area.charAt(0) + area.slice(1).toLowerCase();
+}
+
+function plural(count: number, singular: string, pluralValue = `${singular}s`) {
+  return count === 1 ? singular : pluralValue;
+}
+
+function buildSkippedSlot(shift: PreviewShift, scores: CandidateRecommendation[], usersById: Map<string, PreviewUser>, usedUserIds: Set<string>): AutoFillPreviewSkippedSlot {
+  const visibleScores = scores.filter((score) => usersById.has(score.userId));
+  const schedulingClassScores = visibleScores.filter((score) => userMatchesShift(shift.workerType, usersById.get(score.userId)!));
+  const areaFitScores = schedulingClassScores.filter(hasAreaFit);
+  const safeAreaFitScores = areaFitScores.filter((score) => !score.blockingConflict);
+  const unusedSafeAreaFitScores = safeAreaFitScores.filter((score) => !usedUserIds.has(score.userId));
+  const workerLabel = shiftWorkerLabel(shift.workerType);
+  const workerLabelLower = workerLabel.toLowerCase();
+  const areaLabel = formatAreaLabel(shift.area);
+  const approvedTimeOffBlockCount = areaFitScores.filter((score) => hasWarning(score, "approved_time_off")).length;
+  const overlappingAssignmentBlockCount = areaFitScores.filter((score) => hasWarning(score, "overlapping_assignment")).length;
+  const alreadyProposedCount = safeAreaFitScores.filter((score) => usedUserIds.has(score.userId)).length;
+  let reasonCode: AutoFillPreviewSkippedReasonCode = "no_safe_candidate";
+  let reason = "No eligible candidate met the auto-fill safety rules.";
+
+  if (visibleScores.length === 0) {
+    reasonCode = "no_visible_candidates";
+    reason = `No active candidates were available for this ${workerLabelLower} slot.`;
+  } else if (schedulingClassScores.length === 0) {
+    reasonCode = "no_scheduling_class_match";
+    reason = `No ${workerLabelLower} scheduling-class candidates were available.`;
+  } else if (areaFitScores.length === 0) {
+    reasonCode = "no_area_fit";
+    reason = `No ${workerLabelLower} candidate had ${areaLabel} area fit.`;
+  } else if (safeAreaFitScores.length === 0 && approvedTimeOffBlockCount >= overlappingAssignmentBlockCount && approvedTimeOffBlockCount > 0) {
+    reasonCode = "approved_time_off_blocked";
+    reason = "Approved time off blocked the available candidate pool.";
+  } else if (safeAreaFitScores.length === 0 && overlappingAssignmentBlockCount > 0) {
+    reasonCode = "overlapping_assignment_blocked";
+    reason = "Existing assignments blocked the available candidate pool.";
+  } else if (unusedSafeAreaFitScores.length === 0 && alreadyProposedCount > 0) {
+    reasonCode = "already_proposed";
+    reason = "Eligible candidates were already proposed for earlier slots in this preview.";
+  }
+
+  const reasonDetails = [
+    `${visibleScores.length} active ${plural(visibleScores.length, "candidate")} considered.`,
+    visibleScores.length > schedulingClassScores.length
+      ? `${visibleScores.length - schedulingClassScores.length} did not match the ${workerLabelLower} scheduling class.`
+      : null,
+    schedulingClassScores.length > areaFitScores.length
+      ? `${schedulingClassScores.length - areaFitScores.length} ${workerLabelLower} ${plural(schedulingClassScores.length - areaFitScores.length, "candidate")} lacked ${areaLabel} area fit.`
+      : null,
+    approvedTimeOffBlockCount > 0
+      ? `${approvedTimeOffBlockCount} blocked by approved time off.`
+      : null,
+    overlappingAssignmentBlockCount > 0
+      ? `${overlappingAssignmentBlockCount} already assigned during this call window.`
+      : null,
+    alreadyProposedCount > 0
+      ? `${alreadyProposedCount} already proposed for another open slot.`
+      : null,
+  ].filter((detail): detail is string => Boolean(detail));
+
+  return {
+    shiftId: shift.id,
+    area: shift.area,
+    workerType: shift.workerType,
+    reasonCode,
+    reason,
+    reasonDetails,
+    candidateCount: visibleScores.length,
+    schedulingClassMatchCount: schedulingClassScores.length,
+    areaFitCount: areaFitScores.length,
+    blockingCandidateCount: areaFitScores.filter((score) => score.blockingConflict).length,
+    approvedTimeOffBlockCount,
+    overlappingAssignmentBlockCount,
+    alreadyProposedCount,
+  };
+}
+
 function sortOpenShifts(a: PreviewShift, b: PreviewShift) {
   return a.startsAt.getTime() - b.startsAt.getTime()
     || (AREA_RANK.get(a.area) ?? AREA_ORDER.length) - (AREA_RANK.get(b.area) ?? AREA_ORDER.length)
@@ -89,13 +173,7 @@ export function buildAutoFillPreview({
     const chosen = eligibleScores[0];
 
     if (!chosen) {
-      skipped.push({
-        shiftId: shift.id,
-        area: shift.area,
-        workerType: shift.workerType,
-        reason: "No scheduling class and area matched candidate without a blocking overlap.",
-        blockingCandidateCount: scores.filter((score) => score.blockingConflict).length,
-      });
+      skipped.push(buildSkippedSlot(shift, scores, usersById, usedUserIds));
       continue;
     }
 

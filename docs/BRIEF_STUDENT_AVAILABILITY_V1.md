@@ -4,7 +4,7 @@
 - Owner: Wisconsin Athletics Creative Product
 - Area: AREA_SHIFTS / AREA_USERS
 - Status: Shipped
-- Last Updated: 2026-06-18
+- Last Updated: 2026-06-30
 
 ## Problem
 
@@ -12,7 +12,7 @@ Staff need to know when students are predictably unavailable before assigning sh
 
 ## V1 Scope
 
-Students and staff can maintain weekly recurring unavailability blocks on the user profile Availability tab. A block records day of week, local start time, local end time, and an optional label such as a class name.
+Student-scheduling-class users and staff can maintain weekly recurring unavailability blocks on the user profile Availability tab. A block records day of week, local start time, local end time, and an optional label such as a class name.
 
 This is intentionally an availability-warning system. It does not prevent staff/admin overrides, because operations may still need to assign a conflicted student after direct confirmation.
 
@@ -20,8 +20,9 @@ This is intentionally an availability-warning system. It does not prevent staff/
 
 - `StudentAvailabilityBlock` stores recurring weekly blocks tied to a user.
 - `/users/[id]` includes an Availability tab.
-- Students can manage only their own blocks.
-- Staff and admins can view and manage blocks for any user.
+- Student-role users can manage only their own blocks.
+- Staff-role users can manage their own blocks when their Scheduling class is Student.
+- Staff and admins can view and manage blocks for any Student-scheduling-class user.
 - `GET /api/users/[id]/availability` returns the user's blocks.
 - `POST /api/users/[id]/availability` creates a block after validating weekday and start/end time order.
 - `DELETE /api/users/[id]/availability/[blockId]` removes a block after ownership validation.
@@ -48,6 +49,48 @@ This is intentionally an availability-warning system. It does not prevent staff/
 - Direct assignment, pickup, trade swap, request approval, and personal call-window updates now reject approved time off while preserving advisory behavior for other availability signals.
 - Staff approval or denial of a time-off request creates an in-app notification for the student.
 
+## Shipped Follow-Up (2026-06-30)
+
+- Availability ownership now follows `User.staffingType = ST` rather than app permission role.
+- Staff-access users who still work Student shifts can own availability, preference, and time-off blocks.
+- Web profile Availability tab visibility and native iOS My Availability entry use the same Student scheduling-class contract.
+- Staff-scheduling-class users are rejected from availability creation so availability does not attach to workers outside the Student scheduling pool.
+
+## Shipped Follow-Up (2026-06-30 Profile Impact)
+
+- The web profile Availability tab now summarizes scheduling impact before the raw blocks.
+- Approved time off is counted separately because it blocks assignment, pickup, trade, and personal call-window changes.
+- Cannot-work, dislike, and pending time-off signals are grouped as advisory conflicts for staff review, auto-fill, Open Work, and Trade Board context.
+- Preferred windows are counted separately as positive candidate-fit signals.
+- Weekly and dated buckets now use broader labels so class conflicts, preferences, and time-off requests do not get mislabeled as only class schedule or only conflicts.
+
+## Shipped Follow-Up (2026-06-30 Auto-Fill Clarity)
+
+- Auto-fill preview skipped rows now explain the strongest skip reason instead of using one generic fallback.
+- Skipped rows distinguish no active candidates, no scheduling-class match, no area fit, approved time off, overlapping assignments, and candidates already proposed for another open slot.
+- Shift Detail and Event detail preview dialogs show concise supporting counts so staff can trust why a slot stayed open before applying proposed assignments.
+
+## Shipped Follow-Up (2026-06-30 Open Work Context)
+
+- Open Work rows now expose availability context before the user acts.
+- Open Student shift rows distinguish approved time off, advisory availability, pending time off, and preferred windows.
+- Trade Board rows show the viewer's availability context for claimable trades and the claimed worker's context for staff-review trades.
+- Approved time off moves claimable trades into Waiting or Blocked and blocks trade claims before they enter staff review.
+
+## Shipped Follow-Up (2026-06-30 iOS Parity)
+
+- Native iOS My Availability now displays weekly, ad hoc, preference, dislike, and time-off records instead of only weekly class conflicts.
+- The native editor can create weekly or one-time cannot-work, prefer, dislike, and time-off signals through the existing availability API.
+- iOS summarizes blocking approved time off, advisory signals, and preferred windows before listing raw records.
+- New iOS decoded fields are optional so older production payloads and older saved blocks remain safe during rollout.
+
+## Shipped Follow-Up (2026-06-30 Conflict Refresh)
+
+- Availability create, update, review, and delete now recompute future active assignment conflict state.
+- Recompute uses the effective assignment call window, including personal assignment overrides before shift-level call windows.
+- Approved time off approved after assignment now surfaces as a persisted Schedule conflict instead of staying invisible until the assignment is touched.
+- Changed or deleted availability clears stale `hasConflict` and `conflictNote` values from affected future active assignments.
+
 ## Acceptance Criteria
 
 - [x] AC-1: A student can add a recurring weekly unavailability block for themselves.
@@ -58,6 +101,12 @@ This is intentionally an availability-warning system. It does not prevent staff/
 - [x] AC-6: Auto-assignment and trade swaps preserve conflict notes when an assigned worker overlaps an availability block.
 - [x] AC-7: Students can request time off and staff/admin can approve or deny the request.
 - [x] AC-8: Prefer/dislike/time-off signals feed candidate scoring and scheduling conflict checks without breaking existing weekly/ad hoc blocks.
+- [x] AC-9: Availability ownership follows Student scheduling class, not only app permission role.
+- [x] AC-10: Profile Availability summarizes blocking time off, advisory conflicts, preferences, and the next dated exception before listing saved blocks.
+- [x] AC-11: Auto-fill skipped rows explain availability, scheduling-class, area-fit, overlap, and already-proposed blockers before staff apply the preview.
+- [x] AC-12: Open Work and Trade Board rows surface availability blockers, advisory context, and preferred windows before claim, request, or approval actions.
+- [x] AC-13: Native iOS My Availability can display and create weekly, one-time, preference, dislike, and time-off signals without breaking older payloads.
+- [x] AC-14: Availability mutations refresh persisted future assignment conflict state so Schedule queues, exports, and assignment review do not show stale conflicts.
 
 ## Out Of Scope
 

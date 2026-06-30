@@ -19,6 +19,9 @@ describe("schedule open work source contracts", () => {
     expect(tradeBoard).toContain("Canceling removes the post; the shift stays assigned to you.");
     expect(tradeBoard).toContain("You will be assigned immediately.");
     expect(tradeBoard).toContain("Staff must approve before this becomes your shift.");
+    expect(tradeBoard).toContain("AvailabilityContextNote");
+    expect(tradeBoard).toContain("viewerAvailabilityContext");
+    expect(tradeBoard).toContain("claimedByAvailabilityContext");
     expect(tradeBoard).toContain("/api/shift-assignments/pickup");
     expect(tradeBoard).toContain("/api/shift-trades/${tradeId}/claim");
     expect(tradeBoard).toContain("/api/shift-trades/${tradeId}/approve");
@@ -40,6 +43,8 @@ describe("schedule open work source contracts", () => {
     expect(service).toContain("publishedAt: { not: null }");
     expect(service).toContain("assignments: {\n        none: { status: { in: ACTIVE_STATUSES } },");
     expect(service).toContain("scoreCandidatesForShift");
+    expect(service).toContain("availabilityContextFromCandidate");
+    expect(service).toContain("availabilityContext,");
   });
 
   it("keeps pickup mutation audited, publication-safe, and notification-policy wired", () => {
@@ -68,6 +73,9 @@ describe("schedule open work source contracts", () => {
     expect(service).toContain("const window = effectiveAssignmentWindow(trade.shiftAssignment)");
     expect(service).toContain("await checkTimeConflict(tx, userId, window.startsAt, window.endsAt)");
     expect(service).toContain("assertShiftNotStarted(effectiveAssignmentWindow(trade.shiftAssignment).startsAt)");
+    expect(service).toContain("availabilityContextFromBlocks");
+    expect(service).toContain("viewerAvailabilityContext");
+    expect(service).toContain("claimedByAvailabilityContext");
   });
 
   it("keeps native iOS on the same Open Work contract as web", () => {

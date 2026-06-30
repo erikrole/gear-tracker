@@ -1,5 +1,14 @@
 import type { CandidateRecommendation, CandidateScoreSignal } from "@/lib/candidate-scoring-types";
 
+export type AutoFillPreviewSkippedReasonCode =
+  | "no_visible_candidates"
+  | "no_scheduling_class_match"
+  | "no_area_fit"
+  | "approved_time_off_blocked"
+  | "overlapping_assignment_blocked"
+  | "already_proposed"
+  | "no_safe_candidate";
+
 export type AutoFillPreviewProposal = {
   shiftId: string;
   area: string;
@@ -20,8 +29,16 @@ export type AutoFillPreviewSkippedSlot = {
   shiftId: string;
   area: string;
   workerType: string;
+  reasonCode: AutoFillPreviewSkippedReasonCode;
   reason: string;
+  reasonDetails: string[];
+  candidateCount: number;
+  schedulingClassMatchCount: number;
+  areaFitCount: number;
   blockingCandidateCount: number;
+  approvedTimeOffBlockCount: number;
+  overlappingAssignmentBlockCount: number;
+  alreadyProposedCount: number;
 };
 
 export type AutoFillPreviewResponse = {

@@ -64,9 +64,10 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - `STUDENT`: view, edit, discard own drafts only.
 
 ### Availability Blocks
-- `ADMIN`: view, add, and remove availability blocks for any user.
-- `STAFF`: view, add, and remove availability blocks for any user.
-- `STUDENT`: view, add, and remove only their own availability blocks.
+- Availability applies to users whose Scheduling class is Student (`User.staffingType = ST`), even when their app permission role is Staff.
+- `ADMIN`: view, add, and remove availability blocks for any Student-scheduling-class user.
+- `STAFF`: view, add, and remove availability blocks for any Student-scheduling-class user.
+- `STUDENT`: view, add, and remove only their own availability blocks when their Scheduling class is Student.
 
 ## Dashboard Action Visibility Mapping
 1. Dashboard actions are role-filtered per row.
@@ -115,6 +116,8 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+- 2026-06-30: Profile Availability impact summary shipped. The user detail Availability tab now shows counts for approved time off, advisory conflicts, and preferred windows, names the next dated exception, and clarifies which signals block scheduling actions versus which ones guide staff review.
+- 2026-06-30: Student availability ownership now follows Scheduling class instead of app permission role. Staff-access users who still work Student shifts can own availability blocks, see the Availability tab, and manage My Availability on native iOS, while Staff-scheduling-class targets are rejected from availability creation.
 - 2026-06-30: Native iOS Browse now exposes Users to every authenticated role as a directory destination. This matches the existing policy that students can view all users while edit, role-management, onboarding, and admin mutations remain role-gated.
 - 2026-06-29: Resources assignment reference support shipped. `GET /api/users` now includes each returned user's narrow `sportAssignments` rows (`sportCode`, `defaultTraveler`) so `/resources?filter=assignments` can render a read-only sport assignment directory without duplicating assignment ownership outside the Users profile controls.
 - 2026-06-24: Hidden smoke user onboarding cleanup shipped. `/api/allowed-emails` now excludes allowlist rows claimed by hidden users by default, so `/users/onboarding-status` no longer surfaces claimed smoke/test accounts in daily onboarding review.

@@ -908,6 +908,13 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
                 <div key={slot.shiftId} className="rounded-lg border border-dashed border-border/70 p-3 text-sm">
                   <div className="font-medium">{AREA_LABELS[slot.area] ?? slot.area} · {shiftWorkerSlotLabel(slot.workerType)}</div>
                   <div className="text-xs text-muted-foreground">{slot.reason}</div>
+                  {slot.reasonDetails.length > 0 && (
+                    <ul className="mt-1 list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
+                      {slot.reasonDetails.map((detail) => (
+                        <li key={detail}>{detail}</li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               ))}
             </div>

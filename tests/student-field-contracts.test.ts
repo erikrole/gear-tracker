@@ -157,6 +157,13 @@ describe("student field mobile contracts", () => {
     const profile = source("ios/Wisconsin/Views/ProfileView.swift");
     const notifications = source("ios/Wisconsin/Views/NotificationSettingsView.swift");
     const availability = source("ios/Wisconsin/Views/AvailabilityView.swift");
+    const models = source("ios/Wisconsin/Models/Models.swift");
+    const scheduleModels = source("ios/Wisconsin/Models/ScheduleModels.swift");
+    const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
+    const meRoute = source("src/app/api/me/route.ts");
+    const auth = source("src/lib/auth.ts");
+    const userPage = source("src/app/(app)/users/[id]/page.tsx");
+    const availabilityRoute = source("src/app/api/users/[id]/availability/route.ts");
 
     expect(notifications).toContain("Text(\"Pause alerts\")");
     expect(notifications).toContain("Text(\"Pause \\(label)\")");
@@ -165,8 +172,36 @@ describe("student field mobile contracts", () => {
     expect(notifications).toContain("title: \"Delivery status\"");
     expect(profile).toContain("title: \"Theme\"");
     expect(profile).toContain("title: \"My Availability\"");
+    expect(profile).toContain("private var isStudentWorker: Bool");
+    expect(profile).toContain("session.currentUser?.staffingType == \"ST\"");
+    expect(models).toContain("let staffingType: String?");
+    expect(auth).toContain("staffingType: session.user.staffingType");
+    expect(meRoute).toContain("return ok({");
+    expect(userPage).toContain("profile.staffingType === \"ST\"");
+    expect(availabilityRoute).toContain("target.staffingType !== \"ST\"");
+    expect(scheduleModels).toContain("let intent: String?");
+    expect(scheduleModels).toContain("let status: String?");
+    expect(scheduleModels).toContain("let date: String?");
+    expect(scheduleModels).toContain("let reviewNote: String?");
+    expect(availability).toContain("AvailabilityEditorIntent");
+    expect(availability).toContain("case prefer = \"PREFER\"");
+    expect(availability).toContain("case dislike = \"DISLIKE\"");
+    expect(availability).toContain("case timeOff = \"TIME_OFF\"");
+    expect(availability).toContain("AvailabilityEditorKind");
+    expect(availability).toContain("case adHoc = \"AD_HOC\"");
+    expect(availability).toContain("Blocking time off");
+    expect(availability).toContain("Advisory signals");
+    expect(availability).toContain("Preferred windows");
+    expect(availability).toContain("One-time requests and exceptions");
+    expect(availability).toContain("Pending staff review");
     expect(availability).toContain("Label(\"Add availability block\", systemImage: \"plus\")");
     expect(availability).toContain("Label(\"Add block\", systemImage: \"plus\")");
+    expect(apiClient).toContain("kind: String = \"WEEKLY\"");
+    expect(apiClient).toContain("intent: String = \"CANNOT_WORK\"");
+    expect(apiClient).toContain("date: String? = nil");
+    expect(apiClient).toContain("kind: kind");
+    expect(apiClient).toContain("intent: intent");
+    expect(apiClient).toContain("date: kind == \"AD_HOC\" ? date : nil");
   });
 
   it("keeps iOS Create Booking actions and selected equipment recoverable", () => {

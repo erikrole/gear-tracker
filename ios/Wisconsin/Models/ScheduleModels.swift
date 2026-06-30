@@ -264,11 +264,17 @@ struct MyShiftsResponse: Decodable {
 struct AvailabilityBlock: Codable, Identifiable {
     let id: String
     let kind: String?
+    let intent: String?
+    let status: String?
     let dayOfWeek: Int?
+    let date: String?
     let startsAt: String
     let endsAt: String
     let label: String?
     let semesterLabel: String?
+    let semesterStartsOn: String?
+    let semesterEndsOn: String?
+    let reviewNote: String?
 }
 
 struct AvailabilityBlocksResponse: Decodable {

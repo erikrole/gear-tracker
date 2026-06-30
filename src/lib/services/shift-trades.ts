@@ -8,6 +8,7 @@ import { sendPushToUser } from "@/lib/services/notifications";
 import { scheduleNotificationPayload } from "@/lib/services/schedule-notification-policy";
 import { badges } from "@/lib/badges";
 import { evaluateAvailabilityPreferences } from "@/lib/student-availability";
+import { availabilityContextFromBlocks } from "@/lib/schedule-availability-context";
 import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
 
 function assertShiftNotStarted(startsAt: Date) {
@@ -51,6 +52,20 @@ function staleEffectiveAssignmentWhere(now: Date): Prisma.ShiftAssignmentWhereIn
     ],
   };
 }
+
+const availabilityBlockSelect = {
+  kind: true,
+  intent: true,
+  status: true,
+  dayOfWeek: true,
+  date: true,
+  startsAt: true,
+  endsAt: true,
+  label: true,
+  semesterLabel: true,
+  semesterStartsOn: true,
+  semesterEndsOn: true,
+} satisfies Prisma.StudentAvailabilityBlockSelect;
 
 /* ── In-app notification helper ─────────────────────────────────────── */
 
@@ -180,13 +195,22 @@ export async function claimTrade(tradeId: string, userId: string) {
     // Validate claimant's primary area matches the shift area
     const claimant = await tx.user.findUnique({
       where: { id: userId },
-      select: { primaryArea: true, role: true, staffingType: true },
+      select: {
+        primaryArea: true,
+        role: true,
+        staffingType: true,
+        availabilityBlocks: { select: availabilityBlockSelect },
+      },
     });
     if (!claimant || shiftWorkerTypeForProfile(claimant) !== shift.workerType) {
       throw new HttpError(400, "Your scheduling class does not match this shift slot");
     }
     if (claimant?.primaryArea && claimant.primaryArea !== shift.area) {
       throw new HttpError(400, `Your primary area (${claimant.primaryArea}) does not match this shift's area (${shift.area})`);
+    }
+    const availabilityContext = availabilityContextFromBlocks(claimant.availabilityBlocks ?? [], window);
+    if (availabilityContext?.blocking) {
+      throw new HttpError(409, availabilityContext.detail);
     }
 
     const eventSummary =
@@ -616,8 +640,40 @@ export async function listTrades(filters: {
     orderBy: { postedAt: "desc" },
   });
   const total = await db.shiftTrade.count({ where });
+  const availabilityUserIds = new Set<string>();
+  if (filters.userId) availabilityUserIds.add(filters.userId);
+  for (const trade of data) {
+    if (trade.status === "CLAIMED" && trade.claimedByUserId) {
+      availabilityUserIds.add(trade.claimedByUserId);
+    }
+  }
+  const availabilityUsers = availabilityUserIds.size > 0
+    ? await db.user.findMany({
+      where: { id: { in: [...availabilityUserIds] } },
+      select: { id: true, availabilityBlocks: { select: availabilityBlockSelect } },
+    })
+    : [];
+  const availabilityByUserId = new Map(availabilityUsers.map((user) => [user.id, user.availabilityBlocks]));
+  const viewerBlocks = filters.userId ? availabilityByUserId.get(filters.userId) ?? [] : [];
 
-  return { data, total };
+  return {
+    data: data.map((trade) => {
+      const window = effectiveAssignmentWindow(trade.shiftAssignment);
+      const viewerAvailabilityContext = filters.userId && trade.postedByUserId !== filters.userId
+        ? availabilityContextFromBlocks(viewerBlocks, window)
+        : null;
+      const claimedByAvailabilityContext = trade.claimedByUserId
+        ? availabilityContextFromBlocks(availabilityByUserId.get(trade.claimedByUserId) ?? [], window)
+        : null;
+
+      return {
+        ...trade,
+        viewerAvailabilityContext,
+        claimedByAvailabilityContext,
+      };
+    }),
+    total,
+  };
 }
 
 /**

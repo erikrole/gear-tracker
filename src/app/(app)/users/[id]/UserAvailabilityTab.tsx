@@ -49,6 +49,13 @@ type AvailabilityBlock = {
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+function localDateValue(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function blockKind(block: AvailabilityBlock): AvailabilityKind {
   return block.kind ?? "WEEKLY";
 }
@@ -84,6 +91,29 @@ function formatDate(value: string | null): string {
   });
 }
 
+function isApprovedTimeOff(block: AvailabilityBlock): boolean {
+  return blockIntent(block) === "TIME_OFF" && blockStatus(block) === "APPROVED";
+}
+
+function isAdvisoryConflict(block: AvailabilityBlock): boolean {
+  const intent = blockIntent(block);
+  const status = blockStatus(block);
+  return intent === "CANNOT_WORK" || intent === "DISLIKE" || (intent === "TIME_OFF" && status === "PENDING");
+}
+
+function isPreference(block: AvailabilityBlock): boolean {
+  return blockIntent(block) === "PREFER";
+}
+
+function nextDatedBlock(blocks: AvailabilityBlock[]): AvailabilityBlock | null {
+  const today = localDateValue();
+  const dated = blocks
+    .filter((block) => blockKind(block) === "AD_HOC" && dateValue(block.date) >= today)
+    .filter((block) => !(blockIntent(block) === "TIME_OFF" && blockStatus(block) === "DENIED"))
+    .sort((a, b) => dateValue(a.date).localeCompare(dateValue(b.date)) || a.startsAt.localeCompare(b.startsAt));
+  return dated[0] ?? null;
+}
+
 function sortBlocks(blocks: AvailabilityBlock[]): AvailabilityBlock[] {
   return [...blocks].sort((a, b) => {
     if (blockIntent(a) !== blockIntent(b)) {
@@ -96,6 +126,80 @@ function sortBlocks(blocks: AvailabilityBlock[]): AvailabilityBlock[] {
     const dayB = b.dayOfWeek ?? 7;
     return dayA !== dayB ? dayA - dayB : a.startsAt.localeCompare(b.startsAt);
   });
+}
+
+function impactLabel(block: AvailabilityBlock): string {
+  const intent = blockIntent(block);
+  const status = blockStatus(block);
+  if (intent === "TIME_OFF") {
+    if (status === "APPROVED") return "Approved time off";
+    if (status === "DENIED") return "Denied time off";
+    return "Pending time off";
+  }
+  if (intent === "PREFER") return "Preferred window";
+  if (intent === "DISLIKE") return "Disliked window";
+  return blockKind(block) === "AD_HOC" ? "One-time conflict" : "Class conflict";
+}
+
+function AvailabilityImpactSummary({ blocks }: { blocks: AvailabilityBlock[] }) {
+  const approvedTimeOffCount = blocks.filter(isApprovedTimeOff).length;
+  const advisoryConflictCount = blocks.filter(isAdvisoryConflict).length;
+  const preferenceCount = blocks.filter(isPreference).length;
+  const nextBlock = nextDatedBlock(blocks);
+  const nextBlockCopy = nextBlock
+    ? `${formatDate(nextBlock.date)} - ${formatTime(nextBlock.startsAt)}-${formatTime(nextBlock.endsAt)} - ${impactLabel(nextBlock)}`
+    : "No upcoming dated exceptions";
+
+  const summaryItems = [
+    {
+      label: "Approved time off",
+      value: approvedTimeOffCount,
+      tone: "green" as const,
+      detail: "Blocks assignment, pickup, trade, and call-window changes.",
+    },
+    {
+      label: "Advisory conflicts",
+      value: advisoryConflictCount,
+      tone: "orange" as const,
+      detail: "Warns assignment, auto-fill, Open Work, and Trade Board review.",
+    },
+    {
+      label: "Preferred windows",
+      value: preferenceCount,
+      tone: "blue" as const,
+      detail: "Improves candidate fit when staff review coverage.",
+    },
+  ];
+
+  return (
+    <section className="rounded-lg border bg-muted/20 p-3">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="text-sm font-medium">Scheduling impact</h3>
+          <p className="text-xs text-muted-foreground">
+            Approved time off is blocking. Other availability stays visible as staff-reviewed guidance.
+          </p>
+        </div>
+        <Badge variant={blocks.length ? "secondary" : "gray"} size="sm">
+          {blocks.length} {blocks.length === 1 ? "signal" : "signals"}
+        </Badge>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        {summaryItems.map((item) => (
+          <div key={item.label} className="rounded-md border bg-background px-3 py-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-medium text-muted-foreground">{item.label}</span>
+              <Badge variant={item.tone} className="h-5 px-1.5 text-xs tabular-nums">{item.value}</Badge>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 rounded-md border border-dashed bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+        <span className="font-medium text-foreground">Next dated exception:</span> {nextBlockCopy}
+      </div>
+    </section>
+  );
 }
 
 type AvailabilityFormProps = {
@@ -513,7 +617,7 @@ export default function UserAvailabilityTab({
           <div>
             <CardTitle className="text-sm font-semibold">Availability</CardTitle>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Class schedules and one-time conflicts warn staff during assignment. Staff still sets the final call window.
+              Unavailable times, preferences, and time off feed assignment warnings. Staff still sets the final call window.
             </p>
           </div>
           {canEdit && !showForm && !editing && (
@@ -525,6 +629,8 @@ export default function UserAvailabilityTab({
         </CardHeader>
 
         <CardContent className="flex flex-col gap-4">
+          <AvailabilityImpactSummary blocks={blocks} />
+
           {showForm && (
             <AvailabilityForm
               userId={userId}
@@ -544,13 +650,16 @@ export default function UserAvailabilityTab({
           )}
 
           <section className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <Badge variant="blue" size="sm">Weekly</Badge>
-              <h3 className="text-sm font-medium">Semester class schedule</h3>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Badge variant="blue" size="sm">Weekly</Badge>
+                <h3 className="text-sm font-medium">Repeating schedule signals</h3>
+              </div>
+              <span className="text-xs text-muted-foreground">{weeklyBlocks.length} saved</span>
             </div>
             {weeklyBlocks.length === 0 ? (
               <p className="rounded-md border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">
-                No weekly class blocks set.
+                No repeating class, preference, or weekly time-off signals.
               </p>
             ) : (
               <div className="flex flex-col gap-2">
@@ -585,13 +694,16 @@ export default function UserAvailabilityTab({
           </section>
 
           <section className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <Badge variant="orange" size="sm">Ad hoc</Badge>
-              <h3 className="text-sm font-medium">One-time conflicts</h3>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Badge variant="orange" size="sm">Dated</Badge>
+                <h3 className="text-sm font-medium">One-time requests and exceptions</h3>
+              </div>
+              <span className="text-xs text-muted-foreground">{adHocBlocks.length} saved</span>
             </div>
             {adHocBlocks.length === 0 ? (
               <p className="rounded-md border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">
-                No one-time conflicts set.
+                No dated conflicts, preferences, or time-off requests.
               </p>
             ) : (
               <div className="flex flex-col gap-2">

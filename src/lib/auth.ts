@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { after } from "next/server";
 import { cookies } from "next/headers";
-import { Role } from "@prisma/client";
+import { Role, ShiftWorkerType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { HttpError } from "@/lib/http";
@@ -14,6 +14,7 @@ export type AuthUser = {
   email: string;
   name: string;
   role: Role;
+  staffingType?: ShiftWorkerType;
   avatarUrl: string | null;
   forcePasswordChange?: boolean;
 };
@@ -144,6 +145,7 @@ export async function requireAuth(): Promise<AuthUser> {
     email: session.user.email,
     name: session.user.name,
     role: session.user.role,
+    staffingType: session.user.staffingType,
     avatarUrl: session.user.avatarUrl ?? null,
     forcePasswordChange: session.user.forcePasswordChange,
   };

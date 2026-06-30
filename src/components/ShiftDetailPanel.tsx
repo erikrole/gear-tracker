@@ -786,6 +786,13 @@ export default function ShiftDetailPanel({
                     {slot.area.charAt(0) + slot.area.slice(1).toLowerCase()} · {shiftWorkerSlotLabel(slot.workerType)}
                   </div>
                   <div className="text-xs text-muted-foreground">{slot.reason}</div>
+                  {slot.reasonDetails.length > 0 && (
+                    <ul className="mt-1 list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
+                      {slot.reasonDetails.map((detail) => (
+                        <li key={detail}>{detail}</li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               ))}
             </div>

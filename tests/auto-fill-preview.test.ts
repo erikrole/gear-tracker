@@ -127,7 +127,103 @@ describe("buildAutoFillPreview", () => {
     expect(preview.skipped).toEqual([
       expect.objectContaining({
         shiftId: "shift-2",
+        reasonCode: "overlapping_assignment_blocked",
+        reason: "Existing assignments blocked the available candidate pool.",
+        reasonDetails: [
+          "1 active candidate considered.",
+          "1 already assigned during this call window.",
+        ],
+        candidateCount: 1,
+        schedulingClassMatchCount: 1,
+        areaFitCount: 1,
         blockingCandidateCount: 1,
+        approvedTimeOffBlockCount: 0,
+        overlappingAssignmentBlockCount: 1,
+        alreadyProposedCount: 0,
+      }),
+    ]);
+  });
+
+  it("explains skipped slots blocked by approved time off", () => {
+    const preview = buildAutoFillPreview({
+      shiftGroupId: "group-1",
+      eventId: "event-1",
+      eventSummary: "Volleyball",
+      generatedAt: new Date("2026-10-01T12:00:00.000Z"),
+      shifts: [shifts[0]!],
+      users,
+      scoresByShiftId: {
+        "shift-1": [
+          score({
+            userId: "student-a",
+            score: 99,
+            blockingConflict: true,
+            warnings: [{ code: "approved_time_off", label: "Approved time off", weight: -60 }],
+          }),
+          score({
+            userId: "student-b",
+            score: 80,
+            reasons: [{ code: "role_fit", label: "Student slot fit", weight: 24 }],
+          }),
+        ],
+      },
+    });
+
+    expect(preview.proposals).toHaveLength(0);
+    expect(preview.skipped).toEqual([
+      expect.objectContaining({
+        shiftId: "shift-1",
+        reasonCode: "approved_time_off_blocked",
+        reason: "Approved time off blocked the available candidate pool.",
+        reasonDetails: [
+          "2 active candidates considered.",
+          "1 student candidate lacked Video area fit.",
+          "1 blocked by approved time off.",
+        ],
+        candidateCount: 2,
+        schedulingClassMatchCount: 2,
+        areaFitCount: 1,
+        blockingCandidateCount: 1,
+        approvedTimeOffBlockCount: 1,
+        overlappingAssignmentBlockCount: 0,
+        alreadyProposedCount: 0,
+      }),
+    ]);
+  });
+
+  it("explains skipped slots when eligible candidates were already proposed", () => {
+    const preview = buildAutoFillPreview({
+      shiftGroupId: "group-1",
+      eventId: "event-1",
+      eventSummary: "Volleyball",
+      generatedAt: new Date("2026-10-01T12:00:00.000Z"),
+      shifts,
+      users,
+      scoresByShiftId: {
+        "shift-1": [score({ userId: "student-a", score: 96 })],
+        "shift-2": [score({ userId: "student-a", score: 98 })],
+      },
+    });
+
+    expect(preview.proposals.map((proposal) => [proposal.shiftId, proposal.userId])).toEqual([
+      ["shift-1", "student-a"],
+    ]);
+    expect(preview.skipped).toEqual([
+      expect.objectContaining({
+        shiftId: "shift-2",
+        reasonCode: "already_proposed",
+        reason: "Eligible candidates were already proposed for earlier slots in this preview.",
+        reasonDetails: [
+          "1 active candidate considered.",
+          "1 already proposed for another open slot.",
+        ],
+        candidateCount: 1,
+        schedulingClassMatchCount: 1,
+        areaFitCount: 1,
+        blockingCandidateCount: 0,
+        approvedTimeOffBlockCount: 0,
+        overlappingAssignmentBlockCount: 0,
+        alreadyProposedCount: 1,
       }),
     ]);
   });

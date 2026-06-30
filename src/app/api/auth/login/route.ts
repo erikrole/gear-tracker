@@ -57,6 +57,7 @@ export const POST = withHandler(async (req) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      staffingType: user.staffingType,
       forcePasswordChange: user.forcePasswordChange,
     }
   });

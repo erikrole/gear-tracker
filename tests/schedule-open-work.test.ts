@@ -182,6 +182,75 @@ describe("schedule open work", () => {
     }));
   });
 
+  it("surfaces approved time off as blocked open-work context", async () => {
+    mockDb.user.findUnique.mockResolvedValue({
+      ...activeStudent(),
+      availabilityBlocks: [{
+        kind: "AD_HOC",
+        intent: "TIME_OFF",
+        status: "APPROVED",
+        date: "2026-09-05",
+        startsAt: "10:00",
+        endsAt: "18:00",
+        label: "Family trip",
+      }],
+    });
+    mockDb.shiftAssignment.findMany.mockResolvedValue([]);
+    mockDb.shift.findMany.mockResolvedValue([baseShift()]);
+
+    const result = await getScheduleOpenWork({
+      userId: "student-1",
+      role: "STUDENT",
+      now,
+    });
+
+    expect(result.openShifts[0]).toEqual(expect.objectContaining({
+      action: "none",
+      canAct: false,
+      reason: "Approved time off: Family trip (10:00-18:00)",
+      availabilityContext: expect.objectContaining({
+        state: "blocked",
+        label: "Approved time off",
+        detail: "Approved time off: Family trip (10:00-18:00)",
+        blocking: true,
+      }),
+    }));
+  });
+
+  it("surfaces preferred windows as positive open-work context", async () => {
+    mockDb.user.findUnique.mockResolvedValue({
+      ...activeStudent(),
+      availabilityBlocks: [{
+        kind: "AD_HOC",
+        intent: "PREFER",
+        status: "APPROVED",
+        date: "2026-09-05",
+        startsAt: "10:00",
+        endsAt: "18:00",
+        label: "Video games",
+      }],
+    });
+    mockDb.shiftAssignment.findMany.mockResolvedValue([]);
+    mockDb.shift.findMany.mockResolvedValue([baseShift()]);
+
+    const result = await getScheduleOpenWork({
+      userId: "student-1",
+      role: "STUDENT",
+      now,
+    });
+
+    expect(result.openShifts[0]).toEqual(expect.objectContaining({
+      action: "claim",
+      canAct: true,
+      availabilityContext: expect.objectContaining({
+        state: "preferred",
+        label: "Preferred window",
+        detail: "Prefers Video games (10:00-18:00)",
+        blocking: false,
+      }),
+    }));
+  });
+
   it("allows staff-access users with Student scheduling class to claim Student open work", async () => {
     mockDb._mockTx.shift.findUnique.mockResolvedValue(baseShift());
     mockDb._mockTx.user.findUnique.mockResolvedValue({

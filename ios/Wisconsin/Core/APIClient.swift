@@ -430,19 +430,33 @@ final class APIClient {
 
     func createAvailabilityBlock(
         userId: String,
+        kind: String = "WEEKLY",
+        intent: String = "CANNOT_WORK",
         dayOfWeek: Int,
+        date: String? = nil,
         startsAt: String,
         endsAt: String,
         label: String?
     ) async throws -> AvailabilityBlock {
         struct Body: Encodable {
-            let dayOfWeek: Int
+            let kind: String
+            let intent: String
+            let dayOfWeek: Int?
+            let date: String?
             let startsAt: String
             let endsAt: String
             let label: String?
         }
         var req = request(path: "/api/users/\(userId)/availability", method: "POST")
-        req.httpBody = try JSONEncoder().encode(Body(dayOfWeek: dayOfWeek, startsAt: startsAt, endsAt: endsAt, label: label))
+        req.httpBody = try JSONEncoder().encode(Body(
+            kind: kind,
+            intent: intent,
+            dayOfWeek: kind == "WEEKLY" ? dayOfWeek : nil,
+            date: kind == "AD_HOC" ? date : nil,
+            startsAt: startsAt,
+            endsAt: endsAt,
+            label: label
+        ))
         let resp: DataWrapper<AvailabilityBlock> = try await perform(req)
         return resp.data
     }

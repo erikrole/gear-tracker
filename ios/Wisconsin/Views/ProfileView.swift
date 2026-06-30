@@ -26,8 +26,9 @@ struct ProfileView: View {
         return role == "ADMIN" || role == "STAFF"
     }
 
-    private var isStudent: Bool {
-        (session.currentUser?.role ?? "") == "STUDENT"
+    private var isStudentWorker: Bool {
+        if session.currentUser?.staffingType == "ST" { return true }
+        return session.currentUser?.staffingType == nil && (session.currentUser?.role ?? "") == "STUDENT"
     }
 
     private var canLaunchKioskDebug: Bool {
@@ -235,11 +236,11 @@ struct ProfileView: View {
                     )
                 }
             }
-            if isStudent {
+            if isStudentWorker {
                 NavigationLink(value: ProfileDestination.availability) {
                     SettingsMenuRow(
                         title: "My Availability",
-                        subtitle: "Add class conflicts so staff can schedule around them.",
+                        subtitle: "Add unavailable times so staff can schedule around them.",
                         systemImage: "calendar.badge.clock",
                         tint: Color.statusText(.green)
                     ) {
@@ -250,7 +251,7 @@ struct ProfileView: View {
         } header: {
             Text("Schedule")
         } footer: {
-            if isStudent {
+            if isStudentWorker {
                 Text("Availability blocks are advisory. Staff can still override after confirming.")
             }
         }

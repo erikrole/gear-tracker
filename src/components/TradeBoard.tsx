@@ -58,6 +58,13 @@ type TradeAssignment = {
   user: { id: string; name: string; primaryArea: string | null };
 };
 
+type AvailabilityContext = {
+  state: "blocked" | "advisory" | "preferred";
+  label: string;
+  detail: string;
+  blocking: boolean;
+};
+
 type Trade = {
   id: string;
   status: string;
@@ -68,6 +75,8 @@ type Trade = {
   shiftAssignment: TradeAssignment;
   postedBy: { id: string; name: string };
   claimedBy: { id: string; name: string } | null;
+  viewerAvailabilityContext?: AvailabilityContext | null;
+  claimedByAvailabilityContext?: AvailabilityContext | null;
 };
 
 type Props = {
@@ -86,6 +95,7 @@ type OpenWorkShift = {
   bucket: string | null;
   advisoryConflict: boolean;
   advisoryConflictNote: string | null;
+  availabilityContext: AvailabilityContext | null;
   warnings: Array<{ code: string; label: string; weight?: number }>;
   ownRequestId: string | null;
   requestCount: number;
@@ -292,6 +302,30 @@ function WorkSection({
       </div>
       <div className="divide-y divide-border/50">{children}</div>
     </section>
+  );
+}
+
+function AvailabilityContextNote({ context }: { context?: AvailabilityContext | null }) {
+  if (!context) return null;
+  const variant: BadgeProps["variant"] = context.state === "blocked"
+    ? "red"
+    : context.state === "preferred"
+      ? "green"
+      : "orange";
+
+  return (
+    <div className="flex items-start gap-2 rounded-md border border-border/60 bg-muted/40 px-2.5 py-2 text-xs leading-relaxed text-muted-foreground">
+      <AlertTriangleIcon className={cn(
+        "mt-0.5 size-3.5 shrink-0",
+        context.state === "blocked" ? "text-destructive" : context.state === "preferred" ? "text-[var(--green-text)]" : "text-amber-700",
+      )} />
+      <div className="min-w-0">
+        <Badge variant={variant} size="sm" className="mb-1 h-5 px-1.5 text-[10px]">
+          {context.label}
+        </Badge>
+        <p>{context.detail}</p>
+      </div>
+    </div>
   );
 }
 
@@ -615,8 +649,15 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
   const requestableOpenShifts = filteredOpenShifts.filter((item) => item.action === "request");
   const unavailableOpenShifts = filteredOpenShifts.filter((item) => item.action === "none");
   const staffReviewTrades = filteredTrades.filter((trade) => isStaff && trade.status === "CLAIMED");
+  const blockedClaimableTrades = filteredTrades.filter((trade) =>
+    !isStaff
+    && trade.status === "OPEN"
+    && trade.postedBy.id !== currentUserId
+    && Boolean(trade.viewerAvailabilityContext?.blocking)
+  );
   const claimableTrades = filteredTrades.filter((trade) =>
     !isStaff && trade.status === "OPEN" && trade.postedBy.id !== currentUserId
+    && !trade.viewerAvailabilityContext?.blocking
   );
   const myTradePosts = filteredTrades.filter((trade) =>
     trade.postedBy.id === currentUserId && (trade.status === "OPEN" || trade.status === "CLAIMED")
@@ -625,6 +666,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
   const postedTrades = filteredTrades.filter((trade) =>
     !staffReviewTrades.some((item) => item.id === trade.id)
     && !claimableTrades.some((item) => item.id === trade.id)
+    && !blockedClaimableTrades.some((item) => item.id === trade.id)
     && !myTradePosts.some((item) => item.id === trade.id)
     && !resolvedTrades.some((item) => item.id === trade.id)
   );
@@ -881,6 +923,8 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
                           </p>
                         )}
 
+                        <AvailabilityContextNote context={trade.claimedByAvailabilityContext} />
+
                         {(canCancel || canReview) && (
                           <div className="flex flex-wrap items-center gap-2 pt-1">
                             {canReview && (
@@ -946,7 +990,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
               });
               const areaLabel = AREA_LABELS[shift.area] ?? shift.area;
               const isBusy = acting === `pickup:${item.id}`;
-              const primaryWarning = item.advisoryConflictNote ?? item.warnings[0]?.label ?? null;
+              const primaryWarning = item.availabilityContext ? null : item.advisoryConflictNote ?? item.warnings[0]?.label ?? null;
 
               return (
                 <article
@@ -997,6 +1041,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
                           <span>{primaryWarning}</span>
                         </p>
                       )}
+                      <AvailabilityContextNote context={item.availabilityContext} />
 
                       <div className="flex flex-wrap items-center gap-2 pt-1">
                         <Button
@@ -1089,6 +1134,8 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
                           </p>
                         )}
 
+                        <AvailabilityContextNote context={trade.viewerAvailabilityContext} />
+
                         <div className="flex flex-wrap items-center gap-2 pt-1">
                           <Button
                             size="sm"
@@ -1123,7 +1170,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
               });
                 const areaLabel = AREA_LABELS[shift.area] ?? shift.area;
                 const isBusy = acting === `pickup:${item.id}`;
-                const primaryWarning = item.advisoryConflictNote ?? item.warnings[0]?.label ?? null;
+                const primaryWarning = item.availabilityContext ? null : item.advisoryConflictNote ?? item.warnings[0]?.label ?? null;
 
               return (
                 <article
@@ -1168,6 +1215,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
                             <span>{primaryWarning}</span>
                         </p>
                       )}
+                        <AvailabilityContextNote context={item.availabilityContext} />
 
                       <div className="flex flex-wrap items-center gap-2 pt-1">
                         <Button
@@ -1343,7 +1391,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
             <WorkSection
               title="Waiting or Blocked"
               description="These shifts are visible for context, but cannot be picked up from your current state."
-              count={unavailableOpenShifts.length}
+              count={unavailableOpenShifts.length + blockedClaimableTrades.length}
             >
               {unavailableOpenShifts.map((item) => {
                 const shift = item.shift;
@@ -1396,6 +1444,55 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
                             <span>{primaryWarning}</span>
                           </p>
                         )}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+
+              {blockedClaimableTrades.map((trade) => {
+                const shift = trade.shiftAssignment.shift;
+                const event = shift.shiftGroup.event;
+                const titleParts = scheduleEventTitleParts({
+                  summary: event.summary,
+                  sportCode: event.sportCode,
+                  opponent: event.opponent ?? null,
+                  isHome: event.isHome ?? null,
+                });
+                const areaLabel = AREA_LABELS[shift.area] ?? shift.area;
+
+                return (
+                  <article
+                    key={trade.id}
+                    className="group/trade px-4 py-3 transition-colors hover:bg-muted/25"
+                  >
+                    <div className="flex items-start gap-3">
+                      <UserAvatar name={trade.postedBy.name} size="sm" className="mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div className="flex min-w-0 items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h3 className="truncate text-sm font-semibold leading-tight">{titleParts.title}</h3>
+                            {titleParts.detail && (
+                              <p className="mt-0.5 truncate text-xs text-muted-foreground">{titleParts.detail}</p>
+                            )}
+                          </div>
+                          <Badge variant="red" size="sm">
+                            Blocked
+                          </Badge>
+                        </div>
+
+                        <div className="grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2">
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            <CalendarClockIcon className="size-3.5 shrink-0" />
+                            <span className="truncate tabular-nums">{formatShiftWindow(shift)}</span>
+                          </span>
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            <ArrowLeftRightIcon className="size-3.5 shrink-0" />
+                            <span className="truncate">{areaLabel}</span>
+                          </span>
+                        </div>
+
+                        <AvailabilityContextNote context={trade.viewerAvailabilityContext} />
                       </div>
                     </div>
                   </article>

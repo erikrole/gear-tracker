@@ -332,7 +332,7 @@ export default function UserDetailPage() {
   }
 
   useEffect(() => {
-    if (user && user.role !== "STUDENT" && activeTab === "availability") {
+    if (user && user.staffingType !== "ST" && activeTab === "availability") {
       setActiveTab("info");
     }
   }, [activeTab, setActiveTab, user]);
@@ -617,7 +617,8 @@ export default function UserDetailPage() {
   }
 
   const profile = effectiveUser ?? user;
-  const availableTabs = profile.role === "STUDENT"
+  const hasStudentAvailability = profile.staffingType === "ST";
+  const availableTabs = hasStudentAvailability
     ? tabDefs
     : tabDefs.filter((tab) => tab.key !== "availability");
   const selectedAwardDefinition =
@@ -1044,7 +1045,7 @@ export default function UserDetailPage() {
         <UserActivityTab userId={user.id} />
       )}
 
-      {activeTab === "availability" && profile.role === "STUDENT" && (
+      {activeTab === "availability" && hasStudentAvailability && (
         <UserAvailabilityTab userId={user.id} canEdit={canEdit} currentUserRole={currentUserRole} />
       )}
 

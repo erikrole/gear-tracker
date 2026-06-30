@@ -6,7 +6,8 @@
 | File | Lines |
 |---|---:|
 | `src/lib/services/auto-assign.ts` | 91 |
-| `src/lib/services/auto-fill-preview.ts` | 181 |
+| `src/lib/services/auto-fill-preview.ts` | 259 |
+| `src/lib/services/availability-conflict-recompute.ts` | 128 |
 | `src/lib/services/availability.ts` | 554 |
 | `src/lib/services/booking-ref.ts` | 26 |
 | `src/lib/services/booking-rules.ts` | 105 |
@@ -42,13 +43,13 @@
 | `src/lib/services/schedule-exports.ts` | 495 |
 | `src/lib/services/schedule-health.ts` | 378 |
 | `src/lib/services/schedule-notification-policy.ts` | 106 |
-| `src/lib/services/schedule-open-work.ts` | 435 |
+| `src/lib/services/schedule-open-work.ts` | 448 |
 | `src/lib/services/schedule-publication.ts` | 263 |
 | `src/lib/services/schedule-template-review.ts` | 551 |
 | `src/lib/services/shift-assignments.ts` | 587 |
 | `src/lib/services/shift-generation.ts` | 378 |
 | `src/lib/services/shift-trade-emails.ts` | 72 |
-| `src/lib/services/shift-trades.ts` | 788 |
+| `src/lib/services/shift-trades.ts` | 844 |
 | `src/lib/services/sport-configs.ts` | 257 |
 | `src/lib/services/status.ts` | 439 |
 | `src/lib/services/user-deactivation.ts` | 111 |
@@ -66,8 +67,8 @@
 | `src/lib/asset-qr-code.ts` | 9 |
 | `src/lib/assignment-conflict-review.ts` | 97 |
 | `src/lib/audit.ts` | 168 |
-| `src/lib/auth.ts` | 272 |
-| `src/lib/auto-fill-preview-types.ts` | 41 |
+| `src/lib/auth.ts` | 274 |
+| `src/lib/auto-fill-preview-types.ts` | 58 |
 | `src/lib/avatar.ts` | 44 |
 | `src/lib/battery-compatibility.ts` | 166 |
 | `src/lib/bhphoto-image.ts` | 67 |
@@ -116,6 +117,7 @@
 | `src/lib/sanitize.ts` | 40 |
 | `src/lib/scan-feedback.ts` | 87 |
 | `src/lib/schedule-automation-types.ts` | 55 |
+| `src/lib/schedule-availability-context.ts` | 93 |
 | `src/lib/schedule-change-history-types.ts` | 55 |
 | `src/lib/schedule-data-quality.ts` | 128 |
 | `src/lib/schedule-event-identity.ts` | 78 |
