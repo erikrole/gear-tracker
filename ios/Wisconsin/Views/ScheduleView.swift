@@ -236,7 +236,6 @@ struct ScheduleView: View {
                                 myShiftsOnly: myShiftsOnly,
                                 homeAwayFilter: homeAwayFilter,
                                 sportFilter: sportFilter,
-                                showCoverage: canSeePastEvents,
                                 shiftsByEventId: vm.shiftsByEventId,
                                 onSelectEvent: { selectedEvent = $0 }
                             )
@@ -533,11 +532,10 @@ struct ScheduleView: View {
                                 EventRow(
                                     event: event,
                                     myShift: vm.shiftsByEventId[event.id],
-                                    showCoverage: canSeePastEvents,
                                     contextDay: group.date
                                 )
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(ScalePressStyle())
                             .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
@@ -656,7 +654,6 @@ struct ScheduleCalendarView: View {
     let myShiftsOnly: Bool
     let homeAwayFilter: HomeAwayFilter
     var sportFilter: String?
-    let showCoverage: Bool
     let shiftsByEventId: [String: MyShift]
     let onSelectEvent: (ScheduleEvent) -> Void
 
@@ -857,11 +854,10 @@ struct ScheduleCalendarView: View {
                         EventRow(
                             event: event,
                             myShift: shiftsByEventId[event.id],
-                            showCoverage: showCoverage,
                             contextDay: calendar.startOfDay(for: selectedDate)
                         )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(ScalePressStyle())
                     .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
@@ -1067,9 +1063,6 @@ private struct ScheduleDateHeader: View {
 struct EventRow: View {
     let event: ScheduleEvent
     let myShift: MyShift?
-    /// Staff/admin see a crew fill chip ("2/3") so they can spot understaffed
-    /// events from the list. Off for students — coverage triage is a staff job.
-    var showCoverage: Bool = false
     /// The day this row is rendered under. For a multi-day event it drives the
     /// "Day n/m" marker and the segment-aware time line.
     var contextDay: Date? = nil
@@ -1113,8 +1106,8 @@ struct EventRow: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Crew fill is the one staff signal worth a trailing chip.
-            if showCoverage, let cov = event.coverage, cov.total > 0 {
+            // Crew fill is the one at-a-glance signal worth a trailing chip.
+            if let cov = event.coverage, cov.total > 0 {
                 coverageChip(cov)
             }
 
@@ -1173,7 +1166,7 @@ struct EventRow: View {
         var parts: [String] = []
         if myShift != nil { parts.append("My shift") }
         parts.append(eventDisplayTitle)
-        if showCoverage, let cov = event.coverage, cov.total > 0 {
+        if let cov = event.coverage, cov.total > 0 {
             parts.append("Crew \(cov.filled) of \(cov.total)")
         }
         if let isHome = event.isHome {
@@ -1203,9 +1196,9 @@ struct EventRow: View {
     private func coverageChip(_ cov: ShiftCoverage) -> some View {
         HStack(spacing: 3) {
             Image(systemName: "person.2.fill")
-                .font(.caption2.weight(.semibold))
+                .font(.caption.weight(.semibold))
             Text("\(cov.filled)/\(cov.total)")
-                .font(.caption2.weight(.semibold).monospacedDigit())
+                .font(.caption.weight(.semibold).monospacedDigit())
         }
         .foregroundStyle(Color.statusText(coverageTone(cov)))
         .padding(.horizontal, 6)
