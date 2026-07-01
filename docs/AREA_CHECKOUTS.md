@@ -300,6 +300,8 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 5. Add regression coverage for race conditions, partial returns, non-kiosk custody attempts, and permission bypass attempts.
 
 ## Change Log
+- 2026-07-01: Shared booking PATCH now treats stale duplicate edits as idempotent only when the submitted fields already match the current checkout, including due-back changes. The first save still owns the audit entry, while real stale competing due-date edits continue to return 409 conflict responses.
+- 2026-06-30: Checkout title and notes-only edits no longer rerun availability checks or rebuild equipment rows. Due-date, location, and equipment edits still revalidate availability and update allocation windows, but harmless metadata edits can no longer fail with conflict copy on an already-live checkout.
 - 2026-06-30: Native iOS booking detail action styling now uses SwiftUI bordered system buttons for Extend and Cancel instead of glass/custom-looking buttons. The action matrix, duplicate-submit guards, kiosk custody boundaries, and destructive cancellation semantics are unchanged.
 - 2026-06-29: Native iOS checkout detail now guards Save, Extend, and Cancel handlers before sending booking mutations. A rapid duplicate tap can no longer make a successful due-back edit show the stale-write "modified by someone else" message or duplicate adjacent checkout actions while the first request is in flight.
 - 2026-06-29: Native iOS checkout detail notes editing now uses a multiline editor and preserves the existing optimistic-lock PATCH path while sending an explicit empty string when notes are cleared. This fixes the native clear-notes path without changing checkout lifecycle, kiosk custody, or server mutation contracts.

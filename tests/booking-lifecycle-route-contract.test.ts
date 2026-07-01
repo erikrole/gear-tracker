@@ -117,6 +117,50 @@ describe("booking lifecycle route contract", () => {
     expect(updateReservation).not.toHaveBeenCalled();
   });
 
+  it("treats stale duplicate booking edits as idempotent when the change already landed", async () => {
+    vi.mocked(getBookingDetail).mockResolvedValue(bookingDetail({
+      ...baseDetail,
+      title: "Updated checkout",
+      updatedAt: new Date("2026-06-01T09:01:00.000Z"),
+    }));
+
+    const res = await PATCH(
+      request(
+        { title: "Updated checkout" },
+        { "if-unmodified-since": "Mon, 01 Jun 2026 09:00:00 GMT" },
+      ),
+      { params: Promise.resolve({ id: baseDetail.id }) },
+    );
+
+    expect(res.status).toBe(200);
+    expect(requireBookingAction).toHaveBeenCalledWith(baseDetail.id, staffUser, "edit");
+    expect(updateCheckout).not.toHaveBeenCalled();
+    expect(updateReservation).not.toHaveBeenCalled();
+    expect(createAuditEntry).not.toHaveBeenCalled();
+  });
+
+  it("treats stale duplicate return-date edits as idempotent when the change already landed", async () => {
+    vi.mocked(getBookingDetail).mockResolvedValue(bookingDetail({
+      ...baseDetail,
+      endsAt: new Date("2026-06-01T13:00:00.000Z"),
+      updatedAt: new Date("2026-06-01T09:01:00.000Z"),
+    }));
+
+    const res = await PATCH(
+      request(
+        { endsAt: "2026-06-01T13:00:00.000Z" },
+        { "if-unmodified-since": "Mon, 01 Jun 2026 09:00:00 GMT" },
+      ),
+      { params: Promise.resolve({ id: baseDetail.id }) },
+    );
+
+    expect(res.status).toBe(200);
+    expect(requireBookingAction).toHaveBeenCalledWith(baseDetail.id, staffUser, "edit");
+    expect(updateCheckout).not.toHaveBeenCalled();
+    expect(updateReservation).not.toHaveBeenCalled();
+    expect(createAuditEntry).not.toHaveBeenCalled();
+  });
+
   it("dispatches checkout edits to updateCheckout and records a full before snapshot", async () => {
     const res = await PATCH(
       request(

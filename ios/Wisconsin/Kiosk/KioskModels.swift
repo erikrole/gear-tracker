@@ -133,6 +133,14 @@ struct KioskDashboard: Decodable {
 
         var isNumberedBulk: Bool { bulkSkuId != nil && unitNumber != nil }
 
+        var itemListPrimaryTitle: String {
+            tagName.nonBlankText ?? name
+        }
+
+        var itemListSecondaryTitle: String? {
+            itemListPrimaryTitle.isSameListText(as: name) ? nil : name
+        }
+
         var requesterInitials: String {
             requesterName.split(separator: " ").prefix(2)
                 .compactMap { $0.first }
@@ -546,6 +554,14 @@ struct KioskScanResult: Decodable {
         let imageUrl: String?
         let bulkSkuId: String?
         let unitNumber: Int?
+
+        var itemListPrimaryTitle: String {
+            tagName.nonBlankText ?? name
+        }
+
+        var itemListSecondaryTitle: String? {
+            itemListPrimaryTitle.isSameListText(as: name) ? nil : name
+        }
     }
 }
 
@@ -581,6 +597,14 @@ struct KioskCheckoutDetail: Decodable {
         var isNumberedBulk: Bool { type == "numbered_bulk" }
         var isBulkQuantity: Bool { type == "bulk_quantity" }
         var isBulkDisplay: Bool { isNumberedBulk || isBulkQuantity || bulkSkuId != nil }
+
+        var itemListPrimaryTitle: String {
+            tagName.nonBlankText ?? name
+        }
+
+        var itemListSecondaryTitle: String? {
+            itemListPrimaryTitle.isSameListText(as: name) ? nil : name
+        }
     }
 
     var numberedBulkItems: [ReturnItem] {

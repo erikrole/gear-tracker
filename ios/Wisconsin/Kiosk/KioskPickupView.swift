@@ -204,8 +204,11 @@ struct KioskPickupView: View {
                         LazyVStack(spacing: 0) {
                             ForEach(items) { item in
                                 KioskChecklistRow(
-                                    name: confirmedItemOverrides[item.id]?.name ?? item.name,
-                                    tag: confirmedItemOverrides[item.id]?.tagName ?? item.tagName,
+                                    name: confirmedItemOverrides[item.id]?.itemListSecondaryTitle
+                                        ?? item.itemListSecondaryTitle
+                                        ?? item.name,
+                                    tag: confirmedItemOverrides[item.id]?.itemListPrimaryTitle
+                                        ?? item.itemListPrimaryTitle,
                                     isDone: confirmedIds.contains(item.id),
                                     isBattery: item.isNumberedBulk
                                 )

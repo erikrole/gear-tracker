@@ -606,14 +606,14 @@ struct CreateBookingSheet: View {
                             HStack(spacing: 10) {
                                 BookingAssetThumbnail(imageUrl: asset.imageUrl, size: 40, cornerRadius: 8)
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(asset.displayName)
-                                        .font(.subheadline.weight(.medium))
+                                    Text(asset.itemListPrimaryTitle)
+                                        .font(.gothamBold(size: 16))
                                         .lineLimit(1)
-                                    if let tag = asset.assetTag {
-                                        Text(tag)
+                                    if let subtitle = asset.itemListSecondaryTitle {
+                                        Text(subtitle)
                                             .font(.caption)
-                                            .fontDesign(.monospaced)
                                             .foregroundStyle(.secondary)
+                                            .lineLimit(1)
                                     }
                                 }
                                 Spacer()
@@ -636,7 +636,7 @@ struct CreateBookingSheet: View {
                                 BookingBulkThumbnail(imageUrl: sku.imageUrl, size: 40, cornerRadius: 8)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(sku.name)
-                                        .font(.subheadline.weight(.medium))
+                                        .font(.gothamBold(size: 16))
                                         .lineLimit(1)
                                     Text(bulkSubtitle(sku))
                                         .font(.caption)

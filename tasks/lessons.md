@@ -55,6 +55,7 @@
 
 ## UI Reliability
 
+- **Match screenshot error copy to its actual client before narrowing a stale-save fix**: If the reported toast string only exists in `BookingDetailsSheet.tsx`, inspect the shared web/mobile sheet even when earlier framing pointed at native iOS. Route-level optimistic-lock fixes should be proven against the exact edited field, such as `endsAt`, not only against a nearby metadata edit.
 - **Anchor screenshot color feedback to the exact element before changing shared tokens**: If the user says a color is too light in a screenshot, identify whether they mean text, icon, tile fill, card background, border, or badge before changing semantic palette values. For compact stat tiles, prefer a tile-specific fill token when the text color itself is already acceptable.
 - **Use the native tab bar when the product direction calls for it**: For the iOS 26 tab-bar pattern, use SwiftUI's built-in `Tab(...)` API and the `.search` role for the dedicated trailing Search tab. Scan can live as an action inside Search, like shopping apps, instead of owning the tab label. Do not stack a custom bottom bar over the system tab bar. If the native path crashes again, capture device/simulator proof first, then fix the native implementation instead of silently reverting to a custom fallback.
 - **Use native SwiftUI button styles before drawing iOS action badges**: When screenshot feedback points to App Store-style controls, start with text-only `Button` plus `.buttonStyle(.bordered/.borderedProminent)`, `.buttonBorderShape(.capsule)`, `.controlSize`, and semantic tint. Do not add action icons, custom fills, or handmade capsule badges unless the native control cannot express the job.
@@ -205,6 +206,7 @@
 
 ## Process
 
+- **Launch/privacy scope needs current product proof**: Do not turn dormant schema or historical fields into App Store disclosures or launch scope. Confirm the feature is present in current UI/API flows and accepted product direction first; if the user says a feature such as booking photos is dead, scrub it from active launch recommendations.
 - **Respect hard channel constraints before proposing fallbacks**: If the user says a kiosk/device flow must be a native app, do not pivot to a web/PWA fallback just because it is operationally convenient. First test whether the native deployment target and API surface can be lowered or gated.
 - **Device-target iOS compatibility catches more than simulator compatibility**: When adding a lowered native iOS target for physical hardware, build that target for `generic/platform=iOS` as well as Simulator. iPad orientation/full-screen rules and availability diagnostics can differ from the simulator-only build.
 - **Kiosk standby needs app-time and navigation-stable wake state**: A native kiosk can be running on iPadOS while standby is decided by a serverless route in UTC. Use the institution timezone for night-hours decisions, and store wake/dismissal grace outside the idle view's local `@State` so returning from student flows does not immediately cover the screen again.

@@ -79,6 +79,16 @@ struct Asset: Codable, Identifiable, Hashable {
         [brand, model].joined(separator: " ")
     }
 
+    var itemListPrimaryTitle: String {
+        assetTag.nonBlankText ?? displayName
+    }
+
+    var itemListSecondaryTitle: String? {
+        guard let tag = assetTag.nonBlankText else { return nil }
+        let candidate = name.nonBlankText ?? displayName
+        return candidate.isSameListText(as: tag) ? nil : candidate
+    }
+
     static func == (lhs: Asset, rhs: Asset) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
 
@@ -314,6 +324,16 @@ struct AssetDetail: Codable, Identifiable, Hashable {
 
     var displayName: String { [brand, model].joined(separator: " ") }
 
+    var itemListPrimaryTitle: String {
+        assetTag.nonBlankText ?? displayName
+    }
+
+    var itemListSecondaryTitle: String? {
+        guard let tag = assetTag.nonBlankText else { return nil }
+        let candidate = name.nonBlankText ?? displayName
+        return candidate.isSameListText(as: tag) ? nil : candidate
+    }
+
     static func == (lhs: AssetDetail, rhs: AssetDetail) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
 
@@ -329,5 +349,26 @@ struct AssetDetail: Codable, Identifiable, Hashable {
             purchasePrice: purchasePrice, residualValue: residualValue,
             isFavorited: isFavorited
         )
+    }
+}
+
+extension Optional where Wrapped == String {
+    var nonBlankText: String? {
+        guard let value = self?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
+            return nil
+        }
+        return value
+    }
+}
+
+extension String {
+    var nonBlankText: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    func isSameListText(as other: String) -> Bool {
+        trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            == other.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 }

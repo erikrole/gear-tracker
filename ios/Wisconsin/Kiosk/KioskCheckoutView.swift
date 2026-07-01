@@ -532,7 +532,7 @@ struct KioskCheckoutView: View {
         Task { await refreshAvailability(for: cart) }
         Haptics.warning()
         store.resetInactivity()
-        UIAccessibility.post(notification: .announcement, argument: "Removed \(item.name)")
+        UIAccessibility.post(notification: .announcement, argument: "Removed \(item.itemListPrimaryTitle)")
     }
 
     private func removeGroup(_ group: KioskCartDisplayGroup) {
@@ -543,7 +543,7 @@ struct KioskCheckoutView: View {
         Task { await refreshAvailability(for: cart) }
         Haptics.warning()
         store.resetInactivity()
-        UIAccessibility.post(notification: .announcement, argument: "Removed \(group.title)")
+        UIAccessibility.post(notification: .announcement, argument: "Removed \(group.primaryTitle)")
     }
 
     private func showFeedback(_ feedback: ScanFeedback) {
@@ -688,15 +688,17 @@ private struct KioskCartDisplayGroup: Identifiable, Equatable {
     var first: KioskCartItem { items[0] }
     var isBulkGroup: Bool { first.isNumberedBulk }
     var count: Int { items.count }
-    var title: String {
-        guard isBulkGroup else { return first.name }
-        return first.name.replacingOccurrences(of: #" #\d+$"#, with: "", options: .regularExpression)
+    var primaryTitle: String {
+        guard isBulkGroup else { return first.itemListPrimaryTitle }
+        let tags = unitNumbers.map { "#\($0)" }.joined(separator: " ")
+        return tags.nonBlankText ?? first.itemListPrimaryTitle
     }
     var subtitle: String {
         if isBulkGroup {
-            return "\(count) unit\(count == 1 ? "" : "s")"
+            let name = first.name.replacingOccurrences(of: #" #\d+$"#, with: "", options: .regularExpression)
+            return "\(name) · \(count) unit\(count == 1 ? "" : "s")"
         }
-        return [first.tagName, first.type].compactMap { value in
+        return [first.itemListSecondaryTitle, first.type].compactMap { value in
             guard let value, !value.isEmpty else { return nil }
             return value
         }.joined(separator: " · ")
@@ -1278,8 +1280,8 @@ private struct KioskCartGroupRow: View {
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 6) {
-                    Text(group.title)
-                        .font(.subheadline.weight(.semibold))
+                    Text(group.primaryTitle)
+                        .font(.gothamBold(size: 16))
                         .foregroundStyle(KioskText.primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.82)
@@ -1301,26 +1303,11 @@ private struct KioskCartGroupRow: View {
                     }
                 }
 
-                if group.isBulkGroup, !group.unitNumbers.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 5) {
-                            ForEach(group.unitNumbers, id: \.self) { unitNumber in
-                                Text("#\(unitNumber)")
-                                    .font(.caption2.monospacedDigit().weight(.semibold))
-                                    .foregroundStyle(KioskText.secondary)
-                                    .padding(.horizontal, 7)
-                                    .padding(.vertical, 4)
-                                    .background(KioskSurface.cardRaised, in: Capsule())
-                            }
-                        }
-                    }
-                } else {
-                    Text(group.subtitle)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(KioskText.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.82)
-                }
+                Text(group.subtitle)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(KioskText.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -1334,7 +1321,7 @@ private struct KioskCartGroupRow: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Remove \(group.title)")
+                .accessibilityLabel("Remove \(group.primaryTitle)")
             }
         }
         .padding(.horizontal, 20)
@@ -1346,9 +1333,9 @@ private struct KioskCartGroupRow: View {
 
     private var accessibilityLabel: String {
         if group.isBulkGroup {
-            return "\(group.title), \(group.count) units, \(group.unitNumbers.map { "#\($0)" }.joined(separator: ", "))"
+            return "\(group.primaryTitle), \(group.subtitle)"
         }
-        return "\(group.title), \(group.subtitle)"
+        return "\(group.primaryTitle), \(group.subtitle)"
     }
 }
 

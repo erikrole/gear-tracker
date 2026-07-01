@@ -157,6 +157,22 @@ struct BookingAsset: Codable, Identifiable {
     let model: String?
     let serialNumber: String?
     let imageUrl: String?
+
+    var displayName: String {
+        [brand, model]
+            .compactMap(\.nonBlankText)
+            .joined(separator: " ")
+    }
+
+    var itemListPrimaryTitle: String {
+        assetTag.nonBlankText ?? displayName.nonBlankText ?? "Item"
+    }
+
+    var itemListSecondaryTitle: String? {
+        guard let tag = assetTag.nonBlankText else { return nil }
+        let candidate = displayName.nonBlankText
+        return candidate?.isSameListText(as: tag) == true ? nil : candidate
+    }
 }
 
 struct BookingSerializedItem: Codable, Identifiable {
@@ -196,6 +212,15 @@ struct BookingBulkItem: Codable, Identifiable {
     var assignedUnitNumbers: [Int] {
         guard bulkSku.trackByNumber == true else { return [] }
         return (unitAllocations ?? []).map(\.bulkSkuUnit.unitNumber).sorted()
+    }
+
+    var itemListPrimaryTitle: String {
+        let unitTags = assignedUnitNumbers.map { "#\($0)" }.joined(separator: " ")
+        return unitTags.nonBlankText ?? bulkSku.name
+    }
+
+    var itemListSecondaryTitle: String? {
+        itemListPrimaryTitle.isSameListText(as: bulkSku.name) ? nil : bulkSku.name
     }
 }
 

@@ -416,19 +416,23 @@ export async function updateReservation(
           bulkSkuId: item.bulkSkuId,
           quantity: item.plannedQuantity
         }));
+      const updatesEquipment = updates.serializedAssetIds !== undefined || updates.bulkItems !== undefined;
+      const updatesWindow = updates.startsAt !== undefined || updates.endsAt !== undefined || updates.locationId !== undefined;
 
-      const availability = await checkAvailability(tx, {
-        locationId: nextLocationId,
-        startsAt: nextStartsAt,
-        endsAt: nextEndsAt,
-        serializedAssetIds,
-        bulkItems,
-        excludeBookingId: bookingId,
-        bookingKind: "RESERVATION",
-      });
+      if (updatesEquipment || updatesWindow) {
+        const availability = await checkAvailability(tx, {
+          locationId: nextLocationId,
+          startsAt: nextStartsAt,
+          endsAt: nextEndsAt,
+          serializedAssetIds,
+          bulkItems,
+          excludeBookingId: bookingId,
+          bookingKind: "RESERVATION",
+        });
 
-      if (availability.conflicts.length > 0 || availability.shortages.length > 0 || availability.unavailableAssets.length > 0) {
-        throw new HttpError(409, "Availability conflict", availability);
+        if (availability.conflicts.length > 0 || availability.shortages.length > 0 || availability.unavailableAssets.length > 0) {
+          throw new HttpError(409, "Availability conflict", availability);
+        }
       }
 
       await tx.booking.update({
@@ -444,39 +448,51 @@ export async function updateReservation(
         }
       });
 
-      await tx.bookingSerializedItem.deleteMany({ where: { bookingId } });
-      await tx.assetAllocation.deleteMany({ where: { bookingId } });
-      await tx.bookingBulkItem.deleteMany({ where: { bookingId } });
+      if (!updatesEquipment) {
+        if (updatesWindow) {
+          await tx.assetAllocation.updateMany({
+            where: { bookingId },
+            data: {
+              startsAt: nextStartsAt,
+              endsAt: nextEndsAt,
+            },
+          });
+        }
+      } else {
+        await tx.bookingSerializedItem.deleteMany({ where: { bookingId } });
+        await tx.assetAllocation.deleteMany({ where: { bookingId } });
+        await tx.bookingBulkItem.deleteMany({ where: { bookingId } });
 
-      if (serializedAssetIds.length > 0) {
-        await tx.bookingSerializedItem.createMany({
-          data: serializedAssetIds.map((assetId) => ({
-            bookingId,
-            assetId,
-            allocationStatus: "active"
-          }))
-        });
+        if (serializedAssetIds.length > 0) {
+          await tx.bookingSerializedItem.createMany({
+            data: serializedAssetIds.map((assetId) => ({
+              bookingId,
+              assetId,
+              allocationStatus: "active"
+            }))
+          });
 
-        await tx.assetAllocation.createMany({
-          data: serializedAssetIds.map((assetId) => ({
-            bookingId,
-            assetId,
-            startsAt: nextStartsAt,
-            endsAt: nextEndsAt,
-            active: true,
-            kind: "RESERVATION"
-          }))
-        });
-      }
+          await tx.assetAllocation.createMany({
+            data: serializedAssetIds.map((assetId) => ({
+              bookingId,
+              assetId,
+              startsAt: nextStartsAt,
+              endsAt: nextEndsAt,
+              active: true,
+              kind: "RESERVATION"
+            }))
+          });
+        }
 
-      if (bulkItems.length > 0) {
-        await tx.bookingBulkItem.createMany({
-          data: bulkItems.map((item) => ({
-            bookingId,
-            bulkSkuId: item.bulkSkuId,
-            plannedQuantity: item.quantity
-          }))
-        });
+        if (bulkItems.length > 0) {
+          await tx.bookingBulkItem.createMany({
+            data: bulkItems.map((item) => ({
+              bookingId,
+              bulkSkuId: item.bulkSkuId,
+              plannedQuantity: item.quantity
+            }))
+          });
+        }
       }
 
       // Granular equipment audit entries
@@ -618,19 +634,22 @@ export async function updateCheckout(
           quantity: item.plannedQuantity
         }));
       const updatesEquipment = updates.serializedAssetIds !== undefined || updates.bulkItems !== undefined;
+      const updatesWindow = updates.endsAt !== undefined || updates.locationId !== undefined;
 
-      const availability = await checkAvailability(tx, {
-        locationId: nextLocationId,
-        startsAt: nextStartsAt,
-        endsAt: nextEndsAt,
-        serializedAssetIds,
-        bulkItems,
-        excludeBookingId: bookingId,
-        bookingKind: "CHECKOUT",
-      });
+      if (updatesEquipment || updatesWindow) {
+        const availability = await checkAvailability(tx, {
+          locationId: nextLocationId,
+          startsAt: nextStartsAt,
+          endsAt: nextEndsAt,
+          serializedAssetIds,
+          bulkItems,
+          excludeBookingId: bookingId,
+          bookingKind: "CHECKOUT",
+        });
 
-      if (availability.conflicts.length > 0 || availability.shortages.length > 0 || availability.unavailableAssets.length > 0) {
-        throw new HttpError(409, "Conflicts with another booking", availability);
+        if (availability.conflicts.length > 0 || availability.shortages.length > 0 || availability.unavailableAssets.length > 0) {
+          throw new HttpError(409, "Conflicts with another booking", availability);
+        }
       }
 
       await tx.booking.update({
@@ -643,13 +662,15 @@ export async function updateCheckout(
       });
 
       if (!updatesEquipment) {
-        await tx.assetAllocation.updateMany({
-          where: { bookingId },
-          data: {
-            startsAt: nextStartsAt,
-            endsAt: nextEndsAt,
-          },
-        });
+        if (updatesWindow) {
+          await tx.assetAllocation.updateMany({
+            where: { bookingId },
+            data: {
+              startsAt: nextStartsAt,
+              endsAt: nextEndsAt,
+            },
+          });
+        }
       } else {
         // Rebuild allocations only when the caller explicitly changed equipment.
         // Detail-only edits must not cascade-delete numbered bulk unit history.

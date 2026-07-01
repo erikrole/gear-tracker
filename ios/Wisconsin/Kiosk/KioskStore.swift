@@ -68,6 +68,14 @@ struct KioskCartItem: Identifiable, Codable, Equatable {
     var isNumberedBulk: Bool {
         bulkSkuId != nil && unitNumber != nil
     }
+
+    var itemListPrimaryTitle: String {
+        tagName.nonBlankText ?? name
+    }
+
+    var itemListSecondaryTitle: String? {
+        itemListPrimaryTitle.isSameListText(as: name) ? nil : name
+    }
 }
 
 @Observable

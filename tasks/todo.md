@@ -4,6 +4,52 @@ Last updated: 2026-06-30
 
 ---
 
+## Active: Booking return-date stale duplicate save recovery (2026-07-01)
+
+Plan: suppress false conflict toasts only when a stale repeat save exactly matches the booking state that already landed.
+
+- [x] Trace the toast source, booking edit client, and shared booking PATCH route for return-date saves.
+- [x] Add route handling for idempotent stale PATCH payloads after the first save moves `updatedAt`.
+- [x] Add explicit regression coverage for stale duplicate return-date edits.
+- [x] Sync area docs and capture the corrected diagnosis in lessons.
+- [x] Run focused tests, TypeScript, docs/drift checks, whitespace check, and iOS verification as available.
+
+### Review
+- 2026-07-01: The visible toast came from the shared `BookingDetailsSheet` save path, which already sends `If-Unmodified-Since`. The remaining return-date failure was a stale duplicate PATCH edge: the first save moved `updatedAt`, then a repeat save carrying the old snapshot could return 409 even though the requested `endsAt` had already landed. `/api/bookings/[id]` now treats stale PATCH payloads as idempotent only when every submitted field matches the current booking state, returns the enriched booking detail without a second update or audit entry, and keeps true stale competing edits as 409 conflicts. Focused booking route/service Vitest, TypeScript, iOS drift/gap checks, docs check, whitespace check, `npm run build:app`, and unsandboxed `npm run ios:xcode:verify` passed.
+
+---
+
+## Active: iOS item-list asset-tag identity pass (2026-06-30)
+
+Plan: make native iOS item rows follow the web Items list contract: operational asset tags are the primary header, with product/model copy secondary.
+
+- [x] Audit current iOS item-list renderers across Items, booking detail, create-booking picker/review, kiosk checkout/pickup/return, search, scan, and utility pickers.
+- [x] Add shared Swift item identity helpers so rows do not each decide their own primary label.
+- [x] Update serialized item rows to render asset tags/tag names in Gotham as the primary header and move product names to subtitles.
+- [x] Keep item-family/SKU rows name-first only when no asset/unit tag exists.
+- [x] Add focused source-contract tests and sync area docs.
+- [x] Run focused tests, iOS drift/gap checks, docs check, whitespace check, and iOS build verification as available.
+
+### Review
+- 2026-06-30: Native iOS item-list identity now follows the web Items list contract. Shared Swift helpers make `assetTag`, `tagName`, or numbered bulk unit tags the primary item header, while product/model/SKU names move to secondary copy. Updated surfaces include Items, booking equipment, create-booking picker and review rows, Search, kiosk checkout cart, kiosk pickup/return checklists, kiosk active checkout rows, flagged item alerts, and the link-sticker utility picker. Focused Vitest source contracts, TypeScript, iOS drift, iOS gap audit, docs/codemap verification, whitespace check, and unsandboxed `npm run ios:xcode:verify` passed.
+
+---
+
+## Active: iOS booking title edit conflict recovery (2026-06-30)
+
+Plan: stop harmless native booking name edits from being blocked by availability conflict checks.
+
+- [x] Audit the native screenshot, edit payload, shared booking PATCH route, checkout/reservation update services, and update-booking regression tests.
+- [x] Patch checkout update so title/notes-only edits skip availability checks and equipment rebuilds while due-date/location/equipment edits still revalidate.
+- [x] Patch reservation update with the same metadata-only behavior.
+- [x] Add focused service coverage for metadata-only edits and timing edits.
+- [x] Run focused tests, TypeScript, iOS drift/gap checks, docs check, whitespace check, and iOS build verification.
+
+### Review
+- 2026-06-30: Root cause was the shared booking update service treating metadata-only edits as availability-impacting edits. A native title save on an existing checkout could rerun availability against the current equipment/window and return conflict copy even though the title itself was harmless. Checkout and reservation updates now skip availability checks and equipment rebuilds for title/notes-only edits, while due-date, location, and equipment edits still revalidate and update allocation windows. Focused update-booking Vitest, optimistic-lock/source-contract tests, TypeScript, iOS drift, iOS gap audit, codemap/docs checks, whitespace checks, and unsandboxed `npm run ios:xcode:verify` passed.
+
+---
+
 ## Active: Student availability scheduling contract (2026-06-30)
 
 Plan: `tasks/student-availability-scheduling-contract-plan.md`

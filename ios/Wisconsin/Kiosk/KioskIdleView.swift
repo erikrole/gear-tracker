@@ -888,9 +888,16 @@ private struct ActiveItemGroup: Identifiable {
     var isOverdue: Bool { first.isOverdue }
     var unitNumbers: [Int] { items.compactMap(\.unitNumber).sorted() }
 
-    var title: String {
-        guard isBulkGroup else { return first.name }
-        return first.name.replacingOccurrences(of: #" #\d+$"#, with: "", options: .regularExpression)
+    var primaryTitle: String {
+        guard isBulkGroup else { return first.itemListPrimaryTitle }
+        let tags = unitNumbers.map { "#\($0)" }.joined(separator: " ")
+        return tags.nonBlankText ?? first.itemListPrimaryTitle
+    }
+
+    var subtitle: String {
+        guard isBulkGroup else { return [first.itemListSecondaryTitle, first.checkoutTitle].compactMap { $0 }.joined(separator: " · ") }
+        let name = first.name.replacingOccurrences(of: #" #\d+$"#, with: "", options: .regularExpression)
+        return "\(name) · \(count) unit\(count == 1 ? "" : "s")"
     }
 
     static func groups(from items: [KioskDashboard.ActiveItem]) -> [ActiveItemGroup] {
@@ -924,8 +931,8 @@ private struct ActiveItemRow: View {
                 assetImage
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
-                        Text(group.title)
-                            .font(.subheadline.weight(.semibold))
+                        Text(group.primaryTitle)
+                            .font(.gothamBold(size: 16))
                             .foregroundStyle(KioskText.primary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.85)
@@ -939,26 +946,11 @@ private struct ActiveItemRow: View {
                         }
                     }
 
-                    if group.isBulkGroup, !group.unitNumbers.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 4) {
-                                ForEach(group.unitNumbers, id: \.self) { unitNumber in
-                                    Text("#\(unitNumber)")
-                                        .font(.caption2.monospacedDigit().weight(.semibold))
-                                        .foregroundStyle(KioskText.secondary)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 3)
-                                        .background(KioskSurface.placeholder, in: Capsule())
-                                }
-                            }
-                        }
-                    } else {
-                        Text("\(item.tagName) · \(item.checkoutTitle)")
-                            .font(.caption)
-                            .foregroundStyle(KioskText.secondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                    }
+                    Text(group.subtitle)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(KioskText.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
                 Spacer(minLength: 6)
                 KioskAvatar(url: item.requesterAvatarUrl, initials: item.requesterInitials, size: 30)
@@ -992,10 +984,9 @@ private struct ActiveItemRow: View {
         let prefix = group.isOverdue ? "Overdue: " : ""
         let what: String
         if group.isBulkGroup {
-            let units = group.unitNumbers.map { "#\($0)" }.joined(separator: ", ")
-            what = "\(group.title), \(group.count) unit\(group.count == 1 ? "" : "s"), \(units)"
+            what = "\(group.primaryTitle), \(group.subtitle)"
         } else {
-            what = "\(group.title), \(item.tagName)"
+            what = "\(group.primaryTitle), \(group.subtitle)"
         }
         return "\(prefix)\(what), held by \(item.requesterName) for \(item.checkoutTitle)"
     }
@@ -1528,10 +1519,16 @@ private struct KioskCheckoutDetailSheet: View {
         var first: KioskCheckoutDetail.ReturnItem { items[0] }
         var isBulkGroup: Bool { first.isBulkDisplay }
         var count: Int { items.count }
-        var title: String {
-            guard isBulkGroup else { return first.name }
+        var primaryTitle: String {
+            guard isBulkGroup else { return first.itemListPrimaryTitle }
+            let tags = unitNumbers.map { "#\($0)" }.joined(separator: " ")
+            return tags.nonBlankText ?? first.itemListPrimaryTitle
+        }
+        var subtitle: String {
+            guard isBulkGroup else { return first.itemListSecondaryTitle ?? first.tagName }
             return (first.bulkSkuName ?? first.name)
                 .replacingOccurrences(of: #" #\d+$"#, with: "", options: .regularExpression)
+                + " · \(count) unit\(count == 1 ? "" : "s")"
         }
         var unitNumbers: [Int] { items.compactMap(\.unitNumber).sorted() }
         var returnedCount: Int { items.filter(\.returned).count }
@@ -1768,8 +1765,8 @@ private struct KioskCheckoutDetailSheet: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Text(group.title)
-                        .font(.subheadline.weight(.semibold))
+                    Text(group.primaryTitle)
+                        .font(.gothamBold(size: 16))
                         .foregroundStyle(KioskText.primary)
                         .lineLimit(1)
                     if group.count > 1 {
@@ -1781,24 +1778,10 @@ private struct KioskCheckoutDetailSheet: View {
                             .background(Color.kioskRed.opacity(0.16), in: Capsule())
                     }
                 }
-                if group.isBulkGroup, !group.unitNumbers.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 4) {
-                            ForEach(group.unitNumbers, id: \.self) { unit in
-                                Text("#\(unit)")
-                                    .font(.caption2.monospacedDigit().weight(.semibold))
-                                    .foregroundStyle(KioskText.secondary)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 3)
-                                    .background(KioskSurface.cardRaised, in: Capsule())
-                            }
-                        }
-                    }
-                } else {
-                    Text(group.first.tagName)
-                        .font(.caption.monospaced())
-                        .foregroundStyle(KioskText.secondary)
-                }
+                Text(group.subtitle)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(KioskText.secondary)
+                    .lineLimit(1)
             }
             Spacer()
             if canEditActiveCheckout, let removable = removableItem(in: group) {

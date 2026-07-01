@@ -24,6 +24,8 @@ targets:
     info:
       path: Wisconsin/Supporting/Info.plist
       properties:
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         UILaunchScreen:
           UIColorName: ""
         UISupportedInterfaceOrientations:
@@ -36,7 +38,6 @@ targets:
           - UIInterfaceOrientationLandscapeRight
           - UIInterfaceOrientationPortraitUpsideDown
         NSCameraUsageDescription: "Scan gear barcodes and QR codes"
-        NSLocationWhenInUseUsageDescription: "Show nearby gear locations"
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: false
         NSSupportsLiveActivities: true
@@ -60,7 +61,7 @@ targets:
         PRODUCT_NAME: Wisconsin
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "1"
+        CURRENT_PROJECT_VERSION: "17"
         TARGETED_DEVICE_FAMILY: "1,2"
         DEVELOPMENT_TEAM: T26T3G8C7Q
       configs:
@@ -133,12 +134,17 @@ targets:
     info:
       path: WisconsinLiveActivities/Info.plist
       properties:
+        CFBundleDisplayName: "Wisconsin Creative Live Activities"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
       base:
         PRODUCT_NAME: WisconsinLiveActivities
         PRODUCT_BUNDLE_IDENTIFIER: com.erikrole.Wisconsin.LiveActivities
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "17"
         DEVELOPMENT_TEAM: T26T3G8C7Q
         SKIP_INSTALL: YES
 

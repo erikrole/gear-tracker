@@ -205,8 +205,8 @@ struct KioskReturnView: View {
                         LazyVStack(spacing: 0) {
                             ForEach(items) { item in
                                 KioskChecklistRow(
-                                    name: item.name,
-                                    tag: item.tagName,
+                                    name: item.itemListSecondaryTitle ?? item.name,
+                                    tag: item.itemListPrimaryTitle,
                                     isDone: returnedIds.contains(item.id),
                                     isBattery: item.isNumberedBulk,
                                     strikethroughWhenDone: true

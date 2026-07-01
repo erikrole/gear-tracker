@@ -426,9 +426,9 @@ private struct AssetPickRow: View {
                 .foregroundStyle(.tint)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(asset.displayName)
-                    .font(.subheadline.weight(.medium))
-                Text([asset.assetTag, asset.serialNumber].compactMap { $0 }.joined(separator: " · ").nilIfEmpty ?? "—")
+                Text(asset.itemListPrimaryTitle)
+                    .font(.gothamBold(size: 16))
+                Text([asset.itemListSecondaryTitle, asset.serialNumber].compactMap { $0 }.joined(separator: " · ").nilIfEmpty ?? "—")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -445,8 +445,8 @@ private struct AssetPickRow: View {
     }
 
     private var rowAccessibilityLabel: String {
-        var parts: [String] = [asset.displayName]
-        if let tag = asset.assetTag { parts.append(tag) }
+        var parts: [String] = [asset.itemListPrimaryTitle]
+        if let subtitle = asset.itemListSecondaryTitle { parts.append(subtitle) }
         if let serial = asset.serialNumber { parts.append("Serial \(serial)") }
         return parts.joined(separator: ", ")
     }
@@ -550,7 +550,7 @@ private struct SuccessStepView: View {
                     .accessibilityHidden(true)
                 Text("Linked!")
                     .font(.title.weight(.bold))
-                Text("\(Text(scannedCode).fontDesign(.monospaced)) → \(Text(asset.displayName).bold())")
+                Text("\(Text(scannedCode).fontDesign(.monospaced)) → \(Text(asset.itemListPrimaryTitle).font(.gothamBold(size: 16)))")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

@@ -74,16 +74,16 @@ struct SelectedEquipmentRow: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(asset.displayName)
-                    .font(.subheadline.weight(.medium))
+                Text(asset.itemListPrimaryTitle)
+                    .font(.gothamBold(size: 16))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                 HStack(spacing: 6) {
-                    if let tag = asset.assetTag {
-                        Text(tag)
+                    if let subtitle = asset.itemListSecondaryTitle {
+                        Text(subtitle)
                             .font(.caption)
-                            .fontDesign(.monospaced)
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
                     Text(asset.location.name)
                         .font(.caption)
@@ -112,8 +112,8 @@ struct SelectedEquipmentRow: View {
     }
 
     private var accessibilityLabel: String {
-        var parts: [String] = ["Selected", asset.displayName]
-        if let tag = asset.assetTag { parts.append(tag) }
+        var parts: [String] = ["Selected", asset.itemListPrimaryTitle]
+        if let subtitle = asset.itemListSecondaryTitle { parts.append(subtitle) }
         parts.append(asset.location.name)
         if isConflicted { parts.append("Scheduling conflict") }
         parts.append("Remove button")
@@ -132,7 +132,7 @@ struct SelectedBulkRow: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(sku.name)
-                    .font(.subheadline.weight(.medium))
+                    .font(.gothamBold(size: 16))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                 Text("\(quantity) selected")
@@ -176,7 +176,7 @@ struct BulkQuantityRow: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(sku.name)
-                    .font(.subheadline.weight(.medium))
+                    .font(.gothamBold(size: 16))
                     .lineLimit(1)
                 Text(subtitle)
                     .font(.caption)
@@ -230,16 +230,15 @@ struct AssetPickerRow: View {
                 BookingAssetThumbnail(imageUrl: asset.imageUrl)
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(asset.displayName)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                    Text(asset.itemListPrimaryTitle)
+                        .font(.gothamBold(size: 16))
                         .foregroundStyle(.primary)
                     HStack(spacing: 6) {
-                        if let tag = asset.assetTag {
-                            Text(tag)
+                        if let subtitle = asset.itemListSecondaryTitle {
+                            Text(subtitle)
                                 .font(.caption)
-                                .fontDesign(.monospaced)
                                 .foregroundStyle(.secondary)
+                                .lineLimit(1)
                         }
                         Text(asset.location.name)
                             .font(.caption)
@@ -273,8 +272,8 @@ struct AssetPickerRow: View {
     }
 
     private var rowAccessibilityLabel: String {
-        var parts: [String] = [asset.displayName]
-        if let tag = asset.assetTag { parts.append(tag) }
+        var parts: [String] = [asset.itemListPrimaryTitle]
+        if let subtitle = asset.itemListSecondaryTitle { parts.append(subtitle) }
         parts.append(asset.location.name)
         if isConflicted { parts.append("Scheduling conflict") }
         parts.append(isSelected ? "Selected" : "Not selected")

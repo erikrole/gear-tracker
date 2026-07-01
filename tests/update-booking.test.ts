@@ -139,15 +139,35 @@ describe("updateReservation", () => {
     );
   });
 
-  it("checks availability with excludeBookingId", async () => {
+  it("does not check availability or rebuild equipment when only reservation details change", async () => {
     mockTx.booking.findUnique.mockResolvedValue(makeExistingReservation());
 
     await updateReservation("r-1", "actor-1", { title: "Updated" });
+
+    expect(checkAvailability).not.toHaveBeenCalled();
+    expect(mockTx.bookingSerializedItem.deleteMany).not.toHaveBeenCalled();
+    expect(mockTx.bookingBulkItem.deleteMany).not.toHaveBeenCalled();
+    expect(mockTx.assetAllocation.deleteMany).not.toHaveBeenCalled();
+    expect(mockTx.assetAllocation.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("checks availability with excludeBookingId when reservation timing changes", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingReservation());
+    const newEnd = new Date("2026-04-11T17:00:00Z");
+
+    await updateReservation("r-1", "actor-1", { endsAt: newEnd });
 
     expect(checkAvailability).toHaveBeenCalledWith(
       mockTx,
       expect.objectContaining({ excludeBookingId: "r-1" })
     );
+    expect(mockTx.assetAllocation.updateMany).toHaveBeenCalledWith({
+      where: { bookingId: "r-1" },
+      data: {
+        startsAt,
+        endsAt: newEnd,
+      },
+    });
   });
 
   it("throws 409 on availability conflict", async () => {
@@ -162,7 +182,7 @@ describe("updateReservation", () => {
     });
 
     await expect(
-      updateReservation("r-1", "actor-1", { title: "Updated" })
+      updateReservation("r-1", "actor-1", { endsAt: new Date("2026-04-11T17:00:00Z") })
     ).rejects.toThrow("Availability conflict");
   });
 
@@ -264,24 +284,26 @@ describe("updateCheckout", () => {
     expect(mockTx.bookingSerializedItem.deleteMany).not.toHaveBeenCalled();
     expect(mockTx.bookingBulkItem.deleteMany).not.toHaveBeenCalled();
     expect(mockTx.assetAllocation.deleteMany).not.toHaveBeenCalled();
-    expect(mockTx.assetAllocation.updateMany).toHaveBeenCalledWith({
-      where: { bookingId: "c-1" },
-      data: {
-        startsAt,
-        endsAt,
-      },
-    });
+    expect(mockTx.assetAllocation.updateMany).not.toHaveBeenCalled();
   });
 
-  it("checks availability with excludeBookingId", async () => {
+  it("checks availability with excludeBookingId when checkout due date changes", async () => {
     mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout());
+    const newEnd = new Date("2026-04-11T17:00:00Z");
 
-    await updateCheckout("c-1", "actor-1", { title: "Updated" });
+    await updateCheckout("c-1", "actor-1", { endsAt: newEnd });
 
     expect(checkAvailability).toHaveBeenCalledWith(
       mockTx,
       expect.objectContaining({ excludeBookingId: "c-1" })
     );
+    expect(mockTx.assetAllocation.updateMany).toHaveBeenCalledWith({
+      where: { bookingId: "c-1" },
+      data: {
+        startsAt,
+        endsAt: newEnd,
+      },
+    });
   });
 
   it("throws 409 on availability conflict", async () => {
@@ -296,7 +318,7 @@ describe("updateCheckout", () => {
     });
 
     await expect(
-      updateCheckout("c-1", "actor-1", { title: "Updated" })
+      updateCheckout("c-1", "actor-1", { endsAt: new Date("2026-04-11T17:00:00Z") })
     ).rejects.toThrow("Conflicts");
   });
 

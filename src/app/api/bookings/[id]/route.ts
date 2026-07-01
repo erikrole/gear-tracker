@@ -8,6 +8,51 @@ import {
 import { getAllowedBookingActions, requireBookingAction } from "@/lib/services/booking-rules";
 import { updateBookingSchema, sanitizeBookingFields } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
+import type { z } from "zod";
+
+type BookingPatchBody = z.infer<typeof updateBookingSchema>;
+
+function sortedStrings(values: string[]) {
+  return [...values].sort((a, b) => a.localeCompare(b));
+}
+
+function sameDateInstant(value: string, current: Date | string) {
+  const requested = new Date(value).getTime();
+  const existing = new Date(current).getTime();
+  return !Number.isNaN(requested) && requested === existing;
+}
+
+function sameStringSet(lhs: string[], rhs: string[]) {
+  return JSON.stringify(sortedStrings(lhs)) === JSON.stringify(sortedStrings(rhs));
+}
+
+function sameBulkItems(
+  requested: Array<{ bulkSkuId: string; quantity: number }>,
+  current: Array<{ bulkSkuId: string; plannedQuantity: number }>,
+) {
+  const normalizeRequested = requested
+    .map((item) => ({ bulkSkuId: item.bulkSkuId, quantity: item.quantity }))
+    .sort((a, b) => a.bulkSkuId.localeCompare(b.bulkSkuId));
+  const normalizeCurrent = current
+    .map((item) => ({ bulkSkuId: item.bulkSkuId, quantity: item.plannedQuantity }))
+    .sort((a, b) => a.bulkSkuId.localeCompare(b.bulkSkuId));
+  return JSON.stringify(normalizeRequested) === JSON.stringify(normalizeCurrent);
+}
+
+function isIdempotentStalePatch(body: BookingPatchBody, detail: Awaited<ReturnType<typeof getBookingDetail>>) {
+  if (body.title !== undefined && body.title !== detail.title) return false;
+  if (body.notes !== undefined && body.notes !== (detail.notes ?? "")) return false;
+  if (body.requesterUserId !== undefined && body.requesterUserId !== detail.requesterUserId) return false;
+  if (body.locationId !== undefined && body.locationId !== detail.locationId) return false;
+  if (body.startsAt !== undefined && !sameDateInstant(body.startsAt, detail.startsAt)) return false;
+  if (body.endsAt !== undefined && !sameDateInstant(body.endsAt, detail.endsAt)) return false;
+  if (body.serializedAssetIds !== undefined) {
+    const currentAssetIds = detail.serializedItems.map((item) => item.assetId);
+    if (!sameStringSet(body.serializedAssetIds, currentAssetIds)) return false;
+  }
+  if (body.bulkItems !== undefined && !sameBulkItems(body.bulkItems, detail.bulkItems)) return false;
+  return true;
+}
 
 export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
   const { id } = params;
@@ -43,6 +88,11 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     throw new HttpError(400, "Invalid If-Unmodified-Since header.");
   }
   if (clientTs < serverTs) {
+    if (isIdempotentStalePatch(body, detail)) {
+      await requireBookingAction(id, user, "edit");
+      const allowedActions = getAllowedBookingActions(user, detail);
+      return ok({ data: { ...detail, allowedActions } });
+    }
     throw new HttpError(409, "This booking was modified by someone else. Please refresh and try again.");
   }
 

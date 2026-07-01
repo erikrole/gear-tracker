@@ -10,9 +10,15 @@ struct AssetResultRow: View {
             AssetThumbnail(imageUrl: asset.imageUrl, size: 44)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(asset.name ?? asset.assetTag ?? asset.displayName)
-                    .font(.subheadline.weight(.medium))
+                Text(asset.itemListPrimaryTitle)
+                    .font(.gothamBold(size: 16))
                     .lineLimit(1)
+                if let subtitle = asset.itemListSecondaryTitle {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
                 HStack(spacing: 4) {
                     if let cat = asset.category {
                         Text(cat.name)
@@ -48,7 +54,7 @@ struct ItemFamilyResultRow: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(family.name)
-                    .font(.subheadline.weight(.medium))
+                    .font(.gothamBold(size: 16))
                     .lineLimit(1)
                 Text(family.scannedUnitLabel ?? family.availabilityLabel)
                     .font(.caption)

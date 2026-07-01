@@ -1070,11 +1070,15 @@ private struct FlaggedItemsBanner: View {
             ForEach(items) { item in
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(item.assetName ?? item.assetTag)
-                            .font(.subheadline.weight(.medium))
+                        Text(item.assetTag)
+                            .font(.gothamBold(size: 16))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
                         HStack(spacing: 4) {
+                            if let assetName = item.assetName, !assetName.isSameListText(as: item.assetTag) {
+                                Text(assetName)
+                                Text("·")
+                            }
                             Text(item.typeLabel)
                             if let title = item.bookingTitle {
                                 Text("·")
@@ -1086,9 +1090,6 @@ private struct FlaggedItemsBanner: View {
                         .lineLimit(1)
                     }
                     Spacer()
-                    Text(item.assetTag)
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.tertiary)
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(flaggedRowLabel(for: item))
@@ -1101,7 +1102,11 @@ private struct FlaggedItemsBanner: View {
     }
 
     private func flaggedRowLabel(for item: DashboardFlaggedItem) -> String {
-        var parts: [String] = ["Flagged: \(item.assetName ?? item.assetTag)", item.typeLabel]
+        var parts: [String] = ["Flagged: \(item.assetTag)"]
+        if let assetName = item.assetName, !assetName.isSameListText(as: item.assetTag) {
+            parts.append(assetName)
+        }
+        parts.append(item.typeLabel)
         if let title = item.bookingTitle { parts.append(title) }
         parts.append("tag \(item.assetTag)")
         return parts.joined(separator: ", ")

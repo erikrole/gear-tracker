@@ -241,6 +241,8 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - Mobile operations contract from `AREA_MOBILE.md`.
 
 ## Change Log
+- 2026-07-01: Shared booking PATCH now treats stale duplicate edits as idempotent only when the submitted fields already match the current reservation, including return-window changes. The first save still owns the audit entry, while real stale competing window edits continue to return 409 conflict responses.
+- 2026-06-30: Reservation title and notes-only edits no longer rerun availability checks or rebuild equipment rows. Timing, location, and equipment edits still revalidate availability and update allocation windows, while harmless metadata edits stay out of conflict handling.
 - 2026-06-30: Native iOS reservation creation now uses SwiftUI `.searchable` for the Equipment step instead of an inline custom search row. Scan-to-add, grouped asset rows, selected equipment recovery, bulk quantities, and server-side availability checks stay on the existing paths.
 - 2026-06-29: Native iOS reservation detail now guards Save, Extend, and Cancel handlers before sending booking mutations. A rapid duplicate tap can no longer make a successful return-window edit show the stale-write "modified by someone else" message or duplicate adjacent reservation actions while the first request is in flight.
 - 2026-06-29: Native iOS reservation detail notes editing now uses a multiline editor and preserves the existing optimistic-lock PATCH path while sending an explicit empty string when notes are cleared. This fixes the native clear-notes path without changing reservation lifecycle, kiosk pickup, or server mutation contracts.

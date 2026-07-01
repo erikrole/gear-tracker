@@ -571,12 +571,14 @@ private struct EquipmentSection: View {
         HStack(spacing: 10) {
             AssetThumbnail(imageUrl: item.asset.imageUrl, size: 40)
             VStack(alignment: .leading, spacing: 2) {
-                Text([item.asset.brand, item.asset.model].compactMap { $0 }.joined(separator: " "))
-                    .font(.subheadline)
-                if let tag = item.asset.assetTag {
-                    Text(tag)
-                        .font(.system(.caption, design: .monospaced))
+                Text(item.asset.itemListPrimaryTitle)
+                    .font(.gothamBold(size: 16))
+                    .lineLimit(1)
+                if let subtitle = item.asset.itemListSecondaryTitle {
+                    Text(subtitle)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
                 if let conflict {
                     Text(conflict.conflictingBookingTitle.map { "Conflicts with \($0)" } ?? "Scheduling conflict")
@@ -603,15 +605,14 @@ private struct EquipmentSection: View {
         HStack(spacing: 10) {
             BulkThumbnail(imageUrl: item.bulkSku.imageUrl, size: 40)
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.bulkSku.name)
-                    .font(.subheadline)
-                if !units.isEmpty {
-                    // Unit-tracked SKUs (e.g. numbered batteries) carry specific
-                    // unit numbers — surface them like the web "#19 #27" chips.
-                    Text(units.map { "#\($0)" }.joined(separator: " "))
-                        .font(.system(.caption, design: .monospaced))
+                Text(item.itemListPrimaryTitle)
+                    .font(.gothamBold(size: 16))
+                    .lineLimit(1)
+                if let subtitle = item.itemListSecondaryTitle {
+                    Text(subtitle)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                        .lineLimit(1)
                 }
             }
             Spacer()
@@ -620,11 +621,14 @@ private struct EquipmentSection: View {
                 .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(bulkRowAccessibilityLabel(name: item.bulkSku.name, quantity: item.plannedQuantity, units: units))
+        .accessibilityLabel(bulkRowAccessibilityLabel(item: item, quantity: item.plannedQuantity, units: units))
     }
 
-    private func bulkRowAccessibilityLabel(name: String, quantity: Int, units: [Int]) -> String {
-        var label = "\(name), quantity \(quantity)"
+    private func bulkRowAccessibilityLabel(item: BookingBulkItem, quantity: Int, units: [Int]) -> String {
+        var label = "\(item.itemListPrimaryTitle), quantity \(quantity)"
+        if let subtitle = item.itemListSecondaryTitle {
+            label += ", \(subtitle)"
+        }
         if !units.isEmpty {
             label += ", units " + units.map(String.init).joined(separator: ", ")
         }
@@ -634,9 +638,8 @@ private struct EquipmentSection: View {
     private func rowAccessibilityLabel(item: BookingSerializedItem, conflict: AssetConflict?) -> String {
         var parts: [String] = []
         if conflict != nil { parts.append("Conflict") }
-        let name = [item.asset.brand, item.asset.model].compactMap { $0 }.joined(separator: " ")
-        if !name.isEmpty { parts.append(name) }
-        if let tag = item.asset.assetTag { parts.append(tag) }
+        parts.append(item.asset.itemListPrimaryTitle)
+        if let subtitle = item.asset.itemListSecondaryTitle { parts.append(subtitle) }
         if let pill = equipmentItemPill(allocationStatus: item.allocationStatus, bookingStatus: bookingStatus) {
             parts.append(pill.label)
         }

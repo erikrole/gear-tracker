@@ -439,19 +439,6 @@ struct ItemsView: View {
 struct AssetRow: View {
     let asset: Asset
 
-    /// Mirrors web's `BookingDetailPage`/columns subtitle logic: when the
-    /// asset tag is the primary, the subtitle is the custom name (when set)
-    /// or brand+model — but only if it isn't just a casing/whitespace
-    /// duplicate of the tag itself.
-    private var subtitleWhenTagIsPrimary: String? {
-        guard let tag = asset.assetTag else { return nil }
-        let candidate = asset.name?.isEmpty == false ? asset.name! : asset.displayName
-        let normalized = candidate.trimmingCharacters(in: .whitespaces).lowercased()
-        let normalizedTag = tag.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !normalized.isEmpty, normalized != normalizedTag else { return nil }
-        return candidate
-    }
-
     private var metadataLine: String {
         asset.location.name
     }
@@ -472,22 +459,16 @@ struct AssetRow: View {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 3) {
-                if let tag = asset.assetTag {
-                    Text(tag)
-                        .font(.gothamBold(size: 17))
-                        .lineLimit(1)
-                    // Web parity: when the tag is the primary, brand/model
-                    // (or a custom name) reads as the subtitle — but only when
-                    // it's not just a duplicate of the tag.
-                    if let subtitle = subtitleWhenTagIsPrimary {
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                } else {
-                    Text(asset.displayName)
-                        .font(.subheadline.weight(.medium))
+                Text(asset.itemListPrimaryTitle)
+                    .font(.gothamBold(size: 17))
+                    .lineLimit(1)
+                // Web parity: when the tag is the primary, brand/model
+                // (or a custom name) reads as the subtitle — but only when
+                // it's not just a duplicate of the tag.
+                if let subtitle = asset.itemListSecondaryTitle {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
                 if shouldShowLocation {
@@ -524,13 +505,8 @@ struct AssetRow: View {
         let isOverdue = asset.computedStatus == .checkedOut && asset.activeBooking?.isOverdue == true
         if isOverdue { parts.append("Overdue") }
 
-        // Title: tag (when present) + the brand/model subtitle, otherwise displayName.
-        if let tag = asset.assetTag {
-            parts.append(tag)
-            if let subtitle = subtitleWhenTagIsPrimary { parts.append(subtitle) }
-        } else {
-            parts.append(asset.displayName)
-        }
+        parts.append(asset.itemListPrimaryTitle)
+        if let subtitle = asset.itemListSecondaryTitle { parts.append(subtitle) }
 
         if shouldShowLocation {
             parts.append(asset.location.name)
@@ -583,7 +559,7 @@ struct ItemFamilyListRow: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(family.name)
-                    .font(.subheadline.weight(.medium))
+                    .font(.gothamBold(size: 17))
                     .lineLimit(1)
                 if shouldShowLocation {
                     Text(metadataLine)

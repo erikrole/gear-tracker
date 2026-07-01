@@ -210,8 +210,8 @@ struct KioskChecklistRow: View {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(name)
-                        .font(.subheadline.weight(.medium))
+                    Text(tag)
+                        .font(.gothamBold(size: 16))
                         .foregroundStyle(isDone ? KioskText.tertiary : KioskText.primary)
                         .strikethrough(isDone && strikethroughWhenDone, color: KioskText.muted)
                     if isBattery {
@@ -221,11 +221,11 @@ struct KioskChecklistRow: View {
                             .accessibilityLabel("Battery unit")
                     }
                 }
-                // Hide the tag line when it just repeats the display name so
+                // Hide the name line when it just repeats the tag so
                 // rows stay scannable.
                 if tag.caseInsensitiveCompare(name) != .orderedSame {
-                    Text(tag)
-                        .font(.caption.monospaced())
+                    Text(name)
+                        .font(.caption)
                         .foregroundStyle(KioskText.tertiary)
                 }
             }
@@ -235,7 +235,7 @@ struct KioskChecklistRow: View {
         .padding(.vertical, 16)
         .animation(.spring(response: 0.25), value: isDone)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(name), tag \(tag), \(isDone ? "done" : "pending")")
+        .accessibilityLabel("\(tag), \(name), \(isDone ? "done" : "pending")")
     }
 }
 

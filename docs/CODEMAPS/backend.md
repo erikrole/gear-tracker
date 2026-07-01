@@ -13,7 +13,7 @@
 | `src/lib/services/booking-rules.ts` | 105 |
 | `src/lib/services/bookings-checkin.ts` | 781 |
 | `src/lib/services/bookings-helpers.ts` | 197 |
-| `src/lib/services/bookings-lifecycle.ts` | 946 |
+| `src/lib/services/bookings-lifecycle.ts` | 967 |
 | `src/lib/services/bookings-queries.ts` | 235 |
 | `src/lib/services/bookings.ts` | 4 |
 | `src/lib/services/bulk-unit-scans.ts` | 597 |
