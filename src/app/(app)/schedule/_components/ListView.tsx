@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
-import { AlertTriangleIcon, ArchiveIcon, ChevronDownIcon, ChevronRightIcon, EyeOffIcon, UserIcon, XIcon } from "lucide-react";
+import { ArchiveIcon, ChevronDownIcon, ChevronRightIcon, EyeOffIcon, UserIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
@@ -86,15 +86,6 @@ function activeShiftAssignment(shift: Shift) {
   return shift.assignments.find((a) => ACTIVE_STATUSES.includes(a.status)) ?? null;
 }
 
-function missingSlotCount(entry: CalendarEntry) {
-  if (!entry.coverage) return 0;
-  return Math.max(entry.coverage.total - entry.coverage.filled, 0);
-}
-
-function isShiftOpen(shift: Shift) {
-  return !shift.assignments.some((a) => ACTIVE_STATUSES.includes(a.status));
-}
-
 function workerKindForShift(shift: Shift): ShiftWorkerKind {
   return shift.workerType === "FT" ? "FT" : "ST";
 }
@@ -103,29 +94,10 @@ function roleSlotLabel(kind: ShiftWorkerKind) {
   return shiftWorkerSlotLabel(kind);
 }
 
-function RoleNeedSummary({ entry, compact = false }: { entry: CalendarEntry; compact?: boolean }) {
-  const openSlots = entry.shifts.filter(isShiftOpen);
-
-  if (openSlots.length === 0) return null;
-
-  const openNeedLabel = `${openSlots.length} ${openSlots.length === 1 ? "person" : "people"}`;
-
-  return (
-    <span className={cn("inline-flex items-center gap-1 text-[11px] leading-none", compact && "text-[10px]")}>
-      <span className="font-semibold text-[var(--red-text)]">
-        Needs
-      </span>
-      <span className="font-semibold text-muted-foreground">
-        {openNeedLabel}
-      </span>
-    </span>
-  );
-}
-
 function PublicationBadge({ entry, quietPublished = false }: { entry: CalendarEntry; quietPublished?: boolean }) {
   const state = entry.publication;
   if (!state) return null;
-  if (!state.publishedAt) return <Badge variant="gray" size="sm">Draft</Badge>;
+  if (!state.publishedAt) return null;
   if (state.changedAfterPublish) return <Badge variant="orange" size="sm">Changed</Badge>;
   if (state.unacknowledgedCount > 0) return <Badge variant="blue" size="sm">{state.unacknowledgedCount} unack</Badge>;
   if (quietPublished) return null;
@@ -293,7 +265,7 @@ function ShiftRowList({
             key={shift.id}
             className={cn(
               "min-h-11 border-border/45 px-2 py-1.5 transition-colors hover:bg-background/70",
-              compact ? "flex flex-col gap-2 rounded-md border bg-background/50" : "grid grid-cols-[88px_minmax(0,1fr)_220px_64px] items-center gap-3 border-t first:border-t-0",
+              compact ? "flex flex-col gap-2 rounded-md border bg-background/50" : "grid grid-cols-[88px_minmax(0,1fr)_auto_auto] items-center gap-3 border-t first:border-t-0",
             )}
           >
             <div className="flex min-w-0 items-center">
@@ -454,7 +426,7 @@ function ShiftRowList({
               </div>
             )}
 
-            <div className={cn("flex min-h-9", compact ? "justify-start" : "w-16 shrink-0 justify-end")}>
+            <div className={cn("flex min-h-9", compact ? "justify-start" : "shrink-0 justify-end")}>
               <div className={cn("flex min-w-0 items-center gap-1.5", compact && "flex-wrap")}>
                 {onPostTrade && myAssignment && (
                   <Button
@@ -810,14 +782,6 @@ export function ListView({
                       <col style={{ width: "48px" }} />
                       <col />
                     </colgroup>
-                    <thead className={groupIdx === 0 ? "" : "hidden"}>
-                      <tr>
-                        <th className="w-12"></th>
-                        <th className="text-left px-4 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/40">
-                          Event
-                        </th>
-                      </tr>
-                    </thead>
                     <tbody>
                       {groupEntries.map((entry) => {
                         const isExpanded = expandedRowId === entry.id;
@@ -888,7 +852,6 @@ export function ListView({
               const titleParts = scheduleEventTitleParts(entry);
 
               const venueTone = VENUE_TONES[venueToneFromEvent(entry)];
-              const missingSlots = missingSlotCount(entry);
               const changeEvent = scheduleHealth?.changeHistory.events[entry.id] ?? null;
 
               return (
@@ -897,9 +860,7 @@ export function ListView({
                   className={cn(
                     "border-b border-border/50 last:border-b-0 border-l-[3px]",
                     venueTone.railClass,
-                    missingSlots > 0
-                      ? "bg-[var(--red-bg)]/15"
-                      : isAssignedToMe && "bg-primary/5",
+                    isAssignedToMe && "bg-primary/5",
                   )}
                 >
                   <button
@@ -945,9 +906,6 @@ export function ListView({
                           />
                         )}
                         {isStaff && <ChangeHistoryBadge summary={changeEvent} reviewOnly />}
-                        {missingSlots > 0 && (
-                          <RoleNeedSummary entry={entry} />
-                        )}
                         <PublicationBadge entry={entry} quietPublished />
                       </div>
                     </div>
@@ -1134,9 +1092,6 @@ function EventRows({
 }) {
   const titleParts = scheduleEventTitleParts(entry);
 
-  const missingSlots = missingSlotCount(entry);
-  const needsCoverage = missingSlots > 0;
-
   const venueTone = VENUE_TONES[venueToneFromEvent(entry)];
 
   return (
@@ -1149,11 +1104,9 @@ function EventRows({
           hasShifts ? "cursor-pointer" : "",
           isExpanded
             ? "bg-muted/20"
-            : needsCoverage
-              ? "bg-[var(--red-bg)]/15 hover:bg-[var(--red-bg)]/25"
-              : isAssignedToMe
-                ? "bg-primary/5 hover:bg-primary/10"
-                : "hover:bg-muted/10",
+            : isAssignedToMe
+              ? "bg-primary/5 hover:bg-primary/10"
+              : "hover:bg-muted/10",
         )}
         onClick={hasShifts ? onToggle : undefined}
       >
@@ -1210,12 +1163,6 @@ function EventRows({
                 filled={entry.coverage.filled}
                 total={entry.coverage.total}
               />
-            )}
-            {needsCoverage && (
-              <span className="inline-flex h-5 items-center gap-1 rounded-full bg-[var(--red-bg)] px-1.5">
-                <AlertTriangleIcon className="size-3" />
-                <RoleNeedSummary entry={entry} />
-              </span>
             )}
             {entry.isPremier && (
               <Badge variant="blue" size="sm">
