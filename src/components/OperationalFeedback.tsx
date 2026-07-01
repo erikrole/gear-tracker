@@ -23,6 +23,7 @@ export function OperationalMetricCard({
   helper,
   href,
   label,
+  onClick,
   tone = "muted",
   value,
   valueStyle,
@@ -33,6 +34,7 @@ export function OperationalMetricCard({
   helper?: string;
   href?: string;
   label: string;
+  onClick?: () => void;
   tone?: OperationalTone;
   value: number | string;
   valueStyle?: CSSProperties;
@@ -51,7 +53,7 @@ export function OperationalMetricCard({
     <Card
       className={cn(
         "min-h-[104px] border-border/40 shadow-none",
-        href && "cursor-pointer transition-[background-color,box-shadow,scale] hover:bg-muted/50 hover:shadow-xs active:scale-[0.99]",
+        (href || onClick) && "cursor-pointer transition-[background-color,box-shadow,scale] hover:bg-muted/50 hover:shadow-xs active:scale-[0.99]",
         className,
       )}
     >
@@ -76,6 +78,14 @@ export function OperationalMetricCard({
     <Link href={href} className="block min-h-10 rounded-md no-underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
       {card}
     </Link>
+  ) : onClick ? (
+    <button
+      type="button"
+      onClick={onClick}
+      className="block w-full min-h-10 rounded-md text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+    >
+      {card}
+    </button>
   ) : card;
 
   if (!tooltip) return wrapped;

@@ -1,7 +1,8 @@
 import { useMemo, type ReactNode } from "react";
-import { AlertTriangleIcon, FilterIcon, ListIcon, CalendarIcon, CalendarDaysIcon, XIcon, WorkflowIcon } from "lucide-react";
+import { FilterIcon, ListIcon, CalendarIcon, CalendarDaysIcon, XIcon, WorkflowIcon } from "lucide-react";
 import { FilterChip } from "@/components/FilterChip";
 import { Button } from "@/components/ui/button";
+import { OperationalToolbar } from "@/components/OperationalToolbar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -60,20 +61,19 @@ export function ScheduleFilters({ filters, entries, sourceSignal }: ScheduleFilt
     }));
   }, [entries]);
 
+  const isListView = filters.viewMode === "list";
   const popoverFilterCount = [
     filters.sportFilter,
     filters.areaFilter,
-    filters.coverageFilter === "filled" ? filters.coverageFilter : "",
+    filters.coverageFilter,
+    isListView && filters.includePast ? "past" : "",
+    isListView && filters.includeArchived ? "archived" : "",
   ].filter(Boolean).length;
-  const needsCrewCount = entries.filter(
-    (entry) => entry.coverage && entry.coverage.total > entry.coverage.filled,
-  ).length;
-  const needsCrewActive = filters.coverageFilter === "unfilled";
 
   return (
-    <div className="mb-4 rounded-lg border border-border/60 bg-card/80 p-2 shadow-sm">
+    <OperationalToolbar className="mb-4">
       {filters.queueMeta && (
-        <div className="mb-2 flex min-h-10 flex-wrap items-center justify-between gap-2 rounded-md bg-primary/5 px-3 py-2 shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.14)]">
+        <div className="flex min-h-10 flex-wrap items-center justify-between gap-2 rounded-md bg-primary/5 px-3 py-2 shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.14)]">
           <div className="flex min-w-0 items-center gap-2">
             <WorkflowIcon className="size-4 shrink-0 text-primary" />
             <div className="min-w-0">
@@ -165,162 +165,123 @@ export function ScheduleFilters({ filters, entries, sourceSignal }: ScheduleFilt
         {/* Divider */}
         <div className="mx-0.5 h-6 w-px bg-border/80 max-sm:hidden" />
 
-        <ToolbarGroup label="Coverage">
-          <Button
-            variant={needsCrewActive ? "default" : "outline"}
-            size="sm"
-            className={cn(
-              "h-10 gap-1.5 text-[13px]",
-              !needsCrewActive && needsCrewCount > 0 && "border-[var(--red-text)]/25 text-[var(--red-text)] hover:bg-[var(--red-bg)] hover:text-[var(--red-text)]",
-            )}
-            onClick={() => filters.setCoverageFilter(needsCrewActive ? "" : "unfilled")}
-            aria-label={`Needs crew${needsCrewCount > 0 ? `, ${needsCrewCount} event${needsCrewCount === 1 ? "" : "s"}` : ""}`}
-          >
-            <AlertTriangleIcon className="size-3.5" />
-            Needs crew
-            {needsCrewCount > 0 && (
-              <span
-                className={cn(
-                  "ml-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums",
-                  needsCrewActive
-                    ? "bg-white/20"
-                    : "bg-[var(--red-text)]/15 text-[var(--red-text)]",
-                )}
-              >
-                {needsCrewCount}
-              </span>
-            )}
-          </Button>
-        </ToolbarGroup>
-
-      {/* My Shifts toggle */}
-      <div className="flex min-h-10 items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2.5">
-        <Switch
-          id="my-shifts-toggle"
-          checked={filters.myShiftsOnly}
-          onCheckedChange={filters.setMyShiftsOnly}
-          className="scale-[0.8] origin-center"
-        />
-        <Label
-          htmlFor="my-shifts-toggle"
-          className="text-[13px] font-medium cursor-pointer whitespace-nowrap"
-        >
-          My Shifts
-        </Label>
-      </div>
-
-      {/* Past events toggle - list view only */}
-      {filters.viewMode === "list" && (
+        {/* My Shifts toggle */}
         <div className="flex min-h-10 items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2.5">
           <Switch
-            id="past-events-toggle"
-            checked={filters.includePast}
-            onCheckedChange={filters.setIncludePast}
+            id="my-shifts-toggle"
+            checked={filters.myShiftsOnly}
+            onCheckedChange={filters.setMyShiftsOnly}
             className="scale-[0.8] origin-center"
           />
           <Label
-            htmlFor="past-events-toggle"
+            htmlFor="my-shifts-toggle"
             className="text-[13px] font-medium cursor-pointer whitespace-nowrap"
           >
-            Past
+            My Shifts
           </Label>
         </div>
-      )}
 
-      {/* Archived events toggle - list view only */}
-      {filters.viewMode === "list" && (
-        <div className="flex min-h-10 items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2.5">
-          <Switch
-            id="archived-events-toggle"
-            checked={filters.includeArchived}
-            onCheckedChange={filters.setIncludeArchived}
-            className="scale-[0.8] origin-center"
-          />
-          <Label
-            htmlFor="archived-events-toggle"
-            className="text-[13px] font-medium cursor-pointer whitespace-nowrap"
-          >
-            Archived
-          </Label>
-        </div>
-      )}
-
-      {/* Data filters popover */}
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant={popoverFilterCount > 0 ? "default" : "outline"}
-            size="sm"
-            className="h-10 gap-1.5 text-[13px]"
-          >
-            <FilterIcon className="size-3.5" />
-            Filters
-            {popoverFilterCount > 0 && (
-              <span className="ml-0.5 inline-flex items-center justify-center size-[18px] rounded-full bg-white/20 text-[10px] font-bold">
-                {popoverFilterCount}
-              </span>
-            )}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent align="start" className="w-72 p-3">
-          <div className="flex flex-col gap-3">
-            <FilterChip
-              label="Sport"
-              value={filters.sportFilter}
-              displayValue={
-                filters.sportFilter ? sportLabel(filters.sportFilter) : ""
-              }
-              options={sportOptions}
-              onSelect={(v) => filters.setSportFilter(v)}
-              onClear={() => filters.setSportFilter("")}
-            />
-            <FilterChip
-              label="Area"
-              value={filters.areaFilter}
-              displayValue={
-                filters.areaFilter
-                  ? (AREA_LABELS[filters.areaFilter] ?? filters.areaFilter)
-                  : ""
-              }
-              options={AREAS.map((a) => ({ value: a, label: AREA_LABELS[a] ?? a }))}
-              onSelect={(v) => filters.setAreaFilter(v)}
-              onClear={() => filters.setAreaFilter("")}
-            />
-            <FilterChip
-              label="Coverage"
-              value={filters.coverageFilter}
-              displayValue={
-                filters.coverageFilter === "unfilled"
-                  ? "Needs crew"
-                  : filters.coverageFilter === "filled"
-                    ? "Fully covered"
+        {/* Data filters popover */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant={popoverFilterCount > 0 ? "default" : "outline"}
+              size="sm"
+              className="h-10 gap-1.5 text-[13px]"
+            >
+              <FilterIcon className="size-3.5" />
+              Filters
+              {popoverFilterCount > 0 && (
+                <span className="ml-0.5 inline-flex items-center justify-center size-[18px] rounded-full bg-white/20 text-[10px] font-bold">
+                  {popoverFilterCount}
+                </span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-72 p-3">
+            <div className="flex flex-col gap-3">
+              {isListView && (
+                <div className="flex flex-col gap-2 border-b border-border/50 pb-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="past-events-toggle" className="text-[13px] font-medium cursor-pointer">
+                      Past events
+                    </Label>
+                    <Switch
+                      id="past-events-toggle"
+                      checked={filters.includePast}
+                      onCheckedChange={filters.setIncludePast}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="archived-events-toggle" className="text-[13px] font-medium cursor-pointer">
+                      Archived events
+                    </Label>
+                    <Switch
+                      id="archived-events-toggle"
+                      checked={filters.includeArchived}
+                      onCheckedChange={filters.setIncludeArchived}
+                    />
+                  </div>
+                </div>
+              )}
+              <FilterChip
+                label="Sport"
+                value={filters.sportFilter}
+                displayValue={
+                  filters.sportFilter ? sportLabel(filters.sportFilter) : ""
+                }
+                options={sportOptions}
+                onSelect={(v) => filters.setSportFilter(v)}
+                onClear={() => filters.setSportFilter("")}
+              />
+              <FilterChip
+                label="Area"
+                value={filters.areaFilter}
+                displayValue={
+                  filters.areaFilter
+                    ? (AREA_LABELS[filters.areaFilter] ?? filters.areaFilter)
                     : ""
-              }
-              options={[
-                { value: "unfilled", label: "Needs crew" },
-                { value: "filled", label: "Fully covered" },
-              ]}
-              onSelect={(v) => filters.setCoverageFilter(v)}
-              onClear={() => filters.setCoverageFilter("")}
-            />
-            {filters.hasFilters && (
-              <div className="pt-1 border-t border-border/50">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-10 w-full text-xs font-medium"
-                  onClick={filters.clearAll}
-                >
-                  <XIcon className="size-3 mr-1" />
-                  Clear all
-                </Button>
-              </div>
-            )}
-          </div>
-        </PopoverContent>
-      </Popover>
-      <ScheduleSourceSignal signal={sourceSignal} />
+                }
+                options={AREAS.map((a) => ({ value: a, label: AREA_LABELS[a] ?? a }))}
+                onSelect={(v) => filters.setAreaFilter(v)}
+                onClear={() => filters.setAreaFilter("")}
+              />
+              <FilterChip
+                label="Coverage"
+                value={filters.coverageFilter}
+                displayValue={
+                  filters.coverageFilter === "unfilled"
+                    ? "Needs crew"
+                    : filters.coverageFilter === "filled"
+                      ? "Fully covered"
+                      : ""
+                }
+                options={[
+                  { value: "unfilled", label: "Needs crew" },
+                  { value: "filled", label: "Fully covered" },
+                ]}
+                onSelect={(v) => filters.setCoverageFilter(v)}
+                onClear={() => filters.setCoverageFilter("")}
+              />
+              {filters.hasFilters && (
+                <div className="pt-1 border-t border-border/50">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-10 w-full text-xs font-medium"
+                    onClick={filters.clearAll}
+                  >
+                    <XIcon className="size-3 mr-1" />
+                    Clear all
+                  </Button>
+                </div>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        <ScheduleSourceSignal signal={sourceSignal} />
       </div>
-    </div>
+    </OperationalToolbar>
   );
 }

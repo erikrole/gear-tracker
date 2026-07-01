@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { DownloadIcon } from "lucide-react";
+import { MoreHorizontalIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,6 +12,7 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -33,7 +34,6 @@ import { classifyError, handleAuthRedirect, isAbortError, parseErrorMessage } fr
 import { ListView } from "./_components/ListView";
 import { NewEventSheet } from "./_components/NewEventSheet";
 import { ScheduleReadiness } from "./_components/ScheduleReadiness";
-import { ScheduleAutomationDigest } from "./_components/ScheduleAutomationDigest";
 
 const ShiftDetailPanel = dynamic(
   () => import("@/components/ShiftDetailPanel"),
@@ -167,23 +167,32 @@ export default function SchedulePage() {
   return (
     <FadeUp>
       <PageHeader title="Schedule">
-        {isStaff && (
+        {isStaff ? (
           <>
             <Button size="sm" asChild>
               <Link href="/schedule/assign">Assign shifts</Link>
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setNewEventOpen(true)}>
-              New event
-            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <DownloadIcon data-icon="inline-start" />
-                  Export
+                <Button variant="outline" size="sm" aria-label="More schedule actions">
+                  <MoreHorizontalIcon data-icon="inline-start" />
+                  More
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Schedule CSV</DropdownMenuLabel>
+                <DropdownMenuItem onSelect={() => setNewEventOpen(true)}>
+                  New event
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => data.setTradeSheetOpen(true)}>
+                  Trade Board
+                  {data.openTradeCount > 0 && (
+                    <Badge variant="orange" size="sm" className="ml-auto">
+                      {data.openTradeCount}
+                    </Badge>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Export CSV</DropdownMenuLabel>
                 <DropdownMenuGroup>
                   {SCHEDULE_EXPORTS.map((item) => (
                     <DropdownMenuItem key={item.type} asChild>
@@ -194,19 +203,20 @@ export default function SchedulePage() {
               </DropdownMenuContent>
             </DropdownMenu>
           </>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => data.setTradeSheetOpen(true)}
+          >
+            Trade Board
+            {data.openTradeCount > 0 && (
+              <Badge variant="orange" size="sm" className="ml-1.5">
+                {data.openTradeCount}
+              </Badge>
+            )}
+          </Button>
         )}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => data.setTradeSheetOpen(true)}
-        >
-          Trade Board
-          {data.openTradeCount > 0 && (
-            <Badge variant="orange" size="sm" className="ml-1.5">
-              {data.openTradeCount}
-            </Badge>
-          )}
-        </Button>
       </PageHeader>
 
       {/* View toggle + filters */}
@@ -223,17 +233,11 @@ export default function SchedulePage() {
         openTradeCount={data.openTradeCount}
         health={data.scheduleHealth}
         sourceSignal={data.sourceSignal}
+        digest={data.scheduleAutomation}
+        isStaff={isStaff}
         onShowQueue={showQueue}
         onOpenTradeBoard={openTradeBoard}
       />
-
-      {isStaff && (
-        <ScheduleAutomationDigest
-          digest={data.scheduleAutomation}
-          onShowQueue={showQueue}
-          onOpenTradeBoard={openTradeBoard}
-        />
-      )}
 
       {/* Calendar View */}
       {data.filters.viewMode === "calendar" && (

@@ -32,7 +32,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - [x] Week view: 7-day time-block view with coverage dots, navigation, My Shifts highlight
 - [x] Home/away/neutral toggle: filterable with shared green, orange, and gray venue treatment
 - [x] Hide events: staff can hide irrelevant events from schedule views
-- [x] Schedule readiness snapshot: server-side health snapshot for staff/admin with open slots, requests, conflicts, trades, gear gaps, source/visibility state, my shifts, and next call displayed as actionable queue cards
+- [x] Schedule readiness snapshot: server-side health snapshot for staff/admin with open slots, requests, conflicts, trades, gear gaps, source/visibility state, my shifts, and next call surfaced as a compact attention bar of clickable queue chips with an expandable details grid
 - [x] Student availability: profile Availability tab stores recurring weekly blocks and assignment flows show conflicts
 - [x] Student availability exceptions: web profile Availability supports semester date ranges and one-time conflicts
 - [x] Shift trade emails: claimed, completed, approved, and declined trade events send best-effort email companions
@@ -46,7 +46,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - [x] Scheduling notification policy: worker-facing assignment, call-time, gear-prep, and trade notifications respect publication state, additive schedule/trade/gear-prep preferences, and event-routable payloads
 - [x] Open Work: Trade Board now also surfaces published open Student shifts, premier pickup requests, claimed trades, and my trade posts in one Schedule work surface
 - [x] Preferences and time off: Availability blocks now support prefer/dislike/cannot-work signals plus pending/approved/denied time-off lifecycle, feeding candidate scoring, Open Work, assignment, trade, and call-window conflict checks
-- [x] In-season automation review: Schedule surfaces read-only automation suggestions for staffing gaps, auto-fill preview, publish readiness, risk blockers, stale sources, and daily cleanup without silently mutating worker-facing commitments
+- [x] In-season automation review: Schedule surfaces read-only automation suggestions for staffing gaps, auto-fill preview, publish readiness, risk blockers, stale sources, and daily cleanup inside the collapsible Schedule details panel without silently mutating worker-facing commitments
 - [x] Auto-fill and manual crew review: staff/admin can preview auto-fill recommendations before applying assignments through existing safety checks. Template-review UI is retired to keep Event detail focused.
 - [x] Gear readiness: Schedule health carries event and assignment gear readiness across primary event, linked-event, and shift-assignment booking paths, while detailed gear prep stays on Event detail and gear queues instead of the main Schedule list
 - [x] Personal calendar subscriptions: worker ICS feeds use the effective personal call window, concise area-plus-matchup titles, event deep links, active trade-board indicators, and remove swapped-away assignments when another worker takes the shift
@@ -54,12 +54,12 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 ## Information Architecture
 
 ### Schedule Page (`/schedule`)
-1. **Page Header** — title, "Trade Board" button (with open-trade count badge)
-2. **Schedule readiness snapshot** — server-backed health queue cards for next call, staff needed, covered events, my shifts, trades, requests, conflicts, gear gaps, source/visibility state
-3. **Automation review** — staff/admin digest cards for review-first automation suggestions: staffing, auto-fill preview, publish readiness, blockers, sources, and cleanup
+1. **Page Header** — title, primary "Assign shifts" (staff), and a "More" overflow menu for New event, Trade Board (with open-trade count), and Export CSV; students keep a direct Trade Board button
+2. **Schedule attention bar** (`ScheduleReadiness`) — compact strip with next call plus clickable attention chips for the nonzero staffing, gear-gap, data-quality, conflict, request, trade, source, and personal-shift queues, with a calm all-clear state when nothing needs action
+3. **Details panel** — one collapsed-by-default expander (shared `OperationalMetricCard` grid) holding the full readiness metrics and, for staff/admin, the review-first Automation review cards: staffing, auto-fill preview, publish readiness, blockers, sources, and cleanup
 4. **Work queues** — URL-backed `queue` state for Needs staffing, Conflicts, Pending requests, Trade approval, Gear gaps, My calls today, and Stale source
 5. **Data quality queue** — staff/admin Schedule health flags visible events with missing sport context, missing opponents, missing venue/location mapping, future archived status, or shifts without sport metadata. The queue filters the list to affected events and routes cleanup back through existing Event detail, Locations, and Venue Mappings ownership.
-6. **Filter Bar** (`ScheduleFilters`) — View, Venue, Needs staff, My Shifts, Past, Sport, Area, Coverage controls, and active queue banner
+6. **Filter Bar** (`ScheduleFilters`) — quiet `OperationalToolbar` with View, Venue, My Shifts, a Filters popover (Past, Archived, Sport, Area, Coverage), source-signal status, and the active queue banner
 7. **View Toggle** — List | Week | Calendar (persisted to localStorage)
 8. **List View** (`ListView`) — date-grouped expandable table; parent rows = event triage with crew and publication status; child rows = compact staffing rows with area, assignee/open slot, common or exception call times, and assignment actions
 9. **Week View** (`WeekView`) — 7-day strip with time-block events, coverage dots, navigation (prev/next/this week)
@@ -90,6 +90,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-06-30: Schedule chrome cleanup shipped. `/schedule` now leads with one quiet operational toolbar and a single compact attention bar (next call plus clickable chips for only the nonzero staffing, gear, data-quality, conflict, request, trade, source, and personal-shift queues), so the event list sits near the top instead of below stacked metric panels. The former readiness cards and the Automation review digest now share one collapsed Details panel built on the shared `OperationalMetricCard`; the filter toolbar adopts the shared `OperationalToolbar` styling with Past, Archived, and Coverage folded into the Filters popover and the duplicate Needs-crew button removed; and the page header keeps Assign shifts primary while New event, Trade Board, and Export move into a single overflow menu. Every readiness metric, automation suggestion, filter, and queue route is preserved, just relocated. No Schedule API, health, automation, shift, trade, coverage, or export contract changed.
 - 2026-06-30: Student availability conflict refresh shipped. Availability create, update, review, and delete now recompute future active assignment `hasConflict` and `conflictNote` values from the worker's effective assignment call window. Approved time off approved after assignment now appears in Schedule conflict queues and exports, while changed or deleted availability clears stale persisted conflict notes.
 - 2026-06-30: Native iOS availability parity shipped. My Availability now decodes and displays weekly blocks, one-time exceptions, preferences, dislikes, and time-off status from `StudentAvailabilityBlock`, summarizes blocking/advisory/preferred impact, and creates weekly or one-time signals through the existing availability API body shape. Scheduling semantics remain server-owned: approved time off blocks pickup/trade paths, while other signals stay advisory context for staff review.
 - 2026-06-30: Open Work and Trade Board availability context shipped. Open Student shift rows now carry an explicit availability context for approved time off, advisory conflicts, pending time off, and preferred windows. Trade listing rows also carry viewer and claimed-worker availability context, moving approved-time-off blocked trade claims into Waiting or Blocked and showing staff when a claimed trade would fail approval. Claiming a trade now rejects approved time off before it enters staff review.
