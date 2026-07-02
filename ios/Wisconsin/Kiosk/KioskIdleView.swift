@@ -57,7 +57,6 @@ struct KioskIdleView: View {
                 if shouldShowSleepMode {
                     KioskSleepModeView(
                         deviceName: store.info?.name ?? "Gear Room",
-                        reason: sleepModeReason,
                         onWake: dismissSleepMode
                     )
                     .transition(.opacity)
@@ -425,13 +424,6 @@ struct KioskIdleView: View {
                         }
                     }
                 }
-
-                // Pinned hint closes the dead space under small rosters.
-                Text("Can't find your name? Ask staff at the window.")
-                    .font(.caption)
-                    .foregroundStyle(KioskText.muted)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 4)
             }
         }
     }

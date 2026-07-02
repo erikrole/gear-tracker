@@ -973,13 +973,37 @@ private struct KioskCheckoutContextSummary: View {
     }
 }
 
+/// Return-time step: native segmented control for the common presets, and
+/// Custom opens a graphical calendar next to a native time wheel — no compact
+/// DatePicker (its popover fights first-responder handling on iPadOS 17
+/// hardware; the reason the earlier design banned it stands).
 private struct KioskCheckoutTimeCard: View {
     @Binding var dueBackAt: Date
     let selectedEvent: KioskCheckoutEvent?
-    @State private var showsCustomReturnPicker = false
+    @State private var returnPreset: ReturnPreset = .day
+
+    private enum ReturnPreset: String, CaseIterable, Identifiable {
+        case twoHours = "2 hr"
+        case fourHours = "4 hr"
+        case tonight = "Tonight"
+        case tomorrowAM = "Tomorrow AM"
+        case day = "24 hr"
+        case eventEnd = "Event End"
+        case custom = "Custom"
+
+        var id: String { rawValue }
+    }
 
     private var minimumDueBack: Date {
         Date().addingTimeInterval(5 * 60)
+    }
+
+    private var showsCustomReturnPicker: Bool { returnPreset == .custom }
+
+    /// Presets whose target date is still in the future (Tonight disappears
+    /// after 10 PM; Event End only exists with a usable selected event).
+    private var availablePresets: [ReturnPreset] {
+        ReturnPreset.allCases.filter { $0 == .custom || presetDate($0) != nil }
     }
 
     var body: some View {
@@ -995,55 +1019,24 @@ private struct KioskCheckoutTimeCard: View {
                         .foregroundStyle(KioskText.muted)
                 }
                 Spacer()
+                Text(returnTimeSummary)
+                    .font(.title3.weight(.bold).monospacedDigit())
+                    .foregroundStyle(KioskText.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .contentTransition(.numericText())
             }
 
-            Text(returnTimeSummary)
-                .font(.title3.weight(.bold))
-                .foregroundStyle(KioskText.primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .lineLimit(1)
-                .minimumScaleFactor(0.84)
-
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 112), spacing: 8)], alignment: .leading, spacing: 8) {
-                quickButton("2 hr", date: Date().addingTimeInterval(2 * 60 * 60))
-                quickButton("4 hr", date: Date().addingTimeInterval(4 * 60 * 60))
-                quickButton("Tonight", date: Calendar.current.date(bySettingHour: 22, minute: 0, second: 0, of: Date()))
-                quickButton("Tomorrow AM", date: tomorrow(atHour: 9))
-                quickButton("24 hr", date: Date().addingTimeInterval(24 * 60 * 60))
-                if let eventEnd = selectedEvent?.endsAt, eventEnd > minimumDueBack {
-                    quickButton("Event End", date: eventEnd)
-                }
-                KioskQuickSelectButton(
-                    title: showsCustomReturnPicker ? "Hide Custom" : "Custom",
-                    isSelected: showsCustomReturnPicker
-                ) {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showsCustomReturnPicker.toggle()
-                    }
+            Picker("Return time", selection: $returnPreset) {
+                ForEach(availablePresets) { preset in
+                    Text(preset.rawValue).tag(preset)
                 }
             }
+            .pickerStyle(.segmented)
+            .accessibilityLabel("Return time options")
 
             if showsCustomReturnPicker {
-                DatePicker(
-                    "Return date and time",
-                    selection: Binding(
-                        get: { max(dueBackAt, minimumDueBack) },
-                        set: { dueBackAt = max($0, minimumDueBack) }
-                    ),
-                    in: minimumDueBack...,
-                    displayedComponents: [.date, .hourAndMinute]
-                )
-                .datePickerStyle(.wheel)
-                .labelsHidden()
-                .tint(Color.kioskRed)
-                .frame(maxWidth: .infinity)
-                .frame(height: 126)
-                .clipped()
-                .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
-                .overlay(
-                    RoundedRectangle(cornerRadius: KioskRadius.md)
-                        .stroke(KioskStroke.standard, lineWidth: 1)
-                )
+                customReturnPickers
             }
 
             Text("The system will conflict-check from the actual checkout time through this return time.")
@@ -1052,25 +1045,103 @@ private struct KioskCheckoutTimeCard: View {
         }
         .padding(18)
         .kioskCard(KioskSurface.card, radius: KioskRadius.lg, stroke: KioskStroke.standard)
+        .onAppear { syncPreset(to: dueBackAt) }
+        .onChange(of: returnPreset) { _, preset in
+            if let date = presetDate(preset) {
+                dueBackAt = date
+            }
+        }
+        // Keeps the segment honest when the date changes underneath us —
+        // selecting an event snaps due-back to the event end, which should
+        // light up Event End (or fall through to Custom).
+        .onChange(of: dueBackAt) { _, newValue in
+            syncPreset(to: newValue)
+        }
     }
 
-    @ViewBuilder
-    private func quickButton(_ title: String, date: Date?) -> some View {
-        if let date, date > minimumDueBack {
-            KioskQuickSelectButton(title: title, isSelected: isSelectedQuickDate(date)) {
-                dueBackAt = date
-                showsCustomReturnPicker = false
+    /// Side-by-side native calendar + time wheel (stacked when narrow).
+    private var customReturnPickers: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: 20) {
+                customDatePicker
+                customTimePicker
             }
-            .accessibilityLabel("\(title), set return time to \(date.formatted(date: .abbreviated, time: .shortened))")
+            VStack(spacing: 12) {
+                customDatePicker
+                customTimePicker
+            }
         }
+        .frame(maxWidth: .infinity)
+        .padding(12)
+        .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: KioskRadius.md)
+                .stroke(KioskStroke.hairline, lineWidth: 1)
+        )
+    }
+
+    private var customDatePicker: some View {
+        DatePicker(
+            "Return date",
+            selection: clampedDueBack,
+            in: minimumDueBack...,
+            displayedComponents: [.date]
+        )
+        .datePickerStyle(.graphical)
+        .labelsHidden()
+        .tint(Color.kioskRed)
+        .frame(maxWidth: 360)
+    }
+
+    private var customTimePicker: some View {
+        DatePicker(
+            "Return time",
+            selection: clampedDueBack,
+            displayedComponents: [.hourAndMinute]
+        )
+        .datePickerStyle(.wheel)
+        .labelsHidden()
+        .tint(Color.kioskRed)
+        .frame(width: 220, height: 180)
+        .clipped()
+    }
+
+    private var clampedDueBack: Binding<Date> {
+        Binding(
+            get: { max(dueBackAt, minimumDueBack) },
+            set: { dueBackAt = max($0, minimumDueBack) }
+        )
+    }
+
+    private func presetDate(_ preset: ReturnPreset) -> Date? {
+        let candidate: Date?
+        switch preset {
+        case .twoHours: candidate = Date().addingTimeInterval(2 * 60 * 60)
+        case .fourHours: candidate = Date().addingTimeInterval(4 * 60 * 60)
+        case .tonight: candidate = Calendar.current.date(bySettingHour: 22, minute: 0, second: 0, of: Date())
+        case .tomorrowAM: candidate = tomorrow(atHour: 9)
+        case .day: candidate = Date().addingTimeInterval(24 * 60 * 60)
+        case .eventEnd: candidate = selectedEvent?.endsAt
+        case .custom: candidate = nil
+        }
+        guard let candidate, candidate > minimumDueBack else { return nil }
+        return candidate
+    }
+
+    /// Highlight the preset the current date matches (within a minute);
+    /// anything else is a custom time.
+    private func syncPreset(to date: Date) {
+        for preset in availablePresets where preset != .custom {
+            if let target = presetDate(preset), abs(date.timeIntervalSince(target)) < 60 {
+                if returnPreset != preset { returnPreset = preset }
+                return
+            }
+        }
+        if returnPreset != .custom { returnPreset = .custom }
     }
 
     private var returnTimeSummary: String {
         dueBackAt.formatted(date: .abbreviated, time: .shortened)
-    }
-
-    private func isSelectedQuickDate(_ date: Date) -> Bool {
-        abs(dueBackAt.timeIntervalSince(date)) < 60
     }
 
     private func tomorrow(atHour hour: Int) -> Date? {

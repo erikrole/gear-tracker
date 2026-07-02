@@ -9,7 +9,6 @@ import SwiftUI
 
 struct KioskSleepModeView: View {
     let deviceName: String
-    let reason: String
     let onWake: () -> Void
 
     var body: some View {
@@ -30,14 +29,9 @@ struct KioskSleepModeView: View {
                             .font(.caption.weight(.semibold))
                     }
                     .foregroundStyle(Color.white.opacity(0.42))
-                    Text(sleepLabel)
-                        .font(.gothamBold(size: 15))
-                        .tracking(1.2)
-                        .foregroundStyle(Color.white.opacity(0.64))
-                        .textCase(.uppercase)
                     Text(deviceName)
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(Color.white.opacity(0.42))
+                        .foregroundStyle(Color.white.opacity(0.64))
                     HStack(spacing: 6) {
                         Image(systemName: "hand.tap.fill")
                             .font(.caption2)
@@ -54,11 +48,6 @@ struct KioskSleepModeView: View {
             .contentShape(Rectangle())
             .onTapGesture { onWake() }
         }
-    }
-
-    private var sleepLabel: String {
-        if reason == "debug_night_mode" { return "Debug night mode" }
-        return reason == "night_hours" ? "Night sleep mode" : "Idle sleep mode"
     }
 
     private func pixelShiftOffset(for date: Date) -> CGSize {

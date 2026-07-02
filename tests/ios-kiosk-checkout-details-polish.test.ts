@@ -37,11 +37,13 @@ describe("iOS kiosk checkout details polish", () => {
     expect(checkout).toContain("Upcoming events");
     expect(checkout).toContain("featuredEvents");
     expect(checkout).toContain("purposeSuggestions");
-    expect(checkout).toContain('quickButton("2 hr"');
-    expect(checkout).toContain('quickButton("4 hr"');
-    expect(checkout).toContain('quickButton("Tomorrow AM"');
-    expect(checkout).toContain('quickButton("24 hr"');
-    expect(checkout).toContain('quickButton("Event End"');
+    expect(checkout).toContain('case twoHours = "2 hr"');
+    expect(checkout).toContain('case fourHours = "4 hr"');
+    expect(checkout).toContain('case tomorrowAM = "Tomorrow AM"');
+    expect(checkout).toContain('case day = "24 hr"');
+    expect(checkout).toContain('case eventEnd = "Event End"');
+    expect(checkout).toContain(".pickerStyle(.segmented)");
+    expect(checkout).toContain(".datePickerStyle(.graphical)");
     expect(checkout).toContain('return ["Event", "Practice", "Shoot", "Media Day"]');
     expect(checkout).not.toContain('"Repair/Test"');
     expect(checkout).not.toContain('"Game Prep"');
