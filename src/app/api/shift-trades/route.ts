@@ -49,7 +49,7 @@ export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "shift_trade", "post");
 
   const body = postTradeSchema.parse(await req.json());
-  const trade = await postTrade(body.shiftAssignmentId, user.id, body.notes);
+  const trade = await postTrade(body.shiftAssignmentId, { id: user.id, role: user.role }, body.notes);
 
   await createAuditEntry({
     actorId: user.id,
@@ -57,7 +57,12 @@ export const POST = withAuth(async (req, { user }) => {
     entityType: "shift_trade",
     entityId: trade.id,
     action: "trade_posted",
-    after: { shiftAssignmentId: body.shiftAssignmentId },
+    after: {
+      shiftAssignmentId: body.shiftAssignmentId,
+      // Owner is the poster of record; flag when staff posted on their behalf.
+      postedByUserId: trade.postedByUserId,
+      postedByStaff: trade.postedByUserId !== user.id,
+    },
   });
 
   return ok({ data: trade }, 201);

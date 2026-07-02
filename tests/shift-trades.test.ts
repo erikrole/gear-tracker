@@ -77,6 +77,7 @@ import { db } from "@/lib/db";
 import { badges } from "@/lib/badges";
 import { checkTimeConflict } from "@/lib/services/shift-assignments";
 import { sendShiftTradeEmail } from "@/lib/services/shift-trade-emails";
+import { sendPushToUser } from "@/lib/services/notifications";
 import { postTrade, claimTrade, approveTrade, declineTrade, cancelTrade, listTrades } from "@/lib/services/shift-trades";
 
 const mockDb = db as unknown as ShiftTradesDb;
@@ -108,7 +109,7 @@ describe("postTrade", () => {
     mockTx.shiftTrade.findFirst.mockResolvedValue(null);
     mockTx.shiftTrade.create.mockResolvedValue({ id: "trade-1" });
 
-    await postTrade(assignment.id, userId, "Need swap");
+    await postTrade(assignment.id, { id: userId }, "Need swap");
 
     expect(mockTx.shiftTrade.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -124,7 +125,7 @@ describe("postTrade", () => {
 
   it("throws 404 when assignment not found", async () => {
     mockTx.shiftAssignment.findUnique.mockResolvedValue(null);
-    await expect(postTrade("bad-id", "user-1")).rejects.toThrow("Assignment not found");
+    await expect(postTrade("bad-id", { id: "user-1" })).rejects.toThrow("Assignment not found");
   });
 
   it("throws 403 when user doesn't own the assignment", async () => {
@@ -133,7 +134,7 @@ describe("postTrade", () => {
       shift: { ...makeShift(), shiftGroup: { isPremier: false } },
     };
     mockTx.shiftAssignment.findUnique.mockResolvedValue(assignment);
-    await expect(postTrade(assignment.id, "user-1")).rejects.toThrow("only trade your own");
+    await expect(postTrade(assignment.id, { id: "user-1" })).rejects.toThrow("only trade your own");
   });
 
   it("throws 400 for inactive assignment status", async () => {
@@ -142,7 +143,7 @@ describe("postTrade", () => {
       shift: { ...makeShift(), shiftGroup: { isPremier: false } },
     };
     mockTx.shiftAssignment.findUnique.mockResolvedValue(assignment);
-    await expect(postTrade(assignment.id, "user-1")).rejects.toThrow("Only active assignments");
+    await expect(postTrade(assignment.id, { id: "user-1" })).rejects.toThrow("Only active assignments");
   });
 
   it("throws 409 when assignment already has open trade", async () => {
@@ -152,7 +153,7 @@ describe("postTrade", () => {
     };
     mockTx.shiftAssignment.findUnique.mockResolvedValue(assignment);
     mockTx.shiftTrade.findFirst.mockResolvedValue({ id: "existing-trade" });
-    await expect(postTrade(assignment.id, "user-1")).rejects.toThrow("already has an open trade");
+    await expect(postTrade(assignment.id, { id: "user-1" })).rejects.toThrow("already has an open trade");
   });
 
   it("throws 400 when the shift has already started", async () => {
@@ -168,7 +169,7 @@ describe("postTrade", () => {
     };
     mockTx.shiftAssignment.findUnique.mockResolvedValue(assignment);
 
-    await expect(postTrade(assignment.id, "user-1")).rejects.toThrow("already started");
+    await expect(postTrade(assignment.id, { id: "user-1" })).rejects.toThrow("already started");
     expect(mockTx.shiftTrade.create).not.toHaveBeenCalled();
   });
 
@@ -189,8 +190,66 @@ describe("postTrade", () => {
     };
     mockTx.shiftAssignment.findUnique.mockResolvedValue(assignment);
 
-    await expect(postTrade(assignment.id, "user-1")).rejects.toThrow("already started");
+    await expect(postTrade(assignment.id, { id: "user-1" })).rejects.toThrow("already started");
     expect(mockTx.shiftTrade.create).not.toHaveBeenCalled();
+  });
+
+  it("lets staff post a student's shift with the owner as poster of record", async () => {
+    const assignment = {
+      ...makeShiftAssignment({ userId: "student-1" }),
+      shift: {
+        ...makeShift(),
+        shiftGroup: { isPremier: false, event: { id: "evt-1", summary: "Football Media Day" } },
+      },
+      user: { id: "student-1", name: "Maddy", role: "STUDENT", staffingType: null },
+    };
+    mockTx.shiftAssignment.findUnique.mockResolvedValue(assignment);
+    mockTx.shiftTrade.findFirst.mockResolvedValue(null);
+    mockTx.shiftTrade.create.mockResolvedValue({ id: "trade-1", postedByUserId: "student-1" });
+
+    await postTrade(assignment.id, { id: "staff-1", role: "STAFF" });
+
+    expect(mockTx.shiftTrade.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ postedByUserId: "student-1" }),
+      })
+    );
+    // The owner must be told their shift went on the Trade Board.
+    expect(sendPushToUser).toHaveBeenCalledWith(
+      "student-1",
+      expect.objectContaining({ title: "Your shift is on the Trade Board" })
+    );
+  });
+
+  it("blocks staff from posting another staff member's shift", async () => {
+    const assignment = {
+      ...makeShiftAssignment({ userId: "staff-2" }),
+      shift: {
+        ...makeShift(),
+        shiftGroup: { isPremier: false, event: { id: "evt-1", summary: "Football Media Day" } },
+      },
+      user: { id: "staff-2", name: "Ben", role: "STAFF", staffingType: null },
+    };
+    mockTx.shiftAssignment.findUnique.mockResolvedValue(assignment);
+
+    await expect(postTrade(assignment.id, { id: "staff-1", role: "ADMIN" }))
+      .rejects.toThrow("Only student shifts");
+    expect(mockTx.shiftTrade.create).not.toHaveBeenCalled();
+  });
+
+  it("still blocks students from posting someone else's shift", async () => {
+    const assignment = {
+      ...makeShiftAssignment({ userId: "student-2" }),
+      shift: {
+        ...makeShift(),
+        shiftGroup: { isPremier: false, event: { id: "evt-1", summary: "Football Media Day" } },
+      },
+      user: { id: "student-2", name: "Jerry", role: "STUDENT", staffingType: null },
+    };
+    mockTx.shiftAssignment.findUnique.mockResolvedValue(assignment);
+
+    await expect(postTrade(assignment.id, { id: "student-1", role: "STUDENT" }))
+      .rejects.toThrow("only trade your own");
   });
 
   it("sets requiresApproval=true for premier shift groups", async () => {
@@ -203,7 +262,7 @@ describe("postTrade", () => {
     mockTx.shiftTrade.findFirst.mockResolvedValue(null);
     mockTx.shiftTrade.create.mockResolvedValue({ id: "trade-1" });
 
-    await postTrade(assignment.id, userId);
+    await postTrade(assignment.id, { id: userId });
 
     expect(mockTx.shiftTrade.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -594,7 +653,7 @@ describe("cancelTrade", () => {
     mockTx.shiftTrade.findUnique.mockResolvedValue(trade);
     mockTx.shiftTrade.update.mockResolvedValue({ ...trade, status: "CANCELLED" });
 
-    await cancelTrade(trade.id, "user-1");
+    await cancelTrade(trade.id, { id: "user-1" });
 
     expect(mockTx.shiftTrade.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -608,7 +667,7 @@ describe("cancelTrade", () => {
     mockTx.shiftTrade.findUnique.mockResolvedValue(trade);
     mockTx.shiftTrade.update.mockResolvedValue({ ...trade, status: "CANCELLED" });
 
-    await cancelTrade(trade.id, "user-1");
+    await cancelTrade(trade.id, { id: "user-1" });
 
     expect(mockTx.shiftTrade.update).toHaveBeenCalled();
   });
@@ -616,13 +675,43 @@ describe("cancelTrade", () => {
   it("throws 403 when cancelling someone else's trade", async () => {
     const trade = makeShiftTrade({ postedByUserId: "other-user", status: "OPEN" });
     mockTx.shiftTrade.findUnique.mockResolvedValue(trade);
-    await expect(cancelTrade(trade.id, "user-1")).rejects.toThrow("only cancel your own");
+    await expect(cancelTrade(trade.id, { id: "user-1" })).rejects.toThrow("only cancel your own");
   });
 
   it("throws 400 when trade is COMPLETED", async () => {
     const trade = makeShiftTrade({ postedByUserId: "user-1", status: "COMPLETED" });
     mockTx.shiftTrade.findUnique.mockResolvedValue(trade);
-    await expect(cancelTrade(trade.id, "user-1")).rejects.toThrow("cannot be cancelled");
+    await expect(cancelTrade(trade.id, { id: "user-1" })).rejects.toThrow("cannot be cancelled");
+  });
+
+  it("lets staff remove a student's post and notifies the owner", async () => {
+    const trade = makeShiftTrade({ postedByUserId: "student-1", status: "OPEN" });
+    mockTx.shiftTrade.findUnique.mockResolvedValue(trade);
+    mockTx.shiftTrade.update.mockResolvedValue({
+      ...trade,
+      status: "CANCELLED",
+      shiftAssignment: {
+        id: "assign-1",
+        shift: {
+          id: "shift-1",
+          area: "VIDEO",
+          shiftGroup: { event: { id: "evt-1", summary: "Football Media Day" } },
+        },
+        user: { id: "student-1", name: "Maddy" },
+      },
+    });
+
+    await cancelTrade(trade.id, { id: "staff-1", role: "STAFF" });
+
+    expect(mockTx.shiftTrade.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "CANCELLED" }),
+      })
+    );
+    expect(sendPushToUser).toHaveBeenCalledWith(
+      "student-1",
+      expect.objectContaining({ title: "Removed from the Trade Board" })
+    );
   });
 });
 

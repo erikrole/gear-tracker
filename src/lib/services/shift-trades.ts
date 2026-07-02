@@ -95,25 +95,44 @@ async function notify(
   }
 }
 
+/** Who is performing a trade mutation. Role gates staff-on-behalf actions. */
+export type TradeActor = { id: string; role?: string | null };
+
+function isTradeManager(actor: TradeActor): boolean {
+  return actor.role === "STAFF" || actor.role === "ADMIN";
+}
+
 /**
  * Post a shift assignment to the trade board.
- * Validates the user owns the assignment and it's active.
+ * Owners post their own shifts; staff/admin may post a student's shift on
+ * their behalf (the owner stays the poster of record so claim/cancel flows
+ * and notifications key off the person actually holding the shift).
  */
 export async function postTrade(
   shiftAssignmentId: string,
-  userId: string,
+  actor: TradeActor,
   notes?: string
 ) {
-  return db.$transaction(async (tx) => {
+  const pushJobs: Array<{ userId: string; title: string; body: string; payload: Record<string, unknown> }> = [];
+  const emailJobs: ShiftTradeEmail[] = [];
+
+  const result = await db.$transaction(async (tx) => {
     const assignment = await tx.shiftAssignment.findUnique({
       where: { id: shiftAssignmentId },
       include: {
-        shift: { include: { shiftGroup: true } },
+        shift: { include: { shiftGroup: { include: { event: { select: { id: true, summary: true } } } } } },
+        user: { select: { id: true, name: true, role: true, staffingType: true } },
       },
     });
     if (!assignment) throw new HttpError(404, "Assignment not found");
-    if (assignment.userId !== userId) {
-      throw new HttpError(403, "You can only trade your own shifts");
+    const isOwner = assignment.userId === actor.id;
+    if (!isOwner) {
+      if (!isTradeManager(actor)) {
+        throw new HttpError(403, "You can only trade your own shifts");
+      }
+      if (shiftWorkerTypeForProfile(assignment.user) !== "ST") {
+        throw new HttpError(403, "Only student shifts can be posted to the Trade Board for someone else");
+      }
     }
     if (
       !(ACTIVE_ASSIGNMENT_STATUSES as readonly string[]).includes(assignment.status)
@@ -133,10 +152,14 @@ export async function postTrade(
       throw new HttpError(409, "This shift already has an open trade");
     }
 
-    return tx.shiftTrade.create({
+    const trade = await tx.shiftTrade.create({
       data: {
         shiftAssignmentId,
-        postedByUserId: userId,
+        // The shift owner is the poster of record even when staff posts on
+        // their behalf: they receive claim/complete notifications, keep the
+        // cancel right, and stay blocked from claiming their own shift. The
+        // staff actor is captured in the route's audit entry.
+        postedByUserId: assignment.userId,
         requiresApproval: assignment.shift.shiftGroup.isPremier,
         notes,
       },
@@ -154,7 +177,43 @@ export async function postTrade(
         postedBy: { select: { id: true, name: true } },
       },
     });
+
+    if (!isOwner) {
+      // The owner must hear about it — a silently posted shift is how
+      // someone shows up for work they no longer have.
+      const eventSummary = assignment.shift.shiftGroup?.event?.summary ?? "an event";
+      const title = "Your shift is on the Trade Board";
+      const body = `Staff posted your ${assignment.shift.area} shift for ${eventSummary} to the Trade Board. You're still scheduled unless someone claims it.`;
+      const payload = scheduleNotificationPayload({
+        tradeId: trade.id,
+        assignmentId: assignment.id,
+        shiftId: assignment.shiftId,
+        eventId: assignment.shift.shiftGroup.event.id,
+      });
+      await notify(assignment.userId, "trade_posted", title, body, `trade_posted_for_${trade.id}`, payload);
+      pushJobs.push({ userId: assignment.userId, title, body, payload });
+      emailJobs.push({
+        userId: assignment.userId,
+        title,
+        body,
+        eventSummary,
+        area: assignment.shift.area,
+      });
+    }
+
+    return trade;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+  await Promise.allSettled(pushJobs.map((job) =>
+    sendPushToUser(job.userId, {
+      title: job.title,
+      body: job.body,
+      payload: job.payload,
+      category: "trade",
+    }),
+  ));
+  await sendShiftTradeEmails(emailJobs);
+  return result;
 }
 
 /**
@@ -538,20 +597,25 @@ export async function declineTrade(tradeId: string) {
 }
 
 /**
- * Poster cancels their own trade.
+ * Cancel a trade: the poster (shift owner) can always cancel their own;
+ * staff/admin can remove any post from the Trade Board (the owner is told).
  */
-export async function cancelTrade(tradeId: string, userId: string) {
-  return db.$transaction(async (tx) => {
+export async function cancelTrade(tradeId: string, actor: TradeActor) {
+  const pushJobs: Array<{ userId: string; title: string; body: string; payload: Record<string, unknown> }> = [];
+  const emailJobs: ShiftTradeEmail[] = [];
+
+  const result = await db.$transaction(async (tx) => {
     const trade = await tx.shiftTrade.findUnique({ where: { id: tradeId } });
     if (!trade) throw new HttpError(404, "Trade not found");
-    if (trade.postedByUserId !== userId) {
+    const isPoster = trade.postedByUserId === actor.id;
+    if (!isPoster && !isTradeManager(actor)) {
       throw new HttpError(403, "You can only cancel your own trades");
     }
     if (trade.status !== "OPEN" && trade.status !== "CLAIMED") {
       throw new HttpError(400, "Trade cannot be cancelled in its current state");
     }
 
-    return tx.shiftTrade.update({
+    const updated = await tx.shiftTrade.update({
       where: { id: tradeId },
       data: {
         resolvedAt: new Date(),
@@ -572,7 +636,42 @@ export async function cancelTrade(tradeId: string, userId: string) {
         claimedBy: { select: { id: true, name: true } },
       },
     });
+
+    if (!isPoster) {
+      const shift = updated.shiftAssignment.shift;
+      const eventSummary = shift.shiftGroup?.event?.summary ?? "an event";
+      const title = "Removed from the Trade Board";
+      const body = `Staff removed your ${shift.area} shift for ${eventSummary} from the Trade Board. You're still scheduled for it.`;
+      const payload = scheduleNotificationPayload({
+        tradeId,
+        assignmentId: updated.shiftAssignment.id,
+        shiftId: shift.id,
+        eventId: shift.shiftGroup.event.id,
+      });
+      await notify(trade.postedByUserId, "trade_cancelled", title, body, `trade_cancelled_by_staff_${tradeId}`, payload);
+      pushJobs.push({ userId: trade.postedByUserId, title, body, payload });
+      emailJobs.push({
+        userId: trade.postedByUserId,
+        title,
+        body,
+        eventSummary,
+        area: shift.area,
+      });
+    }
+
+    return updated;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+  await Promise.allSettled(pushJobs.map((job) =>
+    sendPushToUser(job.userId, {
+      title: job.title,
+      body: job.body,
+      payload: job.payload,
+      category: "trade",
+    }),
+  ));
+  await sendShiftTradeEmails(emailJobs);
+  return result;
 }
 
 /**
