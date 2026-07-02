@@ -69,9 +69,10 @@ describe("iOS Schedule UI cleanup", () => {
   it("keeps the calendar surface aligned with the list surface", () => {
     const scheduleView = source("ios/Wisconsin/Views/ScheduleView.swift");
 
-    expect(scheduleView).toContain("showCoverage: canSeePastEvents");
-    expect(scheduleView).toContain("let showCoverage: Bool");
-    expect(scheduleView).toContain("showCoverage: showCoverage");
+    expect(scheduleView).toContain("if let cov = event.coverage, cov.total > 0");
+    expect(scheduleView).toContain("coverageChip(cov)");
+    expect(scheduleView).not.toContain("showCoverage: canSeePastEvents");
+    expect(scheduleView).not.toContain("let showCoverage: Bool");
     expect(scheduleView).toContain(".background(Color.cardSurfaceRaised, in: Circle())");
     expect(scheduleView).toContain(".listRowBackground(Color.clear)");
     expect(scheduleView).toContain("LegendDot(color: Color.statusText(.blue), label: \"My shift\")");

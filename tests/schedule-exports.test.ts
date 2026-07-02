@@ -161,7 +161,6 @@ describe("schedule exports", () => {
         id: "trade-1",
         shiftAssignmentId: "assignment-1",
         status: ShiftTradeStatus.OPEN,
-        requiresApproval: false,
         postedAt: new Date("2026-07-02T10:00:00Z"),
         claimedAt: null,
         resolvedAt: null,

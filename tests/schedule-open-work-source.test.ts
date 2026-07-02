@@ -11,25 +11,19 @@ describe("schedule open work source contracts", () => {
 
     expect(tradeBoard).toContain("Open Work");
     expect(tradeBoard).toContain("/api/schedule/open-work");
-    expect(tradeBoard).toContain("Staff Review");
     expect(tradeBoard).toContain("Available Now");
-    expect(tradeBoard).toContain("Approval Required");
     expect(tradeBoard).toContain("My Posts");
     expect(tradeBoard).toContain("Waiting or Blocked");
     expect(tradeBoard).toContain("Canceling removes the post; the shift stays assigned to you.");
     expect(tradeBoard).toContain("You will be assigned immediately.");
-    expect(tradeBoard).toContain("Staff must approve before this becomes your shift.");
     expect(tradeBoard).toContain("AvailabilityContextNote");
     expect(tradeBoard).toContain("viewerAvailabilityContext");
     expect(tradeBoard).toContain("claimedByAvailabilityContext");
     expect(tradeBoard).toContain("/api/shift-assignments/pickup");
     expect(tradeBoard).toContain("/api/shift-trades/${tradeId}/claim");
-    expect(tradeBoard).toContain("/api/shift-trades/${tradeId}/approve");
-    expect(tradeBoard).toContain("/api/shift-trades/${tradeId}/decline");
     expect(tradeBoard).toContain("/api/shift-trades/${tradeId}/cancel");
-    expect(tradeBoard).toContain("Request shift");
     expect(tradeBoard).toContain("Claim shift");
-    expect(tradeBoard).toContain("Pickup request approved");
+    expect(tradeBoard).toContain("Shift claimed");
   });
 
   it("keeps the Open Work read model published, student-slot, and permission scoped", () => {
@@ -53,7 +47,6 @@ describe("schedule open work source contracts", () => {
 
     expect(route).toContain('requirePermission(user.role, "shift_assignment", "request")');
     expect(route).toContain("pickupOpenShift(body.shiftId, user.id)");
-    expect(route).toContain("shift_pickup_requested");
     expect(route).toContain("shift_pickup_claimed");
     expect(route).toContain("dispatchScheduleAssignmentNotifications(assignment.id, \"assigned\")");
     expect(service).toContain("Draft shifts are not open for pickup");
@@ -93,12 +86,10 @@ describe("schedule open work source contracts", () => {
     // User-facing iOS title is Trade Board; Open Work remains the API/web term.
     expect(sheet).toContain(".navigationTitle(\"Trade Board\")");
     expect(sheet).toContain("APIClient.shared.scheduleOpenWork()");
-    expect(sheet).toContain("Staff Review");
     expect(sheet).toContain("Available Now");
-    expect(sheet).toContain("Approval Required");
     expect(sheet).toContain("My Posts");
     expect(sheet).toContain("Waiting or Blocked");
-    expect(sheet).toContain("Staff must approve before this becomes your shift.");
+    expect(sheet).toContain("You will be assigned immediately.");
     expect(sheet).toContain("Canceling removes the post; the shift stays assigned to you.");
   });
 });

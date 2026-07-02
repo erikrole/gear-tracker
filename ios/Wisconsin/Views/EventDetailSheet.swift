@@ -64,7 +64,7 @@ struct EventDetailSheet: View {
     @State private var weatherData: EventWeatherData?
     @State private var prepGearOpen = false
     @State private var assignTarget: EventShift?
-    @State private var requestTarget: EventShift?
+    @State private var claimTarget: EventShift?
     @State private var postTradeTarget: ShiftAssignmentRecord?
     @State private var cancelTradeTarget: ShiftAssignmentRecord?
     @State private var unassignTarget: ShiftAssignmentRecord?
@@ -158,21 +158,21 @@ struct EventDetailSheet: View {
                 }
             }
             .confirmationDialog(
-                requestDialogTitle,
+                claimDialogTitle,
                 isPresented: Binding(
-                    get: { requestTarget != nil },
-                    set: { if !$0 { requestTarget = nil } }
+                    get: { claimTarget != nil },
+                    set: { if !$0 { claimTarget = nil } }
                 ),
                 titleVisibility: .visible
             ) {
-                Button("Request shift") {
-                    guard let shift = requestTarget else { return }
-                    Task { await requestShift(shift) }
-                    requestTarget = nil
+                Button("Claim shift") {
+                    guard let shift = claimTarget else { return }
+                    Task { await claimShift(shift) }
+                    claimTarget = nil
                 }
-                Button("Cancel", role: .cancel) { requestTarget = nil }
+                Button("Cancel", role: .cancel) { claimTarget = nil }
             } message: {
-                Text("Staff will review your request before it's confirmed.")
+                Text("You will be assigned immediately.")
             }
             .confirmationDialog(
                 postTradeDialogTitle,
@@ -266,9 +266,9 @@ struct EventDetailSheet: View {
 
     // MARK: - Action handlers
 
-    private var requestDialogTitle: String {
-        guard let shift = requestTarget else { return "Request shift?" }
-        return "Request \(shift.area.shiftAreaLabel) shift?"
+    private var claimDialogTitle: String {
+        guard let shift = claimTarget else { return "Claim shift?" }
+        return "Claim \(shift.area.shiftAreaLabel) shift?"
     }
 
     private var unassignDialogTitle: String {
@@ -311,9 +311,9 @@ struct EventDetailSheet: View {
         return "Delete \(shift.area.shiftAreaLabel) shift?"
     }
 
-    private func requestShift(_ shift: EventShift) async {
+    private func claimShift(_ shift: EventShift) async {
         do {
-            try await APIClient.shared.requestShift(shiftId: shift.id)
+            try await APIClient.shared.pickupOpenShift(id: shift.id)
             Haptics.success()
             await vm.load()
         } catch {
@@ -752,7 +752,7 @@ struct EventDetailSheet: View {
                     canManageShifts: canManageShifts,
                     isStudent: isStudent,
                     onAssign: { shift in assignTarget = shift },
-                    onRequest: { shift in requestTarget = shift },
+                    onRequest: { shift in claimTarget = shift },
                     onPostTrade: { assignment in postTradeTarget = assignment },
                     onCancelTrade: { assignment in cancelTradeTarget = assignment },
                     onUnassign: { assignment in unassignTarget = assignment },
@@ -1042,7 +1042,7 @@ struct ShiftRow: View {
             }
             if isStudent && isStudentSlot, let onRequest {
                 Button { onRequest(shift) } label: {
-                    Label("Request this shift", systemImage: "hand.raised")
+                    Label("Claim this shift", systemImage: "hand.raised")
                 }
             }
         } else {
@@ -1223,7 +1223,7 @@ struct ShiftRow: View {
     private var openSlotView: some View {
         // Open slots are where the primary call-to-action lives — surface it as a
         // real tinted button, not accent-colored text, so it reads as tappable and
-        // gives a comfortable hit area for both staff (Assign) and students (Request).
+        // gives a comfortable hit area for both staff (Assign) and students (Claim).
         if canManageShifts, let onAssign {
             Button { onAssign(shift) } label: {
                 Label("Assign person", systemImage: "plus.circle.fill")
@@ -1235,13 +1235,13 @@ struct ShiftRow: View {
             .accessibilityLabel("Assign \(shift.area.shiftAreaLabel) shift")
         } else if isStudent && isStudentSlot, let onRequest {
             Button { onRequest(shift) } label: {
-                Label("Request shift", systemImage: "hand.raised.fill")
+                Label("Claim shift", systemImage: "hand.raised.fill")
                     .font(.subheadline.weight(.medium))
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
             .tint(Color.brandPrimary)
-            .accessibilityLabel("Request \(shift.area.shiftAreaLabel) shift")
+            .accessibilityLabel("Claim \(shift.area.shiftAreaLabel) shift")
         } else {
             Text("Open")
                 .font(.subheadline)

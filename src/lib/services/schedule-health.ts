@@ -211,7 +211,7 @@ export async function getScheduleHealth(input: ScheduleHealthInput): Promise<Sch
       db.calendarEvent.count({ where: { ...windowWhere, isHidden: true } }),
       db.calendarEvent.count({ where: { ...windowWhere, archivedAt: { not: null } } }),
       db.shiftTrade.count({ where: { status: ShiftTradeStatus.OPEN } }),
-      db.shiftTrade.count({ where: { status: ShiftTradeStatus.CLAIMED, requiresApproval: true } }),
+      db.shiftTrade.count({ where: { status: ShiftTradeStatus.CLAIMED } }),
       bookingOrFilters.length
         ? db.booking.findMany({
             where: {

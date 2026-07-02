@@ -270,9 +270,9 @@ Reachable from: Bookings tab `+`, Items list swipe + context menu, Item Detail R
   - [ ] Header: sport pill, home/away (with mappin.and.ellipse), title, date, location, weather (when applicable; uses WeatherKit).
   - [ ] **Crew section with CoveragePill** — "0/4 filled" or similar in red token (today's fix). [audit-event-detail-ios.md]
   - [ ] **Per-area shift blocks** — "Video" / "Photo" / "Graphics" / "Comms" headers in title-case (today's title-case sweep), NOT "VIDEO" uppercase.
-  - [ ] Each shift row shows time column + worker pill ("Student" blue token / "Staff" muted) + assigned person OR "Assign person" affordance (STAFF) OR "Request shift" affordance (STUDENT for ST slots).
+  - [ ] Each shift row shows time column + worker pill ("Student" blue token / "Staff" muted) + assigned person OR "Assign person" affordance (STAFF) OR "Claim shift" affordance (STUDENT for ST slots).
   - [ ] STAFF actions via context menu: Assign someone, Replace…, Remove {name}, Approve {name}, Decline {name}, Duplicate shift, Change call time, Delete shift.
-  - [ ] STUDENT actions: "Request this shift" for student-typed open slots.
+  - [ ] STUDENT actions: "Claim this shift" for student-typed open slots.
   - [ ] Pending requests show inline mini-buttons with visible names ("Approve Erik Mason" / "Decline Erik Mason").
   - [ ] EditShiftTimesSheet (today's hardening) — Save shows inline spinner; Cancel-with-changes fires discard confirm; date pickers disable while saving.
 

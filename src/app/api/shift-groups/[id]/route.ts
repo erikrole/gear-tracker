@@ -45,7 +45,6 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     if (!existing) throw new HttpError(404, "Shift group not found");
 
     const patchData: Record<string, unknown> = {};
-    if (body.isPremier !== undefined) patchData.isPremier = body.isPremier;
     if (body.notes !== undefined) patchData.notes = body.notes;
     patchData.manuallyEdited = true;
 
@@ -71,7 +70,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
 
     return {
       updated: result,
-      before: { isPremier: existing.isPremier, notes: existing.notes },
+      before: { notes: existing.notes },
     };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
@@ -82,7 +81,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     entityId: id,
     action: "shift_group_updated",
     before,
-    after: { isPremier: updated.isPremier, notes: updated.notes },
+    after: { notes: updated.notes },
   });
 
   return ok({ data: { ...updated, publication: getSchedulePublicationState(updated) } });

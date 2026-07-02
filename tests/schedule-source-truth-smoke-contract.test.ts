@@ -57,7 +57,7 @@ describe("schedule source-of-truth smoke fallback contracts", () => {
     expect(digest).toContain("Nothing here changes staffing, publishing, trades, or notifications by itself.");
     expect(digest).toContain("onShowQueue(action.queue)");
     expect(digest).toContain("onOpenTradeBoard()");
-    expect(digest).toContain("action.href");
+    expect(digest).toContain("href={action?.href}");
     expect(route).toContain("export const GET");
     expect(route).not.toContain("export const POST");
     expect(route).not.toContain("export const PATCH");
@@ -100,9 +100,10 @@ describe("schedule source-of-truth smoke fallback contracts", () => {
     const eventCrew = source("src/app/(app)/events/[id]/_components/ShiftCoverageCard.tsx");
     const tradeBoard = source("src/components/TradeBoard.tsx");
 
-    for (const label of ["Draft", "Changed", "Published", "unack"]) {
+    for (const label of ["Changed", "Published", "unack"]) {
       expect(listView).toContain(label);
     }
+    expect(listView).not.toContain("Draft");
     for (const label of ["Republish", "Publish", "Acknowledge"]) {
       expect(eventCrew).toContain(label);
     }
@@ -112,8 +113,7 @@ describe("schedule source-of-truth smoke fallback contracts", () => {
     expect(tradeBoard).toContain("Open Work");
     expect(tradeBoard).toContain("/api/schedule/open-work");
     expect(tradeBoard).toContain("Claim shift");
-    expect(tradeBoard).toContain("Request shift");
-    expect(tradeBoard).toContain("Pickup request approved");
+    expect(tradeBoard).toContain("Shift claimed");
 
     expect(listView).not.toContain("Reserve gear");
     expect(listView).not.toContain("/reservations/new?");
@@ -154,7 +154,7 @@ describe("schedule source-of-truth smoke fallback contracts", () => {
     const route = source("src/app/api/schedule/export/route.ts");
     const service = source("src/lib/services/schedule-exports.ts");
 
-    expect(page).toContain("Schedule CSV");
+    expect(page).toContain("Export CSV");
     expect(page).toContain("/api/schedule/export?");
     expect(page).toContain("Weekly roster");
     expect(page).toContain("Gear readiness");

@@ -9,6 +9,7 @@ function source(relativeFile: string) {
 describe("iOS item list identity", () => {
   it("centralizes tag-first item identity in Swift models", () => {
     const assetModels = source("ios/Wisconsin/Models/AssetModels.swift");
+    const itemListText = source("ios/Wisconsin/Shared/ItemListText.swift");
     const bookingModels = source("ios/Wisconsin/Models/Models.swift");
     const kioskModels = source("ios/Wisconsin/Kiosk/KioskModels.swift");
     const kioskStore = source("ios/Wisconsin/Kiosk/KioskStore.swift");
@@ -16,7 +17,7 @@ describe("iOS item list identity", () => {
     expect(assetModels).toContain("var itemListPrimaryTitle: String");
     expect(assetModels).toContain("assetTag.nonBlankText ?? displayName");
     expect(assetModels).toContain("var itemListSecondaryTitle: String?");
-    expect(assetModels).toContain("func isSameListText(as other: String) -> Bool");
+    expect(itemListText).toContain("func isSameListText(as other: String) -> Bool");
 
     expect(bookingModels).toContain("struct BookingAsset");
     expect(bookingModels).toContain("assetTag.nonBlankText ?? displayName.nonBlankText ?? \"Item\"");

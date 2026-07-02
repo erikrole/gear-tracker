@@ -864,16 +864,16 @@ Indexes and constraints:
 
 Fields: 10
 
-- `id          String    @id @default(cuid())`
-- `userId      String    @map("user_id")`
-- `bookingId   String    @map("booking_id")`
-- `token       String    @unique`
-- `activity    String`
-- `lastSeenAt  DateTime  @default(now()) @map("last_seen_at")`
-- `createdAt   DateTime  @default(now()) @map("created_at")`
-- `endedAt     DateTime? @map("ended_at")`
-- `user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)`
-- `booking     Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)`
+- `id         String    @id @default(cuid())`
+- `userId     String    @map("user_id")`
+- `bookingId  String    @map("booking_id")`
+- `token      String    @unique`
+- `activity   String`
+- `lastSeenAt DateTime  @default(now()) @map("last_seen_at")`
+- `createdAt  DateTime  @default(now()) @map("created_at")`
+- `endedAt    DateTime? @map("ended_at")`
+- `user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)`
+- `booking    Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)`
 
 Indexes and constraints:
 
@@ -1179,11 +1179,10 @@ Indexes and constraints:
 
 ## Model `ShiftGroup`
 
-Fields: 15
+Fields: 14
 
 - `id                    String        @id @default(cuid())`
 - `eventId               String        @unique @map("event_id")`
-- `isPremier             Boolean       @default(false) @map("is_premier")`
 - `notes                 String?`
 - `generatedAt           DateTime?     @map("generated_at")`
 - `manuallyEdited        Boolean       @default(false) @map("manually_edited")`
@@ -1302,14 +1301,13 @@ Indexes and constraints:
 
 ## Model `ShiftTrade`
 
-Fields: 15
+Fields: 14
 
 - `id                String           @id @default(cuid())`
 - `shiftAssignmentId String           @map("shift_assignment_id")`
 - `postedByUserId    String           @map("posted_by_user_id")`
 - `claimedByUserId   String?          @map("claimed_by_user_id")`
 - `status            ShiftTradeStatus @default(OPEN)`
-- `requiresApproval  Boolean          @default(false) @map("requires_approval")`
 - `notes             String?`
 - `postedAt          DateTime         @default(now()) @map("posted_at")`
 - `claimedAt         DateTime?        @map("claimed_at")`
@@ -1405,9 +1403,9 @@ Indexes and constraints:
 
 Fields: 14
 
-- `id               String    @id @default(cuid())`
-- `name             String // "Video Office iPad"`
-- `locationId       String    @map("location_id")`
+- `id                      String    @id @default(cuid())`
+- `name                    String // "Video Office iPad"`
+- `locationId              String    @map("location_id")`
 - `activationCode          String?   @unique @map("activation_code") // hashed 6-digit code; cleared once redeemed (single-use)`
 - `activationCodeExpiresAt DateTime? @map("activation_code_expires_at") // unredeemed codes expire; null once redeemed`
 - `activatedAt             DateTime? @map("activated_at")`

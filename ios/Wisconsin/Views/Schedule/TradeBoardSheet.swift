@@ -13,28 +13,21 @@ final class TradeBoardViewModel {
     private let pageSize = 30
 
     var isStaff: Bool { currentUserRole == "ADMIN" || currentUserRole == "STAFF" }
-    var staffReviewRequests: [OpenWorkPickupRequest] { isStaff ? openWork.pickupRequests : [] }
-    var staffReviewTrades: [ShiftTrade] { isStaff ? trades.filter { $0.status == .claimed } : [] }
     var availableOpenShifts: [OpenWorkShift] { openWork.openShifts.filter { $0.action == "claim" } }
-    var approvalRequiredShifts: [OpenWorkShift] { openWork.openShifts.filter { $0.action == "request" } }
     var waitingOpenShifts: [OpenWorkShift] { openWork.openShifts.filter { $0.action == "none" } }
     var availableTrades: [ShiftTrade] { trades.filter { !isStaff && $0.status == .open && $0.postedBy.id != currentUserId } }
     var myTrades: [ShiftTrade] { trades.filter { $0.postedBy.id == currentUserId && ($0.status == .open || $0.status == .claimed) } }
     var resolvedTrades: [ShiftTrade] { trades.filter { $0.status == .completed || $0.status == .cancelled } }
     var postedTrades: [ShiftTrade] {
         trades.filter { trade in
-            !staffReviewTrades.contains(where: { $0.id == trade.id })
-            && !availableTrades.contains(where: { $0.id == trade.id })
+            !availableTrades.contains(where: { $0.id == trade.id })
             && !myTrades.contains(where: { $0.id == trade.id })
             && !resolvedTrades.contains(where: { $0.id == trade.id })
         }
     }
     var visibleCount: Int {
-        staffReviewRequests.count
-        + staffReviewTrades.count
-        + availableOpenShifts.count
+        availableOpenShifts.count
         + availableTrades.count
-        + approvalRequiredShifts.count
         + myTrades.count
         + waitingOpenShifts.count
         + postedTrades.count
@@ -71,32 +64,6 @@ final class TradeBoardViewModel {
         await load()
     }
 
-    func approveTrade(id: String) async throws {
-        let updated = try await APIClient.shared.approveShiftTrade(id: id)
-        if let idx = trades.firstIndex(where: { $0.id == id }) {
-            trades[idx] = updated
-        }
-        await load()
-    }
-
-    func declineTrade(id: String) async throws {
-        let updated = try await APIClient.shared.declineShiftTrade(id: id)
-        if let idx = trades.firstIndex(where: { $0.id == id }) {
-            trades[idx] = updated
-        }
-        await load()
-    }
-
-    func approveRequest(id: String) async throws {
-        try await APIClient.shared.approveShift(assignmentId: id)
-        await load()
-    }
-
-    func declineRequest(id: String) async throws {
-        try await APIClient.shared.declineShift(assignmentId: id)
-        await load()
-    }
-
     func cancel(id: String) async throws {
         let updated = try await APIClient.shared.cancelShiftTrade(id: id)
         if let idx = trades.firstIndex(where: { $0.id == id }) {
@@ -118,8 +85,6 @@ struct TradeBoardSheet: View {
     @State private var tradeToConfirm: ShiftTrade?
     @State private var tradeToCancel: ShiftTrade?
     @State private var openShiftToPickup: OpenWorkShift?
-    @State private var requestToApprove: OpenWorkPickupRequest?
-    @State private var tradeToApprove: ShiftTrade?
     @State private var actionError: String?
     @State private var actionErrorHaptic = 0
     @Environment(\.dismiss) private var dismiss
@@ -186,22 +151,16 @@ struct TradeBoardSheet: View {
                 Button("Claim Shift") { claimConfirmedTrade() }
                 Button("Cancel", role: .cancel) { tradeToConfirm = nil }
             } message: {
-                Text(tradeToConfirm?.requiresApproval == true
-                    ? "Staff must approve before the assignment changes."
-                    : "You will be assigned immediately.")
+                Text("You will be assigned immediately.")
             }
             .confirmationDialog(pickupDialogTitle, isPresented: Binding(
                 get: { openShiftToPickup != nil },
                 set: { if !$0 { openShiftToPickup = nil } }
             ), titleVisibility: .visible) {
-                Button(openShiftToPickup?.action == "request" ? "Request Shift" : "Claim Shift") {
-                    pickupConfirmedOpenShift()
-                }
+                Button("Claim Shift") { pickupConfirmedOpenShift() }
                 Button("Cancel", role: .cancel) { openShiftToPickup = nil }
             } message: {
-                Text(openShiftToPickup?.action == "request"
-                    ? "Staff must approve before this becomes your shift."
-                    : "You will be assigned immediately.")
+                Text("You will be assigned immediately.")
             }
             .confirmationDialog(cancelDialogTitle, isPresented: Binding(
                 get: { tradeToCancel != nil },
@@ -211,26 +170,6 @@ struct TradeBoardSheet: View {
                 Button("Keep Posted", role: .cancel) { tradeToCancel = nil }
             } message: {
                 Text("Canceling removes the post; the shift stays assigned to you.")
-            }
-            .confirmationDialog(requestReviewTitle, isPresented: Binding(
-                get: { requestToApprove != nil },
-                set: { if !$0 { requestToApprove = nil } }
-            ), titleVisibility: .visible) {
-                Button("Approve Request") { approveConfirmedRequest() }
-                Button("Decline Request", role: .destructive) { declineConfirmedRequest() }
-                Button("Cancel", role: .cancel) { requestToApprove = nil }
-            } message: {
-                Text("Approve assigns this shift to \(requestToApprove?.user.name ?? "the requester").")
-            }
-            .confirmationDialog(tradeReviewTitle, isPresented: Binding(
-                get: { tradeToApprove != nil },
-                set: { if !$0 { tradeToApprove = nil } }
-            ), titleVisibility: .visible) {
-                Button("Approve Trade") { approveConfirmedTrade() }
-                Button("Decline Trade", role: .destructive) { declineConfirmedTrade() }
-                Button("Cancel", role: .cancel) { tradeToApprove = nil }
-            } message: {
-                Text("Approve assigns the shift to \(tradeToApprove?.claimedBy?.name ?? "the claimer").")
             }
             .sensoryFeedback(.error, trigger: actionErrorHaptic)
         }
@@ -248,19 +187,7 @@ struct TradeBoardSheet: View {
 
     private var pickupDialogTitle: String {
         guard let item = openShiftToPickup else { return "Claim shift?" }
-        return item.action == "request"
-            ? "Request \(item.shift.area.shiftAreaLabel) shift?"
-            : "Claim \(item.shift.area.shiftAreaLabel) shift?"
-    }
-
-    private var requestReviewTitle: String {
-        guard let request = requestToApprove else { return "Review request?" }
-        return "Review \(request.user.name)'s request?"
-    }
-
-    private var tradeReviewTitle: String {
-        guard let trade = tradeToApprove else { return "Review trade?" }
-        return "Review \(trade.claimedBy?.name ?? "claimer") for \(trade.shiftAssignment.shift.area.shiftAreaLabel)?"
+        return "Claim \(item.shift.area.shiftAreaLabel) shift?"
     }
 
     private var tradeList: some View {
@@ -270,29 +197,10 @@ struct TradeBoardSheet: View {
                     ContentUnavailableView(
                         "No open work",
                         systemImage: "arrow.triangle.2.circlepath",
-                        description: Text("Open shifts, staff requests, and trade posts will show up here.")
+                        description: Text("Open shifts and trade posts will show up here.")
                     )
                 }
                 .listRowBackground(Color.clear)
-            }
-
-            if !vm.staffReviewRequests.isEmpty || !vm.staffReviewTrades.isEmpty {
-                Section {
-                    ForEach(vm.staffReviewRequests) { request in
-                        PickupRequestRow(request: request) {
-                            requestToApprove = request
-                        }
-                    }
-                    ForEach(vm.staffReviewTrades) { trade in
-                        TradeRow(trade: trade, context: .staffReview) {
-                            tradeToApprove = trade
-                        } cancelAction: {
-                            if trade.postedBy.id == currentUserId { tradeToCancel = trade }
-                        }
-                    }
-                } header: {
-                    TradeSectionHeader(title: "Staff Review", subtitle: "Requests and claimed premier trades waiting for a decision.")
-                }
             }
 
             if !vm.availableOpenShifts.isEmpty || !vm.availableTrades.isEmpty {
@@ -309,18 +217,6 @@ struct TradeBoardSheet: View {
                     }
                 } header: {
                     TradeSectionHeader(title: "Available Now", subtitle: "These shifts can be picked up without staff approval.")
-                }
-            }
-
-            if !vm.approvalRequiredShifts.isEmpty {
-                Section {
-                    ForEach(vm.approvalRequiredShifts) { item in
-                        OpenWorkShiftRow(item: item, context: .approvalRequired) {
-                            openShiftToPickup = item
-                        }
-                    }
-                } header: {
-                    TradeSectionHeader(title: "Approval Required", subtitle: "Premier shifts start as requests until staff approve them.")
                 }
             }
 
@@ -384,10 +280,8 @@ struct TradeBoardSheet: View {
             do {
                 try await vm.pickup(id: item.id)
                 Haptics.success()
-                if item.action == "claim" {
-                    let when = item.shift.effectiveStartsAt.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
-                    onTradeClaimed?(item.shift.area, when)
-                }
+                let when = item.shift.effectiveStartsAt.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+                onTradeClaimed?(item.shift.area, when)
             } catch {
                 actionError = error.localizedDescription
                 actionErrorHaptic &+= 1
@@ -430,65 +324,6 @@ struct TradeBoardSheet: View {
         }
     }
 
-    private func approveConfirmedRequest() {
-        guard let request = requestToApprove else { return }
-        Task {
-            do {
-                try await vm.approveRequest(id: request.id)
-                Haptics.success()
-            } catch {
-                actionError = error.localizedDescription
-                actionErrorHaptic &+= 1
-                Haptics.warning()
-            }
-            requestToApprove = nil
-        }
-    }
-
-    private func declineConfirmedRequest() {
-        guard let request = requestToApprove else { return }
-        Task {
-            do {
-                try await vm.declineRequest(id: request.id)
-                Haptics.success()
-            } catch {
-                actionError = error.localizedDescription
-                actionErrorHaptic &+= 1
-                Haptics.warning()
-            }
-            requestToApprove = nil
-        }
-    }
-
-    private func approveConfirmedTrade() {
-        guard let trade = tradeToApprove else { return }
-        Task {
-            do {
-                try await vm.approveTrade(id: trade.id)
-                Haptics.success()
-            } catch {
-                actionError = error.localizedDescription
-                actionErrorHaptic &+= 1
-                Haptics.warning()
-            }
-            tradeToApprove = nil
-        }
-    }
-
-    private func declineConfirmedTrade() {
-        guard let trade = tradeToApprove else { return }
-        Task {
-            do {
-                try await vm.declineTrade(id: trade.id)
-                Haptics.success()
-            } catch {
-                actionError = error.localizedDescription
-                actionErrorHaptic &+= 1
-                Haptics.warning()
-            }
-            tradeToApprove = nil
-        }
-    }
 }
 
 private struct TradeSectionHeader: View {
@@ -509,13 +344,11 @@ private struct TradeSectionHeader: View {
 
 private enum OpenWorkRowContext {
     case availableNow
-    case approvalRequired
     case waiting
 
     var badge: String {
         switch self {
         case .availableNow: "Open"
-        case .approvalRequired: "Request"
         case .waiting: "Not available"
         }
     }
@@ -524,8 +357,6 @@ private enum OpenWorkRowContext {
         switch self {
         case .availableNow:
             return StatusTone.green
-        case .approvalRequired:
-            return StatusTone.orange
         case .waiting:
             return StatusTone.gray
         }
@@ -541,7 +372,6 @@ private struct OpenWorkShiftRow: View {
     private var consequence: String {
         switch item.action {
         case "claim": "You will be assigned immediately."
-        case "request": "Staff must approve before this becomes your shift."
         default: item.reason
         }
     }
@@ -565,7 +395,7 @@ private struct OpenWorkShiftRow: View {
 
             if let action {
                 Button(action: action) {
-                    Text(item.action == "request" ? "Request shift" : "Claim shift")
+                    Text("Claim shift")
                         .font(.subheadline.weight(.medium))
                         .frame(maxWidth: .infinity)
                 }
@@ -581,7 +411,6 @@ private struct OpenWorkShiftRow: View {
 
 private enum TradeRowContext: Equatable {
     case availableNow
-    case staffReview
     case myPost
     case posted
     case resolved
@@ -589,11 +418,7 @@ private enum TradeRowContext: Equatable {
     func consequence(for trade: ShiftTrade) -> String {
         switch self {
         case .availableNow:
-            return trade.requiresApproval == true
-                ? "Claiming sends this to staff review."
-                : "Claiming assigns this shift to you immediately."
-        case .staffReview:
-            return "Approve assigns the shift to \(trade.claimedBy?.name ?? "the claimer")."
+            return "Claiming assigns this shift to you immediately."
         case .myPost:
             return "Canceling removes the post; the shift stays assigned to you."
         case .posted:
@@ -639,7 +464,7 @@ private struct TradeRow: View {
             HStack(spacing: 8) {
                 if let action {
                     Button(action: action) {
-                        Text(context == .staffReview ? "Review" : "Claim this shift")
+                        Text("Claim this shift")
                             .font(.subheadline.weight(.medium))
                             .frame(maxWidth: .infinity)
                     }
@@ -658,44 +483,6 @@ private struct TradeRow: View {
                     .controlSize(.small)
                 }
             }
-        }
-        .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
-    }
-}
-
-private struct PickupRequestRow: View {
-    let request: OpenWorkPickupRequest
-    let action: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            rowHeader(
-                title: request.shift.displayTitle,
-                badge: "Request",
-                tone: request.hasConflict ? .orange : .blue
-            )
-            metadataRows([
-                request.shift.timeRange,
-                request.shift.area.shiftAreaLabel,
-                "Approve assigns this shift to \(request.user.name).",
-                "Requested \(request.createdAt.formatted(date: .abbreviated, time: .omitted))",
-            ])
-
-            if let conflictNote = request.conflictNote {
-                Label(conflictNote, systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(Color.statusText(.orange))
-            }
-
-            Button(action: action) {
-                Text("Review request")
-                    .font(.subheadline.weight(.medium))
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .tint(Color.brandPrimary)
-            .controlSize(.small)
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)

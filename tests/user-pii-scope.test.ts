@@ -201,7 +201,12 @@ describe("user PII scope hardening", () => {
     expect(res.status).toBe(200);
     expect(db.user.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "student-1", active: true },
+        where: {
+          AND: [
+            { hiddenFromRoster: false },
+            { id: "student-1", active: true },
+          ],
+        },
         select: { id: true, name: true, avatarUrl: true },
       }),
     );

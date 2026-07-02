@@ -1164,11 +1164,6 @@ function EventRows({
                 total={entry.coverage.total}
               />
             )}
-            {entry.isPremier && (
-              <Badge variant="blue" size="sm">
-                Premier
-              </Badge>
-            )}
             <PublicationBadge entry={entry} quietPublished />
             {isStaff && <ChangeHistoryBadge summary={changeEvent} reviewOnly />}
             {showShiftStatus && shiftStatus === "Pending" && (

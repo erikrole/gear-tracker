@@ -32,10 +32,12 @@ describe("schedule staff/student display source contracts", () => {
     const assignmentCell = source("src/app/(app)/schedule/assign/_components/AssignmentCell.tsx");
     const filters = source("src/app/(app)/schedule/_components/ScheduleFilters.tsx");
 
-    expect(listView).toContain('const openNeedLabel = `${openSlots.length} ${openSlots.length === 1 ? "person" : "people"}`');
+    expect(listView).toContain("<CoverageBadge");
+    expect(listView).not.toContain("Needs N people");
+    expect(listView).not.toContain("Needs students");
     expect(listView).not.toContain("Student${students");
     expect(readiness).toContain('label: "Crew needed"');
-    expect(readiness).toContain("events need crew");
+    expect(readiness).toContain('event${needsCoverageEvents === 1 ? "" : "s"} need crew');
     expect(readiness).not.toContain('label: "Staff needed"');
     expect(filters).toContain("Needs crew");
     expect(filters).not.toContain("Needs staff");

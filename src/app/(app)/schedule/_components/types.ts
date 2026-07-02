@@ -57,7 +57,6 @@ export type Shift = {
 export type ShiftGroup = {
   id: string;
   eventId: string;
-  isPremier: boolean;
   notes: string | null;
   archivedAt?: string | null;
   publication?: SchedulePublicationState | null;
@@ -81,7 +80,6 @@ export type CalendarEntry = CalendarEvent & {
   shiftGroupId: string | null;
   coverage: { total: number; filled: number; percentage: number } | null;
   shifts: Shift[];
-  isPremier: boolean;
   archivedAt?: string | null;
   publication?: SchedulePublicationState | null;
 };

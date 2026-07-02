@@ -160,7 +160,6 @@ export async function postTrade(
         // cancel right, and stay blocked from claiming their own shift. The
         // staff actor is captured in the route's audit entry.
         postedByUserId: assignment.userId,
-        requiresApproval: assignment.shift.shiftGroup.isPremier,
         notes,
       },
       include: {
@@ -217,7 +216,7 @@ export async function postTrade(
 }
 
 /**
- * Claim an open trade. If no approval required, executes swap immediately.
+ * Claim an open trade and execute the swap immediately.
  */
 export async function claimTrade(tradeId: string, userId: string) {
   const emailJobs: ShiftTradeEmail[] = [];
@@ -275,68 +274,6 @@ export async function claimTrade(tradeId: string, userId: string) {
     const eventSummary =
       trade.shiftAssignment.shift.shiftGroup?.event?.summary ?? "your shift";
 
-    if (trade.requiresApproval) {
-      const updated = await tx.shiftTrade.update({
-        where: { id: tradeId },
-        data: {
-          claimedByUserId: userId,
-          claimedAt: new Date(),
-          status: "CLAIMED",
-        },
-        include: {
-          shiftAssignment: {
-            include: {
-              shift: {
-                include: { shiftGroup: { include: { event: true } } },
-              },
-              user: { select: { id: true, name: true } },
-            },
-          },
-          postedBy: { select: { id: true, name: true } },
-          claimedBy: { select: { id: true, name: true } },
-        },
-      });
-
-      const title = "Your trade was claimed";
-      const body = `${updated.claimedBy?.name ?? "Someone"} claimed your ${shift.area} shift for ${eventSummary}. Awaiting staff approval.`;
-
-      // Notify poster: someone claimed, pending staff approval
-      await notify(
-        trade.postedByUserId,
-        "trade_claimed",
-        title,
-        body,
-        `trade_claimed_${tradeId}`,
-        scheduleNotificationPayload({
-          tradeId,
-          assignmentId: updated.shiftAssignment.id,
-          shiftId: updated.shiftAssignment.shift.id,
-          eventId: updated.shiftAssignment.shift.shiftGroup.event.id,
-        }),
-      );
-      pushJobs.push({
-        userId: trade.postedByUserId,
-        title,
-        body,
-        payload: scheduleNotificationPayload({
-          tradeId,
-          assignmentId: updated.shiftAssignment.id,
-          shiftId: updated.shiftAssignment.shift.id,
-          eventId: updated.shiftAssignment.shift.shiftGroup.event.id,
-        }),
-      });
-      emailJobs.push({
-        userId: trade.postedByUserId,
-        title,
-        body,
-        eventSummary,
-        area: shift.area,
-      });
-
-      return updated;
-    }
-
-    // No approval needed — execute swap immediately
     await executeSwap(tx, trade.shiftAssignment.id, userId, trade.postedByUserId);
 
     const completed = await tx.shiftTrade.update({

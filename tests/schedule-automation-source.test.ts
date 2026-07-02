@@ -29,15 +29,16 @@ describe("schedule automation source contract", () => {
   it("surfaces automation digest cards from the Schedule page data flow", () => {
     const hook = source("src/hooks/use-schedule-data.ts");
     const page = source("src/app/(app)/schedule/page.tsx");
+    const readiness = source("src/app/(app)/schedule/_components/ScheduleReadiness.tsx");
     const component = source("src/app/(app)/schedule/_components/ScheduleAutomationDigest.tsx");
 
     expect(hook).toContain("/api/schedule/automation?");
     expect(hook).toContain("scheduleAutomation");
-    expect(page).toContain("ScheduleAutomationDigest");
+    expect(page).toContain("ScheduleReadiness");
     expect(page).toContain("digest={data.scheduleAutomation}");
+    expect(readiness).toContain("ScheduleAutomationCards");
     expect(component).toContain("Suggestions only");
     expect(component).toContain("onShowQueue(action.queue)");
     expect(component).toContain("onOpenTradeBoard()");
   });
 });
-

@@ -103,7 +103,7 @@ describe("postTrade", () => {
     const userId = "user-1";
     const assignment = {
       ...makeShiftAssignment({ userId }),
-      shift: { ...makeShift(), shiftGroup: { isPremier: false } },
+      shift: { ...makeShift(), shiftGroup: {} },
     };
     mockTx.shiftAssignment.findUnique.mockResolvedValue(assignment);
     mockTx.shiftTrade.findFirst.mockResolvedValue(null);
@@ -116,7 +116,6 @@ describe("postTrade", () => {
         data: expect.objectContaining({
           shiftAssignmentId: assignment.id,
           postedByUserId: userId,
-          requiresApproval: false,
           notes: "Need swap",
         }),
       })
@@ -131,7 +130,7 @@ describe("postTrade", () => {
   it("throws 403 when user doesn't own the assignment", async () => {
     const assignment = {
       ...makeShiftAssignment({ userId: "other-user" }),
-      shift: { ...makeShift(), shiftGroup: { isPremier: false } },
+      shift: { ...makeShift(), shiftGroup: {} },
     };
     mockTx.shiftAssignment.findUnique.mockResolvedValue(assignment);
     await expect(postTrade(assignment.id, { id: "user-1" })).rejects.toThrow("only trade your own");
@@ -140,7 +139,7 @@ describe("postTrade", () => {
   it("throws 400 for inactive assignment status", async () => {
     const assignment = {
       ...makeShiftAssignment({ userId: "user-1", status: "SWAPPED" }),
-      shift: { ...makeShift(), shiftGroup: { isPremier: false } },
+      shift: { ...makeShift(), shiftGroup: {} },
     };
     mockTx.shiftAssignment.findUnique.mockResolvedValue(assignment);
     await expect(postTrade(assignment.id, { id: "user-1" })).rejects.toThrow("Only active assignments");
@@ -149,7 +148,7 @@ describe("postTrade", () => {
   it("throws 409 when assignment already has open trade", async () => {
     const assignment = {
       ...makeShiftAssignment({ userId: "user-1" }),
-      shift: { ...makeShift(), shiftGroup: { isPremier: false } },
+      shift: { ...makeShift(), shiftGroup: {} },
     };
     mockTx.shiftAssignment.findUnique.mockResolvedValue(assignment);
     mockTx.shiftTrade.findFirst.mockResolvedValue({ id: "existing-trade" });
@@ -164,7 +163,7 @@ describe("postTrade", () => {
           startsAt: new Date("2026-03-01T11:00:00.000Z"),
           endsAt: new Date("2026-03-01T14:00:00.000Z"),
         }),
-        shiftGroup: { isPremier: false },
+        shiftGroup: {},
       },
     };
     mockTx.shiftAssignment.findUnique.mockResolvedValue(assignment);
@@ -185,7 +184,7 @@ describe("postTrade", () => {
           startsAt: new Date("2026-03-01T13:00:00.000Z"),
           endsAt: new Date("2026-03-01T16:00:00.000Z"),
         }),
-        shiftGroup: { isPremier: false },
+        shiftGroup: {},
       },
     };
     mockTx.shiftAssignment.findUnique.mockResolvedValue(assignment);
@@ -199,7 +198,7 @@ describe("postTrade", () => {
       ...makeShiftAssignment({ userId: "student-1" }),
       shift: {
         ...makeShift(),
-        shiftGroup: { isPremier: false, event: { id: "evt-1", summary: "Football Media Day" } },
+        shiftGroup: { event: { id: "evt-1", summary: "Football Media Day" } },
       },
       user: { id: "student-1", name: "Maddy", role: "STUDENT", staffingType: null },
     };
@@ -226,7 +225,7 @@ describe("postTrade", () => {
       ...makeShiftAssignment({ userId: "staff-2" }),
       shift: {
         ...makeShift(),
-        shiftGroup: { isPremier: false, event: { id: "evt-1", summary: "Football Media Day" } },
+        shiftGroup: { event: { id: "evt-1", summary: "Football Media Day" } },
       },
       user: { id: "staff-2", name: "Ben", role: "STAFF", staffingType: null },
     };
@@ -242,7 +241,7 @@ describe("postTrade", () => {
       ...makeShiftAssignment({ userId: "student-2" }),
       shift: {
         ...makeShift(),
-        shiftGroup: { isPremier: false, event: { id: "evt-1", summary: "Football Media Day" } },
+        shiftGroup: { event: { id: "evt-1", summary: "Football Media Day" } },
       },
       user: { id: "student-2", name: "Jerry", role: "STUDENT", staffingType: null },
     };
@@ -252,24 +251,6 @@ describe("postTrade", () => {
       .rejects.toThrow("only trade your own");
   });
 
-  it("sets requiresApproval=true for premier shift groups", async () => {
-    const userId = "user-1";
-    const assignment = {
-      ...makeShiftAssignment({ userId }),
-      shift: { ...makeShift(), shiftGroup: { isPremier: true } },
-    };
-    mockTx.shiftAssignment.findUnique.mockResolvedValue(assignment);
-    mockTx.shiftTrade.findFirst.mockResolvedValue(null);
-    mockTx.shiftTrade.create.mockResolvedValue({ id: "trade-1" });
-
-    await postTrade(assignment.id, { id: userId });
-
-    expect(mockTx.shiftTrade.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ requiresApproval: true }),
-      })
-    );
-  });
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -326,7 +307,6 @@ describe("claimTrade", () => {
     const callStartsAt = new Date("2026-04-01T10:00:00.000Z");
     const callEndsAt = new Date("2026-04-01T14:00:00.000Z");
     const trade = openTrade({
-      requiresApproval: true,
       shiftAssignment: {
         ...makeShiftAssignment({ callStartsAt, callEndsAt }),
         shift: {
@@ -337,7 +317,10 @@ describe("claimTrade", () => {
     });
     mockTx.shiftTrade.findUnique.mockResolvedValue(trade);
     mockTx.user.findUnique.mockResolvedValue(makeUser({ primaryArea: "Field" }));
-    mockTx.shiftTrade.update.mockResolvedValue({ ...trade, claimedByUserId: "claimer-1", status: "CLAIMED" });
+    mockTx.shiftAssignment.findUnique.mockResolvedValue({ ...trade.shiftAssignment });
+    mockTx.shiftAssignment.update.mockResolvedValue({});
+    mockTx.shiftAssignment.create.mockResolvedValue({});
+    mockTx.shiftTrade.update.mockResolvedValue({ ...trade, claimedByUserId: "claimer-1", status: "COMPLETED" });
 
     await claimTrade(trade.id, "claimer-1");
 
@@ -352,8 +335,8 @@ describe("claimTrade", () => {
     await expect(claimTrade("trade-1", "claimer-1")).rejects.toThrow("does not match");
   });
 
-  it("rejects claims blocked by approved time off before staff review", async () => {
-    mockTx.shiftTrade.findUnique.mockResolvedValue(openTrade({ requiresApproval: true }));
+  it("rejects claims blocked by approved time off before assignment changes", async () => {
+    mockTx.shiftTrade.findUnique.mockResolvedValue(openTrade());
     mockTx.user.findUnique.mockResolvedValue(makeUser({
       primaryArea: "Field",
       availabilityBlocks: [{
@@ -414,31 +397,8 @@ describe("claimTrade", () => {
     expect(mockTx.shiftTrade.update).not.toHaveBeenCalled();
   });
 
-  it("sets CLAIMED status when requiresApproval=true", async () => {
-    const trade = openTrade({ requiresApproval: true });
-    mockTx.shiftTrade.findUnique.mockResolvedValue(trade);
-    mockTx.user.findUnique.mockResolvedValue(makeUser({ primaryArea: "Field" }));
-    mockTx.shiftTrade.update.mockResolvedValue({ ...trade, status: "CLAIMED" });
-
-    await claimTrade(trade.id, "claimer-1");
-
-    expect(mockTx.shiftTrade.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ status: "CLAIMED", claimedByUserId: "claimer-1" }),
-      })
-    );
-    expect(sendShiftTradeEmail).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: "poster-1",
-        title: "Your trade was claimed",
-        eventSummary: "Wisconsin vs Iowa",
-        area: "Field",
-      })
-    );
-  });
-
-  it("executes swap immediately when requiresApproval=false", async () => {
-    const trade = openTrade({ requiresApproval: false });
+  it("executes swap immediately when a trade is claimed", async () => {
+    const trade = openTrade();
     mockTx.shiftTrade.findUnique.mockResolvedValue(trade);
     mockTx.user.findUnique.mockResolvedValue(makeUser({ primaryArea: "Field" }));
     mockTx.shiftAssignment.findUnique.mockResolvedValue({ ...trade.shiftAssignment });

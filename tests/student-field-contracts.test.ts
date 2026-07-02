@@ -113,7 +113,7 @@ describe("student field mobile contracts", () => {
 
     expect(eventDetail).toContain("Label(\"Add shift\", systemImage: \"plus\")");
     expect(eventDetail).toContain("Label(\"Assign person\", systemImage: \"plus.circle.fill\")");
-    expect(eventDetail).toContain("Label(\"Request shift\", systemImage: \"hand.raised.fill\")");
+    expect(eventDetail).toContain("Label(\"Claim shift\", systemImage: \"hand.raised.fill\")");
     expect(eventDetail).toContain("Button(\"Approve \\(assignment.user.name)\")");
     expect(eventDetail).toContain("Button(\"Decline \\(assignment.user.name)\")");
     expect(eventDetail).toContain("Text(\"Event\")");
@@ -126,14 +126,11 @@ describe("student field mobile contracts", () => {
     expect(tradeBoard).toContain("Label(\"Post trade\", systemImage: \"plus\")");
     expect(tradeBoard).toContain(".navigationTitle(\"Trade Board\")");
     expect(tradeBoard).toContain("APIClient.shared.scheduleOpenWork()");
-    expect(tradeBoard).toContain("Staff Review");
     expect(tradeBoard).toContain("Available Now");
-    expect(tradeBoard).toContain("Approval Required");
     expect(tradeBoard).toContain("My Posts");
     expect(tradeBoard).toContain("Waiting or Blocked");
-    expect(tradeBoard).toContain("item.action == \"request\" ? \"Request shift\" : \"Claim shift\"");
-    expect(tradeBoard).toContain("context == .staffReview ? \"Review\" : \"Claim this shift\"");
-    expect(tradeBoard).toContain("Text(\"Review request\")");
+    expect(tradeBoard).toContain("Text(\"Claim shift\")");
+    expect(tradeBoard).toContain("Text(\"Claim this shift\")");
     expect(tradeBoard).toContain("Text(\"Cancel post\")");
     expect(tradeBoard).toContain("Canceling removes the post; the shift stays assigned to you.");
     expect(tradeBoard).toContain("You will be assigned immediately.");

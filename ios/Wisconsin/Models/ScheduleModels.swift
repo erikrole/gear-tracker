@@ -177,7 +177,6 @@ struct ShiftGearBooking: Codable, Identifiable {
 struct EventShiftGroup: Codable, Identifiable {
     let id: String
     let eventId: String
-    let isPremier: Bool
     let notes: String?
     let event: ShiftGroupEvent
     let shifts: [EventShift]

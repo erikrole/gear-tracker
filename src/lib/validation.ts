@@ -448,7 +448,6 @@ export const updateShiftSchema = z.object({
 });
 
 export const updateShiftGroupSchema = z.object({
-  isPremier: z.boolean().optional(),
   notes: z.string().max(5000).optional(),
 });
 

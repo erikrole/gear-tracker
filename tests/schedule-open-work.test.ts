@@ -6,7 +6,7 @@ const transactionCalls: Array<{ options: unknown }> = [];
 vi.mock("@/lib/db", () => {
   const mockTx = {
     shift: { findUnique: vi.fn() },
-    shiftAssignment: { findFirst: vi.fn(), create: vi.fn() },
+    shiftAssignment: { findFirst: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
     user: { findUnique: vi.fn() },
   };
 
@@ -33,7 +33,11 @@ const mockDb = db as unknown as {
   shiftAssignment: { findMany: ReturnType<typeof vi.fn> };
   _mockTx: {
     shift: { findUnique: ReturnType<typeof vi.fn> };
-    shiftAssignment: { findFirst: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn> };
+    shiftAssignment: {
+      findFirst: ReturnType<typeof vi.fn>;
+      create: ReturnType<typeof vi.fn>;
+      updateMany: ReturnType<typeof vi.fn>;
+    };
     user: { findUnique: ReturnType<typeof vi.fn> };
   };
 };
@@ -68,7 +72,6 @@ function baseShift(overrides: Record<string, unknown> = {}) {
     assignments: [],
     shiftGroup: {
       id: "group-1",
-      isPremier: false,
       publishedAt: new Date("2026-09-01T10:00:00Z"),
       archivedAt: null,
       event: baseEvent(),
@@ -99,6 +102,8 @@ beforeEach(() => {
   mockDb._mockTx.user.findUnique.mockReset();
   mockDb._mockTx.shiftAssignment.findFirst.mockReset();
   mockDb._mockTx.shiftAssignment.create.mockReset();
+  mockDb._mockTx.shiftAssignment.updateMany.mockReset();
+  mockDb._mockTx.shiftAssignment.updateMany.mockResolvedValue({ count: 0 });
 });
 
 describe("schedule open work", () => {
@@ -273,7 +278,7 @@ describe("schedule open work", () => {
     }));
   });
 
-  it("claims a non-premier open shift as an acknowledged direct assignment", async () => {
+  it("claims an open shift as an acknowledged direct assignment", async () => {
     mockDb._mockTx.shift.findUnique.mockResolvedValue(baseShift());
     mockDb._mockTx.user.findUnique.mockResolvedValue(activeStudent());
     mockDb._mockTx.shiftAssignment.findFirst.mockResolvedValue(null);
@@ -293,26 +298,23 @@ describe("schedule open work", () => {
     expectSerializableIsolation(transactionCalls, 0);
   });
 
-  it("creates a request instead of direct assignment for premier shifts", async () => {
-    mockDb._mockTx.shift.findUnique.mockResolvedValue(baseShift({
-      shiftGroup: {
-        id: "group-1",
-        isPremier: true,
-        publishedAt: new Date("2026-09-01T10:00:00Z"),
-        archivedAt: null,
-        event: baseEvent(),
-      },
-    }));
+  it("declines legacy pending requests before creating the direct assignment", async () => {
+    mockDb._mockTx.shift.findUnique.mockResolvedValue(baseShift());
     mockDb._mockTx.user.findUnique.mockResolvedValue(activeStudent());
     mockDb._mockTx.shiftAssignment.findFirst.mockResolvedValue(null);
-    mockDb._mockTx.shiftAssignment.create.mockResolvedValue({ id: "assignment-1", status: "REQUESTED" });
+    mockDb._mockTx.shiftAssignment.updateMany.mockResolvedValue({ count: 1 });
+    mockDb._mockTx.shiftAssignment.create.mockResolvedValue({ id: "assignment-1", status: "DIRECT_ASSIGNED" });
 
     await pickupOpenShift("shift-1", "student-1");
 
+    expect(mockDb._mockTx.shiftAssignment.updateMany).toHaveBeenCalledWith({
+      where: { shiftId: "shift-1", status: "REQUESTED" },
+      data: { status: "DECLINED" },
+    });
     expect(mockDb._mockTx.shiftAssignment.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
-        status: "REQUESTED",
-        assignedBy: null,
+        status: "DIRECT_ASSIGNED",
+        assignedBy: "student-1",
       }),
     }));
   });
@@ -321,7 +323,6 @@ describe("schedule open work", () => {
     mockDb._mockTx.shift.findUnique.mockResolvedValue(baseShift({
       shiftGroup: {
         id: "group-1",
-        isPremier: false,
         publishedAt: null,
         archivedAt: null,
         event: baseEvent(),

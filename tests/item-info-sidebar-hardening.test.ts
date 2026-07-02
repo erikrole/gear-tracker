@@ -33,7 +33,7 @@ describe("item info sidebar hardening", () => {
   it("keeps the info sidebar grouped for fast scanning", () => {
     const source = readFileSync("src/app/(app)/items/[id]/ItemInfoTab.tsx", "utf8");
 
-    expect(source).toContain("function FieldGroup");
+    expect(source).toContain("FieldGroup } from \"@/components/SaveableField\"");
     expect(source).toContain('<FieldGroup label="Product">');
     expect(source).toContain('<FieldGroup label="Organization">');
     expect(source).toContain('<FieldGroup label="Procurement">');
@@ -42,4 +42,3 @@ describe("item info sidebar hardening", () => {
     expect(source).toContain("FirmwareWatchPanel");
   });
 });
-

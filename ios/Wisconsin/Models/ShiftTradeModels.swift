@@ -45,7 +45,6 @@ struct ShiftTradeShift: Codable {
 
 struct ShiftTradeGroup: Codable {
     let id: String?
-    let isPremier: Bool?
     let publishedAt: Date?
     let event: ShiftTradeEvent?
 }
@@ -77,7 +76,6 @@ struct ShiftTrade: Codable, Identifiable, Hashable {
 
     let id: String
     let status: ShiftTradeStatus
-    let requiresApproval: Bool?
     let notes: String?
     let postedBy: ShiftTradeUser
     let claimedBy: ShiftTradeUser?

@@ -98,7 +98,6 @@ function mergeData(events: CalendarEvent[], groups: ShiftGroup[]): CalendarEntry
       shiftGroupId: g?.id ?? null,
       coverage: g?.coverage ?? null,
       shifts: g?.shifts ?? [],
-      isPremier: g?.isPremier ?? false,
       archivedAt: g?.archivedAt ?? null,
       publication: g?.publication ?? null,
     };

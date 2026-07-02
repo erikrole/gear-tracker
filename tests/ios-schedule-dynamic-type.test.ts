@@ -38,8 +38,8 @@ describe("iOS Schedule Dynamic Type", () => {
       "private func calendarSame",
     );
 
-    expect(eventRow).toContain(".font(.caption2.weight(.semibold))");
-    expect(eventRow).toContain(".font(.caption2.weight(.semibold).monospacedDigit())");
+    expect(eventRow).toContain(".font(.caption.weight(.semibold))");
+    expect(eventRow).toContain(".font(.caption.weight(.semibold).monospacedDigit())");
     expect(eventRow).toContain(".font(.subheadline)");
     expect(eventRow).not.toContain(".font(.system(size:");
   });

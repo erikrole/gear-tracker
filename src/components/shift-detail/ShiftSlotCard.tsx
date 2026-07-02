@@ -358,11 +358,11 @@ export function ShiftSlotCard({
                   onClick={onRequest}
                   disabled={acting !== null}
                 >
-                  {acting === shiftId ? "Requesting..." : "Request this shift"}
+                  {acting === shiftId ? "Claiming..." : "Claim this shift"}
                 </Button>
               )}
               {userHasRequested && (
-                <span className="text-xs text-muted-foreground pl-1">You have requested this shift</span>
+                <span className="text-xs text-muted-foreground pl-1">You have a legacy request on this shift</span>
               )}
             </div>
           )}

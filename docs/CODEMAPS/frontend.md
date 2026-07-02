@@ -95,10 +95,10 @@
 
 | File | Lines |
 |---|---:|
-| `src/components/TradeBoard.tsx` | 1643 |
+| `src/components/TradeBoard.tsx` | 1192 |
 | `src/components/EquipmentPicker.tsx` | 996 |
 | `src/components/ActivityTimeline.tsx` | 906 |
-| `src/components/ShiftDetailPanel.tsx` | 814 |
+| `src/components/ShiftDetailPanel.tsx` | 813 |
 | `src/components/onboarding/OnboardingDialog.tsx` | 768 |
 | `src/components/ui/sidebar.tsx` | 727 |
 | `src/components/ChooseImageModal.tsx` | 716 |
@@ -131,7 +131,7 @@
 | File | Lines |
 |---|---:|
 | `src/hooks/booking-action-copy.ts` | 22 |
-| `src/hooks/use-assignment-grid.ts` | 228 |
+| `src/hooks/use-assignment-grid.ts` | 226 |
 | `src/hooks/use-booking-change-sync.ts` | 175 |
 | `src/hooks/use-current-user.ts` | 28 |
 | `src/hooks/use-dashboard-data.ts` | 170 |
@@ -145,7 +145,7 @@
 | `src/hooks/use-mobile.ts` | 20 |
 | `src/hooks/use-mutate.ts` | 89 |
 | `src/hooks/use-scan-submission.ts` | 241 |
-| `src/hooks/use-schedule-data.ts` | 524 |
+| `src/hooks/use-schedule-data.ts` | 523 |
 | `src/hooks/use-url-state.ts` | 166 |
 | `src/hooks/useBookingActions.ts` | 192 |
 | `src/hooks/useBookingDetail.ts` | 70 |

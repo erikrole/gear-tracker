@@ -7,7 +7,7 @@ const serviceSource = readFileSync("src/lib/services/schedule-exports.ts", "utf8
 
 describe("schedule export source contracts", () => {
   it("keeps Schedule exports staff-facing and CSV-only from the Schedule header", () => {
-    expect(schedulePageSource).toContain("Schedule CSV");
+    expect(schedulePageSource).toContain("Export CSV");
     expect(schedulePageSource).toContain("/api/schedule/export?");
     expect(schedulePageSource).toContain("Weekly roster");
     expect(schedulePageSource).toContain("Gear readiness");

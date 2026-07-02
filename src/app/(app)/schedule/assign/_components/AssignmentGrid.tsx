@@ -141,11 +141,6 @@ export function AssignmentGrid({
                           <Badge variant={venueTone.badgeVariant} size="sm">
                             {venueTone.label}
                           </Badge>
-                          {ev.isPremier && (
-                            <Badge variant="blue" size="sm">
-                              Premier
-                            </Badge>
-                          )}
                           {ev.shifts.length > 0 && (
                             <span className="tabular-nums text-muted-foreground/75">
                               {activeAssignments}/{ev.shifts.length}

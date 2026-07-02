@@ -89,8 +89,7 @@ function EventCard({
   const hasShift = userHasShift(entry, currentUserId);
   const titleParts = scheduleEventTitleParts(entry);
   const venueTone = VENUE_TONES[venueToneFromEvent(entry)];
-  const canOpenPanel =
-    entry.shiftGroupId && (isStaff || (entry.isPremier && !isStaff));
+  const canOpenPanel = entry.shiftGroupId && isStaff;
 
   const wrapClass = cn(
     "flex items-stretch rounded-sm mb-1.5 w-full text-left overflow-hidden transition-colors",

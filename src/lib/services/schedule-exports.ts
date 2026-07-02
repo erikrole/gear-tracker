@@ -307,7 +307,6 @@ async function tradeRows(groups: ExportGroup[]) {
           id: true,
           shiftAssignmentId: true,
           status: true,
-          requiresApproval: true,
           postedAt: true,
           claimedAt: true,
           resolvedAt: true,
@@ -329,7 +328,6 @@ async function tradeRows(groups: ExportGroup[]) {
       linked ? shiftWorkerLabelForProfile(linked.assignment.user) ?? "" : "",
       linked?.assignment.user.name ?? "",
       trade.status,
-      trade.requiresApproval ? "yes" : "no",
       trade.postedBy.name,
       trade.claimedBy?.name ?? "",
       exportDate(trade.postedAt),
@@ -352,7 +350,6 @@ async function tradeRows(groups: ExportGroup[]) {
           shiftWorkerLabelForProfile(assignment.user) ?? "",
           assignment.user.name,
           assignment.status,
-          "",
           assignment.user.name,
           "",
           "",
@@ -479,7 +476,7 @@ export async function buildScheduleExport(input: ScheduleExportInput): Promise<S
   }
   if (input.type === "trades") {
     return buildResult(input.type, input, [
-      "Kind", "Event ID", "Event", "Starts", "Area", "Planned Slot", "Assigned Class", "Worker", "Status", "Requires Approval", "Posted By", "Claimed By", "Posted At", "Claimed At", "Resolved At",
+      "Kind", "Event ID", "Event", "Starts", "Area", "Planned Slot", "Assigned Class", "Worker", "Status", "Posted By", "Claimed By", "Posted At", "Claimed At", "Resolved At",
     ], await tradeRows(groups));
   }
 

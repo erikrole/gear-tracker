@@ -24,7 +24,6 @@ export type CalendarEvent = {
 
 export type ShiftGroupSummary = {
   id: string;
-  isPremier: boolean;
   coverage?: { total: number; filled: number; percentage: number };
   publication?: {
     status: "draft" | "published" | "changed";

@@ -24,7 +24,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   DropdownMenuItem,
-  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { scheduleEventTitleParts } from "@/app/(app)/schedule/_components/types";
@@ -49,7 +48,7 @@ type TradeShift = {
   workerType: string;
   startsAt: string;
   endsAt: string;
-  shiftGroup: { event: TradeEvent; isPremier: boolean };
+  shiftGroup: { event: TradeEvent };
 };
 
 type TradeAssignment = {
@@ -68,7 +67,6 @@ type AvailabilityContext = {
 type Trade = {
   id: string;
   status: string;
-  requiresApproval: boolean;
   notes: string | null;
   postedAt: string;
   claimedAt: string | null;
@@ -88,7 +86,7 @@ type Props = {
 type OpenWorkShift = {
   id: string;
   kind: "open_shift";
-  action: "claim" | "request" | "none";
+  action: "claim" | "none";
   canAct: boolean;
   reason: string;
   score: number | null;
@@ -130,7 +128,6 @@ const TRADE_STATUSES = ["OPEN", "CLAIMED", "COMPLETED", "CANCELLED"] as const;
 
 const STATUS_OPTIONS = [
   { value: "OPEN_SHIFT", label: "Open shifts" },
-  { value: "REQUESTED", label: "Requests" },
   { value: "OPEN", label: "Open" },
   { value: "CLAIMED", label: "Claimed" },
   { value: "COMPLETED", label: "Completed" },
@@ -146,7 +143,7 @@ const STATUS_META: Record<string, { label: string; variant: BadgeProps["variant"
   CLAIMED: {
     label: "Claimed",
     variant: "orange",
-    helper: "Awaiting staff review",
+    helper: "Claimed trade",
   },
   COMPLETED: {
     label: "Completed",
@@ -181,18 +178,6 @@ const TRADE_OUTCOME_COPY = {
     server: "Could not claim the shift. Refresh Open Work and try again.",
     network: "Could not reach the server. The shift was not claimed.",
   },
-  requestShift: {
-    server: "Could not request the shift. Refresh Open Work and try again.",
-    network: "Could not reach the server. The shift request was not sent.",
-  },
-  approveRequest: {
-    server: "Could not approve the pickup request. The shift assignment was not changed.",
-    network: "Could not reach the server. The pickup request was not approved.",
-  },
-  declineRequest: {
-    server: "Could not decline the pickup request. The request stayed in review.",
-    network: "Could not reach the server. The pickup request was not declined.",
-  },
 } as const;
 
 function statusMeta(status: string) {
@@ -221,7 +206,6 @@ function formatShiftWindow(shift: Pick<TradeShift, "startsAt" | "endsAt">) {
 
 function openShiftActionCopy(item: OpenWorkShift) {
   if (item.action === "claim") return "You will be assigned immediately.";
-  if (item.action === "request") return "Staff must approve before this becomes your shift.";
   return item.reason;
 }
 
@@ -230,14 +214,8 @@ function tradeOutcomeCopy(trade: Trade, args: { currentUserId: string; isStaff: 
   if (isOwnTrade && (trade.status === "OPEN" || trade.status === "CLAIMED")) {
     return "Canceling removes the post; the shift stays assigned to you.";
   }
-  if (args.isStaff && trade.status === "CLAIMED") {
-    const claimer = trade.claimedBy?.name ?? "the claimer";
-    return `Approve assigns the shift to ${claimer}; decline keeps it with ${trade.postedBy.name}.`;
-  }
   if (trade.status === "OPEN") {
-    return trade.requiresApproval
-      ? "Claiming sends this to staff review before the assignment changes."
-      : "Claiming assigns this shift to you immediately.";
+    return "Claiming assigns this shift to you immediately.";
   }
   return statusMeta(trade.status).helper;
 }
@@ -424,7 +402,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
   }, [loadOpenWork]);
 
   const filteredTrades = useMemo(() => {
-    if (statusFilter === "OPEN_SHIFT" || statusFilter === "REQUESTED") return [];
+    if (statusFilter === "OPEN_SHIFT") return [];
     let result = trades;
     if (myTradesOnly) {
       result = result.filter(
@@ -443,12 +421,6 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
     if (statusFilter && statusFilter !== "OPEN_SHIFT") return [];
     return openWork.openShifts;
   }, [myTradesOnly, openWork.openShifts, statusFilter]);
-
-  const filteredPickupRequests = useMemo(() => {
-    if (!isStaff || myTradesOnly) return [];
-    if (statusFilter && statusFilter !== "REQUESTED") return [];
-    return openWork.pickupRequests;
-  }, [isStaff, myTradesOnly, openWork.pickupRequests, statusFilter]);
 
   const reloadWork = useCallback(async () => {
     await Promise.all([loadTrades(), loadOpenWork()]);
@@ -486,44 +458,6 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
     }
   }, [beginAction, endAction, reloadWork]);
 
-  const handleApprove = useCallback(async (tradeId: string) => {
-    if (!beginAction(tradeId)) return;
-    try {
-      const res = await fetch(`/api/shift-trades/${tradeId}/approve`, { method: "PATCH" });
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        toast.success("Trade approved");
-        await reloadWork();
-      } else {
-        const msg = await parseErrorMessage(res, TRADE_OUTCOME_COPY.approveTrade.server);
-        toast.error(msg);
-      }
-    } catch {
-      toast.error(TRADE_OUTCOME_COPY.approveTrade.network);
-    } finally {
-      endAction(tradeId);
-    }
-  }, [beginAction, endAction, reloadWork]);
-
-  const handleDecline = useCallback(async (tradeId: string) => {
-    if (!beginAction(tradeId)) return;
-    try {
-      const res = await fetch(`/api/shift-trades/${tradeId}/decline`, { method: "PATCH" });
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        toast.success("Trade declined");
-        await reloadWork();
-      } else {
-        const msg = await parseErrorMessage(res, TRADE_OUTCOME_COPY.declineTrade.server);
-        toast.error(msg);
-      }
-    } catch {
-      toast.error(TRADE_OUTCOME_COPY.declineTrade.network);
-    } finally {
-      endAction(tradeId);
-    }
-  }, [beginAction, endAction, reloadWork]);
-
   const handleCancel = useCallback(async (trade: Trade) => {
     const tradeId = trade.id;
     const { eventLabel, windowLabel } = tradeCancelContext(trade);
@@ -554,7 +488,6 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
 
   const handlePickup = useCallback(async (shift: OpenWorkShift) => {
     const actionId = `pickup:${shift.id}`;
-    const outcomeCopy = shift.action === "request" ? TRADE_OUTCOME_COPY.requestShift : TRADE_OUTCOME_COPY.claimShift;
     if (!beginAction(actionId)) return;
     try {
       const res = await fetch("/api/shift-assignments/pickup", {
@@ -564,54 +497,14 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
       });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        toast.success(shift.action === "request" ? "Shift requested" : "Shift claimed");
+        toast.success("Shift claimed");
         await reloadWork();
       } else {
-        const msg = await parseErrorMessage(res, outcomeCopy.server);
+        const msg = await parseErrorMessage(res, TRADE_OUTCOME_COPY.claimShift.server);
         toast.error(msg);
       }
     } catch {
-      toast.error(outcomeCopy.network);
-    } finally {
-      endAction(actionId);
-    }
-  }, [beginAction, endAction, reloadWork]);
-
-  const handleApprovePickupRequest = useCallback(async (requestId: string) => {
-    const actionId = `request:${requestId}`;
-    if (!beginAction(actionId)) return;
-    try {
-      const res = await fetch(`/api/shift-assignments/${requestId}/approve`, { method: "PATCH" });
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        toast.success("Pickup request approved");
-        await reloadWork();
-      } else {
-        const msg = await parseErrorMessage(res, TRADE_OUTCOME_COPY.approveRequest.server);
-        toast.error(msg);
-      }
-    } catch {
-      toast.error(TRADE_OUTCOME_COPY.approveRequest.network);
-    } finally {
-      endAction(actionId);
-    }
-  }, [beginAction, endAction, reloadWork]);
-
-  const handleDeclinePickupRequest = useCallback(async (requestId: string) => {
-    const actionId = `request:${requestId}`;
-    if (!beginAction(actionId)) return;
-    try {
-      const res = await fetch(`/api/shift-assignments/${requestId}/decline`, { method: "PATCH" });
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        toast.success("Pickup request declined");
-        await reloadWork();
-      } else {
-        const msg = await parseErrorMessage(res, TRADE_OUTCOME_COPY.declineRequest.server);
-        toast.error(msg);
-      }
-    } catch {
-      toast.error(TRADE_OUTCOME_COPY.declineRequest.network);
+      toast.error(TRADE_OUTCOME_COPY.claimShift.network);
     } finally {
       endAction(actionId);
     }
@@ -641,14 +534,12 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
       }]
       : []),
   ];
-  const totalRows = filteredOpenShifts.length + filteredPickupRequests.length + filteredTrades.length;
+  const totalRows = filteredOpenShifts.length + filteredTrades.length;
   const isLoadingWork = loading || openWorkLoading;
   const hasLoadError = loadError && openWorkError;
   const countLabel = `${totalRows} ${totalRows === 1 ? "item" : "items"}`;
   const claimableOpenShifts = filteredOpenShifts.filter((item) => item.action === "claim");
-  const requestableOpenShifts = filteredOpenShifts.filter((item) => item.action === "request");
   const unavailableOpenShifts = filteredOpenShifts.filter((item) => item.action === "none");
-  const staffReviewTrades = filteredTrades.filter((trade) => isStaff && trade.status === "CLAIMED");
   const blockedClaimableTrades = filteredTrades.filter((trade) =>
     !isStaff
     && trade.status === "OPEN"
@@ -664,8 +555,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
   );
   const resolvedTrades = filteredTrades.filter((trade) => trade.status === "COMPLETED" || trade.status === "CANCELLED");
   const postedTrades = filteredTrades.filter((trade) =>
-    !staffReviewTrades.some((item) => item.id === trade.id)
-    && !claimableTrades.some((item) => item.id === trade.id)
+    !claimableTrades.some((item) => item.id === trade.id)
     && !blockedClaimableTrades.some((item) => item.id === trade.id)
     && !myTradePosts.some((item) => item.id === trade.id)
     && !resolvedTrades.some((item) => item.id === trade.id)
@@ -677,8 +567,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
         <div className="flex items-start gap-2.5 rounded-md border border-border/60 bg-muted/50 px-3 py-2.5 text-sm">
           <CalendarDaysIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
           <p className="leading-snug text-muted-foreground">
-            Claim open non-premier shifts here, request premier shifts for staff review, or post a trade from
-            an assignment you already own.
+            Claim open Student shifts here, or post a trade from an assignment you already own.
           </p>
         </div>
       )}
@@ -764,217 +653,6 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
         ) : (
           <div>
             <WorkSection
-              title="Staff Review"
-              description="Requests and claimed premier trades waiting for a staff decision."
-              count={filteredPickupRequests.length + staffReviewTrades.length}
-            >
-              {filteredPickupRequests.map((request) => {
-                const shift = request.shift;
-                const event = shift.shiftGroup.event;
-                const titleParts = scheduleEventTitleParts({
-                  summary: event.summary,
-                  sportCode: event.sportCode,
-                  opponent: event.opponent ?? null,
-                  isHome: event.isHome ?? null,
-                });
-                const isBusy = acting === `request:${request.id}`;
-
-                return (
-                  <article
-                    key={`request-${request.id}`}
-                    className="group/open-request px-4 py-3 transition-colors hover:bg-muted/25"
-                  >
-                    <div className="flex items-start gap-3">
-                      <UserAvatar name={request.user.name} avatarUrl={request.user.avatarUrl ?? undefined} size="sm" className="mt-0.5 shrink-0" />
-                      <div className="min-w-0 flex-1 space-y-2">
-                        <div className="flex min-w-0 items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <h3 className="truncate text-sm font-semibold leading-tight">{titleParts.title}</h3>
-                            <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                              {request.user.name} requested {AREA_LABELS[shift.area] ?? shift.area}
-                            </p>
-                          </div>
-                          <Badge variant={request.hasConflict ? "orange" : "blue"} size="sm">
-                            Request
-                          </Badge>
-                        </div>
-
-                        <div className="grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2">
-                          <span className="flex min-w-0 items-center gap-1.5">
-                            <CalendarClockIcon className="size-3.5 shrink-0" />
-                            <span className="truncate tabular-nums">{formatShiftWindow(shift)}</span>
-                          </span>
-                          <span className="flex min-w-0 items-center gap-1.5">
-                            <Clock3Icon className="size-3.5 shrink-0" />
-                            <span className="truncate tabular-nums">Requested {formatDateShort(request.createdAt)}</span>
-                          </span>
-                          <span className="flex min-w-0 items-center gap-1.5 sm:col-span-2">
-                            <ShieldCheckIcon className="size-3.5 shrink-0" />
-                            <span className="truncate">Approve assigns this shift to {request.user.name}.</span>
-                          </span>
-                        </div>
-
-                        {request.conflictNote && (
-                          <p className="flex items-start gap-1.5 rounded-md bg-amber-50 px-2.5 py-2 text-xs leading-relaxed text-amber-800">
-                            <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" />
-                            <span>{request.conflictNote}</span>
-                          </p>
-                        )}
-
-                        <div className="flex flex-wrap items-center gap-2 pt-1">
-                          <Button
-                            size="sm"
-                            className="h-8 gap-1.5"
-                            onClick={() => void handleApprovePickupRequest(request.id)}
-                            disabled={acting !== null}
-                          >
-                            <CheckIcon className="size-3.5" />
-                            {isBusy ? "Approving..." : "Approve"}
-                          </Button>
-                          <OperationalRowActions label={`Actions for ${request.user.name} request`}>
-                            <DropdownMenuItem
-                              variant="destructive"
-                              disabled={acting !== null}
-                              onSelect={() => void handleDeclinePickupRequest(request.id)}
-                            >
-                              <XIcon className="size-4" />
-                              Decline
-                            </DropdownMenuItem>
-                          </OperationalRowActions>
-                        </div>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-
-              {staffReviewTrades.map((trade) => {
-                const shift = trade.shiftAssignment.shift;
-                const event = shift.shiftGroup.event;
-                const titleParts = scheduleEventTitleParts({
-                  summary: event.summary,
-                  sportCode: event.sportCode,
-                  opponent: event.opponent ?? null,
-                  isHome: event.isHome ?? null,
-                });
-                const areaLabel = AREA_LABELS[shift.area] ?? shift.area;
-                const meta = statusMeta(trade.status);
-                const isOwnTrade = trade.postedBy.id === currentUserId;
-                const isBusy = acting === trade.id;
-                const canCancel = isOwnTrade && (trade.status === "OPEN" || trade.status === "CLAIMED");
-                const canReview = isStaff && trade.status === "CLAIMED";
-
-                return (
-                  <article
-                    key={trade.id}
-                    className="group/trade px-4 py-3 transition-colors hover:bg-muted/25"
-                  >
-                    <div className="flex items-start gap-3">
-                      <UserAvatar name={trade.postedBy.name} size="sm" className="mt-0.5 shrink-0" />
-                      <div className="min-w-0 flex-1 space-y-2">
-                        <div className="flex min-w-0 items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <h3 className="truncate text-sm font-semibold leading-tight">{titleParts.title}</h3>
-                            {titleParts.detail && (
-                              <p className="mt-0.5 truncate text-xs text-muted-foreground">{titleParts.detail}</p>
-                            )}
-                          </div>
-                          <Badge variant={meta.variant} size="sm">
-                            {meta.label}
-                          </Badge>
-                        </div>
-
-                        <div className="grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2">
-                          <span className="flex min-w-0 items-center gap-1.5">
-                            <CalendarClockIcon className="size-3.5 shrink-0" />
-                            <span className="truncate tabular-nums">{formatShiftWindow(shift)}</span>
-                          </span>
-                          <span className="flex min-w-0 items-center gap-1.5">
-                            <ArrowLeftRightIcon className="size-3.5 shrink-0" />
-                            <span className="truncate">{areaLabel}</span>
-                          </span>
-                          <span className="flex min-w-0 items-center gap-1.5">
-                            <ShieldCheckIcon className="size-3.5 shrink-0" />
-                            <span className="truncate">{tradeOutcomeCopy(trade, { currentUserId, isStaff })}</span>
-                          </span>
-                          <span className="flex min-w-0 items-center gap-1.5">
-                            <Clock3Icon className="size-3.5 shrink-0" />
-                            <span className="truncate tabular-nums">Posted {formatDateShort(trade.postedAt)}</span>
-                          </span>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                          <span>
-                            Posted by <span className="font-medium text-foreground">{trade.postedBy.name}</span>
-                          </span>
-                          {trade.claimedBy && (
-                            <span>
-                              Claimed by <span className="font-medium text-foreground">{trade.claimedBy.name}</span>
-                            </span>
-                          )}
-                          <span className="font-medium text-muted-foreground">
-                            Awaiting staff review
-                          </span>
-                        </div>
-
-                        {trade.notes && (
-                          <p className="rounded-md bg-muted/40 px-2.5 py-2 text-xs leading-relaxed text-muted-foreground">
-                            {trade.notes}
-                          </p>
-                        )}
-
-                        <AvailabilityContextNote context={trade.claimedByAvailabilityContext} />
-
-                        {(canCancel || canReview) && (
-                          <div className="flex flex-wrap items-center gap-2 pt-1">
-                            {canReview && (
-                              <Button
-                                size="sm"
-                                className="h-8 gap-1.5"
-                                onClick={() => void handleApprove(trade.id)}
-                                disabled={acting !== null}
-                              >
-                                <CheckIcon className="size-3.5" />
-                                {isBusy ? "Approving..." : "Approve"}
-                              </Button>
-                            )}
-                            {(canCancel || canReview) && (
-                              <OperationalRowActions
-                                label={`Actions for ${titleParts.title} trade`}
-                              >
-                                {canReview && (
-                                  <DropdownMenuItem
-                                    variant="destructive"
-                                    disabled={acting !== null}
-                                    onSelect={() => void handleDecline(trade.id)}
-                                  >
-                                    <XIcon className="size-4" />
-                                    Decline
-                                  </DropdownMenuItem>
-                                )}
-                                {canReview && canCancel && <DropdownMenuSeparator />}
-                                {canCancel && (
-                                  <DropdownMenuItem
-                                    variant="destructive"
-                                    disabled={acting !== null}
-                                    onSelect={() => void handleCancel(trade)}
-                                  >
-                                    <XIcon className="size-4" />
-                                    {isBusy ? "Cancelling..." : "Cancel"}
-                                  </DropdownMenuItem>
-                                )}
-                              </OperationalRowActions>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </WorkSection>
-
-            <WorkSection
               title="Available Now"
               description="These shifts can be picked up without staff approval."
               count={claimableOpenShifts.length + claimableTrades.length}
@@ -1009,8 +687,8 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
                             <p className="mt-0.5 truncate text-xs text-muted-foreground">{titleParts.detail}</p>
                           )}
                         </div>
-                        <Badge variant={item.action === "request" ? "orange" : "green"} size="sm">
-                          {item.action === "request" ? "Request" : "Open"}
+                        <Badge variant="green" size="sm">
+                          Open
                         </Badge>
                       </div>
 
@@ -1051,9 +729,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
                           disabled={acting !== null || !item.canAct}
                         >
                           <CheckIcon className="size-3.5" />
-                          {isBusy
-                            ? item.action === "request" ? "Requesting..." : "Claiming..."
-                            : item.action === "request" ? "Request shift" : "Claim shift"}
+                          {isBusy ? "Claiming..." : "Claim shift"}
                         </Button>
                         {item.requestCount > 0 && (
                           <span className="text-xs text-muted-foreground">
@@ -1096,7 +772,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
                             )}
                           </div>
                           <Badge variant={meta.variant} size="sm">
-                            {trade.requiresApproval ? "Review" : meta.label}
+                            {meta.label}
                           </Badge>
                         </div>
 
@@ -1155,92 +831,6 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
             </WorkSection>
 
             <WorkSection
-              title="Approval Required"
-              description="These premier shifts start as requests until staff approve them."
-              count={requestableOpenShifts.length}
-            >
-              {requestableOpenShifts.map((item) => {
-                const shift = item.shift;
-              const event = shift.shiftGroup.event;
-              const titleParts = scheduleEventTitleParts({
-                summary: event.summary,
-                sportCode: event.sportCode,
-                opponent: event.opponent ?? null,
-                isHome: event.isHome ?? null,
-              });
-                const areaLabel = AREA_LABELS[shift.area] ?? shift.area;
-                const isBusy = acting === `pickup:${item.id}`;
-                const primaryWarning = item.availabilityContext ? null : item.advisoryConflictNote ?? item.warnings[0]?.label ?? null;
-
-              return (
-                <article
-                    key={`open-${item.id}`}
-                    className="group/open-work px-4 py-3 transition-colors hover:bg-muted/25"
-                >
-                  <div className="flex items-start gap-3">
-                      <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                        <ClipboardListIcon className="size-4" />
-                      </div>
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <div className="flex min-w-0 items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h3 className="truncate text-sm font-semibold leading-tight">{titleParts.title}</h3>
-                            {titleParts.detail && (
-                              <p className="mt-0.5 truncate text-xs text-muted-foreground">{titleParts.detail}</p>
-                            )}
-                        </div>
-                          <Badge variant="orange" size="sm">
-                          Request
-                        </Badge>
-                      </div>
-
-                      <div className="grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2">
-                        <span className="flex min-w-0 items-center gap-1.5">
-                          <CalendarClockIcon className="size-3.5 shrink-0" />
-                          <span className="truncate tabular-nums">{formatShiftWindow(shift)}</span>
-                        </span>
-                        <span className="flex min-w-0 items-center gap-1.5">
-                            <ArrowLeftRightIcon className="size-3.5 shrink-0" />
-                            <span className="truncate">{areaLabel}</span>
-                        </span>
-                          <span className="flex min-w-0 items-center gap-1.5 sm:col-span-2">
-                            <ShieldCheckIcon className="size-3.5 shrink-0" />
-                            <span className="truncate">{openShiftActionCopy(item)}</span>
-                        </span>
-                      </div>
-
-                        {primaryWarning && (
-                        <p className="flex items-start gap-1.5 rounded-md bg-amber-50 px-2.5 py-2 text-xs leading-relaxed text-amber-800">
-                          <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" />
-                            <span>{primaryWarning}</span>
-                        </p>
-                      )}
-                        <AvailabilityContextNote context={item.availabilityContext} />
-
-                      <div className="flex flex-wrap items-center gap-2 pt-1">
-                        <Button
-                          size="sm"
-                          className="h-8 gap-1.5"
-                            onClick={() => void handlePickup(item)}
-                            disabled={acting !== null || !item.canAct}
-                        >
-                          <CheckIcon className="size-3.5" />
-                            {isBusy ? "Requesting..." : "Request shift"}
-                        </Button>
-                          {item.requestCount > 0 && (
-                            <span className="text-xs text-muted-foreground">
-                              {item.requestCount} pending {item.requestCount === 1 ? "request" : "requests"}
-                            </span>
-                          )}
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              );
-              })}
-            </WorkSection>
-
-            <WorkSection
               title="My Posts"
               description="Trades you posted. Canceling a post keeps the shift assigned to you."
               count={myTradePosts.length}
@@ -1258,9 +848,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
               const meta = statusMeta(trade.status);
               const isOwnTrade = trade.postedBy.id === currentUserId;
               const isBusy = acting === trade.id;
-              const canClaim = !isStaff && trade.status === "OPEN" && !isOwnTrade;
               const canCancel = isOwnTrade && (trade.status === "OPEN" || trade.status === "CLAIMED");
-              const canReview = isStaff && trade.status === "CLAIMED";
 
               return (
                 <article
@@ -1294,7 +882,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
                         <span className="flex min-w-0 items-center gap-1.5">
                           <ShieldCheckIcon className="size-3.5 shrink-0" />
                           <span className="truncate">
-                            {trade.requiresApproval ? "Staff approval required" : "Instant swap"}
+                            Instant swap
                           </span>
                         </span>
                         <span className="flex min-w-0 items-center gap-1.5">
@@ -1316,9 +904,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
                           "font-medium",
                           trade.status === "OPEN" ? "text-[var(--green-text)]" : "text-muted-foreground",
                         )}>
-                            {trade.status === "CLAIMED" && trade.requiresApproval
-                              ? "Awaiting staff review"
-                              : tradeOutcomeCopy(trade, { currentUserId, isStaff })}
+                          {tradeOutcomeCopy(trade, { currentUserId, isStaff })}
                         </span>
                       </div>
 
@@ -1328,57 +914,20 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
                         </p>
                       )}
 
-                      {(canClaim || canCancel || canReview) && (
+                      {canCancel && (
                         <div className="flex flex-wrap items-center gap-2 pt-1">
-                          {canClaim && (
-                            <Button
-                              size="sm"
-                              className="h-8 gap-1.5"
-                              onClick={() => void handleClaim(trade.id)}
+                          <OperationalRowActions
+                            label={`Actions for ${titleParts.title} trade`}
+                          >
+                            <DropdownMenuItem
+                              variant="destructive"
                               disabled={acting !== null}
+                              onSelect={() => void handleCancel(trade)}
                             >
-                              <CheckIcon className="size-3.5" />
-                              {isBusy ? "Claiming..." : "Claim"}
-                            </Button>
-                          )}
-                          {canReview && (
-                            <Button
-                              size="sm"
-                              className="h-8 gap-1.5"
-                              onClick={() => void handleApprove(trade.id)}
-                              disabled={acting !== null}
-                            >
-                              <CheckIcon className="size-3.5" />
-                              {isBusy ? "Approving..." : "Approve"}
-                            </Button>
-                          )}
-                          {(canCancel || canReview) && (
-                            <OperationalRowActions
-                              label={`Actions for ${titleParts.title} trade`}
-                            >
-                              {canReview && (
-                                <DropdownMenuItem
-                                  variant="destructive"
-                                  disabled={acting !== null}
-                                  onSelect={() => void handleDecline(trade.id)}
-                                >
-                                  <XIcon className="size-4" />
-                                  Decline
-                                </DropdownMenuItem>
-                              )}
-                              {canReview && canCancel && <DropdownMenuSeparator />}
-                              {canCancel && (
-                                <DropdownMenuItem
-                                  variant="destructive"
-                                  disabled={acting !== null}
-                                  onSelect={() => void handleCancel(trade)}
-                                >
-                                  <XIcon className="size-4" />
-                                  {isBusy ? "Cancelling..." : "Cancel"}
-                                </DropdownMenuItem>
-                              )}
-                            </OperationalRowActions>
-                          )}
+                              <XIcon className="size-4" />
+                              {isBusy ? "Cancelling..." : "Cancel"}
+                            </DropdownMenuItem>
+                          </OperationalRowActions>
                         </div>
                       )}
                     </div>

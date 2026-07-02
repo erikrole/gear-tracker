@@ -75,7 +75,6 @@ type Shift = {
 type ShiftGroupDetail = {
   id: string;
   eventId: string;
-  isPremier: boolean;
   publication?: {
     status: "draft" | "published" | "changed";
     publishedAt: string | null;
@@ -361,7 +360,7 @@ export default function ShiftDetailPanel({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ shiftId }),
-    }, "Shift requested");
+    }, "Shift claimed");
   }
 
   async function handleAutoFill() {
@@ -517,7 +516,7 @@ export default function ShiftDetailPanel({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ area, workerType }),
     }, `Added ${label} ${area.charAt(0) + area.slice(1).toLowerCase()} shift`, undefined, () => {
-      setCreatedShiftNotice(`Added ${label} ${area.charAt(0) + area.slice(1).toLowerCase()} shift. Assign someone from the new open row, or leave it open for requests.`);
+      setCreatedShiftNotice(`Added ${label} ${area.charAt(0) + area.slice(1).toLowerCase()} shift. Assign someone from the new open row, or leave it open for pickup.`);
     });
   }
 
@@ -697,7 +696,7 @@ export default function ShiftDetailPanel({
         <DialogHeader>
           <DialogTitle>Post Shift for Trade</DialogTitle>
           <DialogDescription>
-            Anyone on the crew can claim your shift. Staff will be notified to approve.
+            Anyone on the crew can claim your shift. The first valid claim takes the assignment.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2 py-1">

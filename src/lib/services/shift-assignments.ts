@@ -332,90 +332,10 @@ export async function repairRoleSlotMismatch(assignmentId: string) {
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
-/**
- * Student requests a shift on a premier event.
- * Validates the shift group is marked as premier.
- */
 export async function requestShift(shiftId: string, userId: string) {
-  return db.$transaction(async (tx) => {
-    const [shift, requester] = await Promise.all([
-      tx.shift.findUnique({
-        where: { id: shiftId },
-        include: { shiftGroup: true },
-      }),
-      tx.user.findUnique({
-        where: { id: userId },
-        select: {
-          id: true,
-          role: true,
-          staffingType: true,
-          availabilityBlocks: {
-            select: {
-              kind: true,
-              intent: true,
-              status: true,
-              dayOfWeek: true,
-              date: true,
-              startsAt: true,
-              endsAt: true,
-              label: true,
-              semesterLabel: true,
-              semesterStartsOn: true,
-              semesterEndsOn: true,
-            },
-          },
-        },
-      }),
-    ]);
-    if (!shift) throw new HttpError(404, "Shift not found");
-    if (!requester) throw new HttpError(404, "User not found");
-    if (!shift.shiftGroup.isPremier) {
-      throw new HttpError(400, "Shift requests are only available for premier events");
-    }
-    if (shift.workerType !== "ST" || shiftWorkerTypeForProfile(requester) !== "ST") {
-      throw new HttpError(400, "Shift requests are available for Student slots only");
-    }
-
-    // Check no active assignment
-    const existing = await tx.shiftAssignment.findFirst({
-      where: { shiftId, status: { in: ACTIVE_ASSIGNMENT_STATUSES as ShiftAssignmentStatus[] } },
-    });
-    if (existing) {
-      throw new HttpError(409, "This shift already has an active assignment");
-    }
-
-    // Check user hasn't already requested
-    const alreadyRequested = await tx.shiftAssignment.findFirst({
-      where: { shiftId, userId, status: "REQUESTED" },
-    });
-    if (alreadyRequested) {
-      throw new HttpError(409, "You have already requested this shift");
-    }
-
-    // Check for time conflicts with the user's other shifts
-    const conflictWindow = effectiveShiftWindow(shift);
-    await checkTimeConflict(tx, userId, conflictWindow.startsAt, conflictWindow.endsAt);
-    const availability = shiftWorkerTypeForProfile(requester) === "ST"
-      ? evaluateAvailabilityPreferences(requester.availabilityBlocks ?? [], conflictWindow)
-      : null;
-    if (availability?.blocking) {
-      throw new HttpError(409, availability.blocking.note);
-    }
-    const conflictNote = availability?.advisory?.note ?? null;
-
-    return tx.shiftAssignment.create({
-      data: {
-        shiftId,
-        userId,
-        status: "REQUESTED",
-        hasConflict: Boolean(conflictNote),
-        conflictNote,
-      },
-      include: {
-        user: { select: { id: true, name: true, role: true, staffingType: true, primaryArea: true } },
-      },
-    });
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  void shiftId;
+  void userId;
+  throw new HttpError(410, "Shift requests are retired. Claim open shifts instead.");
 }
 
 /**

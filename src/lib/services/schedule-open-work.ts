@@ -70,7 +70,6 @@ function openShiftSelect() {
     shiftGroup: {
       select: {
         id: true,
-        isPremier: true,
         publishedAt: true,
         event: {
           select: {
@@ -226,23 +225,19 @@ function serializeOpenShift(shift: OpenWorkShift, args: {
   const isStudentWorker = args.candidate?.staffingType === "ST";
   const availabilityContext = availabilityContextFromCandidate(recommendation);
   const blockedReason = openShiftBlockedReason(recommendation);
-  const canAct = isStudentWorker && shift.workerType === "ST" && !recommendation?.blockingConflict && !ownRequest;
-  const action = !canAct || !isStudentWorker || shift.workerType !== "ST" || ownRequest || recommendation?.blockingConflict
+  const canAct = isStudentWorker && shift.workerType === "ST" && !recommendation?.blockingConflict;
+  const action = !canAct || !isStudentWorker || shift.workerType !== "ST" || recommendation?.blockingConflict
     ? "none"
-    : shift.shiftGroup.isPremier ? "request" : "claim";
+    : "claim";
 
   return {
     id: shift.id,
     kind: "open_shift" as const,
     action,
     canAct,
-    reason: ownRequest
-      ? "Request pending"
-      : blockedReason
+    reason: blockedReason
         ? blockedReason
-        : shift.shiftGroup.isPremier
-          ? "Staff approval required"
-          : "Instant pickup",
+        : "Instant pickup",
     availabilityContext,
     score: recommendation?.score ?? null,
     bucket: recommendation?.bucket ?? null,
@@ -262,7 +257,6 @@ function serializeOpenShift(shift: OpenWorkShift, args: {
       callEndsAt: shift.callEndsAt?.toISOString() ?? null,
       shiftGroup: {
         id: shift.shiftGroup.id,
-        isPremier: shift.shiftGroup.isPremier,
         publishedAt: shift.shiftGroup.publishedAt?.toISOString() ?? null,
         event: {
           ...shift.shiftGroup.event,
@@ -394,11 +388,6 @@ export async function pickupOpenShift(shiftId: string, userId: string) {
     );
     if (activeAssignment) throw new HttpError(409, "This shift already has an active assignment");
 
-    const existingRequest = shift.assignments.find((assignment) =>
-      assignment.userId === userId && assignment.status === "REQUESTED"
-    );
-    if (existingRequest) throw new HttpError(409, "You have already requested this shift");
-
     const conflictWhere: Prisma.ShiftAssignmentWhereInput = {
       userId,
       status: { in: ACTIVE_STATUSES },
@@ -421,18 +410,21 @@ export async function pickupOpenShift(shiftId: string, userId: string) {
       throw new HttpError(409, availability.blocking.note);
     }
     const conflictNote = availability.advisory?.note ?? null;
-    const status: ShiftAssignmentStatus = shift.shiftGroup.isPremier ? "REQUESTED" : "DIRECT_ASSIGNED";
+    await tx.shiftAssignment.updateMany({
+      where: { shiftId, status: "REQUESTED" },
+      data: { status: "DECLINED" },
+    });
+
     return tx.shiftAssignment.create({
       data: {
         shiftId,
         userId,
-        status,
-        assignedBy: status === "DIRECT_ASSIGNED" ? userId : null,
+        status: "DIRECT_ASSIGNED",
+        assignedBy: userId,
         hasConflict: Boolean(conflictNote),
         conflictNote,
-        ...(status === "DIRECT_ASSIGNED"
-          ? { acknowledgedAt: new Date(), acknowledgedById: userId }
-          : {}),
+        acknowledgedAt: new Date(),
+        acknowledgedById: userId,
       },
       include: {
         user: { select: { id: true, name: true, role: true, staffingType: true, primaryArea: true, avatarUrl: true } },

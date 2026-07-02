@@ -91,7 +91,6 @@ export function makeShiftTrade(overrides: Record<string, unknown> = {}) {
     claimedAt: null,
     resolvedAt: null,
     status: "OPEN" as const,
-    requiresApproval: false,
     notes: null,
     ...overrides,
   };

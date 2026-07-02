@@ -430,83 +430,11 @@ describe("repairRoleSlotMismatch", () => {
 // requestShift
 // ═══════��═════════════════════════════════════════════════════════════════════
 describe("requestShift", () => {
-  const shiftGroup = { isPremier: true };
-  const shift = { ...makeShift(), shiftGroup };
-
-  it("creates a REQUESTED assignment for premier shift", async () => {
-    mockTx.shift.findUnique.mockResolvedValue(shift);
-    mockTx.shiftAssignment.findFirst
-      .mockResolvedValueOnce(null)  // no active assignment
-      .mockResolvedValueOnce(null)  // no existing request
-      .mockResolvedValueOnce(null); // no time conflict
-    mockTx.shiftAssignment.create.mockResolvedValue({
-      id: "sa-1",
-      status: "REQUESTED",
-    });
-
-    await requestShift(shift.id, "student-1");
-
-    expect(mockTx.shiftAssignment.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          shiftId: shift.id,
-          userId: "student-1",
-          status: "REQUESTED",
-        }),
-      })
-    );
-  });
-
-  it("uses SERIALIZABLE isolation", async () => {
-    mockTx.shift.findUnique.mockResolvedValue(shift);
-    mockTx.shiftAssignment.findFirst
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(null);
-    mockTx.shiftAssignment.create.mockResolvedValue({ id: "sa-1" });
-
-    await requestShift(shift.id, "student-1");
-
-    expectSerializableIsolation(transactionCalls, 0);
-  });
-
-  it("throws 404 when shift not found", async () => {
-    mockTx.shift.findUnique.mockResolvedValue(null);
-
-    await expect(requestShift("bad-id", "student-1")).rejects.toThrow("Shift not found");
-  });
-
-  it("throws 400 when shift group is not premier", async () => {
-    mockTx.shift.findUnique.mockResolvedValue({
-      ...makeShift(),
-      shiftGroup: { isPremier: false },
-    });
-
+  it("rejects new shift requests because open shifts are claimed directly", async () => {
     await expect(requestShift("shift-1", "student-1")).rejects.toThrow(
-      "only available for premier"
+      "Shift requests are retired. Claim open shifts instead."
     );
-  });
-
-  it("throws 409 when shift already has an active assignment", async () => {
-    mockTx.shift.findUnique.mockResolvedValue(shift);
-    mockTx.shiftAssignment.findFirst.mockResolvedValue(
-      makeShiftAssignment({ status: "DIRECT_ASSIGNED" })
-    );
-
-    await expect(requestShift(shift.id, "student-1")).rejects.toThrow(
-      "already has an active assignment"
-    );
-  });
-
-  it("throws 409 when user already requested", async () => {
-    mockTx.shift.findUnique.mockResolvedValue(shift);
-    mockTx.shiftAssignment.findFirst
-      .mockResolvedValueOnce(null) // no active assignment
-      .mockResolvedValueOnce(makeShiftAssignment({ status: "REQUESTED" })); // already requested
-
-    await expect(requestShift(shift.id, "student-1")).rejects.toThrow(
-      "already requested"
-    );
+    expect(mockTx.shiftAssignment.create).not.toHaveBeenCalled();
   });
 });
 

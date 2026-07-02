@@ -94,7 +94,7 @@ describe("calendar sync health escalation", () => {
       },
     }));
     expect(mockedDb.user.findMany).toHaveBeenCalledWith({
-      where: { role: "ADMIN", active: true },
+      where: { role: "ADMIN", active: true, hiddenFromRoster: false },
       select: { id: true },
     });
     expect(mockedDb.notification.createMany).toHaveBeenCalledWith({

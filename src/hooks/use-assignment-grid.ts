@@ -32,7 +32,6 @@ export type GridShift = {
 
 export type GridEvent = CalendarEvent & {
   shiftGroupId: string | null;
-  isPremier: boolean;
   shifts: GridShift[];
 };
 
@@ -127,7 +126,6 @@ async function fetchGridData(
     return {
       ...ev,
       shiftGroupId: g?.id ?? null,
-      isPremier: g?.isPremier ?? false,
       shifts: gridShifts,
     };
   });

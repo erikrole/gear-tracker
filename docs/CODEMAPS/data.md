@@ -54,12 +54,12 @@
 | `LicenseCodeClaim` | 10 | 3 |
 | `SportConfig` | 8 | 1 |
 | `SportShiftConfig` | 12 | 2 |
-| `ShiftGroup` | 15 | 3 |
+| `ShiftGroup` | 14 | 3 |
 | `Shift` | 13 | 4 |
 | `ShiftAssignment` | 25 | 5 |
 | `StudentSportAssignment` | 6 | 3 |
 | `StudentAreaAssignment` | 6 | 3 |
-| `ShiftTrade` | 15 | 4 |
+| `ShiftTrade` | 14 | 4 |
 | `StudentAvailabilityBlock` | 20 | 6 |
 | `BookingPhoto` | 8 | 2 |
 | `CheckinItemReport` | 11 | 3 |

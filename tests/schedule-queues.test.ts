@@ -24,7 +24,6 @@ function entry(overrides: Partial<CalendarEntry>): CalendarEntry {
     shiftGroupId: null,
     coverage: null,
     shifts: [],
-    isPremier: false,
     ...overrides,
   };
 }
