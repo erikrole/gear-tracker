@@ -12,8 +12,8 @@ describe("iOS bookings empty state recovery", () => {
 
   it("reloads the booking list after recovery actions", () => {
     expect(source).toContain("vm.searchText = \"\"");
-    expect(source).toContain("vm.mineOnly = false");
-    expect(source.match(/Task \{ await vm\.load\(reset: true\) \}/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(source).toContain("vm.scope = .all");
+    expect(source.match(/Task \{ await vm\.load\(reset: true, clearExistingRows: true\) \}/g)?.length).toBeGreaterThanOrEqual(2);
   });
 
   it("renders one grouped chronological list instead of separated top tabs", () => {
@@ -23,6 +23,8 @@ describe("iOS bookings empty state recovery", () => {
     expect(source).toContain('BookingListSection(title: "Checkouts"');
     expect(source).toContain('BookingListSection(title: "Reservations"');
     expect(source).toContain('"Search bookings..."');
+    expect(source).toContain("Picker(\"Booking scope\"");
+    expect(source).toContain("case needsAttention");
     expect(source).not.toContain("Picker(\"Booking type\"");
     expect(source).not.toContain("enum BookingTab");
   });

@@ -111,4 +111,4 @@ AREA_CHECKOUTS.md (iOS surface only):
 - Static audit reconciled against source on 2026-05-11.
 - Simulator build verification now complete: `xcodebuild -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build` returned `BUILD SUCCEEDED`.
 - Current expected booking-related iOS parity deferrals are GAP-34 and GAP-35 in `docs/GAPS_AND_RISKS.md`; neither blocks V1 student daily operations.
-- Cache (`GearStore.cachedBookings(kind:)`) is unscoped by user — fine for V1 (per-device single-user) but worth noting if multi-user iPad sharing returns.
+- 2026-07-02 Snow Leopard follow-up: normal Bookings tab rendering no longer seeds from `GearStore.cachedBookings(kind:)`. The cache is still available as a store primitive, but native Bookings treats live API results as the normal source of truth so old rows cannot flash during tab entry, search, refresh, or scope changes.

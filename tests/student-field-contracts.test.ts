@@ -53,17 +53,36 @@ describe("student field mobile contracts", () => {
     expect(appTab).toContain('Tab("Browse", systemImage: "square.grid.2x2", value: 2)');
     expect(appTab).toContain('Tab("Users", systemImage: "person.2", value: 5)');
     expect(appTab).not.toMatch(/if isStaffOrAdmin \{[\s\S]*?Tab\("Users"/);
-    expect(bookingsView).toContain("mineOnly = currentUserRole == \"STUDENT\"");
+    expect(bookingsView).toContain("scope = currentUserRole == \"STUDENT\" ? .mine : .all");
     expect(bookingsView).toContain('BookingListSection(title: "Checkouts"');
     expect(bookingsView).toContain('BookingListSection(title: "Reservations"');
     expect(bookingsView).toContain('"Search bookings..."');
     expect(bookingsView).toContain("APIClient.shared.checkouts(");
     expect(bookingsView).toContain("APIClient.shared.reservations(");
     expect(bookingsView.match(/activeOnly: true/g)?.length).toBeGreaterThanOrEqual(2);
-    expect(bookingsView).toContain("Label(vm.mineOnly ? \"Mine\" : \"All\"");
-    expect(bookingsView).toContain("Label(\"New\", systemImage: \"plus\")");
+    expect(bookingsView).toContain("enum BookingScope: String, CaseIterable, Identifiable");
+    expect(bookingsView).toContain("Picker(\"Booking scope\", selection: $vm.scope)");
+    expect(bookingsView).toContain("case needsAttention");
+    expect(bookingsView).toContain("Label(\"New Reservation\", systemImage: \"plus\")");
     expect(bookingsView).not.toContain("Picker(\"Booking type\"");
     expect(bookingsView).not.toContain("enum BookingTab");
+  });
+
+  it("keeps iOS Bookings tab from flashing stale cache rows", () => {
+    const bookingsView = source("ios/Wisconsin/Views/BookingsView.swift");
+    const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
+
+    expect(bookingsView).toContain("load(reset: Bool = false, clearExistingRows: Bool = false)");
+    expect(bookingsView).toContain("clearExistingRows");
+    expect(bookingsView).toContain("isRefreshingVisibleRows");
+    expect(bookingsView).toContain("BookingFreshnessFooter");
+    expect(bookingsView).toContain("Updated \\(lastLoadedAt.formatted(.relative(presentation: .named)))");
+    expect(bookingsView).toContain("filter: \"overdue\"");
+    expect(bookingsView).toContain("filter: \"due-today\"");
+    expect(bookingsView).toContain("needsBookingAttention(now:");
+    expect(bookingsView).not.toContain("GearStore.shared.cachedBookings");
+    expect(apiClient).toContain("filter: String? = nil");
+    expect(apiClient).toContain(".init(name: \"filter\", value: filter)");
   });
 
   it("keeps iOS Schedule controls self-describing", () => {

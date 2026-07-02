@@ -138,11 +138,11 @@ final class APIClient {
 
     // MARK: - Bookings
 
-    func reservations(activeOnly: Bool = true, search: String? = nil, requesterId: String? = nil, limit: Int = 30, offset: Int = 0) async throws -> PaginatedResponse<Booking> {
-        try await perform(bookingListRequest(path: "/api/reservations", active: activeOnly, status: nil, statusList: nil, search: search, requesterId: requesterId, limit: limit, offset: offset))
+    func reservations(activeOnly: Bool = true, search: String? = nil, requesterId: String? = nil, filter: String? = nil, limit: Int = 30, offset: Int = 0) async throws -> PaginatedResponse<Booking> {
+        try await perform(bookingListRequest(path: "/api/reservations", active: activeOnly, status: nil, statusList: nil, search: search, requesterId: requesterId, filter: filter, limit: limit, offset: offset))
     }
 
-    func checkouts(activeOnly: Bool = true, search: String? = nil, requesterId: String? = nil, limit: Int = 30, offset: Int = 0) async throws -> PaginatedResponse<Booking> {
+    func checkouts(activeOnly: Bool = true, search: String? = nil, requesterId: String? = nil, filter: String? = nil, limit: Int = 30, offset: Int = 0) async throws -> PaginatedResponse<Booking> {
         try await perform(bookingListRequest(
             path: "/api/checkouts",
             active: false,
@@ -150,12 +150,13 @@ final class APIClient {
             statusList: activeOnly ? [.open, .pendingPickup] : nil,
             search: search,
             requesterId: requesterId,
+            filter: filter,
             limit: limit,
             offset: offset
         ))
     }
 
-    private func bookingListRequest(path: String, active: Bool, status: BookingStatus?, statusList: [BookingStatus]?, search: String?, requesterId: String?, limit: Int, offset: Int) -> URLRequest {
+    private func bookingListRequest(path: String, active: Bool, status: BookingStatus?, statusList: [BookingStatus]?, search: String?, requesterId: String?, filter: String?, limit: Int, offset: Int) -> URLRequest {
         var items: [URLQueryItem] = [
             .init(name: "limit", value: "\(limit)"),
             .init(name: "offset", value: "\(offset)"),
@@ -167,6 +168,7 @@ final class APIClient {
         }
         if let search, !search.isEmpty { items.append(.init(name: "q", value: search)) }
         if let requesterId, !requesterId.isEmpty { items.append(.init(name: "requester_id", value: requesterId)) }
+        if let filter, !filter.isEmpty { items.append(.init(name: "filter", value: filter)) }
         return request(path: path, queryItems: items)
     }
 

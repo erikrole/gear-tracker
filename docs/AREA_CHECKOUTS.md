@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-25
+- Last Updated: 2026-07-02
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -300,6 +300,7 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 5. Add regression coverage for race conditions, partial returns, non-kiosk custody attempts, and permission bypass attempts.
 
 ## Change Log
+- 2026-07-02: Native iOS Bookings list freshness pass prevents checkout ghost rows by removing normal-list rendering from the 24-hour SwiftData booking cache. The Bookings tab now uses a native `Mine / All / Attention` scope, synthesizes attention checkout rows from existing overdue, due-today, and active pending-pickup reads, shows a quiet updated/refreshing footer, and keeps direct checkout creation out of app/web by labeling the toolbar action `New Reservation`.
 - 2026-07-01: Shared booking PATCH now treats stale duplicate edits as idempotent only when the submitted fields already match the current checkout, including due-back changes. The first save still owns the audit entry, while real stale competing due-date edits continue to return 409 conflict responses.
 - 2026-06-30: Checkout title and notes-only edits no longer rerun availability checks or rebuild equipment rows. Due-date, location, and equipment edits still revalidate availability and update allocation windows, but harmless metadata edits can no longer fail with conflict copy on an already-live checkout.
 - 2026-06-30: Native iOS booking detail action styling now uses SwiftUI bordered system buttons for Extend and Cancel instead of glass/custom-looking buttons. The action matrix, duplicate-submit guards, kiosk custody boundaries, and destructive cancellation semantics are unchanged.

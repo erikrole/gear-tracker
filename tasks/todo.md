@@ -12,9 +12,10 @@ Plan: `tasks/ios-snow-leopard-release-plan.md`
 - [x] Run baseline iOS drift and audit inventory.
 - [x] Slice 1: Home polish and release-proofing.
 - [x] Slice 2: Booking Detail action polish.
-- [ ] Slice 3: Create Booking equipment recovery check.
-- [ ] Slice 4: Search and scan recovery sweep.
-- [ ] Slice 5: Foundation hardening and final verification.
+- [x] Slice 3: Bookings tab freshness and queue clarity.
+- [ ] Slice 4: Create Booking equipment recovery check.
+- [ ] Slice 5: Search and scan recovery sweep.
+- [ ] Slice 6: Foundation hardening and final verification.
 
 ### Review
 - 2026-07-02: Snow Leopard scope started as a native iOS polish/foundation release, not a desktop-parity expansion. Baseline `npm run drift:ios` and `npm run audit:ios:gaps` passed. Current Home source already closes the old P0/P1 dashboard audit issues, so Slice 1 is limited to release-proofing and low-risk polish.
@@ -23,6 +24,8 @@ Plan: `tasks/ios-snow-leopard-release-plan.md`
 - 2026-07-02: Home header follow-up removed the AFM/deterministic summary subline entirely. The header now varies the local greeting by day and time while leaving urgency in the stat strip and Next Up queue.
 - 2026-07-02: Slice 2 started from current Booking Detail source, reservation/kiosk docs, and the Snow Leopard plan. Scope is metadata/detail editing only: title, pickup/return window, reservation pickup location, and notes. Equipment changes stay out of normal app detail because kiosk owns custody.
 - 2026-07-02: Slice 2 shipped locally. Booking Detail now groups editable metadata into a clean Details section, exposes Edit Details from both the toolbar and section action, allows reservation pickup-location edits through the existing optimistic-lock PATCH path, and states that item custody changes stay in kiosk workflows. Verification passed with focused Vitest, iOS drift, iOS audit gaps, docs verification, Xcode project check, whitespace check, and unsandboxed `npm run ios:xcode:verify`.
+- 2026-07-02: Slice 3 started after a native Bookings tab bug report. Scope is the list surface only: prevent old cached rows from flashing on tab entry/refresh, replace the Mine/All toolbar toggle with a native scope control, add Needs Attention, surface last-sync state, improve row scanning, and keep New Reservation wording explicit under the kiosk-only custody contract.
+- 2026-07-02: Slice 3 shipped locally. Native Bookings no longer renders `GearStore` cached booking rows as normal content, so tab entry, refresh, search, and scope changes wait for live API results or preserve current rows during explicit refresh. The tab now uses a native `Mine / All / Attention` segmented scope, synthesizes Attention from existing overdue/due-today/active reads, shows a quiet updated/refreshing footer, leads rows with live operational timing, and labels creation as `New Reservation`. Verification passed with focused Vitest, iOS drift, iOS audit gaps, docs verification, whitespace, and unsandboxed `npm run ios:xcode:verify`.
 
 ---
 
