@@ -93,7 +93,7 @@ struct EventDetailSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Brand.Space.lg) {
                     eventHeader
-                    if eventWork != nil || myShift != nil {
+                    if showsYourEventSection {
                         gearAndCallSection
                     }
                     crewSection
@@ -348,14 +348,26 @@ struct EventDetailSheet: View {
         return bookingVM
     }
 
-    private var canPrepGear: Bool {
-        if eventWork?.needsGear == true { return true }
-        return myShift != nil
-    }
-
     private var callTime: Date? {
         if event.displayAllDay { return nil }
         return eventWork?.shift.startsAt ?? myShift?.startsAt
+    }
+
+    private var eventHasEnded: Bool { event.endsAt < Date() }
+
+    /// After an event ends the only thing worth showing is gear that's still
+    /// out; a lone "Call time was..." card helps no one.
+    private var showsYourEventSection: Bool {
+        guard eventWork != nil || myShift != nil else { return false }
+        if eventHasEnded { return !reservedGearBookings.isEmpty }
+        return true
+    }
+
+    /// Gear bookings linked to my event work; empty when gear still needs
+    /// reserving (or when opened from a bare shift with no gear context).
+    private var reservedGearBookings: [BookingSummary] {
+        guard let work = eventWork, !work.needsGear else { return [] }
+        return work.gearBookings
     }
 
     @ViewBuilder
@@ -364,18 +376,23 @@ struct EventDetailSheet: View {
             EventDetailSectionHeader("Your Event", systemImage: "person.crop.circle.badge.checkmark")
 
             VStack(alignment: .leading, spacing: 10) {
-                if let gear = eventWork?.primaryGear, eventWork?.needsGear == false {
-                    NavigationLink(value: BookingRouteId(id: gear.id)) {
-                        detailLine(
-                            icon: "archivebox.fill",
-                            title: gearInstruction(for: gear),
-                            subtitle: gear.itemCount == 1 ? "1 item reserved" : "\(gear.itemCount) items reserved",
-                            tone: gear.status == .pendingPickup && gear.startsAt < Date() ? .orange : .green,
-                            showsChevron: true
-                        )
+                if !reservedGearBookings.isEmpty {
+                    // All linked gear bookings, not just the first — a second
+                    // multi-event reservation was invisible here.
+                    ForEach(reservedGearBookings) { gear in
+                        NavigationLink(value: BookingRouteId(id: gear.id)) {
+                            detailLine(
+                                icon: "archivebox.fill",
+                                title: gearInstruction(for: gear),
+                                subtitle: gearSubtitle(for: gear),
+                                tone: gear.status == .pendingPickup && gear.startsAt < Date() ? .orange : .green,
+                                showsChevron: true
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
-                } else {
+                } else if !eventHasEnded {
+                    // No reserving gear for an event that's already over.
                     Button {
                         prepGearOpen = true
                     } label: {
@@ -391,16 +408,41 @@ struct EventDetailSheet: View {
                 }
 
                 if let callTime {
-                    detailLine(
-                        icon: "clock.fill",
-                        title: "Call time at \(callTime.formatted(date: .omitted, time: .shortened))",
-                        subtitle: eventWork?.shift.area.shiftAreaLabel ?? myShift?.area.shiftAreaLabel ?? "Shift",
-                        tone: .blue
-                    )
+                    TimelineView(.periodic(from: .now, by: 60)) { context in
+                        detailLine(
+                            icon: "clock.fill",
+                            title: callTimeTitle(callTime, now: context.date),
+                            subtitle: callTimeSubtitle(callTime, now: context.date),
+                            tone: .blue
+                        )
+                    }
                 }
             }
             .brandCard()
         }
+    }
+
+    private func gearSubtitle(for gear: BookingSummary) -> String {
+        let items = gear.itemCount == 1 ? "1 item reserved" : "\(gear.itemCount) items reserved"
+        // With multiple linked bookings, the booking title tells them apart.
+        return reservedGearBookings.count > 1 ? "\(gear.title) · \(items)" : items
+    }
+
+    /// Today: "Call time at 3:30 PM" (countdown lives in the subtitle).
+    /// Another day: "Call time Tue at 3:30 PM" — no countdown noise days out.
+    private func callTimeTitle(_ callTime: Date, now: Date) -> String {
+        let clock = callTime.formatted(date: .omitted, time: .shortened)
+        if Calendar.current.isDate(callTime, inSameDayAs: now) {
+            return callTime < now ? "Call time was \(clock)" : "Call time at \(clock)"
+        }
+        return "Call time \(callTime.formatted(.dateTime.weekday(.abbreviated))) at \(clock)"
+    }
+
+    private func callTimeSubtitle(_ callTime: Date, now: Date) -> String {
+        let area = eventWork?.shift.area.shiftAreaLabel ?? myShift?.area.shiftAreaLabel ?? "Shift"
+        guard Calendar.current.isDate(callTime, inSameDayAs: now) else { return area }
+        // Same-day countdown in plain words: "in 2 hours" / "45 minutes ago".
+        return "\(area) · \(callTime.formatted(.relative(presentation: .named)))"
     }
 
     /// "now" only when the event is actually today (or underway) — five days
