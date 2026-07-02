@@ -35,7 +35,7 @@ describe("kiosk active checkout edits", () => {
   it("wires the native kiosk drawer to update, add, and remove through the kiosk API", () => {
     const client = source("ios/Wisconsin/Kiosk/KioskAPIClient.swift");
     const models = source("ios/Wisconsin/Kiosk/KioskModels.swift");
-    const idle = source("ios/Wisconsin/Kiosk/KioskIdleView.swift");
+    const drawer = source("ios/Wisconsin/Kiosk/KioskCheckoutDetailSheet.swift");
     const dashboardRoute = source("src/app/api/kiosk/dashboard/route.ts");
 
     expect(dashboardRoute).toContain("requesterId: c.requester.id");
@@ -50,12 +50,12 @@ describe("kiosk active checkout edits", () => {
     expect(client).toContain("request(path: \"/api/kiosk/checkout/\\(id)\", method: \"POST\")");
     expect(client).toContain("request(path: \"/api/kiosk/checkout/\\(id)\", method: \"DELETE\")");
 
-    expect(idle).toContain("private var editPanel: some View");
-    expect(idle).toContain("KioskNativeTextField(");
-    expect(idle).toContain("DatePicker(");
-    expect(idle).toContain("await saveDetails()");
-    expect(idle).toContain("await addItem()");
-    expect(idle).toContain("await removeItem(removable)");
-    expect(idle).toContain("onChanged()");
+    expect(drawer).toContain("private var editPanel: some View");
+    expect(drawer).toContain("KioskNativeTextField(");
+    expect(drawer).toContain("DatePicker(");
+    expect(drawer).toContain("await saveDetails()");
+    expect(drawer).toContain("await addItem()");
+    expect(drawer).toContain("await removeItem(removable)");
+    expect(drawer).toContain("onChanged()");
   });
 });

@@ -9,7 +9,7 @@ Direction: same DNA (dark, Wisconsin red, standby clock, Gotham), executed much 
 - [x] Slice 2 — Checkout setup: fix clipped-title overflow (header pinned, form scrolls, CTA pinned), delete dead `scanZone` wrapper, section icons + step overlines.
 - [x] Slice 3 — Success screen: branded phaseAnimator/keyframeAnimator moment, draining countdown, Reduce Motion fallback.
 - [x] Slice 4 — Unify scan screens: `KioskScanZoneColumn` + `KioskSideRail` (430 rail everywhere), shared `KioskScanTarget` corner brackets.
-- [ ] Slice 5a — Idle extraction (zero visual change): sleep view, event sheet, checkout drawer, roster, date formatting → own files + mechanical test path updates.
+- [x] Slice 5a — Idle extraction (zero visual change): sleep view, event sheet, checkout drawer, roster, date formatting → own files + mechanical test path updates.
 - [ ] Slice 5b — Idle restyle: dashboard hierarchy, red-accent stat selection, quiet-day card, roster tiles/footer, sleep clock upgrade.
 - [ ] Slice 6 — Student hub: identity hero, hero checkout card, thumbnail strips + due chips, calendar-block reservations, session summary, real empty state.
 - [ ] Slice 7 — Activation polish: tokens migration, brand overline, gradient numpad, active-slot underline.

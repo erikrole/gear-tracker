@@ -9,6 +9,7 @@ function source(relativeFile: string) {
 describe("iOS kiosk idle sleep mode", () => {
   it("keeps sleep dismissal across idle navigation and preserves readable overlay text", () => {
     const idle = source("ios/Wisconsin/Kiosk/KioskIdleView.swift");
+    const sleepView = source("ios/Wisconsin/Kiosk/KioskSleepModeView.swift");
     const store = source("ios/Wisconsin/Kiosk/KioskStore.swift");
     const studentHub = source("ios/Wisconsin/Kiosk/KioskStudentHubView.swift");
     const success = source("ios/Wisconsin/Kiosk/KioskSuccessView.swift");
@@ -24,8 +25,8 @@ describe("iOS kiosk idle sleep mode", () => {
     expect(idle).toContain("hour >= 22 || hour < 6");
     expect(studentHub).toContain("store.deferSleepMode()");
     expect(success).toContain("store.deferSleepMode()");
-    expect(idle).toContain("Color.white.opacity(0.64)");
-    expect(idle).not.toContain("Color.white.opacity(0.13)");
-    expect(idle).not.toContain("Color.white.opacity(0.09)");
+    expect(sleepView).toContain("Color.white.opacity(0.64)");
+    expect(sleepView).not.toContain("Color.white.opacity(0.13)");
+    expect(sleepView).not.toContain("Color.white.opacity(0.09)");
   });
 });
