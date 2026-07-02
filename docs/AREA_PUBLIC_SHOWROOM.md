@@ -4,7 +4,7 @@
 - Area: Public Showroom
 - Owner: Wisconsin Athletics Creative Product
 - Created: 2026-07-01
-- Last Updated: 2026-07-01
+- Last Updated: 2026-07-02
 - Status: Active
 - Version: V1
 
@@ -50,3 +50,4 @@ Make `/about` a shareable public stakeholder showroom for Gear Tracker. It shoul
 - 2026-07-01: Improvement pass. Pinned the showroom subtree to light tokens (`[data-theme="light"]` alias in globals plus wrapper attribute) so system-dark visitors no longer get white-on-white text; fixed the invisible gray tone chip on light cards; demoted product-mockup headings to styled text inside a `figure` to keep heading order valid; added a skip-to-content link and `#showroom-content` targets; added `metadataBase` (wisconsincreative.com), Open Graph/Twitter metadata, and a generated `opengraph-image` for the `/about` segment; added a "Keep exploring" cross-link section fed by the nav descriptions; made the stakeholder CTA link configurable so Tech Stack no longer links to itself; refreshed footer and security-page copy; extended the content contract test for light-pinning, share metadata, and nav descriptions.
 - 2026-07-01: Public stakeholder showroom shipped locally with static `/about` route set, fictional product mockups, public-safe stack/security copy, and content contract coverage.
 - 2026-07-01: Vercel static-shell optimization moved theme and service-worker boot code from nonce-backed inline scripts to same-origin static scripts, removed the root `headers()` dependency, and retired the middleware nonce path so public showroom pages can stay static-friendly under the shared CSP. A non-matching middleware sentinel remains only to keep the current Next 15/Sentry build manifest path stable.
+- 2026-07-02: Production blank-page recovery. Live deploy proof showed the App Router shell loading assets but rendering an empty document because `script-src 'self'` blocked Next's inline bootstrap/RSC scripts. The shared CSP now allows `script-src 'self' 'unsafe-inline'` in production until nonce wiring is implemented end-to-end, and content-contract coverage guards the render-critical policy.

@@ -16,6 +16,7 @@ const themeInitSource = readFileSync("public/theme-init.js", "utf8");
 const serviceWorkerInitSource = readFileSync("public/sw-init.js", "utf8");
 const aboutLayoutSource = readFileSync("src/app/(public)/about/layout.tsx", "utf8");
 const globalsSource = readFileSync("src/app/globals.css", "utf8");
+const nextConfigSource = readFileSync("next.config.ts", "utf8");
 
 describe("public showroom content", () => {
   it("keeps the expected public route set", () => {
@@ -82,5 +83,10 @@ describe("public showroom content", () => {
     expect(serviceWorkerInitSource).toContain('navigator.serviceWorker.register("/sw.js")');
     expect(serviceWorkerInitSource).toContain("getRegistrations");
     expect(`${themeInitSource}\n${serviceWorkerInitSource}`).not.toContain("https://");
+  });
+
+  it("keeps production CSP compatible with Next App Router inline bootstrap", () => {
+    expect(nextConfigSource).toContain("script-src 'self' 'unsafe-inline'");
+    expect(nextConfigSource).toContain("Next App Router emits inline bootstrap/RSC scripts");
   });
 });

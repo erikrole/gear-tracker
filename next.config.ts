@@ -31,7 +31,9 @@ const nextConfig: NextConfig = {
     // with a nonce-based policy on every dynamic route.
     const csp = [
       "default-src 'self'",
-      isVercelDeployment ? "script-src 'self'" : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      // Next App Router emits inline bootstrap/RSC scripts. A nonce-based CSP is
+      // the stricter future path; until then, production needs unsafe-inline to render.
+      isVercelDeployment ? "script-src 'self' 'unsafe-inline'" : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' blob: data: https:",
       "font-src 'self' data:",

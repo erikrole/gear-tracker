@@ -1,6 +1,6 @@
 # Task Queue
 
-Last updated: 2026-07-01
+Last updated: 2026-07-02
 
 ---
 
@@ -54,6 +54,7 @@ Plan: `tasks/public-showroom-plan.md`
 ### Review
 - 2026-07-01: Public showroom implementation started for `/about`, `/about/features`, `/about/tech-stack`, `/about/security`, and `/about/field-work`. The route set is intentionally static and unauthenticated: no API reads, no schema changes, no AppShell changes, and no live user/item/booking/audit data in mockups. Verification is pending.
 - 2026-07-01: Public showroom V1 shipped locally. The route set lives outside the authenticated app shell, uses typed static content and fictional mockup data, exposes stakeholder navigation and Sign in, and keeps `/` plus `/login` behavior unchanged. Focused content Vitest, TypeScript, codemap/docs verification, whitespace check, `npm run build:app`, and Chrome desktop/mobile smoke passed. Browser proof found no console errors, no horizontal overflow, no showroom `/api` calls, keyboard-reachable nav, and unauthenticated `/` redirecting to `/login`.
+- 2026-07-02: Production blank-page recovery shipped locally after live deploy proof showed CSP blocking Next App Router inline bootstrap/RSC scripts on `https://wisconsincreative.com/about`. Updated production CSP to `script-src 'self' 'unsafe-inline'` until nonce wiring exists, added source-contract coverage, and tracked the residual hardening item as GAP-60.
 
 ---
 
