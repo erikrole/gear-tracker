@@ -67,6 +67,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
         parentAssetId: id,
         availableForCheckout: false,
         availableForReservation: false,
+        availableForCustody: false,
       },
     });
   });
@@ -146,6 +147,7 @@ export const DELETE = withAuth<{ id: string }>(async (req, { user, params }) => 
         parentAssetId: null,
         availableForCheckout: true,
         availableForReservation: true,
+        availableForCustody: true,
       },
     });
     return c.parentAssetId;
