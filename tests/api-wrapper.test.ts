@@ -138,8 +138,11 @@ describe("withAuth", () => {
     expect(res.status).toBe(200);
   });
 
-  it("allows POST when forwarded proxy headers match the browser Origin", async () => {
-    const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+  it("does NOT trust x-forwarded-host to widen the allowed origin", async () => {
+    // A misconfigured/hostile proxy could forward attacker-controlled
+    // x-forwarded-host/proto. Those must not be able to forge an allowed
+    // Origin: only the request's own origin and env.trustedOrigins count.
+    const handler = vi.fn();
     const wrapped = withAuth(handler);
 
     const res = await wrapped(
@@ -155,8 +158,31 @@ describe("withAuth", () => {
       { params: Promise.resolve({}) }
     );
 
-    expect(res.status).toBe(200);
-    expect(handler).toHaveBeenCalled();
+    expect(res.status).toBe(403);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("allows a cross-host Origin only when it is in TRUSTED_ORIGINS", async () => {
+    const prev = process.env.TRUSTED_ORIGINS;
+    process.env.TRUSTED_ORIGINS = "https://app.example.com,https://gear.erikrole.com";
+    try {
+      const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+      const wrapped = withAuth(handler);
+
+      const res = await wrapped(
+        new Request("http://internal:3000/api/test", {
+          method: "POST",
+          headers: { host: "internal:3000", origin: "https://app.example.com" },
+        }),
+        { params: Promise.resolve({}) }
+      );
+
+      expect(res.status).toBe(200);
+      expect(handler).toHaveBeenCalled();
+    } finally {
+      if (prev === undefined) delete process.env.TRUSTED_ORIGINS;
+      else process.env.TRUSTED_ORIGINS = prev;
+    }
   });
 
   it("allows loopback dev POSTs when the internal URL scheme disagrees with the browser Origin", async () => {
@@ -213,8 +239,11 @@ describe("withAuth", () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
-  it("allows POST without Origin when Bearer auth is present (cron/internal)", async () => {
-    const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+  it("blocks POST without Origin even when a Bearer header is present", async () => {
+    // Cron routes use withCron, not withAuth, so withAuth no longer waives the
+    // Origin requirement for Bearer-bearing requests — that waiver was a
+    // needless CSRF hole. A missing Origin is always rejected here.
+    const handler = vi.fn();
     const wrapped = withAuth(handler);
 
     const res = await wrapped(
@@ -222,8 +251,8 @@ describe("withAuth", () => {
       { params: Promise.resolve({}) }
     );
 
-    expect(res.status).toBe(200);
-    expect(handler).toHaveBeenCalled();
+    expect(res.status).toBe(403);
+    expect(handler).not.toHaveBeenCalled();
   });
 
   it("skips CSRF check for GET requests", async () => {

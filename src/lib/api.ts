@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth, requireKiosk, type AuthUser, type KioskContext } from "@/lib/auth";
+import { env } from "@/lib/env";
 import { fail, HttpError } from "@/lib/http";
 
 type AuthCtx<P extends Record<string, string> = Record<string, string>> = {
@@ -14,21 +15,6 @@ type HandlerCtx<P extends Record<string, string> = Record<string, string>> = {
 function assertSameOrigin(req: Request) {
   const origin = req.headers.get("origin");
   if (!origin) {
-    const isCronRequest = req.headers.get("authorization")?.startsWith("Bearer ");
-    if (!isCronRequest) {
-      throw new HttpError(403, "Origin header required for mutating requests");
-    }
-    return;
-  }
-
-  if (!allowedSameOrigins(req).has(origin)) {
-    throw new HttpError(403, "Cross-origin request blocked");
-  }
-}
-
-function assertKioskSameOrigin(req: Request) {
-  const origin = req.headers.get("origin");
-  if (!origin) {
     throw new HttpError(403, "Origin header required for mutating requests");
   }
 
@@ -37,41 +23,37 @@ function assertKioskSameOrigin(req: Request) {
   }
 }
 
+// Kiosk and user mutations share the same trust model: an Origin header that
+// matches the request's own origin or a configured trusted origin.
+const assertKioskSameOrigin = assertSameOrigin;
+
+/**
+ * Origins accepted for CSRF checks. We trust the request's own origin
+ * (`req.url`, which on Vercel is set by the platform, not the client) and an
+ * explicit env-configured allowlist. We deliberately do NOT derive an origin
+ * from `x-forwarded-host`/`x-forwarded-proto`: behind a misconfigured proxy
+ * those are client-controllable and would let an attacker forge an allowed
+ * Origin. In development we widen the loopback host to both schemes so Next's
+ * internal scheme reporting doesn't reject local browser requests.
+ */
 function allowedSameOrigins(req: Request): Set<string> {
   const requestUrl = new URL(req.url);
-  const origins = new Set([requestUrl.origin]);
+  const origins = new Set<string>([requestUrl.origin]);
 
-  const forwardedHost = firstHeaderValue(req.headers.get("x-forwarded-host"));
-  const host = forwardedHost ?? firstHeaderValue(req.headers.get("host"));
-  const forwardedProto = firstHeaderValue(req.headers.get("x-forwarded-proto"));
-
-  if (host && forwardedProto) {
-    origins.add(`${forwardedProto}://${host}`);
+  for (const trusted of env.trustedOrigins) {
+    origins.add(trusted);
   }
 
-  // Local Next dev can report a different scheme internally than the browser
-  // used on localhost/127.0.0.1. Keep the exception loopback-only.
-  const localHost = host && isLoopbackHost(host);
-  if (localHost && process.env.NODE_ENV !== "production") {
-    origins.add(`http://${host}`);
-    origins.add(`https://${host}`);
+  if (process.env.NODE_ENV !== "production" && isLoopbackHost(requestUrl.hostname)) {
+    origins.add(`http://${requestUrl.host}`);
+    origins.add(`https://${requestUrl.host}`);
   }
 
   return origins;
 }
 
-function firstHeaderValue(value: string | null): string | null {
-  return value?.split(",")[0]?.trim() || null;
-}
-
 function isLoopbackHost(host: string): boolean {
-  let hostname = "";
-  try {
-    hostname = new URL(`http://${host}`).hostname;
-  } catch {
-    hostname = host.split(":")[0] ?? "";
-  }
-  hostname = hostname.replace(/^\[|\]$/g, "");
+  const hostname = host.replace(/^\[|\]$/g, "");
   return hostname === "localhost" || hostname === "::1" || hostname.startsWith("127.");
 }
 

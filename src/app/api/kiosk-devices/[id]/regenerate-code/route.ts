@@ -3,7 +3,7 @@ import { withAuth } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
-import { tokenHash } from "@/lib/auth";
+import { tokenHash, KIOSK_ACTIVATION_CODE_TTL_MS } from "@/lib/auth";
 import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 function generateActivationCode(): string {
@@ -33,6 +33,7 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
     where: { id: params.id },
     data: {
       activationCode: hashedCode,
+      activationCodeExpiresAt: new Date(Date.now() + KIOSK_ACTIVATION_CODE_TTL_MS),
       activatedAt: null,
       sessionToken: null,
       sessionExpiresAt: null,

@@ -36,6 +36,25 @@ export const POST = withHandler(async (req) => {
     throw new HttpError(401, "This kiosk device has been deactivated");
   }
 
+  // Codes are time-bounded. A null expiry means the code was already redeemed
+  // (cleared below) or predates this field — treat both as no longer valid.
+  if (!device.activationCodeExpiresAt || device.activationCodeExpiresAt <= new Date()) {
+    throw new HttpError(401, "This activation code has expired. Ask an admin to generate a new one.");
+  }
+
+  // Single-use: atomically clear the code so it can't be redeemed twice. The
+  // guarded updateMany means only one of two concurrent requests wins the
+  // redemption — the loser sees count 0 and is rejected. Already-activated
+  // kiosks stay signed in via the sliding session, so this never forces the
+  // fleet to re-activate; only a fresh code can mint a new session.
+  const redeemed = await db.kioskDevice.updateMany({
+    where: { id: device.id, activationCode: hashedCode },
+    data: { activationCode: null, activationCodeExpiresAt: null },
+  });
+  if (redeemed.count !== 1) {
+    throw new HttpError(401, "Invalid activation code");
+  }
+
   // Create session (sets cookie) and return the raw token to the native app so
   // it can survive app-container wipes by mirroring the token into Keychain.
   const sessionToken = await createKioskSession(device.id);

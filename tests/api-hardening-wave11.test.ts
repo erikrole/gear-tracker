@@ -44,6 +44,7 @@ vi.mock("@/lib/db", () => ({
     },
     kioskDevice: {
       findUnique: vi.fn(),
+      updateMany: vi.fn(),
     },
     assetAllocation: {
       findFirst: vi.fn(),
@@ -174,6 +175,7 @@ function kioskDeviceResult(value: {
   name: string;
   locationId: string;
   location: { id: string; name: string };
+  activationCodeExpiresAt?: Date | null;
 }) {
   return value as unknown as Awaited<ReturnType<typeof db.kioskDevice.findUnique>>;
 }
@@ -253,7 +255,13 @@ beforeEach(() => {
     name: "Kiosk One",
     locationId: "loc-1",
     location: { id: "loc-1", name: "Main" },
+    activationCodeExpiresAt: new Date(Date.now() + 60 * 60_000),
   }));
+  // Single-use redemption clears the code via a guarded updateMany; the winning
+  // request sees count 1.
+  vi.mocked(db.kioskDevice.updateMany).mockResolvedValue({ count: 1 } as Awaited<
+    ReturnType<typeof db.kioskDevice.updateMany>
+  >);
   vi.mocked(db.assetAllocation.findFirst).mockResolvedValue(null);
   vi.mocked(findAssetByScanValue).mockResolvedValue(assetScanResult({
     id: "asset-1",

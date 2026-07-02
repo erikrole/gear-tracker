@@ -24,6 +24,12 @@ const SESSION_30D_MS = 1000 * 60 * 60 * 24 * 30;
 const KIOSK_SESSION_MS = 1000 * 60 * 60 * 24 * 7;
 export const LAST_ACTIVE_REFRESH_MS = 1000 * 60 * 5;
 
+// How long a freshly issued kiosk activation code stays redeemable. Generous
+// enough to carry an admin from generating the code to walking it over to the
+// iPad, but bounded so a leaked/overheard code can't be redeemed weeks later.
+// Codes are also single-use: redeeming one clears it (see requireKiosk activation).
+export const KIOSK_ACTIVATION_CODE_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours
+
 export async function tokenHash(token: string): Promise<string> {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(

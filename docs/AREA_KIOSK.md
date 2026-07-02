@@ -4,7 +4,7 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped — iOS canonical (web kiosk deprecated 2026-04-24)
 - Created: 2026-04-07
-- Last Updated: 2026-06-29
+- Last Updated: 2026-07-01
 - Brief: `BRIEF_KIOSK.md`
 - Decision Refs: D-030, D-040
 
@@ -12,14 +12,14 @@
 
 Self-serve iPad kiosk for gear checkout / reservation pickup / return at the equipment counter, plus on-the-floor kiosk activation by staff carrying an iPad. Implementation lives in the **native iOS app** (`ios/Wisconsin/Kiosk/`). The previously-shipped web kiosk surface (`src/app/(kiosk)/kiosk/`) was deleted on 2026-04-24 to remove the dual-implementation maintenance burden — iPads run the Wisconsin app directly and flip into kiosk mode via `KioskStore`.
 
-For older dedicated kiosk hardware, the repo also ships a separate native `WisconsinKiosk` iOS target. That target is iPad-only, deploys to iOS 17.0+, and includes only `ios/Wisconsin/Kiosk/`, `ios/Wisconsin/KioskOnly/`, app assets, and resources. The full `Wisconsin` app target remains iOS 26.0 and continues to own the normal authenticated mobile app surfaces.
+For older dedicated kiosk hardware, the repo also ships a separate native `WisconsinKiosk` iOS target. That target is iPad-only, deploys to iOS 17.0+, and includes only `ios/Wisconsin/Kiosk/`, `ios/Wisconsin/KioskOnly/`, `ios/Wisconsin/Shared/`, app assets, and resources. The full `Wisconsin` app target remains iOS 26.0 and continues to own the normal authenticated mobile app surfaces.
 
 ## Trust Model
 
 The kiosk is intentionally low-friction: no per-student password, no PIN, no biometric. The trust gates are layered:
 
 1. **Physical trust.** The iPad is at the gear counter or carried by staff. Guided Access pins it to the Wisconsin app.
-2. **Device authentication.** Each `KioskDevice` is created by an admin in Settings → Kiosk Devices. A 6-digit one-time activation code provisions a `kiosk_session` cookie tied to a specific `KioskDevice` row (with `locationId`, `active`, `lastSeenAt`, and `sessionExpiresAt`).
+2. **Device authentication.** Each `KioskDevice` is created by an admin in Settings → Kiosk Devices. A 6-digit activation code provisions a `kiosk_session` cookie tied to a specific `KioskDevice` row (with `locationId`, `active`, `lastSeenAt`, and `sessionExpiresAt`). The code is **single-use and time-limited**: it expires 24h after issue (`activation_code_expires_at`) and is cleared the moment it is redeemed, so a leaked or overheard code can't be replayed later. Already-activated kiosks are unaffected — they stay signed in via the sliding 7-day session, so consuming the code never forces the fleet to re-activate. An admin can mint a fresh code for an existing device via the reset flow.
 3. **Server-side scope.** `withKiosk()` rejects all `/api/kiosk/*` calls without a valid kiosk-session cookie. Routes do not accept a regular user-session cookie. Bookings created through the kiosk are stamped with `source: "KIOSK"` for the audit trail.
 4. **Identity = Wiscard scan or name picker.** A student scans their Wiscard at the kiosk to select their profile; the location-scoped name grid remains the manual fallback. There is **no password / PIN / NFC** in V1. This is a deliberate trade-off: the counter is staffed during open hours, and physical+device gates carry the security weight. Misattribution risk is mitigated by the audit log, Wiscard profile binding, and the social context of a staffed counter.
 
@@ -104,11 +104,14 @@ Files under `ios/Wisconsin/Kiosk/`:
 
 - No search / first-letter filter on the avatar grid. Acceptable for ≤30-student locations; revisit on larger-roster rollouts.
 - No "wrong person" undo path inside kiosk — admin must fix from web. Acceptable for V1.
-- Activation code rotation lifecycle: once a device is activated and its cookie is intact, the original code is no longer needed; if cookie is wiped, an admin can reset the activation code for the existing device from Settings → Kiosk Devices. Resetting revokes the old kiosk session and moves the device back to pending activation.
+- Activation code lifecycle: codes are single-use and expire 24h after issue. Redeeming a code clears it; an unredeemed code that ages out can no longer activate. Once a device is activated its sliding session keeps it signed in without the code. If a cookie is wiped or a code expires, an admin resets the activation code for the existing device from Settings → Kiosk Devices, which revokes the old kiosk session and moves the device back to pending activation.
+- Domain cutover: kiosk API traffic and cookie rehydration now use the shared `wisconsincreative.com` host. Keep the legacy host aliased during the first rollout if any already-activated kiosk devices need a soft landing; otherwise a development kiosk can be reactivated through Settings → Kiosk Devices.
 
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-07-01 | Security audit: kiosk activation codes are now single-use and time-limited. Added `activation_code_expires_at` (migration 0089) and made `activation_code` nullable. Codes are issued with a 24h expiry on create and reset; `/api/kiosk/activate` rejects expired codes and atomically clears the code on redemption (guarded `updateMany` so two concurrent redemptions can't both win). Always-on kiosks are unaffected — the sliding 7-day session keeps them signed in, so this never forces the fleet to re-activate. Previously a code stayed valid forever and could be replayed. |
+| 2026-07-01 | Wisconsin Creative domain cutover slice 1 moved native kiosk API base URL and `kiosk_session` cookie host to the shared `AppEnvironment` canonical host, `wisconsincreative.com`. The kiosk-only target now compiles `ios/Wisconsin/Shared/` so the full app and dedicated kiosk app cannot drift to different production hosts. |
 | 2026-06-29 | Active checkout numbered-battery preservation fixed. General booking detail edits on an `OPEN` checkout now preserve existing equipment rows and numbered bulk unit allocations unless the request explicitly changes equipment, preventing a title/notes/return-time edit from collapsing Sony Battery `#19/#27/#30/#39` into a quantity-only `4`. Kiosk dashboard and checkout detail payloads also render a read-only quantity fallback when legacy/live data has bulk quantity without allocation rows, so the iPad no longer shows an empty active checkout. |
 | 2026-06-25 | Admin checkout close-without-scan exception shipped on web. Kiosk remains the standard return surface, while admins can now close an `OPEN` checkout from detail only after entering a reason and physically verifying returned gear. The route writes override and audit evidence, restores outstanding bulk/numbered-unit availability, and leaves app/web check-in endpoints blocked. |
 | 2026-06-23 | Native kiosk idle sleep mode now uses the app timezone for night-hours standby, so evening Central-time kiosks no longer show Night Sleep Mode because the server is on UTC. The iOS client also defensively downgrades stale `night_hours` responses to idle or active-window behavior when the iPad clock is outside 10 PM-6 AM. The iOS sleep-dismissal grace survives navigation away from and back to idle, and the dim standby overlay text is brighter while preserving burn-in mitigation. |

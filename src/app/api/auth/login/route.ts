@@ -31,13 +31,16 @@ export const POST = withHandler(async (req) => {
     throw new HttpError(401, "Invalid credentials");
   }
 
-  if (!user.active) {
-    throw new HttpError(403, "Your account has been deactivated. Contact an administrator.");
-  }
-
+  // Verify the password before revealing anything account-specific. Checking
+  // `active` first would let an unauthenticated caller enumerate which emails
+  // map to deactivated accounts (403) versus valid-but-wrong-password (401).
   const valid = await verifyPassword(user.passwordHash, body.password);
   if (!valid) {
     throw new HttpError(401, "Invalid credentials");
+  }
+
+  if (!user.active) {
+    throw new HttpError(403, "Your account has been deactivated. Contact an administrator.");
   }
 
   await createSession(user.id, body.rememberMe ?? false);

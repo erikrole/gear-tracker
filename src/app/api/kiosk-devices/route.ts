@@ -3,7 +3,7 @@ import { withAuth } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
-import { tokenHash } from "@/lib/auth";
+import { tokenHash, KIOSK_ACTIVATION_CODE_TTL_MS } from "@/lib/auth";
 import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 /** Generate a random 6-digit numeric code */
@@ -131,6 +131,7 @@ export const POST = withAuth(async (req, { user }) => {
       name,
       locationId,
       activationCode: hashedCode,
+      activationCodeExpiresAt: new Date(Date.now() + KIOSK_ACTIVATION_CODE_TTL_MS),
     },
   });
 

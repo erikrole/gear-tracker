@@ -42,7 +42,16 @@ async function runSeed() {
     );
   }
 
-  const seedPassword = process.env.SEED_ADMIN_PASSWORD ?? "ChangeMeNow123!";
+  const isProduction = process.env.NODE_ENV === "production";
+
+  // Production must supply an explicit password — never seed an admin with a
+  // publicly known default. Development falls back to a known password so
+  // local/CI agents can seed and sign in without extra config.
+  const configuredPassword = process.env.SEED_ADMIN_PASSWORD;
+  if (isProduction && !configuredPassword) {
+    throw new HttpError(500, "SEED_ADMIN_PASSWORD must be set to run the seed endpoint in production.");
+  }
+  const seedPassword = configuredPassword ?? "ChangeMeNow123!";
   const passwordHash = await bcrypt.hash(seedPassword, 10);
 
   const user = await db.user.upsert({
@@ -64,6 +73,10 @@ async function runSeed() {
   return ok({
     message: "Seed complete",
     user: { email: user.email, name: user.name, role: user.role },
-    hint: `Login with admin@creative.local / ${seedPassword}`,
+    // Only echo credentials in development. In production the operator already
+    // knows the password they configured; returning it would leak it to logs.
+    ...(isProduction
+      ? {}
+      : { hint: `Login with admin@creative.local / ${seedPassword}` }),
   });
 }

@@ -33,7 +33,7 @@ export const env = {
   },
   /** From address for transactional email */
   get emailFrom() {
-    return process.env.EMAIL_FROM || "Wisconsin Creative <noreply@gear-tracker.app>";
+    return process.env.EMAIL_FROM || "Wisconsin Creative <noreply@wisconsincreative.com>";
   },
   /** Base URL for the app (used in emails). Falls back to VERCEL_URL or localhost. */
   get appUrl() {
@@ -50,5 +50,38 @@ export const env = {
   /** Optional. Enables Brave-backed product image search */
   get braveSearchApiKey() {
     return process.env.BRAVE_SEARCH_API_KEY || "";
+  },
+  /**
+   * Origins trusted for same-origin (CSRF) checks on mutating requests.
+   * Derived from an explicit allowlist rather than request headers so a
+   * proxy that forwards a client-controlled Host/x-forwarded-host can't be
+   * used to forge an allowed Origin.
+   *
+   * Configure `TRUSTED_ORIGINS` as a comma-separated list to override.
+   * Otherwise we fall back to APP_URL plus the known Wisconsin Creative
+   * production hosts (canonical + legacy) so CSRF keeps working across the
+   * domain cutover with zero required config.
+   */
+  get trustedOrigins(): string[] {
+    const out = new Set<string>();
+    const addOrigin = (value: string | undefined) => {
+      if (!value) return;
+      try {
+        out.add(new URL(value).origin);
+      } catch {
+        // Ignore malformed entries rather than fail every mutation.
+      }
+    };
+
+    const configured = process.env.TRUSTED_ORIGINS;
+    if (configured) {
+      for (const entry of configured.split(",")) addOrigin(entry.trim());
+      return [...out];
+    }
+
+    addOrigin(process.env.APP_URL);
+    addOrigin("https://wisconsincreative.com");
+    addOrigin("https://gear.erikrole.com");
+    return [...out];
   },
 };
