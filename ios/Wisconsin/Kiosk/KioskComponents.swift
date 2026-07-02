@@ -106,6 +106,28 @@ private struct KioskHeaderButton: View {
     }
 }
 
+// MARK: Section icon
+
+/// Leading glyph for a card section header: a tinted rounded square instead of
+/// a bare SF Symbol floating in space. Purely decorative.
+struct KioskSectionIcon: View {
+    let systemImage: String
+    var tint: Color = Color.kioskRed
+    var size: CGFloat = 40
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: KioskRadius.sm)
+            .fill(tint.opacity(0.14))
+            .frame(width: size, height: size)
+            .overlay {
+                Image(systemName: systemImage)
+                    .font(.system(size: size * 0.42, weight: .semibold))
+                    .foregroundStyle(tint)
+            }
+            .accessibilityHidden(true)
+    }
+}
+
 // MARK: Feedback banner
 
 /// Tinted icon + message banner used for scan results across every flow and

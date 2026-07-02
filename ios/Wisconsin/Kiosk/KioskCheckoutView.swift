@@ -149,7 +149,7 @@ struct KioskCheckoutView: View {
         Group {
             if checkoutContextReady {
                 HStack(spacing: 0) {
-                    scanZone
+                    activeScanZone
                     Divider().background(KioskStroke.divider)
                     itemsList.frame(width: 430)
                 }
@@ -159,18 +159,13 @@ struct KioskCheckoutView: View {
         }
     }
 
-    private var scanZone: some View {
-        Group {
-            if checkoutContextReady {
-                activeScanZone
-            } else {
-                checkoutContextSetupZone
-            }
-        }
-    }
-
+    /// Setup reads as a proper form page: the header is pinned outside the
+    /// scroll area (it previously lived inside a non-scrolling centered VStack,
+    /// so keyboard or wheel-picker growth overflowed the frame and pushed the
+    /// title off the top of the screen), the form cards scroll when they need
+    /// to, and the Start Scanning CTA stays pinned at the bottom.
     private var checkoutContextSetupZone: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 0) {
             KioskFlowHeader(
                 title: "Checkout Details",
                 backAccessibilityLabel: "Back to roster",
@@ -184,48 +179,67 @@ struct KioskCheckoutView: View {
                 onCamera: nil
             )
 
-            Spacer(minLength: 10)
+            ScrollView {
+                VStack(alignment: .leading, spacing: KioskSpacing.lg) {
+                    setupStep(1, "Who") {
+                        KioskCheckoutIdentityCard(
+                            user: user,
+                            locationName: store.info?.locationName
+                        )
+                    }
 
-            VStack(spacing: 18) {
-                KioskCheckoutIdentityCard(
-                    user: user,
-                    locationName: store.info?.locationName
-                )
-                .frame(maxWidth: 760)
+                    setupStep(2, "Why") {
+                        KioskCheckoutContextCard(
+                            events: eventOptions,
+                            isLoading: isLoadingEvents,
+                            errorMessage: eventLoadError,
+                            selectedEventId: $selectedEventId,
+                            customPurpose: $customPurpose,
+                            selectedEvent: selectedEvent,
+                            focusedField: $focusedCheckoutField
+                        )
+                    }
 
-                KioskCheckoutContextCard(
-                    events: eventOptions,
-                    isLoading: isLoadingEvents,
-                    errorMessage: eventLoadError,
-                    selectedEventId: $selectedEventId,
-                    customPurpose: $customPurpose,
-                    selectedEvent: selectedEvent,
-                    focusedField: $focusedCheckoutField
-                )
-                .frame(maxWidth: 760)
-
-                KioskCheckoutTimeCard(
-                    dueBackAt: $dueBackAt,
-                    selectedEvent: selectedEvent
-                )
-                .frame(maxWidth: 760)
-
-                KioskCompletionButton(
-                    title: "Start Scanning",
-                    isEnabled: hasCheckoutContext && hasValidReturnTime,
-                    isBusy: false,
-                    accessibilityLabel: startScanningAccessibilityLabel,
-                    action: startScanning
-                )
-                .frame(maxWidth: 760)
+                    setupStep(3, "When") {
+                        KioskCheckoutTimeCard(
+                            dueBackAt: $dueBackAt,
+                            selectedEvent: selectedEvent
+                        )
+                    }
+                }
+                .frame(maxWidth: KioskLayout.formMaxWidth)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, KioskSpacing.lg)
             }
+            .scrollBounceBehavior(.basedOnSize)
 
-            Spacer()
+            KioskCompletionButton(
+                title: "Start Scanning",
+                isEnabled: hasCheckoutContext && hasValidReturnTime,
+                isBusy: false,
+                accessibilityLabel: startScanningAccessibilityLabel,
+                action: startScanning
+            )
+            .frame(maxWidth: KioskLayout.formMaxWidth)
+            .frame(maxWidth: .infinity)
+            .padding(.top, KioskSpacing.md)
         }
-        .padding(.horizontal, 32)
-        .padding(.top, 20)
-        .padding(.bottom, 32)
+        .kioskScreenPadding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Numbered overline above each setup card so the form scans as three
+    /// quick steps.
+    private func setupStep(_ number: Int, _ label: String, @ViewBuilder content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: KioskSpacing.xs) {
+            Text("\(number) · \(label.uppercased())")
+                .font(.caption.weight(.bold))
+                .tracking(1.2)
+                .foregroundStyle(KioskText.muted)
+                .accessibilityLabel("Step \(number), \(label)")
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var activeScanZone: some View {
@@ -986,10 +1000,7 @@ private struct KioskCheckoutTimeCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
-                Image(systemName: "clock.badge.checkmark")
-                    .font(.headline)
-                    .foregroundStyle(Color.kioskRed)
-                    .accessibilityHidden(true)
+                KioskSectionIcon(systemImage: "clock.badge.checkmark")
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Return Time")
                         .font(.headline)
@@ -1055,11 +1066,7 @@ private struct KioskCheckoutTimeCard: View {
                 .foregroundStyle(KioskText.muted)
         }
         .padding(18)
-        .background(KioskSurface.card, in: RoundedRectangle(cornerRadius: KioskRadius.lg))
-        .overlay(
-            RoundedRectangle(cornerRadius: KioskRadius.lg)
-                .stroke(KioskStroke.standard, lineWidth: 1)
-        )
+        .kioskCard(KioskSurface.card, radius: KioskRadius.lg, stroke: KioskStroke.standard)
     }
 
     @ViewBuilder
@@ -1189,10 +1196,7 @@ private struct KioskCheckoutContextCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
-                Image(systemName: "calendar.badge.clock")
-                    .font(.headline)
-                    .foregroundStyle(Color.kioskRed)
-                    .accessibilityHidden(true)
+                KioskSectionIcon(systemImage: "calendar.badge.clock")
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Event or Purpose")
                         .font(.headline)
@@ -1296,11 +1300,7 @@ private struct KioskCheckoutContextCard: View {
             }
         }
         .padding(18)
-        .background(KioskSurface.card, in: RoundedRectangle(cornerRadius: KioskRadius.lg))
-        .overlay(
-            RoundedRectangle(cornerRadius: KioskRadius.lg)
-                .stroke(KioskStroke.standard, lineWidth: 1)
-        )
+        .kioskCard(KioskSurface.card, radius: KioskRadius.lg, stroke: KioskStroke.standard)
         .accessibilityElement(children: .contain)
     }
 

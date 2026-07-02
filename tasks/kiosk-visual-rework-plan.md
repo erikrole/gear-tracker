@@ -5,8 +5,8 @@ Direction: same DNA (dark, Wisconsin red, standby clock, Gotham), executed much 
 
 ## Slices
 
-- [ ] Slice 1 — Foundation: KioskSpacing/KioskLayout tokens, gradient depth in `kioskCard()`, `KioskBackdrop`, screen transitions in shell, inactivity warning restyle, `KioskFlowHeader` subtitle/trailing slots. New file `Kiosk/KioskChrome.swift`.
-- [ ] Slice 2 — Checkout setup: fix clipped-title overflow (header pinned, form scrolls, CTA pinned), delete dead `scanZone` wrapper, section icons + step overlines.
+- [x] Slice 1 — Foundation: KioskSpacing/KioskLayout tokens, gradient depth in `kioskCard()`, `KioskBackdrop`, screen transitions in shell, inactivity warning restyle, `KioskFlowHeader` subtitle/trailing slots. New file `Kiosk/KioskChrome.swift`.
+- [x] Slice 2 — Checkout setup: fix clipped-title overflow (header pinned, form scrolls, CTA pinned), delete dead `scanZone` wrapper, section icons + step overlines.
 - [ ] Slice 3 — Success screen: branded phaseAnimator/keyframeAnimator moment, draining countdown, Reduce Motion fallback.
 - [ ] Slice 4 — Unify scan screens: `KioskScanZoneColumn` + `KioskSideRail` (430 rail everywhere), shared `KioskScanTarget` corner brackets.
 - [ ] Slice 5a — Idle extraction (zero visual change): sleep view, event sheet, checkout drawer, roster, date formatting → own files + mechanical test path updates.
