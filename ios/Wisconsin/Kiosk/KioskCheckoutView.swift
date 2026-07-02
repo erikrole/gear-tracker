@@ -383,7 +383,7 @@ struct KioskCheckoutView: View {
                                     onRemove: { removeGroup(group) }
                                 )
                                 .id(group.id)
-                                .background(group.contains(scannedItems.last) ? Color.white.opacity(0.025) : Color.clear)
+                                .background(group.contains(scannedItems.last) ? KioskSurface.sunken : Color.clear)
                                 Divider().background(KioskStroke.hairline)
                             }
                         }
@@ -1499,11 +1499,11 @@ private struct KioskCheckoutThumbnail: View {
 
     private var placeholder: some View {
         RoundedRectangle(cornerRadius: KioskRadius.sm)
-            .fill(Color.white.opacity(0.10))
+            .fill(KioskSurface.placeholder)
             .overlay {
                 Image(systemName: item.isNumberedBulk ? "battery.100percent" : "camera.fill")
                     .font(.title3)
-                    .foregroundStyle(Color.white.opacity(0.62))
+                    .foregroundStyle(KioskText.secondary)
             }
     }
 }
