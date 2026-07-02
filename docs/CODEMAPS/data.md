@@ -63,7 +63,7 @@
 | `StudentAvailabilityBlock` | 20 | 6 |
 | `BookingPhoto` | 8 | 2 |
 | `CheckinItemReport` | 11 | 3 |
-| `KioskDevice` | 13 | 3 |
+| `KioskDevice` | 14 | 3 |
 | `Resource` | 19 | 7 |
 | `EventTravelMember` | 7 | 3 |
 

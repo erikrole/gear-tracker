@@ -23,6 +23,8 @@ const DOT_BY_VARIANT: Record<BookingStatusBadgeVariant, string> = {
 };
 
 export function bookingStatusLabel(status: string, kind?: BookingDisplayKind): string {
+  void kind;
+
   switch (status) {
     case "DRAFT":
       return "Draft";
@@ -42,6 +44,8 @@ export function bookingStatusLabel(status: string, kind?: BookingDisplayKind): s
 }
 
 export function bookingStatusBadgeVariant(status: string, kind?: BookingDisplayKind): BookingStatusBadgeVariant {
+  void kind;
+
   switch (status) {
     case "BOOKED":
       return "purple";

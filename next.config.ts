@@ -6,6 +6,8 @@ const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
 });
 
+const isVercelDeployment = process.env.VERCEL === "1";
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
@@ -29,19 +31,21 @@ const nextConfig: NextConfig = {
     // with a nonce-based policy on every dynamic route.
     const csp = [
       "default-src 'self'",
-      "script-src 'self'",
+      isVercelDeployment ? "script-src 'self'" : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' blob: data: https:",
       "font-src 'self' data:",
-      "connect-src 'self' https://*.public.blob.vercel-storage.com https://*.sentry.io https://*.ingest.sentry.io",
+      isVercelDeployment
+        ? "connect-src 'self' https://*.public.blob.vercel-storage.com https://*.sentry.io https://*.ingest.sentry.io"
+        : "connect-src 'self' http: https: ws: wss:",
       "worker-src 'self'",
       "manifest-src 'self'",
-      "frame-ancestors 'none'",
+      isVercelDeployment ? "frame-ancestors 'none'" : null,
       "form-action 'self'",
       "base-uri 'none'",
       "object-src 'none'",
-      "upgrade-insecure-requests",
-    ].join("; ");
+      isVercelDeployment ? "upgrade-insecure-requests" : null,
+    ].filter(Boolean).join("; ");
 
     const permissionsPolicy = [
       "camera=(self)",
@@ -68,16 +72,16 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: [
-          { key: "X-Frame-Options", value: "DENY" },
+          isVercelDeployment ? { key: "X-Frame-Options", value: "DENY" } : null,
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: permissionsPolicy },
-          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
-          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
-          { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+          isVercelDeployment ? { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" } : null,
+          isVercelDeployment ? { key: "Cross-Origin-Opener-Policy", value: "same-origin" } : null,
+          isVercelDeployment ? { key: "Cross-Origin-Resource-Policy", value: "same-origin" } : null,
           { key: "X-DNS-Prefetch-Control", value: "on" },
           { key: "Content-Security-Policy", value: csp },
-        ],
+        ].filter((header): header is { key: string; value: string } => Boolean(header)),
       },
       // Auth pages: never cache — prevents BFCache from replaying the form
       // after sign-out and avoids any shared-cache leakage.

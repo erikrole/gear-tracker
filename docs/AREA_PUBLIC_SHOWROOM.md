@@ -1,0 +1,49 @@
+# Public Showroom Area Scope
+
+## Document Control
+- Area: Public Showroom
+- Owner: Wisconsin Athletics Creative Product
+- Created: 2026-07-01
+- Last Updated: 2026-07-01
+- Status: Active
+- Version: V1
+
+## Direction
+Make `/about` a shareable public stakeholder showroom for Gear Tracker. It should explain the product, feature set, technical stack, security posture, and field-work model without exposing authenticated data or changing the operational app shell.
+
+## Core Rules
+1. Public showroom pages live outside `src/app/(app)` and must not use the authenticated `AppShell`.
+2. Public pages are static content only. They must not fetch live users, bookings, inventory, audit logs, schedules, or kiosk state.
+3. Product mockups use fictional data only. Do not use real student names, live booking references, production incidents, or screenshots unless separately sanitized.
+4. Security copy stays public-safe: name major vendors and controls, but do not publish secrets, thresholds, endpoint internals, exploit detail, or runbooks.
+5. `/`, `/login`, and every authenticated app route keep existing behavior.
+6. The showroom may use a marketing/product-page visual language, but it should still use repo tokens, shadcn/ui primitives, accessible controls, and reduced-motion-safe effects.
+
+## Routes
+- `/about` - public overview and stakeholder pitch.
+- `/about/features` - reservations, kiosk custody, Schedule, item families, reports, and notifications.
+- `/about/tech-stack` - public-safe stack map.
+- `/about/security` - trust model, access control, auditability, and reliability controls.
+- `/about/field-work` - native iOS, kiosk, scanner, and game-day handoff story.
+
+## Acceptance Criteria
+- [x] AC-1: `/about` and all public subpages render without authentication.
+- [x] AC-2: Public routes use typed static content and do not call authenticated APIs.
+- [x] AC-3: Product mockups carry fictional data and avoid known live-user or incident identifiers.
+- [x] AC-4: Navigation exposes Overview, Features, Tech Stack, Security, Field Work, and Sign in.
+- [x] AC-5: `/` and authenticated app shell behavior remain unchanged.
+- [x] AC-6: Public pages have route metadata, keyboard-reachable navigation, and mobile-safe layouts.
+
+## Verification
+- `npx vitest run tests/public-showroom-content.test.ts`
+- `npx tsc --noEmit --pretty false`
+- `npm run codemap`
+- `npm run verify:docs`
+- `git diff --check`
+- `npm run build:app`
+- Browser smoke `/about`, `/about/features`, `/about/tech-stack`, `/about/security`, `/about/field-work`, `/login`, and protected `/`.
+
+## Change Log
+- 2026-07-01: Improvement pass. Pinned the showroom subtree to light tokens (`[data-theme="light"]` alias in globals plus wrapper attribute) so system-dark visitors no longer get white-on-white text; fixed the invisible gray tone chip on light cards; demoted product-mockup headings to styled text inside a `figure` to keep heading order valid; added a skip-to-content link and `#showroom-content` targets; added `metadataBase` (wisconsincreative.com), Open Graph/Twitter metadata, and a generated `opengraph-image` for the `/about` segment; added a "Keep exploring" cross-link section fed by the nav descriptions; made the stakeholder CTA link configurable so Tech Stack no longer links to itself; refreshed footer and security-page copy; extended the content contract test for light-pinning, share metadata, and nav descriptions.
+- 2026-07-01: Public stakeholder showroom shipped locally with static `/about` route set, fictional product mockups, public-safe stack/security copy, and content contract coverage.
+- 2026-07-01: Vercel static-shell optimization moved theme and service-worker boot code from nonce-backed inline scripts to same-origin static scripts, removed the root `headers()` dependency, and retired the middleware nonce path so public showroom pages can stay static-friendly under the shared CSP. A non-matching middleware sentinel remains only to keep the current Next 15/Sentry build manifest path stable.

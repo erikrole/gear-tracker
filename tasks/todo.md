@@ -1,6 +1,64 @@
 # Task Queue
 
-Last updated: 2026-06-30
+Last updated: 2026-07-01
+
+---
+
+## Active: Public showroom /about improvement pass (2026-07-01)
+
+Scope: `/about` route set only. Fixes two shipped bugs and raises share/SEO/accessibility/navigation quality without touching auth, APIs, or app-shell behavior.
+
+- [x] Fix dark-theme breakage: system-dark visitors get dark tokens on the fixed-light showroom (white-on-white text). Pin showroom subtree to light tokens via `[data-theme="light"]` selector alias + wrapper attribute.
+- [x] Fix invisible gray tone chips: `toneClasses.gray` is white-on-white on light cards (Overview/Features/Field Work). Split light/dark gray styling.
+- [x] Fix heading hierarchy: `ProductMockup` renders h3/h4 before any h2 on hero page; demote to styled `p` and wrap mockup in `figure`.
+- [x] Add skip-to-content link in showroom layout + `id="showroom-content"` on each page main.
+- [x] Add share/SEO metadata: `metadataBase` (wisconsincreative.com), Open Graph, Twitter card, and a generated `opengraph-image` for the `/about` segment.
+- [x] Add "Keep exploring" cross-page section using the previously unused nav descriptions; wire into all five pages.
+- [x] Make `StakeholderCta` primary link configurable so `/about/tech-stack` stops linking to itself.
+- [x] Footer polish: copyright year + tightened copy.
+- [x] Copy tweak: security page H1.
+- [x] Extend `tests/public-showroom-content.test.ts` for light-pinning, metadata, and nav descriptions.
+- [x] Verify: focused vitest, tsc, build:app, browser proof (light + dark emulation).
+- [x] Doc sync: `docs/AREA_PUBLIC_SHOWROOM.md` change log; commit + push.
+
+### Review
+- 2026-07-01: Improvement pass shipped. Two shipped bugs fixed: (1) visitors with dark system theme got dark tokens on the fixed-light showroom, producing white-on-white text in every light band and the footer; fixed by aliasing the light token block to `[data-theme="light"]` in globals.css and pinning the showroom wrapper. (2) The gray tone icon chip used white-on-white styling on light cards; now `bg-muted` on light with a dark-band override. Added: skip link + main targets, `metadataBase`/OG/Twitter metadata with a generated 1200x630 opengraph-image, "Keep exploring" cross-links from the previously unused nav descriptions, configurable stakeholder CTA (Tech Stack no longer links to itself, Overview keeps stack CTA since the hero covers features), mockup headings demoted into a `figure` for valid heading order, footer copyright, security H1 rewrite. Verified: 8/8 content-contract Vitest, clean `tsc`, `npm run build:app` (all five routes + hashed opengraph-image emitted), codemaps regenerated, `git diff --check`, and browser proof under `data-theme="dark"` (light bands render dark-on-light, gray chips visible, no console errors, OG image serves 200 image/png, no horizontal overflow at 375px).
+
+---
+
+## Active: Public stakeholder showroom (2026-07-01)
+
+Plan: `tasks/public-showroom-plan.md`
+
+- [x] Confirm public route and content strategy.
+- [x] Add typed static content, public layout, `/about` route set, and reusable showroom components.
+- [x] Add public showroom area doc and content contract coverage.
+- [x] Run focused tests, TypeScript, docs/codemap checks, whitespace check, app build, and browser smoke.
+
+### Review
+- 2026-07-01: Public showroom implementation started for `/about`, `/about/features`, `/about/tech-stack`, `/about/security`, and `/about/field-work`. The route set is intentionally static and unauthenticated: no API reads, no schema changes, no AppShell changes, and no live user/item/booking/audit data in mockups. Verification is pending.
+- 2026-07-01: Public showroom V1 shipped locally. The route set lives outside the authenticated app shell, uses typed static content and fictional mockup data, exposes stakeholder navigation and Sign in, and keeps `/` plus `/login` behavior unchanged. Focused content Vitest, TypeScript, codemap/docs verification, whitespace check, `npm run build:app`, and Chrome desktop/mobile smoke passed. Browser proof found no console errors, no horizontal overflow, no showroom `/api` calls, keyboard-reachable nav, and unauthenticated `/` redirecting to `/login`.
+
+---
+
+## Active: Wisconsin Creative domain cutover readiness (2026-07-01)
+
+Plan: `tasks/wisconsincreative-domain-cutover-plan.md`
+
+- [x] Confirm plan boundary before implementation.
+- [x] Slice 1: Centralize native production host constants and add source-contract coverage.
+- [x] Slice 2: Sync web env/docs/runbook references for `wisconsincreative.com`.
+- [x] Slice 3: Confirm kiosk transition strategy before App Store submission.
+- [ ] Slice 4: Run live Vercel/Cloudflare/browser/iOS/kiosk cutover proof after DNS is ready.
+
+### Review
+- 2026-07-01: Slices 1-2 shipped locally. Native app and kiosk production host usage now flows through `AppEnvironment` with `wisconsincreative.com` as canonical and `gear.erikrole.com` retained only as an explicit legacy transition constant. Main API, kiosk API/cookie host, login recovery/register links, Profile manage-account, Licenses web management, and Schedule webcal subscription were moved to the shared host config, and `WisconsinKiosk` now compiles the shared source folder. `.env.example`, iOS README, Mobile, Kiosk, and Notifications docs now name the new canonical host and production `APP_URL`/`EMAIL_FROM` expectations. Focused Vitest source-contract proof passed for 5 files and 22 tests. Live Vercel/Cloudflare/browser/iOS/kiosk proof remains pending until DNS and production env are configured.
+- 2026-07-01: iOS migration proof passed. The rollout strategy is to ship the first App Store build against `wisconsincreative.com`, keep `gear.erikrole.com` aliased during rollout, and reactivate development kiosk devices if needed instead of adding dual-cookie migration code. Focused iOS domain source-contract Vitest, TypeScript, iOS drift, iOS gap audit, Xcode project consistency, whitespace, and XcodeBuildMCP simulator builds for both `Wisconsin` and `WisconsinKiosk` passed. Public production route smoke outside sandbox DNS returned 200 for `/login`, `/register`, and `/forgot-password`; `/bookings` correctly redirected to `/login`. Remaining Slice 4 proof is authenticated browser smoke, native sign-in plus one mutating request, and kiosk activation/session proof.
+- 2026-07-01: Runtime smoke advanced. In-app browser loaded `https://wisconsincreative.com/login`, `/register`, and `/forgot-password` with no console errors, and protected `/bookings` redirected to `/login`. XcodeBuildMCP `build_run_sim` installed and launched the migrated `Wisconsin` app; runtime UI snapshot showed the Wisconsin Creative sign-in screen with email/password fields and invitation-only copy. Remaining Slice 4 proof is credentialed: authenticated browser smoke, native sign-in plus one mutating request, and kiosk activation/session proof.
+- 2026-07-01: Native sign-in proof passed after user signed into the simulator. XcodeBuildMCP runtime UI snapshot showed the authenticated Home dashboard for Erik with live operational counts and `Dashboard synced now` on the `wisconsincreative.com` build. I did not perform a non-login production mutation because the available native actions would alter real data without explicit approval.
+- 2026-07-01: User confirmed the migrated app builds and runs with real production data, closing the native authenticated read-path side of Slice 4. Remaining migration proof is now archive/signing readiness, authenticated browser smoke if needed, an approved non-login production mutation if we choose one, and kiosk activation/session proof.
+- 2026-07-01: Cutover debt cleanup aligned `src/lib/env.ts`, `.env.example`, Notifications docs, Mobile docs, manual iOS walkthrough links, active iOS audit notes, and Slack planning docs with `wisconsincreative.com` and the server-side `APP_URL` contract. Remaining intentional debt is explicit: App Store archive/export signing proof, approved production mutation proof, kiosk activation/session proof, and eventual `AppEnvironment.legacyHost` plus legacy trusted-origin retirement after old links age out.
+- 2026-07-01: Initial plan created after repo audit found legacy production literals in native API, kiosk, login/register/recovery links, manage-account/licensing links, and shift calendar subscription. That implementation pause is superseded by the completed host-centralization slices above.
 
 ---
 

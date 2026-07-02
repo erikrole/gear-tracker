@@ -60,14 +60,14 @@
 |---|---:|
 | `src/lib/admin-fix-today.ts` | 408 |
 | `src/lib/api-dates.ts` | 32 |
-| `src/lib/api.ts` | 162 |
+| `src/lib/api.ts` | 144 |
 | `src/lib/app-time.ts` | 104 |
 | `src/lib/asset-attachments.ts` | 166 |
 | `src/lib/asset-image.ts` | 11 |
 | `src/lib/asset-qr-code.ts` | 9 |
 | `src/lib/assignment-conflict-review.ts` | 97 |
 | `src/lib/audit.ts` | 168 |
-| `src/lib/auth.ts` | 274 |
+| `src/lib/auth.ts` | 280 |
 | `src/lib/auto-fill-preview-types.ts` | 58 |
 | `src/lib/avatar.ts` | 44 |
 | `src/lib/battery-compatibility.ts` | 166 |
@@ -76,7 +76,7 @@
 | `src/lib/booking-action-policy.ts` | 163 |
 | `src/lib/booking-actions.ts` | 14 |
 | `src/lib/booking-availability-window.ts` | 19 |
-| `src/lib/booking-status-display.ts` | 124 |
+| `src/lib/booking-status-display.ts` | 128 |
 | `src/lib/bulk-batteries.ts` | 28 |
 | `src/lib/bulk-unit-qr.ts` | 109 |
 | `src/lib/bulk-unit-status.ts` | 33 |
@@ -89,7 +89,7 @@
 | `src/lib/csv.ts` | 17 |
 | `src/lib/db.ts` | 18 |
 | `src/lib/email.ts` | 91 |
-| `src/lib/env.ts` | 55 |
+| `src/lib/env.ts` | 88 |
 | `src/lib/equipment-guidance.ts` | 133 |
 | `src/lib/equipment-section-filters.ts` | 87 |
 | `src/lib/equipment-sections.ts` | 200 |
@@ -111,6 +111,7 @@
 | `src/lib/observability.ts` | 19 |
 | `src/lib/operational-health.ts` | 50 |
 | `src/lib/permissions.ts` | 163 |
+| `src/lib/public-showroom.ts` | 444 |
 | `src/lib/query-client.ts` | 56 |
 | `src/lib/rate-limit.ts` | 159 |
 | `src/lib/rbac.ts` | 25 |

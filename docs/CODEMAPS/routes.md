@@ -67,6 +67,11 @@
 - `/users/onboarding-status` -> `src/app/(app)/users/onboarding-status/page.tsx`
 - `/users/org-chart` -> `src/app/(app)/users/org-chart/page.tsx`
 - `/users` -> `src/app/(app)/users/page.tsx`
+- `/about/features` -> `src/app/(public)/about/features/page.tsx`
+- `/about/field-work` -> `src/app/(public)/about/field-work/page.tsx`
+- `/about` -> `src/app/(public)/about/page.tsx`
+- `/about/security` -> `src/app/(public)/about/security/page.tsx`
+- `/about/tech-stack` -> `src/app/(public)/about/tech-stack/page.tsx`
 - `/change-password` -> `src/app/change-password/page.tsx`
 - `/forgot-password` -> `src/app/forgot-password/page.tsx`
 - `/login` -> `src/app/login/page.tsx`
@@ -78,6 +83,7 @@
 - `/` -> `src/app/(app)/layout.tsx`
 - `/reports` -> `src/app/(app)/reports/layout.tsx`
 - `/settings` -> `src/app/(app)/settings/layout.tsx`
+- `/about` -> `src/app/(public)/about/layout.tsx`
 - `/` -> `src/app/layout.tsx`
 
 ## API Routes

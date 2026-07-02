@@ -69,6 +69,11 @@
 | `/users/onboarding-status` | `src/app/(app)/users/onboarding-status/page.tsx` |
 | `/users/org-chart` | `src/app/(app)/users/org-chart/page.tsx` |
 | `/users` | `src/app/(app)/users/page.tsx` |
+| `/about/features` | `src/app/(public)/about/features/page.tsx` |
+| `/about/field-work` | `src/app/(public)/about/field-work/page.tsx` |
+| `/about` | `src/app/(public)/about/page.tsx` |
+| `/about/security` | `src/app/(public)/about/security/page.tsx` |
+| `/about/tech-stack` | `src/app/(public)/about/tech-stack/page.tsx` |
 | `/change-password` | `src/app/change-password/page.tsx` |
 | `/forgot-password` | `src/app/forgot-password/page.tsx` |
 | `/login` | `src/app/login/page.tsx` |
@@ -82,6 +87,7 @@
 | `/` | `src/app/(app)/layout.tsx` |
 | `/reports` | `src/app/(app)/reports/layout.tsx` |
 | `/settings` | `src/app/(app)/settings/layout.tsx` |
+| `/about` | `src/app/(public)/about/layout.tsx` |
 | `/` | `src/app/layout.tsx` |
 
 ## Largest Components
@@ -107,6 +113,7 @@
 | `src/components/shift-detail/ShiftSlotCard.tsx` | 375 |
 | `src/components/booking-details/BookingInfoCard.tsx` | 342 |
 | `src/components/FormCombobox.tsx` | 329 |
+| `src/components/public-showroom/showroom-blocks.tsx` | 317 |
 | `src/components/booking-details/BookingHeader.tsx` | 313 |
 | `src/components/QrScanner.tsx` | 288 |
 | `src/components/booking-wizard/WizardStep3.tsx` | 263 |
@@ -117,7 +124,6 @@
 | `src/components/booking-list/BookingRow.tsx` | 219 |
 | `src/components/booking-list/BookingFilters.tsx` | 202 |
 | `src/components/resources/MarkdownReader.tsx` | 202 |
-| `src/components/ui/item.tsx` | 194 |
 
 ## Hooks
 
