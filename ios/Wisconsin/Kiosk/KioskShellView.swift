@@ -3,10 +3,39 @@ import UIKit
 
 struct KioskShellView: View {
     @Environment(KioskStore.self) private var store
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// One transition unit per logical screen. Keying by case (plus the
+    /// identifying payload) means in-screen state changes never re-trigger the
+    /// transition, while every real navigation cross-fades.
+    private var screenKey: String {
+        if store.isResuming { return "resuming" }
+        switch store.screen {
+        case .activation: return "activation"
+        case .idle: return "idle"
+        case .studentHub(let user): return "hub-\(user.id)"
+        case .checkout(let user): return "checkout-\(user.id)"
+        case .pickup(let bookingId, _): return "pickup-\(bookingId)"
+        case .return(let bookingId, _): return "return-\(bookingId)"
+        case .success: return "success"
+        }
+    }
+
+    /// Subliminal fade + 1.5% settle-in. Deliberately not a slide: opacity is
+    /// cheap on old iPads and doesn't change when views mount/unmount relative
+    /// to the bare switch, so HID scanner field semantics are untouched.
+    private var screenTransition: AnyTransition {
+        reduceMotion
+            ? .opacity
+            : .asymmetric(
+                insertion: .opacity.combined(with: .scale(scale: 0.985)),
+                removal: .opacity
+            )
+    }
 
     var body: some View {
         ZStack {
-            KioskSurface.base.ignoresSafeArea()
+            KioskBackdrop()
 
             Group {
                 if store.isResuming {
@@ -30,6 +59,8 @@ struct KioskShellView: View {
                     }
                 }
             }
+            .id(screenKey)
+            .transition(screenTransition)
 
             if store.inactivityWarningVisible {
                 InactivityWarningOverlay {
@@ -54,6 +85,10 @@ struct KioskShellView: View {
         // DatePicker/TextField ownership on older iPadOS builds.
         .simultaneousGesture(DragGesture(minimumDistance: 16).onChanged { _ in store.resetInactivity() })
         .animation(.easeInOut(duration: 0.2), value: store.inactivityWarningVisible)
+        .animation(
+            reduceMotion ? .easeInOut(duration: 0.15) : .easeOut(duration: 0.28),
+            value: screenKey
+        )
     }
 }
 
@@ -77,14 +112,21 @@ private struct KioskResumeSplash: View {
 
 private struct InactivityWarningOverlay: View {
     let onStay: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
             KioskScrim.modal.ignoresSafeArea()
-            VStack(spacing: 16) {
-                Image(systemName: "clock.fill")
-                    .font(.system(size: 44))
-                    .foregroundStyle(Color.kioskRed)
+            VStack(spacing: 20) {
+                ZStack {
+                    Circle()
+                        .fill(Color.kioskRed.opacity(0.14))
+                        .frame(width: 64, height: 64)
+                    Image(systemName: "clock.fill")
+                        .font(.system(size: 28))
+                        .foregroundStyle(Color.kioskRed)
+                }
+                .accessibilityHidden(true)
                 Text("Still here?")
                     .font(.title2.bold())
                     .foregroundStyle(KioskText.primary)
@@ -93,21 +135,65 @@ private struct InactivityWarningOverlay: View {
                     .foregroundStyle(KioskText.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 30)
+                InactivityCountdown(reduceMotion: reduceMotion)
+                    .padding(.horizontal, 30)
                 Button {
                     onStay()
                 } label: {
                     Text("Stay")
                         .font(.headline)
                         .foregroundStyle(KioskText.primary)
-                        .frame(maxWidth: 220)
-                        .padding(.vertical, 14)
-                        .background(Color.kioskRed, in: RoundedRectangle(cornerRadius: KioskRadius.lg))
+                        .frame(maxWidth: .infinity, minHeight: 56)
+                        .background(
+                            LinearGradient(
+                                colors: [Color.kioskRed, Color.kioskRed.opacity(0.85)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            in: RoundedRectangle(cornerRadius: KioskRadius.lg)
+                        )
                 }
                 .buttonStyle(.plain)
+                .padding(.horizontal, 30)
             }
             .padding(40)
-            .background(KioskSurface.modal, in: RoundedRectangle(cornerRadius: KioskRadius.modal))
+            .frame(maxWidth: 460)
+            .kioskCard(KioskSurface.modal, radius: KioskRadius.modal, stroke: KioskStroke.strong)
             .shadow(radius: 30)
         }
+    }
+}
+
+/// The 30 seconds the warning stays up before the kiosk resets, made visible:
+/// a draining brand-red capsule, or a plain numeric countdown under Reduce
+/// Motion. Purely decorative — the copy above already states the timeout, so
+/// this is hidden from accessibility.
+private struct InactivityCountdown: View {
+    let reduceMotion: Bool
+    @State private var appeared = Date()
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let remaining = max(0, 30 - Int(context.date.timeIntervalSince(appeared).rounded()))
+            if reduceMotion {
+                Text("\(remaining)s")
+                    .font(.subheadline.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(KioskText.secondary)
+                    .contentTransition(.numericText())
+            } else {
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(KioskStroke.divider)
+                    GeometryReader { geo in
+                        Capsule()
+                            .fill(Color.kioskRed)
+                            .frame(width: geo.size.width * CGFloat(remaining) / 30)
+                            .animation(.linear(duration: 1), value: remaining)
+                    }
+                }
+                .frame(height: 4)
+            }
+        }
+        .accessibilityHidden(true)
     }
 }

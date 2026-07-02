@@ -60,6 +60,7 @@
 		59A62659B5B66ECB9776D716 /* CheckoutReturnLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B440FC4AD4F07C1163F8856 /* CheckoutReturnLiveActivityWidget.swift */; };
 		5BFCE075814954BB59669481 /* Skeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 468E248680EC5A61BEC1EE38 /* Skeleton.swift */; };
 		5D716269ED62B3BCD83B904B /* NotificationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 229CAC26AA9E3BB5EEC36678 /* NotificationModels.swift */; };
+		610271C66D62E1DD52D043D1 /* KioskChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = E15CD71193CFD39E493FF9B9 /* KioskChrome.swift */; };
 		654893DACB94A0EDA73141DF /* KioskAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA5C2531E017BDBDE5EFDDFE /* KioskAPIClient.swift */; };
 		69DD68092CDC35D6924052DF /* BookingDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA04562F7C424114F304B494 /* BookingDetailView.swift */; };
 		6A29F42A3F64F9E6FDD5EB53 /* UserDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B64F325136AF7626ECECE8C /* UserDetailView.swift */; };
@@ -245,6 +246,7 @@
 		DE250FADCDB66EDCBD5DF234 /* AvailabilityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvailabilityView.swift; sourceTree = "<group>"; };
 		DF17654612E5CA2EBF575539 /* KioskColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskColors.swift; sourceTree = "<group>"; };
 		E11254A1E4647B8B02F4890A /* CheckoutReturnActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckoutReturnActivityAttributes.swift; sourceTree = "<group>"; };
+		E15CD71193CFD39E493FF9B9 /* KioskChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskChrome.swift; sourceTree = "<group>"; };
 		E968BAF46C8E557831F73C27 /* KioskSuccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskSuccessView.swift; sourceTree = "<group>"; };
 		EB6A309FA698276EE001EE07 /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
 		EC04AA628BB1DEA764D7EEAC /* ItemListText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemListText.swift; sourceTree = "<group>"; };
@@ -426,6 +428,7 @@
 				BA5C2531E017BDBDE5EFDDFE /* KioskAPIClient.swift */,
 				06C085E7CDEC3CCE6DFDD630 /* KioskBarcodeCameraView.swift */,
 				3700D2B2FAE801DC2FF0F1ED /* KioskCheckoutView.swift */,
+				E15CD71193CFD39E493FF9B9 /* KioskChrome.swift */,
 				DF17654612E5CA2EBF575539 /* KioskColors.swift */,
 				348C1E3385689A947929A115 /* KioskComponents.swift */,
 				07116906C1A1FF6F5D10BFA1 /* KioskDesign.swift */,
@@ -719,6 +722,7 @@
 				4B2A968B07EADEF18DEAD46D /* KioskActivationView.swift in Sources */,
 				9920100D23D0FF37F2528340 /* KioskBarcodeCameraView.swift in Sources */,
 				3626807CF358067A4EF9AF15 /* KioskCheckoutView.swift in Sources */,
+				610271C66D62E1DD52D043D1 /* KioskChrome.swift in Sources */,
 				3EA409C06E497D3FCA3ECF8B /* KioskColors.swift in Sources */,
 				F2A0A3013F3F22792FA32C84 /* KioskComponents.swift in Sources */,
 				92FB41EABAD386A10484F5D8 /* KioskDesign.swift in Sources */,

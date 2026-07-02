@@ -11,17 +11,22 @@ import SwiftUI
 
 // MARK: Flow header
 
-/// Back · centered title · optional camera. The title is optically centered via
-/// an overlay so unequal button widths don't shift it. Buttons keep a 44pt
-/// touch target per `docs/DESIGN_LANGUAGE.md`.
-struct KioskFlowHeader: View {
+/// Back · centered title (optional subtitle) · optional trailing content ·
+/// optional camera. The title is optically centered via an overlay so unequal
+/// side widths don't shift it. Buttons keep a 44pt touch target per
+/// `docs/DESIGN_LANGUAGE.md`. The trailing slot lets screens hang their own
+/// content (e.g. the student hub's avatar + name) off the shared header
+/// instead of hand-rolling a top bar.
+struct KioskFlowHeader<Trailing: View>: View {
     let title: String
+    var subtitle: String?
     var backAccessibilityLabel: String = "Back to roster"
     let onBack: () -> Void
     var onCamera: (() -> Void)?
+    @ViewBuilder var trailing: () -> Trailing
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: KioskSpacing.sm) {
             KioskHeaderButton(
                 systemImage: "chevron.left",
                 label: "Back",
@@ -29,6 +34,7 @@ struct KioskFlowHeader: View {
                 action: onBack
             )
             Spacer(minLength: 0)
+            trailing()
             if let onCamera {
                 KioskHeaderButton(
                     systemImage: "camera.fill",
@@ -36,19 +42,47 @@ struct KioskFlowHeader: View {
                     accessibilityLabel: "Use camera to scan instead",
                     action: onCamera
                 )
-            } else {
+            } else if Trailing.self == EmptyView.self {
                 Color.clear.frame(width: 44, height: 44)
             }
         }
         .overlay {
-            Text(title)
-                .font(.kioskScreenTitle())
-                .foregroundStyle(KioskText.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .accessibilityAddTraits(.isHeader)
-                .allowsHitTesting(false)
+            VStack(spacing: 2) {
+                Text(title)
+                    .font(.kioskScreenTitle())
+                    .foregroundStyle(KioskText.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .accessibilityAddTraits(.isHeader)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(KioskText.tertiary)
+                        .lineLimit(1)
+                }
+            }
+            .allowsHitTesting(false)
         }
+    }
+}
+
+extension KioskFlowHeader where Trailing == EmptyView {
+    /// Existing call-site shape: back · title · optional camera.
+    init(
+        title: String,
+        subtitle: String? = nil,
+        backAccessibilityLabel: String = "Back to roster",
+        onBack: @escaping () -> Void,
+        onCamera: (() -> Void)? = nil
+    ) {
+        self.init(
+            title: title,
+            subtitle: subtitle,
+            backAccessibilityLabel: backAccessibilityLabel,
+            onBack: onBack,
+            onCamera: onCamera,
+            trailing: { EmptyView() }
+        )
     }
 }
 

@@ -78,6 +78,38 @@ enum KioskRadius {
     static let hero: CGFloat = 24 // activation card, scan frame
 }
 
+/// Spacing scale. Named rungs replace the drifting per-screen padding combos
+/// (44/36 on activation, 32 on idle, 24/16 on the hub, 32/20/32 on checkout).
+enum KioskSpacing {
+    static let xs: CGFloat = 8    // chip gaps, row internals
+    static let sm: CGFloat = 12   // intra-card stacks
+    static let md: CGFloat = 16   // card padding, grid gutters
+    static let lg: CGFloat = 24   // section gaps, panel padding (compact)
+    static let xl: CGFloat = 32   // screen margins, panel padding (regular)
+    /// Below the hidden status bar at the top of every screen.
+    static let screenTop: CGFloat = 24
+    static let screenBottom: CGFloat = 32
+}
+
+/// Shared layout dimensions that were previously inline magic numbers
+/// recomputed per screen.
+enum KioskLayout {
+    /// Right-hand rail beside a scan zone (checkout items list and the
+    /// pickup/return checklist share one width).
+    static let sideRail: CGFloat = 430
+    /// Checkout-setup form cards.
+    static let formMaxWidth: CGFloat = 760
+    /// Activation card in the wide layout.
+    static let activationCardWidth: CGFloat = 450
+    /// Below this width (or at accessibility sizes) two-panel screens stack.
+    static let compactBreakpoint: CGFloat = 880
+    /// Idle roster panel width: 42% of the screen, clamped so tiles stay
+    /// tappable on 11" and the grid doesn't sprawl on 13".
+    static func rosterWidth(for totalWidth: CGFloat) -> CGFloat {
+        min(max(totalWidth * 0.42, 430), 560)
+    }
+}
+
 /// Foreground text tones on the dark base. Named rungs replace the long tail
 /// of `Color.white.opacity(...)` literals for the common cases.
 enum KioskText {
@@ -94,6 +126,11 @@ extension View {
     /// stroke. Collapses the repeated
     /// `.background(fill, in: RoundedRectangle).overlay(RoundedRectangle.stroke)`
     /// pattern that appeared on nearly every kiosk row and tile.
+    /// Depth comes from two cheap static gradients rather than blurs or
+    /// shadows (the kiosk is an always-on display on older iPads): a faint
+    /// top glaze inside the shape and a stroke that fades toward the bottom,
+    /// so every card reads as lit from above. Both layer over the caller's
+    /// fill, so tinted cards (selected event chips, banners) keep working.
     func kioskCard(
         _ fill: Color = KioskSurface.card,
         radius: CGFloat = KioskRadius.md,
@@ -103,8 +140,24 @@ extension View {
         self
             .background(fill, in: RoundedRectangle(cornerRadius: radius))
             .overlay(
+                LinearGradient(
+                    colors: [Color.white.opacity(0.04), .clear],
+                    startPoint: .top,
+                    endPoint: .center
+                )
+                .clipShape(RoundedRectangle(cornerRadius: radius))
+                .allowsHitTesting(false)
+            )
+            .overlay(
                 RoundedRectangle(cornerRadius: radius)
-                    .stroke(stroke, lineWidth: lineWidth)
+                    .stroke(
+                        LinearGradient(
+                            colors: [stroke, stroke.opacity(0.35)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: lineWidth
+                    )
             )
     }
 }
