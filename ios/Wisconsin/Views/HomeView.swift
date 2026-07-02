@@ -226,8 +226,16 @@ struct HomeView: View {
                     Button {
                         showNotifications = true
                     } label: {
-                        Image(systemName: appState.unreadNotifCount > 0 ? "bell.badge.fill" : "bell")
-                            .symbolRenderingMode(.multicolor)
+                        // Neutral when nothing is waiting — an accent-red bell
+                        // reads as an alert on an otherwise all-clear screen.
+                        if appState.unreadNotifCount > 0 {
+                            Image(systemName: "bell.badge.fill")
+                                .symbolRenderingMode(.multicolor)
+                                .foregroundStyle(Color.brandPrimary)
+                        } else {
+                            Image(systemName: "bell")
+                                .foregroundStyle(.primary)
+                        }
                     }
                     .accessibilityLabel(appState.unreadNotifCount > 0 ? "\(appState.unreadNotifCount) unread notifications" : "Notifications")
                 }
@@ -379,32 +387,57 @@ private struct StatStrip: View {
         GridItem(.flexible(), spacing: Brand.Space.sm),
     ]
 
+    /// With nothing to triage, four 30pt zeros don't earn the top of the
+    /// screen — collapse to one quiet all-clear line (AREA_MOBILE: "compact
+    /// triage strip only when it helps decide what to do next").
+    private var allZero: Bool {
+        stats.overdue == 0 && stats.dueToday == 0 && pendingPickupCount == 0 && shiftCount == 0
+    }
+
     var body: some View {
         VStack(alignment: .trailing, spacing: Brand.Space.sm) {
-            LazyVGrid(columns: columns, spacing: Brand.Space.sm) {
-                // Overdue / Due Today are urgency numbers — land on Attention.
-                StatCard(value: stats.overdue, label: "Overdue", systemImage: "exclamationmark.triangle.fill",
-                         tone: .red, onTap: openAttention)
-                StatCard(value: stats.dueToday, label: "Due Today", systemImage: "clock.fill",
-                         tone: .orange, onTap: openAttention)
-                StatCard(value: pendingPickupCount, label: pendingPickupCount == 1 ? "Pickup" : "Pickups", systemImage: "shippingbox.fill",
-                         tone: .green, onTap: openBookings)
-                StatCard(value: shiftCount, label: shiftCount == 1 ? "Shift" : "Shifts", systemImage: "calendar",
-                         tone: .blue, onTap: openSchedule)
-            }
-            if let lastLoadedAt {
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .font(.caption2.weight(.semibold))
+            if allZero {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle")
+                        .font(.caption.weight(.semibold))
                         .accessibilityHidden(true)
-                    Text("Synced \(lastLoadedAt.formatted(.relative(presentation: .named)))")
-                        .font(.caption2)
-                        .monospacedDigit()
+                    Text("Nothing overdue, due today, or waiting on you")
+                        .font(.caption)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                    Spacer(minLength: 8)
+                    if let lastLoadedAt { syncedStamp(lastLoadedAt) }
                 }
                 .foregroundStyle(.secondary)
-                .accessibilityLabel("Dashboard synced \(lastLoadedAt.formatted(.relative(presentation: .named)))")
+                .accessibilityElement(children: .combine)
+            } else {
+                LazyVGrid(columns: columns, spacing: Brand.Space.sm) {
+                    // Overdue / Due Today are urgency numbers — land on Attention.
+                    StatCard(value: stats.overdue, label: "Overdue", systemImage: "exclamationmark.triangle.fill",
+                             tone: .red, onTap: openAttention)
+                    StatCard(value: stats.dueToday, label: "Due Today", systemImage: "clock.fill",
+                             tone: .orange, onTap: openAttention)
+                    StatCard(value: pendingPickupCount, label: pendingPickupCount == 1 ? "Pickup" : "Pickups", systemImage: "shippingbox.fill",
+                             tone: .green, onTap: openBookings)
+                    StatCard(value: shiftCount, label: shiftCount == 1 ? "Shift" : "Shifts", systemImage: "calendar",
+                             tone: .blue, onTap: openSchedule)
+                }
+                if let lastLoadedAt { syncedStamp(lastLoadedAt) }
             }
         }
+    }
+
+    private func syncedStamp(_ lastLoadedAt: Date) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .font(.caption2.weight(.semibold))
+                .accessibilityHidden(true)
+            Text("Synced \(lastLoadedAt.formatted(.relative(presentation: .named)))")
+                .font(.caption2)
+                .monospacedDigit()
+        }
+        .foregroundStyle(.secondary)
+        .accessibilityLabel("Dashboard synced \(lastLoadedAt.formatted(.relative(presentation: .named)))")
     }
 }
 
@@ -691,12 +724,25 @@ private struct EventActionQueueRow: View {
            let firstDay = scheduleEvent.spannedDays.first,
            let lastDay = scheduleEvent.spannedDays.last {
             let start = firstDay.formatted(.dateTime.month(.abbreviated).day())
-            let end = lastDay.formatted(.dateTime.month(.abbreviated).day())
+            // Same month reads as "Jul 7-8", not "Jul 7-Jul 8".
+            let sameMonth = Calendar.current.isDate(firstDay, equalTo: lastDay, toGranularity: .month)
+            let end = sameMonth
+                ? lastDay.formatted(.dateTime.day())
+                : lastDay.formatted(.dateTime.month(.abbreviated).day())
             return "\(start)-\(end), All day"
         }
         let day = (scheduleEvent.spannedDays.first ?? work.event.startsAt)
             .formatted(.dateTime.weekday(.abbreviated))
         return "\(day), All day"
+    }
+
+    /// States when gear is needed instead of shouting "now" for an event days
+    /// away; the trailing action chip already carries the "Reserve gear" verb.
+    private var gearNeededLine: String {
+        if work.event.startsAt < Date() || Calendar.current.isDateInToday(work.event.startsAt) {
+            return "Gear needed today"
+        }
+        return "Gear needed for \(work.event.startsAt.formatted(.dateTime.month(.abbreviated).day()))"
     }
 
     var body: some View {
@@ -716,7 +762,7 @@ private struct EventActionQueueRow: View {
                         if let gear = work.primaryGear, !work.needsGear {
                             queueTextLine(gearInstruction(for: gear), tone: gearTone(for: gear))
                         } else {
-                            queueTextLine("Reserve gear now", tone: .blue)
+                            queueTextLine(gearNeededLine, tone: .blue)
                         }
                         if !isAllDayEvent {
                             queueTextLine(
@@ -729,17 +775,22 @@ private struct EventActionQueueRow: View {
 
                 Spacer(minLength: 8)
 
-                VStack(alignment: .trailing, spacing: 4) {
+                VStack(alignment: .trailing, spacing: 5) {
                     Text(timeMeta)
                         .font(.caption.weight(.medium))
                         .foregroundStyle(Color.statusText(tone))
                         .multilineTextAlignment(.trailing)
                         .lineLimit(2)
+                    // Chip-styled so the action reads as "tap me", distinct
+                    // from the informational date above it.
                     Text(primaryLabel)
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(Color.statusText(tone))
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.statusBackground(tone), in: Capsule())
                 }
             }
             .contentShape(Rectangle())
@@ -756,7 +807,7 @@ private struct EventActionQueueRow: View {
         if let gear = work.primaryGear, !work.needsGear {
             parts.append(gearInstruction(for: gear))
         } else {
-            parts.append("Reserve gear now")
+            parts.append(gearNeededLine)
         }
         if isAllDayEvent {
             parts.append("All day event")
@@ -849,7 +900,7 @@ private struct ActionQueueRow: View {
 
                     Spacer(minLength: 8)
 
-                    VStack(alignment: .trailing, spacing: 4) {
+                    VStack(alignment: .trailing, spacing: 5) {
                         Text(meta)
                             .font(.caption.weight(.medium))
                             .foregroundStyle(Color.statusText(tone))
@@ -860,6 +911,9 @@ private struct ActionQueueRow: View {
                             .foregroundStyle(Color.statusText(tone))
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.statusBackground(tone), in: Capsule())
                     }
                 }
                 .contentShape(Rectangle())
