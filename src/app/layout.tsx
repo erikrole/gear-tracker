@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import "@fontsource/barlow/400.css";
@@ -31,13 +32,15 @@ export const viewport: Viewport = {
   themeColor: "#A00000",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* eslint-disable-next-line @next/next/no-sync-scripts -- critical theme boot runs before paint; script body stays CSP-compatible in /public. */}
-        <script src="/theme-init.js" suppressHydrationWarning />
-        <script src="/sw-init.js" defer suppressHydrationWarning />
+        <script nonce={nonce} src="/theme-init.js" suppressHydrationWarning />
+        <script nonce={nonce} src="/sw-init.js" defer suppressHydrationWarning />
       </head>
       <body className={`${GeistSans.variable} ${GeistMono.variable}`}>
         {children}

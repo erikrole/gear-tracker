@@ -13,7 +13,7 @@ Make `/about` a shareable public stakeholder showroom for Gear Tracker. It shoul
 
 ## Core Rules
 1. Public showroom pages live outside `src/app/(app)` and must not use the authenticated `AppShell`.
-2. Public pages are static content only. They must not fetch live users, bookings, inventory, audit logs, schedules, or kiosk state.
+2. Public pages use static, reviewable content only. They must not fetch live users, bookings, inventory, audit logs, schedules, or kiosk state. The HTML shell may render dynamically to attach per-request CSP nonces.
 3. Product mockups use fictional data only. Do not use real student names, live booking references, production incidents, or screenshots unless separately sanitized.
 4. Security copy stays public-safe: name major vendors and controls, but do not publish secrets, thresholds, endpoint internals, exploit detail, or runbooks.
 5. `/`, `/login`, and every authenticated app route keep existing behavior.
@@ -43,6 +43,7 @@ Make `/about` a shareable public stakeholder showroom for Gear Tracker. It shoul
 - `npm run verify:docs`
 - `git diff --check`
 - `npm run build:app`
+- `npm run smoke:deploy`
 - Browser smoke `/about`, `/about/features`, `/about/tech-stack`, `/about/security`, `/about/field-work`, `/login`, and protected `/`.
 
 ## Change Log
@@ -51,3 +52,4 @@ Make `/about` a shareable public stakeholder showroom for Gear Tracker. It shoul
 - 2026-07-01: Public stakeholder showroom shipped locally with static `/about` route set, fictional product mockups, public-safe stack/security copy, and content contract coverage.
 - 2026-07-01: Vercel static-shell optimization moved theme and service-worker boot code from nonce-backed inline scripts to same-origin static scripts, removed the root `headers()` dependency, and retired the middleware nonce path so public showroom pages can stay static-friendly under the shared CSP. A non-matching middleware sentinel remains only to keep the current Next 15/Sentry build manifest path stable.
 - 2026-07-02: Production blank-page recovery. Live deploy proof showed the App Router shell loading assets but rendering an empty document because `script-src 'self'` blocked Next's inline bootstrap/RSC scripts. The shared CSP now allows `script-src 'self' 'unsafe-inline'` in production until nonce wiring is implemented end-to-end, and content-contract coverage guards the render-critical policy.
+- 2026-07-02: Nonce CSP hardening. Rendered HTML routes now receive a per-request CSP nonce from middleware, the root boot scripts carry that nonce, production `script-src` no longer allows `unsafe-inline`, and `npm run smoke:deploy` checks public pages plus a seeded-login path for nonce CSP regressions.

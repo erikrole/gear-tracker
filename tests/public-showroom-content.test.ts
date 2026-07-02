@@ -17,6 +17,7 @@ const serviceWorkerInitSource = readFileSync("public/sw-init.js", "utf8");
 const aboutLayoutSource = readFileSync("src/app/(public)/about/layout.tsx", "utf8");
 const globalsSource = readFileSync("src/app/globals.css", "utf8");
 const nextConfigSource = readFileSync("next.config.ts", "utf8");
+const deploySmokeSource = readFileSync("scripts/deploy-smoke.mjs", "utf8");
 
 describe("public showroom content", () => {
   it("keeps the expected public route set", () => {
@@ -67,14 +68,13 @@ describe("public showroom content", () => {
     }
   });
 
-  it("keeps the public shell static-friendly on Vercel", () => {
-    expect(rootLayoutSource).not.toContain("next/headers");
+  it("keeps the public shell compatible with nonce CSP", () => {
     expect(rootLayoutSource).not.toContain("dangerouslySetInnerHTML");
     expect(rootLayoutSource).toContain('src="/theme-init.js"');
     expect(rootLayoutSource).toContain('src="/sw-init.js"');
     expect(existsSync("src/middleware.ts")).toBe(true);
-    expect(middlewareSource).not.toContain("x-csp-nonce");
-    expect(middlewareSource).toContain("/__next-build-sentinel/:path*");
+    expect(middlewareSource).toContain("x-nonce");
+    expect(middlewareSource).toContain("Content-Security-Policy");
   });
 
   it("keeps boot scripts same-origin and CSP-compatible", () => {
@@ -85,8 +85,24 @@ describe("public showroom content", () => {
     expect(`${themeInitSource}\n${serviceWorkerInitSource}`).not.toContain("https://");
   });
 
-  it("keeps production CSP compatible with Next App Router inline bootstrap", () => {
-    expect(nextConfigSource).toContain("script-src 'self' 'unsafe-inline'");
-    expect(nextConfigSource).toContain("Next App Router emits inline bootstrap/RSC scripts");
+  it("keeps production CSP nonce-based for Next App Router inline bootstrap", () => {
+    expect(rootLayoutSource).toContain('import { headers } from "next/headers"');
+    expect(rootLayoutSource).toContain("const nonce = (await headers()).get(\"x-nonce\")");
+    expect(rootLayoutSource).toContain("nonce={nonce}");
+    expect(middlewareSource).toContain("'strict-dynamic'");
+    expect(middlewareSource).toContain("`script-src 'self' 'nonce-${nonce}' 'strict-dynamic'");
+    expect(middlewareSource).not.toContain("script-src 'self' 'unsafe-inline'");
+    expect(nextConfigSource).not.toContain("Content-Security-Policy");
+  });
+
+  it("ships deploy smoke coverage for public routes and seeded-login checks", () => {
+    for (const href of ["/about", "/about/features", "/about/tech-stack", "/about/security", "/about/field-work", "/privacy", "/login"]) {
+      expect(deploySmokeSource).toContain(`path: "${href}"`);
+    }
+    expect(deploySmokeSource).toContain("DEPLOY_SMOKE_EMAIL");
+    expect(deploySmokeSource).toContain("DEPLOY_SMOKE_PASSWORD");
+    expect(deploySmokeSource).toContain("/api/auth/login");
+    expect(deploySmokeSource).toContain("assertNonceCsp");
+    expect(deploySmokeSource).toContain("unsafe-inline");
   });
 });

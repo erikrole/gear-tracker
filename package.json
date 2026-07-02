@@ -34,6 +34,7 @@
     "cleanup:item-data": "node --env-file=.env scripts/cleanup-item-data.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
+    "smoke:deploy": "node scripts/deploy-smoke.mjs",
     "import:cheqroom": "node scripts/import-cheqroom-items.mjs",
     "release": "bash scripts/release.sh",
     "drift:ios": "bash scripts/ios-drift-check.sh",

@@ -16,6 +16,7 @@ Scope: App Store submission readiness for the main `Wisconsin` iOS app only. Kio
 - [x] Verify focused source checks, iOS project consistency, TypeScript/build as feasible, and document user-run real-device tasks.
 
 ### Review
+- 2026-07-02: Follow-up hardening aligned `ios/Wisconsin/Supporting/PrivacyInfo.xcprivacy` with App Store Connect privacy disclosures for account, contact, identifier, usage, and diagnostic data, kept tracking disabled, and omitted user coarse location because iOS only uses fixed venue coordinates for WeatherKit. Verified plist syntax and iOS project membership.
 - 2026-07-01: Launch-readiness slice completed for the main App Store app only. App Store product naming is set up as `Wisconsin Creative`, the installed label stays `Creative`, checked-in APNs entitlement metadata is production, the first-party privacy manifest is present, `/privacy` builds as a static public page, and `npm run demo:seed:app-review` now creates a guarded fictional App Review dataset only when `APP_REVIEW_DEMO_SEED=confirm` is set. Verified: `plutil -lint`, `node --check scripts/seed-app-review-demo.mjs`, guarded seed refusal without confirmation, `npm run ios:project:check`, `npm run drift:ios`, `npm run audit:ios:gaps`, `npx tsc --noEmit --pretty false`, `npx vitest run tests/public-showroom-content.test.ts`, `npm run codemap`, `npm run verify:docs`, `git diff --check`, `npm run build:app`, and escalated `npm run ios:xcode:verify`. Manual external tasks remain in Apple Developer, App Store Connect, DNS, archive/signing proof, and real-device QA.
 
 ---
@@ -39,6 +40,21 @@ Scope: `/about` route set only. Fixes two shipped bugs and raises share/SEO/acce
 
 ### Review
 - 2026-07-01: Improvement pass shipped. Two shipped bugs fixed: (1) visitors with dark system theme got dark tokens on the fixed-light showroom, producing white-on-white text in every light band and the footer; fixed by aliasing the light token block to `[data-theme="light"]` in globals.css and pinning the showroom wrapper. (2) The gray tone icon chip used white-on-white styling on light cards; now `bg-muted` on light with a dark-band override. Added: skip link + main targets, `metadataBase`/OG/Twitter metadata with a generated 1200x630 opengraph-image, "Keep exploring" cross-links from the previously unused nav descriptions, configurable stakeholder CTA (Tech Stack no longer links to itself, Overview keeps stack CTA since the hero covers features), mockup headings demoted into a `figure` for valid heading order, footer copyright, security H1 rewrite. Verified: 8/8 content-contract Vitest, clean `tsc`, `npm run build:app` (all five routes + hashed opengraph-image emitted), codemaps regenerated, `git diff --check`, and browser proof under `data-theme="dark"` (light bands render dark-on-light, gray chips visible, no console errors, OG image serves 200 image/png, no horizontal overflow at 375px).
+
+---
+
+## Active: Public CSP and deploy smoke hardening (2026-07-02)
+
+Plan: `tasks/public-csp-smoke-hardening-plan.md`
+
+- [x] Restore nonce-based CSP for rendered HTML routes.
+- [x] Add deploy smoke automation for public pages and seeded-login checks.
+- [x] Sync docs and close GAP-60 if verification passes.
+- [x] Run focused tests, TypeScript, docs, whitespace, build, and smoke gates.
+
+### Review
+- 2026-07-02: Slice started after production `/about` recovery. Goal is to replace the emergency production inline-script CSP allowance with request nonces and add a reusable deploy smoke command that can exercise public pages plus a seeded login path.
+- 2026-07-02: Slice shipped locally. Middleware now owns nonce CSP for rendered HTML routes, the root layout attaches the request nonce to first-party boot scripts, production `script-src` no longer allows `unsafe-inline`, and `npm run smoke:deploy` verifies public pages, `/privacy`, `/login`, protected redirect, login, and authenticated `/` rendering. Local production smoke passed on `http://localhost:3003` with the seeded admin login.
 
 ---
 
