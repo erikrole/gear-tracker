@@ -4,6 +4,71 @@ Last updated: 2026-07-02
 
 ---
 
+## Active: Attachment internal tag intake (2026-07-02)
+
+Scope: let parented Standard attachments use a quiet generated internal tag when the printed label only needs the QR code and a nearby parent number.
+
+- [x] Audit item identity docs, prior attachment decisions, Prisma required fields, and current Standard intake source.
+- [x] Generate an internal asset tag only when a Standard item is marked as an attachment and the visible tag field is blank.
+- [x] Keep normal Standard items requiring a typed asset tag and keep QR code required for this slice.
+- [x] Add focused coverage, sync item docs, and run targeted verification.
+
+### Review
+- 2026-07-02: The narrow slice keeps `Asset.assetTag` and `Asset.qrCodeValue` required in storage. The user-facing change is attachment-only: a parented Standard accessory can leave the visible tag blank, while the submit helper creates a quiet internal tag from the parent, attachment identity, and QR code.
+- 2026-07-02: Standard form validation now makes the visible asset tag optional only while `Item is an attachment` is enabled. Explicit attachment tags are still preserved, and standalone Standard item validation remains unchanged.
+- 2026-07-02: Verification passed focused Vitest, TypeScript, docs/codemap verification, whitespace, and `npm run build:app`.
+
+---
+
+## Active: Kiosk checkout details scanner polish (2026-07-02)
+
+Scope: improve the dedicated kiosk checkout details step before Start Scanning.
+
+- [x] Replace the compact return `DatePicker` field that requires long-press behavior on the old iPad with native quick selects and an inline wheel picker behind Custom.
+- [x] Make upcoming event selection more prominent than a compact menu.
+- [x] Add better quick return-time choices and keep event-end autofill available.
+- [x] Add source-contract coverage and sync kiosk/mobile docs.
+- [x] Run focused tests, iOS drift/audit, docs verification, whitespace, and Xcode verification for kiosk plus main app.
+
+### Review
+- 2026-07-02: Started from the current kiosk checkout source after the physical iPad confirmed the scanner-keyboard fix. This slice stays client-only: no API payload changes, no server contract changes, and no changes to kiosk custody boundaries.
+- 2026-07-02: Checkout Details now centers the pre-scan form, hides the empty scanned-items rail until scan mode, uses native bordered return-time quick selects with an inline wheel picker behind Custom, shows selectable upcoming-event cards with a More menu fallback, and keeps return quick-selects for 2 hr, 4 hr, Tonight, Tomorrow AM, 24 hr, and Event End.
+- 2026-07-02: Verification passed focused kiosk/source-contract Vitest coverage, XcodeGen project check, iOS drift, iOS gap audit, docs verification after codemap refresh, whitespace, and unsandboxed Xcode verification for both `WisconsinKiosk` and `Wisconsin`. The audit still reports the pre-existing unregistered `CreateBooking/CreateBookingEquipmentPicker.swift` warning while keeping 44/44 audit-worthy surfaces covered.
+- 2026-07-02: User correction rejected the custom return-time sheet and noisy purpose quick labels. Follow-up removed the sheet, shifted the setup phase to a focused centered form, converted quick choices to native bordered controls, removed Repair/Test, Game Prep, and Walk-up, and added Event as the no-event quick-purpose option.
+- 2026-07-02: Follow-up verification passed focused kiosk checkout/source-contract tests, XcodeGen project check, iOS drift, iOS gap audit, docs verification, whitespace, and unsandboxed Xcode verification for both `WisconsinKiosk` and `Wisconsin`.
+
+---
+
+## Active: Kiosk HID scanner keyboard recovery (2026-07-02)
+
+Scope: keep native iPad software keyboard typing usable while a Bluetooth HID scanner is connected and awake.
+
+- [x] Trace focus ownership between the hidden HID scanner sink and visible kiosk text fields.
+- [x] Add a shared scanner focus gate so visible UIKit text fields can suppress scanner re-focus while editing.
+- [x] Add source-contract coverage for the focus gate and native keyboard field behavior.
+- [x] Run focused tests, iOS drift/audit, docs verification, whitespace, and kiosk Xcode verification.
+
+### Review
+- 2026-07-02: Root cause found in `HIDScannerField` auto-reacquiring first responder after every focus loss. On iPadOS with the scanner paired as a keyboard, that steals focus back from visible text fields after each typed character. The local fix gates scanner focus while `KioskNativeTextField` is actively editing.
+- 2026-07-02: Verification passed focused Vitest, XcodeGen project check, iOS drift, iOS audit gaps, docs verification, whitespace, and unsandboxed Xcode verification for both `WisconsinKiosk` and `Wisconsin`. The iOS audit still reports the pre-existing unregistered `CreateBooking/CreateBookingEquipmentPicker.swift` warning while keeping 44/44 audit-worthy surfaces covered.
+- 2026-07-02: Screen-recording review showed the keyboard collapse happens in checkout details before Start Scanning, so the scan-phase HID field is not the only path. The first visible-field fix reasserted SwiftUI focus on every edit, but live logs showed AttributeGraph cycles. `KioskNativeTextField` now avoids the SwiftUI focus loop and instead uses a UIKit text-field subclass that rejects only immediate post-keypress resign attempts, while still allowing explicit Return/Done and unprotected focus changes.
+
+---
+
+## Active: Main iOS app kiosk removal (2026-07-02)
+
+Scope: remove kiosk mode from the main `Wisconsin` app now that `WisconsinKiosk` is the dedicated kiosk build.
+
+- [x] Remove main-app kiosk state, root-view routing, and `wisconsin://kiosk` handling.
+- [x] Remove the DEBUG Settings -> Tools Kiosk Mode launcher.
+- [x] Exclude `Wisconsin/Kiosk/**` from the main app target while preserving the `WisconsinKiosk` target.
+- [x] Sync docs and verify source contracts, project drift, iOS drift/audit, and Xcode builds.
+
+### Review
+- 2026-07-02: Main app kiosk mode removed locally. `WisconsinApp` no longer injects `KioskStore`, routes to `KioskShellView`, or handles `wisconsin://kiosk`; Profile no longer shows the DEBUG Kiosk Mode launcher; AppDelegate no longer locks orientation for kiosk state; and the full `Wisconsin` target excludes `Wisconsin/Kiosk/**`. The reusable HID scanner sink moved to `Shared/HIDScannerField.swift` so the main app Scanner Debugger and `WisconsinKiosk` can share it without compiling kiosk screens into the main app. Verification passed focused Vitest, XcodeGen project check, iOS drift, docs/codemap check, whitespace, and unsandboxed Xcode verification for both `Wisconsin` and `WisconsinKiosk`. The iOS audit inventory remains 44/44 covered with the pre-existing unregistered `CreateBooking/CreateBookingEquipmentPicker.swift` warning.
+
+---
+
 ## Active: iOS Snow Leopard release polish (2026-07-02)
 
 Plan: `tasks/ios-snow-leopard-release-plan.md`

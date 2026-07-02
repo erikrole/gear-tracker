@@ -4,15 +4,15 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped — iOS canonical (web kiosk deprecated 2026-04-24)
 - Created: 2026-04-07
-- Last Updated: 2026-07-01
+- Last Updated: 2026-07-02
 - Brief: `BRIEF_KIOSK.md`
 - Decision Refs: D-030, D-040
 
 ## Description
 
-Self-serve iPad kiosk for gear checkout / reservation pickup / return at the equipment counter, plus on-the-floor kiosk activation by staff carrying an iPad. Implementation lives in the **native iOS app** (`ios/Wisconsin/Kiosk/`). The previously-shipped web kiosk surface (`src/app/(kiosk)/kiosk/`) was deleted on 2026-04-24 to remove the dual-implementation maintenance burden — iPads run the Wisconsin app directly and flip into kiosk mode via `KioskStore`.
+Self-serve iPad kiosk for gear checkout / reservation pickup / return at the equipment counter, plus on-the-floor kiosk activation by staff carrying an iPad. Implementation lives in the dedicated native `WisconsinKiosk` target under `ios/Wisconsin/Kiosk/`. The previously-shipped web kiosk surface (`src/app/(kiosk)/kiosk/`) was deleted on 2026-04-24 to remove the dual-implementation maintenance burden. Kiosk iPads run the separate kiosk app directly; the main `Wisconsin` app no longer includes kiosk mode or kiosk source files.
 
-For older dedicated kiosk hardware, the repo also ships a separate native `WisconsinKiosk` iOS target. That target is iPad-only, deploys to iOS 17.0+, and includes only `ios/Wisconsin/Kiosk/`, `ios/Wisconsin/KioskOnly/`, `ios/Wisconsin/Shared/`, app assets, and resources. The full `Wisconsin` app target remains iOS 26.0 and continues to own the normal authenticated mobile app surfaces.
+The dedicated `WisconsinKiosk` iOS target is iPad-only, deploys to iOS 17.0+, and includes only `ios/Wisconsin/Kiosk/`, `ios/Wisconsin/KioskOnly/`, `ios/Wisconsin/Shared/`, app assets, and resources. The full `Wisconsin` app target remains iOS 26.0 and continues to own the normal authenticated mobile app surfaces.
 
 ## Trust Model
 
@@ -42,7 +42,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 - **`KioskPickupView.swift`** — for reservation pickup handoffs and compatibility `PENDING_PICKUP` bookings.
 - **`KioskReturnView.swift`** — return flow.
 - **`KioskSuccessView.swift`** — terminal screen with 5s auto-return to idle.
-- **`KioskScannerField.swift`** — invisible UITextField that captures HID barcode-scanner keystrokes.
+- **`Shared/HIDScannerField.swift`** — invisible UITextField that captures HID barcode-scanner keystrokes. Shared by the dedicated kiosk target and the main app's Scanner Debugger.
 - **`KioskBarcodeCameraView.swift`** — DataScannerViewController-backed camera fallback for environments without a hand scanner.
 - **`KioskAPIClient.swift`** — typed wrapper around `/api/kiosk/*` endpoints.
 - **`KioskModels.swift`** — Codable types matching the kiosk API responses.
@@ -110,6 +110,9 @@ Files under `ios/Wisconsin/Kiosk/`:
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-07-02 | Native kiosk checkout details polish: the pre-scan setup phase is now centered without the empty scanned-items rail, return time uses native bordered quick selects plus an inline native wheel DatePicker under Custom instead of a custom picker sheet or compact DatePicker field, and upcoming events appear as prominent selectable cards with a More menu fallback. Purpose quick choices are intentionally narrow: Event, Practice, Shoot, and Media Day when no event is selected, with event-specific detail chips after selection. |
+| 2026-07-02 | Native kiosk Bluetooth-scanner keyboard recovery hardened. The shared hidden HID scanner sink now honors a focus gate while visible UIKit-backed kiosk text fields are editing, so a scanner double-press can show the iPad software keyboard and the keyboard stays open across typed letters instead of being stolen back by scanner capture. |
+| 2026-07-02 | Main app kiosk removal shipped locally. The full `Wisconsin` target now excludes `Wisconsin/Kiosk/**`, no longer injects `KioskStore`, no longer handles `wisconsin://kiosk`, and Settings no longer exposes DEBUG Kiosk Mode. `WisconsinKiosk` remains the dedicated iPad-only target and starts directly in `KioskShellView`. |
 | 2026-07-01 | Security audit: kiosk activation codes are now single-use and time-limited. Added `activation_code_expires_at` (migration 0089) and made `activation_code` nullable. Codes are issued with a 24h expiry on create and reset; `/api/kiosk/activate` rejects expired codes and atomically clears the code on redemption (guarded `updateMany` so two concurrent redemptions can't both win). Always-on kiosks are unaffected — the sliding 7-day session keeps them signed in, so this never forces the fleet to re-activate. Previously a code stayed valid forever and could be replayed. |
 | 2026-07-01 | Wisconsin Creative domain cutover slice 1 moved native kiosk API base URL and `kiosk_session` cookie host to the shared `AppEnvironment` canonical host, `wisconsincreative.com`. The kiosk-only target now compiles `ios/Wisconsin/Shared/` so the full app and dedicated kiosk app cannot drift to different production hosts. |
 | 2026-06-29 | Active checkout numbered-battery preservation fixed. General booking detail edits on an `OPEN` checkout now preserve existing equipment rows and numbered bulk unit allocations unless the request explicitly changes equipment, preventing a title/notes/return-time edit from collapsing Sony Battery `#19/#27/#30/#39` into a quantity-only `4`. Kiosk dashboard and checkout detail payloads also render a read-only quantity fallback when legacy/live data has bulk quantity without allocation rows, so the iPad no longer shows an empty active checkout. |

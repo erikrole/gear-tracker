@@ -58,7 +58,7 @@ struct KioskPickupView: View {
                 .frame(width: 400)
         }
         .overlay(alignment: .bottom) {
-            KioskScannerField { value in handleScan(value) }
+            HIDScannerField { value in handleScan(value) }
                 .frame(width: 1, height: 1)
                 .opacity(0)
         }

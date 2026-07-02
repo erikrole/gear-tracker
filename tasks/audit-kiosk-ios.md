@@ -76,7 +76,7 @@ All AC-1 through AC-13 are listed as ✅ in the AREA doc. Confirming against iOS
 - [x] AC-2 6-digit activation — `KioskActivationView.swift:50, 72`
 - [x] AC-3 Idle with live stats — `KioskIdleView.swift:39-101`
 - [x] AC-4 Checkout in ≤3 taps — pick name → scan → Complete = 3 + N scans
-- [x] AC-5 Hand scanner input — `KioskScannerField.swift` (HID, suppresses keyboard)
+- [x] AC-5 Hand scanner input — `Shared/HIDScannerField.swift` (HID, suppresses keyboard)
 - [x] AC-6 Camera + manual fallbacks — _partial — I see the HID scanner field but no camera fallback path in iOS_; web kiosk had `ScanInput.tsx` with all three modes. Verify on iOS or downgrade AC-6 status.
 - [x] AC-7 Return flow — `KioskReturnView.swift` exists (not read in detail)
 - [x] AC-8 Scan lookup — exists in iOS view set
@@ -103,7 +103,7 @@ All AC-1 through AC-13 are listed as ✅ in the AREA doc. Confirming against iOS
 - ios/Wisconsin/Kiosk/KioskActivationView.swift
 - ios/Wisconsin/Kiosk/KioskIdleView.swift
 - ios/Wisconsin/Kiosk/KioskCheckoutView.swift
-- ios/Wisconsin/Kiosk/KioskScannerField.swift
+- ios/Wisconsin/Shared/HIDScannerField.swift
 - src/app/(kiosk)/kiosk/page.tsx (verifying dead-code claim)
 - File list under src/app/(kiosk)/kiosk/_components/ and ios/Wisconsin/Kiosk/
 

@@ -74,7 +74,7 @@ struct KioskIdleView: View {
                 // asleep, unmount the hidden HID field so it can't swallow input
                 // or fight a presented view for first responder.
                 if !isScannerPaused {
-                    KioskScannerField { value in
+                    HIDScannerField { value in
                         handleIdentityScan(value)
                     }
                     .frame(width: 1, height: 1)

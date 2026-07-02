@@ -8,7 +8,6 @@ struct WisconsinApp: App {
     @State private var session = SessionStore()
     @State private var appState = AppState()
     @State private var network = NetworkMonitor()
-    @State private var kioskStore = KioskStore()
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("WisconsinThemeChoice") private var themeChoice: ThemeChoice = .system
 
@@ -18,11 +17,9 @@ struct WisconsinApp: App {
                 .environment(session)
                 .environment(appState)
                 .environment(network)
-                .environment(kioskStore)
                 .preferredColorScheme(themeChoice.colorScheme)
                 .onAppear {
                     sharedAppState = appState
-                    sharedKioskStore = kioskStore
                 }
                 .onChange(of: session.currentUser) { old, user in
                     if user == nil, old != nil {
@@ -59,9 +56,7 @@ struct WisconsinApp: App {
                     }
                 }
                 .onOpenURL { url in
-                    if url.scheme == "wisconsin", url.host == "kiosk" {
-                        kioskStore.enterKiosk()
-                    } else if url.scheme == "wisconsin", url.host == "booking" {
+                    if url.scheme == "wisconsin", url.host == "booking" {
                         let bookingId = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
                         guard !bookingId.isEmpty else { return }
                         appState.pendingPushBookingId = bookingId
@@ -89,7 +84,6 @@ struct WisconsinApp: App {
 
 struct RootView: View {
     @Environment(SessionStore.self) private var session
-    @Environment(KioskStore.self) private var kiosk
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showPushPrePrompt = false
 
@@ -97,8 +91,6 @@ struct RootView: View {
         Group {
             if session.isRestoring {
                 Color(.systemBackground).ignoresSafeArea()
-            } else if kiosk.isActive {
-                KioskShellView()
             } else if let user = session.currentUser, user.forcePasswordChange {
                 PasswordSetupView(email: user.email)
             } else if session.currentUser != nil {

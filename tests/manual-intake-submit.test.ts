@@ -102,4 +102,50 @@ describe("manual Standard item intake payload", () => {
       availableForCustody: false,
     });
   });
+
+  it("generates a quiet internal asset tag for a parented attachment when the visible tag is blank", () => {
+    const body = buildSerializedItemSubmitBody({
+      ...baseInput,
+      assetTag: " ",
+      itemName: "FX3 Handle",
+      qrCodeValue: " qr-fx3-handle-0007 ",
+      isAccessory: true,
+      parentAssetId: "cmparentasset000000000001",
+      parentAsset: {
+        assetTag: "FX3 1",
+        name: "Sony FX3 Body 1",
+        brand: "Sony",
+        model: "FX3",
+      },
+    });
+
+    expect(body).toMatchObject({
+      assetTag: "ATT FX3 1 FX3 Handle NDLE0007",
+      parentAssetId: "cmparentasset000000000001",
+      availableForReservation: false,
+      availableForCheckout: false,
+      availableForCustody: false,
+    });
+  });
+
+  it("keeps an explicit attachment asset tag when the operator provides one", () => {
+    const body = buildSerializedItemSubmitBody({
+      ...baseInput,
+      assetTag: " FX3 1 Handle ",
+      itemName: "FX3 Handle",
+      isAccessory: true,
+      parentAssetId: "cmparentasset000000000001",
+      parentAsset: {
+        assetTag: "FX3 1",
+        name: "Sony FX3 Body 1",
+        brand: "Sony",
+        model: "FX3",
+      },
+    });
+
+    expect(body).toMatchObject({
+      assetTag: "FX3 1 Handle",
+      parentAssetId: "cmparentasset000000000001",
+    });
+  });
 });

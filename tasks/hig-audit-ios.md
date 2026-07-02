@@ -202,7 +202,7 @@ These are project-wide patterns to adopt in a single sweep before per-screen pol
       Cite: HIG Feedback / Haptics
 
 - [ ] **P2 — [Accessibility] No VoiceOver fallback for camera scan.**
-      When `UIAccessibility.isVoiceOverRunning`, show a manual `TextField` (already plumbed via `KioskScannerField`) so VO users can type a code.
+      When `UIAccessibility.isVoiceOverRunning`, show a manual `TextField` (already plumbed via `HIDScannerField`) so VO users can type a code.
 
 - [ ] **P2 — [Color] `ProgressView().tint(.white)` hardcoded.** `:25-29`. Drop the tint — system handles contrast.
 

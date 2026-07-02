@@ -110,6 +110,10 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
     const parentSearch = useParentSearch();
 
     const isMobile = useIsMobile();
+    const assetTagRequired = !isAccessory;
+    const identityDescription = isAccessory
+      ? "Attachments can leave the visible asset tag blank. A quiet internal tag is generated from the parent item, attachment identity, and QR code."
+      : "Fast intake needs the asset tag, category, location, and QR code. Product details can be filled in later.";
 
     // Optional photo selected before create. The server upload still happens after
     // asset creation because the image endpoint is asset-id based.
@@ -163,8 +167,8 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
 
     useImperativeHandle(ref, () => ({
       validate() {
-        if (!assetTag.trim()) return "Asset tag is required.";
-        if (assetTagError) return assetTagError;
+        if (assetTagRequired && !assetTag.trim()) return "Asset tag is required.";
+        if (assetTag.trim() && assetTagError) return assetTagError;
         if (!qrCodeValue.trim()) return "QR code is required.";
         if (!categoryId) return "Please select a category.";
         if (!locationId) return "Please select a location.";
@@ -197,6 +201,14 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
           availableForCustody,
           isAccessory,
           parentAssetId: parentAsset?.id,
+          parentAsset: parentAsset
+            ? {
+                assetTag: parentAsset.assetTag,
+                name: parentAsset.name,
+                brand: parentAsset.brand,
+                model: parentAsset.model,
+              }
+            : undefined,
         });
       },
       getPendingImageFile() {
@@ -244,21 +256,26 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
           title="Identity"
           badge="Fast intake"
           badgeVariant="blue"
-          description="Fast intake needs the asset tag, category, location, and QR code. Product details can be filled in later."
+          description={identityDescription}
         >
-          <FormRow label="Asset tag" htmlFor="new-item-asset-tag" required>
+          <FormRow label="Asset tag" htmlFor="new-item-asset-tag" required={assetTagRequired}>
             <Input
               id="new-item-asset-tag"
               name="assetTag"
               ref={assetTagInputRef}
               value={assetTag}
               onChange={(e) => { setAssetTag(e.target.value); setAssetTagError(""); setAssetTagSummary(null); }}
-              placeholder="Unique tag name"
+              placeholder={isAccessory ? "Optional for attachments" : "Unique tag name"}
               autoComplete="off"
-              required
+              required={assetTagRequired}
               className={assetTagError ? "border-destructive" : undefined}
             />
             {assetTagError && <p className="text-sm text-destructive mt-1">{assetTagError}</p>}
+            {isAccessory && !assetTag.trim() && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Leave blank to generate an internal tag. The physical label can stay QR-only with your parent number beside it.
+              </p>
+            )}
             {!assetTagError && assetTagSummary && assetTag.trim() && (
               <p className="mt-1 text-sm text-muted-foreground">
                 {`${assetTagSummary.existingCount} existing ${assetTagSummary.base} ${assetTagSummary.existingCount === 1 ? "item" : "items"}. Suggested next tag: ${assetTagSummary.nextTag}.`}

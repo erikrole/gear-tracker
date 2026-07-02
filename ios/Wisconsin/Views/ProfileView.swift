@@ -7,7 +7,6 @@ import UserNotifications
 struct ProfileView: View {
     @Environment(SessionStore.self) private var session
     @Environment(AppState.self) private var appState
-    @Environment(KioskStore.self) private var kioskStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @State private var showSignOutConfirm = false
@@ -29,14 +28,6 @@ struct ProfileView: View {
     private var isStudentWorker: Bool {
         if session.currentUser?.staffingType == "ST" { return true }
         return session.currentUser?.staffingType == nil && (session.currentUser?.role ?? "") == "STUDENT"
-    }
-
-    private var canLaunchKioskDebug: Bool {
-#if DEBUG
-        UIDevice.current.userInterfaceIdiom == .pad
-#else
-        false
-#endif
     }
 
     var body: some View {
@@ -326,20 +317,6 @@ struct ProfileView: View {
                     tint: Color.statusText(.green)
                 ) {
                     EmptyView()
-                }
-            }
-            if canLaunchKioskDebug {
-                Button {
-                    kioskStore.enterKiosk()
-                } label: {
-                    SettingsMenuRow(
-                        title: "Kiosk Mode",
-                        subtitle: "Open the kiosk shell on this iPad.",
-                        systemImage: "barcode.viewfinder",
-                        tint: Color.statusText(.red)
-                    ) {
-                        EmptyView()
-                    }
                 }
             }
         }

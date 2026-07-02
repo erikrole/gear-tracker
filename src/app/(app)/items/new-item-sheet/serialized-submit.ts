@@ -23,13 +23,53 @@ export type SerializedSubmitInput = {
   availableForCustody: boolean;
   isAccessory: boolean;
   parentAssetId?: string;
+  parentAsset?: {
+    assetTag?: string | null;
+    name?: string | null;
+    brand?: string | null;
+    model?: string | null;
+  };
 };
 
 function trimmed(value: string) {
   return value.trim();
 }
 
+const GENERATED_ATTACHMENT_TAG_MAX_LENGTH = 120;
 const USD_PRICE_PATTERN = /^\$?\s*(?:(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{0,2})?|\.\d{1,2})\s*$/;
+
+function cleanTagPart(value: string | null | undefined): string {
+  return (value ?? "")
+    .trim()
+    .replace(/[^A-Za-z0-9 .#_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildQrSuffix(qrCodeValue: string): string {
+  const compact = qrCodeValue.replace(/[^A-Za-z0-9]+/g, "").toUpperCase();
+  return compact ? compact.slice(-8) : "UNLABELED";
+}
+
+export function buildAttachmentInternalAssetTag(input: SerializedSubmitInput): string {
+  const parentLabel = cleanTagPart(input.parentAsset?.assetTag) || "PARENT";
+  const attachmentLabel =
+    cleanTagPart(input.itemName) ||
+    cleanTagPart(input.model) ||
+    cleanTagPart(input.brand) ||
+    "Attachment";
+  const suffix = buildQrSuffix(input.qrCodeValue);
+  const generated = `ATT ${parentLabel} ${attachmentLabel} ${suffix}`;
+
+  return generated.slice(0, GENERATED_ATTACHMENT_TAG_MAX_LENGTH).trim();
+}
+
+function resolveAssetTag(input: SerializedSubmitInput): string {
+  const explicitTag = trimmed(input.assetTag);
+  if (explicitTag) return explicitTag;
+  if (input.isAccessory) return buildAttachmentInternalAssetTag(input);
+  return explicitTag;
+}
 
 export function parseUsdPriceInput(value: string): number | undefined {
   const input = trimmed(value);
@@ -52,7 +92,7 @@ export function buildSerializedItemSubmitBody(input: SerializedSubmitInput): Rec
   const purchasePrice = parseUsdPriceInput(input.purchasePrice);
 
   return {
-    assetTag: trimmed(input.assetTag),
+    assetTag: resolveAssetTag(input),
     type: "equipment",
     brand: trimmed(input.brand) || UNKNOWN_ITEM_METADATA,
     model: trimmed(input.model) || UNKNOWN_ITEM_METADATA,

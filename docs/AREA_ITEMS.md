@@ -126,7 +126,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 #### Standard
 1. Tracking style = Standard
-2. `tagName` (required)
+2. `tagName` (required for standalone Standard items; optional for parented attachments because the app generates a quiet internal tag when blank)
 3. Category (required)
 4. Location (required)
 5. QR code / tracking code (required)
@@ -177,11 +177,12 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 ### Validation and Save Behavior
 1. Save is blocked on missing required fields.
 2. Save is blocked on duplicate serialized identity collisions (for example duplicate `tagName` policy if required).
-3. Standard manual intake keeps asset tag, category, location, and QR code required while allowing product name, brand, model, and department to be filled later.
-4. Blank Standard brand/model values submit explicit `Unknown` placeholders until operators replace them, preserving the current non-null asset schema without blocking high-volume intake.
-5. Submit disables form controls, guards rapid duplicate submits, handles expired sessions through the shared auth redirect, and shows form-level errors for validation, permission, server, or network failures.
-6. Save returns user to list, opens the created/updated record, offers the image step for serialized assets, or allows `Add another` continuation.
-7. The sheet does not persist drafts in V1. Long-lived draft recovery remains reserved for full-page wizard flows such as booking creation.
+3. Standard manual intake keeps asset tag, category, location, and QR code required for standalone items while allowing product name, brand, model, and department to be filled later.
+4. Standard attachments keep category, location, parent item, and QR code required, but the visible asset tag field may be blank. Blank attachment tags submit a generated internal tag from the parent, attachment identity, and QR code so the physical label can stay QR-only with a nearby parent number.
+5. Blank Standard brand/model values submit explicit `Unknown` placeholders until operators replace them, preserving the current non-null asset schema without blocking high-volume intake.
+6. Submit disables form controls, guards rapid duplicate submits, handles expired sessions through the shared auth redirect, and shows form-level errors for validation, permission, server, or network failures.
+7. Save returns user to list, opens the created/updated record, offers the image step for serialized assets, or allows `Add another` continuation.
+8. The sheet does not persist drafts in V1. Long-lived draft recovery remains reserved for full-page wizard flows such as booking creation.
 
 ## Item Detail Surface (V1)
 
@@ -426,6 +427,7 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-07-02: Attachment intake can now leave the visible Standard asset tag blank when the item is tied to a parent. The form still requires QR code, category, location, and parent item, then submits a generated internal tag so small fixed accessories can carry only the QR label and a nearby parent number.
 - 2026-07-02: Attachment policy consistency tightened. Attaching an existing serialized item to a parent now disables checkout, reservation, and custody eligibility together, matching new attachment intake and keeping fixed camera parts quiet but findable through parent detail and direct scan/search. Detaching restores standalone eligibility.
 - 2026-06-30: Native iOS tag-first list parity applies the Items identity contract outside the main Items screen. Serialized assets and numbered bulk units use the operational tag as the primary Gotham header in booking equipment, create-booking picker/review rows, Search, kiosk checkout/pickup/return lists, active checkout drawers, flagged item alerts, and utility pickers; product/model/SKU names move to secondary copy when a tag exists.
 - 2026-06-30: Native iOS Items control cleanup moved Favorites, Status, and Sort from the horizontal custom pill strip into SwiftUI toolbar controls and native `Menu`s while preserving the existing `.searchable` list search, row actions, web-backed sort choices, and reload behavior.

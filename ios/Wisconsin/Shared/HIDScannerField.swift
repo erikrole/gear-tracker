@@ -1,11 +1,27 @@
 import SwiftUI
 import UIKit
 
+enum HIDScannerFocusGate {
+    private static let defaultSuppressionDuration: TimeInterval = 20
+    private static var suppressedUntil = Date.distantPast
+
+    static var canAcquireScannerFocus: Bool {
+        Date() >= suppressedUntil
+    }
+
+    static func suppressScannerFocus(for duration: TimeInterval = defaultSuppressionDuration) {
+        let nextSuppression = Date().addingTimeInterval(duration)
+        if nextSuppression > suppressedUntil {
+            suppressedUntil = nextSuppression
+        }
+    }
+}
+
 // UIViewRepresentable text field for Bluetooth HID barcode scanners.
 // Suppresses the on-screen keyboard (inputView = UIView()) while still
 // capturing keystrokes from HID devices. Re-acquires first responder while
-// enabled so the scanner stays active during dedicated scan phases.
-struct KioskScannerField: UIViewRepresentable {
+// enabled so scanner capture remains active during dedicated scan phases.
+struct HIDScannerField: UIViewRepresentable {
     private static let scannerIdleFlushDelay: TimeInterval = 0.5
 
     let isEnabled: Bool
@@ -24,7 +40,7 @@ struct KioskScannerField: UIViewRepresentable {
 
     func makeUIView(context: Context) -> UITextField {
         let field = HIDTextField()
-        field.inputView = UIView()          // suppress software keyboard
+        field.inputView = UIView()
         field.autocorrectionType = .no
         field.spellCheckingType = .no
         field.autocapitalizationType = .none
@@ -32,7 +48,7 @@ struct KioskScannerField: UIViewRepresentable {
         field.inputAssistantItem.leadingBarButtonGroups = []
         field.inputAssistantItem.trailingBarButtonGroups = []
         field.delegate = context.coordinator
-        field.tintColor = .clear            // hide cursor
+        field.tintColor = .clear
         return field
     }
 
@@ -46,8 +62,11 @@ struct KioskScannerField: UIViewRepresentable {
             return
         }
 
-        if !uiView.isFirstResponder {
-            DispatchQueue.main.async { uiView.becomeFirstResponder() }
+        if !uiView.isFirstResponder, HIDScannerFocusGate.canAcquireScannerFocus {
+            DispatchQueue.main.async {
+                guard HIDScannerFocusGate.canAcquireScannerFocus else { return }
+                uiView.becomeFirstResponder()
+            }
         }
         uiView.inputAssistantItem.leadingBarButtonGroups = []
         uiView.inputAssistantItem.trailingBarButtonGroups = []
@@ -118,11 +137,10 @@ struct KioskScannerField: UIViewRepresentable {
             return false
         }
 
-        // Re-acquire focus if something else steals it
         func textFieldDidEndEditing(_ textField: UITextField) {
             onFocusChange?(false)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self, weak textField] in
-                guard let self, self.isEnabled, let textField else { return }
+                guard let self, self.isEnabled, let textField, HIDScannerFocusGate.canAcquireScannerFocus else { return }
                 textField.becomeFirstResponder()
             }
         }
@@ -135,7 +153,7 @@ struct KioskScannerField: UIViewRepresentable {
                 self.submit(textField.text ?? "", textField: textField)
             }
             pendingFlush = workItem
-            DispatchQueue.main.asyncAfter(deadline: .now() + KioskScannerField.scannerIdleFlushDelay, execute: workItem)
+            DispatchQueue.main.asyncAfter(deadline: .now() + HIDScannerField.scannerIdleFlushDelay, execute: workItem)
         }
 
         private func submit(_ text: String, textField: UITextField) {
@@ -150,7 +168,7 @@ struct KioskScannerField: UIViewRepresentable {
 }
 
 // Custom UITextField used only as a HID scanner sink. Focus ownership is
-// controlled by KioskScannerField's enabled state.
+// controlled by HIDScannerField's enabled state.
 private final class HIDTextField: UITextField {
     override var canBecomeFirstResponder: Bool { true }
 }

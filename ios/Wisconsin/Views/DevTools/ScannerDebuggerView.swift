@@ -80,7 +80,7 @@ struct ScannerDebuggerView: View {
                 }
             }
             .overlay(alignment: .bottom) {
-                KioskScannerField { value in
+                HIDScannerField { value in
                     handleScan(value)
                 }
                 .frame(width: 1, height: 1)

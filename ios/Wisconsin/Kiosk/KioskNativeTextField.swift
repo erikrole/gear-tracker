@@ -9,7 +9,7 @@ struct KioskNativeTextField: UIViewRepresentable {
     @Binding var isFocused: Bool
 
     func makeUIView(context: Context) -> UITextField {
-        let field = UITextField()
+        let field = KioskKeyboardTextField()
         field.delegate = context.coordinator
         field.borderStyle = .none
         field.backgroundColor = .clear
@@ -42,10 +42,21 @@ struct KioskNativeTextField: UIViewRepresentable {
         uiView.inputAssistantItem.leadingBarButtonGroups = []
         uiView.inputAssistantItem.trailingBarButtonGroups = []
 
+        if isFocused {
+            HIDScannerFocusGate.suppressScannerFocus()
+        }
+
         if isFocused, !uiView.isFirstResponder {
-            DispatchQueue.main.async { uiView.becomeFirstResponder() }
+            DispatchQueue.main.async {
+                HIDScannerFocusGate.suppressScannerFocus()
+                uiView.becomeFirstResponder()
+            }
         } else if !isFocused, uiView.isFirstResponder {
-            uiView.resignFirstResponder()
+            if let field = uiView as? KioskKeyboardTextField {
+                field.resignIfUnprotected()
+            } else {
+                uiView.resignFirstResponder()
+            }
         }
     }
 
@@ -61,10 +72,14 @@ struct KioskNativeTextField: UIViewRepresentable {
         }
 
         @objc func textDidChange(_ textField: UITextField) {
+            (textField as? KioskKeyboardTextField)?.protectKeyboard()
+            HIDScannerFocusGate.suppressScannerFocus()
             parent.text = textField.text ?? ""
         }
 
         func textFieldDidBeginEditing(_ textField: UITextField) {
+            (textField as? KioskKeyboardTextField)?.protectKeyboard()
+            HIDScannerFocusGate.suppressScannerFocus()
             parent.isFocused = true
         }
 
@@ -74,8 +89,40 @@ struct KioskNativeTextField: UIViewRepresentable {
 
         func textFieldShouldReturn(_ textField: UITextField) -> Bool {
             parent.isFocused = false
-            textField.resignFirstResponder()
+            if let field = textField as? KioskKeyboardTextField {
+                field.forceResignFirstResponder()
+            } else {
+                textField.resignFirstResponder()
+            }
             return false
         }
+    }
+}
+
+private final class KioskKeyboardTextField: UITextField {
+    private static let resignProtectionDuration: TimeInterval = 1.2
+    private var protectedUntil = Date.distantPast
+    private var allowsForcedResign = false
+
+    func protectKeyboard() {
+        protectedUntil = Date().addingTimeInterval(Self.resignProtectionDuration)
+    }
+
+    func resignIfUnprotected() {
+        guard Date() >= protectedUntil else { return }
+        forceResignFirstResponder()
+    }
+
+    func forceResignFirstResponder() {
+        allowsForcedResign = true
+        defer { allowsForcedResign = false }
+        _ = super.resignFirstResponder()
+    }
+
+    override func resignFirstResponder() -> Bool {
+        if !allowsForcedResign, Date() < protectedUntil {
+            return false
+        }
+        return super.resignFirstResponder()
     }
 }

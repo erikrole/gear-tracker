@@ -38,6 +38,9 @@ describe("Add item sheet booking-inspired UI", () => {
     expect(comboboxSource).toContain("id?: string;");
     expect(comboboxSource).toContain("id={id}");
     expect(standardSource).toContain('label="Asset tag" htmlFor="new-item-asset-tag"');
+    expect(standardSource).toContain("required={assetTagRequired}");
+    expect(standardSource).toContain("Optional for attachments");
+    expect(standardSource).toContain("Leave blank to generate an internal tag.");
     expect(standardSource).toContain('label="Category" htmlFor="new-item-category"');
     expect(standardSource).toContain('htmlFor="new-item-is-accessory"');
     expect(standardSource).toContain('htmlFor="new-item-available-for-reservation"');

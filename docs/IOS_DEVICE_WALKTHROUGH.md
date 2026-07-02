@@ -126,9 +126,12 @@ Iterate the slider through every step from the smallest to "Larger Accessibility
 
 - [ ] **Pair a Bluetooth barcode scanner** to the iPad in iOS Settings.
 - [ ] Activate kiosk mode. Open kiosk checkout for a test student.
-- [ ] **HID scan inputs land in the cart** — pull the scanner trigger over a real sticker. The `KioskScannerField` is hidden but always-first-responder; the scan should add the item to the cart with success haptic.
+- [ ] **Checkout Details event selector** — before Start Scanning, upcoming events appear as large selectable cards; tapping a card selects it, updates the checkout context, and keeps the More menu available for the rest of the 7-day event list.
+- [ ] **Checkout Details return time** — use quick choices such as 2 hr, 4 hr, Tonight, Tomorrow AM, 24 hr, and Event End when valid. Tap Custom to reveal the inline native wheel picker; date/time changes should work with normal taps and scrolling, not long-press.
+- [ ] **HID scan inputs land in the cart** — pull the scanner trigger over a real sticker. The `HIDScannerField` is hidden but always-first-responder; the scan should add the item to the cart with success haptic.
 - [ ] **Tap a UI element to "steal" focus** — the field's `textFieldDidEndEditing` re-acquires within 150ms. Pull the trigger again — still works.
 - [ ] **HID dedupe** — pull the trigger twice quickly on the same code. Only one cart entry (server idempotent + iOS dedupe).
+- [ ] **Native keyboard with scanner awake** — in checkout details or active-checkout edit details, double-press the scanner trigger to show the iPad software keyboard, tap into a text field, and type several letters. The keyboard stays open after each character and the typed text lands in the visible field, not the hidden scanner sink.
 - [ ] **Camera fallback while HID is connected** — tap the Camera button. Camera fallback opens. HID scans should NOT register while the camera sheet is up (or at least not corrupt the cart). After dismissing the camera, HID resumes.
 
 ### Network instability
@@ -335,11 +338,11 @@ Reachable from: Bookings tab `+`, Items list swipe + context menu, Item Detail R
 
 ## Kiosk surfaces (separate iPad)
 
-Kiosk runs on a dedicated iPad in landscape mode with Guided Access locked. Activate via deeplink `wisconsin://kiosk` or via the DEBUG-only "Kiosk Mode" item in Settings → Tools on iPad.
+Kiosk runs as the dedicated `WisconsinKiosk` app on a dedicated iPad in landscape mode with Guided Access locked. Launch the `WisconsinKiosk` target from Xcode or TestFlight and activate through its activation screen.
 
 ### Activation
 
-- [ ] Cold install → kiosk URL → blank activation screen.
+- [ ] Cold install -> launch `WisconsinKiosk` -> blank activation screen.
 - [ ] **Keyboard activation** — with a first-party iPad keyboard case attached, type the 6-digit code. Digits fill the boxes, delete removes digits, and Return submits when all 6 digits are present.
 - [ ] **Paste activation code** — generate a code on web `/settings/kiosk-devices`, copy to clipboard, switch to iPad, tap "Paste Code" or press Command-V. A 6-digit code fills + auto-submits; short or invalid clipboard text surfaces a clear error.
 - [ ] Numpad keys disable when not actionable (✓ at <6, ⌫ at empty).

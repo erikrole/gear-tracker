@@ -6,7 +6,7 @@
 
 Scope: `KioskCheckoutView` in `ios/Wisconsin/Kiosk/KioskCheckoutView.swift` plus its camera fallback `KioskBarcodeCameraView.swift`. Fourth kiosk-surface follow-up after activation, idle, and student-hub passes shipped earlier today.
 
-**Surrounding context:** kiosk checkout is free-form (no booking — student walks up, scans whatever they need, completes). Cart persists in `KioskStore` keyed by userId so a brief inactivity reset doesn't discard scans (per the broad 2026-04-24 audit). HID hand scanner is the primary input via the always-first-responder `KioskScannerField`; `KioskBarcodeCameraView` is the camera fallback.
+**Surrounding context:** kiosk checkout is free-form (no booking — student walks up, scans whatever they need, completes). Cart persists in `KioskStore` keyed by userId so a brief inactivity reset doesn't discard scans (per the broad 2026-04-24 audit). HID hand scanner is the primary input via the always-first-responder `HIDScannerField`; `KioskBarcodeCameraView` is the camera fallback.
 
 ## P0 — blocks MVP
 
@@ -24,7 +24,7 @@ _None._ The flow is correct. Cart persistence shipped per the prior audit. Disca
       Why it matters: the camera fallback is what staff reaches for when the HID scanner is dead. If it feels broken, staff escalates to the desk-shift admin instead of using the affordance.
       Suggested fix: pass `lastResult` into `KioskBarcodeCameraView` as a `Binding<ScanFeedback?>` and render the same `FeedbackBanner` (or an overlay equivalent) on top of the camera feed. Camera scans get the same green/red/orange visual signal HID scans do.
 
-- [x] [Hardening] **Scans during the `isCompleting` window race the complete API.** While the complete request is in flight, the HID `KioskScannerField` is still first responder; a late scan adds an item to the cart that *did not make it into* the assetIds payload sent to `/api/kiosk/checkout/complete`. On success, `clearCart` wipes the cart — including the late item that's now a phantom. Net result: a scanned-but-not-checked-out asset that staff has no way to reconcile.
+- [x] [Hardening] **Scans during the `isCompleting` window race the complete API.** While the complete request is in flight, the HID `HIDScannerField` is still first responder; a late scan adds an item to the cart that *did not make it into* the assetIds payload sent to `/api/kiosk/checkout/complete`. On success, `clearCart` wipes the cart — including the late item that's now a phantom. Net result: a scanned-but-not-checked-out asset that staff has no way to reconcile.
       `ios/Wisconsin/Kiosk/KioskCheckoutView.swift:233-251`.
       Why it matters: the complete round-trip can be 1–3 s on a slow network; that's a real window. A student spamming the trigger on a hand scanner can land 2–3 scans in that gap.
       Suggested fix: short-circuit `handleScan` at the top with `guard !isCompleting else { showFeedback(.error("Hold on — finishing checkout")); return }`. Same guard in the camera path. The Complete button is already disabled during isCompleting.
@@ -65,7 +65,7 @@ _None._ The flow is correct. Cart persistence shipped per the prior audit. Disca
 
 - [ ] [Polish] **Deferred.** Audio chime on scan success/failure. iPad on a counter often has speakers muted by policy; haptics covers the same role and is more reliable. Revisit if a specific gear-room asks for audio.
 - [ ] [Polish] **Deferred.** "Ready to scan" indicator near the scanner border (small green dot when HID field has first responder). Today the field is always-first-responder by design; the dot would be visual noise.
-- [ ] [Polish] **Deferred.** `KioskScannerField` aggressive re-acquire fights with the camera sheet's first responder. In testing, sheets present cleanly; the worst case is a 0.15 s re-grab attempt that the sheet absorbs. Defer until observed in the field.
+- [ ] [Polish] **Deferred.** `HIDScannerField` aggressive re-acquire fights with the camera sheet's first responder. In testing, sheets present cleanly; the worst case is a 0.15 s re-grab attempt that the sheet absorbs. Defer until observed in the field.
 - [ ] [Polish] **Deferred.** Pre-flight asset availability check before the user finishes scanning (warn early on already-checked-out items). The server already enforces this on `/api/kiosk/checkout/complete`; surfacing the error per scan would require a different endpoint shape.
 - [ ] [Hardening] **Deferred.** Rate-limit copy on scan-lookup throttle. Server returns the limit message; `errorDescription` surface (post-fix above) carries it through.
 

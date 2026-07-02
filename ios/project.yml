@@ -20,6 +20,7 @@ targets:
     sources:
       - path: Wisconsin
         excludes:
+          - Kiosk/**
           - KioskOnly/**
     info:
       path: Wisconsin/Supporting/Info.plist

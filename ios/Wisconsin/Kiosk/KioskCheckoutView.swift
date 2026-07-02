@@ -61,16 +61,12 @@ struct KioskCheckoutView: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            scanZone
-            Divider().background(KioskStroke.divider)
-            itemsList.frame(width: 430)
-        }
+        checkoutLayout
         .overlay(alignment: .bottom) {
             if scannerCaptureEnabled {
                 // Hidden HID scanner field stays mounted in scan mode, but yields
                 // first responder whenever visible checkout inputs need the keyboard.
-                KioskScannerField(isEnabled: shouldListenForHIDScans) { value in
+                HIDScannerField(isEnabled: shouldListenForHIDScans) { value in
                     handleScan(value)
                 }
                 .frame(width: 1, height: 1)
@@ -149,6 +145,20 @@ struct KioskCheckoutView: View {
 
     // MARK: - Scan Zone
 
+    private var checkoutLayout: some View {
+        Group {
+            if checkoutContextReady {
+                HStack(spacing: 0) {
+                    scanZone
+                    Divider().background(KioskStroke.divider)
+                    itemsList.frame(width: 430)
+                }
+            } else {
+                checkoutContextSetupZone
+            }
+        }
+    }
+
     private var scanZone: some View {
         Group {
             if checkoutContextReady {
@@ -215,7 +225,7 @@ struct KioskCheckoutView: View {
         .padding(.horizontal, 32)
         .padding(.top, 20)
         .padding(.bottom, 32)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var activeScanZone: some View {
@@ -967,6 +977,7 @@ private struct KioskCheckoutContextSummary: View {
 private struct KioskCheckoutTimeCard: View {
     @Binding var dueBackAt: Date
     let selectedEvent: KioskCheckoutEvent?
+    @State private var showsCustomReturnPicker = false
 
     private var minimumDueBack: Date {
         Date().addingTimeInterval(5 * 60)
@@ -990,30 +1001,53 @@ private struct KioskCheckoutTimeCard: View {
                 Spacer()
             }
 
-            DatePicker(
-                "Due back",
-                selection: $dueBackAt,
-                in: minimumDueBack...,
-                displayedComponents: [.date, .hourAndMinute]
-            )
-            .datePickerStyle(.compact)
-            .labelsHidden()
-            .tint(Color.kioskRed)
-            .padding(.horizontal, 14)
-            .frame(height: 56)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
-            .overlay(
-                RoundedRectangle(cornerRadius: KioskRadius.md)
-                    .stroke(KioskStroke.standard, lineWidth: 1)
-            )
+            Text(returnTimeSummary)
+                .font(.title3.weight(.bold))
+                .foregroundStyle(KioskText.primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .lineLimit(1)
+                .minimumScaleFactor(0.84)
 
-            HStack(spacing: 8) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 112), spacing: 8)], alignment: .leading, spacing: 8) {
+                quickButton("2 hr", date: Date().addingTimeInterval(2 * 60 * 60))
+                quickButton("4 hr", date: Date().addingTimeInterval(4 * 60 * 60))
                 quickButton("Tonight", date: Calendar.current.date(bySettingHour: 22, minute: 0, second: 0, of: Date()))
-                quickButton("Tomorrow", date: Calendar.current.date(byAdding: .day, value: 1, to: Date()))
+                quickButton("Tomorrow AM", date: tomorrow(atHour: 9))
+                quickButton("24 hr", date: Date().addingTimeInterval(24 * 60 * 60))
                 if let eventEnd = selectedEvent?.endsAt, eventEnd > minimumDueBack {
                     quickButton("Event End", date: eventEnd)
                 }
+                KioskQuickSelectButton(
+                    title: showsCustomReturnPicker ? "Hide Custom" : "Custom",
+                    isSelected: showsCustomReturnPicker
+                ) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showsCustomReturnPicker.toggle()
+                    }
+                }
+            }
+
+            if showsCustomReturnPicker {
+                DatePicker(
+                    "Return date and time",
+                    selection: Binding(
+                        get: { max(dueBackAt, minimumDueBack) },
+                        set: { dueBackAt = max($0, minimumDueBack) }
+                    ),
+                    in: minimumDueBack...,
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+                .datePickerStyle(.wheel)
+                .labelsHidden()
+                .tint(Color.kioskRed)
+                .frame(maxWidth: .infinity)
+                .frame(height: 126)
+                .clipped()
+                .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
+                .overlay(
+                    RoundedRectangle(cornerRadius: KioskRadius.md)
+                        .stroke(KioskStroke.standard, lineWidth: 1)
+                )
             }
 
             Text("The system will conflict-check from the actual checkout time through this return time.")
@@ -1031,16 +1065,50 @@ private struct KioskCheckoutTimeCard: View {
     @ViewBuilder
     private func quickButton(_ title: String, date: Date?) -> some View {
         if let date, date > minimumDueBack {
-            Button(title) {
+            KioskQuickSelectButton(title: title, isSelected: isSelectedQuickDate(date)) {
                 dueBackAt = date
+                showsCustomReturnPicker = false
             }
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(KioskText.secondary)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(KioskSurface.cardRaised, in: Capsule())
-            .buttonStyle(.plain)
+            .accessibilityLabel("\(title), set return time to \(date.formatted(date: .abbreviated, time: .shortened))")
         }
+    }
+
+    private var returnTimeSummary: String {
+        dueBackAt.formatted(date: .abbreviated, time: .shortened)
+    }
+
+    private func isSelectedQuickDate(_ date: Date) -> Bool {
+        abs(dueBackAt.timeIntervalSince(date)) < 60
+    }
+
+    private func tomorrow(atHour hour: Int) -> Date? {
+        guard let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) else {
+            return nil
+        }
+        return Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: tomorrow)
+    }
+}
+
+private struct KioskQuickSelectButton: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Group {
+            if isSelected {
+                Button(title, action: action)
+                    .buttonStyle(.borderedProminent)
+            } else {
+                Button(title, action: action)
+                    .buttonStyle(.bordered)
+            }
+        }
+        .buttonBorderShape(.capsule)
+        .controlSize(.regular)
+        .tint(isSelected ? Color.kioskRed : KioskText.secondary)
+        .font(.caption.weight(.semibold))
+        .frame(maxWidth: .infinity, minHeight: 38)
     }
 }
 
@@ -1144,51 +1212,58 @@ private struct KioskCheckoutContextCard: View {
                 }
             }
 
-            HStack(spacing: 12) {
-                Menu {
-                    Button("No event selected") {
-                        selectedEventId = nil
-                    }
-                    ForEach(events) { event in
-                        Button {
-                            selectedEventId = event.id
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("Upcoming events")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(KioskText.secondary)
+                    Spacer()
+                    if !events.isEmpty {
+                        Menu {
+                            Button("No event selected") {
+                                selectedEventId = nil
+                            }
+                            ForEach(events) { event in
+                                Button {
+                                    selectedEventId = event.id
+                                } label: {
+                                    Label(event.title, systemImage: selectedEventId == event.id ? "checkmark" : "calendar")
+                                }
+                            }
                         } label: {
-                            Label(event.title, systemImage: selectedEventId == event.id ? "checkmark" : "calendar")
+                            Label("More", systemImage: "ellipsis.circle")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(KioskText.secondary)
                         }
+                        .buttonStyle(.plain)
                     }
-                } label: {
+                }
+
+                if isLoading {
+                    KioskCheckoutEventLoadingRow()
+                } else if events.isEmpty {
+                    Text("No events in the next 7 days. Type a purpose or tap a quick option.")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(KioskText.muted)
+                } else {
                     HStack(spacing: 10) {
-                        Image(systemName: "calendar")
-                            .accessibilityHidden(true)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(selectedEvent?.title ?? eventMenuTitle)
-                                .font(.subheadline.weight(.semibold))
-                                .lineLimit(1)
-                            if let selectedEvent {
-                                Text(Self.eventSubtitle(selectedEvent))
-                                    .font(.caption)
-                                    .foregroundStyle(KioskText.muted)
-                                    .lineLimit(1)
+                        ForEach(featuredEvents) { event in
+                            KioskCheckoutEventChoiceButton(
+                                event: event,
+                                isSelected: selectedEventId == event.id,
+                                subtitle: Self.eventSubtitle(event)
+                            ) {
+                                selectedEventId = event.id
                             }
                         }
-                        Spacer()
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(KioskText.muted)
-                            .accessibilityHidden(true)
                     }
-                    .foregroundStyle(KioskText.primary)
-                    .padding(.horizontal, 14)
-                    .frame(height: 56)
-                    .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: KioskRadius.md)
-                            .stroke(KioskStroke.standard, lineWidth: 1)
-                    )
                 }
-                .frame(maxWidth: .infinity)
-                .disabled(isLoading || events.isEmpty)
+            }
 
+            VStack(alignment: .leading, spacing: 8) {
+                Text(selectedEvent == nil ? "Or type a purpose" : "Optional details")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(KioskText.secondary)
                 KioskNativeTextField(
                     placeholder: selectedEvent == nil ? "Custom event or purpose" : "Optional details",
                     text: $customPurpose,
@@ -1197,35 +1272,20 @@ private struct KioskCheckoutContextCard: View {
                         set: { focusedField.wrappedValue = $0 ? .customPurpose : nil }
                     )
                 )
-                    .padding(.horizontal, 14)
-                    .frame(height: 56)
-                    .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: KioskRadius.md)
-                            .stroke(KioskStroke.standard, lineWidth: 1)
-                    )
+                .padding(.horizontal, 14)
+                .frame(height: 56)
+                .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
+                .overlay(
+                    RoundedRectangle(cornerRadius: KioskRadius.md)
+                        .stroke(KioskStroke.standard, lineWidth: 1)
+                )
             }
 
-            if !isLoading && events.isEmpty {
-                Text("No events in the next 7 days. Type a purpose or tap a quick option.")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(KioskText.muted)
-            }
-
-            HStack(spacing: 8) {
-                ForEach(Self.quickPurposes, id: \.self) { purpose in
-                    Button(purpose) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 8)], alignment: .leading, spacing: 8) {
+                ForEach(purposeSuggestions, id: \.self) { purpose in
+                    KioskQuickSelectButton(title: purpose, isSelected: customPurpose == purpose) {
                         customPurpose = purpose
                     }
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(customPurpose == purpose ? .white : KioskText.secondary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
-                    .background(
-                        customPurpose == purpose ? Color.kioskRed.opacity(0.85) : KioskSurface.cardRaised,
-                        in: Capsule()
-                    )
-                    .buttonStyle(.plain)
                 }
             }
 
@@ -1250,7 +1310,22 @@ private struct KioskCheckoutContextCard: View {
         return "Choose upcoming event"
     }
 
-    private static let quickPurposes = ["Practice", "Shoot", "Media Day", "Repair/Test"]
+    private var featuredEvents: [KioskCheckoutEvent] {
+        var result = Array(events.prefix(3))
+        if let selectedEvent,
+           !result.contains(where: { $0.id == selectedEvent.id }),
+           !result.isEmpty {
+            result[result.count - 1] = selectedEvent
+        }
+        return result
+    }
+
+    private var purposeSuggestions: [String] {
+        if selectedEvent == nil {
+            return ["Event", "Practice", "Shoot", "Media Day"]
+        }
+        return ["Sideline", "Warmups", "Media Day", "Travel", "Extra Batteries"]
+    }
 
     static func eventSubtitle(_ event: KioskCheckoutEvent) -> String {
         var parts = [Self.eventDateFormatter.string(from: event.startsAt)]
@@ -1267,6 +1342,66 @@ private struct KioskCheckoutContextCard: View {
         formatter.dateFormat = "EEE h:mm a"
         return formatter
     }()
+}
+
+private struct KioskCheckoutEventChoiceButton: View {
+    let event: KioskCheckoutEvent
+    let isSelected: Bool
+    let subtitle: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "calendar")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(isSelected ? Color.statusText(.green) : Color.kioskRed)
+                        .accessibilityHidden(true)
+                    Text(isSelected ? "Selected" : "Event")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(isSelected ? Color.statusText(.green) : KioskText.muted)
+                    Spacer(minLength: 0)
+                }
+                Text(event.title)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(KioskText.primary)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.78)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text(subtitle)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(KioskText.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
+            .background(isSelected ? Color.kioskRed.opacity(0.13) : KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
+            .overlay(
+                RoundedRectangle(cornerRadius: KioskRadius.md)
+                    .stroke(isSelected ? Color.kioskRed.opacity(0.75) : KioskStroke.standard, lineWidth: isSelected ? 2 : 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(event.title), \(subtitle)\(isSelected ? ", selected" : "")")
+    }
+}
+
+private struct KioskCheckoutEventLoadingRow: View {
+    var body: some View {
+        HStack(spacing: 10) {
+            ProgressView()
+                .tint(Color.kioskRed)
+            Text("Loading upcoming events")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(KioskText.secondary)
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 54)
+        .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
+    }
 }
 
 private struct KioskCartGroupRow: View {
