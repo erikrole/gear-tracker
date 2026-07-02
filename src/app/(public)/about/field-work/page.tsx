@@ -12,14 +12,14 @@ export default function FieldWorkPage() {
     <main id="showroom-content">
       <PageIntro
         eyebrow="Field work"
-        title="Native where the work leaves the desk."
-        description="Gear Tracker keeps admin breadth on web, but uses native iOS and kiosk flows where scanner input, counter speed, and venue context matter."
+        title="Native iOS and kiosk cover field work."
+        description="The web app handles admin breadth. Native iOS and kiosk flows handle scanner input, counter work, and venue context."
         mockup={pageMockups.field}
       />
       <ChapterBand
         eyebrow="Execution model"
-        title="The phone, the counter, and the control room each have a job."
-        description="Students need the next action. The kiosk needs exact custody evidence. Staff need the whole operating picture without forcing desktop density into the field."
+        title="Phone, counter, and web have different jobs."
+        description="Students need the next action. The kiosk records custody evidence. Staff use web for broader review without putting desktop tools in the field."
       />
       <FeatureGrid cards={fieldWorkMoments} />
       <StakeholderCta />

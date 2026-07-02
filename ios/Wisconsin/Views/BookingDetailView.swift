@@ -53,20 +53,23 @@ struct BookingDetailView: View {
             } else if let booking {
                 ScrollView {
                     VStack(spacing: 16) {
-                        FormCard { HeaderSection(booking: booking) }
-                        FormCard { RequesterSection(booking: booking) }
+                        FormCard {
+                            BookingDetailsSection(
+                                booking: booking,
+                                canEdit: canEditBooking,
+                                onEdit: { showEdit = true }
+                            )
+                        }
                         if !booking.serializedItems.isEmpty || !booking.bulkItems.isEmpty {
                             FormCard {
                                 EquipmentSection(
                                     serializedItems: booking.serializedItems,
                                     bulkItems: booking.bulkItems,
                                     conflicts: conflicts,
+                                    bookingKind: booking.kind,
                                     bookingStatus: booking.status
                                 )
                             }
-                        }
-                        if let notes = booking.notes, !notes.isEmpty {
-                            FormCard { NotesSection(notes: notes) }
                         }
                         if canActOnBooking && !canEditBooking {
                             FormCard { BookingEditLockedNotice(booking: booking) }
@@ -99,10 +102,10 @@ struct BookingDetailView: View {
             if canEditBooking {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showEdit = true } label: {
-                        Label("Edit", systemImage: "pencil")
+                        Label("Edit Details", systemImage: "pencil")
                             .frame(minHeight: 44)
                     }
-                    .accessibilityLabel("Edit Booking")
+                    .accessibilityLabel("Edit booking details")
                 }
             }
         }
@@ -217,10 +220,14 @@ struct EditBookingSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var title: String
     @State private var notes: String
+    @State private var locationId: String
     @State private var startsAt: Date
     @State private var endsAt: Date
+    @State private var formOptions: FormOptions?
+    @State private var isLoadingOptions = false
     @State private var isSaving = false
     @State private var error: String?
+    @State private var optionsError: String?
     @State private var showDiscardConfirm = false
 
     init(booking: Booking, onSaved: @escaping () -> Void) {
@@ -228,15 +235,37 @@ struct EditBookingSheet: View {
         self.onSaved = onSaved
         _title = State(wrappedValue: booking.title)
         _notes = State(wrappedValue: booking.notes ?? "")
+        _locationId = State(wrappedValue: booking.location.id)
         _startsAt = State(wrappedValue: booking.startsAt)
         _endsAt = State(wrappedValue: booking.endsAt)
+    }
+
+    private var canEditLocation: Bool {
+        booking.kind == .reservation
+    }
+
+    private var locationOptions: [(id: String, name: String)] {
+        formOptions?.locations.map { ($0.id, $0.name) } ?? []
+    }
+
+    private var selectedLocationName: String {
+        formOptions?.locations.first(where: { $0.id == locationId })?.name ?? booking.location.name
     }
 
     private var hasChanges: Bool {
         title != booking.title
             || notes != (booking.notes ?? "")
+            || (canEditLocation && locationId != booking.location.id)
             || startsAt != booking.startsAt
             || endsAt != booking.endsAt
+    }
+
+    private var canSave: Bool {
+        hasChanges
+            && !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && endsAt > startsAt
+            && (!canEditLocation || !locationId.isEmpty)
+            && !isSaving
     }
 
     var body: some View {
@@ -244,14 +273,78 @@ struct EditBookingSheet: View {
             ScrollView {
                 VStack(spacing: 12) {
                     FormCard {
-                        TextField("Title", text: $title)
-                            .font(.body)
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Title")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .textCase(.uppercase)
+                            TextField("Booking title", text: $title)
+                                .font(.body)
+                                .textInputAutocapitalization(.words)
+                                .accessibilityLabel("Booking title")
+                        }
                     }
+
                     FormCard {
-                        DatePicker("From", selection: $startsAt, displayedComponents: [.date, .hourAndMinute])
-                        Divider().padding(.leading, 4)
-                        DatePicker("To", selection: $endsAt, in: startsAt..., displayedComponents: [.date, .hourAndMinute])
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Pickup and return")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .textCase(.uppercase)
+                            DatePicker("From", selection: $startsAt, displayedComponents: [.date, .hourAndMinute])
+                            Divider().padding(.leading, 4)
+                            DatePicker("To", selection: $endsAt, in: startsAt..., displayedComponents: [.date, .hourAndMinute])
+                            if endsAt <= startsAt {
+                                Text("Return must be after pickup.")
+                                    .font(.caption)
+                                    .foregroundStyle(Color.statusText(.red))
+                            }
+                        }
                     }
+
+                    FormCard {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Pickup location")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .textCase(.uppercase)
+                            if canEditLocation {
+                                NavigationLink {
+                                    OptionPickerView(
+                                        title: "Pickup Location",
+                                        options: locationOptions,
+                                        selection: $locationId
+                                    )
+                                } label: {
+                                    EditDetailPickerRow(
+                                        title: selectedLocationName,
+                                        subtitle: isLoadingOptions ? "Loading locations..." : "Reservation pickup location",
+                                        systemImage: "mappin.circle"
+                                    )
+                                }
+                                .disabled(isSaving || isLoadingOptions || locationOptions.isEmpty)
+                                if let optionsError {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text(optionsError)
+                                            .font(.caption)
+                                            .foregroundStyle(Color.statusText(.red))
+                                        Button("Retry Locations") {
+                                            Task { await loadFormOptions(force: true) }
+                                        }
+                                        .font(.caption.weight(.semibold))
+                                    }
+                                }
+                            } else {
+                                EditDetailPickerRow(
+                                    title: booking.location.name,
+                                    subtitle: "Location changes are reservation-only in this editor",
+                                    systemImage: "mappin.circle"
+                                )
+                                .accessibilityLabel("Pickup location, \(booking.location.name). Location changes are reservation-only in this editor.")
+                            }
+                        }
+                    }
+
                     FormCard {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Notes")
@@ -273,6 +366,13 @@ struct EditBookingSheet: View {
                             }
                         }
                     }
+
+                    Text("Equipment changes, pickup, and return stay in kiosk workflows. This sheet edits booking details only.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 4)
+
                     if let error {
                         Text(error).foregroundStyle(Color.statusText(.red)).font(.footnote)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -282,7 +382,7 @@ struct EditBookingSheet: View {
                 .padding(20)
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("Edit Booking")
+            .navigationTitle("Edit Details")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -306,8 +406,12 @@ struct EditBookingSheet: View {
                             Text("Save").fontWeight(.semibold)
                         }
                     }
-                    .disabled(!hasChanges || title.trimmingCharacters(in: .whitespaces).isEmpty || isSaving)
+                    .disabled(!canSave)
+                    .accessibilityLabel(isSaving ? "Saving booking details" : "Save booking details")
                 }
+            }
+            .task {
+                await loadFormOptions()
             }
             .interactiveDismissDisabled(hasChanges || isSaving)
             .confirmationDialog(
@@ -323,14 +427,28 @@ struct EditBookingSheet: View {
         }
     }
 
+    private func loadFormOptions(force: Bool = false) async {
+        guard canEditLocation else { return }
+        guard force || formOptions == nil else { return }
+        isLoadingOptions = true
+        optionsError = nil
+        do {
+            formOptions = try await APIClient.shared.formOptions()
+        } catch {
+            optionsError = "Couldn't load locations. The current pickup location will stay selected."
+        }
+        isLoadingOptions = false
+    }
+
     private func save() async {
         if isSaving { return }
         isSaving = true
         do {
             try await APIClient.shared.updateBooking(
                 id: booking.id,
-                title: title != booking.title ? title.trimmingCharacters(in: .whitespaces) : nil,
+                title: title != booking.title ? title.trimmingCharacters(in: .whitespacesAndNewlines) : nil,
                 notes: notes != (booking.notes ?? "") ? notes.trimmingCharacters(in: .whitespacesAndNewlines) : nil,
+                locationId: canEditLocation && locationId != booking.location.id ? locationId : nil,
                 startsAt: startsAt != booking.startsAt ? startsAt : nil,
                 endsAt: endsAt != booking.endsAt ? endsAt : nil,
                 updatedAt: booking.updatedAt
@@ -346,10 +464,34 @@ struct EditBookingSheet: View {
     }
 }
 
+private struct EditDetailPickerRow: View {
+    let title: String
+    let subtitle: String
+    let systemImage: String
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: systemImage)
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .foregroundStyle(.primary)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .contentShape(Rectangle())
+    }
+}
+
 // MARK: - Sub-sections
 
-private struct HeaderSection: View {
+private struct BookingDetailsSection: View {
     let booking: Booking
+    let canEdit: Bool
+    let onEdit: () -> Void
 
     private var isOverdue: Bool {
         booking.status == .open && booking.endsAt < .now
@@ -382,16 +524,40 @@ private struct HeaderSection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                StatusBadge(status: booking.status, kind: booking.kind)
-                Spacer()
-                if let ref = booking.refNumber {
-                    Text(ref)
-                        .font(.system(.caption, design: .monospaced))
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Details")
+                        .font(.caption)
                         .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                    HStack(spacing: 8) {
+                        StatusBadge(status: booking.status, kind: booking.kind)
+                        if let ref = booking.refNumber {
+                            Text(ref)
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                Spacer()
+                if canEdit {
+                    Button(action: onEdit) {
+                        Label("Edit Details", systemImage: "pencil")
+                    }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.small)
+                    .accessibilityLabel("Edit booking details")
                 }
             }
+
+            Text(booking.title)
+                .font(.gothamBold(size: 24))
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+
             if showsCountdown {
                 // 30s tick: minute-precision label means at most 30s of staleness
                 // without the cost of per-second redraws.
@@ -419,6 +585,7 @@ private struct HeaderSection: View {
                     StatusPill(label: label, tone: pickup.tone, emphasized: true)
                 }
             }
+
             if isOverdue {
                 Label("Overdue — return gear at a kiosk", systemImage: "exclamationmark.triangle.fill")
                     .font(.caption.weight(.medium))
@@ -429,60 +596,125 @@ private struct HeaderSection: View {
                     .background(Color.statusText(.red), in: RoundedRectangle(cornerRadius: 8))
                     .accessibilityLabel("Overdue. Return gear at a kiosk.")
             }
-            if let event = booking.event, let summary = event.summary {
-                Text(summary)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            Label(booking.location.name, systemImage: "mappin.circle")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .accessibilityLabel("Pickup location: \(booking.location.name)")
-            if let kiosk = booking.pickupKioskDevice {
-                Label("Picked up at \(kiosk.name) · \(kiosk.location.name)", systemImage: "barcode.viewfinder")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel("Picked up at \(kiosk.name), \(kiosk.location.name)")
-            }
-            Label {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(booking.startsAt.gearLong)
-                    HStack(spacing: 6) {
-                        Text("to \(sameCalendarDay ? booking.endsAt.gearTime : booking.endsAt.gearShort)")
-                            .foregroundStyle(isOverdue ? Color.statusText(.red) : Color.secondary)
-                        Text(durationText)
-                            .foregroundStyle(.tertiary)
-                    }
+
+            VStack(alignment: .leading, spacing: 12) {
+                if let event = booking.event, let summary = event.summary {
+                    detailRow(
+                        icon: "calendar.badge.clock",
+                        title: "Event",
+                        value: summary
+                    )
                 }
-            } icon: {
-                Image(systemName: "calendar")
-            }
-            .font(.subheadline)
-            .accessibilityLabel("From \(booking.startsAt.gearLong) to \(booking.endsAt.gearShort), \(durationText.trimmingCharacters(in: CharacterSet(charactersIn: "()")))")
-        }
-    }
-}
 
-private struct RequesterSection: View {
-    let booking: Booking
+                requesterRow
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Requester")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-            HStack(spacing: 10) {
-                UserAvatarView(name: booking.requester.name, avatarUrl: booking.requester.avatarUrl, size: 40)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(booking.requester.name)
-                        .font(.body)
-                    Text(booking.requester.email)
-                        .font(.system(.footnote, design: .monospaced))
+                detailRow(
+                    icon: "mappin.circle",
+                    title: "Pickup location",
+                    value: booking.location.name
+                )
+
+                if let kiosk = booking.pickupKioskDevice {
+                    detailRow(
+                        icon: "barcode.viewfinder",
+                        title: "Pickup kiosk",
+                        value: "\(kiosk.name), \(kiosk.location.name)"
+                    )
+                }
+
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Pickup and return")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+                        Text(booking.startsAt.gearLong)
+                            .font(.subheadline)
+                        HStack(spacing: 6) {
+                            Text("to \(sameCalendarDay ? booking.endsAt.gearTime : booking.endsAt.gearShort)")
+                                .font(.subheadline)
+                                .foregroundStyle(isOverdue ? Color.statusText(.red) : Color.secondary)
+                            Text(durationText)
+                                .font(.subheadline)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                } icon: {
+                    Image(systemName: "calendar")
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Pickup and return, from \(booking.startsAt.gearLong) to \(booking.endsAt.gearShort), \(durationText.trimmingCharacters(in: CharacterSet(charactersIn: "()")))")
+
+                notesRow
             }
         }
+    }
+
+    private var requesterRow: some View {
+        Label {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Requester")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                HStack(spacing: 10) {
+                    UserAvatarView(name: booking.requester.name, avatarUrl: booking.requester.avatarUrl, size: 36)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(booking.requester.name)
+                            .font(.subheadline)
+                        Text(booking.requester.email)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        } icon: {
+            Image(systemName: "person.crop.circle")
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Requester, \(booking.requester.name), \(booking.requester.email)")
+    }
+
+    private var notesRow: some View {
+        Label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Notes")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                Text(booking.notes?.nonBlankText ?? "No notes")
+                    .font(.subheadline)
+                    .foregroundStyle(booking.notes?.nonBlankText == nil ? .secondary : .primary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        } icon: {
+            Image(systemName: "note.text")
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Notes, \(booking.notes?.nonBlankText ?? "No notes")")
+    }
+
+    private func detailRow(icon: String, title: String, value: String) -> some View {
+        Label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                Text(value)
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        } icon: {
+            Image(systemName: icon)
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title), \(value)")
     }
 }
 
@@ -551,11 +783,29 @@ private struct EquipmentSection: View {
     let serializedItems: [BookingSerializedItem]
     let bulkItems: [BookingBulkItem]
     let conflicts: [String: AssetConflict]
+    let bookingKind: BookingKind
     let bookingStatus: BookingStatus
+
+    private var handoffCopy: String {
+        switch bookingStatus {
+        case .pendingPickup:
+            return "Scan each item at a kiosk to start custody. Gear is read-only here."
+        case .open:
+            return "Return, add, and remove physical gear at a kiosk. This list is read-only here."
+        default:
+            return bookingKind == .reservation
+                ? "Equipment is read-only in this detail view. Kiosk pickup verifies the physical handoff."
+                : "Equipment is read-only here. Kiosk flows own physical custody changes."
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionHeader(title: "Equipment", count: serializedItems.count + bulkItems.count)
+            Text(handoffCopy)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             ForEach(serializedItems) { item in
                 serializedRow(item)
             }
@@ -684,21 +934,6 @@ private struct BulkThumbnail: View {
             .font(.system(size: 16))
             .foregroundStyle(.tertiary)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-private struct NotesSection: View {
-    let notes: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Notes")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-            Text(notes)
-                .font(.subheadline)
-        }
     }
 }
 

@@ -14,12 +14,12 @@ export function PublicShowroomNav() {
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-[#080808]/88 text-white shadow-[0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl">
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        <Link href="/about" aria-label="Wisconsin Creative public showroom" className="flex min-h-10 items-center gap-3 rounded-md pr-2 text-sm font-semibold outline-none transition-[opacity] hover:opacity-90 focus-visible:ring-[3px] focus-visible:ring-white/30 motion-reduce:transition-none">
+        <Link href="/about" aria-label="Wisconsin Creative public pages" className="flex min-h-10 items-center gap-3 rounded-md pr-2 text-sm font-semibold outline-none transition-[opacity] hover:opacity-90 focus-visible:ring-[3px] focus-visible:ring-white/30 motion-reduce:transition-none">
           <Image src="/Badgers.png" alt="" width={34} height={34} className="size-8 object-contain" priority />
           <span className="hidden sm:inline">Wisconsin Creative</span>
         </Link>
 
-        <nav aria-label="Public showroom" className="hidden items-center gap-1 md:flex">
+        <nav aria-label="Public pages" className="hidden items-center gap-1 md:flex">
           {publicShowroomNav.map((item) => {
             const active = pathname === item.href;
             return (
@@ -47,7 +47,7 @@ export function PublicShowroomNav() {
         </Button>
       </div>
       <div className="border-t border-white/10 px-4 py-2 md:hidden">
-        <nav aria-label="Public showroom sections" className="mx-auto flex max-w-7xl gap-2 overflow-x-auto">
+        <nav aria-label="Public page sections" className="mx-auto flex max-w-7xl gap-2 overflow-x-auto">
           {publicShowroomNav.map((item) => {
             const active = pathname === item.href;
             return (

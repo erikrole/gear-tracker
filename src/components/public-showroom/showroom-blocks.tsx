@@ -73,17 +73,17 @@ export function ShowroomHero({ mockup }: { mockup: ShowroomMockup }) {
           </div>
           <p className="mb-5 text-sm font-semibold uppercase tracking-[0.22em] text-white/60">Wisconsin Creative Gear Tracker</p>
           <h1 className="font-[var(--font-heading)] text-5xl font-black leading-[0.95] text-balance tracking-normal sm:text-7xl lg:text-8xl">
-            The operating system for game-day gear.
+            Gear reservations and custody for Wisconsin Creative.
           </h1>
           <p className="mx-auto mt-7 max-w-3xl text-lg leading-8 text-pretty text-white/72 sm:text-xl">
-            A public showroom for stakeholders: how Wisconsin Creative reserves gear, binds physical custody, connects Schedule to readiness, and keeps field work moving.
+            These public pages explain how the team reserves gear, records physical custody, connects Schedule to gear prep, and supports field work.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild size="lg" className="h-12 rounded-full bg-white px-6 text-black hover:bg-white/90">
-              <Link href="/about/features">Explore features</Link>
+              <Link href="/about/features">View features</Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="h-12 rounded-full border-white/20 bg-white/5 px-6 text-white hover:bg-white/10 hover:text-white">
-              <Link href="/about/security">Review security posture</Link>
+              <Link href="/about/security">View security</Link>
             </Button>
           </div>
         </div>
@@ -262,9 +262,9 @@ export function ProductMockup({ mockup, featured = false, compact = false }: { m
 export function ExplorePages({ current }: { current: string }) {
   const pages = publicShowroomNav.filter((item) => item.href !== current);
   return (
-    <section aria-label="Keep exploring the showroom" className="bg-[#f4f4f4] px-4 py-20 sm:px-6 lg:px-8">
+    <section aria-label="Related public pages" className="bg-[#f4f4f4] px-4 py-20 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">Keep exploring</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">Related pages</p>
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {pages.map((item) => (
             <Link
@@ -287,7 +287,7 @@ export function ExplorePages({ current }: { current: string }) {
 
 export function StakeholderCta({
   primaryHref = "/about/tech-stack",
-  primaryLabel = "View the stack",
+  primaryLabel = "View tech stack",
 }: {
   primaryHref?: string;
   primaryLabel?: string;
@@ -295,12 +295,12 @@ export function StakeholderCta({
   return (
     <section className="bg-[#050505] px-4 py-20 text-white sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl text-center">
-        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-white/50">Stakeholder-ready</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-white/50">Public pages</p>
         <h2 className="mt-5 font-[var(--font-heading)] text-4xl font-black leading-none text-balance tracking-normal sm:text-6xl">
-          Share the story without opening the system.
+          Share these pages without opening the app.
         </h2>
         <p className="mx-auto mt-6 max-w-3xl text-lg leading-8 text-pretty text-white/68">
-          The showroom is public, static, and intentionally separate from authenticated Gear Tracker operations.
+          The content is public, static, and separate from authenticated Gear Tracker operations.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Button asChild size="lg" className="h-12 rounded-full bg-white px-6 text-black hover:bg-white/90">

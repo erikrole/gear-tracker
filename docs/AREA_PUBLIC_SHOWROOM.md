@@ -9,7 +9,7 @@
 - Version: V1
 
 ## Direction
-Make `/about` a shareable public stakeholder showroom for Gear Tracker. It should explain the product, feature set, technical stack, security posture, and field-work model without exposing authenticated data or changing the operational app shell.
+Make `/about` a shareable public overview for Gear Tracker. It should explain the product, feature set, technical stack, security model, and field-work model without exposing authenticated data or changing the operational app shell.
 
 ## Core Rules
 1. Public showroom pages live outside `src/app/(app)` and must not use the authenticated `AppShell`.
@@ -17,14 +17,14 @@ Make `/about` a shareable public stakeholder showroom for Gear Tracker. It shoul
 3. Product mockups use fictional data only. Do not use real student names, live booking references, production incidents, or screenshots unless separately sanitized.
 4. Security copy stays public-safe: name major vendors and controls, but do not publish secrets, thresholds, endpoint internals, exploit detail, or runbooks.
 5. `/`, `/login`, and every authenticated app route keep existing behavior.
-6. The showroom may use a marketing/product-page visual language, but it should still use repo tokens, shadcn/ui primitives, accessible controls, and reduced-motion-safe effects.
+6. The public pages may use product-page pacing, but the copy should stay matter-of-fact and grounded in shipped workflows.
 
 ## Routes
-- `/about` - public overview and stakeholder pitch.
+- `/about` - public overview.
 - `/about/features` - reservations, kiosk custody, Schedule, item families, reports, and notifications.
 - `/about/tech-stack` - public-safe stack map.
 - `/about/security` - trust model, access control, auditability, and reliability controls.
-- `/about/field-work` - native iOS, kiosk, scanner, and game-day handoff story.
+- `/about/field-work` - native iOS, kiosk, scanner, and game-day handoffs.
 - `/privacy` - public privacy policy for App Store Connect and stakeholder review.
 
 ## Acceptance Criteria
@@ -47,6 +47,7 @@ Make `/about` a shareable public stakeholder showroom for Gear Tracker. It shoul
 - Browser smoke `/about`, `/about/features`, `/about/tech-stack`, `/about/security`, `/about/field-work`, `/login`, and protected `/`.
 
 ## Change Log
+- 2026-07-02: Reduced marketing language across the `/about` route set. Headlines, CTA copy, mockup descriptions, metadata, footer copy, and section navigation now describe concrete workflows, platform pieces, security controls, and field surfaces in a matter-of-fact tone.
 - 2026-07-01: Added static `/privacy` for `wisconsincreative.com/privacy`, covering the iOS launch privacy-policy requirement with public-safe copy, no authenticated API reads, and contact routing through `erole@athletics.wisc.edu`.
 - 2026-07-01: Improvement pass. Pinned the showroom subtree to light tokens (`[data-theme="light"]` alias in globals plus wrapper attribute) so system-dark visitors no longer get white-on-white text; fixed the invisible gray tone chip on light cards; demoted product-mockup headings to styled text inside a `figure` to keep heading order valid; added a skip-to-content link and `#showroom-content` targets; added `metadataBase` (wisconsincreative.com), Open Graph/Twitter metadata, and a generated `opengraph-image` for the `/about` segment; added a "Keep exploring" cross-link section fed by the nav descriptions; made the stakeholder CTA link configurable so Tech Stack no longer links to itself; refreshed footer and security-page copy; extended the content contract test for light-pinning, share metadata, and nav descriptions.
 - 2026-07-01: Public stakeholder showroom shipped locally with static `/about` route set, fictional product mockups, public-safe stack/security copy, and content contract coverage.

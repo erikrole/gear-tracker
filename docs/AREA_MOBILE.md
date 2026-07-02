@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Mobile Operations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-01
+- Last Updated: 2026-07-02
 - Status: Active
 - Version: V1
 
@@ -132,6 +132,10 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 - **V3 (later)**: Bottom nav badge counts via live `/api/nav-counts` polling, game-day/shift context cards
 
 ## Change Log
+- 2026-07-02: **iOS Booking Detail details edit cleanup** - native Booking Detail now groups title, requester, pickup location, pickup/return window, notes, status, and reference number into one clear Details card with an in-section `Edit Details` action plus the standard toolbar action. The edit sheet follows native toolbar rhythm with Cancel and Save, edits title/window/notes, and lets reservations change pickup location through the existing `/api/bookings/[id]` optimistic-lock PATCH path. Equipment remains read-only in Booking Detail with kiosk-owned pickup/return copy so item custody changes are not implied.
+- 2026-07-02: **iOS Home header cleanup** - native Home no longer renders the Apple Foundation Models or deterministic summary subline under the greeting. The header now stays to the date, a deterministic day-varying local greeting, and the signed-in user's first name, while operational urgency remains in the stat strip and Next Up action queue. The Home view no longer imports Foundation Models for the header.
+- 2026-07-02: **iOS Home all-day event row cleanup** - native Home now treats event-work rows with all-day events as date-only. The Next Up row reuses the Schedule all-day date math, shows `All day` metadata instead of a midnight clock time, suppresses call-time sublines, and avoids gear-prep copy such as `Pickup gear at 12:00 AM` for all-day event-linked gear.
+- 2026-07-02: **iOS Snow Leopard Home polish** - the Snow Leopard release pass started with a current-source iOS audit, clean drift and audit inventory baselines, and a low-risk Home slice. Native Home stat tiles now use the raised tile surface with active-only tone shadow so the strip reads as quick triage instead of another card stack. The all-clear recovery copy now points to Search or Scan, matching the current compact Search tab and in-surface scanner contract. Source-contract coverage guards the no-debug-kiosk release posture on Home.
 - 2026-07-02: **iOS App Store privacy manifest alignment** - the first-party privacy manifest now declares the account, contact, identifier, usage, and diagnostic data types disclosed for App Store Connect, keeps tracking disabled, and intentionally omits user coarse location because the app uses fixed venue coordinates for weather rather than collecting device location.
 - 2026-07-01: **iOS App Store readiness slice** - the main `Wisconsin` target is prepared to present as `Wisconsin Creative` in App Store metadata while keeping the installed Home Screen label as `Creative`; checked-in APNs entitlement metadata now targets production for the App Store build; the first-party privacy manifest declares required-reason UserDefaults usage; and an opt-in App Review demo seed script creates fictional users, gear, bookings, schedule context, notifications, and reviewer credentials for final review. The dedicated `WisconsinKiosk` target remains separate and off the App Store.
 - 2026-07-01: **Wisconsin Creative domain cutover slice 1** - native iOS now resolves API traffic, account recovery, registration, manage-account, license management, kiosk cookie host, and personal shift calendar subscriptions from the shared `AppEnvironment` canonical host, `wisconsincreative.com`. The legacy `gear.erikrole.com` value remains only as an explicit transition constant, and source-contract tests prevent old-domain literals from drifting back into Swift screens.

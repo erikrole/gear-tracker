@@ -1,10 +1,8 @@
 import SwiftUI
 import UIKit
 import os
-import FoundationModels
 
 private let homePerformanceLog = Logger(subsystem: "com.erikrole.Wisconsin", category: "Launch")
-private let homeGeneratedHeaderDefaultsKey = "WisconsinHomeGeneratedHeaderEnabled"
 
 private func elapsedMilliseconds(since start: Date) -> Int {
     Int(Date().timeIntervalSince(start) * 1_000)
@@ -135,8 +133,7 @@ struct HomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Brand.Space.lg) {
                 DashboardHero(
-                    name: session.currentUser?.name ?? "",
-                    signal: HomeHeaderSignal(dashboard: dash, currentUserId: session.currentUser?.id)
+                    name: session.currentUser?.name ?? ""
                 )
                 if vm.error != nil {
                     RefreshFailurePill(message: vm.error ?? "")
@@ -312,24 +309,28 @@ struct HomeView: View {
 
 private struct DashboardHero: View {
     let name: String
-    let signal: HomeHeaderSignal
-    @State private var generatedMessage: String?
 
     private var firstName: String {
         name.split(separator: " ").first.map(String.init) ?? ""
     }
 
     private var greeting: String {
-        switch Calendar.current.component(.hour, from: .now) {
-        case 5..<12:  return "Good morning"
-        case 12..<17: return "Good afternoon"
-        case 17..<22: return "Good evening"
-        default:      return "Hello"
-        }
-    }
+        let calendar = Calendar.current
+        let dayOrdinal = calendar.ordinality(of: .day, in: .era, for: .now) ?? calendar.component(.day, from: .now)
+        let variants: [String]
 
-    private var headerMessage: String {
-        generatedMessage ?? signal.fallbackMessage
+        switch calendar.component(.hour, from: .now) {
+        case 5..<12:
+            variants = ["Good morning", "Morning", "Good to see you"]
+        case 12..<17:
+            variants = ["Good afternoon", "Afternoon", "Good to see you"]
+        case 17..<22:
+            variants = ["Good evening", "Evening", "Welcome back"]
+        default:
+            variants = ["Hello", "Welcome back", "Good to see you"]
+        }
+
+        return variants[dayOrdinal % variants.count]
     }
 
     var body: some View {
@@ -347,126 +348,11 @@ private struct DashboardHero: View {
                     .font(.gothamBlack(size: 30))
                     .foregroundStyle(Color.brandPrimary)
             }
-            Text(headerMessage)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, Brand.Space.xs)
-        .task(id: signal.cacheKey) {
-            await generateHeaderMessage()
-        }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(firstName.isEmpty ? "\(greeting). \(headerMessage)" : "\(greeting), \(firstName). \(headerMessage)")
-    }
-
-    private func generateHeaderMessage() async {
-        generatedMessage = nil
-        guard UserDefaults.standard.bool(forKey: homeGeneratedHeaderDefaultsKey) else { return }
-        try? await Task.sleep(for: .milliseconds(1_500))
-        guard !Task.isCancelled else { return }
-        guard SystemLanguageModel.default.availability == .available else { return }
-
-        let instructions = """
-        You write one short iOS Home header line for Wisconsin Creative Gear Tracker.
-        Output only one sentence under 90 characters.
-        Be specific to the provided counts.
-        Some lines can be fun, some informative, but keep it calm and useful.
-        Do not invent tasks, names, games, locations, or counts.
-        No emoji. No hashtags. No quotation marks.
-        """
-        let prompt = """
-        First name: \(firstName.isEmpty ? "the signed-in user" : firstName)
-        Current deterministic fallback: \(signal.fallbackMessage)
-        Dashboard signals:
-        - Overdue checkouts: \(signal.overdueCount)
-        - Due today: \(signal.dueTodayCount)
-        - Pending pickups: \(signal.pendingPickupCount)
-        - Upcoming reservations: \(signal.reservationCount)
-        - Shift/event prep items: \(signal.eventWorkCount)
-        - Staff follow-up items: \(signal.staffFollowUpCount)
-        Write the header line now.
-        """
-
-        do {
-            let session = LanguageModelSession(instructions: instructions)
-            let response = try await session.respond(
-                to: prompt,
-                options: GenerationOptions(temperature: 0.8, maximumResponseTokens: 28)
-            )
-            if let cleaned = HomeHeaderSignal.validatedGeneratedMessage(response.content) {
-                generatedMessage = cleaned
-            }
-        } catch {
-            generatedMessage = nil
-        }
-    }
-}
-
-private struct HomeHeaderSignal: Equatable {
-    let overdueCount: Int
-    let dueTodayCount: Int
-    let pendingPickupCount: Int
-    let reservationCount: Int
-    let eventWorkCount: Int
-    let staffFollowUpCount: Int
-
-    init(dashboard: DashboardData, currentUserId: String?) {
-        overdueCount = dashboard.myCheckouts.items.filter(\.isOverdue).count
-        dueTodayCount = dashboard.myCheckouts.items.filter { summary in
-            !summary.isOverdue && Calendar.current.isDateInToday(summary.endsAt)
-        }.count
-        pendingPickupCount = currentUserId.map { id in
-            dashboard.pendingPickups.items.filter { $0.requesterUserId == id }.count
-        } ?? 0
-        reservationCount = dashboard.myReservations.count
-        eventWorkCount = dashboard.myEventWork.count
-        staffFollowUpCount = dashboard.flaggedItems.count + dashboard.lostBulkUnits.reduce(0) { $0 + $1.count } + dashboard.drafts.count
-    }
-
-    var cacheKey: String {
-        [
-            overdueCount,
-            dueTodayCount,
-            pendingPickupCount,
-            reservationCount,
-            eventWorkCount,
-            staffFollowUpCount,
-        ].map(String.init).joined(separator: "-")
-    }
-
-    var fallbackMessage: String {
-        if overdueCount > 0 {
-            return overdueCount == 1 ? "One overdue checkout needs attention." : "\(overdueCount) overdue checkouts need attention."
-        }
-        if dueTodayCount > 0 {
-            return dueTodayCount == 1 ? "One return is due today." : "\(dueTodayCount) returns are due today."
-        }
-        if pendingPickupCount > 0 {
-            return pendingPickupCount == 1 ? "One pickup is ready for you." : "\(pendingPickupCount) pickups are ready for you."
-        }
-        if eventWorkCount > 0 {
-            return eventWorkCount == 1 ? "One event has gear or shift prep waiting." : "\(eventWorkCount) events have gear or shift prep waiting."
-        }
-        if reservationCount > 0 {
-            return reservationCount == 1 ? "One reservation is coming up." : "\(reservationCount) reservations are coming up."
-        }
-        if staffFollowUpCount > 0 {
-            return staffFollowUpCount == 1 ? "One staff follow-up needs review." : "\(staffFollowUpCount) staff follow-ups need review."
-        }
-        return "Nothing urgent. The gear room gets a clean lane."
-    }
-
-    static func validatedGeneratedMessage(_ raw: String) -> String? {
-        let trimmed = raw
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
-        guard !trimmed.isEmpty, trimmed.count <= 90 else { return nil }
-        guard trimmed.unicodeScalars.allSatisfy({ !$0.properties.isEmojiPresentation }) else { return nil }
-        guard !trimmed.contains("\n"), !trimmed.contains("#") else { return nil }
-        return trimmed
+        .accessibilityLabel(firstName.isEmpty ? greeting : "\(greeting), \(firstName)")
     }
 }
 
@@ -556,12 +442,12 @@ private struct StatCard: View {
             }
             .padding(Brand.Space.md)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous))
+            .background(Color.cardSurfaceRaised, in: RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous)
                     .strokeBorder(active ? Color.statusText(tone).opacity(0.25) : Color.hairline, lineWidth: active ? 1 : 0.5)
             )
-            .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
+            .shadow(color: active ? Color.statusText(tone).opacity(0.08) : Color.clear, radius: active ? 8 : 0, x: 0, y: active ? 3 : 0)
         }
         .buttonStyle(.plain)
         .sensoryFeedback(.selection, trigger: hapticTrigger)
@@ -768,8 +654,25 @@ private struct EventActionQueueRow: View {
     @State private var hapticTrigger = false
 
     private var tone: StatusTone { work.needsGear ? .blue : .green }
+    private var scheduleEvent: ScheduleEvent { work.asScheduleEvent }
+    private var isAllDayEvent: Bool { scheduleEvent.displayAllDay }
     private var firstTime: Date { min(work.primaryGear?.startsAt ?? work.shift.startsAt, work.shift.startsAt) }
     private var primaryLabel: String { work.needsGear ? "Reserve gear" : "Prep shift" }
+    private var timeMeta: String {
+        guard isAllDayEvent else {
+            return firstTime.formatted(.dateTime.weekday(.abbreviated).hour().minute())
+        }
+        if scheduleEvent.isMultiDay,
+           let firstDay = scheduleEvent.spannedDays.first,
+           let lastDay = scheduleEvent.spannedDays.last {
+            let start = firstDay.formatted(.dateTime.month(.abbreviated).day())
+            let end = lastDay.formatted(.dateTime.month(.abbreviated).day())
+            return "\(start)-\(end), All day"
+        }
+        let day = (scheduleEvent.spannedDays.first ?? work.event.startsAt)
+            .formatted(.dateTime.weekday(.abbreviated))
+        return "\(day), All day"
+    }
 
     var body: some View {
         Button {
@@ -790,17 +693,19 @@ private struct EventActionQueueRow: View {
                         } else {
                             queueTextLine("Reserve gear now", tone: .blue)
                         }
-                        queueTextLine(
-                            "Call time at \(work.shift.startsAt.formatted(date: .omitted, time: .shortened))",
-                            tone: .blue
-                        )
+                        if !isAllDayEvent {
+                            queueTextLine(
+                                "Call time at \(work.shift.startsAt.formatted(date: .omitted, time: .shortened))",
+                                tone: .blue
+                            )
+                        }
                     }
                 }
 
                 Spacer(minLength: 8)
 
                 VStack(alignment: .trailing, spacing: 4) {
-                    Text(firstTime.formatted(.dateTime.weekday(.abbreviated).hour().minute()))
+                    Text(timeMeta)
                         .font(.caption.weight(.medium))
                         .foregroundStyle(Color.statusText(tone))
                         .multilineTextAlignment(.trailing)
@@ -828,16 +733,23 @@ private struct EventActionQueueRow: View {
         } else {
             parts.append("Reserve gear now")
         }
-        parts.append("Call time at \(work.shift.startsAt.formatted(date: .omitted, time: .shortened))")
+        if isAllDayEvent {
+            parts.append("All day event")
+        } else {
+            parts.append("Call time at \(work.shift.startsAt.formatted(date: .omitted, time: .shortened))")
+        }
         parts.append(primaryLabel)
         return parts.joined(separator: ", ")
     }
 
     private func gearInstruction(for gear: BookingSummary) -> String {
-        let time = gear.startsAt.formatted(date: .omitted, time: .shortened)
         if gear.status == .pendingPickup && gear.startsAt < Date() {
             return "Pickup gear now"
         }
+        if isAllDayEvent {
+            return "Pickup gear for event"
+        }
+        let time = gear.startsAt.formatted(date: .omitted, time: .shortened)
         return "Pickup gear at \(time)"
     }
 
@@ -995,7 +907,7 @@ private struct AllClearEmptyState: View {
                 .accessibilityHidden(true)
             Text("You're all set")
                 .font(.headline)
-            Text("Use Search when you need to look up gear.")
+            Text("Use Search to look up gear or scan a code.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -1003,7 +915,7 @@ private struct AllClearEmptyState: View {
                 Haptics.tap()
                 openSearch()
             } label: {
-                Label("Search gear", systemImage: "magnifyingglass")
+                Label("Search or Scan", systemImage: "magnifyingglass")
                     .font(.subheadline.weight(.semibold))
             }
             .buttonStyle(.borderedProminent)

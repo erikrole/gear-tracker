@@ -6,29 +6,32 @@ function source(relativeFile: string) {
   return readFileSync(path.join(process.cwd(), relativeFile), "utf8");
 }
 
-describe("iOS Home AFM header source contract", () => {
-  it("uses on-device Foundation Models only for a bounded optional header line", () => {
+describe("iOS Home header source contract", () => {
+  it("keeps the Home hero free of generated summary copy", () => {
     const home = source("ios/Wisconsin/Views/HomeView.swift");
 
-    expect(home).toContain("import FoundationModels");
-    expect(home).toContain('private let homeGeneratedHeaderDefaultsKey = "WisconsinHomeGeneratedHeaderEnabled"');
-    expect(home).toContain("UserDefaults.standard.bool(forKey: homeGeneratedHeaderDefaultsKey)");
-    expect(home).toContain("Task.sleep(for: .milliseconds(1_500))");
-    expect(home).toContain("SystemLanguageModel.default.availability == .available");
-    expect(home).toContain("LanguageModelSession(instructions:");
-    expect(home).toContain("maximumResponseTokens: 28");
-    expect(home).toContain("generatedMessage ?? signal.fallbackMessage");
-    expect(home).toContain("validatedGeneratedMessage");
+    expect(home).not.toContain("import FoundationModels");
+    expect(home).not.toContain("homeGeneratedHeaderDefaultsKey");
+    expect(home).not.toContain("SystemLanguageModel");
+    expect(home).not.toContain("LanguageModelSession");
+    expect(home).not.toContain("GenerationOptions");
+    expect(home).not.toContain("HomeHeaderSignal");
+    expect(home).not.toContain("generatedMessage");
+    expect(home).not.toContain("headerMessage");
+    expect(home).not.toContain("fallbackMessage");
   });
 
-  it("keeps the model prompt count-only and leaves operational rows authoritative", () => {
+  it("varies the greeting locally while leaving operational rows authoritative", () => {
     const home = source("ios/Wisconsin/Views/HomeView.swift");
 
-    expect(home).toContain("Do not invent tasks, names, games, locations, or counts.");
-    expect(home).toContain("- Overdue checkouts: \\(signal.overdueCount)");
-    expect(home).toContain("- Pending pickups: \\(signal.pendingPickupCount)");
-    expect(home).not.toContain("Booking title:");
-    expect(home).not.toContain("summary.title)");
+    expect(home).toContain("private var greeting: String");
+    expect(home).toContain("let dayOrdinal = calendar.ordinality(of: .day, in: .era, for: .now)");
+    expect(home).toContain('variants = ["Good morning", "Morning", "Good to see you"]');
+    expect(home).toContain('variants = ["Good afternoon", "Afternoon", "Good to see you"]');
+    expect(home).toContain('variants = ["Good evening", "Evening", "Welcome back"]');
+    expect(home).toContain('variants = ["Hello", "Welcome back", "Good to see you"]');
+    expect(home).toContain("return variants[dayOrdinal % variants.count]");
+    expect(home).toContain("HomeActionQueue(");
   });
 
   it("keeps Live Activity reconciliation out of the Home dashboard load timing", () => {
@@ -50,10 +53,12 @@ describe("iOS Home AFM header source contract", () => {
     expect(home).not.toContain("@State private var showCreate");
     expect(home).not.toContain(".overlay(alignment: .bottomTrailing)");
     expect(home).not.toContain("CreateBookingSheet { newId in");
+    expect(home).not.toContain("#if DEBUG");
+    expect(home).not.toContain("KioskStore.enterKiosk");
     expect(home).toContain("HomeActionQueue(");
     expect(home).toContain("AllClearEmptyState(openSearch: { appState.presentSearch() })");
-    expect(home).toContain('Text("Use Search when you need to look up gear.")');
-    expect(home).toContain('Label("Search gear", systemImage: "magnifyingglass")');
+    expect(home).toContain('Text("Use Search to look up gear or scan a code.")');
+    expect(home).toContain('Label("Search or Scan", systemImage: "magnifyingglass")');
   });
 
   it("uses a stronger due-today icon tile while preserving the orange text tone", () => {
@@ -63,9 +68,25 @@ describe("iOS Home AFM header source contract", () => {
     expect(home).toContain('StatCard(value: stats.dueToday, label: "Due Today"');
     expect(home).toContain("tone: .orange");
     expect(home).toContain("Color.statusIconBackground(tone)");
+    expect(home).toContain("Color.cardSurfaceRaised");
+    expect(home).toContain("active ? Color.statusText(tone).opacity(0.08) : Color.clear");
     expect(home).toContain(".foregroundStyle(.secondary)");
     expect(brand).toContain("// #d97706");
     expect(brand).toContain("// #fff7ed");
     expect(brand).toContain("// #ffedd5");
+  });
+
+  it("keeps all-day event work rows date-only on Home", () => {
+    const home = source("ios/Wisconsin/Views/HomeView.swift");
+
+    expect(home).toContain("private var scheduleEvent: ScheduleEvent { work.asScheduleEvent }");
+    expect(home).toContain("private var isAllDayEvent: Bool { scheduleEvent.displayAllDay }");
+    expect(home).toContain("private var timeMeta: String");
+    expect(home).toContain("scheduleEvent.spannedDays");
+    expect(home).toContain('return "\\(day), All day"');
+    expect(home).toContain("if !isAllDayEvent {");
+    expect(home).toContain('parts.append("All day event")');
+    expect(home).toContain('return "Pickup gear for event"');
+    expect(home).not.toContain("Text(firstTime.formatted(.dateTime.weekday(.abbreviated).hour().minute()))");
   });
 });

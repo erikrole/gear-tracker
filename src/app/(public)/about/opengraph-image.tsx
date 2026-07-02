@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "Wisconsin Creative Gear Tracker: the operating system for game-day gear.";
+export const alt = "Wisconsin Creative Gear Tracker: reservations, Schedule, and gear custody.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -40,7 +40,7 @@ export default function OpengraphImage() {
             maxWidth: 980,
           }}
         >
-          The operating system for game-day gear.
+          Reservations, Schedule, and gear custody.
         </div>
         <div
           style={{
@@ -51,7 +51,7 @@ export default function OpengraphImage() {
             color: "rgba(255,255,255,0.72)",
           }}
         >
-          Reservations, kiosk custody, Schedule, and field work in one public showroom.
+          Public pages about Gear Tracker for Wisconsin Creative.
         </div>
       </div>
     ),

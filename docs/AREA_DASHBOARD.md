@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Dashboard
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-27
+- Last Updated: 2026-07-02
 - Status: Active — V3 shipped, reliability + UX polish complete
 - Version: V3
 
@@ -181,6 +181,8 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 7. Add regression tests for permissions, window filtering (7 days), and overdue consistency.
 
 ## Change Log
+- 2026-07-02: iOS Home header cleanup. Native Home no longer renders the Apple Foundation Models or deterministic summary subline under the greeting. The header keeps only the date, a deterministic day-varying local greeting, and the signed-in user's first name; operational counts and urgency remain in the stat strip and Next Up action queue. The dashboard API payload is unchanged.
+- 2026-07-02: iOS Home all-day event row cleanup. Native Home's Next Up event-work row now reuses Schedule all-day date math so all-day events show date-only `All day` metadata, suppress call-time sublines, and avoid midnight gear-prep times while preserving the existing `/api/dashboard` `myEventWork.event.allDay` payload contract.
 - 2026-06-29: iOS Bookings unified list polish. Native Bookings now presents one active-bookings list with Checkouts above Reservations and newest rows first inside each section, keeping dashboard deep links compatible by clearing legacy sub-tab hints rather than requiring a separated control. Booking status display copy now uses Reserved, Checked Out, and Overdue while preserving the existing BookingStatus enum and dashboard payload contracts.
 - 2026-06-29: iOS Home visual polish. Native Home no longer renders a floating create button over the Next Up action queue, preserving the dashboard surface for immediate due, pickup, reservation, and shift work. Due Today keeps its existing orange text tone, compact orange status icon tiles use a stronger fill, and the Home sync timestamp uses secondary text for better legibility. Web dashboard data contracts and booking creation routes are unchanged.
 - 2026-06-29: iOS Home console/runtime calming. Native Home now logs dashboard payload completion before checkout-return Live Activity reconciliation and records the reconciliation as its own debug timing, so launch measurements match visible Home data. The Apple Foundation Models header line is local opt-in and delayed after first render; deterministic fallback copy is the default Home header path. Remote thumbnails now use a bounded disk URL cache plus the existing decoded in-memory cache to reduce cold-launch image refetches.

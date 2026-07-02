@@ -12,17 +12,17 @@ export default function TechStackPage() {
     <main id="showroom-content">
       <PageIntro
         eyebrow="Tech stack"
-        title="Modern web, typed data, native field work."
-        description="The stack combines a Next.js control room, Prisma-backed Neon Postgres, Vercel deployment, public-object media storage, observability, email, and native iOS field execution."
+        title="Web app, Postgres data, native iOS."
+        description="The stack uses Next.js, Prisma, Neon Postgres, Vercel, Blob storage, Sentry, Resend, Upstash, and native iOS."
         mockup={pageMockups.tech}
       />
       <ChapterBand
         eyebrow="Platform map"
-        title="The stack is boring where reliability matters."
-        description="Public copy names the major pieces without exposing sensitive configuration, endpoint internals, or operational runbook detail."
+        title="Major platform pieces."
+        description="The public stack page names the main tools without exposing configuration, endpoint internals, or runbook details."
       />
       <StackGrid groups={stackGroups} />
-      <StakeholderCta primaryHref="/about/security" primaryLabel="Review security posture" />
+      <StakeholderCta primaryHref="/about/security" primaryLabel="View security" />
       <ExplorePages current="/about/tech-stack" />
     </main>
   );

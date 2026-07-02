@@ -4,6 +4,28 @@ Last updated: 2026-07-02
 
 ---
 
+## Active: iOS Snow Leopard release polish (2026-07-02)
+
+Plan: `tasks/ios-snow-leopard-release-plan.md`
+
+- [x] Ground release scope in current mobile docs, decisions, gaps, lessons, iOS audits, and current source.
+- [x] Run baseline iOS drift and audit inventory.
+- [x] Slice 1: Home polish and release-proofing.
+- [x] Slice 2: Booking Detail action polish.
+- [ ] Slice 3: Create Booking equipment recovery check.
+- [ ] Slice 4: Search and scan recovery sweep.
+- [ ] Slice 5: Foundation hardening and final verification.
+
+### Review
+- 2026-07-02: Snow Leopard scope started as a native iOS polish/foundation release, not a desktop-parity expansion. Baseline `npm run drift:ios` and `npm run audit:ios:gaps` passed. Current Home source already closes the old P0/P1 dashboard audit issues, so Slice 1 is limited to release-proofing and low-risk polish.
+- 2026-07-02: Slice 1 shipped locally. Home stat tiles now use raised tile surfaces with active-only tone shadow, the all-clear CTA now says Search or Scan to match the Search-tab scanner contract, and source-contract tests guard against reintroducing the old DEBUG kiosk shortcut on Home. Verification passed with focused Vitest, TypeScript, iOS drift, iOS audit gaps, docs check, whitespace, and unsandboxed `npm run ios:xcode:verify`.
+- 2026-07-02: Home all-day event follow-up shipped locally. The Next Up event-work row now treats all-day events as date-only, suppresses call-time sublines, and avoids midnight gear-prep times while keeping the existing dashboard payload shape.
+- 2026-07-02: Home header follow-up removed the AFM/deterministic summary subline entirely. The header now varies the local greeting by day and time while leaving urgency in the stat strip and Next Up queue.
+- 2026-07-02: Slice 2 started from current Booking Detail source, reservation/kiosk docs, and the Snow Leopard plan. Scope is metadata/detail editing only: title, pickup/return window, reservation pickup location, and notes. Equipment changes stay out of normal app detail because kiosk owns custody.
+- 2026-07-02: Slice 2 shipped locally. Booking Detail now groups editable metadata into a clean Details section, exposes Edit Details from both the toolbar and section action, allows reservation pickup-location edits through the existing optimistic-lock PATCH path, and states that item custody changes stay in kiosk workflows. Verification passed with focused Vitest, iOS drift, iOS audit gaps, docs verification, Xcode project check, whitespace check, and unsandboxed `npm run ios:xcode:verify`.
+
+---
+
 ## Active: Unlisted iOS App Store launch readiness (2026-07-01)
 
 Scope: App Store submission readiness for the main `Wisconsin` iOS app only. Kiosk remains separate and off the App Store.
@@ -34,11 +56,13 @@ Scope: `/about` route set only. Fixes two shipped bugs and raises share/SEO/acce
 - [x] Make `StakeholderCta` primary link configurable so `/about/tech-stack` stops linking to itself.
 - [x] Footer polish: copyright year + tightened copy.
 - [x] Copy tweak: security page H1.
+- [x] Reduce marketing language across public about copy while keeping the existing route set and static-data boundary.
 - [x] Extend `tests/public-showroom-content.test.ts` for light-pinning, metadata, and nav descriptions.
 - [x] Verify: focused vitest, tsc, build:app, browser proof (light + dark emulation).
 - [x] Doc sync: `docs/AREA_PUBLIC_SHOWROOM.md` change log; commit + push.
 
 ### Review
+- 2026-07-02: Copy-tone follow-up shipped locally. `/about` and subpages now use more direct language for the hero, page intros, CTAs, mockups, nav descriptions, metadata, footer, feature cards, stack cards, security controls, and field-work cards. Route structure, styling, mockup data rules, authentication boundary, and public data boundary were unchanged.
 - 2026-07-01: Improvement pass shipped. Two shipped bugs fixed: (1) visitors with dark system theme got dark tokens on the fixed-light showroom, producing white-on-white text in every light band and the footer; fixed by aliasing the light token block to `[data-theme="light"]` in globals.css and pinning the showroom wrapper. (2) The gray tone icon chip used white-on-white styling on light cards; now `bg-muted` on light with a dark-band override. Added: skip link + main targets, `metadataBase`/OG/Twitter metadata with a generated 1200x630 opengraph-image, "Keep exploring" cross-links from the previously unused nav descriptions, configurable stakeholder CTA (Tech Stack no longer links to itself, Overview keeps stack CTA since the hero covers features), mockup headings demoted into a `figure` for valid heading order, footer copyright, security H1 rewrite. Verified: 8/8 content-contract Vitest, clean `tsc`, `npm run build:app` (all five routes + hashed opengraph-image emitted), codemaps regenerated, `git diff --check`, and browser proof under `data-theme="dark"` (light bands render dark-on-light, gray chips visible, no console errors, OG image serves 200 image/png, no horizontal overflow at 375px).
 
 ---
@@ -480,7 +504,7 @@ Plan: improve the web sidebar only, leaving mobile bottom nav and native iOS sur
 
 ---
 
-## Active: iOS Home AFM header line (2026-06-28)
+## Completed: iOS Home AFM header line (2026-06-28, superseded 2026-07-02)
 
 Plan: use Apple Foundation Models on device only for the native Home header flavor line, with deterministic fallback and no API payload changes.
 
@@ -492,6 +516,7 @@ Plan: use Apple Foundation Models on device only for the native Home header flav
 
 ### Review
 - 2026-06-28: Native Home now adds one optional Apple Foundation Models header flavor line from count-only dashboard signals. The deterministic fallback remains first-class when AFM is unavailable, generation fails, or output validation rejects the line. Verification passed with focused Vitest, `npx tsc --noEmit`, iOS drift, iOS gap audit, and focused whitespace checks. Xcode compilation reached Swift driver startup with no Swift diagnostics shown, but both simulator and generic iOS builds failed in `actool` because CoreSimulator runtimes were unavailable in the sandbox.
+- 2026-07-02: Superseded by Snow Leopard Home header cleanup. Native Home no longer renders an AFM or deterministic summary subline, and `HomeView.swift` no longer imports Foundation Models for the header.
 
 ---
 

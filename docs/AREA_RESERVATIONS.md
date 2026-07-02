@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-26
+- Last Updated: 2026-07-02
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -241,6 +241,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - Mobile operations contract from `AREA_MOBILE.md`.
 
 ## Change Log
+- 2026-07-02: Native iOS Booking Detail now presents editable booking metadata as one clear Details card and sheet. `Edit Details` exposes title, pickup/return window, notes, and reservation pickup location through the existing optimistic-lock `/api/bookings/[id]` PATCH path; equipment remains read-only in the detail view with kiosk-owned handoff copy so item custody changes stay out of normal app detail.
 - 2026-07-01: Shared booking PATCH now treats stale duplicate edits as idempotent only when the submitted fields already match the current reservation, including return-window changes. The first save still owns the audit entry, while real stale competing window edits continue to return 409 conflict responses.
 - 2026-06-30: Reservation title and notes-only edits no longer rerun availability checks or rebuild equipment rows. Timing, location, and equipment edits still revalidate availability and update allocation windows, while harmless metadata edits stay out of conflict handling.
 - 2026-06-30: Native iOS reservation creation now uses SwiftUI `.searchable` for the Equipment step instead of an inline custom search row. Scan-to-add, grouped asset rows, selected equipment recovery, bulk quantities, and server-side availability checks stay on the existing paths.

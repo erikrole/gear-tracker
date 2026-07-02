@@ -60,6 +60,7 @@ describe("iOS tab bar stability", () => {
     expect(home).toContain("AllClearEmptyState(openSearch: { appState.presentSearch() })");
     expect(home).not.toContain("appState.selectedTab = 3");
     expect(search).toContain('Label("Scan QR code", systemImage: "qrcode.viewfinder")');
+    expect(home).toContain('Label("Search or Scan", systemImage: "magnifyingglass")');
     expect(search).toContain("var showsCancelButton = true");
     expect(search).toContain("if showsCancelButton");
   });

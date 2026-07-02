@@ -135,13 +135,26 @@ describe("student field mobile contracts", () => {
 
   it("keeps iOS Booking Detail edit state self-describing", () => {
     const detail = source("ios/Wisconsin/Views/BookingDetailView.swift");
+    const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
     const extendSheet = source("ios/Wisconsin/Views/ExtendBookingSheet.swift");
 
-    expect(detail).toContain("Label(\"Edit\", systemImage: \"pencil\")");
+    expect(detail).toContain("BookingDetailsSection(");
+    expect(detail).toContain("Label(\"Edit Details\", systemImage: \"pencil\")");
+    expect(detail).toContain(".accessibilityLabel(\"Edit booking details\")");
+    expect(detail).toContain(".navigationTitle(\"Edit Details\")");
+    expect(detail).toContain("Text(\"Equipment changes, pickup, and return stay in kiosk workflows. This sheet edits booking details only.\")");
+    expect(detail).toContain("booking.kind == .reservation");
+    expect(detail).toContain("OptionPickerView(");
+    expect(detail).toContain("title: \"Pickup Location\"");
+    expect(detail).toContain("locationId: canEditLocation && locationId != booking.location.id ? locationId : nil");
+    expect(apiClient).toContain("locationId: String? = nil");
+    expect(apiClient).toContain("let locationId: String?");
+    expect(apiClient).toContain("locationId: locationId");
     expect(detail).toContain("TextEditor(text: $notes)");
     expect(detail).toContain("accessibilityLabel(\"Booking notes\")");
     expect(detail).toContain("notes.trimmingCharacters(in: .whitespacesAndNewlines)");
     expect(detail).not.toContain("notes.isEmpty ? nil : notes");
+    expect(detail).toContain("Equipment is read-only in this detail view. Kiosk pickup verifies the physical handoff.");
     expect(detail).toContain("BookingEditLockedNotice");
     expect(detail).toContain("Text(\"Editing locked\")");
     expect(detail).toContain("Use Extend Return Date");

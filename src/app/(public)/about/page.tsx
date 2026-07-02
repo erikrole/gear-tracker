@@ -7,14 +7,14 @@ export default function AboutPage() {
       <ShowroomHero mockup={heroMockup} />
       <ChapterBand
         eyebrow="Public overview"
-        title="Built around physical handoffs, not generic inventory."
-        description="The public story is simple: plan the work in web and iOS, bind custody at the kiosk, keep Schedule and gear readiness connected, and leave an audit trail when accountability changes."
+        title="Built around physical handoffs."
+        description="Gear Tracker plans reservations in web and iOS. The kiosk records checkout, pickup, and return. Schedule keeps event and shift context connected to gear."
       />
       <FeatureGrid cards={overviewPillars} />
       <ChapterBand
-        eyebrow="Why stakeholders care"
-        title="Operational speed, clarity, and trust in one product."
-        description="Gear Tracker gives Wisconsin Creative a product narrative that matches the daily reality of students, staff, game-day venues, batteries, camera bodies, and staffed counters."
+        eyebrow="What it covers"
+        title="Planning, custody, reporting, and review."
+        description="The same records support reservations, kiosk handoffs, item-family tracking, Schedule work, notifications, reports, and audit history."
         dark
       />
       <StakeholderCta />

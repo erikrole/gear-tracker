@@ -12,14 +12,14 @@ export default function SecurityPage() {
     <main id="showroom-content">
       <PageIntro
         eyebrow="Security"
-        title="Show the posture without opening the operation."
-        description="This showroom explains the trust posture while keeping authenticated data, sensitive thresholds, and internal recovery detail out of public view."
+        title="Public pages do not expose operations."
+        description="This section describes the security model while keeping authenticated data, thresholds, and internal recovery details out of public view."
         mockup={pageMockups.security}
       />
       <ChapterBand
-        eyebrow="Public-safe posture"
-        title="Trust controls described at the right altitude."
-        description="The security page names the principles stakeholders need to understand: static public content, role-aware access, kiosk custody, auditability, browser hardening, and transaction safety."
+        eyebrow="Security summary"
+        title="Security controls at a high level."
+        description="The page covers static public content, role-aware access, kiosk custody, auditability, browser hardening, and transaction safety."
         dark
       />
       <FeatureGrid cards={securityControls} dark />

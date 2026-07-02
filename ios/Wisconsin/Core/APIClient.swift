@@ -214,10 +214,11 @@ final class APIClient {
         }
     }
 
-    func updateBooking(id: String, title: String? = nil, notes: String? = nil, startsAt: Date? = nil, endsAt: Date? = nil, updatedAt: Date? = nil) async throws {
+    func updateBooking(id: String, title: String? = nil, notes: String? = nil, locationId: String? = nil, startsAt: Date? = nil, endsAt: Date? = nil, updatedAt: Date? = nil) async throws {
         struct Body: Encodable {
             let title: String?
             let notes: String?
+            let locationId: String?
             let startsAt: String?
             let endsAt: String?
         }
@@ -230,6 +231,7 @@ final class APIClient {
         req.httpBody = try JSONEncoder().encode(Body(
             title: title,
             notes: notes,
+            locationId: locationId,
             startsAt: startsAt.map { iso.string(from: $0) },
             endsAt: endsAt.map { iso.string(from: $0) }
         ))

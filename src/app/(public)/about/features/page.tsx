@@ -12,14 +12,14 @@ export default function FeaturesPage() {
     <main id="showroom-content">
       <PageIntro
         eyebrow="Features"
-        title="The workflow is the product."
-        description="Every feature is organized around a real operational handoff: who needs gear, where it moves, when it comes back, and what recovery path exists when reality changes."
+        title="Features by workflow."
+        description="The feature set follows the operational path: who needs gear, where it moves, when it comes back, and what needs review when plans change."
         mockup={pageMockups.features}
       />
       <ChapterBand
         eyebrow="Workflow pillars"
-        title="Feature breadth without losing the custody model."
-        description="The public feature set highlights shipped operating modes without implying unauthenticated access or live public data."
+        title="What the public pages cover."
+        description="These pages describe shipped operating modes without exposing authenticated access or live production data."
       />
       <FeatureGrid cards={featurePillars} />
       <StakeholderCta />
