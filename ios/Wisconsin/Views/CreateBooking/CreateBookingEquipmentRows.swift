@@ -73,6 +73,8 @@ struct SelectedEquipmentRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
+            BookingAssetThumbnail(imageUrl: asset.imageUrl, size: 40, cornerRadius: 8)
+
             VStack(alignment: .leading, spacing: 3) {
                 Text(asset.itemListPrimaryTitle)
                     .font(.gothamBold(size: 16))

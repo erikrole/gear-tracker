@@ -192,15 +192,24 @@ final class CreateBookingViewModel {
         }
     }
 
-    /// Asset groups the picker renders: category-filtered while browsing,
-    /// unfiltered while a search query is active.
+    /// Asset groups the picker renders. Default browse is one flat
+    /// "Most popular" section in server popularity order (same sort as the
+    /// items list); a category chip switches to that category; an active
+    /// search shows category-grouped matches.
     var displayedAssetGroups: [AssetCategoryGroup] {
-        guard isBrowsing, let filter = browseCategoryFilter else { return availableAssetGroups }
+        guard isBrowsing else { return availableAssetGroups }
+        guard let filter = browseCategoryFilter else {
+            guard !availableAssets.isEmpty else { return [] }
+            return [AssetCategoryGroup(id: "most-popular", title: "Most popular", assets: availableAssets)]
+        }
         return availableAssetGroups.filter { $0.title == filter }
     }
 
+    /// Bulk SKUs stay out of the default browse list (they'd bury the
+    /// popular gear); they surface via search or their category chip.
     var displayedBulkSkus: [FormBulkSku] {
-        guard isBrowsing, let filter = browseCategoryFilter else { return availableBulkSkus }
+        guard isBrowsing else { return availableBulkSkus }
+        guard let filter = browseCategoryFilter else { return [] }
         return availableBulkSkus.filter { bulkCategoryTitle($0) == filter }
     }
 
@@ -392,7 +401,9 @@ final class CreateBookingViewModel {
                 search: capturedSearch.isEmpty ? nil : capturedSearch,
                 statuses: [.available],
                 locationId: selectedLocationId.isEmpty ? nil : selectedLocationId,
-                sort: "name",
+                // Browse leads with what actually gets reserved; searches
+                // stay alphabetical so results scan predictably.
+                sort: capturedSearch.isEmpty ? "popular" : "name",
                 limit: assetPickerLimit,
                 offset: 0
             )
