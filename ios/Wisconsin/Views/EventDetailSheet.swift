@@ -370,7 +370,8 @@ struct EventDetailSheet: View {
                             icon: "archivebox.fill",
                             title: gearInstruction(for: gear),
                             subtitle: gear.itemCount == 1 ? "1 item reserved" : "\(gear.itemCount) items reserved",
-                            tone: gear.status == .pendingPickup && gear.startsAt < Date() ? .orange : .green
+                            tone: gear.status == .pendingPickup && gear.startsAt < Date() ? .orange : .green,
+                            showsChevron: true
                         )
                     }
                     .buttonStyle(.plain)
@@ -380,9 +381,10 @@ struct EventDetailSheet: View {
                     } label: {
                         detailLine(
                             icon: "archivebox",
-                            title: "Reserve gear now",
+                            title: reserveGearTitle,
                             subtitle: "Add the gear you need for this event.",
-                            tone: .blue
+                            tone: .blue,
+                            showsChevron: true
                         )
                     }
                     .buttonStyle(.plain)
@@ -401,7 +403,16 @@ struct EventDetailSheet: View {
         }
     }
 
-    private func detailLine(icon: String, title: String, subtitle: String, tone: StatusTone) -> some View {
+    /// "now" only when the event is actually today (or underway) — five days
+    /// out it states the deadline instead of shouting.
+    private var reserveGearTitle: String {
+        if event.startsAt < Date() || Calendar.current.isDateInToday(event.startsAt) {
+            return "Reserve gear now"
+        }
+        return "Reserve gear for \(event.startsAt.formatted(.dateTime.month(.abbreviated).day()))"
+    }
+
+    private func detailLine(icon: String, title: String, subtitle: String, tone: StatusTone, showsChevron: Bool = false) -> some View {
         HStack(spacing: 10) {
             Image(systemName: icon)
                 .font(.subheadline.weight(.semibold))
@@ -416,16 +427,25 @@ struct EventDetailSheet: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
+            if showsChevron {
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
         }
         .contentShape(Rectangle())
     }
 
     private func gearInstruction(for gear: BookingSummary) -> String {
-        let time = gear.startsAt.formatted(date: .omitted, time: .shortened)
         if gear.status == .pendingPickup && gear.startsAt < Date() {
             return "Pickup gear now"
         }
-        return "Pickup gear at \(time)"
+        if event.displayAllDay {
+            // All-day gear rows start at local midnight; "at 12:00 AM" is noise.
+            return "Pickup gear for this event"
+        }
+        return "Pickup gear at \(gear.startsAt.formatted(date: .omitted, time: .shortened))"
     }
 
     // MARK: - Event Header
@@ -975,9 +995,12 @@ struct ShiftRow: View {
             UserAvatarView(name: assignment.user.name, avatarUrl: assignment.user.avatarUrl, size: 28)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 4) {
+                    // Everyone reads at full strength — secondary text made
+                    // the rest of the crew look disabled. The "You" chip
+                    // already distinguishes the signed-in user.
                     Text(assignment.user.name)
                         .font(.subheadline)
-                        .foregroundStyle(isMe ? Color.primary : Color.secondary)
+                        .foregroundStyle(.primary)
                     if isMe {
                         Text("You")
                             .font(.caption2.weight(.semibold))

@@ -117,7 +117,10 @@ describe("student field mobile contracts", () => {
     expect(eventDetail).toContain("Button(\"Approve \\(assignment.user.name)\")");
     expect(eventDetail).toContain("Button(\"Decline \\(assignment.user.name)\")");
     expect(eventDetail).toContain("Text(\"Event\")");
-    expect(eventDetail).toContain("title: \"Reserve gear now\"");
+    // Time-aware reserve copy: "now" only when the event is today/underway.
+    expect(eventDetail).toContain("title: reserveGearTitle");
+    expect(eventDetail).toContain("return \"Reserve gear now\"");
+    expect(eventDetail).toContain("return \"Reserve gear for \\(event.startsAt.formatted(.dateTime.month(.abbreviated).day()))\"");
     expect(eventDetail).not.toContain("ToolbarItem(placement: .bottomBar)");
     expect(eventDetail).not.toContain("Label(\"Prep gear\", systemImage: \"archivebox\")");
     expect(tradeBoard).toContain("Label(\"Post trade\", systemImage: \"plus\")");
