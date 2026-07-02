@@ -12,12 +12,9 @@ struct KioskActivationView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            ZStack {
-                KioskSurface.base.ignoresSafeArea()
-                activationLayout(isCompact: proxy.size.width < 880 || dynamicTypeSize.isAccessibilitySize)
-                    .padding(.horizontal, 44)
-                    .padding(.vertical, 36)
-            }
+            // No base fill here — the shell's KioskBackdrop shows through.
+            activationLayout(isCompact: proxy.size.width < KioskLayout.compactBreakpoint || dynamicTypeSize.isAccessibilitySize)
+                .kioskScreenPadding()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
@@ -54,25 +51,28 @@ struct KioskActivationView: View {
                 heroPanel
                     .frame(maxWidth: .infinity, alignment: .leading)
                 activationCard
-                    .frame(width: 450)
+                    .frame(width: KioskLayout.activationCardWidth)
             }
         }
     }
 
     private var heroPanel: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Image(systemName: "barcode.viewfinder")
-                .font(.system(size: 64, weight: .semibold))
-                .foregroundStyle(Color.kioskRed)
-                .accessibilityHidden(true)
-            Text("Gear Room Kiosk")
-                .font(.kioskHeroTitle())
-                .foregroundStyle(KioskText.primary)
-                .lineLimit(2)
-                .minimumScaleFactor(0.75)
+            KioskSectionIcon(systemImage: "barcode.viewfinder", size: 72)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("WISCONSIN ATHLETICS")
+                    .font(.caption.weight(.bold))
+                    .tracking(1.6)
+                    .foregroundStyle(KioskText.muted)
+                Text("Gear Room Kiosk")
+                    .font(.kioskHeroTitle())
+                    .foregroundStyle(KioskText.primary)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.75)
+            }
             Text("Activate this iPad")
                 .font(.title2.weight(.semibold))
-                .foregroundStyle(Color.white.opacity(0.92))
+                .foregroundStyle(KioskText.primary)
             Text("Enter the 6-digit kiosk code.")
                 .font(.body)
                 .foregroundStyle(KioskText.secondary)
@@ -123,10 +123,10 @@ struct KioskActivationView: View {
             let digits = Array(code)
             ForEach(0..<6, id: \.self) { i in
                 RoundedRectangle(cornerRadius: KioskRadius.md)
-                    .fill(Color.black.opacity(0.22))
+                    .fill(KioskSurface.sunken)
                     .overlay {
                         RoundedRectangle(cornerRadius: KioskRadius.md)
-                            .stroke(i < code.count ? Color.kioskRed : Color.white.opacity(0.22), lineWidth: 2)
+                            .stroke(i < code.count ? Color.kioskRed : KioskStroke.strong, lineWidth: 2)
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 70)
@@ -136,6 +136,15 @@ struct KioskActivationView: View {
                                 .font(.system(size: 30, weight: .bold, design: .monospaced))
                                 .foregroundStyle(KioskText.primary)
                                 .transition(.opacity)
+                        }
+                    }
+                    // Red underline marks the slot the next digit lands in.
+                    .overlay(alignment: .bottom) {
+                        if i == code.count, !isLoading {
+                            Capsule()
+                                .fill(Color.kioskRed)
+                                .frame(width: 22, height: 3)
+                                .padding(.bottom, 8)
                         }
                     }
             }
@@ -156,7 +165,7 @@ struct KioskActivationView: View {
                 Label("Paste Code", systemImage: "doc.on.clipboard")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(KioskActivationActionButtonStyle(tint: Color.white.opacity(0.14)))
+            .buttonStyle(KioskActivationActionButtonStyle(tint: KioskSurface.cardSelected))
             .disabled(isLoading)
 
             Button {
@@ -289,7 +298,7 @@ private struct KioskActivationActionButtonStyle: ButtonStyle {
             .background(tint, in: RoundedRectangle(cornerRadius: KioskRadius.lg))
             .overlay(
                 RoundedRectangle(cornerRadius: KioskRadius.lg)
-                    .stroke(Color.white.opacity(0.14), lineWidth: 1)
+                    .stroke(KioskStroke.standard, lineWidth: 1)
             )
             .opacity(configuration.isPressed ? 0.78 : 1)
     }
@@ -367,8 +376,9 @@ private struct KioskNumPadButton: View {
                 .foregroundStyle(KioskText.primary)
                 .frame(maxWidth: .infinity)
                 .frame(height: 64)
-                .background(background, in: RoundedRectangle(cornerRadius: KioskRadius.md))
+                .kioskCard(background, radius: KioskRadius.md, stroke: KioskStroke.hairline)
         }
+        .buttonStyle(KioskPressStyle())
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1.0 : 0.35)
         .accessibilityLabel(accessibilityLabel)
@@ -377,7 +387,7 @@ private struct KioskNumPadButton: View {
     private var background: Color {
         switch key {
         case "✓": return Color.kioskRed
-        case "⌫": return Color.white.opacity(0.1)
+        case "⌫": return KioskSurface.cardSelected
         default:  return KioskSurface.cardRaised
         }
     }
