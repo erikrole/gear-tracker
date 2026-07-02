@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-27
+- Last Updated: 2026-07-02
 - Status: Active
 - Version: V1
 
@@ -426,6 +426,7 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-07-02: Attachment policy consistency tightened. Attaching an existing serialized item to a parent now disables checkout, reservation, and custody eligibility together, matching new attachment intake and keeping fixed camera parts quiet but findable through parent detail and direct scan/search. Detaching restores standalone eligibility.
 - 2026-06-30: Native iOS tag-first list parity applies the Items identity contract outside the main Items screen. Serialized assets and numbered bulk units use the operational tag as the primary Gotham header in booking equipment, create-booking picker/review rows, Search, kiosk checkout/pickup/return lists, active checkout drawers, flagged item alerts, and utility pickers; product/model/SKU names move to secondary copy when a tag exists.
 - 2026-06-30: Native iOS Items control cleanup moved Favorites, Status, and Sort from the horizontal custom pill strip into SwiftUI toolbar controls and native `Menu`s while preserving the existing `.searchable` list search, row actions, web-backed sort choices, and reload behavior.
 - 2026-06-27: Inventory Hygiene checklist health indicator. `/items/hygiene` now maps needs-work, partial-data, and clean checklist state through the shared shadcn-backed status indicator in the page header and checklist health card while keeping the page read-only and repair-surface linked.

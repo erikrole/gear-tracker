@@ -56,7 +56,7 @@ import { createAuditEntry, createAuditEntryTx } from "@/lib/audit";
 import { POST as retireAsset } from "@/app/api/assets/[id]/retire/route";
 import { POST as favoriteAsset } from "@/app/api/assets/[id]/favorite/route";
 import { POST as favoriteItemFamily } from "@/app/api/bulk-skus/[id]/favorite/route";
-import { PATCH as moveAccessory } from "@/app/api/assets/[id]/accessories/route";
+import { PATCH as moveAccessory, POST as attachAccessory } from "@/app/api/assets/[id]/accessories/route";
 
 const assetParams = { params: Promise.resolve({ id: "asset-1" }) };
 
@@ -79,6 +79,18 @@ function post(path: string) {
       host: "app.example.com",
       origin: "https://app.example.com",
     },
+  });
+}
+
+function postJson(path: string, body: Record<string, unknown>) {
+  return new Request(`https://app.example.com${path}`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      host: "app.example.com",
+      origin: "https://app.example.com",
+    },
+    body: JSON.stringify(body),
   });
 }
 
@@ -207,6 +219,40 @@ describe("asset action hardening", () => {
     expect(res.status).toBe(404);
     expect(db.favoriteItemFamily.findUnique).not.toHaveBeenCalled();
     expect(db.favoriteItemFamily.create).not.toHaveBeenCalled();
+  });
+
+  it("disables all standalone assignment policy when attaching an existing accessory", async () => {
+    const parentId = "ckm1ii0vw0000a01s6z6c3q8v";
+    const childId = "ckm1ii0vw0001a01s3zh8b2av";
+    mockTx.asset.findUnique
+      .mockResolvedValueOnce({ id: parentId, parentAssetId: null })
+      .mockResolvedValueOnce({ id: childId, parentAssetId: null, assetTag: "FX3-HANDLE-2" });
+    mockTx.asset.update.mockResolvedValue({ id: childId, parentAssetId: parentId });
+
+    const res = await attachAccessory(
+      postJson(`/api/assets/${parentId}/accessories`, { childAssetId: childId }),
+      { params: Promise.resolve({ id: parentId }) },
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockTx.asset.update).toHaveBeenCalledWith({
+      where: { id: childId },
+      data: {
+        parentAssetId: parentId,
+        availableForCheckout: false,
+        availableForReservation: false,
+        availableForCustody: false,
+      },
+    });
+    expect(createAuditEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorId: "staff-1",
+        entityType: "asset",
+        entityId: childId,
+        action: "accessory_attached",
+        after: { parentAssetId: parentId, childAssetId: childId },
+      }),
+    );
   });
 
   it("moves an accessory to a new standalone parent and audits the previous parent", async () => {
