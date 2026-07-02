@@ -478,3 +478,7 @@ Systematic audit of every endpoint in `APIClient.swift`/`SearchService.swift` ag
 ## Session 2026-06-30 (Trade Board Open Work parity)
 
 - **Trade/Open Work rows should be grouped by worker decision, not backend entity**: A student or staffer needs to know whether they can claim now, must request approval, are waiting on review, own the post, or are looking at resolved history. Keep backend types like `ShiftTrade`, open shift, and pickup request behind shared grouping and consequence copy on both web and iOS.
+
+## Session 2026-07-02 (iOS picker redesign broke a source-contract test)
+
+- **xcodebuild alone is not enough verification for iOS UI changes**: `tests/student-field-contracts.test.ts` and `tests/ios-bookings-empty-state.test.ts` are web-side vitest files that assert against iOS Swift *source text* (they `readFileSync` .swift files and expect specific code strings). Restructuring iOS views can leave the simulator build green while these contracts go red. After any iOS view refactor, also run `npx vitest run tests/` before committing, and update the contract assertions to the new structure in the same commit.

@@ -11,6 +11,7 @@ function createBookingSource() {
     "ios/Wisconsin/Views/CreateBookingSheet.swift",
     "ios/Wisconsin/Views/CreateBooking/CreateBookingViewModel.swift",
     "ios/Wisconsin/Views/CreateBooking/CreateBookingEquipmentRows.swift",
+    "ios/Wisconsin/Views/CreateBooking/CreateBookingEquipmentPicker.swift",
   ].map(source).join("\n");
 }
 
@@ -245,22 +246,25 @@ describe("student field mobile contracts", () => {
     expect(createSheet).toContain("var selectedEquipmentCount: Int");
     expect(createSheet).toContain("var selectedBulkRequests: [BulkReservationRequest]");
     // Three-step flow mirroring web: Equipment requires a selection before
-    // Review, and the Confirm step owns the single primary action.
-    expect(createSheet).toContain("Button(\"Review\") { step = 3 }");
+    // Review (the cart bar owns the Review action), and the Confirm step
+    // owns the single primary action.
+    expect(createSheet).toContain("Text(\"Review\")");
     expect(createSheet).toContain(".disabled(vm.selectedEquipmentCount == 0 || vm.isSubmitting)");
     expect(createSheet).toContain("Text(\"Reserve for later\")");
     expect(createSheet).toContain("Text(vm.title.isEmpty ? \"Review your reservation\" : vm.title)");
-    expect(createSheet).toContain("Text(\"Selected Equipment\")");
-    expect(createSheet).toContain("Text(\"Equipment\")");
     expect(createSheet).not.toContain("Batteries & Counted Items");
-    expect(createSheet).toContain("Label(\"Scan equipment\", systemImage: \"barcode.viewfinder\")");
+    // Scan is a toolbar action with continuous scanning; keep it labeled
+    // for VoiceOver since it's icon-only.
+    expect(createSheet).toContain("Image(systemName: \"barcode.viewfinder\")");
+    expect(createSheet).toContain(".accessibilityLabel(\"Scan equipment\")");
+    // The cart drawer keeps every pick removable and quantities adjustable.
+    expect(createSheet).toContain("EquipmentCartSheet");
     expect(createSheet).toContain("SelectedEquipmentRow");
-    expect(createSheet).toContain("SelectedBulkRow");
     expect(createSheet).toContain("BulkQuantityRow");
     expect(createSheet).toContain("BookingAssetThumbnail");
     expect(createSheet).toContain("BookingBulkThumbnail");
-    expect(createSheet).toContain("Label(\"Remove\", systemImage: \"xmark.circle.fill\")");
-    expect(createSheet).toContain("Remove anything you do not want before creating the reservation.");
+    expect(createSheet).toContain("Image(systemName: \"xmark.circle.fill\")");
+    expect(createSheet).toContain("parts.append(\"Remove button\")");
     expect(createSheet).toContain("func removeSelectedAsset(_ asset: Asset)");
     expect(createSheet).toContain("func removeSelectedBulk(_ sku: FormBulkSku)");
   });
