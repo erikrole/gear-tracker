@@ -211,6 +211,29 @@ struct ShiftAssignmentRecord: Codable, Identifiable {
     let id: String
     let status: String
     let user: ShiftWorker
+    /// OPEN/CLAIMED trade on this assignment, when one exists. Optional so
+    /// older payloads (and the create-group response) still decode.
+    let activeTrade: ActiveTradeRef?
+
+    enum CodingKeys: String, CodingKey {
+        case id, status, user, activeTrade
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        status = try c.decode(String.self, forKey: .status)
+        user = try c.decode(ShiftWorker.self, forKey: .user)
+        activeTrade = try c.decodeIfPresent(ActiveTradeRef.self, forKey: .activeTrade)
+    }
+
+    var isOnTradeBoard: Bool { activeTrade != nil }
+}
+
+/// Minimal reference to an open Trade Board post attached to an assignment.
+struct ActiveTradeRef: Codable {
+    let id: String
+    let status: String
 }
 
 struct ShiftWorker: Codable, Identifiable {
@@ -218,6 +241,16 @@ struct ShiftWorker: Codable, Identifiable {
     let name: String
     let primaryArea: String?
     let avatarUrl: String?
+    let role: String?
+    let staffingType: String?
+
+    /// Mirrors web `shiftWorkerTypeForProfile`: explicit staffing type wins,
+    /// then role. Gates staff-on-behalf Trade Board posting to student shifts.
+    var isStudentSchedulingClass: Bool {
+        if staffingType == "ST" { return true }
+        if staffingType == "FT" { return false }
+        return role == "STUDENT"
+    }
 }
 
 // MARK: - Sport Roster

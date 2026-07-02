@@ -29,10 +29,10 @@ ergonomics.
     Trade Board") through existing notification policy plumbing
   - Vitest coverage (own-shift unchanged, staff-post-student allowed,
     staff-post-staff 403, student-post-others 403, owner notified)
-- [ ] 2 — Server: per-assignment trade state in the shift-group payload
+- [x] 2 — Server: per-assignment trade state in the shift-group payload
   (`activeTrade { id, status }`), so clients can render indicators and
   offer Remove from Trade Board
-- [ ] 3 — iOS: crew row context menu gains Post to Trade Board / Remove from
+- [x] 3 — iOS: crew row context menu gains Post to Trade Board / Remove from
   Trade Board (role-gated), preselected PostTradeSheet variant, trade chip
   indicator on rows, Open Work sheet retitled Trade Board (+ contract tests)
 - [ ] 4 — iOS: My Shifts swipe action → Post trade; event-detail crew section

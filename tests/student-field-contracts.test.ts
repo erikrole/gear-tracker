@@ -124,7 +124,7 @@ describe("student field mobile contracts", () => {
     expect(eventDetail).not.toContain("ToolbarItem(placement: .bottomBar)");
     expect(eventDetail).not.toContain("Label(\"Prep gear\", systemImage: \"archivebox\")");
     expect(tradeBoard).toContain("Label(\"Post trade\", systemImage: \"plus\")");
-    expect(tradeBoard).toContain(".navigationTitle(\"Open Work\")");
+    expect(tradeBoard).toContain(".navigationTitle(\"Trade Board\")");
     expect(tradeBoard).toContain("APIClient.shared.scheduleOpenWork()");
     expect(tradeBoard).toContain("Staff Review");
     expect(tradeBoard).toContain("Available Now");

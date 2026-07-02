@@ -65,6 +65,8 @@ struct EventDetailSheet: View {
     @State private var prepGearOpen = false
     @State private var assignTarget: EventShift?
     @State private var requestTarget: EventShift?
+    @State private var postTradeTarget: ShiftAssignmentRecord?
+    @State private var cancelTradeTarget: ShiftAssignmentRecord?
     @State private var unassignTarget: ShiftAssignmentRecord?
     @State private var deleteTarget: EventShift?
     @State private var editTimesTarget: EventShift?
@@ -173,6 +175,46 @@ struct EventDetailSheet: View {
                 Text("Staff will review your request before it's confirmed.")
             }
             .confirmationDialog(
+                postTradeDialogTitle,
+                isPresented: Binding(
+                    get: { postTradeTarget != nil },
+                    set: { if !$0 { postTradeTarget = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Post to Trade Board") {
+                    guard let assignment = postTradeTarget else { return }
+                    Task { await postTradeToBoard(assignment) }
+                    postTradeTarget = nil
+                }
+                Button("Cancel", role: .cancel) { postTradeTarget = nil }
+            } message: {
+                if let assignment = postTradeTarget {
+                    let owner = assignment.user.id == session.currentUser?.id ? "You stay" : "\(assignment.user.name) stays"
+                    Text("Others in the same area can claim it. \(owner) scheduled until someone does.")
+                }
+            }
+            .confirmationDialog(
+                "Remove from Trade Board?",
+                isPresented: Binding(
+                    get: { cancelTradeTarget != nil },
+                    set: { if !$0 { cancelTradeTarget = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Remove from Trade Board") {
+                    guard let assignment = cancelTradeTarget else { return }
+                    Task { await removeTradeFromBoard(assignment) }
+                    cancelTradeTarget = nil
+                }
+                Button("Keep it posted", role: .cancel) { cancelTradeTarget = nil }
+            } message: {
+                if let assignment = cancelTradeTarget {
+                    let owner = assignment.user.id == session.currentUser?.id ? "You stay" : "\(assignment.user.name) stays"
+                    Text("The post is withdrawn. \(owner) on the shift.")
+                }
+            }
+            .confirmationDialog(
                 unassignDialogTitle,
                 isPresented: Binding(
                     get: { unassignTarget != nil },
@@ -232,6 +274,36 @@ struct EventDetailSheet: View {
     private var unassignDialogTitle: String {
         guard let assignment = unassignTarget else { return "Remove assignment?" }
         return "Remove \(assignment.user.name)?"
+    }
+
+    private var postTradeDialogTitle: String {
+        guard let assignment = postTradeTarget else { return "Post to Trade Board?" }
+        return assignment.user.id == session.currentUser?.id
+            ? "Post your shift to the Trade Board?"
+            : "Post \(assignment.user.name)'s shift to the Trade Board?"
+    }
+
+    private func postTradeToBoard(_ assignment: ShiftAssignmentRecord) async {
+        do {
+            _ = try await APIClient.shared.postShiftTrade(assignmentId: assignment.id, notes: nil)
+            Haptics.success()
+            await vm.load()
+        } catch {
+            actionError = error.localizedDescription
+            Haptics.error()
+        }
+    }
+
+    private func removeTradeFromBoard(_ assignment: ShiftAssignmentRecord) async {
+        guard let trade = assignment.activeTrade else { return }
+        do {
+            _ = try await APIClient.shared.cancelShiftTrade(id: trade.id)
+            Haptics.success()
+            await vm.load()
+        } catch {
+            actionError = error.localizedDescription
+            Haptics.error()
+        }
     }
 
     private var deleteDialogTitle: String {
@@ -681,6 +753,8 @@ struct EventDetailSheet: View {
                     isStudent: isStudent,
                     onAssign: { shift in assignTarget = shift },
                     onRequest: { shift in requestTarget = shift },
+                    onPostTrade: { assignment in postTradeTarget = assignment },
+                    onCancelTrade: { assignment in cancelTradeTarget = assignment },
                     onUnassign: { assignment in unassignTarget = assignment },
                     onApprove: { assignment in Task { await approveRequest(assignment) } },
                     onDecline: { assignment in Task { await declineRequest(assignment) } },
@@ -765,6 +839,8 @@ struct AreaBlock: View {
     var isStudent: Bool = false
     var onAssign: ((EventShift) -> Void)? = nil
     var onRequest: ((EventShift) -> Void)? = nil
+    var onPostTrade: ((ShiftAssignmentRecord) -> Void)? = nil
+    var onCancelTrade: ((ShiftAssignmentRecord) -> Void)? = nil
     var onUnassign: ((ShiftAssignmentRecord) -> Void)? = nil
     var onApprove: ((ShiftAssignmentRecord) -> Void)? = nil
     var onDecline: ((ShiftAssignmentRecord) -> Void)? = nil
@@ -824,6 +900,8 @@ struct AreaBlock: View {
                         showsWorkerType: mixesWorkerTypes,
                         onAssign: onAssign,
                         onRequest: onRequest,
+                        onPostTrade: onPostTrade,
+                        onCancelTrade: onCancelTrade,
                         onUnassign: onUnassign,
                         onApprove: onApprove,
                         onDecline: onDecline,
@@ -877,6 +955,8 @@ struct ShiftRow: View {
     var showsWorkerType: Bool = true
     var onAssign: ((EventShift) -> Void)? = nil
     var onRequest: ((EventShift) -> Void)? = nil
+    var onPostTrade: ((ShiftAssignmentRecord) -> Void)? = nil
+    var onCancelTrade: ((ShiftAssignmentRecord) -> Void)? = nil
     var onUnassign: ((ShiftAssignmentRecord) -> Void)? = nil
     var onApprove: ((ShiftAssignmentRecord) -> Void)? = nil
     var onDecline: ((ShiftAssignmentRecord) -> Void)? = nil
@@ -942,6 +1022,9 @@ struct ShiftRow: View {
                 if assignment.status == "REQUESTED" {
                     return "\(assignment.user.name), pending"
                 }
+                if assignment.isOnTradeBoard {
+                    return "\(assignment.user.name), on the Trade Board"
+                }
                 return assignment.user.name
             }.joined(separator: ", ")
             parts.append("Assigned: \(names)")
@@ -974,6 +1057,34 @@ struct ShiftRow: View {
                     if let onDecline {
                         Button(role: .destructive) { onDecline(assignment) } label: {
                             Label("Decline \(assignment.user.name)", systemImage: "xmark.circle")
+                        }
+                    }
+                }
+            }
+            // Trade Board: owners post their own shift; staff post student
+            // shifts. Started shifts can't be traded (server enforces too).
+            ForEach(shift.assignments.filter { $0.status != "REQUESTED" }, id: \.id) { assignment in
+                let isMine = currentUserId == assignment.user.id
+                if shift.startsAt > Date() {
+                    if assignment.isOnTradeBoard {
+                        if isMine || canManageShifts, let onCancelTrade {
+                            Button { onCancelTrade(assignment) } label: {
+                                Label(
+                                    shift.assignments.count > 1
+                                        ? "Remove \(assignment.user.name) from Trade Board"
+                                        : "Remove from Trade Board",
+                                    systemImage: "arrow.uturn.backward"
+                                )
+                            }
+                        }
+                    } else if isMine || (canManageShifts && assignment.user.isStudentSchedulingClass), let onPostTrade {
+                        Button { onPostTrade(assignment) } label: {
+                            Label(
+                                shift.assignments.count > 1
+                                    ? "Post \(assignment.user.name) to Trade Board"
+                                    : "Post to Trade Board",
+                                systemImage: "arrow.left.arrow.right"
+                            )
                         }
                     }
                 }
@@ -1054,6 +1165,17 @@ struct ShiftRow: View {
                     }
                     if assignment.status == "REQUESTED" {
                         StatusPill(label: "Pending", tone: .orange)
+                    }
+                    if assignment.isOnTradeBoard {
+                        // On-the-board cue, matching the Schedule legend's
+                        // trade iconography.
+                        Label("Trade Board", systemImage: "arrow.left.arrow.right")
+                            .font(.caption2.weight(.semibold))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.statusBackground(.orange))
+                            .foregroundStyle(Color.statusText(.orange))
+                            .clipShape(Capsule())
                     }
                 }
                 if canManageShifts && assignment.status == "REQUESTED" {

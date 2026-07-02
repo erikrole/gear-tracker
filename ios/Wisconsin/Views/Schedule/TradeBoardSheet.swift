@@ -132,7 +132,7 @@ struct TradeBoardSheet: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let error = vm.error, vm.visibleCount == 0 {
                     ContentUnavailableView {
-                        Label("Couldn't load Open Work", systemImage: "exclamationmark.triangle")
+                        Label("Couldn't load the Trade Board", systemImage: "exclamationmark.triangle")
                     } description: { Text(error) } actions: {
                         Button("Retry") { Task { await vm.load() } }
                             .buttonStyle(.borderedProminent)
@@ -141,7 +141,7 @@ struct TradeBoardSheet: View {
                     tradeList
                 }
             }
-            .navigationTitle("Open Work")
+            .navigationTitle("Trade Board")
             .navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge: .top) {
                 if let actionError {

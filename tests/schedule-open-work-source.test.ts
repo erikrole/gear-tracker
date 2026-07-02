@@ -90,7 +90,8 @@ describe("schedule open work source contracts", () => {
     expect(models).toContain("struct OpenWorkResponse: Codable");
     expect(models).toContain("struct OpenWorkShift: Codable, Identifiable, Hashable");
     expect(models).toContain("struct OpenWorkPickupRequest: Codable, Identifiable, Hashable");
-    expect(sheet).toContain(".navigationTitle(\"Open Work\")");
+    // User-facing iOS title is Trade Board; Open Work remains the API/web term.
+    expect(sheet).toContain(".navigationTitle(\"Trade Board\")");
     expect(sheet).toContain("APIClient.shared.scheduleOpenWork()");
     expect(sheet).toContain("Staff Review");
     expect(sheet).toContain("Available Now");

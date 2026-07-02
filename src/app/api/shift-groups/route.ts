@@ -86,6 +86,22 @@ export const GET = withAuth(async (req, { user }) => {
   }),
   ]);
 
+  // One batched lookup for Trade Board state so crew rows can show an
+  // on-the-board indicator and offer Remove instead of Post.
+  const assignmentIds = groups.flatMap((g) => g.shifts.flatMap((s) => s.assignments.map((a) => a.id)));
+  const activeTrades = assignmentIds.length > 0
+    ? await db.shiftTrade.findMany({
+        where: {
+          shiftAssignmentId: { in: assignmentIds },
+          status: { in: ["OPEN", "CLAIMED"] },
+        },
+        select: { id: true, status: true, shiftAssignmentId: true },
+      })
+    : [];
+  const tradeByAssignmentId = new Map(
+    activeTrades.map((t) => [t.shiftAssignmentId, { id: t.id, status: t.status }]),
+  );
+
   // Add coverage summary
   const data = groups.map((g) => {
     const totalShifts = g.shifts.length;
@@ -95,6 +111,13 @@ export const GET = withAuth(async (req, { user }) => {
 
     return {
       ...g,
+      shifts: g.shifts.map((s) => ({
+        ...s,
+        assignments: s.assignments.map((a) => ({
+          ...a,
+          activeTrade: tradeByAssignmentId.get(a.id) ?? null,
+        })),
+      })),
       publication: getSchedulePublicationState(g),
       coverage: {
         total: totalShifts,
