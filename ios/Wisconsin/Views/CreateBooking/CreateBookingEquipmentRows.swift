@@ -80,14 +80,8 @@ struct SelectedEquipmentRow: View {
                     .font(.gothamBold(size: 16))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
-                HStack(spacing: 6) {
-                    if let subtitle = asset.itemListSecondaryTitle {
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    Text(asset.location.name)
+                if let subtitle = asset.itemListSecondaryTitle {
+                    Text(subtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -100,14 +94,14 @@ struct SelectedEquipmentRow: View {
                 }
             }
             Spacer()
-            Button {
-                onRemove()
-            } label: {
-                Label("Remove", systemImage: "xmark.circle.fill")
-                    .labelStyle(.titleAndIcon)
+            Button(action: onRemove) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(Color.statusText(.red))
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
+            .buttonStyle(.plain)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
@@ -116,7 +110,6 @@ struct SelectedEquipmentRow: View {
     private var accessibilityLabel: String {
         var parts: [String] = ["Selected", asset.itemListPrimaryTitle]
         if let subtitle = asset.itemListSecondaryTitle { parts.append(subtitle) }
-        parts.append(asset.location.name)
         if isConflicted { parts.append("Scheduling conflict") }
         parts.append("Remove button")
         return parts.joined(separator: ", ")
