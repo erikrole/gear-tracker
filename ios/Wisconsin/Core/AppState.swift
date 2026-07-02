@@ -24,9 +24,10 @@ final class AppState {
     var selectedTab: Int = 0
     var resetTab: Int?
     var tabResetToken = 0
-    /// Legacy dashboard hint for opening Bookings from a specific summary.
-    /// BookingsView now renders a unified list and only consumes/clears this.
-    var pendingBookingsTab: String?
+    /// Dashboard hint for landing Bookings on a specific scope (raw
+    /// `BookingScope` value). Set by stat-tile taps (Overdue / Due Today land
+    /// on Attention); consumed and cleared by BookingsView.
+    var pendingBookingsScope: String?
     private var isRefreshing = false
     private var lastRefreshAttemptAt: Date?
     private let minimumRefreshInterval: TimeInterval = 60

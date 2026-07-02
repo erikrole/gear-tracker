@@ -144,8 +144,10 @@ struct HomeView: View {
                     shiftCount: dash.myEventWork.count,
                     lastLoadedAt: vm.lastLoadedAt,
                     openBookings: { appState.selectedTab = 1 },
-                    openCheckouts: {
-                        appState.pendingBookingsTab = "Checkouts"
+                    openAttention: {
+                        // Overdue / Due Today answer to the Attention scope,
+                        // not the default All list.
+                        appState.pendingBookingsScope = BookingScope.needsAttention.rawValue
                         appState.selectedTab = 1
                     },
                     openSchedule: { appState.selectedTab = 4 }
@@ -187,9 +189,14 @@ struct HomeView: View {
                     LostBulkUnitsBanner(items: dash.lostBulkUnits)
                 }
                 if !dash.drafts.isEmpty {
-                    DashboardCard(title: "Drafts", seeAllTab: 1, appState: appState) {
+                    DashboardCard(title: "Drafts") {
                         ForEach(dash.drafts) { draft in
-                            DraftRow(draft: draft)
+                            Button {
+                                navigationPath.append(draft.id)
+                            } label: {
+                                DraftRow(draft: draft)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -364,7 +371,7 @@ private struct StatStrip: View {
     let shiftCount: Int
     let lastLoadedAt: Date?
     let openBookings: () -> Void
-    let openCheckouts: () -> Void
+    let openAttention: () -> Void
     let openSchedule: () -> Void
 
     private let columns = [
@@ -375,11 +382,11 @@ private struct StatStrip: View {
     var body: some View {
         VStack(alignment: .trailing, spacing: Brand.Space.sm) {
             LazyVGrid(columns: columns, spacing: Brand.Space.sm) {
-                // Overdue / Due Today are checkout concepts — land on Checkouts.
+                // Overdue / Due Today are urgency numbers — land on Attention.
                 StatCard(value: stats.overdue, label: "Overdue", systemImage: "exclamationmark.triangle.fill",
-                         tone: .red, onTap: openCheckouts)
+                         tone: .red, onTap: openAttention)
                 StatCard(value: stats.dueToday, label: "Due Today", systemImage: "clock.fill",
-                         tone: .orange, onTap: openCheckouts)
+                         tone: .orange, onTap: openAttention)
                 StatCard(value: pendingPickupCount, label: pendingPickupCount == 1 ? "Pickup" : "Pickups", systemImage: "shippingbox.fill",
                          tone: .green, onTap: openBookings)
                 StatCard(value: shiftCount, label: shiftCount == 1 ? "Shift" : "Shifts", systemImage: "calendar",
@@ -512,6 +519,12 @@ private struct HomeActionQueue: View {
         }
     }
 
+    /// Checkouts due beyond today. Without these the queue's `hasActions`
+    /// (which counts any active checkout) could render a header-only card.
+    private var upcomingCheckouts: [BookingSummary] {
+        dash.myCheckouts.items.filter { !$0.isOverdue && !Calendar.current.isDateInToday($0.endsAt) }
+    }
+
     private var eventLinkedGearIds: Set<String> {
         Set(dash.myEventWork.flatMap { $0.gearBookings.map(\.id) })
     }
@@ -630,6 +643,18 @@ private struct HomeActionQueue: View {
 
             ForEach(dash.myEventWork.prefix(3)) { work in
                 EventActionQueueRow(work: work, openEventWork: openEventWork)
+            }
+
+            // Lowest urgency: gear out with time still on the clock.
+            ForEach(upcomingCheckouts.prefix(3)) { summary in
+                ActionQueueRow(
+                    tone: .blue,
+                    title: summary.title,
+                    subtitle: personalContext(for: summary),
+                    meta: "Due \(summary.endsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()))",
+                    primaryLabel: "Open checkout",
+                    action: { openBookingSummary(summary) }
+                )
             }
         }
         .brandCard(padding: Brand.Space.md, radius: Brand.Radius.card)
@@ -929,35 +954,20 @@ private struct AllClearEmptyState: View {
 
 // MARK: - Dashboard Card
 
+// "See all" machinery removed: its only consumer (Drafts) routed to the
+// Bookings tab, which never lists drafts, and the tap target was sub-44pt.
+// Draft rows now navigate directly to booking detail instead.
 private struct DashboardCard<Content: View>: View {
     let title: String
-    var seeAllTab: Int? = nil
-    var appState: AppState? = nil
     @ViewBuilder let content: () -> Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                    .tracking(0.3)
-                Spacer()
-                if let tab = seeAllTab, let appState {
-                    Button {
-                        appState.selectedTab = tab
-                    } label: {
-                        HStack(spacing: 2) {
-                            Text("See all")
-                                .font(.caption2)
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 8, weight: .semibold))
-                        }
-                        .foregroundStyle(.secondary)
-                    }
-                }
-            }
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .tracking(0.3)
             content()
         }
         .brandCard(padding: Brand.Space.md, radius: Brand.Radius.card)

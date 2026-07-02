@@ -1,86 +1,109 @@
-# Audit: home / dashboard (iOS) — 2026-05-08
+# Audit: Home / Dashboard (iOS) — 2026-07-02
 
-**MVP verdict (pre-fix):** ships, but every row component (BookingSummaryRow, DashboardShiftRow, EventSummaryRow, StatCell, DraftRow) is a multi-piece VoiceOver readout, and the four banner Labels leak SF Symbol icon names. Drift detector reports clean — these are per-row VO gaps the static checks can't catch.
-**Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class.
-**Audit type:** static source (no build/run/UI tests).
+**MVP verdict:** NOT READY — 0 P0, 4 P1
+**Fix pass:** all four P1s shipped 2026-07-02 (same day); see change log in `docs/AREA_MOBILE.md`. P2s remain open.
+**Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class
+**Audit type:** static source (no build/run/UI tests)
 
-Scope: `HomeView` + `HomeViewModel` + every dashboard sub-component (`StatStrip`, `StatCell`, `StatStripSkeleton`, `OverdueBanner`, `RefreshFailurePill`, `AllClearEmptyState`, `DashboardCard`, `BookingSummaryNavRow`, `BookingSummaryRow`, `DashboardShiftRow`, `EventSummaryRow`, `FlaggedItemsBanner`, `LostBulkUnitsBanner`, `DraftRow`) in `ios/Wisconsin/Views/HomeView.swift`. Focused follow-up to `audit-dashboard-ios.md` (2026-04-24, broad architectural audit) after today's pattern lock-in pass and the recent Awaiting-Pickup card slice.
-
-**Surrounding context:** today's drift detector reports 0 violations on this file. Status tokens are correctly applied (red overdue, orange warning, green success, blue active, purple reservation). The `BookingSummaryRow` already uses `Color.statusText/.statusBackground` for the leading bar + initials circle. What's left is per-row VoiceOver consolidation.
+Follow-up to the 2026-05-08 audit (all its VoiceOver P1s shipped; that file's
+component list is now stale — the card grid was replaced by `HomeActionQueue`).
+This pass focuses on flow correctness and routing now that BookingsView has
+Mine/All/Attention scopes.
 
 ## P0 — blocks MVP
 
-_None._ Every row renders correctly. Stat tiles use `contentTransition(.numericText())` + `monospacedDigit()` per today's animated-counts pattern. `RefreshFailurePill` correctly surfaces server failure inline without blanking populated data. The "All Clear" empty state condition is explicit and correct (line 83-91).
+_None._ No crash paths, no force-unwraps on nullable data, every async surface
+has loading/empty/error states, role gating (staff section, admin-only lost
+bulk units) is correct, logging is count-only (no PII).
 
 ## P1 — polish before ship
 
-- [x] [A11y] **`BookingSummaryRow` not a combined accessibility element.** This is the highest-traffic row component on the dashboard — used by Awaiting Pickup, My Checkouts, Team Checkouts, Upcoming Reservations cards. VoiceOver walks initials circle, title, requester · location, due/pickup/overdue text, and item-count badge — up to five separate announcements per row.
-      `ios/Wisconsin/Views/HomeView.swift:551-638`.
-      Suggested fix: `.accessibilityElement(children: .combine)` + explicit row label that surfaces overdue / late state first when applicable: "Overdue: {title}, {requester}, {location}, {N items}, {endsAt label}." Mirrors today's BookingRow + kiosk row patterns.
+- [x] [Flows] **"Next Up" can render as an empty card.** `HomeActionQueue.hasActions`
+      counts any active checkout (`!dash.myCheckouts.items.isEmpty`) —
+      `ios/Wisconsin/Views/HomeView.swift:566-575` — but the body only renders
+      rows for overdue, due-today, my pickups, my reservations, and event work
+      (`:581-633`). A student whose only booking is a checkout due later in the
+      week gets a header-only empty card, and the All Clear state is suppressed.
+      Why it blocks ship: a visibly broken/empty primary card on the highest-traffic screen.
+      Suggested fix: render upcoming (not-due-today) checkouts as neutral-tone
+      rows ("Due Friday at 5:00 PM · Return on time"), so the queue is complete
+      and `hasActions` matches what renders.
 
-- [x] [A11y] **`DashboardShiftRow` not combined.** My Upcoming Shifts uses this. VO walks date column, time, summary, area · location, gear label — four+ pieces.
-      `ios/Wisconsin/Views/HomeView.swift:642-693`.
-      Suggested fix: combine + explicit "{summary}, {area}, {location}, {date}, {time}, gear ready" (last clause when applicable).
+- [x] [Flows] **Drafts card is a dead end.** `DraftRow` draws a trailing chevron
+      but has no tap action (`HomeView.swift:1065-1099`), and the card's
+      "See all" routes to the Bookings tab (`:190`), which lists only active
+      checkouts/reservations — drafts never appear there.
+      Why it blocks ship: an affordance that promises navigation and does nothing.
+      Suggested fix: wire row tap to `BookingDetailView(bookingId: draft.id)` if
+      detail renders DRAFT status cleanly (verify), else remove the chevron and
+      the See-all.
 
-- [x] [A11y] **`EventSummaryRow` not combined.** Upcoming Events uses this.
-      `ios/Wisconsin/Views/HomeView.swift:697-760`.
-      Suggested fix: combine + explicit "{title}, {sport}, {date}, {N of M crew filled}, Home/Away" with the home/away state and the coverage state surfaced semantically.
+- [x] [Flows] **Overdue / Due Today stat tiles route through dead plumbing to the
+      wrong scope.** `openCheckouts` sets `appState.pendingBookingsTab = "Checkouts"`
+      (`HomeView.swift:147-150`), which `BookingsView.consumePendingTab` now
+      discards (`BookingsView.swift:313-314`) — the user lands on the default
+      All list and has to find the urgent work themselves. The Attention scope
+      and overdue/due-today filters now exist.
+      Why it blocks ship: AC-1 ("act on overdue within two taps") is weakened;
+      the tap lands somewhere that doesn't answer the number just tapped.
+      Suggested fix: replace `pendingBookingsTab` with a `pendingBookingsScope`
+      hint; Overdue/Due Today tiles land on scope `.needsAttention`.
 
-- [x] [A11y] **`StatCell` Button announces "0, Overdue, button"** — minor but inverts the user's mental model. Better: "Overdue: 0 items" or "5 overdue items." `monospacedDigit` text and label live as separate VO pieces today.
-      `ios/Wisconsin/Views/HomeView.swift:326-360`.
-      Suggested fix: `.accessibilityElement(children: .combine)` + explicit `.accessibilityLabel("\(label): \(value) item\(value == 1 ? "" : "s")")` so VO reads the metric NAME first, then the value.
-
-- [x] [A11y] **`StatStripSkeleton` not VO-hidden.** Placeholder rectangles pollute VO with meaningless shapes during the initial dashboard load.
-      `ios/Wisconsin/Views/HomeView.swift:363-377`.
-      Suggested fix: `.accessibilityHidden(true)` on the outer HStack. Same shape as today's `BookingsView` skeleton fix.
-
-- [x] [A11y] **Banner `Label("...", systemImage:)` headers leak icon names.** `OverdueBanner` ("exclamation triangle fill"), `RefreshFailurePill` (icon name), `FlaggedItemsBanner` ("flag fill"), `LostBulkUnitsBanner` ("exclamation triangle fill"), `AllClearEmptyState` ("checkmark seal fill") — all five banner-style components expose SF Symbol names to VO alongside the actual title.
-      `ios/Wisconsin/Views/HomeView.swift:387, 439, 461-462, 769, 813`.
-      Suggested fix: `.accessibilityHidden(true)` on each Image inside the Label; or replace the Label with explicit `accessibilityElement(children: .combine)` + explicit label on the outer banner.
-
-- [x] [A11y] **`OverdueBanner` per-row NavigationLink not combined.** Three separate VO announcements per row (title, requester name, overdue label).
-      `ios/Wisconsin/Views/HomeView.swift:392-415`.
-      Suggested fix: combine + "{title}, {requester}, {overdue label}" with the overdue state surfaced as the first clause.
-
-- [x] [A11y] **`DraftRow` leaks icons.** Leading `archivebox`/`calendar.badge.clock` icon AND trailing `chevron.right` both expose names.
-      `ios/Wisconsin/Views/HomeView.swift:837-867`.
-      Suggested fix: `.accessibilityHidden(true)` on both icons; combine the row + explicit "Draft: {title}, {N items}, updated {time}."
-
-- [x] [A11y] **`FlaggedItemsBanner` per-row not combined.** Asset name + type · title + asset tag are three pieces per row.
-      `ios/Wisconsin/Views/HomeView.swift:774-798`.
-      Suggested fix: combine + explicit "Flagged: {asset name}, {type}, {booking title if any}, tag {asset tag}."
-
-- [x] [A11y] **`AllClearEmptyState` icon leaks "checkmark seal fill".** Single combined element with the title "You're all set" + description suffices.
-      `ios/Wisconsin/Views/HomeView.swift:458-475`.
-      Suggested fix: combine outer VStack + hide the icon.
+- [x] [UI polish] **"See all" tap target is far under 44pt.** caption2 text +
+      8pt chevron with no frame minimum (`HomeView.swift:946-959`). Its only
+      current use is the Drafts card.
+      Suggested fix: `.frame(minHeight: 44)` + `.contentShape(Rectangle())`,
+      or removed entirely with the Drafts dead-end fix.
 
 ## P2 — post-MVP
 
-- [ ] [Polish] **Deferred.** Per-stat-cell tap navigation could be more granular — today every cell routes to the bookings tab. Overdue → bookings + filter, Reserved → reservations tab, etc. would be useful but adds tab-state plumbing across HomeView and BookingsView. Skip until a documented friction case.
-- [ ] [Polish] **Deferred.** "Updated Xs ago" stamp uses `formatted(.relative(presentation: .named))` which can read awkwardly ("in 0 seconds" right after refresh). Today's tradeoff: simple system formatter beats a custom one. Revisit if it becomes a live complaint.
-- [ ] [Polish] **Deferred.** Banners auto-dismiss / can be swiped away. Today they re-render on every load. Acceptable.
-- [ ] [Polish] **Deferred.** Drag-to-reorder dashboard cards. Power-user / personalization; not on the floor critical-path.
+- [ ] [Polish] "Synced in 0 seconds" right after refresh — `.relative(presentation:
+      .named)` (`HomeView.swift:388-399`). Add a "just now" branch under ~10s.
+- [ ] [Polish] "You're all set" can render directly above a staff Drafts card:
+      `isAllEmpty` ignores `drafts` (`HomeView.swift:116-130`, `:160`).
+      Contradictory mood; tighten the condition.
+- [ ] [Gaps] Stat tiles are team-wide numbers (`stats.overdue` = `totalOverdue`,
+      `src/app/api/dashboard/route.ts:543-547`) sitting above an all-personal
+      queue, with no visual cue. The Attention-scope routing fix resolves most
+      of the confusion; consider student-scoped tiles later.
+- [ ] [Perf] `/api/dashboard?scope=ios-home` still ships `teamCheckouts`,
+      `teamReservations`, `upcomingEvents`, `overdueItems` that iOS barely uses,
+      and `DashboardData.init` decodes them non-optionally
+      (`DashboardModels.swift:221-238`) — payload trim opportunity, but the
+      decoder must become tolerant (`decodeIfPresent`) before the server trims.
+- [ ] [Polish] Next Up groups cap at `prefix(3)` silently (`HomeView.swift:582-631`);
+      no "+N more" affordance.
+- [ ] [Polish] `TradeBoardSheet(myShifts: [], ...)` from Home (`HomeView.swift:292-298`)
+      gives the trades sheet no shift context when opened via a notification.
 
-## Acceptance criteria status
+## Acceptance criteria status (AREA_MOBILE.md)
 
-Per `AREA_DASHBOARD.md` and the prior audit:
-
-- [x] AC: stat strip + per-cell tap routing.
-- [x] AC: overdue banner with role-gated visibility.
-- [x] AC: flagged items + lost bulk units banners (STAFF / ADMIN).
-- [x] AC: dashboard cards (My Checkouts, Team Checkouts, Reservations, Awaiting Pickup, My Shifts, Upcoming Events, Drafts).
-- [x] AC: skeleton loading state.
-- [x] AC: refresh-failure pill keeps populated data visible.
-- [x] AC: pull-to-refresh + freshness window cache (60s).
-- [x] AC: all status colors use cross-app token system.
-- [x] AC: VoiceOver users hear each row as a combined element — **closed by P1 fixes.**
-- [x] AC: skeleton state doesn't pollute VoiceOver — **closed by P1 fix.**
-- [x] AC: banner Labels don't leak SF Symbol names to VO — **closed by P1 fixes.**
+- [x] AC-1: overdue actionable in two taps — via queue rows; tile routing weakens it (P1 #3)
+- [x] AC-3: overdue red everywhere — StatCard .red tone, queue rows .red rail
+- [x] AC-5: role gating — staff section behind `dash.isStaff`, lost bulk behind `isAdmin`
+- [x] AC-6: chart-light, action-first — no chart widgets; queue is the centerpiece
+- [x] "Dashboard on Mobile" contract: overdue, due-today, pickups, reservations,
+      shift priorities all present; scan lives in Search per contract
 
 ## Lenses checked
 - [x] Gaps
 - [x] Flows
 - [x] UI polish
-- [x] Hardening (handled by prior audit + drift detector; 0 violations today)
-- [x] Parity (web has charts + drag-reorder; iOS skips per `feedback_ios_vs_web_role.md`)
-- [x] Accessibility
+- [x] Hardening (count-only os_log, no force-unwraps, freshness window guards)
+- [x] Breaking (refresh failure keeps data + pill; skeleton VO-hidden; retry paths present)
+- [x] Parity (informational: web keeps charts/team cards; iOS action queue per `feedback_ios_vs_web_role`)
+
+## Files read
+- ios/Wisconsin/Views/HomeView.swift (full)
+- ios/Wisconsin/Models/DashboardModels.swift (full)
+- ios/Wisconsin/Core/APIClient.swift (dashboard endpoints)
+- ios/Wisconsin/Views/BookingsView.swift (full, earlier this session — scope plumbing)
+- docs/AREA_MOBILE.md (contract + ACs; change log skimmed)
+- docs/GAPS_AND_RISKS.md (iOS entries, grep pass)
+- src/app/api/dashboard/route.ts (scope param + stats semantics, targeted)
+- tasks/audit-home-ios.md (2026-05-08 predecessor)
+
+## Notes
+- WisconsinApp/AppDelegate lifecycle not re-read this pass; covered by the
+  2026-04-24 broad audit and untouched since per git log. No findings cited from them.
+- Static audit only; no simulator/UI-test verification.

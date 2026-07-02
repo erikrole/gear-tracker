@@ -307,11 +307,14 @@ struct BookingsView: View {
         return "Active checkouts and reservations appear here in one chronological list."
     }
 
-    /// Clear legacy deep-link sub-tab hints. The unified list includes both
-    /// booking types, with checkouts always above reservations.
-    private func consumePendingTab() {
-        guard appState.pendingBookingsTab != nil else { return }
-        appState.pendingBookingsTab = nil
+    /// Apply a dashboard scope hint (e.g. Overdue tile → Attention scope).
+    /// Setting `vm.scope` triggers the existing onChange reload.
+    private func consumePendingScope() {
+        guard let hint = appState.pendingBookingsScope else { return }
+        appState.pendingBookingsScope = nil
+        if let scope = BookingScope(rawValue: hint), vm.scope != scope {
+            vm.scope = scope
+        }
     }
 
     private var searchPrompt: String {
@@ -448,14 +451,13 @@ struct BookingsView: View {
             .refreshable { await vm.load(reset: true) }
             .task {
                 vm.applyUserContext(id: session.currentUser?.id, role: session.currentUser?.role)
-                consumePendingTab()
+                consumePendingScope()
                 await vm.load(reset: true)
             }
-            .onChange(of: appState.pendingBookingsTab) { _, _ in
-                // A deep link arrived while this tab was already alive (e.g. the
-                // dashboard "Overdue" tile). The unified list already includes
-                // both booking types, so only clear the consumed hint.
-                consumePendingTab()
+            .onChange(of: appState.pendingBookingsScope) { _, _ in
+                // A scope hint arrived while this tab was already alive (e.g.
+                // the dashboard "Overdue" tile tapped after the list loaded).
+                consumePendingScope()
             }
             .onChange(of: appState.tabResetToken) { _, _ in
                 guard appState.resetTab == 1 else { return }
