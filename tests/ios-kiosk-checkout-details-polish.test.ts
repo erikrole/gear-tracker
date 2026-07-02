@@ -25,7 +25,7 @@ describe("iOS kiosk checkout details polish", () => {
 
     expect(checkout).toContain("private var checkoutLayout: some View");
     expect(checkout).toContain("if checkoutContextReady {");
-    expect(checkout).toContain("itemsList.frame(width: 430)");
+    expect(checkout).toContain("KioskSideRail {");
     expect(checkout).toContain("checkoutContextSetupZone");
     expect(checkout).toContain(".frame(maxWidth: .infinity, maxHeight: .infinity)");
   });

@@ -55,7 +55,6 @@ struct KioskPickupView: View {
             scanZone
             Divider().background(KioskStroke.divider)
             checklistPanel
-                .frame(width: 400)
         }
         .overlay(alignment: .bottom) {
             HIDScannerField { value in handleScan(value) }
@@ -76,7 +75,7 @@ struct KioskPickupView: View {
     // MARK: - Scan Zone
 
     private var scanZone: some View {
-        VStack(spacing: 24) {
+        KioskScanZoneColumn {
             KioskFlowHeader(
                 title: "Pickup",
                 onBack: { store.screen = .idle },
@@ -134,9 +133,6 @@ struct KioskPickupView: View {
 
             confirmButton
         }
-        .padding(.horizontal, 32)
-        .padding(.top, 20)
-        .frame(maxWidth: .infinity)
     }
 
     private var confirmButton: some View {
@@ -149,8 +145,6 @@ struct KioskPickupView: View {
             accessibilityLabel: confirmAccessibilityLabel,
             action: confirmPickup
         )
-        .padding(.horizontal, 32)
-        .padding(.bottom, 32)
     }
 
     private var confirmAccessibilityLabel: String {
@@ -175,7 +169,7 @@ struct KioskPickupView: View {
     // MARK: - Checklist Panel
 
     private var checklistPanel: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        KioskSideRail {
             VStack(alignment: .leading, spacing: 8) {
                 Text(detail?.title ?? "Pickup")
                     .font(.headline)
@@ -240,7 +234,6 @@ struct KioskPickupView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .background(KioskSurface.sunken)
     }
 
     // MARK: - Logic

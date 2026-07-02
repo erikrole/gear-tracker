@@ -128,6 +128,92 @@ struct KioskSectionIcon: View {
     }
 }
 
+// MARK: Scan target
+
+/// The scan-zone focal point: viewfinder corner brackets around a barcode
+/// glyph, tinted by the flow's scan-feedback color. The brackets breathe
+/// gently while waiting for a scan (static under Reduce Motion).
+struct KioskScanTarget: View {
+    var tint: Color
+    var width: CGFloat = 220
+    var height: CGFloat = 140
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        ZStack {
+            brackets
+            Image(systemName: "barcode.viewfinder")
+                .font(.system(size: 56))
+                .foregroundStyle(tint)
+        }
+        .frame(width: width, height: height)
+        .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private var brackets: some View {
+        let shape = KioskCornerBrackets()
+            .stroke(tint, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+        if reduceMotion {
+            shape
+        } else {
+            shape.phaseAnimator([0.55, 1.0]) { view, phase in
+                view.opacity(phase)
+            } animation: { _ in
+                .easeInOut(duration: 1.6)
+            }
+        }
+    }
+}
+
+/// Four rounded viewfinder corners.
+private struct KioskCornerBrackets: Shape {
+    var arm: CGFloat = 26
+    var radius: CGFloat = 20
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+
+        // Top-leading
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY + arm))
+        path.addArc(
+            tangent1End: CGPoint(x: rect.minX, y: rect.minY),
+            tangent2End: CGPoint(x: rect.minX + arm, y: rect.minY),
+            radius: radius
+        )
+        path.addLine(to: CGPoint(x: rect.minX + arm, y: rect.minY))
+
+        // Top-trailing
+        path.move(to: CGPoint(x: rect.maxX - arm, y: rect.minY))
+        path.addArc(
+            tangent1End: CGPoint(x: rect.maxX, y: rect.minY),
+            tangent2End: CGPoint(x: rect.maxX, y: rect.minY + arm),
+            radius: radius
+        )
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + arm))
+
+        // Bottom-trailing
+        path.move(to: CGPoint(x: rect.maxX, y: rect.maxY - arm))
+        path.addArc(
+            tangent1End: CGPoint(x: rect.maxX, y: rect.maxY),
+            tangent2End: CGPoint(x: rect.maxX - arm, y: rect.maxY),
+            radius: radius
+        )
+        path.addLine(to: CGPoint(x: rect.maxX - arm, y: rect.maxY))
+
+        // Bottom-leading
+        path.move(to: CGPoint(x: rect.minX + arm, y: rect.maxY))
+        path.addArc(
+            tangent1End: CGPoint(x: rect.minX, y: rect.maxY),
+            tangent2End: CGPoint(x: rect.minX, y: rect.maxY - arm),
+            radius: radius
+        )
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY - arm))
+
+        return path
+    }
+}
+
 // MARK: Feedback banner
 
 /// Tinted icon + message banner used for scan results across every flow and

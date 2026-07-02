@@ -151,7 +151,7 @@ struct KioskCheckoutView: View {
                 HStack(spacing: 0) {
                     activeScanZone
                     Divider().background(KioskStroke.divider)
-                    itemsList.frame(width: 430)
+                    itemsList
                 }
             } else {
                 checkoutContextSetupZone
@@ -243,7 +243,7 @@ struct KioskCheckoutView: View {
     }
 
     private var activeScanZone: some View {
-        VStack(spacing: 24) {
+        KioskScanZoneColumn {
             KioskFlowHeader(
                 title: "Scan Items",
                 backAccessibilityLabel: scannedItems.isEmpty
@@ -278,23 +278,14 @@ struct KioskCheckoutView: View {
 
             // Scanner indicator
             VStack(spacing: 16) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: KioskRadius.hero)
-                        .stroke(scannerBorderColor, lineWidth: 3)
-                        .frame(width: 220, height: 140)
-
-                    Image(systemName: "barcode.viewfinder")
-                        .font(.system(size: 56))
-                        .foregroundStyle(scannerBorderColor)
-                        .accessibilityHidden(true)
-                }
+                KioskScanTarget(tint: scannerBorderColor)
 
                 Text("Scan items to add")
                     .font(.subheadline)
                     .foregroundStyle(KioskText.secondary)
                 Text("Or tap Camera if no scanner is connected")
                     .font(.caption)
-                    .foregroundStyle(.secondary.opacity(0.6))
+                    .foregroundStyle(KioskText.muted)
 
                 KioskScannerHealthBadge(
                     lastScanAt: lastScanAt,
@@ -318,12 +309,7 @@ struct KioskCheckoutView: View {
                 accessibilityLabel: completeAccessibilityLabel,
                 action: completeCheckout
             )
-            .padding(.horizontal, 32)
-            .padding(.bottom, 32)
         }
-        .padding(.horizontal, 32)
-        .padding(.top, 20)
-        .frame(maxWidth: .infinity)
     }
 
     private var completeAccessibilityLabel: String {
@@ -347,7 +333,7 @@ struct KioskCheckoutView: View {
     // MARK: - Items List
 
     private var itemsList: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        KioskSideRail {
             KioskCheckoutSideSummary(
                 user: user,
                 locationName: store.info?.locationName,
@@ -415,7 +401,6 @@ struct KioskCheckoutView: View {
                 }
             }
         }
-        .background(KioskSurface.sunken)
     }
 
     // MARK: - Logic

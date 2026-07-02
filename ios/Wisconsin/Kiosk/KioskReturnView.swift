@@ -54,7 +54,6 @@ struct KioskReturnView: View {
             scanZone
             Divider().background(KioskStroke.divider)
             checklistPanel
-                .frame(width: 400)
         }
         .overlay(alignment: .bottom) {
             HIDScannerField { value in handleScan(value) }
@@ -75,7 +74,7 @@ struct KioskReturnView: View {
     // MARK: - Scan Zone
 
     private var scanZone: some View {
-        VStack(spacing: 24) {
+        KioskScanZoneColumn {
             KioskFlowHeader(
                 title: "Return",
                 onBack: { store.screen = .idle },
@@ -141,9 +140,6 @@ struct KioskReturnView: View {
 
             completeButton
         }
-        .padding(.horizontal, 32)
-        .padding(.top, 20)
-        .frame(maxWidth: .infinity)
     }
 
     private var completeButton: some View {
@@ -155,8 +151,6 @@ struct KioskReturnView: View {
             accessibilityLabel: completeAccessibilityLabel,
             action: completeReturn
         )
-        .padding(.horizontal, 32)
-        .padding(.bottom, 32)
     }
 
     private var returnLabel: String {
@@ -176,7 +170,7 @@ struct KioskReturnView: View {
     // MARK: - Checklist Panel
 
     private var checklistPanel: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        KioskSideRail {
             VStack(alignment: .leading, spacing: 8) {
                 Text(detail?.title ?? "Return")
                     .font(.headline)
@@ -240,7 +234,6 @@ struct KioskReturnView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .background(KioskSurface.sunken)
     }
 
     // MARK: - Logic

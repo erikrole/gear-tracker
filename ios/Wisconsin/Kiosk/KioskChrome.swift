@@ -33,6 +33,40 @@ struct KioskBackdrop: View {
     }
 }
 
+// MARK: - Scan screen scaffolding
+
+/// Left column of a scan screen (checkout scan / pickup / return): one
+/// section rhythm and screen padding for the header, context, centered scan
+/// content, and bottom CTA, replacing per-flow padding drift.
+struct KioskScanZoneColumn<Content: View>: View {
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        VStack(spacing: KioskSpacing.lg) { content() }
+            .kioskScreenPadding()
+            .frame(maxWidth: .infinity)
+    }
+}
+
+/// Right-hand rail beside a scan zone — the checkout items list and the
+/// pickup/return checklist share one width (`KioskLayout.sideRail`) and one
+/// quiet gradient panel treatment.
+struct KioskSideRail<Content: View>: View {
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) { content() }
+            .frame(width: KioskLayout.sideRail)
+            .background(
+                LinearGradient(
+                    colors: [Color.white.opacity(0.035), Color.white.opacity(0.015)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+    }
+}
+
 // MARK: - Screen padding
 
 extension View {
