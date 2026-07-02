@@ -24,8 +24,8 @@ struct KioskIdleView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let compact = proxy.size.width < 880 || dynamicTypeSize.isAccessibilitySize
-            let rosterWidth = min(max(proxy.size.width * 0.42, 430), 560)
+            let compact = proxy.size.width < KioskLayout.compactBreakpoint || dynamicTypeSize.isAccessibilitySize
+            let rosterWidth = KioskLayout.rosterWidth(for: proxy.size.width)
 
             ZStack {
                 Group {
@@ -193,16 +193,20 @@ struct KioskIdleView: View {
 
     private var leftPanel: some View {
         VStack(alignment: .leading, spacing: 18) {
+            // Quiet overline band: device identity reads as a label, not a
+            // title, so the clock below owns the hierarchy.
             HStack(spacing: 8) {
-                Text(store.info?.name ?? "Gear Room")
-                    .font(.callout.weight(.bold))
+                Text((store.info?.name ?? "Gear Room").uppercased())
+                    .font(.caption.weight(.bold))
+                    .tracking(1.2)
                     .foregroundStyle(KioskText.secondary)
                 if let location = store.info?.locationName {
                     Text("•")
                         .foregroundStyle(KioskText.muted)
-                    Text(location)
-                        .font(.callout.weight(.semibold))
-                        .foregroundStyle(KioskText.secondary)
+                    Text(location.uppercased())
+                        .font(.caption.weight(.bold))
+                        .tracking(1.2)
+                        .foregroundStyle(KioskText.tertiary)
                 }
                 Spacer(minLength: 8)
                 kioskHealthDot
@@ -215,11 +219,17 @@ struct KioskIdleView: View {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 VStack(alignment: .leading, spacing: 4) {
                     KioskClockView(date: context.date)
-                    Text(context.date, format: .dateTime.weekday(.wide).month(.wide).day())
-                        .font(.gothamBold(size: 32))
-                        .foregroundStyle(KioskText.primary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
+                    HStack(spacing: 10) {
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .fill(Color.kioskRed)
+                            .frame(width: 3, height: 26)
+                            .accessibilityHidden(true)
+                        Text(context.date, format: .dateTime.weekday(.wide).month(.wide).day())
+                            .font(.gothamBold(size: 32))
+                            .foregroundStyle(KioskText.primary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                    }
                     locationAndFreshness
                 }
                 .accessibilityElement(children: .combine)
@@ -268,16 +278,26 @@ struct KioskIdleView: View {
             // below the stat tiles whenever nothing is out and no events run.
             if let dashboard, selectedSummary != .events, dashboard.activeItems.isEmpty, dashboard.checkouts.isEmpty, dashboard.events.isEmpty {
                 Spacer()
-                VStack(spacing: 10) {
-                    Image(systemName: "checkmark.seal.fill")
-                        .font(.system(size: 44))
-                        .foregroundStyle(Color.statusText(.green))
-                        .accessibilityHidden(true)
+                VStack(spacing: 14) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.statusText(.green).opacity(0.12))
+                            .frame(width: 88, height: 88)
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.system(size: 40))
+                            .foregroundStyle(Color.statusText(.green))
+                    }
+                    .accessibilityHidden(true)
                     Text("All gear is home")
                         .font(.title3.bold())
                         .foregroundStyle(KioskText.primary)
+                    Text("Nothing is checked out right now")
+                        .font(.subheadline)
+                        .foregroundStyle(KioskText.tertiary)
                 }
                 .frame(maxWidth: .infinity)
+                .padding(.vertical, 28)
+                .kioskCard(KioskSurface.low, radius: KioskRadius.lg, stroke: KioskStroke.hairline)
                 .accessibilityElement(children: .combine)
             }
 
@@ -372,10 +392,7 @@ struct KioskIdleView: View {
     private var rosterPanel: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 14) {
-                Image(systemName: "barcode.viewfinder")
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(Color.kioskRed)
-                    .accessibilityHidden(true)
+                KioskSectionIcon(systemImage: "barcode.viewfinder", size: 56)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Scan Wiscard")
                         .font(.title2.bold())
@@ -408,6 +425,13 @@ struct KioskIdleView: View {
                         }
                     }
                 }
+
+                // Pinned hint closes the dead space under small rosters.
+                Text("Can't find your name? Ask staff at the window.")
+                    .font(.caption)
+                    .foregroundStyle(KioskText.muted)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 4)
             }
         }
     }
@@ -475,7 +499,7 @@ struct KioskIdleView: View {
     private var rosterSkeleton: some View {
         ScrollView {
             LazyVGrid(columns: rosterColumns, spacing: 10) {
-                ForEach(0..<9, id: \.self) { _ in
+                ForEach(0..<12, id: \.self) { _ in
                     KioskSkeletonBox(cornerRadius: KioskRadius.md)
                         .frame(height: 92)
                 }
@@ -759,7 +783,7 @@ private struct StatTile: View {
             VStack(spacing: 6) {
                 Text("\(value)")
                     .font(.system(size: 44, weight: .bold, design: .rounded))
-                    .foregroundStyle(accent)
+                    .foregroundStyle(isSelected ? Color.kioskRed : accent)
                     .contentTransition(.numericText())
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.4), value: value)
                     .monospacedDigit()
@@ -770,15 +794,18 @@ private struct StatTile: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 22)
-            .background((isSelected ? KioskSurface.cardSelected : KioskSurface.cardRaised), in: RoundedRectangle(cornerRadius: KioskRadius.xl))
-            .overlay(
-                RoundedRectangle(cornerRadius: KioskRadius.xl)
-                    .stroke(isSelected ? KioskStroke.selected : KioskStroke.standard, lineWidth: isSelected ? 2 : 1)
+            // Selection reads brand red — this gives red a real job on the
+            // idle screen instead of another white-opacity rung.
+            .kioskCard(
+                isSelected ? KioskSurface.cardSelected : KioskSurface.cardRaised,
+                radius: KioskRadius.xl,
+                stroke: isSelected ? Color.kioskRed : KioskStroke.standard,
+                lineWidth: isSelected ? 2 : 1
             )
             .overlay(alignment: .bottom) {
                 if isSelected {
                     Capsule()
-                        .fill(Color.white.opacity(0.86))
+                        .fill(Color.kioskRed)
                         .frame(width: 34, height: 3)
                         .padding(.bottom, 8)
                 }

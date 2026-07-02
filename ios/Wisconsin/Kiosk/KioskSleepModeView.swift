@@ -18,10 +18,18 @@ struct KioskSleepModeView: View {
                 Color.black.ignoresSafeArea()
                 VStack(alignment: .leading, spacing: 8) {
                     Text(context.date.kioskClockParts().time)
-                        .font(.gothamBlack(size: 58))
+                        .font(.gothamBlack(size: 72))
                         .foregroundStyle(Color.white.opacity(0.42))
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
+                    HStack(spacing: 8) {
+                        Image(systemName: "moon.zzz.fill")
+                            .font(.caption)
+                            .accessibilityHidden(true)
+                        Text(context.date, format: .dateTime.weekday(.wide).month(.abbreviated).day())
+                            .font(.caption.weight(.semibold))
+                    }
+                    .foregroundStyle(Color.white.opacity(0.42))
                     Text(sleepLabel)
                         .font(.gothamBold(size: 15))
                         .tracking(1.2)

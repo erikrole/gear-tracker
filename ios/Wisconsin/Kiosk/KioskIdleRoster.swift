@@ -47,11 +47,7 @@ struct UserTile: View {
             .frame(minHeight: 92)
             .padding(.horizontal, 8)
             .padding(.vertical, 10)
-            .background(KioskSurface.cardRaised, in: RoundedRectangle(cornerRadius: KioskRadius.md))
-            .overlay(
-                RoundedRectangle(cornerRadius: KioskRadius.md)
-                    .stroke(KioskStroke.strong, lineWidth: 1)
-            )
+            .kioskCard(KioskSurface.cardRaised, radius: KioskRadius.md, stroke: KioskStroke.strong)
         }
         .buttonStyle(KioskPressStyle())
         .accessibilityElement(children: .combine)
@@ -60,6 +56,6 @@ struct UserTile: View {
     }
 
     private var avatar: some View {
-        KioskAvatar(url: user.avatarUrl, initials: user.initials, size: 42)
+        KioskAvatar(url: user.avatarUrl, initials: user.initials, size: 48)
     }
 }

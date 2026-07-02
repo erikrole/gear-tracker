@@ -46,7 +46,7 @@ private struct KioskEventRow: View {
             HStack(spacing: 12) {
                 Text(timeLabel)
                     .font(.subheadline.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(KioskText.primary)
+                    .foregroundStyle(Color.kioskRed)
                     .frame(minWidth: 88, alignment: .leading)
                     .fixedSize()
                 Text(event.title)
@@ -67,11 +67,7 @@ private struct KioskEventRow: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
-            .background(KioskSurface.cardRaised, in: RoundedRectangle(cornerRadius: KioskRadius.md))
-            .overlay(
-                RoundedRectangle(cornerRadius: KioskRadius.md)
-                    .stroke(KioskStroke.standard, lineWidth: 1)
-            )
+            .kioskCard(KioskSurface.cardRaised, radius: KioskRadius.md, stroke: KioskStroke.standard)
         }
         .buttonStyle(KioskPressStyle())
         .accessibilityElement(children: .combine)
