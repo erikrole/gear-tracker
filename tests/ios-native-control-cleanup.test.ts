@@ -45,18 +45,16 @@ describe("iOS native control cleanup", () => {
   });
 
   it("uses native searchable for equipment search in Create Booking", () => {
+    const picker = source("ios/Wisconsin/Views/CreateBooking/CreateBookingEquipmentPicker.swift");
     const sheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
-    const picker = sliceBetween(
-      sheet,
-      "private var equipmentPicker: some View",
-      "private var reviewStep: some View",
-    );
 
     expect(picker).toContain(".searchable(");
     expect(picker).toContain("text: $vm.assetSearch");
     expect(picker).toContain("placement: .navigationBarDrawer(displayMode: .always)");
     expect(picker).toContain('prompt: Text("Search equipment")');
-    expect(picker).toContain('Label("Scan equipment", systemImage: "barcode.viewfinder")');
+    // Scan is an icon-only toolbar action; keep it labeled for VoiceOver.
+    expect(sheet).toContain('Image(systemName: "barcode.viewfinder")');
+    expect(sheet).toContain('.accessibilityLabel("Scan equipment")');
     expect(picker).not.toContain('TextField("Search equipment');
   });
 

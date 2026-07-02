@@ -101,7 +101,9 @@ describe("iOS API contracts — asset lookup item families", () => {
     expect(searchService).toContain("itemFamilies.isEmpty");
     expect(scanView).toContain("ItemFamilyResultRow(family: family)");
     expect(scanner).toContain("case itemFamily(AssetFamilySearchResult)");
-    expect(scanner).toContain("onMatch(.itemFamily(family))");
+    // The resolve-based scanner still surfaces bulk families as matches.
+    expect(scanner).toContain("match = .itemFamily(family)");
+    expect(scanner).toContain("switch await resolve(match)");
   });
 
   it("iOS Items list renders the mixed /api/assets order and exposes web-backed sort choices", () => {

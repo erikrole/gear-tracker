@@ -14,6 +14,7 @@ function createBookingSource() {
     "ios/Wisconsin/Views/CreateBooking/CreateBookingEquipmentRows.swift",
     "ios/Wisconsin/Views/CreateBooking/CreateBookingFormRows.swift",
     "ios/Wisconsin/Views/CreateBooking/CreateBookingPickers.swift",
+    "ios/Wisconsin/Views/CreateBooking/CreateBookingEquipmentPicker.swift",
   ].map(source).join("\n");
 }
 
@@ -29,23 +30,22 @@ describe("iOS create booking picker parity", () => {
   it("can scan equipment directly into the native booking picker", () => {
     const createSheet = createBookingSource();
     const sheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
-    const picker = sliceBetween(
-      sheet,
-      "private var equipmentPicker: some View",
-      "private var reviewStep: some View",
-    );
 
     expect(createSheet).toContain("@State private var showScanner = false");
-    expect(createSheet).toContain("QRScannerSheet { match in");
+    // Continuous scanning: the scanner stays open between hits and both
+    // serialized assets and bulk families land in the reservation.
+    expect(createSheet).toContain("QRScannerSheet(resolve: { match in");
     expect(createSheet).toContain("case .asset(let assetId):");
-    expect(createSheet).toContain("Task { await vm.addScannedAsset(id: assetId) }");
+    expect(createSheet).toContain("let outcome = await vm.addScannedAsset(id: assetId)");
     expect(createSheet).toContain("case .itemFamily(let family):");
-    expect(createSheet).toContain("Add it with the quantity controls.");
+    expect(createSheet).toContain("await vm.addScannedFamily(family)");
+    expect(createSheet).toContain(".continueScanning(message: outcome.message, success: outcome.success)");
     expect(createSheet).toContain("func addScannedAsset(id: String) async");
     expect(createSheet).toContain("let detail = try await APIClient.shared.asset(id: id)");
     expect(createSheet).toContain("let asset = detail.asAsset");
-    expect(picker).toContain("Label(\"Scan equipment\", systemImage: \"barcode.viewfinder\")");
-    expect(picker).toContain("Text(\"Adding scanned item…\")");
+    // Scan is reachable from the equipment step's toolbar.
+    expect(sheet).toContain("Image(systemName: \"barcode.viewfinder\")");
+    expect(sheet).toContain(".accessibilityLabel(\"Scan equipment\")");
   });
 
   it("treats counted supplies as first-class selected equipment", () => {
@@ -60,10 +60,9 @@ describe("iOS create booking picker parity", () => {
     expect(createSheet).toContain("var selectedBulkTotal: Int");
     expect(createSheet).toContain("selectedAssetIds.count + selectedBulkTotal");
     expect(createSheet).toContain("selectedBulkQuantities.values.reduce(0, +)");
-    expect(createSheet).toContain("Text(\"Equipment\")");
     expect(createSheet).not.toContain("Batteries & Counted Items");
     expect(createSheet).toContain("BulkQuantityRow(");
-    expect(createSheet).toContain("SelectedBulkRow(");
+    expect(createSheet).toContain("BulkResultRow(");
     expect(review).toContain("Text(\"\\(vm.selectedEquipmentCount) item\\(vm.selectedEquipmentCount == 1 ? \"\" : \"s\")\")");
     expect(review).toContain("ForEach(Array(vm.selectedBulkSkus.enumerated()), id: \\.element.id)");
     expect(review).toContain("Text(\"×\\(vm.quantity(for: sku))\")");
@@ -88,22 +87,18 @@ describe("iOS create booking picker parity", () => {
     expect(assetsRoute).toMatch(/name:\s*\[\{\s*brand:\s*"asc"\s*\},\s*\{\s*model:\s*"asc"\s*\},\s*\{\s*assetTag:\s*"asc"\s*\}\]/);
     expect(apiClient).toContain("sort: String? = nil");
     expect(apiClient).toContain('items.append(.init(name: "sort", value: sort))');
-    expect(createSheet).toContain('sort: "name"');
+    // Browse leads with popularity; explicit searches stay alphabetical.
+    expect(createSheet).toContain('sort: capturedSearch.isEmpty ? "popular" : "name"');
   });
 
   it("groups native available equipment by category from a bounded location fetch", () => {
     const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
     const createSheet = createBookingSource();
-    const sheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
+    const picker = source("ios/Wisconsin/Views/CreateBooking/CreateBookingEquipmentPicker.swift");
     const loadAvailableAssets = sliceBetween(
       createSheet,
       "func loadAvailableAssets(reset: Bool = false) async",
       "func toggleAsset",
-    );
-    const picker = sliceBetween(
-      sheet,
-      "private var equipmentPicker: some View",
-      "private var reviewStep: some View",
     );
 
     expect(apiClient).toContain("locationId: String? = nil");
@@ -116,9 +111,12 @@ describe("iOS create booking picker parity", () => {
     expect(createSheet).toContain("struct AssetCategoryGroup: Identifiable");
     expect(createSheet).toContain("var availableAssetGroups: [AssetCategoryGroup]");
     expect(createSheet).toContain("return categoryName?.isEmpty == false ? categoryName! : \"Uncategorized\"");
-    expect(picker).toContain("ForEach(vm.availableAssetGroups) { group in");
+    // The picker renders the displayed groups (popular-first browse, category
+    // chips, or grouped search results) as native sections.
+    expect(createSheet).toContain("var displayedAssetGroups: [AssetCategoryGroup]");
+    expect(picker).toContain("ForEach(vm.displayedAssetGroups) { group in");
     expect(picker).toContain("ForEach(group.assets) { asset in");
-    expect(picker).toContain("Text(group.title)");
+    expect(picker).toContain("Section(group.title)");
     expect(picker).toContain("More equipment exists. Search to narrow results.");
     expect(picker).not.toContain("Task { await vm.loadAvailableAssets() }");
   });

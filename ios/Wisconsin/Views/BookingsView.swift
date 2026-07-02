@@ -290,6 +290,12 @@ struct BookingsView: View {
         }
     }
 
+    /// An empty Attention queue is good news; don't give it an archive box.
+    private var emptyIcon: String {
+        guard vm.searchText.isEmpty else { return "magnifyingglass" }
+        return vm.scope == .needsAttention ? "checkmark.circle" : "archivebox"
+    }
+
     private var emptyDescription: String {
         if !vm.searchText.isEmpty { return "No results for \"\(vm.searchText)\"." }
         if vm.scope == .mine {
@@ -356,7 +362,7 @@ struct BookingsView: View {
                         .accessibilityHidden(true)  // Don't pollute VO with placeholder shapes.
                     } else if vm.isEmpty {
                         ContentUnavailableView {
-                            Label(emptyTitle, systemImage: "archivebox")
+                            Label(emptyTitle, systemImage: emptyIcon)
                         } description: {
                             Text(emptyDescription)
                         } actions: {
@@ -587,36 +593,35 @@ struct BookingRow: View {
             // Shared rail atom — inset top/bottom, matching the Next Up rows.
             StatusRail(tone: accentTone)
             UserAvatarView(name: booking.requester.name, avatarUrl: booking.requester.avatarUrl, size: 40)
-            VStack(alignment: .leading, spacing: 5) {
-                TimelineView(.periodic(from: .now, by: 60)) { context in
-                    let info = relativeTiming(now: context.date)
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Label {
-                            Text(info.text)
-                                .font(.caption.weight(.semibold))
-                                .lineLimit(1)
-                        } icon: {
-                            Image(systemName: info.icon)
-                                .font(.caption2.weight(.semibold))
-                                .accessibilityHidden(true)
-                        }
-                        .foregroundStyle(info.urgent ? AnyShapeStyle(Color.statusText(.red)) : AnyShapeStyle(Color.statusText(accentTone)))
-                        Spacer()
-                        StatusBadge(status: booking.status, kind: booking.kind, isOverdue: isOverdue)
-                    }
+            VStack(alignment: .leading, spacing: 4) {
+                // Title anchors the row; the status pill shares its baseline
+                // so the top edge reads as one balanced line.
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(booking.title)
+                        .font(.gothamBold(size: 16))
+                        .lineLimit(1)
+                    Spacer(minLength: 8)
+                    StatusBadge(status: booking.status, kind: booking.kind, isOverdue: isOverdue)
                 }
-                Text(booking.title)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                Text(booking.requester.name)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
+                TimelineView(.periodic(from: .now, by: 60)) { context in
+                    let info = timing(now: context.date)
+                    Label {
+                        Text(info.text)
+                            .font(.caption.weight(.semibold))
+                            .lineLimit(1)
+                    } icon: {
+                        Image(systemName: info.icon)
+                            .font(.caption2.weight(.semibold))
+                            .accessibilityHidden(true)
+                    }
+                    .foregroundStyle(info.urgent ? AnyShapeStyle(Color.statusText(.red)) : AnyShapeStyle(Color.statusText(accentTone)))
+                }
                 HStack(spacing: 4) {
                     Text(booking.location.name)
                     if itemCount > 0 {
                         Text("·")
                         Text("\(itemCount) item\(itemCount == 1 ? "" : "s")")
+                            .monospacedDigit()
                     }
                 }
                 .font(.caption)
@@ -642,28 +647,59 @@ struct BookingRow: View {
         .accessibilityLabel(rowAccessibilityLabel)
     }
 
-    /// Compact, live relative timing for the row's bottom line. Checkouts count
-    /// to their return (when OPEN) or their pickup window (before pickup);
-    /// reservations count to their start. Urgent (red) once a window is missed.
-    private func relativeTiming(now: Date) -> (text: String, icon: String, urgent: Bool) {
+    /// Live timing line: a real clock time first ("Due today at 11:30 AM"),
+    /// with the compact relative magnitude only where urgency needs it
+    /// ("2h overdue · due 11:30 AM"). Checkouts speak to their return (OPEN)
+    /// or pickup window; reservations to their start.
+    private func timing(now: Date) -> (text: String, icon: String, urgent: Bool) {
         if booking.kind == .checkout {
             switch booking.status {
             case .open:
-                return booking.endsAt < now
-                    ? ("\(booking.endsAt.compactMagnitude(now: now)) overdue", "exclamationmark.circle.fill", true)
-                    : ("Due in \(booking.endsAt.compactMagnitude(now: now))", "clock", false)
+                if booking.endsAt < now {
+                    return ("\(booking.endsAt.compactMagnitude(now: now)) overdue · due \(shortWhen(booking.endsAt, now: now))", "exclamationmark.circle.fill", true)
+                }
+                return ("Due \(dayAndTime(booking.endsAt, now: now))", "clock", false)
             case .pendingPickup, .booked:
-                return booking.startsAt < now
-                    ? ("Pickup \(booking.startsAt.compactMagnitude(now: now)) late", "exclamationmark.circle.fill", true)
-                    : ("Pickup in \(booking.startsAt.compactMagnitude(now: now))", "clock", false)
+                if booking.startsAt < now {
+                    return ("Pickup late · was \(shortWhen(booking.startsAt, now: now))", "exclamationmark.circle.fill", true)
+                }
+                return ("Pickup \(dayAndTime(booking.startsAt, now: now))", "clock", false)
             default:
-                return (booking.endsAt.gearShort, "clock", false)
+                return ("Due \(dayAndTime(booking.endsAt, now: now))", "clock", false)
             }
         }
-        // Reservation: count to start, then read as active.
+        // Reservation: speak to its start, then read as underway.
         return booking.startsAt > now
-            ? ("Starts in \(booking.startsAt.compactMagnitude(now: now))", "calendar", false)
-            : ("From \(booking.startsAt.formatted(date: .abbreviated, time: .omitted))", "calendar", false)
+            ? ("Starts \(dayAndTime(booking.startsAt, now: now))", "calendar", false)
+            : ("Started \(dayPhrase(booking.startsAt, now: now))", "calendar", false)
+    }
+
+    /// "today", "tomorrow", "yesterday", a weekday within a week ("Friday"),
+    /// otherwise a short date ("Jul 12").
+    private func dayPhrase(_ date: Date, now: Date) -> String {
+        let cal = Calendar.current
+        if cal.isDate(date, inSameDayAs: now) { return "today" }
+        if let tomorrow = cal.date(byAdding: .day, value: 1, to: now), cal.isDate(date, inSameDayAs: tomorrow) { return "tomorrow" }
+        if let yesterday = cal.date(byAdding: .day, value: -1, to: now), cal.isDate(date, inSameDayAs: yesterday) { return "yesterday" }
+        let days = cal.dateComponents([.day], from: cal.startOfDay(for: now), to: cal.startOfDay(for: date)).day ?? 0
+        if days > 0 && days < 7 { return date.formatted(.dateTime.weekday(.wide)) }
+        return date.formatted(date: .abbreviated, time: .omitted)
+    }
+
+    /// "today at 11:30 AM" nearby, just "Jul 12" once the clock time stops
+    /// being the useful part.
+    private func dayAndTime(_ date: Date, now: Date) -> String {
+        let phrase = dayPhrase(date, now: now)
+        let days = abs(Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: now), to: Calendar.current.startOfDay(for: date)).day ?? 0)
+        guard days < 7 else { return phrase }
+        return "\(phrase) at \(date.formatted(date: .omitted, time: .shortened))"
+    }
+
+    /// For past references: the clock time when it was today, else the day.
+    private func shortWhen(_ date: Date, now: Date) -> String {
+        Calendar.current.isDate(date, inSameDayAs: now)
+            ? date.formatted(date: .omitted, time: .shortened)
+            : dayPhrase(date, now: now)
     }
 
     private var rowAccessibilityLabel: String {
