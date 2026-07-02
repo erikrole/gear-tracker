@@ -12,7 +12,8 @@ describe("action result copy", () => {
     expect(tradeBoard).toContain("const TRADE_OUTCOME_COPY");
     expect(tradeBoard).toContain("The trade was not claimed.");
     expect(tradeBoard).toContain("The shift assignment was not changed.");
-    expect(tradeBoard).toContain("The shift request was not sent.");
+    // Premier removal: open-shift pickups are instant claims, not requests.
+    expect(tradeBoard).toContain("The shift was not claimed.");
     expect(tradeBoard).toContain("Open Work did not load. Retry before acting on shift or trade coverage.");
 
     expect(tradeBoard).not.toContain("Failed to claim trade");
