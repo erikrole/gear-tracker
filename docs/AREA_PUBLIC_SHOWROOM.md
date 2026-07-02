@@ -25,6 +25,7 @@ Make `/about` a shareable public stakeholder showroom for Gear Tracker. It shoul
 - `/about/tech-stack` - public-safe stack map.
 - `/about/security` - trust model, access control, auditability, and reliability controls.
 - `/about/field-work` - native iOS, kiosk, scanner, and game-day handoff story.
+- `/privacy` - public privacy policy for App Store Connect and stakeholder review.
 
 ## Acceptance Criteria
 - [x] AC-1: `/about` and all public subpages render without authentication.
@@ -33,6 +34,7 @@ Make `/about` a shareable public stakeholder showroom for Gear Tracker. It shoul
 - [x] AC-4: Navigation exposes Overview, Features, Tech Stack, Security, Field Work, and Sign in.
 - [x] AC-5: `/` and authenticated app shell behavior remain unchanged.
 - [x] AC-6: Public pages have route metadata, keyboard-reachable navigation, and mobile-safe layouts.
+- [x] AC-7: `/privacy` renders without authentication and does not fetch authenticated data.
 
 ## Verification
 - `npx vitest run tests/public-showroom-content.test.ts`
@@ -44,6 +46,7 @@ Make `/about` a shareable public stakeholder showroom for Gear Tracker. It shoul
 - Browser smoke `/about`, `/about/features`, `/about/tech-stack`, `/about/security`, `/about/field-work`, `/login`, and protected `/`.
 
 ## Change Log
+- 2026-07-01: Added static `/privacy` for `wisconsincreative.com/privacy`, covering the iOS launch privacy-policy requirement with public-safe copy, no authenticated API reads, and contact routing through `erole@athletics.wisc.edu`.
 - 2026-07-01: Improvement pass. Pinned the showroom subtree to light tokens (`[data-theme="light"]` alias in globals plus wrapper attribute) so system-dark visitors no longer get white-on-white text; fixed the invisible gray tone chip on light cards; demoted product-mockup headings to styled text inside a `figure` to keep heading order valid; added a skip-to-content link and `#showroom-content` targets; added `metadataBase` (wisconsincreative.com), Open Graph/Twitter metadata, and a generated `opengraph-image` for the `/about` segment; added a "Keep exploring" cross-link section fed by the nav descriptions; made the stakeholder CTA link configurable so Tech Stack no longer links to itself; refreshed footer and security-page copy; extended the content contract test for light-pinning, share metadata, and nav descriptions.
 - 2026-07-01: Public stakeholder showroom shipped locally with static `/about` route set, fictional product mockups, public-safe stack/security copy, and content contract coverage.
 - 2026-07-01: Vercel static-shell optimization moved theme and service-worker boot code from nonce-backed inline scripts to same-origin static scripts, removed the root `headers()` dependency, and retired the middleware nonce path so public showroom pages can stay static-friendly under the shared CSP. A non-matching middleware sentinel remains only to keep the current Next 15/Sentry build manifest path stable.

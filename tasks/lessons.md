@@ -79,6 +79,7 @@
 
 ## UX Patterns
 
+- **Separate App Store product name from the installed iOS label**: App Store Connect and `PRODUCT_NAME` can carry the fuller public name, while `CFBundleDisplayName` should stay short enough for the Home Screen. When launch naming feedback distinguishes those two, wire both explicitly instead of choosing one string everywhere.
 - **External calendar titles must optimize for the worker's glance, not the internal event record**: Subscription feeds should carry the role/area, compact sport matchup, call window, and a deep link back to Gear Tracker. Keep prep instructions, gear reminders, and long source-calendar descriptions inside the app where they can stay current.
 - **Do not promote scan posture into desktop navigation without workflow proof**: Web Gear Tracker is used on laptops/desktops with a visible text search bar and command palette. Keep `/scan` out of the web sidebar unless the user explicitly asks for a desktop scan workflow; mobile/native scan entry points cover camera/hand-scanner posture.
 - **Do not occupy browser/system shortcut space for sidebar navigation**: Cmd/Ctrl+number shortcuts conflict with browser tab switching and OS expectations. Keep global app shortcuts limited to explicit high-value commands like search unless the user asks for a dedicated shortcut layer.

@@ -77,6 +77,7 @@
 | `/change-password` | `src/app/change-password/page.tsx` |
 | `/forgot-password` | `src/app/forgot-password/page.tsx` |
 | `/login` | `src/app/login/page.tsx` |
+| `/privacy` | `src/app/privacy/page.tsx` |
 | `/register` | `src/app/register/page.tsx` |
 | `/reset-password` | `src/app/reset-password/page.tsx` |
 

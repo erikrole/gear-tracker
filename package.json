@@ -29,6 +29,7 @@
     "db:check:dupe-allocations": "node --env-file=.env scripts/check-dupe-allocations.mjs",
     "db:setup": "node --env-file=.env scripts/setup-db.mjs",
     "db:seed": "node prisma/seed.mjs",
+    "demo:seed:app-review": "node --env-file=.env scripts/seed-app-review-demo.mjs",
     "audit:item-data": "node --env-file=.env scripts/audit-item-data.mjs",
     "cleanup:item-data": "node --env-file=.env scripts/cleanup-item-data.mjs",
     "test": "vitest run",

@@ -4,6 +4,22 @@ Last updated: 2026-07-01
 
 ---
 
+## Active: Unlisted iOS App Store launch readiness (2026-07-01)
+
+Scope: App Store submission readiness for the main `Wisconsin` iOS app only. Kiosk remains separate and off the App Store.
+
+- [x] Make the App Store app appear as `Wisconsin Creative` while the iOS Home Screen label stays `Creative`.
+- [x] Switch checked-in APNs entitlement metadata from development to production for the App Store launch target.
+- [x] Add the iOS privacy manifest for first-party required-reason API usage.
+- [x] Add the public privacy page at `/privacy` for `wisconsincreative.com/privacy`.
+- [x] Add an idempotent App Review demo seed script with fake users, fake gear, fake bookings, fake notifications, and reviewer credentials.
+- [x] Verify focused source checks, iOS project consistency, TypeScript/build as feasible, and document user-run real-device tasks.
+
+### Review
+- 2026-07-01: Launch-readiness slice completed for the main App Store app only. App Store product naming is set up as `Wisconsin Creative`, the installed label stays `Creative`, checked-in APNs entitlement metadata is production, the first-party privacy manifest is present, `/privacy` builds as a static public page, and `npm run demo:seed:app-review` now creates a guarded fictional App Review dataset only when `APP_REVIEW_DEMO_SEED=confirm` is set. Verified: `plutil -lint`, `node --check scripts/seed-app-review-demo.mjs`, guarded seed refusal without confirmation, `npm run ios:project:check`, `npm run drift:ios`, `npm run audit:ios:gaps`, `npx tsc --noEmit --pretty false`, `npx vitest run tests/public-showroom-content.test.ts`, `npm run codemap`, `npm run verify:docs`, `git diff --check`, `npm run build:app`, and escalated `npm run ios:xcode:verify`. Manual external tasks remain in Apple Developer, App Store Connect, DNS, archive/signing proof, and real-device QA.
+
+---
+
 ## Active: Public showroom /about improvement pass (2026-07-01)
 
 Scope: `/about` route set only. Fixes two shipped bugs and raises share/SEO/accessibility/navigation quality without touching auth, APIs, or app-shell behavior.

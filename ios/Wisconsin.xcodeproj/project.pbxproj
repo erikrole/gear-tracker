@@ -112,6 +112,7 @@
 		C3C5D175C583096B0D645F24 /* AssetModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3967BD5EC55792F3B9E94724 /* AssetModels.swift */; };
 		C72EB6E27A3B853D2B074874 /* KioskNativeTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046675A42DFADB1133461EDD /* KioskNativeTextField.swift */; };
 		CB5A9F4D1449DDAFF063E6A6 /* KioskOnlyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B24728E65A42F40EDB0BBCF8 /* KioskOnlyApp.swift */; };
+		CC0861DE9B9E5C12D3EFFD83 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 911EE1AA37106EDB44B9B2E9 /* PrivacyInfo.xcprivacy */; };
 		CE860A32B56D88E0802D8EFE /* DashboardModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB8C14E1F7005B408A6A4CCD /* DashboardModels.swift */; };
 		D1BE91AB2F76BE372F49B448 /* CheckoutReturnLiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2228C8C2447924ED80ABD8C4 /* CheckoutReturnLiveActivityManager.swift */; };
 		D24677599DC4E06E3E093A81 /* PushPrePromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A2DFDC7A0C7BD6C018D43D2 /* PushPrePromptView.swift */; };
@@ -224,6 +225,7 @@
 		88F162C9B5233CB44C35E9E5 /* WisconsinLiveActivities.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = WisconsinLiveActivities.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		88FF0CACAB4BD4886FD0219B /* CreateBookingEventViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateBookingEventViews.swift; sourceTree = "<group>"; };
 		8F94CA79BF538DBB6FF7F225 /* UsersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsersView.swift; sourceTree = "<group>"; };
+		911EE1AA37106EDB44B9B2E9 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		93A02FB7D1B8ADC547189F1A /* ScanPrePromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanPrePromptView.swift; sourceTree = "<group>"; };
 		96636E404DEEEDA5C6046ADB /* AddShiftSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddShiftSheet.swift; sourceTree = "<group>"; };
 		9CDE77AE37C01B8DA663C7CE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -323,6 +325,7 @@
 			isa = PBXGroup;
 			children = (
 				9CDE77AE37C01B8DA663C7CE /* Info.plist */,
+				911EE1AA37106EDB44B9B2E9 /* PrivacyInfo.xcprivacy */,
 			);
 			path = Supporting;
 			sourceTree = "<group>";
@@ -693,6 +696,7 @@
 				12BE5380A72CE66E23CA39CD /* Assets.xcassets in Resources */,
 				AE02BC8C269DDE4A15E54745 /* Gotham-Black.ttf in Resources */,
 				16180470B97E979363856F90 /* Gotham-Bold.ttf in Resources */,
+				CC0861DE9B9E5C12D3EFFD83 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -946,7 +950,7 @@
 				MARKETING_VERSION = 1.0;
 				OTHER_SWIFT_FLAGS = "-DDEBUG";
 				PRODUCT_BUNDLE_IDENTIFIER = com.erikrole.Wisconsin;
-				PRODUCT_NAME = Wisconsin;
+				PRODUCT_NAME = "Wisconsin Creative";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -968,7 +972,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.erikrole.Wisconsin;
-				PRODUCT_NAME = Wisconsin;
+				PRODUCT_NAME = "Wisconsin Creative";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

@@ -26,6 +26,7 @@ targets:
       properties:
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        CFBundleDisplayName: "Creative"
         UILaunchScreen:
           UIColorName: ""
         UISupportedInterfaceOrientations:
@@ -50,7 +51,7 @@ targets:
     entitlements:
       path: Wisconsin/Wisconsin.entitlements
       properties:
-        aps-environment: development
+        aps-environment: production
         com.apple.developer.weatherkit: true
     dependencies:
       - sdk: WeatherKit.framework
@@ -58,7 +59,7 @@ targets:
       - target: WisconsinLiveActivities
     settings:
       base:
-        PRODUCT_NAME: Wisconsin
+        PRODUCT_NAME: Wisconsin Creative
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "17"

@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-30
+- Last Updated: 2026-07-01
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -135,6 +135,8 @@ _2026-06-19 update: Category cleanup wizard and picker visibility shipped withou
 _2026-06-26 update: Item-data cleanup shipped without opening a new gap. Existing Asset, BulkSku, Category, Department, scan identity, and audit-log contracts supported the data-only pass. Serialized category, department, and primary-scan gaps are now 0; active item-family category and department gaps are now 0; cross-table duplicate scan identities are now 0. Nine possible cage/top-plate/lens-cap attachments remain an operator physical-mapping review because the database does not prove their parent asset._
 
 _2026-06-29 update: iOS console/runtime calming shipped without opening a new gap. The slice changed native client launch timing, optional AFM header gating, and thumbnail caching only; dashboard payload shape, Live Activity API contracts, and mobile navigation/custody behavior did not change._
+
+_2026-07-01 update: iOS App Store readiness metadata, production APNs entitlement metadata, first-party privacy manifest, public `/privacy`, and guarded App Review demo seed shipped without opening a new gap. Remaining work is external App Store Connect configuration, final archive/signing proof, and real-device QA._
 
 | ID | Description | Owner Area | Priority | Blocker? |
 |---|---|---|---|---|
