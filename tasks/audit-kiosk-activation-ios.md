@@ -44,9 +44,9 @@ _None._ Activation works, errors surface, retries are gated by server rate limit
       `ios/Wisconsin/Kiosk/KioskActivationView.swift:33-46`.
       Suggested fix: wrap the `HStack(spacing: 12)` in `.animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: code)`. Tiny ease-in-out makes the clear feel intentional rather than a glitch.
 
-- [x] [UI polish] **The "Settings → Kiosk Devices" hint doesn't say where.** Staff brand-new to the gear-room iPad reads "Settings → Kiosk Devices" and assumes that's an iOS Settings path. It's actually `gear.erikrole.com/settings/kiosk-devices`.
+- [x] [UI polish] **The "Settings → Kiosk Devices" hint doesn't say where.** Staff brand-new to the gear-room iPad reads "Settings → Kiosk Devices" and assumes that's an iOS Settings path. It is the web settings route, now under `wisconsincreative.com/settings/kiosk-devices`.
       `ios/Wisconsin/Kiosk/KioskActivationView.swift:26-29`.
-      Suggested fix: rephrase to "Staff: enter the 6-digit code from gear.erikrole.com → Settings → Kiosk Devices." Same caption size, just unambiguous about the surface.
+      Suggested fix: rephrase to "Staff: enter the 6-digit code from wisconsincreative.com → Settings → Kiosk Devices." Same caption size, just unambiguous about the surface.
 
 ## P2 — post-MVP
 

@@ -7,9 +7,9 @@ struct KioskAPI {
 
     /// Host the kiosk_session cookie is scoped to — KioskStore re-creates the
     /// cookie from the Keychain against this domain after a reinstall.
-    static let host = "gear.erikrole.com"
+    static let host = AppEnvironment.canonicalHost
 
-    private let baseURL = URL(string: "https://gear.erikrole.com")!
+    private let baseURL = AppEnvironment.baseURL
 
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
@@ -310,7 +310,7 @@ struct KioskAPI {
         req.httpMethod = method
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("WisconsinApp/1.0 iOS Kiosk", forHTTPHeaderField: "User-Agent")
-        req.setValue(baseURL.absoluteString, forHTTPHeaderField: "Origin")
+        req.setValue(AppEnvironment.origin, forHTTPHeaderField: "Origin")
         return req
     }
 

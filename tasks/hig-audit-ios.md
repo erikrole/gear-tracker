@@ -22,7 +22,7 @@ Findings tagged P0 (HIG violation), P1 (clear deviation), P2 (polish/feel).
 
 **Second slice outcome:** `BookingsView` empty states now include direct recovery actions. Search-empty states clear the query, Mine-only empty states switch to all visible bookings, and empty Reservations can open creation when allowed. The slice keeps the accepted mobile active-only booking scope and avoids reopening GAP-34's desktop parity filters.
 
-**Third slice outcome:** `LoginView` now restores the native `Need an account?` link to `https://gear.erikrole.com/register`, matching the login audit and device walkthrough while keeping registration web-owned and invite-gated by `AllowedEmail`.
+**Third slice outcome:** `LoginView` restored the native `Need an account?` link while keeping registration web-owned and invite-gated by `AllowedEmail`. The 2026-07-01 domain cutover moved that link through `AppEnvironment.url(path:)`, currently `https://wisconsincreative.com/register`.
 
 **Fourth slice outcome:** `PasswordSetupView` now gives forced-password users a persistent in-form requirements checklist while they complete first sign-in, matching HIG text-field guidance to keep field purpose and validation visible instead of relying on disappearing placeholders or a single changing warning line.
 

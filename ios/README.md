@@ -1,6 +1,6 @@
 # Wisconsin iOS App
 
-Native SwiftUI app for gear.erikrole.com.
+Native SwiftUI app for wisconsincreative.com.
 
 ## Prerequisites
 
@@ -55,6 +55,7 @@ npm run ios:xcode:verify
 Wisconsin/
   App/          — Entry point, root view
   Core/         — APIClient (URLSession), SessionStore (@Observable)
+  Shared/       — App host/environment constants shared by Wisconsin and WisconsinKiosk
   Models/       — Codable models matching the API
   Views/        — SwiftUI screens
   Supporting/   — Info.plist (managed by XcodeGen)
@@ -62,5 +63,5 @@ Wisconsin/
 
 ## API
 
-Talks directly to `https://gear.erikrole.com` using the same cookie-based session as the web app.
+Talks directly to `https://wisconsincreative.com` using the same cookie-based session as the web app.
 Authentication is shared — logging in on the app logs you in via the same session table.

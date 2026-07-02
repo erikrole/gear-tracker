@@ -10,21 +10,16 @@ Date: 2026-05-03 · Reference: Mozilla Observatory, OWASP Secure Headers, securi
 - **Permissions-Policy expanded** — explicitly denies USB, Serial, Bluetooth, Payment, sensors, FLoC/Topics, etc.
 - **Auth pages `Cache-Control: no-store`** — login/register/forgot-password/reset-password.
 - **`ok()` default `Cache-Control: private, no-store`** — defense in depth so authed JSON can't replay from browser cache after logout. `cachedOk()` is the opt-in.
+- **2026-07-01 Vercel static-shell adjustment** — theme and service-worker boot code moved from inline scripts to same-origin static files (`/theme-init.js`, `/sw-init.js`). `src/app/layout.tsx` no longer imports `next/headers`, and the per-request nonce middleware path was retired so otherwise-static public pages do not need a dynamic root layout just to boot theme/service-worker behavior. A non-matching middleware sentinel remains because deleting the middleware file made the current Next 15/Sentry build miss `pages-manifest.json`.
 
 Estimated grade: securityheaders.com **A** (was B), Mozilla Observatory **A** (was B).
 
 ## Open — needs follow-up
 
 ### P0 — Migrate CSP `script-src` to nonce
-Currently still allows `'unsafe-inline'`. Any XSS sink runs attacker JS. Two inline `<script>` blocks in `src/app/layout.tsx:32-41` are the only blockers (theme FOUC fix + service worker registration).
+Resolved differently on 2026-07-01. The two inline scripts that forced a nonce path were replaced by static same-origin script files, and `script-src 'self'` now covers them without `'unsafe-inline'`, request-header reads, or middleware-generated nonces.
 
-**Plan:**
-1. Add `src/middleware.ts` that generates a per-request nonce, sets it on a request header, and writes the CSP response header inline (since middleware can override per-request what `next.config.ts` sets statically).
-2. In `src/app/layout.tsx`, read the nonce from request headers and pass `nonce={nonce}` to both `<script>` tags.
-3. Replace `script-src 'self' 'unsafe-inline'` with `script-src 'self' 'nonce-{NONCE}' 'strict-dynamic'`.
-4. Verify Sentry's bundled scripts still load (they should — `'strict-dynamic'` propagates trust to dynamically-loaded scripts).
-
-After this lands, also drop `'unsafe-inline'` from `style-src` if React/Next inline style usage is gone (probably needs nonce-styles, lower priority).
+Follow-up remains for `style-src`: drop `'unsafe-inline'` only after React/Next inline style usage is gone or nonce-styles are practical.
 
 ### P2 — Consider COEP `require-corp`
 Skipped today because it requires every cross-origin asset to send CORP, which would break Vercel Blob images and Sentry tunneled requests. Worth revisiting once needed for `SharedArrayBuffer` (rarely needed).

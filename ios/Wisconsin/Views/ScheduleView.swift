@@ -497,8 +497,7 @@ struct ScheduleView: View {
             } else {
                 token = try await APIClient.shared.generateICSToken()
             }
-            let urlString = "webcal://gear.erikrole.com/api/shifts/ics/\(token)"
-            guard let url = URL(string: urlString) else { return }
+            guard let url = AppEnvironment.webcalURL(path: "/api/shifts/ics/\(token)") else { return }
             let opened = await UIApplication.shared.open(url)
             if opened {
                 toast = Toast(message: "Opening Apple Calendar…", icon: "calendar.badge.checkmark", role: .info)

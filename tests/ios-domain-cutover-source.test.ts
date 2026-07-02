@@ -1,0 +1,75 @@
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+
+function source(relativeFile: string) {
+  return readFileSync(path.join(process.cwd(), relativeFile), "utf8");
+}
+
+function swiftFiles(dir = path.join(process.cwd(), "ios/Wisconsin")): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) return swiftFiles(fullPath);
+    if (entry.isFile() && entry.name.endsWith(".swift")) return [fullPath];
+    return [];
+  });
+}
+
+function relative(file: string) {
+  return path.relative(process.cwd(), file);
+}
+
+describe("iOS production domain cutover", () => {
+  it("centralizes the public app host and documents the legacy host explicitly", () => {
+    const environment = source("ios/Wisconsin/Shared/AppEnvironment.swift");
+
+    expect(environment).toContain('static let canonicalHost = "wisconsincreative.com"');
+    expect(environment).toContain('static let legacyHost = "gear.erikrole.com"');
+    expect(environment).toContain('static let baseURL = URL(string: "https://\\(canonicalHost)")!');
+    expect(environment).toContain("static let origin = baseURL.absoluteString");
+    expect(environment).toContain('return URL(string: "webcal://\\(canonicalHost)\\(normalizedPath)")');
+  });
+
+  it("keeps app, kiosk, recovery, profile, licenses, and calendar URLs on the shared host config", () => {
+    expect(source("ios/Wisconsin/Core/APIClient.swift")).toContain("private let baseURL = AppEnvironment.baseURL");
+    expect(source("ios/Wisconsin/Core/APIClient.swift")).toContain(
+      'req.setValue(AppEnvironment.origin, forHTTPHeaderField: "Origin")',
+    );
+
+    expect(source("ios/Wisconsin/Kiosk/KioskAPIClient.swift")).toContain(
+      "static let host = AppEnvironment.canonicalHost",
+    );
+    expect(source("ios/Wisconsin/Kiosk/KioskAPIClient.swift")).toContain(
+      "private let baseURL = AppEnvironment.baseURL",
+    );
+    expect(source("ios/Wisconsin/Views/LoginView.swift")).toContain(
+      'private static let forgotPasswordURL = AppEnvironment.url(path: "/forgot-password")',
+    );
+    expect(source("ios/Wisconsin/Views/LoginView.swift")).toContain(
+      'private static let registerURL = AppEnvironment.url(path: "/register")',
+    );
+    expect(source("ios/Wisconsin/Views/ProfileView.swift")).toContain(
+      "private static let manageAccountURL = AppEnvironment.baseURL",
+    );
+    expect(source("ios/Wisconsin/Views/LicensesView.swift")).toContain(
+      'private static let webManagementURL = AppEnvironment.url(path: "/licenses")',
+    );
+    expect(source("ios/Wisconsin/Views/ScheduleView.swift")).toContain(
+      'AppEnvironment.webcalURL(path: "/api/shifts/ics/\\(token)")',
+    );
+  });
+
+  it("includes the shared host config in the kiosk target", () => {
+    const project = source("ios/project.yml");
+
+    expect(project).toMatch(/WisconsinKiosk:[\s\S]*?- path: Wisconsin\/Shared/);
+  });
+
+  it("does not leave old production host literals scattered through Swift source", () => {
+    const offenders = swiftFiles()
+      .filter((file) => source(relative(file)).includes("gear.erikrole.com"))
+      .map(relative);
+
+    expect(offenders).toEqual(["ios/Wisconsin/Shared/AppEnvironment.swift"]);
+  });
+});

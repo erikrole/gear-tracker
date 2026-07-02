@@ -5,8 +5,8 @@ describe("iOS login recovery links", () => {
   const source = readFileSync("ios/Wisconsin/Views/LoginView.swift", "utf8");
 
   it("keeps password reset and allowlist registration reachable from native login", () => {
-    expect(source).toContain('URL(string: "https://gear.erikrole.com/forgot-password")');
-    expect(source).toContain('URL(string: "https://gear.erikrole.com/register")');
+    expect(source).toContain('private static let forgotPasswordURL = AppEnvironment.url(path: "/forgot-password")');
+    expect(source).toContain('private static let registerURL = AppEnvironment.url(path: "/register")');
     expect(source).toContain('Link("Forgot password?", destination: Self.forgotPasswordURL)');
     expect(source).toContain('Link("Need an account?", destination: Self.registerURL)');
   });

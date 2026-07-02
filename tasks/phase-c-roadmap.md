@@ -554,7 +554,7 @@ type CalendarEventBarProps = {
 **Resolved open questions (from research doc):**
 1. **Single channel:** One webhook URL → one channel. Multiple channels (per-event) is a V2 upgrade if needed.
 2. **ADMIN-only settings:** Webhook URL is sensitive (it's the secret). ADMIN-only PATCH, consistent with escalation settings.
-3. **App base URL:** Require `NEXT_PUBLIC_APP_URL` env var on Vercel for deep links in Block Kit messages. Fail gracefully (omit the link) if unset rather than crashing.
+3. **App base URL:** Use the server-side `APP_URL` env var through `src/lib/env.ts` for deep links in Block Kit messages. Fail gracefully (omit the link) if unset rather than crashing.
 4. **Bulk check-in:** `checkin-bulk` route should also trigger Slack — same event, same message format.
 5. **Checkout open vs reservation:** Notify on **reservation created** (pre-planning signal) AND **checkout completed** (gear-leaving signal). Two separate toggle entries in settings.
 
@@ -612,7 +612,7 @@ All callers use `void sendSlackNotification(...)` — fire-and-forget.
 - **Invalid/expired webhook URL:** Slack returns `{"error": "invalid_payload"}` with a 200 or returns a non-200. Either way `res.ok` check catches it. The test button surfaces this to admin immediately; production events fail silently (logged).
 - **Slack is down (5xx):** `AbortSignal.timeout(5000)` prevents indefinite hang. Error is logged, user never sees it.
 - **Rate limiting (429):** Logged. No retry in V1 — at this org's scale, hitting 1 msg/sec is unlikely. Add retry logic only if it becomes a real problem.
-- **`NEXT_PUBLIC_APP_URL` not set:** `buildPayload` checks for this before constructing deep links. If unset, the context element with the link is omitted from the Block Kit payload rather than including a broken URL.
+- **`APP_URL` not set:** `buildPayload` checks for this before constructing deep links. If unset, the context element with the link is omitted from the Block Kit payload rather than including a broken URL.
 - **Admin saves webhook URL then disables master toggle:** Config is preserved. Re-enabling master toggle restores all notification settings without re-entering the URL.
 - **Config not yet initialized (null row in SystemConfig):** `getSlackConfig()` returns null → service exits early without error. Settings page shows empty/disabled state with a prompt to configure.
 - **Concurrent settings saves (two admins):** Last write wins. Acceptable at this scale.

@@ -47,7 +47,7 @@ describe("iOS native Licenses page", () => {
     expect(browse).toContain("LicensesView(wrapsInNavigationStack: false)");
     expect(appTab).toContain('Tab("Licenses", systemImage: "key", value: 7)');
     expect(appTab).toContain("LicensesView()");
-    expect(appTab).not.toContain("https://gear.erikrole.com/licenses");
+    expect(appTab).not.toContain("https://wisconsincreative.com/licenses");
     expect(profile).toContain("LicensesView(wrapsInNavigationStack: false)");
     expect(profile).not.toMatch(/title: "Licenses"[\s\S]*?SidebarWebDestinationView/);
   });
@@ -116,7 +116,7 @@ describe("iOS native Licenses page", () => {
     const view = source("ios/Wisconsin/Views/LicensesView.swift");
     const profile = source("ios/Wisconsin/Views/ProfileView.swift");
 
-    expect(view).toContain('private static let webManagementURL = URL(string: "https://gear.erikrole.com/licenses")!');
+    expect(view).toContain('private static let webManagementURL = AppEnvironment.url(path: "/licenses")');
     expect(view).toContain("if isStaffOrAdmin {");
     expect(view).toContain('title: "Manage on web"');
     expect(source("ios/Wisconsin/Views/BrowseView.swift")).toContain("LicensesView(wrapsInNavigationStack: false)");

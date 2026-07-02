@@ -85,7 +85,7 @@ struct LicensesView: View {
     @State private var claimCandidate: LicenseCode?
     @State private var showReturnConfirm = false
 
-    private static let webManagementURL = URL(string: "https://gear.erikrole.com/licenses")!
+    private static let webManagementURL = AppEnvironment.url(path: "/licenses")
 
     private var isStaffOrAdmin: Bool {
         let role = session.currentUser?.role ?? ""

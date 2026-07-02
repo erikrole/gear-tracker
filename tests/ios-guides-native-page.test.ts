@@ -69,7 +69,7 @@ describe("iOS native Guides page", () => {
     expect(browse).toContain("GuidesView(wrapsInNavigationStack: false)");
     expect(appTab).toContain('Tab("Guides", systemImage: "book.closed", value: 6)');
     expect(appTab).toContain("GuidesView()");
-    expect(appTab).not.toContain("https://gear.erikrole.com/resources");
+    expect(appTab).not.toContain("https://wisconsincreative.com/resources");
     expect(profile).toContain("GuidesView(wrapsInNavigationStack: false)");
     expect(profile).not.toMatch(/title: "Guides"[\s\S]*?SidebarWebDestinationView/);
   });

@@ -76,6 +76,7 @@ targets:
     sources:
       - path: Wisconsin/KioskOnly
       - path: Wisconsin/Kiosk
+      - path: Wisconsin/Shared
       - path: Wisconsin/Assets.xcassets
       - path: Wisconsin/Resources
     info:

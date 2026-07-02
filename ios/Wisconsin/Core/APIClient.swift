@@ -50,7 +50,7 @@ extension Notification.Name {
 final class APIClient {
     static let shared = APIClient()
 
-    private let baseURL = URL(string: "https://gear.erikrole.com")!
+    private let baseURL = AppEnvironment.baseURL
 
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
@@ -967,7 +967,7 @@ final class APIClient {
         req.httpMethod = method
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
-        req.setValue(baseURL.absoluteString, forHTTPHeaderField: "Origin")
+        req.setValue(AppEnvironment.origin, forHTTPHeaderField: "Origin")
         return req
     }
 

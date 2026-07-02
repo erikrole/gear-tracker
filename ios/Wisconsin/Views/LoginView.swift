@@ -23,8 +23,8 @@ struct LoginView: View {
         Task { await session.login(email: trimmedEmail, password: password) }
     }
 
-    private static let forgotPasswordURL = URL(string: "https://gear.erikrole.com/forgot-password")!
-    private static let registerURL = URL(string: "https://gear.erikrole.com/register")!
+    private static let forgotPasswordURL = AppEnvironment.url(path: "/forgot-password")
+    private static let registerURL = AppEnvironment.url(path: "/register")
 
     var body: some View {
         ZStack {

@@ -14,7 +14,7 @@
 - `src/app/api/my-shifts/route.ts`: `/api/my-shifts` returns upcoming direct/approved assignments with event, call window, area, worker type, and linked gear status.
 - `src/app/api/shifts/ics-token/route.ts`: users can fetch or rotate an ICS token; rotation is rate-limited and audited.
 - `src/app/api/shifts/ics/[token]/route.ts`: current ICS feed exposes assigned/approved shifts for an active user, one month back through one year forward, but only includes basic UID, DTSTART, DTEND, SUMMARY, LOCATION, and optional notes.
-- `ios/Wisconsin/Views/ScheduleView.swift`: iOS currently opens `webcal://gear.erikrole.com/api/shifts/ics/{token}` in Apple Calendar from the Schedule toolbar.
+- `ios/Wisconsin/Views/ScheduleView.swift`: iOS opens `webcal://wisconsincreative.com/api/shifts/ics/{token}` via `AppEnvironment.webcalURL(path:)` in Apple Calendar from the Schedule toolbar.
 - `ios/Wisconsin/Core/APIClient.swift`: native API client already exposes `icsToken()`, `generateICSToken()`, and `myShifts(limit:)`.
 - `ios/Wisconsin/Core/Brand.swift` and `Info.plist`: Gotham Black and Gotham Bold are bundled on iOS. Gotham Ultra is not currently bundled.
 - `prisma/schema.prisma`: `User.icsToken`, `ShiftAssignment`, `Shift`, `ShiftGroup`, `CalendarEvent`, and `ShiftTrade` provide the current schedule model.

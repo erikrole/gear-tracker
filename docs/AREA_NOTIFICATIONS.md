@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Notifications
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-18
+- Last Updated: 2026-07-01
 - Status: Active: escalation schedule + iOS booking/event tap-through + APNs native push + calendar sync health alerts + schedule notification policy shipped
 - Version: V1.2
 
@@ -243,9 +243,10 @@ Current behavior:
 |---|---|---|
 | `CRON_SECRET` | Yes (prod) | Bearer token for Vercel Cron → `/api/cron/notifications` |
 | `RESEND_API_KEY` | No (optional) | Enables email delivery via Resend. Falls back to console.log |
-| `EMAIL_FROM` | No | From address for transactional email. Default: `Gear Tracker <noreply@gear-tracker.app>` |
+| `EMAIL_FROM` | No | From address for transactional email. Default: `Wisconsin Creative <noreply@wisconsincreative.com>` |
 
 ## Change Log
+- 2026-07-01: Wisconsin Creative domain cutover prep updated production email/link guidance. Production should set `APP_URL=https://wisconsincreative.com` before onboarding, and transactional email should use a verified `Wisconsin Creative <noreply@wisconsincreative.com>` sender when Resend delivery is enabled.
 - 2026-06-18: Schedule Source Of Truth Slice 6 shipped. Scheduling notifications now use one policy for schedule, trade, and gear-prep categories with defensive defaults for old preference JSON; draft assignment changes are suppressed for workers until publish, changed published call times clear acknowledgement, trade lifecycle rows and push/email delivery respect the `trade` category, and schedule/trade/gear-prep payloads carry event-routable context for web and iOS tap-through.
 - 2026-06-10: Daily firmware watch notifications shipped. `morning-refresh` now polls enabled official-source firmware watch targets, baselines the first successful result silently, records latest version/release date/check errors, and creates deduped `firmware_update_released` admin inbox rows plus best-effort push when a newer version appears.
 - 2026-06-10: iOS notification settings detail menu shipped. Native Settings now keeps notification delivery status at the root and moves OS push permission recovery, pause controls, email/push channel toggles, and category toggles into a dedicated Notifications drill-down while preserving the in-app inbox always-on contract.

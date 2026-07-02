@@ -38,8 +38,8 @@ This plan maps directly to the 24+ focused audit docs at `tasks/audit-*-ios.md` 
 ### Sign in
 
 - [ ] `LoginView` — type a partial email; trailing-whitespace bug from the audit (slice 144) is fixed (login succeeds with a typo'd trailing space). [audit-login-ios.md]
-- [ ] Tap "Forgot password?" → opens `gear.erikrole.com/forgot-password` in Safari.
-- [ ] Tap "Need an account?" → opens `gear.erikrole.com/register`.
+- [ ] Tap "Forgot password?" → opens `wisconsincreative.com/forgot-password` in Safari.
+- [ ] Tap "Need an account?" → opens `wisconsincreative.com/register`.
 - [ ] Sign in succeeds; `currentUser` persists across cold launch (kill app, reopen — still signed in).
 
 ---

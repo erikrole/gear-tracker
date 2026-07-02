@@ -18,7 +18,7 @@ struct ProfileView: View {
     @State private var pushAuth: UNAuthorizationStatus = .notDetermined
     @AppStorage("WisconsinThemeChoice") private var themeChoice: ThemeChoice = .system
 
-    private static let manageAccountURL = URL(string: "https://gear.erikrole.com")!
+    private static let manageAccountURL = AppEnvironment.baseURL
     private static let iosSettingsURL = URL(string: UIApplication.openSettingsURLString)!
 
     private var isStaffOrAdmin: Bool {

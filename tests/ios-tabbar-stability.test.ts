@@ -82,8 +82,8 @@ describe("iOS tab bar stability", () => {
     expect(sidebarDestination).toContain("var wrapsInNavigationStack = true");
     expect(sidebarDestination).toContain('Link("Open on web", destination: destination)');
     expect(appTab).toContain("GuidesView()");
-    expect(appTab).not.toContain("https://gear.erikrole.com/resources");
+    expect(appTab).not.toContain("https://wisconsincreative.com/resources");
     expect(appTab).toContain("LicensesView()");
-    expect(appTab).not.toContain("https://gear.erikrole.com/licenses");
+    expect(appTab).not.toContain("https://wisconsincreative.com/licenses");
   });
 });

@@ -331,7 +331,7 @@ Following the Thin Slice Protocol:
 
 2. **Who sees the settings page?** — Escalation settings are ADMIN-only at the API. Should Slack settings also be ADMIN-only, or should STAFF be able to update the webhook URL too?
 
-3. **App base URL for deep links?** — The Block Kit messages include links back to bookings/shifts. We need `NEXT_PUBLIC_APP_URL` env var set on Vercel (probably already is). Confirm this exists.
+3. **App base URL for deep links?** — The Block Kit messages include links back to bookings/shifts. Server-side payload builders should use the existing `APP_URL` runtime env through `src/lib/env.ts`, not introduce a new `NEXT_PUBLIC_APP_URL`.
 
 4. **Checkout check-in vs bulk check-in** — The `complete-checkin` route handles serialized items. `checkin-bulk` is a separate route. Should bulk-only check-ins also trigger a Slack notification? They represent the same user action — recommending yes.
 

@@ -60,7 +60,7 @@ There is no `AREA_PROFILE.md`. AC inferred from `AREA_MOBILE.md` + `AREA_NOTIFIC
 - [x] AC: user can sign out with confirmation — `confirmationDialog`, destructive Sign Out button.
 - [x] AC: STAFF + ADMIN can reach the overdue report from Profile — `ProfileDestination.overdueBookings` → `OverdueReportView`.
 - [x] AC: app version is visible — App section.
-- [x] AC: user can manage their account on web — `Link` to `gear.erikrole.com`.
+- [x] AC: user can manage their account on web — `Link` now resolves through AppEnvironment to `wisconsincreative.com`.
 - [x] AC: user can pause notifications from iOS — **closed by P0 fix.**
 - [x] AC: user can toggle email + push channels from iOS — **closed by P0 fix.**
 - [x] AC: user is informed when iOS push permission is denied — **closed by P1 fix.**
