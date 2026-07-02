@@ -52,6 +52,7 @@
 		41891E6B69644BB1DB025CB9 /* Brand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A9DAB950F60885A23620BEC /* Brand.swift */; };
 		41B304E3F5ABE1BF6F9B94BB /* CheckoutReturnActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E11254A1E4647B8B02F4890A /* CheckoutReturnActivityAttributes.swift */; };
 		41B90D7E34083A1070406934 /* KioskModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02B29E7150D396D5C8236398 /* KioskModels.swift */; };
+		45024C2592BDCC5901293130 /* CreateBookingEquipmentPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66DFAABBDCC4FC644E2F8E8B /* CreateBookingEquipmentPicker.swift */; };
 		46239E3116E5DE148E7A9C4F /* ItemListText.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC04AA628BB1DEA764D7EEAC /* ItemListText.swift */; };
 		470F79B703DF9EB55FECE070 /* FormModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6148A160C162A021FF9DE4C0 /* FormModels.swift */; };
 		48F535BD8B55E06D80C25E2B /* KioskDesign.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07116906C1A1FF6F5D10BFA1 /* KioskDesign.swift */; };
@@ -209,6 +210,7 @@
 		6148A160C162A021FF9DE4C0 /* FormModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormModels.swift; sourceTree = "<group>"; };
 		649B6E0F68D9B5DB4D054656 /* KioskIdleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskIdleView.swift; sourceTree = "<group>"; };
 		64F14676788E6FA7CDD08D48 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		66DFAABBDCC4FC644E2F8E8B /* CreateBookingEquipmentPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateBookingEquipmentPicker.swift; sourceTree = "<group>"; };
 		687337C19E47FE94FE56F9BF /* KioskReturnView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskReturnView.swift; sourceTree = "<group>"; };
 		6A2DFDC7A0C7BD6C018D43D2 /* PushPrePromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushPrePromptView.swift; sourceTree = "<group>"; };
 		6AFF5F65A92CEAED518EF6E6 /* CreateBookingPickers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateBookingPickers.swift; sourceTree = "<group>"; };
@@ -538,6 +540,7 @@
 		EC8F8121B14F9F92C8A25372 /* CreateBooking */ = {
 			isa = PBXGroup;
 			children = (
+				66DFAABBDCC4FC644E2F8E8B /* CreateBookingEquipmentPicker.swift */,
 				D4C885700380306D486A94C9 /* CreateBookingEquipmentRows.swift */,
 				88FF0CACAB4BD4886FD0219B /* CreateBookingEventViews.swift */,
 				089FAA6DDBB831B89ED4E5F5 /* CreateBookingFormRows.swift */,
@@ -779,6 +782,7 @@
 				71675D3559403AAD9354C225 /* BrowseView.swift in Sources */,
 				41B304E3F5ABE1BF6F9B94BB /* CheckoutReturnActivityAttributes.swift in Sources */,
 				D1BE91AB2F76BE372F49B448 /* CheckoutReturnLiveActivityManager.swift in Sources */,
+				45024C2592BDCC5901293130 /* CreateBookingEquipmentPicker.swift in Sources */,
 				411CF014B25A6515F8E6869E /* CreateBookingEquipmentRows.swift in Sources */,
 				521817F1F579897074A3B1D4 /* CreateBookingEventViews.swift in Sources */,
 				27614B86498B5D98CC600630 /* CreateBookingFormRows.swift in Sources */,

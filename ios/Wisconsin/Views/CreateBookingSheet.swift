@@ -15,6 +15,8 @@ struct CreateBookingSheet: View {
     @State private var initialEventIds: [String] = []
     @State private var capturedInitial = false
     @State private var showScanner = false
+    @State private var showNotesField = false
+    @FocusState private var notesFocused: Bool
     @Environment(SessionStore.self) private var session
 
     init(onCreated: @escaping (String) -> Void) {
@@ -105,16 +107,18 @@ struct CreateBookingSheet: View {
                 _ = await (optionsTask, eventsTask)
             }
             .fullScreenCover(isPresented: $showScanner) {
-                QRScannerSheet { match in
-                    showScanner = false
+                // Continuous scanning: the scanner stays open after each hit
+                // so a shelf of items is one session; feedback shows in-scanner.
+                QRScannerSheet(resolve: { match in
                     switch match {
                     case .asset(let assetId):
-                        Task { await vm.addScannedAsset(id: assetId) }
+                        let outcome = await vm.addScannedAsset(id: assetId)
+                        return .continueScanning(message: outcome.message, success: outcome.success)
                     case .itemFamily(let family):
-                        vm.scanError = "\(family.name) is an item family. Add it with the quantity controls."
-                        Haptics.warning()
+                        let outcome = await vm.addScannedFamily(family)
+                        return .continueScanning(message: outcome.message, success: outcome.success)
                     }
-                }
+                })
             }
             .onChange(of: vm.options) {
                 if vm.selectedUserId.isEmpty, let current = session.currentUser {
@@ -167,11 +171,15 @@ struct CreateBookingSheet: View {
                 .disabled(!vm.isValid || vm.isSubmitting)
                 .fontWeight(.semibold)
             } else if step == 2 {
-                // Mirrors web: equipment is required before review, and the
-                // primary action reads "Review", not a submit.
-                Button("Review") { step = 3 }
-                    .disabled(vm.selectedEquipmentCount == 0 || vm.isSubmitting)
-                    .fontWeight(.semibold)
+                // Review lives on the cart bar in step 2; the toolbar slot
+                // hosts scan so it's always reachable above the keyboard.
+                Button {
+                    showScanner = true
+                } label: {
+                    Image(systemName: "barcode.viewfinder")
+                }
+                .accessibilityLabel("Scan equipment")
+                .disabled(vm.isSubmitting)
             }
             // Step 3's primary action is the prominent inline button in
             // reviewStep (Apple review-screen pattern, same as web Step 3).
@@ -185,8 +193,20 @@ struct CreateBookingSheet: View {
                 BookingStepHeader(
                     icon: "calendar.badge.plus",
                     eyebrow: "Reservation",
-                    title: vm.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Plan the hold" : vm.title,
+                    title: vm.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Reservation details" : vm.title,
                     subtitle: detailHeaderSubtitle
+                )
+
+                // Events first: linking one auto-fills the title and window,
+                // which is the fast path for most reservations.
+                EventLinkingCard(
+                    events: vm.events,
+                    selectedEvents: vm.selectedEvents,
+                    isLoading: vm.isLoadingEvents,
+                    error: vm.eventError,
+                    onRetry: { Task { await vm.loadEvents() } },
+                    onToggle: { vm.toggleEvent($0) },
+                    onRemove: { vm.removeSelectedEvent($0) }
                 )
 
                 FormCard {
@@ -268,16 +288,6 @@ struct CreateBookingSheet: View {
                     }
                 }
 
-                EventLinkingCard(
-                    events: vm.events,
-                    selectedEvents: vm.selectedEvents,
-                    isLoading: vm.isLoadingEvents,
-                    error: vm.eventError,
-                    onRetry: { Task { await vm.loadEvents() } },
-                    onToggle: { vm.toggleEvent($0) },
-                    onRemove: { vm.removeSelectedEvent($0) }
-                )
-
                 FormCard {
                     DatePicker(
                         "From",
@@ -299,12 +309,48 @@ struct CreateBookingSheet: View {
                         displayedComponents: [.date, .hourAndMinute]
                     )
                         .tint(.accentColor)
+                    Divider().padding(.leading, 4)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(BookingDurationPreset.allCases) { preset in
+                                FilterChip(
+                                    label: preset.rawValue,
+                                    isOn: vm.activeDurationPreset == preset,
+                                    tone: .purple
+                                ) {
+                                    vm.applyDurationPreset(preset)
+                                    Haptics.selection()
+                                }
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                    .accessibilityLabel("Quick duration presets")
                 }
 
-                FormCard {
-                    TextField("Notes (optional)", text: $vm.notes, axis: .vertical)
-                        .lineLimit(3...6)
-                        .font(.body)
+                if vm.notes.isEmpty && !showNotesField {
+                    Button {
+                        showNotesField = true
+                        Task {
+                            // Focus after the field exists in the hierarchy.
+                            try? await Task.sleep(for: .milliseconds(80))
+                            notesFocused = true
+                        }
+                    } label: {
+                        FormCard {
+                            Label("Add note", systemImage: "square.and.pencil")
+                                .font(.body)
+                                .foregroundStyle(Color.statusText(.blue))
+                        }
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    FormCard {
+                        TextField("Notes (optional)", text: $vm.notes, axis: .vertical)
+                            .lineLimit(3...6)
+                            .font(.body)
+                            .focused($notesFocused)
+                    }
                 }
 
                 if let error = vm.error {
@@ -330,170 +376,9 @@ struct CreateBookingSheet: View {
 
     @ViewBuilder
     private var equipmentPicker: some View {
-        List {
-            Section {
-                BookingStepHeader(
-                    icon: "shippingbox.and.arrow.backward",
-                    eyebrow: "Equipment",
-                    title: vm.selectedEquipmentCount == 0 ? "Choose the gear" : "\(vm.selectedEquipmentCount) selected",
-                    subtitle: vm.linkedEventLabel ?? "Search, scan, or add counted supplies."
-                )
-                .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 12, trailing: 20))
-                .listRowBackground(Color.clear)
-            }
-
-            Section {
-                Button {
-                    showScanner = true
-                } label: {
-                    Label("Scan equipment", systemImage: "barcode.viewfinder")
-                }
-                .disabled(vm.isAddingScannedAsset)
-
-                if vm.isAddingScannedAsset {
-                    HStack(spacing: 10) {
-                        ProgressView()
-                        Text("Adding scanned item…")
-                            .foregroundStyle(.secondary)
-                    }
-                    .font(.subheadline)
-                }
-
-                if let scanError = vm.scanError {
-                    Label(scanError, systemImage: "exclamationmark.triangle.fill")
-                        .font(.footnote)
-                        .foregroundStyle(Color.statusText(.orange))
-                }
-            }
-
-            if vm.selectedEquipmentCount > 0 {
-                Section {
-                    let count = vm.selectedEquipmentCount
-                    Label("\(count) item\(count == 1 ? "" : "s") selected", systemImage: "checkmark.circle.fill")
-                        .font(.subheadline)
-                        .foregroundStyle(Color.statusText(.blue))
-                        .accessibilityLabel("\(count) item\(count == 1 ? "" : "s") selected")
-
-                    ForEach(vm.selectedAssets) { asset in
-                        SelectedEquipmentRow(
-                            asset: asset,
-                            isConflicted: vm.conflictedAssetIds.contains(asset.id)
-                        ) {
-                            vm.removeSelectedAsset(asset)
-                            Haptics.selection()
-                        }
-                    }
-                    ForEach(vm.selectedBulkSkus) { sku in
-                        SelectedBulkRow(
-                            sku: sku,
-                            quantity: vm.quantity(for: sku)
-                        ) {
-                            vm.removeSelectedBulk(sku)
-                            Haptics.selection()
-                        }
-                    }
-                } header: {
-                    Text("Selected Equipment")
-                } footer: {
-                    Text("Remove anything you do not want before creating the reservation.")
-                }
-            }
-
-            Section {
-                if !vm.availableBulkSkus.isEmpty {
-                    ForEach(vm.availableBulkSkus) { sku in
-                        BulkQuantityRow(
-                            sku: sku,
-                            quantity: vm.quantity(for: sku),
-                            onDecrement: {
-                                vm.decrementBulk(sku)
-                                Haptics.selection()
-                            },
-                            onIncrement: {
-                                vm.incrementBulk(sku)
-                                Haptics.selection()
-                            }
-                        )
-                    }
-                }
-
-                if vm.availableAssets.isEmpty || vm.error != nil || vm.isLoadingAssets {
-                    if vm.availableAssets.isEmpty && !vm.isLoadingAssets, let err = vm.error {
-                        // Surface a load error with retry so server failures do not
-                        // look like an empty equipment room.
-                        HStack(spacing: 12) {
-                            Image(systemName: "wifi.exclamationmark")
-                                .foregroundStyle(Color.statusText(.red))
-                                .accessibilityHidden(true)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Couldn't load equipment")
-                                    .font(.subheadline.weight(.medium))
-                                Text(err)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(2)
-                            }
-                            Spacer()
-                            Button("Retry") {
-                                Task { await vm.loadAvailableAssets(reset: true) }
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                        }
-                    } else if vm.availableAssets.isEmpty && !vm.isLoadingAssets {
-                        Text("No available equipment found.")
-                            .foregroundStyle(.secondary)
-                            .font(.subheadline)
-                    }
-
-                    if vm.isLoadingAssets {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                            Spacer()
-                        }
-                        .listRowBackground(Color.clear)
-                    }
-                }
-
-                ForEach(vm.availableAssetGroups) { group in
-                    Text(group.title)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-                        .padding(.top, 4)
-                    ForEach(group.assets) { asset in
-                        AssetPickerRow(
-                            asset: asset,
-                            isSelected: vm.selectedAssetIds.contains(asset.id),
-                            isConflicted: vm.conflictedAssetIds.contains(asset.id)
-                        ) {
-                            vm.toggleAsset(asset)
-                            Haptics.selection()
-                        }
-                    }
-                }
-            } header: {
-                Text("Equipment")
-            }
-
-            if vm.hasMoreAssets && !vm.isLoadingAssets {
-                Section {
-                    Label("More equipment exists. Search to narrow results.", systemImage: "line.3.horizontal.decrease.circle")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
+        CreateBookingEquipmentPicker(vm: vm) {
+            step = 3
         }
-        .listStyle(.insetGrouped)
-        .searchable(
-            text: $vm.assetSearch,
-            placement: .navigationBarDrawer(displayMode: .always),
-            prompt: Text("Search equipment")
-        )
-        .onChange(of: vm.assetSearch) { vm.onSearchChange() }
-        .scrollDismissesKeyboard(.immediately)
     }
 
     /// Apple-style review confirmation — the little brother of web Step 3:

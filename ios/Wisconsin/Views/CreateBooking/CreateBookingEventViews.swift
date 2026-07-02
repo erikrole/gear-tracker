@@ -47,8 +47,11 @@ struct EventLinkingCard: View {
     let onToggle: (ScheduleEvent) -> Void
     let onRemove: (ScheduleEvent) -> Void
 
+    /// Inline cap keeps the card compact; the rest live behind "All events".
+    private static let inlineLimit = 4
+
     private var visibleEvents: [ScheduleEvent] {
-        events
+        Array(events.prefix(Self.inlineLimit))
     }
 
     var body: some View {
@@ -134,11 +137,78 @@ struct EventLinkingCard: View {
                                 onToggle(event)
                             }
                         }
+                        if events.count > Self.inlineLimit {
+                            Divider().padding(.leading, 42)
+                            NavigationLink {
+                                AllEventsPickerView(
+                                    events: events,
+                                    selectedEvents: selectedEvents,
+                                    onToggle: onToggle
+                                )
+                            } label: {
+                                HStack {
+                                    Text("All events")
+                                        .font(.subheadline.weight(.medium))
+                                        .foregroundStyle(Color.statusText(.purple))
+                                    Spacer()
+                                    Text("\(events.count)")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                        .monospacedDigit()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.tertiary)
+                                }
+                                .frame(minHeight: 44)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("All events, \(events.count) upcoming")
+                        }
                     }
                     .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
                 }
             }
         }
+    }
+}
+
+/// Full upcoming-events list behind the "All events" row: searchable, same
+/// toggle semantics and 3-event cap as the inline card.
+struct AllEventsPickerView: View {
+    let events: [ScheduleEvent]
+    let selectedEvents: [ScheduleEvent]
+    let onToggle: (ScheduleEvent) -> Void
+
+    @State private var search = ""
+
+    private var filtered: [ScheduleEvent] {
+        guard !search.trimmingCharacters(in: .whitespaces).isEmpty else { return events }
+        return events.filter { event in
+            event.shortBookingEventTitle.localizedCaseInsensitiveContains(search)
+                || event.bookingEventSubtitle.localizedCaseInsensitiveContains(search)
+        }
+    }
+
+    var body: some View {
+        List {
+            ForEach(filtered) { event in
+                EventPickRow(
+                    event: event,
+                    isSelected: selectedEvents.contains(where: { $0.id == event.id }),
+                    isDisabled: selectedEvents.count >= 3 && !selectedEvents.contains(where: { $0.id == event.id })
+                ) {
+                    onToggle(event)
+                }
+            }
+            if filtered.isEmpty && !search.isEmpty {
+                ContentUnavailableView.search(text: search)
+                    .listRowBackground(Color.clear)
+            }
+        }
+        .searchable(text: $search, prompt: "Search events")
+        .navigationTitle("Events")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

@@ -7,14 +7,42 @@ enum QRScannerMatch {
     case itemFamily(AssetFamilySearchResult)
 }
 
+/// What the host wants the scanner to do after it handles a match.
+enum QRScannerResolution {
+    case dismiss
+    /// Keep scanning; optionally flash a success/failure banner in-scanner.
+    case continueScanning(message: String?, success: Bool)
+}
+
 struct QRScannerSheet: View {
-    let onMatch: (QRScannerMatch) -> Void
+    /// Async match handler. Return `.dismiss` for one-shot lookups or
+    /// `.continueScanning` to keep the camera open (e.g. adding a shelf of
+    /// items to a reservation in one session).
+    let resolve: (QRScannerMatch) async -> QRScannerResolution
+
+    /// One-shot form: the host receives the match and the sheet dismisses.
+    init(onMatch: @escaping (QRScannerMatch) -> Void) {
+        self.resolve = { match in
+            onMatch(match)
+            return .dismiss
+        }
+    }
+
+    init(resolve: @escaping (QRScannerMatch) async -> QRScannerResolution) {
+        self.resolve = resolve
+    }
+
+    private struct ScanBanner: Equatable {
+        let message: String
+        let success: Bool
+    }
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
     @Environment(\.scenePhase) private var scenePhase
     @State private var cameraAuth: AVAuthorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
-    @State private var scanError: String?
+    @State private var banner: ScanBanner?
+    @State private var bannerClearTask: Task<Void, Never>?
     @State private var isLookingUp = false
     @State private var showManualEntry = false
     @State private var lastScanTime: Date = .distantPast
@@ -76,12 +104,14 @@ struct QRScannerSheet: View {
                 ZStack(alignment: .bottom) {
                     Color.black.ignoresSafeArea()
                     scannerView
-                    if let scanError {
-                        errorBanner(scanError)
+                    if let banner {
+                        bannerView(banner)
                             .padding(.horizontal, 24)
                             .padding(.bottom, 108)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }
+                .animation(.easeInOut(duration: 0.2), value: banner)
             } else {
                 unavailableView
                     .background(Color.black.ignoresSafeArea())
@@ -168,34 +198,59 @@ struct QRScannerSheet: View {
         }
     }
 
-    private func errorBanner(_ message: String) -> some View {
-        VStack(spacing: 10) {
-            Text(message)
-                .font(.subheadline)
+    @ViewBuilder
+    private func bannerView(_ banner: ScanBanner) -> some View {
+        if banner.success {
+            Label(banner.message, systemImage: "checkmark.circle.fill")
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color.statusText(.green).opacity(0.88), in: RoundedRectangle(cornerRadius: 14))
+                .accessibilityElement(children: .combine)
+        } else {
+            VStack(spacing: 10) {
+                Text(banner.message)
+                    .font(.subheadline)
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
 
-            HStack(spacing: 12) {
-                Button {
-                    showManualEntry = true
-                } label: {
-                    Label("Type code", systemImage: "keyboard")
-                }
-                .buttonStyle(.bordered)
-                .tint(.white)
+                HStack(spacing: 12) {
+                    Button {
+                        showManualEntry = true
+                    } label: {
+                        Label("Type code", systemImage: "keyboard")
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.white)
 
-                Button("Dismiss") {
-                    scanError = nil
+                    Button("Dismiss") {
+                        self.banner = nil
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.white)
                 }
-                .buttonStyle(.bordered)
-                .tint(.white)
+                .controlSize(.small)
             }
-            .controlSize(.small)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Color.statusText(.red).opacity(0.88), in: RoundedRectangle(cornerRadius: 14))
+            .accessibilityElement(children: .combine)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color.statusText(.red).opacity(0.88), in: RoundedRectangle(cornerRadius: 14))
-        .accessibilityElement(children: .combine)
+    }
+
+    /// Shows a banner; success banners clear themselves so the next scan
+    /// starts from a clean viewfinder.
+    private func showBanner(_ newBanner: ScanBanner) {
+        bannerClearTask?.cancel()
+        banner = newBanner
+        guard newBanner.success else { return }
+        bannerClearTask = Task {
+            try? await Task.sleep(for: .seconds(1.8))
+            guard !Task.isCancelled else { return }
+            banner = nil
+        }
     }
 
     private var voiceOverManualFallback: some View {
@@ -269,24 +324,37 @@ struct QRScannerSheet: View {
 
     private func lookUp(rawScan: String) async {
         guard !rawScan.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-        scanError = nil
+        banner = nil
         isLookingUp = true
         defer { isLookingUp = false }
         do {
             let response = try await APIClient.shared.scannedAssets(rawScan: rawScan)
+            let match: QRScannerMatch?
             if let assetId = response.data.first?.id {
-                Haptics.success()
-                onMatch(.asset(assetId))
+                match = .asset(assetId)
             } else if let family = response.bulkItems.first {
-                Haptics.success()
-                onMatch(.itemFamily(family))
+                match = .itemFamily(family)
             } else {
+                match = nil
+            }
+            guard let match else {
                 Haptics.warning()
-                scanError = "No item matches this code."
+                showBanner(ScanBanner(message: "No item matches this code.", success: false))
+                return
+            }
+            switch await resolve(match) {
+            case .dismiss:
+                Haptics.success()
+                dismiss()
+            case .continueScanning(let message, let success):
+                if success { Haptics.success() } else { Haptics.warning() }
+                if let message {
+                    showBanner(ScanBanner(message: message, success: success))
+                }
             }
         } catch {
             Haptics.error()
-            scanError = error.localizedDescription
+            showBanner(ScanBanner(message: error.localizedDescription, success: false))
         }
     }
 }

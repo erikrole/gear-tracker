@@ -121,40 +121,6 @@ struct SelectedEquipmentRow: View {
     }
 }
 
-struct SelectedBulkRow: View {
-    let sku: FormBulkSku
-    let quantity: Int
-    let onRemove: () -> Void
-
-    var body: some View {
-        HStack(spacing: 12) {
-            BookingBulkThumbnail(imageUrl: sku.imageUrl, size: 32, cornerRadius: 8)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(sku.name)
-                    .font(.gothamBold(size: 16))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                Text("\(quantity) selected")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-            }
-            Spacer()
-            Button {
-                onRemove()
-            } label: {
-                Label("Remove", systemImage: "xmark.circle.fill")
-                    .labelStyle(.titleAndIcon)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Selected \(sku.name), \(quantity) selected, Remove button")
-    }
-}
-
 struct BulkQuantityRow: View {
     let sku: FormBulkSku
     let quantity: Int
@@ -254,11 +220,13 @@ struct AssetPickerRow: View {
 
                 Spacer()
 
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                // Plus (not an empty radio) because tapping adds to the cart;
+                // tapping an added row removes it.
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "plus.circle")
                     .font(.title3)
                     .foregroundStyle(
                         isConflicted ? Color.statusText(.orange)
-                            : (isSelected ? Color.statusText(.blue) : Color(.systemGray4))
+                            : (isSelected ? Color.statusText(.blue) : Color(.systemGray2))
                     )
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isSelected)
                     .accessibilityHidden(true)

@@ -18,6 +18,36 @@ struct AssetCategoryGroup: Identifiable {
     let assets: [Asset]
 }
 
+/// Quick end-time presets for the reservation window. Overnight and Weekend
+/// return at 9 AM (next morning / next Monday) to match equipment-room hours.
+enum BookingDurationPreset: String, CaseIterable, Identifiable {
+    case oneHour = "1 hr"
+    case twoHours = "2 hrs"
+    case fourHours = "4 hrs"
+    case overnight = "Overnight"
+    case weekend = "Weekend"
+
+    var id: String { rawValue }
+
+    func end(from start: Date) -> Date {
+        let cal = Calendar.current
+        switch self {
+        case .oneHour: return start.addingTimeInterval(3600)
+        case .twoHours: return start.addingTimeInterval(2 * 3600)
+        case .fourHours: return start.addingTimeInterval(4 * 3600)
+        case .overnight:
+            let nextDay = cal.date(byAdding: .day, value: 1, to: start) ?? start
+            return cal.date(bySettingHour: 9, minute: 0, second: 0, of: nextDay) ?? nextDay
+        case .weekend:
+            return cal.nextDate(
+                after: start,
+                matching: DateComponents(hour: 9, minute: 0, weekday: 2),
+                matchingPolicy: .nextTime
+            ) ?? start.addingTimeInterval(3 * 86400)
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class CreateBookingViewModel {
@@ -51,11 +81,11 @@ final class CreateBookingViewModel {
     var availableAssets: [Asset] = []
     var selectedAssetSnapshots: [String: Asset] = [:]
     var isLoadingAssets = false
-    var isAddingScannedAsset = false
     var assetSearch = ""
     var assetTotal = 0
     var assetOffset = 0
-    var scanError: String?
+    /// Category chip filter, applied only while browsing (empty search).
+    var browseCategoryFilter: String?
     var hasMoreAssets: Bool { availableAssets.count < assetTotal }
     private var searchTask: Task<Void, Never>?
 
@@ -138,6 +168,42 @@ final class CreateBookingViewModel {
             }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
+    private static let uncategorizedTitle = "Uncategorized"
+
+    private func bulkCategoryTitle(_ sku: FormBulkSku) -> String {
+        let name = sku.categoryName ?? sku.category
+        let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed?.isEmpty == false ? trimmed! : Self.uncategorizedTitle
+    }
+
+    private var isBrowsing: Bool {
+        assetSearch.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// Category chips shown while browsing. Union of loaded asset categories
+    /// and bulk SKU categories, Uncategorized last.
+    var browseCategories: [String] {
+        var titles = Set(availableAssetGroups.map(\.title))
+        for sku in availableBulkSkus { titles.insert(bulkCategoryTitle(sku)) }
+        return titles.sorted { lhs, rhs in
+            if lhs == Self.uncategorizedTitle { return false }
+            if rhs == Self.uncategorizedTitle { return true }
+            return lhs.localizedCaseInsensitiveCompare(rhs) == .orderedAscending
+        }
+    }
+
+    /// Asset groups the picker renders: category-filtered while browsing,
+    /// unfiltered while a search query is active.
+    var displayedAssetGroups: [AssetCategoryGroup] {
+        guard isBrowsing, let filter = browseCategoryFilter else { return availableAssetGroups }
+        return availableAssetGroups.filter { $0.title == filter }
+    }
+
+    var displayedBulkSkus: [FormBulkSku] {
+        guard isBrowsing, let filter = browseCategoryFilter else { return availableBulkSkus }
+        return availableBulkSkus.filter { bulkCategoryTitle($0) == filter }
+    }
+
     var selectedBulkSkus: [FormBulkSku] {
         let all = options?.bulkSkus ?? []
         return all
@@ -162,6 +228,16 @@ final class CreateBookingViewModel {
             && !selectedUserId.isEmpty
             && !selectedLocationId.isEmpty
             && endsAt > startsAt
+    }
+
+    func applyDurationPreset(_ preset: BookingDurationPreset) {
+        userEditedWindow = true
+        endsAt = preset.end(from: startsAt)
+        scheduleConflictCheck()
+    }
+
+    var activeDurationPreset: BookingDurationPreset? {
+        BookingDurationPreset.allCases.first { $0.end(from: startsAt) == endsAt }
     }
 
     /// Moves the start date while preserving the booking duration, matching
@@ -335,6 +411,14 @@ final class CreateBookingViewModel {
         }
     }
 
+    /// Adds an asset from a picker result (idempotent). Removal goes through
+    /// `toggleAsset`/`removeSelectedAsset` so tap-to-add never un-picks.
+    func addAsset(_ asset: Asset) {
+        selectedAssetIds.insert(asset.id)
+        selectedAssetSnapshots[asset.id] = asset
+        scheduleConflictCheck()
+    }
+
     func toggleAsset(_ asset: Asset) {
         if selectedAssetIds.contains(asset.id) {
             selectedAssetIds.remove(asset.id)
@@ -377,17 +461,17 @@ final class CreateBookingViewModel {
         selectedBulkQuantities.removeValue(forKey: sku.id)
     }
 
-    func addScannedAsset(id: String) async {
-        scanError = nil
-        isAddingScannedAsset = true
-        defer { isAddingScannedAsset = false }
+    /// Adds a scanned serialized asset and reports the outcome so the scanner
+    /// can stay open (continuous scanning) and show an in-scanner banner.
+    func addScannedAsset(id: String) async -> (message: String, success: Bool) {
         do {
             let detail = try await APIClient.shared.asset(id: id)
             let asset = detail.asAsset
             guard asset.computedStatus == .available else {
-                scanError = "\(asset.displayName) is \(asset.computedStatus.label.lowercased())."
-                Haptics.warning()
-                return
+                return ("\(asset.displayName) is \(asset.computedStatus.label.lowercased()).", false)
+            }
+            if selectedAssetIds.contains(asset.id) {
+                return ("\(asset.displayName) is already in this reservation.", true)
             }
             selectedAssetIds.insert(asset.id)
             selectedAssetSnapshots[asset.id] = asset
@@ -396,11 +480,23 @@ final class CreateBookingViewModel {
                 assetTotal = max(assetTotal, availableAssets.count)
             }
             scheduleConflictCheck()
-            Haptics.success()
+            return ("Added \(asset.displayName)", true)
         } catch {
-            scanError = error.localizedDescription
-            Haptics.error()
+            return (error.localizedDescription, false)
         }
+    }
+
+    /// Adds one unit of a scanned bulk family (e.g. a battery bin code).
+    func addScannedFamily(_ family: AssetFamilySearchResult) -> (message: String, success: Bool) {
+        guard let sku = options?.bulkSkus.first(where: { $0.id == family.id }) else {
+            return ("\(family.name) can't be reserved from this location.", false)
+        }
+        let current = quantity(for: sku)
+        guard current < sku.availableQuantity else {
+            return ("All \(sku.availableQuantity) available \(sku.name) are already selected.", false)
+        }
+        setBulkQuantity(sku, quantity: current + 1)
+        return ("Added \(sku.name) (\(current + 1) selected)", true)
     }
 
     func onSearchChange() {
