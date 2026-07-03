@@ -133,15 +133,20 @@ struct UserDetailView: View {
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     } else {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 138), spacing: 10)], spacing: 10) {
-                            ForEach(badgeProfile.earnedBadges.prefix(12)) { badge in
-                                Button {
-                                    badgeTapFeedback.toggle()
-                                    selectedBadge = badge
-                                } label: {
-                                    BadgeTile(badge: badge, compact: true)
+                        // Trophy-shelf treatment: earned medallions scroll
+                        // horizontally so the profile stays short. Full tiles,
+                        // locked badges, and progress live in the gallery sheet.
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(alignment: .top, spacing: 2) {
+                                ForEach(badgeProfile.earnedBadges.prefix(16)) { badge in
+                                    Button {
+                                        badgeTapFeedback.toggle()
+                                        selectedBadge = badge
+                                    } label: {
+                                        BadgeShelfItem(badge: badge)
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
                         .sensoryFeedback(.selection, trigger: badgeTapFeedback)
@@ -368,56 +373,70 @@ private struct UserDetailSkeleton: View {
     }
 }
 
+/// Compact medallion-first gallery tile. The artifact leads, the name and one
+/// quiet meta line follow; the description and award note moved into the
+/// detail sheet so tiles stay scannable in a grid.
 private struct BadgeTile: View {
     let badge: UserBadge
-    var compact = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                BadgeMedallionView(badge: badge, size: compact ? 34 : 42)
-                Spacer(minLength: 4)
-                BadgeStatusChip(badge: badge)
-            }
-
-            VStack(alignment: .leading, spacing: 3) {
+        VStack(spacing: 8) {
+            BadgeMedallionView(badge: badge, size: 48)
+            VStack(spacing: 2) {
                 Text(badge.name)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-                Text(badge.description)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(compact ? 3 : 2)
-            }
-
-            if compact, let note = badge.note, !note.isEmpty {
-                Text(note)
-                    .font(.caption2)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(badge.earned ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2, reservesSpace: true)
+                Text(badge.tileMetaLine)
+                    .font(.caption2.monospacedDigit())
                     .foregroundStyle(.tertiary)
-                    .lineLimit(2)
+                    .lineLimit(1)
+            }
+            if badge.hasProgress {
+                ProgressView(value: badge.progressFraction)
+                    .tint(Color.statusText(badge.rarity.tone))
+                    .frame(maxWidth: 88)
             }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, minHeight: 130, alignment: .topLeading)
-        .background(tileBackground, in: RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .background(
+            badge.earned ? Color(.secondarySystemGroupedBackground) : Color(.secondarySystemGroupedBackground).opacity(0.55),
+            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+        )
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(Color(.separator).opacity(badge.earned ? 0.5 : 0.35), lineWidth: 0.5)
         )
-        .shadow(color: badge.recentlyEarned ? Color.statusText(badge.rarity.tone).opacity(0.18) : .clear, radius: 14, x: 0, y: 4)
+        .shadow(color: badge.recentlyEarned ? Color.statusText(badge.rarity.tone).opacity(0.20) : .clear, radius: 12, x: 0, y: 4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
     }
 
-    private var tileBackground: Color {
-        badge.earned ? Color(.secondarySystemGroupedBackground) : Color(.tertiarySystemGroupedBackground)
-    }
-
     private var accessibilityLabel: String {
-        var parts = [badge.name, badge.earned ? "earned" : "locked", badge.description]
-        if let note = badge.note, !note.isEmpty { parts.append(note) }
-        return parts.joined(separator: ", ")
+        [badge.name, badge.earned ? "earned" : "locked", badge.tileMetaLine].joined(separator: ", ")
+    }
+}
+
+/// Horizontal-shelf item for the profile card: medallion over a two-line name.
+private struct BadgeShelfItem: View {
+    let badge: UserBadge
+
+    var body: some View {
+        VStack(spacing: 6) {
+            BadgeMedallionView(badge: badge, size: 52)
+            Text(badge.name)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2, reservesSpace: true)
+        }
+        .frame(width: 82)
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(badge.name), earned. Double-tap for details.")
     }
 }
 
@@ -434,9 +453,31 @@ private struct BadgeGallerySheet: View {
             case .all: true
             case .earned: badge.earned
             case .locked: !badge.earned
-            case .manual: badge.source == "MANUAL" || (badge.kind == "RULE" && badge.trigger == "manual")
+            case .manual: badge.isManualRecognition
             case .rare: badge.rarity == .rare || badge.rarity == .legendary
             }
+        }
+    }
+
+    /// Same five shelves as the web badges tab. Counts come from the whole
+    /// visible collection; only the tile grid respects the active filter.
+    private var sections: [BadgeGallerySection] {
+        let filtered = filteredBadges
+        return BadgeCollection.allCases.compactMap { collection in
+            let collectionBadges = profile.visibleBadges.filter { $0.primaryCollection == collection }
+            let displayBadges = filtered
+                .filter { $0.primaryCollection == collection }
+                .sorted { a, b in
+                    if a.earned != b.earned { return a.earned }
+                    return (a.awardedDate ?? .distantPast) > (b.awardedDate ?? .distantPast)
+                }
+            guard !displayBadges.isEmpty else { return nil }
+            return BadgeGallerySection(
+                collection: collection,
+                badges: displayBadges,
+                earnedCount: collectionBadges.filter(\.earned).count,
+                totalCount: collectionBadges.count
+            )
         }
     }
 
@@ -447,7 +488,7 @@ private struct BadgeGallerySheet: View {
                     gallerySummary
                     filterChips
 
-                    if filteredBadges.isEmpty {
+                    if sections.isEmpty {
                         ContentUnavailableView(
                             "No \(filter.title.lowercased()) badges",
                             systemImage: filter == .locked ? "lock" : "trophy",
@@ -455,15 +496,33 @@ private struct BadgeGallerySheet: View {
                         )
                         .frame(maxWidth: .infinity, minHeight: 220)
                     } else {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 156), spacing: 12)], spacing: 12) {
-                            ForEach(filteredBadges) { badge in
-                                Button {
-                                    tapFeedback.toggle()
-                                    selectedBadge = badge
-                                } label: {
-                                    BadgeTile(badge: badge)
+                        ForEach(sections) { section in
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                    Image(systemName: section.collection.systemImage)
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.secondary)
+                                        .accessibilityHidden(true)
+                                    Text(section.collection.title)
+                                        .font(.subheadline.weight(.semibold))
+                                    Spacer(minLength: 8)
+                                    Text("\(section.earnedCount)/\(section.totalCount) earned")
+                                        .font(.caption2.monospacedDigit())
+                                        .foregroundStyle(.secondary)
                                 }
-                                .buttonStyle(.plain)
+                                .accessibilityElement(children: .combine)
+
+                                LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 10)], spacing: 10) {
+                                    ForEach(section.badges) { badge in
+                                        Button {
+                                            tapFeedback.toggle()
+                                            selectedBadge = badge
+                                        } label: {
+                                            BadgeTile(badge: badge)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
                             }
                         }
                     }
@@ -652,26 +711,121 @@ private struct BadgeDetailMetric: View {
     }
 }
 
+// MARK: - Shaped medallions (web BadgeMedallion parity)
+
+/// Category-driven artifact silhouettes shared with the web `BadgeMedallion`:
+/// scans are hexes, teamwork is a shield, gear flow / on-time are equipment
+/// stacks, staff picks are hexes, everything else is a coin.
+private enum BadgeMedallionShape {
+    case coin, hex, shield, stack
+}
+
+/// Draws the medallion outline in the same 100x100 coordinate space as the
+/// web component's SVG paths, scaled to the given rect.
+private struct BadgeMedallionSilhouette: Shape {
+    let shape: BadgeMedallionShape
+
+    func path(in rect: CGRect) -> Path {
+        let w = rect.width / 100
+        let h = rect.height / 100
+        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+            CGPoint(x: rect.minX + x * w, y: rect.minY + y * h)
+        }
+        var path = Path()
+        switch shape {
+        case .coin:
+            path.addEllipse(in: rect.insetBy(dx: rect.width * 0.05, dy: rect.height * 0.05))
+        case .hex:
+            path.move(to: pt(50, 6))
+            path.addLine(to: pt(86, 26))
+            path.addLine(to: pt(86, 74))
+            path.addLine(to: pt(50, 94))
+            path.addLine(to: pt(14, 74))
+            path.addLine(to: pt(14, 26))
+            path.closeSubpath()
+        case .shield:
+            path.move(to: pt(50, 6))
+            path.addLine(to: pt(88, 18))
+            path.addLine(to: pt(88, 45))
+            path.addCurve(to: pt(50, 94), control1: pt(88, 69), control2: pt(74, 85))
+            path.addCurve(to: pt(12, 45), control1: pt(26, 85), control2: pt(12, 69))
+            path.addLine(to: pt(12, 18))
+            path.closeSubpath()
+        case .stack:
+            path.move(to: pt(18, 18))
+            path.addLine(to: pt(82, 18))
+            path.addLine(to: pt(82, 31))
+            path.addLine(to: pt(92, 31))
+            path.addLine(to: pt(92, 82))
+            path.addLine(to: pt(28, 82))
+            path.addLine(to: pt(28, 69))
+            path.addLine(to: pt(18, 69))
+            path.closeSubpath()
+        }
+        return path
+    }
+}
+
 private struct BadgeMedallionView: View {
     let badge: UserBadge
     let size: CGFloat
 
     var body: some View {
+        // Locked medallions drop to gray regardless of rarity — the web
+        // component's grayscale treatment.
+        let tone: StatusTone = badge.earned ? badge.rarity.tone : .gray
         ZStack {
-            RoundedRectangle(cornerRadius: size * 0.28)
-                .fill(Color.statusBackground(badge.rarity.tone))
-            RoundedRectangle(cornerRadius: size * 0.22)
-                .stroke(Color.statusText(badge.rarity.tone).opacity(0.28), lineWidth: 1)
-                .padding(size * 0.1)
+            BadgeMedallionSilhouette(shape: badge.medallionShape)
+                .fill(Color.statusBackground(tone))
+            BadgeMedallionSilhouette(shape: badge.medallionShape)
+                .stroke(Color.statusText(tone).opacity(badge.earned ? 0.45 : 0.3), lineWidth: max(1, size * 0.028))
             Image(systemName: badge.earned ? badge.icon.sfSymbolName : "lock.fill")
-                .font(.system(size: size * 0.42, weight: .semibold))
-                .foregroundStyle(Color.statusText(badge.rarity.tone))
+                .font(.system(size: size * 0.36, weight: .semibold))
+                .foregroundStyle(Color.statusText(tone))
                 .symbolEffect(.bounce, value: badge.recentlyEarned)
         }
         .frame(width: size, height: size)
         .shadow(color: badge.recentlyEarned ? Color.statusText(badge.rarity.tone).opacity(0.22) : .clear, radius: 12, x: 0, y: 4)
         .accessibilityHidden(true)
     }
+}
+
+// MARK: - Award collections (web shelf parity)
+
+/// The five award shelves shared with the web badges tab, in display order.
+private enum BadgeCollection: String, CaseIterable, Identifiable {
+    case gearFlow, reliability, scans, teamwork, staffPicks
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .gearFlow: "Gear Flow"
+        case .reliability: "Reliability"
+        case .scans: "Scans"
+        case .teamwork: "Teamwork"
+        case .staffPicks: "Staff Picks"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .gearFlow: "shippingbox"
+        case .reliability: "clock.badge.checkmark"
+        case .scans: "qrcode.viewfinder"
+        case .teamwork: "person.2"
+        case .staffPicks: "sparkles"
+        }
+    }
+}
+
+private struct BadgeGallerySection: Identifiable {
+    let collection: BadgeCollection
+    let badges: [UserBadge]
+    let earnedCount: Int
+    let totalCount: Int
+
+    var id: String { collection.id }
 }
 
 private struct BadgeStatusChip: View {
@@ -798,6 +952,44 @@ private extension BadgeProfile {
 }
 
 private extension UserBadge {
+    var isManualRecognition: Bool {
+        source == "MANUAL" || (kind == "RULE" && trigger == "manual")
+    }
+
+    /// Mirrors the web tab's `primaryCollectionKey`: every badge lives on
+    /// exactly one shelf, and staff recognition wins over thematic hints.
+    var primaryCollection: BadgeCollection {
+        if isManualRecognition || category == "MILESTONE" { return .staffPicks }
+        switch category {
+        case "CHECKOUT": return .gearFlow
+        case "ON_TIME": return .reliability
+        case "SCAN": return .scans
+        case "TRADE", "SHIFT": return .teamwork
+        default: break
+        }
+        if key.contains("streak") || key.contains("reliable") || key.contains("zero_errors") { return .reliability }
+        return .gearFlow
+    }
+
+    /// Mirrors the web tab's `badgeShape` category mapping.
+    var medallionShape: BadgeMedallionShape {
+        switch category {
+        case "SCAN": return .hex
+        case "TRADE", "SHIFT": return .shield
+        case "CHECKOUT", "ON_TIME": return .stack
+        default: return isManualRecognition ? .hex : .coin
+        }
+    }
+
+    /// One quiet line under the tile name: earned date, progress, requirement,
+    /// or how the badge unlocks.
+    var tileMetaLine: String {
+        if earned { return earnedDateText }
+        if hasProgress { return "\(progressCurrent ?? 0)/\(progressTarget ?? 0)" }
+        if let threshold, threshold > 0 { return "\(threshold) required" }
+        return trigger == "manual" ? "Staff recognition" : "Locked"
+    }
+
     var rarity: BadgeRarity {
         if legendaryBadgeKeys.contains(key) { return .legendary }
         if rareBadgeKeys.contains(key) || (threshold ?? 0) >= 50 { return .rare }

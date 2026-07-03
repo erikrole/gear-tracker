@@ -4,7 +4,6 @@ import { useMemo, useState, type ComponentType } from "react";
 import {
   AlarmClockCheck,
   AlertCircle,
-  ArrowLeft,
   Award,
   BadgeCheck,
   Boxes,
@@ -12,7 +11,6 @@ import {
   CalendarClock,
   CalendarDays,
   CalendarRange,
-  ChevronRight,
   Clock3,
   Flame,
   Handshake,
@@ -35,13 +33,7 @@ import { BadgeMedallion, type BadgeMedallionShape } from "@/components/badges/Ba
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogBody,
@@ -109,13 +101,10 @@ type AwardCollectionDefinition = {
   shape: BadgeMedallionShape;
 };
 
-type AwardCollection = AwardCollectionDefinition & {
+type BadgeShelf = AwardCollectionDefinition & {
   badges: UserBadge[];
   earnedCount: number;
   hiddenCount: number;
-  hasNewBadge: boolean;
-  featuredBadge: UserBadge | null;
-  previewBadges: UserBadge[];
 };
 
 const iconMap: Record<string, ComponentType<{ className?: string }>> = {
@@ -160,14 +149,6 @@ const filterLabels: Record<BadgeFilter, string> = {
   rare: "Rare",
 };
 
-const collectionAccent: Record<AwardCollectionKey, string> = {
-  gear_flow: "var(--orange-bg)",
-  reliability: "var(--blue-bg)",
-  scans: "var(--blue-bg)",
-  teamwork: "var(--purple-bg)",
-  staff_picks: "var(--purple-bg)",
-};
-
 const awardCollectionDefinitions: AwardCollectionDefinition[] = [
   {
     key: "gear_flow",
@@ -193,7 +174,7 @@ const awardCollectionDefinitions: AwardCollectionDefinition[] = [
   {
     key: "teamwork",
     title: "Teamwork",
-    description: "Trades, coverage, event help, and above-and-beyond moments.",
+    description: "Trades, coverage, and event help.",
     icon: Handshake,
     shape: "shield",
   },
@@ -208,47 +189,38 @@ const awardCollectionDefinitions: AwardCollectionDefinition[] = [
 
 function BadgeGridSkeleton() {
   return (
-    <div className="flex flex-col gap-5">
-      <div className="grid gap-3 sm:grid-cols-3">
-        {[0, 1, 2].map((index) => (
-          <Card key={index} elevation="flat">
-            <CardContent className="flex items-center gap-3 p-4">
-              <Skeleton className="size-10 rounded-lg" />
-              <div className="flex min-w-0 flex-1 flex-col gap-2">
-                <Skeleton className="h-4 w-24" />
+    <div className="flex flex-col gap-6">
+      <Card elevation="flat">
+        <CardContent className="flex flex-wrap items-center gap-x-8 gap-y-4 p-5">
+          <div className="min-w-[180px] flex-1">
+            <Skeleton className="h-8 w-20" />
+            <Skeleton className="mt-3 h-1.5 w-full" />
+          </div>
+          <div className="flex gap-6">
+            {[0, 1].map((index) => (
+              <div key={index} className="flex flex-col gap-2">
+                <Skeleton className="h-6 w-10" />
+                <Skeleton className="h-3 w-14" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+      {[0, 1].map((shelf) => (
+        <div key={shelf}>
+          <Skeleton className="h-5 w-32" />
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {[0, 1, 2, 3].map((index) => (
+              <div key={index} className="flex flex-col items-center gap-3 rounded-xl bg-card p-4 shadow-[0_0_0_1px_hsl(var(--border))]">
+                <Skeleton className="size-14 rounded-2xl" />
+                <Skeleton className="h-4 w-20" />
                 <Skeleton className="h-3 w-16" />
               </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {[0, 1, 2, 3, 4, 5].map((index) => (
-          <Card key={index} elevation="flat">
-            <CardHeader className="flex-row items-start gap-3">
-              <Skeleton className="size-12 rounded-xl" />
-              <div className="flex min-w-0 flex-1 flex-col gap-2">
-                <Skeleton className="h-4 w-28" />
-                <Skeleton className="h-3 w-40" />
-                <Skeleton className="h-3 w-24" />
-              </div>
-            </CardHeader>
-          </Card>
-        ))}
-      </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
-  );
-}
-
-function SummaryCard({ label, value, hint }: { label: string; value: number | string; hint?: string }) {
-  return (
-    <Card elevation="flat">
-      <CardContent className="p-4">
-        <div className="text-2xl font-semibold tabular-nums">{value}</div>
-        <div className="mt-1 text-xs font-medium text-muted-foreground">{label}</div>
-        {hint ? <div className="mt-2 text-xs text-muted-foreground/80">{hint}</div> : null}
-      </CardContent>
-    </Card>
   );
 }
 
@@ -310,18 +282,17 @@ function isManualBadge(badge: UserBadge) {
   return badge.source === "MANUAL" || (badge.kind === "RULE" && badge.trigger === "manual");
 }
 
-function badgeCollectionKeys(badge: UserBadge): AwardCollectionKey[] {
-  const keys = new Set<AwardCollectionKey>();
-  if (badge.category === "CHECKOUT") keys.add("gear_flow");
-  if (badge.category === "ON_TIME") keys.add("reliability");
-  if (badge.category === "SCAN") keys.add("scans");
-  if (badge.category === "TRADE" || badge.category === "SHIFT") keys.add("teamwork");
-  if (isManualBadge(badge) || badge.category === "MILESTONE") keys.add("staff_picks");
-  if (badge.key.includes("streak") || badge.key.includes("reliable") || badge.key.includes("zero_errors")) keys.add("reliability");
-  if (badge.key.includes("handoff") || badge.key.includes("kit") || badge.key.includes("rookie")) keys.add("gear_flow");
-  if (badge.key.includes("clutch") || badge.key.includes("hero") || badge.key.includes("above")) keys.add("teamwork");
-  if (keys.size === 0) keys.add("gear_flow");
-  return Array.from(keys);
+/// Every badge lives on exactly one shelf so the flat layout never repeats a
+/// medallion. Staff recognition wins over thematic hints: a manual fun badge
+/// is a Staff Pick first, even when its name references gear or events.
+function primaryCollectionKey(badge: UserBadge): AwardCollectionKey {
+  if (isManualBadge(badge) || badge.category === "MILESTONE") return "staff_picks";
+  if (badge.category === "CHECKOUT") return "gear_flow";
+  if (badge.category === "ON_TIME") return "reliability";
+  if (badge.category === "SCAN") return "scans";
+  if (badge.category === "TRADE" || badge.category === "SHIFT") return "teamwork";
+  if (badge.key.includes("streak") || badge.key.includes("reliable") || badge.key.includes("zero_errors")) return "reliability";
+  return "gear_flow";
 }
 
 function badgeShape(badge: UserBadge): BadgeMedallionShape {
@@ -342,33 +313,78 @@ function sortedForDisplay(badges: UserBadge[]) {
   });
 }
 
-function buildAwardCollections(badges: UserBadge[]) {
+function buildShelves(galleryBadges: UserBadge[], allBadges: UserBadge[]): BadgeShelf[] {
   const grouped = new Map<AwardCollectionKey, UserBadge[]>(
     awardCollectionDefinitions.map((definition) => [definition.key, []]),
   );
 
-  for (const badge of badges) {
-    for (const key of badgeCollectionKeys(badge)) {
-      grouped.get(key)?.push(badge);
-    }
+  for (const badge of galleryBadges) {
+    grouped.get(primaryCollectionKey(badge))?.push(badge);
+  }
+
+  const hiddenByKey = new Map<AwardCollectionKey, number>();
+  for (const badge of allBadges) {
+    if (badge.earned || !badge.active || !isHiddenUntilEarnedBadge(badge.key)) continue;
+    const key = primaryCollectionKey(badge);
+    hiddenByKey.set(key, (hiddenByKey.get(key) ?? 0) + 1);
   }
 
   return awardCollectionDefinitions
-    .map((definition): AwardCollection => {
-      const collectionBadges = sortedForDisplay(grouped.get(definition.key) ?? []);
-      const earnedBadges = collectionBadges.filter((badge) => badge.earned);
-      const featuredBadge = earnedBadges[0] ?? collectionBadges[0] ?? null;
+    .map((definition): BadgeShelf => {
+      const shelfBadges = sortedForDisplay(grouped.get(definition.key) ?? []);
       return {
         ...definition,
-        badges: collectionBadges,
-        earnedCount: earnedBadges.length,
-        hiddenCount: collectionBadges.filter((badge) => !badge.earned && isHiddenUntilEarnedBadge(badge.key)).length,
-        hasNewBadge: earnedBadges.some((badge) => isRecentlyEarned(badge.awardedAt)),
-        featuredBadge,
-        previewBadges: sortedForDisplay(collectionBadges).slice(0, 4),
+        badges: shelfBadges,
+        earnedCount: shelfBadges.filter((badge) => badge.earned).length,
+        hiddenCount: hiddenByKey.get(definition.key) ?? 0,
       };
     })
-    .filter((collection) => collection.badges.length > 0);
+    .filter((shelf) => shelf.badges.length > 0 || shelf.hiddenCount > 0);
+}
+
+function BadgeSummaryBand({
+  earned,
+  visible,
+  hidden,
+}: {
+  earned: number;
+  visible: number;
+  hidden: number;
+}) {
+  const completion = visible > 0 ? Math.round((earned / visible) * 100) : 0;
+
+  return (
+    <Card elevation="flat">
+      <CardContent className="flex flex-wrap items-center gap-x-8 gap-y-4 p-5">
+        <div className="min-w-[180px] flex-1">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-3xl font-semibold tabular-nums">{completion}%</span>
+            <span className="text-xs text-muted-foreground">of visible catalog</span>
+          </div>
+          <Progress value={completion} className="mt-2 h-1.5" aria-label="Badge catalog completion" />
+        </div>
+        <dl className="flex items-center gap-6 text-right">
+          <div>
+            <dt className="sr-only">Earned</dt>
+            <dd className="text-xl font-semibold tabular-nums">{earned}</dd>
+            <dd className="text-xs text-muted-foreground">Earned</dd>
+          </div>
+          <div>
+            <dt className="sr-only">Remaining</dt>
+            <dd className="text-xl font-semibold tabular-nums">{Math.max(0, visible - earned)}</dd>
+            <dd className="text-xs text-muted-foreground">Remaining</dd>
+          </div>
+          {hidden > 0 ? (
+            <div>
+              <dt className="sr-only">Hidden surprise awards</dt>
+              <dd className="text-xl font-semibold tabular-nums">{hidden}</dd>
+              <dd className="text-xs text-muted-foreground">Hidden</dd>
+            </div>
+          ) : null}
+        </dl>
+      </CardContent>
+    </Card>
+  );
 }
 
 function BadgeTile({
@@ -383,302 +399,106 @@ function BadgeTile({
   const Icon = iconMap[badge.icon] ?? Trophy;
   const rarity = getBadgeRarity(badge);
   const recentlyEarned = badge.earned && isRecentlyEarned(badge.awardedAt);
-  const progressValue = progressPercent(badge);
 
   return (
     <button
       type="button"
       onClick={() => onSelect(badge)}
       className={cn(
-        "group relative flex min-h-[184px] w-full flex-col rounded-xl bg-card p-4 text-left shadow-[0_0_0_1px_hsl(var(--border))] outline-none transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_34px_hsl(var(--foreground)/0.08),0_0_0_1px_hsl(var(--border))] focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-[0.96]",
-        !badge.earned && "bg-muted/30 text-muted-foreground",
+        "group relative flex w-full flex-col items-center gap-2 rounded-xl bg-card px-3 pb-4 pt-5 text-center shadow-[0_0_0_1px_hsl(var(--border))] outline-none transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_34px_hsl(var(--foreground)/0.08),0_0_0_1px_hsl(var(--border))] focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-[0.96]",
+        !badge.earned && "bg-muted/30",
         recentlyEarned && rarityGlowClass(rarity),
         selected && "ring-[3px] ring-ring/30",
       )}
       aria-label={`${badge.name}, ${badge.earned ? "earned" : "locked"}. Open badge details.`}
     >
       {recentlyEarned ? (
-        <span className="pointer-events-none absolute inset-0 rounded-xl bg-primary/5 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+        <Badge variant="green" size="sm" className="absolute right-2 top-2">New</Badge>
       ) : null}
-      <div className="relative flex items-start gap-3">
-        <BadgeMedallion
-          icon={Icon}
-          earned={badge.earned}
-          rarity={rarity}
-          shape={badgeShape(badge)}
-          className={cn(recentlyEarned && "scale-[1.03]")}
+      <BadgeMedallion
+        icon={Icon}
+        earned={badge.earned}
+        rarity={rarity}
+        shape={badgeShape(badge)}
+        className={cn("size-14", recentlyEarned && "scale-[1.03]")}
+        iconClassName="size-6"
+      />
+      <div className="min-w-0">
+        <h3 className={cn("text-balance text-sm font-semibold leading-5", badge.earned ? "text-foreground" : "text-muted-foreground")}>
+          {badge.name}
+        </h3>
+        <p className="mt-1 text-xs text-muted-foreground tabular-nums">{badgeMetaLine(badge)}</p>
+      </div>
+      {hasProgress(badge) ? (
+        <Progress
+          value={progressPercent(badge)}
+          className="mt-1 h-1 w-full max-w-[120px] bg-muted [&_[data-slot=progress-indicator]]:bg-primary/70"
+          aria-label={`${badge.name} progress`}
         />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="text-sm font-semibold leading-5 text-foreground text-balance">{badge.name}</h3>
-            {recentlyEarned ? <Badge variant="green" size="sm">New</Badge> : null}
-          </div>
-          <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{badge.description}</p>
-        </div>
-      </div>
-
-      <div className="relative mt-auto flex flex-col gap-3 pt-4">
-        {hasProgress(badge) ? (
-          <Progress
-            value={progressValue}
-            className="h-1.5 bg-muted [&_[data-slot=progress-indicator]]:bg-primary/70"
-            aria-label={`${badge.name} progress`}
-          />
-        ) : null}
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={badge.earned ? "secondary" : "outline"} size="sm">
-            {badge.earned ? "Earned" : "Locked"}
-          </Badge>
-          <Badge variant={badgeRarityVariant(rarity)} size="sm">{rarity}</Badge>
-          {badge.source === "MANUAL" ? <Badge variant="purple" size="sm">Manual</Badge> : null}
-        </div>
-        <p className="text-xs text-muted-foreground tabular-nums">{badgeMetaLine(badge)}</p>
-      </div>
+      ) : null}
     </button>
   );
 }
 
 function SurpriseTile({ count }: { count: number }) {
   return (
-    <div className="flex min-h-[184px] flex-col rounded-xl bg-muted/30 p-4 text-muted-foreground shadow-[0_0_0_1px_hsl(var(--border))]">
-      <div className="flex items-start gap-3">
-        <div className="flex size-12 items-center justify-center rounded-xl bg-muted shadow-[inset_0_0_0_1px_hsl(var(--border))]" aria-hidden="true">
-          <Sparkles className="size-5" />
-        </div>
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">Surprise badges</h3>
-          <p className="mt-1 text-xs leading-5">
-            {count} hidden {count === 1 ? "badge is" : "badges are"} waiting for the right moment.
-          </p>
-        </div>
-      </div>
-      <div className="mt-auto pt-4">
-        <Badge variant="outline" size="sm">Hidden until earned</Badge>
+    <div className="flex w-full flex-col items-center gap-2 rounded-xl bg-muted/30 px-3 pb-4 pt-5 text-center text-muted-foreground shadow-[0_0_0_1px_hsl(var(--border))]">
+      <BadgeMedallion icon={Sparkles} earned={false} rarity="Rare" shape="hex" className="size-14 opacity-80" iconClassName="size-6" />
+      <div className="min-w-0">
+        <h3 className="text-sm font-semibold text-foreground">Surprise awards</h3>
+        <p className="mt-1 text-xs">
+          {count} hidden until earned
+        </p>
       </div>
     </div>
   );
 }
 
-function BadgeGallery({
-  badges,
-  hiddenSurpriseCount,
-  selectedBadge,
-  onSelect,
-}: {
-  badges: UserBadge[];
-  hiddenSurpriseCount: number;
-  selectedBadge: UserBadge | null;
-  onSelect: (badge: UserBadge) => void;
-}) {
-  return (
-    <StaggerList className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {badges.map((badge) => (
-        <StaggerItem key={badge.id}>
-          <BadgeTile
-            badge={badge}
-            selected={selectedBadge?.id === badge.id}
-            onSelect={onSelect}
-          />
-        </StaggerItem>
-      ))}
-      {hiddenSurpriseCount > 0 ? (
-        <StaggerItem>
-          <SurpriseTile count={hiddenSurpriseCount} />
-        </StaggerItem>
-      ) : null}
-    </StaggerList>
-  );
-}
-
-function AwardCollectionCard({
-  collection,
-  onOpen,
-}: {
-  collection: AwardCollection;
-  onOpen: (collectionKey: AwardCollectionKey) => void;
-}) {
-  const FeaturedIcon = collection.featuredBadge ? iconMap[collection.featuredBadge.icon] ?? collection.icon : collection.icon;
-  const featuredRarity = collection.featuredBadge ? getBadgeRarity(collection.featuredBadge) : "Common";
-  const moreCount = Math.max(0, collection.badges.length - collection.previewBadges.length);
-  const latestEarnedDate = collection.badges.find((badge) => badge.earned && badge.awardedAt)?.awardedAt;
-
-  return (
-    <button
-      type="button"
-      onClick={() => onOpen(collection.key)}
-      className="group relative flex min-h-[320px] w-full flex-col overflow-hidden rounded-2xl bg-card p-5 text-left shadow-[0_0_0_1px_hsl(var(--border)),0_16px_44px_rgba(0,0,0,0.06)] outline-none transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(0,0,0,0.10),0_0_0_1px_hsl(var(--border))] focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-[0.96]"
-      aria-label={`${collection.title}, ${collection.earnedCount} of ${collection.badges.length} awards earned. Open collection.`}
-    >
-      <span
-        className="pointer-events-none absolute inset-0 opacity-60 transition-opacity duration-200 group-hover:opacity-90"
-        style={{ background: `radial-gradient(circle at 30% 20%,rgba(255,255,255,0.70),transparent 32%),radial-gradient(circle at 75% 12%,${collectionAccent[collection.key]},transparent 34%)` }}
-      />
-      <span className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background/70 to-transparent" />
-      <div className="relative flex items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h3 className="text-balance text-2xl font-semibold leading-tight tracking-tight">{collection.title}</h3>
-            {collection.hasNewBadge ? <Badge variant="green" size="sm">New</Badge> : null}
-          </div>
-          <p className="mt-2 line-clamp-2 max-w-[28ch] text-sm leading-6 text-muted-foreground">{collection.description}</p>
-        </div>
-        <ChevronRight className="mt-1 size-5 shrink-0 text-muted-foreground transition-[transform,color] duration-200 group-hover:translate-x-0.5 group-hover:text-foreground" aria-hidden="true" />
-      </div>
-
-      <div className="relative my-6 flex flex-1 items-center justify-center">
-        <BadgeMedallion
-          icon={FeaturedIcon}
-          earned={collection.featuredBadge?.earned ?? false}
-          rarity={featuredRarity}
-          shape={collection.featuredBadge ? badgeShape(collection.featuredBadge) : collection.shape}
-          className="size-32 shadow-[0_24px_44px_rgba(0,0,0,0.18)]"
-          iconClassName="size-12"
-        />
-      </div>
-
-      <div className="relative mt-auto flex items-end justify-between gap-3">
-        <div className="flex min-w-0 items-center">
-          {collection.previewBadges.slice(0, 4).map((badge, index) => {
-            const Icon = iconMap[badge.icon] ?? Trophy;
-            return (
-              <BadgeMedallion
-                key={badge.id}
-                icon={Icon}
-                earned={badge.earned}
-                rarity={getBadgeRarity(badge)}
-                shape={badgeShape(badge)}
-                className={cn("size-10 shadow-[0_10px_20px_rgba(0,0,0,0.16)]", index > 0 && "-ml-3")}
-              />
-            );
-          })}
-        </div>
-        <div className="shrink-0 text-right">
-          <p className="text-sm font-semibold tabular-nums">
-            {collection.earnedCount}/{collection.badges.length}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {moreCount > 0 ? `+${moreCount} more` : latestEarnedDate ? formatDateFull(latestEarnedDate) : "All visible"}
-          </p>
-          <p className="text-xs font-semibold text-primary">Show all</p>
-        </div>
-      </div>
-    </button>
-  );
-}
-
-function AwardCollections({
-  collections,
-  hiddenSurpriseCount,
-  onOpen,
-}: {
-  collections: AwardCollection[];
-  hiddenSurpriseCount: number;
-  onOpen: (collectionKey: AwardCollectionKey) => void;
-}) {
-  return (
-    <StaggerList className="grid gap-4 md:grid-cols-2">
-      {collections.map((collection) => (
-        <StaggerItem key={collection.key}>
-          <AwardCollectionCard collection={collection} onOpen={onOpen} />
-        </StaggerItem>
-      ))}
-      {hiddenSurpriseCount > 0 ? (
-        <StaggerItem>
-          <div className="flex min-h-[320px] flex-col overflow-hidden rounded-2xl bg-muted/30 p-5 text-muted-foreground shadow-[0_0_0_1px_hsl(var(--border))]">
-            <div>
-              <h3 className="text-balance text-2xl font-semibold leading-tight text-foreground">Surprise Awards</h3>
-              <p className="mt-2 text-sm leading-6">
-                {hiddenSurpriseCount} hidden {hiddenSurpriseCount === 1 ? "award is" : "awards are"} waiting for the right workflow.
-              </p>
-            </div>
-            <div className="my-8 flex flex-1 items-center justify-center">
-              <BadgeMedallion icon={Sparkles} earned={false} rarity="Rare" shape="hex" className="size-28 opacity-80" iconClassName="size-10" />
-            </div>
-            <Badge variant="outline" className="w-fit">Hidden until earned</Badge>
-          </div>
-        </StaggerItem>
-      ) : null}
-    </StaggerList>
-  );
-}
-
-function AwardCollectionDetail({
-  collection,
+function ShelfSection({
+  shelf,
   filter,
-  hiddenSurpriseCount,
   selectedBadge,
-  onBack,
-  onFilterChange,
   onSelect,
 }: {
-  collection: AwardCollection;
+  shelf: BadgeShelf;
   filter: BadgeFilter;
-  hiddenSurpriseCount: number;
   selectedBadge: UserBadge | null;
-  onBack: () => void;
-  onFilterChange: (filter: BadgeFilter) => void;
   onSelect: (badge: UserBadge) => void;
 }) {
-  const filteredBadges = filterBadges(collection.badges, filter);
-  const showHiddenSurpriseTile = (filter === "all" || filter === "locked") && hiddenSurpriseCount > 0;
+  const filteredBadges = filterBadges(shelf.badges, filter);
+  const showSurpriseTile = shelf.hiddenCount > 0 && (filter === "all" || filter === "locked");
+  if (filteredBadges.length === 0 && !showSurpriseTile) return null;
+  const ShelfIcon = shelf.icon;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="rounded-2xl bg-card p-5 shadow-[0_0_0_1px_hsl(var(--border))]">
-        <div className="flex min-w-0 gap-4">
-          <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back to award collections" className="shrink-0">
-            <ArrowLeft data-icon="inline-start" />
-          </Button>
+    <section aria-label={`${shelf.title} awards`}>
+      <div className="flex items-end justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground shadow-[inset_0_0_0_1px_hsl(var(--border))]" aria-hidden="true">
+            <ShelfIcon className="size-4" />
+          </div>
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Award collection</p>
-            <h3 className="mt-1 text-balance text-3xl font-semibold leading-tight tracking-tight">{collection.title}</h3>
-            <p className="mt-2 max-w-[62ch] text-sm leading-6 text-muted-foreground">{collection.description}</p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Badge variant="secondary" className="tabular-nums">{collection.earnedCount} earned</Badge>
-              <Badge variant="outline" className="tabular-nums">{collection.badges.length} visible</Badge>
-              {hiddenSurpriseCount > 0 ? <Badge variant="outline" className="tabular-nums">{hiddenSurpriseCount} hidden</Badge> : null}
-            </div>
+            <h3 className="truncate text-sm font-semibold leading-5">{shelf.title}</h3>
+            <p className="truncate text-xs text-muted-foreground">{shelf.description}</p>
           </div>
         </div>
+        <p className="shrink-0 text-xs text-muted-foreground tabular-nums">
+          {shelf.earnedCount}/{shelf.badges.length} earned
+        </p>
       </div>
-
-      <ToggleGroup
-        type="single"
-        value={filter}
-        onValueChange={(value) => {
-          if (value) onFilterChange(value as BadgeFilter);
-        }}
-        className="flex-wrap"
-        aria-label="Filter badges"
-      >
-        {(Object.keys(filterLabels) as BadgeFilter[]).map((key) => (
-          <ToggleGroupItem key={key} value={key} aria-label={`Show ${filterLabels[key].toLowerCase()} badges`}>
-            {filterLabels[key]}
-          </ToggleGroupItem>
+      <StaggerList className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        {filteredBadges.map((badge) => (
+          <StaggerItem key={badge.id}>
+            <BadgeTile badge={badge} selected={selectedBadge?.id === badge.id} onSelect={onSelect} />
+          </StaggerItem>
         ))}
-      </ToggleGroup>
-
-      {filteredBadges.length > 0 || showHiddenSurpriseTile ? (
-        <BadgeGallery
-          badges={filteredBadges}
-          hiddenSurpriseCount={showHiddenSurpriseTile ? hiddenSurpriseCount : 0}
-          selectedBadge={selectedBadge}
-          onSelect={onSelect}
-        />
-      ) : (
-        <Empty className="min-h-[220px]">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              {filter === "locked" ? <LockKeyhole /> : <Trophy />}
-            </EmptyMedia>
-            <EmptyTitle>No {filterLabels[filter].toLowerCase()} awards</EmptyTitle>
-            <EmptyDescription>
-              Try another collection filter.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      )}
-    </div>
+        {showSurpriseTile ? (
+          <StaggerItem>
+            <SurpriseTile count={shelf.hiddenCount} />
+          </StaggerItem>
+        ) : null}
+      </StaggerList>
+    </section>
   );
 }
 
@@ -897,7 +717,6 @@ export default function UserBadgesTab({
   onAwardRequest?: (badge: UserBadge) => void;
 }) {
   const [filter, setFilter] = useState<BadgeFilter>("all");
-  const [activeCollectionKey, setActiveCollectionKey] = useState<AwardCollectionKey | null>(null);
   const [selectedBadge, setSelectedBadge] = useState<UserBadge | null>(null);
   const [revision, setRevision] = useState(0);
   const { data, loading, error } = useFetch<UserBadgesResponse>({
@@ -913,7 +732,10 @@ export default function UserBadgesTab({
     );
   }, [data]);
 
-  const awardCollections = useMemo(() => buildAwardCollections(galleryBadges), [galleryBadges]);
+  const shelves = useMemo(
+    () => buildShelves(galleryBadges, data?.badges ?? []),
+    [galleryBadges, data],
+  );
 
   if (loading) {
     return <BadgeGridSkeleton />;
@@ -935,20 +757,18 @@ export default function UserBadgesTab({
   const hiddenSurpriseCount = data.badges.filter(
     (badge) => !badge.earned && badge.active && isHiddenUntilEarnedBadge(badge.key),
   ).length;
-  const visibleTotalCount = galleryBadges.length;
-  const completion = visibleTotalCount > 0 ? Math.round((data.earnedCount / visibleTotalCount) * 100) : 0;
-  const activeCollection = awardCollections.find((collection) => collection.key === activeCollectionKey) ?? null;
-  const activeHiddenSurpriseCount = activeCollection
-    ? data.badges.filter((badge) => !badge.earned && badge.active && isHiddenUntilEarnedBadge(badge.key) && badgeCollectionKeys(badge).includes(activeCollection.key)).length
-    : hiddenSurpriseCount;
+  const filteredShelfCount = shelves.filter((shelf) => {
+    const showSurpriseTile = shelf.hiddenCount > 0 && (filter === "all" || filter === "locked");
+    return filterBadges(shelf.badges, filter).length > 0 || showSurpriseTile;
+  }).length;
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <SummaryCard label="Earned" value={data.earnedCount} hint="Unlocked recognition" />
-        <SummaryCard label="Remaining" value={Math.max(0, visibleTotalCount - data.earnedCount)} hint="Still to unlock" />
-        <SummaryCard label="Completion" value={`${completion}%`} hint="Of visible catalog" />
-      </div>
+    <div className="flex flex-col gap-6">
+      <BadgeSummaryBand
+        earned={data.earnedCount}
+        visible={galleryBadges.length}
+        hidden={hiddenSurpriseCount}
+      />
 
       {data.disabled ? (
         <Empty>
@@ -976,38 +796,46 @@ export default function UserBadgesTab({
         </Empty>
       ) : (
         <>
-          {!activeCollection ? (
-            <>
-              <Card elevation="flat">
-                <CardHeader>
-                  <CardTitle className="text-base">Award collections</CardTitle>
-                  <CardDescription>
-                    Browse awards by family, open a collection, then tap any award for the full story.
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-              <AwardCollections
-                collections={awardCollections}
-                hiddenSurpriseCount={hiddenSurpriseCount}
-                onOpen={(collectionKey) => {
-                  setFilter("all");
-                  setActiveCollectionKey(collectionKey);
-                }}
-              />
-            </>
+          <ToggleGroup
+            type="single"
+            value={filter}
+            onValueChange={(value) => {
+              if (value) setFilter(value as BadgeFilter);
+            }}
+            className="flex-wrap"
+            aria-label="Filter badges"
+          >
+            {(Object.keys(filterLabels) as BadgeFilter[]).map((key) => (
+              <ToggleGroupItem key={key} value={key} aria-label={`Show ${filterLabels[key].toLowerCase()} badges`}>
+                {filterLabels[key]}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+
+          {filteredShelfCount > 0 ? (
+            <div className="flex flex-col gap-7">
+              {shelves.map((shelf) => (
+                <ShelfSection
+                  key={shelf.key}
+                  shelf={shelf}
+                  filter={filter}
+                  selectedBadge={selectedBadge}
+                  onSelect={setSelectedBadge}
+                />
+              ))}
+            </div>
           ) : (
-            <AwardCollectionDetail
-              collection={activeCollection}
-              filter={filter}
-              hiddenSurpriseCount={activeHiddenSurpriseCount}
-              selectedBadge={selectedBadge}
-              onBack={() => {
-                setFilter("all");
-                setActiveCollectionKey(null);
-              }}
-              onFilterChange={setFilter}
-              onSelect={setSelectedBadge}
-            />
+            <Empty className="min-h-[220px]">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  {filter === "locked" ? <LockKeyhole /> : <Trophy />}
+                </EmptyMedia>
+                <EmptyTitle>No {filterLabels[filter].toLowerCase()} awards</EmptyTitle>
+                <EmptyDescription>
+                  Try another filter.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           )}
 
           {earnedBadges.length > 0 ? (
