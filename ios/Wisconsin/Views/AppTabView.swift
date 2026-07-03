@@ -125,8 +125,12 @@ struct AppTabView: View {
     }
 
     private func consumePendingAppIntentHandoff() {
-        guard let destination = GearTrackerAppIntentHandoff.shared.consumePendingDestination() else { return }
-        appState.pendingAppIntentDestination = destination
+        if let destination = GearTrackerAppIntentHandoff.shared.consumePendingDestination() {
+            appState.pendingAppIntentDestination = destination
+        }
+        if let bookingId = GearTrackerAppIntentHandoff.shared.consumePendingBookingId() {
+            appState.pendingPushBookingId = bookingId
+        }
     }
 
     private func routePendingAppIntent() {

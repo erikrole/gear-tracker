@@ -14,6 +14,7 @@
 		021A7B27623C3C8544FE58BB /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B04517A8131BAA862DB3FF5E /* ProfileView.swift */; };
 		0342D7B9F506A8995685BC69 /* ItemListText.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC04AA628BB1DEA764D7EEAC /* ItemListText.swift */; };
 		03D13CE00A34B9C6DD2AB6EF /* KioskPickupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB5E4D4F3F432CE124DE63A8 /* KioskPickupView.swift */; };
+		0530FB6892E8A44F4C8F967C /* AppIntentsData.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9D82991FC6AE45A56917938 /* AppIntentsData.swift */; };
 		085E8467FC2D0385A67DD157 /* QRScannerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44E5D1DB0C8CBAD5E452E807 /* QRScannerSheet.swift */; };
 		089493883612791C05515FAE /* LicensesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B3D4226E94BA750868A4D0B /* LicensesView.swift */; };
 		0B3D380ACF389083C083FC5A /* ScanPrePromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93A02FB7D1B8ADC547189F1A /* ScanPrePromptView.swift */; };
@@ -90,6 +91,7 @@
 		A4D4C64C1C5E6904BFF894E3 /* KioskSleepModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE625FDFD675BDE49443B571 /* KioskSleepModeView.swift */; };
 		A6176C75B21A5C4695A8E11F /* AddShiftSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96636E404DEEEDA5C6046ADB /* AddShiftSheet.swift */; };
 		A63240779436086293BA2A9E /* KioskIdleRoster.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F4FFF38CD734CA5656C8878 /* KioskIdleRoster.swift */; };
+		A71171A7BA1D1B302A533883 /* BookingEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF98C537202359B822B1D752 /* BookingEntity.swift */; };
 		A9264F994D67157C3DD7FCD3 /* TradeBoardSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F52833BE41AB34A8FFA43FE2 /* TradeBoardSheet.swift */; };
 		AE02BC8C269DDE4A15E54745 /* Gotham-Black.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 25CAFE07992F1EB02F507AE2 /* Gotham-Black.ttf */; };
 		AF66ADDE1D3CF5B16155A3BA /* GlobalSearchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5EC344925B5666C2CA8F773 /* GlobalSearchSheet.swift */; };
@@ -175,7 +177,7 @@
 		229CAC26AA9E3BB5EEC36678 /* NotificationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationModels.swift; sourceTree = "<group>"; };
 		2536547429CB16E12CB069C0 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		25CAFE07992F1EB02F507AE2 /* Gotham-Black.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Gotham-Black.ttf"; sourceTree = "<group>"; };
-		294553EF02A8AC64D71ED849 /* Wisconsin Creative.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Wisconsin Creative.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		294553EF02A8AC64D71ED849 /* Wisconsin.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Wisconsin.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2A73B2A1C9B274552CBA7C8B /* Haptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; };
 		2B0058FB3644F501479BA0D5 /* ExtendBookingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtendBookingSheet.swift; sourceTree = "<group>"; };
 		2DCFCD62823EAF922978F5E0 /* PasswordSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordSetupView.swift; sourceTree = "<group>"; };
@@ -213,14 +215,14 @@
 		74157D1DF3F4EF9F53F70494 /* ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleView.swift; sourceTree = "<group>"; };
 		74EFD042F26EA7BE52FA67E3 /* SearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchService.swift; sourceTree = "<group>"; };
 		783E3F89AF08A64D8BE2685D /* KioskActivationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskActivationView.swift; sourceTree = "<group>"; };
-		80B4D45C3B7B120931B9ACC0 /* Wisconsin Kiosk.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Wisconsin Kiosk.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		80B4D45C3B7B120931B9ACC0 /* WisconsinKiosk.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = WisconsinKiosk.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		80CA4880F08046F8E23F079B /* ItemDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemDetailView.swift; sourceTree = "<group>"; };
 		843772771897AABEF8DD1F93 /* BannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerView.swift; sourceTree = "<group>"; };
 		87AF393E027CAF24A08F414E /* WeatherKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WeatherKit.framework; path = System/Library/Frameworks/WeatherKit.framework; sourceTree = SDKROOT; };
-		88F162C9B5233CB44C35E9E5 /* WisconsinLiveActivities.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WisconsinLiveActivities.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		88F162C9B5233CB44C35E9E5 /* WisconsinLiveActivities.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = WisconsinLiveActivities.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		88FF0CACAB4BD4886FD0219B /* CreateBookingEventViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateBookingEventViews.swift; sourceTree = "<group>"; };
 		8F94CA79BF538DBB6FF7F225 /* UsersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsersView.swift; sourceTree = "<group>"; };
-		911EE1AA37106EDB44B9B2E9 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		911EE1AA37106EDB44B9B2E9 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		93A02FB7D1B8ADC547189F1A /* ScanPrePromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanPrePromptView.swift; sourceTree = "<group>"; };
 		96636E404DEEEDA5C6046ADB /* AddShiftSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddShiftSheet.swift; sourceTree = "<group>"; };
 		966B6B986CA5E9C123B8EC01 /* KioskCheckoutDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskCheckoutDetailSheet.swift; sourceTree = "<group>"; };
@@ -239,6 +241,7 @@
 		B208F1EB8DD4DA49DADC1CAB /* AppTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTabView.swift; sourceTree = "<group>"; };
 		B24728E65A42F40EDB0BBCF8 /* KioskOnlyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskOnlyApp.swift; sourceTree = "<group>"; };
 		B76322B9A6F0D5B70487D0F2 /* SidebarWebDestinationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarWebDestinationView.swift; sourceTree = "<group>"; };
+		B9D82991FC6AE45A56917938 /* AppIntentsData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIntentsData.swift; sourceTree = "<group>"; };
 		BA04562F7C424114F304B494 /* BookingDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingDetailView.swift; sourceTree = "<group>"; };
 		BA5C2531E017BDBDE5EFDDFE /* KioskAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskAPIClient.swift; sourceTree = "<group>"; };
 		BB8C14E1F7005B408A6A4CCD /* DashboardModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardModels.swift; sourceTree = "<group>"; };
@@ -247,7 +250,7 @@
 		C2BBAACBEA87B1EE9FEBC287 /* UserAvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserAvatarView.swift; sourceTree = "<group>"; };
 		C6D1B302F1FC5245180A17CD /* ThumbnailLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailLoader.swift; sourceTree = "<group>"; };
 		C76AD0C31463DD95EE65E1E6 /* PostTradeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostTradeSheet.swift; sourceTree = "<group>"; };
-		D2CCD2319C4A2279FAAB048E /* WisconsinTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WisconsinTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D2CCD2319C4A2279FAAB048E /* WisconsinTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = WisconsinTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D3BDE438C8F05EAA14B299BB /* WisconsinApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WisconsinApp.swift; sourceTree = "<group>"; };
 		D4C885700380306D486A94C9 /* CreateBookingEquipmentRows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateBookingEquipmentRows.swift; sourceTree = "<group>"; };
 		D50B2D1EA31765C957FED322 /* ScheduleModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleModels.swift; sourceTree = "<group>"; };
@@ -271,6 +274,7 @@
 		FA38BB094C95612DBF9F1C24 /* KioskStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskStore.swift; sourceTree = "<group>"; };
 		FAD4EC3F211EACBB157F7DDE /* GearStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GearStore.swift; sourceTree = "<group>"; };
 		FC5B889D242E8A0835B68845 /* ScanResultHeroCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanResultHeroCard.swift; sourceTree = "<group>"; };
+		FF98C537202359B822B1D752 /* BookingEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingEntity.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -365,6 +369,8 @@
 			children = (
 				5E180A2286F2673D3B7E2179 /* AppDelegate.swift */,
 				663DC1D3F890A7577C4D89D5 /* AppIntents.swift */,
+				B9D82991FC6AE45A56917938 /* AppIntentsData.swift */,
+				FF98C537202359B822B1D752 /* BookingEntity.swift */,
 				D3BDE438C8F05EAA14B299BB /* WisconsinApp.swift */,
 			);
 			path = App;
@@ -566,8 +572,8 @@
 		FAC33595C52A409299C15513 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				294553EF02A8AC64D71ED849 /* Wisconsin Creative.app */,
-				80B4D45C3B7B120931B9ACC0 /* Wisconsin Kiosk.app */,
+				294553EF02A8AC64D71ED849 /* Wisconsin.app */,
+				80B4D45C3B7B120931B9ACC0 /* WisconsinKiosk.app */,
 				88F162C9B5233CB44C35E9E5 /* WisconsinLiveActivities.appex */,
 				D2CCD2319C4A2279FAAB048E /* WisconsinTests.xctest */,
 			);
@@ -595,7 +601,7 @@
 			packageProductDependencies = (
 			);
 			productName = Wisconsin;
-			productReference = 294553EF02A8AC64D71ED849 /* Wisconsin Creative.app */;
+			productReference = 294553EF02A8AC64D71ED849 /* Wisconsin.app */;
 			productType = "com.apple.product-type.application";
 		};
 		58413BF8F25E6ACC210F6B81 /* WisconsinKiosk */ = {
@@ -613,7 +619,7 @@
 			packageProductDependencies = (
 			);
 			productName = WisconsinKiosk;
-			productReference = 80B4D45C3B7B120931B9ACC0 /* Wisconsin Kiosk.app */;
+			productReference = 80B4D45C3B7B120931B9ACC0 /* WisconsinKiosk.app */;
 			productType = "com.apple.product-type.application";
 		};
 		AE5BC122AAA548CB394E1598 /* WisconsinLiveActivities */ = {
@@ -658,7 +664,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 2700;
+				LastUpgradeCheck = 2600;
 				TargetAttributes = {
 					5731E598F30EDA43B52B4002 = {
 						DevelopmentTeam = T26T3G8C7Q;
@@ -782,6 +788,7 @@
 				33F2166407B607A0DADC78B2 /* AppDelegate.swift in Sources */,
 				D26919265FC80896DFC0085F /* AppEnvironment.swift in Sources */,
 				355A828828C691446420E0DB /* AppIntents.swift in Sources */,
+				0530FB6892E8A44F4C8F967C /* AppIntentsData.swift in Sources */,
 				96DAC20EB887DA3916DEE474 /* AppState.swift in Sources */,
 				E74AB0C45B70B59CEBC79AC4 /* AppTabView.swift in Sources */,
 				C3C5D175C583096B0D645F24 /* AssetModels.swift in Sources */,
@@ -789,6 +796,7 @@
 				56A81DDDEF06AB1D40D13B33 /* AvailabilityView.swift in Sources */,
 				6A2AF05B82DC2BA24217048C /* BannerView.swift in Sources */,
 				69DD68092CDC35D6924052DF /* BookingDetailView.swift in Sources */,
+				A71171A7BA1D1B302A533883 /* BookingEntity.swift in Sources */,
 				B2FEB545EEB4F42FE18F292F /* BookingsView.swift in Sources */,
 				41891E6B69644BB1DB025CB9 /* Brand.swift in Sources */,
 				71675D3559403AAD9354C225 /* BrowseView.swift in Sources */,
@@ -875,6 +883,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CURRENT_PROJECT_VERSION = 17;
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				INFOPLIST_FILE = WisconsinLiveActivities/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -895,6 +904,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CURRENT_PROJECT_VERSION = 17;
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				INFOPLIST_FILE = WisconsinLiveActivities/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -915,6 +925,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -937,6 +948,7 @@
 				CODE_SIGN_ENTITLEMENTS = Wisconsin/Wisconsin.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 17;
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				INFOPLIST_FILE = Wisconsin/Supporting/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -959,6 +971,7 @@
 				CODE_SIGN_ENTITLEMENTS = Wisconsin/Wisconsin.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 17;
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				INFOPLIST_FILE = Wisconsin/Supporting/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -977,7 +990,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -1009,11 +1021,9 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_PREVIEWS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -1027,7 +1037,6 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.10;
@@ -1038,7 +1047,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -1070,11 +1078,9 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				ENABLE_PREVIEWS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -1095,7 +1101,6 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.10;
@@ -1108,6 +1113,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				INFOPLIST_FILE = Wisconsin/KioskOnly/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1128,6 +1134,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				INFOPLIST_FILE = Wisconsin/KioskOnly/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1147,6 +1154,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (

@@ -13,6 +13,7 @@ final class GearTrackerAppIntentHandoff {
     static let shared = GearTrackerAppIntentHandoff()
 
     private var pendingDestination: GearTrackerAppIntentDestination?
+    private var pendingBookingId: String?
 
     private init() {}
 
@@ -25,6 +26,20 @@ final class GearTrackerAppIntentHandoff {
         let destination = pendingDestination
         pendingDestination = nil
         return destination
+    }
+
+    /// Booking deep-link handoff for `OpenBookingIntent`. Mirrors `request(_:)`:
+    /// the sharedAppState write covers warm launches, the local copy covers cold
+    /// launches where the tab shell hasn't appeared yet.
+    func requestBooking(id: String) {
+        pendingBookingId = id
+        sharedAppState?.pendingPushBookingId = id
+    }
+
+    func consumePendingBookingId() -> String? {
+        let id = pendingBookingId
+        pendingBookingId = nil
+        return id
     }
 }
 
@@ -116,6 +131,29 @@ struct GearTrackerShortcutsProvider: AppShortcutsProvider {
             ],
             shortTitle: "Reserve Gear",
             systemImageName: "plus"
+        )
+
+        AppShortcut(
+            intent: MyCheckedOutGearIntent(),
+            phrases: [
+                "What gear do I have out in \(.applicationName)",
+                "What do I have out in \(.applicationName)",
+                "What's due back in \(.applicationName)",
+                "Check my gear in \(.applicationName)",
+            ],
+            shortTitle: "What's Out",
+            systemImageName: "backpack"
+        )
+
+        AppShortcut(
+            intent: NextShiftIntent(),
+            phrases: [
+                "When's my next shift in \(.applicationName)",
+                "What's my next shift in \(.applicationName)",
+                "Am I working in \(.applicationName)",
+            ],
+            shortTitle: "Next Shift",
+            systemImageName: "clock.badge.checkmark"
         )
     }
 }
