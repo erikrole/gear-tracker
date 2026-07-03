@@ -133,13 +133,13 @@ export async function endCheckoutReturnLiveActivityTokens(
     aps: {
       timestamp: nowSeconds,
       event: "end",
-      "dismissal-date": nowSeconds,
+      "dismissal-date": nowSeconds + 120,
       "content-state": {
         endsAt: new Date().toISOString(),
         now: new Date().toISOString(),
         nextNeedAt: null,
         allowsExtend: false,
-        urgency: "overdue",
+        urgency: "returned",
       },
     },
   };
@@ -248,7 +248,8 @@ export async function updateCheckoutReturnLiveActivityTokens(
     nextNeedAt?: Date | null;
     allowsExtend: boolean;
     urgency: "normal" | "warning" | "critical" | "overdue";
-  }
+  },
+  opts?: { alert?: { title: string; body: string } }
 ): Promise<{ revoked: string[] }> {
   if (!isConfigured() || tokens.length === 0) return { revoked: [] };
 
@@ -263,6 +264,7 @@ export async function updateCheckoutReturnLiveActivityTokens(
         allowsExtend: state.allowsExtend,
         urgency: state.urgency,
       },
+      ...(opts?.alert ? { alert: { title: opts.alert.title, body: opts.alert.body } } : {}),
     },
   };
 

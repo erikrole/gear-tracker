@@ -10,6 +10,7 @@ import { BookingKind, BookingStatus } from "@prisma/client";
 const CHECKOUT_RETURN_ACTIVITY = "checkout_return";
 const DEFAULT_LEAD_MS = 30 * 60_000;
 const OVERDUE_START_WINDOW_MS = 6 * 60 * 60_000;
+const OVERDUE_SWEEP_WINDOW_MS = 6 * 60_000;
 
 function initialsFor(name: string): string {
   const letters = name
@@ -284,6 +285,88 @@ export async function startDueCheckoutReturnLiveActivities(args: {
   return {
     scanned,
     started,
+    revoked,
+  };
+}
+
+export async function sweepOverdueCheckoutReturnLiveActivities(args: {
+  now?: Date;
+  windowMs?: number;
+  limit?: number;
+} = {}) {
+  const now = args.now ?? new Date();
+  const windowMs = args.windowMs ?? OVERDUE_SWEEP_WINDOW_MS;
+  const windowStart = new Date(now.getTime() - windowMs);
+
+  const overdueCheckouts = await db.booking.findMany({
+    where: {
+      kind: BookingKind.CHECKOUT,
+      status: BookingStatus.OPEN,
+      endsAt: {
+        gte: windowStart,
+        lte: now,
+      },
+      liveActivityTokens: {
+        some: {
+          activity: CHECKOUT_RETURN_ACTIVITY,
+          endedAt: null,
+        },
+      },
+    },
+    select: {
+      id: true,
+      title: true,
+      endsAt: true,
+      liveActivityTokens: {
+        where: {
+          activity: CHECKOUT_RETURN_ACTIVITY,
+          endedAt: null,
+        },
+        select: { token: true },
+      },
+    },
+    orderBy: { endsAt: "asc" },
+    take: args.limit ?? 50,
+  });
+
+  const scanned = overdueCheckouts.length;
+  let notified = 0;
+  let revoked = 0;
+
+  for (const booking of overdueCheckouts) {
+    const tokens = booking.liveActivityTokens.map((row) => row.token);
+    if (tokens.length === 0) continue;
+
+    const result = await updateCheckoutReturnLiveActivityTokens(
+      tokens,
+      {
+        endsAt: booking.endsAt,
+        nextNeedAt: null,
+        allowsExtend: false,
+        urgency: urgencyFor(booking.endsAt, now),
+      },
+      {
+        alert: {
+          title: "Overdue",
+          body: `${booking.title} is overdue for return`,
+        },
+      },
+    );
+
+    if (result.revoked.length > 0) {
+      revoked += result.revoked.length;
+      await db.liveActivityToken.updateMany({
+        where: { token: { in: result.revoked } },
+        data: { endedAt: now },
+      });
+    }
+
+    notified += tokens.length - result.revoked.length;
+  }
+
+  return {
+    scanned,
+    notified,
     revoked,
   };
 }

@@ -34,13 +34,13 @@ final class CheckoutReturnLiveActivityManager {
             let result = try await APIClient.shared.checkouts(activeOnly: true, requesterId: requesterId, limit: 5, offset: 0)
             let openCheckouts = result.data.filter { $0.kind == .checkout && $0.status == .open }
             guard !openCheckouts.isEmpty else {
-                await endAll()
+                await endAllAsReturned()
                 return
             }
 
             let candidates = await buildCandidates(from: openCheckouts)
             guard let selected = candidates.sorted(by: candidateSort).first else {
-                await endAll()
+                await endAllAsReturned()
                 return
             }
             await upsertActivity(for: selected)
@@ -53,6 +53,29 @@ final class CheckoutReturnLiveActivityManager {
     func endAll() async {
         for activity in Activity<CheckoutReturnActivityAttributes>.activities {
             await activity.end(nil, dismissalPolicy: .immediate)
+        }
+    }
+
+    /// Ends any existing activities with a brief green "Returned" confirmation
+    /// instead of dismissing immediately, matching the push-driven end path
+    /// (`endCheckoutReturnLiveActivityTokens`). Used when the local reconciler
+    /// discovers the user's checkout is no longer open (i.e. it was returned
+    /// while the app was active), as opposed to logout or stale-activity
+    /// housekeeping, which stay `.immediate`.
+    private func endAllAsReturned() async {
+        let now = Date()
+        for activity in Activity<CheckoutReturnActivityAttributes>.activities {
+            let returnedState = CheckoutReturnActivityAttributes.ContentState(
+                endsAt: activity.content.state.endsAt,
+                now: now,
+                nextNeedAt: nil,
+                allowsExtend: false,
+                urgency: .returned
+            )
+            await activity.end(
+                ActivityContent(state: returnedState, staleDate: nil),
+                dismissalPolicy: .after(now.addingTimeInterval(120))
+            )
         }
     }
 

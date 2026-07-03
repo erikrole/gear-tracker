@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/cron/live-activities",
-      "schedule": "*/15 * * * *"
+      "schedule": "*/5 * * * *"
     },
     {
       "path": "/api/cron/morning-refresh",

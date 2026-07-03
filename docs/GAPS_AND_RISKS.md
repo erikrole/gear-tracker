@@ -267,7 +267,7 @@ _2026-07-03 update: iOS App Intents navigation shipped without opening a new gap
 | Premature Phase C | Kiosk/templates work before Phase A/B solid | Roadmap sequencing enforced by NORTH_STAR.md | Product |
 | ~~Missing SERIALIZABLE on cancel transactions~~ | ~~`cancelBooking()` and `cancelReservation()` used READ_COMMITTED~~ | ~~Fixed 2026-03-24: both upgraded to SERIALIZABLE. Grep `db.$transaction(async` for remaining cases.~~ | ~~Engineering~~ |
 | Equipment guidance stagnation | Only 3 guidance rules in production | Quarterly rule audit with operator input | Product |
-| Alert fatigue from escalation | Repeated overdue notifications overwhelm staff | D-009 fatigue controls required before Phase B | Engineering |
+| ~~Alert fatigue from escalation~~ | ~~Repeated overdue notifications overwhelm staff~~ | ~~Closed: D-009 fatigue controls and per-booking caps are implemented in Settings > Escalation.~~ | ~~Engineering~~ |
 | ~~Pattern fragmentation~~ | ~~New pages copy-paste fetch/URL/error patterns instead of reusing hooks~~ | ~~Closed 2026-03-25: all data-loading pages migrated to shared hooks (`useFetch`, `useUrlState`, `useDebounce`). Pattern is now consistent.~~ | ~~Engineering~~ |
 | ~~Monolithic page files~~ | ~~Scan (1,038) and schedule (1,012) grew with each feature~~ | ~~Closed 2026-03-25: scan decomposed (1,038→251), schedule decomposed (1,012→117)~~ | ~~Engineering~~ |
 | ~~Dashboard monolith~~ | ~~Dashboard page grows with each feature (filters, actions, sections)~~ | ~~Closed 2026-03-24: decomposed into hooks + 7 leaf components~~ | ~~Engineering~~ |
@@ -294,6 +294,7 @@ _2026-07-03 update: iOS App Intents navigation shipped without opening a new gap
 ---
 
 ## Change Log
+- 2026-07-03: Checkout return Live Activity lifecycle polish shipped without opening a new gap. Existing `LiveActivityToken`/`LiveActivityStart` tables, `urgencyFor` classification, and the update/end APNs payload contracts supported a faster cron cadence, a green "returned" terminal content state with delayed dismissal, and a new overdue-sweep push. No schema changes; the overdue sweep re-scans a rolling ~6-minute window rather than adding dedup tracking, so a rare duplicate overdue alert is an accepted tradeoff.
 - 2026-07-02: Opened GAP-60 and the matching active risk for the production CSP tradeoff discovered during `/about` deploy smoke. The emergency fix keeps public pages rendering by allowing Next App Router inline bootstrap scripts; nonce-based CSP remains the desired hardening follow-up.
 - 2026-07-02: Closed GAP-60. Rendered HTML routes now use middleware-owned nonce CSP, root boot scripts receive the request nonce, and deploy smoke automation verifies public pages plus a seeded-login path without allowing `unsafe-inline` in `script-src`.
 - 2026-07-02: iOS Bookings tab freshness and queue clarity shipped without opening a new gap. Existing `/api/checkouts` and `/api/reservations` active, requester, search, overdue, and due-today filters support the native `Mine / All / Attention` scopes; the stale-row flash was a client display issue from painting cached booking rows before live fetch completion, not a missing API contract.
