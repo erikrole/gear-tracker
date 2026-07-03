@@ -61,16 +61,15 @@ type NotificationMeta = {
 };
 
 function notificationMeta(type: string): NotificationMeta {
+  if (type.startsWith("checkout_due") || type.startsWith("checkout_overdue")) {
+    return {
+      icon: AlertTriangle,
+      label: "Overdue",
+      toneClass: "bg-[var(--orange-bg)] text-[var(--orange-text)]",
+    };
+  }
+
   switch (type) {
-    case "checkout_due_reminder":
-    case "checkout_due_now":
-    case "checkout_overdue_2h":
-    case "checkout_overdue_24h":
-      return {
-        icon: AlertTriangle,
-        label: "Overdue",
-        toneClass: "bg-[var(--orange-bg)] text-[var(--orange-text)]",
-      };
     case "shift_gear_up":
       return {
         icon: ShirtIcon,

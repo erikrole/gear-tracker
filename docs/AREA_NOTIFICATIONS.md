@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Notifications
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-01
+- Last Updated: 2026-07-03
 - Status: Active: escalation schedule + iOS booking/event tap-through + APNs native push + calendar sync health alerts + schedule notification policy shipped
 - Version: V1.2
 
@@ -14,8 +14,8 @@ Surface custody urgency and overdue situations to the right people at the right 
 1. Notifications are triggers for action, not passive information.
 2. Deduplication is mandatory — the same notification type fires at most once per booking per window.
 3. In-app and email channels coexist; dev mode logs to console in place of SMTP.
-4. Escalation recipients for the 24h overdue trigger are not yet formalized — D-009 must be accepted before wiring multi-recipient escalation.
-5. Notification center is read-only list in V1; mark-as-read is optional.
+4. The 24h overdue trigger reaches the requester and all admins, per accepted D-009.
+5. Notification center supports mark-read and mark-all-read; read mutations must keep the inbox and bell count honest.
 
 ## Escalation Schedule (Implemented)
 
@@ -23,9 +23,11 @@ All triggers are relative to `booking.endsAt`:
 
 | Hours from Due | Type | Title |
 |---|---|---|
-| −4h | `checkout_due_reminder` | Checkout due in 4 hours |
+| −1h | `checkout_due_1h` | Due back in 1 hour |
 | 0h | `checkout_due_now` | Checkout is due now |
-| +2h | `checkout_overdue_2h` | Checkout is 2 hours overdue |
+| +1h | `checkout_overdue_1h` | 1 hour overdue |
+| +3h | `checkout_overdue_3h` | 3 hours overdue |
+| +8h | `checkout_overdue_8h` | 8 hours overdue |
 | +24h | `checkout_overdue_24h` | Checkout is 24 hours overdue |
 
 Implementation: `src/lib/services/notifications.ts`
@@ -117,7 +119,7 @@ Implementation: `src/lib/services/notifications.ts`
 ## Cron / Job Runner
 - **Cron endpoint**: `GET /api/cron/notifications` — validates `CRON_SECRET` bearer token, no user session needed
 - **Manual endpoint**: `POST /api/notifications/process` — admin/staff auth required
-- **Schedule**: Daily at 8:00 AM UTC via Vercel Cron (`vercel.json`, schedule: `0 8 * * *`)
+- **Schedule**: Daily at 9:00 AM UTC via Vercel Cron (`vercel.json`, schedule: `0 9 * * *`)
 - **Hobby plan constraint**: Vercel Hobby limits crons to once/day. Sub-hourly escalation checks (e.g. `*/15 * * * *`) require upgrading to Pro plan. Current daily cadence means escalation triggers fire with up to ~24h latency relative to their window.
 - Behavior: scans all `OPEN` checkouts, evaluates each trigger against current time, creates in-app notifications + sends email for matching windows
 - Resilience: overdue, license nag, and license-expiry jobs run independently with `Promise.allSettled`. A single failure returns `ok: false` plus `partialFailures`/`errors` metadata while preserving successful job results and safe fallback counts for failed jobs.
@@ -173,10 +175,10 @@ D-009 (Overdue Escalation Policy) is status `Accepted`. Decisions:
 1. **Recipient model**: +24h escalation goes to the requester AND all admins
 2. **Alert fatigue**: Admin-configurable per-booking notification cap (default: 10). Settings at `/settings/escalation`
 3. **Email channel**: Shipped (2026-03-16 via Resend). Dev mode logs to console; failures are non-fatal
-4. **Schedule**: DB-driven via `EscalationRule` model, seeded with -4h/0h/+2h/+24h defaults
+4. **Schedule**: DB-driven via `EscalationRule` model, currently seeded with -1h/0h/+1h/+3h/+8h/+24h defaults
 
 Current behavior:
-- All 4 triggers notify the requester
+- All enabled triggers notify the requester
 - +24h trigger also notifies all admins (excluding the requester if they are an admin)
 - Admins can toggle triggers, recipients, and caps at `/settings/escalation`
 
@@ -223,19 +225,19 @@ Current behavior:
 - `AREA_DASHBOARD.md` — overdue banner count consistency
 - `DECISIONS.md` (D-007) — audit logging of notification creation events
 
-## Out of Scope (V1)
-1. Push notifications (native or web push)
-2. SMS notifications
-3. Per-user notification preferences or opt-out controls
-4. Reservation-based notification triggers (only checkout overdue in V1)
-5. Multi-channel campaign orchestration or template management
+## Current Out of Scope
+1. SMS notifications.
+2. Multi-channel campaign orchestration or template management.
+3. Slack or other shared-channel notification delivery.
+4. Sub-daily checkout escalation cron cadence on Vercel Hobby.
+5. Generic notification authoring tools outside the existing event-specific producers.
 
-## Developer Brief (No Code)
-1. Escalation job is implemented; do not modify schedule without updating D-009
-2. Multi-recipient escalation requires a recipient resolution function (by role, location, or explicit list) — implement only after D-009 is accepted
-3. Dashboard overdue count must query bookings directly for real-time accuracy; do not use notification records as count source
-4. Add notification center UI polish (pagination, mark-as-read) in Phase B
-5. When D-009 is accepted: add recipient model, audit escalation routing events, and add test for multi-recipient delivery
+## Developer Brief
+1. Escalation job is implemented; do not modify schedule without updating D-009, `EscalationRule` seed docs, and Settings copy.
+2. Dashboard overdue count must query bookings directly for real-time accuracy; do not use notification records as count source.
+3. App-shell bell counts must use `GET /api/notifications/count`, not the paginated inbox route.
+4. In-app rows remain persistent even when email/push/category preferences suppress outbound delivery.
+5. When adding notification types, keep web row styling, iOS payload decoding, and tap-through behavior aligned.
 
 ## Environment Variables
 
@@ -247,6 +249,7 @@ Current behavior:
 
 ## Change Log
 - 2026-07-01: Wisconsin Creative domain cutover prep updated production email/link guidance. Production should set `APP_URL=https://wisconsincreative.com` before onboarding, and transactional email should use a verified `Wisconsin Creative <noreply@wisconsincreative.com>` sender when Resend delivery is enabled.
+- 2026-07-03: Notification support hardening aligned the app-shell bell with the lightweight no-store unread-count endpoint, kept checkout due/overdue inbox styling compatible with current reseeded escalation type names, reconciled the documented escalation schedule plus cron timing with the live `EscalationRule` seed shape and `vercel.json`, restored license notification timestamps/category-gated push delivery, and kept manual badge awards inbox-only per the documented contract.
 - 2026-06-18: Schedule Source Of Truth Slice 6 shipped. Scheduling notifications now use one policy for schedule, trade, and gear-prep categories with defensive defaults for old preference JSON; draft assignment changes are suppressed for workers until publish, changed published call times clear acknowledgement, trade lifecycle rows and push/email delivery respect the `trade` category, and schedule/trade/gear-prep payloads carry event-routable context for web and iOS tap-through.
 - 2026-06-10: Daily firmware watch notifications shipped. `morning-refresh` now polls enabled official-source firmware watch targets, baselines the first successful result silently, records latest version/release date/check errors, and creates deduped `firmware_update_released` admin inbox rows plus best-effort push when a newer version appears.
 - 2026-06-10: iOS notification settings detail menu shipped. Native Settings now keeps notification delivery status at the root and moves OS push permission recovery, pause controls, email/push channel toggles, and category toggles into a dedicated Notifications drill-down while preserving the in-app inbox always-on contract.

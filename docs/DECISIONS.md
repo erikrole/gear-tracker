@@ -148,14 +148,14 @@
 - Date: 2026-03-01
 - Status: Accepted (2026-03-15)
 - Context:
-  - Overdue notifications exist, but multi-recipient escalation is not formalized.
+  - Overdue notifications need requester urgency, admin escalation, and fatigue controls without duplicate noise.
 - Decision (Implemented):
-  - Escalation schedule: -4h, 0h, +2h, +24h relative to `booking.endsAt`
+  - Escalation schedule: -1h, 0h, +1h, +3h, +8h, +24h relative to `booking.endsAt`
   - Dedup key: `"{bookingId}:{type}"` — prevents re-fire per booking per window
-  - Current behavior: all 4 triggers notify the checkout requester only
+  - Current behavior: all enabled triggers notify the checkout requester
+  - +24h escalation recipients: the requester AND all admins
   - Implementation: `src/lib/services/notifications.ts`
 - Decision (Accepted — Phase B):
-  - +24h escalation recipients: the requester AND all admins
   - Alert fatigue controls: admin-configurable escalation intervals and per-booking caps (settings page)
   - Email channel shipped 2026-03-16 via Resend; dual-channel (in-app + email) delivery active
 - Reference: `AREA_NOTIFICATIONS.md` is the full spec for escalation behavior
@@ -163,7 +163,7 @@
   - Faster recovery of missing gear once full escalation is wired.
   - Admin-configurable controls prevent alert fatigue.
 - Guardrails:
-  - Default: single escalation at +24h, then stop (admins can add more intervals)
+  - Default: requester escalation before and after due time, with admin fanout only on later overdue rules
   - Per-booking cap enforced server-side to prevent runaway notifications
 
 ## D-010: Sequencing Priorities

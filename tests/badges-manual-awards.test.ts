@@ -31,6 +31,7 @@ vi.mock("@/lib/services/notifications", () => ({
 }));
 
 import { awardBadgeManually } from "@/lib/badges/queries";
+import { sendPushToUser } from "@/lib/services/notifications";
 
 const targetUser = {
   id: "staff-1",
@@ -124,6 +125,7 @@ describe("manual badge awards", () => {
         }),
       }),
     });
+    expect(sendPushToUser).not.toHaveBeenCalled();
   });
 
   it("skips the inbox notification when badge notifications are muted", async () => {
@@ -144,6 +146,7 @@ describe("manual badge awards", () => {
 
     expect(mockTx.studentBadge.create).toHaveBeenCalled();
     expect(mockTx.notification.create).not.toHaveBeenCalled();
+    expect(sendPushToUser).not.toHaveBeenCalled();
   });
 
   it("rejects duplicate manual awards", async () => {

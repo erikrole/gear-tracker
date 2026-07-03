@@ -5,7 +5,7 @@ import { processLicenseNags, processExpiryWarnings } from "@/lib/services/licens
 
 /**
  * GET /api/cron/notifications
- * Called by Vercel Cron daily at 8:00 AM UTC (see vercel.json). Validates CRON_SECRET bearer token.
+ * Called by Vercel Cron daily at 9:00 AM UTC (see vercel.json). Validates CRON_SECRET bearer token.
  * No user session required — runs as a system job.
  */
 export const GET = withCron(async () => {

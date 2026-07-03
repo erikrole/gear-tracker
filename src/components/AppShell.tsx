@@ -131,7 +131,7 @@ export default function AppShell({
     async function loadBadgeCounts() {
       try {
         const [notificationsResult, dashboardResult] = await Promise.allSettled([
-          fetch("/api/notifications?limit=0&unread=true", { signal: controller.signal }),
+          fetch("/api/notifications/count", { signal: controller.signal }),
           fetch("/api/dashboard/stats", { signal: controller.signal }),
         ]);
         if (controller.signal.aborted) return;

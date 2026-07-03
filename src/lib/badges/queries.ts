@@ -3,7 +3,6 @@ import { db } from "@/lib/db";
 import type { AuthUser } from "@/lib/auth";
 import { HttpError } from "@/lib/http";
 import { normalizePrefs } from "@/lib/services/notification-prefs";
-import { sendPushToUser } from "@/lib/services/notifications";
 import { ON_TIME_GRACE_MS } from "./types";
 
 type CustomBadgeDefinitionInput = {
@@ -395,12 +394,6 @@ export async function awardBadgeManually(args: ManualAwardArgs) {
     }
 
     return award;
-  });
-
-  void sendPushToUser(result.userId, {
-    title: `You earned ${result.definition.name}`,
-    body: result.definition.description || "Keep up the great work.",
-    payload: { studentBadgeId: result.id, href: `/users/${result.userId}?tab=badges` },
   });
 
   return result;

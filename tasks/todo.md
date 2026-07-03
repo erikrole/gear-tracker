@@ -4,6 +4,28 @@ Last updated: 2026-07-03
 
 ---
 
+## Active: Notifications support hardening (2026-07-03)
+
+Plan: `tasks/notifications-support-hardening-plan.md`
+
+- [x] Audit notification docs, schema, services, web inbox, app shell badge count, iOS sheet/settings, and focused tests.
+- [x] Route app-shell unread badge refresh through `/api/notifications/count`.
+- [x] Make unread-count responses no-store so the bell does not replay stale private cache.
+- [x] Align web checkout due/overdue row styling with current reseeded escalation type names.
+- [x] Restore license notification sent timestamps and category-gated expiry push delivery.
+- [x] Keep manual badge awards inbox-only per the documented badge notification contract.
+- [x] Refresh the stale cron source assertion for the intentional live-activities cron route.
+- [x] Add focused source-contract coverage and sync docs.
+- [x] Reconcile stale D-009, cron timing, and active-risk notification documentation.
+- [x] Run focused tests, TypeScript, docs/codemap check, whitespace, and app build.
+
+### Review
+- 2026-07-03: Audit found the shell used `/api/notifications?limit=0&unread=true`, but shared pagination treats `limit=0` as a default page request. The hardening slice moves chrome count refresh to the dedicated count route, removes short browser caching from that user-specific count, and makes checkout escalation row styling prefix-based so current `checkout_due_1h` / `checkout_overdue_*` rows do not fall back to generic Notice styling. Docs now reflect the current `EscalationRule` seed shape, 9:00 UTC Vercel cron timing, accepted D-009 admin fanout, and closed fatigue-control risk.
+- 2026-07-03: Second audit wave folded in license and badge delivery fixes: license rows now carry `sentAt`, license-expiry push delivery respects the `licenseExpiry` category toggle, manual badge awards stay inbox-only, and the stale cron source assertion now allows the intentional live-activities cron route.
+- 2026-07-03: Verification passed with focused Vitest, TypeScript, codemap regeneration, docs verification, whitespace, and `npm run build:app`. Follow-ups left intentionally separate: APNs timeout protection, iOS cold-start push buffering, generic `href`/badge/license/firmware push tap-through, low-stock item-family routing, and product direction for numeric iOS/app-icon unread badges.
+
+---
+
 ## Active: iOS checkout return Live Activity push-to-start (2026-07-03)
 
 Plan: let the server start due checkout-return Live Activities by APNs without requiring the iOS app to launch first, while keeping kiosk/admin return completion as the custody source of truth.

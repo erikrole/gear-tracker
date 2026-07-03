@@ -29,7 +29,7 @@
 | `src/lib/services/kiosk-location.ts` | 72 |
 | `src/lib/services/kiosk-scan.ts` | 36 |
 | `src/lib/services/kits.ts` | 327 |
-| `src/lib/services/licenses.ts` | 490 |
+| `src/lib/services/licenses.ts` | 493 |
 | `src/lib/services/live-activities.ts` | 341 |
 | `src/lib/services/notification-prefs.ts` | 103 |
 | `src/lib/services/notifications.ts` | 819 |

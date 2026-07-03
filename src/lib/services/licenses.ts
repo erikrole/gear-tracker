@@ -410,6 +410,7 @@ export async function processExpiryWarnings() {
             title,
             body,
             channel: "IN_APP",
+            sentAt: now,
             dedupeKey,
           },
         });
@@ -418,6 +419,7 @@ export async function processExpiryWarnings() {
           title,
           body,
           payload: { type: "license_expiry", licenseCodeId: code.id },
+          category: "licenseExpiry",
         });
 
         warned++;
@@ -464,6 +466,7 @@ export async function processLicenseNags() {
           title,
           body,
           channel: "IN_APP",
+          sentAt: new Date(),
           dedupeKey,
         },
         update: {},
