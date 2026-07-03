@@ -16,8 +16,7 @@ struct UserDetailView: View {
     var body: some View {
         Group {
             if isLoading && detail == nil {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                UserDetailSkeleton()
             } else if let error, detail == nil {
                 ContentUnavailableView {
                     Label("Couldn't load profile", systemImage: "exclamationmark.triangle")
@@ -29,54 +28,46 @@ struct UserDetailView: View {
                 }
             } else if let detail {
                 ScrollView {
-                    VStack(spacing: 16) {
+                    VStack(spacing: Brand.Space.sm) {
                         profileHeader(detail)
                         badgesSection
 
                         if !checkouts.isEmpty {
-                            FormCard {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text("Active Checkouts")
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(.secondary)
-                                        .textCase(.uppercase)
-                                        .tracking(0.3)
-                                    ForEach(checkouts) { booking in
-                                        NavigationLink(value: booking.id) {
-                                            BookingResultRow(booking: booking)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                }
-                            }
+                            UserBookingsCard(
+                                title: "Active Checkouts",
+                                systemImage: "arrow.up.circle",
+                                tone: .blue,
+                                bookings: checkouts
+                            )
                         }
 
                         if !reservations.isEmpty {
-                            FormCard {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text("Recent Reservations")
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(.secondary)
-                                        .textCase(.uppercase)
-                                        .tracking(0.3)
-                                    ForEach(reservations) { booking in
-                                        NavigationLink(value: booking.id) {
-                                            BookingResultRow(booking: booking)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                }
-                            }
+                            UserBookingsCard(
+                                title: "Recent Reservations",
+                                systemImage: "calendar",
+                                tone: .purple,
+                                bookings: reservations
+                            )
                         }
 
                         if checkouts.isEmpty && reservations.isEmpty && !isLoading {
-                            Text("No recent bookings")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .padding()
+                            // Empty is common for students; collapse to one quiet
+                            // line instead of a full empty-state card.
+                            HStack(spacing: 8) {
+                                Image(systemName: "shippingbox")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.tertiary)
+                                Text("No recent bookings")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.tertiary)
+                                Spacer(minLength: 0)
+                            }
+                            .brandCard(padding: Brand.Space.sm)
+                            .accessibilityElement(children: .combine)
                         }
                     }
-                    .padding()
+                    .padding(.horizontal, Brand.Space.md)
+                    .padding(.vertical, Brand.Space.sm)
                 }
                 .background(Color(.systemGroupedBackground))
             }
@@ -109,11 +100,17 @@ struct UserDetailView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: .center) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Badges")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                                .textCase(.uppercase)
-                                .tracking(0.3)
+                            HStack(spacing: 6) {
+                                Image(systemName: "trophy")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(Color.statusText(.orange))
+                                    .accessibilityHidden(true)
+                                Text("Badges")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                    .textCase(.uppercase)
+                                    .tracking(0.04)
+                            }
                             Text("\(badgeProfile.earnedCount) earned")
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)
@@ -155,20 +152,27 @@ struct UserDetailView: View {
     }
 
     private func profileHeader(_ detail: AppUserDetail) -> some View {
-        let tone = StatusTone.forRole(detail.role)
+        // Hero card mirrors ItemDetail's ItemHeroCard: identity leads in Gotham,
+        // contact lines are monospaced + actionable, role/location/joined read
+        // as quiet metadata. Inactive accounts drop the role tone to gray.
+        let tone: StatusTone = detail.active ? StatusTone.forRole(detail.role) : .gray
         return FormCard {
-            HStack(alignment: .top, spacing: 16) {
+            HStack(alignment: .top, spacing: Brand.Space.md) {
                 UserAvatarView(
                     name: detail.name,
                     avatarUrl: detail.avatarUrl,
-                    size: 56,
+                    size: 64,
                     fallbackBackground: Color.statusBackground(tone),
                     fallbackForeground: Color.statusText(tone),
                     showsBorder: false
                 )
-                VStack(alignment: .leading, spacing: 4) {
+                .opacity(detail.active ? 1 : 0.6)
+
+                VStack(alignment: .leading, spacing: 5) {
                     Text(detail.name)
-                        .font(.headline)
+                        .font(.gothamBlack(size: 22))
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
                     Text(detail.email)
                         .font(.system(.subheadline, design: .monospaced))
                         .foregroundStyle(.secondary)
@@ -197,14 +201,22 @@ struct UserDetailView: View {
                     }
                     HStack(spacing: 6) {
                         StatusPill.role(detail.role)
+                        if !detail.active {
+                            StatusPill(label: "Inactive", tone: .gray)
+                        }
                         if let loc = detail.location {
                             Text(loc)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    if let joined = joinedLabel(detail.createdAt) {
+                        Text(joined)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
-                Spacer()
+                Spacer(minLength: 0)
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel(profileAccessibilityLabel(detail))
@@ -213,8 +225,18 @@ struct UserDetailView: View {
 
     private func profileAccessibilityLabel(_ detail: AppUserDetail) -> String {
         var parts: [String] = [detail.name, detail.role.capitalized]
+        if !detail.active { parts.append("Inactive") }
         if let loc = detail.location, !loc.isEmpty { parts.append(loc) }
+        if let joined = joinedLabel(detail.createdAt) { parts.append(joined) }
         return parts.joined(separator: ", ")
+    }
+
+    private func joinedLabel(_ createdAt: String?) -> String? {
+        guard let createdAt else { return nil }
+        let date = ISO8601DateFormatter.gearBadge.date(from: createdAt)
+            ?? ISO8601DateFormatter().date(from: createdAt)
+        guard let date else { return nil }
+        return "Joined \(date.formatted(.dateTime.month(.abbreviated).year()))"
     }
 
     private func load() async {
@@ -242,6 +264,107 @@ struct UserDetailView: View {
         } catch {
             return nil
         }
+    }
+}
+
+// MARK: - Bookings card
+
+/// Booking section card shared by Active Checkouts and Recent Reservations.
+/// Same anatomy as ItemDetail's booking cards: toned uppercase icon header,
+/// rows as nested tertiary tiles with a trailing chevron.
+private struct UserBookingsCard: View {
+    let title: String
+    let systemImage: String
+    let tone: StatusTone
+    let bookings: [Booking]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: systemImage)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.statusText(tone))
+                    .accessibilityHidden(true)
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.04)
+            }
+
+            VStack(spacing: 6) {
+                ForEach(bookings) { booking in
+                    NavigationLink(value: booking.id) {
+                        HStack(spacing: 10) {
+                            BookingResultRow(booking: booking)
+                            Image(systemName: "chevron.right")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                                .accessibilityHidden(true)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityHint("Double-tap to view booking")
+                }
+            }
+        }
+        .brandCard()
+    }
+}
+
+// MARK: - Loading skeleton
+
+private struct UserDetailSkeleton: View {
+    var body: some View {
+        ScrollView {
+            VStack(spacing: Brand.Space.sm) {
+                // Hero card shape
+                HStack(alignment: .top, spacing: Brand.Space.md) {
+                    Circle()
+                        .fill(Color.secondary.opacity(0.15))
+                        .frame(width: 64, height: 64)
+                    VStack(alignment: .leading, spacing: 8) {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.secondary.opacity(0.15))
+                            .frame(width: 160, height: 16)
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(Color.secondary.opacity(0.10))
+                            .frame(width: 210, height: 11)
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.secondary.opacity(0.12))
+                            .frame(width: 56, height: 16)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .brandCard()
+
+                // Two section-card shapes
+                ForEach(0..<2, id: \.self) { _ in
+                    VStack(alignment: .leading, spacing: 10) {
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(Color.secondary.opacity(0.12))
+                            .frame(width: 120, height: 10)
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.secondary.opacity(0.08))
+                            .frame(height: 52)
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.secondary.opacity(0.08))
+                            .frame(height: 52)
+                    }
+                    .brandCard()
+                }
+            }
+            .padding(.horizontal, Brand.Space.md)
+            .padding(.vertical, Brand.Space.sm)
+        }
+        .background(Color(.systemGroupedBackground))
+        .redacted(reason: .placeholder)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 

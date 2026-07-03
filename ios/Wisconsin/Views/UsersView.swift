@@ -152,11 +152,17 @@ struct UsersView: View {
         } else if vm.users.isEmpty && vm.isLoading {
             List {
                 ForEach(0..<10, id: \.self) { _ in
-                    UserRowSkeleton().listRowSeparator(.hidden)
+                    UserRowSkeleton()
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
                 }
             }
             .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground))
             .allowsHitTesting(false)
+            .accessibilityHidden(true)  // Don't pollute VO with placeholder shapes during initial load.
         } else if vm.users.isEmpty {
             ContentUnavailableView(
                 "No users",
@@ -168,9 +174,13 @@ struct UsersView: View {
         } else {
             List {
                 ForEach(vm.users) { user in
-                    NavigationLink(value: UserRouteId(id: user.id)) {
+                    ZStack {
+                        NavigationLink(value: UserRouteId(id: user.id)) { EmptyView() }.opacity(0)
                         UserListRow(user: user)
                     }
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
                 }
                 if let pageError = vm.pageError {
                     VStack(spacing: 8) {
@@ -184,10 +194,12 @@ struct UsersView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
                     .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
                 } else if vm.hasMore {
                     ProgressView()
                         .frame(maxWidth: .infinity)
                         .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                         .task(id: vm.users.count) { await vm.load() }
                 } else if vm.users.count > 10 {
                     Text("End of list")
@@ -196,9 +208,12 @@ struct UsersView: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 12)
                         .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                 }
             }
             .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground))
         }
     }
 
@@ -243,17 +258,30 @@ private struct UserListRow: View {
     let user: AppUser
 
     var body: some View {
+        // Same card anatomy as the Items/Bookings rows: leading accent rail,
+        // 44pt identity tile, Gotham title, trailing badge + chevron. The rail
+        // and role pill share the role tone; inactive users drop to gray so a
+        // deactivated account never carries an active-looking accent.
+        let tone: StatusTone = user.active == false ? .gray : StatusTone.forRole(user.role)
+
         HStack(spacing: 12) {
-            UserAvatarView(name: user.name, avatarUrl: user.avatarUrl)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(user.name)
-                        .font(.subheadline.weight(.semibold))
-                        .lineLimit(1)
-                    if user.active == false {
-                        StatusPill(label: "Inactive", tone: .gray)
-                    }
-                }
+            StatusRail(tone: tone)
+
+            UserAvatarView(
+                name: user.name,
+                avatarUrl: user.avatarUrl,
+                size: 44,
+                fallbackBackground: Color.statusBackground(tone),
+                fallbackForeground: Color.statusText(tone),
+                showsBorder: false
+            )
+            .accessibilityHidden(true)
+            .opacity(user.active == false ? 0.6 : 1)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(user.name)
+                    .font(.gothamBold(size: 16))
+                    .lineLimit(1)
                 Text(user.email)
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary)
@@ -265,12 +293,26 @@ private struct UserListRow: View {
                         .lineLimit(1)
                 }
             }
+            .layoutPriority(1)
+
             Spacer(minLength: 8)
-            StatusPill.role(user.role)
+
+            VStack(alignment: .trailing, spacing: 4) {
+                StatusPill.role(user.role)
+                if user.active == false {
+                    StatusPill(label: "Inactive", tone: .gray)
+                }
+            }
+
+            Image(systemName: "chevron.right")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
         }
-        .padding(.vertical, 4)
+        .brandCard(padding: Brand.Space.md, radius: Brand.Radius.card)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(rowAccessibilityLabel)
+        .accessibilityHint("Double-tap to view profile")
     }
 
     private var rowAccessibilityLabel: String {
@@ -330,13 +372,14 @@ private struct UserListRow: View {
 private struct UserRowSkeleton: View {
     var body: some View {
         HStack(spacing: 12) {
+            StatusRail(tone: .gray)
             Circle()
                 .fill(Color.secondary.opacity(0.15))
-                .frame(width: 36, height: 36)
+                .frame(width: 44, height: 44)
             VStack(alignment: .leading, spacing: 6) {
                 RoundedRectangle(cornerRadius: 3)
                     .fill(Color.secondary.opacity(0.15))
-                    .frame(width: 140, height: 11)
+                    .frame(width: 140, height: 12)
                 RoundedRectangle(cornerRadius: 3)
                     .fill(Color.secondary.opacity(0.10))
                     .frame(width: 200, height: 9)
@@ -346,7 +389,7 @@ private struct UserRowSkeleton: View {
                 .fill(Color.secondary.opacity(0.12))
                 .frame(width: 50, height: 16)
         }
-        .padding(.vertical, 4)
+        .brandCard(padding: Brand.Space.md, radius: Brand.Radius.card)
         .redacted(reason: .placeholder)
     }
 }

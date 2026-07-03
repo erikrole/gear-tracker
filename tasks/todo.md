@@ -4,6 +4,20 @@ Last updated: 2026-07-02
 
 ---
 
+## Active: iOS Users list + User Detail redesign pass (2026-07-02)
+
+Scope: bring UsersView and UserDetailView onto the established Brand design language (brandCard rows on grouped canvas, StatusRail, Gotham titles, toned uppercase section headers, nested tertiary tiles) matching the Items/Bookings/ItemDetail pass. UI-only; no API or model changes.
+
+- [x] UsersView: card rows on grouped background — StatusRail role tone (gray when inactive), 44pt avatar with role-toned fallback, gothamBold name, explicit chevron, card-shaped skeletons, clear listRow backgrounds on pagination footers.
+- [x] UserDetailView: hero profile card (64pt avatar, gothamBlack name, Inactive pill, joined date), toned icon section headers for Badges / Active Checkouts / Recent Reservations, booking rows in nested tertiary tiles with chevrons, quiet one-line empty card, redacted loading skeleton.
+- [x] Verify: xcodebuild Wisconsin scheme BUILD SUCCEEDED + `npx vitest run tests/`, doc sync in AREA_MOBILE.md, commit + push.
+
+### Review
+- 2026-07-02: UI-only slice. No API/model changes; UsersViewModel, pagination, debounced search, and the role/inactive filter menu are untouched. New signals surfaced from existing data: Inactive pill and Joined date on detail (`AppUserDetail.active`/`createdAt` were decoded but never rendered).
+- 2026-07-02: Vitest run is green except pre-existing `tests/ios-api-contract.test.ts` kiosk assertions (stale `KioskCheckoutContextCard`/`KioskCheckoutTimeCard` pins from the uncommitted kiosk rework — flagged as a separate task, not part of this slice).
+
+---
+
 ## Active: Attachment internal tag intake (2026-07-02)
 
 Scope: let parented Standard attachments use a quiet generated internal tag when the printed label only needs the QR code and a nearby parent number.
