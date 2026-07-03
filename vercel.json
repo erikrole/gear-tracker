@@ -5,10 +5,6 @@
       "schedule": "0 9 * * *"
     },
     {
-      "path": "/api/cron/live-activities",
-      "schedule": "*/5 * * * *"
-    },
-    {
       "path": "/api/cron/morning-refresh",
       "schedule": "0 8 * * *"
     },

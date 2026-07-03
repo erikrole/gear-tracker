@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-02
+- Last Updated: 2026-07-03
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -198,6 +198,7 @@ _2026-07-03 update: iOS App Intents navigation shipped without opening a new gap
 | ~~GAP-58~~ | ~~Kiosk dashboard `Promise.all` — single query failure breaks idle screen~~ | ~~AREA_KIOSK~~ | ~~Closed~~ | Closed 2026-05-13: `/api/kiosk/dashboard` now uses partial-result fallbacks and returns `partialFailures` instead of taking the idle screen down when one read fails. |
 | GAP-59 | Firmware watch does not yet cover every live camera body | AREA_ITEMS | Expected | The inventory-driven seed watches verified official Sony pages for a1, a7 III, a7 IV, a7S III, FX3, FX3A, and FX6. DJI, GoPro, Insta360, JVC, Sony a1 II, Sony a7 V, and Sony a9 III are skipped until a verified official source URL or adapter is added. Source: `tasks/firmware-watch-inventory-report.md`. |
 | ~~GAP-60~~ | ~~Public CSP still allows inline scripts for Next App Router bootstrap~~ | ~~CROSS-CUTTING~~ | ~~Closed~~ | Closed 2026-07-02: rendered HTML routes now get a per-request nonce from middleware, the root boot scripts carry `nonce={nonce}`, and production `script-src` no longer allows `unsafe-inline`. Source-contract and deploy smoke checks guard the route set. |
+| GAP-61 | Hobby cron limit prevents sub-daily server-started checkout return Live Activity sweeps | AREA_MOBILE | Expected | Vercel Hobby deploys reject cron expressions that run more than once per day. `/api/cron/live-activities` remains protected and callable for manual runs, Vercel Pro, or an external scheduler, but it is intentionally unscheduled in `vercel.json` on Hobby. Native app-opened reconciliation remains the fallback. |
 | ~~GAP-22~~ | ~~`FavoriteItem` model has API but no UI surface — no favorites filter on items list, no favorites page~~ | ~~AREA_ITEMS~~ | ~~Closed~~ | ~~Fully shipped: star column in items DataTable, optimistic toggle on item detail page, "Favorites" filter chip in toolbar, `favorites_only` query param in API. Batched favorite lookup (no N+1).~~ |
 | ~~GAP-23~~ | ~~`StudentSportAssignment` and `StudentAreaAssignment` are read-only display — no CRUD UI for editing assignments~~ | ~~AREA_USERS~~ | ~~Closed~~ | ~~Full CRUD shipped in UserInfoTab.tsx: sport popover multi-select + area popover with primary toggle. Permission-gated (admin/staff can edit, students read-only). APIs: POST/DELETE sport roster + POST/DELETE student-areas.~~ |
 | ~~GAP-24~~ | ~~No dashboard reservation date filter — AC-4 not enforced~~ | ~~AREA_DASHBOARD~~ | ~~Closed~~ | ~~Fixed 2026-03-25: Added 7-day window filter to stats count query. AC-4 enforced.~~ |
@@ -294,7 +295,8 @@ _2026-07-03 update: iOS App Intents navigation shipped without opening a new gap
 ---
 
 ## Change Log
-- 2026-07-03: Checkout return Live Activity lifecycle polish shipped without opening a new gap. Existing `LiveActivityToken`/`LiveActivityStart` tables, `urgencyFor` classification, and the update/end APNs payload contracts supported a faster cron cadence, a green "returned" terminal content state with delayed dismissal, and a new overdue-sweep push. No schema changes; the overdue sweep re-scans a rolling ~6-minute window rather than adding dedup tracking, so a rare duplicate overdue alert is an accepted tradeoff.
+- 2026-07-03: Opened GAP-61 for the accepted Vercel Hobby deployment tradeoff. The high-frequency Live Activity cron route remains implemented, but `vercel.json` no longer schedules it on Hobby because sub-daily cron expressions fail deployment.
+- 2026-07-03: Checkout return Live Activity lifecycle polish shipped. Existing `LiveActivityToken`/`LiveActivityStart` tables, `urgencyFor` classification, and the update/end APNs payload contracts support the protected high-frequency route behavior, a green "returned" terminal content state with delayed dismissal, and a new overdue-sweep push. No schema changes; the overdue sweep re-scans a rolling ~6-minute window rather than adding dedup tracking, so a rare duplicate overdue alert is an accepted tradeoff when the route is invoked by Pro/manual/external scheduling.
 - 2026-07-02: Opened GAP-60 and the matching active risk for the production CSP tradeoff discovered during `/about` deploy smoke. The emergency fix keeps public pages rendering by allowing Next App Router inline bootstrap scripts; nonce-based CSP remains the desired hardening follow-up.
 - 2026-07-02: Closed GAP-60. Rendered HTML routes now use middleware-owned nonce CSP, root boot scripts receive the request nonce, and deploy smoke automation verifies public pages plus a seeded-login path without allowing `unsafe-inline` in `script-src`.
 - 2026-07-02: iOS Bookings tab freshness and queue clarity shipped without opening a new gap. Existing `/api/checkouts` and `/api/reservations` active, requester, search, overdue, and due-today filters support the native `Mine / All / Attention` scopes; the stale-row flash was a client display issue from painting cached booking rows before live fetch completion, not a missing API contract.

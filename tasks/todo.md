@@ -4,6 +4,22 @@ Last updated: 2026-07-03
 
 ---
 
+## Active: Vercel Hobby cron deploy unblock (2026-07-03)
+
+Plan: make production deployable on Vercel Hobby by removing sub-daily cron schedules while keeping protected route code available for Pro/manual execution.
+
+- [x] Confirm the deployment failure against current Vercel cron limits.
+- [x] Remove the Hobby-incompatible `/api/cron/live-activities` schedule from `vercel.json`.
+- [x] Add a source-contract guard so future scheduled cron expressions stay daily-or-slower on Hobby.
+- [x] Sync Mobile, Decisions, Gaps, and task notes.
+- [x] Run focused cron/source tests, TypeScript, whitespace, docs/codemap, and app build verification.
+
+### Review
+- 2026-07-03: Implementation in progress. The deploy-breaking expression was `/api/cron/live-activities` at a sub-daily cadence. The protected route remains in source for manual invocation, Vercel Pro, or an external scheduler, while Hobby keeps native app-opened Live Activity reconciliation as the fallback.
+- 2026-07-03: Verification passed with focused cron/source Vitest, TypeScript, codemap regeneration and docs check, whitespace, and `npm run build:app`. `vercel.json` now schedules only daily or weekly cron expressions on Hobby.
+
+---
+
 ## Active: Notifications support hardening (2026-07-03)
 
 Plan: `tasks/notifications-support-hardening-plan.md`
@@ -37,7 +53,7 @@ Plan: let the server start due checkout-return Live Activities by APNs without r
 - [x] Verify Prisma, source contracts, TypeScript, docs, and Xcode beta iOS build.
 
 ### Review
-- 2026-07-03: Implementation in progress. Push-to-start tokens live separately from per-activity update tokens, remote start attempts are deduped per user/booking/activity, logout revokes start tokens, and the Live Activity cron is scheduled every 15 minutes.
+- 2026-07-03: Implementation shipped locally, then reconciled for Vercel Hobby. Push-to-start tokens live separately from per-activity update tokens, remote start attempts are deduped per user/booking/activity, logout revokes start tokens, and the protected Live Activity route remains available for Pro/manual/external scheduling while Hobby relies on native app-opened reconciliation.
 - 2026-07-03: Verification passed with Prisma generate, focused Live Activity source-contract Vitest, TypeScript, migration-prefix check, iOS drift, iOS audit gaps with the pre-existing seven unregistered extracted files and zero missing audits, codemap/docs verification, whitespace, `npm run build:app`, and an Xcode beta 27 generic iOS Simulator Debug build for `Wisconsin`.
 
 ---

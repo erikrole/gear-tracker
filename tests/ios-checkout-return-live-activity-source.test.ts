@@ -140,7 +140,7 @@ describe("iOS checkout return Live Activity source contract", () => {
     expect(service).toContain("endsAt: args.endsAt");
   });
 
-  it("registers push-to-start tokens and starts checkout return activities from the server", () => {
+  it("registers push-to-start tokens and keeps the server start route available for Pro/manual schedulers", () => {
     const api = source("ios/Wisconsin/Core/APIClient.swift");
     const app = source("ios/Wisconsin/App/WisconsinApp.swift");
     const session = source("ios/Wisconsin/Core/SessionStore.swift");
@@ -168,7 +168,8 @@ describe("iOS checkout return Live Activity source contract", () => {
     expect(apns).toContain('"input-push-token": 1');
     expect(cron).toContain("withCron");
     expect(cron).toContain("startDueCheckoutReturnLiveActivities");
-    expect(vercel).toContain("/api/cron/live-activities");
-    expect(vercel).toContain("*/15 * * * *");
+    expect(vercel).not.toContain("/api/cron/live-activities");
+    expect(vercel).not.toContain("*/5 * * * *");
+    expect(vercel).not.toContain("*/15 * * * *");
   });
 });

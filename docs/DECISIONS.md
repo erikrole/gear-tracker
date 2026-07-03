@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-06-25
+- Last Updated: 2026-07-03
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -442,7 +442,8 @@
 - Status: Accepted
 - Context:
   - Calendar event sync is currently manual-only (button click in Settings). Staff forget to sync, leading to stale event data that causes shift coverage gaps and missed game-day prep.
-  - Vercel Hobby plan supports only one cron invocation per day. Existing notification cron runs at 8 AM UTC.
+  - Vercel Hobby cron jobs must run at most once per day per scheduled expression. Sub-daily expressions fail deployment on Hobby.
+  - Existing daily operational cron routes run through `vercel.json`; sub-daily operational work needs Vercel Pro or an external scheduler.
 - Decision:
   - Calendar sync is implemented through `GET /api/cron/morning-refresh` in `vercel.json`, running once daily at 08:00 UTC (`0 8 * * *`) before the 09:00 UTC notification cron.
   - Morning refresh calls enabled-source sync, generates shifts for new events, and owns the related daily maintenance work documented in D-035.
@@ -453,7 +454,7 @@
 - Consequences:
   - Events refresh daily without manual intervention. Staff can still sync on-demand when needed.
   - Shift auto-generation fires after daily sync — new events produce shifts within ~24 hours.
-  - If upgraded to Vercel Pro, cron frequency can increase without code changes.
+  - If upgraded to Vercel Pro, cron frequency can increase by re-adding or tightening `vercel.json` schedules without code changes to the protected routes.
 - Guardrails:
   - Sources with `enabled: false` are skipped by cron (same as manual sync).
   - Sync is idempotent — manual + cron firing close together is harmless.
@@ -792,6 +793,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 
 ## Change Log
 - 2026-06-25: Amended D-028 and D-040 for admin close-without-scan. Kiosk remains the standard custody return surface, while admins can close a physically verified returned checkout through a reasoned override with audit and override evidence.
+- 2026-07-03: Amended D-026 for current Vercel Hobby cron limits. Hobby deploys require daily-or-slower cron expressions, so sub-daily Live Activity sweeps stay unscheduled unless the project moves to Pro or an external scheduler.
 - 2026-06-15: Added D-040 for kiosk-only custody. App/web becomes reservation-first; direct checkout, reservation pickup, and return custody mutations are kiosk-only, with fulfilled source reservations closing as `COMPLETED`.
 - 2026-06-08: Updated D-029/D-037 for the no-temp-password beta pivot. First-time onboarding now stays invite-first through AllowedEmail registration, while forced-password handling remains recovery-only.
 - 2026-06-03: Added D-037 to make onboarding a bulk-capable, invitation-scoped account lifecycle while preserving the allowlist gate and forced-password safety.
