@@ -1,6 +1,100 @@
 # Task Queue
 
-Last updated: 2026-07-02
+Last updated: 2026-07-03
+
+---
+
+## Active: iOS checkout return Live Activity push-to-start (2026-07-03)
+
+Plan: let the server start due checkout-return Live Activities by APNs without requiring the iOS app to launch first, while keeping kiosk/admin return completion as the custody source of truth.
+
+- [x] Add push-to-start token storage and an authenticated iOS registration/revocation API.
+- [x] Add a cron-backed server trigger that starts due or recently overdue checkout-return Live Activities through APNs.
+- [x] Teach iOS to register push-to-start tokens and observe APNs-started activities for per-activity update tokens.
+- [x] Keep app-started Live Activity reconciliation as a fallback when the app is opened.
+- [x] Verify Prisma, source contracts, TypeScript, docs, and Xcode beta iOS build.
+
+### Review
+- 2026-07-03: Implementation in progress. Push-to-start tokens live separately from per-activity update tokens, remote start attempts are deduped per user/booking/activity, logout revokes start tokens, and the Live Activity cron is scheduled every 15 minutes.
+- 2026-07-03: Verification passed with Prisma generate, focused Live Activity source-contract Vitest, TypeScript, migration-prefix check, iOS drift, iOS audit gaps with the pre-existing seven unregistered extracted files and zero missing audits, codemap/docs verification, whitespace, `npm run build:app`, and an Xcode beta 27 generic iOS Simulator Debug build for `Wisconsin`.
+
+---
+
+## Active: iOS App Intents audit and improvement (2026-07-03)
+
+Plan: `tasks/ios-app-intents-plan.md`
+
+- [x] Add a central App Intent handoff so system invocations route through one app-owned surface.
+- [x] Add open-app shortcuts for Scan Gear Code, Show My Gear, Show Today's Schedule, and Create Reservation.
+- [x] Route Scan into the existing QR scanner cover and Create Reservation into the existing reservation sheet.
+- [x] Add source-contract tests for shortcut metadata, handoff routing, and the no-mutation boundary.
+- [x] Sync Mobile/Gaps docs and run focused iOS verification.
+
+### Review
+- 2026-07-03: Audit found no live App Intents code in the current source tree. The slice is intentionally open-app only: no background booking, checkout, return, custody, or shift mutations.
+- 2026-07-03: Implemented four open-app shortcuts through `GearTrackerAppIntentHandoff` and `AppState.pendingAppIntentDestination`. Scan opens the existing QR scanner cover, My Gear opens the unified bookings list, Today's Schedule opens Schedule, and Create Reservation opens the existing reservation sheet.
+- 2026-07-03: Verification passed: focused App Intents Vitest, touched-file whitespace check, iOS drift, iOS audit gaps with the pre-existing unregistered-file note and zero missing audits, XcodeGen project check, docs/codemap check, XcodeBuildMCP simulator build, and `npm run build:app`.
+
+---
+
+## Active: iOS all-pages screenshot audit (2026-07-03)
+
+Record: `tasks/audit-all-pages-ios.md`
+
+Scope: screenshot, runtime-snapshot, source-audit, and focused fixes for every native Wisconsin iOS page, pushed detail view, sheet, cover, confirmation flow, profile/settings drill-down, dev tool, and kiosk-only screen.
+
+- [x] Inventory all current SwiftUI surfaces and existing audit records.
+- [x] Home screenshot/audit/fix/verify.
+- [x] Schedule list screenshot/audit/fix/verify.
+- [ ] Bookings and booking mutation sheets.
+  - [x] Bookings empty list.
+  - [x] Create Reservation Details, event picker, pickup picker, Equipment, cart drawer, and Confirm.
+  - [ ] Booking Detail, Edit Booking, Extend Booking, Cancel confirmation, QR scanner cover.
+- [x] More directory and resource/detail destinations.
+- [x] Search, scanner, notifications, profile/settings, and dev tools.
+- [ ] Kiosk-only target screens and sheets.
+- [ ] Final full verification sweep.
+
+### Review
+- 2026-07-03: Settings/Profile and remaining Schedule sheet pass completed for reachable live surfaces. Fixed Availability delete safety by adding a destructive confirmation before removing student scheduling blocks, and fixed Add Shift all-day defaults so staff no longer see midnight call/end rows for all-day events unless custom timing is enabled. Runtime proof covered Profile/Settings, Account Security, Notification Settings, staff tools, Schedule calendar, Filters, Trade Board, Post Trade, Event Detail, and Add Shift. Current live account has no active bookings and is not Student-scheduling-class, so Booking Detail/Edit/Extend/Cancel and Availability runtime CRUD remain source/build verified rather than live-mutated.
+- 2026-07-03: Create Reservation all-screens pass completed for the reachable Bookings/Event Detail creation flow. Fixed Details picker label wrapping, all-day linked-event headers for selected and prefilled event paths, full-row picker hit targets, attachment-category filtering in Equipment, and all-day Review copy. Verified with XcodeBuildMCP screenshots, warning-clean simulator build/run, `npm run test -- tests/ios-create-booking-picker-parity.test.ts`, `git diff --check`, `npm run drift:ios`, `npm run audit:ios:gaps`, and `npm run verify:docs`.
+- 2026-07-03: User corrected the scope from primary-page passes to all pages/screens/sheets. Master checklist is now `tasks/audit-all-pages-ios.md`; the lesson log records that future all-app screenshot audits must include pushed details, sheets, covers, confirmations, dev tools, and kiosk-only screens.
+
+---
+
+## Active: Backend foundation hardening (2026-07-03)
+
+Plan: `tasks/backend-foundation-hardening-plan.md`
+
+Goal: strengthen the backend and app/website foundation in auto-advancing, independently verifiable slices.
+
+- [x] Slice 1: API contract gate refresh.
+- [x] Slice 2: Mutation safety sweep.
+- [x] Slice 3: Public route abuse pass.
+- [x] Slice 4: Freshness framework pass.
+- [x] Slice 5: Vercel timeout and bounded-read audit.
+- [x] Slice 6: Migration and production drift guard.
+- [x] Slice 7: Cron observability and idempotency.
+- [x] Slice 8: Auth, session, and onboarding hardening.
+- [x] Slice 9: Kiosk boundary proof.
+- [x] Slice 10: Data quality repair cockpit.
+- [x] Slice 11: iOS API response-shape contracts.
+- [x] Slice 12: Release verification pipeline.
+
+### Review
+- 2026-07-03: Plan logged from the backend-strengthening checklist. Start with Slice 1 unless a more urgent backend issue appears in current source or production evidence.
+- 2026-07-03: Slice 1 shipped locally. Static API inventory covers 223 route files and 301 exported HTTP methods, resolves alias exports, requires every method export to resolve to `withAuth`, `withKiosk`, `withCron`, or `withHandler`, and pins public/kiosk/cron route-family boundaries plus public abuse controls. The gate found and fixed two wrapper drifts: Live Activity checkout-return registration now uses `withAuth`, and the tokenized shift ICS feed now uses `withHandler` with its token/IP rate controls allowlisted. Verification passed focused Vitest, TypeScript, whitespace, and `npm run build:app`.
+- 2026-07-03: Slice 2 shipped locally on shared booking lifecycle mutations. `updateReservation`, `updateCheckout`, and `extendBooking` now share the same SERIALIZABLE/allocation-race 409 mapping already used by booking creation, so edit/extend commit races return controlled booking conflict feedback instead of internal errors. Focused regressions cover reservation edit, checkout edit, and extension races. Verification passed focused Vitest, TypeScript, whitespace, docs sync, and `npm run build:app`.
+- 2026-07-03: Slice 3 shipped locally as a public-route abuse source-contract pass. `tests/public-route-abuse-contract.test.ts` now has an explicit control ledger for login, register, forgot/reset password, kiosk activation, seed, and shift ICS routes, pinning rate limits, token scope, seed production safety, generic reset responses, registration allowlist behavior, reset-token/session cleanup, kiosk activation expiry/single-use behavior, and ICS no-cache/token controls. Verification passed focused Vitest, TypeScript, whitespace, and `npm run build:app`; stale generated `.next` artifacts were cleared before the clean build proof.
+- 2026-07-03: Slice 4 shipped locally on Schedule freshness. Schedule was the next operational surface after bookings/items because it inherited the global 60-second React Query stale window and disabled focus refetch; `/schedule` reads now use a local fresh-query policy with no-store fetches, `staleTime: 0`, always-refetch-on-mount, and window-focus refetch while preserving visible rows during background refresh. Verification passed focused Vitest, TypeScript, docs, whitespace, and `npm run build:app` after clearing stale generated `.next` artifacts.
+- 2026-07-03: Slice 5 shipped locally on bounded image rehosting. The audit picked the current documented BulkSku CDN gap: `/api/cron/rehost-images` only drained serialized asset images. The cron now stays within the same serverless budget while processing 16 asset candidates and 8 active item-family candidates per run, mirrors reachable `BulkSku.imageUrl` values to Vercel Blob, increments retry attempts for unreachable family URLs, and returns separate asset/item-family backlog counters. Verification passed focused Vitest, TypeScript, docs, whitespace, and `npm run build:app`.
+- 2026-07-03: Slice 6 shipped locally on migration and production drift guardrails. The pass restored `BulkSku.imageRehostAttempts` to the Prisma model to match the existing `0077_add_bulk_sku_image_rehost_attempts` migration, regenerated the Prisma client, and pinned migration/schema/cron alignment with source-contract coverage. `npm run db:migrate:check` now also validates migration folder shape and required `migration.sql` files, not just prefix collisions. Verification passed focused Vitest, Prisma validation, TypeScript, docs, whitespace, `npm run build:app`, and read-only Neon `npm run db:migrate:health` with 92/92 local migrations applied and no pending, failed, or DB-only migrations.
+- 2026-07-03: Slice 7 shipped locally on cron observability and idempotency. All live cron routes remain behind `withCron` and D-035 still keeps daily scheduling maintenance in `morning-refresh`; the concrete fix was `audit-archive`, which now caps audit deletion to five 1,000-row batches per run, reports backlog/batch metadata, and isolates audit-log and expired-session purge failures through `partialFailures`/`errors` without dropping successful work from the other segment. Verification passed focused cron Vitest and TypeScript.
+- 2026-07-03: Slice 8 shipped locally on auth/session/onboarding hardening. Existing coverage already pinned forced password changes, reset-token transactions, role escalation, hidden-user visibility, hidden cleanup, allowed-email invite-first onboarding, and kiosk sessions. The new fix hardens self-service session revocation: `/api/me/sessions` and `/api/me/change-password` with `revokeOtherSessions` must re-identify the current cookie-backed session before bulk-deleting other sessions, and otherwise return 401 with no session deletion. Verification passed focused auth/session/onboarding Vitest and TypeScript.
+- 2026-07-03: Slice 9 shipped locally on kiosk boundary proof. Existing boundary tests already pin app/web custody blocks and reservation-first UI; the concrete hardening was kiosk direct checkout location scope. `/api/kiosk/checkout/availability` and `/api/kiosk/checkout/complete` now ignore client-supplied `locationId` and use the authenticated kiosk session location for availability, booking creation, asset updates, and pickup kiosk evidence while preserving payload tolerance for older native clients. Verification passed focused kiosk boundary Vitest and TypeScript.
+- 2026-07-03: Slice 10 shipped locally on data-quality repair safety. Current source already keeps Inventory Hygiene and Admin Fix Today read-only, and hidden-user cleanup already has dry-run/apply coverage; the concrete fix was stale battery custody repair. `POST /api/bulk-skus/batteries/repair-stale` now defaults to dry-run preview with `plannedCount` and candidate units, skips updates/audit writes unless `dryRun: false`, and Battery Ops explicitly sends `dryRun: false` only from the confirmed repair dialog. Verification passed focused Battery Ops/Fix Today/hidden-cleanup Vitest, TypeScript, codemap/docs verification, whitespace, and `npm run build:app`.
+- 2026-07-03: Slice 11 shipped locally on iOS API response-shape contracts. Existing `ios-api-contract` coverage already pinned the known decode-breaking routes; the new hardening targets native Trade Board Open Work. `OpenWorkResponse` now defaults missing `openShifts` or `pickupRequests` to empty arrays so a partially omitted `/api/schedule/open-work` payload does not blank the whole sheet, and the contract test pins the route envelope, service keys, API client decode, and tolerant Swift decoder. The pass also refreshed a stale kiosk checkout source assertion to current component names. Verification passed focused iOS/Schedule Vitest, TypeScript, iOS drift, codemap/docs verification, whitespace, `npm run build:app`, and XcodeBuildMCP simulator build for `Wisconsin`; the native build reported one unrelated existing `CreateBookingSheet.swift:118` warning.
+- 2026-07-03: Slice 12 shipped locally on release verification pipeline. Added `docs/RELEASE_VERIFICATION.md` as the canonical closeout guide: default local backend/web gates, safe `npm run build:app`, deploy-shaped `npm run build` migration-deploy caveat, migration health/deploy gates, authenticated browser proof triggers, `npm run smoke:deploy`, iOS drift/audit/Xcode gates, and release-candidate escalation guidance. Linked it from `README.md`, refreshed the Prisma/Neon runbook wording, and recorded the no-gap documentation update in `docs/GAPS_AND_RISKS.md`. Verification passed docs/codemap check and whitespace.
 
 ---
 
@@ -15,6 +109,9 @@ Scope: bring UsersView and UserDetailView onto the established Brand design lang
 ### Review
 - 2026-07-02: UI-only slice. No API/model changes; UsersViewModel, pagination, debounced search, and the role/inactive filter menu are untouched. New signals surfaced from existing data: Inactive pill and Joined date on detail (`AppUserDetail.active`/`createdAt` were decoded but never rendered).
 - 2026-07-02: Vitest run is green except pre-existing `tests/ios-api-contract.test.ts` kiosk assertions (stale `KioskCheckoutContextCard`/`KioskCheckoutTimeCard` pins from the uncommitted kiosk rework — flagged as a separate task, not part of this slice).
+- 2026-07-03: Follow-up polish shipped locally. User Detail profile heroes no longer show location metadata, the compact native tab order is now Home, Schedule, Bookings/My Gear, More, Search, and the old Browse directory presents as More while retaining Items, Guides, Licenses, and Users. Verification passed focused tab/student contract Vitest, whitespace, iOS drift, iOS gap audit with zero missing audits, docs verification, XcodeBuildMCP simulator build/run, and simulator snapshots for tab order plus profile metadata.
+- 2026-07-03: Second follow-up polish shipped locally. Search now auto-presents the native search field/keyboard when the Search tab appears, Home's profile avatar uses a plain 44pt toolbar tap target instead of a glass circle, and the More directory keeps only the navigation title instead of repeating a section header.
+- 2026-07-03: Third follow-up polish shipped locally. Native Items and typed Search tab results now hide parented accessories by default; direct QR/scan lookup still resolves child accessories for recovery. Verification passed focused API/iOS contracts, whitespace, iOS drift, iOS gap audit with zero missing audits, docs verification, and XcodeBuildMCP simulator build/run.
 
 ---
 
@@ -31,20 +128,44 @@ Scope: let parented Standard attachments use a quiet generated internal tag when
 - 2026-07-02: The narrow slice keeps `Asset.assetTag` and `Asset.qrCodeValue` required in storage. The user-facing change is attachment-only: a parented Standard accessory can leave the visible tag blank, while the submit helper creates a quiet internal tag from the parent, attachment identity, and QR code.
 - 2026-07-02: Standard form validation now makes the visible asset tag optional only while `Item is an attachment` is enabled. Explicit attachment tags are still preserved, and standalone Standard item validation remains unchanged.
 - 2026-07-02: Verification passed focused Vitest, TypeScript, docs/codemap verification, whitespace, and `npm run build:app`.
+- 2026-07-02: Follow-up screenshot showed the generated internal tag leaking into the parent attachment row title. Detail rows now lead with the attachment display name and use that label for detach copy while keeping the generated tag as storage/search identity only.
 
 ---
 
-## Active: Kiosk checkout details scanner polish (2026-07-02)
+## Active: Kiosk checkout details clean redesign (2026-07-02)
 
-Scope: improve the dedicated kiosk checkout details step before Start Scanning.
+Scope: rebuild the dedicated kiosk checkout details step before Start Scanning as one focused native kiosk panel.
 
-- [x] Replace the compact return `DatePicker` field that requires long-press behavior on the old iPad with native quick selects and an inline wheel picker behind Custom.
-- [x] Make upcoming event selection more prominent than a compact menu.
-- [x] Add better quick return-time choices and keep event-end autofill available.
-- [x] Add source-contract coverage and sync kiosk/mobile docs.
+- [x] Re-audit the kiosk checkout source, shared kiosk components, kiosk/mobile docs, decisions, schema context, and HIG control direction.
+- [x] Replace the prior quick-select setup with reservation-style Context and Details windows.
+- [x] Make checkout context explicit: ad hoc by default, or linked to a selected event with auto-filled booking name.
+- [x] Remove the checkout start-date field and the unexplained green header checkmark.
+- [x] Make the ad hoc booking-name/details text field prominent and required when no event is linked.
+- [x] Replace segmented/Custom return presets with an always-visible native return DatePicker.
+- [x] Update source-contract coverage, kiosk/mobile docs, walkthrough, and lessons.
 - [x] Run focused tests, iOS drift/audit, docs verification, whitespace, and Xcode verification for kiosk plus main app.
+- [x] Follow-up: move booking name into Context, make Return the lower card, remove ad hoc explainer copy, and reduce missed tap/long-press behavior in the setup controls.
+- [x] Follow-up: tune Checkout Details for the fixed iPad Pro 10.5 kiosk target with Context left, Return right, Start Scanning pinned, and UIKit-backed date/time pickers so calendar taps do not require a long-press.
+- [x] Correction: force the fixed landscape layout to render Context and Return side by side below the full-width hero, not as a stacked fallback.
+- [x] Correction: replace the return date grid with `UICalendarView` and move kiosk inactivity tracking off SwiftUI global gestures so calendar taps are not delayed by the shell.
+- [x] Correction: after ad hoc details entry, Start Scanning must force-release the text field and reacquire HID scanner focus before scans start.
+- [x] Polish: rebalance Context/Return column widths so the Return calendar and time wheel do not overlap.
 
 ### Review
+- 2026-07-02: Ad hoc scanner handoff and picker polish verification passed focused kiosk checkout/scanner source-contract tests, XcodeGen project check, iOS drift, iOS gap audit, docs verification, whitespace, and unsandboxed Xcode verification for both `WisconsinKiosk` and `Wisconsin`. The audit still exits clean with 44/44 surfaces covered while reporting the seven pre-existing unregistered extracted iOS files.
+- 2026-07-02: Live hardware correction in progress. After an ad hoc checkout, the scanner beeped but the iPad did not receive input because ad hoc typing left the scanner focus gate suppressed and the protected UIKit text field could refuse first-responder resignation. Follow-up adds an explicit `allowScannerFocusNow()` gate reset, force-resigns the visible field on app-driven focus clear, and delays enabling HID capture until the next run loop after Start Scanning.
+- 2026-07-02: Picker polish in progress. The two-column layout worked, but Return was too narrow for the `UICalendarView` plus wheel, so the wheel visually overlapped the calendar. Follow-up shifts width from Context to Return and clips the calendar to its assigned frame.
+- 2026-07-02: Calendar tap correction verification passed focused kiosk checkout/scanner source-contract tests, XcodeGen project check, iOS drift, iOS gap audit, docs verification, whitespace, and unsandboxed Xcode verification for both `WisconsinKiosk` and `Wisconsin`. The audit still exits clean with 44/44 surfaces covered while reporting the seven pre-existing unregistered extracted iOS files.
+- 2026-07-02: Live hardware still logged `System gesture gate timed out` and ignored normal calendar taps. Follow-up replaces the date half of Return with `UICalendarView` plus `UICalendarSelectionSingleDateDelegate`, keeps the time half on a wheel `UIDatePicker`, and replaces shell-level SwiftUI `simultaneousGesture` tap/drag tracking with non-cancelling UIKit window recognizers.
+- 2026-07-02: User correction noted the previous two-column pass still rendered as stacked cards on the live screen. Follow-up removes the setup-level horizontal `ViewThatFits` fallback, fixes Context at 424pt and Return at 600pt in one row, and narrows the inline date picker to stay inside the Return column.
+- 2026-07-02: iPad Pro 10.5 follow-up verification passed focused kiosk checkout/scanner source-contract tests, XcodeGen project check, iOS drift, iOS gap audit, docs verification, whitespace, and unsandboxed Xcode verification for both `WisconsinKiosk` and `Wisconsin`. The audit still exits clean with 44/44 surfaces covered while reporting the seven pre-existing unregistered extracted iOS files.
+- 2026-07-02: Device correction in progress. The live iPad still required a long-press on calendar dates, so the fix moved Return off the normal scroll path when the fixed iPad layout fits and replaced SwiftUI `DatePicker` rendering with UIKit `UIDatePicker` wrappers for inline date plus wheel time.
+- 2026-07-02: Follow-up verification passed focused kiosk checkout/scanner source-contract tests, XcodeGen project check, iOS drift, iOS gap audit, docs verification, whitespace, and unsandboxed Xcode verification for both `WisconsinKiosk` and `Wisconsin`. The audit still exits clean with full coverage while reporting the seven pre-existing unregistered extracted iOS files.
+- 2026-07-02: Follow-up in progress after device feedback. The requested shape is `Context` with `Link to event` plus either a booking-name field or linked event list, then a separate `Return` card with only the native return date/time picker. Press handling will stay local to setup controls rather than changing the global kiosk inactivity gesture.
+- 2026-07-02: Reservation-sheet correction verification passed focused kiosk checkout/scanner source-contract tests, XcodeGen project check, iOS drift, iOS gap audit, docs verification, whitespace, and unsandboxed Xcode verification for both `WisconsinKiosk` and `Wisconsin`. The audit still exits clean with full coverage while reporting the seven pre-existing unregistered extracted iOS files.
+- 2026-07-02: Reservation-sheet correction shipped locally. The kiosk checkout setup now uses explicit Context and Details windows, defaults to ad hoc checkout, gates event payloads behind `Link to event`, removes the green header checkmark and start-date UI, and shows Return as an always-visible native date/time picker instead of segmented presets plus Custom.
+- 2026-07-02: User correction asked for a from-scratch Checkout Details rebuild. Current pass removes the older step-card/chip structure, keeps scan-mode custody logic untouched, and makes the pre-scan state one centered panel using existing kiosk tokens plus native Picker/DatePicker controls.
+- 2026-07-02: Clean redesign verification passed focused kiosk checkout/scanner source-contract tests, XcodeGen project check, iOS drift, iOS gap audit, docs verification, whitespace, and unsandboxed Xcode verification for both `WisconsinKiosk` and `Wisconsin`. The audit exits clean but still reports seven pre-existing unregistered extracted iOS files in `scripts/ios-audit-inventory.sh`.
 - 2026-07-02: Started from the current kiosk checkout source after the physical iPad confirmed the scanner-keyboard fix. This slice stays client-only: no API payload changes, no server contract changes, and no changes to kiosk custody boundaries.
 - 2026-07-02: Checkout Details now centers the pre-scan form, hides the empty scanned-items rail until scan mode, uses native bordered return-time quick selects with an inline wheel picker behind Custom, shows selectable upcoming-event cards with a More menu fallback, and keeps return quick-selects for 2 hr, 4 hr, Tonight, Tomorrow AM, 24 hr, and Event End.
 - 2026-07-02: Verification passed focused kiosk/source-contract Vitest coverage, XcodeGen project check, iOS drift, iOS gap audit, docs verification after codemap refresh, whitespace, and unsandboxed Xcode verification for both `WisconsinKiosk` and `Wisconsin`. The audit still reports the pre-existing unregistered `CreateBooking/CreateBookingEquipmentPicker.swift` warning while keeping 44/44 audit-worthy surfaces covered.

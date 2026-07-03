@@ -114,6 +114,18 @@ final class APIClient {
         let _: SuccessResponse = try await perform(req)
     }
 
+    func registerCheckoutReturnLiveActivityStartToken(_ token: String) async throws {
+        struct Body: Encodable { let token: String }
+        var req = request(path: "/api/live-activities/checkout-return/start-token", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(token: token))
+        let _: SuccessResponse = try await perform(req)
+    }
+
+    func revokeCheckoutReturnLiveActivityStartTokens() async throws {
+        let req = request(path: "/api/live-activities/checkout-return/start-token", method: "DELETE")
+        let _: SuccessResponse = try await perform(req)
+    }
+
     func me() async throws -> CurrentUser {
         let req = request(path: "/api/me")
         let resp: MeResponse = try await perform(req)
@@ -557,6 +569,7 @@ final class APIClient {
         locationId: String? = nil,
         sort: String? = nil,
         favoritesOnly: Bool = false,
+        includeAccessories: Bool = false,
         limit: Int = 30,
         offset: Int = 0
     ) async throws -> AssetsResponse {
@@ -573,6 +586,7 @@ final class APIClient {
         if let locationId, !locationId.isEmpty { items.append(.init(name: "location_id", value: locationId)) }
         if let sort, !sort.isEmpty { items.append(.init(name: "sort", value: sort)) }
         if favoritesOnly { items.append(.init(name: "favorites_only", value: "true")) }
+        if includeAccessories { items.append(.init(name: "include_accessories", value: "true")) }
         return try await perform(request(path: "/api/assets", queryItems: items))
     }
 

@@ -80,6 +80,75 @@ describe("iOS API contracts — booking list avatars", () => {
   });
 });
 
+describe("iOS user directory polish", () => {
+  it("keeps native user profile rows free of routine location sublines", () => {
+    const usersView = source("ios/Wisconsin/Views/UsersView.swift");
+    const secondaryLine = usersView.slice(
+      usersView.indexOf("private var secondaryLine: String?"),
+      usersView.indexOf("private var titleOrYear: String?"),
+    );
+
+    expect(secondaryLine).toContain("titleOrYear");
+    expect(secondaryLine).toContain("primaryArea");
+    expect(secondaryLine).not.toContain("user.location");
+  });
+});
+
+describe("iOS guides reader polish", () => {
+  it("preserves native markdown numbered-list values and compact row labels", () => {
+    const guidesView = source("ios/Wisconsin/Views/GuidesView.swift");
+
+    expect(guidesView).toContain("case numbered(number: Int, text: String)");
+    expect(guidesView).toContain("Text(\"\\(number).\")");
+    expect(guidesView).toContain("var nextOrderedNumber: Int?");
+    expect(guidesView).toContain("let number = nextOrderedNumber ?? numbered.number");
+    expect(guidesView).toContain("blocks.append(MarkdownBlock(kind: .numbered(number: number, text: numbered.text)))");
+    expect(guidesView).toContain("nextOrderedNumber = number + 1");
+    expect(guidesView).toContain("guard let number = Int(prefix)");
+    expect(guidesView).toContain(".accessibilityLabel(accessibilityLabel)");
+    expect(guidesView).toContain("parts.append(guide.updatedSummary)");
+    expect(guidesView).toContain(".safeAreaInset(edge: .bottom)");
+    expect(guidesView).toContain(".toolbar(.hidden, for: .tabBar)");
+  });
+});
+
+describe("iOS scanner fallback polish", () => {
+  it("keeps manual-entry sheets from sitting over scanner fallback controls", () => {
+    const scanner = source("ios/Wisconsin/Views/Search/QRScannerSheet.swift");
+
+    expect(scanner).toContain("private var unavailableView: some View");
+    expect(scanner).toContain("if !showManualEntry");
+    expect(scanner).toContain("Button(\"Type Code Instead\") { showManualEntry = true }");
+  });
+});
+
+describe("iOS availability editor polish", () => {
+  it("confirms destructive availability deletion before mutating student scheduling data", () => {
+    const availability = source("ios/Wisconsin/Views/AvailabilityView.swift");
+
+    expect(availability).toContain("@State private var blockPendingDelete: AvailabilityBlock?");
+    expect(availability).toContain(".confirmationDialog(");
+    expect(availability).toContain("\"Delete availability block?\"");
+    expect(availability).toContain("Button(\"Delete \\(block.primaryLine)\", role: .destructive)");
+    expect(availability).toContain("blockPendingDelete = block");
+    expect(availability).not.toContain("Task { await delete(block) } label:");
+  });
+});
+
+describe("iOS schedule sheet all-day polish", () => {
+  it("keeps Add Shift default event windows date-only for all-day events", () => {
+    const addShift = source("ios/Wisconsin/Views/Schedule/AddShiftSheet.swift");
+
+    expect(addShift).toContain("private var defaultsToAllDayWindow: Bool");
+    expect(addShift).toContain("calendar.compare(defaultStart, to: calendar.startOfDay(for: defaultStart), toGranularity: .minute)");
+    expect(addShift).toContain("calendar.compare(defaultEnd, to: calendar.startOfDay(for: defaultEnd), toGranularity: .minute)");
+    expect(addShift).toContain("LabeledContent(\"Window\")");
+    expect(addShift).toContain("Text(defaultAllDayRange)");
+    expect(addShift).toContain("\"Defaults to the event's all-day window.\"");
+    expect(addShift).toContain("return \"All day, \\(startText) to \\(endText)\"");
+  });
+});
+
 describe("iOS API contracts — asset lookup item families", () => {
   it("iOS decodes /api/assets bulkItems and treats them as scan/search results", () => {
     const route = source("src/app/api/assets/route.ts");
@@ -97,7 +166,15 @@ describe("iOS API contracts — asset lookup item families", () => {
     expect(models).toContain("decodeIfPresent([AssetFamilySearchResult].self, forKey: .bulkItems) ?? []");
     expect(models).toContain("decodeIfPresent([String].self, forKey: .itemOrder) ?? []");
     expect(searchService).toContain("var itemFamilies: [AssetFamilySearchResult] = []");
+    expect(searchService).toContain("api.assets(search: q, qr: rawScan, limit: 10)");
+    expect(searchService).not.toContain("qr: rawScan ?? q");
     expect(searchService).toContain("itemsResp.bulkItems");
+    expect(searchService).toContain("let isDirectScan = rawScan?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false");
+    expect(searchService).toContain("let visibleItems = isDirectScan ? itemsResp.data : itemsResp.data.filter(Self.isSearchVisibleAsset)");
+    expect(searchService).toContain("let visibleFamilies = isDirectScan ? itemsResp.bulkItems : itemsResp.bulkItems.filter(Self.isSearchVisibleFamily)");
+    expect(searchService).toContain("private static func isHiddenAttachmentCategory(_ title: String?) -> Bool");
+    expect(searchService).toContain("normalized == \"accessories\"");
+    expect(searchService).toContain("normalized.hasSuffix(\"/accessories\")");
     expect(searchService).toContain("itemFamilies.isEmpty");
     expect(scanView).toContain("ItemFamilyResultRow(family: family)");
     expect(scanner).toContain("case itemFamily(AssetFamilySearchResult)");
@@ -118,12 +195,24 @@ describe("iOS API contracts — asset lookup item families", () => {
     expect(models).toContain("var orderedRows: [ItemListRow]");
     expect(models).toContain("for id in itemOrder");
     expect(apiClient).toContain("if let sort, !sort.isEmpty { items.append(.init(name: \"sort\", value: sort)) }");
+    expect(apiClient).toContain("includeAccessories: Bool = false");
+    expect(apiClient).toContain("if includeAccessories { items.append(.init(name: \"include_accessories\", value: \"true\")) }");
     expect(itemsView).toContain("var rows: [ItemListRow] = []");
     expect(itemsView).toContain("case popular = \"popular\"");
     expect(itemsView).toContain("sort: sortOption.rawValue");
+    expect(itemsView).not.toContain("includeAccessories: true");
     expect(itemsView).toContain("let resultRows = result.orderedRows");
     expect(itemsView).toContain("ItemFamilyListRow(family: family)");
     expect(itemsView).toContain("vm.prefillReservation(forFamily: family)");
+  });
+
+  it("iOS item detail uses attachment language for bundled child rows", () => {
+    const itemDetail = source("ios/Wisconsin/Views/ItemDetailView.swift");
+
+    expect(itemDetail).toContain("Text(\"Attachments\")");
+    expect(itemDetail).toContain(".accessibilityLabel(\"Attachment:");
+    expect(itemDetail).not.toContain("Text(\"Accessories\")");
+    expect(itemDetail).not.toContain(".accessibilityLabel(\"Accessory:");
   });
 });
 
@@ -226,8 +315,9 @@ describe("iOS API contracts — kiosk checkout context", () => {
     expect(client).toContain("endsAt: isoString(from: endsAt)");
     expect(models).toContain("struct KioskCheckoutEvent");
     expect(models).toContain("struct KioskCheckoutAvailabilityResult");
-    expect(checkoutView).toContain("KioskCheckoutContextCard");
-    expect(checkoutView).toContain("KioskCheckoutTimeCard");
+    expect(checkoutView).toContain("KioskCheckoutSetupPanel");
+    expect(checkoutView).toContain("KioskCheckoutContextWindow");
+    expect(checkoutView).toContain("KioskCheckoutReturnWindow");
     expect(checkoutView).toContain("KioskCheckoutAvailabilityBanner");
     expect(checkoutView).toContain("KioskCheckoutContextSummary");
     expect(checkoutView).toContain("KioskScannerHealthBadge");
@@ -331,6 +421,24 @@ describe("iOS API contracts — mutation responses match list shapes", () => {
       service.indexOf("export async function listTrades"),
     );
     expect(cancelSection).toMatch(/shiftTrade\.update\(\{[\s\S]*?include: \{[\s\S]*?shiftAssignment: \{[\s\S]*?postedBy: \{/);
+  });
+});
+
+describe("iOS API contracts — Open Work response tolerance", () => {
+  it("keeps the native Trade Board tolerant of omitted Open Work sections", () => {
+    const route = source("src/app/api/schedule/open-work/route.ts");
+    const service = source("src/lib/services/schedule-open-work.ts");
+    const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
+    const models = source("ios/Wisconsin/Models/ShiftTradeModels.swift");
+
+    expect(route).toContain("return ok({ data: work });");
+    expect(service).toContain("openShifts: shifts.map");
+    expect(service).toContain("pickupRequests: pickupRequests.map");
+    expect(apiClient).toContain("let resp: DataWrapper<OpenWorkResponse> = try await perform");
+    expect(models).toContain("struct OpenWorkResponse: Codable");
+    expect(models).toContain("init(openShifts: [OpenWorkShift] = [], pickupRequests: [OpenWorkPickupRequest] = [])");
+    expect(models).toContain("decodeIfPresent([OpenWorkShift].self, forKey: .openShifts) ?? []");
+    expect(models).toContain("decodeIfPresent([OpenWorkPickupRequest].self, forKey: .pickupRequests) ?? []");
   });
 });
 

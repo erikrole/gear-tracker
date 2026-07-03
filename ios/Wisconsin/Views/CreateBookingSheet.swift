@@ -115,7 +115,7 @@ struct CreateBookingSheet: View {
                         let outcome = await vm.addScannedAsset(id: assetId)
                         return .continueScanning(message: outcome.message, success: outcome.success)
                     case .itemFamily(let family):
-                        let outcome = await vm.addScannedFamily(family)
+                        let outcome = vm.addScannedFamily(family)
                         return .continueScanning(message: outcome.message, success: outcome.success)
                     }
                 })
@@ -367,11 +367,49 @@ struct CreateBookingSheet: View {
     }
 
     private var detailHeaderSubtitle: String {
-        let window = "\(vm.startsAt.formatted(date: .abbreviated, time: .shortened)) to \(vm.endsAt.formatted(date: .omitted, time: .shortened))"
+        let window = detailWindowText
         if let linked = vm.linkedEventLabel {
             return "\(linked) · \(window)"
         }
         return window
+    }
+
+    private var detailWindowText: String {
+        if !vm.userEditedWindow, let allDayWindow = selectedAllDayWindowText {
+            return allDayWindow
+        }
+        return "\(vm.startsAt.formatted(date: .abbreviated, time: .shortened)) to \(vm.endsAt.formatted(date: .omitted, time: .shortened))"
+    }
+
+    private var selectedAllDayWindowText: String? {
+        let selected = vm.selectedEvents
+        let events = selected.isEmpty ? vm.prefillEvent.map { [$0] } ?? [] : selected
+        guard !events.isEmpty, events.allSatisfy(\.displayAllDay) else { return nil }
+        let days = events.flatMap(\.spannedDays).sorted()
+        guard let start = days.first, let end = days.last else { return nil }
+        let calendar = Calendar.current
+        if calendar.isDate(start, inSameDayAs: end) {
+            return "\(start.formatted(date: .abbreviated, time: .omitted)), All day"
+        }
+        return "\(shortDate(start))-\(shortDate(end)), All day"
+    }
+
+    private func shortDate(_ date: Date) -> String {
+        date.formatted(.dateTime.month(.abbreviated).day())
+    }
+
+    private var reviewPickupText: String {
+        if !vm.userEditedWindow, let allDayWindow = selectedAllDayWindowText {
+            return allDayWindow
+        }
+        return vm.startsAt.formatted(date: .abbreviated, time: .shortened)
+    }
+
+    private var reviewReturnText: String? {
+        if !vm.userEditedWindow, selectedAllDayWindowText != nil {
+            return "Return after event"
+        }
+        return "Return \(vm.endsAt.formatted(date: .abbreviated, time: .shortened))"
     }
 
     @ViewBuilder
@@ -407,14 +445,16 @@ struct CreateBookingSheet: View {
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
                         .padding(.top, 20)
-                    Text(vm.startsAt.formatted(date: .abbreviated, time: .shortened))
+                    Text(reviewPickupText)
                         .font(.title2.weight(.semibold))
                         .monospacedDigit()
                         .padding(.top, 2)
-                    Text("Return \(vm.endsAt.formatted(date: .abbreviated, time: .shortened))")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 2)
+                    if let reviewReturnText {
+                        Text(reviewReturnText)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 2)
+                    }
 
                     VStack(spacing: 2) {
                         Text("For \(vm.selectedUser?.name ?? session.currentUser?.name ?? "")")

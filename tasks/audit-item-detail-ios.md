@@ -4,13 +4,13 @@
 **Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class.
 **Audit type:** static source (no build/run/UI tests).
 
-Scope: `ItemDetailView` + `EditAssetSheet` + the per-card sub-views (`ItemHeroCard`, `ItemDetailsCard`, `ActiveBookingCard`, `UpcomingReservationsCard`, `ParentLinkCard`, `AccessoriesCard`, `NotesCard`) in `ios/Wisconsin/Views/ItemDetailView.swift`. Multiple recent slices (#16–18: parent link, accessories, QR chip, procurement gate, info expansion) shipped on this surface; this is the focused follow-up audit.
+Scope: `ItemDetailView` + `EditAssetSheet` + the per-card sub-views (`ItemHeroCard`, `ItemDetailsCard`, `ActiveBookingCard`, `UpcomingReservationsCard`, `ParentLinkCard`, `AccessoriesCard`, `NotesCard`) in `ios/Wisconsin/Views/ItemDetailView.swift`. Multiple recent slices (#16-18: parent link, attachments, QR chip, procurement gate, info expansion) shipped on this surface; this is the focused follow-up audit.
 
 **Surrounding context:** item detail is the floor's "is this available, who has it, can I reserve it?" lookup. Students scan a sticker → navigate to the detail; staff tap from the items list. The hero card answers the first two questions in one glance via the `availabilitySnapshot` helper. The gap is the third question — there's no inline path to start a reservation.
 
 ## P0 — blocks MVP
 
-_None._ Auth/role gating is correct (`canEditAsset` is STAFF/ADMIN only; `canSeeProcurement` mirrors that gate per slice 18). Pull-to-refresh works. Toggle-favorite has correct optimistic update + revert with toast feedback. Edit sheet has discard confirm + interactiveDismissDisabled. The hero, details, active-booking, upcoming-reservations, accessories, parent-link, and notes cards all render correctly per recent slices.
+_None._ Auth/role gating is correct (`canEditAsset` is STAFF/ADMIN only; `canSeeProcurement` mirrors that gate per slice 18). Pull-to-refresh works. Toggle-favorite has correct optimistic update + revert with toast feedback. Edit sheet has discard confirm + interactiveDismissDisabled. The hero, details, active-booking, upcoming-reservations, attachments, parent-link, and notes cards all render correctly per recent slices.
 
 ## P1 — polish before ship
 
@@ -32,9 +32,9 @@ _None._ Auth/role gating is correct (`canEditAsset` is STAFF/ADMIN only; `canSee
       `ios/Wisconsin/Views/ItemDetailView.swift:81`.
       Suggested fix: track a separate `favoriteToggleCount: Int` that only increments when the user taps. Trigger sensory feedback on that counter instead of `isFavorited` directly. Initial load doesn't tick the counter.
 
-- [x] [A11y] **Active-booking, upcoming-reservation, accessories, and parent-link rows aren't combined accessibility elements.** VoiceOver walks each piece (title, requester name, due date, chevron) when a single combined "Active reservation: {title}, {requester}, due {date}" announcement is friendlier.
+- [x] [A11y] **Active-booking, upcoming-reservation, attachments, and parent-link rows aren't combined accessibility elements.** VoiceOver walks each piece (title, requester name, due date, chevron) when a single combined "Active reservation: {title}, {requester}, due {date}" announcement is friendlier.
       `ios/Wisconsin/Views/ItemDetailView.swift:480-595, 600-704`.
-      Suggested fix: `.accessibilityElement(children: .combine)` on each tappable row (the inner content of each `NavigationLink`); `.accessibilityHidden(true)` on decorative chevrons + status icons; explicit per-card label that puts the most important fact first ("Overdue: ..." / "Active reservation: ..." / "Accessory: tag {tag}, {name}").
+      Suggested fix: `.accessibilityElement(children: .combine)` on each tappable row (the inner content of each `NavigationLink`); `.accessibilityHidden(true)` on decorative chevrons + status icons; explicit per-card label that puts the most important fact first ("Overdue: ..." / "Active reservation: ..." / "Attachment: tag {tag}, {name}").
 
 - [x] [A11y] **Active-booking due-date label exposes the icon name** ("clock, Due ..." or "exclamation triangle fill, Due ...").
       `ios/Wisconsin/Views/ItemDetailView.swift:508-513`.
@@ -56,7 +56,7 @@ Per `AREA_ITEMS.md` and the prior items audit:
 - [x] AC: details card shows location, category, department, serial, UW asset tag, procurement (gated).
 - [x] AC: active booking surface with one-tap into the booking detail.
 - [x] AC: upcoming reservations visible.
-- [x] AC: accessories + parent link (slice 17).
+- [x] AC: attachments + parent link (slice 17).
 - [x] AC: notes card.
 - [x] AC: edit gated by STAFF/ADMIN.
 - [x] AC: favorite toggle with optimistic update + revert.
@@ -65,6 +65,11 @@ Per `AREA_ITEMS.md` and the prior items audit:
 - [x] AC: edit save reports tactile confirmation — **closed by P1 haptic fix.**
 - [x] AC: QR copy reports visual confirmation — **closed by P1 toast fix.**
 - [x] AC: VoiceOver users hear card rows as single elements — **closed by P1 a11y fixes.**
+
+## 2026-07-03 Runtime Recheck
+
+- [x] Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_4c06d113-c53c-4962-b37b-903a41398c84.jpg`
+- [x] Standalone category values such as `Accessories` may still display in the details card because they are backend taxonomy. The parent-child bundle card and VoiceOver label use current product language: `Attachments`.
 
 ## Lenses checked
 - [x] Gaps

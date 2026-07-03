@@ -126,8 +126,10 @@ Iterate the slider through every step from the smallest to "Larger Accessibility
 
 - [ ] **Pair a Bluetooth barcode scanner** to the iPad in iOS Settings.
 - [ ] Activate kiosk mode. Open kiosk checkout for a test student.
-- [ ] **Checkout Details event selector** — before Start Scanning, upcoming events appear as large selectable cards; tapping a card selects it, updates the checkout context, and keeps the More menu available for the rest of the 7-day event list.
-- [ ] **Checkout Details return time** — use quick choices such as 2 hr, 4 hr, Tonight, Tomorrow AM, 24 hr, and Event End when valid. Tap Custom to reveal the inline native wheel picker; date/time changes should work with normal taps and scrolling, not long-press.
+- [ ] **Checkout Details context** — before Start Scanning, `Link to event` is off by default. Type a booking name/details value in the Context text field; Start Scanning stays disabled until that field has text.
+- [ ] **Checkout Details event selector** — turn `Link to event` on. Upcoming events replace the booking-name field in the Context window; tapping one selects it, and the All Events menu remains available for the rest of the 7-day event list. Row taps should register normally without long-pressing.
+- [ ] **Checkout Details return time** — on the iPad Pro 10.5 kiosk in landscape, Checkout Details keeps the hero full width, then shows Context on the left and Return on the right in the same row, with Start Scanning pinned at the bottom. Return uses a UIKit calendar date grid plus a native wheel time picker. There is no checkout start-date field and no Custom preset; calendar day taps should change the return date immediately, not require a long-press.
+- [ ] **Ad hoc scanner handoff** — after typing an ad hoc booking name, tap Start Scanning and immediately scan a physical barcode. The first scan should land in the cart without tapping the screen again.
 - [ ] **HID scan inputs land in the cart** — pull the scanner trigger over a real sticker. The `HIDScannerField` is hidden but always-first-responder; the scan should add the item to the cart with success haptic.
 - [ ] **Tap a UI element to "steal" focus** — the field's `textFieldDidEndEditing` re-acquires within 150ms. Pull the trigger again — still works.
 - [ ] **HID dedupe** — pull the trigger twice quickly on the same code. Only one cart entry (server idempotent + iOS dedupe).

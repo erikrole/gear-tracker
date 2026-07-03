@@ -86,6 +86,13 @@ export type UseScheduleDataResult = {
   setExpandedDay: (d: number | null) => void;
 };
 
+const SCHEDULE_READ_FETCH_INIT: RequestInit = { cache: "no-store" };
+const SCHEDULE_FRESH_QUERY_OPTIONS = {
+  staleTime: 0,
+  refetchOnMount: "always" as const,
+  refetchOnWindowFocus: true,
+};
+
 /** Merge events + shift groups into unified entries */
 function mergeData(events: CalendarEvent[], groups: ShiftGroup[]): CalendarEntry[] {
   const groupByEventId = new Map<string, ShiftGroup>();
@@ -187,8 +194,8 @@ function buildScheduleUrls(viewMode: string, calMonth: Date, weekStart: Date, in
 
 async function fetchSchedule(eventsUrl: string, groupsUrl: string, signal?: AbortSignal): Promise<CalendarEntry[]> {
   const [evRes, sgRes] = await Promise.all([
-    fetch(eventsUrl, { signal }),
-    fetch(groupsUrl, { signal }),
+    fetch(eventsUrl, { ...SCHEDULE_READ_FETCH_INIT, signal }),
+    fetch(groupsUrl, { ...SCHEDULE_READ_FETCH_INIT, signal }),
   ]);
 
   if (handleAuthRedirect(evRes) || handleAuthRedirect(sgRes)) {
@@ -211,7 +218,7 @@ async function fetchSchedule(eventsUrl: string, groupsUrl: string, signal?: Abor
 }
 
 async function fetchTradeCount(): Promise<number> {
-  const r = await fetch("/api/shift-trades?status=OPEN&limit=1");
+  const r = await fetch("/api/shift-trades?status=OPEN&limit=1", SCHEDULE_READ_FETCH_INIT);
   if (handleAuthRedirect(r)) return 0;
   if (!r.ok) return 0;
   const j = await parseJsonSafely<{ total?: number; data?: unknown[] }>(r);
@@ -219,7 +226,7 @@ async function fetchTradeCount(): Promise<number> {
 }
 
 async function fetchCalendarSources(signal?: AbortSignal): Promise<CalendarSourceFreshnessInput[]> {
-  const res = await fetch("/api/calendar-sources", { signal });
+  const res = await fetch("/api/calendar-sources", { ...SCHEDULE_READ_FETCH_INIT, signal });
   if (handleAuthRedirect(res, "/schedule")) {
     throw new DOMException("Auth redirect", "AbortError");
   }
@@ -231,7 +238,7 @@ async function fetchCalendarSources(signal?: AbortSignal): Promise<CalendarSourc
 }
 
 async function fetchScheduleHealth(url: string, signal?: AbortSignal): Promise<ScheduleHealthSnapshot> {
-  const res = await fetch(url, { signal });
+  const res = await fetch(url, { ...SCHEDULE_READ_FETCH_INIT, signal });
   if (handleAuthRedirect(res, "/schedule")) {
     throw new DOMException("Auth redirect", "AbortError");
   }
@@ -243,7 +250,7 @@ async function fetchScheduleHealth(url: string, signal?: AbortSignal): Promise<S
 }
 
 async function fetchScheduleAutomation(url: string, signal?: AbortSignal): Promise<ScheduleAutomationDigest> {
-  const res = await fetch(url, { signal });
+  const res = await fetch(url, { ...SCHEDULE_READ_FETCH_INIT, signal });
   if (handleAuthRedirect(res, "/schedule")) {
     throw new DOMException("Auth redirect", "AbortError");
   }
@@ -338,6 +345,7 @@ export function useScheduleData(): UseScheduleDataResult {
   const { data: tradeCount = 0, refetch: refetchTrades } = useQuery({
     queryKey: ["shift-trades", "OPEN", "count"],
     queryFn: fetchTradeCount,
+    ...SCHEDULE_FRESH_QUERY_OPTIONS,
   });
 
   const {
@@ -349,7 +357,7 @@ export function useScheduleData(): UseScheduleDataResult {
     queryKey: ["calendar-sources", "schedule-source-signal"],
     queryFn: ({ signal }) => fetchCalendarSources(signal),
     enabled: canViewSourceStatus,
-    staleTime: 60_000,
+    ...SCHEDULE_FRESH_QUERY_OPTIONS,
   });
   const staleSourceIds = useMemo(() => {
     return new Set(
@@ -369,18 +377,19 @@ export function useScheduleData(): UseScheduleDataResult {
   const { data: entries = [], isLoading, error: scheduleError, refetch: refetchSchedule } = useQuery({
     queryKey: scheduleQueryKey,
     queryFn: ({ signal }) => fetchSchedule(eventsUrl, groupsUrl, signal),
+    ...SCHEDULE_FRESH_QUERY_OPTIONS,
   });
   const { data: scheduleHealth = null, refetch: refetchScheduleHealth } = useQuery({
     queryKey: ["schedule-health", healthUrl],
     queryFn: ({ signal }) => fetchScheduleHealth(healthUrl, signal),
     enabled: canViewScheduleHealth,
-    staleTime: 30_000,
+    ...SCHEDULE_FRESH_QUERY_OPTIONS,
   });
   const { data: scheduleAutomation = null, refetch: refetchScheduleAutomation } = useQuery({
     queryKey: ["schedule-automation", automationUrl],
     queryFn: ({ signal }) => fetchScheduleAutomation(automationUrl, signal),
     enabled: canViewScheduleHealth,
-    staleTime: 30_000,
+    ...SCHEDULE_FRESH_QUERY_OPTIONS,
   });
   const visibleEntries = useMemo(
     () => preferencesLoaded ? entries : [],

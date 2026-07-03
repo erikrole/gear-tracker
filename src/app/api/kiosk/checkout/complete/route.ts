@@ -56,7 +56,7 @@ function isBookingAllocationConstraintError(error: unknown) {
 export const POST = withKiosk(async (req, { kiosk }) => {
   const body = checkoutCompleteBody.parse(await req.json());
   const actorId = body.actorId;
-  const locationId = body.locationId || kiosk.locationId;
+  const locationId = kiosk.locationId;
   const { assetIds, bulkUnitItems } = normalizeCheckoutCompleteItems(body.items);
   const customPurpose = body.customPurpose?.trim();
 

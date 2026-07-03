@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { ok } from "@/lib/http";
+import { HttpError, ok } from "@/lib/http";
 import { tokenHash } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -57,10 +57,14 @@ export const DELETE = withAuth(async (_req, { user }) => {
     currentSessionId = current?.id ?? null;
   }
 
+  if (!currentSessionId) {
+    throw new HttpError(401, "Current session could not be verified. Sign in again.");
+  }
+
   const result = await db.session.deleteMany({
     where: {
       userId: user.id,
-      ...(currentSessionId ? { id: { not: currentSessionId } } : {}),
+      id: { not: currentSessionId },
     },
   });
 

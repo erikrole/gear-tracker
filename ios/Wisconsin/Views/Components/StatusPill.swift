@@ -20,6 +20,8 @@ struct StatusPill: View {
                 ? .caption2.weight(.semibold)
                 : .caption2.weight(.medium))
             .tracking(emphasized ? 0.5 : 0.2)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
             .foregroundStyle(Color.statusText(tone))
             .padding(.horizontal, 8)
             .padding(.vertical, 3)

@@ -47,6 +47,12 @@ struct AddShiftSheet: View {
                     if customizeTimes {
                         DatePicker("Call time", selection: $startsAt, displayedComponents: [.date, .hourAndMinute])
                         DatePicker("End time", selection: $endsAt, in: startsAt..., displayedComponents: [.date, .hourAndMinute])
+                    } else if defaultsToAllDayWindow {
+                        LabeledContent("Window") {
+                            Text(defaultAllDayRange)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.trailing)
+                        }
                     } else {
                         LabeledContent("Call") { Text(defaultStart.gearTime).foregroundStyle(.secondary) }
                         LabeledContent("End") { Text(defaultEnd.gearTime).foregroundStyle(.secondary) }
@@ -54,7 +60,9 @@ struct AddShiftSheet: View {
                 } footer: {
                     Text(customizeTimes
                         ? "Override the event's default start/end for this slot only."
-                        : "Defaults to the event's call and end times.")
+                        : defaultsToAllDayWindow
+                            ? "Defaults to the event's all-day window."
+                            : "Defaults to the event's call and end times.")
                 }
                 if let error {
                     Section {
@@ -105,6 +113,24 @@ struct AddShiftSheet: View {
             self.error = error.localizedDescription
             Haptics.warning()
         }
+    }
+
+    private var defaultsToAllDayWindow: Bool {
+        let calendar = Calendar.current
+        return calendar.compare(defaultStart, to: calendar.startOfDay(for: defaultStart), toGranularity: .minute) == .orderedSame
+            && calendar.compare(defaultEnd, to: calendar.startOfDay(for: defaultEnd), toGranularity: .minute) == .orderedSame
+            && defaultEnd > defaultStart
+    }
+
+    private var defaultAllDayRange: String {
+        let calendar = Calendar.current
+        let inclusiveEnd = calendar.date(byAdding: .day, value: -1, to: defaultEnd) ?? defaultEnd
+        let startText = defaultStart.formatted(date: .abbreviated, time: .omitted)
+        let endText = inclusiveEnd.formatted(date: .abbreviated, time: .omitted)
+        if calendar.isDate(defaultStart, inSameDayAs: inclusiveEnd) {
+            return "All day, \(startText)"
+        }
+        return "All day, \(startText) to \(endText)"
     }
 }
 

@@ -261,8 +261,8 @@ final class KioskStore {
     }
 
     /// Reset the 5-minute inactivity countdown. Schedules a 4:30 warning and a
-    /// hard reset at 5:00. Any user touch (handled in KioskShellView's
-    /// simultaneousGesture) calls this.
+    /// hard reset at 5:00. Any user touch (handled by KioskShellView's
+    /// non-cancelling UIKit activity monitor) calls this.
     func resetInactivity() {
         inactivityTask?.cancel()
         inactivityWarningVisible = false

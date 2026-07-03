@@ -18,6 +18,7 @@ describe("iOS kiosk scanner focus", () => {
     expect(scanner).toContain("coordinator.setEnabled(false)");
     expect(scanner).toContain("enum HIDScannerFocusGate");
     expect(scanner).toContain("static func suppressScannerFocus");
+    expect(scanner).toContain("static func allowScannerFocusNow()");
     expect(scanner).toContain("HIDScannerFocusGate.canAcquireScannerFocus");
     expect(scanner).toContain("guard let self, self.isEnabled, let textField, HIDScannerFocusGate.canAcquireScannerFocus else { return }");
 
@@ -30,12 +31,19 @@ describe("iOS kiosk scanner focus", () => {
     expect(checkout).toContain("HIDScannerField(isEnabled: shouldListenForHIDScans)");
     expect(checkout).toContain("KioskNativeTextField(");
     expect(checkout).toContain("focusedField.wrappedValue == .customPurpose");
+    expect(checkout).toContain("HIDScannerFocusGate.allowScannerFocusNow()");
+    expect(checkout).toContain("UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder)");
+    expect(checkout).toContain("DispatchQueue.main.async {\n            HIDScannerFocusGate.allowScannerFocusNow()\n            scannerCaptureEnabled = true");
     expect(checkout).toContain("scannerCaptureEnabled = true");
     expect(checkout).toContain("scannerCaptureEnabled = false");
     expect(checkout).not.toContain("private struct KioskPurposeKeyboard: View");
 
-    expect(shell).toContain("DragGesture(minimumDistance: 16)");
-    expect(shell).not.toContain("DragGesture(minimumDistance: 0)");
+    expect(shell).toContain("KioskActivityMonitor { store.resetInactivity() }");
+    expect(shell).toContain("private struct KioskActivityMonitor: UIViewRepresentable");
+    expect(shell).toContain("recognizer.cancelsTouchesInView = false");
+    expect(shell).toContain("shouldRecognizeSimultaneouslyWith otherGestureRecognizer");
+    expect(shell).not.toContain(".simultaneousGesture(TapGesture");
+    expect(shell).not.toContain("DragGesture(minimumDistance");
   });
 
   it("keeps kiosk native text input on the system keyboard without the assistant bar", () => {
@@ -50,7 +58,9 @@ describe("iOS kiosk scanner focus", () => {
     expect(nativeField).toContain("HIDScannerFocusGate.suppressScannerFocus()");
     expect(nativeField).toContain("let field = KioskKeyboardTextField()");
     expect(nativeField).toContain("protectKeyboard()");
+    expect(nativeField).toContain("field.forceResignFirstResponder()");
     expect(nativeField).toContain("override func resignFirstResponder() -> Bool");
+    expect(nativeField).not.toContain("resignIfUnprotected()");
     expect(nativeField).not.toContain("inputView = UIView()");
     expect(nativeField).not.toContain("textField.reloadInputViews()");
 

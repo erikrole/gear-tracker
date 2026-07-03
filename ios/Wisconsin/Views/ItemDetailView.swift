@@ -786,9 +786,9 @@ private struct ParentLinkCard: View {
     }
 }
 
-// MARK: - Accessories card
+// MARK: - Attachments card
 
-/// Renders child accessories on this asset's detail — answers "what comes
+/// Renders child attachments on this asset's detail — answers "what comes
 /// with this kit?" on the floor. Each row is tappable and pushes the child's
 /// detail view, so users can drill into a specific cable or battery without
 /// going back to the items list.
@@ -801,7 +801,7 @@ private struct AccessoriesCard: View {
                 Image(systemName: "shippingbox")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
-                Text("Accessories")
+                Text("Attachments")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
@@ -837,7 +837,7 @@ private struct AccessoriesCard: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Accessory: \(acc.assetTag), \(acc.name ?? acc.displayName)")
+                    .accessibilityLabel("Attachment: \(acc.assetTag), \(acc.name ?? acc.displayName)")
                 }
             }
         }

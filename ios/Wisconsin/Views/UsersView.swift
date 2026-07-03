@@ -325,7 +325,6 @@ private struct UserListRow: View {
     private var secondaryLine: String? {
         var parts: [String] = []
         if let title = titleOrYear { parts.append(title) }
-        if let loc = user.location, !loc.isEmpty { parts.append(loc) }
         if let area = user.primaryArea, !area.isEmpty { parts.append(area.shiftAreaLabel) }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }

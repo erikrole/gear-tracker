@@ -1,103 +1,277 @@
-# Audit: all pages (iOS) - 2026-05-13
+# Audit: all pages and sheets (iOS) - 2026-07-03
 
-**MVP verdict:** READY
+**Status:** ACTIVE
+**Scope correction:** all native Wisconsin iOS pages, pushed detail screens, sheets, confirmation flows, scanner/search covers, profile/settings drill-downs, dev tools, and kiosk-only screens.
+**Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class.
 
-This is a consolidated source-grounded audit of all current Wisconsin iOS pages, sheets, and kiosk surfaces. It does not fix code. It reconciles current source against the existing per-surface audit records, the mobile area contract, the decision log, and the open gaps registry.
+## Current Verification Baseline
 
-## Verification
+- [x] `npm run drift:ios` passed after the first screenshot batch.
+- [x] `npm run audit:ios:gaps` passed with 44/44 audit-worthy surfaces covered and 0 missing audits. It still reports 7 pre-existing unregistered extracted kiosk/create-booking files.
+- [x] `npm run verify:docs` passed after Home and Schedule changes.
+- [x] XcodeBuildMCP `build_run_sim` passed for the main `Wisconsin` app after Home and Schedule changes, with no warnings.
 
-- [x] `npm run drift:ios` passes: no anti-patterns across 45 Swift files.
-- [x] `npm run audit:ios:gaps` passes: 34 audit-worthy surfaces, 34 covered, 0 missing audit records.
-- [x] `xcodebuild -scheme Wisconsin -project ios/Wisconsin.xcodeproj -destination 'generic/platform=iOS Simulator' -configuration Debug build` succeeds.
-- [x] Initial root-level `xcodebuild` attempt failed because the repo root is not the Xcode project directory; rerun with `-project ios/Wisconsin.xcodeproj` succeeded.
+## Inventory Method
 
-## Sources
+- Source inventory: `rg --files ios/Wisconsin | rg '\.swift$'`
+- Surface inventory: `rg -n "struct .*: View|sheet\(|fullScreenCover\(|popover\(|confirmationDialog\(|NavigationLink|navigationDestination|Tab\(" ios/Wisconsin`
+- Audit history: `find tasks -maxdepth 1 -name 'audit-*-ios*.md' -print | sort`
+- Runtime proof: XcodeBuildMCP screenshot and runtime UI snapshot per reachable surface.
+
+## Main App Tabs And Primary Screens
+
+- [x] Home / Dashboard
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_cec62d2f-c50e-49c6-bbc3-2d6ca6cce6c7.jpg`
+  - Fix shipped: Home hero now exposes one date plus greeting accessibility label instead of duplicate child text nodes.
+  - Files: `ios/Wisconsin/Views/HomeView.swift`, `tasks/audit-home-ios.md`
+- [x] Schedule list
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_20905039-75d4-492c-a1fb-754a7049d965.jpg`
+  - Fix shipped: all-day my-shift rows now announce `All day` and visible multi-day segment instead of midnight event times.
+  - Files: `ios/Wisconsin/Views/ScheduleView.swift`, `tasks/audit-schedule-list-ios.md`
+- [x] Schedule calendar mode
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_0004286d-baa6-48bb-9a4c-3af60a3d53a2.jpg`
+  - Result: clean. Native month grid exposes event-count labels, today state, month navigation, and legend without overlapping the tab bar.
+  - Files: `ios/Wisconsin/Views/ScheduleView.swift`, `tasks/audit-schedule-ios.md`
+- [x] Schedule filters sheet
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_5e124013-7008-4cf0-b6da-26a0cd549f78.jpg`
+  - Result: clean. Medium sheet uses native Done, toggles, segmented venue filter, and sport menu.
+  - Files: `ios/Wisconsin/Views/ScheduleView.swift`, `tasks/audit-schedule-ios.md`
+- [x] Trade Board sheet
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_aedc740d-fd56-467a-83f6-4bc8c7b7edbd.jpg`
+  - Result: clean in current empty state. Post Trade remains visible, open work copy is clear, and no stale approval-review sections appear.
+  - Files: `ios/Wisconsin/Views/Schedule/TradeBoardSheet.swift`, `tasks/audit-schedule-ios.md`
+- [x] Post Trade sheet
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_363751c2-141e-4620-a986-d59d9d8d86ac.jpg`
+  - Result: clean for current no-eligible-shifts state. The sheet shows recovery copy and Cancel without exposing a false submit action.
+  - Files: `ios/Wisconsin/Views/Schedule/PostTradeSheet.swift`, `tasks/audit-schedule-ios.md`
+- [x] Event Detail sheet
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_2bab9796-7560-4f7e-95de-4525d8c1a4e6.jpg`
+  - Result: clean. All-day range is date-only, event context leads, reserve action is inline, and crew rows remain readable at iPhone width.
+  - Files: `ios/Wisconsin/Views/EventDetailSheet.swift`, `tasks/audit-schedule-ios.md`
+- [ ] Assign Student sheet
+- [x] Add Shift sheet
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_f9a640f7-1f43-4d45-88c7-286040ad11b4.jpg`
+  - Fix shipped: all-day event defaults now render as one date-only all-day window instead of midnight call/end rows unless staff enables custom timing.
+  - Files: `ios/Wisconsin/Views/Schedule/AddShiftSheet.swift`, `tasks/audit-schedule-ios.md`
+- [ ] Edit Shift Times sheet
+- [x] Bookings / My Gear list
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_e45515c8-a2b3-47a9-a4d5-314427e60f6c.jpg`
+  - Fix shipped: default empty All scope now shows a single centered `New Reservation` action instead of duplicating it in the toolbar.
+  - Files: `ios/Wisconsin/Views/BookingsView.swift`, `tasks/audit-bookings-list-ios.md`
+- [ ] Booking Detail
+- [ ] Edit Booking sheet
+- [ ] Extend Booking sheet
+- [ ] Cancel Booking confirmation
+- [x] Create Booking sheet, Details step
+  - Screenshots: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_be781ccb-539a-46a8-9157-454cc6a581be.jpg`, `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_42458b1d-e7e6-4b76-ae41-ff4f3c8faf55.jpg`, `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_727630f0-9885-4808-841f-db79be8dd194.jpg`
+  - Fix shipped: shared picker rows no longer force short labels into a 40-point column, linked all-day events now show date-only `All day` header copy instead of midnight times across selected and prefilled event paths, and picker rows expose full-width hit targets.
+  - Files: `ios/Wisconsin/Views/CreateBookingSheet.swift`, `ios/Wisconsin/Views/CreateBooking/CreateBookingFormRows.swift`, `ios/Wisconsin/Views/CreateBooking/CreateBookingPickers.swift`, `ios/Wisconsin/Views/CreateBooking/CreateBookingViewModel.swift`, `tasks/audit-create-booking-ios.md`
+- [x] Create Booking event picker
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_3153084f-d085-4c84-a56f-92b445250d55.jpg`
+  - Result: clean. Native searchable pushed list has clear title/back behavior, readable event rows, and explicit selected-state affordance.
+  - Files: `ios/Wisconsin/Views/CreateBooking/CreateBookingEventViews.swift`, `tasks/audit-create-booking-ios.md`
+- [x] Create Booking pickup picker
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_c13fbb3e-3c0f-4a0d-ae44-8980e95fa9c7.jpg`
+  - Result: clean. Native pushed picker uses clear title/back behavior, simple 44-point rows, and a system search field.
+  - Files: `ios/Wisconsin/Views/CreateBooking/CreateBookingPickers.swift`, `tasks/audit-create-booking-ios.md`
+- [x] Create Booking sheet, Equipment step
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_1832e80e-a63e-4352-b3ec-2e2582af6855.jpg`
+  - Fix shipped: attachment categories are hidden from reservation equipment browsing, even when stored category names still contain `Accessories`.
+  - Files: `ios/Wisconsin/Views/CreateBooking/CreateBookingViewModel.swift`, `ios/Wisconsin/Views/CreateBooking/CreateBookingEquipmentPicker.swift`, `tasks/audit-create-booking-ios.md`
+- [x] Create Booking cart sheet
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_c8210064-1527-4329-8815-eb2938572791.jpg`
+  - Result: clean. Medium-detent drawer has a native title/done rhythm, selected item thumbnail/title/subtitle, and a visible remove action.
+  - Files: `ios/Wisconsin/Views/CreateBooking/CreateBookingEquipmentPicker.swift`, `ios/Wisconsin/Views/CreateBooking/CreateBookingEquipmentRows.swift`, `tasks/audit-create-booking-ios.md`
+- [ ] Create Booking QR scanner cover
+- [x] Create Booking Confirm step
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_93ea3475-ab44-4f38-8d60-0d3b3a4cbdba.jpg`
+  - Fix shipped: linked all-day reservations show date-only pickup window and `Return after event` instead of midnight pickup/return timestamps.
+  - Files: `ios/Wisconsin/Views/CreateBookingSheet.swift`, `tasks/audit-create-booking-ios.md`
+- [x] Create Booking discard confirmation
+  - Runtime snapshot: `Discard reservation?`, message `Your changes will be lost.`, destructive `Discard`.
+  - Result: clean. Confirmation appears only after unsaved input and keeps the destructive action explicit.
+  - Files: `ios/Wisconsin/Views/CreateBookingSheet.swift`, `tasks/audit-create-booking-ios.md`
+- [x] More directory
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_0e88725a-cad3-4cbc-8f15-5942231d3cd3.jpg`
+  - Result: clean. Single `More` title, four native destination rows, no duplicate Browse header.
+  - Files: `ios/Wisconsin/Views/BrowseView.swift`, `tasks/audit-browse-ios.md`
+- [x] Items list
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_d244984a-8902-4b02-a90b-07897b055e03.jpg`
+  - Result: clean. Native toolbar filters/sort are visible, rows expose tag/model/location/status, and regular browsing keeps attachments hidden.
+  - Files: `ios/Wisconsin/Views/ItemsView.swift`, `tasks/audit-items-list-ios.md`
+- [x] Item Detail
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_4c06d113-c53c-4962-b37b-903a41398c84.jpg`
+  - Fix shipped: bundled child rows use current `Attachments` UI and VoiceOver language. Raw detail category values still reflect backend taxonomy, so standalone items like a teleconverter may still show `Category: Accessories`.
+  - Files: `ios/Wisconsin/Views/ItemDetailView.swift`, `tasks/audit-item-detail-ios.md`
+- [ ] Edit Asset sheet
+- [x] Item image zoom cover
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_6045a110-481b-485e-8c1e-09fa727cf417.jpg`
+  - Result: clean. Full-screen viewer uses a black backdrop, keeps the catalog image uncropped, and exposes an explicit `Close photo` button.
+  - Files: `ios/Wisconsin/Views/ItemDetailView.swift`, `ios/Wisconsin/Views/ZoomableImageViewer.swift`
+- [x] Guides list
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_205d7226-3cbb-4cab-8c6b-1cfb971cd593.jpg`
+  - Fix shipped: Guide rows expose compact VoiceOver labels instead of full Markdown-derived summaries.
+  - Files: `ios/Wisconsin/Views/GuidesView.swift`, `tasks/audit-guides-ios.md`
+- [x] Guide reader
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_637461c1-bdd6-42be-b625-bf7ba23d9139.jpg`
+  - Fix shipped: ordered Markdown runs render continuous numbers and the pushed article hides the tab bar so bottom chrome does not cover reader text.
+  - Files: `ios/Wisconsin/Views/GuidesView.swift`, `tasks/audit-guides-ios.md`
+- [x] Licenses list
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_c342b030-681b-4dd5-8f55-1279740f7c21.jpg`
+  - Result: clean. Active claim, copy/return actions, pool rows, slot counts, and staff/admin code visibility match the documented self-service scope.
+  - Files: `ios/Wisconsin/Views/LicensesView.swift`, `tasks/audit-licenses-ios.md`
+- [x] Claim/return license confirmations
+  - Runtime snapshot: `Return Photo Mechanic license?` with explanatory copy and destructive `Return License`; mutation was not confirmed. Claim confirmation was not reachable because the live user already has an active claim, and claim buttons are correctly hidden in that state.
+  - Result: clean. Destructive return is confirmed; claim remains single-license guarded.
+  - Files: `ios/Wisconsin/Views/LicensesView.swift`, `tasks/audit-licenses-ios.md`
+- [x] Users list
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_1ee16b49-ecb3-478c-bb62-edcd18ef54c3.jpg`
+  - Fix shipped: list rows no longer repeat routine location copy such as `Camp Randall`; they keep role, title/year, and primary area.
+  - Files: `ios/Wisconsin/Views/UsersView.swift`, `tasks/audit-users-ios.md`
+- [x] User Detail
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_32f3681c-88ff-4fdb-b6b6-3450f2f370af.jpg`
+  - Result: clean. Profile header omits location, preserves avatar/email/role/joined metadata, and keeps badges plus booking cards readable.
+  - Files: `ios/Wisconsin/Views/UserDetailView.swift`, `tasks/audit-users-ios.md`
+- [x] Badge Gallery sheet
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_fc880878-f579-477b-a470-c18bfa10e682.jpg`
+  - Result: clean. Large sheet uses native Done action, summary counts, horizontal filter chips, and readable badge tiles.
+  - Files: `ios/Wisconsin/Views/UserDetailView.swift`, `tasks/audit-users-ios.md`
+- [x] Badge Detail sheet
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_e2be5e5c-b60d-498b-9429-acd77a0fbb87.jpg`
+  - Result: clean. Nested sheet keeps artifact/title/description first, has an explicit Done action, and scrolls the metric grid.
+  - Files: `ios/Wisconsin/Views/UserDetailView.swift`, `tasks/audit-users-ios.md`
+- [x] Search tab
+  - Screenshots: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_bd11aa33-51b7-4291-8bea-64728d1d0b44.jpg`, `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_c23366e4-8b5c-4ec1-96df-48ae068250ee.jpg`
+  - Fix shipped: typed item/family results filter attachment/accessory categories while QR/direct scan lookup stays able to resolve child attachments.
+  - Files: `ios/Wisconsin/Views/Search/GlobalSearchSheet.swift`, `ios/Wisconsin/Core/SearchService.swift`, `tasks/audit-search-ios.md`
+- [x] Search scanner cover
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_a057ded1-fb07-4631-9e5d-c3ca8a2b5cf1.jpg`
+  - Result: clean for Simulator/unsupported-camera path. Scanner cover shows close affordance plus typed-code recovery; camera-authorized hardware path remains covered by existing source audit.
+  - Files: `ios/Wisconsin/Views/Search/QRScannerSheet.swift`, `tasks/audit-scan-ios.md`
+- [ ] Search result destinations
+- [x] QR scanner manual-entry sheet
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_95a10250-6bd7-4d5a-bfb5-cc8e52715702.jpg`
+  - Fix shipped: unavailable scanner controls hide behind the typed-code sheet so the form no longer sits over a glowing fallback button.
+  - Files: `ios/Wisconsin/Views/Search/QRScannerSheet.swift`, `ios/Wisconsin/Views/ScanView.swift`, `tasks/audit-scan-ios.md`
+- [x] Notifications sheet
+  - Covered by Notification Settings runtime surface and source ownership. The toolbar bell entry opens the same notification inbox/settings ownership path; no unread state mutation performed.
+- [x] Profile / Settings hub
+  - Screenshots: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_2fac7dd5-bb21-4dbb-9626-08d6aa891d3e.jpg`, `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_93a11174-5b9c-4a11-9f5c-fe419e930726.jpg`
+  - Result: clean. Grouped native Settings hub shows account, schedule, directory, notifications, appearance, tools, app, and isolated sign-out sections.
+  - Files: `ios/Wisconsin/Views/ProfileView.swift`, `tasks/audit-profile-ios.md`
+- [x] Account Security settings
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_bbb035a9-10bd-4188-878a-d4a3de253645.jpg`
+  - Result: clean. Native secure fields, show-password control, sign-out-other-devices switch, validation, and disabled submit state are present.
+  - Files: `ios/Wisconsin/Views/AccountSecuritySettingsView.swift`, `tasks/audit-profile-ios.md`
+- [x] Notification Settings
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_b381f487-b037-4fa6-9d08-7abc9f60c143.jpg`
+  - Result: clean. Delivery status, pause chips, channel switches, and category toggles are native and readable; live preferences were not changed.
+  - Files: `ios/Wisconsin/Views/NotificationSettingsView.swift`, `tasks/audit-profile-ios.md`
+- [x] Push pre-prompt
+  - Source-audited. Current Simulator/account has push already allowed, so the not-determined pre-prompt path is not runtime-reachable without resetting OS permission state.
+  - Files: `ios/Wisconsin/Views/PushPrePromptView.swift`, `tasks/audit-profile-ios.md`
+- [x] Availability list
+  - Source-audited; current logged-in admin profile does not expose the student-scheduling-class entry.
+  - Fix shipped: destructive availability swipe delete now requires confirmation.
+  - Files: `ios/Wisconsin/Views/AvailabilityView.swift`, `tasks/audit-availability-ios.md`
+- [x] Add Availability sheet
+  - Source-audited; current logged-in admin profile does not expose the student-scheduling-class entry.
+  - Result: clean source pass. Native Form uses pickers, date/time controls, optional label, validation, and disabled saving state.
+  - Files: `ios/Wisconsin/Views/AvailabilityView.swift`, `tasks/audit-availability-ios.md`
+- [x] Link Sticker Wizard
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_1be9e327-22f7-471b-864e-057bc1e08007.jpg`
+  - Result: clean. Three-step staff/admin sheet opens with scanner unavailable fallback and manual entry; no link mutation performed.
+  - Files: `ios/Wisconsin/Views/DevTools/LinkStickerWizard.swift`, `tasks/audit-link-sticker-wizard-ios.md`
+- [x] Scanner Debugger
+  - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_e024c134-8832-47a4-a78e-d5f7e6a77569.jpg`
+  - Result: clean. Large sheet shows HID readiness, raw/trimmed/lookup status rows, and typed fallback.
+  - Files: `ios/Wisconsin/Views/DevTools/ScannerDebuggerView.swift`, `tasks/audit-scanner-debugger-ios.md`
+- [x] Overdue Report
+  - Source-audited. Current account has zero overdue bookings; Profile row is present and routes to `OverdueReportView`, though the runtime tap target did not push reliably from the current sheet scroll position.
+  - Files: `ios/Wisconsin/Views/OverdueReportView.swift`, `tasks/audit-overdue-report-ios.md`
+- [ ] Login
+- [ ] Password Setup
+- [ ] Scan legacy lookup screen, if still reachable
+
+## Kiosk-Only Screens
+
+- [ ] Kiosk activation
+- [ ] Kiosk idle dashboard
+- [ ] Kiosk event detail sheet
+- [ ] Kiosk active checkout detail sheet
+- [ ] Kiosk student hub
+- [ ] Kiosk checkout setup
+- [ ] Kiosk checkout scan mode
+- [ ] Kiosk checkout scanner help sheet
+- [ ] Kiosk checkout camera sheet
+- [ ] Kiosk pickup
+- [ ] Kiosk pickup camera sheet
+- [ ] Kiosk return
+- [ ] Kiosk return camera sheet
+- [ ] Kiosk success
+- [ ] Kiosk sleep mode
+- [ ] Kiosk inactivity warning overlay
+- [ ] Kiosk resume splash
+
+## Active Findings And Fixes
+
+### Fixed in this pass
+
+- [x] Home hero accessibility duplication. Runtime snapshot previously exposed both a combined greeting and separate child text. `DashboardHero` now ignores children for accessibility and exposes one label with the visible date and greeting.
+- [x] Schedule all-day my-shift row label. Runtime snapshot previously announced `Event 12:00 AM to 12:00 AM`; the row now announces `All day, Day n of m`.
+- [x] Create Reservation details picker label wrap. Simulator screenshot showed `Pickup` splitting across two lines; shared form picker rows now keep labels to intrinsic one-line width and let values truncate.
+- [x] Create Reservation all-day linked-event header. Selecting Football Media Day no longer renders `12:00 AM` times in the Details header; it uses date-only `All day` copy unless the user manually edits the window.
+- [x] Create Reservation picker hit areas. Requester and pickup rows now make the full visible row tappable, matching native list-row expectations and the simulator runtime target.
+- [x] Create Reservation attachment filtering. The Equipment step no longer shows attachment categories in browsing chips or result groups, even when the stored category label is `Accessories`.
+- [x] Create Reservation review all-day copy. Confirm no longer renders `12:00 AM` pickup/return times for all-day event-linked reservations.
+- [x] Item Detail attachment wording. The child bundle card now says `Attachments` and VoiceOver announces `Attachment`, while standalone backend category names remain unchanged.
+- [x] Users list location cleanup. Native profile rows no longer repeat routine `Camp Randall` location context.
+- [x] Guides reader polish. Ordered guide steps now render continuous numbers, guide rows use compact VoiceOver labels, and pushed article screens hide the tab bar.
+- [x] Licenses runtime pass. Active-code self-service and return confirmation were verified without mutating the live license pool.
+- [x] Search attachment filtering. The `fx3` typed query now returns camera bodies only and hides handle/attachment rows from normal Search.
+- [x] Search scanner manual-entry polish. The unsupported-camera fallback no longer bleeds through the typed-code sheet.
+
+### Next batch
+
+1. Bookings list, Booking Detail, Edit Booking, Extend Booking, Create Booking.
+2. More directory, Items, Item Detail, Guides, Licenses, Users, badges.
+3. Search, scanner, notifications, profile/settings, availability, dev tools.
+4. Kiosk-only screens under the `WisconsinKiosk` target.
+
+## Sources Read For This Active Pass
 
 - `docs/AREA_MOBILE.md`
-- `docs/AREA_KIOSK.md`
+- `docs/AREA_DASHBOARD.md`
+- `docs/AREA_EVENTS.md`
+- `docs/AREA_SHIFTS.md`
+- `docs/DESIGN_LANGUAGE.md`
 - `docs/DECISIONS.md`
 - `docs/GAPS_AND_RISKS.md`
 - `ios/Wisconsin/App/WisconsinApp.swift`
 - `ios/Wisconsin/App/AppDelegate.swift`
+- `ios/Wisconsin/Views/AppTabView.swift`
+- `ios/Wisconsin/Views/HomeView.swift`
+- `ios/Wisconsin/Views/ScheduleView.swift`
+- `ios/Wisconsin/Views/ItemDetailView.swift`
+- `ios/Wisconsin/Views/UsersView.swift`
+- `ios/Wisconsin/Views/UserDetailView.swift`
+- `ios/Wisconsin/Core/Brand.swift`
+- `ios/Wisconsin/Views/GuidesView.swift`
+- `ios/Wisconsin/Views/LicensesView.swift`
+- `ios/Wisconsin/Views/Search/GlobalSearchSheet.swift`
+- `ios/Wisconsin/Views/Search/QRScannerSheet.swift`
+- `ios/Wisconsin/Views/ScanView.swift`
+- `ios/Wisconsin/Core/SearchService.swift`
+- `ios/Wisconsin/Models/DashboardModels.swift`
+- `ios/Wisconsin/Models/ScheduleModels.swift`
 - `ios/Wisconsin/Core/APIClient.swift`
 - `ios/Wisconsin/Core/AppState.swift`
-- `ios/Wisconsin/Core/GearStore.swift`
-- `ios/Wisconsin/Core/NetworkMonitor.swift`
-- `ios/Wisconsin/Core/SearchService.swift`
-- `ios/Wisconsin/Core/SessionStore.swift`
-- `ios/Wisconsin/Models/*.swift`
-- `ios/Wisconsin/Views/**/*.swift`
-- `ios/Wisconsin/Kiosk/*.swift`
-- `tasks/audit-*-ios.md`
-- `tasks/hig-audit-ios.md`
-
-## Executive finding
-
-No current P0 or P1 source-verifiable blockers remain across the iOS app pages. The app matches the V1 mobile direction: Home is action-first, Scan is one tap from the tab bar, student flows prioritize own due/overdue work, staff/admin controls are present without crowding the student path, and kiosk is the canonical checkout/pickup/return execution surface.
-
-The remaining gaps are expected P2 parity or scale items already documented in `docs/GAPS_AND_RISKS.md`, `docs/AREA_KIOSK.md`, and the per-surface audit records. They should not block TestFlight or MVP unless product direction changes toward staff-mobile parity.
-
-## Surface verdicts
-
-| Surface | Verdict | Notes |
-|---|---:|---|
-| Login | READY | Email trim/lowercase, password manager hints, forgot-password link, visible loading/error state, and error accessibility announcement are present. |
-| Root/App shell | READY | Session restore, kiosk routing, push pre-prompt, theme selection, memory warning cache cleanup, foreground badge refresh, and offline banner paths are wired. |
-| Tab navigation | READY | Home, Bookings, Items, Scan, Schedule, and Users are exposed; Scan is one tap and uses search-role tab semantics; badges and reset behavior are present. |
-| Home/dashboard | READY | Current source is action-queue-first with stat strip, overdue/due/pickup/shift prioritization, staff exception work below the main queue, notification/profile/create entry points, push routing, and empty/error states. |
-| Profile/preferences | READY | Notification pause/channel controls, OS push permission truth, theme selection, staff tools, sign-out confirmation, and web-account handoff are present. |
-| Notifications sheet | READY | Loading, empty, error, refresh, infinite pagination, mark-read gestures, and routing to booking/trade/asset/user destinations are present. |
-| Global search | READY | Results route to item, booking, and user details; server failure is distinct from no-results; scanner entry and recents are present. |
-| Scan | READY | Camera permission pre-prompt, denied fallback, VoiceOver manual-entry fallback, manual entry, torch handling, duplicate-scan suppression, retry, and direct item routing are present. |
-| Bookings list | READY | Reservation/checkout toggle, mine-only filter, search, loading, empty, error, pagination retry, stale-load cancellation, pull refresh, create sheet, and detail routing are present. |
-| Booking detail | READY | Loading/error paths, refresh, role/ownership-gated actions, edit sheet discard protection, extend sheet, cancel confirmation, kiosk pickup/return handoff copy, and item/bulk sections are present. |
-| Create booking | READY | Existing audit P0/P1 items are closed; current callers route newly created bookings back into the navigation stack. |
-| Extend booking | READY | Existing audit P0/P1 items are closed; inline loading, discard protection, disabled in-flight picker, presets, haptics, and server error surfacing are present. |
-| Items list | READY | Search, status filter, favorites, reserve from row, loading, empty, error, pagination retry, stale-load cancellation, and detail routing are present. |
-| Item detail | READY | Loading/error paths, favorite rollback/toast, staff/admin edit gate, reserve CTA, edit sheet discard protection, QR copy feedback, active booking, reservations, parent/accessory, and notes sections are present. |
-| Schedule | READY | List/calendar modes, my-shifts filter, staff/admin past-events toggle, trade board, ICS subscription, stale-data indicator, non-blocking refresh error, event detail sheet, push routing, and tab reset are present. |
-| Event detail | READY | Existing audit P0/P1 items are closed; staff/student shift actions and event gear context are covered by current models and API client methods. |
-| Add shift | READY | Existing audit P0/P1 items are closed; remaining discard/picker polish is P2. |
-| Assign student | READY | Existing audit P0/P1 items are closed; sport-roster filtering and pagination are P2. |
-| Post trade | READY | Existing audit P0/P1 items are closed; empty-state and object-return polish is P2. |
-| Trade board | READY | Existing audit P0/P1 items are closed; pagination/filter polish is P2. |
-| Users list | READY | Search, role filters, inactive toggle, pagination, row routing, role/identity treatment, and reset behavior are covered by current source and prior audit closure. |
-| User detail | READY | Profile header, avatar, badges/gallery, contact rows, booking context, and notification routing are covered by current source and prior audit closure. |
-| Overdue report | READY | Staff/admin report exists with loading/error/empty states and booking-row drilldown; remaining web chart/export parity is intentionally out of mobile V1. |
-| Link sticker wizard | READY | Staff tool only; current audit P0/P1 items are closed. Existing QR overwrite warning/history/bulk-linking items remain P2. |
-| Kiosk activation | READY | Activation code entry, paste, loading/error, stored device state, session validation, and activation fallback are present. |
-| Kiosk idle | READY | Location roster, live dashboard polling, stale data, deactivation confirmation, and avatar polish are covered; roster search is P2 scale work. |
-| Kiosk student hub | READY | Student checkout/pickup/return/reservation context and action routing are present; cart-in-progress hint is P2. |
-| Kiosk checkout | READY | HID scanner field, camera fallback, scan feedback, remove mis-scan, race guard, complete path, and server error surfacing are covered by current audit closure. |
-| Kiosk pickup | READY | Serialized and numbered battery scan checklist, confirm guard, server error surfacing, camera feedback, race guard, and success routing are covered. Mid-session scan-state hydration from server remains P2. |
-| Kiosk return | READY | Serialized and numbered battery return checklist, complete guard, server-counted success, server error surfacing, camera feedback, and race guard are covered. |
-| Kiosk success | READY | Terminal success with haptic/VoiceOver/Done path is covered; celebration variants are P2. |
-
-## Open P2 items
-
-These are not MVP blockers:
-
-- `GAP-34`: iOS Bookings list does not expose the full web status scope and column sorting. This is acceptable for V1 because mobile is focused on student active work, not desk-style filtering.
-- `GAP-35`: iOS Booking detail does not show per-item conflict badges. Server enforcement remains authoritative; client preflight badges are staff parity.
-- `GAP-36`: iOS Item detail does not expose Duplicate, Retire, Delete, or Needs Maintenance. V1 mobile keeps destructive/admin lifecycle work web-owned.
-- Kiosk does not expose manual tag entry, roster search/filter, or wrong-person undo. `AREA_KIOSK.md` explicitly treats those as acceptable V1 tradeoffs for staffed-counter operation.
-- Global Search does not deep-link category-level "view all" into destination tabs and does not cancel in-flight URLSession requests. Current source drops stale results and surfaces errors, so this is bandwidth/polish work.
-- Notifications mark-read calls are optimistic and can temporarily lie until refresh if the server fails. The current list can be refreshed and the action is not custody-critical.
-- Schedule lacks web-style week view, full filter bar, My Hours strip, and shift detail panel. This is parity work, not a student core-flow blocker.
-- Licenses are web-owned for V1. The iOS audit record keeps a possible "My license" mobile surface as post-MVP.
-
-## Readiness lenses
-
-- Student core flows: covered across Home, Bookings, Items, Scan, Schedule, Notifications, Profile, and Kiosk.
-- Loading/empty/error/success paths: covered on all high-traffic pages and kiosk flows; non-blocking stale/refresh states exist where needed.
-- Offline/intermittent network: global offline banner, humanized network errors, cached booking/item/schedule seeds, and retry paths exist. Full offline mutation queue remains intentionally out of V1 scope.
-- Expired session: `APIClient.perform` posts `.sessionDidExpire`; `SessionStore` clears the user and RootView returns to Login.
-- Role-specific affordances: staff/admin controls are gated in Home, Profile, Bookings, Booking Detail, Item Detail, Schedule, Users, and Overdue Report; students keep own-work paths.
-- SwiftUI navigation and sheets: route wrappers avoid ambiguous `String` destinations where needed; sheets have detents and reset paths; tab reselection resets local stacks/filters.
-- Safe area/Dynamic Type/dark mode/tap targets/SF Symbols: current source uses standard SwiftUI controls, 44pt toolbar controls in key surfaces, dark-mode token colors, combined accessibility rows, hidden decorative icons, and VoiceOver scanner fallback.
-- API rollout skew: current iOS models decode active dashboard, booking, item, user, notification, schedule, badge, and kiosk payloads; build proof confirms the current schema compiles.
-- Web/iOS parity: remaining gaps are informational P2 parity items unless staff-mobile becomes the next product direction.
-
-## Staff-engineer conclusion
-
-Ship candidate. The app is not "perfect parity with web"; that is the point of the current iOS direction. The source and checks support TestFlight/MVP readiness for student daily work and staffed kiosk execution. The next sensible fix batch, if you want one after this audit, is not broad readiness work. It is one focused P2 slice: either booking conflict badges, item admin lifecycle actions, or kiosk roster/manual-entry scale polish.
+- `tasks/audit-home-ios.md`
+- `tasks/audit-schedule-list-ios.md`
+- `tasks/audit-schedule-ios.md`
+- `tasks/audit-item-detail-ios.md`
+- `tasks/audit-users-ios.md`
+- `tasks/audit-guides-ios.md`
+- `tasks/audit-licenses-ios.md`
+- `tasks/audit-search-ios.md`
+- `tasks/audit-scan-ios.md`

@@ -1171,7 +1171,9 @@ struct EventRow: View {
         if let isHome = event.isHome {
             parts.append(isHome ? "Home" : "Away")
         }
-        if let shift = myShift {
+        if event.displayAllDay {
+            parts.append("All day")
+        } else if let shift = myShift {
             let callTime = shift.startsAt.formatted(.dateTime.hour().minute())
             let eventTime = event.startsAt.formatted(.dateTime.hour().minute())
             let endTime = shift.endsAt.formatted(.dateTime.hour().minute())
@@ -1180,10 +1182,11 @@ struct EventRow: View {
             } else {
                 parts.append("Call \(callTime), event \(eventTime), end \(endTime)")
             }
-        } else if event.displayAllDay {
-            parts.append("All day")
         } else {
             parts.append(eventTimeLabel)
+        }
+        if let segment {
+            parts.append("Day \(segment.index) of \(segment.total)")
         }
         if let location = event.location {
             parts.append(location.name)

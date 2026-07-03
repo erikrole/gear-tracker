@@ -31,6 +31,7 @@ struct WisconsinApp: App {
                     if user?.forcePasswordChange == false {
                         // If the user previously granted permission, keep the token fresh.
                         Task { await registerForPushIfAuthorized() }
+                        Task { await CheckoutReturnLiveActivityManager.shared.prepareRemoteStartRegistration() }
                         Task {
                             await CheckoutReturnLiveActivityManager.shared.reconcileCurrentUserCheckouts(
                                 requesterId: user?.id
@@ -43,6 +44,7 @@ struct WisconsinApp: App {
                         // Refresh tab badge state regardless of which tab the user is on.
                         Task {
                             await appState.refresh()
+                            await CheckoutReturnLiveActivityManager.shared.prepareRemoteStartRegistration()
                             await CheckoutReturnLiveActivityManager.shared.reconcileCurrentUserCheckouts(
                                 requesterId: session.currentUser?.id
                             )

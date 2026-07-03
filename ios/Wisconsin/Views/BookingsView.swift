@@ -281,6 +281,15 @@ struct BookingsView: View {
         session.currentUser != nil
     }
 
+    private var showsEmptyCreateAction: Bool {
+        canCreate
+            && vm.isEmpty
+            && !vm.isLoading
+            && vm.error == nil
+            && vm.searchText.isEmpty
+            && vm.scope == .all
+    }
+
     private var emptyTitle: String {
         guard vm.searchText.isEmpty else { return "No Results" }
         switch vm.scope {
@@ -430,7 +439,7 @@ struct BookingsView: View {
                 Task { await vm.load(reset: true, clearExistingRows: true) }
             }
             .toolbar {
-                if canCreate {
+                if canCreate && !showsEmptyCreateAction {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button { showCreate = true } label: {
                             Label("New Reservation", systemImage: "plus")
@@ -452,12 +461,16 @@ struct BookingsView: View {
             .task {
                 vm.applyUserContext(id: session.currentUser?.id, role: session.currentUser?.role)
                 consumePendingScope()
+                consumePendingAppIntent()
                 await vm.load(reset: true)
             }
             .onChange(of: appState.pendingBookingsScope) { _, _ in
                 // A scope hint arrived while this tab was already alive (e.g.
                 // the dashboard "Overdue" tile tapped after the list loaded).
                 consumePendingScope()
+            }
+            .onChange(of: appState.pendingAppIntentDestination) { _, _ in
+                consumePendingAppIntent()
             }
             .onChange(of: appState.tabResetToken) { _, _ in
                 guard appState.resetTab == 1 else { return }
@@ -500,6 +513,14 @@ struct BookingsView: View {
                 Label("New Reservation", systemImage: "plus")
             }
             .buttonStyle(.borderedProminent)
+        }
+    }
+
+    private func consumePendingAppIntent() {
+        if appState.consumeAppIntentDestination(.createReservation) {
+            showCreate = true
+        } else if appState.consumeAppIntentDestination(.myGear) {
+            navigationPath = NavigationPath()
         }
     }
 }

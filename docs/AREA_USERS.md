@@ -116,6 +116,8 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+- 2026-07-03: Native iOS Users rows now omit routine location copy, matching the profile-detail cleanup. Rows keep role, title/year, active state, and primary area so the directory stays scannable without repeating default `Camp Randall` context.
+- 2026-07-03: Self-service session revocation hardened. `/api/me/sessions` and `/api/me/change-password` with `revokeOtherSessions` now require the current cookie-backed session to be re-identified before issuing a bulk `deleteMany`, so a stale or missing current-session lookup cannot turn "revoke other sessions" into "revoke every session for this user."
 - 2026-06-30: Profile Availability impact summary shipped. The user detail Availability tab now shows counts for approved time off, advisory conflicts, and preferred windows, names the next dated exception, and clarifies which signals block scheduling actions versus which ones guide staff review.
 - 2026-06-30: Student availability ownership now follows Scheduling class instead of app permission role. Staff-access users who still work Student shifts can own availability blocks, see the Availability tab, and manage My Availability on native iOS, while Staff-scheduling-class targets are rejected from availability creation.
 - 2026-06-30: Native iOS Browse now exposes Users to every authenticated role as a directory destination. This matches the existing policy that students can view all users while edit, role-management, onboarding, and admin mutations remain role-gated.

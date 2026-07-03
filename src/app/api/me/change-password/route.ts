@@ -41,6 +41,21 @@ export const POST = withAuth(async (req, { user }) => {
     throw new HttpError(400, "New password must be different from the current password.");
   }
 
+  let currentSessionId: string | null = null;
+  if (body.revokeOtherSessions) {
+    const cookieStore = await cookies();
+    const raw = cookieStore.get(env.sessionCookieName)?.value;
+    const currentHash = raw ? await tokenHash(raw) : null;
+    const current = currentHash
+      ? await db.session.findUnique({ where: { tokenHash: currentHash }, select: { id: true } })
+      : null;
+    currentSessionId = current?.id ?? null;
+
+    if (!currentSessionId) {
+      throw new HttpError(401, "Current session could not be verified. Sign in again.");
+    }
+  }
+
   const newHash = await hashPassword(body.newPassword);
 
   await db.user.update({
@@ -49,18 +64,13 @@ export const POST = withAuth(async (req, { user }) => {
   });
 
   if (body.revokeOtherSessions) {
-    const cookieStore = await cookies();
-    const raw = cookieStore.get(env.sessionCookieName)?.value;
-    const currentHash = raw ? await tokenHash(raw) : null;
-
-    const current = currentHash
-      ? await db.session.findUnique({ where: { tokenHash: currentHash }, select: { id: true } })
-      : null;
-
+    if (!currentSessionId) {
+      throw new HttpError(401, "Current session could not be verified. Sign in again.");
+    }
     await db.session.deleteMany({
       where: {
         userId: user.id,
-        ...(current ? { id: { not: current.id } } : {}),
+        id: { not: currentSessionId },
       },
     });
   }

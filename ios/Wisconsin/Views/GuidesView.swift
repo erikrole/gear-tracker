@@ -237,6 +237,16 @@ private struct GuideRow: View {
         .padding(.vertical, 5)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var accessibilityLabel: String {
+        var parts = [guide.title, guide.type.label]
+        if !guide.category.isEmpty && guide.category != guide.type.label {
+            parts.append(guide.category)
+        }
+        parts.append(guide.updatedSummary)
+        return parts.joined(separator: ", ")
     }
 }
 
@@ -276,6 +286,10 @@ private struct GuideReaderView: View {
             .frame(maxWidth: .infinity)
         }
         .background(Color(.systemGroupedBackground))
+        .safeAreaInset(edge: .bottom) {
+            Color.clear.frame(height: 72)
+        }
+        .toolbar(.hidden, for: .tabBar)
         .navigationTitle("Guide")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -328,9 +342,9 @@ private struct NativeMarkdownArticle: View {
                 inlineText(text).font(.body).lineSpacing(4)
             }
             .textSelection(.enabled)
-        case .numbered(let text):
+        case .numbered(let number, let text):
             HStack(alignment: .firstTextBaseline, spacing: 9) {
-                Text("1.").foregroundStyle(.secondary)
+                Text("\(number).").foregroundStyle(.secondary)
                 inlineText(text).font(.body).lineSpacing(4)
             }
             .textSelection(.enabled)
@@ -410,7 +424,7 @@ private struct MarkdownBlock: Identifiable {
         case heading(level: Int, text: String)
         case paragraph(String)
         case bullet(String)
-        case numbered(String)
+        case numbered(number: Int, text: String)
         case quote(String)
         case code(String)
         case table(String)
@@ -427,10 +441,14 @@ private struct MarkdownBlock: Identifiable {
         var paragraph: [String] = []
         var codeLines: [String] = []
         var inCodeFence = false
+        var nextOrderedNumber: Int?
 
         func flushParagraph() {
             let text = paragraph.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
-            if !text.isEmpty { blocks.append(MarkdownBlock(kind: .paragraph(text))) }
+            if !text.isEmpty {
+                blocks.append(MarkdownBlock(kind: .paragraph(text)))
+                nextOrderedNumber = nil
+            }
             paragraph.removeAll()
         }
 
@@ -442,9 +460,11 @@ private struct MarkdownBlock: Identifiable {
                     blocks.append(MarkdownBlock(kind: .code(codeLines.joined(separator: "\n"))))
                     codeLines.removeAll()
                     inCodeFence = false
+                    nextOrderedNumber = nil
                 } else {
                     flushParagraph()
                     inCodeFence = true
+                    nextOrderedNumber = nil
                 }
                 continue
             }
@@ -462,42 +482,50 @@ private struct MarkdownBlock: Identifiable {
             if line == "---" || line == "***" {
                 flushParagraph()
                 blocks.append(MarkdownBlock(kind: .rule))
+                nextOrderedNumber = nil
                 continue
             }
 
             if let image = parseImage(line) {
                 flushParagraph()
                 blocks.append(MarkdownBlock(kind: .image(alt: image.alt, url: image.url)))
+                nextOrderedNumber = nil
                 continue
             }
 
             if line.hasPrefix("|") && line.hasSuffix("|") {
                 flushParagraph()
                 blocks.append(MarkdownBlock(kind: .table(line)))
+                nextOrderedNumber = nil
                 continue
             }
 
             if let heading = parseHeading(line) {
                 flushParagraph()
                 blocks.append(MarkdownBlock(kind: .heading(level: heading.level, text: heading.text)))
+                nextOrderedNumber = nil
                 continue
             }
 
             if line.hasPrefix("- ") || line.hasPrefix("* ") {
                 flushParagraph()
                 blocks.append(MarkdownBlock(kind: .bullet(String(line.dropFirst(2)))))
+                nextOrderedNumber = nil
                 continue
             }
 
             if let numbered = parseNumbered(line) {
                 flushParagraph()
-                blocks.append(MarkdownBlock(kind: .numbered(numbered)))
+                let number = nextOrderedNumber ?? numbered.number
+                blocks.append(MarkdownBlock(kind: .numbered(number: number, text: numbered.text)))
+                nextOrderedNumber = number + 1
                 continue
             }
 
             if line.hasPrefix(">") {
                 flushParagraph()
                 blocks.append(MarkdownBlock(kind: .quote(String(line.dropFirst()).trimmingCharacters(in: .whitespaces))))
+                nextOrderedNumber = nil
                 continue
             }
 
@@ -519,12 +547,13 @@ private struct MarkdownBlock: Identifiable {
         return (markerCount, text)
     }
 
-    private static func parseNumbered(_ line: String) -> String? {
+    private static func parseNumbered(_ line: String) -> (number: Int, text: String)? {
         guard let dot = line.firstIndex(of: ".") else { return nil }
         let prefix = line[..<dot]
         guard !prefix.isEmpty, prefix.allSatisfy(\.isNumber) else { return nil }
+        guard let number = Int(prefix) else { return nil }
         let text = line[line.index(after: dot)...].trimmingCharacters(in: .whitespaces)
-        return text.isEmpty ? nil : text
+        return text.isEmpty ? nil : (number, text)
     }
 
     private static func parseImage(_ line: String) -> (alt: String, url: String)? {

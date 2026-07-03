@@ -1,7 +1,7 @@
 # Audit: Home / Dashboard (iOS) — 2026-07-02
 
 **MVP verdict:** NOT READY — 0 P0, 4 P1
-**Fix pass:** all four P1s shipped 2026-07-02 (same day); see change log in `docs/AREA_MOBILE.md`. P2s remain open.
+**Fix pass:** all four P1s shipped 2026-07-02 (same day); see change log in `docs/AREA_MOBILE.md`. 2026-07-03 simulator follow-up fixed the duplicated Home hero accessibility label. P2s remain open.
 **Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class
 **Audit type:** static source (no build/run/UI tests)
 
@@ -57,6 +57,11 @@ bulk units) is correct, logging is count-only (no PII).
 
 ## P2 — post-MVP
 
+- [x] [Accessibility] **Simulator snapshot exposed the Home hero twice.** The
+      visual header was correct, but the accessibility tree included a combined
+      `Good evening, Erik` node plus separate `Good evening,` and `Erik` text
+      nodes. `DashboardHero` now ignores child text for accessibility and
+      exposes one label containing the visible date plus greeting.
 - [ ] [Polish] "Synced in 0 seconds" right after refresh — `.relative(presentation:
       .named)` (`HomeView.swift:388-399`). Add a "just now" branch under ~10s.
 - [ ] [Polish] "You're all set" can render directly above a staff Drafts card:
@@ -97,8 +102,13 @@ bulk units) is correct, logging is count-only (no PII).
 - ios/Wisconsin/Views/HomeView.swift (full)
 - ios/Wisconsin/Models/DashboardModels.swift (full)
 - ios/Wisconsin/Core/APIClient.swift (dashboard endpoints)
+- ios/Wisconsin/App/WisconsinApp.swift (lifecycle entry)
+- ios/Wisconsin/App/AppDelegate.swift (push routing)
+- ios/Wisconsin/Views/AppTabView.swift (tab tags and shell order)
 - ios/Wisconsin/Views/BookingsView.swift (full, earlier this session — scope plumbing)
 - docs/AREA_MOBILE.md (contract + ACs; change log skimmed)
+- docs/AREA_DASHBOARD.md (Home/dashboard scope + change log)
+- docs/DESIGN_LANGUAGE.md (accessibility baseline)
 - docs/GAPS_AND_RISKS.md (iOS entries, grep pass)
 - src/app/api/dashboard/route.ts (scope param + stats semantics, targeted)
 - tasks/audit-home-ios.md (2026-05-08 predecessor)

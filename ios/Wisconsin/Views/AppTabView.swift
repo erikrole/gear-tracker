@@ -33,21 +33,21 @@ struct AppTabView: View {
                 HomeView()
             }
 
+            Tab("Schedule", systemImage: "calendar", value: 4) {
+                ScheduleView()
+            }
+                .badge(appState.myShiftTodayCount)
+                .accessibilityLabel(appState.myShiftTodayCount > 0 ? "Schedule, \(appState.myShiftTodayCount) shifts today" : "Schedule")
+
             Tab(gearTabLabel, systemImage: "calendar.badge.checkmark", value: 1) {
                 BookingsView()
             }
                 .badge(appState.overdueCount)
                 .accessibilityLabel(appState.overdueCount > 0 ? "\(gearTabLabel), \(appState.overdueCount) overdue" : gearTabLabel)
 
-            Tab("Browse", systemImage: "square.grid.2x2", value: 2) {
+            Tab("More", systemImage: "ellipsis.circle", value: 2) {
                 BrowseView()
             }
-
-            Tab("Schedule", systemImage: "calendar", value: 4) {
-                ScheduleView()
-            }
-                .badge(appState.myShiftTodayCount)
-                .accessibilityLabel(appState.myShiftTodayCount > 0 ? "Schedule, \(appState.myShiftTodayCount) shifts today" : "Schedule")
 
             Tab("Search", systemImage: "magnifyingglass", value: 3, role: .search) {
                 GlobalSearchSheet(showsCancelButton: false)
@@ -82,8 +82,13 @@ struct AppTabView: View {
             if !showsSidebarDestinations && selectedTabIsSidebarOnly {
                 appState.selectedTab = 0
             }
+            consumePendingAppIntentHandoff()
+            routePendingAppIntent()
             routePendingEventPush()
             routePendingBookingPush()
+        }
+        .onChange(of: appState.pendingAppIntentDestination) { _, _ in
+            routePendingAppIntent()
         }
         .onChange(of: appState.pendingPushEventId) { _, _ in
             routePendingEventPush()
@@ -116,6 +121,26 @@ struct AppTabView: View {
         guard appState.pendingPushBookingId != nil else { return }
         if appState.selectedTab != 0 {
             appState.selectedTab = 0
+        }
+    }
+
+    private func consumePendingAppIntentHandoff() {
+        guard let destination = GearTrackerAppIntentHandoff.shared.consumePendingDestination() else { return }
+        appState.pendingAppIntentDestination = destination
+    }
+
+    private func routePendingAppIntent() {
+        guard let destination = appState.pendingAppIntentDestination else { return }
+        switch destination {
+        case .scan:
+            if appState.selectedTab != 3 { appState.selectedTab = 3 }
+        case .myGear:
+            if appState.selectedTab != 1 { appState.selectedTab = 1 }
+        case .todaySchedule:
+            if appState.selectedTab != 4 { appState.selectedTab = 4 }
+            appState.pendingAppIntentDestination = nil
+        case .createReservation:
+            if appState.selectedTab != 1 { appState.selectedTab = 1 }
         }
     }
 }

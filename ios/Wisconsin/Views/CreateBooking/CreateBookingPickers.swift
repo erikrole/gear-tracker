@@ -32,6 +32,7 @@ struct OptionPickerView: View {
                                 .foregroundStyle(Color.statusText(.blue))
                         }
                     }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(selection == option.id ? .isSelected : [])
@@ -99,6 +100,7 @@ struct RequesterPickerView: View {
                                 .foregroundStyle(Color.statusText(.blue))
                         }
                     }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityElement(children: .combine)

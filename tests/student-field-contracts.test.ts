@@ -49,11 +49,18 @@ describe("student field mobile contracts", () => {
   it("keeps iOS bookings unified and toolbar buttons field-readable", () => {
     const appTab = source("ios/Wisconsin/Views/AppTabView.swift");
     const bookingsView = source("ios/Wisconsin/Views/BookingsView.swift");
+    const searchView = source("ios/Wisconsin/Views/Search/GlobalSearchSheet.swift");
+    const homeView = source("ios/Wisconsin/Views/HomeView.swift");
 
     expect(appTab).toContain("isStaffOrAdmin ? \"Bookings\" : \"My Gear\"");
-    expect(appTab).toContain('Tab("Browse", systemImage: "square.grid.2x2", value: 2)');
+    expect(appTab).toContain('Tab("More", systemImage: "ellipsis.circle", value: 2)');
     expect(appTab).toContain('Tab("Users", systemImage: "person.2", value: 5)');
     expect(appTab).not.toMatch(/if isStaffOrAdmin \{[\s\S]*?Tab\("Users"/);
+    expect(searchView).toContain("@State private var isSearchPresented = false");
+    expect(searchView).toContain("isPresented: $isSearchPresented");
+    expect(searchView).toContain("isSearchPresented = true");
+    expect(homeView).toContain(".buttonStyle(.plain)");
+    expect(homeView).not.toContain("Circle().strokeBorder(Color(.separator)");
     expect(bookingsView).toContain("scope = currentUserRole == \"STUDENT\" ? .mine : .all");
     expect(bookingsView).toContain('BookingListSection(title: "Checkouts"');
     expect(bookingsView).toContain('BookingListSection(title: "Reservations"');
@@ -140,12 +147,16 @@ describe("student field mobile contracts", () => {
 
   it("keeps iOS Items controls self-describing", () => {
     const itemsView = source("ios/Wisconsin/Views/ItemsView.swift");
+    const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
 
     expect(itemsView).toContain(".searchable(text: $vm.searchText, prompt: \"Search tag, model, serial, location\")");
     expect(itemsView).toContain("ToolbarItemGroup(placement: .topBarTrailing)");
     expect(itemsView).toContain("Label(\"Favorites\", systemImage: vm.favoritesOnly ? \"star.fill\" : \"star\")");
     expect(itemsView).toContain("AssetStatusFilterMenu(selected: $vm.selectedStatuses)");
     expect(itemsView).toContain("ItemSortMenu(selected: $vm.sortOption)");
+    expect(apiClient).toContain("includeAccessories: Bool = false");
+    expect(apiClient).toContain("include_accessories");
+    expect(itemsView).not.toContain("includeAccessories: true");
     expect(itemsView).toContain("selected.isEmpty ? \"All statuses\" : \"\\(selected.count) statuses\"");
     expect(itemsView).not.toContain("itemsControlStrip");
     expect(itemsView).not.toContain("ItemControlPill(");

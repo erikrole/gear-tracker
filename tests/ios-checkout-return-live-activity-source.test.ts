@@ -97,17 +97,29 @@ describe("iOS checkout return Live Activity source contract", () => {
   it("stores Live Activity tokens separately and sends end pushes when checkout return completes", () => {
     const schema = source("prisma/schema.prisma");
     const migration = source("prisma/migrations/0088_checkout_live_activity_tokens/migration.sql");
+    const startMigration = source("prisma/migrations/0091_checkout_live_activity_push_to_start/migration.sql");
     const route = source("src/app/api/live-activities/checkout-return/route.ts");
+    const startTokenRoute = source("src/app/api/live-activities/checkout-return/start-token/route.ts");
     const service = source("src/lib/services/live-activities.ts");
     const apns = source("src/lib/push/apns.ts");
     const checkin = source("src/lib/services/bookings-checkin.ts");
 
     expect(schema).toContain("model LiveActivityToken");
+    expect(schema).toContain("model LiveActivityStartToken");
+    expect(schema).toContain("model LiveActivityStart");
     expect(schema).toContain("@@map(\"live_activity_tokens\")");
+    expect(schema).toContain("@@map(\"live_activity_start_tokens\")");
+    expect(schema).toContain("@@map(\"live_activity_starts\")");
     expect(migration).toContain("CREATE TABLE \"live_activity_tokens\"");
+    expect(startMigration).toContain("CREATE TABLE \"live_activity_start_tokens\"");
+    expect(startMigration).toContain("CREATE TABLE \"live_activity_starts\"");
     expect(route).toContain("booking.requesterUserId !== user.id");
     expect(route).toContain("booking.status !== BookingStatus.OPEN");
+    expect(startTokenRoute).toContain("registerCheckoutReturnLiveActivityStartToken");
+    expect(startTokenRoute).toContain("revokeCheckoutReturnLiveActivityStartTokens");
+    expect(startTokenRoute).toContain("export const DELETE = withAuth");
     expect(service).toContain("registerCheckoutReturnLiveActivity");
+    expect(service).toContain("registerCheckoutReturnLiveActivityStartToken");
     expect(service).toContain("endCheckoutReturnLiveActivities");
     expect(service).toContain("updateCheckoutReturnLiveActivities");
     expect(apns).toContain('"apns-push-type": opts.pushType');
@@ -126,5 +138,37 @@ describe("iOS checkout return Live Activity source contract", () => {
     expect(lifecycle).toContain("endCheckoutReturnLiveActivities(bookingId)");
     expect(service).toContain("updateCheckoutReturnLiveActivityTokens");
     expect(service).toContain("endsAt: args.endsAt");
+  });
+
+  it("registers push-to-start tokens and starts checkout return activities from the server", () => {
+    const api = source("ios/Wisconsin/Core/APIClient.swift");
+    const app = source("ios/Wisconsin/App/WisconsinApp.swift");
+    const session = source("ios/Wisconsin/Core/SessionStore.swift");
+    const manager = source("ios/Wisconsin/LiveActivities/CheckoutReturnLiveActivityManager.swift");
+    const service = source("src/lib/services/live-activities.ts");
+    const apns = source("src/lib/push/apns.ts");
+    const cron = source("src/app/api/cron/live-activities/route.ts");
+    const vercel = source("vercel.json");
+
+    expect(api).toContain("registerCheckoutReturnLiveActivityStartToken");
+    expect(api).toContain("revokeCheckoutReturnLiveActivityStartTokens");
+    expect(app).toContain("prepareRemoteStartRegistration()");
+    expect(session).toContain("revokeCheckoutReturnLiveActivityStartTokens()");
+    expect(manager).toContain("pushToStartTokenUpdates");
+    expect(manager).toContain("Activity<CheckoutReturnActivityAttributes>.activityUpdates");
+    expect(manager).toContain("activity.pushToken");
+    expect(manager).toContain("registerCheckoutReturnLiveActivityStartToken(token)");
+    expect(manager).toContain("registerCheckoutReturnLiveActivity(");
+    expect(service).toContain("startDueCheckoutReturnLiveActivities");
+    expect(service).toContain("liveActivityStartTokens");
+    expect(service).toContain("liveActivityStarts");
+    expect(apns).toContain("startCheckoutReturnLiveActivityTokens");
+    expect(apns).toContain('event: "start"');
+    expect(apns).toContain('"attributes-type": "CheckoutReturnActivityAttributes"');
+    expect(apns).toContain('"input-push-token": 1');
+    expect(cron).toContain("withCron");
+    expect(cron).toContain("startDueCheckoutReturnLiveActivities");
+    expect(vercel).toContain("/api/cron/live-activities");
+    expect(vercel).toContain("*/15 * * * *");
   });
 });

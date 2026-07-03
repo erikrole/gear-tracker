@@ -167,6 +167,80 @@ export async function endCheckoutReturnLiveActivityTokens(
   return { revoked };
 }
 
+export async function startCheckoutReturnLiveActivityTokens(
+  tokens: string[],
+  attrs: {
+    bookingId: string;
+    bookingTitle: string;
+    requesterName: string;
+    requesterInitials: string;
+    requesterAvatarUrl?: string | null;
+    returnTimeText: string;
+  },
+  state: {
+    endsAt: Date;
+    nextNeedAt?: Date | null;
+    allowsExtend: boolean;
+    urgency: "normal" | "warning" | "critical" | "overdue";
+  }
+): Promise<{ revoked: string[]; ok: number }> {
+  if (!isConfigured() || tokens.length === 0) return { revoked: [], ok: 0 };
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const notification = {
+    aps: {
+      timestamp: nowSeconds,
+      event: "start",
+      "attributes-type": "CheckoutReturnActivityAttributes",
+      attributes: {
+        bookingId: attrs.bookingId,
+        bookingTitle: attrs.bookingTitle,
+        requesterName: attrs.requesterName,
+        requesterInitials: attrs.requesterInitials,
+        requesterAvatarUrl: attrs.requesterAvatarUrl ?? null,
+        returnTimeText: attrs.returnTimeText,
+      },
+      "content-state": {
+        endsAt: state.endsAt.toISOString(),
+        now: new Date().toISOString(),
+        nextNeedAt: state.nextNeedAt?.toISOString() ?? null,
+        allowsExtend: state.allowsExtend,
+        urgency: state.urgency,
+      },
+      "stale-date": Math.floor((state.endsAt.getTime() + 6 * 60 * 60_000) / 1000),
+      "input-push-token": 1,
+      alert: {
+        title: attrs.bookingTitle,
+        body: attrs.returnTimeText,
+      },
+    },
+  };
+
+  const jwt = makeJWT();
+  const client = http2.connect(APNS_HOST);
+  const revoked: string[] = [];
+  let ok = 0;
+
+  try {
+    await Promise.all(
+      tokens.map(async (token) => {
+        const result = await sendOne(client, jwt, token, notification, {
+          topic: `${process.env.APNS_BUNDLE_ID!}.push-type.liveactivity`,
+          pushType: "liveactivity",
+        });
+        if (result === "revoked") revoked.push(token);
+        if (result === "ok") ok += 1;
+      })
+    );
+  } catch (err) {
+    console.error("[APNS] startCheckoutReturnLiveActivityTokens error:", err);
+  } finally {
+    client.destroy();
+  }
+
+  return { revoked, ok };
+}
+
 export async function updateCheckoutReturnLiveActivityTokens(
   tokens: string[],
   state: {

@@ -8,9 +8,18 @@ final class CheckoutReturnLiveActivityManager {
     private let defaultLeadTime: TimeInterval = 30 * 60
     private let maxNextNeedLeadTime: TimeInterval = 60 * 60
     private var isReconciling = false
+    private var isObservingPushToStartTokens = false
+    private var isObservingActivityUpdates = false
     private var observedActivityIds: Set<String> = []
 
     private init() {}
+
+    func prepareRemoteStartRegistration() async {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        observeExistingActivities()
+        observePushToStartTokens()
+        observeActivityUpdates()
+    }
 
     func reconcileCurrentUserCheckouts(requesterId: String?) async {
         guard ActivityAuthorizationInfo().areActivitiesEnabled, !isReconciling else { return }
@@ -112,6 +121,35 @@ final class CheckoutReturnLiveActivityManager {
         }
     }
 
+    private func observeExistingActivities() {
+        for activity in Activity<CheckoutReturnActivityAttributes>.activities {
+            observePushToken(for: activity, bookingId: activity.attributes.bookingId)
+        }
+    }
+
+    private func observePushToStartTokens() {
+        guard !isObservingPushToStartTokens else { return }
+        isObservingPushToStartTokens = true
+
+        Task {
+            for await tokenData in Activity<CheckoutReturnActivityAttributes>.pushToStartTokenUpdates {
+                let token = hexToken(from: tokenData)
+                try? await APIClient.shared.registerCheckoutReturnLiveActivityStartToken(token)
+            }
+        }
+    }
+
+    private func observeActivityUpdates() {
+        guard !isObservingActivityUpdates else { return }
+        isObservingActivityUpdates = true
+
+        Task {
+            for await activity in Activity<CheckoutReturnActivityAttributes>.activityUpdates {
+                observePushToken(for: activity, bookingId: activity.attributes.bookingId)
+            }
+        }
+    }
+
     private func contentState(for candidate: CheckoutReturnCandidate) -> CheckoutReturnActivityAttributes.ContentState {
         let now = Date()
         return CheckoutReturnActivityAttributes.ContentState(
@@ -137,17 +175,28 @@ final class CheckoutReturnLiveActivityManager {
         return letters.isEmpty ? "?" : String(letters).uppercased()
     }
 
+    private func hexToken(from data: Data) -> String {
+        data.map { String(format: "%02x", $0) }.joined()
+    }
+
     private func observePushToken(
         for activity: Activity<CheckoutReturnActivityAttributes>,
         bookingId: String
     ) {
         guard observedActivityIds.insert(activity.id).inserted else { return }
-        Task {
-            for await tokenData in activity.pushTokenUpdates {
-                let token = tokenData.map { String(format: "%02x", $0) }.joined()
+        if let tokenData = activity.pushToken {
+            Task {
                 try? await APIClient.shared.registerCheckoutReturnLiveActivity(
                     bookingId: bookingId,
-                    token: token
+                    token: hexToken(from: tokenData)
+                )
+            }
+        }
+        Task {
+            for await tokenData in activity.pushTokenUpdates {
+                try? await APIClient.shared.registerCheckoutReturnLiveActivity(
+                    bookingId: bookingId,
+                    token: hexToken(from: tokenData)
                 )
             }
         }

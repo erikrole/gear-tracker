@@ -10,11 +10,13 @@ enum SearchDestination: Hashable {
 struct GlobalSearchSheet: View {
     var showsCancelButton = true
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppState.self) private var appState
     @State private var query = ""
     @State private var results = SearchResults()
     @State private var isSearching = false
     @State private var searchError: String?
     @State private var showScanner = false
+    @State private var isSearchPresented = false
     @State private var debounceTask: Task<Void, Never>?
     @State private var navigationPath = NavigationPath()
 
@@ -42,6 +44,7 @@ struct GlobalSearchSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .searchable(
                 text: $query,
+                isPresented: $isSearchPresented,
                 placement: .navigationBarDrawer(displayMode: .always),
                 prompt: Text("Search items, bookings, people")
             )
@@ -89,6 +92,24 @@ struct GlobalSearchSheet: View {
         }
         .onChange(of: query) { _, newValue in
             scheduleSearch(query: newValue)
+        }
+        .onChange(of: appState.pendingAppIntentDestination) { _, _ in
+            consumePendingAppIntent()
+        }
+        .onAppear {
+            consumePendingAppIntent()
+            // Give NavigationStack a run loop to install the search controller
+            // before asking SwiftUI to present the search field and keyboard.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                isSearchPresented = true
+            }
+        }
+    }
+
+    private func consumePendingAppIntent() {
+        if appState.consumeAppIntentDestination(.scan) {
+            isSearchPresented = false
+            showScanner = true
         }
     }
 

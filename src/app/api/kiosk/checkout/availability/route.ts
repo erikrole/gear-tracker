@@ -9,12 +9,11 @@ import { parseDateRange } from "@/lib/time";
 
 export const POST = withKiosk(async (req, { kiosk }) => {
   const body = checkoutAvailabilityBody.parse(await req.json());
-  const locationId = body.locationId || kiosk.locationId;
   const { assetIds, bulkUnitItems } = normalizeCheckoutCompleteItems(body.items);
   const { start, end } = parseDateRange(body.startsAt, body.endsAt);
 
   const result = await checkAvailability(db, {
-    locationId,
+    locationId: kiosk.locationId,
     startsAt: start,
     endsAt: end,
     serializedAssetIds: assetIds,

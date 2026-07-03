@@ -1,6 +1,6 @@
 # Prisma + Neon Runbook
 
-Last updated: 2026-05-13
+Last updated: 2026-07-03
 
 ## Connection Rules
 
@@ -19,10 +19,10 @@ npm run db:migrate:deploy
 npm run build
 ```
 
-- `db:migrate:check` verifies local migration prefix uniqueness.
+- `db:migrate:check` verifies local migration folder shape, required `migration.sql` files, and prefix uniqueness.
 - `db:migrate:status` and `db:migrate:health` run the repo's Neon-backed health checker. They compare local migration folders with live `_prisma_migrations`, fail on pending local migrations, fail on unresolved failed rows, fail on applied DB rows missing locally, and verify the newest local migration is applied.
 - `db:migrate:deploy` runs `prisma migrate deploy` first. If Prisma exits with the known blank schema-engine error against Neon, the wrapper applies pending migration SQL through Neon HTTP and records `_prisma_migrations`.
-- `build` runs the deploy wrapper before `next build`, so Vercel builds fail early if migration state is not deployable.
+- `build` runs the deploy wrapper before `next build`, so Vercel builds fail early if migration state is not deployable. Use `npm run build:app` for local app compile proof when you are not intentionally validating migration deploy behavior.
 
 Raw `prisma migrate status` is not the source of truth in this repo because the local Prisma schema engine can fail blank against Neon. Use `npm run db:migrate:status` or `npm run db:migrate:health`.
 

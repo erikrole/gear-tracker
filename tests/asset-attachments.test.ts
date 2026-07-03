@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   getAttachmentCandidateBlockedReason,
@@ -62,5 +63,16 @@ describe("asset attachment helpers", () => {
     expect(getAttachmentDisplayName({ assetTag: "SD-1", name: "Angelbird 128GB" })).toBe("Angelbird 128GB");
     expect(getAttachmentDisplayName({ assetTag: "CAGE-1", brand: "SmallRig", model: "FX3 Cage" })).toBe("SmallRig FX3 Cage");
     expect(getAttachmentDisplayName({ assetTag: "PART-1", type: "Adapter" })).toBe("Adapter");
+    expect(getAttachmentDisplayName({ assetTag: "ATT FX3 1 Sony XLR-H1 XLR Handle E79281F0", name: "Sony XLR-H1 XLR Handle" })).toBe("Sony XLR-H1 XLR Handle");
+  });
+
+  it("keeps generated internal tags out of attachment detail row titles", () => {
+    const source = readFileSync("src/app/(app)/items/[id]/ItemSettingsTab.tsx", "utf8");
+
+    expect(source).toContain("const displayName = getAttachmentDisplayName(acc);");
+    expect(source).toContain("alt={displayName}");
+    expect(source).toContain("{displayName}");
+    expect(source).toContain("detachAccessory(acc.id, displayName)");
+    expect(source).not.toContain("{acc.assetTag}</Link>");
   });
 });

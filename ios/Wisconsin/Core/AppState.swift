@@ -21,6 +21,7 @@ final class AppState {
     var pendingPushBookingId: String?
     var pendingExtendBookingId: String?
     var pendingPushEventId: String?
+    var pendingAppIntentDestination: GearTrackerAppIntentDestination?
     var selectedTab: Int = 0
     var resetTab: Int?
     var tabResetToken = 0
@@ -47,6 +48,12 @@ final class AppState {
 
     func presentScanLookup() {
         presentSearch()
+    }
+
+    func consumeAppIntentDestination(_ destination: GearTrackerAppIntentDestination) -> Bool {
+        guard pendingAppIntentDestination == destination else { return false }
+        pendingAppIntentDestination = nil
+        return true
     }
 
     func refresh(forceRefresh: Bool = false) async {

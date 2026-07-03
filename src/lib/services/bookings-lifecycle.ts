@@ -153,6 +153,16 @@ function isBookingAllocationConstraintError(error: unknown) {
   return error.code === "P2004" && text.includes("asset_allocations");
 }
 
+function handleBookingMutationRace(error: unknown): never {
+  if (isSerializableConflict(error)) {
+    throw new HttpError(409, "Someone else submitted at the same time; please try again.");
+  }
+  if (isBookingAllocationConstraintError(error)) {
+    throw new HttpError(409, "One or more items are no longer available");
+  }
+  throw error;
+}
+
 export async function createBooking(input: CreateBookingInput) {
   assertValidBookingWindow(input.startsAt, input.endsAt);
   assertValidCreateEventLinks(input);
@@ -367,13 +377,7 @@ export async function createBooking(input: CreateBookingInput) {
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
   );
   } catch (error) {
-    if (isSerializableConflict(error)) {
-      throw new HttpError(409, "Someone else submitted at the same time; please try again.");
-    }
-    if (isBookingAllocationConstraintError(error)) {
-      throw new HttpError(409, "One or more items are no longer available");
-    }
-    throw error;
+    handleBookingMutationRace(error);
   }
 }
 
@@ -382,8 +386,9 @@ export async function updateReservation(
   actorUserId: string,
   updates: UpdateBookingInput
 ) {
-  return db.$transaction(
-    async (tx) => {
+  try {
+    return await db.$transaction(
+      async (tx) => {
       const existing = await tx.booking.findUnique({
         where: { id: bookingId },
         include: {
@@ -548,9 +553,12 @@ export async function updateReservation(
         where: { id: bookingId },
         include: bookingInclude
       });
-    },
-    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
-  );
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+  } catch (error) {
+    handleBookingMutationRace(error);
+  }
 }
 
 export async function cancelReservation(bookingId: string, actorUserId: string) {
@@ -598,8 +606,10 @@ export async function updateCheckout(
   actorUserId: string,
   updates: UpdateBookingInput
 ) {
-  const updated = await db.$transaction(
-    async (tx) => {
+  let updated;
+  try {
+    updated = await db.$transaction(
+      async (tx) => {
       const existing = await tx.booking.findUnique({
         where: { id: bookingId },
         include: {
@@ -760,9 +770,12 @@ export async function updateCheckout(
         where: { id: bookingId },
         include: bookingInclude
       });
-    },
-    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
-  );
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+  } catch (error) {
+    handleBookingMutationRace(error);
+  }
 
   if (updated.kind === BookingKind.CHECKOUT && updated.status === BookingStatus.OPEN) {
     await updateCheckoutReturnLiveActivities({
@@ -779,8 +792,10 @@ export async function extendBooking(
   actorUserId: string,
   newEndsAt: Date
 ) {
-  const updated = await db.$transaction(
-    async (tx) => {
+  let updated;
+  try {
+    updated = await db.$transaction(
+      async (tx) => {
       const existing = await tx.booking.findUnique({
         where: { id: bookingId },
         include: { serializedItems: true, bulkItems: true }
@@ -847,9 +862,12 @@ export async function extendBooking(
         where: { id: bookingId },
         include: bookingInclude
       });
-    },
-    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
-  );
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+  } catch (error) {
+    handleBookingMutationRace(error);
+  }
 
   if (updated.kind === BookingKind.CHECKOUT && updated.status === BookingStatus.OPEN) {
     await updateCheckoutReturnLiveActivities({

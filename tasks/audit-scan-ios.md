@@ -74,3 +74,9 @@ There is no `AREA_SCAN.md` covering iOS specifically. AC inferred from `AREA_SCA
 - [x] Hardening
 - [x] Parity (web ↔ iOS — lookup-only by design)
 - [x] Accessibility (existing VoiceOver + reduce-motion paths preserved; torch button gets accessibilityLabel)
+
+## 2026-07-03 Runtime Recheck
+
+- [x] Search scanner unavailable fallback screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_a057ded1-fb07-4631-9e5d-c3ca8a2b5cf1.jpg`
+- [x] Search scanner manual-entry sheet screenshot after polish: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_95a10250-6bd7-4d5a-bfb5-cc8e52715702.jpg`
+- [x] Runtime fix: when the typed-code sheet is presented from an unsupported/unavailable scanner state, the underlying unavailable controls are hidden so the sheet no longer sits over a glowing fallback button.

@@ -8,6 +8,19 @@ Scope: `CreateBookingSheet` + `CreateBookingViewModel` + `AssetPickerRow` + the 
 
 **Surrounding context:** the create-booking flow is the primary self-service action — student or staff starts a reservation. Two-step UI: (1) details (title, requester, location, dates, notes), (2) equipment picker. Now wired from THREE entry points: bookings tab `+`, items list swipe + context menu (per the prior audit's reserve-prefill fix), and the new item-detail Reserve CTA shipped earlier today. Conflict pre-flight check runs after asset selection changes.
 
+## 2026-07-03 Simulator Follow-Up
+
+- [x] Details step screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_be781ccb-539a-46a8-9157-454cc6a581be.jpg`
+- [x] Fixed shared picker-row wrapping. The simulator screenshot showed the `Pickup` label wrapping into two lines in the Details step because `FormPickerRow` forced labels into a 40-point column. `FormPickerRow` now keeps labels on one line at intrinsic width and lets long values truncate instead.
+- [x] Linked all-day event screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_42458b1d-e7e6-4b76-ae41-ff4f3c8faf55.jpg`
+- [x] Prefilled event shortcut screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_727630f0-9885-4808-841f-db79be8dd194.jpg`
+- [x] Fixed all-day linked-event header copy. Selecting Football Media Day previously made the Details header say `Jul 7, 2026 at 12:00 AM to 12:00 AM`; event-detail prefill had the same issue through `prefillEventId`. Both paths now use date-only `All day` copy while preserving timed copy after manual window edits.
+- [x] Fixed picker hit targets. Pickup/requester picker rows now explicitly make the full row rectangle tappable so the visual row and runtime tap target match.
+- [x] Equipment step screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_1832e80e-a63e-4352-b3ec-2e2582af6855.jpg`
+- [x] Hid attachment categories from native reservation equipment browsing. Stored category values still include names such as `Accessories`, but the reservation picker now treats those as attachments and keeps them out of default browse/category/search results.
+- [x] Confirm step screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_93ea3475-ab44-4f38-8d60-0d3b3a4cbdba.jpg`
+- [x] Fixed all-day review copy. The Confirm step now reuses date-only all-day semantics and says `Return after event` instead of showing midnight pickup/return timestamps.
+
 ## P0 — blocks MVP
 
 _None._ Auth/role gating is correct (`canPickRequester` is STAFF/ADMIN; STUDENTs are locked to self). Pull-to-refresh on options. Discard confirmation on Cancel with unsaved input. Conflict pre-check is intentionally fire-and-forget per `APIClient.checkAvailability`'s contract. Two-step navigation works.

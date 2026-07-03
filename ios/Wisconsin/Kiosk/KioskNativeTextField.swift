@@ -53,7 +53,7 @@ struct KioskNativeTextField: UIViewRepresentable {
             }
         } else if !isFocused, uiView.isFirstResponder {
             if let field = uiView as? KioskKeyboardTextField {
-                field.resignIfUnprotected()
+                field.forceResignFirstResponder()
             } else {
                 uiView.resignFirstResponder()
             }
@@ -106,11 +106,6 @@ private final class KioskKeyboardTextField: UITextField {
 
     func protectKeyboard() {
         protectedUntil = Date().addingTimeInterval(Self.resignProtectionDuration)
-    }
-
-    func resignIfUnprotected() {
-        guard Date() >= protectedUntil else { return }
-        forceResignFirstResponder()
     }
 
     func forceResignFirstResponder() {

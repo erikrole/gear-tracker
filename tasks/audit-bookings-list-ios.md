@@ -4,6 +4,13 @@
 **Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class.
 **Audit type:** static source (no build/run/UI tests).
 
+**2026-07-03 simulator follow-up:** The default empty All scope showed two
+visible creation affordances: an icon-only toolbar `New Reservation` button and
+the centered empty-state `New Reservation` recovery button. The centered CTA is
+the clearer empty-state action, so the toolbar button now hides only for that
+true empty default state while remaining available for populated, search-empty,
+Mine, and Attention states.
+
 Scope: `BookingsView` + `BookingsViewModel` + `BookingRow` + `StatusBadge` in `ios/Wisconsin/Views/BookingsView.swift`. Focused follow-up to `audit-bookings-ios.md` (2026-04-24, broad architectural audit) after today's pattern lock-in pass.
 
 **Surrounding context:** today's drift detector reports 0 violations across all 45 swift files including this view. The 2026-04-24 audit already closed the load-task cancellation race, role/ownership gates on the toolbar `+`, pageError surfacing, "Mine" toggle, freshness stamp, GearStore cache seed/read, and CancellationError handling. What's left is per-row VoiceOver polish.
@@ -52,6 +59,7 @@ Per `AREA_BOOKINGS.md` and the prior audit:
 - [x] AC: status pills via cross-app token system.
 - [x] AC: VoiceOver users hear each row as a combined element — **closed by P1 fix.**
 - [x] AC: skeleton rows don't pollute VoiceOver — **closed by P1 fix.**
+- [x] AC: Default empty state presents one clear reservation-creation affordance — **closed by 2026-07-03 simulator follow-up.**
 
 ## Lenses checked
 - [x] Gaps

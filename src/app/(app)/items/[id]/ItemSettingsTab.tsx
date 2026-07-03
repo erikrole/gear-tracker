@@ -341,19 +341,20 @@ export function AccessoriesSection({
                   <div className="overflow-hidden rounded-md border border-border/40 divide-y divide-border/30">
                     {group.items.map((acc) => {
                       const slotLabel = getSdCardSlotLabel(acc, asset.assetTag);
+                      const displayName = getAttachmentDisplayName(acc);
                       return (
                         <div key={acc.id} className="flex min-h-16 items-center justify-between gap-3 px-3 py-2.5 transition-colors hover:bg-muted/35">
                           <div className="flex min-w-0 items-center gap-3">
                             <AssetImage
                               src={acc.imageUrl}
-                              alt={acc.assetTag}
+                              alt={displayName}
                               size={40}
                               className="rounded-md"
                             />
                             <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                              <Link href={`/items/${acc.id}`} className="font-mono text-sm font-medium hover:underline">
-                                {acc.assetTag}
+                              <Link href={`/items/${acc.id}`} className="text-sm font-medium hover:underline">
+                                {displayName}
                               </Link>
                               {slotLabel && (
                                 <Badge variant="blue" size="sm">{slotLabel}</Badge>
@@ -362,9 +363,6 @@ export function AccessoriesSection({
                                 {statusLabelEquipment(acc.status)}
                               </Badge>
                             </div>
-                            <div className="text-sm text-muted-foreground truncate">
-                              {getAttachmentDisplayName(acc)}
-                            </div>
                             </div>
                           </div>
                           {canEdit && (
@@ -372,7 +370,7 @@ export function AccessoriesSection({
                               variant="ghost"
                               size="sm"
                               disabled={detachingId === acc.id}
-                              onClick={() => detachAccessory(acc.id, acc.assetTag)}
+                              onClick={() => detachAccessory(acc.id, displayName)}
                               title="Detach item"
                               className="shrink-0 text-muted-foreground hover:text-destructive active:scale-[0.96] transition-[color,transform]"
                             >

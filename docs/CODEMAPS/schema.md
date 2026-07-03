@@ -75,7 +75,7 @@ Values: `ACTIVE`, `MAINTENANCE`, `UNKNOWN`
 
 ## Model `User`
 
-Fields: 71
+Fields: 73
 
 - `id                   String                     @id @default(cuid())`
 - `name                 String`
@@ -119,6 +119,8 @@ Fields: 71
 - `notifications        Notification[]`
 - `deviceTokens         DeviceToken[]`
 - `liveActivityTokens   LiveActivityToken[]`
+- `liveActivityStartTokens LiveActivityStartToken[]`
+- `liveActivityStarts   LiveActivityStart[]`
 - `bookingPhotos        BookingPhoto[]             @relation("BookingPhotoActor")`
 - `checkinReports       CheckinItemReport[]        @relation("CheckinReports")`
 - `allowedEmailsCreated AllowedEmail[]             @relation("AllowedEmailCreator")`
@@ -335,7 +337,7 @@ Indexes and constraints:
 
 ## Model `Booking`
 
-Fields: 40
+Fields: 41
 
 - `id                  String                  @id @default(cuid())`
 - `kind                BookingKind`
@@ -377,6 +379,7 @@ Fields: 40
 - `photos              BookingPhoto[]`
 - `checkinReports      CheckinItemReport[]`
 - `liveActivityTokens  LiveActivityToken[]`
+- `liveActivityStarts  LiveActivityStart[]`
 
 Indexes and constraints:
 
@@ -459,35 +462,36 @@ Indexes and constraints:
 
 ## Model `BulkSku`
 
-Fields: 27
+Fields: 28
 
-- `id             String               @id @default(cuid())`
-- `name           String`
-- `category       String`
-- `unit           String`
-- `locationId     String               @map("location_id")`
-- `categoryId     String?              @map("category_id")`
-- `departmentId   String?              @map("department_id")`
-- `binQrCodeValue String               @map("bin_qr_code_value")`
-- `minThreshold   Int                  @default(0) @map("min_threshold")`
-- `trackByNumber  Boolean              @default(false) @map("track_by_number")`
-- `purchasePrice  Decimal?             @map("purchase_price") @db.Decimal(10, 2)`
-- `purchaseLink   String?              @map("purchase_link")`
-- `notes          String?`
-- `imageUrl       String?              @map("image_url")`
-- `active         Boolean              @default(true)`
-- `createdAt      DateTime             @default(now()) @map("created_at")`
-- `updatedAt      DateTime             @updatedAt @map("updated_at")`
-- `location       Location             @relation(fields: [locationId], references: [id], onDelete: Restrict)`
-- `categoryRel    Category?            @relation(fields: [categoryId], references: [id], onDelete: SetNull)`
-- `department     Department?          @relation(fields: [departmentId], references: [id], onDelete: SetNull)`
-- `balances       BulkStockBalance[]`
-- `movements      BulkStockMovement[]`
-- `bookingItems   BookingBulkItem[]`
-- `scans          ScanEvent[]`
-- `units          BulkSkuUnit[]`
-- `kitBulkMembers KitBulkMembership[]`
-- `favoritedBy    FavoriteItemFamily[]`
+- `id                  String               @id @default(cuid())`
+- `name                String`
+- `category            String`
+- `unit                String`
+- `locationId          String               @map("location_id")`
+- `categoryId          String?              @map("category_id")`
+- `departmentId        String?              @map("department_id")`
+- `binQrCodeValue      String               @map("bin_qr_code_value")`
+- `minThreshold        Int                  @default(0) @map("min_threshold")`
+- `trackByNumber       Boolean              @default(false) @map("track_by_number")`
+- `purchasePrice       Decimal?             @map("purchase_price") @db.Decimal(10, 2)`
+- `purchaseLink        String?              @map("purchase_link")`
+- `notes               String?`
+- `imageUrl            String?              @map("image_url")`
+- `imageRehostAttempts Int                  @default(0) @map("image_rehost_attempts")`
+- `active              Boolean              @default(true)`
+- `createdAt           DateTime             @default(now()) @map("created_at")`
+- `updatedAt           DateTime             @updatedAt @map("updated_at")`
+- `location            Location             @relation(fields: [locationId], references: [id], onDelete: Restrict)`
+- `categoryRel         Category?            @relation(fields: [categoryId], references: [id], onDelete: SetNull)`
+- `department          Department?          @relation(fields: [departmentId], references: [id], onDelete: SetNull)`
+- `balances            BulkStockBalance[]`
+- `movements           BulkStockMovement[]`
+- `bookingItems        BookingBulkItem[]`
+- `scans               ScanEvent[]`
+- `units               BulkSkuUnit[]`
+- `kitBulkMembers      KitBulkMembership[]`
+- `favoritedBy         FavoriteItemFamily[]`
 
 Indexes and constraints:
 
@@ -880,6 +884,45 @@ Indexes and constraints:
 - `@@index([bookingId, endedAt])`
 - `@@index([userId, activity, endedAt])`
 - `@@map("live_activity_tokens")`
+
+## Model `LiveActivityStartToken`
+
+Fields: 8
+
+- `id         String    @id @default(cuid())`
+- `userId     String    @map("user_id")`
+- `token      String    @unique`
+- `activity   String`
+- `lastSeenAt DateTime  @default(now()) @map("last_seen_at")`
+- `createdAt  DateTime  @default(now()) @map("created_at")`
+- `revokedAt  DateTime? @map("revoked_at")`
+- `user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)`
+
+Indexes and constraints:
+
+- `@@index([userId, activity, revokedAt])`
+- `@@map("live_activity_start_tokens")`
+
+## Model `LiveActivityStart`
+
+Fields: 9
+
+- `id            String    @id @default(cuid())`
+- `userId        String    @map("user_id")`
+- `bookingId     String    @map("booking_id")`
+- `activity      String`
+- `startedAt     DateTime  @default(now()) @map("started_at")`
+- `lastAttemptAt DateTime  @default(now()) @map("last_attempt_at")`
+- `endedAt       DateTime? @map("ended_at")`
+- `user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)`
+- `booking       Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)`
+
+Indexes and constraints:
+
+- `@@unique([userId, bookingId, activity])`
+- `@@index([bookingId, activity, endedAt])`
+- `@@index([userId, activity, endedAt])`
+- `@@map("live_activity_starts")`
 
 ## Model `Notification`
 

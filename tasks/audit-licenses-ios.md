@@ -54,3 +54,10 @@ _None._
 ## Notes
 - iOS push for license expiry/nag is wired through `licenses.ts` `processExpiryWarnings` and `processLicenseNags`.
 - The native page intentionally keeps destructive or admin-heavy management on web.
+
+## 2026-07-03 Runtime Recheck
+
+- [x] Licenses list screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_c342b030-681b-4dd5-8f55-1279740f7c21.jpg`
+- [x] Runtime state: active claim appears under `My License`, pool rows render availability and slot counts, and staff/admin can see unclaimed codes as allowed by the native scope.
+- [x] Return confirmation verified without confirming the mutation: destructive `Return License` action appears behind a `Return Photo Mechanic license?` confirmation with explanatory copy.
+- [x] Claim confirmation was not exercised because this live user already holds a license; native UI correctly hides claim actions while an active claim exists.

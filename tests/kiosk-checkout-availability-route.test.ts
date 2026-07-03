@@ -44,6 +44,7 @@ describe("POST /api/kiosk/checkout/availability", () => {
 
   it("checks scanned serialized and numbered bulk items for the kiosk location", async () => {
     const res = await POST(request({
+      locationId: "client-supplied-location",
       items: [
         { assetId: "asset-1" },
         { assetId: "bulk:sku-sony:unit:31" },

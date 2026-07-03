@@ -26,12 +26,10 @@ struct BrowseView: View {
                             }
                         }
                     }
-                } header: {
-                    Text("Browse")
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("Browse")
+            .navigationTitle("More")
         }
     }
 
@@ -70,7 +68,7 @@ private enum BrowseDestination: String, CaseIterable, Identifiable {
     var subtitle: String {
         switch self {
         case .items:
-            "Browse gear, item families, status, and availability."
+            "Find gear, item families, status, and availability."
         case .guides:
             "Read team reference docs, contacts, venue notes, and workflows."
         case .licenses:

@@ -9,6 +9,7 @@ import { requirePermission } from "@/lib/rbac";
 
 const repairStaleBatteryFlagsSchema = z.object({
   reason: z.string().trim().min(3).max(500).optional(),
+  dryRun: z.boolean().optional().default(true),
 });
 
 const DEFAULT_REPAIR_REASON = "Repair stale checked-out battery flags with no active allocation";
@@ -17,6 +18,7 @@ export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "bulk_sku", "adjust");
   const body = repairStaleBatteryFlagsSchema.parse(await req.json().catch(() => ({})));
   const reason = body.reason ?? DEFAULT_REPAIR_REASON;
+  const dryRun = body.dryRun;
 
   const result = await db.$transaction(async (tx) => {
     const candidates = await tx.bulkSkuUnit.findMany({
@@ -49,7 +51,23 @@ export const POST = withAuth(async (req, { user }) => {
 
     const staleBatteryUnits = candidates.filter((unit) => isBatterySku(unit.bulkSku));
     if (staleBatteryUnits.length === 0) {
-      return { repairedCount: 0, units: [] };
+      return { dryRun, plannedCount: 0, repairedCount: 0, units: [] };
+    }
+
+    const units = staleBatteryUnits.map((unit) => ({
+      id: unit.id,
+      skuId: unit.bulkSkuId,
+      skuName: unit.bulkSku.name,
+      unitNumber: unit.unitNumber,
+    }));
+
+    if (dryRun) {
+      return {
+        dryRun,
+        plannedCount: staleBatteryUnits.length,
+        repairedCount: 0,
+        units,
+      };
     }
 
     const ids = staleBatteryUnits.map((unit) => unit.id);
@@ -83,13 +101,10 @@ export const POST = withAuth(async (req, { user }) => {
     })));
 
     return {
+      dryRun,
+      plannedCount: staleBatteryUnits.length,
       repairedCount: update.count,
-      units: staleBatteryUnits.map((unit) => ({
-        id: unit.id,
-        skuId: unit.bulkSkuId,
-        skuName: unit.bulkSku.name,
-        unitNumber: unit.unitNumber,
-      })),
+      units,
     };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 

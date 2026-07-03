@@ -79,16 +79,108 @@ struct KioskShellView: View {
         // sleep while the kiosk shell is up; restore normal behavior on exit.
         .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
-        .simultaneousGesture(TapGesture().onEnded { store.resetInactivity() })
-        // Keep drag activity from resetting the timer without converting every
-        // control tap into a drag. Zero-distance drags interfere with compact
-        // DatePicker/TextField ownership on older iPadOS builds.
-        .simultaneousGesture(DragGesture(minimumDistance: 16).onChanged { _ in store.resetInactivity() })
+        .background(KioskActivityMonitor { store.resetInactivity() })
         .animation(.easeInOut(duration: 0.2), value: store.inactivityWarningVisible)
         .animation(
             reduceMotion ? .easeInOut(duration: 0.15) : .easeOut(duration: 0.28),
             value: screenKey
         )
+    }
+}
+
+/// Tracks kiosk activity without adding SwiftUI gestures to the screen tree.
+/// The recognizers are non-cancelling and allow simultaneous recognition, so
+/// UIKit controls such as calendars, wheels, text fields, and menus keep their
+/// own touch handling.
+private struct KioskActivityMonitor: UIViewRepresentable {
+    let onActivity: () -> Void
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: .zero)
+        view.isUserInteractionEnabled = false
+        return view
+    }
+
+    func updateUIView(_ view: UIView, context: Context) {
+        context.coordinator.onActivity = onActivity
+        DispatchQueue.main.async {
+            context.coordinator.install(on: view.window)
+        }
+    }
+
+    static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
+        coordinator.uninstall()
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onActivity: onActivity)
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var onActivity: () -> Void
+        private weak var window: UIWindow?
+        private var lastActivityAt = Date.distantPast
+
+        private lazy var tapRecognizer: UITapGestureRecognizer = {
+            let recognizer = UITapGestureRecognizer(target: self, action: #selector(tapActivity(_:)))
+            configure(recognizer)
+            return recognizer
+        }()
+
+        private lazy var panRecognizer: UIPanGestureRecognizer = {
+            let recognizer = UIPanGestureRecognizer(target: self, action: #selector(panActivity(_:)))
+            configure(recognizer)
+            return recognizer
+        }()
+
+        init(onActivity: @escaping () -> Void) {
+            self.onActivity = onActivity
+        }
+
+        func install(on window: UIWindow?) {
+            guard let window, self.window !== window else { return }
+            uninstall()
+            window.addGestureRecognizer(tapRecognizer)
+            window.addGestureRecognizer(panRecognizer)
+            self.window = window
+        }
+
+        func uninstall() {
+            window?.removeGestureRecognizer(tapRecognizer)
+            window?.removeGestureRecognizer(panRecognizer)
+            window = nil
+        }
+
+        private func configure(_ recognizer: UIGestureRecognizer) {
+            recognizer.cancelsTouchesInView = false
+            recognizer.delaysTouchesBegan = false
+            recognizer.delaysTouchesEnded = false
+            recognizer.delegate = self
+        }
+
+        @objc private func tapActivity(_ recognizer: UITapGestureRecognizer) {
+            guard recognizer.state == .ended else { return }
+            recordActivity()
+        }
+
+        @objc private func panActivity(_ recognizer: UIPanGestureRecognizer) {
+            guard recognizer.state == .began else { return }
+            recordActivity()
+        }
+
+        private func recordActivity() {
+            let now = Date()
+            guard now.timeIntervalSince(lastActivityAt) > 0.5 else { return }
+            lastActivityAt = now
+            onActivity()
+        }
+
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+        ) -> Bool {
+            true
+        }
     }
 }
 

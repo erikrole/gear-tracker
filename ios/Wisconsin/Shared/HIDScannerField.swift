@@ -15,6 +15,10 @@ enum HIDScannerFocusGate {
             suppressedUntil = nextSuppression
         }
     }
+
+    static func allowScannerFocusNow() {
+        suppressedUntil = .distantPast
+    }
 }
 
 // UIViewRepresentable text field for Bluetooth HID barcode scanners.

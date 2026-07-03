@@ -66,6 +66,7 @@ final class SessionStore {
         // Best-effort: a stuck server must not strand the user signed in.
         // Local sign-out (clear `currentUser` + cookies) always wins.
         try? await APIClient.shared.revokeAllDeviceTokens()
+        try? await APIClient.shared.revokeCheckoutReturnLiveActivityStartTokens()
         try? await APIClient.shared.logout()
         currentUser = nil
     }

@@ -46,7 +46,7 @@ final class SearchService {
         guard !q.isEmpty else { return SearchResults() }
 
         let api = APIClient.shared
-        async let itemsTask = api.assets(search: q, qr: rawScan ?? q, limit: 10)
+        async let itemsTask = api.assets(search: q, qr: rawScan, limit: 10)
         async let reservationsTask = api.reservations(activeOnly: false, search: q, limit: 10)
         async let checkoutsTask = api.checkouts(activeOnly: false, search: q, limit: 10)
         async let usersTask = api.users(search: q, limit: 10)
@@ -54,12 +54,35 @@ final class SearchService {
         let (itemsResp, reservationsResp, checkoutsResp, usersResp) = try await (
             itemsTask, reservationsTask, checkoutsTask, usersTask
         )
+        let isDirectScan = rawScan?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        let visibleItems = isDirectScan ? itemsResp.data : itemsResp.data.filter(Self.isSearchVisibleAsset)
+        let visibleFamilies = isDirectScan ? itemsResp.bulkItems : itemsResp.bulkItems.filter(Self.isSearchVisibleFamily)
+
         return SearchResults(
-            items: itemsResp.data,
-            itemFamilies: itemsResp.bulkItems,
+            items: visibleItems,
+            itemFamilies: visibleFamilies,
             reservations: reservationsResp.data,
             checkouts: checkoutsResp.data,
             users: usersResp.data
         )
+    }
+
+    private static func isSearchVisibleAsset(_ asset: Asset) -> Bool {
+        !isHiddenAttachmentCategory(asset.category?.name)
+    }
+
+    private static func isSearchVisibleFamily(_ family: AssetFamilySearchResult) -> Bool {
+        !isHiddenAttachmentCategory(family.category)
+    }
+
+    private static func isHiddenAttachmentCategory(_ title: String?) -> Bool {
+        let normalized = title?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard let normalized, !normalized.isEmpty else { return false }
+        return normalized == "accessories"
+            || normalized == "camera accessories"
+            || normalized.hasSuffix("/accessories")
+            || normalized.hasSuffix("/camera accessories")
     }
 }

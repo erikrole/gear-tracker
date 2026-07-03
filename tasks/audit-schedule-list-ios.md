@@ -4,6 +4,12 @@
 **Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class.
 **Audit type:** static source (no build/run/UI tests).
 
+**2026-07-03 simulator follow-up:** Schedule list rows now keep all-day timing
+semantics in their combined accessibility label even when the row has the
+signed-in user's shift. The visible row already showed `All day`; the tappable
+label previously announced `Event 12:00 AM to 12:00 AM` for those my-shift
+all-day rows.
+
 Scope: `ScheduleView` + `ScheduleCalendarView` + `EventRow` + `DayCell` + `ScheduleDateHeader` + `LegendDot` + `WeatherBadge` + `TimeBlock` in `ios/Wisconsin/Views/ScheduleView.swift`. Focused follow-up to `audit-schedule-ios.md` (2026-04-24 broad / 2026-04-27 Pass 2) after today's pattern lock-in.
 
 **Surrounding context:** today's drift detector reports 0 R1–R7 violations on this file. The drift the audit catches lives in classes the detector doesn't see: `LegendDot(color: .green, ...)` is a call-site literal (R1 only matches modifier-position); `EventRow.barColor` and `dotInfo` are explicit-return-form switch arms (R7 deliberately excludes them because explicit `return .green` is ambiguous between `Color` and `StatusTone`); `DayCell.onTapGesture` mutates `selectedDate = day` but the assignment lives across multiple lines inside a `withAnimation` closure, slipping past R4's single-expression `=` heuristic.
@@ -71,6 +77,7 @@ Per `AREA_MOBILE.md` and `AREA_SHIFTS.md`:
 - [x] AC: iCal subscribe.
 - [x] AC: Status colors via cross-app token system — **closed by P1 `barColor` / `dotInfo` / `LegendDot` fix.**
 - [x] AC: VoiceOver users hear each row as a combined element — **closed by P1 a11y fix.**
+- [x] AC: All-day Schedule rows do not announce midnight event times — **closed by 2026-07-03 simulator follow-up.**
 - [x] AC: Skeleton state doesn't pollute VoiceOver — **closed by P1 fix.**
 - [x] AC: Cell selection uses Button semantics, not raw tap gesture — **closed by P1 R4-class fix.**
 

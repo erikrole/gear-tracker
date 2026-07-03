@@ -93,6 +93,22 @@ struct ShiftTradesResponse: Codable {
 struct OpenWorkResponse: Codable {
     let openShifts: [OpenWorkShift]
     let pickupRequests: [OpenWorkPickupRequest]
+
+    init(openShifts: [OpenWorkShift] = [], pickupRequests: [OpenWorkPickupRequest] = []) {
+        self.openShifts = openShifts
+        self.pickupRequests = pickupRequests
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case openShifts
+        case pickupRequests
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        openShifts = try container.decodeIfPresent([OpenWorkShift].self, forKey: .openShifts) ?? []
+        pickupRequests = try container.decodeIfPresent([OpenWorkPickupRequest].self, forKey: .pickupRequests) ?? []
+    }
 }
 
 struct OpenWorkShift: Codable, Identifiable, Hashable {

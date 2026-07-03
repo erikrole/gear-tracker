@@ -1,3 +1,5 @@
+import { NextResponse } from "next/server";
+import { withHandler } from "@/lib/api";
 import { db } from "@/lib/db";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { cleanSourceSummary, normalizeOpponentName } from "@/lib/schedule-event-identity";
@@ -43,14 +45,11 @@ function shiftSummary(area: string, title: string, isPosted: boolean) {
   return `${prefix}${areaLabel}: ${title}`;
 }
 
-export async function GET(
-  req: Request,
-  context: { params: Promise<{ token: string }> }
-) {
-  const { token } = await context.params;
+export const GET = withHandler<{ token: string }>(async (req, { params }) => {
+  const { token } = params;
 
   if (!TOKEN_RE.test(token)) {
-    return new Response("Not found", { status: 404 });
+    return new NextResponse("Not found", { status: 404 });
   }
 
   const ip = getClientIp(req);
@@ -59,7 +58,7 @@ export async function GET(
   if (!ipLimit.allowed || !tokenLimit.allowed) {
     const resetAt = Math.max(ipLimit.resetAt, tokenLimit.resetAt);
     const retryAfterSec = Math.max(1, Math.ceil((resetAt - Date.now()) / 1000));
-    return new Response("Too many requests", {
+    return new NextResponse("Too many requests", {
       status: 429,
       headers: { "Retry-After": String(retryAfterSec) },
     });
@@ -67,7 +66,7 @@ export async function GET(
 
   const user = await db.user.findFirst({ where: { icsToken: token, active: true } });
   if (!user) {
-    return new Response("Not found", { status: 404 });
+    return new NextResponse("Not found", { status: 404 });
   }
 
   const now = new Date();
@@ -165,7 +164,7 @@ export async function GET(
 
   const body = lines.join("\r\n") + "\r\n";
 
-  return new Response(body, {
+  return new NextResponse(body, {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
       "Content-Disposition": `attachment; filename="shifts.ics"`,
@@ -173,4 +172,4 @@ export async function GET(
       "X-Event-Limit": String(ICS_ASSIGNMENT_LIMIT),
     },
   });
-}
+});

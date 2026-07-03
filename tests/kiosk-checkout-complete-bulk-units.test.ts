@@ -299,6 +299,28 @@ describe("kiosk checkout complete bulk units", () => {
     });
   });
 
+  it("ignores client-supplied location and records the authenticated kiosk location", async () => {
+    const res = await runCompleteKioskCheckout(completeRequest(
+      [{ assetId: "asset-1" }],
+      { locationId: "client-supplied-location" },
+    ));
+
+    expect(res.status).toBe(200);
+    expect(mocks.checkAvailability).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      locationId: "loc-1",
+    }));
+    expect(mocks.bookingCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        locationId: "loc-1",
+        pickupKioskDeviceId: "kiosk-1",
+      }),
+    });
+    expect(mocks.assetUpdateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["asset-1"] } },
+      data: { locationId: "loc-1" },
+    });
+  });
+
   it("uses the kiosk location when the request omits a location", async () => {
     const res = await runCompleteKioskCheckout(completeRequest(
       [{ assetId: "asset-1" }],

@@ -38,7 +38,7 @@ describe("iOS create booking picker parity", () => {
     expect(createSheet).toContain("case .asset(let assetId):");
     expect(createSheet).toContain("let outcome = await vm.addScannedAsset(id: assetId)");
     expect(createSheet).toContain("case .itemFamily(let family):");
-    expect(createSheet).toContain("await vm.addScannedFamily(family)");
+    expect(createSheet).toContain("let outcome = vm.addScannedFamily(family)");
     expect(createSheet).toContain(".continueScanning(message: outcome.message, success: outcome.success)");
     expect(createSheet).toContain("func addScannedAsset(id: String) async");
     expect(createSheet).toContain("let detail = try await APIClient.shared.asset(id: id)");
@@ -121,6 +121,25 @@ describe("iOS create booking picker parity", () => {
     expect(picker).not.toContain("Task { await vm.loadAvailableAssets() }");
   });
 
+  it("keeps attachment categories out of native reservation equipment browsing", () => {
+    const createSheet = createBookingSource();
+
+    expect(createSheet).toContain("private func isReservablePickerAsset(_ asset: Asset) -> Bool");
+    expect(createSheet).toContain("private func isHiddenAttachmentCategory(_ title: String?) -> Bool");
+    expect(createSheet).toContain("availableAssets.filter(isReservablePickerAsset)");
+    expect(createSheet).toContain("normalized == \"accessories\"");
+    expect(createSheet).toContain("normalized == \"camera accessories\"");
+    expect(createSheet).toContain("normalized.hasSuffix(\"/accessories\")");
+    expect(createSheet).toContain("if !isHiddenAttachmentCategory(title) { titles.insert(title) }");
+    expect(createSheet).toContain("let visibleSkus = availableBulkSkus.filter { !isHiddenAttachmentCategory(bulkCategoryTitle($0)) }");
+  });
+
+  it("makes native reservation picker rows match their visible full-row hit targets", () => {
+    const pickers = source("ios/Wisconsin/Views/CreateBooking/CreateBookingPickers.swift");
+
+    expect(pickers.match(/\.contentShape\(Rectangle\(\)\)/g)?.length).toBeGreaterThanOrEqual(2);
+  });
+
   it("shows battery/counted-item photos in the native picker", () => {
     const formOptions = source("src/app/api/form-options/route.ts");
     const models = source("ios/Wisconsin/Models/FormModels.swift");
@@ -151,6 +170,7 @@ describe("iOS create booking picker parity", () => {
 
     expect(createSheet).toContain("var events: [ScheduleEvent] = []");
     expect(createSheet).toContain("var selectedEventIds: [String] = []");
+    expect(createSheet).toContain("var prefillEvent: ScheduleEvent?");
     expect(createSheet).toContain("func loadEvents() async");
     expect(createSheet).toContain("events = try await APIClient.shared.calendarEvents(includePast: false, limit: 60)");
     expect(createSheet).toContain("guard selectedEventIds.count < 3");
@@ -166,6 +186,20 @@ describe("iOS create booking picker parity", () => {
     expect(eventCard).toContain("Text(\"Up to 3 upcoming events\")");
     expect(eventCard).toContain("EventChip(event: event)");
     expect(eventCard).toContain("EventPickRow(");
+  });
+
+  it("keeps all-day linked event reservation headers date-only", () => {
+    const sheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
+
+    expect(sheet).toContain("private var selectedAllDayWindowText: String?");
+    expect(sheet).toContain("let events = selected.isEmpty ? vm.prefillEvent.map { [$0] } ?? [] : selected");
+    expect(sheet).toContain("events.allSatisfy(\\.displayAllDay)");
+    expect(sheet).toContain("return \"\\(shortDate(start))-\\(shortDate(end)), All day\"");
+    expect(sheet).toContain("if !vm.userEditedWindow, let allDayWindow = selectedAllDayWindowText");
+    expect(sheet).toContain("private var reviewPickupText: String");
+    expect(sheet).toContain("private var reviewReturnText: String?");
+    expect(sheet).toContain("return \"Return after event\"");
+    expect(sheet).toContain("Text(reviewPickupText)");
   });
 
   it("keeps the native review screen event-aware without a separate linked-event card", () => {
@@ -212,7 +246,9 @@ describe("iOS create booking picker parity", () => {
     expect(sheet).toContain("label: \"Pickup\"");
     expect(sheet).toContain("Select pickup");
     expect(review).toContain("Text(\"Pickup\")");
-    expect(review).toContain("Text(\"Return \\(vm.endsAt.formatted(date: .abbreviated, time: .shortened))\")");
+    expect(review).toContain("Text(reviewPickupText)");
+    expect(review).toContain("if let reviewReturnText");
+    expect(sheet).toContain("return \"Return \\(vm.endsAt.formatted(date: .abbreviated, time: .shortened))\"");
     expect(review).toContain("BookingAssetThumbnail(imageUrl: asset.imageUrl, size: 40, cornerRadius: 8)");
     expect(review).toContain("BookingBulkThumbnail(imageUrl: sku.imageUrl, size: 40, cornerRadius: 8)");
     expect(equipmentRows).toContain("struct BookingAssetThumbnail");

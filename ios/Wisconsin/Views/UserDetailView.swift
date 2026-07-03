@@ -158,8 +158,8 @@ struct UserDetailView: View {
 
     private func profileHeader(_ detail: AppUserDetail) -> some View {
         // Hero card mirrors ItemDetail's ItemHeroCard: identity leads in Gotham,
-        // contact lines are monospaced + actionable, role/location/joined read
-        // as quiet metadata. Inactive accounts drop the role tone to gray.
+        // contact lines are monospaced + actionable, and role/joined read as
+        // quiet metadata. Inactive accounts drop the role tone to gray.
         let tone: StatusTone = detail.active ? StatusTone.forRole(detail.role) : .gray
         return FormCard {
             HStack(alignment: .top, spacing: Brand.Space.md) {
@@ -209,11 +209,6 @@ struct UserDetailView: View {
                         if !detail.active {
                             StatusPill(label: "Inactive", tone: .gray)
                         }
-                        if let loc = detail.location {
-                            Text(loc)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
                     }
                     if let joined = joinedLabel(detail.createdAt) {
                         Text(joined)
@@ -231,7 +226,6 @@ struct UserDetailView: View {
     private func profileAccessibilityLabel(_ detail: AppUserDetail) -> String {
         var parts: [String] = [detail.name, detail.role.capitalized]
         if !detail.active { parts.append("Inactive") }
-        if let loc = detail.location, !loc.isEmpty { parts.append(loc) }
         if let joined = joinedLabel(detail.createdAt) { parts.append(joined) }
         return parts.joined(separator: ", ")
     }

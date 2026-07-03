@@ -124,6 +124,10 @@ final class CreateBookingViewModel {
         if !selectedEventIds.isEmpty { return selectedEventIds.count }
         return prefillEventId == nil ? 0 : 1
     }
+    var prefillEvent: ScheduleEvent? {
+        guard let prefillEventId else { return nil }
+        return events.first { $0.id == prefillEventId }
+    }
     var linkedEventLabel: String? {
         if selectedEvents.isEmpty {
             return prefillEventId == nil ? nil : "Linked to event"
@@ -137,7 +141,7 @@ final class CreateBookingViewModel {
             .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
     }
     var availableAssetGroups: [AssetCategoryGroup] {
-        let grouped = Dictionary(grouping: availableAssets) { asset in
+        let grouped = Dictionary(grouping: availableAssets.filter(isReservablePickerAsset)) { asset in
             let categoryName = asset.category?.name.trimmingCharacters(in: .whitespacesAndNewlines)
             return categoryName?.isEmpty == false ? categoryName! : "Uncategorized"
         }
@@ -176,6 +180,21 @@ final class CreateBookingViewModel {
         return trimmed?.isEmpty == false ? trimmed! : Self.uncategorizedTitle
     }
 
+    private func isReservablePickerAsset(_ asset: Asset) -> Bool {
+        !isHiddenAttachmentCategory(asset.category?.name)
+    }
+
+    private func isHiddenAttachmentCategory(_ title: String?) -> Bool {
+        let normalized = title?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard let normalized, !normalized.isEmpty else { return false }
+        return normalized == "accessories"
+            || normalized == "camera accessories"
+            || normalized.hasSuffix("/accessories")
+            || normalized.hasSuffix("/camera accessories")
+    }
+
     private var isBrowsing: Bool {
         assetSearch.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
@@ -184,7 +203,10 @@ final class CreateBookingViewModel {
     /// and bulk SKU categories, Uncategorized last.
     var browseCategories: [String] {
         var titles = Set(availableAssetGroups.map(\.title))
-        for sku in availableBulkSkus { titles.insert(bulkCategoryTitle(sku)) }
+        for sku in availableBulkSkus {
+            let title = bulkCategoryTitle(sku)
+            if !isHiddenAttachmentCategory(title) { titles.insert(title) }
+        }
         return titles.sorted { lhs, rhs in
             if lhs == Self.uncategorizedTitle { return false }
             if rhs == Self.uncategorizedTitle { return true }
@@ -208,9 +230,10 @@ final class CreateBookingViewModel {
     /// Bulk SKUs stay out of the default browse list (they'd bury the
     /// popular gear); they surface via search or their category chip.
     var displayedBulkSkus: [FormBulkSku] {
-        guard isBrowsing else { return availableBulkSkus }
+        let visibleSkus = availableBulkSkus.filter { !isHiddenAttachmentCategory(bulkCategoryTitle($0)) }
+        guard isBrowsing else { return visibleSkus }
         guard let filter = browseCategoryFilter else { return [] }
-        return availableBulkSkus.filter { bulkCategoryTitle($0) == filter }
+        return visibleSkus.filter { bulkCategoryTitle($0) == filter }
     }
 
     var selectedBulkSkus: [FormBulkSku] {

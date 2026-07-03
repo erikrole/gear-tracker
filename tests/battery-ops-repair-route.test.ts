@@ -82,9 +82,43 @@ beforeEach(() => {
 });
 
 describe("POST /api/bulk-skus/batteries/repair-stale", () => {
-  it("repairs stale checked-out battery unit flags and writes audit entries", async () => {
+  it("defaults to dry-run and skips writes for stale checked-out battery unit flags", async () => {
     const res = await repairStaleBatteryFlags(
       request({ reason: "Shelf count confirmed returned batteries" }),
+      { params: Promise.resolve({}) },
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(tx.bulkSkuUnit.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        status: BulkUnitStatus.CHECKED_OUT,
+        allocations: {
+          none: {
+            checkedOutAt: { not: null },
+            checkedInAt: null,
+          },
+        },
+      }),
+    }));
+    expect(tx.bulkSkuUnit.updateMany).not.toHaveBeenCalled();
+    expect(createAuditEntriesTx).not.toHaveBeenCalled();
+    expect(body.data).toEqual({
+      dryRun: true,
+      plannedCount: 1,
+      repairedCount: 0,
+      units: [{
+        id: "unit-29",
+        skuId: "sku-battery",
+        skuName: "Sony Battery",
+        unitNumber: 29,
+      }],
+    });
+  });
+
+  it("repairs stale checked-out battery unit flags and writes audit entries when dry-run is disabled", async () => {
+    const res = await repairStaleBatteryFlags(
+      request({ reason: "Shelf count confirmed returned batteries", dryRun: false }),
       { params: Promise.resolve({}) },
     );
     const body = await res.json();
@@ -121,6 +155,8 @@ describe("POST /api/bulk-skus/batteries/repair-stale", () => {
       }),
     ]);
     expect(body.data).toEqual({
+      dryRun: false,
+      plannedCount: 1,
       repairedCount: 1,
       units: [{
         id: "unit-29",
@@ -138,7 +174,7 @@ describe("POST /api/bulk-skus/batteries/repair-stale", () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.data).toEqual({ repairedCount: 0, units: [] });
+    expect(body.data).toEqual({ dryRun: true, plannedCount: 0, repairedCount: 0, units: [] });
     expect(tx.bulkSkuUnit.updateMany).not.toHaveBeenCalled();
     expect(createAuditEntriesTx).not.toHaveBeenCalled();
   });

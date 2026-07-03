@@ -167,6 +167,14 @@ describe("extendBooking", () => {
     await expect(extendBooking("b-1", "actor-1", newEnd)).rejects.toThrow("Conflicts");
   });
 
+  it("maps commit-time serialization races to a retryable booking conflict", async () => {
+    mockTx.booking.update.mockRejectedValueOnce({ code: "P2034" });
+
+    await expect(extendBooking("b-1", "actor-1", newEnd)).rejects.toThrow(
+      "Someone else submitted at the same time; please try again."
+    );
+  });
+
   it("checks availability with excludeBookingId", async () => {
     await extendBooking("b-1", "actor-1", newEnd);
 

@@ -85,6 +85,7 @@ All mutations use `createAuditEntry` per D-007.
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-07-03 | Native iOS Guides reader polish fixed numbered Markdown lists so ordered steps render as continuous ordered runs, guide rows now expose compact VoiceOver labels rather than long Markdown-derived summaries, and the pushed reader hides the tab bar so article text does not sit under bottom chrome. |
 | 2026-06-30 | Native iOS Browse now makes Guides a first-class compact tab destination through the system Browse menu. Settings > Directory remains a fallback path, and regular-width iPad still exposes Guides as a sidebar-only Resources destination. |
 | 2026-06-30 | Native iOS Guides replaced the previous web fallback with a read-only SwiftUI page. The native page loads the existing Resources list contract, supports pull-to-refresh, native search, focus filtering, recommended/recent/title sorting, and a lightweight Markdown reader for published guides and staff/admin draft visibility. No edit, delete, mark-verified, Contacts, or sport-assignment tools moved to iOS. |
 | 2026-06-29 | Resources landing cleanup made Guides the first default section, removed the Guide collection tile wall and Featured guides block, added a compact header copy control for `smb://ath01-nas.uwia.wisc.edu/users/`, demoted Contacts into a compact reference summary on the landing page, and added read-only Sport assignments through `filter=assignments` backed by `/api/users` sport assignment data. |

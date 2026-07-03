@@ -186,6 +186,15 @@ describe("updateReservation", () => {
     ).rejects.toThrow("Availability conflict");
   });
 
+  it("maps commit-time allocation races to a booking conflict", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingReservation());
+    mockTx.assetAllocation.createMany.mockRejectedValueOnce({ code: "23P01" });
+
+    await expect(
+      updateReservation("r-1", "actor-1", { serializedAssetIds: ["a-1", "a-2"] })
+    ).rejects.toThrow("One or more items are no longer available");
+  });
+
   it("rebuilds serialized items and allocations", async () => {
     mockTx.booking.findUnique.mockResolvedValue(makeExistingReservation());
 
@@ -320,6 +329,15 @@ describe("updateCheckout", () => {
     await expect(
       updateCheckout("c-1", "actor-1", { endsAt: new Date("2026-04-11T17:00:00Z") })
     ).rejects.toThrow("Conflicts");
+  });
+
+  it("maps checkout edit allocation races to a booking conflict", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout());
+    mockTx.assetAllocation.createMany.mockRejectedValueOnce({ code: "23P01" });
+
+    await expect(
+      updateCheckout("c-1", "actor-1", { serializedAssetIds: ["a-1", "a-3"] })
+    ).rejects.toThrow("One or more items are no longer available");
   });
 
   it("throws 404 when checkout not found", async () => {

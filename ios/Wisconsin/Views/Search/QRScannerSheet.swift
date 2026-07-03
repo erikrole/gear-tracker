@@ -285,15 +285,17 @@ struct QRScannerSheet: View {
 
     private var unavailableView: some View {
         VStack(spacing: 16) {
-            Image(systemName: "qrcode.viewfinder")
-                .font(.system(size: 48))
-                .foregroundStyle(.white.opacity(0.6))
-            Text("Scanner Unavailable")
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(.white)
-            Button("Type Code Instead") { showManualEntry = true }
-                .buttonStyle(.glassProminent)
-                .controlSize(.large)
+            if !showManualEntry {
+                Image(systemName: "qrcode.viewfinder")
+                    .font(.system(size: 48))
+                    .foregroundStyle(.white.opacity(0.6))
+                Text("Scanner Unavailable")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.white)
+                Button("Type Code Instead") { showManualEntry = true }
+                    .buttonStyle(.glassProminent)
+                    .controlSize(.large)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

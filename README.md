@@ -51,6 +51,8 @@ npm run verify:docs    # docs verification gate for generated maps
 
 Use `docs/CODEMAPS/routes.md` when orienting in App Router, `docs/CODEMAPS/schema.md` for Prisma model shape, and `docs/CODEMAPS/areas.md` to connect `AREA_*.md` docs to likely routes, services, and tests.
 
+Release and slice closeout gates live in `docs/RELEASE_VERIFICATION.md`. Use `npm run build:app` for safe local app compile proof; reserve `npm run build` for deploy-shaped checks because it runs the Prisma/Neon migration deploy wrapper before `next build`.
+
 ## Team Workflow
 
 We use a dual-agent (Codex + Claude) workflow for parallel implementation. See `docs/AI_COLLABORATION.md` for branch strategy, handoff contracts, and conflict-avoidance conventions.

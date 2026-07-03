@@ -15,6 +15,7 @@ struct AvailabilityView: View {
     @State private var isLoading = true
     @State private var error: String?
     @State private var showAdd = false
+    @State private var blockPendingDelete: AvailabilityBlock?
 
     private var weeklyGroups: [(day: Int, blocks: [AvailabilityBlock])] {
         Dictionary(grouping: blocks.filter(\.isWeekly), by: { $0.dayOfWeek ?? 0 })
@@ -117,6 +118,21 @@ struct AvailabilityView: View {
         .sheet(isPresented: $showAdd) {
             AddAvailabilitySheet(userId: userId) { Task { await load() } }
         }
+        .confirmationDialog(
+            "Delete availability block?",
+            isPresented: deleteConfirmationBinding,
+            titleVisibility: .visible,
+            presenting: blockPendingDelete
+        ) { block in
+            Button("Delete \(block.primaryLine)", role: .destructive) {
+                Task { await delete(block) }
+            }
+            Button("Cancel", role: .cancel) {
+                blockPendingDelete = nil
+            }
+        } message: { block in
+            Text("Staff will no longer see \(block.primaryLine) when reviewing your scheduling availability.")
+        }
     }
 
     @ViewBuilder
@@ -125,7 +141,7 @@ struct AvailabilityView: View {
             AvailabilityBlockRow(block: block)
                 .swipeActions(edge: .trailing) {
                     Button(role: .destructive) {
-                        Task { await delete(block) }
+                        blockPendingDelete = block
                     } label: {
                         Label("Delete", systemImage: "trash")
                     }
@@ -158,11 +174,22 @@ struct AvailabilityView: View {
         do {
             try await APIClient.shared.deleteAvailabilityBlock(userId: userId, blockId: block.id)
             blocks.removeAll { $0.id == block.id }
+            blockPendingDelete = nil
             Haptics.success()
         } catch {
             self.error = error.localizedDescription
+            blockPendingDelete = nil
             Haptics.warning()
         }
+    }
+
+    private var deleteConfirmationBinding: Binding<Bool> {
+        Binding(
+            get: { blockPendingDelete != nil },
+            set: { isPresented in
+                if !isPresented { blockPendingDelete = nil }
+            }
+        )
     }
 }
 

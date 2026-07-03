@@ -388,6 +388,48 @@ describe("/api/assets item-family rows", () => {
     });
   });
 
+  it("hides parented accessories from default and text-search lists", async () => {
+    const res = await getAssets(request("/api/assets?q=fx3&limit=25"), {
+      params: Promise.resolve({}),
+    });
+
+    expect(res.status).toBe(200);
+    expect(mocks.assetFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: {
+        AND: [
+          expect.objectContaining({ parentAssetId: null }),
+          { status: { not: "RETIRED" } },
+        ],
+      },
+    }));
+    expect(mocks.assetCount).toHaveBeenCalledWith({
+      where: {
+        AND: [
+          expect.objectContaining({ parentAssetId: null }),
+          { status: { not: "RETIRED" } },
+        ],
+      },
+    });
+  });
+
+  it("keeps direct QR lookup able to find parented accessories", async () => {
+    const res = await getAssets(request("/api/assets?qr=FX3-HANDLE-1&limit=5"), {
+      params: Promise.resolve({}),
+    });
+
+    expect(res.status).toBe(200);
+    expect(mocks.assetFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        OR: expect.arrayContaining([
+          { qrCodeValue: { equals: "FX3-HANDLE-1", mode: "insensitive" } },
+        ]),
+      }),
+    }));
+    expect(mocks.assetFindMany).not.toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ parentAssetId: null }),
+    }));
+  });
+
   it("keeps retired rows available through an explicit Retired status filter", async () => {
     const res = await getAssets(request("/api/assets?status=RETIRED&limit=25"), {
       params: Promise.resolve({}),

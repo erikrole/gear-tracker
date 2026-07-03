@@ -59,6 +59,14 @@ Per `AREA_USERS.md` and the prior schedule audit (slice 1 shipped Users tab pari
 - [x] AC: detail-header phone is reachable when present — **closed by P1 fix.**
 - [x] AC: VoiceOver users hear each row as a combined element — **closed by P1 a11y fixes.**
 
+## 2026-07-03 Runtime Recheck
+
+- [x] Users list screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_1ee16b49-ecb3-478c-bb62-edcd18ef54c3.jpg`
+- [x] User detail screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_32f3681c-88ff-4fdb-b6b6-3450f2f370af.jpg`
+- [x] Badge gallery screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_fc880878-f579-477b-a470-c18bfa10e682.jpg`
+- [x] Badge detail screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_e2be5e5c-b60d-498b-9429-acd77a0fbb87.jpg`
+- [x] Runtime fix: native Users rows no longer repeat routine location copy such as `Camp Randall`; rows keep title/year and primary area. User detail already omits location.
+
 ## Lenses checked
 - [x] Gaps
 - [x] Flows

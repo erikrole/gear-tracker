@@ -12,42 +12,69 @@ import { AUDIT_RETENTION_DAYS } from "@/lib/audit";
  * be added later.
  */
 const BATCH_SIZE = 1000;
+const MAX_BATCHES_PER_RUN = 5;
 
 export const GET = withCron(async () => {
-  const cutoff = new Date();
+  const now = new Date();
+  const cutoff = new Date(now);
   cutoff.setDate(cutoff.getDate() - AUDIT_RETENTION_DAYS);
 
   let totalDeleted = 0;
-  let batchDeleted: number;
+  let batchesProcessed = 0;
+  let hasMoreAuditLogs = false;
+  const partialFailures: string[] = [];
+  const errors: Record<string, string> = {};
 
-  // Delete in batches to avoid long-running queries
-  do {
-    const batch = await db.auditLog.findMany({
-      where: { createdAt: { lt: cutoff } },
-      select: { id: true },
-      take: BATCH_SIZE,
+  try {
+    for (let batchNumber = 0; batchNumber < MAX_BATCHES_PER_RUN; batchNumber += 1) {
+      const batch = await db.auditLog.findMany({
+        where: { createdAt: { lt: cutoff } },
+        select: { id: true },
+        take: BATCH_SIZE,
+      });
+
+      if (batch.length === 0) break;
+
+      const result = await db.auditLog.deleteMany({
+        where: { id: { in: batch.map((r) => r.id) } },
+      });
+
+      batchesProcessed += 1;
+      totalDeleted += result.count;
+
+      if (batch.length < BATCH_SIZE || result.count < BATCH_SIZE) break;
+      hasMoreAuditLogs = batchNumber + 1 === MAX_BATCHES_PER_RUN;
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown audit archive error";
+    console.error("audit-archive: audit log purge failed", err);
+    partialFailures.push("auditLogs");
+    errors.auditLogs = message;
+  }
+
+  let sessionsDeleted = 0;
+  try {
+    const expiredSessions = await db.session.deleteMany({
+      where: { expiresAt: { lt: now } },
     });
-
-    if (batch.length === 0) break;
-
-    const result = await db.auditLog.deleteMany({
-      where: { id: { in: batch.map((r) => r.id) } },
-    });
-
-    batchDeleted = result.count;
-    totalDeleted += batchDeleted;
-  } while (batchDeleted === BATCH_SIZE);
-
-  // Purge expired sessions
-  const expiredSessions = await db.session.deleteMany({
-    where: { expiresAt: { lt: new Date() } },
-  });
+    sessionsDeleted = expiredSessions.count;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown session purge error";
+    console.error("audit-archive: session purge failed", err);
+    partialFailures.push("sessions");
+    errors.sessions = message;
+  }
 
   return NextResponse.json({
-    ok: true,
+    ok: partialFailures.length === 0,
     auditLogsDeleted: totalDeleted,
-    sessionsDeleted: expiredSessions.count,
+    sessionsDeleted,
+    batchesProcessed,
+    batchSize: BATCH_SIZE,
+    maxBatchesPerRun: MAX_BATCHES_PER_RUN,
+    hasMoreAuditLogs,
     cutoffDate: cutoff.toISOString(),
     retentionDays: AUDIT_RETENTION_DAYS,
+    ...(partialFailures.length > 0 ? { partialFailures, errors } : {}),
   });
 });

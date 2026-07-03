@@ -216,10 +216,9 @@ struct HomeView: View {
                         showProfile = true
                     } label: {
                         AccountAvatar(size: 32)
-                            .overlay(
-                                Circle().strokeBorder(Color(.separator), lineWidth: 0.5)
-                            )
+                            .frame(width: 44, height: 44)
                     }
+                    .buttonStyle(.plain)
                     .accessibilityLabel("Profile")
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
@@ -348,9 +347,17 @@ private struct DashboardHero: View {
         return variants[dayOrdinal % variants.count]
     }
 
+    private var displayDate: String {
+        Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day())
+    }
+
+    private var accessibilityGreeting: String {
+        firstName.isEmpty ? greeting : "\(greeting), \(firstName)"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+            Text(displayDate)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
@@ -366,8 +373,8 @@ private struct DashboardHero: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, Brand.Space.xs)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(firstName.isEmpty ? greeting : "\(greeting), \(firstName)")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(displayDate), \(accessibilityGreeting)")
     }
 }
 

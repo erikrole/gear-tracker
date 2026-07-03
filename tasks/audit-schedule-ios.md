@@ -6,6 +6,11 @@
 
 Scope (Pass 2 additions): `EventDetailSheet` crew section + `AssignStudentSheet` + `AddShiftSheet` + `AppDelegate` push routing. Adds findings not covered in 2026-04-24 pass. Reconciled against source on 2026-05-11.
 
+## 2026-07-03 Runtime Follow-up
+
+- [x] [UI polish] **Add Shift showed all-day event defaults as `12:00 AM` call/end rows.** Runtime verification on Football Media Day reproduced the same all-day leak the release is removing elsewhere. The sheet now detects midnight-to-midnight default event windows and renders a single date-only `Window: All day, <range>` row unless staff intentionally enables custom timing.
+      `ios/Wisconsin/Views/Schedule/AddShiftSheet.swift`
+
 ## P0 — blocks MVP (Pass 2)
 
 *None.*

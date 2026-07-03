@@ -518,7 +518,7 @@ export default function BatteryCockpitPage() {
       const res = await fetch("/api/bulk-skus/batteries/repair-stale", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason }),
+        body: JSON.stringify({ reason, dryRun: false }),
       });
       if (handleAuthRedirect(res, "/bulk-inventory/batteries")) return;
       if (!res.ok) {

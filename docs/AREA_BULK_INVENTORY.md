@@ -52,7 +52,7 @@ Operate item families backed by `BulkSku` records. Normal discovery happens in `
   - Compatible battery lows reuse `src/lib/battery-compatibility.ts`; no separate camera-to-battery schema exists.
   - Unit actions reuse the audited `/api/bulk-skus/[id]/units/[unitNumber]` status endpoint.
   - Checked-out units are read-only in this surface and must be returned through check-in before status changes.
-  - Stale checked-out flag repair uses `POST /api/bulk-skus/batteries/repair-stale`; it is limited to active battery families, requires `bulk_sku.adjust`, runs in a serializable transaction, and writes one audit entry per repaired unit.
+  - Stale checked-out flag repair uses `POST /api/bulk-skus/batteries/repair-stale`; it is limited to active battery families, requires `bulk_sku.adjust`, defaults to a dry-run preview, and writes one audit entry per repaired unit only when an operator explicitly applies the repair.
 
 ## Data Model
 
@@ -121,9 +121,10 @@ Operate item families backed by `BulkSku` records. Normal discovery happens in `
 - Returns: Updated `BulkSkuUnit` with status = RETIRED
 
 **POST `/api/bulk-skus/batteries/repair-stale`**
-- Body: `{ reason?: string }`
+- Body: `{ reason?: string, dryRun?: boolean }`
 - Repairs active battery-family units where raw `BulkSkuUnit.status = CHECKED_OUT` but no active `BookingBulkUnitAllocation` exists.
-- Sets those stale rows to `AVAILABLE` and writes `repair_stale_checked_out` audit entries.
+- Defaults to `dryRun: true`; preview responses return candidate units without updating rows or writing audit logs.
+- When called with `dryRun: false`, sets those stale rows to `AVAILABLE` in a serializable transaction and writes `repair_stale_checked_out` audit entries.
 - Does not alter true active checkout allocations or non-battery bulk families.
 - Requires: ADMIN/STAFF
 
@@ -165,6 +166,8 @@ See `AREA_ITEMS.md` 2026-04-06 entry for bulk inventory page hardening:
 - [x] AC-9: Item-family detail edits and unit/image mutations invalidate `/items` catalog caches and participate in the shared item-change signal so Back navigation and open detail views converge without manual refresh.
 
 ## Change Log
+- 2026-07-03: Data-quality repair hardening. `POST /api/bulk-skus/batteries/repair-stale` is now dry-run-first: default requests list stale checked-out battery flags without mutating rows or audit logs, while Battery Ops sends `dryRun: false` only after the operator confirms the repair reason. Applied repairs keep the existing serializable transaction and per-unit `repair_stale_checked_out` audit entries.
+- 2026-07-03: Item-family image rehosting joined the existing daily image drain. Active `BulkSku.imageUrl` values that still point at third-party hosts are now picked up by `/api/cron/rehost-images` in a bounded item-family batch, mirrored to Vercel Blob when reachable, capped through `BulkSku.imageRehostAttempts` when unreachable, and included in separate cron result counts so operators can see family-image backlog alongside serialized asset-image backlog.
 - 2026-06-29: Battery Ops now matches item-family detail availability for numbered batteries. The read model no longer infers checked-out custody from open `BookingBulkItem` quantity rows; only active `BookingBulkUnitAllocation` rows on `OPEN` checkout bookings make a numbered unit checked out. Orphaned raw `CHECKED_OUT` unit flags stay visible in inventory data warnings and count as Available until repaired.
 - 2026-06-26: Item-family freshness shipped. Bulk SKU detail edits, image changes, QR/settings updates, and unit additions now invalidate shared Items catalog caches, while open item-family detail pages listen to the shared item-change signal for committed `BulkSku` updates from other surfaces.
 - 2026-06-26: Active item-family department cleanup moved every family still assigned to `Video` onto `Creative`, leaving canonical category FKs and legacy category text intact. The audit-logged cleanup script now treats `Creative` as the default generic family department for future deterministic data repair.
