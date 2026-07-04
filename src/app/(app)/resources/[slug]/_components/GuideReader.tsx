@@ -3,14 +3,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ResourceType } from "@prisma/client";
-import { ArrowLeftIcon, CheckCircle2Icon, PencilIcon } from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon, CheckCircle2Icon, PencilIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MarkdownReader } from "@/components/resources/MarkdownReader";
+import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { legacyGuideMarkdown, markdownHeadings } from "@/lib/guide-content";
 import { inferResourceTypeFromCategory, RESOURCE_TYPE_LABELS } from "@/lib/guide-categories";
+import type { GuideListItem } from "@/lib/guides";
+import { buildSectionNav, type SectionNav } from "@/lib/resource-search";
 import { cn } from "@/lib/utils";
 
 type Guide = {
@@ -83,6 +86,80 @@ function TableOfContents({ items, activeId }: { items: TocItem[]; activeId: stri
   );
 }
 
+function SiblingNav({ nav }: { nav: SectionNav }) {
+  if (nav.siblings.length === 0) return null;
+
+  return (
+    <nav aria-label="In this section" className="hidden shrink-0 2xl:block 2xl:w-[220px]">
+      <div className="guide-section-nav sticky top-8">
+        <p
+          className="mb-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60"
+          style={{ fontFamily: "var(--font-mono)" }}
+        >
+          {nav.typeLabel ?? "In this section"}
+        </p>
+        <div className="flex flex-col gap-1">
+          {nav.siblings.map((item) => (
+            <Link
+              key={item.id}
+              href={`/resources/${item.slug}`}
+              aria-current={item.current ? "page" : undefined}
+              className={cn(
+                "guide-section-link min-h-10 rounded-md px-2 py-2 text-sm leading-snug transition-colors hover:text-foreground",
+                item.current
+                  ? "guide-section-link-active font-semibold text-foreground"
+                  : "text-muted-foreground/70",
+              )}
+            >
+              {item.title}
+            </Link>
+          ))}
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+function PrevNext({ nav }: { nav: SectionNav }) {
+  if (!nav.prev && !nav.next) return null;
+
+  return (
+    <nav
+      aria-label="Section pagination"
+      className="mt-2 grid gap-3 border-t border-border pt-6 sm:grid-cols-2"
+    >
+      {nav.prev ? (
+        <Link
+          href={`/resources/${nav.prev.slug}`}
+          className="flex flex-col gap-1 rounded-lg border p-4 transition-colors hover:border-foreground/30 hover:bg-muted/40"
+        >
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <ArrowLeftIcon className="size-3.5" aria-hidden="true" />
+            Previous
+          </span>
+          <span className="line-clamp-1 text-sm font-medium text-foreground">{nav.prev.title}</span>
+        </Link>
+      ) : (
+        <span className="hidden sm:block" aria-hidden="true" />
+      )}
+      {nav.next ? (
+        <Link
+          href={`/resources/${nav.next.slug}`}
+          className="flex flex-col items-end gap-1 rounded-lg border p-4 text-right transition-colors hover:border-foreground/30 hover:bg-muted/40"
+        >
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            Next
+            <ArrowRightIcon className="size-3.5" aria-hidden="true" />
+          </span>
+          <span className="line-clamp-1 text-sm font-medium text-foreground">{nav.next.title}</span>
+        </Link>
+      ) : (
+        <span className="hidden sm:block" aria-hidden="true" />
+      )}
+    </nav>
+  );
+}
+
 export function GuideReader({ guide, canEdit, slug }: Props) {
   const [updatedAt, setUpdatedAt] = useState<Date | string>(guide.updatedAt);
   const [verifying, setVerifying] = useState(false);
@@ -93,6 +170,15 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
   );
   const headings = useMemo(() => markdownHeadings(markdown), [markdown]);
   const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null);
+
+  const { data: guideList } = useFetch<GuideListItem[]>({
+    url: "/api/resources",
+    transform: (json) => (json as { data: GuideListItem[] }).data ?? [],
+  });
+  const sectionNav = useMemo(
+    () => buildSectionNav(guideList ?? [], guide.id),
+    [guideList, guide.id],
+  );
 
   async function markVerified() {
     if (verifyingRef.current) return;
@@ -164,7 +250,10 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
   const typeLabel = RESOURCE_TYPE_LABELS[guideType];
 
   return (
-    <div className="guide-reader-shell mx-auto flex w-full max-w-[1280px] flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+    <div className="guide-reader-shell mx-auto flex w-full max-w-[1440px] justify-center gap-10 px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+      <SiblingNav nav={sectionNav} />
+
+      <div className="flex w-full min-w-0 max-w-[1120px] flex-col gap-8">
       <div>
         <Link
           href="/resources"
@@ -228,6 +317,9 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
         {hasToC && (
           <TableOfContents items={headings} activeId={activeHeadingId} />
         )}
+      </div>
+
+      <PrevNext nav={sectionNav} />
       </div>
     </div>
   );

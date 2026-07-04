@@ -4,6 +4,7 @@ import { RESOURCE_TYPE_LABELS } from "@/lib/guide-categories";
 import {
   BODY_MATCH_CHARS,
   buildResourceSearchIndex,
+  buildSectionNav,
   selectRecentEntries,
 } from "@/lib/resource-search";
 import type { GuideListItem } from "@/lib/guides";
@@ -89,5 +90,48 @@ describe("selectRecentEntries", () => {
     const before = entries.map((e) => e.guide.id);
     selectRecentEntries(entries, 5);
     expect(entries.map((e) => e.guide.id)).toEqual(before);
+  });
+});
+
+describe("buildSectionNav", () => {
+  const sop = ResourceType.SOP;
+  const howTo = ResourceType.HOW_TO;
+
+  function list(): GuideListItem[] {
+    return [
+      guide({ id: "b", title: "Beta SOP", slug: "beta", type: sop }),
+      guide({ id: "a", title: "Alpha SOP", slug: "alpha", type: sop }),
+      guide({ id: "c", title: "Gamma SOP", slug: "gamma", type: sop }),
+      guide({ id: "x", title: "Lonely how-to", slug: "lonely", type: howTo }),
+    ];
+  }
+
+  it("groups same-type guides title-sorted with the current one flagged", () => {
+    const nav = buildSectionNav(list(), "b");
+    expect(nav.typeLabel).toBe(RESOURCE_TYPE_LABELS[sop]);
+    expect(nav.siblings.map((s) => s.slug)).toEqual(["alpha", "beta", "gamma"]);
+    expect(nav.siblings.find((s) => s.current)?.slug).toBe("beta");
+  });
+
+  it("derives prev/next from title order", () => {
+    const nav = buildSectionNav(list(), "b");
+    expect(nav.prev?.slug).toBe("alpha");
+    expect(nav.next?.slug).toBe("gamma");
+  });
+
+  it("has no prev at the start and no next at the end", () => {
+    expect(buildSectionNav(list(), "a").prev).toBeNull();
+    expect(buildSectionNav(list(), "c").next).toBeNull();
+  });
+
+  it("returns empty nav for a section of one", () => {
+    const nav = buildSectionNav(list(), "x");
+    expect(nav.siblings).toEqual([]);
+    expect(nav.prev).toBeNull();
+    expect(nav.next).toBeNull();
+  });
+
+  it("returns empty nav when the current guide is not in the list", () => {
+    expect(buildSectionNav(list(), "missing").siblings).toEqual([]);
   });
 });

@@ -57,7 +57,7 @@ alert callouts, safe media embeds, a Cmd-K palette, and a hub/doc landing.
   lead and references support.
 - Files: `page.tsx` layout composition (no data-model change).
 
-### Slice 4 — Docs reading view polish
+### Slice 4 — Docs reading view polish — DONE 2026-07-03
 - Add a left doc-nav rail on `/resources/[slug]`: sibling guides in the same type/area for
   GitBook-style "where am I" context, plus prev/next. Keep the existing right-hand TOC.
 - Files: `GuideReader.tsx`, small addition to `/api/resources` or reuse loaded list.

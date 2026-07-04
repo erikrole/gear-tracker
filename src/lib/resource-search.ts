@@ -45,3 +45,57 @@ export function selectRecentEntries(
     )
     .slice(0, count);
 }
+
+export type SectionNavLink = { slug: string; title: string };
+
+export type SectionNavItem = SectionNavLink & { id: string; current: boolean };
+
+export type SectionNav = {
+  /** Typed-focus label shared by the section, or null when there is no section. */
+  typeLabel: string | null;
+  /** Guides in the same typed focus, title-sorted, current one flagged. */
+  siblings: SectionNavItem[];
+  prev: SectionNavLink | null;
+  next: SectionNavLink | null;
+};
+
+function resolveType(guide: GuideListItem) {
+  return guide.type ?? inferResourceTypeFromCategory(guide.category);
+}
+
+/**
+ * Build the docs-style "in this section" navigation for a guide: the title-sorted
+ * list of guides sharing its typed focus, plus prev/next links within that order.
+ * Reuses the role-filtered list the API already returns, so students never see a
+ * link they cannot open.
+ */
+export function buildSectionNav(guides: GuideListItem[], currentId: string): SectionNav {
+  const empty: SectionNav = { typeLabel: null, siblings: [], prev: null, next: null };
+
+  const current = guides.find((g) => g.id === currentId);
+  if (!current) return empty;
+
+  const currentType = resolveType(current);
+  const group = guides
+    .filter((g) => resolveType(g) === currentType)
+    .sort((a, b) => a.title.localeCompare(b.title));
+
+  // A section of one (just this guide) offers no useful navigation.
+  if (group.length < 2) return empty;
+
+  const index = group.findIndex((g) => g.id === currentId);
+  const prevGuide = index > 0 ? group[index - 1] : undefined;
+  const nextGuide = index < group.length - 1 ? group[index + 1] : undefined;
+
+  return {
+    typeLabel: RESOURCE_TYPE_LABELS[currentType],
+    siblings: group.map((g) => ({
+      id: g.id,
+      slug: g.slug,
+      title: g.title,
+      current: g.id === currentId,
+    })),
+    prev: prevGuide ? { slug: prevGuide.slug, title: prevGuide.title } : null,
+    next: nextGuide ? { slug: nextGuide.slug, title: nextGuide.title } : null,
+  };
+}

@@ -612,6 +612,21 @@ a[data-slot="button"]:hover {
   background: var(--accent-soft);
 }
 
+.guide-section-nav {
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+  padding-block: 0.25rem;
+}
+
+.guide-section-link {
+  font-family: var(--font-body);
+  text-wrap: pretty;
+}
+
+.guide-section-link-active {
+  background: var(--accent-soft);
+}
+
 .guide-markdown {
   font-size: clamp(1rem, 1.4vw, 1.125rem);
   line-height: 1.72;
