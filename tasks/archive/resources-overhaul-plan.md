@@ -62,10 +62,33 @@ alert callouts, safe media embeds, a Cmd-K palette, and a hub/doc landing.
   GitBook-style "where am I" context, plus prev/next. Keep the existing right-hand TOC.
 - Files: `GuideReader.tsx`, small addition to `/api/resources` or reuse loaded list.
 
-### Slice 5 — Hardening + docs
+### Slice 5 — Hardening + docs — DONE 2026-07-03
 - a11y pass (palette focus trap, callout roles), mobile checks, dark-mode parity
   (run color-audit), update `AREA_RESOURCES.md` change log + ACs, archive this plan.
 
 ## Non-goals (v1)
 - No storage-format migration. No MDX. No external Notion/GDocs sync.
 - No new DB columns (freshness + targeting already exist).
+
+## Review / closeout (2026-07-03)
+
+All five slices shipped on `feat/resources-reader-overhaul`. Decision held:
+Markdown-in-DB stayed the source of truth; the "modern" feel came from rendering,
+search, and navigation, with zero migration and no new DB columns.
+
+- Slice 1: alert callouts + allowlisted video embeds (`remark-callouts.ts`,
+  `media-embed.ts`). Verified light/dark in browser.
+- Slice 2: ⌘K palette (`ResourceCommandPalette` + `resource-search.ts`). Verified
+  open, empty-state grouping, recency sort, and body-content matching in browser.
+- Slice 3: opt-in Featured hub lead (`splitFeaturedGuides`). Hidden when nothing
+  featured, so it reintroduces the removed lead only for teams that opt in.
+- Slice 4: docs-style sibling rail + prev/next (`buildSectionNav`). Verified the
+  3-column (2xl) and 2-column (<2xl) layouts in browser.
+- Slice 5: color-system entry for the callout palette, new ACs (14-17), GAP-62 for
+  the editor authoring affordance follow-up, this closeout, plan archived.
+
+Verification: 35+ unit tests green, `tsc` clean, browser checks for each visible
+surface. `npm run build` runs `prisma migrate deploy` (Neon blocked locally); build
+is validated on Vercel deploy.
+
+Follow-ups: GAP-62 (editor toolbar/preview for callouts + embeds).

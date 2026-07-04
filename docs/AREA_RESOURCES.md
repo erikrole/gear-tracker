@@ -81,6 +81,10 @@ All mutations use `createAuditEntry` per D-007.
 | AC-11 | Contacts reference view can surface current user profile contact fields without duplicating them in Markdown | ✅ Complete |
 | AC-12 | Living guides store verification metadata and can be marked verified by allowed editors without showing freshness badges in the cleaned-up reader/list UI | ✅ Complete |
 | AC-13 | Resources supports cards/list browsing, typed Guide focus filters, Creative-area Guide lanes, compact server-path copy, and supporting Contacts/Sport assignment references | ✅ Complete |
+| AC-14 | Guides render GitHub-style alert callouts and safe (allowlisted) video embeds without enabling raw HTML | ✅ Complete (2026-07-03, slice 1) |
+| AC-15 | A ⌘K/Ctrl+K palette provides instant client-side search across guide title/category/focus/author/body plus reference jumps | ✅ Complete (2026-07-03, slice 2) |
+| AC-16 | The home hub leads with an opt-in Featured section when admins mark guides featured, and is unchanged otherwise | ✅ Complete (2026-07-03, slice 3) |
+| AC-17 | The guide reader offers docs-style in-section sibling navigation (wide screens) and a prev/next footer | ✅ Complete (2026-07-03, slice 4) |
 
 ## Change Log
 | Date | Change |
