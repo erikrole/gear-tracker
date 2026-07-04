@@ -50,7 +50,7 @@ alert callouts, safe media embeds, a Cmd-K palette, and a hub/doc landing.
 - Keyboard: Cmd/Ctrl-K opens; arrow/enter navigate; recent + type-grouped results.
 - Files: new `src/components/resources/ResourceCommandPalette.tsx`, wire into `page.tsx`.
 
-### Slice 3 — Hub landing refinement (full-page hierarchy)
+### Slice 3 — Hub landing refinement (full-page hierarchy) — DONE 2026-07-03 (opt-in Featured lead)
 - Tighten the landing into a real hub: search up front, featured/recommended row,
   by-area sections, then references (Contacts + Sport assignments) as clearly-secondary.
 - Keep everything on /resources (per scope answer) but fix the visual hierarchy so guides

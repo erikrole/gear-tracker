@@ -63,6 +63,7 @@ import {
   RESOURCE_TYPE_LABELS,
 } from "@/lib/guide-categories";
 import type { GuideListItem } from "@/lib/guides";
+import { splitFeaturedGuides } from "@/lib/resource-search";
 import { sportLabel } from "@/lib/sports";
 import { cn } from "@/lib/utils";
 import {
@@ -636,6 +637,13 @@ export default function ResourcesPage() {
     return base;
   }, [guides, search, activeCategory, activeFilter, sort]);
 
+  // Admin-curated featured guides lead the home hub when present; the block stays
+  // hidden entirely when nothing is featured, so a clean library is unaffected.
+  const { featured: featuredGuides, library: libraryGuides } = useMemo(
+    () => splitFeaturedGuides(filtered),
+    [filtered],
+  );
+
   const filteredContactUsers = useMemo(() => {
     const query = search.trim().toLowerCase();
     const users = contactUsers?.data ?? [];
@@ -884,19 +892,36 @@ export default function ResourcesPage() {
         </>
       ) : homeView ? (
         <div className="flex flex-col gap-8">
+          {featuredGuides.length > 0 && (
+            <section className="flex flex-col gap-3">
+              <SectionHeader
+                title="Featured"
+                description="Handpicked guides to start with."
+              />
+              <GuideResults guides={featuredGuides} layout={layout} />
+            </section>
+          )}
+
           <section className="flex flex-col gap-3">
             <SectionHeader
-              title="Guides"
+              title={featuredGuides.length > 0 ? "All guides" : "Guides"}
               description="Browse the full library. Use the filters above to narrow by focus, area, or sort."
             />
-            {filtered.length > 0 ? (
-              <GuideResults guides={filtered} layout={layout} />
-            ) : (
+            {filtered.length === 0 ? (
               <EmptyState
                 inline
                 icon="folder"
                 title="No guides yet"
                 description="Create focused Guides from the current master doc as each area is ready."
+              />
+            ) : libraryGuides.length > 0 ? (
+              <GuideResults guides={libraryGuides} layout={layout} />
+            ) : (
+              <EmptyState
+                inline
+                icon="folder"
+                title="All guides are featured"
+                description="Every guide is highlighted in Featured above."
               />
             )}
           </section>

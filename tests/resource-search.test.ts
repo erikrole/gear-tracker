@@ -6,6 +6,7 @@ import {
   buildResourceSearchIndex,
   buildSectionNav,
   selectRecentEntries,
+  splitFeaturedGuides,
 } from "@/lib/resource-search";
 import type { GuideListItem } from "@/lib/guides";
 
@@ -133,5 +134,47 @@ describe("buildSectionNav", () => {
 
   it("returns empty nav when the current guide is not in the list", () => {
     expect(buildSectionNav(list(), "missing").siblings).toEqual([]);
+  });
+});
+
+describe("splitFeaturedGuides", () => {
+  it("keeps every guide in the library and none featured when nothing is flagged", () => {
+    const guides = [
+      guide({ id: "1", title: "A", slug: "a" }),
+      guide({ id: "2", title: "B", slug: "b" }),
+    ];
+    const { featured, library } = splitFeaturedGuides(guides);
+    expect(featured).toEqual([]);
+    expect(library.map((g) => g.id)).toEqual(["1", "2"]);
+  });
+
+  it("orders featured by rank then removes them from the library", () => {
+    const guides = [
+      guide({ id: "plain", title: "Plain", slug: "plain" }),
+      guide({ id: "r2", title: "Rank2", slug: "r2", featured: true, featuredRank: 2 }),
+      guide({ id: "r1", title: "Rank1", slug: "r1", featured: true, featuredRank: 1 }),
+    ];
+    const { featured, library } = splitFeaturedGuides(guides);
+    expect(featured.map((g) => g.id)).toEqual(["r1", "r2"]);
+    expect(library.map((g) => g.id)).toEqual(["plain"]);
+  });
+
+  it("sorts unranked featured guides last, by most-recent", () => {
+    const guides = [
+      guide({ id: "unranked-old", title: "UO", slug: "uo", featured: true, featuredRank: null, updatedAt: new Date("2026-01-01") }),
+      guide({ id: "ranked", title: "R", slug: "r", featured: true, featuredRank: 5, updatedAt: new Date("2026-01-01") }),
+      guide({ id: "unranked-new", title: "UN", slug: "un", featured: true, featuredRank: null, updatedAt: new Date("2026-07-01") }),
+    ];
+    const { featured } = splitFeaturedGuides(guides);
+    expect(featured.map((g) => g.id)).toEqual(["ranked", "unranked-new", "unranked-old"]);
+  });
+
+  it("preserves input order within the library", () => {
+    const guides = [
+      guide({ id: "c", title: "C", slug: "c" }),
+      guide({ id: "feat", title: "F", slug: "f", featured: true, featuredRank: 1 }),
+      guide({ id: "a", title: "A", slug: "a" }),
+    ];
+    expect(splitFeaturedGuides(guides).library.map((g) => g.id)).toEqual(["c", "a"]);
   });
 });

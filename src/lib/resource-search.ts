@@ -46,6 +46,29 @@ export function selectRecentEntries(
     .slice(0, count);
 }
 
+/**
+ * Split a (already display-ordered) guide list into the admin-featured lead and
+ * the remaining library. Featured guides sort by `featuredRank` (unranked last),
+ * then most-recent. When nothing is featured, the whole list stays in `library`
+ * so the landing renders exactly as before.
+ */
+export function splitFeaturedGuides(guides: GuideListItem[]): {
+  featured: GuideListItem[];
+  library: GuideListItem[];
+} {
+  const featured = guides
+    .filter((guide) => guide.featured)
+    .sort((a, b) => {
+      const rankA = a.featuredRank ?? Number.MAX_SAFE_INTEGER;
+      const rankB = b.featuredRank ?? Number.MAX_SAFE_INTEGER;
+      if (rankA !== rankB) return rankA - rankB;
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    });
+
+  const library = featured.length > 0 ? guides.filter((guide) => !guide.featured) : guides;
+  return { featured, library };
+}
+
 export type SectionNavLink = { slug: string; title: string };
 
 export type SectionNavItem = SectionNavLink & { id: string; current: boolean };
