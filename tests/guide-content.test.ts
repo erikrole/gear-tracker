@@ -3,9 +3,37 @@ import {
   blockNoteToMarkdown,
   extractGuideText,
   markdownHeadings,
+  markdownToPlainText,
   summarizeGuideContent,
   summarizeMarkdown,
 } from "@/lib/guide-content";
+
+describe("markdownToPlainText preview cleanup", () => {
+  it("strips horizontal rules and callout markers from previews", () => {
+    const markdown = [
+      "---",
+      "# Phase 1",
+      "> [!WARNING]",
+      "> Do not unplug the drive.",
+      "Pick your selects first.",
+    ].join("\n");
+
+    const text = markdownToPlainText(markdown);
+    expect(text).not.toContain("---");
+    expect(text).not.toContain("[!WARNING]");
+    expect(text).not.toContain("#");
+    expect(text).toContain("Phase 1");
+    expect(text).toContain("Do not unplug the drive.");
+    expect(text).toContain("Pick your selects first.");
+  });
+
+  it("summarizes clean prose without markdown artifacts", () => {
+    const summary = summarizeMarkdown("---\n\n# Ingest\n\nPlug in your SD card.");
+    expect(summary.startsWith("---")).toBe(false);
+    expect(summary).toContain("Ingest");
+    expect(summary).toContain("Plug in your SD card.");
+  });
+});
 
 describe("guide content text extraction", () => {
   it("extracts searchable text from BlockNote-style content", () => {

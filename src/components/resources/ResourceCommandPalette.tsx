@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/command";
 import { buildResourceSearchIndex, selectRecentEntries } from "@/lib/resource-search";
 import type { GuideListItem } from "@/lib/guides";
+import { cn } from "@/lib/utils";
 
 const RECENT_COUNT = 6;
 
@@ -31,7 +32,13 @@ function formatUpdated(value: Date | string) {
  * the Contacts and Sport assignments reference views. Filtering is client-side over
  * the already-fetched list, so there is no extra network round trip.
  */
-export function ResourceCommandPalette({ guides }: { guides: GuideListItem[] }) {
+export function ResourceCommandPalette({
+  guides,
+  className,
+}: {
+  guides: GuideListItem[];
+  className?: string;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -64,12 +71,15 @@ export function ResourceCommandPalette({ guides }: { guides: GuideListItem[] }) 
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex h-10 items-center gap-2 rounded-md border bg-background px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className={cn(
+          "inline-flex h-10 items-center gap-2 rounded-md border bg-background px-3 text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground",
+          className,
+        )}
         aria-label="Search guides"
       >
-        <SearchIcon className="size-3.5" />
-        <span className="hidden sm:inline">Search guides</span>
-        <kbd className="ml-1 hidden items-center gap-0.5 rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] md:inline-flex">
+        <SearchIcon className="size-4 shrink-0" />
+        <span className="truncate">Search guides…</span>
+        <kbd className="ml-auto hidden shrink-0 items-center gap-0.5 rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] md:inline-flex">
           ⌘K
         </kbd>
       </button>
