@@ -55,6 +55,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ResourceCommandPalette } from "@/components/resources/ResourceCommandPalette";
 import { ServerPathCopy } from "@/components/resources/ServerPathCopy";
 import { useFetch } from "@/hooks/use-fetch";
 import {
@@ -724,6 +725,7 @@ export default function ResourcesPage() {
         description="Find Creative guides, contacts, assignments, and the Media Drive path."
       >
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+          <ResourceCommandPalette guides={guides ?? []} />
           {isStaffOrAdmin && (
             <Button asChild size="sm" className="h-10">
               <Link href="/resources/new">

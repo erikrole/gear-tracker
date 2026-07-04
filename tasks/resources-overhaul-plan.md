@@ -35,7 +35,7 @@ alert callouts, safe media embeds, a Cmd-K palette, and a hub/doc landing.
 
 ## Slices (thin-slice protocol — one PR each, independently mergeable)
 
-### Slice 1 — Callouts + safe media (reader richness)
+### Slice 1 — Callouts + safe media (reader richness) — DONE 2026-07-03
 - Add GitHub alert syntax support: `> [!NOTE] > [!TIP] > [!WARNING] > [!IMPORTANT] > [!CAUTION]`
   rendered as styled callout cards in `MarkdownReader.tsx`. Authors just type blockquotes —
   no new editor primitive, MDXEditor already does blockquotes.
@@ -44,7 +44,7 @@ alert callouts, safe media embeds, a Cmd-K palette, and a hub/doc landing.
 - Files: `MarkdownReader.tsx`, `src/lib/guide-content.ts` (parse alerts), reader CSS.
 - Tests: alert parsing + embed allowlist unit tests.
 
-### Slice 2 — Cmd-K instant search palette
+### Slice 2 — Cmd-K instant search palette — DONE 2026-07-03
 - Global-ish command palette scoped to Resources using installed `cmdk`.
 - Fuzzy over the already-loaded guide list (client-side, zero server) + jump to contacts.
 - Keyboard: Cmd/Ctrl-K opens; arrow/enter navigate; recent + type-grouped results.
