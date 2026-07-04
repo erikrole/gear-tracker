@@ -1,14 +1,34 @@
 "use client";
 
 import Image from "next/image";
-import { CheckIcon, CopyIcon, LinkIcon } from "lucide-react";
+import {
+  CheckIcon,
+  CopyIcon,
+  InfoIcon,
+  LightbulbIcon,
+  LinkIcon,
+  MessageSquareWarningIcon,
+  OctagonAlertIcon,
+  TriangleAlertIcon,
+  type LucideIcon,
+} from "lucide-react";
 import * as React from "react";
 import type { ReactNode } from "react";
-import { isValidElement, useMemo, useState } from "react";
+import { Children, isValidElement, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { headingId, markdownHeadingId, markdownHeadingText } from "@/lib/guide-content";
+import { parseEmbed } from "@/lib/media-embed";
+import { type CalloutType, parseCalloutType, remarkCallouts } from "@/lib/remark-callouts";
 import { cn } from "@/lib/utils";
+
+const CALLOUT_META: Record<CalloutType, { label: string; icon: LucideIcon }> = {
+  note: { label: "Note", icon: InfoIcon },
+  tip: { label: "Tip", icon: LightbulbIcon },
+  important: { label: "Important", icon: MessageSquareWarningIcon },
+  warning: { label: "Warning", icon: TriangleAlertIcon },
+  caution: { label: "Caution", icon: OctagonAlertIcon },
+};
 
 type Props = {
   markdown: string;
@@ -84,6 +104,58 @@ function CopyReferenceButton({ text }: { text: string }) {
   );
 }
 
+function Callout({ type, children }: { type: CalloutType; children: ReactNode }) {
+  const { label, icon: Icon } = CALLOUT_META[type];
+  return (
+    <div className={`guide-alert guide-alert-${type}`} role="note">
+      <div className="guide-alert-header">
+        <Icon className="size-4 shrink-0" aria-hidden="true" />
+        <span>{label}</span>
+      </div>
+      <div className="guide-alert-body">{children}</div>
+    </div>
+  );
+}
+
+function SafeEmbed({ url }: { url: string }) {
+  const embed = parseEmbed(url);
+
+  if (!embed) {
+    return (
+      <a
+        href={url}
+        className="font-semibold text-foreground underline decoration-muted-foreground/40 underline-offset-4 hover:decoration-foreground"
+        rel="noreferrer"
+        target="_blank"
+      >
+        {url}
+      </a>
+    );
+  }
+
+  return (
+    <span className="guide-embed">
+      <span className="guide-embed-frame">
+        <iframe
+          src={embed.src}
+          title={embed.title}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+          loading="lazy"
+          referrerPolicy="strict-origin-when-cross-origin"
+        />
+      </span>
+    </span>
+  );
+}
+
+function preLanguage(children: ReactNode): string | undefined {
+  const codeChild = Children.toArray(children).find(isValidElement) as
+    | React.ReactElement<{ className?: string }>
+    | undefined;
+  return codeChild?.props?.className?.match(/language-([\w-]+)/)?.[1];
+}
+
 export function MarkdownReader({ markdown }: Props) {
   const headingCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -104,7 +176,7 @@ export function MarkdownReader({ markdown }: Props) {
   return (
     <div className="guide-markdown min-w-0 text-foreground">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkCallouts]}
         skipHtml
         components={{
           h1: ({ children, node }) => {
@@ -146,6 +218,10 @@ export function MarkdownReader({ markdown }: Props) {
             </code>
           ),
           pre: ({ children }) => {
+            const language = preLanguage(children);
+            if (language === "embed" || language === "video") {
+              return <SafeEmbed url={reactNodeText(children).trim()} />;
+            }
             const text = reactNodeText(children);
             return (
               <div className="guide-code-block-wrap">
@@ -154,9 +230,13 @@ export function MarkdownReader({ markdown }: Props) {
               </div>
             );
           },
-          blockquote: ({ children }) => (
-            <blockquote className="guide-markdown-quote">{children}</blockquote>
-          ),
+          blockquote: ({ children, className }) => {
+            const calloutType = parseCalloutType(className);
+            if (calloutType) {
+              return <Callout type={calloutType}>{children}</Callout>;
+            }
+            return <blockquote className="guide-markdown-quote">{children}</blockquote>;
+          },
           table: ({ children }) => (
             <div className="guide-table-block">
               <CopyReferenceButton text={reactNodeText(children)} />

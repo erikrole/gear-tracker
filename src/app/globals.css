@@ -815,6 +815,111 @@ a[data-slot="button"]:hover {
   color: inherit;
 }
 
+/* GitHub-style callout alerts */
+.guide-alert {
+  margin-block: 1.5rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--callout-accent, var(--foreground)) 32%, transparent);
+  background: color-mix(in srgb, var(--callout-accent, var(--foreground)) 8%, var(--card));
+  padding: 0.9rem 1.15rem;
+}
+
+.guide-alert-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+  color: var(--callout-accent, var(--foreground));
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.guide-alert-body {
+  color: var(--foreground);
+}
+
+.guide-alert-body > :first-child {
+  margin-top: 0;
+}
+
+.guide-alert-body > :last-child {
+  margin-bottom: 0;
+}
+
+.guide-alert-note {
+  --callout-accent: #2563eb;
+}
+
+.guide-alert-tip {
+  --callout-accent: #16a34a;
+}
+
+.guide-alert-important {
+  --callout-accent: #7c3aed;
+}
+
+.guide-alert-warning {
+  --callout-accent: #d97706;
+}
+
+.guide-alert-caution {
+  --callout-accent: #dc2626;
+}
+
+[data-theme="dark"] .guide-alert-note {
+  --callout-accent: #60a5fa;
+}
+
+[data-theme="dark"] .guide-alert-tip {
+  --callout-accent: #4ade80;
+}
+
+[data-theme="dark"] .guide-alert-important {
+  --callout-accent: #a78bfa;
+}
+
+[data-theme="dark"] .guide-alert-warning {
+  --callout-accent: #fbbf24;
+}
+
+[data-theme="dark"] .guide-alert-caution {
+  --callout-accent: #f87171;
+}
+
+/* Safe video embeds (YouTube / Vimeo) */
+.guide-embed {
+  display: block;
+  margin-block: 1.5rem;
+}
+
+.guide-embed-frame {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--muted);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.1),
+    0 14px 40px rgba(0, 0, 0, 0.14);
+}
+
+[data-theme="dark"] .guide-embed-frame {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 18px 48px rgba(0, 0, 0, 0.42);
+}
+
+.guide-embed-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
 .guide-table-block {
   margin-block: 1.5rem;
 }
