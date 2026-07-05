@@ -15,7 +15,7 @@ import {
 import * as React from "react";
 import type { ReactNode } from "react";
 import { Children, isValidElement, useMemo, useState } from "react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { headingId, markdownHeadingId, markdownHeadingText } from "@/lib/guide-content";
 import { parseEmbed } from "@/lib/media-embed";
@@ -173,106 +173,117 @@ export function MarkdownReader({ markdown }: Props) {
     return markdownHeadingId(reactNodeText(children), line, headingCounts);
   }
 
+  // Memoized so the components map keeps a stable identity across re-renders
+  // (e.g. scroll-driven activeHeadingId updates in the parent GuideReader).
+  // react-markdown treats a new `components` object as a signal to re-render
+  // its whole tree, so recreating this literal every render was forcing a
+  // full markdown re-render on every scroll tick.
+  const components = useMemo<Components>(
+    () => ({
+      h1: ({ children, node }) => {
+        const id = nextHeadingId(children, node?.position?.start.line);
+        return <HeadingLink id={id} level={1}>{children}</HeadingLink>;
+      },
+      h2: ({ children, node }) => {
+        const id = nextHeadingId(children, node?.position?.start.line);
+        return <HeadingLink id={id} level={2}>{children}</HeadingLink>;
+      },
+      h3: ({ children, node }) => {
+        const id = nextHeadingId(children, node?.position?.start.line);
+        return <HeadingLink id={id} level={3}>{children}</HeadingLink>;
+      },
+      p: ({ children }) => (
+        <p className="guide-markdown-paragraph">{children}</p>
+      ),
+      ul: ({ children }) => <ul className="guide-markdown-list list-disc">{children}</ul>,
+      ol: ({ children }) => <ol className="guide-markdown-list list-decimal">{children}</ol>,
+      li: ({ children }) => <li className="guide-markdown-list-item">{children}</li>,
+      a: ({ children, href }) => (
+        <a
+          href={href}
+          className="font-semibold text-foreground underline decoration-muted-foreground/40 underline-offset-4 hover:decoration-foreground"
+          rel="noreferrer"
+          target={href?.startsWith("http") ? "_blank" : undefined}
+        >
+          {children}
+        </a>
+      ),
+      code: ({ children, className }) => (
+        <code
+          className={cn(
+            "guide-markdown-inline-code",
+            className,
+          )}
+        >
+          {children}
+        </code>
+      ),
+      pre: ({ children }) => {
+        const language = preLanguage(children);
+        if (language === "embed" || language === "video") {
+          return <SafeEmbed url={reactNodeText(children).trim()} />;
+        }
+        const text = reactNodeText(children);
+        return (
+          <div className="guide-code-block-wrap">
+            <CopyReferenceButton text={text} />
+            <pre className="guide-markdown-code-block">{children}</pre>
+          </div>
+        );
+      },
+      blockquote: ({ children, className }) => {
+        const calloutType = parseCalloutType(className);
+        if (calloutType) {
+          return <Callout type={calloutType}>{children}</Callout>;
+        }
+        return <blockquote className="guide-markdown-quote">{children}</blockquote>;
+      },
+      table: ({ children }) => (
+        <div className="guide-table-block">
+          <CopyReferenceButton text={reactNodeText(children)} />
+          <div className="guide-markdown-table-wrap">
+            <table className="guide-markdown-table">{children}</table>
+          </div>
+        </div>
+      ),
+      th: ({ children }) => (
+        <th>{children}</th>
+      ),
+      td: ({ children }) => (
+        <td>{children}</td>
+      ),
+      img: ({ src, alt }) => {
+        if (!src || typeof src !== "string") return null;
+        const caption = typeof alt === "string" ? alt.trim() : "";
+        return (
+          <span className="guide-markdown-media">
+            <span className="guide-markdown-image-frame">
+              <Image
+                src={src}
+                alt={caption}
+                width={1400}
+                height={900}
+                className="h-auto w-full object-contain"
+                unoptimized
+              />
+            </span>
+            {caption && (
+              <span className="guide-markdown-caption">{caption}</span>
+            )}
+          </span>
+        );
+      },
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [headingCounts],
+  );
+
   return (
     <div className="guide-markdown min-w-0 text-foreground">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkCallouts]}
         skipHtml
-        components={{
-          h1: ({ children, node }) => {
-            const id = nextHeadingId(children, node?.position?.start.line);
-            return <HeadingLink id={id} level={1}>{children}</HeadingLink>;
-          },
-          h2: ({ children, node }) => {
-            const id = nextHeadingId(children, node?.position?.start.line);
-            return <HeadingLink id={id} level={2}>{children}</HeadingLink>;
-          },
-          h3: ({ children, node }) => {
-            const id = nextHeadingId(children, node?.position?.start.line);
-            return <HeadingLink id={id} level={3}>{children}</HeadingLink>;
-          },
-          p: ({ children }) => (
-            <p className="guide-markdown-paragraph">{children}</p>
-          ),
-          ul: ({ children }) => <ul className="guide-markdown-list list-disc">{children}</ul>,
-          ol: ({ children }) => <ol className="guide-markdown-list list-decimal">{children}</ol>,
-          li: ({ children }) => <li className="guide-markdown-list-item">{children}</li>,
-          a: ({ children, href }) => (
-            <a
-              href={href}
-              className="font-semibold text-foreground underline decoration-muted-foreground/40 underline-offset-4 hover:decoration-foreground"
-              rel="noreferrer"
-              target={href?.startsWith("http") ? "_blank" : undefined}
-            >
-              {children}
-            </a>
-          ),
-          code: ({ children, className }) => (
-            <code
-              className={cn(
-                "guide-markdown-inline-code",
-                className,
-              )}
-            >
-              {children}
-            </code>
-          ),
-          pre: ({ children }) => {
-            const language = preLanguage(children);
-            if (language === "embed" || language === "video") {
-              return <SafeEmbed url={reactNodeText(children).trim()} />;
-            }
-            const text = reactNodeText(children);
-            return (
-              <div className="guide-code-block-wrap">
-                <CopyReferenceButton text={text} />
-                <pre className="guide-markdown-code-block">{children}</pre>
-              </div>
-            );
-          },
-          blockquote: ({ children, className }) => {
-            const calloutType = parseCalloutType(className);
-            if (calloutType) {
-              return <Callout type={calloutType}>{children}</Callout>;
-            }
-            return <blockquote className="guide-markdown-quote">{children}</blockquote>;
-          },
-          table: ({ children }) => (
-            <div className="guide-table-block">
-              <CopyReferenceButton text={reactNodeText(children)} />
-              <div className="guide-markdown-table-wrap">
-                <table className="guide-markdown-table">{children}</table>
-              </div>
-            </div>
-          ),
-          th: ({ children }) => (
-            <th>{children}</th>
-          ),
-          td: ({ children }) => (
-            <td>{children}</td>
-          ),
-          img: ({ src, alt }) => {
-            if (!src || typeof src !== "string") return null;
-            const caption = typeof alt === "string" ? alt.trim() : "";
-            return (
-              <span className="guide-markdown-media">
-                <span className="guide-markdown-image-frame">
-                  <Image
-                    src={src}
-                    alt={caption}
-                    width={1400}
-                    height={900}
-                    className="h-auto w-full object-contain"
-                    unoptimized
-                  />
-                </span>
-                {caption && (
-                  <span className="guide-markdown-caption">{caption}</span>
-                )}
-              </span>
-            );
-          },
-        }}
+        components={components}
       >
         {markdown}
       </ReactMarkdown>
