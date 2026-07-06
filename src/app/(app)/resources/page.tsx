@@ -190,7 +190,7 @@ function guideSearchText(guide: GuideListItem) {
     RESOURCE_TYPE_LABELS[resourceTypeOf(guide)],
     guide.author.name,
     guide.summary,
-    guide.markdown,
+    guide.searchText,
   ].join(" ").toLowerCase();
 }
 
