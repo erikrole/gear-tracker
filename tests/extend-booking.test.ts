@@ -167,6 +167,20 @@ describe("extendBooking", () => {
     await expect(extendBooking("b-1", "actor-1", newEnd)).rejects.toThrow("Conflicts");
   });
 
+  it("throws 409 on bulk shortages in the extended window", async () => {
+    vi.mocked(checkAvailability).mockResolvedValueOnce({
+      conflicts: [],
+      shortages: [{ bulkSkuId: "sku-1", requested: 5, available: 2 }],
+      unavailableAssets: [],
+      upcomingCommitments: [],
+      turnaroundRisks: [],
+      bulkTurnaroundRisks: [],
+    });
+
+    await expect(extendBooking("b-1", "actor-1", newEnd)).rejects.toThrow("Conflicts");
+    expect(mockTx.booking.update).not.toHaveBeenCalled();
+  });
+
   it("maps commit-time serialization races to a retryable booking conflict", async () => {
     mockTx.booking.update.mockRejectedValueOnce({ code: "P2034" });
 

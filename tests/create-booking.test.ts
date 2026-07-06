@@ -39,7 +39,7 @@ vi.mock("@/lib/db", () => {
     bulkStockMovement: { createMany: vi.fn() },
     auditLog: { create: vi.fn() },
     scanSession: { updateMany: vi.fn() },
-    user: { findUnique: vi.fn().mockResolvedValue({ role: "ADMIN" }) },
+    user: { findUnique: vi.fn().mockResolvedValue({ role: "ADMIN", active: true }) },
     $queryRaw: vi.fn(),
   };
 
@@ -343,6 +343,18 @@ describe("createBooking", () => {
         data: { status: "COMPLETED", completedAt: expect.any(Date) },
       })
     );
+  });
+
+  it("throws 400 when the requester does not exist", async () => {
+    mockTx.user.findUnique.mockResolvedValueOnce(null);
+    await expect(createBooking(baseInput())).rejects.toThrow("Requester not found");
+    expect(mockTx.booking.create).not.toHaveBeenCalled();
+  });
+
+  it("throws 400 when the requester is inactive", async () => {
+    mockTx.user.findUnique.mockResolvedValueOnce({ active: false });
+    await expect(createBooking(baseInput())).rejects.toThrow("inactive user");
+    expect(mockTx.booking.create).not.toHaveBeenCalled();
   });
 
   it("throws 404 when source reservation not found", async () => {

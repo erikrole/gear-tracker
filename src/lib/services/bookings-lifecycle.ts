@@ -67,7 +67,6 @@ type UpdateBookingInput = {
   serializedAssetIds?: string[];
   bulkItems?: BulkRequest[];
   notes?: string;
-  status?: BookingStatus;
 };
 
 function hasDuplicateIds(ids: string[]) {
@@ -179,6 +178,15 @@ export async function createBooking(input: CreateBookingInput) {
   try {
     return await db.$transaction(
     async (tx) => {
+      // A missing requester would otherwise surface as an FK 500; an inactive
+      // one would silently hold gear they can no longer account for.
+      const requester = await tx.user.findUnique({
+        where: { id: input.requesterUserId },
+        select: { active: true },
+      });
+      if (!requester) throw new HttpError(400, "Requester not found");
+      if (!requester.active) throw new HttpError(400, "Cannot create a booking for an inactive user");
+
       // Resolve items from source reservation if provided
       let resolvedSerializedAssetIds = dedupeIds(input.serializedAssetIds);
       let resolvedBulkItems = input.bulkItems;
@@ -492,6 +500,15 @@ export async function updateReservation(
         throw new HttpError(400, "Cannot edit a cancelled or completed reservation");
       }
 
+      if (updates.requesterUserId && updates.requesterUserId !== existing.requesterUserId) {
+        const requester = await tx.user.findUnique({
+          where: { id: updates.requesterUserId },
+          select: { active: true },
+        });
+        if (!requester) throw new HttpError(400, "Requester not found");
+        if (!requester.active) throw new HttpError(400, "Cannot set an inactive user as requester");
+      }
+
       const nextStartsAt = updates.startsAt ?? existing.startsAt;
       const nextEndsAt = updates.endsAt ?? existing.endsAt;
       const nextLocationId = updates.locationId ?? existing.locationId;
@@ -531,8 +548,7 @@ export async function updateReservation(
           locationId: nextLocationId,
           startsAt: nextStartsAt,
           endsAt: nextEndsAt,
-          notes: updates.notes,
-          status: updates.status
+          notes: updates.notes
         }
       });
 
@@ -656,6 +672,15 @@ export async function cancelReservation(bookingId: string, actorUserId: string) 
       throw new HttpError(400, "Only reservations can be cancelled");
     }
 
+    // Route policy also blocks these, but it reads outside this transaction —
+    // a reservation completed in that window must not be flipped to CANCELLED.
+    if (booking.status === BookingStatus.CANCELLED) {
+      throw new HttpError(400, "Reservation is already cancelled");
+    }
+    if (booking.status === BookingStatus.COMPLETED) {
+      throw new HttpError(400, "Cannot cancel a completed reservation");
+    }
+
     await tx.booking.update({
       where: { id: bookingId },
       data: { status: BookingStatus.CANCELLED }
@@ -697,7 +722,15 @@ export async function updateCheckout(
         where: { id: bookingId },
         include: {
           serializedItems: true,
-          bulkItems: true
+          bulkItems: {
+            include: {
+              unitAllocations: {
+                where: { checkedOutAt: { not: null }, checkedInAt: null },
+                select: { id: true },
+                take: 1,
+              },
+            },
+          },
         }
       });
 
@@ -765,15 +798,28 @@ export async function updateCheckout(
           });
         }
       } else {
-        // Rebuild allocations only when the caller explicitly changed equipment.
-        // Detail-only edits must not cascade-delete numbered bulk unit history.
-        await tx.bookingSerializedItem.deleteMany({ where: { bookingId } });
-        await tx.assetAllocation.deleteMany({ where: { bookingId } });
-        await tx.bookingBulkItem.deleteMany({ where: { bookingId } });
+        // Diff-based equipment edits. A checkout carries custody state that a
+        // delete-all rebuild erases: returned serialized items would flip back
+        // to "active", numbered bulk unit allocations cascade away leaving
+        // stale CHECKED_OUT flags, and bulk quantity changes without matching
+        // stock movements drift BulkStockBalance — which availability reads.
+        const nextAssetIdSet = new Set(serializedAssetIds);
+        const removedSerialized = existing.serializedItems.filter((item) => !nextAssetIdSet.has(item.assetId));
+        const returnedRemoval = removedSerialized.find((item) => item.allocationStatus === "returned");
+        if (returnedRemoval) {
+          throw new HttpError(409, "A returned item cannot be removed from this checkout's record");
+        }
+        const currentAssetIdSet = new Set(existing.serializedItems.map((item) => item.assetId));
+        const addedAssetIds = serializedAssetIds.filter((assetId) => !currentAssetIdSet.has(assetId));
 
-        if (serializedAssetIds.length > 0) {
+        if (removedSerialized.length > 0) {
+          const removedIds = removedSerialized.map((item) => item.assetId);
+          await tx.bookingSerializedItem.deleteMany({ where: { bookingId, assetId: { in: removedIds } } });
+          await tx.assetAllocation.deleteMany({ where: { bookingId, assetId: { in: removedIds } } });
+        }
+        if (addedAssetIds.length > 0) {
           await tx.bookingSerializedItem.createMany({
-            data: serializedAssetIds.map((assetId) => ({
+            data: addedAssetIds.map((assetId) => ({
               bookingId,
               assetId,
               allocationStatus: "active"
@@ -781,7 +827,7 @@ export async function updateCheckout(
           });
 
           await tx.assetAllocation.createMany({
-            data: serializedAssetIds.map((assetId) => ({
+            data: addedAssetIds.map((assetId) => ({
               bookingId,
               assetId,
               startsAt: nextStartsAt,
@@ -792,13 +838,71 @@ export async function updateCheckout(
           });
         }
 
-        if (bulkItems.length > 0) {
+        // Bulk rows: SKUs with kiosk custody activity are kiosk-owned; the
+        // rest may be re-planned here with matching stock movements.
+        const nextBulkMap = new Map(bulkItems.map((item) => [item.bulkSkuId, item.quantity]));
+        const currentBulkSkuIds = new Set(existing.bulkItems.map((item) => item.bulkSkuId));
+        const increases: BulkRequest[] = [];
+        const decreases: BulkRequest[] = [];
+
+        for (const item of existing.bulkItems) {
+          const nextQuantity = nextBulkMap.get(item.bulkSkuId);
+          if (nextQuantity === item.plannedQuantity) continue;
+          const hasCustodyState = item.checkedOutQuantity !== null
+            || (item.checkedInQuantity ?? 0) > 0
+            || item.unitAllocations.length > 0;
+          if (hasCustodyState) {
+            throw new HttpError(409, "Bulk gear on this checkout has kiosk custody activity. Return or adjust it at the kiosk instead.");
+          }
+          if (nextQuantity === undefined) {
+            decreases.push({ bulkSkuId: item.bulkSkuId, quantity: item.plannedQuantity });
+            await tx.bookingBulkItem.deleteMany({ where: { id: item.id } });
+          } else {
+            const delta = nextQuantity - item.plannedQuantity;
+            if (delta > 0) increases.push({ bulkSkuId: item.bulkSkuId, quantity: delta });
+            else decreases.push({ bulkSkuId: item.bulkSkuId, quantity: -delta });
+            await tx.bookingBulkItem.update({
+              where: { id: item.id },
+              data: { plannedQuantity: nextQuantity },
+            });
+          }
+        }
+
+        const addedBulk = bulkItems.filter((item) => !currentBulkSkuIds.has(item.bulkSkuId));
+        if (addedBulk.length > 0) {
           await tx.bookingBulkItem.createMany({
-            data: bulkItems.map((item) => ({
+            data: addedBulk.map((item) => ({
               bookingId,
               bulkSkuId: item.bulkSkuId,
               plannedQuantity: item.quantity,
             }))
+          });
+          increases.push(...addedBulk.map((item) => ({ bulkSkuId: item.bulkSkuId, quantity: item.quantity })));
+        }
+
+        if (decreases.length > 0) {
+          await upsertBulkBalancesAndMovements(tx, {
+            locationId: existing.locationId,
+            bookingId,
+            actorUserId,
+            kind: BulkMovementKind.CHECKIN,
+            items: decreases,
+          });
+        }
+        if (increases.length > 0) {
+          await upsertBulkBalancesAndMovements(tx, {
+            locationId: existing.locationId,
+            bookingId,
+            actorUserId,
+            kind: BulkMovementKind.CHECKOUT,
+            items: increases,
+          });
+        }
+
+        if (updatesWindow) {
+          await tx.assetAllocation.updateMany({
+            where: { bookingId },
+            data: { startsAt: nextStartsAt, endsAt: nextEndsAt },
           });
         }
       }
@@ -916,7 +1020,11 @@ export async function extendBooking(
         bookingKind: existing.kind,
       });
 
-      if (availability.conflicts.length > 0) {
+      // Shortages matter here too: extending bulk gear over a window where
+      // future reservations depend on that quantity over-commits the stock.
+      // unavailableAssets stays out deliberately — gear already in custody
+      // should not be blocked from extension by a later retire flag.
+      if (availability.conflicts.length > 0 || availability.shortages.length > 0) {
         throw new HttpError(409, "Conflicts with another booking", availability);
       }
 

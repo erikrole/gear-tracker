@@ -241,6 +241,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - Mobile operations contract from `AREA_MOBILE.md`.
 
 ## Change Log
+- 2026-07-06: **Reservation lifecycle hardening shipped.** `cancelReservation` now enforces terminal-state guards inside its SERIALIZABLE transaction (route policy reads outside it, so a reservation completed in that window could previously be flipped to CANCELLED), reservation requester changes validate the new requester exists and is active, and the unused `status` passthrough on reservation updates is removed. Details in `tasks/archive/bookings-hardening-plan.md`.
 - 2026-07-03: Native iOS Create Reservation review all-day cleanup shipped. The confirmation step now keeps all-day linked reservations date-only and says `Return after event` instead of exposing midnight pickup/return timestamps.
 - 2026-07-03: Native iOS Create Reservation attachment filtering shipped. The Equipment step now hides attachment categories from category chips and result groups, even where stored category values still use legacy `Accessories` naming, so attachments do not appear as independent reservation line items.
 - 2026-07-03: Native iOS Create Reservation picker hit-area cleanup shipped. Requester and pickup picker rows now make the full visible row tappable, aligning the plain SwiftUI rows with native list-row expectations.

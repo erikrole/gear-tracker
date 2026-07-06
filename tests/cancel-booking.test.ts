@@ -267,6 +267,25 @@ describe("cancelReservation", () => {
     await expect(cancelReservation("b-1", "actor-1")).rejects.toThrow("Only reservations");
   });
 
+  // ── REGRESSION: route policy reads outside the transaction (TOCTOU) — the
+  // service itself must refuse to cancel terminal reservations ──
+  it("throws 400 when the reservation is already CANCELLED", async () => {
+    mockTx.booking.findUnique.mockResolvedValue({
+      id: "r-1", kind: "RESERVATION", status: "CANCELLED",
+    });
+    await expect(cancelReservation("r-1", "actor-1")).rejects.toThrow("already cancelled");
+    expect(mockTx.booking.update).not.toHaveBeenCalled();
+  });
+
+  it("throws 400 when the reservation is COMPLETED", async () => {
+    mockTx.booking.findUnique.mockResolvedValue({
+      id: "r-1", kind: "RESERVATION", status: "COMPLETED",
+    });
+    await expect(cancelReservation("r-1", "actor-1")).rejects.toThrow("completed reservation");
+    expect(mockTx.booking.update).not.toHaveBeenCalled();
+    expect(mockTx.assetAllocation.updateMany).not.toHaveBeenCalled();
+  });
+
   it("deactivates allocations and cancels scan sessions", async () => {
     mockTx.booking.findUnique.mockResolvedValue({
       id: "r-1", kind: "RESERVATION", status: "BOOKED",

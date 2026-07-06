@@ -5,10 +5,12 @@ type MockFn = ReturnType<typeof vi.fn>;
 type UpdateBookingTx = {
   booking: Record<"findUnique" | "findUniqueOrThrow" | "update", MockFn>;
   bookingSerializedItem: Record<"deleteMany" | "createMany", MockFn>;
-  bookingBulkItem: Record<"deleteMany" | "createMany", MockFn>;
+  bookingBulkItem: Record<"deleteMany" | "createMany" | "update", MockFn>;
   assetAllocation: Record<"deleteMany" | "createMany" | "updateMany", MockFn>;
   auditLog: Record<"create" | "createMany", MockFn>;
   user: Record<"findUnique", MockFn>;
+  bulkStockBalance: Record<"findMany" | "upsert", MockFn>;
+  bulkStockMovement: Record<"createMany", MockFn>;
 };
 
 // ─── Transaction tracking ───────────────────────────────────────────────────
@@ -19,10 +21,12 @@ vi.mock("@/lib/db", () => {
   const mockTx = {
     booking: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn() },
     bookingSerializedItem: { deleteMany: vi.fn(), createMany: vi.fn() },
-    bookingBulkItem: { deleteMany: vi.fn(), createMany: vi.fn() },
+    bookingBulkItem: { deleteMany: vi.fn(), createMany: vi.fn(), update: vi.fn() },
     assetAllocation: { deleteMany: vi.fn(), createMany: vi.fn(), updateMany: vi.fn() },
     auditLog: { create: vi.fn(), createMany: vi.fn() },
-    user: { findUnique: vi.fn().mockResolvedValue({ role: "ADMIN" }) },
+    user: { findUnique: vi.fn().mockResolvedValue({ role: "ADMIN", active: true }) },
+    bulkStockBalance: { findMany: vi.fn(), upsert: vi.fn() },
+    bulkStockMovement: { createMany: vi.fn() },
   };
 
   return {
@@ -82,8 +86,15 @@ function makeExistingCheckout(overrides: Record<string, unknown> = {}) {
     startsAt,
     endsAt,
     notes: null,
-    serializedItems: [{ assetId: "a-1" }],
-    bulkItems: [{ bulkSkuId: "sku-1", plannedQuantity: 5 }],
+    serializedItems: [{ assetId: "a-1", allocationStatus: "active" }],
+    bulkItems: [{
+      id: "bbi-1",
+      bulkSkuId: "sku-1",
+      plannedQuantity: 5,
+      checkedOutQuantity: null,
+      checkedInQuantity: 0,
+      unitAllocations: [],
+    }],
     ...overrides,
   };
 }
@@ -102,8 +113,12 @@ beforeEach(() => {
   mockTx.assetAllocation.deleteMany.mockResolvedValue({});
   mockTx.assetAllocation.createMany.mockResolvedValue({});
   mockTx.assetAllocation.updateMany.mockResolvedValue({});
+  mockTx.bookingBulkItem.update.mockResolvedValue({});
   mockTx.auditLog.create.mockResolvedValue({});
   mockTx.auditLog.createMany.mockResolvedValue({});
+  mockTx.bulkStockBalance.findMany.mockResolvedValue([{ bulkSkuId: "sku-1", onHandQuantity: 50 }]);
+  mockTx.bulkStockBalance.upsert.mockResolvedValue({});
+  mockTx.bulkStockMovement.createMany.mockResolvedValue({});
   vi.mocked(checkAvailability).mockResolvedValue({
     conflicts: [],
     shortages: [],
@@ -228,6 +243,24 @@ describe("updateReservation", () => {
   it("throws 400 when reservation is COMPLETED", async () => {
     mockTx.booking.findUnique.mockResolvedValue(makeExistingReservation({ status: "COMPLETED" }));
     await expect(updateReservation("r-1", "actor-1", {})).rejects.toThrow("cancelled or completed");
+  });
+
+  it("throws 400 when the new requester does not exist", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingReservation({ requesterUserId: "u-old" }));
+    mockTx.user.findUnique.mockResolvedValueOnce(null);
+
+    await expect(
+      updateReservation("r-1", "actor-1", { requesterUserId: "u-ghost" })
+    ).rejects.toThrow("Requester not found");
+  });
+
+  it("throws 400 when the new requester is inactive", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingReservation({ requesterUserId: "u-old" }));
+    mockTx.user.findUnique.mockResolvedValueOnce({ active: false });
+
+    await expect(
+      updateReservation("r-1", "actor-1", { requesterUserId: "u-inactive" })
+    ).rejects.toThrow("inactive user as requester");
   });
 
   it("creates equipment audit entries when items change", async () => {
@@ -360,19 +393,42 @@ describe("updateCheckout", () => {
     await expect(updateCheckout("c-1", "actor-1", {})).rejects.toThrow("cancelled or completed");
   });
 
-  it("rebuilds allocations with updated items", async () => {
-    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout());
+  it("adds and removes only the changed serialized items", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout({
+      serializedItems: [
+        { assetId: "a-1", allocationStatus: "active" },
+        { assetId: "a-2", allocationStatus: "active" },
+      ],
+    }));
 
     await updateCheckout("c-1", "actor-1", { serializedAssetIds: ["a-1", "a-3"] });
 
-    expect(mockTx.bookingSerializedItem.deleteMany).toHaveBeenCalled();
-    expect(mockTx.assetAllocation.deleteMany).toHaveBeenCalled();
-    expect(mockTx.bookingSerializedItem.createMany).toHaveBeenCalledWith({
-      data: expect.arrayContaining([
-        expect.objectContaining({ assetId: "a-1", allocationStatus: "active" }),
-        expect.objectContaining({ assetId: "a-3", allocationStatus: "active" }),
-      ]),
+    // a-1 kept untouched, a-2 removed, a-3 added — no full rebuild
+    expect(mockTx.bookingSerializedItem.deleteMany).toHaveBeenCalledWith({
+      where: { bookingId: "c-1", assetId: { in: ["a-2"] } },
     });
+    expect(mockTx.assetAllocation.deleteMany).toHaveBeenCalledWith({
+      where: { bookingId: "c-1", assetId: { in: ["a-2"] } },
+    });
+    expect(mockTx.bookingSerializedItem.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ assetId: "a-3", allocationStatus: "active" })],
+    });
+  });
+
+  it("blocks removing an already-returned item from a checkout", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout({
+      serializedItems: [
+        { assetId: "a-1", allocationStatus: "returned" },
+        { assetId: "a-2", allocationStatus: "active" },
+      ],
+    }));
+
+    await expect(
+      updateCheckout("c-1", "actor-1", { serializedAssetIds: ["a-2"] })
+    ).rejects.toThrow("returned item cannot be removed");
+
+    expect(mockTx.bookingSerializedItem.deleteMany).not.toHaveBeenCalled();
+    expect(mockTx.assetAllocation.deleteMany).not.toHaveBeenCalled();
   });
 
   it("dedupes serialized asset IDs", async () => {
@@ -380,8 +436,83 @@ describe("updateCheckout", () => {
 
     await updateCheckout("c-1", "actor-1", { serializedAssetIds: ["a-1", "a-1", "a-2"] });
 
+    // a-1 already on the checkout; deduped a-2 is the only new row
     const createCall = mockTx.bookingSerializedItem.createMany.mock.calls[0]![0];
-    expect(createCall.data).toHaveLength(2); // deduped from 3 to 2
+    expect(createCall.data).toHaveLength(1);
+    expect(createCall.data[0]).toEqual(expect.objectContaining({ assetId: "a-2" }));
+  });
+
+  it("writes ledger movement deltas when bulk quantities change", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout());
+
+    await updateCheckout("c-1", "actor-1", {
+      bulkItems: [{ bulkSkuId: "sku-1", quantity: 8 }],
+    });
+
+    expect(mockTx.bookingBulkItem.update).toHaveBeenCalledWith({
+      where: { id: "bbi-1" },
+      data: { plannedQuantity: 8 },
+    });
+    // +3 delta must hit the stock ledger as a CHECKOUT movement
+    expect(mockTx.bulkStockMovement.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ bulkSkuId: "sku-1", kind: "CHECKOUT", quantity: 3 })],
+    });
+    expect(mockTx.bulkStockBalance.upsert).toHaveBeenCalled();
+  });
+
+  it("restocks the ledger when a bulk row is removed from a checkout", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout());
+
+    await updateCheckout("c-1", "actor-1", { bulkItems: [] });
+
+    expect(mockTx.bookingBulkItem.deleteMany).toHaveBeenCalledWith({ where: { id: "bbi-1" } });
+    expect(mockTx.bulkStockMovement.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ bulkSkuId: "sku-1", kind: "CHECKIN", quantity: 5 })],
+    });
+  });
+
+  it("blocks bulk edits when the SKU has kiosk custody activity", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout({
+      bulkItems: [{
+        id: "bbi-1",
+        bulkSkuId: "sku-1",
+        plannedQuantity: 5,
+        checkedOutQuantity: 5,
+        checkedInQuantity: 0,
+        unitAllocations: [{ id: "alloc-1" }],
+      }],
+    }));
+
+    await expect(
+      updateCheckout("c-1", "actor-1", { bulkItems: [{ bulkSkuId: "sku-1", quantity: 2 }] })
+    ).rejects.toThrow("kiosk custody activity");
+
+    expect(mockTx.bookingBulkItem.update).not.toHaveBeenCalled();
+    expect(mockTx.bookingBulkItem.deleteMany).not.toHaveBeenCalled();
+    expect(mockTx.bulkStockMovement.createMany).not.toHaveBeenCalled();
+  });
+
+  it("leaves unchanged custody-touched bulk rows alone", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout({
+      bulkItems: [{
+        id: "bbi-1",
+        bulkSkuId: "sku-1",
+        plannedQuantity: 5,
+        checkedOutQuantity: 5,
+        checkedInQuantity: 2,
+        unitAllocations: [{ id: "alloc-1" }],
+      }],
+    }));
+
+    // Same quantity — the custody-touched row is not being edited
+    await updateCheckout("c-1", "actor-1", {
+      bulkItems: [{ bulkSkuId: "sku-1", quantity: 5 }],
+      serializedAssetIds: ["a-1", "a-3"],
+    });
+
+    expect(mockTx.bookingBulkItem.update).not.toHaveBeenCalled();
+    expect(mockTx.bookingBulkItem.deleteMany).not.toHaveBeenCalled();
+    expect(mockTx.bulkStockMovement.createMany).not.toHaveBeenCalled();
   });
 
   it("rejects an invalid edit window before availability or allocation work", async () => {
