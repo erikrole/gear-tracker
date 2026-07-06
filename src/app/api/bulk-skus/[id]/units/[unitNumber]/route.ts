@@ -1,4 +1,4 @@
-import { BulkMovementKind, BulkUnitStatus, Prisma } from "@prisma/client";
+import { BookingStatus, BulkMovementKind, BulkUnitStatus, Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
@@ -40,6 +40,25 @@ export const PATCH = withAuth<{ id: string; unitNumber: string }>(async (req, { 
     }
 
     const before = { status: unit.status, notes: unit.notes };
+
+    // Returning a unit to service: close any lingering active allocation from
+    // a booking that is no longer open (historic LOST-with-open-allocation
+    // drift). Without this, flipping a found battery LOST→AVAILABLE leaves an
+    // open allocation that makes its effective status read "checked out on
+    // another booking" forever — and repair-stale can't fix that shape.
+    if (body.status === "AVAILABLE") {
+      await tx.bookingBulkUnitAllocation.updateMany({
+        where: {
+          bulkSkuUnitId: unit.id,
+          checkedOutAt: { not: null },
+          checkedInAt: null,
+          bookingBulkItem: {
+            booking: { status: { notIn: [BookingStatus.OPEN, BookingStatus.PENDING_PICKUP] } },
+          },
+        },
+        data: { checkedInAt: new Date() },
+      });
+    }
 
     const updated = await tx.bulkSkuUnit.update({
       where: { id: unit.id },

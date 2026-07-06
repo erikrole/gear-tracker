@@ -125,6 +125,7 @@ beforeEach(() => {
       unitNumber: 31,
       status: "AVAILABLE",
       bulkSku: { id: "sku-sony", name: "Sony Battery", active: true },
+      allocations: [],
     },
   ]);
   mocks.bulkSkuUnitUpdateMany.mockResolvedValue({ count: 1 });
@@ -185,6 +186,11 @@ describe("kiosk checkout complete bulk units", () => {
             name: true,
             active: true,
           },
+        },
+        allocations: {
+          where: { checkedOutAt: { not: null }, checkedInAt: null },
+          take: 1,
+          select: { id: true },
         },
       },
     });
@@ -361,6 +367,56 @@ describe("kiosk checkout complete bulk units", () => {
       { endsAt },
     ))).rejects.toThrow("One or more items are not available for the selected return time");
     expect(mocks.bookingCreate).not.toHaveBeenCalled();
+  });
+
+  // ── REGRESSION: orphaned CHECKED_OUT flags self-heal on claim ────────────
+  it("claims a unit with an orphaned CHECKED_OUT flag and no active allocation", async () => {
+    mocks.bulkSkuUnitFindMany.mockResolvedValue([
+      {
+        id: "unit-19",
+        bulkSkuId: "sku-sony",
+        unitNumber: 19,
+        // Stale raw flag: every read path (Battery Ops, kiosk scan) already
+        // reports this unit as available via effectiveBulkUnitStatus.
+        status: "CHECKED_OUT",
+        bulkSku: { id: "sku-sony", name: "Sony Battery", active: true },
+        allocations: [],
+      },
+    ]);
+
+    const res = await runCompleteKioskCheckout(completeRequest([
+      { bulkSkuId: "sku-sony", unitNumber: 19 },
+    ]));
+
+    expect(res.status).toBe(200);
+    // The guarded claim accepts AVAILABLE or orphaned CHECKED_OUT, but never
+    // a unit an active allocation holds.
+    expect(mocks.bulkSkuUnitUpdateMany).toHaveBeenCalledWith({
+      where: {
+        id: { in: ["unit-19"] },
+        status: { in: ["AVAILABLE", "CHECKED_OUT"] },
+        allocations: { none: { checkedOutAt: { not: null }, checkedInAt: null } },
+      },
+      data: { status: "CHECKED_OUT" },
+    });
+  });
+
+  it("still rejects a unit genuinely held by an active allocation", async () => {
+    mocks.bulkSkuUnitFindMany.mockResolvedValue([
+      {
+        id: "unit-27",
+        bulkSkuId: "sku-sony",
+        unitNumber: 27,
+        status: "CHECKED_OUT",
+        bulkSku: { id: "sku-sony", name: "Sony Battery", active: true },
+        allocations: [{ id: "alloc-active" }],
+      },
+    ]);
+
+    await expect(runCompleteKioskCheckout(completeRequest([
+      { bulkSkuId: "sku-sony", unitNumber: 27 },
+    ]))).rejects.toThrow("Sony Battery #27 is no longer available");
+    expect(mocks.bulkSkuUnitUpdateMany).not.toHaveBeenCalled();
   });
 
   it("maps a last-second allocation constraint race to a friendly conflict", async () => {

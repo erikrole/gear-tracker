@@ -129,9 +129,35 @@ export async function markCheckoutCompleted(bookingId: string, actorUserId: stri
       data: { active: false }
     });
 
+    // Unreturned numbered bulk units get auto-marked LOST below. They are
+    // physically gone, so they must not be restored to bulk stock — onHand
+    // feeds checkBulkShortages even for numbered SKUs, and restoring lost
+    // units would let reservations over-promise batteries that don't exist.
+    const lostUnitIds: string[] = [];
+    const lostAllocationIds: string[] = [];
+    const lostUnitNumbers: Array<{ bulkSkuId: string; unitNumbers: number[] }> = [];
+    const lostCountBySku = new Map<string, number>();
+
+    for (const bulkItem of booking.bulkItems) {
+      if (!bulkItem.bulkSku.trackByNumber) continue;
+      const unreturned = bulkItem.unitAllocations;
+      if (unreturned.length === 0) continue;
+
+      lostUnitIds.push(...unreturned.map((a) => a.bulkSkuUnit.id));
+      lostAllocationIds.push(...unreturned.map((a) => a.id));
+      lostUnitNumbers.push({
+        bulkSkuId: bulkItem.bulkSkuId,
+        unitNumbers: unreturned.map((a) => a.bulkSkuUnit.unitNumber),
+      });
+      lostCountBySku.set(bulkItem.bulkSkuId, unreturned.length);
+    }
+
     const checkinItems = booking.bulkItems.map((item) => ({
       bulkSkuId: item.bulkSkuId,
-      quantity: (item.checkedOutQuantity ?? item.plannedQuantity) - (item.checkedInQuantity ?? 0)
+      quantity:
+        (item.checkedOutQuantity ?? item.plannedQuantity) -
+        (item.checkedInQuantity ?? 0) -
+        (lostCountBySku.get(item.bulkSkuId) ?? 0),
     })).filter((item) => item.quantity > 0);
 
     if (checkinItems.length > 0) {
@@ -144,21 +170,6 @@ export async function markCheckoutCompleted(bookingId: string, actorUserId: stri
       });
     }
 
-    // Auto-mark unreturned numbered bulk units as LOST
-    const lostUnitIds: string[] = [];
-    const lostUnitNumbers: Array<{ bulkSkuId: string; unitNumbers: number[] }> = [];
-
-    for (const bulkItem of booking.bulkItems) {
-      if (!bulkItem.bulkSku.trackByNumber) continue;
-      const unreturned = bulkItem.unitAllocations;
-      if (unreturned.length === 0) continue;
-
-      const unitIds = unreturned.map((a) => a.bulkSkuUnit.id);
-      const unitNums = unreturned.map((a) => a.bulkSkuUnit.unitNumber);
-      lostUnitIds.push(...unitIds);
-      lostUnitNumbers.push({ bulkSkuId: bulkItem.bulkSkuId, unitNumbers: unitNums });
-    }
-
     const actorRole = await lookupActorRole(tx, actorUserId);
 
     if (lostUnitIds.length > 0) {
@@ -168,6 +179,15 @@ export async function markCheckoutCompleted(bookingId: string, actorUserId: stri
           status: BulkUnitStatus.LOST,
           notes: `Auto-marked LOST on booking completion (${booking.refNumber || bookingId})`,
         },
+      });
+
+      // Close the custody episode: an open allocation on a completed booking
+      // would make the unit read as phantom "checked out" the moment staff
+      // mark a found battery AVAILABLE. Loss attribution survives — the
+      // bulk-losses report reads the latest allocation, open or closed.
+      await tx.bookingBulkUnitAllocation.updateMany({
+        where: { id: { in: lostAllocationIds } },
+        data: { checkedInAt: completedAt },
       });
 
       await createAuditEntryTx(tx, {
@@ -570,7 +590,9 @@ export async function kioskCheckinAsset(
  * Re-reads the booking inside a SERIALIZABLE transaction (closing the
  * race where a concurrent scan finishes after the route's pre-read),
  * then delegates the "all returned? → COMPLETED + close scan sessions
- * + LOST bulk units + bulk balance restore" logic to `maybeAutoComplete`.
+ * + bulk balance restore" logic to `maybeAutoComplete`. (LOST handling
+ * lives in `markCheckoutCompleted` only — kiosk completion never marks
+ * units LOST because it completes only when everything is returned.)
  *
  * Returns `before/after` counts so the route can stamp the kiosk audit
  * entry with the same shape it always has.

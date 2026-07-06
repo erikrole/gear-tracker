@@ -229,6 +229,65 @@ describe("markCheckoutCompleted", () => {
     expect(mockTx.bulkStockMovement.createMany).not.toHaveBeenCalled();
   });
 
+  // ── REGRESSION: auto-LOST units must not restore stock or stay allocated ─
+  it("excludes auto-LOST numbered units from the stock restore and closes their allocations", async () => {
+    const plainBulk = makeBulkItem({
+      id: "bulk-plain",
+      bulkSkuId: "sku-plain",
+      plannedQuantity: 5,
+      checkedOutQuantity: 5,
+      checkedInQuantity: 0,
+      bulkSku: { trackByNumber: false },
+      unitAllocations: [],
+    });
+    const numberedBulk = makeBulkItem({
+      id: "bulk-numbered",
+      bulkSkuId: "sku-numbered",
+      plannedQuantity: 2,
+      checkedOutQuantity: 2,
+      checkedInQuantity: 1,
+      bulkSku: { trackByNumber: true },
+      unitAllocations: [
+        { id: "alloc-lost", bulkSkuUnit: { id: "unit-lost", unitNumber: 19 } },
+      ],
+    });
+    mockTx.booking.findUnique.mockResolvedValue(openCheckout([plainBulk, numberedBulk]));
+    mockTx.booking.update.mockResolvedValue({});
+    mockTx.assetAllocation.updateMany.mockResolvedValue({});
+    mockTx.bookingBulkUnitAllocation.updateMany.mockResolvedValue({});
+    mockTx.bulkSkuUnit.updateMany.mockResolvedValue({});
+    mockTx.bulkStockBalance.findMany.mockResolvedValue([]);
+    mockTx.bulkStockBalance.upsert.mockResolvedValue({});
+    mockTx.bulkStockMovement.createMany.mockResolvedValue({});
+    mockTx.scanSession.updateMany.mockResolvedValue({});
+    mockTx.auditLog.create.mockResolvedValue({});
+
+    await markCheckoutCompleted("b-1", "actor-1");
+
+    // Plain bulk restores its full outstanding 5; the numbered SKU's
+    // outstanding unit is LOST (physically gone), so its restore is
+    // 2 out - 1 in - 1 lost = 0 and it must not appear in the movement.
+    const movementCall = mockTx.bulkStockMovement.createMany.mock.calls[0]?.[0];
+    expect(movementCall?.data).toHaveLength(1);
+    expect(movementCall?.data?.[0]).toMatchObject({ bulkSkuId: "sku-plain", quantity: 5 });
+
+    expect(mockTx.bulkSkuUnit.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: { in: ["unit-lost"] } },
+        data: expect.objectContaining({ status: "LOST" }),
+      }),
+    );
+
+    // The custody episode closes: an open allocation on a completed booking
+    // would read as phantom "checked out" once the found unit is repaired.
+    expect(mockTx.bookingBulkUnitAllocation.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: { in: ["alloc-lost"] } },
+        data: { checkedInAt: expect.any(Date) },
+      }),
+    );
+  });
+
   it("emits the returned badge event after completion", async () => {
     mockTx.booking.findUnique.mockResolvedValue(openCheckout());
     mockTx.booking.update.mockResolvedValue({});

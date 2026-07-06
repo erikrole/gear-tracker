@@ -6,6 +6,7 @@ import { activeCheckoutAddItemBody, activeCheckoutRemoveItemBody, activeCheckout
 import { findAssetByScanValue } from "@/lib/services/kiosk-scan";
 import { findBulkUnitByScanValue } from "@/lib/services/bulk-unit-scans";
 import { assetLocationEvidence, locationEvidencePayload, reconcileAssetLocationToKiosk } from "@/lib/services/kiosk-location";
+import { CLAIMABLE_BULK_UNIT_WHERE } from "@/lib/bulk-unit-status";
 import { checkAvailability } from "@/lib/services/availability";
 import { upsertBulkBalancesAndMovements } from "@/lib/services/bookings-helpers";
 import { BookingKind, BulkMovementKind, BulkUnitStatus, Prisma } from "@prisma/client";
@@ -397,8 +398,10 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
         return { success: false, error: "Battery unit not found" };
       }
 
+      // Claim on effective availability: orphaned CHECKED_OUT flags with no
+      // active allocation self-heal here instead of failing the add.
       const updatedUnit = await tx.bulkSkuUnit.updateMany({
-        where: { id: unit.id, status: BulkUnitStatus.AVAILABLE },
+        where: { id: unit.id, ...CLAIMABLE_BULK_UNIT_WHERE },
         data: { status: BulkUnitStatus.CHECKED_OUT },
       });
       if (updatedUnit.count !== 1) {

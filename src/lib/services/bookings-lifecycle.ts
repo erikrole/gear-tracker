@@ -15,6 +15,7 @@ import {
   lookupActorRole,
 } from "@/lib/audit";
 import { checkAvailability, type BulkRequest } from "@/lib/services/availability";
+import { ACTIVE_BULK_UNIT_ALLOCATION_WHERE, CLAIMABLE_BULK_UNIT_WHERE, effectiveBulkUnitStatus } from "@/lib/bulk-unit-status";
 import { nextBookingRef } from "@/lib/services/booking-ref";
 import {
   bookingInclude,
@@ -353,6 +354,11 @@ export async function createBooking(input: CreateBookingInput) {
             unitNumber: true,
             status: true,
             bulkSku: { select: { name: true } },
+            allocations: {
+              where: ACTIVE_BULK_UNIT_ALLOCATION_WHERE,
+              take: 1,
+              select: { id: true },
+            },
           },
         });
         if (units.length !== input.bulkUnitItems.length) {
@@ -362,13 +368,17 @@ export async function createBooking(input: CreateBookingInput) {
         if (unbindable) {
           throw new HttpError(409, `${unbindable.bulkSku.name} #${unbindable.unitNumber} no longer matches this checkout`);
         }
-        const unavailable = units.find((unit) => unit.status !== BulkUnitStatus.AVAILABLE);
+        // Effective status, not raw: orphaned CHECKED_OUT flags with no active
+        // allocation are claimable and self-heal on claim.
+        const unavailable = units.find(
+          (unit) => effectiveBulkUnitStatus(unit, unit.allocations[0]) !== BulkUnitStatus.AVAILABLE,
+        );
         if (unavailable) {
           throw new HttpError(409, `${unavailable.bulkSku.name} #${unavailable.unitNumber} is no longer available`);
         }
 
         const updatedUnits = await tx.bulkSkuUnit.updateMany({
-          where: { id: { in: units.map((unit) => unit.id) }, status: BulkUnitStatus.AVAILABLE },
+          where: { id: { in: units.map((unit) => unit.id) }, ...CLAIMABLE_BULK_UNIT_WHERE },
           data: { status: BulkUnitStatus.CHECKED_OUT },
         });
         if (updatedUnits.count !== units.length) {

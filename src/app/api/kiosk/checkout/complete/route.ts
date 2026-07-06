@@ -7,6 +7,7 @@ import { checkoutCompleteBody } from "@/lib/schemas/kiosk";
 import { nextBookingRef } from "@/lib/services/booking-ref";
 import { upsertBulkBalancesAndMovements } from "@/lib/services/bookings-helpers";
 import { bulkRequestsFromCheckoutUnits, normalizeCheckoutCompleteItems } from "@/lib/services/kiosk-checkout-complete";
+import { ACTIVE_BULK_UNIT_ALLOCATION_WHERE, CLAIMABLE_BULK_UNIT_WHERE, effectiveBulkUnitStatus } from "@/lib/bulk-unit-status";
 import { checkAvailability, type AvailabilityResult } from "@/lib/services/availability";
 import { parseDateRange } from "@/lib/time";
 import { badges } from "@/lib/badges";
@@ -209,13 +210,23 @@ export const POST = withKiosk(async (req, { kiosk }) => {
                   active: true,
                 },
               },
+              allocations: {
+                where: ACTIVE_BULK_UNIT_ALLOCATION_WHERE,
+                take: 1,
+                select: { id: true },
+              },
             },
           });
           if (units.length !== bulkUnitItems.length) {
             throw new HttpError(404, "One or more battery units were not found");
           }
 
-          const unavailable = units.find((unit) => !unit.bulkSku.active || unit.status !== BulkUnitStatus.AVAILABLE);
+          // Effective status, not raw: an orphaned CHECKED_OUT flag with no
+          // active allocation is claimable (every read path already reports
+          // it available) — claiming self-heals the flag.
+          const unavailable = units.find(
+            (unit) => !unit.bulkSku.active || effectiveBulkUnitStatus(unit, unit.allocations[0]) !== BulkUnitStatus.AVAILABLE,
+          );
           if (unavailable) {
             throw new HttpError(409, `${unavailable.bulkSku.name} #${unavailable.unitNumber} is no longer available`);
           }
@@ -223,7 +234,7 @@ export const POST = withKiosk(async (req, { kiosk }) => {
           const updatedUnits = await tx.bulkSkuUnit.updateMany({
             where: {
               id: { in: units.map((unit) => unit.id) },
-              status: BulkUnitStatus.AVAILABLE,
+              ...CLAIMABLE_BULK_UNIT_WHERE,
             },
             data: { status: BulkUnitStatus.CHECKED_OUT },
           });
