@@ -176,7 +176,7 @@ export const featurePillars: ShowroomCard[] = [
   {
     title: "Schedule source of truth",
     description:
-      "Coverage, open work, trade requests, call times, and gear readiness use the same Schedule records.",
+      "Coverage, Trade Board activity, call times, and gear readiness use the same Schedule records.",
     icon: "users",
     tone: "green",
   },
@@ -327,7 +327,7 @@ export const pageMockups: Record<"features" | "tech" | "security" | "field", Sho
       {
         title: "Schedule readiness",
         eyebrow: "Crew",
-        detail: "Open work and gear gaps appear before the event starts.",
+        detail: "Trade Board activity and gear gaps appear before the event starts.",
         status: "Review",
         tone: "blue",
       },

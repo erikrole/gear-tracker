@@ -48,7 +48,7 @@ const SCHEDULE_EXPORTS = [
   { type: "hours", label: "Hours by person" },
   { type: "open-slots", label: "Open slots" },
   { type: "conflicts", label: "Conflicts" },
-  { type: "trades", label: "Trades and open work" },
+  { type: "trades", label: "Trade Board activity" },
   { type: "gear-readiness", label: "Gear readiness" },
 ] as const;
 

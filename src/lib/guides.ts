@@ -14,6 +14,21 @@ import {
   sortGuidesForAudience,
 } from "@/lib/guide-ranking";
 
+/**
+ * Cap on the per-guide search excerpt shipped to the client. Large enough to
+ * find a phrase buried in a typical guide, small enough that a 100-guide hub
+ * payload stays light even when individual guides are tens of KB of markdown.
+ */
+export const GUIDE_SEARCH_TEXT_CHARS = 2000;
+
+function compactSearchText(plainText: string): string {
+  return plainText
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, GUIDE_SEARCH_TEXT_CHARS);
+}
+
 function slugify(title: string): string {
   return title
     .toLowerCase()
@@ -47,7 +62,13 @@ export type GuideListItem = {
   type: ResourceType;
   category: string;
   summary: string;
-  markdown: string;
+  /**
+   * Compact, lowercased, whitespace-collapsed plain-text excerpt of the guide
+   * body, capped at GUIDE_SEARCH_TEXT_CHARS. Powers client-side content search
+   * (hub filter + command palette) without shipping full markdown for every
+   * guide on every hub load. The reader fetches full markdown by slug.
+   */
+  searchText: string;
   targetRoles: Role[];
   targetAreas: ShiftArea[];
   featured: boolean;
@@ -118,7 +139,9 @@ export async function listGuides(opts: {
     const summary = markdown
       ? summarizeMarkdown(markdown)
       : summarizeGuideContent(guide.content);
+    const plainText = markdownToPlainText(markdown);
     return {
+      markdown,
       item: {
         id: guide.id,
         title: guide.title,
@@ -126,7 +149,7 @@ export async function listGuides(opts: {
         type: guide.type,
         category: guide.category,
         summary,
-        markdown,
+        searchText: compactSearchText(plainText),
         targetRoles: guide.targetRoles,
         targetAreas: guide.targetAreas,
         featured: guide.featured,
@@ -141,20 +164,22 @@ export async function listGuides(opts: {
         updatedAt: guide.updatedAt,
         author: guide.author,
       },
-      searchText: markdownToPlainText(markdown),
+      plainText,
     };
   });
 
   const filtered = prepared
     .filter((guide) => {
       if (!q) return true;
+      // Server-side ?q= filtering still matches against the full body (plain
+      // text and raw markdown), not the capped client excerpt.
       const searchable = [
         guide.item.title,
         guide.item.category,
         guide.item.author.name,
         guide.item.summary,
-        guide.searchText,
-        guide.item.markdown,
+        guide.plainText,
+        guide.markdown,
       ].join(" ").toLowerCase();
       return searchable.includes(q);
     })

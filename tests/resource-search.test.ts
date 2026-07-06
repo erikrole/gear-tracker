@@ -15,7 +15,7 @@ function guide(overrides: Partial<GuideListItem> & Pick<GuideListItem, "id" | "t
     type: ResourceType.GENERAL,
     category: "General",
     summary: "",
-    markdown: "",
+    searchText: "",
     targetRoles: [],
     targetAreas: [],
     featured: false,
@@ -40,7 +40,7 @@ describe("buildResourceSearchIndex", () => {
         slug: "media-drive",
         type: ResourceType.SERVER_PATHS,
         category: "Reference",
-        markdown: "smb://ath01-nas.uwia.wisc.edu/users/",
+        searchText: "smb://ath01-nas.uwia.wisc.edu/users/",
       }),
     ])[0]!;
 
@@ -54,7 +54,7 @@ describe("buildResourceSearchIndex", () => {
 
   it("caps the body excerpt so long guides do not bloat the matcher", () => {
     const entry = buildResourceSearchIndex([
-      guide({ id: "1", title: "Long", slug: "long", markdown: "x".repeat(5000) }),
+      guide({ id: "1", title: "Long", slug: "long", searchText: "x".repeat(5000) }),
     ])[0]!;
 
     expect(entry.value.length).toBeLessThan(BODY_MATCH_CHARS + 200);

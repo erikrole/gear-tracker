@@ -1,5 +1,4 @@
 import { inferResourceTypeFromCategory, RESOURCE_TYPE_LABELS } from "@/lib/guide-categories";
-import { markdownToPlainText } from "@/lib/guide-content";
 import type { GuideListItem } from "@/lib/guides";
 
 // How much guide body text to feed the fuzzy matcher. Enough to match a phrase
@@ -22,7 +21,7 @@ export function buildResourceSearchIndex(guides: GuideListItem[]): ResourceSearc
   return guides.map((guide) => {
     const type = guide.type ?? inferResourceTypeFromCategory(guide.category);
     const typeLabel = RESOURCE_TYPE_LABELS[type];
-    const body = markdownToPlainText(guide.markdown ?? "").slice(0, BODY_MATCH_CHARS);
+    const body = (guide.searchText ?? "").slice(0, BODY_MATCH_CHARS);
     return {
       guide,
       typeLabel,
