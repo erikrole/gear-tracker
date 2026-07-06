@@ -1044,6 +1044,8 @@ private struct KioskCheckoutContextWindow: View {
                 RoundedRectangle(cornerRadius: KioskRadius.md)
                     .stroke(customPurpose.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? KioskStroke.standard : Color.kioskRed.opacity(0.7), lineWidth: 1)
             )
+
+            KioskKeyboardHint(isFieldFocused: focusedField.wrappedValue == .customPurpose)
         }
     }
 

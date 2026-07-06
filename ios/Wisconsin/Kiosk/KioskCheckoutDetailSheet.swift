@@ -233,6 +233,8 @@ struct KioskCheckoutDetailSheet: View {
                 .disabled(isMutating || addScanValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
 
+            KioskKeyboardHint(isFieldFocused: titleFocused || scanFocused)
+
             if let mutationMessage {
                 KioskFeedbackBanner(tone: mutationMessage.tone, message: mutationMessage.text)
             }

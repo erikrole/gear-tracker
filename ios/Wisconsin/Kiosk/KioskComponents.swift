@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Shared kiosk components
 //
@@ -641,5 +642,77 @@ struct KioskPressStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed && !reduceMotion ? scale : 1)
             .opacity(configuration.isPressed ? 0.9 : 1)
             .animation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
+    }
+}
+
+// MARK: Keyboard hint
+
+/// "No keyboard?" helper for UIKit-backed kiosk text fields. When a paired HID
+/// scanner is awake, iPadOS treats it as a hardware keyboard and suppresses
+/// the software keyboard — the field focuses but nothing comes up, which reads
+/// as "typing is broken". While `isFieldFocused` is true this watches keyboard
+/// frame notifications; if no real keyboard lands within a short grace it
+/// surfaces the scanner double-press trick. It disappears the moment a
+/// keyboard shows or focus ends, so scanner-off flows never see it.
+struct KioskKeyboardHint: View {
+    let isFieldFocused: Bool
+
+    @State private var keyboardVisible = false
+    @State private var showTip = false
+
+    private var waitingForKeyboard: Bool { isFieldFocused && !keyboardVisible }
+
+    var body: some View {
+        Group {
+            if showTip {
+                HStack(spacing: 8) {
+                    Image(systemName: "keyboard.badge.ellipsis")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.kioskRed)
+                    Text("Keyboard not showing? Double-press the scanner button to bring it up.")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(KioskText.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.sm))
+                .overlay(
+                    RoundedRectangle(cornerRadius: KioskRadius.sm)
+                        .stroke(Color.kioskRed.opacity(0.35), lineWidth: 1)
+                )
+                .transition(.opacity)
+                .accessibilityLabel("Keyboard not showing? Double-press the scanner button to bring it up.")
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidShowNotification)) { note in
+            keyboardVisible = Self.isRealKeyboard(note)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            keyboardVisible = false
+        }
+        .task(id: waitingForKeyboard) {
+            if waitingForKeyboard {
+                // Grace so a normally-appearing keyboard never flashes the tip.
+                try? await Task.sleep(nanoseconds: 750_000_000)
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeInOut(duration: 0.2)) { showTip = true }
+                UIAccessibility.post(
+                    notification: .announcement,
+                    argument: "Keyboard not showing? Double-press the scanner button to bring it up."
+                )
+            } else if showTip {
+                withAnimation(.easeInOut(duration: 0.2)) { showTip = false }
+            }
+        }
+    }
+
+    /// The hardware-keyboard assistant strip also posts keyboard notifications
+    /// with a short frame — only a real software keyboard should count.
+    private static func isRealKeyboard(_ note: Notification) -> Bool {
+        guard let frame = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else {
+            return false
+        }
+        return frame.height > 120
     }
 }
