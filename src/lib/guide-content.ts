@@ -190,6 +190,8 @@ export function markdownToPlainText(markdown: string): string {
     .replace(/\[([^\]]+)]\([^)]*\)/g, "$1")
     .replace(/```[\s\S]*?```/g, " ")
     .replace(/`([^`]+)`/g, "$1")
+    .replace(/^\s{0,3}(?:-{3,}|\*{3,}|_{3,})\s*$/gm, " ")
+    .replace(/^>\s?\[!(?:note|tip|important|warning|caution)\]\s*/gim, "")
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/^>\s?/gm, "")
     .replace(/^\s*[-*+]\s+/gm, "")

@@ -9,6 +9,7 @@ import {
   BookOpenIcon,
   BriefcaseBusinessIcon,
   Building2Icon,
+  ChevronRightIcon,
   ClipboardListIcon,
   FileTextIcon,
   FolderTreeIcon,
@@ -19,7 +20,6 @@ import {
   MapPinIcon,
   PhoneIcon,
   PlusIcon,
-  SearchIcon,
   SlackIcon,
   TrophyIcon,
   UsersIcon,
@@ -43,7 +43,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -55,6 +54,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ResourceCommandPalette } from "@/components/resources/ResourceCommandPalette";
 import { ServerPathCopy } from "@/components/resources/ServerPathCopy";
 import { useFetch } from "@/hooks/use-fetch";
 import {
@@ -62,6 +62,7 @@ import {
   RESOURCE_TYPE_LABELS,
 } from "@/lib/guide-categories";
 import type { GuideListItem } from "@/lib/guides";
+import { splitFeaturedGuides } from "@/lib/resource-search";
 import { sportLabel } from "@/lib/sports";
 import { cn } from "@/lib/utils";
 import {
@@ -326,8 +327,8 @@ function GuideCard({ guide, compact = false }: { guide: GuideListItem; compact?:
       <Card
         elevation="flat"
         className={cn(
-          "h-full min-h-44 transition-[border-color,box-shadow,scale] group-hover:border-foreground/30 group-hover:shadow-sm group-active:scale-[0.99]",
-          compact && "min-h-36",
+          "h-full min-h-36 transition-[border-color,box-shadow,scale] group-hover:border-foreground/30 group-hover:shadow-sm group-active:scale-[0.99]",
+          compact && "min-h-32",
         )}
       >
         <CardHeader className="gap-3 p-4">
@@ -355,7 +356,7 @@ function GuideCard({ guide, compact = false }: { guide: GuideListItem; compact?:
 
         <CardContent className="flex flex-1 flex-col gap-3 px-4 pb-4 pt-0">
           {!compact && (
-            <p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground text-pretty">
+            <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground text-pretty">
               {guide.summary || "No preview text yet."}
             </p>
           )}
@@ -494,57 +495,6 @@ function totalAssignedPeople(groups: SportAssignmentGroup[]) {
   return new Set(groups.flatMap((group) => group.users.map((user) => user.id))).size;
 }
 
-function totalDefaultTravelers(groups: SportAssignmentGroup[]) {
-  return new Set(groups.flatMap((group) => group.defaultTravelers.map((user) => user.id))).size;
-}
-
-function AreaGuideLanes({
-  guides,
-  layout,
-  onSelect,
-}: {
-  guides: GuideListItem[];
-  layout: LayoutKey;
-  onSelect: (filter: FilterKey) => void;
-}) {
-  const lanes = AREA_FILTERS.map((option) => {
-    const areaGuides = guides.filter((guide) => guide.targetAreas.includes(option.area));
-    return { ...option, guides: areaGuides.slice(0, 3), total: areaGuides.length };
-  }).filter((lane) => lane.total > 0);
-
-  if (lanes.length === 0) return null;
-
-  return (
-    <section className="flex flex-col gap-4">
-      <SectionHeader
-        title="Area guide lanes"
-        description="Focused Guides grouped by the Creative area they support."
-      />
-      <div className="grid gap-5 xl:grid-cols-2">
-        {lanes.map((lane) => (
-          <section key={lane.value} className="flex min-w-0 flex-col gap-3">
-            <SectionHeader
-              title={`${lane.label} guides`}
-              description={`${lane.total} ${lane.total === 1 ? "guide" : "guides"} targeted to ${lane.label}.`}
-              action={(
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-10"
-                  onClick={() => onSelect(lane.value)}
-                >
-                  View all
-                </Button>
-              )}
-            />
-            <GuideResults guides={lane.guides} layout={layout} compact />
-          </section>
-        ))}
-      </div>
-    </section>
-  );
-}
 
 export default function ResourcesPage() {
   const router = useRouter();
@@ -634,6 +584,13 @@ export default function ResourcesPage() {
     }
     return base;
   }, [guides, search, activeCategory, activeFilter, sort]);
+
+  // Admin-curated featured guides lead the home hub when present; the block stays
+  // hidden entirely when nothing is featured, so a clean library is unaffected.
+  const { featured: featuredGuides, library: libraryGuides } = useMemo(
+    () => splitFeaturedGuides(filtered),
+    [filtered],
+  );
 
   const filteredContactUsers = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -738,17 +695,7 @@ export default function ResourcesPage() {
 
       <OperationalToolbar aria-label="Guide search and filters">
         <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
-          <div className="relative min-w-0 flex-1">
-            <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              id="resources-search"
-              name="resources-search"
-              placeholder="Search guides, contacts, paths, workflows, and notes..."
-              value={search}
-              onChange={(event) => setSearchParam(event.target.value)}
-              className="h-10 pl-9"
-            />
-          </div>
+          <ResourceCommandPalette guides={guides ?? []} className="min-w-0 flex-1" />
           <div className="grid gap-2 sm:grid-cols-2 lg:flex lg:shrink-0">
             <Select value={activeFilter} onValueChange={(value) => setFilter(value as FilterKey)}>
               <SelectTrigger className="h-10 lg:w-[210px]" aria-label="Guide focus">
@@ -881,20 +828,31 @@ export default function ResourcesPage() {
           />
         </>
       ) : homeView ? (
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-10">
+          {featuredGuides.length > 0 && (
+            <section className="flex flex-col gap-3">
+              <SectionHeader title="Featured" />
+              <GuideResults guides={featuredGuides} layout={layout} />
+            </section>
+          )}
+
           <section className="flex flex-col gap-3">
-            <SectionHeader
-              title="Guides"
-              description="Browse the full library. Use the filters above to narrow by focus, area, or sort."
-            />
-            {filtered.length > 0 ? (
-              <GuideResults guides={filtered} layout={layout} />
-            ) : (
+            <SectionHeader title={featuredGuides.length > 0 ? "All guides" : "Guides"} />
+            {filtered.length === 0 ? (
               <EmptyState
                 inline
                 icon="folder"
                 title="No guides yet"
-                description="Create focused Guides from the current master doc as each area is ready."
+                description="Create focused guides as each area is ready."
+              />
+            ) : libraryGuides.length > 0 ? (
+              <GuideResults guides={libraryGuides} layout={layout} />
+            ) : (
+              <EmptyState
+                inline
+                icon="folder"
+                title="All guides are featured"
+                description="Every guide is highlighted above."
               />
             )}
           </section>
@@ -902,13 +860,10 @@ export default function ResourcesPage() {
           <ReferenceSummaryStrip
             loading={contactsLoading}
             contactStats={contactStats}
-            canSeeContactHygiene={isStaffOrAdmin}
             sportAssignmentGroups={sportAssignmentGroups}
             onShowContacts={() => setFilter("contacts")}
             onShowAssignments={() => setFilter("assignments")}
           />
-
-          <AreaGuideLanes guides={filtered} layout={layout} onSelect={setFilter} />
         </div>
       ) : (
         <div className="flex flex-col gap-6">
@@ -947,31 +902,63 @@ export default function ResourcesPage() {
   );
 }
 
+function ReferenceCard({
+  icon: Icon,
+  title,
+  count,
+  description,
+  onClick,
+}: {
+  icon: LucideIcon;
+  title: string;
+  count: number;
+  description: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex items-center gap-3 rounded-lg border bg-card p-4 text-left transition-colors hover:border-foreground/30 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+    >
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+        <Icon className="size-4" aria-hidden="true" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="truncate text-sm font-semibold text-foreground">{title}</span>
+          <Badge variant="secondary" size="sm" className="tabular-nums">
+            {count}
+          </Badge>
+        </div>
+        <p className="mt-0.5 truncate text-xs text-muted-foreground">{description}</p>
+      </div>
+      <ChevronRightIcon
+        className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+        aria-hidden="true"
+      />
+    </button>
+  );
+}
+
 function ReferenceSummaryStrip({
   loading,
   contactStats,
-  canSeeContactHygiene,
   sportAssignmentGroups,
   onShowContacts,
   onShowAssignments,
 }: {
   loading: boolean;
-  contactStats: {
-    visible: number;
-    total: number;
-    missingPhone: number;
-    missingSlack: number;
-  };
-  canSeeContactHygiene: boolean;
+  contactStats: { total: number };
   sportAssignmentGroups: SportAssignmentGroup[];
   onShowContacts: () => void;
   onShowAssignments: () => void;
 }) {
   if (loading) {
     return (
-      <section className="grid gap-3 lg:grid-cols-2" aria-label="Reference summaries">
-        <Skeleton className="h-36 rounded-lg" />
-        <Skeleton className="h-36 rounded-lg" />
+      <section className="grid gap-3 sm:grid-cols-2" aria-label="Reference summaries">
+        <Skeleton className="h-[74px] rounded-lg" />
+        <Skeleton className="h-[74px] rounded-lg" />
       </section>
     );
   }
@@ -980,85 +967,29 @@ function ReferenceSummaryStrip({
   const hasAssignments = sportAssignmentGroups.length > 0;
   if (!hasContacts && !hasAssignments) return null;
 
+  const assignedPeople = totalAssignedPeople(sportAssignmentGroups);
+
   return (
     <section className="flex flex-col gap-3" aria-label="Reference summaries">
-      <SectionHeader
-        title="References"
-        description="Quick lookup material that supports the guide library."
-      />
-      <div className="grid gap-3 lg:grid-cols-2">
+      <SectionHeader title="References" />
+      <div className="grid gap-3 sm:grid-cols-2">
         {hasContacts && (
-          <Card elevation="flat">
-            <CardHeader className="gap-2 p-4 pb-0">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <CardTitle className="flex items-center gap-2 text-sm">
-                    <UsersIcon className="size-4 text-muted-foreground" aria-hidden="true" />
-                    Contacts
-                  </CardTitle>
-                  <p className="mt-1 text-sm text-muted-foreground text-pretty">
-                    Profile-backed names, emails, phone numbers, Slack, area, and location.
-                  </p>
-                </div>
-                <Badge variant="secondary" className="shrink-0 tabular-nums">
-                  {contactStats.total}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-2 p-4 text-xs text-muted-foreground">
-              {canSeeContactHygiene && contactStats.missingPhone > 0 && (
-                <Badge variant="outline" className="tabular-nums">
-                  {contactStats.missingPhone} missing phone
-                </Badge>
-              )}
-              {canSeeContactHygiene && contactStats.missingSlack > 0 && (
-                <Badge variant="outline" className="tabular-nums">
-                  {contactStats.missingSlack} missing Slack
-                </Badge>
-              )}
-            </CardContent>
-            <CardFooter className="px-4 pb-4 pt-0">
-              <Button type="button" variant="outline" size="sm" className="h-10" onClick={onShowContacts}>
-                View contacts
-              </Button>
-            </CardFooter>
-          </Card>
+          <ReferenceCard
+            icon={UsersIcon}
+            title="Contacts"
+            count={contactStats.total}
+            description="Names, emails, phones, Slack, and areas."
+            onClick={onShowContacts}
+          />
         )}
-
         {hasAssignments && (
-          <Card elevation="flat">
-            <CardHeader className="gap-2 p-4 pb-0">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <CardTitle className="flex items-center gap-2 text-sm">
-                    <TrophyIcon className="size-4 text-muted-foreground" aria-hidden="true" />
-                    Sport assignments
-                  </CardTitle>
-                  <p className="mt-1 text-sm text-muted-foreground text-pretty">
-                    Read-only sport coverage from user profile assignments.
-                  </p>
-                </div>
-                <Badge variant="secondary" className="shrink-0 tabular-nums">
-                  {sportAssignmentGroups.length}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-2 p-4 text-xs text-muted-foreground">
-              <Badge variant="outline" className="tabular-nums">
-                {totalAssignedPeople(sportAssignmentGroups)} people
-              </Badge>
-              {totalDefaultTravelers(sportAssignmentGroups) > 0 && (
-                <Badge variant="outline" className="tabular-nums">
-                  {totalDefaultTravelers(sportAssignmentGroups)} default travelers
-                </Badge>
-              )}
-            </CardContent>
-            <CardFooter className="px-4 pb-4 pt-0">
-              <Button type="button" variant="outline" size="sm" className="h-10" onClick={onShowAssignments}>
-                View assignments
-              </Button>
-            </CardFooter>
-          </Card>
+          <ReferenceCard
+            icon={TrophyIcon}
+            title="Sport assignments"
+            count={sportAssignmentGroups.length}
+            description={`${assignedPeople} ${assignedPeople === 1 ? "person" : "people"} across sport coverage.`}
+            onClick={onShowAssignments}
+          />
         )}
       </div>
     </section>

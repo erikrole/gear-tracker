@@ -66,6 +66,27 @@ These badges appear on event rows in the schedule and dashboard. They are **not*
 
 > **Note:** Green here does not mean "available" — it means "home game." The separation is clear because these badges only appear on event rows, never on gear or booking rows. Do not use red for Away — red is reserved for overdue/error states.
 
+### Guide callouts (Resources reader)
+
+GitHub-style alert callouts in the Markdown guide reader. This is an **editorial
+emphasis** domain (author intent inside prose), not gear/booking status, so it has
+its own palette. Each accent drives the border, header text, and a tinted background
+(`color-mix` of the accent into `--card`). Defined as `--callout-accent` on
+`.guide-alert-<type>` in `globals.css`.
+
+| Callout | Accent (light) | Accent (dark) | Meaning |
+|---------|----------------|---------------|---------|
+| Note | `#2563eb` (blue) | `#60a5fa` | Neutral context / FYI |
+| Tip | `#16a34a` (green) | `#4ade80` | Helpful best practice |
+| Important | `#7c3aed` (violet) | `#a78bfa` | Do-not-miss requirement |
+| Warning | `#d97706` (amber) | `#fbbf24` | Proceed with caution |
+| Caution | `#dc2626` (red) | `#f87171` | Risk of damage / data loss |
+
+> **Note:** Caution red here is scoped to in-prose author warnings inside a titled
+> callout card; it never appears on gear/booking rows, so it does not collide with the
+> overdue/error red reserved for status. Verified for light/dark contrast in the slice-1
+> browser check.
+
 ---
 
 ## Web tokens
