@@ -159,7 +159,7 @@ const STATUS_META: Record<string, { label: string; variant: BadgeProps["variant"
 
 const TRADE_OUTCOME_COPY = {
   claimTrade: {
-    server: "Could not claim the trade. Refresh Open Work and try again.",
+    server: "Could not claim the trade. Refresh the Trade Board and try again.",
     network: "Could not reach the server. The trade was not claimed.",
   },
   approveTrade: {
@@ -175,7 +175,7 @@ const TRADE_OUTCOME_COPY = {
     network: "Could not reach the server. The trade was not cancelled.",
   },
   claimShift: {
-    server: "Could not claim the shift. Refresh Open Work and try again.",
+    server: "Could not claim the shift. Refresh the Trade Board and try again.",
     network: "Could not reach the server. The shift was not claimed.",
   },
 } as const;
@@ -619,7 +619,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
 
       <Card elevation="flat" className="overflow-hidden border-border/60 shadow-sm">
         <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
-          <CardTitle className="text-sm">Open Work</CardTitle>
+          <CardTitle className="text-sm">Open Shifts</CardTitle>
           <span className="text-xs font-medium tabular-nums text-muted-foreground">{countLabel}</span>
         </CardHeader>
 
@@ -627,7 +627,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
           <TradeSkeleton />
         ) : hasLoadError ? (
           <CardContent className="p-4 text-center">
-            <p className="mb-3 text-sm text-muted-foreground">Open Work did not load. Retry before acting on shift or trade coverage.</p>
+            <p className="mb-3 text-sm text-muted-foreground">Open shifts did not load. Retry before acting on shift or trade coverage.</p>
             <Button variant="outline" size="sm" onClick={reloadWork}>
               Retry
             </Button>
@@ -635,7 +635,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
         ) : totalRows === 0 ? (
           <EmptyState
             icon="clipboard"
-            title={hasFilters ? "No matching work" : "No open work"}
+            title={hasFilters ? "No matching work" : "No open shifts"}
             description={
               hasFilters
                 ? "Clear or adjust the filters to see more shift and trade activity."

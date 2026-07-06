@@ -18,7 +18,7 @@ describe("student availability profile UI", () => {
     expect(tab).toContain("blockIntent(block) === \"TIME_OFF\" && blockStatus(block) === \"DENIED\"");
     expect(tab).toContain("Approved time off is blocking. Other availability stays visible as staff-reviewed guidance.");
     expect(tab).toContain("Blocks assignment, pickup, trade, and call-window changes.");
-    expect(tab).toContain("Warns assignment, auto-fill, Open Work, and Trade Board review.");
+    expect(tab).toContain("Warns assignment, auto-fill, and Trade Board review.");
     expect(tab).toContain("Improves candidate fit when staff review coverage.");
   });
 

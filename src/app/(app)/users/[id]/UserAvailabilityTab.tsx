@@ -161,7 +161,7 @@ function AvailabilityImpactSummary({ blocks }: { blocks: AvailabilityBlock[] }) 
       label: "Advisory conflicts",
       value: advisoryConflictCount,
       tone: "orange" as const,
-      detail: "Warns assignment, auto-fill, Open Work, and Trade Board review.",
+      detail: "Warns assignment, auto-fill, and Trade Board review.",
     },
     {
       label: "Preferred windows",

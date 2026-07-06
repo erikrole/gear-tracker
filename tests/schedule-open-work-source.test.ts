@@ -9,7 +9,8 @@ describe("schedule open work source contracts", () => {
   it("keeps Open Work separate from trade listing while preserving trade actions", () => {
     const tradeBoard = source("src/components/TradeBoard.tsx");
 
-    expect(tradeBoard).toContain("Open Work");
+    expect(tradeBoard).toContain("OpenWorkShift");
+    expect(tradeBoard).toContain("Open Shifts");
     expect(tradeBoard).toContain("/api/schedule/open-work");
     expect(tradeBoard).toContain("Available Now");
     expect(tradeBoard).toContain("My Posts");
