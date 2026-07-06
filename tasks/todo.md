@@ -1,6 +1,25 @@
 # Task Queue
 
-Last updated: 2026-07-03
+Last updated: 2026-07-06
+
+---
+
+## Active: Main validate recovery (2026-07-06)
+
+Plan: restore a green `main` after GitHub Actions `validate` failed on stale iOS tab-shell source-contract assertions.
+
+- [x] Confirm local `main`, `origin/main`, and GitHub `refs/heads/main` point at `be2446e3cb91d8b19f904fbc120224f40c8f314a`.
+- [x] Inspect the GitHub Actions failure annotations for the current main commit.
+- [x] Confirm current docs and source say the compact directory tab is `More`, not `Browse`.
+- [x] Patch only the stale iOS source-contract expectations.
+- [x] Run focused Vitest and closeout checks.
+- [x] Commit the fix locally.
+- [ ] Push the fix to `main`.
+- [ ] Confirm the remote `validate` check recovers.
+
+### Review
+- 2026-07-06: Recovery in progress. The seven screenshot commits are already on remote `main`; the only current GitHub Actions failure is `validate`, caused by three source-contract files still expecting `Tab("Browse", systemImage: "square.grid.2x2", value: 2)` after the shipped iOS tab polish renamed the compact directory tab to `More` with `ellipsis.circle`.
+- 2026-07-06: Local recovery verification passed: focused Vitest for the three failing files, full `npm test` with 299 files / 1,790 tests, `npm audit --audit-level=high` with only one low-severity advisory, `npm run build:app`, `npm run verify:docs`, and `git diff --check`. Local `npm run build` could not safely complete because its migration-deploy preflight needs Neon network access and the approval reviewer rejected the escalated run due remote migration mutation risk.
 
 ---
 

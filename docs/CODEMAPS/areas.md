@@ -145,7 +145,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/search`
 - APIs: `/api/assets/picker-search`, `/api/image-search`
 - Services: _none matched_
-- Tests: `tests/api-image-search.test.ts`, `tests/app-shell-search-source.test.ts`, `tests/image-search.test.ts`, `tests/search-page-source.test.ts`, `tests/search-pages.test.ts`, `tests/search-result-title.test.ts`
+- Tests: `tests/api-image-search.test.ts`, `tests/app-shell-search-source.test.ts`, `tests/image-search.test.ts`, `tests/resource-search.test.ts`, `tests/search-page-source.test.ts`, `tests/search-pages.test.ts`, `tests/search-result-title.test.ts`
 
 ## settings
 

@@ -42,7 +42,7 @@ describe("iOS native Licenses page", () => {
     const browse = source("ios/Wisconsin/Views/BrowseView.swift");
     const profile = source("ios/Wisconsin/Views/ProfileView.swift");
 
-    expect(appTab).toContain('Tab("Browse", systemImage: "square.grid.2x2", value: 2)');
+    expect(appTab).toContain('Tab("More", systemImage: "ellipsis.circle", value: 2)');
     expect(appTab).toContain("BrowseView()");
     expect(browse).toContain("LicensesView(wrapsInNavigationStack: false)");
     expect(appTab).toContain('Tab("Licenses", systemImage: "key", value: 7)');

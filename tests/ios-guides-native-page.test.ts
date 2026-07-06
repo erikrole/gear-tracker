@@ -64,7 +64,7 @@ describe("iOS native Guides page", () => {
     const browse = source("ios/Wisconsin/Views/BrowseView.swift");
     const profile = source("ios/Wisconsin/Views/ProfileView.swift");
 
-    expect(appTab).toContain('Tab("Browse", systemImage: "square.grid.2x2", value: 2)');
+    expect(appTab).toContain('Tab("More", systemImage: "ellipsis.circle", value: 2)');
     expect(appTab).toContain("BrowseView()");
     expect(browse).toContain("GuidesView(wrapsInNavigationStack: false)");
     expect(appTab).toContain('Tab("Guides", systemImage: "book.closed", value: 6)');
@@ -78,7 +78,7 @@ describe("iOS native Guides page", () => {
     const appTab = appTabViewShell();
     const profile = source("ios/Wisconsin/Views/ProfileView.swift");
 
-    expect(appTab).toContain('Tab("Browse", systemImage: "square.grid.2x2", value: 2)');
+    expect(appTab).toContain('Tab("More", systemImage: "ellipsis.circle", value: 2)');
     expect(appTab).toContain("if showsSidebarDestinations {");
     expect(appTab).toContain(".tabPlacement(.sidebarOnly)");
     expect(profile).toMatch(/Section\("Directory"\)[\s\S]*NavigationLink \{\s*GuidesView\(wrapsInNavigationStack: false\)/);
