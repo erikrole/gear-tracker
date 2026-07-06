@@ -14,6 +14,7 @@ export function makeUser(overrides: Record<string, unknown> = {}) {
     role: "STUDENT" as const,
     primaryArea: null,
     avatarUrl: null,
+    active: true,
     ...overrides,
   };
 }

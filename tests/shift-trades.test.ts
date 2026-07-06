@@ -5,7 +5,7 @@ import { expectSerializableIsolation } from "./_helpers/assert-transaction";
 type MockFn = ReturnType<typeof vi.fn>;
 type ShiftTradesTx = {
   shiftTrade: Record<"findUnique" | "findFirst" | "create" | "update", MockFn>;
-  shiftAssignment: Record<"findUnique" | "create" | "update", MockFn>;
+  shiftAssignment: Record<"findUnique" | "findFirst" | "create" | "update", MockFn>;
   user: Record<"findUnique", MockFn>;
 };
 type ShiftTradesDb = {
@@ -28,6 +28,7 @@ vi.mock("@/lib/db", () => {
     },
     shiftAssignment: {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
     },
@@ -333,6 +334,46 @@ describe("claimTrade", () => {
     mockTx.shiftTrade.findUnique.mockResolvedValue(openTrade());
     mockTx.user.findUnique.mockResolvedValue(makeUser({ primaryArea: "Courts" }));
     await expect(claimTrade("trade-1", "claimer-1")).rejects.toThrow("does not match");
+  });
+
+  it("throws 400 when the claimant is inactive", async () => {
+    mockTx.shiftTrade.findUnique.mockResolvedValue(openTrade());
+    mockTx.user.findUnique.mockResolvedValue(makeUser({ primaryArea: "Field", active: false }));
+    await expect(claimTrade("trade-1", "claimer-1")).rejects.toThrow("Inactive users cannot claim");
+    expect(mockTx.shiftAssignment.create).not.toHaveBeenCalled();
+  });
+
+  // ── REGRESSION: a stale trade must not double-book the shift ──
+  it("throws 409 when the posted assignment is no longer active", async () => {
+    const trade = openTrade();
+    mockTx.shiftTrade.findUnique.mockResolvedValue(trade);
+    mockTx.user.findUnique.mockResolvedValue(makeUser({ primaryArea: "Field" }));
+    // Poster was removed from the shift after posting — re-fetch sees DECLINED
+    mockTx.shiftAssignment.findUnique.mockResolvedValue({
+      ...trade.shiftAssignment,
+      status: "DECLINED",
+    });
+
+    await expect(claimTrade(trade.id, "claimer-1")).rejects.toThrow(
+      "no longer held by the poster"
+    );
+    expect(mockTx.shiftAssignment.create).not.toHaveBeenCalled();
+    expect(mockTx.shiftAssignment.update).not.toHaveBeenCalled();
+  });
+
+  it("throws 409 when the shift was refilled after the trade was posted", async () => {
+    const trade = openTrade();
+    mockTx.shiftTrade.findUnique.mockResolvedValue(trade);
+    mockTx.user.findUnique.mockResolvedValue(makeUser({ primaryArea: "Field" }));
+    mockTx.shiftAssignment.findUnique.mockResolvedValue({ ...trade.shiftAssignment });
+    // Someone else already holds an active assignment on this shift
+    mockTx.shiftAssignment.findFirst.mockResolvedValueOnce({ id: "other-active" });
+
+    await expect(claimTrade(trade.id, "claimer-1")).rejects.toThrow(
+      "already has an active assignment"
+    );
+    expect(mockTx.shiftAssignment.create).not.toHaveBeenCalled();
+    expect(mockTx.shiftAssignment.update).not.toHaveBeenCalled();
   });
 
   it("rejects claims blocked by approved time off before assignment changes", async () => {

@@ -11,6 +11,7 @@ type ShiftAssignmentsTx = {
     MockFn
   >;
   user: Record<"findUnique", MockFn>;
+  shiftTrade: Record<"updateMany", MockFn>;
 };
 
 // ─── Transaction tracking ──────────��────────────────────────────────────────
@@ -38,6 +39,9 @@ vi.mock("@/lib/db", () => {
     },
     user: {
       findUnique: vi.fn(),
+    },
+    shiftTrade: {
+      updateMany: vi.fn(),
     },
   };
 
@@ -85,6 +89,8 @@ beforeEach(() => {
   mockTx.shiftAssignment.findMany.mockResolvedValue([]);
   mockTx.user.findUnique.mockReset();
   mockTx.user.findUnique.mockResolvedValue({ id: "user-1", role: "STUDENT", active: true });
+  mockTx.shiftTrade.updateMany.mockReset();
+  mockTx.shiftTrade.updateMany.mockResolvedValue({ count: 0 });
 });
 
 // ════════════��═══════════════════════════════════���════════════════════════════
@@ -691,6 +697,55 @@ describe("initiateSwap", () => {
       "Only active assignments"
     );
   });
+
+  it("throws 404 when the target user does not exist", async () => {
+    mockTx.shiftAssignment.findUnique.mockResolvedValue({
+      ...makeShiftAssignment({ status: "DIRECT_ASSIGNED" }),
+      shift,
+    });
+    mockTx.user.findUnique.mockResolvedValue(null);
+
+    await expect(initiateSwap("sa-1", "ghost-user", "admin-1")).rejects.toThrow(
+      "User not found"
+    );
+    expect(mockTx.shiftAssignment.create).not.toHaveBeenCalled();
+  });
+
+  it("throws 400 when the target user is inactive", async () => {
+    mockTx.shiftAssignment.findUnique.mockResolvedValue({
+      ...makeShiftAssignment({ status: "DIRECT_ASSIGNED" }),
+      shift,
+    });
+    mockTx.user.findUnique.mockResolvedValue({ id: "target-1", role: "STUDENT", active: false });
+
+    await expect(initiateSwap("sa-1", "target-1", "admin-1")).rejects.toThrow(
+      "inactive user"
+    );
+    expect(mockTx.shiftAssignment.create).not.toHaveBeenCalled();
+  });
+
+  it("cancels open trades on the outgoing assignment", async () => {
+    const assignment = {
+      ...makeShiftAssignment({ status: "DIRECT_ASSIGNED", shiftId: shift.id }),
+      shift,
+    };
+    mockTx.shiftAssignment.findUnique.mockResolvedValue(assignment);
+    mockTx.shiftAssignment.findFirst.mockResolvedValue(null);
+    mockTx.shiftAssignment.update.mockResolvedValue({ ...assignment, status: "SWAPPED" });
+    mockTx.shiftAssignment.create.mockResolvedValue({ id: "sa-new" });
+
+    await initiateSwap(assignment.id, "target-1", "admin-1");
+
+    expect(mockTx.shiftTrade.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          shiftAssignmentId: assignment.id,
+          status: { in: ["OPEN", "CLAIMED"] },
+        }),
+        data: expect.objectContaining({ status: "CANCELLED" }),
+      })
+    );
+  });
 });
 
 // ��═════════════════════════════════════════════════════════���══════════════════
@@ -764,5 +819,23 @@ describe("removeAssignment", () => {
     );
 
     await expect(removeAssignment("sa-1")).rejects.toThrow("cannot be removed");
+  });
+
+  it("cancels open trades so the board stops advertising a removed shift", async () => {
+    const assignment = makeShiftAssignment({ status: "DIRECT_ASSIGNED" });
+    mockTx.shiftAssignment.findUnique.mockResolvedValue(assignment);
+    mockTx.shiftAssignment.update.mockResolvedValue({ ...assignment, status: "DECLINED" });
+
+    await removeAssignment(assignment.id);
+
+    expect(mockTx.shiftTrade.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          shiftAssignmentId: assignment.id,
+          status: { in: ["OPEN", "CLAIMED"] },
+        }),
+        data: expect.objectContaining({ status: "CANCELLED" }),
+      })
+    );
   });
 });

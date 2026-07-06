@@ -257,10 +257,15 @@ export async function claimTrade(tradeId: string, userId: string) {
         primaryArea: true,
         role: true,
         staffingType: true,
+        active: true,
         availabilityBlocks: { select: availabilityBlockSelect },
       },
     });
-    if (!claimant || shiftWorkerTypeForProfile(claimant) !== shift.workerType) {
+    if (!claimant) throw new HttpError(404, "User not found");
+    if (!claimant.active) {
+      throw new HttpError(400, "Inactive users cannot claim shifts");
+    }
+    if (shiftWorkerTypeForProfile(claimant) !== shift.workerType) {
       throw new HttpError(400, "Your scheduling class does not match this shift slot");
     }
     if (claimant?.primaryArea && claimant.primaryArea !== shift.area) {
@@ -786,6 +791,22 @@ async function executeSwap(tx: Prisma.TransactionClient, assignmentId: string, t
     include: { shift: true },
   });
   if (!assignment) throw new HttpError(404, "Assignment not found during swap");
+  if (!(ACTIVE_ASSIGNMENT_STATUSES as readonly string[]).includes(assignment.status)) {
+    // The poster was removed from the shift after posting — completing the
+    // trade would hand the claimer a slot the poster no longer holds.
+    throw new HttpError(409, "The posted shift is no longer held by the poster, so this trade can't be completed");
+  }
+  const refilled = await tx.shiftAssignment.findFirst({
+    where: {
+      shiftId: assignment.shiftId,
+      id: { not: assignmentId },
+      status: { in: ACTIVE_ASSIGNMENT_STATUSES },
+    },
+    select: { id: true },
+  });
+  if (refilled) {
+    throw new HttpError(409, "This shift already has an active assignment");
+  }
   const effectiveWindow = effectiveAssignmentWindow(assignment);
 
   // Validate target user has no conflicting shifts (exclude the assignment being swapped)

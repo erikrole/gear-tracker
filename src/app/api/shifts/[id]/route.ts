@@ -33,6 +33,13 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   assertDateOrder(startsAt, endsAt, "endsAt must be after startsAt", { allowEqual: false });
   assertDateOrder(callStartsAt, callEndsAt, "callEndsAt must be after callStartsAt", { allowEqual: false });
 
+  // Updating only one bound must not invert the window against the stored value
+  const mergedStartsAt = startsAt ?? existing.startsAt;
+  const mergedEndsAt = endsAt ?? existing.endsAt;
+  if (mergedEndsAt <= mergedStartsAt) {
+    throw new HttpError(400, "endsAt must be after startsAt");
+  }
+
   if (startsAt) data.startsAt = startsAt;
   if (endsAt) data.endsAt = endsAt;
   if (body.callStartsAt !== undefined) data.callStartsAt = callStartsAt;
@@ -119,14 +126,49 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   return ok({ data: updated });
 });
 
-export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) => {
+export const DELETE = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "shift", "delete");
   const { id } = params;
 
-  const existing = await db.shift.findUnique({ where: { id } });
-  if (!existing) throw new HttpError(404, "Shift not found");
+  const url = new URL(req.url);
+  const force = url.searchParams.get("force") === "true";
 
-  await db.shift.delete({ where: { id } });
+  const result = await db.$transaction(async (tx) => {
+    const existing = await tx.shift.findUnique({
+      where: { id },
+      include: {
+        assignments: {
+          where: { status: { in: ACTIVE_ASSIGNMENT_STATUSES } },
+          select: { id: true },
+        },
+      },
+    });
+    if (!existing) throw new HttpError(404, "Shift not found");
+
+    // Match the shift-group delete contract: staffed shifts need an explicit force
+    if (existing.assignments.length > 0 && !force) {
+      throw new HttpError(
+        409,
+        "This shift has active assignments. Use ?force=true to remove anyway.",
+      );
+    }
+
+    await tx.shiftTrade.updateMany({
+      where: {
+        shiftAssignment: { shiftId: id },
+        status: { in: ["OPEN", "CLAIMED"] },
+      },
+      data: { status: "CANCELLED", resolvedAt: new Date() },
+    });
+
+    await tx.shift.delete({ where: { id } });
+
+    return {
+      area: existing.area,
+      workerType: existing.workerType,
+      activeAssignmentCount: existing.assignments.length,
+    };
+  });
 
   await createAuditEntry({
     actorId: user.id,
@@ -134,7 +176,12 @@ export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) =>
     entityType: "shift",
     entityId: id,
     action: "shift_deleted",
-    before: { area: existing.area, workerType: existing.workerType },
+    before: {
+      area: result.area,
+      workerType: result.workerType,
+      force,
+      activeAssignmentCount: result.activeAssignmentCount,
+    },
   });
 
   return ok({ success: true });

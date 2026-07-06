@@ -1,109 +1,64 @@
-# Schedule Page Hardening Plan
+# Schedule API hardening plan
 
-## Audit Summary
+Audit of schedule mutation flows (shift assignments, trades, shift edit/delete)
+found the trade/swap lifecycle can violate custody trust when an assignment
+changes underneath a posted trade, plus route-parity and validation gaps.
 
-The schedule/shift management feature has 17 API routes, 3 service files, and a 463-line page. Core issues:
-- **CRITICAL**: Race conditions on trade claims and shift group creation
-- **HIGH**: No shift time conflict detection (users can be double-booked)
-- **HIGH**: Trade claims don't validate area eligibility
-- **HIGH**: Trade swap can fail after marking COMPLETED
-- **MEDIUM**: Silent error handling across all loaders
-- **MEDIUM**: Coverage calculation inconsistency between page and API
-- **MEDIUM**: Status constants duplicated in 4 places
+## Findings
 
-## Scope
+### F1 (P0) -- Stale trade claim double-books a shift
+`executeSwap` (shift-trades.ts) never re-checks that the posted assignment is
+still active or that the shift wasn't refilled. Sequence: student posts trade →
+staff removes the assignment (→ DECLINED, trade stays OPEN) → staff assigns
+someone else → another student claims the stale trade → the DECLINED assignment
+flips to SWAPPED and a **second active assignment** is created on the shift.
 
-Fixes that **don't** require schema migrations or new features. Focus on correctness and reliability.
+### F2 (P0) -- Inactive user can claim a trade
+`claimTrade` selects the claimant without `active`; direct assignment and open
+pickup both reject inactive users, trade claim does not.
 
----
+### F3 (P0) -- Staff swap misses validations the trade swap has
+`initiateSwap` (shift-assignments.ts): no target-user existence/active check
+(missing user → FK P2003 → 500), no approved-time-off blocking check, no
+advisory conflict note, and it strands OPEN/CLAIMED trades on the outgoing
+assignment.
 
-## Implementation Plan
+### F4 (P1) -- Removing an assignment leaves its trade live on the board
+`removeAssignment` never cancels OPEN/CLAIMED trades for the assignment, so the
+Trade Board keeps advertising a shift the poster no longer holds (feeds F1).
 
-### Slice 1: Shift conflict detection in services
+### F5 (P1) -- Standalone `DELETE /api/shifts/[id]` lacks the safe-delete contract
+The nested `/api/shift-groups/[id]/shifts/[shiftId]` DELETE blocks staffed
+shifts without `?force=true`, cancels trades, and audits the assignment count.
+The standalone route (no web/iOS caller found) silently cascades all of it.
+Also: the nested route's trade cancel misses `resolvedAt`.
 
-**Files**: `src/lib/services/shift-assignments.ts`, `src/lib/services/shift-trades.ts`
+### F6 (P2) -- Shift PATCH can invert the time window
+`PATCH /api/shifts/[id]` validates start/end order only when both are provided;
+updating only `startsAt` can move it past the existing `endsAt`.
 
-- [ ] **1a. `directAssignShift()`**: Before creating assignment, query all active assignments for the target user that overlap with the shift's `startsAt/endsAt`. If overlap found, throw `HttpError(409, "User already has a shift during this time")`.
-- [ ] **1b. `requestShift()`**: Same overlap check — prevent students from requesting shifts that conflict with their existing assignments.
-- [ ] **1c. `claimTrade()` → `executeSwap()`**: Before executing swap, validate the claimant has no overlapping active assignments during the shift's time window.
-- [ ] **1d. `initiateSwap()`**: Validate target user has no overlapping assignments.
+### F7 (P2) -- `checkTimeConflict` `take: 10` false-negative edge
+If 10+ rows match the raw-window prefilter but all fail the effective-window
+recheck, a real 11th conflict is missed. Drop the cap (per-user, window-bounded
+query -- small).
 
-Overlap query pattern:
-```ts
-const conflict = await tx.shiftAssignment.findFirst({
-  where: {
-    userId: targetUserId,
-    status: { in: ACTIVE_STATUSES },
-    shift: {
-      startsAt: { lt: shift.endsAt },
-      endsAt: { gt: shift.startsAt },
-    },
-    id: { not: excludeAssignmentId }, // exclude the assignment being swapped
-  },
-  include: { shift: true },
-});
-if (conflict) {
-  throw new HttpError(409, `Conflicts with existing shift ${format(conflict.shift.startsAt)}`);
-}
-```
+## Slices
 
-### Slice 2: Trade area eligibility validation
+- [x] S1: Trade swap integrity -- executeSwap requires active source assignment
+      + no other active assignment on the shift; claimTrade rejects inactive
+      claimants (F1, F2)
+- [x] S2: Staff swap parity -- initiateSwap validates target user, blocks on
+      approved time off, records advisory conflict note, cancels trades on the
+      outgoing assignment (F3)
+- [x] S3: removeAssignment cancels OPEN/CLAIMED trades in the same transaction (F4)
+- [x] S4: Standalone shift DELETE gets force-guard + trade cancel + audit
+      context; nested route cancel gains resolvedAt (F5)
+- [x] S5: Shift PATCH merged-window validation; drop checkTimeConflict cap (F6, F7)
+- [x] S6: Tests + build + docs sync
 
-**Files**: `src/lib/services/shift-trades.ts`
+## Review
 
-- [ ] **2a. `claimTrade()`**: After checking trade status, verify claimant is eligible for the shift's area. Query `StudentAreaAssignment` (or equivalent) to confirm user can work in that `ShiftArea`.
-- [ ] **2b.** If no area eligibility model exists, at minimum verify the claimant's role allows the worker type (FT vs ST) required by the shift.
-
-### Slice 3: Race condition fixes
-
-**Files**: `src/lib/services/shift-trades.ts`, `src/lib/services/shift-generation.ts`
-
-- [ ] **3a. `claimTrade()`**: Move the status check inside a transaction. Re-fetch the trade within `db.$transaction()` and recheck `status === "OPEN"` after the re-fetch. If not OPEN, throw 409.
-- [ ] **3b. `executeSwap()`**: Ensure swap execution is atomic — if any step fails, the entire transaction rolls back. Currently `executeSwap` is called inside `claimTrade`'s transaction, so verify the boundary is correct.
-- [ ] **3c. `generateShiftsForEvent()`**: The existing transaction already wraps the creation, but add a recheck: `if (event.shiftGroupId)` inside the transaction after refetching the event.
-
-### Slice 4: Trade swap failure handling
-
-**Files**: `src/lib/services/shift-trades.ts`
-
-- [ ] **4a.** In `claimTrade()` for non-approval trades: ensure `executeSwap()` is awaited and its result checked BEFORE marking trade as COMPLETED. If swap throws, the transaction should roll back (verify this is already the case since both are in the same `$transaction`).
-- [ ] **4b.** Add explicit error propagation — if `executeSwap` fails, the trade should remain OPEN, not silently marked COMPLETED.
-
-### Slice 5: UI error handling and loading states
-
-**Files**: `src/app/(app)/schedule/page.tsx`, `src/components/ShiftDetailPanel.tsx`, `src/components/TradeBoard.tsx`
-
-- [ ] **5a. Schedule page**: Add `loadError` state. On fetch failure, show error banner with retry button instead of silently showing stale data.
-- [ ] **5b. ShiftDetailPanel**: Add error state to `fetchGroup()` and `loadRoster()`. Show inline error with retry.
-- [ ] **5c. TradeBoard**: Add error state to `loadTrades()`. Show error card with retry.
-- [ ] **5d.** After action handlers (assign, claim, approve), validate the reload succeeded. If not, show toast warning "Action succeeded but display may be stale — tap to refresh".
-
-### Slice 6: Coverage calculation consistency
-
-**Files**: `src/app/(app)/schedule/page.tsx`
-
-- [ ] **6a.** Fix `areaCoverage()` to only count assignments with status in `ACTIVE_STATUSES` (`DIRECT_ASSIGNED`, `APPROVED`), matching the API's calculation.
-
-### Slice 7: Status constants dedup
-
-**Files**: `src/lib/constants.ts` (new or existing), update imports in `shift-assignments.ts`, `shift-trades.ts`, `shift-groups/route.ts`, `schedule/page.tsx`
-
-- [ ] **7a.** Create/add `ACTIVE_ASSIGNMENT_STATUSES` constant in a shared location.
-- [ ] **7b.** Replace all inline/local definitions with the shared import.
-
----
-
-## Out of Scope (future work)
-
-- Trade SLA/timeout with escalation notifications
-- Soft delete for shifts (requires schema change)
-- Bulk assignment operations
-- Timezone handling (needs broader investigation)
-- Premier event immutability flag
-- Booking/shift time mismatch validation
-
-## Verification
-
-- `npm run build` must pass
-- `npm test` must pass
-- Manual review: each service function has conflict/validation guard
+All slices shipped in one pass (small, interlocking service-layer edits).
+Tests: extended `tests/shift-trades.test.ts` and `tests/shift-assignments.test.ts`
+with stale-trade double-book, inactive-claimant, swap-parity, trade-cancel-on-
+remove, and shift-route guard coverage; full suite + `npm run build` green.

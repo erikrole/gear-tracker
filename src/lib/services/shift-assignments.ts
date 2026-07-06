@@ -143,10 +143,12 @@ export async function checkTimeConflict(
   if (excludeAssignmentId) {
     where.id = { not: excludeAssignmentId };
   }
+  // No row cap: the where clause is a raw-window prefilter, and a capped read
+  // could return only rows the effective-window recheck filters out while a
+  // real conflict sits past the cap.
   const conflicts = await tx.shiftAssignment.findMany({
     where,
     include: { shift: { select: { startsAt: true, endsAt: true, callStartsAt: true, callEndsAt: true, area: true } } },
-    take: 10,
   });
   for (const conflict of conflicts) {
     const conflictStartsAt = conflict.callStartsAt ?? conflict.shift.callStartsAt ?? conflict.shift.startsAt;
@@ -454,9 +456,53 @@ export async function initiateSwap(
       throw new HttpError(400, "Only active assignments can be swapped");
     }
 
+    const target = await tx.user.findUnique({
+      where: { id: targetUserId },
+      select: {
+        id: true,
+        role: true,
+        staffingType: true,
+        active: true,
+        availabilityBlocks: {
+          select: {
+            kind: true,
+            intent: true,
+            status: true,
+            dayOfWeek: true,
+            date: true,
+            startsAt: true,
+            endsAt: true,
+            label: true,
+            semesterLabel: true,
+            semesterStartsOn: true,
+            semesterEndsOn: true,
+          },
+        },
+      },
+    });
+    if (!target) throw new HttpError(404, "User not found");
+    if (!target.active) throw new HttpError(400, "Cannot assign an inactive user");
+
     // Check target user doesn't have a conflicting shift
     const conflictWindow = effectiveShiftWindow(assignment.shift);
     await checkTimeConflict(tx, targetUserId, conflictWindow.startsAt, conflictWindow.endsAt);
+    const availability = shiftWorkerTypeForProfile(target) === "ST"
+      ? evaluateAvailabilityPreferences(target.availabilityBlocks ?? [], conflictWindow)
+      : null;
+    if (availability?.blocking) {
+      throw new HttpError(409, availability.blocking.note);
+    }
+    const conflictNote = availability?.advisory?.note ?? null;
+
+    // The outgoing worker no longer holds this shift — a live Trade Board
+    // post for it would let someone claim a slot that already changed hands.
+    await tx.shiftTrade.updateMany({
+      where: {
+        shiftAssignmentId: assignmentId,
+        status: { in: ["OPEN", "CLAIMED"] },
+      },
+      data: { status: "CANCELLED", resolvedAt: new Date() },
+    });
 
     // Mark old assignment as swapped
     await tx.shiftAssignment.update({
@@ -472,6 +518,8 @@ export async function initiateSwap(
         status: "DIRECT_ASSIGNED",
         assignedBy: actorId,
         swapFromId: assignmentId,
+        hasConflict: Boolean(conflictNote),
+        conflictNote,
       },
       include: {
         user: { select: { id: true, name: true, role: true, staffingType: true, primaryArea: true } },
@@ -497,6 +545,16 @@ export async function removeAssignment(assignmentId: string) {
     if (!REMOVABLE_STATUSES.includes(assignment.status)) {
       throw new HttpError(400, "This assignment cannot be removed in its current state");
     }
+
+    // A removed assignment must not stay advertised on the Trade Board —
+    // the poster no longer holds the shift a claimer would be taking over.
+    await tx.shiftTrade.updateMany({
+      where: {
+        shiftAssignmentId: assignmentId,
+        status: { in: ["OPEN", "CLAIMED"] },
+      },
+      data: { status: "CANCELLED", resolvedAt: new Date() },
+    });
 
     return tx.shiftAssignment.update({
       where: { id: assignmentId },

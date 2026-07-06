@@ -39,7 +39,7 @@ export const DELETE = withAuth<{ id: string; shiftId: string }>(async (req, { us
         shiftAssignment: { shiftId },
         status: { in: ["OPEN", "CLAIMED"] },
       },
-      data: { status: "CANCELLED" },
+      data: { status: "CANCELLED", resolvedAt: new Date() },
     });
 
     // Delete all assignments (both active and historical)
