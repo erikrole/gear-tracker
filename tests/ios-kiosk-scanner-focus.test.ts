@@ -20,7 +20,21 @@ describe("iOS kiosk scanner focus", () => {
     expect(scanner).toContain("static func suppressScannerFocus");
     expect(scanner).toContain("static func allowScannerFocusNow()");
     expect(scanner).toContain("HIDScannerFocusGate.canAcquireScannerFocus");
-    expect(scanner).toContain("guard let self, self.isEnabled, let textField, HIDScannerFocusGate.canAcquireScannerFocus else { return }");
+
+    // Ownership gate: the sink can never take first responder while a visible
+    // UIKit text input is editing — not just during a fixed time window.
+    expect(scanner).toContain("activeVisibleEditors.isEmpty && Date() >= suppressedUntil");
+    expect(scanner).toContain("static func installEditingObserversIfNeeded()");
+    expect(scanner).toContain("UITextField.textDidBeginEditingNotification");
+    expect(scanner).toContain("UITextView.textDidBeginEditingNotification");
+    expect(scanner).toContain("!(editor is HIDTextField)");
+    expect(scanner).toContain("HIDScannerFocusGate.installEditingObserversIfNeeded()");
+
+    // Self-healing acquisition: blocked attempts retry until the keyboard is
+    // released, so the scanner is never left dead after typed-entry sheets.
+    expect(scanner).toContain("func ensureScannerFocus(_ textField: UITextField)");
+    expect(scanner).toContain("private func scheduleFocusRetry(_ textField: UITextField)");
+    expect(scanner).toContain("pendingFocusRetry?.cancel()");
 
     expect(checkout).toContain("@FocusState private var focusedCheckoutField: KioskCheckoutFocusedField?");
     expect(checkout).toContain("@State private var scannerCaptureEnabled = false");
