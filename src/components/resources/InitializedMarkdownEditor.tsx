@@ -28,6 +28,7 @@ import {
 } from "@mdxeditor/editor";
 import "@mdxeditor/editor/style.css";
 import { forwardRef } from "react";
+import { InsertCalloutMenu, InsertVideoEmbedButton } from "./EditorInsertTools";
 
 export type MarkdownEditorProps = Omit<MDXEditorProps, "plugins"> & {
   imageUploadHandler: (image: File) => Promise<string>;
@@ -50,6 +51,7 @@ export const InitializedMarkdownEditor = forwardRef<MDXEditorMethods, MarkdownEd
             markdown: "Markdown",
             javascript: "JavaScript",
             shell: "Shell",
+            embed: "Video embed",
           },
         }),
         tablePlugin(),
@@ -70,6 +72,9 @@ export const InitializedMarkdownEditor = forwardRef<MDXEditorMethods, MarkdownEd
               <CreateLink />
               <InsertImage />
               <InsertTable />
+              <Separator />
+              <InsertCalloutMenu />
+              <InsertVideoEmbedButton />
             </>
           ),
         }),
