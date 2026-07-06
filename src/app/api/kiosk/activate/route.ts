@@ -11,8 +11,8 @@ import { createSystemAuditEntry } from "@/lib/audit";
  * No auth required — this IS the auth bootstrapping step.
  *
  * Rate-limited per IP to slow brute-force enumeration of the 6-digit
- * (~1M) keyspace. Note: limiter is per-Vercel-instance; a Redis-backed
- * limiter is the correct long-term fix (see tasks/owasp-api-audit.md).
+ * (~1M) keyspace. The limiter is Upstash/KV-backed cross-instance in
+ * production, with a per-instance in-memory fallback (see lib/rate-limit.ts).
  */
 export const POST = withHandler(async (req) => {
   const ip = getClientIp(req);

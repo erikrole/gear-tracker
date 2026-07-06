@@ -65,6 +65,15 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
       if (booking.kind === "RESERVATION") return;
 
       if (booking.status !== "PENDING_PICKUP") {
+        if (booking.status === "OPEN") {
+          throw new HttpError(409, "This pickup was already confirmed. You're all set.");
+        }
+        if (booking.status === "COMPLETED") {
+          throw new HttpError(409, "This checkout was already completed.");
+        }
+        if (booking.status === "CANCELLED") {
+          throw new HttpError(409, "This pickup was cancelled. Ask staff for help.");
+        }
         throw new HttpError(409, `Cannot confirm pickup — booking is in ${booking.status} state`);
       }
 
@@ -173,6 +182,12 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
 
   if (sourceReservation?.kind === "RESERVATION") {
     if (sourceReservation.status !== "BOOKED") {
+      if (sourceReservation.status === "COMPLETED") {
+        throw new HttpError(409, "This reservation was already picked up. You're all set.");
+      }
+      if (sourceReservation.status === "CANCELLED") {
+        throw new HttpError(409, "This reservation was cancelled. Ask staff for help.");
+      }
       throw new HttpError(409, `Cannot confirm pickup — booking is in ${sourceReservation.status} state`);
     }
     if (sourceReservation.locationId !== kiosk.locationId) {
@@ -202,12 +217,15 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
         .filter((event) => event.scanType === "BULK_BIN" && event.bulkSkuId === item.bulkSkuId)
         .map((event) => parseDerivedBulkUnitQr(event.scanValue, [item.bulkSku]))
         .filter((match): match is NonNullable<typeof match> => !!match);
-      if (stagedUnits.length < item.plannedQuantity) {
+      // Dedupe by unit number: duplicate scan events for the same unit must
+      // not count toward planned quantity or double-bind a unit.
+      const stagedUnitNumbers = new Set(stagedUnits.map((unit) => unit.unitNumber));
+      if (stagedUnitNumbers.size < item.plannedQuantity) {
         throw new HttpError(409, `Scan all ${item.bulkSku.name} units before confirming pickup`);
       }
-      bulkUnitItems.push(...stagedUnits.map((unit) => ({
-        bulkSkuId: unit.bulkSkuId,
-        unitNumber: unit.unitNumber,
+      bulkUnitItems.push(...[...stagedUnitNumbers].map((unitNumber) => ({
+        bulkSkuId: item.bulkSkuId,
+        unitNumber,
       })));
     }
 
@@ -231,66 +249,10 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
       shiftAssignmentId: sourceReservation.shiftAssignmentId ?? undefined,
       kitId: sourceReservation.kitId ?? undefined,
       pickupKioskDeviceId: kiosk.kioskId,
+      // Bound inside createBooking's transaction: a failed unit bind rolls
+      // back the checkout and reservation fulfillment together.
+      bulkUnitItems,
     });
-
-    if (bulkUnitItems.length > 0) {
-      await db.$transaction(
-        async (tx) => {
-          const checkoutBulkItems = await tx.bookingBulkItem.findMany({
-            where: { bookingId: checkout.id },
-            select: { id: true, bulkSkuId: true },
-          });
-          const bulkItemBySku = new Map(checkoutBulkItems.map((item) => [item.bulkSkuId, item]));
-          const units = await tx.bulkSkuUnit.findMany({
-            where: {
-              OR: bulkUnitItems.map((item) => ({
-                bulkSkuId: item.bulkSkuId,
-                unitNumber: item.unitNumber,
-              })),
-            },
-            select: { id: true, bulkSkuId: true, unitNumber: true, status: true },
-          });
-          if (units.length !== bulkUnitItems.length) {
-            throw new HttpError(404, "One or more battery units were not found");
-          }
-          const unavailable = units.find((unit) => unit.status !== "AVAILABLE");
-          if (unavailable) {
-            throw new HttpError(409, `Battery unit #${unavailable.unitNumber} is no longer available`);
-          }
-
-          const updatedUnits = await tx.bulkSkuUnit.updateMany({
-            where: { id: { in: units.map((unit) => unit.id) }, status: "AVAILABLE" },
-            data: { status: "CHECKED_OUT" },
-          });
-          if (updatedUnits.count !== units.length) {
-            throw new HttpError(409, "One or more battery units are no longer available");
-          }
-
-          for (const unit of units) {
-            const bulkItem = bulkItemBySku.get(unit.bulkSkuId);
-            if (!bulkItem) {
-              throw new HttpError(409, "Battery unit no longer matches this checkout");
-            }
-            await tx.bookingBulkUnitAllocation.create({
-              data: {
-                bookingBulkItemId: bulkItem.id,
-                bulkSkuUnitId: unit.id,
-                checkedOutAt: new Date(),
-              },
-            });
-          }
-
-          for (const bulkItem of checkoutBulkItems) {
-            const quantity = units.filter((unit) => unit.bulkSkuId === bulkItem.bulkSkuId).length;
-            await tx.bookingBulkItem.update({
-              where: { id: bulkItem.id },
-              data: { checkedOutQuantity: quantity },
-            });
-          }
-        },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-      );
-    }
 
     await createAuditEntry({
       actorId,

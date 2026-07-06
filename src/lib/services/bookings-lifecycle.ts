@@ -51,6 +51,10 @@ type CreateBookingInput = {
   kitId?: string;
   /** KioskDevice that handled pickup — captured at kiosk custody transitions. */
   pickupKioskDeviceId?: string;
+  /** Kiosk reservation pickup: exact numbered bulk units to bind inside the
+   * same transaction that opens the checkout and completes the reservation,
+   * so a failed unit bind rolls the whole pickup back. CHECKOUT kind only. */
+  bulkUnitItems?: Array<{ bulkSkuId: string; unitNumber: number }>;
 };
 
 type UpdateBookingInput = {
@@ -167,6 +171,9 @@ export async function createBooking(input: CreateBookingInput) {
   assertValidBookingWindow(input.startsAt, input.endsAt);
   assertValidCreateEventLinks(input);
   assertCheckoutCustodySource(input);
+  if (input.bulkUnitItems && input.bulkUnitItems.length > 0 && input.kind !== BookingKind.CHECKOUT) {
+    throw new HttpError(400, "bulkUnitItems only apply to checkout custody");
+  }
 
   try {
     return await db.$transaction(
@@ -319,6 +326,72 @@ export async function createBooking(input: CreateBookingInput) {
             kind: BulkMovementKind.CHECKOUT,
             items: resolvedBulkItems
           });
+        }
+      }
+
+      // Bind exact numbered bulk units (kiosk reservation pickup). Runs in the
+      // same transaction as booking creation and reservation fulfillment: if a
+      // unit was grabbed between scan-staging and confirm, everything rolls
+      // back and the reservation stays BOOKED so the student can retry.
+      if (input.bulkUnitItems && input.bulkUnitItems.length > 0) {
+        const checkoutBulkItems = await tx.bookingBulkItem.findMany({
+          where: { bookingId: booking.id },
+          select: { id: true, bulkSkuId: true },
+        });
+        const bulkItemBySku = new Map(checkoutBulkItems.map((item) => [item.bulkSkuId, item.id]));
+
+        const units = await tx.bulkSkuUnit.findMany({
+          where: {
+            OR: input.bulkUnitItems.map((item) => ({
+              bulkSkuId: item.bulkSkuId,
+              unitNumber: item.unitNumber,
+            })),
+          },
+          select: {
+            id: true,
+            bulkSkuId: true,
+            unitNumber: true,
+            status: true,
+            bulkSku: { select: { name: true } },
+          },
+        });
+        if (units.length !== input.bulkUnitItems.length) {
+          throw new HttpError(404, "One or more battery units were not found");
+        }
+        const unbindable = units.find((unit) => !bulkItemBySku.has(unit.bulkSkuId));
+        if (unbindable) {
+          throw new HttpError(409, `${unbindable.bulkSku.name} #${unbindable.unitNumber} no longer matches this checkout`);
+        }
+        const unavailable = units.find((unit) => unit.status !== BulkUnitStatus.AVAILABLE);
+        if (unavailable) {
+          throw new HttpError(409, `${unavailable.bulkSku.name} #${unavailable.unitNumber} is no longer available`);
+        }
+
+        const updatedUnits = await tx.bulkSkuUnit.updateMany({
+          where: { id: { in: units.map((unit) => unit.id) }, status: BulkUnitStatus.AVAILABLE },
+          data: { status: BulkUnitStatus.CHECKED_OUT },
+        });
+        if (updatedUnits.count !== units.length) {
+          throw new HttpError(409, "One or more battery units are no longer available");
+        }
+
+        const checkedOutAt = new Date();
+        await tx.bookingBulkUnitAllocation.createMany({
+          data: units.map((unit) => ({
+            bookingBulkItemId: bulkItemBySku.get(unit.bulkSkuId)!,
+            bulkSkuUnitId: unit.id,
+            checkedOutAt,
+          })),
+        });
+
+        for (const [bulkSkuId, bulkItemId] of bulkItemBySku) {
+          const quantity = units.filter((unit) => unit.bulkSkuId === bulkSkuId).length;
+          if (quantity > 0) {
+            await tx.bookingBulkItem.update({
+              where: { id: bulkItemId },
+              data: { checkedOutQuantity: quantity },
+            });
+          }
         }
       }
 

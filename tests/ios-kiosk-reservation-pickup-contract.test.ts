@@ -28,4 +28,28 @@ describe("iOS kiosk reservation pickup contract", () => {
     expect(apiClient).toContain("func kioskPickupScan(bookingId: String, scanValue: String)");
     expect(apiClient).toContain("func kioskPickupConfirm(bookingId: String, actorId: String)");
   });
+
+  it("binds numbered bulk units atomically with checkout creation and reservation fulfillment", () => {
+    const confirmRoute = source("src/app/api/kiosk/pickup/[id]/confirm/route.ts");
+    const lifecycle = source("src/lib/services/bookings-lifecycle.ts");
+
+    // The route passes staged units into createBooking instead of binding them
+    // in a second transaction after the reservation is already COMPLETED.
+    expect(confirmRoute).toContain("bulkUnitItems,");
+    expect(confirmRoute).not.toContain("Battery unit no longer matches this checkout");
+    // Exactly one transaction remains in the route (the PENDING_PICKUP branch).
+    expect(confirmRoute.match(/db\.\$transaction/g)).toHaveLength(1);
+
+    // createBooking owns the unit bind inside its SERIALIZABLE transaction.
+    expect(lifecycle).toContain("bulkUnitItems?: Array<{ bulkSkuId: string; unitNumber: number }>");
+    expect(lifecycle).toContain("status: BulkUnitStatus.CHECKED_OUT");
+    expect(lifecycle).toContain("bookingBulkUnitAllocation.createMany");
+
+    // Duplicate staged scans cannot satisfy planned quantity or double-bind.
+    expect(confirmRoute).toContain("stagedUnitNumbers");
+
+    // Already-done confirms read as success states, not raw status leaks.
+    expect(confirmRoute).toContain("This reservation was already picked up");
+    expect(confirmRoute).toContain("This pickup was already confirmed");
+  });
 });
