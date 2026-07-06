@@ -195,7 +195,7 @@ struct TradeBoardSheet: View {
             if vm.visibleCount == 0 {
                 Section {
                     ContentUnavailableView(
-                        "No open work",
+                        "No open shifts",
                         systemImage: "arrow.triangle.2.circlepath",
                         description: Text("Open shifts and trade posts will show up here.")
                     )

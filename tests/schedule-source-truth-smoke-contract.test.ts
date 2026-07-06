@@ -110,7 +110,7 @@ describe("schedule source-of-truth smoke fallback contracts", () => {
     expect(eventCrew).toContain("/publish");
     expect(eventCrew).toContain("/acknowledge");
 
-    expect(tradeBoard).toContain("Open Work");
+    expect(tradeBoard).toContain("OpenWorkShift");
     expect(tradeBoard).toContain("/api/schedule/open-work");
     expect(tradeBoard).toContain("Claim shift");
     expect(tradeBoard).toContain("Shift claimed");
