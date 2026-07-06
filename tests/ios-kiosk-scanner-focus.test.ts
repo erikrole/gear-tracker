@@ -36,7 +36,13 @@ describe("iOS kiosk scanner focus", () => {
     expect(scanner).toContain("private func scheduleFocusRetry(_ textField: UITextField)");
     expect(scanner).toContain("pendingFocusRetry?.cancel()");
 
-    expect(checkout).toContain("@FocusState private var focusedCheckoutField: KioskCheckoutFocusedField?");
+    // Plain @State, never @FocusState: the UIKit-backed booking-name field is
+    // invisible to SwiftUI's focus system, so a @FocusState value for it gets
+    // reset to nil on the next focus pass and the stale binding force-resigns
+    // the keyboard the instant the field is tapped.
+    expect(checkout).toContain("@State private var focusedCheckoutField: KioskCheckoutFocusedField? = nil");
+    expect(checkout).not.toContain("@FocusState private var focusedCheckoutField");
+    expect(checkout).not.toContain("FocusState<KioskCheckoutFocusedField?>.Binding");
     expect(checkout).toContain("@State private var scannerCaptureEnabled = false");
     expect(checkout).toContain("private var shouldListenForHIDScans: Bool");
     expect(checkout).toContain("scannerCaptureEnabled && checkoutContextReady");

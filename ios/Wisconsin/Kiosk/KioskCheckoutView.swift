@@ -49,7 +49,15 @@ struct KioskCheckoutView: View {
     @State private var availabilityResult = KioskCheckoutAvailabilityResult()
     @State private var isCheckingAvailability = false
     @State private var availabilityError: String?
-    @FocusState private var focusedCheckoutField: KioskCheckoutFocusedField?
+    // Plain @State on purpose — NOT @FocusState. The booking-name field is a
+    // UIKit-backed KioskNativeTextField, invisible to SwiftUI's focus system,
+    // so no view ever claims a @FocusState value for it. SwiftUI then resets
+    // the value to nil on its next focus pass, and the stale binding makes
+    // KioskNativeTextField force-resign the field the instant it is tapped —
+    // the keyboard dies before a single character can be typed. Plain @State
+    // is the source of truth the UIKit delegate writes into (same pattern as
+    // KioskCheckoutDetailSheet's titleFocused/scanFocused).
+    @State private var focusedCheckoutField: KioskCheckoutFocusedField? = nil
 
     enum ScanFeedback: Equatable {
         case success(String)
@@ -796,7 +804,7 @@ private struct KioskCheckoutSetupPanel: View {
     @Binding var customPurpose: String
     @Binding var dueBackAt: Date
     let selectedEvent: KioskCheckoutEvent?
-    let focusedField: FocusState<KioskCheckoutFocusedField?>.Binding
+    let focusedField: Binding<KioskCheckoutFocusedField?>
 
     var body: some View {
         VStack(alignment: .leading, spacing: KioskSpacing.lg) {
@@ -945,7 +953,7 @@ private struct KioskCheckoutContextWindow: View {
     @Binding var selectedEventId: String?
     let selectedEvent: KioskCheckoutEvent?
     @Binding var customPurpose: String
-    let focusedField: FocusState<KioskCheckoutFocusedField?>.Binding
+    let focusedField: Binding<KioskCheckoutFocusedField?>
 
     var body: some View {
         KioskCheckoutWindow(
