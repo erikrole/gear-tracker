@@ -1,6 +1,6 @@
 # Tasks Index
 
-Last updated: 2026-06-22
+Last updated: 2026-07-04
 
 ## Start Here
 
@@ -25,11 +25,11 @@ Move completed plan files to `tasks/archive/completed-2026-06/` instead of leavi
 
 ## Current Root Shape
 
-As of this cleanup pass, root `tasks/` contains:
+As of this cleanup pass (2026-07-04), root `tasks/` contains:
 
-- 160 root files.
-- 42 root `*-plan.md` files.
-- 79 root audit files.
+- 172 root files.
+- 45 root `*-plan.md` files (all with open implementation/verification work).
+- 52 root audit files.
 - 14 roadmap files.
 - 5 follow-up files.
 
@@ -43,6 +43,7 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Archive Buckets
 
+- `tasks/archive/completed-2026-07/` - completed plans archived in the July cleanup run.
 - `tasks/archive/completed-2026-06/` - completed plans and queue cleanup summaries from the June cleanup run.
 - `tasks/archive/proofs/` - browser-smoke and screenshot proof artifacts.
 - `tasks/archive/` root - older archived plans that predate the dated completed bucket.
@@ -56,6 +57,7 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Recently Archived
 
+- 2026-07-04 batch (47 files) moved to `tasks/archive/completed-2026-07/`: all root `*-plan.md` files with every checklist item complete and no open follow-up work, including `lint-warning-cleanup-plan.md`, `repo-cleanup-optimization-plan.md`, the completed iOS native-page/scan/schedule plans, and the completed schedule/booking/venue hardening plans.
 - `hidden-smoke-users-plan.md` - completed hidden smoke/test user visibility, owner opt-in, cleanup endpoint, operational sweep, and rollout check.
 - `booking-creation-ownership-pass-2026-05-07.md` - completed booking creation ownership pass.
 - `scan-ownership-pass-2026-06-19.md` - completed lookup-only scan ownership pass.

@@ -143,7 +143,6 @@
 | `src/hooks/use-item-change-sync.ts` | 92 |
 | `src/hooks/use-last-audit.ts` | 77 |
 | `src/hooks/use-mobile.ts` | 20 |
-| `src/hooks/use-mutate.ts` | 89 |
 | `src/hooks/use-scan-submission.ts` | 241 |
 | `src/hooks/use-schedule-data.ts` | 532 |
 | `src/hooks/use-url-state.ts` | 166 |
