@@ -25,6 +25,39 @@ function makeJWT(): string {
   return `${signingInput}.${signature}`;
 }
 
+// Apple rejects provider tokens refreshed more often than every 20 minutes
+// (TooManyProviderTokenUpdates); tokens stay valid for an hour. Cache at
+// module scope so warm serverless instances reuse one token across a
+// notification fan-out instead of minting a JWT per send.
+const JWT_TTL_MS = 50 * 60_000;
+let cachedJwt: { token: string; mintedAt: number } | null = null;
+
+function getJwt(): string {
+  const now = Date.now();
+  if (cachedJwt && now - cachedJwt.mintedAt < JWT_TTL_MS) {
+    return cachedJwt.token;
+  }
+  const token = makeJWT();
+  cachedJwt = { token, mintedAt: now };
+  return token;
+}
+
+/** Per-request timeout — a stalled APNs stream must not hold the function open. */
+const APNS_REQUEST_TIMEOUT_MS = 10_000;
+
+/**
+ * Connect to APNs with a session error handler attached. Without one, a
+ * transient DNS/connection failure emits an unhandled "error" event, which
+ * is fatal in Node — it would kill the serverless function mid-request.
+ */
+function connectApns(): http2.ClientHttp2Session {
+  const client = http2.connect(APNS_HOST);
+  client.on("error", (err) => {
+    console.error("[APNS] session error:", err.message);
+  });
+  return client;
+}
+
 type SendResult = "ok" | "revoked" | "error";
 
 function sendOne(
@@ -35,13 +68,27 @@ function sendOne(
   opts: { topic: string; pushType: "alert" | "liveactivity" }
 ): Promise<SendResult> {
   return new Promise((resolve) => {
-    const req = client.request({
-      ":method": "POST",
-      ":path": `/3/device/${token}`,
-      authorization: `bearer ${jwt}`,
-      "apns-topic": opts.topic,
-      "apns-push-type": opts.pushType,
-      "content-type": "application/json",
+    let req: http2.ClientHttp2Stream;
+    try {
+      req = client.request({
+        ":method": "POST",
+        ":path": `/3/device/${token}`,
+        authorization: `bearer ${jwt}`,
+        "apns-topic": opts.topic,
+        "apns-push-type": opts.pushType,
+        "content-type": "application/json",
+      });
+    } catch (err) {
+      // Session already destroyed (e.g. connection error) — requests on a
+      // dead session throw synchronously.
+      console.error("[APNS] request open failed:", err instanceof Error ? err.message : err);
+      return resolve("error");
+    }
+
+    req.setTimeout(APNS_REQUEST_TIMEOUT_MS, () => {
+      console.error(`[APNS] ${token.slice(-8)}: request timed out`);
+      req.close(http2.constants.NGHTTP2_CANCEL);
+      resolve("error");
     });
 
     let status = 0;
@@ -99,8 +146,8 @@ export async function sendPush(
     ...(opts.payload ?? {}),
   };
 
-  const jwt = makeJWT();
-  const client = http2.connect(APNS_HOST);
+  const jwt = getJwt();
+  const client = connectApns();
 
   const revoked: string[] = [];
 
@@ -144,8 +191,8 @@ export async function endCheckoutReturnLiveActivityTokens(
     },
   };
 
-  const jwt = makeJWT();
-  const client = http2.connect(APNS_HOST);
+  const jwt = getJwt();
+  const client = connectApns();
   const revoked: string[] = [];
 
   try {
@@ -216,8 +263,8 @@ export async function startCheckoutReturnLiveActivityTokens(
     },
   };
 
-  const jwt = makeJWT();
-  const client = http2.connect(APNS_HOST);
+  const jwt = getJwt();
+  const client = connectApns();
   const revoked: string[] = [];
   let ok = 0;
 
@@ -268,8 +315,8 @@ export async function updateCheckoutReturnLiveActivityTokens(
     },
   };
 
-  const jwt = makeJWT();
-  const client = http2.connect(APNS_HOST);
+  const jwt = getJwt();
+  const client = connectApns();
   const revoked: string[] = [];
 
   try {

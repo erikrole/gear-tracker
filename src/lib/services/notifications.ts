@@ -17,26 +17,32 @@ export async function sendPushToUser(
   userId: string,
   opts: { title: string; body?: string | null; payload?: Record<string, unknown>; category?: NotificationCategory }
 ): Promise<void> {
-  const prefs = await loadUserPrefs(userId);
-  if (!shouldDeliverPush(prefs)) return;
-  if (opts.category && !shouldDeliverCategory(prefs, opts.category)) return;
+  // Never throws: callers fire-and-forget with `void`, and an unhandled
+  // rejection is fatal in modern Node — push is best-effort by design.
+  try {
+    const prefs = await loadUserPrefs(userId);
+    if (!shouldDeliverPush(prefs)) return;
+    if (opts.category && !shouldDeliverCategory(prefs, opts.category)) return;
 
-  const tokens = await db.deviceToken.findMany({
-    where: { userId, revokedAt: null },
-    select: { token: true },
-  });
-  if (tokens.length === 0) return;
-
-  const { revoked } = await sendPush(
-    tokens.map((t) => t.token),
-    { title: opts.title, body: opts.body ?? "", payload: opts.payload }
-  );
-
-  if (revoked.length > 0) {
-    await db.deviceToken.updateMany({
-      where: { token: { in: revoked } },
-      data: { revokedAt: new Date() },
+    const tokens = await db.deviceToken.findMany({
+      where: { userId, revokedAt: null },
+      select: { token: true },
     });
+    if (tokens.length === 0) return;
+
+    const { revoked } = await sendPush(
+      tokens.map((t) => t.token),
+      { title: opts.title, body: opts.body ?? "", payload: opts.payload }
+    );
+
+    if (revoked.length > 0) {
+      await db.deviceToken.updateMany({
+        where: { token: { in: revoked } },
+        data: { revokedAt: new Date() },
+      });
+    }
+  } catch (err) {
+    console.error(`[NOTIFY] Push to user ${userId} failed:`, err);
   }
 }
 
@@ -765,20 +771,29 @@ export async function notifyLowStock(args: {
   const title = `Low stock: ${args.skuName}`;
   const body = `${args.onHandQuantity} remaining (threshold: ${args.minThreshold}). Restock soon.`;
 
-  // Pre-fetch all recent dedup keys in one query instead of N individual findFirst calls
-  const dedupeKeys = admins.map((a) => `low_stock:${args.bulkSkuId}:${a.id}`);
+  // dedupeKey is globally unique, so the key must carry a time bucket — a
+  // constant key plus skipDuplicates silences every future re-alert after
+  // the first one, not just re-alerts within the 24h window.
+  const dayStamp = now.toISOString().slice(0, 10);
+
+  // 24h re-alert window: prefix match covers both day-stamped keys and
+  // legacy un-stamped ones, per admin.
   const recentNotifs = await db.notification.findMany({
     where: {
-      dedupeKey: { in: dedupeKeys },
+      dedupeKey: { startsWith: `low_stock:${args.bulkSkuId}:` },
       createdAt: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) },
     },
     select: { dedupeKey: true },
   });
-  const recentKeys = new Set(recentNotifs.map((n) => n.dedupeKey));
+  const recentlyNotifiedAdminIds = new Set(
+    recentNotifs
+      .map((n) => n.dedupeKey?.split(":")[2])
+      .filter((id): id is string => Boolean(id)),
+  );
 
   // Batch-create notifications for admins that haven't been notified recently
   const notifData = admins
-    .filter((a) => !recentKeys.has(`low_stock:${args.bulkSkuId}:${a.id}`))
+    .filter((a) => !recentlyNotifiedAdminIds.has(a.id))
     .map((a) => ({
       userId: a.id,
       type: "low_stock",
@@ -792,7 +807,7 @@ export async function notifyLowStock(args: {
       },
       channel: "IN_APP" as const,
       sentAt: now,
-      dedupeKey: `low_stock:${args.bulkSkuId}:${a.id}`,
+      dedupeKey: `low_stock:${args.bulkSkuId}:${a.id}:${dayStamp}`,
     }));
 
   if (notifData.length > 0) {

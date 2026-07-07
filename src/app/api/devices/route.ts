@@ -4,9 +4,11 @@ import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
 
 const registerSchema = z.object({
-  token: z.string().min(1),
+  // APNs tokens are 64 hex chars; 512 is generous headroom while keeping
+  // an authed client from storing arbitrarily large strings.
+  token: z.string().min(1).max(512),
   platform: z.enum(["IOS", "ANDROID"]).default("IOS"),
-  appVersion: z.string().optional(),
+  appVersion: z.string().max(64).optional(),
 });
 
 export const POST = withAuth(async (req, { user }) => {
