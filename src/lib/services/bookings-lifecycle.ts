@@ -345,7 +345,12 @@ export async function createBooking(input: CreateBookingInput) {
       if (input.bulkUnitItems && input.bulkUnitItems.length > 0) {
         const checkoutBulkItems = await tx.bookingBulkItem.findMany({
           where: { bookingId: booking.id },
-          select: { id: true, bulkSkuId: true },
+          select: {
+            id: true,
+            bulkSkuId: true,
+            plannedQuantity: true,
+            bulkSku: { select: { name: true, trackByNumber: true } },
+          },
         });
         const bulkItemBySku = new Map(checkoutBulkItems.map((item) => [item.bulkSkuId, item.id]));
 
@@ -383,6 +388,22 @@ export async function createBooking(input: CreateBookingInput) {
         );
         if (unavailable) {
           throw new HttpError(409, `${unavailable.bulkSku.name} #${unavailable.unitNumber} is no longer available`);
+        }
+
+        // The ledger was decremented by plannedQuantity — custody must bind
+        // exactly that many units per numbered SKU, or the balance and the
+        // physical checkout disagree from the first minute. (The kiosk route
+        // blocks under-staging; this is the in-transaction backstop and also
+        // catches over-staging.)
+        for (const item of checkoutBulkItems) {
+          if (!item.bulkSku.trackByNumber) continue;
+          const bound = units.filter((unit) => unit.bulkSkuId === item.bulkSkuId).length;
+          if (bound !== item.plannedQuantity) {
+            throw new HttpError(
+              409,
+              `${item.bulkSku.name}: ${bound} of ${item.plannedQuantity} numbered units scanned — scan exactly the planned units before confirming`,
+            );
+          }
         }
 
         const updatedUnits = await tx.bulkSkuUnit.updateMany({

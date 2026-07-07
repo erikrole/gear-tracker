@@ -12,6 +12,8 @@ function makeTx(overrides: Partial<Record<string, unknown>> = {}) {
     bulkSkuUnit: { findUnique: vi.fn(), update: vi.fn() },
     bookingBulkUnitAllocation: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     bookingBulkItem: { update: vi.fn() },
+    bulkStockBalance: { findMany: vi.fn().mockResolvedValue([]), upsert: vi.fn() },
+    bulkStockMovement: { createMany: vi.fn() },
     scanEvent: { findMany: vi.fn(), create: vi.fn() },
     ...overrides,
   };
@@ -403,6 +405,11 @@ describe("scanKioskCheckinBulkUnit", () => {
     expect(tx.bookingBulkUnitAllocation.update).toHaveBeenCalledWith({
       where: { id: "allocation-1" },
       data: expect.objectContaining({ checkedInAt: expect.any(Date) }),
+    });
+    // The unit is physically back — the ledger restock happens at the scan,
+    // not at completion (one movement per checkedInQuantity increment).
+    expect(tx.bulkStockMovement.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ bulkSkuId: "sku-1", kind: "CHECKIN", quantity: 1 })],
     });
     expect(tx.bulkSkuUnit.update).toHaveBeenCalledWith({
       where: { id: "unit-7" },

@@ -6,8 +6,8 @@ type CheckinItemsTx = {
   bookingSerializedItem: Record<"updateMany" | "count", MockFn>;
   bookingBulkItem: Record<"findMany", MockFn>;
   assetAllocation: Record<"updateMany", MockFn>;
-  bulkStockBalance: Record<"findUnique" | "upsert", MockFn>;
-  bulkStockMovement: Record<"create", MockFn>;
+  bulkStockBalance: Record<"findUnique" | "findMany" | "upsert", MockFn>;
+  bulkStockMovement: Record<"create" | "createMany" | "groupBy", MockFn>;
   scanSession: Record<"updateMany", MockFn>;
   auditLog: Record<"create", MockFn>;
   user: Record<"findUnique", MockFn>;
@@ -20,8 +20,8 @@ vi.mock("@/lib/db", () => {
     bookingSerializedItem: { updateMany: vi.fn(), count: vi.fn() },
     bookingBulkItem: { findMany: vi.fn() },
     assetAllocation: { updateMany: vi.fn() },
-    bulkStockBalance: { findUnique: vi.fn(), upsert: vi.fn() },
-    bulkStockMovement: { create: vi.fn() },
+    bulkStockBalance: { findUnique: vi.fn(), findMany: vi.fn(), upsert: vi.fn() },
+    bulkStockMovement: { create: vi.fn(), createMany: vi.fn(), groupBy: vi.fn() },
     scanSession: { updateMany: vi.fn() },
     auditLog: { create: vi.fn() },
     user: { findUnique: vi.fn().mockResolvedValue({ role: "ADMIN" }) },
@@ -52,8 +52,10 @@ type OpenCheckout = ReturnType<typeof makeOpenCheckout>;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // Default: no bulk items in checkout
+  // Default: no bulk items in checkout, ledger already settled
   mockTx.bookingBulkItem.findMany.mockResolvedValue([]);
+  mockTx.bulkStockMovement.groupBy.mockResolvedValue([]);
+  mockTx.bulkStockBalance.findMany.mockResolvedValue([]);
 });
 
 function makeOpenCheckout(serializedItems: { assetId: string; allocationStatus: string }[]) {
@@ -203,6 +205,32 @@ describe("checkinItems", () => {
         afterJson: expect.objectContaining({ returnedAssetIds: ["a1"] }),
       }),
     });
+  });
+
+  // ── REGRESSION: bulk already returned incrementally (and restocked at
+  // return time) must not be restocked again when the last serialized item
+  // triggers auto-complete — that double-count inflated on-hand stock. ──
+  it("auto-completes without a second restock when bulk was returned incrementally", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(
+      makeOpenCheckout([
+        { assetId: "a1", allocationStatus: "active" },
+      ])
+    );
+    mockTx.bookingSerializedItem.count.mockResolvedValue(0);
+    // Bulk fully returned via checkinBulkItem, which already restocked
+    mockTx.bookingBulkItem.findMany.mockResolvedValue([
+      { bulkSkuId: "sku-1", plannedQuantity: 5, checkedOutQuantity: 5, checkedInQuantity: 5 },
+    ]);
+    mockTx.bulkStockMovement.groupBy.mockResolvedValue([
+      { bulkSkuId: "sku-1", kind: "CHECKOUT", _sum: { quantity: 5 } },
+      { bulkSkuId: "sku-1", kind: "CHECKIN", _sum: { quantity: 5 } },
+    ]);
+
+    const result = await checkinItems("booking-1", "actor-1", ["a1"]);
+
+    expect(result.autoCompleted).toBe(true);
+    expect(mockTx.bulkStockMovement.createMany).not.toHaveBeenCalled();
+    expect(mockTx.bulkStockBalance.upsert).not.toHaveBeenCalled();
   });
 
   it("creates auto-completion audit log when fully returned", async () => {

@@ -11,7 +11,7 @@ type MarkCheckoutCompletedTx = {
   assetAllocation: Record<"updateMany", MockFn>;
   bulkSkuUnit: Record<"updateMany", MockFn>;
   bulkStockBalance: Record<"findMany" | "upsert", MockFn>;
-  bulkStockMovement: Record<"createMany", MockFn>;
+  bulkStockMovement: Record<"createMany" | "groupBy", MockFn>;
   scanSession: Record<"updateMany", MockFn>;
   overrideEvent: Record<"create", MockFn>;
   auditLog: Record<"create", MockFn>;
@@ -31,7 +31,7 @@ vi.mock("@/lib/db", () => {
     assetAllocation: { updateMany: vi.fn() },
     bulkSkuUnit: { updateMany: vi.fn() },
     bulkStockBalance: { findMany: vi.fn(), upsert: vi.fn() },
-    bulkStockMovement: { createMany: vi.fn() },
+    bulkStockMovement: { createMany: vi.fn(), groupBy: vi.fn() },
     scanSession: { updateMany: vi.fn() },
     overrideEvent: { create: vi.fn() },
     auditLog: { create: vi.fn() },
@@ -68,7 +68,14 @@ const mockTx = (db as unknown as { _mockTx: MarkCheckoutCompletedTx })._mockTx;
 beforeEach(() => {
   vi.clearAllMocks();
   transactionCalls.length = 0;
+  // Default: no movements recorded — ledger settle finds nothing outstanding
+  mockTx.bulkStockMovement.groupBy.mockResolvedValue([]);
+  mockTx.bulkStockBalance.findMany.mockResolvedValue([]);
 });
+
+function movementRow(bulkSkuId: string, kind: "CHECKOUT" | "CHECKIN", quantity: number) {
+  return { bulkSkuId, kind, _sum: { quantity } };
+}
 
 describe("markCheckoutCompleted", () => {
   function openCheckout(bulkItems: unknown[] = []) {
@@ -183,7 +190,7 @@ describe("markCheckoutCompleted", () => {
   });
 
   // ── REGRESSION: only return unreturned items to stock ──────────────────
-  it("subtracts checkedInQuantity from return amount (no double-return)", async () => {
+  it("restores only the movement-outstanding quantity (no double-return)", async () => {
     const bulkItem = makeBulkItem({
       bulkSkuId: "sku-1",
       plannedQuantity: 10,
@@ -192,6 +199,11 @@ describe("markCheckoutCompleted", () => {
       bulkSku: { trackByNumber: false },
       unitAllocations: [],
     });
+    // Movement truth: 10 checked out, 5 already restocked at return time
+    mockTx.bulkStockMovement.groupBy.mockResolvedValue([
+      movementRow("sku-1", "CHECKOUT", 10),
+      movementRow("sku-1", "CHECKIN", 5),
+    ]);
     mockTx.booking.findUnique.mockResolvedValue(openCheckout([bulkItem]));
     mockTx.booking.update.mockResolvedValue({});
     mockTx.assetAllocation.updateMany.mockResolvedValue({});
@@ -208,7 +220,7 @@ describe("markCheckoutCompleted", () => {
     expect(movementCall?.data?.[0]?.quantity).toBe(5);
   });
 
-  it("skips stock return when all items already checked in", async () => {
+  it("skips stock return when the movement ledger is already settled", async () => {
     const bulkItem = makeBulkItem({
       bulkSkuId: "sku-1",
       plannedQuantity: 10,
@@ -217,6 +229,10 @@ describe("markCheckoutCompleted", () => {
       bulkSku: { trackByNumber: false },
       unitAllocations: [],
     });
+    mockTx.bulkStockMovement.groupBy.mockResolvedValue([
+      movementRow("sku-1", "CHECKOUT", 10),
+      movementRow("sku-1", "CHECKIN", 10),
+    ]);
     mockTx.booking.findUnique.mockResolvedValue(openCheckout([bulkItem]));
     mockTx.booking.update.mockResolvedValue({});
     mockTx.assetAllocation.updateMany.mockResolvedValue({});
@@ -227,6 +243,38 @@ describe("markCheckoutCompleted", () => {
 
     // No stock movement should be created since all items were already returned
     expect(mockTx.bulkStockMovement.createMany).not.toHaveBeenCalled();
+  });
+
+  // ── REGRESSION: settle is movement-sourced, not field math. A checkout
+  // whose returns predate per-scan restock has checkedInQuantity increments
+  // with no CHECKIN movements — completion must restore the full checkout,
+  // not out-minus-in, or those returns never reach the shelf ledger. ──
+  it("self-heals legacy returns that never wrote a restock movement", async () => {
+    const bulkItem = makeBulkItem({
+      bulkSkuId: "sku-1",
+      plannedQuantity: 10,
+      checkedOutQuantity: 10,
+      checkedInQuantity: 5, // returned via kiosk scans before per-scan restock existed
+      bulkSku: { trackByNumber: false },
+      unitAllocations: [],
+    });
+    mockTx.bulkStockMovement.groupBy.mockResolvedValue([
+      movementRow("sku-1", "CHECKOUT", 10),
+      // no CHECKIN movements — legacy scans didn't write them
+    ]);
+    mockTx.booking.findUnique.mockResolvedValue(openCheckout([bulkItem]));
+    mockTx.booking.update.mockResolvedValue({});
+    mockTx.assetAllocation.updateMany.mockResolvedValue({});
+    mockTx.bulkStockBalance.findMany.mockResolvedValue([]);
+    mockTx.bulkStockBalance.upsert.mockResolvedValue({});
+    mockTx.bulkStockMovement.createMany.mockResolvedValue({});
+    mockTx.scanSession.updateMany.mockResolvedValue({});
+    mockTx.auditLog.create.mockResolvedValue({});
+
+    await markCheckoutCompleted("b-1", "actor-1");
+
+    const movementCall = mockTx.bulkStockMovement.createMany.mock.calls[0]?.[0];
+    expect(movementCall?.data?.[0]).toMatchObject({ bulkSkuId: "sku-1", quantity: 10 });
   });
 
   // ── REGRESSION: auto-LOST units must not restore stock or stay allocated ─
@@ -251,6 +299,12 @@ describe("markCheckoutCompleted", () => {
         { id: "alloc-lost", bulkSkuUnit: { id: "unit-lost", unitNumber: 19 } },
       ],
     });
+    // Movement truth: plain 5 out / 0 in, numbered 2 out / 1 in (1 unit lost)
+    mockTx.bulkStockMovement.groupBy.mockResolvedValue([
+      movementRow("sku-plain", "CHECKOUT", 5),
+      movementRow("sku-numbered", "CHECKOUT", 2),
+      movementRow("sku-numbered", "CHECKIN", 1),
+    ]);
     mockTx.booking.findUnique.mockResolvedValue(openCheckout([plainBulk, numberedBulk]));
     mockTx.booking.update.mockResolvedValue({});
     mockTx.assetAllocation.updateMany.mockResolvedValue({});
@@ -352,6 +406,13 @@ describe("forceCompleteCheckout", () => {
         { id: "alloc-1", bulkSkuUnit: { id: "unit-1", unitNumber: 7 } },
       ],
     });
+    // Movement truth: plain 10 out / 4 in, numbered 2 out / 1 in
+    mockTx.bulkStockMovement.groupBy.mockResolvedValue([
+      movementRow("sku-plain", "CHECKOUT", 10),
+      movementRow("sku-plain", "CHECKIN", 4),
+      movementRow("sku-numbered", "CHECKOUT", 2),
+      movementRow("sku-numbered", "CHECKIN", 1),
+    ]);
     mockTx.booking.findUnique.mockResolvedValue(openCheckout({ bulkItems: [plainBulk, numberedBulk] }));
     mockTx.bookingSerializedItem.updateMany.mockResolvedValue({});
     mockTx.bookingBulkItem.update.mockResolvedValue({});

@@ -1,7 +1,8 @@
-import { BookingKind, BookingStatus, BulkUnitStatus, Prisma, Role, ScanPhase, ScanSessionStatus, ScanType } from "@prisma/client";
+import { BookingKind, BookingStatus, BulkMovementKind, BulkUnitStatus, Prisma, Role, ScanPhase, ScanSessionStatus, ScanType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { markCheckoutCompleted } from "@/lib/services/bookings";
+import { upsertBulkBalancesAndMovements } from "@/lib/services/bookings-helpers";
 import { createAuditEntry } from "@/lib/audit";
 import { parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
 import { buildActiveBulkUnitAllocationMap, effectiveBulkUnitStatus } from "@/lib/bulk-unit-status";
@@ -312,6 +313,18 @@ export async function recordScan(args: {
         data: { [quantityField]: { increment: unitNumbers.length } }
       });
 
+      if (args.phase === ScanPhase.CHECKIN) {
+        // Units are physically back — restock at return time so every
+        // checkedInQuantity increment carries its own ledger movement.
+        await upsertBulkBalancesAndMovements(tx, {
+          bookingId: args.bookingId,
+          locationId: booking.locationId,
+          actorUserId: args.actorUserId,
+          kind: BulkMovementKind.CHECKIN,
+          items: [{ bulkSkuId: bulkSku.id, quantity: unitNumbers.length }],
+        });
+      }
+
       return { event };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
@@ -374,6 +387,18 @@ export async function recordScan(args: {
       },
       data: { [quantityField]: { increment: args.quantity } }
     });
+
+    if (args.phase === ScanPhase.CHECKIN) {
+      // Stock is physically back — restock at return time so every
+      // checkedInQuantity increment carries its own ledger movement.
+      await upsertBulkBalancesAndMovements(tx, {
+        bookingId: args.bookingId,
+        locationId: booking.locationId,
+        actorUserId: args.actorUserId,
+        kind: BulkMovementKind.CHECKIN,
+        items: [{ bulkSkuId: bulkSku.id, quantity: args.quantity! }],
+      });
+    }
 
     return { event };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });

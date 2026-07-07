@@ -11,7 +11,7 @@ import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { createAuditEntryTx, lookupActorRole } from "@/lib/audit";
 import { badges } from "@/lib/badges";
-import { upsertBulkBalancesAndMovements } from "./bookings-helpers";
+import { settleBulkLedgerAtCompletion, upsertBulkBalancesAndMovements } from "./bookings-helpers";
 import { assetLocationEvidence, reconcileAssetLocationToKiosk, type KioskLocationEvidence } from "./kiosk-location";
 import { endCheckoutReturnLiveActivities } from "./live-activities";
 
@@ -30,7 +30,6 @@ async function maybeAutoComplete(
   locationId: string,
   actorUserId: string,
   opts: {
-    bulkStockReturn?: Array<{ bulkSkuId: string; quantity: number }>;
     auditAction: string;
   }
 ): Promise<Date | null> {
@@ -54,16 +53,10 @@ async function maybeAutoComplete(
     data: { active: false }
   });
 
-  // Return bulk stock if provided (used by checkinItems path where bulk hasn't been incrementally returned)
-  if (opts.bulkStockReturn && opts.bulkStockReturn.length > 0) {
-    await upsertBulkBalancesAndMovements(tx, {
-      bookingId,
-      locationId,
-      actorUserId,
-      kind: BulkMovementKind.CHECKIN,
-      items: opts.bulkStockReturn
-    });
-  }
+  // Ledger reconciliation from movement truth. Per-scan and per-quantity
+  // returns already restocked what they returned; this restores only what the
+  // movements say is still outstanding (e.g. pre-per-scan-restock history).
+  await settleBulkLedgerAtCompletion(tx, { bookingId, locationId, actorUserId });
 
   // Complete booking
   await tx.booking.update({
@@ -152,23 +145,15 @@ export async function markCheckoutCompleted(bookingId: string, actorUserId: stri
       lostCountBySku.set(bulkItem.bulkSkuId, unreturned.length);
     }
 
-    const checkinItems = booking.bulkItems.map((item) => ({
-      bulkSkuId: item.bulkSkuId,
-      quantity:
-        (item.checkedOutQuantity ?? item.plannedQuantity) -
-        (item.checkedInQuantity ?? 0) -
-        (lostCountBySku.get(item.bulkSkuId) ?? 0),
-    })).filter((item) => item.quantity > 0);
-
-    if (checkinItems.length > 0) {
-      await upsertBulkBalancesAndMovements(tx, {
-        bookingId,
-        locationId: booking.locationId,
-        actorUserId,
-        kind: BulkMovementKind.CHECKIN,
-        items: checkinItems
-      });
-    }
+    // Restore outstanding stock from movement truth (checkout movements minus
+    // check-in movements minus lost units) — field math can't tell whether a
+    // given checkedInQuantity increment already wrote its restock movement.
+    await settleBulkLedgerAtCompletion(tx, {
+      bookingId,
+      locationId: booking.locationId,
+      actorUserId,
+      lostBySku: lostCountBySku,
+    });
 
     const actorRole = await lookupActorRole(tx, actorUserId);
 
@@ -334,15 +319,11 @@ export async function forceCompleteCheckout(args: {
       });
     }
 
-    if (checkinItems.length > 0) {
-      await upsertBulkBalancesAndMovements(tx, {
-        bookingId: booking.id,
-        locationId: booking.locationId,
-        actorUserId: args.actorUserId,
-        kind: BulkMovementKind.CHECKIN,
-        items: checkinItems.map((item) => ({ bulkSkuId: item.bulkSkuId, quantity: item.quantity })),
-      });
-    }
+    await settleBulkLedgerAtCompletion(tx, {
+      bookingId: booking.id,
+      locationId: booking.locationId,
+      actorUserId: args.actorUserId,
+    });
 
     await tx.booking.update({
       where: { id: booking.id },
@@ -469,14 +450,7 @@ export async function checkinItems(
         after: { returnedAssetIds: assetIds },
       });
 
-      // Return bulk stock if all items are now returned (auto-complete path)
-      const checkinBulkItems = booking.bulkItems.map((item) => ({
-        bulkSkuId: item.bulkSkuId,
-        quantity: item.checkedOutQuantity ?? item.plannedQuantity
-      }));
-
       const completedAt = await maybeAutoComplete(tx, bookingId, booking.locationId, actorUserId, {
-        bulkStockReturn: checkinBulkItems.length > 0 ? checkinBulkItems : undefined,
         auditAction: "auto_completed_by_partial_checkin"
       });
 
@@ -649,21 +623,12 @@ export async function kioskCompleteCheckin(args: {
       const totalItems = serializedTotal + bulkTotal;
       const returnedItems = serializedReturned + bulkReturned;
 
-      // Bulk stock to return if everything else is now in. `maybeAutoComplete`
-      // uses this only when both serialized + bulk are fully returned.
-      const checkinBulkItems = booking.bulkItems.map((item) => ({
-        bulkSkuId: item.bulkSkuId,
-        quantity: item.checkedOutQuantity ?? item.plannedQuantity,
-      }));
-
       const completedAt = await maybeAutoComplete(
         tx,
         booking.id,
         booking.locationId,
         args.actorUserId,
         {
-          bulkStockReturn:
-            checkinBulkItems.length > 0 ? checkinBulkItems : undefined,
           auditAction: "auto_completed_by_kiosk_checkin",
         },
       );

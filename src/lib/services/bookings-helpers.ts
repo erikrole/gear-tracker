@@ -124,6 +124,60 @@ export function diffEquipment(
   return entries;
 }
 
+/**
+ * Reconcile a booking's bulk ledger at completion from movement truth.
+ *
+ * Per SKU: outstanding = CHECKOUT movements - CHECKIN movements - lost units.
+ * Any positive remainder is restored as a CHECKIN movement. This is
+ * deliberately sourced from movements, not `checkedInQuantity` field math —
+ * historical rows written before per-scan restock (and any future path that
+ * forgets to write a movement) settle correctly here instead of drifting
+ * `BulkStockBalance`, which availability reads.
+ *
+ * Returns the restored items so completion paths can audit real quantities.
+ */
+export async function settleBulkLedgerAtCompletion(
+  tx: Prisma.TransactionClient,
+  args: {
+    bookingId: string;
+    locationId: string;
+    actorUserId: string;
+    /** Units auto-marked LOST at completion — physically gone, never restored. */
+    lostBySku?: Map<string, number>;
+  }
+): Promise<BulkRequest[]> {
+  const movements = await tx.bulkStockMovement.groupBy({
+    by: ["bulkSkuId", "kind"],
+    where: { bookingId: args.bookingId },
+    _sum: { quantity: true },
+  });
+  if (movements.length === 0) return [];
+
+  const outstandingBySku = new Map<string, number>();
+  for (const row of movements) {
+    const qty = row._sum.quantity ?? 0;
+    const delta = row.kind === BulkMovementKind.CHECKOUT ? qty : -qty;
+    outstandingBySku.set(row.bulkSkuId, (outstandingBySku.get(row.bulkSkuId) ?? 0) + delta);
+  }
+
+  const toRestore: BulkRequest[] = [];
+  for (const [bulkSkuId, outstanding] of outstandingBySku) {
+    const lost = args.lostBySku?.get(bulkSkuId) ?? 0;
+    const quantity = outstanding - lost;
+    if (quantity > 0) toRestore.push({ bulkSkuId, quantity });
+  }
+  if (toRestore.length === 0) return [];
+
+  await upsertBulkBalancesAndMovements(tx, {
+    bookingId: args.bookingId,
+    locationId: args.locationId,
+    actorUserId: args.actorUserId,
+    kind: BulkMovementKind.CHECKIN,
+    items: toRestore,
+  });
+  return toRestore;
+}
+
 export async function upsertBulkBalancesAndMovements(
   tx: Prisma.TransactionClient,
   args: {

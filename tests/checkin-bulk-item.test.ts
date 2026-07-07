@@ -8,7 +8,7 @@ type CheckinBulkTx = {
   bookingBulkItem: Record<"update" | "findMany", MockFn>;
   bookingSerializedItem: Record<"count", MockFn>;
   bulkStockBalance: Record<"findMany" | "upsert", MockFn>;
-  bulkStockMovement: Record<"createMany", MockFn>;
+  bulkStockMovement: Record<"createMany" | "groupBy", MockFn>;
   assetAllocation: Record<"updateMany", MockFn>;
   scanSession: Record<"updateMany", MockFn>;
   auditLog: Record<"create", MockFn>;
@@ -25,7 +25,7 @@ vi.mock("@/lib/db", () => {
     bookingBulkItem: { update: vi.fn(), findMany: vi.fn() },
     bookingSerializedItem: { count: vi.fn() },
     bulkStockBalance: { findMany: vi.fn(), upsert: vi.fn() },
-    bulkStockMovement: { createMany: vi.fn() },
+    bulkStockMovement: { createMany: vi.fn(), groupBy: vi.fn() },
     assetAllocation: { updateMany: vi.fn() },
     scanSession: { updateMany: vi.fn() },
     auditLog: { create: vi.fn() },
@@ -79,6 +79,7 @@ beforeEach(() => {
   mockTx.bulkStockBalance.findMany.mockResolvedValue([]);
   mockTx.bulkStockBalance.upsert.mockResolvedValue({});
   mockTx.bulkStockMovement.createMany.mockResolvedValue({});
+  mockTx.bulkStockMovement.groupBy.mockResolvedValue([]);
   mockTx.auditLog.create.mockResolvedValue({});
   // Default: not auto-completing (active items remain)
   mockTx.bookingSerializedItem.count.mockResolvedValue(0);

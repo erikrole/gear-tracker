@@ -1,5 +1,6 @@
-import { BookingKind, BookingStatus, BulkUnitStatus, Prisma } from "@prisma/client";
+import { BookingKind, BookingStatus, BulkMovementKind, BulkUnitStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { upsertBulkBalancesAndMovements } from "@/lib/services/bookings-helpers";
 import { effectiveBulkUnitStatus } from "@/lib/bulk-unit-status";
 import { parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
 import { HttpError } from "@/lib/http";
@@ -509,6 +510,16 @@ export async function scanKioskCheckinBulkUnit(
   await tx.bookingBulkItem.update({
     where: { id: bulkItem.id },
     data: { checkedInQuantity: { increment: 1 } },
+  });
+  // The unit is physically back on the shelf now — restock the ledger with
+  // the return, not at completion, so availability sees it immediately and
+  // every checkedInQuantity increment carries its own movement.
+  await upsertBulkBalancesAndMovements(tx, {
+    bookingId: booking.id,
+    locationId: booking.locationId,
+    actorUserId: booking.requesterUserId,
+    kind: BulkMovementKind.CHECKIN,
+    items: [{ bulkSkuId: bulkItem.bulkSkuId, quantity: 1 }],
   });
 
   return {

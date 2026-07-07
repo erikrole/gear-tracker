@@ -45,6 +45,11 @@ describe("iOS kiosk reservation pickup contract", () => {
     expect(lifecycle).toContain("status: BulkUnitStatus.CHECKED_OUT");
     expect(lifecycle).toContain("bookingBulkUnitAllocation.createMany");
 
+    // The bind must cover exactly plannedQuantity per numbered SKU — the
+    // ledger was decremented by planned, so under- or over-binding desyncs
+    // custody from stock from the first minute.
+    expect(lifecycle).toContain("if (bound !== item.plannedQuantity)");
+
     // Duplicate staged scans cannot satisfy planned quantity or double-bind.
     expect(confirmRoute).toContain("stagedUnitNumbers");
 
