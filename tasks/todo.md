@@ -1,6 +1,22 @@
 # Task Queue
 
-Last updated: 2026-07-06
+Last updated: 2026-07-07
+
+---
+
+## Active: iOS build 18 prep (2026-07-07)
+
+Scope: Prepare the main `Wisconsin` iOS app for the next TestFlight/App Store upload. Kiosk remains separate.
+
+- [x] Confirm local `main` is clean and matches `origin/main`.
+- [x] Bump main app and Live Activities build number from `17` to `18`.
+- [x] Regenerate the Xcode project from `ios/project.yml`.
+- [x] Run focused iOS/project verification.
+- [x] Upload build 18 to App Store Connect/TestFlight.
+- [x] Summarize upload steps and any blockers.
+
+### Review
+- 2026-07-07: Build 18 uploaded to App Store Connect and is processing. Local `main` matched `origin/main` before the bump. Main `Wisconsin` app and `WisconsinLiveActivities` build numbers moved from 17 to 18; kiosk stayed build 1. XcodeGen regenerated `ios/Wisconsin.xcodeproj`. Verification passed: `npm run ios:project:check`, `git diff --check`, escalated `npm run ios:xcode:verify`, Release archive to `/private/tmp/Wisconsin-18.xcarchive`, App Store Connect export to `/private/tmp/Wisconsin-18-export/Wisconsin Creative.ipa`, and App Store Connect upload. Exported IPA metadata: version 1.0, build 18, display name `Creative`, bundle name `Wisconsin Creative`, production APNs, WeatherKit, `get-task-allow=false`, and packaged `PrivacyInfo.xcprivacy`. Noted cleanup: iOS audit inventory reports seven unregistered newer Swift surfaces, but the build and upload succeeded.
 
 ---
 
