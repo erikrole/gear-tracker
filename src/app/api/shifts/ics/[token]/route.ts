@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withHandler } from "@/lib/api";
 import { db } from "@/lib/db";
+import { env } from "@/lib/env";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { cleanSourceSummary, normalizeOpponentName } from "@/lib/schedule-event-identity";
 import { AREA_LABELS } from "@/types/areas";
@@ -14,6 +15,33 @@ const IP_LIMIT = { max: 120, windowMs: 60_000 };
 
 function icsEscape(s: string): string {
   return s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+}
+
+const ICS_FOLD_BYTES = 74;
+const byteLength = (s: string) => new TextEncoder().encode(s).length;
+
+/**
+ * Fold a content line per RFC 5545 §3.1 (max 75 octets per physical line,
+ * continuations start with a space). Byte-aware so multi-byte characters
+ * (the 🔁 trade prefix) never split mid-codepoint.
+ */
+function icsFold(line: string): string[] {
+  if (byteLength(line) <= ICS_FOLD_BYTES) return [line];
+  const out: string[] = [];
+  let current = "";
+  let currentBytes = 0;
+  for (const ch of line) {
+    const chBytes = byteLength(ch);
+    if (currentBytes + chBytes > ICS_FOLD_BYTES) {
+      out.push(current);
+      current = " ";
+      currentBytes = 1;
+    }
+    current += ch;
+    currentBytes += chBytes;
+  }
+  if (current.length > 0) out.push(current);
+  return out;
 }
 
 function icsDate(d: Date): string {
@@ -81,6 +109,10 @@ export const GET = withHandler<{ token: string }>(async (req, { params }) => {
       status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
       shift: {
         startsAt: { gte: windowStart, lte: windowEnd },
+        // Cancelled/archived events must drop out of the VEVENT list — that
+        // is how calendar apps remove them from subscribers' calendars.
+        // Safe for the 1-month history window: events archive at 4 months.
+        shiftGroup: { event: { status: "CONFIRMED", archivedAt: null } },
       },
     },
     include: {
@@ -144,7 +176,9 @@ export const GET = withHandler<{ token: string }>(async (req, { params }) => {
     ]);
     const dtstamp = icsDate(lastModified);
     const sequence = Math.floor(lastModified.getTime() / 1000);
-    const eventUrl = `${new URL(req.url).origin}/events/${event.id}`;
+    // Canonical origin, not the request's Host header — a spoofed Host must
+    // not seed poisoned links into a subscribed calendar.
+    const eventUrl = `${env.appUrl}/events/${event.id}`;
 
     lines.push("BEGIN:VEVENT");
     lines.push(`UID:${uid}`);
@@ -162,7 +196,7 @@ export const GET = withHandler<{ token: string }>(async (req, { params }) => {
 
   lines.push("END:VCALENDAR");
 
-  const body = lines.join("\r\n") + "\r\n";
+  const body = lines.flatMap(icsFold).join("\r\n") + "\r\n";
 
   return new NextResponse(body, {
     headers: {

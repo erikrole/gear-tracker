@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseIcsDate, splitEventsForSync, cleanSummary, extractSportInfo, unescapeIcsText, isHomeLocationText, WRITE_CHUNK_SIZE, type SyncResult, type SyncEventError, type SyncDiagnostics, type ParsedIcsEvent, type ExistingEventRow } from "@/lib/services/calendar-sync";
+import { parseIcs, parseIcsDate, zonedWallTimeToUtc, splitEventsForSync, cleanSummary, extractSportInfo, unescapeIcsText, isHomeLocationText, WRITE_CHUNK_SIZE, type SyncResult, type SyncEventError, type SyncDiagnostics, type ParsedIcsEvent, type ExistingEventRow } from "@/lib/services/calendar-sync";
 
 // ── unescapeIcsText unit tests ──
 
@@ -156,6 +156,89 @@ describe("parseIcsDate", () => {
   it("returns Invalid Date for garbage input", () => {
     const result = parseIcsDate("not-a-date");
     expect(isNaN(result.date.getTime())).toBe(true);
+  });
+
+  // ── REGRESSION: TZID wall times must not be read as UTC ──
+  it("converts a TZID wall time to UTC (CDT, -5)", () => {
+    const result = parseIcsDate("20260901T190000", "America/Chicago");
+    expect(result.allDay).toBe(false);
+    // 7pm CDT = midnight UTC next day
+    expect(result.date.toISOString()).toBe("2026-09-02T00:00:00.000Z");
+  });
+
+  it("converts a TZID wall time to UTC across the DST boundary (CST, -6)", () => {
+    const result = parseIcsDate("20261215T190000", "America/Chicago");
+    expect(result.date.toISOString()).toBe("2026-12-16T01:00:00.000Z");
+  });
+
+  it("ignores TZID when the value is already UTC (trailing Z)", () => {
+    const result = parseIcsDate("20260901T190000Z", "America/Chicago");
+    expect(result.date.toISOString()).toBe("2026-09-01T19:00:00.000Z");
+  });
+
+  it("falls back to the UTC interpretation for an unknown TZID", () => {
+    const result = parseIcsDate("20260901T190000", "Not/AZone");
+    expect(result.date.toISOString()).toBe("2026-09-01T19:00:00.000Z");
+  });
+});
+
+describe("zonedWallTimeToUtc", () => {
+  it("round-trips midnight without the Intl hour-24 quirk", () => {
+    const result = zonedWallTimeToUtc(
+      { year: 2026, month: 8, day: 1, hour: 0, minute: 0, second: 0 },
+      "America/Chicago",
+    );
+    expect(result.toISOString()).toBe("2026-09-01T05:00:00.000Z");
+  });
+});
+
+describe("parseIcs property parsing", () => {
+  const wrap = (props: string[]) => [
+    "BEGIN:VCALENDAR",
+    "BEGIN:VEVENT",
+    "UID:evt-1",
+    ...props,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+
+  // ── REGRESSION: colons inside quoted params corrupted the value ──
+  it("splits on the first colon outside quoted parameters", () => {
+    const events = parseIcs(wrap([
+      'DESCRIPTION;ALTREP="http://example.com/x":Game notes',
+      "SUMMARY:MBB vs Iowa",
+      "DTSTART:20260901T190000Z",
+    ]));
+    expect(events).toHaveLength(1);
+    expect(events[0]!.description).toBe("Game notes");
+    expect(events[0]!.summary).toBe("MBB vs Iowa");
+  });
+
+  it("captures TZID params for DTSTART and DTEND", () => {
+    const events = parseIcs(wrap([
+      "DTSTART;TZID=America/Chicago:20260901T190000",
+      "DTEND;TZID=America/Chicago:20260901T220000",
+      "SUMMARY:MBB vs Iowa",
+    ]));
+    expect(events[0]!.dtstartTzid).toBe("America/Chicago");
+    expect(events[0]!.dtendTzid).toBe("America/Chicago");
+  });
+
+  it("inherits DTSTART's TZID for DTEND when DTEND omits it", () => {
+    const events = parseIcs(wrap([
+      "DTSTART;TZID=America/Chicago:20260901T190000",
+      "DTEND:20260901T220000",
+      "SUMMARY:MBB vs Iowa",
+    ]));
+    expect(events[0]!.dtendTzid).toBe("America/Chicago");
+  });
+
+  it("leaves TZID unset for plain UTC values", () => {
+    const events = parseIcs(wrap([
+      "DTSTART:20260901T190000Z",
+      "SUMMARY:MBB vs Iowa",
+    ]));
+    expect(events[0]!.dtstartTzid).toBeUndefined();
   });
 
   it("returns Invalid Date for truncated date string", () => {
@@ -348,6 +431,8 @@ function buildDiagnostics(events: Array<{ uid: string; summary: string; dtstart:
     latestDtstart: sorted.length > 0 ? sorted[sorted.length - 1]!.dtstart : null,
     firstEvents: sorted.slice(0, SAMPLE_SIZE).map((e) => ({ uid: e.uid, summary: e.summary.slice(0, 120), dtstart: e.dtstart })),
     lastEvents: sorted.slice(-SAMPLE_SIZE).map((e) => ({ uid: e.uid, summary: e.summary.slice(0, 120), dtstart: e.dtstart })),
+    missingFromSourceCount: 0,
+    missingFromSource: [],
   };
 }
 
@@ -362,6 +447,8 @@ describe("SyncDiagnostics", () => {
       latestDtstart: "20261231",
       firstEvents: [],
       lastEvents: [],
+      missingFromSourceCount: 0,
+      missingFromSource: [],
     };
     expect(diag.fetchUrl).toBeTruthy();
     expect(diag.httpStatus).toBe(200);

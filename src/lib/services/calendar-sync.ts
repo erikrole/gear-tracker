@@ -12,6 +12,12 @@ import { sortVenueMappings, venueMappingMatches } from "@/lib/venue-mapping-cont
 /** Max events per createMany / update batch */
 export const WRITE_CHUNK_SIZE = 500;
 
+/** Abort a source fetch that hangs — morning-refresh has more work to do. */
+export const ICS_FETCH_TIMEOUT_MS = 20_000;
+
+/** Reject absurdly large feed responses before buffering them. */
+export const ICS_MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
+
 /**
  * Unescape ICS text values per RFC 5545 §3.3.11.
  * Handles: \n → newline, \, → comma, \; → semicolon, \\ → backslash
@@ -25,19 +31,32 @@ export function unescapeIcsText(value: string): string {
 }
 
 /**
- * Minimal ICS parser — extracts VEVENT blocks and their key properties.
- * Does not depend on any external library.
+ * Find the first colon outside double-quoted parameter values.
+ * `DESCRIPTION;ALTREP="http://x":text` must split after the closing quote,
+ * not inside the quoted URL (RFC 5545 §3.2 allows colons in quoted params).
  */
-function parseIcs(icsText: string) {
-  const events: Array<{
-    uid: string;
-    summary: string;
-    description: string;
-    location: string;
-    dtstart: string;
-    dtend: string;
-    status: string;
-  }> = [];
+function propertyColonIndex(line: string): number {
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') inQuotes = !inQuotes;
+    else if (ch === ":" && !inQuotes) return i;
+  }
+  return -1;
+}
+
+/** Extract a TZID=... parameter value from a property's parameter list. */
+function tzidParam(paramText: string): string | null {
+  const match = paramText.match(/(?:^|;)TZID=("?)([^";]+)\1/i);
+  return match ? match[2]! : null;
+}
+
+/**
+ * Minimal ICS parser — extracts VEVENT blocks and their key properties.
+ * Does not depend on any external library. Exported for testing.
+ */
+export function parseIcs(icsText: string): ParsedIcsEvent[] {
+  const events: ParsedIcsEvent[] = [];
 
   // Unfold continued lines (RFC 5545 §3.1)
   const unfolded = icsText.replace(/\r?\n[ \t]/g, "");
@@ -63,6 +82,8 @@ function parseIcs(icsText: string) {
           location: unescapeIcsText(current.LOCATION ?? ""),
           dtstart: current.DTSTART ?? "",
           dtend: current.DTEND ?? current.DTSTART ?? "",
+          dtstartTzid: current["DTSTART;TZID"] || undefined,
+          dtendTzid: current["DTEND;TZID"] ?? current["DTSTART;TZID"] ?? undefined,
           status: current.STATUS ?? "CONFIRMED"
         });
       }
@@ -72,19 +93,58 @@ function parseIcs(icsText: string) {
     if (!inEvent) continue;
 
     // Handle properties with parameters like DTSTART;VALUE=DATE:20260301
-    const colonIdx = line.indexOf(":");
+    const colonIdx = propertyColonIndex(line);
     if (colonIdx < 0) continue;
 
-    const key = line.slice(0, colonIdx).split(";")[0]!.toUpperCase(); // split always returns at least one element
+    const keyWithParams = line.slice(0, colonIdx);
+    const key = keyWithParams.split(";")[0]!.toUpperCase(); // split always returns at least one element
     const value = line.slice(colonIdx + 1);
     current[key] = value;
+
+    // Retain TZID for date properties — local wall times must not be read
+    // as UTC (that would shift every event by the zone offset).
+    if (key === "DTSTART" || key === "DTEND") {
+      const tzid = tzidParam(keyWithParams.slice(key.length));
+      if (tzid) current[`${key};TZID`] = tzid;
+    }
   }
 
   return events;
 }
 
-/** Parse ICS date strings: 20260301, 20260301T120000, 20260301T120000Z */
-export function parseIcsDate(value: string): { date: Date; allDay: boolean } {
+/**
+ * Convert a wall-clock time in a named IANA zone to UTC using the two-pass
+ * Intl technique (no timezone database dependency).
+ */
+export function zonedWallTimeToUtc(
+  parts: { year: number; month: number; day: number; hour: number; minute: number; second: number },
+  timeZone: string,
+): Date {
+  const asUtc = Date.UTC(parts.year, parts.month, parts.day, parts.hour, parts.minute, parts.second);
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false,
+  });
+  let guess = asUtc;
+  // Two passes converge across DST boundaries.
+  for (let i = 0; i < 2; i++) {
+    const p = Object.fromEntries(dtf.formatToParts(new Date(guess)).map((x) => [x.type, x.value]));
+    const wall = Date.UTC(
+      Number(p.year), Number(p.month) - 1, Number(p.day),
+      // Intl can render midnight as "24" with hour12: false
+      Number(p.hour) % 24, Number(p.minute), Number(p.second),
+    );
+    guess += asUtc - wall;
+  }
+  return new Date(guess);
+}
+
+/** Parse ICS date strings: 20260301, 20260301T120000, 20260301T120000Z.
+ * When `tzid` is provided (and the value is a floating date-time without a
+ * trailing Z), the wall time is converted from that zone to UTC. */
+export function parseIcsDate(value: string, tzid?: string | null): { date: Date; allDay: boolean } {
   const cleaned = value.replace(/[^0-9TZ]/g, "");
 
   if (cleaned.length === 8) {
@@ -102,6 +162,19 @@ export function parseIcsDate(value: string): { date: Date; allDay: boolean } {
   const hour = parseInt(cleaned.slice(9, 11)) || 0;
   const minute = parseInt(cleaned.slice(11, 13)) || 0;
   const second = parseInt(cleaned.slice(13, 15)) || 0;
+
+  // Zoned wall time (DTSTART;TZID=America/Chicago:...) — reading it as UTC
+  // would shift every event by the zone offset.
+  if (tzid && !cleaned.endsWith("Z")) {
+    try {
+      return {
+        date: zonedWallTimeToUtc({ year, month, day, hour, minute, second }, tzid),
+        allDay: false,
+      };
+    } catch {
+      // Unknown TZID — fall through to the UTC interpretation below.
+    }
+  }
 
   // Always use Date.UTC — ICS dates are timezone-agnostic
   const date = new Date(Date.UTC(year, month, day, hour, minute, second));
@@ -143,6 +216,11 @@ export type SyncDiagnostics = {
   latestDtstart: string | null;
   firstEvents: SyncEventSample[];
   lastEvents: SyncEventSample[];
+  /** Future non-cancelled events we track that the source no longer lists.
+   * Surfaced for review, never auto-cancelled — a truncated feed must not
+   * mass-cancel real games. */
+  missingFromSourceCount: number;
+  missingFromSource: Array<{ eventId: string; externalId: string; summary: string; startsAt: string }>;
 };
 
 export type SyncResult = {
@@ -331,6 +409,9 @@ export type ParsedIcsEvent = {
   location: string;
   dtstart: string;
   dtend: string;
+  /** TZID params for floating local date-times (RFC 5545 §3.3.5 form two). */
+  dtstartTzid?: string;
+  dtendTzid?: string;
   status: string;
 };
 
@@ -354,8 +435,8 @@ export function splitEventsForSync(
 
   for (const event of parsedEvents) {
     try {
-      const startParsed = parseIcsDate(event.dtstart);
-      const endParsed = parseIcsDate(event.dtend);
+      const startParsed = parseIcsDate(event.dtstart, event.dtstartTzid);
+      const endParsed = parseIcsDate(event.dtend, event.dtendTzid);
 
       if (!isValidDate(startParsed.date)) throw new Error(`Invalid start date: "${event.dtstart}"`);
       if (!isValidDate(endParsed.date)) throw new Error(`Invalid end date: "${event.dtend}"`);
@@ -487,8 +568,12 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
   let icsText: string;
   let httpStatus = 0;
   try {
+    // Timeout so a hanging feed can't hold the serverless function (and
+    // starve the rest of morning-refresh); size cap so a huge or hostile
+    // response can't exhaust memory.
     const response = await fetch(url, {
-      headers: { "User-Agent": "GearTracker/1.0" }
+      headers: { "User-Agent": "GearTracker/1.0" },
+      signal: AbortSignal.timeout(ICS_FETCH_TIMEOUT_MS),
     });
     httpStatus = response.status;
     if (!response.ok) {
@@ -497,16 +582,25 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
         where: { id: sourceId },
         data: { lastError: error, lastFetchedAt: new Date() }
       });
-      return { ...emptyResult, error, diagnostics: { fetchUrl: url, httpStatus, responseSizeBytes: 0, parsedEventCount: 0, earliestDtstart: null, latestDtstart: null, firstEvents: [], lastEvents: [] } };
+      return { ...emptyResult, error, diagnostics: { fetchUrl: url, httpStatus, responseSizeBytes: 0, parsedEventCount: 0, earliestDtstart: null, latestDtstart: null, firstEvents: [], lastEvents: [], missingFromSourceCount: 0, missingFromSource: [] } };
+    }
+    const contentLength = Number(response.headers.get("content-length") ?? 0);
+    if (contentLength > ICS_MAX_RESPONSE_BYTES) {
+      throw new Error(`Feed too large: ${contentLength} bytes (max ${ICS_MAX_RESPONSE_BYTES})`);
     }
     icsText = await response.text();
+    if (icsText.length > ICS_MAX_RESPONSE_BYTES) {
+      throw new Error(`Feed too large: ${icsText.length} bytes (max ${ICS_MAX_RESPONSE_BYTES})`);
+    }
   } catch (err) {
-    const error = err instanceof Error ? err.message : "Fetch failed";
+    const error = err instanceof Error && err.name === "TimeoutError"
+      ? `Feed timed out after ${ICS_FETCH_TIMEOUT_MS / 1000}s`
+      : err instanceof Error ? err.message : "Fetch failed";
     await db.calendarSource.update({
       where: { id: sourceId },
       data: { lastError: error, lastFetchedAt: new Date() }
     });
-    return { ...emptyResult, error, diagnostics: { fetchUrl: url, httpStatus, responseSizeBytes: 0, parsedEventCount: 0, earliestDtstart: null, latestDtstart: null, firstEvents: [], lastEvents: [] } };
+    return { ...emptyResult, error, diagnostics: { fetchUrl: url, httpStatus, responseSizeBytes: 0, parsedEventCount: 0, earliestDtstart: null, latestDtstart: null, firstEvents: [], lastEvents: [], missingFromSourceCount: 0, missingFromSource: [] } };
   }
 
   const responseSizeBytes = new TextEncoder().encode(icsText).length;
@@ -524,6 +618,8 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
     latestDtstart: sortedByStart.length > 0 ? sortedByStart[sortedByStart.length - 1]!.dtstart : null,
     firstEvents: sortedByStart.slice(0, SAMPLE_SIZE).map((e) => ({ uid: e.uid, summary: e.summary.slice(0, 120), dtstart: e.dtstart })),
     lastEvents: sortedByStart.slice(-SAMPLE_SIZE).map((e) => ({ uid: e.uid, summary: e.summary.slice(0, 120), dtstart: e.dtstart })),
+    missingFromSourceCount: 0,
+    missingFromSource: [],
   };
 
   // ── Phase 1: Bulk-load existing data (2 queries) ──
@@ -555,6 +651,24 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
       summaryLocked: true, isHomeLocked: true, locationLocked: true,
     }
   });
+
+  // Surface future non-cancelled events that vanished from the feed (deleted
+  // upstream without a CANCELLED status). Review-only: a truncated feed must
+  // not mass-cancel real games, so nothing is mutated here.
+  if (events.length > 0) {
+    const parsedUids = new Set(events.map((e) => e.uid));
+    const now = new Date();
+    const vanished = existingRows.filter(
+      (row) => !parsedUids.has(row.externalId) && row.status !== "CANCELLED" && row.startsAt > now,
+    );
+    diagnostics.missingFromSourceCount = vanished.length;
+    diagnostics.missingFromSource = vanished.slice(0, SAMPLE_SIZE).map((row) => ({
+      eventId: row.id,
+      externalId: row.externalId,
+      summary: row.summary.slice(0, 120),
+      startsAt: row.startsAt.toISOString(),
+    }));
+  }
 
   // ── Phase 2: In-memory validate + diff (0 queries) ──
 

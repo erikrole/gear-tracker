@@ -115,7 +115,12 @@ describe("shift ICS feed hardening", () => {
         where: expect.objectContaining({
           userId: "user-1",
           status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
-          shift: { startsAt: { gte: expect.any(Date), lte: expect.any(Date) } },
+          shift: {
+            startsAt: { gte: expect.any(Date), lte: expect.any(Date) },
+            // Cancelled/archived events must drop out of the feed — that's
+            // how subscribed calendar apps remove them.
+            shiftGroup: { event: { status: "CONFIRMED", archivedAt: null } },
+          },
         }),
         include: expect.objectContaining({
           shift: expect.objectContaining({
@@ -154,11 +159,59 @@ describe("shift ICS feed hardening", () => {
     expect(body).toContain("DTSTART:20260510T143000Z");
     expect(body).toContain("DTEND:20260510T170000Z");
     expect(body).toContain("LOCATION:Camp Randall");
-    expect(body).toContain("URL:https://app.example.com/events/event-1");
+    // Canonical app origin (env.appUrl), never the request's Host header —
+    // a spoofed Host must not seed links into a subscribed calendar.
+    expect(body).toContain("URL:http://localhost:3000/events/event-1");
+    expect(body).not.toContain("URL:https://app.example.com");
     expect(body).toContain("LAST-MODIFIED:20260501T140000Z");
     expect(body).toContain("SEQUENCE:");
     expect(body).toContain("TRANSP:OPAQUE");
     expect(body).not.toContain("DESCRIPTION:");
+  });
+
+  it("folds long content lines per RFC 5545 without splitting multi-byte characters", async () => {
+    const longOpponent = "Extremely Long Opponent Name University of the Upper Midwest Conference Champions";
+    vi.mocked(db.shiftAssignment.findMany).mockResolvedValueOnce(shiftAssignments([
+      {
+        id: "assignment-1",
+        callStartsAt: null,
+        callEndsAt: null,
+        updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+        shift: {
+          startsAt: new Date("2026-05-10T15:00:00.000Z"),
+          endsAt: new Date("2026-05-10T17:00:00.000Z"),
+          callStartsAt: null,
+          callEndsAt: null,
+          area: "PHOTO",
+          notes: null,
+          updatedAt: new Date("2026-05-01T13:00:00.000Z"),
+          shiftGroup: {
+            event: {
+              id: "event-1",
+              summary: `Wisconsin Athletics Men's Basketball vs ${longOpponent}`,
+              sportCode: "MBB",
+              opponent: longOpponent,
+              isHome: true,
+              locationId: "loc-1",
+              updatedAt: new Date("2026-05-01T14:00:00.000Z"),
+              location: { name: "Camp Randall" },
+            },
+          },
+        },
+        trades: [{ id: "trade-1", status: "OPEN", updatedAt: new Date("2026-05-02T12:00:00.000Z") }],
+      },
+    ]));
+
+    const res = await GET(request(), { params: Promise.resolve({ token: validToken }) });
+    const body = await res.text();
+
+    const encoder = new TextEncoder();
+    for (const line of body.split("\r\n")) {
+      expect(encoder.encode(line).length).toBeLessThanOrEqual(75);
+    }
+    // Folded lines reassemble to the original content (unfold then check)
+    const unfolded = body.replace(/\r\n /g, "");
+    expect(unfolded).toContain(`SUMMARY:🔁 Photo: MBB vs ${longOpponent}`);
   });
 
   it("marks active trade-board posts in the shift title", async () => {
