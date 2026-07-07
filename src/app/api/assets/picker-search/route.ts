@@ -175,7 +175,9 @@ export const GET = withAuth(async (req, { user }) => {
       where: {
         assetId: { in: unavailableIds },
         active: true,
-        booking: { status: { in: ["BOOKED", "OPEN"] } },
+        // Same blocking statuses as derived availability — a staged
+        // PENDING_PICKUP checkout has a holder worth showing too.
+        booking: { status: { in: ["BOOKED", "PENDING_PICKUP", "OPEN"] } },
       },
       select: {
         assetId: true,

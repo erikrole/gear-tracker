@@ -113,6 +113,7 @@ export function WizardStep2({
         startsAt={form.startsAt}
         endsAt={form.endsAt}
         locationId={form.locationId}
+        bookingKind="RESERVATION"
         onSelectedAssetsChange={onSelectedAssetsChange}
         onSelectionStateChange={onSelectionStateChange}
         activeSection={activeSection}

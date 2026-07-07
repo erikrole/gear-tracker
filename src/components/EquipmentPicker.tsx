@@ -126,6 +126,9 @@ export type EquipmentPickerProps = {
   locationId?: string;
   /** Booking to exclude when editing equipment on an existing booking */
   excludeBookingId?: string;
+  /** Booking kind so preflight availability applies the same per-kind
+   * availableForCheckout/availableForReservation gating as the save */
+  bookingKind?: "RESERVATION" | "CHECKOUT";
   /** Pre-selected assets to seed the display cache (search mode) */
   initialSelectedAssets?: PickerAsset[];
   /** Called when selection changes with resolved asset objects */
@@ -220,6 +223,7 @@ export default function EquipmentPicker({
   endsAt,
   locationId,
   excludeBookingId,
+  bookingKind,
   initialSelectedAssets,
   onSelectedAssetsChange,
   onSelectionStateChange,
@@ -324,6 +328,7 @@ export default function EquipmentPicker({
     assetIds: conflictPreviewAssetIds,
     bulkItems: bulkPreviewItems,
     excludeBookingId,
+    bookingKind,
   });
 
   useEffect(() => {

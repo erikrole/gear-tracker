@@ -155,6 +155,7 @@ export default function BookingEquipmentTab({
             quantity: item.plannedQuantity,
           })),
           excludeBookingId: booking.id,
+          kind: booking.kind === "CHECKOUT" ? "CHECKOUT" : "RESERVATION",
         }),
       });
       if (controller.signal.aborted) return;

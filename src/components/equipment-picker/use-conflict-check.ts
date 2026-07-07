@@ -54,6 +54,9 @@ type UseConflictCheckParams = {
   assetIds: string[];
   bulkItems?: Array<{ bulkSkuId: string; quantity: number }>;
   excludeBookingId?: string;
+  /** Booking kind for per-kind availability gating — preflight must apply the
+   * same availableForCheckout/availableForReservation rules the save does. */
+  bookingKind?: "RESERVATION" | "CHECKOUT";
 };
 
 /**
@@ -67,6 +70,7 @@ export function useConflictCheck({
   assetIds,
   bulkItems = [],
   excludeBookingId,
+  bookingKind,
 }: UseConflictCheckParams) {
   const [conflicts, setConflicts] = useState<Map<string, ConflictInfo>>(new Map());
   const [upcomingCommitments, setUpcomingCommitments] = useState<Map<string, UpcomingCommitmentInfo>>(new Map());
@@ -106,6 +110,7 @@ export function useConflictCheck({
           serializedAssetIds: ids,
           bulkItems: bulk,
           ...(excludeId ? { excludeBookingId: excludeId } : {}),
+          ...(bookingKind ? { kind: bookingKind } : {}),
         }),
         signal: ctrl.signal,
       });
@@ -146,7 +151,7 @@ export function useConflictCheck({
     } finally {
       if (!ctrl.signal.aborted) setChecking(false);
     }
-  }, []);
+  }, [bookingKind]);
 
   useEffect(() => {
     if (!startsAt || !endsAt || !locationId) {

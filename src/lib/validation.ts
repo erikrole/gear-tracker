@@ -125,7 +125,11 @@ export const availabilitySchema = z.object({
   endsAt: z.string(),
   serializedAssetIds: z.array(z.string().cuid()).default([]),
   bulkItems: bulkItemsSchema,
-  excludeBookingId: z.string().cuid().optional()
+  excludeBookingId: z.string().cuid().optional(),
+  // Optional so older clients keep legacy behavior; when present, preflight
+  // applies the same per-kind availableForCheckout/availableForReservation
+  // gating the commit path enforces, so the two can't disagree.
+  kind: z.enum(["RESERVATION", "CHECKOUT"]).optional()
 });
 
 const bookingBaseShape = {

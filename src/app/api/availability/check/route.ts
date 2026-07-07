@@ -1,11 +1,13 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
 import { checkAvailability, getBulkAvailability } from "@/lib/services/availability";
 import { parseDateRange } from "@/lib/time";
 import { availabilitySchema } from "@/lib/validation";
 
-export const POST = withAuth(async (req) => {
+export const POST = withAuth(async (req, { user }) => {
+  requirePermission(user.role, "booking", "view");
   let rawBody: unknown;
   try {
     rawBody = await req.json();
@@ -23,6 +25,7 @@ export const POST = withAuth(async (req) => {
       serializedAssetIds: body.serializedAssetIds,
       bulkItems: body.bulkItems,
       excludeBookingId: body.excludeBookingId,
+      bookingKind: body.kind,
     }),
     getBulkAvailability(db, {
       locationId: body.locationId,
