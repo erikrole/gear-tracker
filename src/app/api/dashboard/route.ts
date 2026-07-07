@@ -243,6 +243,9 @@ export const GET = withAuth(async (req, { user }) => {
             endsAt: { gt: startOfToday },
             status: "CONFIRMED",
             isHidden: false,
+            // Match Schedule's canonical event filter — archived events are
+            // operationally retired and must not resurface on Home.
+            archivedAt: null,
           },
           orderBy: { startsAt: "asc" },
           take: 20,
@@ -323,7 +326,9 @@ export const GET = withAuth(async (req, { user }) => {
         shift: {
           shiftGroup: {
             // Keep a shift on today's events listed until local midnight.
-            event: { endsAt: { gt: startOfToday }, status: "CONFIRMED" },
+            // Archived events are excluded (operationally retired); hidden
+            // events stay — a real assignment beats list hygiene.
+            event: { endsAt: { gt: startOfToday }, status: "CONFIRMED", archivedAt: null },
           },
         },
       },

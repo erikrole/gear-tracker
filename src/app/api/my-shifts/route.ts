@@ -38,7 +38,8 @@ function gearStatusPriority(status: string) {
 export const GET = withAuth(async (req, { user }) => {
   const url = new URL(req.url);
   const eventId = url.searchParams.get("eventId");
-  const limit = Math.min(Number(url.searchParams.get("limit") || "5"), 20);
+  const rawLimit = Number(url.searchParams.get("limit") || "5");
+  const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(Math.trunc(rawLimit), 1), 20) : 5;
 
   const now = new Date();
 
@@ -53,7 +54,9 @@ export const GET = withAuth(async (req, { user }) => {
           // Keep a shift on today's events listed until local midnight (endsAt
           // past the start of today), so an all-day shift doesn't vanish at
           // 12:00am and an evening game's shift isn't hidden the moment it ends.
-          : { endsAt: { gt: startOfTodayInAppTz(now) }, status: "CONFIRMED" },
+          // Archived events are excluded; hidden events stay — a real
+          // assignment beats list hygiene.
+          : { endsAt: { gt: startOfTodayInAppTz(now) }, status: "CONFIRMED", archivedAt: null },
       },
     },
   };

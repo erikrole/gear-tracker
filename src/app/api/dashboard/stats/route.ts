@@ -51,7 +51,7 @@ export const GET = withAuth(async (_req, { user }) => {
       where: {
         userId: user.id,
         status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
-        shift: { shiftGroup: { event: { endsAt: { gt: startOfToday }, status: "CONFIRMED" } } },
+        shift: { shiftGroup: { event: { endsAt: { gt: startOfToday }, status: "CONFIRMED", archivedAt: null } } },
       },
     }),
     // Drives the iOS Schedule tab badge only when the user has work today.
@@ -65,6 +65,7 @@ export const GET = withAuth(async (_req, { user }) => {
               startsAt: { lt: startOfTomorrow },
               endsAt: { gt: startOfToday },
               status: "CONFIRMED",
+              archivedAt: null,
             },
           },
         },

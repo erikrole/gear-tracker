@@ -71,4 +71,42 @@ describe("dashboard stats transient-lane counts", () => {
     expect(hook).toContain("staleReservations: {");
     expect(hook).toContain("total: statsData.staleReservationTotal");
   });
+
+  it("pending-pickup count lane is guarded to checkout kind", () => {
+    const reader = source("src/lib/services/dashboard-counts.ts");
+    expect(reader).toContain("FILTER (WHERE kind = 'CHECKOUT' AND status = 'PENDING_PICKUP')");
+    expect(reader).toContain("OR (kind = 'CHECKOUT' AND status = 'PENDING_PICKUP')");
+  });
+});
+
+describe("dashboard archived-event exclusion", () => {
+  it("dashboard upcoming events exclude archived events like Schedule does", () => {
+    const route = source("src/app/api/dashboard/route.ts");
+    const queryStart = route.indexOf("db.calendarEvent.findMany");
+    const upcomingEventsQuery = route.slice(
+      queryStart,
+      route.indexOf("take: 20", queryStart),
+    );
+    expect(queryStart).toBeGreaterThan(-1);
+    expect(upcomingEventsQuery).toContain("archivedAt: null");
+  });
+
+  it("every personal shift filter excludes archived events", () => {
+    const dashboard = source("src/app/api/dashboard/route.ts");
+    const stats = source("src/app/api/dashboard/stats/route.ts");
+    const myShifts = source("src/app/api/my-shifts/route.ts");
+
+    // dashboard myShifts + upcoming events
+    expect((dashboard.match(/archivedAt: null/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    // stats: both the upcoming and the today shift counts
+    expect((stats.match(/archivedAt: null/g) ?? []).length).toBe(2);
+    // my-shifts non-eventId branch
+    expect(myShifts).toContain("archivedAt: null");
+  });
+
+  it("my-shifts clamps the limit param to a sane positive range", () => {
+    const myShifts = source("src/app/api/my-shifts/route.ts");
+    expect(myShifts).toContain("Math.min(Math.max(Math.trunc(rawLimit), 1), 20)");
+    expect(myShifts).toContain("Number.isFinite(rawLimit)");
+  });
 });
