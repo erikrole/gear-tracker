@@ -14,19 +14,24 @@ async function callAction(
   url: string,
   method: "POST" | "PATCH" = "POST",
   body?: unknown,
+  extraHeaders?: Record<string, string>,
 ): Promise<ActionResult> {
   try {
     const res = await fetchWithTimeout(url, {
       method,
-      ...(body
+      ...(body || extraHeaders
         ? {
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
+            headers: { ...(body ? { "Content-Type": "application/json" } : {}), ...extraHeaders },
+            ...(body ? { body: JSON.stringify(body) } : {}),
           }
         : {}),
     });
     if (handleAuthRedirect(res)) {
       return { ok: false, error: "Session expired" };
+    }
+    if (res.status === 409) {
+      const msg = await parseErrorMessage(res, "This booking was modified by someone else. Please refresh and try again.");
+      return { ok: false, error: msg };
     }
     if (!res.ok) {
       const msg = await parseErrorMessage(res, "Action failed");
@@ -92,9 +97,15 @@ export function useBookingActions(
     async (endsAt: string) => {
       if (!guardStart("extend")) return false;
       try {
-        const result = await callAction(`/api/bookings/${bookingId}/extend`, "POST", {
-          endsAt: new Date(endsAt).toISOString(),
-        });
+        const extraHeaders = updatedAt
+          ? { "If-Unmodified-Since": new Date(updatedAt).toUTCString() }
+          : undefined;
+        const result = await callAction(
+          `/api/bookings/${bookingId}/extend`,
+          "POST",
+          { endsAt: new Date(endsAt).toISOString() },
+          extraHeaders,
+        );
         if (result.ok) {
           const d = new Date(endsAt);
           const formatted = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -108,7 +119,7 @@ export function useBookingActions(
         guardEnd();
       }
     },
-    [bookingId, onSuccess],
+    [bookingId, onSuccess, updatedAt],
   );
 
   const duplicate = useCallback(async () => {

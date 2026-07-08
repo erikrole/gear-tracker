@@ -3,6 +3,8 @@
 **Target**: `src/app/(app)/bookings/`, `src/components/booking-wizard/`, `src/components/booking-list/`, `src/components/booking-details/`, `src/components/BookingDetailsSheet.tsx`, `src/components/BookingListPage.tsx`, `src/app/api/bookings/`, `src/app/api/reservations/`
 **Type**: System
 
+**Superseded 2026-07-08:** a fresh audit of the current booking-detail page (`BookingDetailPage.tsx` and its live component tree) is now at `tasks/audit-bookings-web.md` — verdict READY, 0 P0/P1, one P2 hardening finding. Several files this doc references by name no longer exist — `BookingInfoTab.tsx`, `BookingOverview.tsx`, `ConfirmBookingDialog.tsx`, `BookingActions.tsx`, `src/components/create-booking/DetailsSection.tsx`, `src/components/create-booking/EventSection.tsx` — the booking-detail component tree was clearly restructured since April. This 220-line freeform architectural review predates that refactor and is not checkbox-tracked, so treat everything below as historical context only.
+
 ---
 
 ## What's Smart
