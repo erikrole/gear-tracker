@@ -25,15 +25,25 @@ describe("iOS production domain cutover", () => {
 
     expect(environment).toContain('static let canonicalHost = "wisconsincreative.com"');
     expect(environment).toContain('static let legacyHost = "gear.erikrole.com"');
+    expect(environment).toContain('static let appReviewHost = "review.wisconsincreative.com"');
+    expect(environment).toContain('static let appReviewEmail = "appreview@wisconsincreative.com"');
     expect(environment).toContain('static let baseURL = URL(string: "https://\\(canonicalHost)")!');
     expect(environment).toContain("static let origin = baseURL.absoluteString");
+    expect(environment).toContain("static var activeAPIBaseURL: URL");
+    expect(environment).toContain("static var activeAPIOrigin: String");
     expect(environment).toContain('return URL(string: "webcal://\\(canonicalHost)\\(normalizedPath)")');
   });
 
   it("keeps app, kiosk, recovery, profile, licenses, and calendar URLs on the shared host config", () => {
-    expect(source("ios/Wisconsin/Core/APIClient.swift")).toContain("private let baseURL = AppEnvironment.baseURL");
+    expect(source("ios/Wisconsin/Core/APIClient.swift")).toContain("private var baseURL: URL { AppEnvironment.activeAPIBaseURL }");
     expect(source("ios/Wisconsin/Core/APIClient.swift")).toContain(
-      'req.setValue(AppEnvironment.origin, forHTTPHeaderField: "Origin")',
+      'req.setValue(AppEnvironment.activeAPIOrigin, forHTTPHeaderField: "Origin")',
+    );
+    expect(source("ios/Wisconsin/Core/APIClient.swift")).toContain(
+      "let nextHost = AppEnvironment.apiHost(forLoginEmail: email)",
+    );
+    expect(source("ios/Wisconsin/Core/APIClient.swift")).toContain(
+      "AppEnvironment.resetActiveAPIHost()",
     );
 
     expect(source("ios/Wisconsin/Kiosk/KioskAPIClient.swift")).toContain(

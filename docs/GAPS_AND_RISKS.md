@@ -44,7 +44,9 @@ _2026-06-11 update: iOS native reservation event linking and booking-sheet polis
 
 _2026-06-15 update: iOS hand-scanner debugger shipped without opening a new gap. Staff/admin Settings -> Tools now presents a dedicated debugger sheet, captures HID scanner input, and previews the normal scan hero card through lookup-only native search while preserving kiosk-owned custody scans._
 
-_2026-06-15 update: Wiscard kiosk selection and serialized location reconciliation shipped without opening a new gap. Wiscard is now a unique profile identifier required at signup, kiosk idle can resolve a scanned Wiscard to a location-scoped active user, and kiosk custody scans reconcile serialized item locations while recording mismatch evidence on pickup/return scan events._
+_2026-06-15 update: Wiscard kiosk selection and serialized location reconciliation shipped without opening a new gap. Wiscard became a unique profile identifier, kiosk idle can resolve a scanned Wiscard to a location-scoped active user when the value is linked, and kiosk custody scans reconcile serialized item locations while recording mismatch evidence on pickup/return scan events._
+
+_2026-07-08 update: Wiscard registration capture was relaxed without opening a new gap. `User.wiscardNumber` stays unique and nullable, profile editing can still link a value, and kiosk identify still resolves saved values; new invited Staff and Student accounts can register without a Wiscard while card-number-plus-issue-code scan parsing is deferred._
 
 _2026-06-15 update: Kiosk checkout event context shipped without opening a new gap. Direct kiosk checkout now requires either a selected upcoming event or typed purpose, titles bookings from that context, and preserves selected events through the same primary and junction event links used by web bookings._
 
@@ -137,6 +139,8 @@ _2026-06-26 update: Item-data cleanup shipped without opening a new gap. Existin
 _2026-06-29 update: iOS console/runtime calming shipped without opening a new gap. The slice changed native client launch timing, optional AFM header gating, and thumbnail caching only; dashboard payload shape, Live Activity API contracts, and mobile navigation/custody behavior did not change._
 
 _2026-07-01 update: iOS App Store readiness metadata, production APNs entitlement metadata, first-party privacy manifest, public `/privacy`, and guarded App Review demo seed shipped without opening a new gap. Remaining work is external App Store Connect configuration, final archive/signing proof, and real-device QA._
+
+_2026-07-08 update: App Review demo data isolation reopened the demo-data decision for launch. The guarded seed works, but production verification showed a staff-level App Review account can see non-demo production-backed rows on broad surfaces. The seeded production demo records were cleaned up. The selected path is a separate App Review API host (`review.wisconsincreative.com`) backed by an isolated Neon target, with native iOS routing only for `appreview@wisconsincreative.com`; reseeding should wait until that host/database exists._
 
 _2026-07-02 update: Premier events were removed without opening a new gap. The retired `ShiftGroup` approval flag and `ShiftTrade` approval flag are gone, all new open Student shift pickups create acknowledged `DIRECT_ASSIGNED` assignments, and trade claims execute immediately. Legacy `REQUESTED` assignment handling remains only for existing rows._
 

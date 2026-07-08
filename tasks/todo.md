@@ -4,6 +4,42 @@ Last updated: 2026-07-08
 
 ---
 
+## Active: Optional Wiscard registration (2026-07-08)
+
+Plan: remove the Wiscard requirement for newly invited accounts while keeping optional profile capture and kiosk identity lookup intact for later scanner parsing work.
+
+- [x] Confirm current onboarding, schema, and kiosk contracts.
+- [x] Make register form Wiscard capture optional at the browser layer.
+- [x] Let Staff and Student invitations register without a Wiscard.
+- [x] Add focused route coverage for optional Wiscard invite behavior.
+- [x] Sync Users/Gaps docs and record verification.
+
+### Review
+- 2026-07-08: Scope corrected from Staff-only to all new invited accounts. Wiscard scans currently resolve as card number plus issue code, so registration no longer blocks on the field while later capture/parsing work remains open.
+- 2026-07-08: Registration now treats `wiscardNumber` as optional in the browser and API schema, normalizes and saves it when supplied, and writes audit metadata based on whether a value was linked. Focused coverage proves both Student and Staff invitations can register without Wiscard values and that a provided scanned value is preserved. Verification passed: `npx vitest run tests/register-route.test.ts`, `npx vitest run tests/public-route-abuse-contract.test.ts tests/api-route-wrapper-contract.test.ts`, `npx tsc --noEmit --pretty false`, `npm run verify:docs` after `npm run codemap`, `git diff --check`, and `npm run build:app`.
+
+---
+
+## Active: App Review demo data isolation (2026-07-08)
+
+Plan: remove the current App Review demo records from production, then only reseed them into an isolated App Review data target.
+
+- [x] Verify the current App Review seed is not fake-only in production.
+- [x] Add a delete-only cleanup mode for the guarded App Review demo script.
+- [x] Run cleanup against the current production Neon target after explicit approval.
+- [x] Decide isolated target: separate Neon branch plus separate review API deployment, or delay App Review until that target exists.
+- [x] Add native iOS API-host routing so only the App Review email targets the isolated review host.
+- [ ] Seed and verify the App Review account only in the isolated target.
+- [ ] Update App Store Connect notes/PDF with the final review host and credentials.
+
+### Review
+- 2026-07-08: Production verification showed the seeded App Review account can log in and see demo records, but broad staff-visible endpoints can also expose production-backed rows. Schedule returned 103 total rows with 2 demo rows, so seeded data alone is not an isolated demo mode.
+- 2026-07-08: Added `APP_REVIEW_DEMO_MODE=cleanup` support to `scripts/seed-app-review-demo.mjs` and exposed `npm run demo:cleanup:app-review`. Ran the cleanup against the configured Neon target with `APP_REVIEW_DEMO_SEED=confirm`; follow-up verification found no App Review demo account, allowed email, users, location, assets, bulk SKU, bookings, events, or notifications in production.
+- 2026-07-08: Chose the isolated launch path. The main iOS app now routes only `appreview@wisconsincreative.com` API traffic to `review.wisconsincreative.com`, persisted for session restore; normal users stay on `wisconsincreative.com`, and kiosk/public web links remain canonical. The review host still needs a Vercel deployment wired to an isolated Neon branch before App Review credentials can be submitted.
+- 2026-07-08: Verification passed for the native review-host routing slice: `npx vitest run tests/ios-domain-cutover-source.test.ts`, `npm run drift:ios`, `npm run audit:ios:gaps`, `npm run ios:project:check`, `npm run verify:docs`, `git diff --check`, and escalated `npm run ios:xcode:verify`.
+
+---
+
 ## Active: Kiosk idle all-day event day buckets (2026-07-08)
 
 Plan: fix the idle Today/Tomorrow event sections so all-day events use their encoded calendar date, not the raw timestamp instant after iPad timezone conversion.

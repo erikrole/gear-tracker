@@ -85,6 +85,7 @@
 - `db:migrate:status`: `node scripts/prisma-migrate-health.mjs`
 - `db:seed`: `node prisma/seed.mjs`
 - `db:setup`: `node --env-file=.env scripts/setup-db.mjs`
+- `demo:cleanup:app-review`: `APP_REVIEW_DEMO_MODE=cleanup node --env-file=.env scripts/seed-app-review-demo.mjs`
 - `demo:seed:app-review`: `node --env-file=.env scripts/seed-app-review-demo.mjs`
 - `dev`: `next dev`
 - `drift:ios`: `bash scripts/ios-drift-check.sh`

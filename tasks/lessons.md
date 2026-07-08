@@ -216,6 +216,7 @@
 
 ## Process
 
+- **When identity capture is blocked by unresolved scanner semantics, relax the capture point broadly**: A Wiscard scan can encode card number plus issue code, so do not keep registration blocked for one role while making another role optional. If the stored identifier needs parsing or normalization work later, make onboarding optional across affected roles and preserve profile/kiosk linking for values that are already known.
 - **Launch/privacy scope needs current product proof**: Do not turn dormant schema or historical fields into App Store disclosures or launch scope. Confirm the feature is present in current UI/API flows and accepted product direction first; if the user says a feature such as booking photos is dead, scrub it from active launch recommendations.
 - **Respect hard channel constraints before proposing fallbacks**: If the user says a kiosk/device flow must be a native app, do not pivot to a web/PWA fallback just because it is operationally convenient. First test whether the native deployment target and API surface can be lowered or gated.
 - **Device-target iOS compatibility catches more than simulator compatibility**: When adding a lowered native iOS target for physical hardware, build that target for `generic/platform=iOS` as well as Simulator. iPad orientation/full-screen rules and availability diagnostics can differ from the simulator-only build.

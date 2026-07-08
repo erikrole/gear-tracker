@@ -16,10 +16,11 @@ import {
 
 const confirmation = process.env.APP_REVIEW_DEMO_SEED;
 if (confirmation !== "confirm") {
-  console.error("Refusing to seed App Review demo data. Set APP_REVIEW_DEMO_SEED=confirm.");
+  console.error("Refusing to modify App Review demo data. Set APP_REVIEW_DEMO_SEED=confirm.");
   process.exit(1);
 }
 
+const mode = process.env.APP_REVIEW_DEMO_MODE === "cleanup" ? "cleanup" : "seed";
 const connectionString = process.env.DATABASE_URL ?? "";
 const prisma = connectionString.includes(".neon.tech")
   ? new PrismaClient({ adapter: new PrismaNeon({ connectionString }) })
@@ -117,11 +118,16 @@ async function cleanup(tx) {
 }
 
 async function main() {
-  const passwordHash = await bcrypt.hash(password, 10);
   const now = new Date();
 
   await prisma.$transaction(async (tx) => {
     await cleanup(tx);
+
+    if (mode === "cleanup") {
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
 
     await tx.location.create({
       data: {
@@ -369,7 +375,6 @@ async function main() {
       data: {
         id: ids.shiftGroupToday,
         eventId: ids.eventToday,
-        isPremier: true,
         publishedAt: now,
         publishedById: ids.reviewer,
         generatedAt: now,
@@ -592,10 +597,14 @@ async function main() {
     });
   });
 
-  console.log("App Review demo seed complete.");
-  console.log("Login: appreview@wisconsincreative.com");
-  console.log(`Password: ${password}`);
-  console.log("Sample QR codes: DEMO-CAM-001, DEMO-LENS-001, DEMO-AUDIO-001, DEMO-BATT-1");
+  if (mode === "cleanup") {
+    console.log("App Review demo cleanup complete.");
+  } else {
+    console.log("App Review demo seed complete.");
+    console.log("Login: appreview@wisconsincreative.com");
+    console.log(`Password: ${password}`);
+    console.log("Sample QR codes: DEMO-CAM-001, DEMO-LENS-001, DEMO-AUDIO-001, DEMO-BATT-1");
+  }
 }
 
 main()

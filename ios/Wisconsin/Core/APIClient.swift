@@ -50,7 +50,7 @@ extension Notification.Name {
 final class APIClient {
     static let shared = APIClient()
 
-    private let baseURL = AppEnvironment.baseURL
+    private var baseURL: URL { AppEnvironment.activeAPIBaseURL }
 
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
@@ -79,6 +79,11 @@ final class APIClient {
             let password: String
             let rememberMe: Bool
         }
+        let nextHost = AppEnvironment.apiHost(forLoginEmail: email)
+        if nextHost != AppEnvironment.activeAPIHost {
+            HTTPCookieStorage.shared.removeCookies(since: .distantPast)
+            AppEnvironment.setActiveAPIHost(nextHost)
+        }
         var req = request(path: "/api/auth/login", method: "POST")
         req.httpBody = try JSONEncoder().encode(Body(email: email, password: password, rememberMe: true))
         let resp: LoginResponse = try await perform(req)
@@ -89,6 +94,7 @@ final class APIClient {
         let req = request(path: "/api/auth/logout", method: "POST")
         _ = try? await session.data(for: req)
         HTTPCookieStorage.shared.removeCookies(since: .distantPast)
+        AppEnvironment.resetActiveAPIHost()
     }
 
     func registerDeviceToken(_ hexToken: String) async throws {
@@ -973,7 +979,7 @@ final class APIClient {
         req.httpMethod = method
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
-        req.setValue(AppEnvironment.origin, forHTTPHeaderField: "Origin")
+        req.setValue(AppEnvironment.activeAPIOrigin, forHTTPHeaderField: "Origin")
         return req
     }
 

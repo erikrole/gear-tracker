@@ -270,7 +270,7 @@ export const loginSchema = z.object({
 export const registerSchema = z.object({
   name: z.string().trim().min(1).max(100),
   email: z.string().email(),
-  wiscardNumber: z.string().trim().min(1, "Wiscard value is required").max(128),
+  wiscardNumber: z.string().trim().max(128).nullable().optional(),
   password: z.string().min(8).max(128)
 });
 

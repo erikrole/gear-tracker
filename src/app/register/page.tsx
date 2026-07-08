@@ -25,11 +25,6 @@ function validateEmail(email: string): string {
   return "";
 }
 
-function validateWiscardNumber(wiscardNumber: string): string {
-  if (!wiscardNumber.trim()) return "Wiscard value is required";
-  return "";
-}
-
 function validatePassword(password: string): string {
   if (!password) return "Password is required";
   if (password.length < 8) return "Must be at least 8 characters";
@@ -40,7 +35,6 @@ export default function RegisterPage() {
   const router = useRouter();
   const nameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
-  const wiscardRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -68,7 +62,6 @@ export default function RegisterPage() {
     const validators: Record<string, () => string> = {
       name: () => validateName(name),
       email: () => validateEmail(email),
-      wiscardNumber: () => validateWiscardNumber(wiscardNumber),
       password: () => validatePassword(password),
     };
     const msg = validators[field]?.() ?? "";
@@ -90,13 +83,11 @@ export default function RegisterPage() {
 
     const nameErr = validateName(name);
     const emailErr = validateEmail(email);
-    const wiscardErr = validateWiscardNumber(wiscardNumber);
     const passErr = validatePassword(password);
-    if (nameErr || emailErr || wiscardErr || passErr) {
-      setFieldErrors({ name: nameErr, email: emailErr, wiscardNumber: wiscardErr, password: passErr });
+    if (nameErr || emailErr || passErr) {
+      setFieldErrors({ name: nameErr, email: emailErr, password: passErr });
       if (nameErr) nameRef.current?.focus();
       else if (emailErr) emailRef.current?.focus();
-      else if (wiscardErr) wiscardRef.current?.focus();
       else if (passErr) passwordRef.current?.focus();
       return;
     }
@@ -168,7 +159,6 @@ export default function RegisterPage() {
             <div className="space-y-1.5">
               <Label htmlFor="wiscardNumber">Wiscard value</Label>
               <Input
-                ref={wiscardRef}
                 id="wiscardNumber"
                 name="wiscardNumber"
                 type="text"
@@ -177,13 +167,12 @@ export default function RegisterPage() {
                 onBlur={() => handleBlur("wiscardNumber")}
                 placeholder="Scan or type your Wiscard value"
                 autoComplete="off"
-                required
                 disabled={submitting}
                 aria-invalid={!!fieldErrors.wiscardNumber}
                 aria-describedby={fieldErrors.wiscardNumber ? "wiscard-error" : "wiscard-help"}
                 className="h-11 text-base transition-colors"
               />
-              <p id="wiscard-help" className="text-xs text-muted-foreground">Used to identify you at the kiosk.</p>
+              <p id="wiscard-help" className="text-xs text-muted-foreground">Optional for now. Kiosk card scanning will be linked later.</p>
               <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.wiscardNumber} aria-hidden={!fieldErrors.wiscardNumber}>
                 <p id="wiscard-error" role="alert" className="overflow-hidden text-destructive text-xs">{fieldErrors.wiscardNumber || " "}</p>
               </div>

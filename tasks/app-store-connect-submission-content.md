@@ -12,7 +12,9 @@ Sources used: `docs/AREA_PUBLIC_SHOWROOM.md`, `src/lib/public-showroom.ts`, `ios
 
 **Demo account**
 - Email: `appreview@wisconsincreative.com`
-- Password: `ReviewDemo!2026` (or whatever `APP_REVIEW_DEMO_PASSWORD` was set to when `npm run demo:seed:app-review` last ran — confirm before submitting, and re-seed with `APP_REVIEW_DEMO_SEED=confirm` against the reviewed build's environment if the account has aged out or been cleaned up)
+- Password: `ReviewDemo!2026` (or whatever `APP_REVIEW_DEMO_PASSWORD` was set to when `npm run demo:seed:app-review` last ran against the isolated App Review environment)
+
+**Important:** Do not submit these credentials until `review.wisconsincreative.com` is deployed against the isolated App Review database and the demo seed has been verified there. Production `wisconsincreative.com` should not contain the App Review demo records.
 
 **Notes to reviewer**
 ```
@@ -20,8 +22,12 @@ Wisconsin Creative is an internal equipment-management tool for a university ath
 creative/production department. It is not a public consumer app — access is invitation-only,
 which is why the demo account above is required to sign in.
 
+When the demo account signs in, the iOS app routes that account to an isolated App Review
+environment at review.wisconsincreative.com. Normal invited users continue to use the
+production wisconsincreative.com environment.
+
 What the demo account can see:
-- A student-role home screen with sample reservations, checked-out gear, and shift context.
+- A staff-role home screen with sample reservations, checked-out gear, and shift context.
 - Search and camera/QR scan lookup for sample equipment (the scan target is a fictional
   catalog seeded for this review; no physical gear is required to test lookup).
 - Reservation creation and the equipment picker.
@@ -33,8 +39,8 @@ What is intentionally NOT reachable from this app on the App Store:
   com.erikrole.WisconsinKiosk). That kiosk app is not distributed on the App Store — it is
   installed on department-owned hardware only. This app is intentionally lookup/planning-only
   for custody actions; that is expected behavior, not a missing feature.
-- Admin/staff-only surfaces (Users, inventory configuration, imports, reports) are gated by
-  role and will not appear for the demo account, which is seeded as a student.
+- Admin-only configuration and reporting surfaces are gated by role and may not appear for
+  the demo account, which is seeded as a staff reviewer.
 
 Camera permission is used only to scan equipment barcodes/QR codes for lookup (see
 NSCameraUsageDescription). No location, contacts, or other sensitive hardware access is

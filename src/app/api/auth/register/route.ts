@@ -44,9 +44,6 @@ export const POST = withHandler(async (req) => {
 
   const passwordHash = await hashPassword(body.password);
   const wiscardNumber = normalizeWiscardNumber(body.wiscardNumber);
-  if (!wiscardNumber) {
-    throw new HttpError(400, "Wiscard value is required");
-  }
 
   // Atomic: create user + claim invitation in one transaction
   let user;
@@ -90,7 +87,7 @@ export const POST = withHandler(async (req) => {
     entityType: "user",
     entityId: user.id,
     action: "registered",
-    after: { name: user.name, email: user.email, role: user.role, staffingType: user.staffingType, wiscardLinked: true },
+    after: { name: user.name, email: user.email, role: user.role, staffingType: user.staffingType, wiscardLinked: Boolean(user.wiscardNumber) },
   });
 
   return ok(
