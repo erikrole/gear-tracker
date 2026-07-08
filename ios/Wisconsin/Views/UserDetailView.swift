@@ -1021,7 +1021,11 @@ private extension UserBadge {
 }
 
 private extension ISO8601DateFormatter {
-    static let gearBadge: ISO8601DateFormatter = {
+    // Read-only after initialization (formatOptions set once, then only
+    // `.date(from:)` is called) — safe to share without actor isolation.
+    // `UserBadge` is a plain data model, not MainActor-bound, so this avoids
+    // forcing the whole model into MainActor isolation for one cached formatter.
+    nonisolated(unsafe) static let gearBadge: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter

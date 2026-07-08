@@ -3,7 +3,7 @@ import Observation
 import Security
 
 // Global reference so AppDelegate can check kiosk mode for orientation locking.
-var sharedKioskStore: KioskStore?
+@MainActor var sharedKioskStore: KioskStore?
 
 /// Keychain-backed storage for the kiosk_session token. HTTPCookieStorage and
 /// UserDefaults live in the app container, which Xcode reinstalls can wipe.

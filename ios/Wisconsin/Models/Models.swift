@@ -598,7 +598,7 @@ struct OverdueReport: Codable {
 
 // MARK: - API Responses
 
-struct PaginatedResponse<T: Codable>: Codable {
+struct PaginatedResponse<T: Codable & Sendable>: Codable, Sendable {
     let data: [T]
     let total: Int
     let limit: Int

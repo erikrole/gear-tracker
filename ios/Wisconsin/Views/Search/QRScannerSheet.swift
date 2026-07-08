@@ -420,3 +420,53 @@ private struct DataScannerRepresentable: UIViewControllerRepresentable {
         }
     }
 }
+
+// MARK: - Manual entry sheet
+
+/// Shared typed-code fallback used by `QRScannerSheet` and `ScannerDebuggerView`.
+struct ScanManualEntrySheet: View {
+    let onSubmit: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var code = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 16) {
+                TextField("Asset tag, sticker code, or ref number", text: $code)
+                    .textFieldStyle(.roundedBorder)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .submitLabel(.search)
+                    .focused($focused)
+                    .onSubmit(submit)
+
+                Button("Look up") { submit() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .frame(maxWidth: .infinity)
+                    .disabled(code.trimmingCharacters(in: .whitespaces).isEmpty)
+
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("Type code")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+        .onAppear {
+            // Tiny delay so the focus survives the sheet animation.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { focused = true }
+        }
+    }
+
+    private func submit() {
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        onSubmit(trimmed)
+    }
+}

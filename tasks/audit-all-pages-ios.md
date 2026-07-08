@@ -191,7 +191,8 @@
   - Files: `ios/Wisconsin/Views/OverdueReportView.swift`, `tasks/audit-overdue-report-ios.md`
 - [ ] Login
 - [ ] Password Setup
-- [ ] Scan legacy lookup screen, if still reachable
+- [x] Scan legacy lookup screen, if still reachable
+  - Resolved 2026-07-08 during Snow Leopard Slice 5/6: confirmed `ScanView.swift` (the old dedicated Scan tab this item was asking about) was fully unreachable — nothing instantiated it after the 2026-06-30 Search-tab migration. Deleted it; the live scanner is `Search/QRScannerSheet.swift` behind the Search tab. See `tasks/ios-snow-leopard-release-plan.md` and `tasks/audit-scan-ios.md`'s superseded note.
 
 ## Kiosk-Only Screens
 

@@ -131,6 +131,12 @@ final class CheckoutReturnLiveActivityManager {
         }
 
         if let existing = Activity<CheckoutReturnActivityAttributes>.activities.first(where: { $0.attributes.bookingId == candidate.booking.id }) {
+            // `existing` is ActivityKit's `Activity<T>`, which Apple hasn't
+            // marked Sendable. Using it twice (update, then observe) triggers
+            // a "sending risks data races" warning under strict concurrency
+            // checking regardless of call order — accepted residual: this
+            // manager is @MainActor and both calls run synchronously in
+            // sequence with no actual concurrent access to `existing`.
             await existing.update(content)
             observePushToken(for: existing, bookingId: candidate.booking.id)
             return

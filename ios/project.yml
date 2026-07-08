@@ -67,6 +67,7 @@ targets:
         CURRENT_PROJECT_VERSION: "18"
         TARGETED_DEVICE_FAMILY: "1,2"
         DEVELOPMENT_TEAM: T26T3G8C7Q
+        SWIFT_STRICT_CONCURRENCY: complete
       configs:
         Debug:
           OTHER_SWIFT_FLAGS: "-DDEBUG"
@@ -151,6 +152,7 @@ targets:
         CURRENT_PROJECT_VERSION: "18"
         DEVELOPMENT_TEAM: T26T3G8C7Q
         SKIP_INSTALL: YES
+        SWIFT_STRICT_CONCURRENCY: complete
 
 schemes:
   Wisconsin:
@@ -160,7 +162,9 @@ schemes:
         WisconsinLiveActivities: all
     test:
       targets:
-        - WisconsinTests
+        - name: WisconsinTests
+          randomExecutionOrder: true
+      gatherCoverageData: true
 
   WisconsinKiosk:
     build:

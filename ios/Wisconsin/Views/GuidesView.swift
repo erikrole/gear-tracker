@@ -718,13 +718,18 @@ private func guideDate(_ raw: String?) -> Date {
 }
 
 private enum GuideDateFormatters {
-    static let fractional: ISO8601DateFormatter = {
+    // Read-only after initialization (formatOptions set once, then only
+    // `.date(from:)` is called) — safe to share without actor isolation.
+    // `guideDate` is called from both @MainActor view code and plain
+    // nonisolated model/filter types (GuideListItem, filter enums), so this
+    // avoids forcing either into MainActor isolation for a cached formatter.
+    nonisolated(unsafe) static let fractional: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }()
 
-    static let standard: ISO8601DateFormatter = {
+    nonisolated(unsafe) static let standard: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         return formatter

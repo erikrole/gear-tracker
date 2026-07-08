@@ -415,11 +415,13 @@ private func licenseTitle(_ code: LicenseCode) -> String {
     return "Photo Mechanic"
 }
 
+@MainActor
 private func claimedSummary(_ raw: String?) -> String {
     guard let date = parseLicenseDate(raw) else { return "Claimed" }
     return "Claimed \(date.formatted(date: .abbreviated, time: .omitted))"
 }
 
+@MainActor
 private func expirySummary(_ raw: String?) -> String {
     guard let raw, !raw.isEmpty else { return "No expiry date" }
     guard let date = parseLicenseDate(raw) else { return "Expiry on file" }
@@ -430,6 +432,7 @@ private func expirySummary(_ raw: String?) -> String {
     return "Expires \(formatted)"
 }
 
+@MainActor
 private func expiryTone(_ raw: String?) -> Color {
     guard let date = parseLicenseDate(raw) else { return .secondary }
     if date < Calendar.current.startOfDay(for: Date()) {
@@ -442,11 +445,13 @@ private func expiryTone(_ raw: String?) -> Color {
     return .secondary
 }
 
+@MainActor
 private func parseLicenseDate(_ raw: String?) -> Date? {
     guard let raw, !raw.isEmpty else { return nil }
     return LicenseDateFormatters.fractional.date(from: raw) ?? LicenseDateFormatters.standard.date(from: raw)
 }
 
+@MainActor
 private enum LicenseDateFormatters {
     static let fractional: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()

@@ -229,3 +229,184 @@ struct ScannerDebuggerView: View {
         }
     }
 }
+
+// MARK: - Result sheet
+
+/// Scan lookup result presentation shared by the Scanner Debugger tool. The
+/// main app's Search tab uses its own inline results list instead of this
+/// sheet (see `GlobalSearchSheet`), so this stays scoped to the debugger.
+struct ScanResultSheet: View {
+    let results: SearchResults
+    let error: String?
+    @Binding var navigationPath: NavigationPath
+    var onTypeCode: () -> Void
+    var onRetry: () -> Void
+    var onRefresh: () async -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var reserveAsset: Asset?
+    @State private var reserveFamily: AssetFamilySearchResult?
+
+    var body: some View {
+        Group {
+            if let error {
+                errorState(message: error)
+            } else if results.isEmpty {
+                emptyState
+            } else if let asset = results.singleAssetMatch {
+                // One unambiguous serialized asset → rich hero card with
+                // tap-through to Item Detail.
+                ScrollView {
+                    ScanAssetHeroCard(
+                        asset: asset,
+                        onViewItem: {
+                            navigationPath.append(asset)
+                            dismiss()
+                        },
+                        onReserve: { reserveAsset = asset },
+                        onOpenBooking: openBooking
+                    )
+                }
+                .refreshable { await onRefresh() }
+            } else if let family = results.singleFamilyMatch {
+                // One bulk-unit match → rich hero card. No detail screen
+                // exists for bulk SKUs on iOS; the card is the destination.
+                ScrollView {
+                    ScanFamilyHeroCard(
+                        family: family,
+                        onReserve: { reserveFamily = family },
+                        onOpenBooking: openBooking
+                    )
+                }
+                .refreshable { await onRefresh() }
+            } else {
+                ScrollView { resultRows }
+                    .refreshable { await onRefresh() }
+            }
+        }
+        .presentationCornerRadius(24)
+        .sheet(item: $reserveAsset) { asset in
+            CreateBookingSheet(vm: {
+                let vm = CreateBookingViewModel()
+                vm.prefillReservation(for: asset)
+                return vm
+            }()) { newId in
+                reserveAsset = nil
+                openBooking(newId)
+            }
+        }
+        .sheet(item: $reserveFamily) { family in
+            CreateBookingSheet(vm: {
+                let vm = CreateBookingViewModel()
+                vm.prefillReservation(forFamily: family)
+                return vm
+            }()) { newId in
+                reserveFamily = nil
+                openBooking(newId)
+            }
+        }
+    }
+
+    /// Lands on the freshly created booking: dismisses the result sheet and
+    /// pushes detail on the scan tab's navigation stack.
+    private func openBooking(_ id: String) {
+        navigationPath.append(BookingRouteId(id: id))
+        dismiss()
+    }
+
+    private var emptyState: some View {
+        ContentUnavailableView {
+            Label("Nothing found", systemImage: "qrcode.viewfinder")
+        } description: {
+            Text("This code isn't linked to any item yet.")
+        } actions: {
+            Button {
+                onTypeCode()
+            } label: {
+                Label("Type code instead", systemImage: "keyboard")
+            }
+            .buttonStyle(.bordered)
+        }
+    }
+
+    private func errorState(message: String) -> some View {
+        ContentUnavailableView {
+            Label("Couldn't look that up", systemImage: "wifi.exclamationmark")
+        } description: {
+            Text(message)
+        } actions: {
+            Button {
+                onRetry()
+            } label: {
+                Label("Try again", systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.borderedProminent)
+
+            Button {
+                onTypeCode()
+            } label: {
+                Label("Type code instead", systemImage: "keyboard")
+            }
+            .buttonStyle(.bordered)
+        }
+    }
+
+    private var resultRows: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(results.items.enumerated()), id: \.element.id) { index, asset in
+                Button {
+                    navigationPath.append(asset)
+                    dismiss()
+                } label: {
+                    HStack {
+                        AssetResultRow(asset: asset)
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .padding(.trailing, 4)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                }
+                .buttonStyle(.plain)
+                if index < results.items.count - 1 || !results.itemFamilies.isEmpty || !results.reservations.isEmpty || !results.checkouts.isEmpty || !results.users.isEmpty {
+                    Divider().padding(.leading, 72)
+                }
+            }
+
+            ForEach(Array(results.itemFamilies.enumerated()), id: \.element.id) { index, family in
+                ItemFamilyResultRow(family: family)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                if index < results.itemFamilies.count - 1 || !results.reservations.isEmpty || !results.checkouts.isEmpty || !results.users.isEmpty {
+                    Divider().padding(.leading, 72)
+                }
+            }
+
+            let bookings = results.reservations + results.checkouts
+            ForEach(Array(bookings.enumerated()), id: \.element.id) { index, booking in
+                Button {
+                    navigationPath.append(booking)
+                    dismiss()
+                } label: {
+                    BookingResultRow(booking: booking)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 6)
+                }
+                .buttonStyle(.plain)
+                if index < bookings.count - 1 || !results.users.isEmpty {
+                    Divider().padding(.leading, 68)
+                }
+            }
+
+            ForEach(Array(results.users.enumerated()), id: \.element.id) { index, user in
+                UserResultRow(user: user)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                if index < results.users.count - 1 {
+                    Divider().padding(.leading, 68)
+                }
+            }
+        }
+        .padding(.top, 8)
+    }
+}

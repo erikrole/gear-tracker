@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 
+@MainActor
 enum HIDScannerFocusGate {
     private static let defaultSuppressionDuration: TimeInterval = 20
     /// Short grace after a visible field ends editing so the sink's delayed
@@ -47,14 +48,25 @@ enum HIDScannerFocusGate {
         for name in beginNames {
             center.addObserver(forName: name, object: nil, queue: .main) { note in
                 guard let editor = note.object as? UIResponder, !(editor is HIDTextField) else { return }
-                activeVisibleEditors.insert(ObjectIdentifier(editor))
+                // Extract the Sendable identifier before crossing into the
+                // isolated block — `Notification`/`UIResponder` aren't
+                // Sendable, but queue: .main guarantees this closure already
+                // runs on the main thread, so assumeIsolated asserts what's
+                // already runtime-true without sending non-Sendable values.
+                let id = ObjectIdentifier(editor)
+                MainActor.assumeIsolated {
+                    _ = activeVisibleEditors.insert(id)
+                }
             }
         }
         for name in endNames {
             center.addObserver(forName: name, object: nil, queue: .main) { note in
                 guard let editor = note.object as? UIResponder, !(editor is HIDTextField) else { return }
-                activeVisibleEditors.remove(ObjectIdentifier(editor))
-                suppressScannerFocus(for: editingHandoffGrace)
+                let id = ObjectIdentifier(editor)
+                MainActor.assumeIsolated {
+                    activeVisibleEditors.remove(id)
+                    suppressScannerFocus(for: editingHandoffGrace)
+                }
             }
         }
     }

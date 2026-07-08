@@ -1,6 +1,7 @@
 import UIKit
 import UserNotifications
 
+@MainActor
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(
         _ application: UIApplication,
@@ -24,7 +25,11 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     }
 }
 
-extension AppDelegate: UNUserNotificationCenterDelegate {
+// UNUserNotificationCenterDelegate's methods aren't @MainActor in their
+// protocol declaration, but UNUserNotificationCenter always calls its
+// delegate on the main thread in practice. @preconcurrency tells the
+// compiler to trust that instead of requiring a nonisolated conformance.
+extension AppDelegate: @preconcurrency UNUserNotificationCenterDelegate {
     // Show banner + sound when notification arrives in foreground
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,

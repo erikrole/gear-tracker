@@ -1,8 +1,8 @@
 # iOS Swift 6.2 + Liquid Glass Adoption Plan
 
-**Status:** Draft (not started)
+**Status:** Partially superseded 2026-07-08 — see below. This doc is stale (it predates the iOS 26 deployment target bump and several file renames/refactors); treat the slices below as historical context, not an executable plan.
 **Project:** ios/Wisconsin
-**Current state:** Swift 5.10, iOS deployment target 17.0, zero Liquid Glass usage
+**Current state (2026-07-08):** Deployment target is iOS 26 (Slice 1 done, long ago). `SWIFT_STRICT_CONCURRENCY: complete` is enabled on `Wisconsin`/`WisconsinLiveActivities` in Swift 5 mode, warnings fixed to zero (see `docs/AREA_MOBILE.md` 2026-07-08 changelog and `tasks/lessons.md` for what shipped and why). `SWIFT_VERSION` is still `5.10` — the actual language-mode flip to 6 was deliberately deferred as its own future session with a dedicated device-test pass, not bundled into the warnings cleanup. Liquid Glass adoption (Slices 3-4 below) remains untouched; per `tasks/hig-audit-ios.md`, Liquid Glass work should fold into that audit's CC-3 finding instead of this file.
 
 ## Why this is one bundle
 
