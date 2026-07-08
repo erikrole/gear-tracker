@@ -3,6 +3,8 @@
 **Target**: Avatars (cross-cutting system)
 **Type**: System
 
+**Superseded 2026-07-08 (reconciled during web audit sweep):** the core findings below — `avatar-group.tsx` structurally unused/misused, missing `size` prop on the overflow `+N` chip, double ring/border stacking — are resolved. `src/components/ui/avatar-group.tsx` no longer exists as a separate file; its `AvatarGroup`/`AvatarGroupCount` primitives were merged into `src/components/ui/avatar.tsx`, and `AvatarGroupCount` now threads `data-size={size}` so the overflow chip matches sibling avatar sizing. A new `src/components/UserAvatarGroup.tsx` wrapper (exactly the "lift out a shared component" fix suggested below) composes it with tooltips and real `max` values — `dashboard-avatars.tsx` now passes `max={items.length}`/`max={5}` instead of the old `max={99}` that defeated overflow logic, and `BookingCard.tsx` no longer uses an avatar stack for this at all (single requester avatar, different pattern). Findings below are kept for history; do not treat them as open.
+
 **Scope (read):**
 - `src/components/ui/avatar.tsx` — shadcn primitive (Avatar/Image/Fallback + `size` variant)
 - `src/components/ui/avatar-group.tsx` — overflow stack

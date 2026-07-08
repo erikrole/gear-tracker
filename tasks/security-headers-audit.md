@@ -25,7 +25,7 @@ Follow-up remains for `style-src`: drop `'unsafe-inline'` only after React/Next 
 Skipped today because it requires every cross-origin asset to send CORP, which would break Vercel Blob images and Sentry tunneled requests. Worth revisiting once needed for `SharedArrayBuffer` (rarely needed).
 
 ### P2 — `robots.txt` to discourage indexing
-Internal tool — if the prod URL ever leaks, you don't want it indexed. Add `src/app/robots.ts` with `User-agent: * / Disallow: /`.
+Closed 2026-07-08 during the web audit reconciliation sweep. Added `src/app/robots.ts` (`Disallow: /` for all user agents), verified with `tsc --noEmit` and `npm run build:app` (`/robots.txt` builds as a static route). More relevant now than when this was written: the app is launching on the App Store under Unlisted distribution and the public `/about`/`/privacy` showroom pages are live — none of that is meant to be search-indexed, it's for direct-link stakeholder/reviewer sharing only.
 
 ### P2 — `Clear-Site-Data` on logout
 Add `Clear-Site-Data: "cache","cookies","storage"` on the logout response so a stolen device can't recover state from the BFCache.

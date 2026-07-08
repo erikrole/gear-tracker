@@ -3,6 +3,8 @@
 **Target**: `src/components/ui/button.tsx`, `src/components/ui/avatar.tsx`, `src/components/ui/avatar-group.tsx`, `src/components/ui/motion.tsx`
 **Type**: Component foundation pass (dependencies for every other UI bucket)
 
+**Note (2026-07-08, web audit sweep):** the `avatar-group.tsx`-specific findings below (missing `size` prop on the overflow chip, redundant ring/border stacking) are resolved — see `tasks/Avatars-audit.md`'s superseded note for detail. `src/components/ui/avatar-group.tsx` no longer exists as a separate file; its logic is now in `src/components/ui/avatar.tsx` plus `src/components/UserAvatarGroup.tsx`. `button.tsx` and `motion.tsx` findings were not re-verified in this pass.
+
 ## What's Smart
 
 - **`button.tsx:8` — auto-svg sizing baked into the base class.** `[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4` means lucide icons fall in at the right size automatically, while consumers can still override per-instance with `className="size-3.5"`. Replicate this pattern in any new icon-bearing primitive.
