@@ -98,13 +98,48 @@ const sonyTargets = new Map([
       expectedModels: ["ILME-FX6V", "ILME-FX6"],
     },
   ],
+  [
+    "ILCE-1M2",
+    {
+      brand: "Sony",
+      model: "ILCE-1M2",
+      productName: "Sony a1 II",
+      sourceUrl: "https://www.sony.com/electronics/support/e-mount-body-ilce-1-series/ilce-1m2/software/00349486",
+      sourceType: "SONY_SUPPORT",
+      supportMode: "ACTIVE",
+      supportNote: "Current flagship Alpha body with active official Sony firmware support. URL and version confirmed manually 2026-07-08 (fetch tooling gets HTTP 403 from sony.com in this environment).",
+      expectedModels: ["ILCE-1M2"],
+    },
+  ],
+  [
+    "ILCE-7M5",
+    {
+      brand: "Sony",
+      model: "ILCE-7M5",
+      productName: "Sony a7 V",
+      sourceUrl: "https://www.sony.com/electronics/support/e-mount-body-ilce-7-series/ilce-7m5/software/00377087",
+      sourceType: "SONY_SUPPORT",
+      supportMode: "ACTIVE",
+      supportNote: "Current-generation Alpha body with active official Sony firmware support. URL and version confirmed manually 2026-07-08 (fetch tooling gets HTTP 403 from sony.com in this environment).",
+      expectedModels: ["ILCE-7M5"],
+    },
+  ],
+  [
+    "ILCE-9M3",
+    {
+      brand: "Sony",
+      model: "ILCE-9M3",
+      productName: "Sony a9 III",
+      sourceUrl: "https://www.sony.com/electronics/support/e-mount-body-ilce-9-series/ilce-9m3/software/00341218",
+      sourceType: "SONY_SUPPORT",
+      supportMode: "ACTIVE",
+      supportNote: "Flagship sports/action Alpha body with active official Sony firmware support. URL and version confirmed manually 2026-07-08 (fetch tooling gets HTTP 403 from sony.com in this environment).",
+      expectedModels: ["ILCE-9M3"],
+    },
+  ],
 ]);
 
-const unresolvedSonyModels = new Map([
-  ["ILCE-1M2", "Official US support page was not resolved during this seed pass."],
-  ["ILCE-7M5", "Official US support page was not resolved during this seed pass."],
-  ["ILCE-9M3", "Official US support page was not resolved during this seed pass."],
-]);
+const unresolvedSonyModels = new Map();
 
 if (!process.env.DIRECT_URL) {
   console.error("Missing DIRECT_URL.");
