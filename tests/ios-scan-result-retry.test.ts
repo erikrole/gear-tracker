@@ -15,45 +15,33 @@ function sliceBetween(sourceText: string, start: string, end: string) {
 }
 
 describe("iOS Scan result retry recovery", () => {
-  it("wires result-sheet errors to retry the last scanned code", () => {
-    const scanView = source("ios/Wisconsin/Views/ScanView.swift");
-    const scannerSurface = sliceBetween(
-      scanView,
-      "private var scannerSurface: some View",
-      "private var bottomOverlay: some View",
-    );
+  it("wires lookup failures to a recoverable banner instead of a dead end", () => {
+    const scanner = source("ios/Wisconsin/Views/Search/QRScannerSheet.swift");
+    const lookUp = sliceBetween(scanner, "private func lookUp(rawScan: String) async {", "// MARK: - DataScannerViewController wrapper");
 
-    expect(scannerSurface).toContain("onRetry: retryLastScan");
-    expect(scannerSurface).not.toContain("onRetry: { code in");
+    expect(lookUp).toContain("Haptics.error()");
+    expect(lookUp).toContain('showBanner(ScanBanner(message: error.localizedDescription, success: false))');
   });
 
-  it("clears same-code dedupe before retrying the last failed lookup", () => {
-    const scanView = source("ios/Wisconsin/Views/ScanView.swift");
-    const retry = sliceBetween(
-      scanView,
-      "private func retryLastScan()",
-      "private func refreshLookup",
-    );
+  it("keeps the camera live on failure so re-presenting the same code retries the lookup", () => {
+    const scanner = source("ios/Wisconsin/Views/Search/QRScannerSheet.swift");
+    const handleScan = sliceBetween(scanner, "private func handleScan(rawScan: String) async {", "private func lookUp(rawScan: String) async {");
 
-    expect(retry).toContain("guard let code = lastHandledCode else { return }");
-    expect(retry).toContain("lastHandledCode = nil");
-    expect(retry).toContain("lastHandledAt = .distantPast");
-    expect(retry).toContain("handleScan(code)");
+    // The same-code dedupe window is time-bounded, not permanent, so a
+    // transient failure is retryable by pointing the camera at the code
+    // again once the window elapses instead of requiring a sheet dismiss.
+    expect(handleScan).toContain("guard now.timeIntervalSince(lastScanTime) > 2.0 else { return }");
+    expect(handleScan).toContain("await lookUp(rawScan: rawScan)");
   });
 
-  it("keeps error recovery in context before falling back to manual entry", () => {
-    const scanView = source("ios/Wisconsin/Views/ScanView.swift");
-    const resultSheet = sliceBetween(
-      scanView,
-      "struct ScanResultSheet: View",
-      "private var resultRows: some View",
-    );
-    const tryAgainIndex = resultSheet.indexOf('Label("Try again", systemImage: "arrow.clockwise")');
-    const typeCodeIndex = resultSheet.indexOf('Label("Type code instead", systemImage: "keyboard")', tryAgainIndex);
+  it("offers a manual-entry escape hatch alongside dismiss on lookup failure", () => {
+    const scanner = source("ios/Wisconsin/Views/Search/QRScannerSheet.swift");
+    const bannerView = sliceBetween(scanner, "private func bannerView(_ banner: ScanBanner) -> some View {", "private func showBanner(");
 
-    expect(resultSheet).toContain("var onRetry: () -> Void");
-    expect(tryAgainIndex).toBeGreaterThanOrEqual(0);
-    expect(typeCodeIndex).toBeGreaterThan(tryAgainIndex);
-    expect(resultSheet).toContain(".buttonStyle(.borderedProminent)");
+    const typeCodeIndex = bannerView.indexOf('Label("Type code", systemImage: "keyboard")');
+    const dismissIndex = bannerView.indexOf('Button("Dismiss")', typeCodeIndex);
+
+    expect(typeCodeIndex).toBeGreaterThanOrEqual(0);
+    expect(dismissIndex).toBeGreaterThan(typeCodeIndex);
   });
 });

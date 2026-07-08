@@ -34,3 +34,55 @@ extension Date {
         return "\(hours)h ago"
     }
 }
+
+extension KioskEvent {
+    /// Local display day for the event's encoded start date. All-day event
+    /// timestamps are storage bounds, not clock times; read their UTC calendar
+    /// date so Central iPads do not bucket tomorrow's all-day event as tonight.
+    var kioskDisplayStartDay: Date {
+        kioskDisplayDay(for: startsAt)
+    }
+
+    var kioskDisplayEndDay: Date {
+        guard displayAllDay, let endsAt else { return kioskDisplayStartDay }
+
+        if allDay {
+            let start = kioskDisplayStartDay
+            let rawEndExclusiveDay = kioskDisplayDay(for: endsAt)
+            guard rawEndExclusiveDay > start else { return start }
+            return Calendar.current.date(byAdding: .day, value: -1, to: rawEndExclusiveDay) ?? start
+        }
+
+        return kioskDisplayDay(for: endsAt.addingTimeInterval(-1))
+    }
+
+    func kioskOccurs(on day: Date, calendar: Calendar = .current) -> Bool {
+        let targetDay = calendar.startOfDay(for: day)
+        let startDay = calendar.startOfDay(for: kioskDisplayStartDay)
+
+        guard displayAllDay else {
+            return calendar.isDate(startDay, inSameDayAs: targetDay)
+        }
+
+        let endDay = calendar.startOfDay(for: kioskDisplayEndDay)
+        return targetDay >= startDay && targetDay <= endDay
+    }
+
+    private var kioskDisplayDayCalendar: Calendar {
+        guard allDay else { return .current }
+        var calendar = Calendar(identifier: .gregorian)
+        if let utc = TimeZone(identifier: "UTC") {
+            calendar.timeZone = utc
+        }
+        return calendar
+    }
+
+    private func kioskDisplayDay(for instant: Date) -> Date {
+        let components = kioskDisplayDayCalendar.dateComponents([.year, .month, .day], from: instant)
+        return Calendar.current.date(from: DateComponents(
+            year: components.year,
+            month: components.month,
+            day: components.day
+        )) ?? Calendar.current.startOfDay(for: instant)
+    }
+}

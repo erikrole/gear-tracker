@@ -107,7 +107,7 @@
 - [x] Item image zoom cover
   - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_6045a110-481b-485e-8c1e-09fa727cf417.jpg`
   - Result: clean. Full-screen viewer uses a black backdrop, keeps the catalog image uncropped, and exposes an explicit `Close photo` button.
-  - Files: `ios/Wisconsin/Views/ItemDetailView.swift`, `ios/Wisconsin/Views/ZoomableImageViewer.swift`
+  - Files: `ios/Wisconsin/Views/ItemDetailView.swift`, `ios/Wisconsin/Core/Brand.swift` (`ZoomableImageViewer` lives here, not its own file — corrected 2026-07-08)
 - [x] Guides list
   - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_205d7226-3cbb-4cab-8c6b-1cfb971cd593.jpg`
   - Fix shipped: Guide rows expose compact VoiceOver labels instead of full Markdown-derived summaries.

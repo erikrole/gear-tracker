@@ -1,10 +1,12 @@
 # Audit: scan (iOS) — 2026-05-08
 
+**Superseded 2026-07-08:** `ScanView.swift` was the dedicated 4th tab this audit scoped to; the 2026-06-30 Search-tab migration (`tasks/ios-search-tab-scan-action-plan.md`) moved the trailing tab to `GlobalSearchSheet` with QR scanning as its toolbar action, and `ScanView.swift` was left in place but fully unreferenced. Snow Leopard Slice 5 (`tasks/ios-snow-leopard-release-plan.md`) confirmed it was dead code, deleted it, and verified the findings below now live in `Search/QRScannerSheet.swift` instead (torch, "Type code instead" for sighted and VoiceOver users, server-error vs. unmatched-code disambiguation via the failure banner, and continuous scanning so a retry doesn't require dismissing). The findings themselves remain historically accurate design decisions — just read `Search/QRScannerSheet.swift` in place of `ScanView.swift` below.
+
 **MVP verdict (pre-fix):** ships, but the floor user with a damaged barcode or a dim equipment room has dead-ends inside Scan.
 **Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class.
 **Audit type:** static source (no build/run/UI tests).
 
-Scope: `ScanView` in `ios/Wisconsin/Views/ScanView.swift` (the dedicated 4th tab, role: .search) plus `Core/SearchService.swift`. Excludes `Kiosk/KioskBarcodeCameraView.swift` (separate kiosk surface) and `Search/QRScannerSheet.swift` (used from `GlobalSearchSheet`'s scan button).
+Scope (historical): `ScanView` in `ios/Wisconsin/Views/ScanView.swift` (the dedicated 4th tab, role: .search) plus `Core/SearchService.swift`. Excludes `Kiosk/KioskBarcodeCameraView.swift` (separate kiosk surface) and `Search/QRScannerSheet.swift` (used from `GlobalSearchSheet`'s scan button, now the live implementation — see superseded note above).
 
 **Scope filter:** scan = lookup, not check-in/out. Project rule per `project_scan_role.md`: check-in/out runs through kiosk; scan is a general lookup tool. Web `/scan` is also lookup-only as of the 2026-05-10 scan ownership pass; old booking-mode deep links show kiosk handoff copy.
 

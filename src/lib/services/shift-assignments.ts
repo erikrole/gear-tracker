@@ -1,6 +1,7 @@
-import { Prisma, Role, ShiftArea, ShiftAssignmentStatus, ShiftWorkerType } from "@prisma/client";
+import { Prisma, Role, ShiftAssignmentStatus, ShiftWorkerType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
+import { normalizeAllDayToUtcMidnight } from "@/lib/app-time";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
 import { evaluateAvailabilityPreferences } from "@/lib/student-availability";
@@ -15,30 +16,78 @@ export type RoleSlotOutcome = {
   reusedMatchingSlot: boolean;
 };
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const assignableShiftSelect = {
+  id: true,
+  shiftGroupId: true,
+  area: true,
+  workerType: true,
+  startsAt: true,
+  endsAt: true,
+  callStartsAt: true,
+  callEndsAt: true,
+  shiftGroup: {
+    select: {
+      event: {
+        select: {
+          startsAt: true,
+          endsAt: true,
+          allDay: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.ShiftSelect;
+
+type AssignableShift = Prisma.ShiftGetPayload<{ select: typeof assignableShiftSelect }>;
+
+function explicitCallWindow(window: {
+  callStartsAt?: Date | null;
+  callEndsAt?: Date | null;
+}) {
+  if (!window.callStartsAt || !window.callEndsAt) return null;
+  return { startsAt: window.callStartsAt, endsAt: window.callEndsAt };
+}
+
 function effectiveShiftWindow(shift: {
   startsAt: Date;
   endsAt: Date;
   callStartsAt?: Date | null;
   callEndsAt?: Date | null;
+  shiftGroup?: {
+    event: {
+      startsAt: Date;
+      endsAt: Date;
+      allDay: boolean;
+    };
+  } | null;
 }) {
+  const explicitWindow = explicitCallWindow(shift);
+  if (explicitWindow) return explicitWindow;
+  if (shift.shiftGroup?.event.allDay) {
+    return {
+      startsAt: normalizeAllDayToUtcMidnight(shift.shiftGroup.event.startsAt),
+      endsAt: normalizeAllDayToUtcMidnight(shift.shiftGroup.event.endsAt),
+    };
+  }
   return {
-    startsAt: shift.callStartsAt ?? shift.startsAt,
-    endsAt: shift.callEndsAt ?? shift.endsAt,
+    startsAt: shift.startsAt,
+    endsAt: shift.endsAt,
   };
+}
+
+function effectiveAssignmentWindow(assignment: {
+  callStartsAt?: Date | null;
+  callEndsAt?: Date | null;
+  shift: Parameters<typeof effectiveShiftWindow>[0];
+}) {
+  return explicitCallWindow(assignment) ?? effectiveShiftWindow(assignment.shift);
 }
 
 async function resolveAssignableShiftForUser(
   tx: Prisma.TransactionClient,
-  shift: {
-    id: string;
-    shiftGroupId: string;
-    area: ShiftArea;
-    workerType: ShiftWorkerType;
-    startsAt: Date;
-    endsAt: Date;
-    callStartsAt?: Date | null;
-    callEndsAt?: Date | null;
-  },
+  shift: AssignableShift,
   userProfile: {
     role: Role;
     staffingType: ShiftWorkerType;
@@ -72,6 +121,7 @@ async function resolveAssignableShiftForUser(
       },
     },
     orderBy: { createdAt: "asc" },
+    select: assignableShiftSelect,
   });
 
   if (compatibleOpenShift) {
@@ -99,6 +149,7 @@ async function resolveAssignableShiftForUser(
       callStartsAt: shift.callStartsAt,
       callEndsAt: shift.callEndsAt,
     },
+    select: assignableShiftSelect,
   });
 
   await tx.shiftGroup.update({
@@ -131,6 +182,8 @@ export async function checkTimeConflict(
   endsAt: Date,
   excludeAssignmentId?: string,
 ) {
+  const allDayPrefilterStartsAt = new Date(startsAt.getTime() - DAY_MS);
+  const allDayPrefilterEndsAt = new Date(endsAt.getTime() + DAY_MS);
   const where: Prisma.ShiftAssignmentWhereInput = {
     userId,
     status: { in: ACTIVE_ASSIGNMENT_STATUSES as ShiftAssignmentStatus[] },
@@ -138,6 +191,17 @@ export async function checkTimeConflict(
       { shift: { startsAt: { lt: endsAt }, endsAt: { gt: startsAt } } },
       { callStartsAt: { lt: endsAt }, callEndsAt: { gt: startsAt } },
       { shift: { callStartsAt: { lt: endsAt }, callEndsAt: { gt: startsAt } } },
+      {
+        shift: {
+          shiftGroup: {
+            event: {
+              allDay: true,
+              startsAt: { lt: allDayPrefilterEndsAt },
+              endsAt: { gt: allDayPrefilterStartsAt },
+            },
+          },
+        },
+      },
     ],
   };
   if (excludeAssignmentId) {
@@ -148,11 +212,10 @@ export async function checkTimeConflict(
   // real conflict sits past the cap.
   const conflicts = await tx.shiftAssignment.findMany({
     where,
-    include: { shift: { select: { startsAt: true, endsAt: true, callStartsAt: true, callEndsAt: true, area: true } } },
+    include: { shift: { select: assignableShiftSelect } },
   });
   for (const conflict of conflicts) {
-    const conflictStartsAt = conflict.callStartsAt ?? conflict.shift.callStartsAt ?? conflict.shift.startsAt;
-    const conflictEndsAt = conflict.callEndsAt ?? conflict.shift.callEndsAt ?? conflict.shift.endsAt;
+    const { startsAt: conflictStartsAt, endsAt: conflictEndsAt } = effectiveAssignmentWindow(conflict);
     if (!(conflictStartsAt < endsAt && conflictEndsAt > startsAt)) continue;
     throw new HttpError(
       409,
@@ -182,7 +245,7 @@ export async function directAssignShiftWithOutcome(
   opts: { callStartsAt?: Date | null; callEndsAt?: Date | null; callNote?: string | null; notes?: string | null } = {},
 ) {
   return db.$transaction(async (tx) => {
-    const shift = await tx.shift.findUnique({ where: { id: shiftId } });
+    const shift = await tx.shift.findUnique({ where: { id: shiftId }, select: assignableShiftSelect });
     if (!shift) throw new HttpError(404, "Shift not found");
     const assignee = await tx.user.findUnique({
       where: { id: userId },
@@ -272,7 +335,7 @@ export async function repairRoleSlotMismatch(assignmentId: string) {
       where: { id: assignmentId },
       include: {
         user: { select: { id: true, role: true, staffingType: true, name: true } },
-        shift: true,
+        shift: { select: assignableShiftSelect },
       },
     });
     if (!assignment) throw new HttpError(404, "Assignment not found");
@@ -348,7 +411,7 @@ export async function approveRequest(assignmentId: string) {
     const assignment = await tx.shiftAssignment.findUnique({
       where: { id: assignmentId },
       include: {
-        shift: true,
+        shift: { select: assignableShiftSelect },
         user: {
           select: {
             role: true,
@@ -449,7 +512,7 @@ export async function initiateSwap(
   return db.$transaction(async (tx) => {
     const assignment = await tx.shiftAssignment.findUnique({
       where: { id: assignmentId },
-      include: { shift: true },
+      include: { shift: { select: assignableShiftSelect } },
     });
     if (!assignment) throw new HttpError(404, "Assignment not found");
     if (!(ACTIVE_ASSIGNMENT_STATUSES as readonly string[]).includes(assignment.status)) {

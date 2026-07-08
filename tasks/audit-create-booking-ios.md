@@ -66,7 +66,7 @@ _None._ Auth/role gating is correct (`canPickRequester` is STAFF/ADMIN; STUDENTs
 
 ## P2 — post-MVP
 
-- [ ] [Polish] **Deferred.** "Selected items" mini-section showing chips with X buttons. Today the only way to remove a selected asset is to find it in the picker list (which after a search may be hidden). A separate "Selected (3)" section listing the picked assets with inline X removes the search-and-find friction. Worth doing if reservation workflows commonly involve >5 items.
+- [x] [Polish] **Shipped, superseding this note.** The equipment picker was rebuilt around a search-first flow with a persistent cart bar and a dedicated `EquipmentCartSheet` drawer (`CreateBookingEquipmentPicker.swift`, `CreateBookingEquipmentRows.swift`). Every selected asset gets an explicit remove (X) button via `SelectedEquipmentRow`, independent of search/filter state. Reconciled 2026-07-08 during Snow Leopard Slice 4.
 - [ ] [Polish] **Deferred.** Step progress indicator ("1 of 2", "2 of 2"). Title changes serve a similar purpose ("New Reservation" → "Add Equipment") and the toolbar button labels (Next / Back) cover navigation. Skip.
 - [ ] [Polish] **Deferred.** Role badges on `OptionPickerView` rows when picking a requester. Web shows them; iOS just shows the name. Floor users picking from a few hundred names benefit from "ADMIN" / "STAFF" / "STUDENT" tags. Worth considering when roster sizes grow.
 - [ ] [Polish] **Deferred.** Prefill last-used location / requester from `UserDefaults`. Friction reduction; today every fresh sheet picks defaults from `session.currentUser`. Skip until requested.

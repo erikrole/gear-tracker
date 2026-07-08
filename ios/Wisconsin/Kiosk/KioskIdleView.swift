@@ -571,8 +571,11 @@ struct KioskIdleView: View {
     @ViewBuilder
     private var eventSections: some View {
         if let dashboard {
-            let todayEvents = dashboard.events.filter { Calendar.current.isDateInToday($0.startsAt) }
-            let tomorrowEvents = dashboard.events.filter { Calendar.current.isDateInTomorrow($0.startsAt) }
+            let calendar = Calendar.current
+            let today = calendar.startOfDay(for: Date())
+            let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? today
+            let todayEvents = dashboard.events.filter { $0.kioskOccurs(on: today, calendar: calendar) }
+            let tomorrowEvents = dashboard.events.filter { $0.kioskOccurs(on: tomorrow, calendar: calendar) }
             VStack(alignment: .leading, spacing: 12) {
                 KioskEventSection(
                     title: "Today",
@@ -1132,4 +1135,3 @@ private struct CheckoutRow: View {
         return "\(prefix)\(checkout.title), \(itemSummary)"
     }
 }
-

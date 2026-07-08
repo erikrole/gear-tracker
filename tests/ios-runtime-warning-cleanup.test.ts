@@ -38,24 +38,4 @@ describe("iOS runtime warning cleanup", () => {
     expect(thumbnails).toContain("ThumbnailCache.shared.image(for: cacheKey)");
     expect(thumbnails).toContain("ThumbnailCache.shared.store(image, for: cacheKey)");
   });
-
-  it("does not restart VisionKit behind the Scan result sheet", () => {
-    const scanView = source("ios/Wisconsin/Views/ScanView.swift");
-    const resultBranch = scanView.slice(
-      scanView.indexOf("let outcome = try await SearchService.shared.search"),
-      scanView.indexOf("} catch {", scanView.indexOf("let outcome = try await SearchService.shared.search")),
-    );
-    const catchBranch = scanView.slice(
-      scanView.indexOf("} catch {", scanView.indexOf("let outcome = try await SearchService.shared.search")),
-      scanView.indexOf("private func retryLastScan()"),
-    );
-
-    expect(resultBranch).toContain("Keep VisionKit stopped while the result sheet presents");
-    const sheetBranch = resultBranch.slice(resultBranch.indexOf("results = outcome"));
-
-    expect(sheetBranch).toContain("results = outcome");
-    expect(sheetBranch).not.toContain("isScanning = true");
-    expect(catchBranch).toContain("resultError = message");
-    expect(catchBranch).not.toContain("isScanning = true");
-  });
 });

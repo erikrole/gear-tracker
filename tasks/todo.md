@@ -1,6 +1,22 @@
 # Task Queue
 
-Last updated: 2026-07-07
+Last updated: 2026-07-08
+
+---
+
+## Active: Kiosk idle all-day event day buckets (2026-07-08)
+
+Plan: fix the idle Today/Tomorrow event sections so all-day events use their encoded calendar date, not the raw timestamp instant after iPad timezone conversion.
+
+- [x] Confirm the current idle row/detail code path and prior all-day date-math decision.
+- [x] Add shared kiosk display-day helpers for all-day and midnight-span events.
+- [x] Route idle Today/Tomorrow buckets and event detail labels through the helper.
+- [x] Add focused kiosk all-day regression coverage.
+- [x] Sync kiosk/mobile docs and lessons.
+- [x] Run focused tests and iOS verification gates.
+
+### Review
+- 2026-07-08: Fixed kiosk idle Today/Tomorrow bucketing for all-day events. `KioskEvent` now exposes shared display-day helpers that read true all-day timestamps as encoded UTC calendar dates before converting to local display days, while timed events keep local day behavior. `KioskIdleView` filters Today/Tomorrow through that helper, and `KioskEventDetailSheet` uses it for the header and all-day date label. Verification passed: `npx vitest run tests/ios-kiosk-all-day-contract.test.ts`, `npm run drift:ios`, `npm run audit:ios:gaps` (0 missing audits; existing 7 unregistered extracted Swift files still reported), `npm run ios:project:check`, `npm run verify:docs` after `npm run codemap`, `git diff --check`, and escalated `npm run ios:xcode:verify:kiosk`.
 
 ---
 
@@ -344,8 +360,10 @@ Scope: App Store submission readiness for the main `Wisconsin` iOS app only. Kio
 - [x] Add the public privacy page at `/privacy` for `wisconsincreative.com/privacy`.
 - [x] Add an idempotent App Review demo seed script with fake users, fake gear, fake bookings, fake notifications, and reviewer credentials.
 - [x] Verify focused source checks, iOS project consistency, TypeScript/build as feasible, and document user-run real-device tasks.
+- [x] Declare export compliance (`ITSAppUsesNonExemptEncryption: false`) so App Store Connect stops prompting the encryption question on every build upload.
 
 ### Review
+- 2026-07-08: Added `ITSAppUsesNonExemptEncryption: false` to `ios/project.yml`'s `Wisconsin` target Info.plist properties — the app only talks to its own API over standard HTTPS/TLS via `URLSession`, no custom or non-exempt encryption, so this qualifies for the standard exemption. Regenerated via `xcodegen generate` (confirmed the key landed in the checked-in `ios/Wisconsin/Supporting/Info.plist`). Verified `ios:project:check`, `tsc --noEmit`, `drift:ios` (71 files), `audit:ios:gaps` (47/47), `verify:docs`, `git diff --check`.
 - 2026-07-02: Follow-up hardening aligned `ios/Wisconsin/Supporting/PrivacyInfo.xcprivacy` with App Store Connect privacy disclosures for account, contact, identifier, usage, and diagnostic data, kept tracking disabled, and omitted user coarse location because iOS only uses fixed venue coordinates for WeatherKit. Verified plist syntax and iOS project membership.
 - 2026-07-01: Launch-readiness slice completed for the main App Store app only. App Store product naming is set up as `Wisconsin Creative`, the installed label stays `Creative`, checked-in APNs entitlement metadata is production, the first-party privacy manifest is present, `/privacy` builds as a static public page, and `npm run demo:seed:app-review` now creates a guarded fictional App Review dataset only when `APP_REVIEW_DEMO_SEED=confirm` is set. Verified: `plutil -lint`, `node --check scripts/seed-app-review-demo.mjs`, guarded seed refusal without confirmation, `npm run ios:project:check`, `npm run drift:ios`, `npm run audit:ios:gaps`, `npx tsc --noEmit --pretty false`, `npx vitest run tests/public-showroom-content.test.ts`, `npm run codemap`, `npm run verify:docs`, `git diff --check`, `npm run build:app`, and escalated `npm run ios:xcode:verify`. Manual external tasks remain in Apple Developer, App Store Connect, DNS, archive/signing proof, and real-device QA.
 

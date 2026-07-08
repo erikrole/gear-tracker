@@ -154,7 +154,7 @@ describe("iOS API contracts — asset lookup item families", () => {
     const route = source("src/app/api/assets/route.ts");
     const models = source("ios/Wisconsin/Models/AssetModels.swift");
     const searchService = source("ios/Wisconsin/Core/SearchService.swift");
-    const scanView = source("ios/Wisconsin/Views/ScanView.swift");
+    const globalSearch = source("ios/Wisconsin/Views/Search/GlobalSearchSheet.swift");
     const scanner = source("ios/Wisconsin/Views/Search/QRScannerSheet.swift");
 
     expect(route).toContain("bulkItems,");
@@ -176,7 +176,7 @@ describe("iOS API contracts — asset lookup item families", () => {
     expect(searchService).toContain("normalized == \"accessories\"");
     expect(searchService).toContain("normalized.hasSuffix(\"/accessories\")");
     expect(searchService).toContain("itemFamilies.isEmpty");
-    expect(scanView).toContain("ItemFamilyResultRow(family: family)");
+    expect(globalSearch).toContain("ItemFamilyResultRow(family: family)");
     expect(scanner).toContain("case itemFamily(AssetFamilySearchResult)");
     // The resolve-based scanner still surfaces bulk families as matches.
     expect(scanner).toContain("match = .itemFamily(family)");

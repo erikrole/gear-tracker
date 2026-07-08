@@ -66,7 +66,6 @@ NotificationsSheet.swift               | notifications-sheet         | audit
 OverdueReportView.swift                | overdue-report              | audit
 LoginView.swift                        | login                       | audit
 PasswordSetupView.swift                | login                       | audit
-ScanView.swift                         | scan                        | audit
 UsersView.swift                        | users                       | audit
 UserDetailView.swift                   | users                       | audit
 AppTabView.swift                       | profile                     | audit
@@ -81,6 +80,7 @@ AccountAvatar.swift                    |                             | exempt-sh
 ScanPrePromptView.swift                | scan                        | audit
 PushPrePromptView.swift                | profile                     | audit
 CreateBooking/CreateBookingEventViews.swift  | create-booking              | audit
+CreateBooking/CreateBookingEquipmentPicker.swift  | create-booking         | audit
 CreateBooking/CreateBookingEquipmentRows.swift  |                            | exempt-shared
 CreateBooking/CreateBookingFormRows.swift  |                                | exempt-shared
 CreateBooking/CreateBookingPickers.swift  |                                 | exempt-shared
@@ -102,6 +102,12 @@ Kiosk/KioskReturnView.swift            | kiosk-return                | audit
 Kiosk/KioskSuccessView.swift           | kiosk-success               | audit
 Kiosk/KioskShellView.swift             | kiosk                       | audit
 Kiosk/KioskBarcodeCameraView.swift     | kiosk-checkout              | audit
+Kiosk/KioskCheckoutDetailSheet.swift   | kiosk-idle                  | audit
+Kiosk/KioskEventDetailSheet.swift      | kiosk-idle                  | audit
+Kiosk/KioskSleepModeView.swift         | kiosk-idle                  | audit
+Kiosk/KioskChrome.swift                |                             | exempt-shared
+Kiosk/KioskIdleRoster.swift            |                             | exempt-shared
+Kiosk/KioskDateFormatting.swift        |                             | exempt-infra
 Components/BannerView.swift            |                             | exempt-shared
 Components/Skeleton.swift              |                             | exempt-shared
 Components/StatusPill.swift            |                             | exempt-shared

@@ -216,13 +216,14 @@ struct KioskEventDetailSheet: View {
     }
 
     private var eventDayLabel: String {
-        if Calendar.current.isDateInToday(event.startsAt) {
+        let displayDay = event.kioskDisplayStartDay
+        if Calendar.current.isDateInToday(displayDay) {
             return "Today"
         }
-        if Calendar.current.isDateInTomorrow(event.startsAt) {
+        if Calendar.current.isDateInTomorrow(displayDay) {
             return "Tomorrow"
         }
-        return event.startsAt.formatted(.dateTime.weekday(.wide).month().day())
+        return displayDay.formatted(.dateTime.weekday(.wide).month().day())
     }
 
     private var eventTimeLabel: String {
@@ -246,14 +247,12 @@ struct KioskEventDetailSheet: View {
     }
 
     private var allDayDateLabel: String {
-        guard let end = event.endsAt else {
-            return event.startsAt.formatted(.dateTime.month(.abbreviated).day())
+        let start = event.kioskDisplayStartDay
+        let end = event.kioskDisplayEndDay
+        if Calendar.current.isDate(start, inSameDayAs: end) {
+            return start.formatted(.dateTime.month(.abbreviated).day())
         }
-        let inclusiveEnd = end.addingTimeInterval(-1)
-        if Calendar.current.isDate(event.startsAt, inSameDayAs: inclusiveEnd) {
-            return event.startsAt.formatted(.dateTime.month(.abbreviated).day())
-        }
-        return "\(event.startsAt.formatted(.dateTime.month(.abbreviated).day())) - \(inclusiveEnd.formatted(.dateTime.month(.abbreviated).day()))"
+        return "\(start.formatted(.dateTime.month(.abbreviated).day())) - \(end.formatted(.dateTime.month(.abbreviated).day()))"
     }
 
     private func formatRange(start: Date, end: Date?) -> String {

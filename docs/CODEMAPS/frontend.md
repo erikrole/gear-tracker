@@ -96,14 +96,14 @@
 | File | Lines |
 |---|---:|
 | `src/components/TradeBoard.tsx` | 1192 |
-| `src/components/EquipmentPicker.tsx` | 996 |
+| `src/components/EquipmentPicker.tsx` | 1001 |
 | `src/components/ActivityTimeline.tsx` | 906 |
 | `src/components/ShiftDetailPanel.tsx` | 813 |
 | `src/components/onboarding/OnboardingDialog.tsx` | 768 |
 | `src/components/ui/sidebar.tsx` | 727 |
 | `src/components/ChooseImageModal.tsx` | 716 |
 | `src/components/booking-wizard/BookingWizard.tsx` | 710 |
-| `src/components/BookingDetailsSheet.tsx` | 686 |
+| `src/components/BookingDetailsSheet.tsx` | 687 |
 | `src/components/AppShell.tsx` | 642 |
 | `src/components/booking-wizard/WizardStep1.tsx` | 570 |
 | `src/components/BookingListPage.tsx` | 512 |

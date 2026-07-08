@@ -30,7 +30,6 @@
 		1E84624B222CD81665D2EC79 /* StatusPill.swift in Sources */ = {isa = PBXBuildFile; fileRef = A97E29E06DBD7A4474F9E66A /* StatusPill.swift */; };
 		1EC76C21F12315FFEA89CD45 /* WisconsinLiveActivities.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 88F162C9B5233CB44C35E9E5 /* WisconsinLiveActivities.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		237DD2AF7BCC2631721C737C /* CreateBookingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F3FA2D4C06E966E6BA030B /* CreateBookingSheet.swift */; };
-		23D18DF0CCE1DFC0E4CAD69E /* ScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37FF31264347D4D6932C4DBB /* ScanView.swift */; };
 		2516A89A0CD4284023B38A28 /* ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74157D1DF3F4EF9F53F70494 /* ScheduleView.swift */; };
 		27614B86498B5D98CC600630 /* CreateBookingFormRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = 089FAA6DDBB831B89ED4E5F5 /* CreateBookingFormRows.swift */; };
 		27ECC333F667B220F460C700 /* GuidesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14DA88A1DF6F8D23066A07BC /* GuidesView.swift */; };
@@ -184,7 +183,6 @@
 		2F4FFF38CD734CA5656C8878 /* KioskIdleRoster.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskIdleRoster.swift; sourceTree = "<group>"; };
 		348C1E3385689A947929A115 /* KioskComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskComponents.swift; sourceTree = "<group>"; };
 		3700D2B2FAE801DC2FF0F1ED /* KioskCheckoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskCheckoutView.swift; sourceTree = "<group>"; };
-		37FF31264347D4D6932C4DBB /* ScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanView.swift; sourceTree = "<group>"; };
 		38065600FA5A1C1AC4C8CC2F /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		39565FFA7236A61DAD12D9BB /* DateFormats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFormats.swift; sourceTree = "<group>"; };
 		3967BD5EC55792F3B9E94724 /* AssetModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetModels.swift; sourceTree = "<group>"; };
@@ -534,7 +532,6 @@
 				B04517A8131BAA862DB3FF5E /* ProfileView.swift */,
 				6A2DFDC7A0C7BD6C018D43D2 /* PushPrePromptView.swift */,
 				93A02FB7D1B8ADC547189F1A /* ScanPrePromptView.swift */,
-				37FF31264347D4D6932C4DBB /* ScanView.swift */,
 				74157D1DF3F4EF9F53F70494 /* ScheduleView.swift */,
 				B76322B9A6F0D5B70487D0F2 /* SidebarWebDestinationView.swift */,
 				6B64F325136AF7626ECECE8C /* UserDetailView.swift */,
@@ -842,7 +839,6 @@
 				085E8467FC2D0385A67DD157 /* QRScannerSheet.swift in Sources */,
 				0B3D380ACF389083C083FC5A /* ScanPrePromptView.swift in Sources */,
 				FEB0D17D856222BBA8478CC0 /* ScanResultHeroCard.swift in Sources */,
-				23D18DF0CCE1DFC0E4CAD69E /* ScanView.swift in Sources */,
 				9939B52822812D9C7B8CF92B /* ScannerDebuggerView.swift in Sources */,
 				2CED1D2B5A4282EB13E29796 /* ScheduleModels.swift in Sources */,
 				2516A89A0CD4284023B38A28 /* ScheduleView.swift in Sources */,

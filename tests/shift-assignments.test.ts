@@ -201,7 +201,7 @@ describe("directAssignShift", () => {
 
     await directAssignShift(studentSlot.id, "staff-1", "admin-1");
 
-    expect(mockTx.shift.create).toHaveBeenCalledWith({
+    expect(mockTx.shift.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         shiftGroupId: studentSlot.shiftGroupId,
         area: studentSlot.area,
@@ -209,7 +209,7 @@ describe("directAssignShift", () => {
         startsAt: studentSlot.startsAt,
         endsAt: studentSlot.endsAt,
       }),
-    });
+    }));
     expect(mockTx.shiftGroup.update).toHaveBeenCalledWith({
       where: { id: studentSlot.shiftGroupId },
       data: { manuallyEdited: true },
@@ -358,6 +358,69 @@ describe("directAssignShift", () => {
       })
     ).rejects.toThrow("User already has a shift during this time");
   });
+
+  it("does not treat consecutive all-day media days as overlapping when their UTC storage windows touch", async () => {
+    const volleyballShift = makeShift({
+      id: "volleyball-media-day-video",
+      shiftGroupId: "volleyball-media-day-group",
+      startsAt: new Date("2026-07-09T05:00:00.000Z"),
+      endsAt: new Date("2026-07-10T05:00:00.000Z"),
+      callStartsAt: null,
+      callEndsAt: null,
+      shiftGroup: {
+        event: {
+          startsAt: new Date("2026-07-09T05:00:00.000Z"),
+          endsAt: new Date("2026-07-10T05:00:00.000Z"),
+          allDay: true,
+        },
+      },
+    });
+    const footballShift = makeShift({
+      id: "football-media-day-video",
+      shiftGroupId: "football-media-day-group",
+      startsAt: new Date("2026-07-07T10:00:00.000Z"),
+      endsAt: new Date("2026-07-09T10:00:00.000Z"),
+      callStartsAt: null,
+      callEndsAt: null,
+      shiftGroup: {
+        event: {
+          startsAt: new Date("2026-07-07T10:00:00.000Z"),
+          endsAt: new Date("2026-07-09T10:00:00.000Z"),
+          allDay: true,
+        },
+      },
+    });
+    mockTx.shift.findUnique.mockResolvedValue(volleyballShift);
+    mockTx.shiftAssignment.findFirst.mockResolvedValue(null);
+    mockTx.shiftAssignment.findMany.mockResolvedValue([
+      {
+        id: "football-assignment",
+        callStartsAt: null,
+        callEndsAt: null,
+        shift: footballShift,
+      },
+    ]);
+    mockTx.shiftAssignment.updateMany.mockResolvedValue({ count: 0 });
+    mockTx.shiftAssignment.create.mockResolvedValue({
+      id: "volleyball-assignment",
+      shiftId: volleyballShift.id,
+      userId: "user-1",
+      status: "DIRECT_ASSIGNED",
+    });
+
+    const result = await directAssignShift(volleyballShift.id, "user-1", "admin-1");
+
+    expect(result.id).toBe("volleyball-assignment");
+    expect(mockTx.shiftAssignment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          shiftId: volleyballShift.id,
+          userId: "user-1",
+          status: "DIRECT_ASSIGNED",
+        }),
+      })
+    );
+  });
 });
 
 describe("repairRoleSlotMismatch", () => {
@@ -417,13 +480,13 @@ describe("repairRoleSlotMismatch", () => {
 
     const result = await repairRoleSlotMismatch("assignment-1");
 
-    expect(mockTx.shift.create).toHaveBeenCalledWith({
+    expect(mockTx.shift.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         shiftGroupId: studentSlot.shiftGroupId,
         area: studentSlot.area,
         workerType: "FT",
       }),
-    });
+    }));
     expect(result.outcome).toEqual(expect.objectContaining({
       targetShiftId: createdStaffSlot.id,
       movedToMatchingSlot: true,
