@@ -453,7 +453,9 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
         after: {
           bulkSkuId: unit.bulkSkuId,
           unitNumber: unit.unitNumber,
+          itemName: `${unit.bulkSku.name} #${unit.unitNumber}`,
           kioskDeviceId: kiosk.kioskId,
+          kioskName: kiosk.name,
         },
       });
 
@@ -537,7 +539,9 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
       after: {
         assetId: asset.id,
         tagName: asset.assetTag,
+        itemName: asset.assetTag,
         kioskDeviceId: kiosk.kioskId,
+        kioskName: kiosk.name,
         ...locationEvidencePayload(evidence),
       },
     });
@@ -587,7 +591,9 @@ export const DELETE = withKiosk<{ id: string }>(async (req, { kiosk, params }) =
         before: {
           assetId: body.assetId,
           tagName: item.asset.assetTag,
+          itemName: item.asset.assetTag,
           kioskDeviceId: kiosk.kioskId,
+          kioskName: kiosk.name,
         },
       });
 
@@ -665,7 +671,9 @@ export const DELETE = withKiosk<{ id: string }>(async (req, { kiosk, params }) =
       before: {
         bulkSkuId: allocation.bulkSkuUnit.bulkSkuId,
         unitNumber: allocation.bulkSkuUnit.unitNumber,
+        itemName: `${allocation.bulkSkuUnit.bulkSku.name} #${allocation.bulkSkuUnit.unitNumber}`,
         kioskDeviceId: kiosk.kioskId,
+        kioskName: kiosk.name,
       },
     });
 

@@ -11,7 +11,7 @@
 | `src/lib/services/availability.ts` | 554 |
 | `src/lib/services/booking-ref.ts` | 26 |
 | `src/lib/services/booking-rules.ts` | 107 |
-| `src/lib/services/bookings-checkin.ts` | 768 |
+| `src/lib/services/bookings-checkin.ts` | 802 |
 | `src/lib/services/bookings-helpers.ts` | 251 |
 | `src/lib/services/bookings-lifecycle.ts` | 1430 |
 | `src/lib/services/bookings-queries.ts` | 235 |

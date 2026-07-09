@@ -4,6 +4,20 @@ Last updated: 2026-07-09
 
 ---
 
+## Completed: Booking history item identity (2026-07-09)
+
+Plan: `tasks/archive/booking-history-item-identity-plan.md`
+
+- [x] Persist the exact kiosk-added and returned equipment names in audit payloads.
+- [x] Render those names through the shared booking-history timeline with legacy fallbacks.
+- [x] Run closeout verification and document the result.
+
+### Review
+
+- 2026-07-09: New kiosk history writes now carry serialized asset or numbered-unit identity, and completed kiosk returns carry their returned item names. This removes generic `Added an item` and `Returned gear` summaries for new activity while keeping historical records readable. Focused Vitest (12 tests), TypeScript, migration-prefix guard, docs/codemaps, whitespace, and `npm run build:app` passed. The build retains the unrelated `BookingEquipmentTab.tsx` exhaustive-deps warning; no authenticated browser session was available for runtime proof.
+
+---
+
 ## Completed: Kiosk iOS 26 platform baseline (2026-07-09)
 
 Plan: `tasks/archive/completed-2026-06/kiosk-ios26-platform-baseline-plan.md`

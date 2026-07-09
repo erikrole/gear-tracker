@@ -412,8 +412,43 @@ function bookingPhrase(entry: AuditEntry, fallback: string): string {
   return `${noun} "${label}"`;
 }
 
+function auditItemName(payload: Record<string, unknown> | null): string | null {
+  if (!payload) return null;
+  if (typeof payload.itemName === "string" && payload.itemName.trim()) {
+    return payload.itemName.trim();
+  }
+  if (typeof payload.tagName === "string" && payload.tagName.trim()) {
+    return payload.tagName.trim();
+  }
+  if (typeof payload.unitNumber === "number") return `unit #${payload.unitNumber}`;
+  return null;
+}
+
+function formatAuditItemNames(payload: Record<string, unknown> | null): string | null {
+  const rawNames = payload?.itemNames;
+  if (!Array.isArray(rawNames)) return null;
+  const names = rawNames.filter(
+    (name): name is string => typeof name === "string" && name.trim().length > 0,
+  );
+  if (names.length === 0) return null;
+  if (names.length === 1) return names[0]!;
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  const visible = names.slice(0, 3);
+  const remainder = names.length - visible.length;
+  return remainder > 0
+    ? `${visible.join(", ")}, and ${remainder} more`
+    : `${visible.slice(0, -1).join(", ")}, and ${visible.at(-1)}`;
+}
+
+function kioskLocationPhrase(payload: Record<string, unknown> | null): string {
+  if (typeof payload?.kioskName === "string" && payload.kioskName.trim()) {
+    return `the ${payload.kioskName.trim()}`;
+  }
+  return "a kiosk";
+}
+
 /** Generate a natural-language description of an action */
-function describeAction(
+export function describeAction(
   entry: AuditEntry,
   actorName: string,
   context: "booking" | "item" | "report" | "user",
@@ -659,13 +694,13 @@ function describeAction(
     case "kiosk_checkout":
       return `${reportPrefix}Checked out ${context === "item" ? bookingPhrase(entry, "gear") : "gear"} at a kiosk`;
     case "kiosk_checkin":
-      return `${reportPrefix}Returned ${context === "item" ? bookingPhrase(entry, "gear") : "gear"} at a kiosk`;
+      return `${reportPrefix}Returned ${formatAuditItemNames(entry.afterJson) ?? (context === "item" ? bookingPhrase(entry, "gear") : "gear")} at ${kioskLocationPhrase(entry.afterJson)}`;
     case "kiosk_checkout_updated":
       return `${reportPrefix}Updated the checkout at a kiosk`;
     case "kiosk_checkout_item_added":
-      return `${reportPrefix}Added an item at a kiosk`;
+      return `${reportPrefix}Added ${auditItemName(entry.afterJson) ?? "an item"} at ${kioskLocationPhrase(entry.afterJson)}`;
     case "kiosk_checkout_item_removed":
-      return `${reportPrefix}Removed an item at a kiosk`;
+      return `${reportPrefix}Removed ${auditItemName(entry.beforeJson) ?? "an item"} at ${kioskLocationPhrase(entry.beforeJson)}`;
     case "partial_bulk_checkin":
       return `${reportPrefix}Recorded partial return`;
     case "pending_pickup_expired":

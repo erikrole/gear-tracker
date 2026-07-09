@@ -18,6 +18,7 @@ describe("kiosk active checkout edits", () => {
     expect(route).toContain("locationId: args.locationId");
     expect(route).toContain("Prisma.TransactionIsolationLevel.Serializable");
     expect(route).toContain("createAuditEntryTx(tx");
+    expect(route).toContain("itemName:");
     expect(route).toContain("checkAvailability(tx");
     expect(route).toContain("excludeBookingId: booking.id");
     expect(route).toContain("findAssetByScanValue(scanValue");

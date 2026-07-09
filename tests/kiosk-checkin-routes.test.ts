@@ -29,6 +29,7 @@ vi.mock("@/lib/api", () => ({
       params: P;
       kiosk: {
         kioskId: string;
+        name: string;
         locationId: string;
         locationName: string;
       };
@@ -38,6 +39,7 @@ vi.mock("@/lib/api", () => ({
       params: await ctx.params,
       kiosk: {
         kioskId: "kiosk-1",
+        name: "Video Office Kiosk",
         locationId: "loc-1",
         locationName: "Camp Randall",
       },
@@ -127,12 +129,21 @@ describe("kioskCompleteCheckin counts", () => {
       bulkItems: [
         {
           bulkSkuId: "sku-1",
+          bulkSku: { name: "Sony Battery" },
           plannedQuantity: 2,
           checkedOutQuantity: 2,
           checkedInQuantity: 1,
           unitAllocations: [
-            { checkedOutAt: new Date("2026-05-05T12:00:00.000Z"), checkedInAt: new Date("2026-05-05T13:00:00.000Z") },
-            { checkedOutAt: new Date("2026-05-05T12:05:00.000Z"), checkedInAt: null },
+            {
+              checkedOutAt: new Date("2026-05-05T12:00:00.000Z"),
+              checkedInAt: new Date("2026-05-05T13:00:00.000Z"),
+              bulkSkuUnit: { unitNumber: 7 },
+            },
+            {
+              checkedOutAt: new Date("2026-05-05T12:05:00.000Z"),
+              checkedInAt: null,
+              bulkSkuUnit: { unitNumber: 8 },
+            },
           ],
         },
       ],
@@ -150,6 +161,7 @@ describe("kioskCompleteCheckin counts", () => {
     expect(result.completed).toBe(false);
     expect(result.totalItems).toBe(2);
     expect(result.returnedItems).toBe(1);
+    expect(result.returnedItemNames).toEqual(["Sony Battery #7"]);
     expect(mocks.badgeOnCheckoutReturned).not.toHaveBeenCalled();
   });
 });
@@ -326,12 +338,21 @@ describe("kiosk check-in complete route", () => {
       bulkItems: [
         {
           bulkSkuId: "sku-1",
+          bulkSku: { name: "Sony Battery" },
           plannedQuantity: 2,
           checkedOutQuantity: 2,
           checkedInQuantity: 1,
           unitAllocations: [
-            { checkedOutAt: new Date("2026-05-05T12:00:00.000Z"), checkedInAt: new Date("2026-05-05T13:00:00.000Z") },
-            { checkedOutAt: new Date("2026-05-05T12:05:00.000Z"), checkedInAt: null },
+            {
+              checkedOutAt: new Date("2026-05-05T12:00:00.000Z"),
+              checkedInAt: new Date("2026-05-05T13:00:00.000Z"),
+              bulkSkuUnit: { unitNumber: 7 },
+            },
+            {
+              checkedOutAt: new Date("2026-05-05T12:05:00.000Z"),
+              checkedInAt: null,
+              bulkSkuUnit: { unitNumber: 8 },
+            },
           ],
         },
       ],
@@ -360,9 +381,11 @@ describe("kiosk check-in complete route", () => {
         refNumber: "CO-1001",
         returnedItems: 1,
         totalItems: 2,
+        itemNames: ["Sony Battery #7"],
         completed: false,
         source: "KIOSK",
         kioskDeviceId: "kiosk-1",
+        kioskName: "Video Office Kiosk",
       }),
     }));
   });

@@ -10,8 +10,9 @@ import { checkinCompleteBody } from "@/lib/schemas/kiosk";
  *
  * Delegates to `kioskCompleteCheckin` (SERIALIZABLE wrapper, bulk-aware
  * `maybeAutoComplete`, scan-session close, lost-unit handling). The route
- * keeps the kiosk audit shape (`action: "kiosk_checkin"`, `source: "KIOSK"`,
- * `kioskDeviceId`, before/after counts) unchanged for the iOS client.
+ * writes kiosk audit context (`action: "kiosk_checkin"`, `source: "KIOSK"`,
+ * `kioskDeviceId`, completion counts, and returned item names) without
+ * changing the iOS response contract.
  */
 export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => {
   const { actorId } = checkinCompleteBody.parse(await req.json());
@@ -41,9 +42,11 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
       refNumber: result.refNumber,
       returnedItems: result.returnedItems,
       totalItems: result.totalItems,
+      itemNames: result.returnedItemNames,
       completed: result.completed,
       source: "KIOSK",
       kioskDeviceId: kiosk.kioskId,
+      kioskName: kiosk.name,
     },
   });
 

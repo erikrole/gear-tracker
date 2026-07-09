@@ -578,6 +578,7 @@ export async function kioskCompleteCheckin(args: {
   refNumber: string | null;
   totalItems: number;
   returnedItems: number;
+  returnedItemNames: string[];
   completed: boolean;
 }> {
   return db.$transaction(
@@ -585,8 +586,17 @@ export async function kioskCompleteCheckin(args: {
       const booking = await tx.booking.findUnique({
         where: { id: args.bookingId },
         include: {
-          serializedItems: true,
-          bulkItems: { include: { unitAllocations: true } },
+          serializedItems: {
+            include: { asset: { select: { name: true, assetTag: true } } },
+          },
+          bulkItems: {
+            include: {
+              bulkSku: { select: { name: true } },
+              unitAllocations: {
+                include: { bulkSkuUnit: { select: { unitNumber: true } } },
+              },
+            },
+          },
         },
       });
       if (
@@ -622,6 +632,28 @@ export async function kioskCompleteCheckin(args: {
 
       const totalItems = serializedTotal + bulkTotal;
       const returnedItems = serializedReturned + bulkReturned;
+      const returnedItemNames = [
+        ...booking.serializedItems
+          .filter((item) => item.allocationStatus === "returned")
+          .map((item) => item.asset.assetTag),
+        ...booking.bulkItems.flatMap((item) => {
+          const returnedUnits = item.unitAllocations.filter(
+            (unit) => unit.checkedOutAt !== null && unit.checkedInAt !== null,
+          );
+          if (returnedUnits.length > 0) {
+            return returnedUnits.map(
+              (unit) => `${item.bulkSku.name} #${unit.bulkSkuUnit.unitNumber}`,
+            );
+          }
+          const returnedQuantity = Math.max(
+            0,
+            Math.min(item.checkedInQuantity ?? 0, item.checkedOutQuantity ?? item.plannedQuantity),
+          );
+          return returnedQuantity > 0
+            ? [`${item.bulkSku.name} ×${returnedQuantity}`]
+            : [];
+        }),
+      ];
 
       const completedAt = await maybeAutoComplete(
         tx,
@@ -637,6 +669,7 @@ export async function kioskCompleteCheckin(args: {
         refNumber: booking.refNumber,
         totalItems,
         returnedItems,
+        returnedItemNames,
         completed: completedAt !== null,
         badgeEvent: completedAt
           ? {
@@ -659,6 +692,7 @@ export async function kioskCompleteCheckin(args: {
       refNumber: result.refNumber,
       totalItems: result.totalItems,
       returnedItems: result.returnedItems,
+      returnedItemNames: result.returnedItemNames,
       completed: result.completed,
     };
   });
