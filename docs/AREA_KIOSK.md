@@ -4,7 +4,7 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped — iOS canonical (web kiosk deprecated 2026-04-24)
 - Created: 2026-04-07
-- Last Updated: 2026-07-08
+- Last Updated: 2026-07-09
 - Brief: `BRIEF_KIOSK.md`
 - Decision Refs: D-030, D-040
 
@@ -12,7 +12,7 @@
 
 Self-serve iPad kiosk for gear checkout / reservation pickup / return at the equipment counter, plus on-the-floor kiosk activation by staff carrying an iPad. Implementation lives in the dedicated native `WisconsinKiosk` target under `ios/Wisconsin/Kiosk/`. The previously-shipped web kiosk surface (`src/app/(kiosk)/kiosk/`) was deleted on 2026-04-24 to remove the dual-implementation maintenance burden. Kiosk iPads run the separate kiosk app directly; the main `Wisconsin` app no longer includes kiosk mode or kiosk source files.
 
-The dedicated `WisconsinKiosk` iOS target is iPad-only, deploys to iOS 17.0+, and includes only `ios/Wisconsin/Kiosk/`, `ios/Wisconsin/KioskOnly/`, `ios/Wisconsin/Shared/`, app assets, and resources. The full `Wisconsin` app target remains iOS 26.0 and continues to own the normal authenticated mobile app surfaces.
+The dedicated `WisconsinKiosk` iOS target is iPad-only, deploys to iOS 26.0+, and includes only `ios/Wisconsin/Kiosk/`, `ios/Wisconsin/KioskOnly/`, `ios/Wisconsin/Shared/`, app assets, and resources. The managed kiosk fleet now uses M2 iPad Air hardware on iOS 26, so kiosk code may use current SwiftUI and Liquid Glass APIs without iOS 17 availability fallbacks. It supports all iPad orientations and resized scenes: the normal mounted experience remains landscape, while compact scenes stack their operational panes. The full `Wisconsin` app target remains separate and continues to own the normal authenticated mobile app surfaces.
 
 ## Trust Model
 
@@ -30,8 +30,9 @@ If at some point the kiosk needs to operate unattended or in a less-trusted phys
 ### iOS — Canonical Surface
 Files under `ios/Wisconsin/Kiosk/`:
 
-- **`ios/project.yml` target `WisconsinKiosk`** — iPad-only native kiosk app for iOS 17.0+ hardware. It starts directly in `KioskShellView`, uses kiosk device activation instead of a user session, and intentionally excludes the full app's non-kiosk views.
+- **`ios/project.yml` target `WisconsinKiosk`** — iPad-only native kiosk app for the managed iOS 26 fleet. It starts directly in `KioskShellView`, uses kiosk device activation instead of a user session, and intentionally excludes the full app's non-kiosk views.
 - **`KioskOnly/KioskOnlyApp.swift`** — kiosk-only app entry point and minimal support shims needed by the kiosk source set when it compiles without the full app target.
+- **`KioskChrome.swift`** — shared screen scaffolding, including `KioskAdaptiveSplit`, which preserves wide scan/content rails in landscape and stacks them in portrait or narrower iPad scenes.
 
 - **`KioskStore.swift`** — `@Observable` state machine. Owns `screen` (`activation | idle | studentHub | checkout | pickup | return | success`), `info` (KioskInfo from activation), inactivity timer, heartbeat task, persisted `kiosk_info_v1` in UserDefaults.
 - **`KioskShellView.swift`** — switches between screens, applies dark color scheme, hides system overlays + status bar, and tracks activity through non-cancelling UIKit recognizers so embedded controls keep their own tap handling.
@@ -42,6 +43,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 - **`KioskPickupView.swift`** — for reservation pickup handoffs and compatibility `PENDING_PICKUP` bookings.
 - **`KioskReturnView.swift`** — return flow.
 - **`KioskSuccessView.swift`** — terminal screen with 5s auto-return to idle.
+- **`KioskDesign.swift` / `KioskComponents.swift`** — shared dark operational surface tokens and reusable controls. On iOS 26, native Liquid Glass is limited to interactive hierarchy such as header actions, completion CTAs, and active-checkout Done/Save commands; custody rows, scanner status, form fields, timing, warnings, and destructive actions remain opaque or use their native non-glass styles.
 - **`Shared/HIDScannerField.swift`** — invisible UITextField that captures HID barcode-scanner keystrokes. Shared by the dedicated kiosk target and the main app's Scanner Debugger.
 - **`KioskBarcodeCameraView.swift`** — DataScannerViewController-backed camera fallback for environments without a hand scanner.
 - **`KioskAPIClient.swift`** — typed wrapper around `/api/kiosk/*` endpoints.
@@ -110,6 +112,10 @@ Files under `ios/Wisconsin/Kiosk/`:
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-07-09 | Kiosk windowing/compiler cleanup: removed deprecated `UIRequiresFullScreen`, declared all iPad orientations, and set a 640×540 content minimum for resizable scenes. A shared adaptive split keeps checkout scanning, pickup, return, and the student hub wide in landscape while stacking their rail below the work surface in compact or portrait scenes. The HID scanner suppression default now resolves inside its main-actor method, clearing the future Swift 6 isolation warning. Kiosk simulator and generic-device builds are warning-free; managed M2 iPad Air resize/orientation confirmation remains open. |
+| 2026-07-09 | First kiosk Liquid Glass slice: shared back/camera actions and checkout/pickup/return completion CTAs now use native iOS 26 glass button styles, and the active-checkout drawer uses native glass for Done and Save. Dense custody rows, text/date inputs, scanner status, timing, warnings, and destructive removal remain opaque for fast reading. The active-checkout title field now explicitly re-arms HID capture when editing ends so the scanner does not wait through the old suppression window. Focused source contracts, iOS drift/gap audits, XcodeGen parity, and kiosk simulator/device compiles pass; managed-device visual confirmation remains open. |
+| 2026-07-09 | The managed kiosk fleet moved from the legacy 10.5-inch iPad Pro/iPadOS 17 baseline to M2 iPad Air hardware on iOS 26. `WisconsinKiosk` now targets iOS 26.0 while remaining a separate iPad-only native app. Future visual slices may use current SwiftUI and Liquid Glass APIs unconditionally, with glass reserved for interactive/floating hierarchy and dense custody content kept legible. No kiosk auth, scanner, or custody behavior changed. |
+| 2026-07-09 | Existing active checkouts are now scanner-first to edit: opening an editable checkout automatically arms the HID scanner, each completed scan adds the item without selecting a text field or tapping Add, and scanner capture pauses while the title field, a mutation, or a removal confirmation owns interaction. Equipment rows are no longer grouped for editing, so every active serialized asset and numbered battery unit has an exact touch Remove action with native destructive confirmation; returned and quantity-only fallback rows remain protected. |
 | 2026-07-08 | Kiosk idle all-day event day buckets fixed. The Today/Tomorrow event sections and event detail header now use shared kiosk display-day math: true all-day event timestamps are treated as encoded calendar dates, not local clock instants, so a July 9 all-day event no longer falls into the July 8 "Today" bucket on Central-time iPads. Multi-day all-day rows still appear across each covered display day, and timed events keep normal local-time bucketing. |
 | 2026-07-06 | Keyboard-suppression tip + focus-bridge hardening (follow-up after the @FocusState fix was confirmed working on hardware). New shared `KioskKeyboardHint` (KioskComponents.swift): while a UIKit-backed kiosk text field is focused, it watches keyboard frame notifications and, if no real software keyboard lands within 750ms (frame height > 120 filters the hardware-keyboard assistant strip), shows "Keyboard not showing? Double-press the scanner button to bring it up." with a VoiceOver announcement. It disappears the moment a keyboard shows or focus ends, so scanner-off flows never see it. Mounted under the checkout booking-name field and once for the detail-drawer title/scan fields. Hardening: `ios-kiosk-scanner-focus` now scans every kiosk Swift file and fails if any file that mounts `KioskNativeTextField` declares `@FocusState` or types a prop as `FocusState<...>`, banning the keyboard-death bridge class-wide. |
 | 2026-07-06 | Kiosk checkout typing fixed at the actual root (follow-up to the same-day scanner focus-gate work; typing was still dead with the scanner on OR off). `focusedCheckoutField` was a `@FocusState`, but the booking-name field is a UIKit-backed `KioskNativeTextField` that SwiftUI's focus system cannot see — no view ever claims the value via `.focused(...)`, so SwiftUI reset it to `nil` on its next focus pass. The stale binding then drove `KioskNativeTextField.updateUIView` into `forceResignFirstResponder()` (which intentionally bypasses the 1.2s `protectKeyboard()` window), killing the keyboard the instant the field was tapped. It also re-enabled the HID sink mid-typing (`shouldListenForHIDScans` checks `focusedCheckoutField == nil`), which is why the symptom looked like scanner theft. Converted to plain `@State` — the same pattern the checkout detail drawer already uses (`titleFocused`/`scanFocused`), which is why typing there worked. Both schemes build; `ios-kiosk-scanner-focus` now pins @State and bans the @FocusState bridge. Needs iPad hardware confirm: tap booking name with scanner connected and disconnected; keyboard should appear (double-press scanner to summon it while connected, per iPadOS hardware-keyboard suppression) and survive typing pauses. |

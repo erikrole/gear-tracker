@@ -456,8 +456,8 @@ Quick spot-checks of the highest-risk fixes from today's audit sprint:
 
 - Performance under load (large rosters, large item catalogs). Use the dashboard data fixtures in `prisma/seed.mjs` if you need to populate.
 - Long-running background fetches.
-- Specific iOS version compatibility below each app target's deployment target. The full `Wisconsin` app target is iOS 26.0; the dedicated kiosk-only `WisconsinKiosk` iPad target is iOS 17.0+.
-- iPad split-screen / Stage Manager (kiosk runs full-screen by design).
+- Specific iOS version compatibility below each app target's deployment target. Both the full `Wisconsin` app and the dedicated kiosk-only `WisconsinKiosk` iPad target are iOS 26.0+.
+- iPad split-screen / Stage Manager and portrait rotation for the kiosk: wide scenes should keep scan/content rails; compact scenes should stack the rail beneath the primary workflow.
 - App Store metadata / TestFlight invitation flow.
 
 When any of these matter, layer in additional surface-specific testing.

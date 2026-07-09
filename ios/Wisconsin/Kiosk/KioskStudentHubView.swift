@@ -28,14 +28,10 @@ struct KioskStudentHubView: View {
                 errorState(message: error)
                 Spacer()
             } else {
-                HStack(alignment: .top, spacing: KioskSpacing.lg) {
+                KioskAdaptiveSplit(compactSecondaryFraction: 0.40) { _ in
                     actionPanel
-                        .frame(maxWidth: .infinity)
-
-                    Divider().background(KioskStroke.divider)
-
+                } secondary: { _ in
                     statusPanel
-                        .frame(maxWidth: .infinity)
                 }
                 .padding(.top, KioskSpacing.lg)
             }
@@ -145,7 +141,7 @@ struct KioskStudentHubView: View {
     }
 
     private var loadingSkeleton: some View {
-        HStack(alignment: .top, spacing: KioskSpacing.lg) {
+        KioskAdaptiveSplit(compactSecondaryFraction: 0.34) { _ in
             VStack(alignment: .leading, spacing: 18) {
                 HStack(spacing: 16) {
                     KioskSkeletonBox(cornerRadius: 36).frame(width: 72, height: 72)
@@ -157,9 +153,7 @@ struct KioskStudentHubView: View {
                 Spacer()
             }
             .frame(maxWidth: .infinity)
-
-            Divider().background(KioskStroke.divider)
-
+        } secondary: { _ in
             VStack(alignment: .leading, spacing: 14) {
                 KioskSkeletonBox(cornerRadius: 8).frame(width: 140, height: 22)
                 ForEach(0..<2, id: \.self) { _ in

@@ -97,12 +97,13 @@ private struct KioskHeaderButton: View {
         Button(action: action) {
             Label(label, systemImage: systemImage)
                 .font(.subheadline.weight(.medium))
-                .foregroundStyle(KioskText.secondary)
+                .foregroundStyle(KioskText.primary)
                 .padding(.horizontal, 6)
                 .frame(minHeight: 44)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.glass)
+        .controlSize(.regular)
         .accessibilityLabel(accessibilityLabel)
     }
 }
@@ -287,8 +288,8 @@ struct KioskProgressRing: View {
 // MARK: Completion CTA
 
 /// Primary bottom action for the scan flows (Complete Checkout / Confirm
-/// Pickup / Complete Return). Brand red when ready, muted when disabled or
-/// busy -- one CTA treatment for all three flows.
+/// Pickup / Complete Return). Native prominent glass carries the shared
+/// interactive hierarchy while disabled and busy states stay system-driven.
 struct KioskCompletionButton: View {
     let title: String
     var icon: String?
@@ -314,19 +315,13 @@ struct KioskCompletionButton: View {
                     ProgressView().tint(.white).scaleEffect(0.8)
                 }
             }
-            .foregroundStyle(isActive ? KioskText.primary : KioskText.tertiary)
+            .foregroundStyle(KioskText.primary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
-            .background(
-                isActive ? Color.kioskRed : KioskSurface.cardRaised,
-                in: RoundedRectangle(cornerRadius: KioskRadius.lg)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: KioskRadius.lg)
-                    .stroke(isActive ? Color.clear : KioskStroke.divider, lineWidth: 1)
-            )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.glassProminent)
+        .tint(Color.kioskRed)
+        .controlSize(.large)
         .disabled(!isActive)
         .accessibilityLabel(accessibilityLabel)
     }

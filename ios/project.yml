@@ -75,7 +75,7 @@ targets:
   WisconsinKiosk:
     type: application
     platform: iOS
-    deploymentTarget: "17.0"
+    deploymentTarget: "26.0"
     bundleId: com.erikrole.WisconsinKiosk
     sources:
       - path: Wisconsin/KioskOnly
@@ -88,13 +88,16 @@ targets:
       properties:
         UILaunchScreen:
           UIColorName: ""
-        UIRequiresFullScreen: true
         UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+          - UIInterfaceOrientationPortraitUpsideDown
         UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+          - UIInterfaceOrientationPortraitUpsideDown
         NSCameraUsageDescription: "Scan gear barcodes and QR codes"
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: false

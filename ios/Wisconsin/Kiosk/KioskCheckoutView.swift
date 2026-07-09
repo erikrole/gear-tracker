@@ -16,8 +16,8 @@ private enum KioskCheckoutDefaults {
 }
 
 private enum KioskCheckoutSetupLayout {
-    /// iPad Pro 10.5 landscape is 1112pt wide; after kiosk screen margins the
-    /// setup form has about 1048pt to work with.
+    /// Keep the setup bounded on the managed M2 iPad Air fleet so Context and
+    /// Return remain a stable two-column task instead of sprawling edge to edge.
     static let maxWidth: CGFloat = 1048
     static let contextColumnWidth: CGFloat = 376
     static let returnColumnWidth: CGFloat = 648
@@ -188,10 +188,10 @@ struct KioskCheckoutView: View {
     private var checkoutLayout: some View {
         Group {
             if checkoutContextReady {
-                HStack(spacing: 0) {
+                KioskAdaptiveSplit { _ in
                     activeScanZone
-                    Divider().background(KioskStroke.divider)
-                    itemsList
+                } secondary: { isCompact in
+                    itemsList(isCompact: isCompact)
                 }
             } else {
                 checkoutContextSetupZone
@@ -360,8 +360,8 @@ struct KioskCheckoutView: View {
 
     // MARK: - Items List
 
-    private var itemsList: some View {
-        KioskSideRail {
+    private func itemsList(isCompact: Bool) -> some View {
+        KioskSideRail(isCompact: isCompact) {
             KioskCheckoutSideSummary(
                 user: user,
                 locationName: store.info?.locationName,
@@ -810,11 +810,18 @@ private struct KioskCheckoutSetupPanel: View {
         VStack(alignment: .leading, spacing: KioskSpacing.lg) {
             KioskCheckoutSetupHero(user: user, locationName: locationName)
 
-            HStack(alignment: .top, spacing: KioskSpacing.lg) {
-                contextWindow
-                    .frame(width: KioskCheckoutSetupLayout.contextColumnWidth, alignment: .top)
-                returnWindow
-                    .frame(width: KioskCheckoutSetupLayout.returnColumnWidth, alignment: .top)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: KioskSpacing.lg) {
+                    contextWindow
+                        .frame(width: KioskCheckoutSetupLayout.contextColumnWidth, alignment: .top)
+                    returnWindow
+                        .frame(width: KioskCheckoutSetupLayout.returnColumnWidth, alignment: .top)
+                }
+
+                VStack(alignment: .leading, spacing: KioskSpacing.lg) {
+                    contextWindow
+                    returnWindow
+                }
             }
         }
         .accessibilityElement(children: .contain)

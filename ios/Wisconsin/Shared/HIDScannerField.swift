@@ -21,7 +21,8 @@ enum HIDScannerFocusGate {
         activeVisibleEditors.isEmpty && Date() >= suppressedUntil
     }
 
-    static func suppressScannerFocus(for duration: TimeInterval = defaultSuppressionDuration) {
+    static func suppressScannerFocus(for duration: TimeInterval? = nil) {
+        let duration = duration ?? defaultSuppressionDuration
         let nextSuppression = Date().addingTimeInterval(duration)
         if nextSuppression > suppressedUntil {
             suppressedUntil = nextSuppression

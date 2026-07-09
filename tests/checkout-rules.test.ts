@@ -81,11 +81,13 @@ describe("canPerformBookingAction", () => {
   describe("PENDING_PICKUP state", () => {
     const booking = makeCheckout("PENDING_PICKUP");
 
-    it("allows staff or owner to edit and cancel before kiosk pickup", () => {
+    it("allows staff or owner to edit, cancel, and transfer before kiosk pickup", () => {
       expect(canPerformBookingAction(staff, booking, "edit").allowed).toBe(true);
       expect(canPerformBookingAction(staff, booking, "cancel").allowed).toBe(true);
+      expect(canPerformBookingAction(staff, booking, "transfer-owner").allowed).toBe(true);
       expect(canPerformBookingAction(owner, booking, "edit").allowed).toBe(true);
       expect(canPerformBookingAction(owner, booking, "cancel").allowed).toBe(true);
+      expect(canPerformBookingAction(owner, booking, "transfer-owner").allowed).toBe(true);
     });
 
     it("does not expose checkout execution actions before kiosk pickup", () => {
@@ -172,9 +174,9 @@ describe("getAllowedActions", () => {
     expect(actions).not.toContain("checkin");
   });
 
-  it("returns only edit and cancel for pending-pickup checkout as owner", () => {
+  it("returns edit, cancel, and transfer for pending-pickup checkout as owner", () => {
     const booking = makeCheckout("PENDING_PICKUP");
-    expect(getAllowedBookingActions(owner, booking)).toEqual(["edit", "cancel"]);
+    expect(getAllowedBookingActions(owner, booking)).toEqual(["edit", "cancel", "transfer-owner"]);
   });
 
   it("returns empty array for COMPLETED checkout", () => {

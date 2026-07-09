@@ -4,6 +4,50 @@ Last updated: 2026-07-09
 
 ---
 
+## Completed: Kiosk iOS 26 platform baseline (2026-07-09)
+
+Plan: `tasks/archive/completed-2026-06/kiosk-ios26-platform-baseline-plan.md`
+
+- [x] Retire the kiosk target's iOS 17 deployment floor.
+- [x] Preserve the dedicated target while allowing iOS 26 and Liquid Glass APIs.
+- [x] Update contracts/docs and run kiosk verification.
+
+### Review
+
+- 2026-07-09: `WisconsinKiosk` now targets iOS 26.0 in XcodeGen and the generated project while remaining a separate iPad-only native target. Current Kiosk/Mobile docs identify the managed M2 iPad Air fleet, the target-split contract pins both apps to iOS 26, and legacy fixed-device comments no longer describe the retired 10.5-inch/iPadOS 17 baseline. Verification passed: focused Vitest (3 files, 8 tests), TypeScript, XcodeGen project check, iOS drift/gap audit, docs/codemaps, whitespace, and escalated `npm run ios:xcode:verify:kiosk` simulator plus generic-device builds. Liquid Glass is now available unconditionally for future kiosk visual slices. `UIRequiresFullScreen` deprecation and the HID scanner Swift 6 warning remain documented follow-ups.
+
+---
+
+## Active: Kiosk windowing and compiler cleanup (2026-07-09)
+
+Plan: `tasks/kiosk-windowing-cleanup-plan.md`
+
+- [x] Replace the deprecated full-screen compatibility mode with adaptive kiosk scenes.
+- [x] Remove the scanner Swift 6 default-argument warning.
+- [x] Add contracts, documentation, and complete target verification.
+- [ ] Confirm compact-scene resizing and orientation on the managed M2 iPad Air.
+
+### Review
+
+- 2026-07-09: Removed the deprecated full-screen compatibility mode, added all iPad orientations and a 640×540 scene minimum, and made the remaining fixed kiosk splits responsive. Both `WisconsinKiosk` and `Wisconsin` compile warning-free; full Vitest, docs/codemaps, and production app builds pass. Hardware resize/orientation confirmation remains open.
+
+---
+
+## Active: Kiosk active-checkout item editing (2026-07-09)
+
+Plan: `tasks/kiosk-active-checkout-item-editing-plan.md`
+
+- [x] Replace text-field-plus-Add equipment entry with direct HID scan submission.
+- [x] Make each active serialized asset and numbered bulk unit removable by touch.
+- [x] Add focused contracts, sync docs, and run kiosk verification.
+- [ ] Confirm the workflow on the managed M2 iPad Air kiosk with its paired scanner.
+
+### Review
+
+- 2026-07-09: Existing-checkout equipment editing is now scanner-first. The detail sheet automatically owns HID capture, submits each completed scan directly, pauses capture for title editing/mutations/removal confirmation, and renders exact active serialized assets and numbered units with native destructive Remove actions. Verification passed: focused Vitest (3 files, 21 tests), full Vitest (308 files, 1,866 tests), TypeScript, iOS drift/gap audits, docs/codemaps, whitespace, `npm run build:app`, and escalated `npm run ios:xcode:verify:kiosk` simulator plus generic iOS builds. The full suite also exposed and corrected three stale pending-pickup owner-transfer expectations without changing product behavior. Managed M2 iPad Air hardware confirmation remains open.
+
+---
+
 ## Active: Booking owner transfer (2026-07-09)
 
 Plan: `tasks/booking-owner-transfer-plan.md`
@@ -1408,7 +1452,7 @@ Plan: future slice should preserve the current `WisconsinKiosk` target split whi
 - [ ] Extract `KioskCheckoutDetailSheet` and its edit/item-row subviews out of `KioskIdleView.swift`.
 - [ ] Move active checkout mutation logic from `/api/kiosk/checkout/[id]` into a focused kiosk checkout service.
 - [ ] Add service-level tests for update details, scan-add serialized item, scan-add numbered bulk unit, remove serialized item, and remove numbered bulk unit.
-- [ ] Keep `WisconsinKiosk` as a separate iOS 17 target, not a separate repo or product fork.
+- [ ] Keep `WisconsinKiosk` as a separate iOS 26 target, not a separate repo or product fork.
 - [ ] Continue requiring both `WisconsinKiosk` and full `Wisconsin` builds before shipping kiosk changes.
 
 ### Rationale
@@ -1444,6 +1488,21 @@ Plan: `tasks/archive/kiosk-active-checkout-edit-plan.md`
 
 ---
 
+## Active: Kiosk Liquid Glass controls (2026-07-09)
+
+Plan: `tasks/kiosk-liquid-glass-controls-plan.md`
+
+- [x] Modernize shared kiosk header and completion controls with native iOS 26 glass styles.
+- [x] Modernize active-checkout Done and Save hierarchy without glassing dense rows, scanner status, or inputs.
+- [x] Preserve native accessibility behavior and explicitly re-arm scanner focus after title editing.
+- [x] Add focused source contracts and sync docs.
+- [x] Run final kiosk and main-app verification.
+
+### Review
+- 2026-07-09: Native iOS 26 glass now marks shared kiosk header/completion actions and active-checkout Done/Save while operational content remains opaque. Releasing the title field immediately re-arms HID capture. Full Vitest, docs/codemaps, production app build, iOS audits, and both kiosk/main Xcode schemes pass; managed M2 iPad Air visual/scanner confirmation remains open.
+
+---
+
 ## Active: iOS kiosk counter/list skew hotfix (2026-06-22)
 
 Plan: hotfix from live iPad testing on iPadOS 17.7.11.
@@ -1458,7 +1517,7 @@ Plan: hotfix from live iPad testing on iPadOS 17.7.11.
 
 ---
 
-## Active: iOS 17 kiosk compatibility (2026-06-22)
+## Superseded: iOS 17 kiosk compatibility (2026-06-22)
 
 Plan: `tasks/ios17-kiosk-compat-plan.md`
 
@@ -1469,6 +1528,7 @@ Plan: `tasks/ios17-kiosk-compat-plan.md`
 
 ### Review
 - 2026-06-22: Native iOS 17 kiosk-only target shipped locally. `WisconsinKiosk` is an iPad-only app target that starts directly in kiosk mode, includes only kiosk source/resources, and builds for iOS 17.0. The full `Wisconsin` app and tests remain on iOS 26.0, with non-kiosk SwiftUI views untouched. Verification passed with XcodeGen project check, focused iOS source-contract Vitest, iOS drift, iOS audit gaps, docs codemap check, diff whitespace, kiosk simulator build, and full app simulator build.
+- 2026-07-09: Superseded by the managed M2 iPad Air fleet upgrade to iOS 26. The separate `WisconsinKiosk` target remains, but its iOS 17 compatibility floor is intentionally retired.
 
 ---
 

@@ -133,7 +133,7 @@
 | `src/lib/schedule-template-review-types.ts` | 105 |
 | `src/lib/search-pages.ts` | 72 |
 | `src/lib/search-result-title.ts` | 13 |
-| `src/lib/shift-call-windows.ts` | 176 |
+| `src/lib/shift-call-windows.ts` | 182 |
 | `src/lib/shift-constants.ts` | 8 |
 | `src/lib/shift-display.ts` | 70 |
 | `src/lib/sports.ts` | 78 |

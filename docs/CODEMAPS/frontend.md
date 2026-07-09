@@ -95,9 +95,9 @@
 
 | File | Lines |
 |---|---:|
+| `src/components/ActivityTimeline.tsx` | 1287 |
 | `src/components/TradeBoard.tsx` | 1192 |
 | `src/components/EquipmentPicker.tsx` | 1001 |
-| `src/components/ActivityTimeline.tsx` | 917 |
 | `src/components/ShiftDetailPanel.tsx` | 813 |
 | `src/components/onboarding/OnboardingDialog.tsx` | 768 |
 | `src/components/ui/sidebar.tsx` | 727 |

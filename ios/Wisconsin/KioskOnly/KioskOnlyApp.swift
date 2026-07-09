@@ -11,11 +11,13 @@ struct WisconsinKioskApp: App {
             KioskShellView()
                 .environment(kioskStore)
                 .preferredColorScheme(.dark)
+                .frame(minWidth: 640, minHeight: 540)
                 .onAppear {
                     sharedKioskStore = kioskStore
                     kioskStore.enterKiosk()
                 }
         }
+        .windowResizability(.contentMinSize)
     }
 }
 

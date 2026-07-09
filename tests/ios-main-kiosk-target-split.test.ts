@@ -7,7 +7,7 @@ function source(relativeFile: string) {
 }
 
 describe("iOS main app and kiosk target split", () => {
-  it("keeps kiosk sources out of the main Wisconsin target", () => {
+  it("keeps kiosk sources split while both apps use the iOS 26 baseline", () => {
     const project = source("ios/project.yml");
     const mainTarget = project.slice(
       project.indexOf("  Wisconsin:"),
@@ -19,6 +19,9 @@ describe("iOS main app and kiosk target split", () => {
     expect(mainTarget).toContain("- KioskOnly/**");
     expect(kioskTarget).toContain("- path: Wisconsin/KioskOnly");
     expect(kioskTarget).toContain("- path: Wisconsin/Kiosk");
+    expect(mainTarget).toContain('deploymentTarget: "26.0"');
+    expect(kioskTarget).toContain('deploymentTarget: "26.0"');
+    expect(kioskTarget).not.toContain('deploymentTarget: "17.0"');
   });
 
   it("does not expose kiosk launch routes from the main app shell or Settings", () => {

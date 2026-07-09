@@ -62,14 +62,14 @@ describe("getAllowedActionsClient", () => {
   describe("PENDING_PICKUP state", () => {
     const ctx = booking("PENDING_PICKUP");
 
-    it("staff can edit and cancel awaiting pickup checkouts", () => {
+    it("staff can edit, cancel, and transfer awaiting pickup checkouts", () => {
       const actions = getActions(staff, ctx);
-      expect(actions).toEqual(["edit", "cancel"]);
+      expect(actions).toEqual(["edit", "cancel", "transfer-owner"]);
     });
 
-    it("owner can edit and cancel awaiting pickup checkouts", () => {
+    it("owner can edit, cancel, and transfer awaiting pickup checkouts", () => {
       const actions = getActions(owner, ctx);
-      expect(actions).toEqual(["edit", "cancel"]);
+      expect(actions).toEqual(["edit", "cancel", "transfer-owner"]);
     });
 
     it("non-owner student gets no actions", () => {

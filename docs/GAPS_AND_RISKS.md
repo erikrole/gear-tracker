@@ -110,6 +110,14 @@ _2026-06-22 update: iOS kiosk fractional-date decoding shipped without opening a
 
 _2026-06-22 update: Kiosk active checkout edits shipped without opening a new gap. Existing kiosk device auth, Booking, AssetAllocation, numbered bulk unit, stock movement, availability, and audit contracts support the active checkout edit path._
 
+_2026-07-09 update: Kiosk active-checkout item editing polish shipped without opening a new gap. Direct scan-to-add and exact touch removal reuse the existing kiosk-authenticated, location-scoped, availability-checked, serializable, and audited custody mutation contract._
+
+_2026-07-09 update: The managed kiosk fleet moved to M2 iPad Air hardware on iOS 26, so the dedicated `WisconsinKiosk` target now shares the iOS 26 deployment floor with the main app. This retires the compatibility constraint without changing the target split, kiosk authentication, or custody model. Xcode now surfaces the expected `UIRequiresFullScreen` deprecation; the future kiosk visual/layout pass must resolve the landscape-only orientation policy before Apple ignores that key._
+
+_2026-07-09 update: The first kiosk Liquid Glass control slice shipped without opening a new gap. It uses native iOS 26 button styles only for interactive hierarchy, keeps custody/form/scanner content opaque, and re-arms HID capture after active-checkout title editing. The existing `UIRequiresFullScreen` orientation follow-up remains the only platform-policy gap from the iOS 26 baseline change._
+
+_2026-07-09 update: Kiosk windowing cleanup closed the `UIRequiresFullScreen` and scanner default-argument warning follow-ups without opening a new gap. The dedicated iOS 26 kiosk target now declares all orientations, keeps a practical resizable-scene minimum, and stacks previously fixed operational panes in compact scenes. Hardware resize/orientation confirmation remains a release check, not a contract or architecture gap._
+
 _2026-06-19 update: Schedule data-quality queue shipped without opening a new gap. The queue is read-only, uses existing CalendarEvent, ShiftGroup, Location, and archive fields, and routes cleanup through current Event detail and Settings ownership surfaces._
 
 _2026-06-19 update: Schedule event identity normalization shipped without opening a new gap. Shared helper code now normalizes opponent and venue strings at ingest/edit/display boundaries, preserving raw calendar venue evidence and the existing pickup-location separation._

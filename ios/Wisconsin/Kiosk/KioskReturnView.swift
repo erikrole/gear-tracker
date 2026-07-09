@@ -50,10 +50,10 @@ struct KioskReturnView: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
+        KioskAdaptiveSplit { _ in
             scanZone
-            Divider().background(KioskStroke.divider)
-            checklistPanel
+        } secondary: { isCompact in
+            checklistPanel(isCompact: isCompact)
         }
         .overlay(alignment: .bottom) {
             HIDScannerField { value in handleScan(value) }
@@ -169,8 +169,8 @@ struct KioskReturnView: View {
 
     // MARK: - Checklist Panel
 
-    private var checklistPanel: some View {
-        KioskSideRail {
+    private func checklistPanel(isCompact: Bool) -> some View {
+        KioskSideRail(isCompact: isCompact) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(detail?.title ?? "Return")
                     .font(.headline)

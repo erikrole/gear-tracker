@@ -25,7 +25,8 @@ describe("iOS kiosk checkout details polish", () => {
 
     expect(checkout).toContain("private var checkoutLayout: some View");
     expect(checkout).toContain("if checkoutContextReady {");
-    expect(checkout).toContain("KioskSideRail {");
+    expect(checkout).toContain("KioskAdaptiveSplit { _ in");
+    expect(checkout).toContain("KioskSideRail(isCompact: isCompact)");
     expect(checkout).toContain("checkoutContextSetupZone");
     expect(checkout).toContain("KioskCheckoutSetupPanel(");
     expect(checkout).toContain("private struct KioskCheckoutSetupPanel");
@@ -36,6 +37,7 @@ describe("iOS kiosk checkout details polish", () => {
     expect(checkout).toContain("static let returnColumnWidth: CGFloat = 648");
     expect(checkout).toContain("static let returnDateWidth: CGFloat = 390");
     expect(checkout).toContain("ViewThatFits(in: .vertical)");
+    expect(checkout).toContain("ViewThatFits(in: .horizontal)");
     expect(checkout).toContain("HStack(alignment: .top, spacing: KioskSpacing.lg) {");
     expect(checkout).toContain(".frame(width: KioskCheckoutSetupLayout.contextColumnWidth");
     expect(checkout).toContain(".frame(width: KioskCheckoutSetupLayout.returnColumnWidth");
@@ -58,7 +60,7 @@ describe("iOS kiosk checkout details polish", () => {
     expect(checkout).not.toContain('"No event linked"');
     expect(checkout).not.toContain("setupStep(");
     expect(checkout).not.toContain("returnColumnMinWidth");
-    expect(checkout).not.toContain("VStack(alignment: .leading, spacing: KioskSpacing.lg) {\n                    contextWindow\n                    returnWindow");
+    expect(checkout).toContain("VStack(alignment: .leading, spacing: KioskSpacing.lg) {");
     expect(checkout).not.toContain("KioskCheckoutPurposeSection");
     expect(checkout).not.toContain("KioskCheckoutEventChoiceButton(");
     expect(checkout).not.toContain(".buttonStyle(KioskPressStyle())");

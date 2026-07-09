@@ -18,6 +18,8 @@ describe("iOS kiosk scanner focus", () => {
     expect(scanner).toContain("coordinator.setEnabled(false)");
     expect(scanner).toContain("enum HIDScannerFocusGate");
     expect(scanner).toContain("static func suppressScannerFocus");
+    expect(scanner).toContain("TimeInterval? = nil");
+    expect(scanner).toContain("duration ?? defaultSuppressionDuration");
     expect(scanner).toContain("static func allowScannerFocusNow()");
     expect(scanner).toContain("HIDScannerFocusGate.canAcquireScannerFocus");
 
@@ -57,6 +59,22 @@ describe("iOS kiosk scanner focus", () => {
     expect(checkout).toContain("scannerCaptureEnabled = true");
     expect(checkout).toContain("scannerCaptureEnabled = false");
     expect(checkout).not.toContain("private struct KioskPurposeKeyboard: View");
+
+    // Existing-checkout equipment editing owns a separate scanner phase. It
+    // submits HID scans directly and yields whenever the visible title field,
+    // a custody mutation, or a removal confirmation owns interaction.
+    const detailSheet = source("ios/Wisconsin/Kiosk/KioskCheckoutDetailSheet.swift");
+    expect(detailSheet).toContain("HIDScannerField(isEnabled: shouldListenForItemScans)");
+    expect(detailSheet).toContain("scannerCaptureEnabled");
+    expect(detailSheet).toContain("!titleFocused");
+    expect(detailSheet).toContain("!isMutating");
+    expect(detailSheet).toContain("pendingRemoval == nil");
+    expect(detailSheet).toContain("HIDScannerFocusGate.allowScannerFocusNow()");
+    expect(detailSheet).toContain(".onChange(of: titleFocused)");
+    expect(detailSheet).toContain("if !isFocused {");
+    expect(detailSheet).toContain("armScannerCapture()");
+    expect(detailSheet).toContain("Task { await addItem(scanValue: value) }");
+    expect(detailSheet).not.toContain('placeholder: "Scan or type item"');
 
     expect(shell).toContain("KioskActivityMonitor { store.resetInactivity() }");
     expect(shell).toContain("private struct KioskActivityMonitor: UIViewRepresentable");
@@ -99,7 +117,7 @@ describe("iOS kiosk scanner focus", () => {
     expect(components).toContain("try? await Task.sleep(nanoseconds: 750_000_000)");
 
     expect(checkout).toContain("KioskKeyboardHint(isFieldFocused: focusedField.wrappedValue == .customPurpose)");
-    expect(sheet).toContain("KioskKeyboardHint(isFieldFocused: titleFocused || scanFocused)");
+    expect(sheet).toContain("KioskKeyboardHint(isFieldFocused: titleFocused)");
   });
 
   it("keeps kiosk native text input on the system keyboard without the assistant bar", () => {

@@ -2,7 +2,7 @@
 
 **Status:** Partially superseded 2026-07-08 — see below. This doc is stale (it predates the iOS 26 deployment target bump and several file renames/refactors); treat the slices below as historical context, not an executable plan.
 **Project:** ios/Wisconsin
-**Current state (2026-07-08):** Deployment target is iOS 26 (Slice 1 done, long ago). `SWIFT_STRICT_CONCURRENCY: complete` is enabled on `Wisconsin`/`WisconsinLiveActivities` in Swift 5 mode, warnings fixed to zero (see `docs/AREA_MOBILE.md` 2026-07-08 changelog and `tasks/lessons.md` for what shipped and why). `SWIFT_VERSION` is still `5.10` — the actual language-mode flip to 6 was deliberately deferred as its own future session with a dedicated device-test pass, not bundled into the warnings cleanup. Liquid Glass adoption (Slices 3-4 below) remains untouched; per `tasks/hig-audit-ios.md`, Liquid Glass work should fold into that audit's CC-3 finding instead of this file.
+**Current state (2026-07-09):** The main app and dedicated kiosk target now both deploy to iOS 26. `SWIFT_STRICT_CONCURRENCY: complete` is enabled on `Wisconsin`/`WisconsinLiveActivities` in Swift 5 mode (see `docs/AREA_MOBILE.md` and `tasks/lessons.md`). `SWIFT_VERSION` is still `5.10`; the language-mode flip remains a separate future session with a dedicated device-test pass. Liquid Glass adoption remains a separate visual slice and should fold into `tasks/hig-audit-ios.md` CC-3 rather than being applied indiscriminately.
 
 ## Why this is one bundle
 
@@ -57,7 +57,8 @@ Swift 6.2 introduces single-threaded by default with explicit `@concurrent` for 
 
 ## Risks
 
-- iOS 26 minimum cuts off any users still on iOS 17/18. Per memory the user base is small (UW Athletics staff with managed devices); confirm with the team before shipping.
+- iOS 26 is now the confirmed managed-device baseline for both app targets; the former iOS 17 kiosk compatibility risk is retired.
+- Resolved 2026-07-09: `WisconsinKiosk` no longer uses `UIRequiresFullScreen`; it supports all iPad orientations, constrains resizable scenes to a practical content minimum, and stacks operational rails in compact layouts. Managed-device resize/orientation confirmation remains open.
 - Swift 6.2 strict concurrency can surface latent data races that "happened to work" in Swift 5. These are real bugs, not migration noise — treat them as such.
 - Liquid Glass over dynamic content (constantly-updating scan results) can feel busy. Be willing to roll back specific surfaces if the polish doesn't land.
 
@@ -70,5 +71,5 @@ Swift 6.2 introduces single-threaded by default with explicit `@concurrent` for 
 
 ## Open questions
 
-1. Is the Wisconsin Athletics device fleet on iOS 26 yet? If not, slip Slice 1 until they are.
+1. Resolved 2026-07-09: the managed kiosk fleet is on M2 iPad Air hardware running iOS 26.
 2. Does the team want to wait for Swift 6.2 final release vs. adopting an earlier 6.x toolchain?

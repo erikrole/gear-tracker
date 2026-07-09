@@ -38,50 +38,28 @@ struct KioskCheckoutDetailSheet: View {
     @State private var loadError: String?
     @State private var editTitle = ""
     @State private var editEndsAt = Date().addingTimeInterval(24 * 60 * 60)
-    @State private var addScanValue = ""
     @State private var titleFocused = false
-    @State private var scanFocused = false
-    @State private var isMutating = false
+    @State private var scannerCaptureEnabled = false
+    @State private var activeMutation: ActiveMutation?
+    @State private var pendingRemoval: KioskCheckoutDetail.ReturnItem?
     @State private var mutationMessage: KioskMutationMessage?
 
-    private struct ItemGroup: Identifiable {
-        let id: String
-        var items: [KioskCheckoutDetail.ReturnItem]
-        var first: KioskCheckoutDetail.ReturnItem { items[0] }
-        var isBulkGroup: Bool { first.isBulkDisplay }
-        var count: Int { items.count }
-        var primaryTitle: String {
-            guard isBulkGroup else { return first.itemListPrimaryTitle }
-            let tags = unitNumbers.map { "#\($0)" }.joined(separator: " ")
-            return tags.nonBlankText ?? first.itemListPrimaryTitle
-        }
-        var subtitle: String {
-            guard isBulkGroup else { return first.itemListSecondaryTitle ?? first.tagName }
-            return (first.bulkSkuName ?? first.name)
-                .replacingOccurrences(of: #" #\d+$"#, with: "", options: .regularExpression)
-                + " · \(count) unit\(count == 1 ? "" : "s")"
-        }
-        var unitNumbers: [Int] { items.compactMap(\.unitNumber).sorted() }
-        var returnedCount: Int { items.filter(\.returned).count }
+    private enum ActiveMutation: Equatable {
+        case savingDetails
+        case addingItem
+        case removingItem
     }
 
-    private var groups: [ItemGroup] {
-        guard let items = detail?.items else { return [] }
-        var groups: [ItemGroup] = []
-        var bulkIndex: [String: Int] = [:]
-        for item in items {
-            if item.isNumberedBulk, let bulkSkuId = item.bulkSkuId {
-                if let index = bulkIndex[bulkSkuId] {
-                    groups[index].items.append(item)
-                } else {
-                    bulkIndex[bulkSkuId] = groups.count
-                    groups.append(ItemGroup(id: "bulk-\(bulkSkuId)", items: [item]))
-                }
-            } else {
-                groups.append(ItemGroup(id: item.id, items: [item]))
-            }
-        }
-        return groups
+    private var isMutating: Bool {
+        activeMutation != nil
+    }
+
+    private var shouldListenForItemScans: Bool {
+        canEditActiveCheckout
+            && scannerCaptureEnabled
+            && !titleFocused
+            && !isMutating
+            && pendingRemoval == nil
     }
 
     private var actorId: String? {
@@ -114,23 +92,44 @@ struct KioskCheckoutDetailSheet: View {
 
                 if canEditActiveCheckout {
                     editPanel
+                    scanToAddPanel
+                }
+
+                if let mutationMessage {
+                    KioskFeedbackBanner(tone: mutationMessage.tone, message: mutationMessage.text)
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Items")
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(KioskText.primary)
+                    HStack {
+                        Text("Items")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(KioskText.primary)
+                        Spacer()
+                        if let items = detail?.items, !items.isEmpty {
+                            Text("\(items.count)")
+                                .font(.caption.weight(.bold).monospacedDigit())
+                                .foregroundStyle(KioskText.secondary)
+                        }
+                    }
 
                     if isLoading {
                         ProgressView().tint(KioskText.primary)
                             .frame(maxWidth: .infinity, minHeight: 80)
                     } else if let loadError {
                         KioskErrorState(title: loadError) { Task { await load() } }
+                    } else if detail?.items.isEmpty != false {
+                        ContentUnavailableView(
+                            "No Items",
+                            systemImage: "shippingbox",
+                            description: Text("This checkout has no equipment.")
+                        )
+                        .foregroundStyle(KioskText.secondary)
+                        .frame(maxWidth: .infinity, minHeight: 100)
                     } else {
                         ScrollView {
                             LazyVStack(spacing: 8) {
-                                ForEach(groups) { group in
-                                    itemRow(group)
+                                ForEach(detail?.items ?? []) { item in
+                                    itemRow(item)
                                 }
                             }
                         }
@@ -141,8 +140,46 @@ struct KioskCheckoutDetailSheet: View {
                 Spacer(minLength: 0)
             }
             .padding(28)
+
+            if canEditActiveCheckout {
+                HIDScannerField(isEnabled: shouldListenForItemScans) { value in
+                    Task { await addItem(scanValue: value) }
+                }
+                .frame(width: 1, height: 1)
+                .opacity(0)
+            }
         }
-        .task { await load() }
+        .task {
+            await load()
+            armScannerCapture()
+        }
+        .onDisappear {
+            scannerCaptureEnabled = false
+        }
+        .onChange(of: titleFocused) { _, isFocused in
+            if !isFocused {
+                armScannerCapture()
+            }
+        }
+        .confirmationDialog(
+            "Remove item from checkout?",
+            isPresented: Binding(
+                get: { pendingRemoval != nil },
+                set: { if !$0 { pendingRemoval = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingRemoval
+        ) { item in
+            Button("Remove \(item.itemListPrimaryTitle)", role: .destructive) {
+                pendingRemoval = nil
+                Task { await removeItem(item) }
+            }
+            Button("Cancel", role: .cancel) {
+                pendingRemoval = nil
+            }
+        } message: { item in
+            Text("This releases \(item.name) from \(context.requesterName)'s active checkout.")
+        }
     }
 
     private var header: some View {
@@ -162,9 +199,8 @@ struct KioskCheckoutDetailSheet: View {
             Button("Done") { dismiss() }
                 .font(.headline.weight(.semibold))
                 .foregroundStyle(KioskText.primary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(KioskSurface.cardSelected, in: Capsule())
+                .buttonStyle(.glass)
+                .controlSize(.large)
         }
     }
 
@@ -175,14 +211,14 @@ struct KioskCheckoutDetailSheet: View {
                     .font(.headline.weight(.bold))
                     .foregroundStyle(KioskText.primary)
                 Spacer()
-                Button(isMutating ? "Saving..." : "Save") {
+                Button(activeMutation == .savingDetails ? "Saving..." : "Save") {
                     Task { await saveDetails() }
                 }
                 .font(.caption.weight(.bold))
                 .foregroundStyle(.white)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(Color.kioskRed.opacity(isMutating ? 0.45 : 0.9), in: Capsule())
+                .buttonStyle(.glassProminent)
+                .tint(Color.kioskRed)
+                .controlSize(.regular)
                 .disabled(isMutating)
             }
 
@@ -212,36 +248,52 @@ struct KioskCheckoutDetailSheet: View {
                 .overlay(RoundedRectangle(cornerRadius: KioskRadius.md).stroke(KioskStroke.standard, lineWidth: 1))
             }
 
-            HStack(spacing: 10) {
-                KioskNativeTextField(
-                    placeholder: "Scan or type item",
-                    text: $addScanValue,
-                    isFocused: $scanFocused
-                )
-                .padding(.horizontal, 12)
-                .frame(height: 46)
-                .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
-                .overlay(RoundedRectangle(cornerRadius: KioskRadius.md).stroke(KioskStroke.standard, lineWidth: 1))
-
-                Button(isMutating ? "Adding..." : "Add") {
-                    Task { await addItem() }
-                }
-                .font(.caption.weight(.bold))
-                .foregroundStyle(KioskText.primary)
-                .frame(width: 76, height: 46)
-                .background(KioskSurface.cardSelected, in: RoundedRectangle(cornerRadius: KioskRadius.md))
-                .disabled(isMutating || addScanValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-
-            KioskKeyboardHint(isFieldFocused: titleFocused || scanFocused)
-
-            if let mutationMessage {
-                KioskFeedbackBanner(tone: mutationMessage.tone, message: mutationMessage.text)
-            }
+            KioskKeyboardHint(isFieldFocused: titleFocused)
         }
         .padding(14)
         .background(KioskSurface.card, in: RoundedRectangle(cornerRadius: KioskRadius.lg))
         .overlay(RoundedRectangle(cornerRadius: KioskRadius.lg).stroke(KioskStroke.standard, lineWidth: 1))
+    }
+
+    private var scanToAddPanel: some View {
+        HStack(spacing: 18) {
+            KioskScanTarget(
+                tint: activeMutation == .addingItem ? Color.statusText(.blue) : Color.kioskRed,
+                width: 116,
+                height: 72
+            )
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Add Items")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(KioskText.primary)
+                Label(
+                    activeMutation == .addingItem ? "Adding scanned item..." : "Scanner ready",
+                    systemImage: activeMutation == .addingItem ? "arrow.triangle.2.circlepath" : "barcode.viewfinder"
+                )
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(activeMutation == .addingItem ? Color.statusText(.blue) : Color.statusText(.green))
+            }
+
+            Spacer()
+
+            if activeMutation == .addingItem {
+                ProgressView()
+                    .tint(KioskText.primary)
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+        .background(KioskSurface.cardRaised, in: RoundedRectangle(cornerRadius: KioskRadius.lg))
+        .overlay(
+            RoundedRectangle(cornerRadius: KioskRadius.lg)
+                .stroke(
+                    shouldListenForItemScans ? Color.statusText(.green).opacity(0.5) : KioskStroke.standard,
+                    lineWidth: 1
+                )
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(activeMutation == .addingItem ? "Adding scanned item" : "Scanner ready to add items")
     }
 
     private var timingRow: some View {
@@ -291,45 +343,35 @@ struct KioskCheckoutDetailSheet: View {
     }()
 
     @ViewBuilder
-    private func itemRow(_ group: ItemGroup) -> some View {
+    private func itemRow(_ item: KioskCheckoutDetail.ReturnItem) -> some View {
         HStack(spacing: 12) {
-            itemThumbnail(group)
+            itemThumbnail(item)
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(group.primaryTitle)
-                        .font(.gothamBold(size: 16))
-                        .foregroundStyle(KioskText.primary)
-                        .lineLimit(1)
-                    if group.count > 1 {
-                        Text("x\(group.count)")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(Color.kioskRed)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.kioskRed.opacity(0.16), in: Capsule())
-                    }
-                }
-                Text(group.subtitle)
+                Text(item.itemListPrimaryTitle)
+                    .font(.gothamBold(size: 16))
+                    .foregroundStyle(KioskText.primary)
+                    .lineLimit(1)
+                Text(item.itemListSecondaryTitle ?? item.bulkSkuName ?? item.name)
                     .font(.caption.weight(.medium))
                     .foregroundStyle(KioskText.secondary)
                     .lineLimit(1)
             }
             Spacer()
-            if canEditActiveCheckout, let removable = removableItem(in: group) {
-                Button(group.count > 1 ? "Remove one" : "Remove") {
-                    Task { await removeItem(removable) }
+            if canEditActiveCheckout && isRemovable(item) {
+                Button {
+                    pendingRemoval = item
+                } label: {
+                    Label("Remove", systemImage: "minus.circle.fill")
                 }
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(Color.statusText(.red))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(Color.statusText(.red).opacity(0.14), in: Capsule())
+                .buttonStyle(.bordered)
+                .tint(Color.statusText(.red))
+                .controlSize(.regular)
                 .disabled(isMutating)
             }
-            if group.returnedCount > 0 {
-                Text(group.returnedCount == group.count ? "Returned" : "\(group.returnedCount)/\(group.count) back")
+            if item.returned {
+                Text("Returned")
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(Color.statusText(.green))
             }
@@ -343,15 +385,15 @@ struct KioskCheckoutDetailSheet: View {
         )
     }
 
-    private func removableItem(in group: ItemGroup) -> KioskCheckoutDetail.ReturnItem? {
-        group.items.first { !$0.returned && (!$0.isBulkDisplay || $0.unitNumber != nil) }
+    private func isRemovable(_ item: KioskCheckoutDetail.ReturnItem) -> Bool {
+        !item.returned && (!item.isBulkDisplay || (item.isNumberedBulk && item.unitNumber != nil))
     }
 
     @ViewBuilder
-    private func itemThumbnail(_ group: ItemGroup) -> some View {
-        let fallbackIcon = group.isBulkGroup ? "battery.100percent" : "camera.fill"
+    private func itemThumbnail(_ item: KioskCheckoutDetail.ReturnItem) -> some View {
+        let fallbackIcon = item.isBulkDisplay ? "battery.100percent" : "camera.fill"
         Group {
-            if let urlString = group.first.imageUrl, let url = URL(string: urlString) {
+            if let urlString = item.imageUrl, let url = URL(string: urlString) {
                 AsyncImage(url: url) { phase in
                     switch phase {
                     case .success(let image):
@@ -403,7 +445,7 @@ struct KioskCheckoutDetailSheet: View {
             mutationMessage = KioskMutationMessage(tone: .warning, text: "Title is required")
             return
         }
-        isMutating = true
+        activeMutation = .savingDetails
         do {
             let result = try await KioskAPI.shared.kioskUpdateActiveCheckout(
                 id: context.checkoutId,
@@ -417,31 +459,31 @@ struct KioskCheckoutDetailSheet: View {
         } catch {
             mutationMessage = KioskMutationMessage(tone: .error, text: (error as? APIError)?.errorDescription ?? "Could not update checkout")
         }
-        isMutating = false
+        activeMutation = nil
     }
 
-    private func addItem() async {
+    private func addItem(scanValue: String) async {
         guard let actorId else { return }
-        let value = addScanValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        let value = scanValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty else { return }
-        isMutating = true
+        guard activeMutation == nil else { return }
+        activeMutation = .addingItem
         do {
             let result = try await KioskAPI.shared.kioskAddActiveCheckoutItem(id: context.checkoutId, actorId: actorId, scanValue: value)
             mutationMessage = KioskMutationMessage(tone: result.success ? .success : .warning, text: result.message ?? result.error ?? "Scan handled")
             if result.success {
-                addScanValue = ""
                 await load()
                 onChanged()
             }
         } catch {
             mutationMessage = KioskMutationMessage(tone: .error, text: (error as? APIError)?.errorDescription ?? "Could not add item")
         }
-        isMutating = false
+        activeMutation = nil
     }
 
     private func removeItem(_ item: KioskCheckoutDetail.ReturnItem) async {
         guard let actorId else { return }
-        isMutating = true
+        activeMutation = .removingItem
         do {
             let result = try await KioskAPI.shared.kioskRemoveActiveCheckoutItem(id: context.checkoutId, actorId: actorId, item: item)
             mutationMessage = KioskMutationMessage(tone: result.success ? .success : .warning, text: result.message ?? result.error ?? "Remove handled")
@@ -452,7 +494,16 @@ struct KioskCheckoutDetailSheet: View {
         } catch {
             mutationMessage = KioskMutationMessage(tone: .error, text: (error as? APIError)?.errorDescription ?? "Could not remove item")
         }
-        isMutating = false
+        activeMutation = nil
+    }
+
+    private func armScannerCapture() {
+        guard canEditActiveCheckout else { return }
+        scannerCaptureEnabled = false
+        DispatchQueue.main.async {
+            HIDScannerFocusGate.allowScannerFocusNow()
+            scannerCaptureEnabled = true
+        }
     }
 }
 

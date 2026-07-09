@@ -540,7 +540,7 @@ describe("iOS project configuration", () => {
     expect(projectYml).not.toContain("bundleId: com.erikrole.creative");
   });
 
-  it("keeps iOS 17 support scoped to the kiosk-only target", () => {
+  it("keeps the kiosk target separate on the shared iOS 26 baseline", () => {
     const projectYml = source("ios/project.yml");
     const pbxproj = source("ios/Wisconsin.xcodeproj/project.pbxproj");
 
@@ -558,7 +558,8 @@ describe("iOS project configuration", () => {
     expect(appTarget).toContain("- KioskOnly/**");
     expect(testsTarget).toContain('deploymentTarget: "26.0"');
 
-    expect(kioskTarget).toContain('deploymentTarget: "17.0"');
+    expect(kioskTarget).toContain('deploymentTarget: "26.0"');
+    expect(kioskTarget).not.toContain('deploymentTarget: "17.0"');
     expect(kioskTarget).toContain("bundleId: com.erikrole.WisconsinKiosk");
     expect(kioskTarget).toContain("- path: Wisconsin/KioskOnly");
     expect(kioskTarget).toContain("- path: Wisconsin/Kiosk");
@@ -569,6 +570,6 @@ describe("iOS project configuration", () => {
 
     expect(pbxproj).toMatch(/PRODUCT_BUNDLE_IDENTIFIER = com\.erikrole\.Wisconsin;/);
     expect(pbxproj).toMatch(/PRODUCT_BUNDLE_IDENTIFIER = com\.erikrole\.WisconsinKiosk;/);
-    expect(pbxproj).toMatch(/IPHONEOS_DEPLOYMENT_TARGET = 17\.0;/);
+    expect(pbxproj).not.toMatch(/IPHONEOS_DEPLOYMENT_TARGET = 17\.0;/);
   });
 });

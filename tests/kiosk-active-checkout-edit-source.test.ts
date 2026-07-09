@@ -32,7 +32,7 @@ describe("kiosk active checkout edits", () => {
     expect(schemas).toContain("Provide either assetId or bulkSkuId plus unitNumber");
   });
 
-  it("wires the native kiosk drawer to update, add, and remove through the kiosk API", () => {
+  it("wires the native kiosk drawer to update, scan-add, and touch-remove through the kiosk API", () => {
     const client = source("ios/Wisconsin/Kiosk/KioskAPIClient.swift");
     const models = source("ios/Wisconsin/Kiosk/KioskModels.swift");
     const drawer = source("ios/Wisconsin/Kiosk/KioskCheckoutDetailSheet.swift");
@@ -54,8 +54,20 @@ describe("kiosk active checkout edits", () => {
     expect(drawer).toContain("KioskNativeTextField(");
     expect(drawer).toContain("DatePicker(");
     expect(drawer).toContain("await saveDetails()");
-    expect(drawer).toContain("await addItem()");
-    expect(drawer).toContain("await removeItem(removable)");
+    expect(drawer).toContain("HIDScannerField(isEnabled: shouldListenForItemScans)");
+    expect(drawer).toContain("Task { await addItem(scanValue: value) }");
+    expect(drawer).toContain("private func addItem(scanValue: String) async");
+    expect(drawer).toContain("scannerCaptureEnabled");
+    expect(drawer).toContain("!titleFocused");
+    expect(drawer).not.toContain('placeholder: "Scan or type item"');
+    expect(drawer).not.toContain("addScanValue");
+    expect(drawer).not.toContain('Button(isMutating ? "Adding..." : "Add")');
+
+    expect(drawer).toContain("ForEach(detail?.items ?? [])");
+    expect(drawer).toContain('Label("Remove", systemImage: "minus.circle.fill")');
+    expect(drawer).toContain('"Remove item from checkout?"');
+    expect(drawer).toContain("Task { await removeItem(item) }");
+    expect(drawer).not.toContain('"Remove one"');
     expect(drawer).toContain("onChanged()");
   });
 });

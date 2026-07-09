@@ -21,8 +21,8 @@ struct KioskShellView: View {
         }
     }
 
-    /// Subliminal fade + 1.5% settle-in. Deliberately not a slide: opacity is
-    /// cheap on old iPads and doesn't change when views mount/unmount relative
+    /// Subliminal fade + 1.5% settle-in. Deliberately not a slide: it preserves
+    /// spatial continuity and doesn't change when views mount/unmount relative
     /// to the bare switch, so HID scanner field semantics are untouched.
     private var screenTransition: AnyTransition {
         reduceMotion

@@ -126,8 +126,8 @@ extension View {
     /// stroke. Collapses the repeated
     /// `.background(fill, in: RoundedRectangle).overlay(RoundedRectangle.stroke)`
     /// pattern that appeared on nearly every kiosk row and tile.
-    /// Depth comes from two cheap static gradients rather than blurs or
-    /// shadows (the kiosk is an always-on display on older iPads): a faint
+    /// Depth comes from two restrained static gradients rather than blurs or
+    /// shadows (the kiosk is an always-on display): a faint
     /// top glaze inside the shape and a stroke that fades toward the bottom,
     /// so every card reads as lit from above. Both layer over the caller's
     /// fill, so tinted cards (selected event chips, banners) keep working.
@@ -160,6 +160,7 @@ extension View {
                     )
             )
     }
+
 }
 
 // MARK: - Feedback tone
