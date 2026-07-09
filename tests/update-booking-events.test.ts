@@ -120,6 +120,24 @@ describe("updateBookingEvents", () => {
     expect(transactionCalls).toHaveLength(0);
   });
 
+  it("rejects more than 3 eventIds before opening a transaction", async () => {
+    await expect(
+      updateBookingEvents("reservation-1", "student-1", ["event-1", "event-2", "event-3", "event-4"]),
+    ).rejects.toThrow("A booking may link at most 3 events");
+
+    expect(transactionCalls).toHaveLength(0);
+  });
+
+  it("rejects missing eventIds", async () => {
+    mockTx.calendarEvent.findMany.mockResolvedValue([{ id: "event-late", startsAt: new Date("2026-07-11T20:00:00Z") }]);
+
+    await expect(
+      updateBookingEvents("reservation-1", "student-1", ["event-late", "event-missing"]),
+    ).rejects.toThrow("One or more eventIds do not exist");
+    expect(mockTx.booking.update).not.toHaveBeenCalled();
+    expect(mockTx.bookingEvent.deleteMany).not.toHaveBeenCalled();
+  });
+
   it("allows active checkout bookings", async () => {
     mockTx.booking.findUnique.mockResolvedValue(reservation({
       kind: BookingKind.CHECKOUT,
@@ -131,6 +149,28 @@ describe("updateBookingEvents", () => {
     expect(mockTx.booking.update).toHaveBeenCalledWith({
       where: { id: "reservation-1" },
       data: { eventId: "event-early" },
+    });
+  });
+
+  it("keeps checkout relinking scoped to event context only", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(reservation({
+      kind: BookingKind.CHECKOUT,
+      status: BookingStatus.OPEN,
+    }));
+
+    await updateBookingEvents("reservation-1", "student-1", ["event-late", "event-early"]);
+
+    expect(mockTx.booking.update).toHaveBeenCalledTimes(1);
+    expect(mockTx.booking.update).toHaveBeenCalledWith({
+      where: { id: "reservation-1" },
+      data: { eventId: "event-early" },
+    });
+    expect(mockTx.bookingEvent.deleteMany).toHaveBeenCalledWith({ where: { bookingId: "reservation-1" } });
+    expect(mockTx.bookingEvent.createMany).toHaveBeenCalledWith({
+      data: [
+        { bookingId: "reservation-1", eventId: "event-early", ordinal: 0 },
+        { bookingId: "reservation-1", eventId: "event-late", ordinal: 1 },
+      ],
     });
   });
 

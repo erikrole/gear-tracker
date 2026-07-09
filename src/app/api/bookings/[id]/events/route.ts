@@ -4,6 +4,21 @@ import { getAllowedBookingActions, requireBookingAction } from "@/lib/services/b
 import { getBookingDetail, updateBookingEvents } from "@/lib/services/bookings";
 import { updateBookingEventsSchema } from "@/lib/validation";
 
+function sortedStrings(values: string[]) {
+  return [...values].sort((a, b) => a.localeCompare(b));
+}
+
+function currentEventIds(detail: Awaited<ReturnType<typeof getBookingDetail>>) {
+  if (detail.events && detail.events.length > 0) {
+    return detail.events.map((event) => event.id);
+  }
+  return detail.event ? [detail.event.id] : [];
+}
+
+function sameEventSet(requested: string[], detail: Awaited<ReturnType<typeof getBookingDetail>>) {
+  return JSON.stringify(sortedStrings(requested)) === JSON.stringify(sortedStrings(currentEventIds(detail)));
+}
+
 export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   const { id } = params;
   const body = updateBookingEventsSchema.parse(await req.json());
@@ -20,6 +35,11 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   }
   const serverTs = Math.floor(new Date(current.updatedAt).getTime() / 1000) * 1000;
   if (clientTs < serverTs) {
+    if (sameEventSet(body.eventIds, current)) {
+      await requireBookingAction(id, user, "edit");
+      const allowedActions = getAllowedBookingActions(user, current);
+      return ok({ data: { ...current, allowedActions } });
+    }
     throw new HttpError(409, "This booking was modified by someone else. Please refresh and try again.");
   }
 

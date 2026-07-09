@@ -42,6 +42,11 @@ const baseDetail = {
   startsAt: new Date("2026-07-09T16:00:00.000Z"),
   endsAt: new Date("2026-07-09T18:00:00.000Z"),
   updatedAt: new Date("2026-07-09T16:00:00.500Z"),
+  events: [
+    { id: "cm000000000000000000000101" },
+    { id: "cm000000000000000000000102" },
+  ],
+  event: null,
 };
 
 const eventIds = [
@@ -95,6 +100,11 @@ describe("booking event-link route contract", () => {
   });
 
   it("rejects a stale snapshot before dispatching the service", async () => {
+    vi.mocked(getBookingDetail).mockResolvedValue(bookingDetail({
+      ...baseDetail,
+      events: [{ id: "cm000000000000000000000103" }],
+    }));
+
     const res = await POST(
       request(
         { eventIds },
@@ -104,6 +114,55 @@ describe("booking event-link route contract", () => {
     );
 
     expect(res.status).toBe(409);
+    expect(requireBookingAction).not.toHaveBeenCalled();
+    expect(updateBookingEvents).not.toHaveBeenCalled();
+  });
+
+  it("treats stale duplicate event links as idempotent success", async () => {
+    const res = await POST(
+      request(
+        { eventIds: [...eventIds].reverse() },
+        { "if-unmodified-since": "Thu, 09 Jul 2026 15:59:59 GMT" },
+      ),
+      { params: Promise.resolve({ id: baseDetail.id }) },
+    );
+
+    expect(res.status).toBe(200);
+    expect(requireBookingAction).toHaveBeenCalledWith(baseDetail.id, studentUser, "edit");
+    expect(updateBookingEvents).not.toHaveBeenCalled();
+  });
+
+  it("rejects duplicate eventIds at the route boundary", async () => {
+    const res = await POST(
+      request(
+        { eventIds: [eventIds[0], eventIds[0]] },
+        { "if-unmodified-since": "Thu, 09 Jul 2026 16:00:00 GMT" },
+      ),
+      { params: Promise.resolve({ id: baseDetail.id }) },
+    );
+
+    expect(res.status).toBe(400);
+    expect(requireBookingAction).not.toHaveBeenCalled();
+    expect(updateBookingEvents).not.toHaveBeenCalled();
+  });
+
+  it("rejects more than 3 eventIds at the route boundary", async () => {
+    const res = await POST(
+      request(
+        {
+          eventIds: [
+            "cm000000000000000000000101",
+            "cm000000000000000000000102",
+            "cm000000000000000000000103",
+            "cm000000000000000000000104",
+          ],
+        },
+        { "if-unmodified-since": "Thu, 09 Jul 2026 16:00:00 GMT" },
+      ),
+      { params: Promise.resolve({ id: baseDetail.id }) },
+    );
+
+    expect(res.status).toBe(400);
     expect(requireBookingAction).not.toHaveBeenCalled();
     expect(updateBookingEvents).not.toHaveBeenCalled();
   });

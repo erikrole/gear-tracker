@@ -195,7 +195,10 @@ export function EditBookingEventsDialog({
 
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        const msg = await parseErrorMessage(res, "Could not update linked events. Refresh and try again.");
+        const fallback = res.status === 409
+          ? "This booking changed. Refresh before editing linked events."
+          : "Could not update linked events. Refresh and try again.";
+        const msg = await parseErrorMessage(res, fallback);
         toast.error(msg);
         return;
       }

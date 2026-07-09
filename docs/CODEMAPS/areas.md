@@ -41,7 +41,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/events/[id]`, `/events`
 - APIs: `/api/bookings/[id]/events`, `/api/calendar-events/[id]/command-center`, `/api/calendar-events/[id]`, `/api/calendar-events/[id]/travel/[memberId]`, `/api/calendar-events/[id]/travel`, `/api/calendar-events/[id]/visibility`, `/api/calendar-events`, `/api/kiosk/events`
 - Services: _none matched_
-- Tests: `tests/booking-events-route-contract.test.ts`, `tests/calendar-events-route.test.ts`, `tests/kiosk-events-route.test.ts`, `tests/update-reservation-events.test.ts`
+- Tests: `tests/booking-events-route-contract.test.ts`, `tests/calendar-events-route.test.ts`, `tests/kiosk-events-route.test.ts`, `tests/update-booking-events.test.ts`
 
 ## importer
 

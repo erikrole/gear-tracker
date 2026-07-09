@@ -25,6 +25,7 @@ Goal: let staff/admin and student owners transfer an active booking's requester/
 - [x] Add a shared booking event-link dialog to the booking detail page and detail sheet.
 - [x] Add event-link service/route/UI coverage and rerun verification.
 - [x] Extend event-link editing to existing editable checkouts without changing custody or return behavior.
+- [x] Harden event relinking with idempotent stale handling, expanded route/service coverage, stale UI copy, and custody/window invariant checks.
 
 ## Non-Goals
 
@@ -36,6 +37,7 @@ Goal: let staff/admin and student owners transfer an active booking's requester/
 
 ## Review
 
+- 2026-07-09: Event relink hardening shipped locally. The route now treats stale duplicate event saves as idempotent success when the current booking already has the requested event set, while true stale conflicts still return 409. Route and service coverage now pin duplicate, over-cap, missing-event, terminal-booking, active-checkout, and event-context-only behavior. The service test was renamed to `tests/update-booking-events.test.ts`.
 - 2026-07-09: Existing checkout event relinking shipped locally. The event-link route and lifecycle service now support editable active bookings, including checkouts. Completed/cancelled bookings remain blocked. The shared dialog was renamed to `EditBookingEventsDialog`, appears for checkouts with normal edit permission, and keeps relinking scoped to event context plus `events_updated` audit history.
 - 2026-07-09: Follow-up correction shipped locally. `transfer-owner` now follows owner-or-staff access for active bookings, with the lifecycle service enforcing requester/creator or staff/admin before updating `requesterUserId`. Event relinking uses `POST /api/bookings/[id]/events`; the route uses optimistic locking and edit permission, and the service sorts events chronologically, keeps `Booking.eventId` as primary, rewrites `BookingEvent`, and writes `events_updated` audit history. Shared full-page and sheet UI use `EditBookingEventsDialog`. Verification passed with focused route/service/policy tests, TypeScript, codemap/docs, whitespace, and app build gates.
 - 2026-07-09: Initial implementation shipped locally with staff/admin-only transfer gating, `POST /api/bookings/[id]/transfer-owner`, transaction-scoped `requesterUserId` update, active visible target validation, and `owner_transferred` audit history. The follow-up correction above broadens transfer-owner to student requesters/creators on their own active bookings. Web detail page and detail sheet share `TransferOwnerDialog`; standard kiosk custody remains unchanged.
