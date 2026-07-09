@@ -1,8 +1,8 @@
 export type BookingKind = "CHECKOUT" | "RESERVATION";
 export type BookingStatus = "DRAFT" | "BOOKED" | "PENDING_PICKUP" | "OPEN" | "COMPLETED" | "CANCELLED";
 
-export type CheckoutAction = "edit" | "extend" | "cancel" | "checkin" | "open" | "force-complete" | "nudge";
-export type ReservationAction = "edit" | "extend" | "cancel" | "convert" | "duplicate";
+export type CheckoutAction = "edit" | "extend" | "cancel" | "checkin" | "open" | "force-complete" | "nudge" | "transfer-owner";
+export type ReservationAction = "edit" | "extend" | "cancel" | "convert" | "duplicate" | "transfer-owner";
 export type BookingAction = CheckoutAction | ReservationAction | "view";
 
 export type BookingContext = {
@@ -28,23 +28,23 @@ type ActionOptions = {
   includeServerActions?: boolean;
 };
 
-const CLIENT_CHECKOUT_ACTIONS: CheckoutAction[] = ["edit", "extend", "cancel", "open"];
-const SERVER_CHECKOUT_ACTIONS: CheckoutAction[] = ["edit", "extend", "cancel", "checkin", "open", "force-complete", "nudge"];
-const CLIENT_RESERVATION_ACTIONS: ReservationAction[] = ["edit", "extend", "cancel", "duplicate"];
-const SERVER_RESERVATION_ACTIONS: ReservationAction[] = ["edit", "extend", "cancel", "convert", "duplicate"];
+const CLIENT_CHECKOUT_ACTIONS: CheckoutAction[] = ["edit", "extend", "cancel", "open", "transfer-owner"];
+const SERVER_CHECKOUT_ACTIONS: CheckoutAction[] = ["edit", "extend", "cancel", "checkin", "open", "force-complete", "nudge", "transfer-owner"];
+const CLIENT_RESERVATION_ACTIONS: ReservationAction[] = ["edit", "extend", "cancel", "duplicate", "transfer-owner"];
+const SERVER_RESERVATION_ACTIONS: ReservationAction[] = ["edit", "extend", "cancel", "convert", "duplicate", "transfer-owner"];
 
 const STATE_ACTIONS: Record<BookingKind, Record<BookingStatus, Set<string>>> = {
   CHECKOUT: {
-    DRAFT: new Set(["edit", "cancel"]),
-    BOOKED: new Set(["edit", "extend", "cancel", "open"]),
-    PENDING_PICKUP: new Set(["edit", "cancel"]),
-    OPEN: new Set(["edit", "extend", "cancel", "force-complete", "nudge"]),
+    DRAFT: new Set(["edit", "cancel", "transfer-owner"]),
+    BOOKED: new Set(["edit", "extend", "cancel", "open", "transfer-owner"]),
+    PENDING_PICKUP: new Set(["edit", "cancel", "transfer-owner"]),
+    OPEN: new Set(["edit", "extend", "cancel", "force-complete", "nudge", "transfer-owner"]),
     COMPLETED: new Set(),
     CANCELLED: new Set(),
   },
   RESERVATION: {
-    DRAFT: new Set(["edit", "cancel"]),
-    BOOKED: new Set(["edit", "extend", "cancel", "duplicate"]),
+    DRAFT: new Set(["edit", "cancel", "transfer-owner"]),
+    BOOKED: new Set(["edit", "extend", "cancel", "duplicate", "transfer-owner"]),
     PENDING_PICKUP: new Set(),
     OPEN: new Set(),
     COMPLETED: new Set(),
@@ -122,6 +122,12 @@ export function canPerformBookingAction(
     return isStaffOrAbove(actor.role)
       ? { allowed: true }
       : { allowed: false, reason: "Only staff or admin can send nudge notifications" };
+  }
+
+  if (action === "transfer-owner") {
+    return hasAccess(actor, booking)
+      ? { allowed: true }
+      : { allowed: false, reason: "You do not have permission to transfer this booking" };
   }
 
   if (!hasAccess(actor, booking)) {

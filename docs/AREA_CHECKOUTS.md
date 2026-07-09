@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-02
+- Last Updated: 2026-07-09
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -155,6 +155,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[CHECKOUT
 - Allowed actions:
   - Edit (resume)
   - Cancel (discard)
+  - Transfer owner (staff/admin-only)
 
 ### `PENDING_PICKUP`
 - Compatibility or staged handoff state, not the normal result of app/web checkout creation.
@@ -165,6 +166,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[CHECKOUT
   - View
   - Edit (staff+/owner)
   - Cancel (staff+/owner)
+  - Transfer owner (staff/admin-only)
   - Pickup at kiosk → transitions to `OPEN`
 
 ### `OPEN`
@@ -173,6 +175,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[CHECKOUT
   - Edit (staff+ or owner)
   - Extend (staff+ or owner)
   - Cancel (staff+ only — students cannot cancel OPEN checkouts even if owner)
+  - Transfer owner (staff/admin-only)
   - Check in at kiosk
   - Close without scan (admin-only exception with required reason)
 
@@ -208,7 +211,7 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - Status badge shows display labels through the shared booking status display helper: `PENDING_PICKUP` -> "Awaiting Pickup", `OPEN` -> "Checked out".
 - "Due back" countdown rendered as urgency-colored Badge (red/orange/yellow/neutral)
 - Action buttons: `[Actions ▼] [Edit] [Extend]` for app-owned actions. Custody pickup/return scans happen at the kiosk.
-- Actions dropdown contains: Nudge borrower, Close without scan, Duplicate, and Cancel when each action is allowed. Close without scan is admin-only, requires a reason, records an override event, and must not link to `/scan?checkout=...`.
+- Actions dropdown contains: Nudge borrower, Close without scan, Transfer owner, Duplicate, and Cancel when each action is allowed. Close without scan is admin-only, requires a reason, records an override event, and must not link to `/scan?checkout=...`.
 - Equipment tab shows returned progress and item context, but standard return execution remains at the kiosk.
 - Equipment rows show hover-reveal "..." menu (View item)
 - Checkin progress bar in equipment header: `████░░░░ 12/30 returned`
@@ -300,6 +303,8 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 5. Add regression coverage for race conditions, partial returns, non-kiosk custody attempts, and permission bypass attempts.
 
 ## Change Log
+- 2026-07-09: **Booking owner transfer correction shipped.** Student requesters/creators can now transfer their own active bookings; staff/admin can still transfer any active booking. Checkout custody, kiosk return execution, item allocations, and creator provenance remain unchanged.
+- 2026-07-09: **Booking owner transfer shipped.** Shared checkout detail exposes `Transfer owner` when `allowedActions` includes `transfer-owner`. The action posts to `POST /api/bookings/[id]/transfer-owner` with the same `If-Unmodified-Since` optimistic-lock contract as edit/extend, updates only `Booking.requesterUserId`, preserves `createdBy`, validates the target user is active and visible, and writes an `owner_transferred` audit entry. It does not change kiosk custody, item allocations, return evidence, or creator provenance. New coverage: `tests/booking-transfer-owner-route-contract.test.ts`, `tests/transfer-booking-owner.test.ts`, and `tests/decision-contracts.test.ts`.
 - 2026-07-08: **Extend optimistic-lock parity shipped.** Same shared fix as `AREA_RESERVATIONS.md` — `POST /api/bookings/[id]/extend` now requires and validates `If-Unmodified-Since` matching the main PATCH route's contract (428 missing, 400 invalid, 409 stale), closing a fresh-audit finding where a stale tab's quick-extend could silently succeed against a checkout someone else had just changed. New coverage: `tests/booking-extend-route-contract.test.ts`.
 - 2026-07-06: **Check-in ledger unification shipped.** Bulk returns now restock stock at the moment of physical return on every path (kiosk unit scans, admin-override scans, web partial bulk check-in), and all completion paths (`maybeAutoComplete`, `markCheckoutCompleted`, `forceCompleteCheckout`) reconcile outstanding stock from movement truth via `settleBulkLedgerAtCompletion` instead of field math, ending the double-restock/under-restock split that corrupted on-hand balances when a checkout mixed kiosk and web return paths. Serialized check-in flows were audited and unchanged (membership, already-returned, and SERIALIZABLE guarantees were already sound). Full detail in `AREA_BULK_INVENTORY.md` and `tasks/archive/checkin-hardening-plan.md`.
 - 2026-07-06: **Booking lifecycle hardening shipped.** Checkout equipment edits are now diff-based instead of delete-all-rebuild: bulk quantity changes write matching CHECKOUT/CHECKIN stock movements so `BulkStockBalance` (which availability reads) stays true, SKU rows with kiosk custody activity (checked-out quantities, partial check-ins, numbered unit allocations) reject web edits with a 409 that routes staff to kiosk check-in, already-returned serialized items can no longer be silently flipped back to active by an equipment edit, and unchanged rows are left untouched so unit-allocation custody history survives. Also: extend now rejects bulk shortages in the extended window (not just serialized conflicts), createBooking and reservation requester changes validate the requester exists and is active (FK 500s and inactive custodians eliminated), and the unused `status` passthrough on reservation updates is removed. Plan: `tasks/archive/bookings-hardening-plan.md`.

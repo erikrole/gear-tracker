@@ -185,6 +185,8 @@ const ACTION_COLORS: Record<string, ActionColorKey> = {
   scan_completed: "green",
   updated: "blue",
   update: "blue",
+  owner_transferred: "blue",
+  events_updated: "blue",
   extended: "blue",
   extend: "blue",
   duplicated: "blue",
@@ -306,6 +308,14 @@ function describeAction(
         : context === "user"
           ? `Updated ${target}`
           : "Updated details";
+    case "owner_transferred": {
+      const nextOwner = entry.afterJson?.requesterName as string | undefined;
+      return nextOwner
+        ? `${reportPrefix}Transferred ownership to ${nextOwner}`
+        : `${reportPrefix}Transferred ownership`;
+    }
+    case "events_updated":
+      return `${reportPrefix}Updated linked events`;
     case "extended":
     case "extend": {
       const newEnd =
@@ -581,6 +591,7 @@ function looksLikeImportMetadata(value: string): boolean {
 const DIFF_ACTIONS = new Set([
   "updated",
   "update",
+  "owner_transferred",
   "profile_update",
   "profile_updated",
   "role_changed",

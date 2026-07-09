@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-29
+- Last Updated: 2026-07-09
 - Status: Active
 - Version: V1.2
 
@@ -30,6 +30,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 ## Ownership Rule
 - `Owner` means the user who created the reservation/checkout or the user explicitly assigned as booking owner.
 - Ownership checks apply to `STUDENT` users for edit rights.
+- Booking owner transfer is staff/admin-only, changes the assigned requester/owner, and does not change creator provenance.
 
 ## Permission Matrix (V1)
 
@@ -116,6 +117,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+- 2026-07-09: Booking owner transfer shipped for staff/admin across active bookings and for student requesters/creators on their own active bookings. The action reassigns `Booking.requesterUserId`, keeps `Booking.createdBy` as historical provenance, validates that the new owner is an active visible user, and writes explicit `owner_transferred` audit history.
 - 2026-07-08: Registration no longer requires a Wiscard value for invited Staff or Student accounts. `User.wiscardNumber` remains a unique nullable profile field that self-profile and staff/admin detail editing can fill later, and kiosk Wiscard lookup still works when a value is linked. The registration form now treats the field as optional while card-scan parsing is deferred.
 - 2026-07-03: Native iOS Users rows now omit routine location copy, matching the profile-detail cleanup. Rows keep role, title/year, active state, and primary area so the directory stays scannable without repeating default `Camp Randall` context.
 - 2026-07-03: Self-service session revocation hardened. `/api/me/sessions` and `/api/me/change-password` with `revokeOtherSessions` now require the current cookie-backed session to be re-identified before issuing a bulk `deleteMany`, so a stale or missing current-session lookup cannot turn "revoke other sessions" into "revoke every session for this user."

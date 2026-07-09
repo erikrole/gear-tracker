@@ -1,0 +1,130 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { BookingKind, BookingStatus, Role } from "@prisma/client";
+import { expectSerializableIsolation } from "./_helpers/assert-transaction";
+
+type MockFn = ReturnType<typeof vi.fn>;
+type UpdateEventsTx = {
+  booking: Record<"findUnique" | "findUniqueOrThrow" | "update", MockFn>;
+  calendarEvent: Record<"findMany", MockFn>;
+  bookingEvent: Record<"deleteMany" | "createMany", MockFn>;
+  auditLog: Record<"create", MockFn>;
+  user: Record<"findUnique", MockFn>;
+};
+
+const transactionCalls: Array<{ options: unknown }> = [];
+
+vi.mock("@/lib/db", () => {
+  const mockTx = {
+    booking: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn() },
+    calendarEvent: { findMany: vi.fn() },
+    bookingEvent: { deleteMany: vi.fn(), createMany: vi.fn() },
+    auditLog: { create: vi.fn() },
+    user: { findUnique: vi.fn() },
+  };
+
+  return {
+    db: {
+      $transaction: vi.fn(async (fn: (tx: typeof mockTx) => Promise<unknown>, options?: unknown) => {
+        transactionCalls.push({ options });
+        return fn(mockTx);
+      }),
+      _mockTx: mockTx,
+    },
+  };
+});
+
+import { db } from "@/lib/db";
+import { updateReservationEvents } from "@/lib/services/bookings";
+
+const mockTx = (db as unknown as { _mockTx: UpdateEventsTx })._mockTx;
+
+function reservation(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "reservation-1",
+    kind: BookingKind.RESERVATION,
+    status: BookingStatus.BOOKED,
+    eventId: "event-old",
+    events: [{ eventId: "event-old" }],
+    ...overrides,
+  };
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  transactionCalls.length = 0;
+  mockTx.booking.findUnique.mockResolvedValue(reservation());
+  mockTx.booking.findUniqueOrThrow.mockResolvedValue({ id: "reservation-1" });
+  mockTx.booking.update.mockResolvedValue({});
+  mockTx.bookingEvent.deleteMany.mockResolvedValue({});
+  mockTx.bookingEvent.createMany.mockResolvedValue({});
+  mockTx.auditLog.create.mockResolvedValue({});
+  mockTx.user.findUnique.mockResolvedValue({ role: Role.STUDENT });
+  mockTx.calendarEvent.findMany.mockResolvedValue([
+    { id: "event-late", startsAt: new Date("2026-07-11T20:00:00Z") },
+    { id: "event-early", startsAt: new Date("2026-07-10T20:00:00Z") },
+  ]);
+});
+
+describe("updateReservationEvents", () => {
+  it("uses SERIALIZABLE isolation", async () => {
+    await updateReservationEvents("reservation-1", "student-1", ["event-late", "event-early"]);
+    expectSerializableIsolation(transactionCalls, 0);
+  });
+
+  it("sorts event links chronologically and preserves primary event compatibility", async () => {
+    await updateReservationEvents("reservation-1", "student-1", ["event-late", "event-early"]);
+
+    expect(mockTx.booking.update).toHaveBeenCalledWith({
+      where: { id: "reservation-1" },
+      data: { eventId: "event-early" },
+    });
+    expect(mockTx.bookingEvent.deleteMany).toHaveBeenCalledWith({ where: { bookingId: "reservation-1" } });
+    expect(mockTx.bookingEvent.createMany).toHaveBeenCalledWith({
+      data: [
+        { bookingId: "reservation-1", eventId: "event-early", ordinal: 0 },
+        { bookingId: "reservation-1", eventId: "event-late", ordinal: 1 },
+      ],
+    });
+    expect(mockTx.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          actorUserId: "student-1",
+          action: "events_updated",
+          beforeJson: expect.objectContaining({ eventIds: ["event-old"] }),
+          afterJson: expect.objectContaining({
+            eventId: "event-early",
+            eventIds: ["event-early", "event-late"],
+            _actorRole: Role.STUDENT,
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("clears linked events", async () => {
+    await updateReservationEvents("reservation-1", "student-1", []);
+
+    expect(mockTx.booking.update).toHaveBeenCalledWith({
+      where: { id: "reservation-1" },
+      data: { eventId: null },
+    });
+    expect(mockTx.bookingEvent.deleteMany).toHaveBeenCalledWith({ where: { bookingId: "reservation-1" } });
+    expect(mockTx.bookingEvent.createMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects duplicate eventIds before opening a transaction", async () => {
+    await expect(
+      updateReservationEvents("reservation-1", "student-1", ["event-1", "event-1"]),
+    ).rejects.toThrow("eventIds must be unique");
+
+    expect(transactionCalls).toHaveLength(0);
+  });
+
+  it("rejects checkout bookings", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(reservation({ kind: BookingKind.CHECKOUT }));
+
+    await expect(
+      updateReservationEvents("reservation-1", "student-1", ["event-late"]),
+    ).rejects.toThrow("Only reservations can update linked events");
+  });
+});

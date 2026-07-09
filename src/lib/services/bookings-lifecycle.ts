@@ -5,6 +5,7 @@ import {
   BulkMovementKind,
   BulkUnitStatus,
   Prisma,
+  Role,
   ScanSessionStatus
 } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -69,8 +70,29 @@ type UpdateBookingInput = {
   notes?: string;
 };
 
+type TransferBookingOwnerInput = {
+  targetUserId: string;
+  reason?: string;
+};
+
+const OWNER_TRANSFER_STATUSES = new Set<BookingStatus>([
+  BookingStatus.DRAFT,
+  BookingStatus.BOOKED,
+  BookingStatus.PENDING_PICKUP,
+  BookingStatus.OPEN,
+]);
+
+const RESERVATION_EVENT_LINK_STATUSES = new Set<BookingStatus>([
+  BookingStatus.DRAFT,
+  BookingStatus.BOOKED,
+]);
+
 function hasDuplicateIds(ids: string[]) {
   return new Set(ids).size !== ids.length;
+}
+
+function isStaffOrAdmin(role: Role | null | undefined) {
+  return role === Role.ADMIN || role === Role.STAFF;
 }
 
 function assertValidBookingWindow(startsAt: Date, endsAt: Date) {
@@ -90,6 +112,15 @@ function assertValidCreateEventLinks(input: CreateBookingInput) {
     throw new HttpError(400, "A booking may link at most 3 events");
   }
   if (input.eventIds && hasDuplicateIds(input.eventIds)) {
+    throw new HttpError(400, "eventIds must be unique");
+  }
+}
+
+function assertValidEventLinks(eventIds: string[]) {
+  if (eventIds.length > 3) {
+    throw new HttpError(400, "A booking may link at most 3 events");
+  }
+  if (hasDuplicateIds(eventIds)) {
     throw new HttpError(400, "eventIds must be unique");
   }
 }
@@ -681,6 +712,113 @@ export async function updateReservation(
   }
 }
 
+export async function updateReservationEvents(
+  bookingId: string,
+  actorUserId: string,
+  eventIds: string[],
+) {
+  assertValidEventLinks(eventIds);
+
+  try {
+    return await db.$transaction(
+      async (tx) => {
+        const existing = await tx.booking.findUnique({
+          where: { id: bookingId },
+          select: {
+            id: true,
+            kind: true,
+            status: true,
+            eventId: true,
+            events: {
+              select: { eventId: true },
+              orderBy: { ordinal: "asc" },
+            },
+          },
+        });
+
+        if (!existing) {
+          throw new HttpError(404, "Reservation not found");
+        }
+
+        if (existing.kind !== BookingKind.RESERVATION) {
+          throw new HttpError(400, "Only reservations can update linked events");
+        }
+
+        if (!RESERVATION_EVENT_LINK_STATUSES.has(existing.status)) {
+          throw new HttpError(400, "Cannot update linked events for a completed or cancelled reservation");
+        }
+
+        let sortedEventIds: string[] = [];
+        if (eventIds.length > 0) {
+          const events = await tx.calendarEvent.findMany({
+            where: { id: { in: eventIds } },
+            select: { id: true, startsAt: true },
+          });
+          if (events.length !== eventIds.length) {
+            throw new HttpError(400, "One or more eventIds do not exist");
+          }
+          sortedEventIds = [...events]
+            .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
+            .map((event) => event.id);
+        }
+
+        const existingEventIds = existing.events.length > 0
+          ? existing.events.map((event) => event.eventId)
+          : existing.eventId ? [existing.eventId] : [];
+        const primaryEventId = sortedEventIds[0] ?? null;
+        const unchanged =
+          existing.eventId === primaryEventId &&
+          existingEventIds.length === sortedEventIds.length &&
+          existingEventIds.every((eventId, index) => eventId === sortedEventIds[index]);
+
+        if (!unchanged) {
+          await tx.booking.update({
+            where: { id: bookingId },
+            data: { eventId: primaryEventId },
+          });
+
+          await tx.bookingEvent.deleteMany({ where: { bookingId } });
+
+          if (sortedEventIds.length > 0) {
+            await tx.bookingEvent.createMany({
+              data: sortedEventIds.map((eventId, ordinal) => ({
+                bookingId,
+                eventId,
+                ordinal,
+              })),
+            });
+          }
+
+          const actorRole = await lookupActorRole(tx, actorUserId);
+          await createAuditEntryTx(tx, {
+            actorId: actorUserId,
+            actorRole,
+            entityType: "booking",
+            entityId: bookingId,
+            action: "events_updated",
+            before: {
+              eventId: existing.eventId,
+              eventIds: existingEventIds,
+            },
+            after: {
+              eventId: primaryEventId,
+              eventIds: sortedEventIds,
+            },
+          });
+        }
+
+        return tx.booking.findUniqueOrThrow({
+          where: { id: bookingId },
+          include: bookingInclude,
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  } catch (error) {
+    handleBookingMutationRace(error);
+  }
+}
+
 export async function cancelReservation(bookingId: string, actorUserId: string) {
   return db.$transaction(async (tx) => {
     const booking = await tx.booking.findUnique({ where: { id: bookingId } });
@@ -993,6 +1131,103 @@ export async function updateCheckout(
   }
 
   return updated;
+}
+
+export async function transferBookingOwner(
+  bookingId: string,
+  actorUserId: string,
+  input: TransferBookingOwnerInput,
+) {
+  try {
+    return await db.$transaction(
+      async (tx) => {
+        const existing = await tx.booking.findUnique({
+          where: { id: bookingId },
+          select: {
+            id: true,
+            status: true,
+            requesterUserId: true,
+            createdBy: true,
+            requester: { select: { id: true, name: true, email: true } },
+          },
+        });
+
+        if (!existing) {
+          throw new HttpError(404, "Booking not found");
+        }
+
+        if (!OWNER_TRANSFER_STATUSES.has(existing.status)) {
+          throw new HttpError(400, "Cannot transfer ownership for a completed or cancelled booking");
+        }
+
+        const actor = await tx.user.findUnique({
+          where: { id: actorUserId },
+          select: { role: true },
+        });
+        const isOwner = actorUserId === existing.requesterUserId || actorUserId === existing.createdBy;
+        if (!actor || (!isStaffOrAdmin(actor.role) && !isOwner)) {
+          throw new HttpError(403, "You do not have permission to transfer this booking");
+        }
+
+        if (existing.requesterUserId === input.targetUserId) {
+          return tx.booking.findUniqueOrThrow({
+            where: { id: bookingId },
+            include: bookingInclude,
+          });
+        }
+
+        const target = await tx.user.findUnique({
+          where: { id: input.targetUserId },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            active: true,
+            hiddenFromRoster: true,
+          },
+        });
+
+        if (!target) throw new HttpError(400, "Target user not found");
+        if (!target.active) throw new HttpError(400, "Cannot transfer ownership to an inactive user");
+        if (target.hiddenFromRoster) throw new HttpError(400, "Cannot transfer ownership to a hidden test user");
+
+        await tx.booking.update({
+          where: { id: bookingId },
+          data: { requesterUserId: target.id },
+        });
+
+        const after: Record<string, unknown> = {
+          requesterUserId: target.id,
+          requesterName: target.name,
+          requesterEmail: target.email,
+        };
+        const reason = input.reason?.trim();
+        if (reason) after.reason = reason;
+
+        await createAuditEntryTx(tx, {
+          actorId: actorUserId,
+          actorRole: actor.role,
+          entityType: "booking",
+          entityId: bookingId,
+          action: "owner_transferred",
+          before: {
+            requesterUserId: existing.requesterUserId,
+            requesterName: existing.requester?.name ?? null,
+            requesterEmail: existing.requester?.email ?? null,
+          },
+          after,
+        });
+
+        return tx.booking.findUniqueOrThrow({
+          where: { id: bookingId },
+          include: bookingInclude,
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  } catch (error) {
+    handleBookingMutationRace(error);
+  }
 }
 
 export async function extendBooking(

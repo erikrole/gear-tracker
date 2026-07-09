@@ -26,6 +26,8 @@ import { statusBadgeVariant, statusLabel } from "./booking-details/helpers";
 import { toLocalDateTimeValue } from "./booking-details/helpers";
 import { BookingEditForm, BookingItems } from "./booking-details";
 import BookingInfoCard from "./booking-details/BookingInfoCard";
+import { EditReservationEventsDialog } from "./booking-details/EditReservationEventsDialog";
+import { TransferOwnerDialog } from "./booking-details/TransferOwnerDialog";
 import dynamic from "next/dynamic";
 import type { PickerBulkSku } from "@/components/EquipmentPicker";
 const EquipmentPicker = dynamic(() => import("@/components/EquipmentPicker"), { ssr: false });
@@ -102,6 +104,8 @@ export default function BookingDetailsSheet({
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [equipSearch, setEquipSearch] = useState("");
+  const [transferOwnerOpen, setTransferOwnerOpen] = useState(false);
+  const [editEventsOpen, setEditEventsOpen] = useState(false);
 
   // Edit form state
   const [editTitle, setEditTitle] = useState("");
@@ -233,6 +237,8 @@ export default function BookingDetailsSheet({
   const actions = booking?.allowedActions ?? [];
   const canEdit = booking && actions.includes("edit");
   const canCancel = booking && actions.includes("cancel");
+  const canTransferOwner = booking && actions.includes("transfer-owner");
+  const canEditEvents = booking && booking.kind === "RESERVATION" && actions.includes("edit");
   const canEditEquipment = canEdit;
 
   /* ───── Filtered equipment ───── */
@@ -656,7 +662,7 @@ export default function BookingDetailsSheet({
         {/* Footer */}
         {booking && !editMode && !equipEditMode && (
           <SheetFooter className="bg-background">
-            <div className="flex items-center gap-2 w-full">
+            <div className="flex w-full flex-wrap items-center gap-2">
               {/* Left: Edit + Cancel */}
               {canEdit && (
                 <Button variant="outline" size="sm" onClick={enterEditMode}>
@@ -666,6 +672,16 @@ export default function BookingDetailsSheet({
               {canCancel && (
                 <Button variant="destructive" size="sm" onClick={handleCancel} loading={cancelling}>
                   Cancel
+                </Button>
+              )}
+              {canTransferOwner && (
+                <Button variant="outline" size="sm" onClick={() => setTransferOwnerOpen(true)}>
+                  Transfer owner
+                </Button>
+              )}
+              {canEditEvents && (
+                <Button variant="outline" size="sm" onClick={() => setEditEventsOpen(true)}>
+                  Edit events
                 </Button>
               )}
 
@@ -681,6 +697,28 @@ export default function BookingDetailsSheet({
           </SheetFooter>
         )}
       </SheetContent>
+      {booking && (
+        <TransferOwnerDialog
+          open={transferOwnerOpen}
+          booking={booking}
+          onOpenChange={setTransferOwnerOpen}
+          onTransferred={(updated) => {
+            setBooking(updated);
+            onUpdated?.();
+          }}
+        />
+      )}
+      {booking && (
+        <EditReservationEventsDialog
+          open={editEventsOpen}
+          booking={booking}
+          onOpenChange={setEditEventsOpen}
+          onUpdated={(updated) => {
+            setBooking(updated);
+            onUpdated?.();
+          }}
+        />
+      )}
     </Sheet>
   );
 }

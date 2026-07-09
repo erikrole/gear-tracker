@@ -40,6 +40,8 @@ import {
 } from "@/components/booking-details/helpers";
 import { BookingHeader } from "@/components/booking-details/BookingHeader";
 import BookingInfoCard from "@/components/booking-details/BookingInfoCard";
+import { EditReservationEventsDialog } from "@/components/booking-details/EditReservationEventsDialog";
+import { TransferOwnerDialog } from "@/components/booking-details/TransferOwnerDialog";
 import { UserAvatar } from "@/components/UserAvatar";
 import { formatCountdownCompact, formatDateTime, getUrgency } from "@/lib/format";
 
@@ -72,6 +74,8 @@ export default function BookingDetailPage({
 
   // Edit sheet state
   const [editSheetOpen, setEditSheetOpen] = useState(false);
+  const [transferOwnerOpen, setTransferOwnerOpen] = useState(false);
+  const [editEventsOpen, setEditEventsOpen] = useState(false);
 
   // Admin exception state
   const [forceCompleteOpen, setForceCompleteOpen] = useState(false);
@@ -142,6 +146,8 @@ export default function BookingDetailPage({
   const canDuplicate = kind === "RESERVATION" && allowedActions.includes("duplicate");
   const canNudge = allowedActions.includes("nudge");
   const canForceComplete = kind === "CHECKOUT" && allowedActions.includes("force-complete");
+  const canTransferOwner = allowedActions.includes("transfer-owner");
+  const canEditEvents = kind === "RESERVATION" && canEdit;
   const isOpen = booking?.status === "OPEN";
   const isActive = isOpen || booking?.status === "BOOKED";
   const kioskHandoffLabel =
@@ -253,6 +259,8 @@ export default function BookingDetailPage({
         canDuplicate={canDuplicate}
         canNudge={canNudge}
         canForceComplete={canForceComplete}
+        canTransferOwner={canTransferOwner}
+        canEditEvents={canEditEvents}
         countdown={countdown}
         urgency={urgency}
         kioskHandoffLabel={kioskHandoffLabel}
@@ -270,6 +278,8 @@ export default function BookingDetailPage({
         onDuplicate={actions.duplicate}
         onNudge={actions.nudge}
         onForceComplete={() => setForceCompleteOpen(true)}
+        onTransferOwner={() => setTransferOwnerOpen(true)}
+        onEditEvents={() => setEditEventsOpen(true)}
       />
 
       {/* ── Extend panel ── */}
@@ -380,6 +390,26 @@ export default function BookingDetailPage({
         onClose={() => setEditSheetOpen(false)}
         onUpdated={() => {
           setEditSheetOpen(false);
+          reload();
+        }}
+      />
+
+      <TransferOwnerDialog
+        open={transferOwnerOpen}
+        booking={booking}
+        onOpenChange={setTransferOwnerOpen}
+        onTransferred={(updated) => {
+          patchLocal(updated);
+          reload();
+        }}
+      />
+
+      <EditReservationEventsDialog
+        open={editEventsOpen}
+        booking={booking}
+        onOpenChange={setEditEventsOpen}
+        onUpdated={(updated) => {
+          patchLocal(updated);
           reload();
         }}
       />

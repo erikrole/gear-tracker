@@ -97,13 +97,13 @@
 |---|---:|
 | `src/components/TradeBoard.tsx` | 1192 |
 | `src/components/EquipmentPicker.tsx` | 1001 |
-| `src/components/ActivityTimeline.tsx` | 906 |
+| `src/components/ActivityTimeline.tsx` | 917 |
 | `src/components/ShiftDetailPanel.tsx` | 813 |
 | `src/components/onboarding/OnboardingDialog.tsx` | 768 |
 | `src/components/ui/sidebar.tsx` | 727 |
+| `src/components/BookingDetailsSheet.tsx` | 725 |
 | `src/components/ChooseImageModal.tsx` | 716 |
 | `src/components/booking-wizard/BookingWizard.tsx` | 710 |
-| `src/components/BookingDetailsSheet.tsx` | 687 |
 | `src/components/AppShell.tsx` | 642 |
 | `src/components/booking-wizard/WizardStep1.tsx` | 570 |
 | `src/components/BookingListPage.tsx` | 512 |
@@ -113,18 +113,18 @@
 | `src/components/PageBreadcrumb.tsx` | 379 |
 | `src/components/shift-detail/ShiftSlotCard.tsx` | 375 |
 | `src/components/booking-details/BookingInfoCard.tsx` | 342 |
+| `src/components/booking-details/BookingHeader.tsx` | 339 |
+| `src/components/booking-details/EditReservationEventsDialog.tsx` | 332 |
 | `src/components/FormCombobox.tsx` | 329 |
 | `src/components/public-showroom/showroom-blocks.tsx` | 317 |
-| `src/components/booking-details/BookingHeader.tsx` | 313 |
 | `src/components/resources/MarkdownReader.tsx` | 293 |
 | `src/components/QrScanner.tsx` | 288 |
+| `src/components/booking-details/TransferOwnerDialog.tsx` | 266 |
 | `src/components/booking-wizard/WizardStep3.tsx` | 263 |
 | `src/components/ui/dropdown-menu.tsx` | 258 |
 | `src/components/shift-detail/UserAvatarPicker.tsx` | 256 |
 | `src/components/shift-detail/CallWindowEditor.tsx` | 243 |
 | `src/components/ui/context-menu.tsx` | 242 |
-| `src/components/booking-list/BookingRow.tsx` | 219 |
-| `src/components/booking-list/BookingFilters.tsx` | 202 |
 
 ## Hooks
 

@@ -39,9 +39,9 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 
 - Doc: `docs/AREA_EVENTS.md`
 - Pages: `/events/[id]`, `/events`
-- APIs: `/api/calendar-events/[id]/command-center`, `/api/calendar-events/[id]`, `/api/calendar-events/[id]/travel/[memberId]`, `/api/calendar-events/[id]/travel`, `/api/calendar-events/[id]/visibility`, `/api/calendar-events`, `/api/kiosk/events`
+- APIs: `/api/bookings/[id]/events`, `/api/calendar-events/[id]/command-center`, `/api/calendar-events/[id]`, `/api/calendar-events/[id]/travel/[memberId]`, `/api/calendar-events/[id]/travel`, `/api/calendar-events/[id]/visibility`, `/api/calendar-events`, `/api/kiosk/events`
 - Services: _none matched_
-- Tests: `tests/calendar-events-route.test.ts`, `tests/kiosk-events-route.test.ts`
+- Tests: `tests/booking-events-route-contract.test.ts`, `tests/calendar-events-route.test.ts`, `tests/kiosk-events-route.test.ts`, `tests/update-reservation-events.test.ts`
 
 ## importer
 
@@ -119,7 +119,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 
 - Doc: `docs/AREA_RESERVATIONS.md`
 - Pages: `/bookings`, `/reservations/[id]`, `/reservations/new`, `/reservations`, `/settings/bookings`
-- APIs: `/api/bookings/[id]/audit-logs`, `/api/bookings/[id]/cancel`, `/api/bookings/[id]/extend`, `/api/bookings/[id]/force-complete`, `/api/bookings/[id]/nudge`, `/api/bookings/[id]`, `/api/bookings/changes`, `/api/bookings/export`, `/api/bookings`, `/api/reservations/[id]/cancel`
+- APIs: `/api/bookings/[id]/audit-logs`, `/api/bookings/[id]/cancel`, `/api/bookings/[id]/events`, `/api/bookings/[id]/extend`, `/api/bookings/[id]/force-complete`, `/api/bookings/[id]/nudge`, `/api/bookings/[id]`, `/api/bookings/[id]/transfer-owner`, `/api/bookings/changes`, `/api/bookings/export`
 - Services: `src/lib/services/bookings-checkin.ts`, `src/lib/services/bookings-helpers.ts`, `src/lib/services/bookings-lifecycle.ts`, `src/lib/services/bookings-queries.ts`, `src/lib/services/bookings.ts`
 - Tests: `tests/ios-bookings-empty-state.test.ts`
 

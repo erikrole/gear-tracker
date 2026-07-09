@@ -10,10 +10,10 @@
 | `src/lib/services/availability-conflict-recompute.ts` | 128 |
 | `src/lib/services/availability.ts` | 554 |
 | `src/lib/services/booking-ref.ts` | 26 |
-| `src/lib/services/booking-rules.ts` | 105 |
+| `src/lib/services/booking-rules.ts` | 107 |
 | `src/lib/services/bookings-checkin.ts` | 768 |
 | `src/lib/services/bookings-helpers.ts` | 251 |
-| `src/lib/services/bookings-lifecycle.ts` | 1197 |
+| `src/lib/services/bookings-lifecycle.ts` | 1432 |
 | `src/lib/services/bookings-queries.ts` | 235 |
 | `src/lib/services/bookings.ts` | 4 |
 | `src/lib/services/bulk-unit-scans.ts` | 608 |
@@ -73,7 +73,7 @@
 | `src/lib/battery-compatibility.ts` | 166 |
 | `src/lib/bhphoto-image.ts` | 67 |
 | `src/lib/blob.ts` | 151 |
-| `src/lib/booking-action-policy.ts` | 163 |
+| `src/lib/booking-action-policy.ts` | 169 |
 | `src/lib/booking-actions.ts` | 14 |
 | `src/lib/booking-availability-window.ts` | 19 |
 | `src/lib/booking-status-display.ts` | 128 |
@@ -145,7 +145,7 @@
 | `src/lib/url-sync.ts` | 16 |
 | `src/lib/user-visibility.ts` | 45 |
 | `src/lib/utils.ts` | 7 |
-| `src/lib/validation.ts` | 539 |
+| `src/lib/validation.ts` | 550 |
 | `src/lib/venue-mapping-audit.ts` | 56 |
 | `src/lib/venue-mapping-contract.ts` | 46 |
 | `src/lib/venue-tone.ts` | 74 |
@@ -211,10 +211,12 @@
 
 - `/api/bookings/[id]/audit-logs`
 - `/api/bookings/[id]/cancel`
+- `/api/bookings/[id]/events`
 - `/api/bookings/[id]/extend`
 - `/api/bookings/[id]/force-complete`
 - `/api/bookings/[id]/nudge`
 - `/api/bookings/[id]`
+- `/api/bookings/[id]/transfer-owner`
 - `/api/bookings/changes`
 - `/api/bookings/export`
 - `/api/bookings`

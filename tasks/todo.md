@@ -1,6 +1,24 @@
 # Task Queue
 
-Last updated: 2026-07-08
+Last updated: 2026-07-09
+
+---
+
+## Active: Booking owner transfer (2026-07-09)
+
+Plan: `tasks/booking-owner-transfer-plan.md`
+
+- [x] Add staff/admin-only transfer ownership API and lifecycle audit.
+- [x] Wire the shared booking detail page and sheet action.
+- [x] Add focused coverage, sync docs, and run verification.
+- [x] Correct transfer-owner to allow student owners/creators, not staff/admin only.
+- [x] Add a reservation event-link mutation for changing or clearing linked scheduled events after creation.
+- [x] Wire event-link editing into the shared booking detail page and sheet.
+- [x] Add focused policy/service/route coverage, sync docs, and rerun verification.
+
+### Review
+- 2026-07-09: Follow-up correction shipped locally. Student requesters/creators can transfer their own active bookings while staff/admin keep transfer access across active bookings. Editable reservations now have `POST /api/bookings/[id]/events` plus a shared dialog to link, change, or clear up to 3 scheduled events after creation; the service preserves `Booking.eventId` as chronological primary and rewrites `BookingEvent` rows transactionally with `events_updated` audit history. Verification passed: `npx vitest run tests/booking-events-route-contract.test.ts tests/update-reservation-events.test.ts tests/booking-transfer-owner-route-contract.test.ts tests/transfer-booking-owner.test.ts tests/decision-contracts.test.ts`, `npx tsc --noEmit --pretty false`, `npm run codemap`, `npm run verify:docs`, `git diff --check`, and `npm run build:app`. Build still reports the pre-existing `BookingEquipmentTab.tsx` exhaustive-deps warning.
+- 2026-07-09: Booking owner transfer is implemented locally with `transfer-owner` policy gating, `POST /api/bookings/[id]/transfer-owner`, transaction-scoped `owner_transferred` audit, and a shared transfer dialog on full detail and sheet surfaces. Verification passed: `npx vitest run tests/booking-transfer-owner-route-contract.test.ts tests/transfer-booking-owner.test.ts tests/decision-contracts.test.ts`, `npx tsc --noEmit --pretty false`, `npm run codemap`, `npm run verify:docs`, `git diff --check`, `npm run build:app`, and `npm run db:migrate:check`. Browser smoke started `npm run dev` and reached `/bookings`, but Chrome redirected to `/login` because no authenticated browser session was available.
 
 ---
 

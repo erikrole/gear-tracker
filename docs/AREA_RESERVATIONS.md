@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-02
+- Last Updated: 2026-07-09
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -146,11 +146,11 @@ The reservation detail page (`/reservations/[id]`) uses the shared `BookingDetai
 Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVATION]`
 
 ### `DRAFT`
-- Allowed actions: Edit, Cancel
+- Allowed actions: Edit, Cancel, Transfer owner
 - Access: staff+ or owner
 
 ### `BOOKED`
-- Allowed actions: Edit, Extend, Cancel, view kiosk pickup guidance
+- Allowed actions: Edit, Extend, Cancel, Transfer owner, view kiosk pickup guidance
 - Access: staff+ or owner
 
 ### `COMPLETED`
@@ -167,7 +167,9 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 3. Extend — extends booking window (conflict-checked)
 4. Cancel reservation — soft cancel, record preserved for audit
 5. Duplicate — clones a BOOKED reservation with same items, dates, and settings
-6. Deferred: Spotcheck creation, PDF generation
+6. Transfer owner — staff/admin or owner requester reassignment with optimistic-lock protection and `owner_transferred` audit history
+7. Edit linked events — reservation-only scheduled-event link, change, or clear action using the existing `Booking.eventId` primary plus `BookingEvent` junction contract
+8. Deferred: Spotcheck creation, PDF generation
 
 ## Bug Traps and Mitigations
 
@@ -212,6 +214,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - Cross-midnight reservations and timezone conversions.
 - Reservation spans multiple locations with exception approval.
 - Owner reassigned after creation.
+- Linked scheduled event added, changed, or cleared after creation.
 - Late edits close to handoff time.
 - Reservation with mixed serialized and bulk equipment.
 - Item shows in reservation list but is now unavailable at checkout time.
@@ -241,6 +244,8 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - Mobile operations contract from `AREA_MOBILE.md`.
 
 ## Change Log
+- 2026-07-09: **Reservation event relinking shipped.** Editable reservations can now link, change, or clear scheduled events after creation from the full detail page and shared detail sheet. The new `POST /api/bookings/[id]/events` route uses the same `If-Unmodified-Since` optimistic-lock contract as edit/extend/transfer, requires normal reservation edit permission, caps `eventIds[]` at 3, sorts links chronologically, preserves `Booking.eventId` as the primary event, rewrites `BookingEvent` junction rows transactionally, and writes `events_updated` audit history. Student owners/creators can also transfer their own active bookings; staff/admin retain transfer access across active bookings. New coverage: `tests/booking-events-route-contract.test.ts`, `tests/update-reservation-events.test.ts`, `tests/transfer-booking-owner.test.ts`, and `tests/decision-contracts.test.ts`.
+- 2026-07-09: **Booking owner transfer shipped.** Shared reservation detail exposes `Transfer owner` when `allowedActions` includes `transfer-owner`. The action posts to `POST /api/bookings/[id]/transfer-owner` with the same `If-Unmodified-Since` optimistic-lock contract as edit/extend, updates only `Booking.requesterUserId`, preserves `createdBy`, validates the target user is active and visible, and writes an `owner_transferred` audit entry. New coverage: `tests/booking-transfer-owner-route-contract.test.ts`, `tests/transfer-booking-owner.test.ts`, and `tests/decision-contracts.test.ts`.
 - 2026-07-08: **Extend optimistic-lock parity shipped.** `POST /api/bookings/[id]/extend` now requires and validates `If-Unmodified-Since` the same way `PATCH /api/bookings/[id]` already did — 428 if missing, 400 if invalid, 409 on a stale snapshot. Closes a fresh-audit finding (`tasks/audit-bookings-web.md`) where a stale tab's quick-extend action could silently succeed against a booking someone else had just changed, since the extend route only validated the new date against the live `endsAt` inside its transaction, not against what the client believed the booking's state was. New coverage: `tests/booking-extend-route-contract.test.ts`.
 - 2026-07-07: **Availability preflight/commit parity shipped.** `/api/availability/check` now accepts an optional `kind` and applies the same per-kind `availableForCheckout`/`availableForReservation` gating the save path enforces, so the wizard and edit surfaces can no longer say an asset is available and then 409 at submit. Web callers send their kind (wizard sends RESERVATION, booking details sheet and equipment tab send `booking.kind`); iOS keeps omitting the field with unchanged legacy behavior until a parity pass. The route also gains the standard `requirePermission(booking, view)` check (all roles hold it; consistency only), and the equipment picker's "who has it" lookup now includes PENDING_PICKUP holders so staged pickups stop showing as unavailable-with-no-holder. Availability service core audited and unchanged: blocking statuses are consistent across conflicts/commitments/derived status, the 60m turnaround buffer applies on the query side, and bulk shortage math stays deliberately conservative. Plan: `tasks/archive/availability-hardening-plan.md`.
 - 2026-07-06: **Reservation lifecycle hardening shipped.** `cancelReservation` now enforces terminal-state guards inside its SERIALIZABLE transaction (route policy reads outside it, so a reservation completed in that window could previously be flipped to CANCELLED), reservation requester changes validate the new requester exists and is active, and the unused `status` passthrough on reservation updates is removed. Details in `tasks/archive/bookings-hardening-plan.md`.

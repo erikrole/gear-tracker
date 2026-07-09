@@ -87,7 +87,7 @@ const bulkItemsSchema = z.array(bulkItemSchema).default([]).superRefine((items, 
   });
 });
 
-const eventIdsSchema = z.array(z.string().cuid()).max(3).superRefine((ids, ctx) => {
+const eventIdsListSchema = z.array(z.string().cuid()).max(3).superRefine((ids, ctx) => {
   const seen = new Set<string>();
   ids.forEach((id, index) => {
     if (seen.has(id)) {
@@ -100,7 +100,9 @@ const eventIdsSchema = z.array(z.string().cuid()).max(3).superRefine((ids, ctx) 
     }
     seen.add(id);
   });
-}).optional();
+});
+
+const eventIdsSchema = eventIdsListSchema.optional();
 
 export const sportCodeSchema = z.string()
   .trim()
@@ -377,6 +379,15 @@ export const updateBookingSchema = z.object({
 
 export const extendBookingSchema = z.object({
   endsAt: z.string().datetime({ offset: true })
+});
+
+export const transferBookingOwnerSchema = z.object({
+  targetUserId: z.string().cuid(),
+  reason: z.string().trim().max(1000).optional(),
+});
+
+export const updateReservationEventsSchema = z.object({
+  eventIds: eventIdsListSchema,
 });
 
 export const sportShiftConfigSchema = z.object({

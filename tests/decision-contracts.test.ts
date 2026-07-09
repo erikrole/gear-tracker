@@ -72,6 +72,8 @@ describe("documented decision contracts", () => {
     expect(getAllowedBookingActions(owner, openCheckout, "CHECKOUT")).not.toContain("checkin");
     expect(getAllowedBookingActions(staff, bookedReservation, "RESERVATION")).not.toContain("convert");
     expect(getAllowedBookingActions(owner, bookedReservation, "RESERVATION")).not.toContain("convert");
+    expect(getAllowedBookingActions(staff, bookedReservation, "RESERVATION")).toContain("transfer-owner");
+    expect(getAllowedBookingActions(owner, bookedReservation, "RESERVATION")).toContain("transfer-owner");
 
     const checkoutRouteSource = source("src/app/api/checkouts/route.ts");
     const convertRouteSource = source("src/app/api/reservations/[id]/convert/route.ts");

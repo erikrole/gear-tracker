@@ -48,6 +48,8 @@ export const actionLabels: Record<string, string> = {
   created: "created booking",
   update: "updated",
   updated: "updated",
+  owner_transferred: "transferred owner",
+  events_updated: "updated linked events",
   extend: "extended",
   extended: "extended",
   cancel: "cancelled",

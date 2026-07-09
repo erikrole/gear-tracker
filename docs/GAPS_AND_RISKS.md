@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-08
+- Last Updated: 2026-07-09
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -47,6 +47,8 @@ _2026-06-15 update: iOS hand-scanner debugger shipped without opening a new gap.
 _2026-06-15 update: Wiscard kiosk selection and serialized location reconciliation shipped without opening a new gap. Wiscard became a unique profile identifier, kiosk idle can resolve a scanned Wiscard to a location-scoped active user when the value is linked, and kiosk custody scans reconcile serialized item locations while recording mismatch evidence on pickup/return scan events._
 
 _2026-07-08 update: Wiscard registration capture was relaxed without opening a new gap. `User.wiscardNumber` stays unique and nullable, profile editing can still link a value, and kiosk identify still resolves saved values; new invited Staff and Student accounts can register without a Wiscard while card-number-plus-issue-code scan parsing is deferred._
+
+_2026-07-09 update: Booking owner transfer and reservation event relinking shipped without opening a new gap. Existing `Booking.requesterUserId`, creator provenance, owner-or-staff booking action policy, optimistic-lock mutation contract, visible active user filtering, `Booking.eventId`, `BookingEvent`, and audit-log contracts supported student-owner handoff plus post-creation scheduled-event link/change/clear._
 
 _2026-06-15 update: Kiosk checkout event context shipped without opening a new gap. Direct kiosk checkout now requires either a selected upcoming event or typed purpose, titles bookings from that context, and preserves selected events through the same primary and junction event links used by web bookings._
 

@@ -30,6 +30,8 @@ type Props = {
   canDuplicate: boolean;
   canNudge: boolean;
   canForceComplete: boolean;
+  canTransferOwner: boolean;
+  canEditEvents: boolean;
   countdown: string | null;
   urgency: string;
   kioskHandoffLabel: string | null;
@@ -44,6 +46,8 @@ type Props = {
   onDuplicate: () => void;
   onNudge: () => void;
   onForceComplete: () => void;
+  onTransferOwner: () => void;
+  onEditEvents: () => void;
 };
 
 function PendingDropdownMenuItem({
@@ -70,6 +74,8 @@ export function BookingHeader({
   canDuplicate,
   canNudge,
   canForceComplete,
+  canTransferOwner,
+  canEditEvents,
   countdown,
   urgency,
   kioskHandoffLabel,
@@ -84,8 +90,10 @@ export function BookingHeader({
   onDuplicate,
   onNudge,
   onForceComplete,
+  onTransferOwner,
+  onEditEvents,
 }: Props) {
-  const hasSecondaryActions = canDuplicate || canCancel || canNudge || canForceComplete;
+  const hasSecondaryActions = canDuplicate || canCancel || canNudge || canForceComplete || canTransferOwner || canEditEvents;
   const hasPrimaryActions = canEdit || canExtend;
 
   const eventLabel =
@@ -236,6 +244,24 @@ export function BookingHeader({
                           disabled={!!actionLoading}
                         >
                           Close without scan
+                        </PendingDropdownMenuItem>
+                      )}
+                      {canTransferOwner && (
+                        <PendingDropdownMenuItem
+                          active={actionLoading === "transfer-owner"}
+                          onSelect={onTransferOwner}
+                          disabled={!!actionLoading}
+                        >
+                          Transfer owner
+                        </PendingDropdownMenuItem>
+                      )}
+                      {canEditEvents && (
+                        <PendingDropdownMenuItem
+                          active={actionLoading === "edit-events"}
+                          onSelect={onEditEvents}
+                          disabled={!!actionLoading}
+                        >
+                          Edit linked events
                         </PendingDropdownMenuItem>
                       )}
                       {canDuplicate && (
