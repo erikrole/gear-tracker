@@ -1,15 +1,38 @@
 "use client";
 
-import { useMemo } from "react";
+import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
-import { Cog, ArrowRight } from "lucide-react";
-import { UserAvatar } from "@/components/UserAvatar";
+import {
+  ArrowRight,
+  Bell,
+  Camera,
+  CalendarClock,
+  ChevronDown,
+  Cog,
+  Copy,
+  Heart,
+  KeyRound,
+  LogIn,
+  LogOut,
+  Package,
+  Pencil,
+  Plus,
+  QrCode,
+  RotateCcw,
+  ScanLine,
+  ShieldAlert,
+  Trash2,
+  Upload,
+  UserRound,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
-import { formatDateTime, formatDateShort, formatRelativeTime } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /** Map an audit row's entity to a deep-link route, or null if no detail page exists. */
@@ -269,14 +292,85 @@ const ACTION_COLORS: Record<string, ActionColorKey> = {
   overdue_nudge_sent: "muted",
 };
 
-const RING_CLASSES: Record<ActionColorKey, string> = {
-  green:  "ring-[var(--green)]/40",
-  blue:   "ring-[var(--blue)]/40",
-  amber:  "ring-[var(--orange)]/40",
-  rose:   "ring-[var(--red)]/40",
-  purple: "ring-[var(--purple)]/40",
-  muted:  "ring-border",
+/** Tinted circle behind the event-type icon, keyed by the action's color family. */
+const NODE_CLASSES: Record<ActionColorKey, string> = {
+  green:  "bg-[var(--green-bg)] text-[var(--green-text)]",
+  blue:   "bg-[var(--blue-bg)] text-[var(--blue-text)]",
+  amber:  "bg-[var(--orange-bg)] text-[var(--orange-text)]",
+  rose:   "bg-[var(--red-bg)] text-[var(--red-text)]",
+  purple: "bg-[var(--purple-bg)] text-[var(--purple-text)]",
+  muted:  "bg-muted text-muted-foreground",
 };
+
+/** Event-type icon for the timeline rail. Exact matches first, then family prefixes. */
+const ACTION_ICONS: Record<string, LucideIcon> = {
+  created: Plus,
+  create: Plus,
+  "booking.created": Plus,
+  asset_created: Plus,
+  registered: Plus,
+  cancelled: X,
+  cancel: X,
+  draft_discarded: X,
+  deleted: Trash2,
+  bulk_deleted: Trash2,
+  retired: Trash2,
+  retire: Trash2,
+  bulk_retired: Trash2,
+  reactivated: RotateCcw,
+  bulk_unretired: RotateCcw,
+  duplicated: Copy,
+  duplicate: Copy,
+  extended: CalendarClock,
+  extend: CalendarClock,
+  events_updated: CalendarClock,
+  qr_generated: QrCode,
+  favorite_added: Heart,
+  favorite_removed: Heart,
+  csv_import: Upload,
+  login: LogIn,
+  logout: LogOut,
+  role_changed: UserRound,
+  owner_transferred: UserRound,
+  user_deactivated: UserRound,
+  user_activated: UserRound,
+  admin_override: ShieldAlert,
+  admin_force_completed_checkout: ShieldAlert,
+  nudge_sent: Bell,
+  overdue_nudge_sent: Bell,
+  auto_escalation: Bell,
+  cron_notification: Bell,
+};
+
+const ICON_PREFIXES: [string, LucideIcon][] = [
+  ["kiosk_", ScanLine],
+  ["checkin", ScanLine],
+  ["checkout_scan", ScanLine],
+  ["scan_", ScanLine],
+  ["partial_", ScanLine],
+  ["fulfilled_by_kiosk", ScanLine],
+  ["asset_image", Camera],
+  ["bulk_sku_image", Camera],
+  ["avatar_", Camera],
+  ["image_", Camera],
+  ["booking.items", Package],
+  ["accessory_", Package],
+  ["bulk_member", Package],
+  ["add_units", Package],
+  ["adjust", Package],
+  ["convert_to_numbered", Package],
+  ["password_", KeyRound],
+  ["ics_token", KeyRound],
+  ["calendar_event", CalendarClock],
+];
+
+function actionIcon(action: string, isSystem: boolean): LucideIcon {
+  const exact = ACTION_ICONS[action];
+  if (exact) return exact;
+  const prefix = ICON_PREFIXES.find(([p]) => action.startsWith(p));
+  if (prefix) return prefix[1];
+  return isSystem ? Cog : Pencil;
+}
 
 /** Resolve a friendly target phrase from the audit entry — used by `user` context
  *  where each row references a different entity. Falls back to the entityType
@@ -615,7 +709,7 @@ function getEquipmentCounts(
 
 /* ── Field change description ── */
 
-type FieldChange = { label: string; from: string; to: string };
+type FieldChange = { label: string; from: string; to: string; mono?: boolean };
 
 function describeFieldChange(
   key: string,
@@ -692,7 +786,12 @@ function describeFieldChange(
   if (key === "notes" && (looksLikeImportMetadata(from) || looksLikeImportMetadata(to))) {
     return null;
   }
-  return { label, from, to };
+  // URLs render mono with the protocol stripped — the hostname/path is the
+  // information; "https://www." is noise that eats truncation budget.
+  const isUrl = (v: string) => /^https?:\/\//.test(v);
+  const mono = isUrl(from) || isUrl(to);
+  const display = (v: string) => (isUrl(v) ? v.replace(/^https?:\/\/(www\.)?/, "") : v);
+  return { label, from: display(from), to: display(to), mono };
 }
 
 function looksLikeImportMetadata(value: string): boolean {
@@ -760,15 +859,22 @@ function getDateGroup(iso: string, today: Date): string {
   });
 }
 
-function formatTimestamp(iso: string, today: Date): string {
-  const d = new Date(iso);
-  if (d.toDateString() === today.toDateString()) {
-    return formatRelativeTime(iso, today);
-  }
-  return `${formatDateShort(iso)} at ${d.toLocaleTimeString("en-US", {
+/** Time-only — the sticky date header owns the date, so repeating it per row
+ *  is pure noise. Coalesced runs show their span as a range. */
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
-  })}`;
+  });
+}
+
+function formatTimestamp(entry: RenderEntry): string {
+  const newest = formatTime(entry.createdAt);
+  if (entry._oldest && entry._oldest !== entry.createdAt) {
+    const oldest = formatTime(entry._oldest);
+    if (oldest !== newest) return `${oldest}–${newest}`;
+  }
+  return newest;
 }
 
 /* ── Coalescing ── */
@@ -778,12 +884,19 @@ function formatTimestamp(iso: string, today: Date): string {
  *  seconds; one row with a "× N" pill reads better than five duplicates. */
 const COALESCE_WINDOW_MS = 60_000;
 
-type RenderEntry = AuditEntry & { _count?: number };
+type RenderEntry = AuditEntry & {
+  _count?: number;
+  /** createdAt of the oldest entry folded into this row. */
+  _oldest?: string;
+  /** Every entry folded into this row, newest-first (including the primary). */
+  _chain?: AuditEntry[];
+};
 
-/** Collapse runs of consecutive entries that share actor + action + entity
- *  and fall within COALESCE_WINDOW_MS. Entries arrive newest-first so the
- *  newest one is preserved as the "primary" — its diff is shown, with the
- *  count badge indicating how many writes folded into it. */
+/** Collapse runs of consecutive entries that share actor + action + entity.
+ *  Entries arrive newest-first so the newest one is preserved as the
+ *  "primary". The window compares against the oldest folded entry, so a slow
+ *  run of edits (one per minute) still folds into a single row; the full run
+ *  is kept on `_chain` so same-field edits can render as a value chain. */
 function coalesceEntries(entries: AuditEntry[]): RenderEntry[] {
   const out: RenderEntry[] = [];
   for (const entry of entries) {
@@ -795,15 +908,76 @@ function coalesceEntries(entries: AuditEntry[]): RenderEntry[] {
       last.entityType === entry.entityType &&
       last.entityId === entry.entityId &&
       Math.abs(
-        new Date(last.createdAt).getTime() - new Date(entry.createdAt).getTime(),
+        new Date(last._oldest ?? last.createdAt).getTime() -
+          new Date(entry.createdAt).getTime(),
       ) <= COALESCE_WINDOW_MS
     ) {
       last._count = (last._count ?? 1) + 1;
+      last._oldest = entry.createdAt;
+      if (!last._chain) last._chain = [last];
+      last._chain.push(entry);
       continue;
     }
     out.push({ ...entry, _count: 1 });
   }
   return out;
+}
+
+const CHAINABLE_ACTIONS = new Set([...DIFF_ACTIONS, "extended", "extend"]);
+
+type ChainedChange = { label: string; values: string[]; delta: string | null; mono: boolean };
+
+/** When every entry in a coalesced run changed the same single visible field,
+ *  render the value path (`May 4 → May 8 → May 27`) instead of hiding the
+ *  history behind a ×N badge. */
+function getChainedChange(entry: RenderEntry): ChainedChange | null {
+  const chain = entry._chain;
+  if (!chain || chain.length < 2 || !CHAINABLE_ACTIONS.has(entry.action)) return null;
+
+  const keys = new Set<string>();
+  for (const e of chain) {
+    if (!e.afterJson) return null;
+    for (const k of Object.keys(e.afterJson)) {
+      if (!HIDDEN_FIELDS.has(k)) keys.add(k);
+    }
+  }
+  if (keys.size !== 1) return null;
+  const key = [...keys][0]!;
+
+  const ordered = [...chain].reverse();
+  const values: string[] = [];
+  let label = FIELD_LABELS[key] || key;
+  let mono = false;
+  for (let i = 0; i < ordered.length; i++) {
+    const e = ordered[i]!;
+    const change = describeFieldChange(
+      key,
+      (e.beforeJson as Record<string, unknown> | null)?.[key],
+      (e.afterJson as Record<string, unknown> | null)?.[key],
+    );
+    if (!change) continue;
+    label = change.label;
+    if (change.mono) mono = true;
+    if (values.length === 0 && change.from && change.from !== "empty") values.push(change.from);
+    values.push(change.to);
+  }
+  const deduped = values.filter((v, i) => i === 0 || v !== values[i - 1]);
+  // Two values is an ordinary before → after pill; a chain needs a middle.
+  if (deduped.length < 3) return null;
+
+  let delta: string | null = null;
+  if (key === "startsAt" || key === "endsAt") {
+    const firstRaw = (ordered[0]!.beforeJson as Record<string, unknown> | null)?.[key];
+    const lastRaw = (ordered[ordered.length - 1]!.afterJson as Record<string, unknown> | null)?.[key];
+    const first = typeof firstRaw === "string" ? new Date(firstRaw).getTime() : NaN;
+    const last = typeof lastRaw === "string" ? new Date(lastRaw).getTime() : NaN;
+    if (!Number.isNaN(first) && !Number.isNaN(last) && first !== last) {
+      const days = Math.round((last - first) / 86_400_000);
+      if (days !== 0) delta = `${days > 0 ? "+" : ""}${days} day${Math.abs(days) === 1 ? "" : "s"}`;
+    }
+  }
+
+  return { label, values: deduped, delta, mono };
 }
 
 /* ── Skeleton loader ── */
@@ -827,32 +1001,37 @@ export function TimelineSkeleton() {
 
 /* ── Single entry row ── */
 
+function valuePillClass(kind: "old" | "new" | "mid", mono?: boolean) {
+  return cn(
+    "max-w-56 truncate rounded-md px-2 py-0.5",
+    kind === "old" && "bg-[var(--red-bg)] text-[var(--red-text)] line-through",
+    kind === "new" && "bg-[var(--green-bg)] font-medium text-[var(--green-text)]",
+    kind === "mid" && "bg-muted text-muted-foreground",
+    mono && "font-mono text-[11px]",
+  );
+}
+
 function TimelineEntry({
   entry,
   context,
   entityName,
-  today,
 }: {
   entry: RenderEntry;
   context: "booking" | "item" | "report" | "user";
   entityName?: string;
-  today: Date;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const repeatCount = entry._count && entry._count > 1 ? entry._count : null;
-  const isSystem =
-    !entry.actor || SYSTEM_ACTIONS.has(entry.action);
+  const isSystem = !entry.actor || SYSTEM_ACTIONS.has(entry.action);
   const actorName = entry.actor?.name
     ?? (SYSTEM_ACTIONS.has(entry.action) ? "System" : "Unknown user");
   const colorKey = ACTION_COLORS[entry.action] ?? "muted";
-  const ringClass = RING_CLASSES[colorKey];
+  const Icon = actionIcon(entry.action, isSystem);
 
-  const description = describeAction(
-    entry,
-    actorName,
-    context,
-    entityName,
-  );
-  const changes = getFieldChanges(entry);
+  const description = describeAction(entry, actorName, context, entityName);
+  const chained = getChainedChange(entry);
+  const changes = chained ? [] : getFieldChanges(entry);
+  const actorRole = (entry.afterJson?._actorRole as string | undefined) ?? null;
 
   // On user / report contexts each row references a different entity — make the
   // row clickable when a detail page exists. Item-context rows that reference a
@@ -867,32 +1046,27 @@ function TimelineEntry({
     ? {
         href: linkable,
         className:
-          "flex gap-3 items-start py-2.5 px-3 sm:px-4 no-underline text-inherit hover:bg-muted/40 transition-colors",
+          "flex gap-3 px-3 sm:px-4 no-underline text-inherit hover:bg-muted/40 transition-colors",
       }
-    : { className: "flex gap-3 items-start py-2.5 px-3 sm:px-4" };
+    : { className: "flex gap-3 px-3 sm:px-4" };
 
   return (
     <Wrapper {...wrapperProps}>
-      {/* Avatar or system icon */}
-      {isSystem ? (
+      {/* Event-type rail: tinted icon node + connecting hairline */}
+      <div className="flex w-7 shrink-0 flex-col items-center self-stretch">
         <div
           className={cn(
-            "size-8 rounded-full flex items-center justify-center shrink-0 ring-2 bg-muted",
-            ringClass,
+            "mt-2 flex size-7 shrink-0 items-center justify-center rounded-full",
+            NODE_CLASSES[colorKey],
           )}
         >
-          <Cog className="size-4 text-muted-foreground" />
+          <Icon className="size-3.5" />
         </div>
-      ) : (
-        <UserAvatar
-          name={actorName}
-          avatarUrl={entry.actor?.avatarUrl}
-          className={cn("size-8 shrink-0 ring-2", ringClass)}
-        />
-      )}
+        <div className="mt-1 w-px flex-1 bg-border/50" />
+      </div>
 
       {/* Content */}
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 py-2.5">
         <div className="flex items-baseline gap-2 flex-wrap">
           {context !== "report" && (
             <span className="text-sm font-medium truncate">{actorName}</span>
@@ -900,7 +1074,7 @@ function TimelineEntry({
           <span className="text-sm text-muted-foreground">
             {description}
           </span>
-          {repeatCount && (
+          {repeatCount && !chained && (
             <Badge
               variant="secondary"
               className="h-5 px-1.5 text-[10px] tabular-nums"
@@ -909,37 +1083,109 @@ function TimelineEntry({
             </Badge>
           )}
           <span
-            className="text-xs text-muted-foreground/60 ml-auto shrink-0"
+            className="text-xs text-muted-foreground/60 ml-auto shrink-0 tabular-nums"
             title={formatDateTime(entry.createdAt)}
           >
-            {formatTimestamp(entry.createdAt, today)}
+            {formatTimestamp(entry)}
           </span>
+          {!linkable && (
+            <button
+              type="button"
+              aria-label={expanded ? "Hide entry details" : "Show entry details"}
+              aria-expanded={expanded}
+              onClick={() => setExpanded((v) => !v)}
+              className="shrink-0 self-center rounded p-0.5 text-muted-foreground/50 transition-colors hover:bg-muted hover:text-muted-foreground"
+            >
+              <ChevronDown className={cn("size-3.5 transition-transform", expanded && "rotate-180")} />
+            </button>
+          )}
         </div>
 
-        {/* Field change pills */}
-        {changes.length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {changes.map((change) => (
-              <span
-                key={change.label}
-                className="inline-flex items-center gap-1 text-xs bg-muted rounded-md px-2 py-0.5"
-              >
-                <span className="font-medium text-foreground/70">
-                  {change.label}
+        {/* Chained same-field run: value path oldest → newest */}
+        {chained && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="text-muted-foreground">{chained.label}</span>
+            {chained.values.map((value, i) => (
+              <Fragment key={`${i}-${value}`}>
+                {i > 0 && <ArrowRight className="size-3 shrink-0 text-muted-foreground/50" />}
+                <span
+                  className={cn(
+                    valuePillClass(i === chained.values.length - 1 ? "new" : "mid", chained.mono),
+                    "tabular-nums",
+                  )}
+                  title={value}
+                >
+                  {value}
                 </span>
-                {change.from ? (
+              </Fragment>
+            ))}
+            {chained.delta && (
+              <span className="text-muted-foreground/60">({chained.delta})</span>
+            )}
+          </div>
+        )}
+
+        {/* Field changes: old value red + struck, new value green */}
+        {changes.length > 0 && (
+          <div className="mt-1.5 flex flex-col gap-1">
+            {changes.map((change) => (
+              <div key={change.label} className="flex flex-wrap items-center gap-1.5 text-xs">
+                <span className="text-muted-foreground">{change.label}</span>
+                {change.from && change.from !== "empty" ? (
                   <>
-                    <span className="max-w-56 truncate line-through opacity-50" title={change.from}>
+                    <span className={valuePillClass("old", change.mono)} title={change.from}>
                       {change.from}
                     </span>
                     <ArrowRight className="size-3 shrink-0 text-muted-foreground/50" />
-                    <span className="max-w-56 truncate" title={change.to}>{change.to}</span>
+                    <span className={valuePillClass("new", change.mono)} title={change.to}>
+                      {change.to}
+                    </span>
                   </>
                 ) : (
-                  <span className="max-w-56 truncate" title={change.to}>{change.to}</span>
+                  <span className={valuePillClass("new", change.mono)} title={change.to}>
+                    {change.to}
+                  </span>
                 )}
-              </span>
+              </div>
             ))}
+          </div>
+        )}
+
+        {/* Raw entry details — the API already sends this JSON to the client,
+            so revealing it adds no exposure. */}
+        {expanded && (
+          <div className="mt-2 space-y-2 rounded-md border border-border/40 bg-muted/40 p-2.5 text-xs">
+            <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+              <span className="text-muted-foreground">When</span>
+              <span className="tabular-nums">{formatDateTime(entry.createdAt)}</span>
+              <span className="text-muted-foreground">Actor</span>
+              <span>
+                {actorName}
+                {actorRole ? ` · ${actorRole}` : ""}
+              </span>
+              <span className="text-muted-foreground">Action</span>
+              <span className="font-mono text-[11px]">{entry.action}</span>
+              <span className="text-muted-foreground">Entity</span>
+              <span className="break-all font-mono text-[11px]">
+                {entry.entityType ?? "—"} · {entry.entityId ?? "—"}
+              </span>
+            </div>
+            {entry.beforeJson && (
+              <div>
+                <span className="text-muted-foreground">Before</span>
+                <pre className="mt-1 overflow-x-auto rounded bg-background/60 p-2 font-mono text-[11px]">
+                  {JSON.stringify(entry.beforeJson, null, 2)}
+                </pre>
+              </div>
+            )}
+            {entry.afterJson && (
+              <div>
+                <span className="text-muted-foreground">After</span>
+                <pre className="mt-1 overflow-x-auto rounded bg-background/60 p-2 font-mono text-[11px]">
+                  {JSON.stringify(entry.afterJson, null, 2)}
+                </pre>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1001,15 +1247,14 @@ export default function ActivityTimeline({
             </span>
           </div>
 
-          {/* Entries */}
-          <div className="divide-y divide-border/30">
+          {/* Entries — the rail hairline provides row structure, no dividers */}
+          <div>
             {groupEntries.map((entry) => (
               <TimelineEntry
                 key={entry.id}
                 entry={entry}
                 context={context}
                 entityName={entityName}
-                today={today}
               />
             ))}
           </div>
