@@ -239,8 +239,8 @@ export function formatDateWithDayTime(iso: string): { date: string; dayTime: str
 }
 
 /** "Today", "Tomorrow", or "Wednesday, Apr 9" */
-export function formatDayLabel(dateStr: string, now: Date): string {
-  const date = new Date(dateStr);
+export function formatDayLabel(dateStr: string, now: Date, allDay = false): string {
+  const date = calendarDate(dateStr, allDay);
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0);
   const tomorrowStart = new Date(todayStart);

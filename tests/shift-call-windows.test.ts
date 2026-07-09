@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   effectiveCallWindow,
   formatCallTime,
   formatCallWindow,
+  isFullDayBoundaryWindow,
+  isInheritedFullDayCallWindow,
   summarizeEffectiveCallWindows,
   toDateTimeLocalValue,
   dateTimeLocalToIso,
@@ -74,8 +76,12 @@ describe("shift call-window helpers", () => {
   });
 
   it("hides inherited midnight-to-midnight windows for all-day event chrome", () => {
-    const startsAt = new Date(2026, 5, 17).toISOString();
-    const endsAt = new Date(2026, 5, 18).toISOString();
+    // Real full-day boundaries are always UTC midnight (ICS all-day parsing
+    // uses Date.UTC), not local midnight — a local-time constructor here
+    // only coincidentally matched isFullDayBoundaryWindow's old (buggy)
+    // local-hours check.
+    const startsAt = new Date(Date.UTC(2026, 5, 17)).toISOString();
+    const endsAt = new Date(Date.UTC(2026, 5, 18)).toISOString();
     const summary = summarizeEffectiveCallWindows([
       {
         startsAt,
@@ -121,5 +127,60 @@ describe("shift call-window helpers", () => {
     const localValue = toDateTimeLocalValue("2026-07-07T14:15:00.000Z");
     expect(localValue).toMatch(/^2026-07-07T\d{2}:15$/);
     expect(dateTimeLocalToIso(localValue)).toMatch(/2026-07-07T/);
+  });
+});
+
+// ── REGRESSION: isFullDayBoundaryWindow must detect the UTC-midnight
+// default window in every process timezone, not just UTC. It previously
+// checked local hours, so in Central time (a genuine UTC-midnight instant
+// reads as 19:00 local) it always returned false, leaking a meaningless
+// clock time — "Call Jul 8, 7:00 PM" for a Thursday event — into any UI
+// that renders the inherited full-day default. ──
+describe("isFullDayBoundaryWindow timezone independence", () => {
+  const originalTz = process.env.TZ;
+
+  beforeEach(() => {
+    process.env.TZ = "America/Chicago";
+  });
+
+  afterEach(() => {
+    process.env.TZ = originalTz;
+  });
+
+  it("detects a UTC-midnight-to-midnight span as full-day in Central time", () => {
+    expect(
+      isFullDayBoundaryWindow({
+        startsAt: "2026-07-09T00:00:00.000Z",
+        endsAt: "2026-07-10T00:00:00.000Z",
+      }),
+    ).toBe(true);
+  });
+
+  it("detects a multi-day full-day span (e.g. a 2-day all-day event)", () => {
+    expect(
+      isFullDayBoundaryWindow({
+        startsAt: "2026-07-09T00:00:00.000Z",
+        endsAt: "2026-07-11T00:00:00.000Z",
+      }),
+    ).toBe(true);
+  });
+
+  it("does not misdetect a real clock-time window as full-day", () => {
+    expect(
+      isFullDayBoundaryWindow({
+        startsAt: "2026-07-09T19:00:00.000Z",
+        endsAt: "2026-07-10T02:00:00.000Z",
+      }),
+    ).toBe(false);
+  });
+
+  it("isInheritedFullDayCallWindow only fires for default-source full-day windows", () => {
+    const fullDayWindow = {
+      startsAt: "2026-07-09T00:00:00.000Z",
+      endsAt: "2026-07-10T00:00:00.000Z",
+      source: "default" as const,
+    };
+    expect(isInheritedFullDayCallWindow(fullDayWindow)).toBe(true);
+    expect(isInheritedFullDayCallWindow({ ...fullDayWindow, source: "slot" })).toBe(false);
   });
 });

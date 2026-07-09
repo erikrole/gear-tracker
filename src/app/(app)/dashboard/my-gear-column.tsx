@@ -9,7 +9,7 @@ import { ClipboardCheckIcon, CalendarCheckIcon, ClockIcon } from "lucide-react";
 import { ScaleIn } from "@/components/ui/motion";
 import { formatDayLabel, formatRelativeTime, isDueToday } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
-import { formatCallTime } from "@/lib/shift-call-windows";
+import { formatCallTime, isFullDayBoundaryWindow } from "@/lib/shift-call-windows";
 import { GearAvatarStack } from "./dashboard-avatars";
 import { DashboardBookingRow, dashboardBookingAccent } from "./booking-row";
 import { DashboardSectionHeader } from "./section-header";
@@ -171,6 +171,12 @@ export function MyGearColumn({
               const eventTitle = s.event.opponent
                 ? `${s.event.isHome === false ? "at" : "vs"} ${s.event.opponent}`
                 : s.event.summary;
+              // No real call time set \u2014 callStartsAt/callEndsAt fell back to
+              // the shift's UTC-midnight day boundary. Showing that as a
+              // clock time reads as "7:00 PM the evening before" in Central;
+              // treat the day label like an all-day event and drop the
+              // fabricated call time, matching the Schedule list convention.
+              const isFullDayDefault = isFullDayBoundaryWindow({ startsAt: s.callStartsAt, endsAt: s.callEndsAt });
               return (
                 <div key={s.id} className="group flex items-center justify-between gap-3 w-full px-4 py-2 transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/40">
                   <div className="flex flex-col gap-0.5 min-w-0">
@@ -179,7 +185,8 @@ export function MyGearColumn({
                       <span className="text-muted-foreground font-normal">{eventTitle}</span>
                     </span>
                     <span className="flex items-center gap-1 text-xs text-muted-foreground leading-snug">
-                      {formatDayLabel(s.callStartsAt, now)}, Call {formatCallTime({ startsAt: s.callStartsAt, endsAt: s.callEndsAt })}
+                      {formatDayLabel(s.callStartsAt, now, isFullDayDefault)}
+                      {!isFullDayDefault && `, Call ${formatCallTime({ startsAt: s.callStartsAt, endsAt: s.callEndsAt })}`}
                       {s.event.locationName && ` \u00B7 ${s.event.locationName}`}
                     </span>
                   </div>

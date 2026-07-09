@@ -260,7 +260,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
                   <span className="text-sm font-bold text-foreground truncate">{dashboardEventTitle(e)}</span>
                   <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground leading-snug">
                     <span>
-                      {formatDayLabel(e.startsAt, now)}{e.allDay ? " \u2013 All day" : `, ${formatTimeShort(e.startsAt)} \u2013 ${formatTimeShort(e.endsAt)}`}
+                      {formatDayLabel(e.startsAt, now, e.allDay)}{e.allDay ? " \u2013 All day" : `, ${formatTimeShort(e.startsAt)} \u2013 ${formatTimeShort(e.endsAt)}`}
                     </span>
                     {e.location && <span className="truncate">{e.location}</span>}
                     {e.callTime && <span>Call {formatTimeShort(e.callTime)}</span>}

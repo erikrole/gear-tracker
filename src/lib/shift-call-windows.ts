@@ -85,17 +85,23 @@ export function isFullDayBoundaryWindow(window: Pick<EffectiveCallWindow, "start
   const start = new Date(window.startsAt);
   const end = new Date(window.endsAt);
   const durationMs = end.getTime() - start.getTime();
+  // Full-day default windows are anchored to the event's UTC-midnight
+  // boundaries (same convention as all-day CalendarEvent storage). Checking
+  // local hours instead of UTC hours misses this in any non-UTC timezone —
+  // in Central time a UTC-midnight instant reads as 19:00, so this always
+  // returned false in the browser, leaking a meaningless UTC clock-time
+  // ("Call Jul 8, 7:00 PM") into the UI wherever this window was rendered.
   return (
     durationMs > 0 &&
     durationMs % (24 * 60 * 60 * 1000) === 0 &&
-    start.getHours() === 0 &&
-    start.getMinutes() === 0 &&
-    start.getSeconds() === 0 &&
-    start.getMilliseconds() === 0 &&
-    end.getHours() === 0 &&
-    end.getMinutes() === 0 &&
-    end.getSeconds() === 0 &&
-    end.getMilliseconds() === 0
+    start.getUTCHours() === 0 &&
+    start.getUTCMinutes() === 0 &&
+    start.getUTCSeconds() === 0 &&
+    start.getUTCMilliseconds() === 0 &&
+    end.getUTCHours() === 0 &&
+    end.getUTCMinutes() === 0 &&
+    end.getUTCSeconds() === 0 &&
+    end.getUTCMilliseconds() === 0
   );
 }
 
