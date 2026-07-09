@@ -34,7 +34,7 @@ vi.mock("@/lib/db", () => {
 });
 
 import { db } from "@/lib/db";
-import { updateReservationEvents } from "@/lib/services/bookings";
+import { updateBookingEvents } from "@/lib/services/bookings";
 
 const mockTx = (db as unknown as { _mockTx: UpdateEventsTx })._mockTx;
 
@@ -65,14 +65,14 @@ beforeEach(() => {
   ]);
 });
 
-describe("updateReservationEvents", () => {
+describe("updateBookingEvents", () => {
   it("uses SERIALIZABLE isolation", async () => {
-    await updateReservationEvents("reservation-1", "student-1", ["event-late", "event-early"]);
+    await updateBookingEvents("reservation-1", "student-1", ["event-late", "event-early"]);
     expectSerializableIsolation(transactionCalls, 0);
   });
 
   it("sorts event links chronologically and preserves primary event compatibility", async () => {
-    await updateReservationEvents("reservation-1", "student-1", ["event-late", "event-early"]);
+    await updateBookingEvents("reservation-1", "student-1", ["event-late", "event-early"]);
 
     expect(mockTx.booking.update).toHaveBeenCalledWith({
       where: { id: "reservation-1" },
@@ -102,7 +102,7 @@ describe("updateReservationEvents", () => {
   });
 
   it("clears linked events", async () => {
-    await updateReservationEvents("reservation-1", "student-1", []);
+    await updateBookingEvents("reservation-1", "student-1", []);
 
     expect(mockTx.booking.update).toHaveBeenCalledWith({
       where: { id: "reservation-1" },
@@ -114,17 +114,31 @@ describe("updateReservationEvents", () => {
 
   it("rejects duplicate eventIds before opening a transaction", async () => {
     await expect(
-      updateReservationEvents("reservation-1", "student-1", ["event-1", "event-1"]),
+      updateBookingEvents("reservation-1", "student-1", ["event-1", "event-1"]),
     ).rejects.toThrow("eventIds must be unique");
 
     expect(transactionCalls).toHaveLength(0);
   });
 
-  it("rejects checkout bookings", async () => {
-    mockTx.booking.findUnique.mockResolvedValue(reservation({ kind: BookingKind.CHECKOUT }));
+  it("allows active checkout bookings", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(reservation({
+      kind: BookingKind.CHECKOUT,
+      status: BookingStatus.OPEN,
+    }));
+
+    await updateBookingEvents("reservation-1", "student-1", ["event-late", "event-early"]);
+
+    expect(mockTx.booking.update).toHaveBeenCalledWith({
+      where: { id: "reservation-1" },
+      data: { eventId: "event-early" },
+    });
+  });
+
+  it("rejects terminal bookings", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(reservation({ status: BookingStatus.COMPLETED }));
 
     await expect(
-      updateReservationEvents("reservation-1", "student-1", ["event-late"]),
-    ).rejects.toThrow("Only reservations can update linked events");
+      updateBookingEvents("reservation-1", "student-1", ["event-late", "event-early"]),
+    ).rejects.toThrow("Cannot update linked events for a completed or cancelled booking");
   });
 });

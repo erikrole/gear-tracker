@@ -386,7 +386,7 @@ export const transferBookingOwnerSchema = z.object({
   reason: z.string().trim().max(1000).optional(),
 });
 
-export const updateReservationEventsSchema = z.object({
+export const updateBookingEventsSchema = z.object({
   eventIds: eventIdsListSchema,
 });
 

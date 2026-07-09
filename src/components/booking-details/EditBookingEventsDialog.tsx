@@ -80,7 +80,7 @@ function mergeEvents(primary: CalendarEventOption[], fallback: CalendarEventOpti
   return merged;
 }
 
-export function EditReservationEventsDialog({
+export function EditBookingEventsDialog({
   open,
   booking,
   onOpenChange,
@@ -171,7 +171,7 @@ export function EditReservationEventsDialog({
     setSelectedIds((current) => {
       if (current.includes(eventId)) return current.filter((id) => id !== eventId);
       if (current.length >= 3) {
-        toast.error("A reservation may link at most 3 events.");
+        toast.error("A booking may link at most 3 events.");
         return current;
       }
       return [...current, eventId];
@@ -202,7 +202,7 @@ export function EditReservationEventsDialog({
 
       const json = await parseJsonSafely<ApiEnvelope<BookingDetail>>(res);
       if (!json?.data) {
-        toast.error("Events changed, but the refreshed reservation did not load.");
+        toast.error("Events changed, but the refreshed booking did not load.");
         return;
       }
 
@@ -234,7 +234,7 @@ export function EditReservationEventsDialog({
             <div className="space-y-1">
               <DialogTitle>Linked events</DialogTitle>
               <DialogDescription>
-                Link this reservation to up to 3 scheduled events. The gear window stays unchanged.
+                Link this booking to up to 3 scheduled events. The gear window and custody state stay unchanged.
               </DialogDescription>
             </div>
           </div>

@@ -23,7 +23,7 @@ Informational only. These are the largest TypeScript and TSX files under `src/`;
 | File | Lines |
 |---|---:|
 | `src/app/(app)/items/[id]/ItemInfoTab.tsx` | 1589 |
-| `src/lib/services/bookings-lifecycle.ts` | 1432 |
+| `src/lib/services/bookings-lifecycle.ts` | 1430 |
 | `src/app/(app)/resources/page.tsx` | 1388 |
 | `src/lib/services/reports.ts` | 1378 |
 | `src/app/(app)/users/[id]/UserInfoTab.tsx` | 1325 |

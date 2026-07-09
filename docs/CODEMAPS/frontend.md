@@ -114,7 +114,7 @@
 | `src/components/shift-detail/ShiftSlotCard.tsx` | 375 |
 | `src/components/booking-details/BookingInfoCard.tsx` | 342 |
 | `src/components/booking-details/BookingHeader.tsx` | 339 |
-| `src/components/booking-details/EditReservationEventsDialog.tsx` | 332 |
+| `src/components/booking-details/EditBookingEventsDialog.tsx` | 332 |
 | `src/components/FormCombobox.tsx` | 329 |
 | `src/components/public-showroom/showroom-blocks.tsx` | 317 |
 | `src/components/resources/MarkdownReader.tsx` | 293 |

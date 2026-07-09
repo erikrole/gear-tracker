@@ -82,9 +82,11 @@ const OWNER_TRANSFER_STATUSES = new Set<BookingStatus>([
   BookingStatus.OPEN,
 ]);
 
-const RESERVATION_EVENT_LINK_STATUSES = new Set<BookingStatus>([
+const EVENT_LINK_STATUSES = new Set<BookingStatus>([
   BookingStatus.DRAFT,
   BookingStatus.BOOKED,
+  BookingStatus.PENDING_PICKUP,
+  BookingStatus.OPEN,
 ]);
 
 function hasDuplicateIds(ids: string[]) {
@@ -712,7 +714,7 @@ export async function updateReservation(
   }
 }
 
-export async function updateReservationEvents(
+export async function updateBookingEvents(
   bookingId: string,
   actorUserId: string,
   eventIds: string[],
@@ -737,15 +739,11 @@ export async function updateReservationEvents(
         });
 
         if (!existing) {
-          throw new HttpError(404, "Reservation not found");
+          throw new HttpError(404, "Booking not found");
         }
 
-        if (existing.kind !== BookingKind.RESERVATION) {
-          throw new HttpError(400, "Only reservations can update linked events");
-        }
-
-        if (!RESERVATION_EVENT_LINK_STATUSES.has(existing.status)) {
-          throw new HttpError(400, "Cannot update linked events for a completed or cancelled reservation");
+        if (!EVENT_LINK_STATUSES.has(existing.status)) {
+          throw new HttpError(400, "Cannot update linked events for a completed or cancelled booking");
         }
 
         let sortedEventIds: string[] = [];

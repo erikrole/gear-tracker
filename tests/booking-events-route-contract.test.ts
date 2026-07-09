@@ -7,7 +7,7 @@ vi.mock("@/lib/auth", () => ({
 
 vi.mock("@/lib/services/bookings", () => ({
   getBookingDetail: vi.fn(),
-  updateReservationEvents: vi.fn(),
+  updateBookingEvents: vi.fn(),
 }));
 
 vi.mock("@/lib/services/booking-rules", () => ({
@@ -20,7 +20,7 @@ vi.mock("@sentry/nextjs", () => ({
 }));
 
 import { requireAuth } from "@/lib/auth";
-import { getBookingDetail, updateReservationEvents } from "@/lib/services/bookings";
+import { getBookingDetail, updateBookingEvents } from "@/lib/services/bookings";
 import { requireBookingAction } from "@/lib/services/booking-rules";
 import { POST } from "@/app/api/bookings/[id]/events/route";
 
@@ -71,7 +71,7 @@ function bookingActionResult(row: unknown) {
 }
 
 function updateEventsResult(row: unknown) {
-  return row as Awaited<ReturnType<typeof updateReservationEvents>>;
+  return row as Awaited<ReturnType<typeof updateBookingEvents>>;
 }
 
 beforeEach(() => {
@@ -79,7 +79,7 @@ beforeEach(() => {
   vi.mocked(requireAuth).mockResolvedValue(studentUser);
   vi.mocked(getBookingDetail).mockResolvedValue(bookingDetail(baseDetail));
   vi.mocked(requireBookingAction).mockResolvedValue(bookingActionResult(baseDetail));
-  vi.mocked(updateReservationEvents).mockResolvedValue(updateEventsResult(baseDetail));
+  vi.mocked(updateBookingEvents).mockResolvedValue(updateEventsResult(baseDetail));
 });
 
 describe("booking event-link route contract", () => {
@@ -91,7 +91,7 @@ describe("booking event-link route contract", () => {
 
     expect(res.status).toBe(428);
     expect(requireBookingAction).not.toHaveBeenCalled();
-    expect(updateReservationEvents).not.toHaveBeenCalled();
+    expect(updateBookingEvents).not.toHaveBeenCalled();
   });
 
   it("rejects a stale snapshot before dispatching the service", async () => {
@@ -105,7 +105,7 @@ describe("booking event-link route contract", () => {
 
     expect(res.status).toBe(409);
     expect(requireBookingAction).not.toHaveBeenCalled();
-    expect(updateReservationEvents).not.toHaveBeenCalled();
+    expect(updateBookingEvents).not.toHaveBeenCalled();
   });
 
   it("dispatches fresh event links to the service", async () => {
@@ -118,8 +118,8 @@ describe("booking event-link route contract", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(requireBookingAction).toHaveBeenCalledWith(baseDetail.id, studentUser, "edit", BookingKind.RESERVATION);
-    expect(updateReservationEvents).toHaveBeenCalledWith(baseDetail.id, studentUser.id, eventIds);
+    expect(requireBookingAction).toHaveBeenCalledWith(baseDetail.id, studentUser, "edit");
+    expect(updateBookingEvents).toHaveBeenCalledWith(baseDetail.id, studentUser.id, eventIds);
   });
 
   it("allows clearing linked events", async () => {
@@ -132,10 +132,10 @@ describe("booking event-link route contract", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(updateReservationEvents).toHaveBeenCalledWith(baseDetail.id, studentUser.id, []);
+    expect(updateBookingEvents).toHaveBeenCalledWith(baseDetail.id, studentUser.id, []);
   });
 
-  it("rejects checkout bookings", async () => {
+  it("allows checkout bookings", async () => {
     vi.mocked(getBookingDetail).mockResolvedValue(bookingDetail({
       ...baseDetail,
       kind: BookingKind.CHECKOUT,
@@ -149,8 +149,9 @@ describe("booking event-link route contract", () => {
       { params: Promise.resolve({ id: baseDetail.id }) },
     );
 
-    expect(res.status).toBe(404);
-    expect(updateReservationEvents).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(requireBookingAction).toHaveBeenCalledWith(baseDetail.id, studentUser, "edit");
+    expect(updateBookingEvents).toHaveBeenCalledWith(baseDetail.id, studentUser.id, eventIds);
   });
 
   it("rejects an invalid optimistic-lock header", async () => {
@@ -163,6 +164,6 @@ describe("booking event-link route contract", () => {
     );
 
     expect(res.status).toBe(400);
-    expect(updateReservationEvents).not.toHaveBeenCalled();
+    expect(updateBookingEvents).not.toHaveBeenCalled();
   });
 });

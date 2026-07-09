@@ -40,7 +40,7 @@ import {
 } from "@/components/booking-details/helpers";
 import { BookingHeader } from "@/components/booking-details/BookingHeader";
 import BookingInfoCard from "@/components/booking-details/BookingInfoCard";
-import { EditReservationEventsDialog } from "@/components/booking-details/EditReservationEventsDialog";
+import { EditBookingEventsDialog } from "@/components/booking-details/EditBookingEventsDialog";
 import { TransferOwnerDialog } from "@/components/booking-details/TransferOwnerDialog";
 import { UserAvatar } from "@/components/UserAvatar";
 import { formatCountdownCompact, formatDateTime, getUrgency } from "@/lib/format";
@@ -147,7 +147,7 @@ export default function BookingDetailPage({
   const canNudge = allowedActions.includes("nudge");
   const canForceComplete = kind === "CHECKOUT" && allowedActions.includes("force-complete");
   const canTransferOwner = allowedActions.includes("transfer-owner");
-  const canEditEvents = kind === "RESERVATION" && canEdit;
+  const canEditEvents = canEdit;
   const isOpen = booking?.status === "OPEN";
   const isActive = isOpen || booking?.status === "BOOKED";
   const kioskHandoffLabel =
@@ -404,7 +404,7 @@ export default function BookingDetailPage({
         }}
       />
 
-      <EditReservationEventsDialog
+      <EditBookingEventsDialog
         open={editEventsOpen}
         booking={booking}
         onOpenChange={setEditEventsOpen}
