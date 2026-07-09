@@ -61,5 +61,25 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
   const data = hasMore ? logs.slice(0, limit) : logs;
   const nextCursor = hasMore ? data[data.length - 1]!.id : null;
 
-  return ok({ data, nextCursor });
+  // Booking audit payloads don't snapshot the booking title, so rows like
+  // "cancelled" are unidentifiable on an item timeline. Join title/kind for
+  // the bookings on this page so the client can name and link them.
+  const pageBookingIds = [
+    ...new Set(data.filter((l) => l.entityType === "booking").map((l) => l.entityId)),
+  ];
+  const bookings = pageBookingIds.length
+    ? await db.booking.findMany({
+        where: { id: { in: pageBookingIds } },
+        select: { id: true, title: true, kind: true },
+      })
+    : [];
+  const bookingById = new Map(bookings.map((b) => [b.id, b]));
+
+  return ok({
+    data: data.map((log) => {
+      const booking = log.entityType === "booking" ? bookingById.get(log.entityId) : undefined;
+      return booking ? { ...log, entity: { label: booking.title, kind: booking.kind } } : log;
+    }),
+    nextCursor,
+  });
 });

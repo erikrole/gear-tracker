@@ -17,11 +17,12 @@ function entityHref(
   entityType: string | undefined,
   entityId: string | undefined,
   afterJson: Record<string, unknown> | null,
+  entityKind?: string | null,
 ): string | null {
   if (!entityType || !entityId) return null;
   switch (entityType) {
     case "booking": {
-      const kind = (afterJson?.kind as string | undefined)?.toLowerCase();
+      const kind = (entityKind ?? (afterJson?.kind as string | undefined))?.toLowerCase();
       if (kind === "checkout") return `/checkouts/${entityId}`;
       if (kind === "reservation") return `/reservations/${entityId}`;
       // Unknown kind — let the bookings list resolve via id query.
@@ -51,6 +52,9 @@ export type AuditEntry = {
   beforeJson: Record<string, unknown> | null;
   afterJson: Record<string, unknown> | null;
   actor: { id?: string; name: string; email?: string; avatarUrl?: string | null } | null;
+  /** Server-joined identity of the referenced entity (e.g. booking title/kind),
+   *  for rows whose audit payload doesn't name their target. */
+  entity?: { label?: string | null; kind?: string | null } | null;
 };
 
 /* ── Props ── */
@@ -230,6 +234,39 @@ const ACTION_COLORS: Record<string, ActionColorKey> = {
   registered: "green",
   password_reset_self: "muted",
   kiosk_activated: "green",
+  // Asset / bulk-SKU families
+  asset_created: "green",
+  asset_image_set: "blue",
+  asset_image_uploaded: "blue",
+  asset_image_removed: "amber",
+  bulk_sku_image_set: "blue",
+  bulk_sku_image_uploaded: "blue",
+  bulk_sku_image_removed: "amber",
+  favorite_added: "muted",
+  favorite_removed: "muted",
+  retire: "rose",
+  reactivated: "green",
+  duplicate: "blue",
+  csv_import: "blue",
+  convert_to_numbered: "purple",
+  adjust: "blue",
+  add_units: "green",
+  mark_labels_printed: "muted",
+  bulk_units_auto_lost: "rose",
+  repair_stale_checked_out: "purple",
+  // Kiosk custody family
+  kiosk_pickup: "green",
+  kiosk_checkout: "green",
+  kiosk_checkin: "green",
+  kiosk_checkout_updated: "blue",
+  kiosk_checkout_item_added: "amber",
+  kiosk_checkout_item_removed: "amber",
+  partial_bulk_checkin: "amber",
+  pending_pickup_expired: "rose",
+  fulfilled_by_kiosk_pickup: "green",
+  admin_force_completed_checkout: "purple",
+  nudge_sent: "muted",
+  overdue_nudge_sent: "muted",
 };
 
 const RING_CLASSES: Record<ActionColorKey, string> = {
@@ -266,6 +303,21 @@ function userTarget(entry: AuditEntry): string {
     : "this resource";
 }
 
+/** Noun phrase for a booking row when the server joined its identity —
+ *  `checkout "Sony kit"` instead of "the booking". */
+function bookingPhrase(entry: AuditEntry, fallback: string): string {
+  if (entry.entityType !== "booking") return fallback;
+  const label = entry.entity?.label;
+  if (!label) return fallback;
+  const noun =
+    entry.entity?.kind === "RESERVATION"
+      ? "reservation"
+      : entry.entity?.kind === "CHECKOUT"
+        ? "checkout"
+        : "booking";
+  return `${noun} "${label}"`;
+}
+
 /** Generate a natural-language description of an action */
 function describeAction(
   entry: AuditEntry,
@@ -298,7 +350,7 @@ function describeAction(
           ? "Created this booking"
           : context === "item"
             ? entry.entityType === "booking"
-              ? "Created booking"
+              ? `Created ${bookingPhrase(entry, "a booking")}`
               : "Created this item"
             : `Created ${target}`;
     case "updated":
@@ -322,14 +374,19 @@ function describeAction(
         entry.afterJson && typeof entry.afterJson.endsAt === "string"
           ? formatDateTime(entry.afterJson.endsAt)
           : null;
+      const what = context === "item" ? bookingPhrase(entry, "the checkout") : "the checkout";
       return newEnd
-        ? `${reportPrefix}Extended the checkout to ${newEnd}`
-        : `${reportPrefix}Extended the checkout`;
+        ? `${reportPrefix}Extended ${what} to ${newEnd}`
+        : `${reportPrefix}Extended ${what}`;
     }
     case "cancelled":
     case "cancel":
       return `${reportPrefix}Cancelled ${
-        context === "report" || context === "user" ? target : "the booking"
+        context === "report" || context === "user"
+          ? target
+          : context === "item"
+            ? bookingPhrase(entry, "the booking")
+            : "the booking"
       }`;
     case "deleted":
       return `${reportPrefix}Deleted ${target}`;
@@ -468,14 +525,75 @@ function describeAction(
       return `${reportPrefix}Reset their password`;
     case "kiosk_activated":
       return "Kiosk device activated";
-    default:
+    case "asset_created":
+      return context === "item" ? "Created this item" : `${reportPrefix}Created ${target}`;
+    case "asset_image_set":
+    case "bulk_sku_image_set":
+      return `${reportPrefix}Set the photo`;
+    case "asset_image_uploaded":
+    case "bulk_sku_image_uploaded":
+      return `${reportPrefix}Uploaded a photo`;
+    case "asset_image_removed":
+    case "bulk_sku_image_removed":
+      return `${reportPrefix}Removed the photo`;
+    case "favorite_added":
+      return `${reportPrefix}Added to favorites`;
+    case "favorite_removed":
+      return `${reportPrefix}Removed from favorites`;
+    case "retire":
+      return `${reportPrefix}Retired ${target}`;
+    case "reactivated":
+      return `${reportPrefix}Reactivated ${target}`;
+    case "duplicate":
+      return `${reportPrefix}Duplicated ${target}`;
+    case "csv_import":
+      return `${reportPrefix}Imported via CSV`;
+    case "convert_to_numbered":
+      return `${reportPrefix}Converted to numbered units`;
+    case "adjust":
+      return `${reportPrefix}Adjusted stock quantity`;
+    case "add_units":
+      return `${reportPrefix}Added units`;
+    case "mark_labels_printed":
+      return `${reportPrefix}Marked labels as printed`;
+    case "bulk_units_auto_lost":
+      return "System marked overdue units as lost";
+    case "repair_stale_checked_out":
+      return `${reportPrefix}Repaired stale checked-out units`;
+    case "kiosk_pickup":
+      return `${reportPrefix}Picked up ${context === "item" ? bookingPhrase(entry, "gear") : "gear"} at a kiosk`;
+    case "kiosk_checkout":
+      return `${reportPrefix}Checked out ${context === "item" ? bookingPhrase(entry, "gear") : "gear"} at a kiosk`;
+    case "kiosk_checkin":
+      return `${reportPrefix}Returned ${context === "item" ? bookingPhrase(entry, "gear") : "gear"} at a kiosk`;
+    case "kiosk_checkout_updated":
+      return `${reportPrefix}Updated the checkout at a kiosk`;
+    case "kiosk_checkout_item_added":
+      return `${reportPrefix}Added an item at a kiosk`;
+    case "kiosk_checkout_item_removed":
+      return `${reportPrefix}Removed an item at a kiosk`;
+    case "partial_bulk_checkin":
+      return `${reportPrefix}Recorded partial return`;
+    case "pending_pickup_expired":
+      return "Pickup window expired";
+    case "fulfilled_by_kiosk_pickup":
+      return `${reportPrefix}Fulfilled by kiosk pickup`;
+    case "admin_force_completed_checkout":
+      return `${reportPrefix}Closed the checkout without a scan`;
+    case "nudge_sent":
+    case "overdue_nudge_sent":
+      return `${reportPrefix}Sent a reminder`;
+    default: {
+      const humanized = entry.action.replace(/[._]+/g, " ");
+      const sentence = humanized.charAt(0).toUpperCase() + humanized.slice(1);
       if (context === "report") {
-        return `${actorName} performed ${entry.action.replace(/_/g, " ")}`;
+        return `${actorName} performed ${humanized}`;
       }
       if (context === "user") {
-        return `${entry.action.replace(/_/g, " ")} on ${target}`;
+        return `${sentence} on ${target}`;
       }
-      return entry.action.replace(/_/g, " ");
+      return sentence;
+    }
   }
 }
 
@@ -611,6 +729,20 @@ function getFieldChanges(entry: AuditEntry): FieldChange[] {
     .filter((c): c is FieldChange => c !== null);
 }
 
+/** True when the row would render as a phantom "Updated …" with no visible
+ *  detail — every changed field is hidden/internal. Filtered out before date
+ *  grouping so a day of only phantom rows doesn't leave an empty date header. */
+function isPhantomEntry(entry: AuditEntry): boolean {
+  return (
+    DIFF_ACTIONS.has(entry.action) &&
+    !!entry.afterJson &&
+    getFieldChanges(entry).length === 0 &&
+    // Avatar uploads / deletions are diff-less but meaningful — keep them.
+    entry.action !== "avatar_uploaded" &&
+    entry.action !== "avatar_deleted"
+  );
+}
+
 /* ── Date grouping ── */
 
 function getDateGroup(iso: string, today: Date): string {
@@ -722,24 +854,14 @@ function TimelineEntry({
   );
   const changes = getFieldChanges(entry);
 
-  // Skip diff-bearing entries where every changed field was hidden / internal —
-  // otherwise the row reads like a phantom "Updated …" with no detail.
-  if (
-    DIFF_ACTIONS.has(entry.action) &&
-    entry.afterJson &&
-    changes.length === 0 &&
-    // Avatar uploads / deletions are diff-less but meaningful — keep them.
-    entry.action !== "avatar_uploaded" &&
-    entry.action !== "avatar_deleted"
-  )
-    return null;
-
   // On user / report contexts each row references a different entity — make the
-  // row clickable when a detail page exists. Booking / item context rows already
-  // live on the entity's page so a self-link is redundant.
+  // row clickable when a detail page exists. Item-context rows that reference a
+  // booking also link out; other rows already live on the entity's own page.
   const linkable =
-    (context === "user" || context === "report") &&
-    entityHref(entry.entityType, entry.entityId, entry.afterJson);
+    (context === "user" ||
+      context === "report" ||
+      (context === "item" && entry.entityType === "booking")) &&
+    entityHref(entry.entityType, entry.entityId, entry.afterJson, entry.entity?.kind);
   const Wrapper: React.ElementType = linkable ? Link : "div";
   const wrapperProps = linkable
     ? {
@@ -807,14 +929,14 @@ function TimelineEntry({
                 </span>
                 {change.from ? (
                   <>
-                    <span className="line-through opacity-50">
+                    <span className="max-w-56 truncate line-through opacity-50" title={change.from}>
                       {change.from}
                     </span>
-                    <ArrowRight className="size-3 text-muted-foreground/50" />
-                    <span>{change.to}</span>
+                    <ArrowRight className="size-3 shrink-0 text-muted-foreground/50" />
+                    <span className="max-w-56 truncate" title={change.to}>{change.to}</span>
                   </>
                 ) : (
-                  <span>{change.to}</span>
+                  <span className="max-w-56 truncate" title={change.to}>{change.to}</span>
                 )}
               </span>
             ))}
@@ -838,11 +960,12 @@ export default function ActivityTimeline({
 }: ActivityTimelineProps) {
   const today = useMemo(() => new Date(), []);
 
-  // Coalesce rapid identical writes, then group by date. Coalescing first
-  // means a run that straddles a date boundary (rare) folds onto the newer
-  // side — the right side from a "what just happened" reading.
+  // Drop phantom rows first (so no date header renders for a day of hidden
+  // writes), coalesce rapid identical writes, then group by date. Coalescing
+  // before grouping means a run that straddles a date boundary (rare) folds
+  // onto the newer side — the right side from a "what just happened" reading.
   const groups = useMemo(() => {
-    const coalesced = coalesceEntries(entries);
+    const coalesced = coalesceEntries(entries.filter((e) => !isPhantomEntry(e)));
     const map = new Map<string, RenderEntry[]>();
     for (const entry of coalesced) {
       const group = getDateGroup(entry.createdAt, today);
@@ -857,7 +980,9 @@ export default function ActivityTimeline({
     return <TimelineSkeleton />;
   }
 
-  if (entries.length === 0) {
+  // Check the filtered groups, not raw entries — a page of nothing but
+  // phantom rows should show the empty state, not a blank panel.
+  if (groups.length === 0) {
     return (
       <Empty className="py-8 border-0">
         <EmptyDescription>{emptyMessage}</EmptyDescription>
