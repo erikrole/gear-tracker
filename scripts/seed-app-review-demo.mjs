@@ -22,11 +22,37 @@ if (confirmation !== "confirm") {
 
 const mode = process.env.APP_REVIEW_DEMO_MODE === "cleanup" ? "cleanup" : "seed";
 const connectionString = process.env.DATABASE_URL ?? "";
+const password = process.env.APP_REVIEW_DEMO_PASSWORD;
+
+if (mode === "seed") {
+  if (!password || password.length < 16) {
+    console.error("Refusing to seed App Review data without APP_REVIEW_DEMO_PASSWORD of at least 16 characters.");
+    process.exit(1);
+  }
+
+  const expectedHost = process.env.APP_REVIEW_DEMO_EXPECTED_HOST;
+  if (!expectedHost) {
+    console.error("Refusing to seed App Review data without APP_REVIEW_DEMO_EXPECTED_HOST.");
+    process.exit(1);
+  }
+
+  let databaseHost;
+  try {
+    databaseHost = new URL(connectionString).hostname;
+  } catch {
+    console.error("Refusing to seed App Review data with an invalid DATABASE_URL.");
+    process.exit(1);
+  }
+
+  if (databaseHost !== expectedHost) {
+    console.error("Refusing to seed App Review data because DATABASE_URL does not match APP_REVIEW_DEMO_EXPECTED_HOST.");
+    process.exit(1);
+  }
+}
+
 const prisma = connectionString.includes(".neon.tech")
   ? new PrismaClient({ adapter: new PrismaNeon({ connectionString }) })
   : new PrismaClient();
-
-const password = process.env.APP_REVIEW_DEMO_PASSWORD || "ReviewDemo!2026";
 
 const ids = {
   location: "demo-location-app-review",
@@ -602,7 +628,6 @@ async function main() {
   } else {
     console.log("App Review demo seed complete.");
     console.log("Login: appreview@wisconsincreative.com");
-    console.log(`Password: ${password}`);
     console.log("Sample QR codes: DEMO-CAM-001, DEMO-LENS-001, DEMO-AUDIO-001, DEMO-BATT-1");
   }
 }

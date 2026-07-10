@@ -12,7 +12,7 @@ Sources used: `docs/AREA_PUBLIC_SHOWROOM.md`, `src/lib/public-showroom.ts`, `ios
 
 **Demo account**
 - Email: `appreview@wisconsincreative.com`
-- Password: `ReviewDemo!2026` (or whatever `APP_REVIEW_DEMO_PASSWORD` was set to when `npm run demo:seed:app-review` last ran against the isolated App Review environment)
+- Password: use the secret stored in App Store Connect after seeding the isolated review environment with `APP_REVIEW_DEMO_PASSWORD`; no reviewer password is committed to this repository
 
 **Important:** Do not submit these credentials until `review.wisconsincreative.com` is deployed against the isolated App Review database and the demo seed has been verified there. Production `wisconsincreative.com` should not contain the App Review demo records.
 

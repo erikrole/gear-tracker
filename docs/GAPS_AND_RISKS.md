@@ -166,6 +166,8 @@ _2026-07-01 update: iOS App Store readiness metadata, production APNs entitlemen
 
 _2026-07-08 update: App Review demo data isolation reopened the demo-data decision for launch. The guarded seed works, but production verification showed a staff-level App Review account can see non-demo production-backed rows on broad surfaces. The seeded production demo records were cleaned up. The selected path is a separate App Review API host (`review.wisconsincreative.com`) backed by an isolated Neon target, with native iOS routing only for `appreview@wisconsincreative.com`; reseeding should wait until that host/database exists._
 
+_2026-07-10 update: A separate empty Neon project now exists for App Review, avoiding the production-data clone inherent in a child branch. Seeding is fail-closed on an explicit reviewer password and exact database host, and no credential is logged or committed. The blocker has moved to external Vercel/DNS wiring: the connected Vercel team scope returns 403 and `review.wisconsincreative.com` does not resolve, so no migrations or demo rows have been applied._
+
 _2026-07-02 update: Premier events were removed without opening a new gap. The retired `ShiftGroup` approval flag and `ShiftTrade` approval flag are gone, all new open Student shift pickups create acknowledged `DIRECT_ASSIGNED` assignments, and trade claims execute immediately. Legacy `REQUESTED` assignment handling remains only for existing rows._
 
 _2026-07-03 update: Release verification pipeline documented without opening a new gap. `docs/RELEASE_VERIFICATION.md` now distinguishes safe local `build:app` proof from deploy-shaped `npm run build`, documents database, browser, deploy-smoke, and iOS gates, and points release candidates to the relevant manual QA checklists._
