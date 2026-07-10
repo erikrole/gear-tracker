@@ -6,7 +6,7 @@ import { createAuditEntry } from "@/lib/audit";
 import { deleteCode, retireCode, updateCodeDetails } from "@/lib/services/licenses";
 
 const patchSchema = z.object({
-  label: z.string().optional(),
+  label: z.string().max(200, "Label must be 200 characters or fewer").optional(),
   accountEmail: z.string().email().nullable().optional(),
   expiresAt: z.string().datetime().nullable().optional(),
   retire: z.boolean().optional(),

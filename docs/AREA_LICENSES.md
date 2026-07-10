@@ -20,7 +20,7 @@ Replace the Google Sheet at `licenses.xlsx` with an in-app pool that mirrors how
    - `RETIRED` — admin-archived, hidden from students by default
 4. **Unknown occupants** can be marked by an admin with a free-text label (`occupantLabel`). Used when a license is in use by someone without an account here.
 5. **Expiry is informational.** Warnings appear in the UI and via push notification 14 days before expiry; active claims are NOT auto-released.
-6. **License codes only revealed to admins or the holder.** Other students see masked codes (`XXXX-••••-••••-XXXX`).
+6. **License codes only revealed to admins or the holder.** Other students see masked codes (`••••-••••-••••-••••`); the API also strips the code string server-side.
 7. **Audit log** captures every claim, release, occupy, retire, delete, update.
 8. **Staff and admins hold licenses with indefinite custody.** Only students are subject to the 2-day rotation nag. The "one active claim per user" rule still applies to everyone.
 
@@ -29,8 +29,8 @@ Replace the Google Sheet at `licenses.xlsx` with an in-app pool that mirrors how
 - `LicenseCode`:
   - `code` (unique), `label`, `accountEmail`, `expiresAt`
   - `status` (`AVAILABLE | PARTIAL | CLAIMED | RETIRED`)
-  - `claimedById` / `claimedAt` — cached pointer to the FIRST active claimer (kept for backward compat with nag system)
-  - `nagSentAt` — set once when 2-day nag is sent
+  - `claimedById` / `claimedAt` — cached pointer to the FIRST active claimer (kept for backward compat)
+  - `nagSentAt` — legacy V1 field; nag dedupe now keys per claim via notification `dedupeKey`
   - `claims` — `LicenseCodeClaim[]` (history, includes active and released)
 - `LicenseCodeClaim`:
   - `userId` (nullable — `NULL` = unknown occupant)
@@ -51,7 +51,7 @@ Replace the Google Sheet at `licenses.xlsx` with an in-app pool that mirrors how
 | PATCH | `/api/licenses/[id]` | `license:manage` | Update label / accountEmail / expiresAt / retire |
 | DELETE | `/api/licenses/[id]` | `license:manage` | Permanent delete (must have 0 active claims) |
 | POST | `/api/licenses/[id]/claim` | `license:claim` | Student claims a slot |
-| POST | `/api/licenses/[id]/release` | `license:release` | Release own claim, or admin releases any (`{ claimId? }` body) |
+| POST | `/api/licenses/[id]/release` | `license:release` | Release own claim (empty body), admin releases one (`{ claimId }`) or all (`{ all: true }`) |
 | POST | `/api/licenses/[id]/occupy` | `license:manage` | Admin marks slot occupied by unknown user (`{ label }`) |
 | GET | `/api/licenses/[id]/history` | `license:manage` | Full claim history for a code |
 
@@ -68,14 +68,14 @@ Replace the Google Sheet at `licenses.xlsx` with an in-app pool that mirrors how
   - `LicenseTable.tsx` — main table, masked codes for non-holders, expiry tooltips
   - `ConfirmClaimDialog.tsx` — student claim confirmation, copies code on success
   - `ReleaseDialog.tsx` — student return confirmation
-  - `AdminClaimSheet.tsx` — admin detail sheet (slots, occupant, details, danger zone, history)
+  - `AdminClaimSheet.tsx` — admin detail sheet (slots, self-claim of an open slot, occupant, details, danger zone, history)
   - `AddLicenseDialog.tsx` — single-code add with accountEmail + expiry
   - `BulkAddSheet.tsx` — paste many codes at once
   - `BulkRenewDialog.tsx` — admin renewal dialog for expiring/expired visible codes or all visible active codes
 
 ### Visual states
 - AVAILABLE row: tinted green, `cursor-pointer` if user has no claim
-- PARTIAL row: tinted amber, `1/2` badge, claimable by anyone without a license
+- PARTIAL row: tinted blue, `1/2` badge, claimable by anyone without a license
 - CLAIMED row: tinted red, only admin/own holder can click
 - RETIRED row: 50% opacity, hidden by default, toggled via list icon in header
 - Expiry: ≤30 days = yellow `Xd left`, expired = red `Expired`, normal = grayed date string
@@ -87,8 +87,8 @@ Cron route: `GET /api/cron/notifications` (daily, see `vercel.json`).
 
 | Trigger | Recipients | Dedupe | Channel |
 |---|---|---|---|
-| Student has held a slot for >2 days | The holder (STUDENT only — staff/admins exempt) | `license-nag-{codeId}-{claimedAtIso}` | in-app + push |
-| License expires within 14 days OR is past expiry | All ADMIN/STAFF users | `license-expiry-{codeId}-{YYYY-MM}-{adminId}` | in-app + push |
+| Student has held a slot for >2 days | Each holder individually (STUDENT only — staff/admins exempt) | `license-nag-{codeId}-{claimedAtIso}` (per claim, so both slot holders get nagged) | in-app + push |
+| License expires within 14 days OR is past expiry | All ADMIN/STAFF users | `license-expiry-{codeId}-{currentYYYY-MM}-{adminId}` (keyed on the current month, so warnings repeat monthly until renewal) | in-app + push |
 
 Implementation: `processLicenseNags` and `processExpiryWarnings` in `src/lib/services/licenses.ts`.
 
@@ -96,7 +96,7 @@ Implementation: `processLicenseNags` and `processExpiryWarnings` in `src/lib/ser
 - Endpoint: `GET /api/licenses/export`
 - Auth: ADMIN/STAFF only
 - Filename: `licenses-YYYY-MM-DD.csv`
-- Columns: `code, label, account_email, status, slot_1_holder, slot_2_holder, expires_at, created_at`
+- Columns: `code, label, account_email, status, holder_1, holder_2, expires_at, created_at`
 - Holder cells use `user.name` if linked, else `occupantLabel`, else "Unknown"
 
 ## Permissions (`src/lib/permissions.ts`)
@@ -125,6 +125,7 @@ Implementation: `processLicenseNags` and `processExpiryWarnings` in `src/lib/ser
 - No full admin per-user license usage report beyond the user's own recent history and per-code admin history
 
 ## Change Log
+- **2026-07-09 (Logic + polish audit fixes)**: Full-page audit pass (`tasks/audit-licenses-web.md`). Admin "Release all slots" now always releases every holder via an explicit `{ all: true }` body (previously it silently released only the admin's own slot when they held one); staff/admins can claim an open slot from the admin sheet ("Claim open slot", disabled with a hint while they hold a license); claim success is never mis-reported when the clipboard write fails (Safari); bulk add dedupes repeated pasted codes and duplicate single adds return 409 instead of 500 (shared P2002 mapping in `fail()`); expiry warnings now repeat monthly (dedupe keyed on current month) and the 2-day nag is tracked per claim so both slot holders get nagged; retire/delete checks run in serializable transactions; input bounds added (code/label/occupant/bulk paste); CSV export fetches via blob so errors toast instead of navigating to raw JSON; expired-today shows "Today"/"expires today" instead of "0d left"; all-retired empty state copy fixed; admin sheet header stays fresh after saves without clobbering in-progress edits; banner copy button reports clipboard failures.
 - **2026-06-30 (Native iOS Browse reachability)**: Licenses is now a first-class compact Browse destination in native iOS, with Settings > Directory kept as a fallback and regular-width iPad still exposing Licenses as a sidebar-only Resources destination. Self-service behavior and web-owned management workflows did not change.
 - **2026-06-30 (Native iOS self-service)**: Added `LicensesView.swift` backed by the existing `/api/licenses`, `/api/licenses/my`, claim, and release routes. Compact iPhone reaches Licenses from Profile/Settings > Directory, regular-width iPad exposes Licenses as a sidebar-only native Resources destination, and the page supports loading/error/empty states, pull-to-refresh, claim confirmation, copy-to-clipboard, and return confirmation. Admin create/edit/renew/retire/export/history workflows remain on the web management page. Screenshot follow-up removed contradictory `Available` + `Already claimed` pool-row copy when the user already holds a license, made Copy Code neutral/blue, tints Claim as a positive action, and kept Return License as the only destructive action. Student code visibility is also masked client-side unless the row is the student's active claim, matching the API sanitizer. App Store-style follow-up uses native SwiftUI text-only capsule buttons: green bordered-prominent Claim, blue bordered Copy Code, and destructive bordered Return License, with no custom badge or action-icon styling.
 - **2026-05-25 (Web bug sweep Batch 31)**: Admin table row clicks now prioritize inspection over self-claiming, so staff/admin users can manage open or partially used license codes from the table instead of being dropped into the student claim dialog.

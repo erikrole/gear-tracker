@@ -50,6 +50,17 @@ export function fail(error: unknown) {
     );
   }
 
+  // Unique-constraint violation — the record already exists
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002"
+  ) {
+    return NextResponse.json(
+      { error: "A record with that value already exists." },
+      { status: 409 }
+    );
+  }
+
   // Serialization conflict (SERIALIZABLE isolation) — retryable by client
   if (
     error instanceof Prisma.PrismaClientKnownRequestError &&

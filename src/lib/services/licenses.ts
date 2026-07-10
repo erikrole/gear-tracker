@@ -122,13 +122,31 @@ export async function releaseCode(
   codeId: string,
   requesterId: string,
   isAdmin: boolean,
-  claimId?: string
+  opts: { claimId?: string; releaseAll?: boolean } = {}
 ) {
   return db.$transaction(async (tx) => {
+    if (opts.releaseAll) {
+      if (!isAdmin) throw new HttpError(403, "Only admins can release all slots.");
+      const allActive = await tx.licenseCodeClaim.findMany({
+        where: { licenseCodeId: codeId, releasedAt: null },
+        select: { id: true },
+      });
+      if (allActive.length === 0) throw new HttpError(409, "No active claims to release.");
+      const now = new Date();
+      await tx.licenseCodeClaim.updateMany({
+        where: { licenseCodeId: codeId, releasedAt: null },
+        data: { releasedAt: now, releasedById: requesterId },
+      });
+      return tx.licenseCode.update({
+        where: { id: codeId },
+        data: { status: LicenseCodeStatus.AVAILABLE, claimedById: null, claimedAt: null, nagSentAt: null },
+      });
+    }
+
     let claim;
-    if (claimId) {
+    if (opts.claimId) {
       if (!isAdmin) throw new HttpError(403, "Only admins can release by claim ID.");
-      claim = await tx.licenseCodeClaim.findUnique({ where: { id: claimId } });
+      claim = await tx.licenseCodeClaim.findUnique({ where: { id: opts.claimId } });
       if (!claim || claim.licenseCodeId !== codeId || claim.releasedAt) {
         throw new HttpError(404, "Active claim not found.");
       }
@@ -136,28 +154,7 @@ export async function releaseCode(
       claim = await tx.licenseCodeClaim.findFirst({
         where: { licenseCodeId: codeId, userId: requesterId, releasedAt: null },
       });
-      if (!claim) {
-        if (isAdmin) {
-          // Admin releasing without specifying a claim — release all
-          const allActive = await tx.licenseCodeClaim.findMany({
-            where: { licenseCodeId: codeId, releasedAt: null },
-          });
-          if (allActive.length === 0) throw new HttpError(409, "No active claims to release.");
-          const now = new Date();
-          await tx.licenseCodeClaim.updateMany({
-            where: { licenseCodeId: codeId, releasedAt: null },
-            data: { releasedAt: now, releasedById: requesterId },
-          });
-          return tx.licenseCode.update({
-            where: { id: codeId },
-            data: { status: LicenseCodeStatus.AVAILABLE, claimedById: null, claimedAt: null, nagSentAt: null },
-          });
-        }
-        throw new HttpError(404, "No active claim found for your account.");
-      }
-      if (!isAdmin && claim.userId !== requesterId) {
-        throw new HttpError(403, "You can only release your own license.");
-      }
+      if (!claim) throw new HttpError(404, "No active claim found for your account.");
     }
 
     const now = new Date();
@@ -237,12 +234,17 @@ export async function bulkCreateCodes(
   createdById: string,
   shared: { accountEmail?: string; expiresAt?: Date } = {}
 ): Promise<{ created: number; skipped: number }> {
-  const codes = rawLines
+  const lines = rawLines
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean);
+  // Dedupe within the paste — repeated rows count as skipped, not a unique-constraint 500.
+  const codes = [...new Set(lines)];
 
   if (codes.length === 0) throw new HttpError(400, "No codes provided.");
+  if (codes.some((c) => c.length > 120)) {
+    throw new HttpError(400, "One or more codes are longer than 120 characters.");
+  }
 
   const existing = await db.licenseCode.findMany({
     where: { code: { in: codes } },
@@ -251,45 +253,60 @@ export async function bulkCreateCodes(
   const existingSet = new Set(existing.map((e) => e.code));
   const newCodes = codes.filter((c) => !existingSet.has(c));
 
-  if (newCodes.length === 0) return { created: 0, skipped: codes.length };
+  if (newCodes.length === 0) return { created: 0, skipped: lines.length };
 
-  await db.licenseCode.createMany({
+  const result = await db.licenseCode.createMany({
     data: newCodes.map((code) => ({
       code,
       createdById,
       accountEmail: shared.accountEmail,
       expiresAt: shared.expiresAt,
     })),
+    skipDuplicates: true,
   });
 
-  return { created: newCodes.length, skipped: codes.length - newCodes.length };
+  return { created: result.count, skipped: lines.length - result.count };
 }
 
 export async function retireCode(codeId: string) {
-  const code = await db.licenseCode.findUnique({
-    where: { id: codeId },
-    include: { claims: { where: { releasedAt: null } } },
-  });
-  if (!code) throw new HttpError(404, "License code not found.");
-  if (code.claims.length > 0) {
-    throw new HttpError(409, "Cannot retire a license with active claims. Release all slots first.");
-  }
-  return db.licenseCode.update({
-    where: { id: codeId },
-    data: { status: LicenseCodeStatus.RETIRED },
-  });
+  return withSerializableRetry(() =>
+    db.$transaction(
+      async (tx) => {
+        const code = await tx.licenseCode.findUnique({
+          where: { id: codeId },
+          include: { claims: { where: { releasedAt: null } } },
+        });
+        if (!code) throw new HttpError(404, "License code not found.");
+        if (code.claims.length > 0) {
+          throw new HttpError(409, "Cannot retire a license with active claims. Release all slots first.");
+        }
+        return tx.licenseCode.update({
+          where: { id: codeId },
+          data: { status: LicenseCodeStatus.RETIRED },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    )
+  );
 }
 
 export async function deleteCode(codeId: string) {
-  const code = await db.licenseCode.findUnique({
-    where: { id: codeId },
-    include: { claims: { where: { releasedAt: null } } },
-  });
-  if (!code) throw new HttpError(404, "License code not found.");
-  if (code.claims.length > 0) {
-    throw new HttpError(409, "Cannot delete a license with active claims. Release all slots first.");
-  }
-  return db.licenseCode.delete({ where: { id: codeId } });
+  return withSerializableRetry(() =>
+    db.$transaction(
+      async (tx) => {
+        const code = await tx.licenseCode.findUnique({
+          where: { id: codeId },
+          include: { claims: { where: { releasedAt: null } } },
+        });
+        if (!code) throw new HttpError(404, "License code not found.");
+        if (code.claims.length > 0) {
+          throw new HttpError(409, "Cannot delete a license with active claims. Release all slots first.");
+        }
+        return tx.licenseCode.delete({ where: { id: codeId } });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    )
+  );
 }
 
 export async function updateCodeDetails(
@@ -386,9 +403,12 @@ export async function processExpiryWarnings() {
 
   let warned = 0;
 
+  // Dedupe on the CURRENT month so admins are re-warned monthly until the
+  // license is renewed or retired (keying on the expiry month fires only once ever).
+  const yearMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+
   for (const code of expiring) {
     if (!code.expiresAt) continue;
-    const yearMonth = `${code.expiresAt.getUTCFullYear()}-${String(code.expiresAt.getUTCMonth() + 1).padStart(2, "0")}`;
     const isExpired = code.expiresAt < now;
     const daysLeft = Math.ceil((code.expiresAt.getTime() - now.getTime()) / 86_400_000);
 
@@ -436,31 +456,33 @@ export async function processLicenseNags() {
   const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
 
   // Staff and admins hold licenses with indefinite custody — only students get nagged to rotate.
+  // Nag state is tracked per claim via the notification dedupe key (codeId + claimedAt), so
+  // both holders of a 2-slot code each get their own nag.
   const overdueClaims = await db.licenseCodeClaim.findMany({
     where: {
       releasedAt: null,
       userId: { not: null },
       claimedAt: { lt: twoDaysAgo },
-      licenseCode: { nagSentAt: null },
       user: { role: "STUDENT" },
     },
     select: { id: true, userId: true, claimedAt: true, licenseCodeId: true },
   });
 
-  const nagged = new Set<string>();
+  let nagged = 0;
 
   for (const claim of overdueClaims) {
-    if (!claim.userId || nagged.has(claim.licenseCodeId)) continue;
-    nagged.add(claim.licenseCodeId);
+    if (!claim.userId) continue;
 
     const title = "Still using Photo Mechanic?";
     const body = "You've had a license for 2+ days. Return it from the app if you're done so someone else can use it.";
-    const dedupeKey = `license-nag-${claim.licenseCodeId}-${claim.claimedAt?.toISOString()}`;
+    const dedupeKey = `license-nag-${claim.licenseCodeId}-${claim.claimedAt.toISOString()}`;
 
     try {
-      await db.notification.upsert({
-        where: { dedupeKey },
-        create: {
+      const existing = await db.notification.findUnique({ where: { dedupeKey } });
+      if (existing) continue;
+
+      await db.notification.create({
+        data: {
           userId: claim.userId,
           type: "license_held_2d",
           title,
@@ -469,7 +491,6 @@ export async function processLicenseNags() {
           sentAt: new Date(),
           dedupeKey,
         },
-        update: {},
       });
 
       await sendPushToUser(claim.userId, {
@@ -479,14 +500,11 @@ export async function processLicenseNags() {
         category: "licenseExpiry",
       });
 
-      await db.licenseCode.update({
-        where: { id: claim.licenseCodeId },
-        data: { nagSentAt: new Date() },
-      });
+      nagged++;
     } catch (err) {
       console.error(`[LICENSE_NAGS] Failed for code ${claim.licenseCodeId}:`, err);
     }
   }
 
-  return { nagged: nagged.size };
+  return { nagged };
 }

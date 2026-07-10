@@ -7,7 +7,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { addUnknownOccupant } from "@/lib/services/licenses";
 
 const bodySchema = z.object({
-  label: z.string().min(1, "Name is required"),
+  label: z.string().min(1, "Name is required").max(120, "Name must be 120 characters or fewer"),
 });
 const OCCUPY_LIMIT = { max: 20, windowMs: 60_000 };
 

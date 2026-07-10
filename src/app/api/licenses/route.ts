@@ -6,8 +6,8 @@ import { createAuditEntry } from "@/lib/audit";
 import { listAllCodes, listCodes, createCode } from "@/lib/services/licenses";
 
 const createSchema = z.object({
-  code: z.string().min(4, "Code must be at least 4 characters"),
-  label: z.string().optional(),
+  code: z.string().min(4, "Code must be at least 4 characters").max(120, "Code must be 120 characters or fewer"),
+  label: z.string().max(200, "Label must be 200 characters or fewer").optional(),
   accountEmail: z.string().email().optional(),
   expiresAt: z.string().datetime().optional(),
 });

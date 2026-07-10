@@ -22,10 +22,14 @@ export function MyLicensePanel({ license, isStaff, onReleased }: Props) {
   const [showHistory, setShowHistory] = useState(false);
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(license.code);
-    setCopied(true);
-    toast.success("License code copied to clipboard");
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(license.code);
+      setCopied(true);
+      toast.success("License code copied to clipboard");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Couldn't copy — select the code and copy it manually.");
+    }
   }
 
   const expiryMs = license.expiresAt ? new Date(license.expiresAt).getTime() : null;
@@ -87,7 +91,9 @@ export function MyLicensePanel({ license, isStaff, onReleased }: Props) {
               <AlertTriangle className="size-3.5" />
               {isExpired
                 ? "This license has expired — renew to keep using it."
-                : `License expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}.`}
+                : daysLeft === 0
+                  ? "License expires today."
+                  : `License expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}.`}
             </div>
           )}
         </CardContent>

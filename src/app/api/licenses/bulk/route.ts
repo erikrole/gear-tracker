@@ -7,7 +7,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { bulkCreateCodes, bulkRenewCodes } from "@/lib/services/licenses";
 
 const bulkSchema = z.object({
-  codes: z.string().min(1, "Provide at least one code"),
+  codes: z.string().min(1, "Provide at least one code").max(50_000, "Paste at most 50,000 characters of codes at once"),
   accountEmail: z.string().email().optional(),
   expiresAt: z.string().datetime().optional(),
 });

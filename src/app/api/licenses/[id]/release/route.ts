@@ -6,7 +6,7 @@ import { createAuditEntry } from "@/lib/audit";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { releaseCode } from "@/lib/services/licenses";
 
-const bodySchema = z.object({ claimId: z.string().optional() }).optional();
+const bodySchema = z.object({ claimId: z.string().optional(), all: z.boolean().optional() }).optional();
 const RELEASE_LIMIT = { max: 20, windowMs: 60_000 };
 
 export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
@@ -16,14 +16,16 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   const isAdmin = user.role === "ADMIN" || user.role === "STAFF";
 
   let claimId: string | undefined;
+  let releaseAll = false;
   try {
     const body = bodySchema.parse(await req.json());
     claimId = body?.claimId;
+    releaseAll = body?.all === true;
   } catch {
     // empty body is fine
   }
 
-  const code = await releaseCode(params.id, user.id, isAdmin, claimId);
+  const code = await releaseCode(params.id, user.id, isAdmin, { claimId, releaseAll });
 
   await createAuditEntry({
     actorId: user.id,
@@ -31,7 +33,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     entityType: "license_code",
     entityId: params.id,
     action: "release",
-    after: { status: code.status, claimId, releasedById: isAdmin ? user.id : null },
+    after: { status: code.status, claimId, releaseAll, releasedById: isAdmin ? user.id : null },
   });
 
   return ok({ data: code });

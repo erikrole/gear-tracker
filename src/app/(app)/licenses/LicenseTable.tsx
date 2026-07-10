@@ -25,7 +25,7 @@ function ExpiryDisplay({ expiresAt }: { expiresAt: string }) {
   const days = Math.ceil(diff / 86_400_000);
   const dateStr = expiry.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 
-  if (days < 0) {
+  if (diff < 0) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
@@ -40,7 +40,7 @@ function ExpiryDisplay({ expiresAt }: { expiresAt: string }) {
       <Tooltip>
         <TooltipTrigger asChild>
           <Badge variant="outline" className="text-xs border-yellow-400 text-yellow-700 dark:text-yellow-400 cursor-help">
-            {days}d left
+            {days <= 0 ? "Today" : `${days}d left`}
           </Badge>
         </TooltipTrigger>
         <TooltipContent>Expires {dateStr}</TooltipContent>

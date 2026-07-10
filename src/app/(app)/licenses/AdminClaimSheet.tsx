@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Trash2, Archive, AlertCircle, RefreshCw } from "lucide-react";
+import { Trash2, Archive, AlertCircle, KeyRound, RefreshCw } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -43,6 +43,7 @@ type ClaimRecord = {
 type Props = {
   license: LicenseCode | null;
   isAdmin: boolean;
+  hasMyLicense: boolean;
   onOpenChange: (open: boolean) => void;
   onAction: () => void;
 };
@@ -57,11 +58,12 @@ async function throwLicenseError(res: Response, fallback: string) {
   return false;
 }
 
-export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Props) {
+export function AdminClaimSheet({ license, isAdmin, hasMyLicense, onOpenChange, onAction }: Props) {
   const [history, setHistory] = useState<ClaimRecord[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [historyError, setHistoryError] = useState(false);
   const [releasing, setReleasing] = useState<string | null>(null);
+  const [claiming, setClaiming] = useState(false);
   const [occupantLabel, setOccupantLabel] = useState("");
   const [addingOccupant, setAddingOccupant] = useState(false);
   const [editExpiry, setEditExpiry] = useState("");
@@ -69,13 +71,16 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
   const [savingDetails, setSavingDetails] = useState(false);
   const [retiring, setRetiring] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const lastLicenseIdRef = useRef<string | null>(null);
+
+  const licenseId = license?.id ?? null;
 
   const loadHistory = useCallback(async (signal?: AbortSignal) => {
-    if (!license) return;
+    if (!licenseId) return;
     setLoadingHistory(true);
     setHistoryError(false);
     try {
-      const res = await fetch(`/api/licenses/${license.id}/history`, { signal });
+      const res = await fetch(`/api/licenses/${licenseId}/history`, { signal });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to load license history"));
       const json = await parseJsonSafely<LicenseHistoryResponse>(res);
@@ -87,14 +92,19 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
     } finally {
       if (!signal?.aborted) setLoadingHistory(false);
     }
-  }, [license]);
+  }, [licenseId]);
 
   useEffect(() => {
     if (!license) {
+      lastLicenseIdRef.current = null;
       setHistory([]);
       setHistoryError(false);
       return;
     }
+    // Only reset form state when a DIFFERENT license opens — the license prop
+    // refreshes in place after list reloads and must not clobber in-progress edits.
+    if (lastLicenseIdRef.current === license.id) return;
+    lastLicenseIdRef.current = license.id;
     setEditExpiry(license.expiresAt ? license.expiresAt.slice(0, 10) : "");
     setEditAccount(license.accountEmail ?? "");
     setHistory([]);
@@ -111,7 +121,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
       const res = await fetch(`/api/licenses/${license.id}/release`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(claimId ? { claimId } : {}),
+        body: JSON.stringify(claimId ? { claimId } : { all: true }),
       });
       if (await throwLicenseError(res, "Failed to release")) return;
       toast.success(claimId ? "Slot released" : "All slots released");
@@ -121,6 +131,37 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
       toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setReleasing(null);
+    }
+  }
+
+  async function handleClaimSlot() {
+    if (!license || claiming) return;
+    setClaiming(true);
+    try {
+      const res = await fetch(`/api/licenses/${license.id}/claim`, { method: "POST" });
+      if (await throwLicenseError(res, "Failed to claim license")) return;
+      // Claimed — clipboard may still fail (Safari gesture rules); never report that as failure.
+      const json = await parseJsonSafely<{ data?: { code?: string } }>(res);
+      const code = json?.data?.code;
+      let copied = false;
+      if (code) {
+        try {
+          await navigator.clipboard.writeText(code);
+          copied = true;
+        } catch {
+          copied = false;
+        }
+      }
+      toast.success(copied ? "Slot claimed and code copied to clipboard" : "Slot claimed", {
+        description: copied ? code : "Copy the code from your license banner.",
+        duration: 6000,
+      });
+      onAction();
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setClaiming(false);
     }
   }
 
@@ -286,6 +327,25 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
                     </div>
                   );
                 })}
+              </div>
+            )}
+            {isAdmin && license?.status !== "RETIRED" && activeClaims.length < 2 && (
+              <div className="space-y-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={handleClaimSlot}
+                  disabled={claiming || hasMyLicense}
+                >
+                  <KeyRound className="size-3.5" />
+                  {claiming ? "Claiming…" : "Claim open slot"}
+                </Button>
+                {hasMyLicense && (
+                  <p className="text-xs text-muted-foreground">
+                    Return your current license before claiming another.
+                  </p>
+                )}
               </div>
             )}
             {isAdmin && activeClaims.length > 1 && (

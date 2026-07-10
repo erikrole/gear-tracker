@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { CalendarClock, KeyRound, Plus, RefreshCw, List, Download } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
@@ -10,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { OperationalMetricCard } from "@/components/OperationalFeedback";
 import { useFetch } from "@/hooks/use-fetch";
 import { formatRelativeTime } from "@/lib/format";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import { LicenseTable } from "./LicenseTable";
 import { MyLicensePanel } from "./MyLicensePanel";
 import { ConfirmClaimDialog } from "./ConfirmClaimDialog";
@@ -88,6 +90,7 @@ export default function LicensesPage() {
   const [showBulk, setShowBulk] = useState(false);
   const [showRenew, setShowRenew] = useState(false);
   const [showRetired, setShowRetired] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const { data: meData } = useFetch<{ id: string; role: string }>({
     url: "/api/me",
@@ -146,8 +149,30 @@ export default function LicensesPage() {
     setAdminTarget(code);
   }
 
-  function handleExport() {
-    window.location.href = "/api/licenses/export";
+  // Keep the sheet's license fresh after reloads (e.g. Save details keeps it open).
+  const adminLicense = adminTarget
+    ? allCodes.find((c) => c.id === adminTarget.id) ?? adminTarget
+    : null;
+
+  async function handleExport() {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const res = await fetch("/api/licenses/export");
+      if (handleAuthRedirect(res)) return;
+      if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to export licenses"));
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `licenses-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to export licenses");
+    } finally {
+      setExporting(false);
+    }
   }
 
   return (
@@ -197,6 +222,7 @@ export default function LicensesPage() {
                   size="icon"
                   className="size-10"
                   onClick={handleExport}
+                  disabled={exporting}
                   aria-label="Export CSV"
                 >
                   <Download className="size-3.5" />
@@ -261,7 +287,7 @@ export default function LicensesPage() {
       ) : !codesLoading && visibleCodes.length === 0 ? (
         <EmptyState
           icon="box"
-          title="Only retired licenses are hidden"
+          title="All licenses are retired"
           description="Show retired codes from the header to review archived license history."
           actionLabel={isAdmin ? "Show retired" : undefined}
           onAction={isAdmin ? () => setShowRetired(true) : undefined}
@@ -288,8 +314,9 @@ export default function LicensesPage() {
 
       {/* Admin / detail sheet */}
       <AdminClaimSheet
-        license={adminTarget}
+        license={adminLicense}
         isAdmin={isAdmin}
+        hasMyLicense={!!myLicense}
         onOpenChange={(open) => { if (!open) setAdminTarget(null); }}
         onAction={reloadAll}
       />

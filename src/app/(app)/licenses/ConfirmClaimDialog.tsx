@@ -37,12 +37,21 @@ export function ConfirmClaimDialog({ license, onOpenChange, onClaimed }: Props) 
       if (handleAuthRedirect(res)) return;
       if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to claim license"));
 
+      // The claim succeeded — nothing past this point may report failure.
+      // Safari rejects clipboard writes outside the original user gesture.
       const json = await parseJsonSafely<ClaimResponse>(res);
       const code = json?.data?.code;
-      if (!code) throw new Error("License claimed, but no code was returned");
-      await navigator.clipboard.writeText(code);
-      toast.success("License claimed and copied to clipboard", {
-        description: code,
+      let copied = false;
+      if (code) {
+        try {
+          await navigator.clipboard.writeText(code);
+          copied = true;
+        } catch {
+          copied = false;
+        }
+      }
+      toast.success(copied ? "License claimed and copied to clipboard" : "License claimed", {
+        description: copied ? code : "Copy the code from your license banner above.",
         duration: 6000,
       });
       onClaimed();

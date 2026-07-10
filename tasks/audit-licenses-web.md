@@ -1,67 +1,62 @@
-# Audit: /licenses (web) — 2026-04-24
+# Audit: /licenses (web) — 2026-07-09
 
-**MVP verdict:** READY — all P0 + P1 addressed (2026-04-24)
+**MVP verdict:** READY — all P1 + P2 findings fixed 2026-07-09
 **Ship bar:** all staff + students, zero hiccups
+**Prior audit:** 2026-04-24 (READY; this is a fresh logic/smarts/polish pass — prior version in git)
 
 ## P0 — blocks MVP
-- [x] [Hardening] No rate limiting on any license route — `src/app/api/licenses/**`, `src/lib/api.ts:24`
-      Why it blocks ship: A student could script `claim`/`release` thrash, or hammer `/api/licenses` to enumerate IDs/codes. With every student logged in, a misbehaving client lands on the DB at unbounded RPS. Vercel functions have 10s/60s caps but no per-user throttle.
-      Suggested fix: Add a small in-memory or Upstash-backed rate limiter to `withAuth` (or wrap the license routes). At minimum throttle `claim`, `release`, `bulk`, `export` per-user.
-
-- [x] [Hardening] CSV export route is permitted by `requirePermission("license","manage")` (STAFF + ADMIN), but the AREA doc says **admin-only** — `src/app/api/licenses/export/route.ts:15-18` vs `docs/AREA_LICENSES.md:88-89`
-      Why it blocks ship: Either the doc lies or the code does. Rule 7 violation — code and doc out of sync on an authorization rule that goes to all staff. Today the redundant check at line 16-18 effectively allows STAFF anyway, so the doc is the one that's wrong, but this is exactly the kind of drift that ships RBAC bugs. Pick one and align.
-      Suggested fix: Either tighten the route to ADMIN-only and update the AREA doc, or update the AREA doc to say STAFF+ADMIN. Recommend STAFF+ADMIN since `manage` already does that everywhere else.
+(none)
 
 ## P1 — polish before ship
-- [x] [Hardening] Concurrent-claim race: two students tapping the last slot at the same moment can both succeed — `src/lib/services/licenses.ts:53-77`
-      Why it blocks ship: The "duplicate-claim" pre-check on line 45 runs OUTSIDE the transaction, and the slot-count check inside the transaction is a `findUnique`+`update`, not a row lock. Two concurrent transactions can each read `activeCount=1`, each insert, leaving 3 active claims. There's no DB unique constraint enforcing ≤2.
-      Suggested fix: Add a partial unique index `(licenseCodeId) WHERE releasedAt IS NULL LIMIT 2` is not expressible directly — instead either (a) `SELECT ... FOR UPDATE` on the licenseCode row inside the tx, or (b) add a check via a row-version/optimistic-lock on `LicenseCode.status` and retry on conflict.
+- [x] [Flows] "Release all slots" only releases the admin's own slot when the admin holds one of the two slots — `src/lib/services/licenses.ts:136-160`
+      Why it blocks ship: With no `claimId`, `releaseCode` first looks for the requester's own active claim and releases just that one; the release-all branch is only reached when the admin holds nothing. The dialog says "Both holders will be removed" and the toast says "All slots released" — one holder silently remains.
+      Suggested fix: Make release-all explicit — send `{ all: true }` from `AdminClaimSheet` and branch on it in the service, or have the sheet always pass explicit claimIds.
 
-- [x] [Hardening] `/api/licenses/[id]/history` exposes full claim history including userIds for any STAFF-or-ADMIN — fine — but `LicenseCodeClaim.user` has no `onDelete` rule — `prisma/schema.prisma:794`
-      Why it blocks ship: Deleting a user with prior claims will fail at the DB layer (default `Restrict`) and surface as a 500 to the admin doing user maintenance. Quiet timebomb.
-      Suggested fix: `onDelete: SetNull` on `LicenseCodeClaim.user` — claim history persists with `userId=null` and the existing `occupantLabel`/"Unknown" fallback already handles render.
+- [x] [Breaking] Successful claim reported as failure when clipboard write throws (Safari) — `src/app/(app)/licenses/ConfirmClaimDialog.tsx:43`
+      Why it blocks ship: `navigator.clipboard.writeText` runs after two awaits, outside the user gesture; Safari rejects it. The catch shows an error toast, `onClaimed` never fires, the dialog stays open — but the claim succeeded server-side. The student retries and gets 409 "You already have an active license." Confusing on day one.
+      Suggested fix: Wrap the clipboard write (and the missing-code check) in its own try/catch; always treat 2xx as claimed, toast "Claimed — copy the code from the banner above" if copy fails. Same for the unused-code guard at line 42.
 
-- [x] [Flows] Admin "release" has no confirm dialog — `AdminClaimSheet.tsx:236-241`
-      Why it blocks ship: Admin clicks "Release" next to a holder's name → claim is released instantly with no undo. On a small viewport with multiple slots, misclick risk is real and a teacher just kicked a student out of Photo Mechanic mid-edit.
-      Suggested fix: Wrap individual-claim Release and "Release all slots" in `AlertDialog` confirm, matching the Retire/Delete pattern already in this file.
+- [x] [Breaking] Bulk add 500s when the paste contains the same code twice — `src/lib/services/licenses.ts:256-263`
+      Why it blocks ship: In-paste duplicates survive the existing-codes filter, `createMany` hits the unique constraint (P2002), `fail()` maps it to 500 "Internal server error", and nothing is created. Pasting from a spreadsheet with a repeated row is a normal admin path. Single "Add code" with an existing code also 500s instead of 409 (`src/lib/http.ts:34-67` has no P2002 mapping).
+      Suggested fix: Dedupe the parsed lines with a Set (count in-paste dupes as skipped), and map P2002 in `fail()` to 409 "Already exists."
 
-- [x] [Flows] No error/empty state shown when `useFetch` for `/api/licenses` fails — `page.tsx:37-45, 162-183`
-      Why it blocks ship: `useQuery` shows a toast "Failed to refresh" but the page just renders the empty-state branch (loading=false, allCodes.length===0) saying "No licenses in pool" — students will assume the system is empty when it's actually broken.
-      Suggested fix: Surface the error from `useFetch` (it returns `error`) and render an explicit error block with a Retry button instead of falling through to "No licenses in pool".
+- [x] [Gaps] Expiry warnings fire once ever, not "monthly thereafter" as the acceptance criterion states — `src/lib/services/licenses.ts:391,401`
+      Why it blocks ship: The dedupe key's `YYYY-MM` comes from the license's `expiresAt` (a constant), so after the first warning the key never changes and admins are never re-warned. An expired license goes silent after one notification. AREA_LICENSES.md:113 claims "monthly thereafter."
+      Suggested fix: Derive `yearMonth` from the current date so the dedupe key rolls over monthly.
 
-- [x] [Flows] `BulkAddSheet` has no `accountEmail` / `expiresAt` — known gap per AREA doc but is the most obvious paper cut for the only realistic admin onboarding path — `BulkAddSheet.tsx`
-      Why it blocks ship: Admin paste 30 codes → must then click each row in the sheet to set expiry. For an MVP with annual renewal, a single shared expiry field on the bulk form would close the gap.
-      Suggested fix: Add an optional shared `expiresAt` and `accountEmail` to BulkAddSheet that applies to all newly-created codes. Keep per-code editing for differences.
+- [x] [Gaps] 2-day rotation nag is tracked per-code, not per-holder — `src/lib/services/licenses.ts:439-445,482-485`
+      Why it blocks ship: `nagSentAt` lives on `LicenseCode`. With two student holders, the first nag sets it and the second holder is never nagged (until some release resets it). The V1 field predates the 2-slot model; AREA rule says "the holder" gets nagged.
+      Suggested fix: Track nag state per claim — rely on the per-claim notification `dedupeKey` (already `codeId + claimedAt`) instead of `nagSentAt`, or move `nagSentAt` to `LicenseCodeClaim`.
 
-- [x] [UI] Footer hint "Click an available row to claim" appears even for users who already hold a license — `page.tsx:205-210`
-      Why it blocks ship: Confusing for a student already showing the green "Your license" banner — the hint contradicts the disabled state below.
-      Suggested fix: Hide the footer hint when `myLicense` is set, or change it to "Return your license to claim a different one."
+- [x] [Flows] Staff/admin have no way to claim a slot on the web — `src/app/(app)/licenses/page.tsx:143-147`, `src/app/(app)/licenses/LicenseTable.tsx:170-175`
+      Why it blocks ship: Batch 31 made every admin row click open the inspect sheet, and `AdminClaimSheet` has no "claim for myself" action — so the claim dialog is unreachable for STAFF/ADMIN. iOS lets every role claim; web (the power-user hub) can't. AREA rule 8 explicitly expects staff/admins to hold licenses.
+      Suggested fix: Add a "Claim a slot" button in the AdminClaimSheet slots section (disabled with a hint when the user already holds a license), reusing the existing claim endpoint + copy-to-clipboard toast.
 
-- [x] [UI] AdminClaimSheet "Mark slot occupied" form has no label on the input — `AdminClaimSheet.tsx:265-275`
-      Why it blocks ship: A11y miss + per Rule 13 every Input should have an associated Label. Also the section heading is "Mark slot occupied" but the field is what gets typed (a name) — students of accessibility tooling will land on a nameless input.
-      Suggested fix: Add a `Label` for the input ("Name of occupant" or just "Occupant") or aria-label. Helper text not needed.
+## P2 — post-MVP
+- [x] [Hardening] No max length on stored strings: `occupantLabel` (`api/licenses/[id]/occupy/route.ts:10`), `label`/`code` (`api/licenses/route.ts:9-12`), bulk `codes` blob (`api/licenses/bulk/route.ts:10`). A 1MB label flows into the table, CSV, and audit log. Add `.max()` bounds.
+- [x] [Breaking] `handleExport` navigates via `window.location.href` (`page.tsx:150`) — a 429/error response renders raw JSON and navigates away from the app. Fetch → blob → anchor download instead, with a toast on error.
+- [x] [Hardening] `retireCode`/`deleteCode` pre-checks run outside a transaction (`licenses.ts:268-293`) — a concurrent student claim between check and delete is cascade-deleted. Rare; wrap in a transaction for symmetry with claim/occupy.
+- [x] [UI polish] A license that expired earlier today shows "0d left" (yellow) in the table because `Math.ceil` rounds to 0 (`LicenseTable.tsx:25-28`), while the banner and sheet already call it expired. Treat `days <= 0` with `diff < 0` as expired; show "Expires today" for the true 0-day case.
+- [x] [UI polish] Hidden-retired empty state title "Only retired licenses are hidden" is confusing (`page.tsx:264`) — the state means every code is retired. Suggest "All licenses are retired."
+- [x] [UI polish] After "Save details" the sheet header renders from the stale `license` prop (expired badge, email) until reopened (`AdminClaimSheet.tsx:209-232`). Actions that keep the sheet open should refresh its data or the sheet should read from the reloaded list.
+- [x] [UI polish] `MyLicensePanel.handleCopy` (`MyLicensePanel.tsx:24-29`) — clipboard failure is an unhandled rejection with no user feedback; add a catch with an error toast.
+- [x] [Gaps] AREA doc drift: PARTIAL row documented amber but rendered blue (`AREA_LICENSES.md:78` vs `LicenseTable.tsx:162`); masked-code format documented `XXXX-••••-••••-XXXX` vs actual full mask (`LicenseTable.tsx:20`); CSV columns documented `slot_1_holder/slot_2_holder` vs actual `holder_1/holder_2` (`AREA_LICENSES.md:99` vs `export/route.ts:22`). Doc sync per Rule 12.
 
-- [x] [Flows] `MyLicensePanel` "Claim history" / past-claims link missing — purely informational; user can never see when they last had a license. AREA doc doesn't require it but staff/student rotation context suggests it'd help.
-      Why it blocks ship: It doesn't, technically — moving to P2 unless you want it.
-
-## P2 — post-MVP (deferred)
-- [ ] [Parity] iOS does not yet expose license claim/release UI per `AREA_MOBILE.md`. Flagged for the iOS audit.
-- [ ] [UI] Table rows aren't keyboard-operable (no `tabindex`/`Enter` handler on `TableRow`).
-- [ ] [Flows] No bulk renewal for expiring codes (AREA known gap).
-- [ ] [Flows] Claim history has no pagination (AREA known gap, fine at <50/code).
-
-## Acceptance criteria status (from docs/AREA_LICENSES.md:99-111)
-- [x] Each code held by up to 2 users — `licenses.ts:62-69`
-- [x] Status badge Open / 1/2 / Full / Retired — `LicenseTable.tsx:207-224`
-- [x] Admins can record unknown occupant — `licenses.ts:153-175`, `AdminClaimSheet.tsx:264-276`
-- [x] Admins can edit accountEmail + expiresAt — `AdminClaimSheet.tsx:281-313`
-- [x] Expiring (≤30d) yellow / expired red — `LicenseTable.tsx:34-55`
-- [x] Admin push 14d before expiry — `licenses.ts:281-345`
-- [x] Admin sheet shows full claim history — `AdminClaimSheet.tsx:394-423`
-- [x] Students cannot hold >1 slot — `licenses.ts:45-51` (note: race condition, see P1)
-- [x] Codes masked to non-holders/non-admins — `LicenseTable.tsx:189`
-- [x] Destructive actions confirm — partial: Retire/Delete confirm, but admin Release does NOT (see P1)
-- [x] CSV export — `api/licenses/export/route.ts` (note: doc/code RBAC mismatch, see P0)
+## Acceptance criteria status (from docs/AREA_LICENSES.md:107-121)
+- [x] Up to 2 holders per code — `licenses.ts:99-107` (serializable tx + retry)
+- [x] Status badge Open / 1/2 / Full / Retired — `LicenseTable.tsx:203-206`
+- [x] Unknown occupant by name — `licenses.ts:194-221`, `AdminClaimSheet.tsx:322-345`
+- [x] accountEmail + expiresAt editable — `AdminClaimSheet.tsx:347-385`
+- [x] ≤30d yellow / expired red — `LicenseTable.tsx:22-51` (edge: "0d left" for expired-today, see P2)
+- [x] Expiry notification 14d before, **monthly thereafter** — fixed 2026-07-09: dedupe keyed on current month, `licenses.ts` `processExpiryWarnings`
+- [x] Admin sheet full claim history — `AdminClaimSheet.tsx:469-510`
+- [x] Bulk renew expiring/all visible — `BulkRenewDialog.tsx`, `api/licenses/bulk/route.ts:44-62`
+- [x] User-visible own history without released codes — `MyLicenseHistoryDialog.tsx`, `licenses.ts:323-338`
+- [x] One slot per user across codes — `licenses.ts:84-90` (in-tx)
+- [x] Codes masked to non-holders — server-side strip `api/licenses/route.ts:20-30` + client mask `LicenseTable.tsx:177`
+- [x] Destructive actions confirm — release/release-all/retire/delete all AlertDialog-gated, `AdminClaimSheet.tsx` (but release-all is buggy, P1 #1)
+- [x] CSV export — `api/licenses/export/route.ts` (formula-safe via `csvField`)
+- [x] Native iOS self-service — per AREA change log 2026-06-30 (not re-verified this pass)
 
 ## Lenses checked
 - [x] Gaps
@@ -69,39 +64,21 @@
 - [x] UI polish
 - [x] Hardening
 - [x] Breaking
-- [x] Parity (informational)
+- [x] Parity (informational): iOS lets every role claim/return; web staff/admin cannot claim at all (elevated to P1 #6). Web-only: create, bulk add, renew, retire, delete, export, occupy, full history — consistent with iOS-floor/web-power-user split.
 
 ## Files read
 - docs/AREA_LICENSES.md
-- prisma/schema.prisma (License models)
+- docs/DECISIONS.md, docs/GAPS_AND_RISKS.md (license entries — all closed)
+- prisma/schema.prisma (LicenseCode, LicenseCodeClaim)
 - src/lib/permissions.ts (license block)
 - src/lib/services/licenses.ts
-- src/app/(app)/licenses/page.tsx
-- src/app/(app)/licenses/LicenseTable.tsx
-- src/app/(app)/licenses/AdminClaimSheet.tsx
-- src/app/(app)/licenses/MyLicensePanel.tsx
-- src/app/(app)/licenses/ConfirmClaimDialog.tsx
-- src/app/(app)/licenses/ReleaseDialog.tsx
-- src/app/(app)/licenses/AddLicenseDialog.tsx
-- src/app/(app)/licenses/BulkAddSheet.tsx
-- src/app/(app)/licenses/types.ts
-- src/app/api/licenses/route.ts
-- src/app/api/licenses/[id]/route.ts
-- src/app/api/licenses/[id]/claim/route.ts
-- src/app/api/licenses/[id]/release/route.ts
-- src/app/api/licenses/[id]/occupy/route.ts
-- src/app/api/licenses/[id]/history/route.ts
-- src/app/api/licenses/my/route.ts
-- src/app/api/licenses/bulk/route.ts
-- src/app/api/licenses/export/route.ts
-- src/hooks/use-fetch.ts (error surface check)
-- docs/GAPS_AND_RISKS.md (no open license items)
-- docs/DECISIONS.md (no license decisions)
+- src/lib/api.ts, src/lib/http.ts (fail mapping), src/lib/rate-limit.ts
+- src/app/(app)/licenses/page.tsx, LicenseTable.tsx, types.ts, MyLicensePanel.tsx, AdminClaimSheet.tsx, ConfirmClaimDialog.tsx, ReleaseDialog.tsx, MyLicenseHistoryDialog.tsx, AddLicenseDialog.tsx, BulkAddSheet.tsx, BulkRenewDialog.tsx
+- src/app/api/licenses/route.ts, bulk/route.ts, export/route.ts, my/route.ts, my/history/route.ts, [id]/route.ts, [id]/claim/route.ts, [id]/release/route.ts, [id]/occupy/route.ts, [id]/history/route.ts
+- tasks/licenses-ownership-pass.md, tasks/audit-licenses-web.md (prior)
 
 ## Notes
-- BRIEF docs: none for licenses (none expected — V2 already shipped)
-- Audit log already wraps every mutation route — good
-- zod schemas present on every body that takes one — good
-- Permissions correctly checked server-side on every mutation route — good
-- The two P0s are both "thin": no rate limiting and a doc/code RBAC drift. Both quick fixes.
-- The hardest P1 is the concurrent-claim race; it requires either FOR UPDATE in Prisma or an optimistic-lock retry. Realistically rare given small user base, but ship bar is "zero hiccups."
+- Hardening baseline is strong: rate limits on all mutation + export routes, serializable tx with one retry on claim/occupy, server-side code masking, CSRF origin checks in withAuth, formula-safe CSV, bounded history reads, zod on every body.
+- The concurrent-claim race flagged in the 2026-04-24 audit is properly closed (GAP-45 confirmed invalid → serializable + retry, verified in code this pass).
+- Three of the six P1s live in `src/lib/services/licenses.ts` (release-all, expiry cadence, nag scope) — one service-slice fix covers them.
+- fail() mapping P2002 → 409 would also improve duplicate handling everywhere else `createMany`/unique writes surface.
