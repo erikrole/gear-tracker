@@ -64,6 +64,10 @@ export const actionLabels: Record<string, string> = {
   kiosk_checkout_updated: "updated at kiosk",
   kiosk_checkin: "checked in at kiosk",
   kiosk_return: "returned at kiosk",
+  kiosk_pickup: "picked up at kiosk",
+  auto_completed_by_kiosk_checkin: "completed the booking by returning at kiosk",
+  auto_completed_by_bulk_checkin: "completed the booking by bulk return",
+  auto_completed_by_partial_checkin: "completed the booking after partial return",
 };
 
 /** Friendly label for an audit action, humanizing unknown codes. */

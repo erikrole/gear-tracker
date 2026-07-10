@@ -116,6 +116,7 @@ function actionMeta(row: AuditRow, lookup: {
         detail: changedFieldDetail(before, after, ["callStartsAt", "callEndsAt", "callNote"]) ?? lookup.assignment?.label ?? null,
       };
     case "shift_created":
+    case "shift_added":
       return { kind: "shift_created", label: "Added shift", detail: lookup.shift?.label ?? null };
     case "shift_updated":
       return {
@@ -124,7 +125,24 @@ function actionMeta(row: AuditRow, lookup: {
         detail: changedFieldDetail(before, after, ["callStartsAt", "callEndsAt", "startsAt", "endsAt"]) ?? lookup.shift?.label ?? null,
       };
     case "shift_deleted":
+    case "shift_removed":
       return { kind: "shift_deleted", label: "Removed shift", detail: lookup.shift?.label ?? null };
+    case "shift_swapped":
+      return { kind: "assignment_updated", label: "Swapped workers", detail: lookup.assignment?.label ?? null };
+    case "shift_request_approved":
+      return { kind: "assignment_assigned", label: "Approved shift request", detail: lookup.assignment?.label ?? null };
+    case "shift_request_declined":
+      return { kind: "assignment_removed", label: "Declined shift request", detail: lookup.assignment?.label ?? null };
+    case "shift_assignment_acknowledged":
+      return { kind: "assignment_updated", label: "Acknowledged shift", detail: lookup.assignment?.label ?? null };
+    case "shift_assignment_role_slot_repaired":
+      return { kind: "assignment_updated", label: "Repaired role slot", detail: lookup.assignment?.label ?? null };
+    case "shift_backfill_executed":
+      return { kind: "copy_forward_applied", label: "Backfilled schedule", detail: null };
+    case "shift_group_regenerated":
+      return { kind: "republished", label: "Regenerated schedule", detail: null };
+    case "shift_group_updated":
+      return { kind: "shift_updated", label: "Updated schedule settings", detail: null };
     case "shift_group_published":
       return { kind: "published", label: "Published schedule", detail: null };
     case "shift_group_republished":
@@ -154,7 +172,12 @@ function actionMeta(row: AuditRow, lookup: {
       break;
   }
 
-  return { kind: "unknown", label: row.action.replaceAll("_", " "), detail: null };
+  const humanized = row.action.replaceAll("_", " ");
+  return {
+    kind: "unknown",
+    label: humanized.charAt(0).toUpperCase() + humanized.slice(1),
+    detail: null,
+  };
 }
 
 function targetFor(row: AuditRow, lookup: {

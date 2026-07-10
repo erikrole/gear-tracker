@@ -93,6 +93,8 @@ export type ActivityTimelineProps = {
   entityName?: string;
   /** Empty state message */
   emptyMessage?: string;
+  /** Booking due date — return-type rows later than this get a "N late" note. */
+  dueAt?: string | null;
 };
 
 /* ── Constants ── */
@@ -102,6 +104,26 @@ const SYSTEM_ACTIONS = new Set([
   "cron_notification",
   "auto_complete",
 ]);
+
+/** Return-type events that can carry a lateness annotation. Auto-complete
+ *  rows are excluded — they always accompany a return row that already
+ *  carries the note. */
+const RETURN_ACTIONS = new Set([
+  "kiosk_checkin",
+  "checkin_completed",
+  "items_returned",
+  "items_returned_partial",
+]);
+
+/** "20 minutes" / "3 hours" / "2 days" for a positive duration. */
+function formatDuration(ms: number): string {
+  const minutes = Math.round(ms / 60_000);
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+  const hours = Math.round(ms / 3_600_000);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"}`;
+  const days = Math.round(ms / 86_400_000);
+  return `${days} day${days === 1 ? "" : "s"}`;
+}
 
 /** Fields that are internal/system and should not be shown in the UI */
 const HIDDEN_FIELDS = new Set([
@@ -290,6 +312,9 @@ const ACTION_COLORS: Record<string, ActionColorKey> = {
   admin_force_completed_checkout: "purple",
   nudge_sent: "muted",
   overdue_nudge_sent: "muted",
+  auto_completed_by_kiosk_checkin: "green",
+  auto_completed_by_bulk_checkin: "green",
+  auto_completed_by_partial_checkin: "green",
 };
 
 /** Tinted circle behind the event-type icon, keyed by the action's color family. */
@@ -343,6 +368,7 @@ const ACTION_ICONS: Record<string, LucideIcon> = {
 };
 
 const ICON_PREFIXES: [string, LucideIcon][] = [
+  ["auto_completed_by", ScanLine],
   ["kiosk_", ScanLine],
   ["checkin", ScanLine],
   ["checkout_scan", ScanLine],
@@ -541,6 +567,10 @@ export function describeAction(
       return `${reportPrefix}Recorded partial return`;
     case "auto_completed_by_partial_checkin":
       return `${reportPrefix}Auto-completed after partial check-in`;
+    case "auto_completed_by_kiosk_checkin":
+      return `${reportPrefix}Booking completed by the kiosk return`;
+    case "auto_completed_by_bulk_checkin":
+      return `${reportPrefix}Booking completed by the bulk return`;
     case "marked_maintenance":
       return `${reportPrefix}Marked as needs maintenance`;
     case "cleared_maintenance":
@@ -1050,10 +1080,12 @@ function TimelineEntry({
   entry,
   context,
   entityName,
+  dueAt,
 }: {
   entry: RenderEntry;
   context: "booking" | "item" | "report" | "user";
   entityName?: string;
+  dueAt?: string | null;
 }) {
   const [expanded, setExpanded] = useState(false);
   const repeatCount = entry._count && entry._count > 1 ? entry._count : null;
@@ -1067,6 +1099,14 @@ function TimelineEntry({
   const chained = getChainedChange(entry);
   const changes = chained ? [] : getFieldChanges(entry);
   const actorRole = (entry.afterJson?._actorRole as string | undefined) ?? null;
+
+  // Cheqroom-style lateness context: a return after the due date names its
+  // slip. Compared against the booking's final due date (extends update it).
+  const lateByMs =
+    dueAt && RETURN_ACTIONS.has(entry.action)
+      ? new Date(entry.createdAt).getTime() - new Date(dueAt).getTime()
+      : 0;
+  const lateBy = lateByMs > 60_000 ? formatDuration(lateByMs) : null;
 
   // On user / report contexts each row references a different entity — make the
   // row clickable when a detail page exists. Item-context rows that reference a
@@ -1109,6 +1149,11 @@ function TimelineEntry({
           <span className="text-sm text-muted-foreground">
             {description}
           </span>
+          {lateBy && (
+            <span className="text-xs font-medium text-[var(--orange-text)]">
+              {lateBy} late
+            </span>
+          )}
           {repeatCount && !chained && (
             <Badge
               variant="secondary"
@@ -1238,6 +1283,7 @@ export default function ActivityTimeline({
   context = "booking",
   entityName,
   emptyMessage = "No activity recorded yet.",
+  dueAt,
 }: ActivityTimelineProps) {
   const today = useMemo(() => new Date(), []);
 
@@ -1290,6 +1336,7 @@ export default function ActivityTimeline({
                 entry={entry}
                 context={context}
                 entityName={entityName}
+                dueAt={dueAt}
               />
             ))}
           </div>

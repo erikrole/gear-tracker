@@ -533,7 +533,27 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
     });
   }
 
-  const recentChanges = commandCenter?.recentChanges ?? [];
+  // Coalesce back-to-back identical changes (same label + actor + detail within
+  // 5 min) so a save that fires "Republished schedule" twice reads as one row.
+  const recentChanges = (() => {
+    const raw = commandCenter?.recentChanges ?? [];
+    const out: (typeof raw[number] & { repeatCount?: number })[] = [];
+    for (const change of raw) {
+      const last = out[out.length - 1];
+      if (
+        last &&
+        last.label === change.label &&
+        last.actorId === change.actorId &&
+        last.detail === change.detail &&
+        Math.abs(new Date(last.createdAt).getTime() - new Date(change.createdAt).getTime()) <= 5 * 60_000
+      ) {
+        last.repeatCount = (last.repeatCount ?? 1) + 1;
+        continue;
+      }
+      out.push({ ...change });
+    }
+    return out;
+  })();
   const reviewChangeCount = recentChanges.filter((change) => change.needsReview).length;
 
   // ── Staff table (grouped by area) ──
@@ -812,6 +832,9 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
                   <div className="min-w-0">
                     <div className="flex min-w-0 items-center gap-2">
                       <span className="truncate text-sm font-medium">{change.label}</span>
+                      {change.repeatCount && change.repeatCount > 1 && (
+                        <Badge variant="gray" size="sm" className="tabular-nums">×{change.repeatCount}</Badge>
+                      )}
                       {change.needsReview && <Badge variant="orange" size="sm">Needs review</Badge>}
                     </div>
                     {change.detail && (

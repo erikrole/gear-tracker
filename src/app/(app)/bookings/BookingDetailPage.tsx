@@ -377,7 +377,7 @@ export default function BookingDetailPage({
             </CardHeader>
             <CollapsibleContent>
               <CardContent className="p-0 pt-2">
-                <BookingHistoryTab auditLogs={booking.auditLogs} />
+                <BookingHistoryTab auditLogs={booking.auditLogs} dueAt={booking.endsAt} />
               </CardContent>
             </CollapsibleContent>
           </Card>

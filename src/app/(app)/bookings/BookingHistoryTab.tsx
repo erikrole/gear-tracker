@@ -23,9 +23,11 @@ const FILTER_OPTIONS: { key: HistoryFilter; label: string }[] = [
 export default function BookingHistoryTab({
   auditLogs,
   bookingTitle,
+  dueAt,
 }: {
   auditLogs: AuditEntry[];
   bookingTitle?: string;
+  dueAt?: string | null;
 }) {
   const [filter, setFilter] = useState<HistoryFilter>("all");
 
@@ -85,6 +87,7 @@ export default function BookingHistoryTab({
           entries={filtered}
           context="booking"
           entityName={bookingTitle}
+          dueAt={dueAt}
         />
       )}
     </div>
