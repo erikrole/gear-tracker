@@ -29,10 +29,10 @@
 | `src/lib/services/kiosk-location.ts` | 72 |
 | `src/lib/services/kiosk-scan.ts` | 36 |
 | `src/lib/services/kits.ts` | 327 |
-| `src/lib/services/licenses.ts` | 511 |
+| `src/lib/services/licenses.ts` | 483 |
 | `src/lib/services/live-activities.ts` | 424 |
 | `src/lib/services/notification-prefs.ts` | 103 |
-| `src/lib/services/notifications.ts` | 834 |
+| `src/lib/services/notifications.ts` | 851 |
 | `src/lib/services/onboarding-lifecycle.ts` | 503 |
 | `src/lib/services/pending-pickup-expiry.ts` | 218 |
 | `src/lib/services/reports.ts` | 1378 |
@@ -300,6 +300,7 @@
 ### `/api/devices`
 
 - `/api/devices`
+- `/api/devices/test`
 
 ### `/api/drafts`
 

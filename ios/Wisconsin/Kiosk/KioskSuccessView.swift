@@ -73,8 +73,9 @@ struct KioskSuccessView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
         .onTapGesture { skip() }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
         .accessibilityLabel("\(info.kind.label): \(info.message)")
+        .accessibilityAction(named: "Return to home") { skip() }
         .accessibilityAddTraits(.isHeader)
         .onAppear { appeared = true }
         .task {

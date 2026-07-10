@@ -381,6 +381,7 @@ private struct DashboardHero: View {
 // MARK: - Stat Strip
 
 private struct StatStrip: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let stats: DashboardStats
     let pendingPickupCount: Int
     let shiftCount: Int
@@ -389,10 +390,11 @@ private struct StatStrip: View {
     let openAttention: () -> Void
     let openSchedule: () -> Void
 
-    private let columns = [
-        GridItem(.flexible(), spacing: Brand.Space.sm),
-        GridItem(.flexible(), spacing: Brand.Space.sm),
-    ]
+    private var columns: [GridItem] {
+        dynamicTypeSize.isAccessibilitySize
+            ? [GridItem(.flexible())]
+            : [GridItem(.flexible(), spacing: Brand.Space.sm), GridItem(.flexible(), spacing: Brand.Space.sm)]
+    }
 
     /// With nothing to triage, four 30pt zeros don't earn the top of the
     /// screen — collapse to one quiet all-clear line (AREA_MOBILE: "compact
@@ -410,8 +412,6 @@ private struct StatStrip: View {
                         .accessibilityHidden(true)
                     Text("Nothing overdue, due today, or waiting on you")
                         .font(.caption)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
                     Spacer(minLength: 8)
                     if let lastLoadedAt { syncedStamp(lastLoadedAt) }
                 }
@@ -475,15 +475,13 @@ private struct StatCard: View {
 
                 VStack(alignment: .leading, spacing: 0) {
                     Text("\(value)")
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .font(.title.bold())
                         .monospacedDigit()
                         .foregroundStyle(active ? Color.statusText(tone) : Color.primary)
                         .contentTransition(.numericText())
                     Text(label)
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
                 }
                 Spacer(minLength: 0)
             }
@@ -494,7 +492,6 @@ private struct StatCard: View {
                 RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous)
                     .strokeBorder(active ? Color.statusText(tone).opacity(0.25) : Color.hairline, lineWidth: active ? 1 : 0.5)
             )
-            .shadow(color: active ? Color.statusText(tone).opacity(0.08) : Color.clear, radius: active ? 8 : 0, x: 0, y: active ? 3 : 0)
         }
         .buttonStyle(.plain)
         .sensoryFeedback(.selection, trigger: hapticTrigger)

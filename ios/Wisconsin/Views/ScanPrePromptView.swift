@@ -10,6 +10,7 @@ import UIKit
 /// `PrePromptScreen(symbol:title:body:bullets:onContinue:)` once a third
 /// permission flow is added.
 struct ScanPrePromptView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Called after the user makes a choice on the system permission alert.
     /// `granted` reflects the final authorization decision.
     let onDecision: (_ granted: Bool) -> Void
@@ -22,7 +23,7 @@ struct ScanPrePromptView: View {
                 Image(systemName: "barcode.viewfinder")
                     .font(.system(size: 56))
                     .foregroundStyle(Color.accentColor)
-                    .symbolEffect(.bounce, options: .nonRepeating)
+                    .symbolEffect(.bounce, options: .nonRepeating, isActive: !reduceMotion)
                     .accessibilityHidden(true)
 
                 Text("Scan to find gear fast")

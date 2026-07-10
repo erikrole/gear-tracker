@@ -157,8 +157,14 @@ struct NotificationsSheet: View {
             }
         }
         .onChange(of: vm.actionError) { _, actionError in
-            if actionError != nil {
+            if let actionError {
                 actionErrorHaptic.toggle()
+                AccessibilityNotification.Announcement(actionError).post()
+            }
+        }
+        .onChange(of: vm.pageError) { _, pageError in
+            if let pageError {
+                AccessibilityNotification.Announcement("Couldn't load more notifications. \(pageError)").post()
             }
         }
         .sensoryFeedback(.error, trigger: actionErrorHaptic)

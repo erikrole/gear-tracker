@@ -402,6 +402,7 @@ private struct OpenWorkShiftRow: View {
                 .buttonStyle(.bordered)
                 .tint(Color.brandPrimary)
                 .controlSize(.small)
+                .frame(minHeight: 44)
             }
         }
         .padding(.vertical, 4)
@@ -471,6 +472,7 @@ private struct TradeRow: View {
                     .buttonStyle(.bordered)
                     .tint(Color.brandPrimary)
                     .controlSize(.small)
+                    .frame(minHeight: 44)
                 }
 
                 if let cancelAction {
@@ -481,6 +483,7 @@ private struct TradeRow: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
+                    .frame(minHeight: 44)
                 }
             }
         }
@@ -539,7 +542,7 @@ private struct TradeBoardActionErrorBanner: View {
             Button(action: onDismiss) {
                 Image(systemName: "xmark")
                     .font(.caption.weight(.semibold))
-                    .frame(minWidth: 32, minHeight: 32)
+                    .frame(minWidth: 44, minHeight: 44)
             }
             .accessibilityLabel("Dismiss trade board error")
         }

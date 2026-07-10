@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import Security
+import UIKit
 
 // Global reference so AppDelegate can check kiosk mode for orientation locking.
 @MainActor var sharedKioskStore: KioskStore?
@@ -78,6 +79,14 @@ struct KioskCartItem: Identifiable, Codable, Equatable {
     }
 }
 
+struct KioskCheckoutDraft: Equatable {
+    let isLinkedToEvent: Bool
+    let selectedEventId: String?
+    let customPurpose: String
+    let dueBackAt: Date
+    let contextReady: Bool
+}
+
 @Observable
 @MainActor
 final class KioskStore {
@@ -89,6 +98,7 @@ final class KioskStore {
     /// Active student's checkout cart, persisted in-memory across inactivity
     /// resets. Keyed by `userId` so a quick reset → re-tap restores the cart.
     private var checkoutCarts: [String: [KioskCartItem]] = [:]
+    private var checkoutDrafts: [String: KioskCheckoutDraft] = [:]
 
     /// True when the inactivity warning should be shown ahead of the reset.
     var inactivityWarningVisible: Bool = false
@@ -101,6 +111,7 @@ final class KioskStore {
 
     private var inactivityTask: Task<Void, Never>?
     private var heartbeatTask: Task<Void, Never>?
+    @ObservationIgnored private var unauthorizedObserver: NSObjectProtocol?
 
     private static let infoKey = "kiosk_info_v1"
     private static let inactivityTotal: UInt64 = 300_000_000_000        // 5 min
@@ -118,6 +129,15 @@ final class KioskStore {
             // kiosk so it boots back into kiosk mode; `resumeIfNeeded()` rebuilds
             // device info from /api/kiosk/me without an activation code.
             isActive = true
+        }
+        unauthorizedObserver = NotificationCenter.default.addObserver(
+            forName: .kioskSessionUnauthorized,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.handleUnauthorizedSession()
+            }
         }
     }
 
@@ -217,10 +237,20 @@ final class KioskStore {
         clearStoredInfo()
         KioskSessionVault.clear()
         checkoutCarts.removeAll()
+        checkoutDrafts.removeAll()
         screen = .activation
         for cookie in HTTPCookieStorage.shared.cookies ?? [] where cookie.name == "kiosk_session" {
             HTTPCookieStorage.shared.deleteCookie(cookie)
         }
+    }
+
+    private func handleUnauthorizedSession() {
+        guard info != nil || isActive else { return }
+        deactivate()
+        UIAccessibility.post(
+            notification: .announcement,
+            argument: "This kiosk session expired. Enter a new activation code."
+        )
     }
 
     // MARK: - Session persistence across reinstalls
@@ -318,6 +348,18 @@ final class KioskStore {
 
     func clearCart(for userId: String) {
         checkoutCarts.removeValue(forKey: userId)
+    }
+
+    func checkoutDraft(for userId: String) -> KioskCheckoutDraft? {
+        checkoutDrafts[userId]
+    }
+
+    func setCheckoutDraft(_ draft: KioskCheckoutDraft, for userId: String) {
+        checkoutDrafts[userId] = draft
+    }
+
+    func clearCheckoutDraft(for userId: String) {
+        checkoutDrafts.removeValue(forKey: userId)
     }
 
     // MARK: - Internals

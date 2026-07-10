@@ -6,6 +6,7 @@ struct KioskStudentHubView: View {
     @State private var context: KioskStudentContext?
     @State private var isLoading = true
     @State private var error: String?
+    @State private var selectedCheckout: KioskCheckoutDrawerContext?
 
     private let refreshInterval: TimeInterval = 30
 
@@ -44,6 +45,19 @@ struct KioskStudentHubView: View {
                 await loadContext()
             }
         }
+        .sheet(item: $selectedCheckout) { checkout in
+            KioskCheckoutDetailSheet(
+                context: checkout,
+                allowsEditing: true,
+                onReturn: {
+                    store.screen = .return(bookingId: checkout.checkoutId, userId: user.id)
+                }
+            ) {
+                Task { await loadContext() }
+            }
+            .presentationDetents([.height(620), .large])
+            .presentationDragIndicator(.visible)
+        }
     }
 
     // MARK: - Action Panel
@@ -63,7 +77,7 @@ struct KioskStudentHubView: View {
                     VStack(alignment: .leading, spacing: KioskSpacing.md) {
                         ActionButton(
                             title: "Checkout Gear",
-                            subtitle: "Scan items to check out",
+                            subtitle: checkoutActionSubtitle,
                             icon: "arrow.up.circle.fill",
                             color: Color.kioskRed,
                             isHero: true
@@ -87,14 +101,22 @@ struct KioskStudentHubView: View {
                         if let checkouts = context?.checkouts, !checkouts.isEmpty {
                             ForEach(checkouts) { checkout in
                                 ActionButton(
-                                    title: "Return: \(checkout.title)",
+                                    title: "Manage: \(checkout.title)",
                                     subtitle: checkoutSubtitle(checkout),
                                     icon: "arrow.down.circle.fill",
                                     color: checkout.isOverdue ? Color.statusText(.red) : Color.statusText(.blue),
                                     dueText: dueChipText(checkout),
                                     dueIsOverdue: checkout.isOverdue
                                 ) {
-                                    store.screen = .return(bookingId: checkout.id, userId: user.id)
+                                    selectedCheckout = KioskCheckoutDrawerContext(
+                                        checkoutId: checkout.id,
+                                        title: checkout.title,
+                                        requesterId: user.id,
+                                        requesterName: user.name,
+                                        requesterAvatarUrl: user.avatarUrl,
+                                        endsAt: checkout.endsAt,
+                                        isOverdue: checkout.isOverdue
+                                    )
                                 }
                             }
                         }
@@ -175,6 +197,13 @@ struct KioskStudentHubView: View {
             return "\(pickup.itemCount) items"
         }
         return extra > 0 ? "\(head) · +\(extra) more" : head
+    }
+
+    private var checkoutActionSubtitle: String {
+        let count = store.cart(for: user.id).count
+        return count > 0
+            ? "Resume checkout · \(count) scanned item\(count == 1 ? "" : "s")"
+            : "Scan items to check out"
     }
 
     private func checkoutSubtitle(_ checkout: KioskStudentCheckout) -> String {

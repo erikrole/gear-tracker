@@ -40,6 +40,7 @@ Make search a fast operational jump layer. It should find records when the user 
 5. The full search page and quick palette should not disagree on destination search.
 
 ## Change Log
+- 2026-07-10: Native Search and Scan interaction hardening removed fixed presentation/autofocus delays, routes scan results from actual cover dismissal, keeps recovery actions independently reachable to VoiceOver, turns image zoom into a semantic Button, adds coherent result-row labels, and substitutes static/opacity feedback when Reduce Motion is enabled.
 - 2026-07-10: **Web global search typing stability.** `/search` now uses the shared `DebouncedSearchInput` (local keystroke echo, one committed query per pause, instant clear/Enter/Escape) with the committed value synced straight to the `q` URL param, and previous results stay visible (dimmed, with an "Updating" spinner) while the four-source fan-out is in flight instead of wiping to skeletons on every pause. Skeletons only show when there are no prior results. Regression guard: `tests/search-input-focus-stability.test.ts`.
 - 2026-07-03: Native iOS QR scanner fallback polish hides the unavailable-state controls behind the manual-entry sheet, so the typed-code form no longer sits over a glowing fallback button in Simulator or unsupported-camera states.
 - 2026-07-03: Native iOS typed Search tab item results no longer send the typed query as a QR lookup and now filter attachment/accessory categories from normal typed results. QR/direct scan lookup can still resolve child attachments for recovery.

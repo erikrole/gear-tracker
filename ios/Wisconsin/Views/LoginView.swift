@@ -91,6 +91,7 @@ struct LoginView: View {
                     Text("Email")
                         .font(.subheadline.weight(.medium))
                     TextField("you@example.com", text: $email)
+                        .accessibilityLabel("Email")
                         .textInputAutocapitalization(.never)
                         .keyboardType(.emailAddress)
                         .textContentType(.username)
@@ -126,6 +127,7 @@ struct LoginView: View {
                                 SecureField("Enter your password", text: $password)
                             }
                         }
+                        .accessibilityLabel("Password")
                         .textContentType(.password)
                         .focused($focused, equals: .password)
                         .submitLabel(.go)

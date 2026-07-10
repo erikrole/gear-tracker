@@ -42,30 +42,10 @@ const icons: Record<IconKey, LucideIcon> = {
   workflow: WorkflowIcon,
 };
 
-const toneClasses = {
-  red: "bg-[var(--red-bg)] text-[var(--red-text)] ring-[var(--red)]/20",
-  blue: "bg-[var(--blue-bg)] text-[var(--blue-text)] ring-[var(--blue)]/20",
-  green: "bg-[var(--green-bg)] text-[var(--green-text)] ring-[var(--green)]/20",
-  orange: "bg-[var(--orange-bg)] text-[var(--orange-text)] ring-[var(--orange)]/20",
-  purple: "bg-[var(--purple-bg)] text-[var(--purple-text)] ring-[var(--purple)]/20",
-  gray: "bg-muted text-muted-foreground ring-border",
-};
-
-// Neutral chips need different treatment on the dark bands; the colored
-// tone tints stay readable on both.
-const darkToneOverrides: Partial<Record<keyof typeof toneClasses, string>> = {
-  gray: "bg-white/8 text-white/72 ring-white/10",
-};
-
-function toneClass(tone: keyof typeof toneClasses, dark: boolean) {
-  return (dark && darkToneOverrides[tone]) || toneClasses[tone];
-}
-
 export function ShowroomHero({ mockup }: { mockup: ShowroomMockup }) {
   return (
     <section className="relative isolate overflow-hidden bg-[#050505] text-white">
       <div className="absolute inset-x-0 top-0 h-px bg-white/20" />
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_0%,rgba(160,0,0,0.34),transparent_36%),linear-gradient(180deg,#050505_0%,#111_58%,#f4f4f4_58%,#f4f4f4_100%)]" />
       <div className="mx-auto grid min-h-[86svh] w-full max-w-7xl grid-rows-[auto_1fr] px-4 pb-8 pt-16 sm:px-6 lg:px-8 lg:pt-20">
         <div className="mx-auto max-w-5xl text-center">
           <div className="mb-6 flex justify-center">
@@ -79,10 +59,10 @@ export function ShowroomHero({ mockup }: { mockup: ShowroomMockup }) {
             These public pages explain how the team reserves gear, records physical custody, connects Schedule to gear prep, and supports field work.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button asChild size="lg" className="h-12 rounded-full bg-white px-6 text-black hover:bg-white/90">
+            <Button asChild size="lg" className="h-12 bg-white px-6 text-black hover:bg-white/90">
               <Link href="/about/features">View features</Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="h-12 rounded-full border-white/20 bg-white/5 px-6 text-white hover:bg-white/10 hover:text-white">
+            <Button asChild size="lg" variant="outline" className="h-12 border-white/30 bg-transparent px-6 text-white hover:bg-white/10 hover:text-white">
               <Link href="/about/security">View security</Link>
             </Button>
           </div>
@@ -156,14 +136,9 @@ export function FeatureGrid({ cards, dark = false }: { cards: ShowroomCard[]; da
           return (
             <article
               key={card.title}
-              className={cn(
-                "rounded-2xl p-6 shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_18px_60px_rgba(0,0,0,0.06)] transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 motion-reduce:transform-none motion-reduce:transition-none motion-reduce:hover:translate-y-0",
-                dark ? "bg-white/[0.06] shadow-[0_0_0_1px_rgba(255,255,255,0.08)]" : "bg-white"
-              )}
+              className={cn("border-t pt-5", dark ? "border-white/20" : "border-border/70")}
             >
-              <div className={cn("mb-8 flex size-11 items-center justify-center rounded-xl ring-1", toneClass(card.tone, dark))}>
-                <Icon className="size-5" aria-hidden="true" />
-              </div>
+              <Icon className={cn("mb-5 size-5", dark ? "text-white/70" : "text-foreground")} aria-hidden="true" />
               <h3 className="text-xl font-semibold text-balance">{card.title}</h3>
               <p className={cn("mt-3 text-sm leading-6 text-pretty", dark ? "text-white/64" : "text-muted-foreground")}>{card.description}</p>
             </article>
@@ -181,11 +156,9 @@ export function StackGrid({ groups }: { groups: StackGroup[] }) {
         {groups.map((group) => {
           const Icon = icons[group.icon];
           return (
-            <article key={group.title} className="overflow-hidden rounded-3xl bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_18px_60px_rgba(0,0,0,0.06)]">
-              <div className="p-7">
-                <div className="mb-8 flex size-12 items-center justify-center rounded-2xl bg-[#111] text-white">
-                  <Icon className="size-5" aria-hidden="true" />
-                </div>
+            <article key={group.title} className="border-t border-border/70 pt-6">
+              <div className="pb-6">
+                <Icon className="mb-5 size-5 text-foreground" aria-hidden="true" />
                 <h2 className="font-[var(--font-heading)] text-3xl font-black text-balance tracking-normal">{group.title}</h2>
                 <p className="mt-3 max-w-xl text-sm leading-6 text-pretty text-muted-foreground">{group.description}</p>
               </div>
@@ -209,12 +182,12 @@ export function ProductMockup({ mockup, featured = false, compact = false }: { m
     <figure
       aria-label={`${mockup.title} mockup with fictional data`}
       className={cn(
-        "mx-auto w-full overflow-hidden rounded-[2rem] bg-[#141414] p-2 shadow-[0_30px_100px_rgba(0,0,0,0.45)] ring-1 ring-white/10",
+        "mx-auto w-full overflow-hidden rounded-lg bg-[#141414] p-px ring-1 ring-white/10",
         featured ? "max-w-5xl" : "max-w-3xl",
         compact && "lg:translate-y-6"
       )}
     >
-      <div className="overflow-hidden rounded-[1.5rem] bg-[#f7f7f7] text-foreground">
+      <div className="overflow-hidden rounded-md bg-[#f7f7f7] text-foreground">
         <div className="flex items-center justify-between border-b border-border/80 bg-white px-5 py-4">
           <div className="flex items-center gap-3">
             <Image src="/Badgers.png" alt="" width={28} height={28} className="size-7 object-contain" />
@@ -226,13 +199,13 @@ export function ProductMockup({ mockup, featured = false, compact = false }: { m
           <Badge variant="gray">Fictional data</Badge>
         </div>
         <div className="grid gap-5 p-5 lg:grid-cols-[0.86fr_1.14fr]">
-          <div className="rounded-2xl bg-[#111] p-5 text-white">
+          <div className="rounded-md border border-white/10 bg-[#111] p-5 text-white">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/50">{mockup.eyebrow}</p>
             <p className="mt-4 text-2xl font-semibold leading-tight text-balance">{mockup.title}</p>
             <p className="mt-3 text-sm leading-6 text-pretty text-white/60">{mockup.description}</p>
             <div className="mt-6 grid grid-cols-3 gap-2">
               {mockup.metrics.map((metric) => (
-                <div key={metric.label} className="rounded-xl bg-white/8 p-3">
+                <div key={metric.label} className="border border-white/10 p-3">
                   <p className="text-2xl font-semibold tabular-nums">{metric.value}</p>
                   <p className="mt-1 text-[0.68rem] uppercase tracking-[0.12em] text-white/50">{metric.label}</p>
                 </div>
@@ -241,7 +214,7 @@ export function ProductMockup({ mockup, featured = false, compact = false }: { m
           </div>
           <div className="space-y-3">
             {mockup.rows.map((row) => (
-              <div key={row.title} className="rounded-2xl bg-white p-4 shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_6px_18px_rgba(0,0,0,0.05)]">
+              <div key={row.title} className="rounded-md border border-border/70 bg-white p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{row.eyebrow}</p>
@@ -270,7 +243,7 @@ export function ExplorePages({ current }: { current: string }) {
             <Link
               key={item.href}
               href={item.href}
-              className="group rounded-2xl bg-white p-6 shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_18px_60px_rgba(0,0,0,0.06)] outline-none transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 focus-visible:ring-[3px] focus-visible:ring-ring/40 motion-reduce:transform-none motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+              className="group border-t border-border/70 py-5 outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/40"
             >
               <span className="flex items-center justify-between gap-3">
                 <span className="text-lg font-semibold">{item.label}</span>
@@ -303,10 +276,10 @@ export function StakeholderCta({
           The content is public, static, and separate from authenticated Gear Tracker operations.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <Button asChild size="lg" className="h-12 rounded-full bg-white px-6 text-black hover:bg-white/90">
+          <Button asChild size="lg" className="h-12 bg-white px-6 text-black hover:bg-white/90">
             <Link href={primaryHref}>{primaryLabel}</Link>
           </Button>
-          <Button asChild size="lg" variant="outline" className="h-12 rounded-full border-white/20 bg-white/5 px-6 text-white hover:bg-white/10 hover:text-white">
+          <Button asChild size="lg" variant="outline" className="h-12 border-white/30 bg-transparent px-6 text-white hover:bg-white/10 hover:text-white">
             <Link href="/login">Sign in</Link>
           </Button>
         </div>

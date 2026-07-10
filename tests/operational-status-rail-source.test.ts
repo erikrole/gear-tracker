@@ -35,6 +35,7 @@ describe("operational status rail source contract", () => {
     const rail = source("src/components/OperationalStatusRail.tsx");
     const schedule = source("src/app/(app)/schedule/_components/ScheduleReadiness.tsx");
     const fixToday = source("src/app/(app)/admin/fix-today/FixTodayClient.tsx");
+    const items = source("src/app/(app)/items/page.tsx");
 
     expect(rail).not.toContain("ScheduleQueue");
     expect(rail).not.toContain("AdminFixTodayQueue");
@@ -42,5 +43,11 @@ describe("operational status rail source contract", () => {
     expect(schedule).toContain("const railItems: OperationalStatusRailItem[]");
     expect(fixToday).toContain("<OperationalStatusRail");
     expect(fixToday).toContain("const railItems: OperationalStatusRailItem[]");
+    expect(items).toContain("<OperationalStatusRail");
+    expect(items).toContain("const railItems: OperationalStatusRailItem[]");
+    expect(items).toContain("statusSummary.map");
+    expect(items).toContain("toggleStatusFilter(item.status)");
+    expect(items).toContain('label: "Active inventory"');
+    expect(items).toContain("ariaPressed={filters.statusFilter.has(item.status)}");
   });
 });

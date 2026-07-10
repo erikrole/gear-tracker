@@ -45,10 +45,12 @@ struct KioskCheckoutView: View {
     @State private var showScannerHelp = false
     @State private var showEditContextConfirm = false
     @State private var lastScanAt: Date?
+    @State private var pendingScanIdentities: Set<String> = []
     @State private var dueBackAt = KioskCheckoutDefaults.defaultDueBackDate()
     @State private var availabilityResult = KioskCheckoutAvailabilityResult()
     @State private var isCheckingAvailability = false
     @State private var availabilityError: String?
+    @State private var hasVerifiedAvailability = false
     // Plain @State on purpose — NOT @FocusState. The booking-name field is a
     // UIKit-backed KioskNativeTextField, invisible to SwiftUI's focus system,
     // so no view ever claims a @FocusState value for it. SwiftUI then resets
@@ -109,6 +111,7 @@ struct KioskCheckoutView: View {
         ) {
             Button("Discard", role: .destructive) {
                 store.clearCart(for: userId)
+                store.clearCheckoutDraft(for: userId)
                 Haptics.warning()
                 store.screen = .idle
             }
@@ -153,10 +156,12 @@ struct KioskCheckoutView: View {
             )
         }
         .task {
+            restoreDraftIfNeeded()
             await loadCheckoutEvents()
         }
         .onChange(of: selectedEventId) { _, _ in
             applySelectedEventDueTime()
+            persistDraft()
         }
         .onChange(of: isLinkedToEvent) { _, linked in
             if linked {
@@ -168,8 +173,11 @@ struct KioskCheckoutView: View {
                     focusedCheckoutField = .customPurpose
                 }
             }
+            persistDraft()
         }
+        .onChange(of: customPurpose) { _, _ in persistDraft() }
         .onChange(of: dueBackAt) { _, _ in
+            persistDraft()
             guard checkoutContextReady, !scannedItems.isEmpty else { return }
             Task { await refreshAvailability(for: scannedItems) }
         }
@@ -177,6 +185,7 @@ struct KioskCheckoutView: View {
             if !isReady {
                 scannerCaptureEnabled = false
             }
+            persistDraft()
         }
         .onDisappear {
             scannerCaptureEnabled = false
@@ -332,7 +341,7 @@ struct KioskCheckoutView: View {
 
             KioskCompletionButton(
                 title: completeButtonTitle,
-                isEnabled: !scannedItems.isEmpty && hasCheckoutContext && hasValidReturnTime && !availabilityResult.hasBlockingIssue,
+                isEnabled: !scannedItems.isEmpty && pendingScanIdentities.isEmpty && hasCheckoutContext && hasValidReturnTime && hasVerifiedAvailability && !isCheckingAvailability && availabilityError == nil && !availabilityResult.hasBlockingIssue,
                 isBusy: isCompleting,
                 accessibilityLabel: completeAccessibilityLabel,
                 action: completeCheckout
@@ -342,6 +351,9 @@ struct KioskCheckoutView: View {
 
     private var completeAccessibilityLabel: String {
         if isCompleting { return "Processing checkout" }
+        if !pendingScanIdentities.isEmpty {
+            return "Complete Checkout unavailable, waiting for \(pendingScanIdentities.count) scan\(pendingScanIdentities.count == 1 ? "" : "s")"
+        }
         let count = scannedItems.count
         if !hasCheckoutContext {
             return "Complete Checkout unavailable, choose an event or enter what this checkout is for"
@@ -517,19 +529,32 @@ struct KioskCheckoutView: View {
         store.resetInactivity()
         lastScanAt = Date()
 
-        var cart = store.cart(for: userId)
-
-        // Deduplicate by tag string
-        if cart.contains(where: { $0.tagName.lowercased() == value.lowercased() }) {
-            showFeedback(.duplicate("Already scanned"))
+        let normalizedScan = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !normalizedScan.isEmpty else {
+            showFeedback(.error("Could not read barcode"))
             return
         }
 
+        let cart = store.cart(for: userId)
+
+        // Treat a scan as owned from intake through response so a rapid repeat
+        // cannot start a second request before the first item reaches the cart.
+        if pendingScanIdentities.contains(normalizedScan)
+            || cart.contains(where: { $0.tagName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == normalizedScan }) {
+            showFeedback(.duplicate("Already scanned"))
+            return
+        }
+        pendingScanIdentities.insert(normalizedScan)
+
         Task {
+            defer { pendingScanIdentities.remove(normalizedScan) }
             do {
                 let result = try await KioskAPI.shared.kioskCheckoutScan(actorId: userId, scanValue: value)
                 if result.success, let item = result.item {
-                    var updated = cart
+                    // Merge into current MainActor state, not the cart snapshot
+                    // captured before this request. Parallel scans may complete
+                    // in either order and must never overwrite one another.
+                    var updated = store.cart(for: userId)
                     if !updated.contains(where: { $0.id == item.id }) {
                         updated.append(KioskCartItem(
                             id: item.id,
@@ -541,7 +566,6 @@ struct KioskCheckoutView: View {
                             unitNumber: item.unitNumber
                         ))
                         store.setCart(updated, for: userId)
-                        cart = updated
                         await refreshAvailability(for: updated)
                         if result.locationMismatch == true {
                             showFeedback(.warning(result.locationMessage ?? "\(item.name) added, location checked"))
@@ -632,11 +656,16 @@ struct KioskCheckoutView: View {
     private func completeCheckout() {
         let cart = store.cart(for: userId)
         guard !cart.isEmpty, hasCheckoutContext, hasValidReturnTime, let locationId = store.info?.locationId else { return }
-        guard !isCompleting else { return }
+        guard !isCompleting, pendingScanIdentities.isEmpty else { return }
         let message = successMessage
         isCompleting = true
         Task {
             await refreshAvailability(for: cart)
+            guard hasVerifiedAvailability, availabilityError == nil else {
+                isCompleting = false
+                showFeedback(.error(availabilityError ?? "Verify item availability before checkout"))
+                return
+            }
             guard !availabilityResult.hasBlockingIssue else {
                 isCompleting = false
                 showFeedback(.error("Resolve item conflicts before checkout"))
@@ -653,6 +682,7 @@ struct KioskCheckoutView: View {
                 )
                 Haptics.success()
                 store.clearCart(for: userId)
+                store.clearCheckoutDraft(for: userId)
                 scannerCaptureEnabled = false
                 store.screen = .success(KioskSuccessInfo(kind: .checkout, message: message))
             } catch {
@@ -672,20 +702,55 @@ struct KioskCheckoutView: View {
         }
     }
 
+    private func restoreDraftIfNeeded() {
+        guard let draft = store.checkoutDraft(for: userId) else { return }
+        isLinkedToEvent = draft.isLinkedToEvent
+        selectedEventId = draft.selectedEventId
+        customPurpose = draft.customPurpose
+        dueBackAt = max(draft.dueBackAt, Date().addingTimeInterval(5 * 60))
+        checkoutContextReady = draft.contextReady
+        if checkoutContextReady {
+            armScannerCaptureAfterRestore()
+        }
+    }
+
+    private func persistDraft() {
+        store.setCheckoutDraft(
+            KioskCheckoutDraft(
+                isLinkedToEvent: isLinkedToEvent,
+                selectedEventId: selectedEventId,
+                customPurpose: customPurpose,
+                dueBackAt: dueBackAt,
+                contextReady: checkoutContextReady
+            ),
+            for: userId
+        )
+    }
+
+    private func armScannerCaptureAfterRestore() {
+        DispatchQueue.main.async {
+            HIDScannerFocusGate.allowScannerFocusNow()
+            scannerCaptureEnabled = true
+        }
+    }
+
     @MainActor
     private func refreshAvailability(for cart: [KioskCartItem]) async {
         guard let locationId = store.info?.locationId, !cart.isEmpty else {
             availabilityResult = KioskCheckoutAvailabilityResult()
             availabilityError = nil
+            hasVerifiedAvailability = false
             return
         }
         guard hasValidReturnTime else {
             availabilityResult = KioskCheckoutAvailabilityResult()
             availabilityError = "Choose a return time later than pickup"
+            hasVerifiedAvailability = false
             return
         }
 
         isCheckingAvailability = true
+        hasVerifiedAvailability = false
         availabilityError = nil
         do {
             availabilityResult = try await KioskAPI.shared.kioskCheckoutAvailability(
@@ -694,9 +759,11 @@ struct KioskCheckoutView: View {
                 startsAt: Date(),
                 endsAt: dueBackAt
             )
+            hasVerifiedAvailability = true
         } catch {
             availabilityError = (error as? APIError)?.errorDescription ?? "Conflict check unavailable"
             availabilityResult = KioskCheckoutAvailabilityResult()
+            hasVerifiedAvailability = false
         }
         isCheckingAvailability = false
     }

@@ -285,8 +285,7 @@ struct NotificationSettingsView: View {
             }
         }
         .padding(.vertical, 2)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Notifications paused until \(until.formatted(date: .abbreviated, time: .shortened)). Double-tap Resume to turn back on.")
+        .accessibilityElement(children: .contain)
     }
 
     @ViewBuilder

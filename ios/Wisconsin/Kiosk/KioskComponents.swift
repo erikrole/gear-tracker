@@ -333,6 +333,7 @@ struct KioskCompletionButton: View {
 /// is true for returns (the item is leaving) and false for pickups (the item is
 /// being confirmed into the student's hands).
 struct KioskChecklistRow: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let name: String
     let tag: String
     let isDone: Bool
@@ -371,7 +372,7 @@ struct KioskChecklistRow: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
-        .animation(.spring(response: 0.25), value: isDone)
+        .animation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 1), value: isDone)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(tag), \(name), \(isDone ? "done" : "pending")")
     }
@@ -383,6 +384,7 @@ struct KioskChecklistRow: View {
 /// header. In-progress fill is blue (matching `KioskProgressRing`), green when
 /// complete. Shared by pickup ("confirmed") and return ("returned").
 struct ChecklistProgressSummary: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let done: Int
     let total: Int
     let verb: String
@@ -402,7 +404,7 @@ struct ChecklistProgressSummary: View {
                     Capsule()
                         .fill(complete ? Color.statusText(.green) : inProgressColor)
                         .frame(width: total > 0 ? geo.size.width * CGFloat(done) / CGFloat(total) : 0)
-                        .animation(.spring(response: 0.4), value: done)
+                        .animation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 1), value: done)
                 }
             }
             .frame(height: 4)
@@ -538,7 +540,7 @@ struct KioskErrorState: View {
             .accessibilityLabel(retryTitle)
         }
         .frame(maxWidth: .infinity)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
     }
 }
 
@@ -650,6 +652,7 @@ struct KioskPressStyle: ButtonStyle {
 /// surfaces the scanner double-press trick. It disappears the moment a
 /// keyboard shows or focus ends, so scanner-off flows never see it.
 struct KioskKeyboardHint: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let isFieldFocused: Bool
 
     @State private var keyboardVisible = false
@@ -691,13 +694,13 @@ struct KioskKeyboardHint: View {
                 // Grace so a normally-appearing keyboard never flashes the tip.
                 try? await Task.sleep(nanoseconds: 750_000_000)
                 guard !Task.isCancelled else { return }
-                withAnimation(.easeInOut(duration: 0.2)) { showTip = true }
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { showTip = true }
                 UIAccessibility.post(
                     notification: .announcement,
                     argument: "Keyboard not showing? Double-press the scanner button to bring it up."
                 )
             } else if showTip {
-                withAnimation(.easeInOut(duration: 0.2)) { showTip = false }
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { showTip = false }
             }
         }
     }

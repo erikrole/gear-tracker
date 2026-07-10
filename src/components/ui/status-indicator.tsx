@@ -21,12 +21,12 @@ const stateVariant: Record<StatusIndicatorState, BadgeProps["variant"]> = {
 const getSizeClasses = (size: StatusIndicatorProps["size"]) => {
   switch (size) {
     case "sm":
-      return { badge: "gap-1.5", dot: "size-1.5", ping: "size-1.5" };
+      return { badge: "gap-1.5", dot: "size-1.5" };
     case "lg":
-      return { badge: "gap-2 px-3 py-1 text-sm", dot: "size-2.5", ping: "size-2.5" };
+      return { badge: "gap-2 px-3 py-1 text-sm", dot: "size-2.5" };
     case "md":
     default:
-      return { badge: "gap-1.5", dot: "size-2", ping: "size-2" };
+      return { badge: "gap-1.5", dot: "size-2" };
   }
 };
 
@@ -38,8 +38,6 @@ export default function StatusIndicator({
   labelClassName,
   ...props
 }: StatusIndicatorProps) {
-  const shouldAnimate =
-    state === "active" || state === "fixing" || state === "down";
   const sizeClasses = getSizeClasses(size);
 
   return (
@@ -49,23 +47,7 @@ export default function StatusIndicator({
       className={cn(sizeClasses.badge, className)}
       {...props}
     >
-      <span className="relative inline-flex items-center" aria-hidden="true">
-        {shouldAnimate && (
-          <span
-            className={cn(
-              "absolute inline-flex rounded-full opacity-75 animate-ping",
-              sizeClasses.ping,
-              "bg-current"
-            )}
-          />
-        )}
-        <span
-          className={cn(
-            "relative inline-flex rounded-full bg-current",
-            sizeClasses.dot
-          )}
-        />
-      </span>
+      <span className={cn("inline-flex rounded-full bg-current", sizeClasses.dot)} aria-hidden="true" />
       {label && (
         <span className={cn("font-medium", labelClassName)}>
           {label}

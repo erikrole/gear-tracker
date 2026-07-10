@@ -1,5 +1,9 @@
 import Foundation
 
+extension Notification.Name {
+    static let kioskSessionUnauthorized = Notification.Name("kioskSessionUnauthorized")
+}
+
 // Standalone kiosk API client. Uses HTTPCookieStorage.shared so the
 // kiosk_session cookie set during activation is sent automatically.
 struct KioskAPI {
@@ -341,6 +345,7 @@ struct KioskAPI {
                 throw APIError.decodingError(error)
             }
         case 401:
+            NotificationCenter.default.post(name: .kioskSessionUnauthorized, object: nil)
             throw APIError.unauthorized
         case 404:
             throw APIError.notFound

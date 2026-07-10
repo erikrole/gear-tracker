@@ -97,7 +97,7 @@ struct KioskIdleView: View {
                 .presentationDragIndicator(.visible)
         }
         .sheet(item: $selectedCheckout) { context in
-            KioskCheckoutDetailSheet(context: context) {
+            KioskCheckoutDetailSheet(context: context, allowsEditing: false) {
                 Task { await loadAll() }
             }
                 .presentationDetents([.height(520), .large])

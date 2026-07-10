@@ -87,6 +87,7 @@ All mutations use `createAuditEntry` per D-007.
 | AC-17 | The guide reader offers docs-style in-section sibling navigation (wide screens) and a prev/next footer | ✅ Complete (2026-07-03, slice 4) |
 
 ## Change Log
+- 2026-07-10: Native Guides loading now exposes one real accessibility status instead of redacted fake rows, the reader relies on native safe areas instead of an artificial 72-point bottom gap, and scalable title typography preserves large-text readability.
 | Date | Change |
 |------|--------|
 | 2026-07-05 | Guide editor authoring tools (closes GAP-62): the MDXEditor toolbar gained a "Callout" dropdown that inserts GitHub-style alert templates (Note, Tip, Important, Warning, Caution) and a "Video" button that opens a dialog, validates the pasted URL against the reader's `parseEmbed` YouTube/Vimeo allowlist (inline error on rejects), and inserts the ` ```embed ` fence at the cursor. Snippet builders live in `src/lib/editor-snippets.ts` with unit tests (`tests/editor-snippets.test.ts`); toolbar UI in `src/components/resources/EditorInsertTools.tsx` uses shadcn dropdown-menu/dialog. Live WYSIWYG callout rendering inside the editor remains out of scope per GAP-62. Verified with unit tests, `tsc`, and `build:app`. |

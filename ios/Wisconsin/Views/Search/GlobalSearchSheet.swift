@@ -19,6 +19,7 @@ struct GlobalSearchSheet: View {
     @State private var isSearchPresented = false
     @State private var debounceTask: Task<Void, Never>?
     @State private var navigationPath = NavigationPath()
+    @State private var pendingScannerDestination: SearchDestination?
 
     @State private var recentSearches: [String] = {
         (UserDefaults.standard.stringArray(forKey: "recentSearches") ?? [])
@@ -76,18 +77,21 @@ struct GlobalSearchSheet: View {
                 }
             }
         }
-        .fullScreenCover(isPresented: $showScanner) {
+        .fullScreenCover(isPresented: $showScanner, onDismiss: {
+            if let destination = pendingScannerDestination {
+                pendingScannerDestination = nil
+                navigationPath.append(destination)
+            }
+        }) {
             QRScannerSheet { match in
-                showScanner = false
                 switch match {
                 case .asset(let assetId):
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                        navigationPath.append(SearchDestination.asset(assetId))
-                    }
+                    pendingScannerDestination = .asset(assetId)
                 case .itemFamily(let family):
                     query = family.name
                     results = SearchResults(itemFamilies: [family])
                 }
+                showScanner = false
             }
         }
         .onChange(of: query) { _, newValue in
@@ -96,13 +100,10 @@ struct GlobalSearchSheet: View {
         .onChange(of: appState.pendingAppIntentDestination) { _, _ in
             consumePendingAppIntent()
         }
-        .onAppear {
+        .task {
             consumePendingAppIntent()
-            // Give NavigationStack a run loop to install the search controller
-            // before asking SwiftUI to present the search field and keyboard.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                isSearchPresented = true
-            }
+            await Task.yield()
+            isSearchPresented = true
         }
     }
 

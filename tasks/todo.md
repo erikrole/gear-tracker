@@ -4,6 +4,19 @@ Last updated: 2026-07-10
 
 ---
 
+## Completed: Items operational status rail (2026-07-10)
+
+Plan: `tasks/archive/completed-2026-06/items-status-rail-plan.md`
+
+- [x] Replace the page-local inventory summary grid with the shared `OperationalStatusRail`.
+- [x] Preserve every status count, multi-select filter action, selected state, and page reset.
+- [x] Sync docs and complete focused, type, migration, docs, whitespace, build, and protected-route browser checks.
+
+### Review
+
+- **Shipped:** `/items` now presents active inventory plus prioritized nonzero custody/attention states in the shared compact rail. All six status counts remain pressed-state-aware filters under Details, and partial-control recovery stays separate.
+- **Verified:** Focused Vitest (3 tests), focused ESLint, TypeScript, migration-prefix guard, codemap/docs checks, whitespace, and `npm run build:app` passed. Local browser smoke compiled `/items` and reached the expected `/login` redirect; authenticated visual proof remains session-blocked.
+
 ## Completed: iOS push notification reliability (2026-07-10)
 
 Problem: Erik receives no push notifications on iOS.
@@ -2466,6 +2479,13 @@ Archived to `tasks/archive/completed-2026-06/codex-readiness-legacy-tail-cleanup
 - Codex Readiness and completed legacy Reservations, Users, Known Bugs, Scan Flow, and Phase B entries.
 
 ## Notes
+
+### Active: iOS Apple Design full audit (2026-07-10)
+
+- [x] Execute `tasks/ios-apple-design-full-audit-plan.md` and publish `tasks/audit-ios-apple-design-full.md` plus `tasks/ios-apple-design-remediation-slices.md`.
+- [x] Implement every source-level remediation slice and reconcile Mobile, Kiosk, Schedule, Search, Reservations, Resources, Notifications, Decisions, tests, and codemaps.
+- [x] Verify 170 iOS-focused tests, both simulator targets, iOS drift/audit/project gates, docs, app production build, and diff hygiene.
+- [ ] External signoff only: managed-device HID/camera, VoiceOver, AX5, accessibility settings, rotation, and student/counter walkthrough.
 
 - Write a `BRIEF_*.md` or Decision record before implementing any new feature
 - Run `npm run build` before any commit

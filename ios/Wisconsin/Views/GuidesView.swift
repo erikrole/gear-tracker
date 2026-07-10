@@ -132,16 +132,21 @@ struct GuidesView: View {
     }
 
     private var guidePlaceholderList: some View {
-        List {
-            Section {
-                ForEach(GuideListItem.placeholders) { guide in
-                    GuideRow(guide: guide)
-                        .redacted(reason: .placeholder)
+        ZStack {
+            List {
+                Section {
+                    ForEach(GuideListItem.placeholders) { guide in
+                        GuideRow(guide: guide)
+                            .redacted(reason: .placeholder)
+                    }
                 }
             }
+            .listStyle(.insetGrouped)
+            .disabled(true)
+            .accessibilityHidden(true)
+
+            ProgressView("Loading guides")
         }
-        .listStyle(.insetGrouped)
-        .disabled(true)
     }
 
     private var guideList: some View {
@@ -286,9 +291,6 @@ private struct GuideReaderView: View {
             .frame(maxWidth: .infinity)
         }
         .background(Color(.systemGroupedBackground))
-        .safeAreaInset(edge: .bottom) {
-            Color.clear.frame(height: 72)
-        }
         .toolbar(.hidden, for: .tabBar)
         .navigationTitle("Guide")
         .navigationBarTitleDisplayMode(.inline)

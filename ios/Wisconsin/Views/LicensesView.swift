@@ -273,6 +273,7 @@ struct LicensesView: View {
             .buttonStyle(.bordered)
             .buttonBorderShape(.capsule)
             .controlSize(.small)
+            .frame(minHeight: 44)
             .tint(Color.statusText(.blue))
 
             Button("Return License", role: .destructive) {
@@ -281,6 +282,7 @@ struct LicensesView: View {
             .buttonStyle(.bordered)
             .buttonBorderShape(.capsule)
             .controlSize(.small)
+            .frame(minHeight: 44)
             .disabled(vm.pendingActionId != nil)
         }
     }
@@ -370,6 +372,7 @@ private struct LicensePoolRow: View {
                     .buttonStyle(.borderedProminent)
                     .buttonBorderShape(.capsule)
                     .controlSize(.small)
+                    .frame(minHeight: 44)
                     .tint(Color.statusText(.green))
                     .disabled(isPending)
                 }

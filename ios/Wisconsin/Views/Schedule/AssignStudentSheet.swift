@@ -18,10 +18,18 @@ struct AssignStudentSheet: View {
     /// shift). A non-blocking warning — staff can still assign over it.
     @State private var conflicts: [String: String] = [:]
     @State private var conflictsLoading = false
+    @State private var hasMore = true
+    @State private var offset = 0
+    @State private var searchTask: Task<Void, Never>?
+    private let pageSize = 50
 
-    private var filteredUsers: [AppUser] {
-        guard !search.isEmpty else { return users }
-        return users.filter { $0.name.localizedCaseInsensitiveContains(search) }
+    private var rankedUsers: [AppUser] {
+        users.sorted { lhs, rhs in
+            let lhsMatches = lhs.primaryArea == shiftArea
+            let rhsMatches = rhs.primaryArea == shiftArea
+            if lhsMatches != rhsMatches { return lhsMatches }
+            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+        }
     }
 
     var body: some View {
@@ -38,7 +46,7 @@ struct AssignStudentSheet: View {
                         Button("Retry") { Task { await load() } }
                             .buttonStyle(.borderedProminent)
                     }
-                } else if filteredUsers.isEmpty {
+                } else if rankedUsers.isEmpty {
                     ContentUnavailableView(
                         search.isEmpty ? "No users found" : "No matches",
                         systemImage: "person.2",
@@ -55,7 +63,7 @@ struct AssignStudentSheet: View {
                             }
                             .listRowSeparator(.hidden)
                         }
-                        ForEach(filteredUsers) { user in
+                        ForEach(rankedUsers) { user in
                             Button { Task { await assign(userId: user.id) } } label: {
                                 AssignRow(
                                     name: user.name,
@@ -70,6 +78,11 @@ struct AssignStudentSheet: View {
                             .buttonStyle(.plain)
                             .disabled(assigningUserId != nil)
                         }
+                        if hasMore {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                                .task(id: users.count) { await loadPage(reset: false) }
+                        }
                     }
                 }
             }
@@ -81,6 +94,7 @@ struct AssignStudentSheet: View {
                 }
             }
             .searchable(text: $search, prompt: "Search by name")
+            .onChange(of: search) { _, _ in scheduleSearch() }
             .alert(
                 "Couldn't assign",
                 isPresented: Binding(get: { assignError != nil }, set: { if !$0 { assignError = nil } })
@@ -99,17 +113,45 @@ struct AssignStudentSheet: View {
         conflictsLoading = true
         // Users and availability conflicts load in parallel — the conflict map is
         // a non-blocking hint, so a failure there never blocks the picker.
-        async let usersTask = APIClient.shared.users(search: nil, limit: 200)
         async let conflictsTask = APIClient.shared.shiftConflicts(shiftId: shiftId)
-        do {
-            let resp = try await usersTask
-            users = resp.data
-        } catch {
-            loadError = error.localizedDescription
-        }
+        await loadPage(reset: true)
         conflicts = await conflictsTask
         conflictsLoading = false
         isLoading = false
+    }
+
+    private func scheduleSearch() {
+        searchTask?.cancel()
+        searchTask = Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            await loadPage(reset: true)
+        }
+    }
+
+    private func loadPage(reset: Bool) async {
+        if reset {
+            offset = 0
+            hasMore = true
+            loadError = nil
+        } else if !hasMore {
+            return
+        }
+        do {
+            let response = try await APIClient.shared.users(
+                search: search.trimmingCharacters(in: .whitespacesAndNewlines).nonBlankText,
+                limit: pageSize,
+                offset: offset
+            )
+            users = reset ? response.data : users + response.data
+            offset += response.data.count
+            hasMore = offset < response.total
+        } catch is CancellationError {
+            return
+        } catch {
+            if reset { loadError = error.localizedDescription }
+            hasMore = false
+        }
     }
 
     private func assign(userId: String) async {

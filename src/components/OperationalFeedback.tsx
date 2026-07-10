@@ -18,6 +18,7 @@ function pluralize(count: number, singular: string, plural = `${singular}s`) {
 }
 
 export function OperationalMetricCard({
+  ariaPressed,
   badge,
   className,
   helper,
@@ -29,6 +30,7 @@ export function OperationalMetricCard({
   valueStyle,
   tooltip,
 }: {
+  ariaPressed?: boolean;
   badge?: { text: string; variant: BadgeProps["variant"] };
   className?: string;
   helper?: string;
@@ -54,6 +56,7 @@ export function OperationalMetricCard({
       className={cn(
         "min-h-[104px] border-border/40 shadow-none",
         (href || onClick) && "cursor-pointer transition-[background-color,box-shadow,scale] hover:bg-muted/50 hover:shadow-xs active:scale-[0.99]",
+        ariaPressed && "border-primary/40 bg-primary/5 shadow-[inset_3px_0_0_hsl(var(--primary))]",
         className,
       )}
     >
@@ -82,6 +85,7 @@ export function OperationalMetricCard({
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={ariaPressed}
       className="block w-full min-h-10 rounded-md text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
     >
       {card}

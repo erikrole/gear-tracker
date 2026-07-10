@@ -107,7 +107,7 @@ describe("iOS guides reader polish", () => {
     expect(guidesView).toContain("guard let number = Int(prefix)");
     expect(guidesView).toContain(".accessibilityLabel(accessibilityLabel)");
     expect(guidesView).toContain("parts.append(guide.updatedSummary)");
-    expect(guidesView).toContain(".safeAreaInset(edge: .bottom)");
+    expect(guidesView).not.toContain(".safeAreaInset(edge: .bottom)");
     expect(guidesView).toContain(".toolbar(.hidden, for: .tabBar)");
   });
 });

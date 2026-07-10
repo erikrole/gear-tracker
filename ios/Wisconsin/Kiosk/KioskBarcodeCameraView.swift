@@ -1,12 +1,15 @@
 import SwiftUI
 import VisionKit
 import AVFoundation
+import UIKit
 
 /// Sheet-presented camera fallback for kiosk flows when a HID hand scanner
 /// is unavailable (unplugged, dead battery, or staff is using the iPad on
 /// the floor at an event). Reuses Apple's DataScannerViewController; falls
 /// back to a clear permission-needed message when the camera is denied.
 struct KioskBarcodeCameraView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.openURL) private var openURL
     // Scan feedback uses the shared `KioskBannerTone` so any flow (checkout,
     // pickup, return) can pipe its own message + tone in without coupling types.
     let feedbackMessage: String?
@@ -74,8 +77,8 @@ struct KioskBarcodeCameraView: View {
     private var feedbackOverlay: some View {
         if let message = feedbackMessage, let tone = feedbackTone {
             KioskFeedbackBanner(tone: tone, message: message)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-                .animation(.spring(response: 0.3), value: feedbackMessage)
+                .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+                .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 1), value: feedbackMessage)
         }
     }
 
@@ -119,11 +122,18 @@ struct KioskBarcodeCameraView: View {
                 .padding(.horizontal, 40)
             manualEntry
                 .padding(.horizontal, 40)
-            Button("Close") { onCancel() }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 28)
-                .padding(.vertical, 12)
-                .background(Color.kioskRed, in: Capsule())
+            HStack(spacing: 12) {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        openURL(url)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Color.kioskRed)
+                Button("Close") { onCancel() }
+                    .buttonStyle(.bordered)
+            }
+            .controlSize(.large)
         }
     }
 
@@ -135,7 +145,7 @@ struct KioskBarcodeCameraView: View {
             Text("Camera scanning unavailable")
                 .font(.title3.bold())
                 .foregroundStyle(.white)
-            Text("Use the hand scanner to continue.")
+            Text("Use the hand scanner or type the barcode below.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             manualEntry

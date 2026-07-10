@@ -31,6 +31,8 @@ struct KioskCheckoutDrawerContext: Identifiable {
 struct KioskCheckoutDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     let context: KioskCheckoutDrawerContext
+    let allowsEditing: Bool
+    var onReturn: (() -> Void)? = nil
     let onChanged: () -> Void
 
     @State private var detail: KioskCheckoutDetail?
@@ -67,7 +69,7 @@ struct KioskCheckoutDetailSheet: View {
     }
 
     private var canEditActiveCheckout: Bool {
-        detail?.status == "OPEN" && actorId != nil
+        allowsEditing && detail?.status == "OPEN" && actorId != nil
     }
 
     private var currentTitle: String {
@@ -196,6 +198,16 @@ struct KioskCheckoutDetailSheet: View {
                     .foregroundStyle(KioskText.secondary)
             }
             Spacer()
+            if let onReturn {
+                Button("Return Gear") {
+                    dismiss()
+                    onReturn()
+                }
+                .font(.headline.weight(.semibold))
+                .buttonStyle(.borderedProminent)
+                .tint(Color.statusText(.blue))
+                .controlSize(.large)
+            }
             Button("Done") { dismiss() }
                 .font(.headline.weight(.semibold))
                 .foregroundStyle(KioskText.primary)

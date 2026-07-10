@@ -137,6 +137,16 @@ struct AccountSecuritySettingsView: View {
         .navigationTitle("Account & Security")
         .navigationBarTitleDisplayMode(.inline)
         .interactiveDismissDisabled(isSaving)
+        .onChange(of: error) { _, error in
+            if let error {
+                AccessibilityNotification.Announcement(error).post()
+            }
+        }
+        .onChange(of: successMessage) { _, successMessage in
+            if let successMessage {
+                AccessibilityNotification.Announcement(successMessage).post()
+            }
+        }
     }
 
     @ViewBuilder

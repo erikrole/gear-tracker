@@ -56,6 +56,8 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Recently Archived
 
+- `items-status-rail-plan.md` - completed Items adoption of the shared operational status rail with pressed status facets under Details.
+- `public-showroom-plan.md` - completed public stakeholder showroom plus the 2026-07-10 visual simplification pass.
 - `hidden-smoke-users-plan.md` - completed hidden smoke/test user visibility, owner opt-in, cleanup endpoint, operational sweep, and rollout check.
 - `booking-creation-ownership-pass-2026-05-07.md` - completed booking creation ownership pass.
 - `scan-ownership-pass-2026-06-19.md` - completed lookup-only scan ownership pass.

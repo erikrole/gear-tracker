@@ -18,6 +18,7 @@ const aboutLayoutSource = readFileSync("src/app/(public)/about/layout.tsx", "utf
 const globalsSource = readFileSync("src/app/globals.css", "utf8");
 const nextConfigSource = readFileSync("next.config.ts", "utf8");
 const deploySmokeSource = readFileSync("scripts/deploy-smoke.mjs", "utf8");
+const showroomBlocksSource = readFileSync("src/components/public-showroom/showroom-blocks.tsx", "utf8");
 
 describe("public showroom content", () => {
   it("keeps the expected public route set", () => {
@@ -104,5 +105,11 @@ describe("public showroom content", () => {
     expect(deploySmokeSource).toContain("/api/auth/login");
     expect(deploySmokeSource).toContain("assertNonceCsp");
     expect(deploySmokeSource).toContain("unsafe-inline");
+  });
+
+  it("keeps public showroom presentation solid and restrained", () => {
+    expect(showroomBlocksSource).not.toContain("radial-gradient");
+    expect(showroomBlocksSource).not.toContain("0_18px_60px");
+    expect(showroomBlocksSource).not.toContain("rounded-[2rem]");
   });
 });

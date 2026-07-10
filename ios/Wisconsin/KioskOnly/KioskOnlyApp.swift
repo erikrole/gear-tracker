@@ -121,15 +121,29 @@ extension Color {
 }
 
 extension Font {
-    static func gothamBlack(size: CGFloat) -> Font {
-        UIFont(name: "Gotham-Black", size: size) != nil
-            ? .custom("Gotham-Black", size: size)
-            : .system(size: size, weight: .heavy)
+    static func gothamBlack(size: CGFloat, relativeTo textStyle: Font.TextStyle? = nil) -> Font {
+        let style = textStyle ?? scalableTextStyle(for: size)
+        if UIFont(name: "Gotham-Black", size: size) != nil {
+            return Font.custom("Gotham-Black", size: size, relativeTo: style)
+        }
+        return Font.system(style).weight(.heavy)
     }
 
-    static func gothamBold(size: CGFloat) -> Font {
-        UIFont(name: "Gotham-Bold", size: size) != nil
-            ? .custom("Gotham-Bold", size: size)
-            : .system(size: size, weight: .bold)
+    static func gothamBold(size: CGFloat, relativeTo textStyle: Font.TextStyle? = nil) -> Font {
+        let style = textStyle ?? scalableTextStyle(for: size)
+        if UIFont(name: "Gotham-Bold", size: size) != nil {
+            return Font.custom("Gotham-Bold", size: size, relativeTo: style)
+        }
+        return Font.system(style).weight(.bold)
+    }
+
+    private static func scalableTextStyle(for size: CGFloat) -> Font.TextStyle {
+        switch size {
+        case 30...: return .largeTitle
+        case 24...: return .title2
+        case 20...: return .title3
+        case 17...: return .headline
+        default: return .body
+        }
     }
 }

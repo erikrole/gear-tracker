@@ -367,14 +367,15 @@ struct EventDetailSheet: View {
         }
     }
 
-    private func updateShiftTimes(_ shift: EventShift, startsAt: Date, endsAt: Date) async {
+    private func updateShiftTimes(_ shift: EventShift, startsAt: Date, endsAt: Date) async -> String? {
         do {
             try await APIClient.shared.updateShiftTimes(shiftId: shift.id, startsAt: startsAt, endsAt: endsAt)
             Haptics.success()
             await vm.load()
+            return nil
         } catch {
-            actionError = error.localizedDescription
             Haptics.error()
+            return error.localizedDescription
         }
     }
 
@@ -1188,6 +1189,7 @@ struct ShiftRow: View {
                             Button("Approve \(assignment.user.name)") { onApprove(assignment) }
                                 .buttonStyle(.borderedProminent)
                                 .controlSize(.small)
+                                .frame(minHeight: 44)
                                 .tint(Color.statusText(.green))
                                 .accessibilityLabel("Approve \(assignment.user.name)")
                         }
@@ -1195,6 +1197,7 @@ struct ShiftRow: View {
                             Button("Decline \(assignment.user.name)") { onDecline(assignment) }
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
+                                .frame(minHeight: 44)
                                 .tint(Color.statusText(.red))
                                 .accessibilityLabel("Decline \(assignment.user.name)")
                         }
@@ -1231,6 +1234,7 @@ struct ShiftRow: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
+            .frame(minHeight: 44)
             .tint(Color.brandPrimary)
             .accessibilityLabel("Assign \(shift.area.shiftAreaLabel) shift")
         } else if isStudent && isStudentSlot, let onRequest {
@@ -1240,6 +1244,7 @@ struct ShiftRow: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
+            .frame(minHeight: 44)
             .tint(Color.brandPrimary)
             .accessibilityLabel("Claim \(shift.area.shiftAreaLabel) shift")
         } else {
@@ -1267,15 +1272,16 @@ struct ShiftRow: View {
 
 struct EditShiftTimesSheet: View {
     let shift: EventShift
-    let onSave: (Date, Date) async -> Void
+    let onSave: (Date, Date) async -> String?
 
     @State private var startsAt: Date
     @State private var endsAt: Date
     @State private var isSaving = false
+    @State private var saveError: String?
     @State private var showDiscardConfirm = false
     @Environment(\.dismiss) private var dismiss
 
-    init(shift: EventShift, onSave: @escaping (Date, Date) async -> Void) {
+    init(shift: EventShift, onSave: @escaping (Date, Date) async -> String?) {
         self.shift = shift
         self.onSave = onSave
         _startsAt = State(initialValue: shift.startsAt)
@@ -1339,18 +1345,31 @@ struct EditShiftTimesSheet: View {
             } message: {
                 Text("Your changes will be lost.")
             }
+            .alert(
+                "Couldn't save changes",
+                isPresented: Binding(
+                    get: { saveError != nil },
+                    set: { if !$0 { saveError = nil } }
+                )
+            ) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(saveError ?? "")
+            }
         }
-        .presentationDetents([.height(320)])
+        .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     }
 
     private func save() async {
         isSaving = true
-        await onSave(startsAt, endsAt)
+        let error = await onSave(startsAt, endsAt)
         isSaving = false
-        // Parent handles success/error haptic + alert. Sheet always
-        // dismisses — failures will be visible in the parent's actionError.
-        dismiss()
+        if let error {
+            saveError = error
+        } else {
+            dismiss()
+        }
     }
 }
 

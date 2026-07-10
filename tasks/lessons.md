@@ -57,6 +57,8 @@
 
 ## UI Reliability
 
+- **Apple Design audits need explicit opinions, not only defect findings**: When the user asks for an audit through the Apple Design lens, include what should feel calmer, more native, more restrained, or more physical; identify what to remove and what not to build alongside accessibility and correctness findings.
+
 - **Use attachment language for bundled child items**: The current product term is attachments. Stored category/model names may still say accessories, but plans, docs, audit notes, and user-facing summaries should say attachments unless quoting a legacy API/model name.
 - **Apply profile-copy corrections to summary rows too**: When a user says a profile field is unnecessary, audit both the detail header and directory/list rows that summarize the same profile. Repeated default location copy, especially `Camp Randall`, should not reappear in native user profile rows after it is removed from detail.
 - **Match screenshot error copy to its actual client before narrowing a stale-save fix**: If the reported toast string only exists in `BookingDetailsSheet.tsx`, inspect the shared web/mobile sheet even when earlier framing pointed at native iOS. Route-level optimistic-lock fixes should be proven against the exact edited field, such as `endsAt`, not only against a nearby metadata edit.

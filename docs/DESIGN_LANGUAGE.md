@@ -134,10 +134,13 @@ Feature ideas to consider separately:
 - Continue replacing local text-only empty rows with `EmptyState inline` in remaining admin tables when those surfaces are touched.
 
 ## Consistency Audit
+- Shared `StatusIndicator`: status is now carried by the semantic Badge variant, a flat dot, and its label; the decorative ping halo was removed from dashboard, booking, hygiene, Fix Today, and Settings consumers.
+- Public showroom: shared section blocks now use solid backgrounds, restrained borders, inline icons, and compact mockup framing instead of atmospheric gradients, tinted icon tiles, and repeated oversized card shadows.
 - `/dashboard`: pending pickup previously used green row accent. Fixed to orange waiting semantics.
 - `/checkouts/new` confirmation: checkout handoff previously looked complete. Fixed to pending kiosk pickup language.
 - `/scan`: custom page heading and small controls drifted from shared page/header and target-size rules. Header and controls now align.
 - `/items`: toolbar was the best existing command surface. It now uses `OperationalToolbar` and shared active-filter chips.
+- `/items`: inventory status now uses `OperationalStatusRail` with an active-inventory orientation, prioritized nonzero operational states, and the complete pressed-state-aware status facet set under Details.
 - Shared operational toolbar shell: `OperationalToolbar` now uses the lighter translucent chrome shared by breadcrumbs and section nav, while child controls keep 40px targets and their own borders.
 - `/items` row actions: table overflow actions now use `OperationalRowActions`.
 - `/bookings`: table rows, mobile rows, and booking cards now use `OperationalRowActions` for overflow commands while preserving right-click context menus.

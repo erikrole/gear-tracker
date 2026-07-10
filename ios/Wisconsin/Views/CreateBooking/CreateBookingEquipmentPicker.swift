@@ -14,6 +14,7 @@ struct CreateBookingEquipmentPicker: View {
     @State private var showCart = false
     @State private var justAdded: String?
     @State private var justAddedClearTask: Task<Void, Never>?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var isBrowsing: Bool {
         vm.assetSearch.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -193,8 +194,8 @@ struct CreateBookingEquipmentPicker: View {
             .buttonStyle(.plain)
             .disabled(vm.selectedEquipmentCount == 0)
             .accessibilityLabel("\(vm.selectedEquipmentCount) items selected, view selected equipment")
-            .animation(.easeInOut(duration: 0.2), value: justAdded)
-            .animation(.easeInOut(duration: 0.2), value: vm.selectedEquipmentCount)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: justAdded)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: vm.selectedEquipmentCount)
 
             Spacer(minLength: 12)
 
@@ -305,6 +306,7 @@ struct BulkResultRow: View {
             .opacity(atMax && quantity == 0 ? 0.5 : 1)
         }
         .buttonStyle(ScalePressStyle())
+        .disabled(atMax)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(sku.name), \(subtitle), \(quantity) selected")
         .accessibilityHint(atMax ? "None left to add" : "Adds one")

@@ -774,6 +774,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Reservation pickup is fulfilled at the kiosk. Once scans pass, the kiosk creates or opens the linked checkout custody record and marks the source reservation `COMPLETED`; it must not treat a fulfilled reservation as user-cancelled.
   - `PENDING_PICKUP` may remain as a compatibility or staged handoff state, but it is no longer the normal result of app/web checkout creation.
   - Checkout records remain the custody ledger for active and historical gear-out reporting, search, and audit.
+  - Active-checkout edits require an identified student context inside the kiosk. Idle dashboard checkout detail is read-only; selecting the student opens the Manage surface that owns edit and return actions, preventing an anonymous idle tap from being attributed to the checkout requester.
 - Consequences:
   - Non-kiosk app/web routes must not create checkout custody, convert reservations into pickup custody, or run normal return flows.
   - Overdue checkout counts mean physical gear is out. Stale reservations, due reservations, and awaiting-pickup work must be reported separately.
@@ -792,6 +793,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 4. ~~Student mobile KPI definitions~~ — resolved (PD-5): taps-to-checkout ≤3, scan success ≥95%, task completion <30s. Telemetry deferred to Phase B.
 
 ## Change Log
+- 2026-07-10: Amended D-040 so active-checkout editing requires an identified student context; idle dashboard detail remains read-only rather than fabricating requester attribution for an anonymous operator tap.
 - 2026-06-25: Amended D-028 and D-040 for admin close-without-scan. Kiosk remains the standard custody return surface, while admins can close a physically verified returned checkout through a reasoned override with audit and override evidence.
 - 2026-07-03: Amended D-026 for current Vercel Hobby cron limits. Hobby deploys require daily-or-slower cron expressions, so sub-daily Live Activity sweeps stay unscheduled unless the project moves to Pro or an external scheduler.
 - 2026-06-15: Added D-040 for kiosk-only custody. App/web becomes reservation-first; direct checkout, reservation pickup, and return custody mutations are kiosk-only, with fulfilled source reservations closing as `COMPLETED`.

@@ -40,6 +40,19 @@ struct AssetResultRow: View {
             AssetStatusBadge(status: asset.computedStatus)
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint("Opens item details")
+    }
+
+    private var accessibilityLabel: String {
+        [
+            asset.itemListPrimaryTitle,
+            asset.itemListSecondaryTitle,
+            asset.category?.name,
+            asset.location.name,
+            asset.computedStatus.label,
+        ].compactMap { $0 }.joined(separator: ", ")
     }
 }
 
@@ -76,6 +89,8 @@ struct ItemFamilyResultRow: View {
                 .background(.quaternary, in: Capsule())
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(family.name), \(family.scannedUnitLabel ?? family.availabilityLabel), \(family.category), \(family.locationName), \(family.trackByNumber ? "Units" : "Quantity")")
     }
 }
 
@@ -144,6 +159,9 @@ struct BookingResultRow: View {
             StatusBadge(status: booking.status, kind: booking.kind)
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(booking.title), \(booking.requester.name), \(booking.kind == .checkout ? "Checkout" : "Reservation"), \(booking.status.label)")
+        .accessibilityHint("Opens booking details")
     }
 }
 
@@ -180,6 +198,9 @@ struct UserResultRow: View {
                 .background(.quaternary, in: Capsule())
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(user.name), \(user.email), \(user.role.lowercased().capitalized)")
+        .accessibilityHint("Opens person details")
     }
 }
 

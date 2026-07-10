@@ -227,6 +227,29 @@ private struct ScanHeroImage: View {
     @State private var showZoom = false
 
     var body: some View {
+        Group {
+            if imageUrl != nil {
+                Button {
+                    showZoom = true
+                } label: {
+                    imageContent
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("View larger image")
+                .accessibilityHint("Opens the item image full screen")
+            } else {
+                imageContent
+                    .accessibilityHidden(true)
+            }
+        }
+        .fullScreenCover(isPresented: $showZoom) {
+            if let imageUrl, let url = URL(string: imageUrl) {
+                ZoomableImageViewer(url: url)
+            }
+        }
+    }
+
+    private var imageContent: some View {
         ZStack {
             // Full white in both modes when a photo exists: inventory photos
             // are catalog shots on white, so the frame disappears into the
@@ -263,15 +286,6 @@ private struct ScanHeroImage: View {
             RoundedRectangle(cornerRadius: 20)
                 .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 1)
         )
-        .accessibilityHidden(true)
-        .onTapGesture {
-            if imageUrl != nil { showZoom = true }
-        }
-        .fullScreenCover(isPresented: $showZoom) {
-            if let imageUrl, let url = URL(string: imageUrl) {
-                ZoomableImageViewer(url: url)
-            }
-        }
     }
 
     private var placeholder: some View {

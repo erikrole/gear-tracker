@@ -6,6 +6,14 @@ function source(path: string) {
 }
 
 describe("admin health status indicators", () => {
+  it("uses a static, labeled status dot", () => {
+    const indicator = source("src/components/ui/status-indicator.tsx");
+
+    expect(indicator).toContain("bg-current");
+    expect(indicator).not.toContain("animate-ping");
+    expect(indicator).not.toContain("shouldAnimate");
+  });
+
   it("maps admin queue and checklist counts through one shared health helper", () => {
     const helper = source("src/lib/operational-health.ts");
 

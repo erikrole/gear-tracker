@@ -45,10 +45,22 @@ import { ItemsToolbar } from "./components/items-toolbar";
 import { ItemsPagination } from "./components/items-pagination";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import { useItemChangeSync } from "@/hooks/use-item-change-sync";
-import { STATUS_STYLES } from "@/lib/status-styles";
-import { AlertTriangle, Download, RefreshCw, Rows3, Rows4 } from "lucide-react";
+import {
+  AlertTriangle,
+  Archive,
+  Download,
+  Package,
+  PackageCheck,
+  PackageOpen,
+  RefreshCw,
+  Rows3,
+  Rows4,
+  Timer,
+  Wrench,
+} from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
-import { OperationalPartialResultsAlert } from "@/components/OperationalFeedback";
+import { OperationalMetricCard, OperationalPartialResultsAlert } from "@/components/OperationalFeedback";
+import { OperationalStatusRail, type OperationalStatusRailItem } from "@/components/OperationalStatusRail";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { buildBulkRowId, getItemHref, isBulkRowId, parseBulkRowId } from "./lib/item-href";
 import { compareItemAssetTags } from "@/lib/item-asset-tag-sort";
@@ -497,6 +509,87 @@ export default function ItemsPage() {
     query.setPage(0);
   };
 
+  const toggleStatusFilter = (status: string) => {
+    const next = new Set(filters.statusFilter);
+    if (next.has(status)) next.delete(status);
+    else next.add(status);
+    filters.setStatusFilter(next);
+    query.setPage(0);
+  };
+
+  const statusSummary = query.statusBreakdown ? [
+    {
+      id: "available",
+      status: "AVAILABLE",
+      label: "Available",
+      value: query.statusBreakdown.available,
+      helper: "Ready to reserve or check out",
+      icon: PackageCheck,
+      tone: "green" as const,
+    },
+    {
+      id: "checked-out",
+      status: "CHECKED_OUT",
+      label: "Checked out",
+      value: query.statusBreakdown.checkedOut,
+      helper: "Currently in active custody",
+      icon: PackageOpen,
+      tone: "blue" as const,
+      railTone: "info" as const,
+    },
+    {
+      id: "pending-pickup",
+      status: "PENDING_PICKUP",
+      label: "Awaiting pickup",
+      value: query.statusBreakdown.pendingPickup,
+      helper: "Committed and waiting for handoff",
+      icon: Timer,
+      tone: "orange" as const,
+      railTone: "warning" as const,
+    },
+    {
+      id: "reserved",
+      status: "RESERVED",
+      label: "Reserved",
+      value: query.statusBreakdown.reserved,
+      helper: "Committed to upcoming reservations",
+      icon: Package,
+      tone: "purple" as const,
+      railTone: "neutral" as const,
+    },
+    {
+      id: "maintenance",
+      status: "MAINTENANCE",
+      label: "Maintenance",
+      value: query.statusBreakdown.maintenance,
+      helper: "Unavailable until maintenance is cleared",
+      icon: Wrench,
+      tone: "orange" as const,
+      railTone: "warning" as const,
+    },
+    {
+      id: "retired",
+      status: "RETIRED",
+      label: "Retired",
+      value: query.statusBreakdown.retired,
+      helper: "Inactive inventory kept for history",
+      icon: Archive,
+      tone: "muted" as const,
+    },
+  ] : [];
+  const railItems: OperationalStatusRailItem[] = statusSummary
+    .filter((item) => item.railTone && item.value > 0)
+    .map((item) => ({
+      id: item.id,
+      label: item.label,
+      value: item.value,
+      detail: item.helper,
+      icon: item.icon,
+      tone: item.railTone!,
+      onSelect: () => toggleStatusFilter(item.status),
+    }));
+  const hasOperationalCommitments = railItems.length > 0;
+
   return (
     <FadeUp>
       <div className="mx-auto w-full max-w-screen-2xl">
@@ -611,64 +704,33 @@ export default function ItemsPage() {
         </div>
       )}
 
-      {/* Inventory summary bar */}
+      {/* Inventory status rail */}
       {query.statusBreakdown && !pageLoading && (
-        <div className="mb-4 grid gap-2 rounded-md border border-border/60 bg-muted/20 p-2 sm:grid-cols-3 xl:grid-cols-[1.2fr_repeat(6,minmax(0,1fr))]">
-          <div className="flex min-h-14 items-center justify-between rounded-sm bg-background px-3 shadow-xs sm:justify-start sm:gap-3">
-            <div>
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Inventory</div>
-              <div className="mt-0.5 flex items-baseline gap-1.5">
-                <span className="text-2xl font-black leading-none tabular-nums" style={{ fontFamily: "var(--font-heading)" }}>
-                  {query.total}
-                </span>
-                <span className="text-xs text-muted-foreground">items</span>
-              </div>
+        <OperationalStatusRail
+          className="mb-4"
+          orientation={{
+            label: "Active inventory",
+            value: `${query.total} ${query.total === 1 ? "item" : "items"}`,
+            icon: Package,
+          }}
+          items={railItems}
+          allClearLabel={!hasOperationalCommitments ? "No active item statuses need attention" : undefined}
+          details={(
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+              {statusSummary.map((item) => (
+                <OperationalMetricCard
+                  key={item.id}
+                  label={item.label}
+                  value={item.value}
+                  helper={item.helper}
+                  tone={item.tone}
+                  onClick={() => toggleStatusFilter(item.status)}
+                  ariaPressed={filters.statusFilter.has(item.status)}
+                />
+              ))}
             </div>
-          </div>
-
-          {(
-            [
-              { value: "AVAILABLE", count: query.statusBreakdown.available, label: "Available", dotClass: STATUS_STYLES.green.dot },
-              { value: "CHECKED_OUT", count: query.statusBreakdown.checkedOut, label: "Out", dotClass: STATUS_STYLES.blue.dot },
-              { value: "PENDING_PICKUP", count: query.statusBreakdown.pendingPickup, label: "Pickup", dotClass: STATUS_STYLES.orange.dot },
-              { value: "RESERVED", count: query.statusBreakdown.reserved, label: "Reserved", dotClass: STATUS_STYLES.purple.dot },
-              { value: "MAINTENANCE", count: query.statusBreakdown.maintenance, label: "Maintenance", dotClass: STATUS_STYLES.orange.dot },
-              { value: "RETIRED", count: query.statusBreakdown.retired, label: "Retired", dotClass: STATUS_STYLES.gray.dot },
-            ] as const
-          ).map((bucket) => {
-            const isActive = filters.statusFilter.has(bucket.value);
-            const isZero = bucket.count === 0;
-            return (
-              <button
-                key={bucket.value}
-                type="button"
-                onClick={() => {
-                  const next = new Set(filters.statusFilter);
-                  if (next.has(bucket.value)) next.delete(bucket.value);
-                  else next.add(bucket.value);
-                  filters.setStatusFilter(next);
-                  query.setPage(0);
-                }}
-                aria-pressed={isActive}
-                className={`group flex min-h-14 items-center justify-between rounded-sm border px-3 text-left shadow-xs transition-[background-color,border-color,box-shadow,transform] hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring active:scale-[0.96] ${
-                  isActive
-                    ? "border-primary/40 bg-primary/5 shadow-[inset_3px_0_0_hsl(var(--primary))]"
-                    : "border-transparent bg-background"
-                } ${isZero ? "opacity-55" : ""}`}
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-                    <span className={`size-1.5 shrink-0 rounded-full ${bucket.dotClass}`} aria-hidden="true" />
-                    <span className="truncate">{bucket.label}</span>
-                  </div>
-                  <div className="mt-0.5 text-xl font-bold leading-none tabular-nums" style={{ fontFamily: "var(--font-heading)" }}>
-                    {bucket.count}
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+          )}
+        />
       )}
 
       <NewItemSheet

@@ -116,8 +116,8 @@
 | `src/components/booking-details/BookingHeader.tsx` | 339 |
 | `src/components/booking-details/EditBookingEventsDialog.tsx` | 335 |
 | `src/components/FormCombobox.tsx` | 329 |
-| `src/components/public-showroom/showroom-blocks.tsx` | 317 |
 | `src/components/resources/MarkdownReader.tsx` | 293 |
+| `src/components/public-showroom/showroom-blocks.tsx` | 290 |
 | `src/components/QrScanner.tsx` | 288 |
 | `src/components/booking-details/TransferOwnerDialog.tsx` | 266 |
 | `src/components/booking-wizard/WizardStep3.tsx` | 263 |

@@ -7,6 +7,7 @@ import UserNotifications
 struct PushPrePromptView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isRequesting = false
 
     var body: some View {
@@ -15,7 +16,8 @@ struct PushPrePromptView: View {
                 Image(systemName: "bell.badge.fill")
                     .font(.system(size: 56))
                     .foregroundStyle(Color.accentColor)
-                    .symbolEffect(.bounce, options: .nonRepeating)
+                    .symbolEffect(.bounce, options: .nonRepeating, isActive: !reduceMotion)
+                    .accessibilityHidden(true)
 
                 Text("Stay in the loop")
                     .font(.title2.weight(.bold))
@@ -38,10 +40,10 @@ struct PushPrePromptView: View {
                 Button {
                     Task { await requestSystemPermission() }
                 } label: {
-                    Text("Turn on notifications")
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
+                        Text("Turn on notifications")
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                            .frame(minHeight: 50)
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(isRequesting)
@@ -65,6 +67,7 @@ struct PushPrePromptView: View {
                 .font(.body)
                 .foregroundStyle(Color.accentColor)
                 .frame(width: 28)
+                .accessibilityHidden(true)
             Text(text)
                 .font(.subheadline)
                 .foregroundStyle(.primary)

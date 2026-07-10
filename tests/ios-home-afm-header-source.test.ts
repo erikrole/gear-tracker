@@ -61,7 +61,7 @@ describe("iOS Home header source contract", () => {
     expect(home).toContain('Label("Search or Scan", systemImage: "magnifyingglass")');
   });
 
-  it("uses a stronger due-today icon tile while preserving the orange text tone", () => {
+  it("uses a stronger due-today icon tile and restrained flat depth while preserving the orange text tone", () => {
     const home = source("ios/Wisconsin/Views/HomeView.swift");
     const brand = source("ios/Wisconsin/Core/Brand.swift");
 
@@ -69,7 +69,7 @@ describe("iOS Home header source contract", () => {
     expect(home).toContain("tone: .orange");
     expect(home).toContain("Color.statusIconBackground(tone)");
     expect(home).toContain("Color.cardSurfaceRaised");
-    expect(home).toContain("active ? Color.statusText(tone).opacity(0.08) : Color.clear");
+    expect(home).not.toContain("active ? Color.statusText(tone).opacity(0.08) : Color.clear");
     expect(home).toContain(".foregroundStyle(.secondary)");
     expect(brand).toContain("// #d97706");
     expect(brand).toContain("// #fff7ed");

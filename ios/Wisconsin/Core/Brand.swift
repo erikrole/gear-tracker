@@ -35,17 +35,31 @@ extension Font {
     /// Gotham Black — the web `PageHeader` title face. Use for headline
     /// moments (scan hero card titles). Falls back to the system heavy
     /// weight if the bundled font fails to register.
-    static func gothamBlack(size: CGFloat) -> Font {
-        UIFont(name: "Gotham-Black", size: size) != nil
-            ? .custom("Gotham-Black", size: size)
-            : .system(size: size, weight: .heavy)
+    static func gothamBlack(size: CGFloat, relativeTo textStyle: Font.TextStyle? = nil) -> Font {
+        let style = textStyle ?? scalableTextStyle(for: size)
+        if UIFont(name: "Gotham-Black", size: size) != nil {
+            return Font.custom("Gotham-Black", size: size, relativeTo: style)
+        }
+        return Font.system(style).weight(.heavy)
     }
 
     /// Gotham Bold — secondary brand emphasis weight.
-    static func gothamBold(size: CGFloat) -> Font {
-        UIFont(name: "Gotham-Bold", size: size) != nil
-            ? .custom("Gotham-Bold", size: size)
-            : .system(size: size, weight: .bold)
+    static func gothamBold(size: CGFloat, relativeTo textStyle: Font.TextStyle? = nil) -> Font {
+        let style = textStyle ?? scalableTextStyle(for: size)
+        if UIFont(name: "Gotham-Bold", size: size) != nil {
+            return Font.custom("Gotham-Bold", size: size, relativeTo: style)
+        }
+        return Font.system(style).weight(.bold)
+    }
+
+    private static func scalableTextStyle(for size: CGFloat) -> Font.TextStyle {
+        switch size {
+        case 30...: return .largeTitle
+        case 24...: return .title2
+        case 20...: return .title3
+        case 17...: return .headline
+        default: return .body
+        }
     }
 }
 
@@ -220,7 +234,6 @@ private struct BrandCardModifier: ViewModifier {
                         .strokeBorder(Color.hairline, lineWidth: 0.5)
                 }
             }
-            .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
     }
 }
 
