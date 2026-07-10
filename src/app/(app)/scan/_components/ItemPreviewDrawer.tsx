@@ -134,7 +134,7 @@ export function ItemPreviewDrawer({ item, onClose }: ItemPreviewDrawerProps) {
                       </div>
                       {item.scannedUnit.holder && (
                         <div className="mt-3 border-t border-border/60 pt-3 text-left">
-                          <div className="text-xs font-semibold uppercase text-muted-foreground">
+                          <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                             Current custody
                           </div>
                           <div className="mt-1 text-sm font-medium">

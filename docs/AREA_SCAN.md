@@ -57,6 +57,7 @@ Kiosk execution endpoints are documented in `docs/AREA_KIOSK.md`.
 
 | Date | Change |
 |---|---|
+| 2026-07-10 | Scan item preview drawer: the Current custody label unifies to the sanctioned small-uppercase label style. Visual only. |
 | 2026-07-03 | Native iOS tab order now keeps Search pinned trailing after Home, Schedule, Bookings/My Gear, and More. The directory surface formerly shown as Browse is now More, with Items, Guides, Licenses, and Users still inside it; scan remains inside Search and custody scan boundaries did not change. |
 | 2026-06-30 | Native iOS Browse navigation replaced the standalone compact Items tab with a system Browse tab for Items, Guides, Licenses, and Users. Search remains the pinned trailing search tab, and scan remains inside Search; custody scan boundaries did not change. |
 | 2026-06-29 | Native iOS navigation polish: Scan lookup now uses SwiftUI's built-in `Tab(...)` API with `role: .search` and pinned placement, and compact iPhone uses `.tabBarOnly` instead of sidebar-adaptable styling so the system owns the dedicated trailing Scan placement. The custom bottom bar overlay was removed, and Users is kept out of the compact iPhone tab set to prevent Scan from falling into More. Regular-width layouts expose Guides, Users, and Licenses as sidebar-only secondary destinations; compact iPhone reaches them from Profile/Settings > Directory. Scan remains lookup-only; kiosk custody routes did not change. |

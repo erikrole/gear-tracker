@@ -115,7 +115,7 @@ function SummaryRow({
 }) {
   return (
     <div className="flex items-start justify-between gap-4 px-2 py-3">
-      <span className="mt-0.5 shrink-0 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+      <span className="mt-0.5 shrink-0 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </span>
       <div className="min-w-0 text-right text-sm font-medium">{children}</div>

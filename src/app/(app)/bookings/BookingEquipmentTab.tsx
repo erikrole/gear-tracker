@@ -365,13 +365,13 @@ function SerializedRow({
           )}
         </div>
         {upcoming && !conflict && !returned && (
-          <div className="truncate text-[10px] text-blue-600 dark:text-blue-400">
+          <div className="truncate text-[11px] text-[var(--blue-text)]">
             {upcomingCommitmentLabel(upcoming)}
             {upcoming.bookingTitle ? ` · ${upcoming.bookingTitle}` : ""}
           </div>
         )}
         {riskText && !conflict && !returned && (
-          <div className={`truncate text-[10px] ${risk?.severity === "critical" ? "text-red-600 dark:text-red-400" : "text-orange-600 dark:text-orange-400"}`}>
+          <div className={`truncate text-[11px] ${risk?.severity === "critical" ? "text-[var(--red-text)]" : "text-[var(--orange-text)]"}`}>
             {riskText}
           </div>
         )}
@@ -502,7 +502,7 @@ function BulkRow({
           </div>
         )}
         {riskText && !allReturned && (
-          <div className="truncate text-[10px] text-orange-600 dark:text-orange-400">
+          <div className="truncate text-[11px] text-[var(--orange-text)]">
             {riskText}
           </div>
         )}
