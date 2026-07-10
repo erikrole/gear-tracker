@@ -16,10 +16,10 @@ Sheets/drawers: BookingDetailsSheet (724), ShiftDetailPanel (812), ItemPreviewDr
 new-item-sheet (589), new-kit-sheet (291), NewEventSheet (470), AdminClaimSheet (575), BulkAddSheet (126).
 
 ## Slices (each independently committable)
-- [ ] Slice 1: items/[id] — ItemHeader + page + tabs (most offenders: 14 uppercase, 6 mono, 3 dims)
-- [ ] Slice 2: users/[id] — page + tabs (4 uppercase, 1 mono, 4 dims)
-- [ ] Slice 3: remaining detail pages — events/[id], bulk-inventory/[id], kits/[id], resources/[slug] spot fixes
-- [ ] Slice 4: sheets/drawers — ItemPreviewDrawer, new-item-sheet spot fixes; verify the rest (grep-clean)
+- [x] Slice 1: items/[id] — ItemHeader + page + tabs (most offenders: 14 uppercase, 6 mono, 3 dims)
+- [x] Slice 2: users/[id] — page + tabs (4 uppercase, 1 mono, 4 dims)
+- [x] Slice 3: remaining detail pages — events/[id], bulk-inventory/[id], kits/[id], resources/[slug] spot fixes
+- [x] Slice 4: sheets/drawers — ItemPreviewDrawer, new-item-sheet spot fixes; verify the rest (grep-clean)
 
 ## Verification per slice
 - npx tsc --noEmit; npx next build (dev server stopped); run related vitest files if any pin styling.
