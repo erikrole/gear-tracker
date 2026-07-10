@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 import bundleAnalyzer from "@next/bundle-analyzer";
+import { withWorkflow } from "workflow/next";
 
 const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
@@ -77,7 +78,7 @@ const nextConfig: NextConfig = {
   },
 };
 
-const config = withBundleAnalyzer(nextConfig);
+const config = withWorkflow(withBundleAnalyzer(nextConfig));
 
 export default withSentryConfig(config, {
   // Upload source maps only when SENTRY_AUTH_TOKEN is set (CI/Vercel)

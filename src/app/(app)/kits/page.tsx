@@ -6,6 +6,7 @@ import { useUrlState } from "@/hooks/use-url-state";
 import { toast } from "sonner";
 import {
   ArchiveIcon,
+  AlertTriangleIcon,
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
@@ -39,6 +40,7 @@ import {
 } from "@/components/ui/table";
 import EmptyState from "@/components/EmptyState";
 import { OperationalMetricCard } from "@/components/OperationalFeedback";
+import { OperationalStatusRail, type OperationalStatusRailItem } from "@/components/OperationalStatusRail";
 import { FadeUp } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
 import { type KitRow, useKitsQuery } from "./hooks/use-kits-query";
@@ -280,6 +282,14 @@ export default function KitsPage() {
     || sortOrder !== "asc";
   const firstResult = query.total === 0 ? 0 : query.page * query.limit + 1;
   const lastResult = Math.min(query.total, (query.page + 1) * query.limit);
+  const railItems: OperationalStatusRailItem[] = query.summary.empty > 0 ? [{
+    id: "empty-kits",
+    label: "Empty",
+    value: query.summary.empty,
+    detail: "Kits that need contents before they can be used.",
+    icon: AlertTriangleIcon,
+    tone: "warning",
+  }] : [];
 
   if (query.loading) {
     return <KitsLoadingState />;
@@ -297,34 +307,23 @@ export default function KitsPage() {
         </Button>
       </PageHeader>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <OperationalMetricCard
-          label="Matching kits"
-          value={query.summary.total}
-          helper={hasResultFilters ? "Current filters" : "Visible by default"}
-          className="bg-muted/30"
-        />
-        <OperationalMetricCard
-          label="Active"
-          value={query.summary.active}
-          helper="Available to checkout flows"
-          tone="green"
-          className="bg-muted/30"
-        />
-        <OperationalMetricCard
-          label="Archived"
-          value={query.summary.archived}
-          helper={includeArchived ? "Included in this view" : "Hidden until shown"}
-          className="bg-muted/30"
-        />
-        <OperationalMetricCard
-          label="Empty"
-          value={query.summary.empty}
-          helper="Needs contents before use"
-          tone={query.summary.empty ? "orange" : "muted"}
-          className="bg-muted/30"
-        />
-      </div>
+      <OperationalStatusRail
+        orientation={{
+          label: "Active kits",
+          value: `${query.summary.active}`,
+          icon: BoxIcon,
+        }}
+        items={railItems}
+        allClearLabel={railItems.length === 0 ? "All active kits have contents" : undefined}
+        details={(
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            <OperationalMetricCard label="Matching kits" value={query.summary.total} helper={hasResultFilters ? "Current filters" : "Visible by default"} />
+            <OperationalMetricCard label="Active" value={query.summary.active} helper="Available to checkout flows" tone="green" />
+            <OperationalMetricCard label="Archived" value={query.summary.archived} helper={includeArchived ? "Included in this view" : "Hidden until shown"} onClick={() => setIncludeArchived(true)} ariaPressed={includeArchived} />
+            <OperationalMetricCard label="Empty" value={query.summary.empty} helper="Needs contents before use" tone={query.summary.empty ? "orange" : "muted"} />
+          </div>
+        )}
+      />
 
       <Card className="mt-4">
         <CardContent className="grid gap-3 p-4 md:grid-cols-[minmax(260px,1fr)_220px_auto_auto] md:items-center">

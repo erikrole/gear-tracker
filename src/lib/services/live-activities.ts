@@ -289,6 +289,103 @@ export async function startDueCheckoutReturnLiveActivities(args: {
   };
 }
 
+export async function startCheckoutReturnLiveActivityForBooking(args: {
+  bookingId: string;
+  expectedEndsAt: Date;
+  now?: Date;
+}) {
+  const now = args.now ?? new Date();
+  const booking = await db.booking.findFirst({
+    where: {
+      id: args.bookingId,
+      kind: BookingKind.CHECKOUT,
+      status: BookingStatus.OPEN,
+      endsAt: args.expectedEndsAt,
+      liveActivityTokens: {
+        none: { activity: CHECKOUT_RETURN_ACTIVITY, endedAt: null },
+      },
+      liveActivityStarts: {
+        none: { activity: CHECKOUT_RETURN_ACTIVITY, endedAt: null },
+      },
+      requester: {
+        liveActivityStartTokens: {
+          some: { activity: CHECKOUT_RETURN_ACTIVITY, revokedAt: null },
+        },
+      },
+    },
+    select: {
+      id: true,
+      title: true,
+      endsAt: true,
+      requesterUserId: true,
+      requester: {
+        select: {
+          name: true,
+          avatarUrl: true,
+          liveActivityStartTokens: {
+            where: { activity: CHECKOUT_RETURN_ACTIVITY, revokedAt: null },
+            select: { token: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (!booking) return { started: 0, revoked: 0, skipped: true };
+
+  const tokens = booking.requester.liveActivityStartTokens.map((row) => row.token);
+  const result = await startCheckoutReturnLiveActivityTokens(
+    tokens,
+    {
+      bookingId: booking.id,
+      bookingTitle: booking.title,
+      requesterName: booking.requester.name,
+      requesterInitials: initialsFor(booking.requester.name),
+      requesterAvatarUrl: booking.requester.avatarUrl,
+      returnTimeText: returnTimeText(booking.endsAt),
+    },
+    {
+      endsAt: booking.endsAt,
+      nextNeedAt: null,
+      allowsExtend: true,
+      urgency: urgencyFor(booking.endsAt, now),
+    },
+  );
+
+  if (result.revoked.length > 0) {
+    await db.liveActivityStartToken.updateMany({
+      where: { token: { in: result.revoked } },
+      data: { revokedAt: now },
+    });
+  }
+
+  if (result.ok > 0) {
+    await db.liveActivityStart.upsert({
+      where: {
+        userId_bookingId_activity: {
+          userId: booking.requesterUserId,
+          bookingId: booking.id,
+          activity: CHECKOUT_RETURN_ACTIVITY,
+        },
+      },
+      update: { lastAttemptAt: now, endedAt: null },
+      create: {
+        userId: booking.requesterUserId,
+        bookingId: booking.id,
+        activity: CHECKOUT_RETURN_ACTIVITY,
+        startedAt: now,
+        lastAttemptAt: now,
+      },
+    });
+  }
+
+  return {
+    started: result.ok,
+    revoked: result.revoked.length,
+    skipped: false,
+  };
+}
+
 export async function sweepOverdueCheckoutReturnLiveActivities(args: {
   now?: Date;
   windowMs?: number;

@@ -532,3 +532,7 @@ Systematic audit of every endpoint in `APIClient.swift`/`SearchService.swift` ag
 
 - **Audit summaries must name the operational object.** A generic event label such as `Added an item` or `Returned gear` is not useful in a custody history. When a mutation already has an asset name/tag or numbered-unit identity in memory, persist a compact display name in the audit payload and render it in the shared timeline; retain a generic fallback only for legacy rows that cannot be reconstructed safely.
 - **Prefer operational scan identity over catalog naming in custody history.** `FX3 1` is more useful than `FX3 Camera (FX3 1)` in a kiosk audit row. Pair the scanned tag or numbered-unit label with the recorded kiosk device name, rather than hardcoding a location phrase or leading with a generic product model.
+
+## Session 2026-07-10 (Items metric-card height correction)
+
+- **Equal-height grids need the interactive wrapper and inner card to fill the row.** A grid can stretch a wrapping `button` or `a` while its nested card remains content-height, making cards with two-line helper copy start higher than their neighbors. Shared metric cards must apply `h-full` to both the wrapper and the card so the tallest grid item establishes one consistent row height.

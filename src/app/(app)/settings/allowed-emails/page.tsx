@@ -7,6 +7,7 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import EmptyState from "@/components/EmptyState";
 import OnboardingDialog from "@/components/onboarding/OnboardingDialog";
 import { OperationalMetricCard } from "@/components/OperationalFeedback";
+import { OperationalStatusRail, type OperationalStatusRailItem } from "@/components/OperationalStatusRail";
 import { OperationalRowActions } from "@/components/OperationalRowActions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -95,6 +96,15 @@ export default function AllowedEmailsPage() {
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const railItems: OperationalStatusRailItem[] = totalPending > 0 ? [{
+    id: "pending",
+    label: "Pending",
+    value: totalPending,
+    detail: "Allowlist entries waiting for registration.",
+    icon: UserPlus,
+    tone: "info",
+    onSelect: () => setStatusFilter("unclaimed"),
+  }] : [];
 
   async function handleDelete(item: AllowedEmail) {
     const ok = await confirm({
@@ -171,11 +181,22 @@ export default function AllowedEmailsPage() {
   return (
     <SettingsPageShell title="Allowed Emails" description={description} mainClassName="space-y-4">
         {/* Onboarding overview */}
-        <div className="grid gap-2 sm:grid-cols-3">
-          <OperationalMetricCard label="Total" value={totalAll} helper="on the allowlist" />
-          <OperationalMetricCard label="Pending" value={totalPending} tone={totalPending ? "blue" : "muted"} helper="awaiting sign-up" />
-          <OperationalMetricCard label="Claimed" value={totalClaimed} helper="registered" />
-        </div>
+        <OperationalStatusRail
+          orientation={{
+            label: "Allowlist",
+            value: `${totalAll} ${totalAll === 1 ? "entry" : "entries"}`,
+            icon: ClipboardList,
+          }}
+          items={railItems}
+          allClearLabel={railItems.length === 0 ? "All allowlist entries are claimed" : undefined}
+          details={(
+            <div className="grid gap-2 sm:grid-cols-3">
+              <OperationalMetricCard label="Total" value={totalAll} helper="on the allowlist" onClick={() => setStatusFilter("all")} ariaPressed={statusFilter === "all"} />
+              <OperationalMetricCard label="Pending" value={totalPending} tone={totalPending ? "blue" : "muted"} helper="awaiting sign-up" onClick={() => setStatusFilter("unclaimed")} ariaPressed={statusFilter === "unclaimed"} />
+              <OperationalMetricCard label="Claimed" value={totalClaimed} helper="registered" onClick={() => setStatusFilter("claimed")} ariaPressed={statusFilter === "claimed"} />
+            </div>
+          )}
+        />
 
         {/* Controls row */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

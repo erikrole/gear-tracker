@@ -10,6 +10,8 @@ import { CLAIMABLE_BULK_UNIT_WHERE } from "@/lib/bulk-unit-status";
 import { checkAvailability } from "@/lib/services/availability";
 import { upsertBulkBalancesAndMovements } from "@/lib/services/bookings-helpers";
 import { BookingKind, BulkMovementKind, BulkUnitStatus, Prisma } from "@prisma/client";
+import { scheduleCheckoutReturnLiveActivity } from "@/lib/live-activity-workflow";
+import { updateCheckoutReturnLiveActivities } from "@/lib/services/live-activities";
 
 function hasBlockingAvailabilityIssue(result: Awaited<ReturnType<typeof checkAvailability>>) {
   return result.conflicts.length > 0 || result.shortages.length > 0 || result.unavailableAssets.length > 0;
@@ -349,6 +351,11 @@ export const PATCH = withKiosk<{ id: string }>(async (req, { kiosk, params }) =>
 
     return next;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+  if (requestedEndsAt) {
+    await updateCheckoutReturnLiveActivities({ bookingId: updated.id, endsAt: updated.endsAt });
+    await scheduleCheckoutReturnLiveActivity({ bookingId: updated.id, endsAt: updated.endsAt });
+  }
 
   return ok({ success: true, booking: updated });
 });

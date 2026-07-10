@@ -29,6 +29,7 @@ import {
   endCheckoutReturnLiveActivities,
   updateCheckoutReturnLiveActivities,
 } from "./live-activities";
+import { scheduleCheckoutReturnLiveActivity } from "@/lib/live-activity-workflow";
 
 type CreateBookingInput = {
   kind: BookingKind;
@@ -209,7 +210,7 @@ export async function createBooking(input: CreateBookingInput) {
   }
 
   try {
-    return await db.$transaction(
+    const booking = await db.$transaction(
     async (tx) => {
       // A missing requester would otherwise surface as an FK 500; an inactive
       // one would silently hold gear they can no longer account for.
@@ -520,7 +521,13 @@ export async function createBooking(input: CreateBookingInput) {
       });
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
-  );
+    );
+
+    if (booking.kind === BookingKind.CHECKOUT && booking.status === BookingStatus.OPEN) {
+      await scheduleCheckoutReturnLiveActivity({ bookingId: booking.id, endsAt: booking.endsAt });
+    }
+
+    return booking;
   } catch (error) {
     handleBookingMutationRace(error);
   }
@@ -1126,6 +1133,7 @@ export async function updateCheckout(
       bookingId,
       endsAt: updated.endsAt,
     });
+    await scheduleCheckoutReturnLiveActivity({ bookingId, endsAt: updated.endsAt });
   }
 
   return updated;
@@ -1319,6 +1327,7 @@ export async function extendBooking(
       bookingId,
       endsAt: updated.endsAt,
     });
+    await scheduleCheckoutReturnLiveActivity({ bookingId, endsAt: updated.endsAt });
   }
 
   return updated;

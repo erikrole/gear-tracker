@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import EmptyState from "@/components/EmptyState";
 import { OperationalMetricCard, OperationalPartialResultsAlert } from "@/components/OperationalFeedback";
+import { OperationalStatusRail, type OperationalStatusRailItem } from "@/components/OperationalStatusRail";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -238,6 +239,34 @@ export default function InventoryHygienePage() {
         partialFailureCount: partialFailures.length,
       })
     : null;
+  const railItems: OperationalStatusRailItem[] = data ? [
+    ...(data.totals.openIssues > 0 ? [{
+      id: "open-records",
+      label: "Open records",
+      value: data.totals.openIssues,
+      detail: "Inventory records waiting for cleanup.",
+      icon: Wrench,
+      tone: "warning" as const,
+      onSelect: () => setViewMode("needs-work"),
+    }] : []),
+    ...(data.totals.checksNeedingWork > 0 ? [{
+      id: "checks-needing-work",
+      label: "Checks needing work",
+      value: data.totals.checksNeedingWork,
+      detail: "Checklist areas with one or more open records.",
+      icon: AlertTriangle,
+      tone: "warning" as const,
+      onSelect: () => setViewMode("needs-work"),
+    }] : []),
+    ...(partialFailures.length > 0 ? [{
+      id: "partial-data",
+      label: "Partial data",
+      value: partialFailures.length,
+      detail: "Some checks used fallback data. Refresh before treating the queue as complete.",
+      icon: CircleAlert,
+      tone: "warning" as const,
+    }] : []),
+  ] : [];
 
   if (loading && !data) {
     return <InventoryHygieneSkeleton />;
@@ -281,12 +310,23 @@ export default function InventoryHygienePage() {
 
       {data && (
         <>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <OperationalMetricCard label="Open records" value={data.totals.openIssues} tone={data.totals.openIssues ? "orange" : "green"} />
-            <OperationalMetricCard label="Checks needing work" value={data.totals.checksNeedingWork} tone={data.totals.checksNeedingWork ? "orange" : "green"} />
-            <OperationalMetricCard label="Clean checks" value={cleanChecks} tone="green" />
-            <OperationalMetricCard label="Checks running" value={data.totals.activeChecks} tone="muted" />
-          </div>
+          <OperationalStatusRail
+            orientation={{
+              label: "Checks running",
+              value: `${data.totals.activeChecks}`,
+              icon: ListChecks,
+            }}
+            items={railItems}
+            allClearLabel={railItems.length === 0 ? "Inventory hygiene is clean" : undefined}
+            details={(
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                <OperationalMetricCard label="Open records" value={data.totals.openIssues} tone={data.totals.openIssues ? "orange" : "green"} />
+                <OperationalMetricCard label="Checks needing work" value={data.totals.checksNeedingWork} tone={data.totals.checksNeedingWork ? "orange" : "green"} />
+                <OperationalMetricCard label="Clean checks" value={cleanChecks} tone="green" />
+                <OperationalMetricCard label="Checks running" value={data.totals.activeChecks} tone="muted" />
+              </div>
+            )}
+          />
 
           <OperationalPartialResultsAlert failures={partialFailures} title="Some checks used fallback data" />
 

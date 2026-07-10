@@ -793,6 +793,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 4. ~~Student mobile KPI definitions~~ — resolved (PD-5): taps-to-checkout ≤3, scan success ≥95%, task completion <30s. Telemetry deferred to Phase B.
 
 ## Change Log
+- 2026-07-10: Amended D-026 for checkout return Live Activities. Their 30-minute remote start is now event-driven through a durable workflow scheduled when custody opens or its return time changes, so it no longer depends on a sub-daily cron. The protected sweep remains a manual repair path.
 - 2026-07-10: Amended D-040 so active-checkout editing requires an identified student context; idle dashboard detail remains read-only rather than fabricating requester attribution for an anonymous operator tap.
 - 2026-06-25: Amended D-028 and D-040 for admin close-without-scan. Kiosk remains the standard custody return surface, while admins can close a physically verified returned checkout through a reasoned override with audit and override evidence.
 - 2026-07-03: Amended D-026 for current Vercel Hobby cron limits. Hobby deploys require daily-or-slower cron expressions, so sub-daily Live Activity sweeps stay unscheduled unless the project moves to Pro or an external scheduler.

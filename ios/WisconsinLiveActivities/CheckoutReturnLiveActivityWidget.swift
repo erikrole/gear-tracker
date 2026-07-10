@@ -2,13 +2,11 @@ import ActivityKit
 import SwiftUI
 import WidgetKit
 
-extension Color {
-    /// Brand green status tone (dark-mode value from `Brand.swift`'s
-    /// `StatusTone.green`), duplicated here since the widget extension
-    /// target doesn't compile that app-only file. The Live Activity card
-    /// always renders as a dark surface regardless of system appearance, so
-    /// the dark-mode value is the correct one to match here.
-    static let brandStatusGreen = Color(red: 0.32, green: 0.85, blue: 0.45)
+private extension Color {
+    static let liveActivityGreen = Color(red: 0.32, green: 0.85, blue: 0.45)
+    static let liveActivityAmber = Color(red: 1.0, green: 0.66, blue: 0.18)
+    static let liveActivityRed = Color(red: 1.0, green: 0.27, blue: 0.23)
+    static let liveActivitySurface = Color(red: 0.055, green: 0.055, blue: 0.065)
 }
 
 @main
@@ -22,296 +20,230 @@ struct CheckoutReturnLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: CheckoutReturnActivityAttributes.self) { context in
             TimelineView(.periodic(from: .now, by: 60)) { timeline in
-                CheckoutReturnCard(context: context, showsSeconds: false, now: timeline.date)
-                    .activityBackgroundTint(.clear)
+                CheckoutReturnLockScreen(context: context, now: timeline.date)
+                    .activityBackgroundTint(.liveActivitySurface)
                     .activitySystemActionForegroundColor(.white)
-                    .widgetURL(deepLink(for: context))
+                    .widgetURL(bookingDeepLink(for: context))
             }
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    requester(context)
+                    Label {
+                        Text(context.attributes.bookingTitle)
+                            .font(.caption.weight(.semibold))
+                            .lineLimit(1)
+                    } icon: {
+                        Image(systemName: "shippingbox.fill")
+                            .foregroundStyle(accentColor(for: context.state.urgency(at: .now)))
+                    }
                 }
+
                 DynamicIslandExpandedRegion(.trailing) {
-                    returnTime(context)
+                    Text(context.state.endsAt, style: .time)
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
                 }
+
                 DynamicIslandExpandedRegion(.bottom) {
-                    TimelineView(.periodic(from: .now, by: 1)) { timeline in
-                        CheckoutReturnCard(context: context, showsSeconds: true, now: timeline.date)
-                            .widgetURL(deepLink(for: context))
+                    TimelineView(.periodic(from: .now, by: 60)) { timeline in
+                        ExpandedReturnStatus(context: context, now: timeline.date)
                     }
                 }
             } compactLeading: {
                 TimelineView(.periodic(from: .now, by: 60)) { timeline in
-                    if context.state.urgency(at: timeline.date) == .returned {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(.white)
-                    } else {
-                        Text(context.state.minuteLabel(at: timeline.date))
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(.white)
-                    }
+                    Image(systemName: statusIcon(for: context.state.urgency(at: timeline.date)))
+                        .foregroundStyle(accentColor(for: context.state.urgency(at: timeline.date)))
                 }
             } compactTrailing: {
-                Text(context.attributes.requesterInitials)
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.white)
+                TimelineView(.periodic(from: .now, by: 60)) { timeline in
+                    Text(compactLabel(for: context.state, at: timeline.date))
+                        .font(.caption2.weight(.bold).monospacedDigit())
+                        .foregroundStyle(accentColor(for: context.state.urgency(at: timeline.date)))
+                }
             } minimal: {
                 TimelineView(.periodic(from: .now, by: 60)) { timeline in
-                    Image(systemName: minimalIconName(context: context, at: timeline.date))
-                        .foregroundStyle(.white)
+                    Image(systemName: statusIcon(for: context.state.urgency(at: timeline.date)))
+                        .foregroundStyle(accentColor(for: context.state.urgency(at: timeline.date)))
                 }
             }
-            .widgetURL(deepLink(for: context))
+            .widgetURL(bookingDeepLink(for: context))
         }
     }
 
-    private func minimalIconName(
-        context: ActivityViewContext<CheckoutReturnActivityAttributes>,
-        at date: Date
-    ) -> String {
-        if context.state.urgency(at: date) == .returned { return "checkmark.circle.fill" }
-        return context.state.isOverdue(at: date) ? "exclamationmark.circle.fill" : "clock.fill"
-    }
-
-    private func deepLink(for context: ActivityViewContext<CheckoutReturnActivityAttributes>) -> URL? {
+    private func bookingDeepLink(for context: ActivityViewContext<CheckoutReturnActivityAttributes>) -> URL? {
         var components = URLComponents()
         components.scheme = "wisconsin"
         components.host = "booking"
         components.path = "/\(context.attributes.bookingId)"
-        if context.state.allowsExtend {
-            components.queryItems = [URLQueryItem(name: "action", value: "extend")]
-        }
         return components.url
     }
 
-    private func requester(_ context: ActivityViewContext<CheckoutReturnActivityAttributes>) -> some View {
-        HStack(spacing: 6) {
-            LiveActivityAvatar(
-                initials: context.attributes.requesterInitials,
-                avatarUrl: context.attributes.requesterAvatarUrl,
-                size: 24
-            )
-            Text(context.attributes.requesterName)
-                .font(.caption.weight(.semibold))
-                .lineLimit(1)
+    private func statusIcon(
+        for urgency: CheckoutReturnActivityAttributes.ContentState.Urgency
+    ) -> String {
+        switch urgency {
+        case .returned: "checkmark.circle.fill"
+        case .overdue: "exclamationmark.circle.fill"
+        case .critical: "clock.badge.exclamationmark.fill"
+        case .warning, .normal: "clock.fill"
         }
     }
 
-    private func returnTime(_ context: ActivityViewContext<CheckoutReturnActivityAttributes>) -> some View {
-        Text(context.attributes.returnTimeText)
-            .font(.caption.monospacedDigit())
-            .foregroundStyle(.white.opacity(0.82))
+    private func compactLabel(
+        for state: CheckoutReturnActivityAttributes.ContentState,
+        at date: Date
+    ) -> String {
+        state.urgency(at: date) == .returned ? "Done" : state.minuteLabel(at: date)
+    }
+
+    private func accentColor(
+        for urgency: CheckoutReturnActivityAttributes.ContentState.Urgency
+    ) -> Color {
+        switch urgency {
+        case .normal: .white
+        case .warning: .liveActivityAmber
+        case .critical, .overdue: .liveActivityRed
+        case .returned: .liveActivityGreen
+        }
     }
 }
 
-private struct CheckoutReturnCard: View {
+private struct CheckoutReturnLockScreen: View {
     let context: ActivityViewContext<CheckoutReturnActivityAttributes>
-    let showsSeconds: Bool
     let now: Date
 
+    private var urgency: CheckoutReturnActivityAttributes.ContentState.Urgency {
+        context.state.urgency(at: now)
+    }
+
     var body: some View {
-        Group {
-            if context.state.urgency(at: now) == .returned {
-                returnedContent
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Label {
+                    Text(urgency == .returned ? "Returned" : "Gear return")
+                        .font(.caption.weight(.semibold))
+                } icon: {
+                    Image(systemName: urgency == .returned ? "checkmark.circle.fill" : "shippingbox.fill")
+                }
+                .foregroundStyle(accentColor)
+
+                Spacer(minLength: 8)
+
+                if urgency != .returned {
+                    Text("Due \(context.state.endsAt, style: .time)")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Text(context.attributes.bookingTitle)
+                .font(.headline.weight(.semibold))
+                .lineLimit(2)
+
+            if urgency == .returned {
+                Text("Everything is checked in.")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Color.liveActivityGreen)
             } else {
-                activeContent
+                HStack(alignment: .lastTextBaseline, spacing: 10) {
+                    Text(context.state.minuteLabel(at: now))
+                        .font(.system(.title, design: .rounded, weight: .bold).monospacedDigit())
+                        .foregroundStyle(accentColor)
+                        .contentTransition(.numericText())
+
+                    Spacer(minLength: 8)
+
+                    if let nextNeedAt = context.state.nextNeedAt {
+                        Label {
+                            Text("Needed again \(nextNeedAt, style: .time)")
+                        } icon: {
+                            Image(systemName: "arrow.forward.circle.fill")
+                        }
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    }
+                }
             }
         }
-        .padding(16)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .foregroundStyle(.white)
-        .background(background)
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
     }
 
-    private var activeContent: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 10) {
-                LiveActivityAvatar(
-                    initials: context.attributes.requesterInitials,
-                    avatarUrl: context.attributes.requesterAvatarUrl,
-                    size: 34
-                )
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(context.attributes.bookingTitle)
-                        .font(.headline.weight(.semibold))
-                        .lineLimit(1)
-                    Text(context.attributes.requesterName)
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.72))
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 6)
-                Text(context.attributes.returnTimeText)
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.white.opacity(0.78))
-            }
-
-            HStack(alignment: .lastTextBaseline) {
-                countdown
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-                Spacer(minLength: 8)
-                if let nextNeedAt = context.state.nextNeedAt {
-                    Text("Needed next \(nextNeedAt, style: .time)")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(.white.opacity(0.76))
-                        .lineLimit(1)
-                }
-            }
+    private var accentColor: Color {
+        switch urgency {
+        case .normal: .white
+        case .warning: .liveActivityAmber
+        case .critical, .overdue: .liveActivityRed
+        case .returned: .liveActivityGreen
         }
     }
 
-    private var returnedContent: some View {
-        HStack(alignment: .center, spacing: 12) {
-            LiveActivityAvatar(
-                initials: context.attributes.requesterInitials,
-                avatarUrl: context.attributes.requesterAvatarUrl,
-                size: 34
-            )
-            VStack(alignment: .leading, spacing: 2) {
-                Text(context.attributes.bookingTitle)
-                    .font(.headline.weight(.semibold))
-                    .lineLimit(1)
-                Text(context.attributes.requesterName)
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.72))
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 8)
-            HStack(spacing: 6) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.title3.weight(.semibold))
-                Text("Returned")
-                    .font(.headline.weight(.semibold))
-            }
-            .foregroundStyle(Color.brandStatusGreen)
-        }
-    }
-
-    @ViewBuilder
-    private var countdown: some View {
-        if showsSeconds {
-            Text(
-                timerInterval: timerRange,
-                countsDown: !context.state.isOverdue(at: now),
-                showsHours: false
-            )
-                 .font(.system(size: 40, weight: .bold, design: .rounded).monospacedDigit())
-        } else {
-            minuteOnlyCountdown
-                .font(.system(size: 36, weight: .bold, design: .rounded).monospacedDigit())
-        }
-    }
-
-    private var minuteOnlyCountdown: Text {
-        Text(context.state.minuteLabel(at: now))
-    }
-
-    private var timerRange: ClosedRange<Date> {
-        context.state.isOverdue(at: now)
-            ? context.state.endsAt...now
-            : now...context.state.endsAt
-    }
-
-    /// Continuous piecewise-linear red ramp, anchored to preserve the previous
-    /// 4-step look at each boundary: >=60min -> 0.30, 30min -> 0.54,
-    /// 10min -> 0.76, 0min -> 0.92, capped at 0.92 while overdue. Card
-    /// re-renders every 60s (lock screen) / 1s (Dynamic Island expanded) via
-    /// `TimelineView`, so the ramp advances smoothly with no extra pushes.
-    private static func redOpacity(remainingMinutes: Double) -> Double {
-        let anchors: [(minutes: Double, opacity: Double)] = [
-            (0, 0.92),
-            (10, 0.76),
-            (30, 0.54),
-            (60, 0.30),
-        ]
-
-        if remainingMinutes <= anchors[0].minutes { return anchors[0].opacity }
-        if remainingMinutes >= anchors.last!.minutes { return anchors.last!.opacity }
-
-        for (lower, upper) in zip(anchors, anchors.dropFirst()) {
-            guard remainingMinutes >= lower.minutes, remainingMinutes <= upper.minutes else { continue }
-            let span = upper.minutes - lower.minutes
-            let progress = (remainingMinutes - lower.minutes) / span
-            return lower.opacity + (upper.opacity - lower.opacity) * progress
-        }
-
-        return anchors[0].opacity
-    }
-
-    private var background: some View {
-        let urgency = context.state.urgency(at: now)
-
+    private var accessibilityLabel: String {
         if urgency == .returned {
-            return AnyView(ZStack {
-                LinearGradient(
-                    colors: [Color.black, Color.brandStatusGreen.opacity(0.42)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(Color.white.opacity(0.10), lineWidth: 1)
-            })
+            return "\(context.attributes.bookingTitle), returned. Everything is checked in."
         }
-
-        let remainingMinutes = context.state.endsAt.timeIntervalSince(now) / 60
-        let redOpacity = Self.redOpacity(remainingMinutes: remainingMinutes)
-
-        return AnyView(ZStack {
-            LinearGradient(
-                colors: [
-                    Color.black,
-                    Color(red: 0.18, green: 0.0, blue: 0.02).opacity(redOpacity),
-                    Color(red: 0.48, green: 0.0, blue: 0.04).opacity(redOpacity),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(Color.white.opacity(0.10), lineWidth: 1)
-        })
+        var parts = [
+            context.attributes.bookingTitle,
+            context.state.minuteLabel(at: now),
+            "due at \(context.state.endsAt.formatted(date: .omitted, time: .shortened))",
+        ]
+        if let nextNeedAt = context.state.nextNeedAt {
+            parts.append("needed again at \(nextNeedAt.formatted(date: .omitted, time: .shortened))")
+        }
+        return parts.joined(separator: ", ")
     }
 }
 
-private struct LiveActivityAvatar: View {
-    let initials: String
-    let avatarUrl: String?
-    let size: CGFloat
+private struct ExpandedReturnStatus: View {
+    let context: ActivityViewContext<CheckoutReturnActivityAttributes>
+    let now: Date
 
-    var body: some View {
-        if let avatarUrl, let url = URL(string: avatarUrl) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: size, height: size)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 1))
-                default:
-                    fallback
-                }
-            }
-            .frame(width: size, height: size)
-        } else {
-            fallback
-        }
+    private var urgency: CheckoutReturnActivityAttributes.ContentState.Urgency {
+        context.state.urgency(at: now)
     }
 
-    private var fallback: some View {
-        Text(initials)
-            .font(.system(size: size * 0.34, weight: .bold, design: .rounded))
-            .foregroundStyle(.white)
-            .frame(width: size, height: size)
-            .background(
-                Circle()
-                    .fill(Color.white.opacity(0.16))
-                    .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 1))
-            )
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            if urgency == .returned {
+                Label("Everything checked in", systemImage: "checkmark.circle.fill")
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(Color.liveActivityGreen)
+            } else {
+                Text(context.state.minuteLabel(at: now))
+                    .font(.title2.bold().monospacedDigit())
+                    .foregroundStyle(accentColor)
+                    .contentTransition(.numericText())
+
+                Spacer(minLength: 8)
+
+                if let nextNeedAt = context.state.nextNeedAt {
+                    Text("Needed again \(nextNeedAt, style: .time)")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                } else {
+                    Text("Return by \(context.state.endsAt, style: .time)")
+                        .font(.caption.weight(.medium).monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var accentColor: Color {
+        switch urgency {
+        case .normal: .primary
+        case .warning: .liveActivityAmber
+        case .critical, .overdue: .liveActivityRed
+        case .returned: .liveActivityGreen
+        }
     }
 }
 
@@ -330,12 +262,13 @@ private func previewAttributes() -> CheckoutReturnActivityAttributes {
 
 private func previewState(
     urgency: CheckoutReturnActivityAttributes.ContentState.Urgency,
-    endsAtOffset: TimeInterval
+    endsAtOffset: TimeInterval,
+    nextNeedAtOffset: TimeInterval? = nil
 ) -> CheckoutReturnActivityAttributes.ContentState {
     CheckoutReturnActivityAttributes.ContentState(
         endsAt: Date().addingTimeInterval(endsAtOffset),
         now: Date(),
-        nextNeedAt: nil,
+        nextNeedAt: nextNeedAtOffset.map { Date().addingTimeInterval($0) },
         allowsExtend: urgency != .overdue && urgency != .returned,
         urgency: urgency
     )
@@ -350,7 +283,7 @@ private func previewState(
 #Preview("Warning", as: .content, using: CheckoutReturnActivityAttributes.preview) {
     CheckoutReturnLiveActivityWidget()
 } contentStates: {
-    previewState(urgency: .warning, endsAtOffset: 20 * 60)
+    previewState(urgency: .warning, endsAtOffset: 20 * 60, nextNeedAtOffset: 45 * 60)
 }
 
 #Preview("Critical", as: .content, using: CheckoutReturnActivityAttributes.preview) {

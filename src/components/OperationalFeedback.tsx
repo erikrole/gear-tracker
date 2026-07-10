@@ -54,7 +54,7 @@ export function OperationalMetricCard({
   const card = (
     <Card
       className={cn(
-        "min-h-[104px] border-border/40 shadow-none",
+        "h-full min-h-[104px] border-border/40 shadow-none",
         (href || onClick) && "cursor-pointer transition-[background-color,box-shadow,scale] hover:bg-muted/50 hover:shadow-xs active:scale-[0.99]",
         ariaPressed && "border-primary/40 bg-primary/5 shadow-[inset_3px_0_0_hsl(var(--primary))]",
         className,
@@ -78,7 +78,7 @@ export function OperationalMetricCard({
   );
 
   const wrapped = href ? (
-    <Link href={href} className="block min-h-10 rounded-md no-underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
+    <Link href={href} className="block h-full min-h-10 rounded-md no-underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
       {card}
     </Link>
   ) : onClick ? (
@@ -86,7 +86,7 @@ export function OperationalMetricCard({
       type="button"
       onClick={onClick}
       aria-pressed={ariaPressed}
-      className="block w-full min-h-10 rounded-md text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+      className="block h-full min-h-10 w-full rounded-md text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
     >
       {card}
     </button>

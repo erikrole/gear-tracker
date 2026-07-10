@@ -6,10 +6,12 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 const BookingDetailsSheet = lazy(() => import("@/components/BookingDetailsSheet"));
 import EmptyState from "@/components/EmptyState";
+import { OperationalMetricCard } from "@/components/OperationalFeedback";
+import { OperationalStatusRail, type OperationalStatusRailItem } from "@/components/OperationalStatusRail";
 import { PageHeader } from "@/components/PageHeader";
 import { Progress } from "@/components/ui/progress";
 import StatusIndicator from "@/components/ui/status-indicator";
-import { PlusIcon, RefreshCwIcon } from "lucide-react";
+import { AlertTriangleIcon, CalendarClockIcon, PackageIcon, PackageOpenIcon, PlusIcon, RefreshCwIcon } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
@@ -20,13 +22,12 @@ import { useBookingChangeSync } from "@/hooks/use-booking-change-sync";
 import { useDashboardFilters } from "@/hooks/use-dashboard-filters";
 import { DashboardSkeleton } from "./dashboard/dashboard-skeleton";
 import { FilterChips } from "./dashboard/filter-chips";
-import { StatCard } from "./dashboard/stat-card";
 import { OverdueBanner } from "./dashboard/overdue-banner";
 import { FlaggedItemsBanner } from "./dashboard/flagged-items-banner";
 import { LostBulkUnitsCard } from "./dashboard/lost-bulk-units-card";
 import { MyGearColumn } from "./dashboard/my-gear-column";
 import { TeamActivityColumn } from "./dashboard/team-activity-column";
-import { PageTransition, StaggerList, StaggerItem } from "@/components/ui/motion";
+import { PageTransition } from "@/components/ui/motion";
 import type { BookingSummary, CreateBookingContext } from "./dashboard-types";
 
 export default function DashboardPage() {
@@ -181,6 +182,44 @@ export default function DashboardPage() {
       data.flaggedItems.length === 0 && data.lostBulkUnits.length === 0
     : false;
   const isFirstRun = statsEmpty && (data ? dataEmpty : true);
+  const dashboardRailItems: OperationalStatusRailItem[] = stats ? [
+    ...(stats.overdue > 0 ? [{
+      id: "overdue",
+      label: "Overdue",
+      value: stats.overdue,
+      detail: "Checkouts already past their due time.",
+      icon: AlertTriangleIcon,
+      tone: "critical" as const,
+      href: "/checkouts?filter=overdue",
+    }] : []),
+    ...(stats.dueToday > 0 ? [{
+      id: "due-today",
+      label: "Due today",
+      value: stats.dueToday,
+      detail: "Open checkouts due back today.",
+      icon: CalendarClockIcon,
+      tone: "warning" as const,
+      href: "/bookings?tab=checkouts&filter=due-today",
+    }] : []),
+    ...(stats.checkedOut > 0 ? [{
+      id: "checked-out",
+      label: "Checked out",
+      value: stats.checkedOut,
+      detail: "Open checkouts in active custody.",
+      icon: PackageOpenIcon,
+      tone: "info" as const,
+      href: "/bookings?tab=checkouts&status=OPEN",
+    }] : []),
+    ...(stats.reserved > 0 ? [{
+      id: "reserved",
+      label: "Reserved",
+      value: stats.reserved,
+      detail: "Upcoming reservations waiting for pickup.",
+      icon: PackageIcon,
+      tone: "neutral" as const,
+      href: "/bookings?tab=reservations",
+    }] : []),
+  ] : [];
 
   return (
     <PageTransition>
@@ -230,14 +269,28 @@ export default function DashboardPage() {
         </div>
       </PageHeader>
 
-      {/* ══════ Stat Strip ══════ */}
+      {/* ══════ Operational Status ══════ */}
       {refreshing && <Progress className="h-0.5 mb-1" />}
-      {stats && <StaggerList className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-4">
-        <StaggerItem><StatCard href="/checkouts?filter=overdue" value={stats.overdue} label="Overdue" accent={stats.overdue > 0 ? "red" : undefined} /></StaggerItem>
-        <StaggerItem><StatCard href="/bookings?tab=checkouts&filter=due-today" value={stats.dueToday} label="Due today" accent={stats.dueToday > 0 ? "amber" : undefined} /></StaggerItem>
-        <StaggerItem><StatCard href="/bookings?tab=checkouts&status=OPEN" value={stats.checkedOut} label="Checked out" /></StaggerItem>
-        <StaggerItem><StatCard href="/bookings?tab=reservations" value={stats.reserved} label="Reserved" /></StaggerItem>
-      </StaggerList>}
+      {stats && (
+        <OperationalStatusRail
+          className="mb-4"
+          orientation={{
+            label: "Active bookings",
+            value: `${stats.checkedOut + stats.reserved}`,
+            icon: PackageIcon,
+          }}
+          items={dashboardRailItems}
+          allClearLabel={dashboardRailItems.length === 0 ? "No active booking work" : undefined}
+          details={(
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+              <OperationalMetricCard label="Overdue" value={stats.overdue} tone={stats.overdue > 0 ? "red" : "muted"} href="/checkouts?filter=overdue" />
+              <OperationalMetricCard label="Due today" value={stats.dueToday} tone={stats.dueToday > 0 ? "orange" : "muted"} href="/bookings?tab=checkouts&filter=due-today" />
+              <OperationalMetricCard label="Checked out" value={stats.checkedOut} tone="blue" href="/bookings?tab=checkouts&status=OPEN" />
+              <OperationalMetricCard label="Reserved" value={stats.reserved} tone="purple" href="/bookings?tab=reservations" />
+            </div>
+          )}
+        />
+      )}
 
       {/* ══════ Welcome Banner (first-run) ══════ */}
       {isFirstRun && (

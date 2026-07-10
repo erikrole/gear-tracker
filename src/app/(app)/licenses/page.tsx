@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { CalendarClock, KeyRound, Plus, RefreshCw, List, Download } from "lucide-react";
+import { AlertTriangle, CalendarClock, KeyRound, Plus, RefreshCw, List, Download } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { OperationalMetricCard } from "@/components/OperationalFeedback";
+import { OperationalStatusRail, type OperationalStatusRailItem } from "@/components/OperationalStatusRail";
 import { useFetch } from "@/hooks/use-fetch";
 import { formatRelativeTime } from "@/lib/format";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
@@ -29,57 +30,57 @@ function LicenseSummary({
   expiringCount,
   retiredCount,
   myLicense,
+  onRenew,
 }: {
   activeCodes: number;
   usedSlots: number;
   expiringCount: number;
   retiredCount: number;
   myLicense: boolean;
+  onRenew: () => void;
 }) {
   const totalSlots = activeCodes * MAX_SLOTS;
   const openSlots = Math.max(totalSlots - usedSlots, 0);
+  const railItems: OperationalStatusRailItem[] = [
+    ...(expiringCount > 0 ? [{
+      id: "expiring",
+      label: "Expiring soon",
+      value: expiringCount,
+      detail: "Active license codes expiring within 30 days.",
+      icon: CalendarClock,
+      tone: "warning" as const,
+      onSelect: onRenew,
+    }] : []),
+    ...(openSlots === 0 ? [{
+      id: "capacity",
+      label: "No open slots",
+      detail: "Every active Photo Mechanic license slot is in use.",
+      icon: AlertTriangle,
+      tone: "critical" as const,
+    }] : []),
+  ];
 
   return (
-    <div className="mb-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-      <OperationalMetricCard
-        label="Active codes"
-        value={activeCodes}
-        helper="Usable license codes"
-        className="bg-muted/30"
-      />
-      <OperationalMetricCard
-        label="Slots in use"
-        value={`${usedSlots}/${totalSlots}`}
-        helper="Two slots per code"
-        tone={usedSlots > 0 ? "blue" : "muted"}
-        className="bg-muted/30"
-      />
-      <OperationalMetricCard
-        label="Open slots"
-        value={openSlots}
-        helper="Claimable capacity"
-        tone={openSlots > 0 ? "green" : "muted"}
-        className="bg-muted/30"
-      />
-      <OperationalMetricCard
-        label="Expiring soon"
-        value={expiringCount}
-        helper="Within 30 days"
-        tone={expiringCount > 0 ? "orange" : "muted"}
-        className="bg-muted/30"
-      />
-      <OperationalMetricCard
-        label="Retired"
-        value={retiredCount}
-        helper="Hidden by default"
-        className="bg-muted/30"
-      />
-      {myLicense && (
-        <div className="px-1 text-xs text-muted-foreground sm:col-span-3 lg:col-span-5">
-          You hold one slot.
+    <OperationalStatusRail
+      className="mb-4"
+      orientation={{
+        label: "Open slots",
+        value: `${openSlots} of ${totalSlots}`,
+        icon: KeyRound,
+      }}
+      items={railItems}
+      allClearLabel={railItems.length === 0 ? "License capacity is healthy" : undefined}
+      notice={myLicense ? <p className="text-xs text-muted-foreground">You hold one slot.</p> : undefined}
+      details={(
+        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          <OperationalMetricCard label="Active codes" value={activeCodes} helper="Usable license codes" />
+          <OperationalMetricCard label="Slots in use" value={`${usedSlots}/${totalSlots}`} helper="Two slots per code" tone={usedSlots > 0 ? "blue" : "muted"} />
+          <OperationalMetricCard label="Open slots" value={openSlots} helper="Claimable capacity" tone={openSlots > 0 ? "green" : "muted"} />
+          <OperationalMetricCard label="Expiring soon" value={expiringCount} helper="Within 30 days" tone={expiringCount > 0 ? "orange" : "muted"} onClick={onRenew} />
+          <OperationalMetricCard label="Retired" value={retiredCount} helper="Hidden by default" />
         </div>
       )}
-    </div>
+    />
   );
 }
 
@@ -264,6 +265,7 @@ export default function LicensesPage() {
           expiringCount={expiringCount}
           retiredCount={retiredCount}
           myLicense={!!myLicense}
+          onRenew={() => setShowRenew(true)}
         />
       )}
 

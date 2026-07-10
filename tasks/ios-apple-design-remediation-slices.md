@@ -152,6 +152,18 @@ Close the full-audit blockers in small, independently mergeable slices while pre
 
 Keep the Directory fallback until reachability or usability evidence shows More is sufficient. This is not a launch blocker and should not be bundled into the accessibility or typography foundations.
 
+## Slice 14: Checkout Return Live Activity Restraint
+
+**Status:** COMPLETE. **Owner:** Mobile/Live Activities.
+
+- Replaced the nested lock-screen card and duplicated expanded-Island card with system-owned, surface-specific layouts.
+- Changed normal urgency to neutral, warning to amber, critical/overdue to red, and returned to green.
+- Removed requester photo/name/initials from lock-screen and Island presentation while preserving rollout-compatible attributes.
+- Standardized every surface on minute precision and removed the one-second Island timeline.
+- Changed the activity deep link to booking detail without automatically requesting Extend.
+- Preserved next-use context, push-to-start, remote updates, token lifecycle, and returned dismissal behavior.
+- Verified focused Live Activity source contracts and the Wisconsin simulator build including the widget extension.
+
 ## Full Verification Stack Per Shipped Slice
 
 - Focused Swift or source-contract tests for the changed behavior.
@@ -167,7 +179,7 @@ Keep the Directory fallback until reachability or usability evidence shows More 
 
 ## Review
 
-- Shipped: all source-level remediation slices, including kiosk scan atomicity, identified edit ownership, immediate session expiry recovery, fail-closed availability, resumable checkout context, accessibility semantics and announcements, scalable brand type, reduced-motion behavior, adaptive shift editing, Search presentation routing, assignment pagination, camera recovery, 44-point controls, guide/loading cleanup, and restrained surface depth.
+- Shipped: all source-level remediation slices, including kiosk scan atomicity, identified edit ownership, immediate session expiry recovery, fail-closed availability, resumable checkout context, accessibility semantics and announcements, scalable brand type, reduced-motion behavior, adaptive shift editing, Search presentation routing, assignment pagination, camera recovery, 44-point controls, guide/loading cleanup, restrained surface depth, and the simplified checkout-return Live Activity.
 - Verified: 46 iOS test files and 170 tests passed; `drift:ios`, `audit:ios:gaps`, `ios:project:check`, both Wisconsin simulator builds, `build:app`, `verify:docs`, and `git diff --check` passed.
 - Deferred proof: managed M2 iPad HID burst, camera permission, VoiceOver, AX5, Reduce Motion/Transparency/Contrast, rotation, and fresh-eye student/counter walkthrough.
 - Blocked: no source blocker. Physical-device and human signoff cannot be manufactured by automated builds.

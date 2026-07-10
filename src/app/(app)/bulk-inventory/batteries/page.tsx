@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BatteryCharging, CircleAlert, Download, ExternalLink, Plus, RefreshCw, SlidersHorizontal, Tag, Wrench } from "lucide-react";
+import { BatteryCharging, CircleAlert, Download, ExternalLink, PackageOpen, Plus, RefreshCw, SlidersHorizontal, Tag, TriangleAlert, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import EmptyState from "@/components/EmptyState";
 import { OperationalMetricCard } from "@/components/OperationalFeedback";
+import { OperationalStatusRail, type OperationalStatusRailItem } from "@/components/OperationalStatusRail";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -563,6 +564,41 @@ export default function BatteryCockpitPage() {
   }
 
   const totals = data?.totals;
+  const railItems: OperationalStatusRailItem[] = totals ? [
+    ...(totals.lost > 0 ? [{
+      id: "missing",
+      label: "Missing",
+      value: totals.lost,
+      detail: "Battery units marked missing.",
+      icon: TriangleAlert,
+      tone: "critical" as const,
+      href: "/reports/bulk-losses",
+    }] : []),
+    ...(totals.lowSkus > 0 ? [{
+      id: "low-families",
+      label: "Low families",
+      value: totals.lowSkus,
+      detail: "Battery families below their stock threshold.",
+      icon: CircleAlert,
+      tone: "warning" as const,
+    }] : []),
+    ...((data?.integrity.staleCheckedOutCount ?? 0) > 0 ? [{
+      id: "stale-flags",
+      label: "Stale flags",
+      value: data!.integrity.staleCheckedOutCount,
+      detail: "Stored checked-out flags without active allocations.",
+      icon: Wrench,
+      tone: "warning" as const,
+    }] : []),
+    ...(totals.checkedOut > 0 ? [{
+      id: "checked-out",
+      label: "Checked out",
+      value: totals.checkedOut,
+      detail: "Battery units currently in active custody.",
+      icon: PackageOpen,
+      tone: "info" as const,
+    }] : []),
+  ] : [];
 
   return (
     <div className="space-y-5">
@@ -574,13 +610,24 @@ export default function BatteryCockpitPage() {
       </PageHeader>
 
       {totals && (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <OperationalMetricCard label="Available" value={totals.available} tone="green" />
-          <OperationalMetricCard label="Checked out" value={totals.checkedOut} tone="blue" />
-          <OperationalMetricCard label="Missing" value={totals.lost} tone="red" />
-          <OperationalMetricCard label="Retired" value={totals.retired} tone="muted" />
-          <OperationalMetricCard label="Low families" value={totals.lowSkus} tone={totals.lowSkus ? "red" : "muted"} />
-        </div>
+        <OperationalStatusRail
+          orientation={{
+            label: "Tracked batteries",
+            value: `${totals.total}`,
+            icon: BatteryCharging,
+          }}
+          items={railItems}
+          allClearLabel={railItems.length === 0 ? "Battery inventory is ready" : undefined}
+          details={(
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
+              <OperationalMetricCard label="Available" value={totals.available} tone="green" />
+              <OperationalMetricCard label="Checked out" value={totals.checkedOut} tone="blue" />
+              <OperationalMetricCard label="Missing" value={totals.lost} tone="red" />
+              <OperationalMetricCard label="Retired" value={totals.retired} tone="muted" />
+              <OperationalMetricCard label="Low families" value={totals.lowSkus} tone={totals.lowSkus ? "red" : "muted"} />
+            </div>
+          )}
+        />
       )}
 
       {data && data.compatibility.length > 0 && (

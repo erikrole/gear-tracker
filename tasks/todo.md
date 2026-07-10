@@ -4,6 +4,21 @@ Last updated: 2026-07-10
 
 ---
 
+## Completed: Operational status rail page migrations (2026-07-10)
+
+Plan: `tasks/archive/completed-2026-06/operational-status-rail-page-migrations-plan.md`
+
+- [x] Migrate Dashboard, Inventory Hygiene, Battery Ops, and Notifications.
+- [x] Migrate Kits, Licenses, Onboarding Status, and Allowed Emails.
+- [x] Preserve expanded metrics, filters, links, notices, and analytical card exclusions.
+- [x] Add contracts, sync owner docs, and complete repository verification.
+
+### Review
+
+- **Shipped:** Eight remaining page-level operational summary strips now share one action-first status system. The custom Dashboard `StatCard` helper was removed. Reports, import outcomes, badges, item insights, Resources references, and entity details stay card-based because they are analytical or navigational rather than operational queues.
+- **Verified:** Seven focused test files passed with 21 tests; focused ESLint, TypeScript, all 93 migration prefixes, codemap/docs checks, whitespace, and `npm run build:app` passed.
+- **Blocked:** Authenticated visual smoke could not start because the installed in-app Browser plugin is missing its required browser runtime file. No fallback browser mechanism was used.
+
 ## Completed: Items operational status rail (2026-07-10)
 
 Plan: `tasks/archive/completed-2026-06/items-status-rail-plan.md`
@@ -16,6 +31,7 @@ Plan: `tasks/archive/completed-2026-06/items-status-rail-plan.md`
 
 - **Shipped:** `/items` now presents active inventory plus prioritized nonzero custody/attention states in the shared compact rail. All six status counts remain pressed-state-aware filters under Details, and partial-control recovery stays separate.
 - **Verified:** Focused Vitest (3 tests), focused ESLint, TypeScript, migration-prefix guard, codemap/docs checks, whitespace, and `npm run build:app` passed. Local browser smoke compiled `/items` and reached the expected `/login` redirect; authenticated visual proof remains session-blocked.
+- **Follow-up:** Metric-card links/buttons and their nested cards now fill the grid row, so wrapped helper copy no longer produces uneven card tops or heights. A focused source contract guards both wrapper and card `h-full` behavior.
 
 ## Completed: iOS push notification reliability (2026-07-10)
 
@@ -2485,7 +2501,13 @@ Archived to `tasks/archive/completed-2026-06/codex-readiness-legacy-tail-cleanup
 - [x] Execute `tasks/ios-apple-design-full-audit-plan.md` and publish `tasks/audit-ios-apple-design-full.md` plus `tasks/ios-apple-design-remediation-slices.md`.
 - [x] Implement every source-level remediation slice and reconcile Mobile, Kiosk, Schedule, Search, Reservations, Resources, Notifications, Decisions, tests, and codemaps.
 - [x] Verify 170 iOS-focused tests, both simulator targets, iOS drift/audit/project gates, docs, app production build, and diff hygiene.
+- [x] Redesign the checkout-return Live Activity around a neutral, minute-level, privacy-conscious lock-screen and Dynamic Island hierarchy; preserve its server lifecycle and booking-detail route.
 - [ ] External signoff only: managed-device HID/camera, VoiceOver, AX5, accessibility settings, rotation, and student/counter walkthrough.
+
+### Active: Live Activity durable auto-start (2026-07-10)
+
+- [x] Execute `tasks/live-activity-durable-autostart-plan.md` so eligible return activities start 30 minutes before due without an app launch or frequent cron.
+- 2026-07-10: Checkout creation, kiosk direct checkout, lifecycle return-time edits/extensions, and kiosk active-checkout edits now schedule durable runs. Each run sleeps to the 30-minute threshold and revalidates the exact return timestamp and eligible ActivityKit token/start state before sending APNs. Verification details are recorded in the plan review.
 
 - Write a `BRIEF_*.md` or Decision record before implementing any new feature
 - Run `npm run build` before any commit

@@ -56,6 +56,7 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Recently Archived
 
+- `operational-status-rail-page-migrations-plan.md` - completed migration of eight page-level operational summaries to the shared rail with deliberate analytics exclusions.
 - `items-status-rail-plan.md` - completed Items adoption of the shared operational status rail with pressed status facets under Details.
 - `public-showroom-plan.md` - completed public stakeholder showroom plus the 2026-07-10 visual simplification pass.
 - `hidden-smoke-users-plan.md` - completed hidden smoke/test user visibility, owner opt-in, cleanup endpoint, operational sweep, and rollout check.

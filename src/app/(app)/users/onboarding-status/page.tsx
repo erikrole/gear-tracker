@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import EmptyState from "@/components/EmptyState";
 import { OperationalMetricCard } from "@/components/OperationalFeedback";
+import { OperationalStatusRail, type OperationalStatusRailItem } from "@/components/OperationalStatusRail";
 import { OperationalRowActions } from "@/components/OperationalRowActions";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -33,7 +34,7 @@ import {
 import { useFetch } from "@/hooks/use-fetch";
 import { classifyError, handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
 import { formatDateFull, formatRelativeTime } from "@/lib/format";
-import { AlertTriangle, Copy, ExternalLink, RefreshCw, Trash2, UserPlus, WifiOff } from "lucide-react";
+import { AlertTriangle, ClipboardList, Copy, ExternalLink, RefreshCw, Trash2, UserPlus, WifiOff } from "lucide-react";
 
 type Role = "ADMIN" | "STAFF" | "STUDENT";
 type StatusFilter = "all" | "pending" | "stale" | "claimed";
@@ -129,6 +130,26 @@ export default function OnboardingStatusPage() {
   }, [enrichedRows, query, statusFilter]);
 
   const isInitialLoad = loading && rows.length === 0;
+  const railItems: OperationalStatusRailItem[] = [
+    ...(counts.stale > 0 ? [{
+      id: "stale",
+      label: "Stale pending",
+      value: counts.stale,
+      detail: `Invitations still unclaimed after ${STALE_DAYS} days.`,
+      icon: AlertTriangle,
+      tone: "warning" as const,
+      onSelect: () => setStatusFilter("stale"),
+    }] : []),
+    ...(counts.pending > 0 ? [{
+      id: "pending",
+      label: "Pending",
+      value: counts.pending,
+      detail: "Invitations waiting for registration.",
+      icon: UserPlus,
+      tone: "info" as const,
+      onSelect: () => setStatusFilter("pending"),
+    }] : []),
+  ];
 
   function registrationPath(email: string) {
     return `/register?email=${encodeURIComponent(email)}`;
@@ -187,12 +208,23 @@ export default function OnboardingStatusPage() {
         </Button>
       </PageHeader>
 
-      <div className="grid gap-2 sm:grid-cols-4">
-        <OperationalMetricCard label="Total" value={counts.total} />
-        <OperationalMetricCard label="Pending" value={counts.pending} tone={counts.pending ? "blue" : "muted"} />
-        <OperationalMetricCard label="Stale pending" value={counts.stale} tone={counts.stale > 0 ? "orange" : "muted"} />
-        <OperationalMetricCard label="Claimed" value={counts.claimed} />
-      </div>
+      <OperationalStatusRail
+        orientation={{
+          label: "Allowlist",
+          value: `${counts.total} ${counts.total === 1 ? "entry" : "entries"}`,
+          icon: ClipboardList,
+        }}
+        items={railItems}
+        allClearLabel={railItems.length === 0 ? "All onboarding access is claimed" : undefined}
+        details={(
+          <div className="grid gap-2 sm:grid-cols-4">
+            <OperationalMetricCard label="Total" value={counts.total} onClick={() => setStatusFilter("all")} ariaPressed={statusFilter === "all"} />
+            <OperationalMetricCard label="Pending" value={counts.pending} tone={counts.pending ? "blue" : "muted"} onClick={() => setStatusFilter("pending")} ariaPressed={statusFilter === "pending"} />
+            <OperationalMetricCard label="Stale pending" value={counts.stale} tone={counts.stale > 0 ? "orange" : "muted"} onClick={() => setStatusFilter("stale")} ariaPressed={statusFilter === "stale"} />
+            <OperationalMetricCard label="Claimed" value={counts.claimed} onClick={() => setStatusFilter("claimed")} ariaPressed={statusFilter === "claimed"} />
+          </div>
+        )}
+      />
 
       <Card>
         <CardHeader className="gap-3">

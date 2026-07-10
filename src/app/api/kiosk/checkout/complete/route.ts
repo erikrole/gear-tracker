@@ -11,6 +11,7 @@ import { ACTIVE_BULK_UNIT_ALLOCATION_WHERE, CLAIMABLE_BULK_UNIT_WHERE, effective
 import { checkAvailability, type AvailabilityResult } from "@/lib/services/availability";
 import { parseDateRange } from "@/lib/time";
 import { badges } from "@/lib/badges";
+import { scheduleCheckoutReturnLiveActivity } from "@/lib/live-activity-workflow";
 
 function hasBlockingAvailabilityIssue(result: AvailabilityResult) {
   return result.conflicts.length > 0 || result.shortages.length > 0 || result.unavailableAssets.length > 0;
@@ -307,6 +308,11 @@ export const POST = withKiosk(async (req, { kiosk }) => {
       bookingId: booking.id,
       source: "kiosk_checkout",
       sourceKey: booking.id,
+    });
+
+    await scheduleCheckoutReturnLiveActivity({
+      bookingId: booking.id,
+      endsAt: booking.endsAt,
     });
 
     return ok({

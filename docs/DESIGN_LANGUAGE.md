@@ -141,6 +141,7 @@ Feature ideas to consider separately:
 - `/scan`: custom page heading and small controls drifted from shared page/header and target-size rules. Header and controls now align.
 - `/items`: toolbar was the best existing command surface. It now uses `OperationalToolbar` and shared active-filter chips.
 - `/items`: inventory status now uses `OperationalStatusRail` with an active-inventory orientation, prioritized nonzero operational states, and the complete pressed-state-aware status facet set under Details.
+- Page-level operational summaries on Dashboard, Inventory Hygiene, Battery Ops, Notifications, Kits, Licenses, Onboarding Status, and Allowed Emails now share `OperationalStatusRail`; report analytics, import outcomes, badge progress, item insights, and Resources navigation remain card-based by design.
 - Shared operational toolbar shell: `OperationalToolbar` now uses the lighter translucent chrome shared by breadcrumbs and section nav, while child controls keep 40px targets and their own borders.
 - `/items` row actions: table overflow actions now use `OperationalRowActions`.
 - `/bookings`: table rows, mobile rows, and booking cards now use `OperationalRowActions` for overflow commands while preserving right-click context menus.

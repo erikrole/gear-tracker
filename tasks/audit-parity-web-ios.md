@@ -34,9 +34,9 @@
 
 ### 4. Stat-strip label casing
 
-- **Web** (`src/components/dashboard/StatCard`): "Overdue", "Due today", "Active checkouts", "Reserved" — sentence case.
+- **Web** (`src/app/(app)/page.tsx`, shared `OperationalStatusRail`): "Overdue", "Due today", "Checked out", "Reserved" - sentence case.
 - **iOS** (`HomeView.swift:314-320`): "Overdue", "Due Today", "Checked Out", "Reserved" — title case + uses "Checked Out" in place of "Active checkouts".
-- **Verdict:** **Keep iOS as-is.** Title-case is the iOS-wide convention (locked in 2026-05-08 with the `String.shiftAreaLabel` extension and 7+ surfaces title-cased). "Checked Out" is also more concrete than the abstract "Active checkouts" — the user thinks in terms of items currently checked out, not the noun "checkouts." If we change anything, web should pull toward iOS, not the other way around.
+- **Verdict:** **Keep iOS as-is.** Title-case is the iOS-wide convention (locked in 2026-05-08 with the `String.shiftAreaLabel` extension and 7+ surfaces title-cased). Web now uses the same concrete `Checked out` wording inside its shared operational rail.
 
 ### 5. Bookings empty-state copy
 

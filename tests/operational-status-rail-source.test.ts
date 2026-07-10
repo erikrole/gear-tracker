@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 function source(path: string) {
@@ -49,5 +49,44 @@ describe("operational status rail source contract", () => {
     expect(items).toContain("toggleStatusFilter(item.status)");
     expect(items).toContain('label: "Active inventory"');
     expect(items).toContain("ariaPressed={filters.statusFilter.has(item.status)}");
+  });
+
+  it("keeps metric cards equal height when helper copy wraps", () => {
+    const feedback = source("src/components/OperationalFeedback.tsx");
+
+    expect(feedback).toContain('"h-full min-h-[104px] border-border/40 shadow-none"');
+    expect(feedback).toContain('className="block h-full min-h-10 rounded-md');
+    expect(feedback).toContain('className="block h-full min-h-10 w-full rounded-md');
+  });
+
+  it("migrates page-level operational summaries without converting analytical reports", () => {
+    const migratedPages = [
+      "src/app/(app)/page.tsx",
+      "src/app/(app)/items/hygiene/page.tsx",
+      "src/app/(app)/bulk-inventory/batteries/page.tsx",
+      "src/app/(app)/notifications/page.tsx",
+      "src/app/(app)/kits/page.tsx",
+      "src/app/(app)/licenses/page.tsx",
+      "src/app/(app)/users/onboarding-status/page.tsx",
+      "src/app/(app)/settings/allowed-emails/page.tsx",
+    ];
+
+    for (const page of migratedPages) {
+      expect(source(page), page).toContain("<OperationalStatusRail");
+    }
+
+    expect(existsSync("src/app/(app)/dashboard/stat-card.tsx")).toBe(false);
+    expect(source("src/app/(app)/reports/checkouts/page.tsx")).not.toContain("<OperationalStatusRail");
+    expect(source("src/app/(app)/import/_components/ImportPreviewStep.tsx")).not.toContain("<OperationalStatusRail");
+  });
+
+  it("preserves filter selection in rail details where the summary is a facet", () => {
+    const notifications = source("src/app/(app)/notifications/page.tsx");
+    const onboarding = source("src/app/(app)/users/onboarding-status/page.tsx");
+    const allowedEmails = source("src/app/(app)/settings/allowed-emails/page.tsx");
+
+    expect(notifications).toContain("ariaPressed={unreadOnly}");
+    expect(onboarding).toContain('ariaPressed={statusFilter === "stale"}');
+    expect(allowedEmails).toContain('ariaPressed={statusFilter === "unclaimed"}');
   });
 });

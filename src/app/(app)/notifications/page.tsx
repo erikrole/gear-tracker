@@ -29,6 +29,7 @@ import { FadeUp } from "@/components/ui/motion";
 import { Item, ItemMedia, ItemContent, ItemTitle, ItemDescription, ItemActions } from "@/components/ui/item";
 import { Pagination, PaginationContent, PaginationPrevious, PaginationNext } from "@/components/ui/pagination";
 import { OperationalMetricCard } from "@/components/OperationalFeedback";
+import { OperationalStatusRail, type OperationalStatusRailItem } from "@/components/OperationalStatusRail";
 import { useUrlState } from "@/hooks/use-url-state";
 
 type Notification = {
@@ -213,6 +214,18 @@ export default function NotificationsPage() {
   const readCount = Math.max(total - unreadCount, 0);
   const hasNotifications = total > 0;
   const canProcess = canProcessNotifications(meData?.role);
+  const railItems: OperationalStatusRailItem[] = unreadCount > 0 ? [{
+    id: "unread",
+    label: "Unread",
+    value: unreadCount,
+    detail: "Notifications that still need review.",
+    icon: Bell,
+    tone: "warning",
+    onSelect: () => {
+      setUnreadOnly(true);
+      setPage(0);
+    },
+  }] : [];
 
   /** Optimistically update the raw query cache for notifications */
   const setNotificationsData = useCallback(
@@ -383,27 +396,33 @@ export default function NotificationsPage() {
         )}
       </PageHeader>
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-3">
-        <OperationalMetricCard
-          label="Unread"
-          value={unreadCount}
-          helper={unreadCount > 0 ? "Needs review" : "Caught up"}
-          tone={unreadCount > 0 ? "orange" : "green"}
-          className="bg-muted/30"
-        />
-        <OperationalMetricCard
-          label="Read"
-          value={readCount}
-          helper="Already handled"
-          className="bg-muted/30"
-        />
-        <OperationalMetricCard
-          label="Total"
-          value={total}
-          helper={unreadOnly ? "Unread filter active" : "Current inbox"}
-          className="bg-muted/30"
-        />
-      </div>
+      <OperationalStatusRail
+        className="mb-4"
+        orientation={{
+          label: "Inbox",
+          value: `${total} ${total === 1 ? "notification" : "notifications"}`,
+          icon: Bell,
+        }}
+        items={railItems}
+        allClearLabel={unreadCount === 0 ? "No unread notifications" : undefined}
+        details={(
+          <div className="grid gap-2 sm:grid-cols-3">
+            <OperationalMetricCard
+              label="Unread"
+              value={unreadCount}
+              helper={unreadCount > 0 ? "Needs review" : "Caught up"}
+              tone={unreadCount > 0 ? "orange" : "green"}
+              onClick={() => {
+                setUnreadOnly(true);
+                setPage(0);
+              }}
+              ariaPressed={unreadOnly}
+            />
+            <OperationalMetricCard label="Read" value={readCount} helper="Already handled" />
+            <OperationalMetricCard label="Total" value={total} helper={unreadOnly ? "Unread filter active" : "Current inbox"} />
+          </div>
+        )}
+      />
 
       <Card>
         <CardHeader className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">

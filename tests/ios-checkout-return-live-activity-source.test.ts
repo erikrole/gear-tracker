@@ -23,7 +23,7 @@ describe("iOS checkout return Live Activity source contract", () => {
     expect(tabs).toContain("appState.selectedTab = 0");
   });
 
-  it("keeps focused Live Activity surfaces on seconds while lock-screen surfaces stay minute-only", () => {
+  it("keeps every Live Activity surface glanceable at minute precision", () => {
     const attributes = source("ios/Wisconsin/LiveActivities/CheckoutReturnActivityAttributes.swift");
     const manager = source("ios/Wisconsin/LiveActivities/CheckoutReturnLiveActivityManager.swift");
     const widget = source("ios/WisconsinLiveActivities/CheckoutReturnLiveActivityWidget.swift");
@@ -34,23 +34,23 @@ describe("iOS checkout return Live Activity source contract", () => {
     expect(attributes).toContain("var requesterAvatarUrl: String?");
     expect(attributes).toContain("enum Urgency");
     expect(widget).toContain("ActivityConfiguration(for: CheckoutReturnActivityAttributes.self)");
-    expect(widget).toContain("CheckoutReturnCard(context: context, showsSeconds: false, now: timeline.date)");
-    expect(widget).toContain("CheckoutReturnCard(context: context, showsSeconds: true, now: timeline.date)");
+    expect(widget).toContain("CheckoutReturnLockScreen(context: context, now: timeline.date)");
+    expect(widget).toContain("ExpandedReturnStatus(context: context, now: timeline.date)");
     expect(widget).toContain("TimelineView(.periodic(from: .now, by: 60))");
-    expect(widget).toContain("TimelineView(.periodic(from: .now, by: 1))");
-    expect(widget).toContain("timerInterval: timerRange");
-    expect(widget).toContain("context.state.minuteLabel(at: timeline.date)");
+    expect(widget).not.toContain("TimelineView(.periodic(from: .now, by: 1))");
+    expect(widget).not.toContain("timerInterval:");
+    expect(widget).toContain("context.state.minuteLabel(at: now)");
     expect(widget).toContain("context.state.urgency(at: now)");
-    expect(widget).toContain(".minimumScaleFactor(0.72)");
-    expect(widget).toContain(".activityBackgroundTint(.clear)");
+    expect(widget).not.toContain(".minimumScaleFactor(0.72)");
+    expect(widget).toContain(".activityBackgroundTint(.liveActivitySurface)");
     expect(widget).toContain(".frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)");
-    expect(widget).toContain(".clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))");
+    expect(widget).not.toContain(".clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))");
     expect(attributes).toContain("func minuteLabel(at date: Date) -> String");
     expect(attributes).toContain("? \"\\(minutes) min overdue\"");
     expect(manager).toContain("requesterAvatarUrl: candidate.booking.requester.avatarUrl");
-    expect(widget).toContain("AsyncImage(url: url)");
-    expect(widget).toContain("LiveActivityAvatar(");
-    expect(widget).toContain("fallback");
+    expect(widget).not.toContain("AsyncImage(url: url)");
+    expect(widget).not.toContain("context.attributes.requesterName");
+    expect(widget).not.toContain("context.attributes.requesterInitials");
   });
 
   it("uses availability next-need insight to start early, intensify urgency, and gate Extend", () => {
@@ -66,8 +66,8 @@ describe("iOS checkout return Live Activity source contract", () => {
     expect(manager).toContain("private let maxNextNeedLeadTime: TimeInterval = 60 * 60");
     expect(manager).toContain("let smartLead = nextNeedGap.map");
     expect(manager).toContain("allowsExtend: !insight.hasUpcomingNeed");
-    expect(widget).toContain('URLQueryItem(name: "action", value: "extend")');
-    expect(widget).toContain("Needed next");
+    expect(widget).not.toContain('URLQueryItem(name: "action", value: "extend")');
+    expect(widget).toContain("Needed again");
     expect(detail).toContain("returnInsight.hasUpcomingNeed");
     expect(detail).toContain("showExtend = true");
   });
@@ -171,5 +171,33 @@ describe("iOS checkout return Live Activity source contract", () => {
     expect(vercel).not.toContain("/api/cron/live-activities");
     expect(vercel).not.toContain("*/5 * * * *");
     expect(vercel).not.toContain("*/15 * * * *");
+  });
+
+  it("durably schedules remote start 30 minutes before return without an app launch", () => {
+    const config = source("next.config.ts");
+    const scheduler = source("src/lib/live-activity-workflow.ts");
+    const workflow = source("src/workflows/checkout-return-live-activity.ts");
+    const service = source("src/lib/services/live-activities.ts");
+    const lifecycle = source("src/lib/services/bookings-lifecycle.ts");
+    const kioskComplete = source("src/app/api/kiosk/checkout/complete/route.ts");
+    const kioskCheckout = source("src/app/api/kiosk/checkout/[id]/route.ts");
+
+    expect(config).toContain('import { withWorkflow } from "workflow/next"');
+    expect(config).toContain("withWorkflow(withBundleAnalyzer(nextConfig))");
+    expect(scheduler).toContain("30 * 60_000");
+    expect(scheduler).toContain("await start(checkoutReturnLiveActivityWorkflow");
+    expect(workflow).toContain('"use workflow"');
+    expect(workflow).toContain("await sleep(wakeAt)");
+    expect(workflow).toContain('"use step"');
+    expect(workflow).toContain("expectedEndsAtIso");
+    expect(service).toContain("startCheckoutReturnLiveActivityForBooking");
+    expect(service).toContain("endsAt: args.expectedEndsAt");
+    expect(service).toContain("status: BookingStatus.OPEN");
+    expect(service).toContain("liveActivityStarts:");
+    expect(service).toContain("liveActivityStartTokens:");
+    expect(lifecycle).toContain("scheduleCheckoutReturnLiveActivity({ bookingId: booking.id");
+    expect(lifecycle).toContain("scheduleCheckoutReturnLiveActivity({ bookingId, endsAt: updated.endsAt })");
+    expect(kioskComplete).toContain("scheduleCheckoutReturnLiveActivity({");
+    expect(kioskCheckout).toContain("scheduleCheckoutReturnLiveActivity({ bookingId: updated.id");
   });
 });
