@@ -2,6 +2,7 @@ import SwiftUI
 import UserNotifications
 
 struct NotificationSettingsView: View {
+    @Environment(AppState.self) private var appState
     let prefsVM: NotificationPrefsViewModel
     @Binding var pushAuth: UNAuthorizationStatus
     let currentEmail: String
@@ -24,6 +25,10 @@ struct NotificationSettingsView: View {
                 }
 
                 pushPermissionRow
+
+                if pushAuth == .authorized || pushAuth == .provisional || pushAuth == .ephemeral {
+                    pushRegistrationRow
+                }
 
                 if prefsVM.loading && prefsVM.prefs == nil {
                     HStack {
@@ -132,6 +137,44 @@ struct NotificationSettingsView: View {
                 await prefsVM.load()
             }
             await refreshPushAuth()
+        }
+    }
+
+    @ViewBuilder
+    private var pushRegistrationRow: some View {
+        switch appState.pushRegistrationState {
+        case .unknown:
+            EmptyView()
+        case .registering:
+            HStack(spacing: 12) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Registering this device for push…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        case .registered:
+            Label("This device is registered for push", systemImage: "checkmark.circle.fill")
+                .font(.caption)
+                .foregroundStyle(Color.statusText(.green))
+        case .failed:
+            HStack(spacing: 12) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(Color.statusText(.orange))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Push registration needs attention")
+                        .font(.subheadline.weight(.medium))
+                    Text("The app could not register this device with the notification server.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Retry") {
+                    appState.requestRemoteNotificationRegistration()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
         }
     }
 

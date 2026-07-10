@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { SCHEDULE_QUEUE_META } from "@/lib/schedule-queues";
 
 function source(path: string) {
   return readFileSync(path, "utf8");
@@ -31,6 +32,16 @@ describe("schedule queue source contract", () => {
     ]) {
       expect(readiness).toContain(`"${queue}"`);
     }
+
+    expect(SCHEDULE_QUEUE_META["my-calls-today"]).toMatchObject({
+      label: "My calls today",
+      shortLabel: "My calls",
+      emptyTitle: "No calls today",
+    });
+    expect(readiness).toContain('label: "My calls today"');
+    expect(readiness).not.toContain('label: "My shifts"');
+    expect(readiness).toContain('queue: "my-calls-today"');
+    expect(readiness).toContain("value: myCallsTodayCount");
   });
 
   it("opens trade approval through claimed trades instead of a generic board", () => {

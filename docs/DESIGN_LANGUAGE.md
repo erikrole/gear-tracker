@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-27
+- Last Updated: 2026-07-09
 - Status: Active
 - Purpose: Define the UI and UX rules that keep Gear Tracker cohesive, fast, dense, calm, and operationally clear.
 
@@ -11,7 +11,7 @@
 2. The drift is route-level: pages solve the same problems with slightly different headers, metric cards, partial-result warnings, filter shells, and state copy.
 3. Green misuse is the easiest trust bug to introduce. Green means available/free. Waiting, pending, maintenance, and pickup handoff states are orange.
 4. Small icon controls are operational risk, not polish debt. Every action target needs a real label, visible focus, and at least a 40px target on web.
-5. Future work should standardize shared surfaces before inventing page-local UI. Prefer `PageHeader`, `OperationalToolbar`, `OperationalMetricCard`, `OperationalPartialResultsAlert`, `Badge`, `Button`, `Input`, `Select`, `ToggleGroup`, `Switch`, `Dialog`, `AlertDialog`, `Sheet`, `Drawer`, `Table`, and `Card`.
+5. Future work should standardize shared surfaces before inventing page-local UI. Prefer `PageHeader`, `OperationalToolbar`, `OperationalStatusRail`, `OperationalMetricCard`, `OperationalPartialResultsAlert`, `Badge`, `Button`, `Input`, `Select`, `ToggleGroup`, `Switch`, `Dialog`, `AlertDialog`, `Sheet`, `Drawer`, `Table`, and `Card`.
 
 ## Product Personality
 Gear Tracker should feel:
@@ -122,6 +122,7 @@ Non-negotiable for every page:
 ## Feature Improvement Pass
 System rules, not feature ideas:
 - Shared queue surfaces should use `OperationalMetricCard` and `OperationalPartialResultsAlert`.
+- Shared action-first status summaries should use `OperationalStatusRail`: one orientation signal, at most three prioritized exceptions, a calm all-clear state, and optional collapsed details. Domain calculations and routing stay in route adapters.
 - Shared list command surfaces should use `OperationalToolbar`.
 - Shared page headings should use `PageHeader`.
 - Status indicators should import the existing status-color helpers where available.
@@ -208,6 +209,8 @@ Feature ideas to consider separately:
 - `/schedule` nav controls: Calendar month and Week navigation chevrons now use shadcn `Button` icon buttons (matching the Assign page) instead of route-local `<button>` elements.
 - `/schedule` in-row density exception: dense shift-row controls keep their compact footprint per the density rules. The always-visible icon-only controls (remove-assignment and the expand/collapse chevron) now carry a ≥40px effective hit target via the existing expanded-hit-area idiom (`before:-inset-*`) without resizing rows; the remaining text-labeled compact actions (Add, Trade, Manage event, Reserve gear) are a documented density exception, not drift.
 - `/schedule` Readiness strip: the "filters hide everything" notice now uses shared `EmptyState inline` instead of a one-off dashed text row.
+- Shared operational status rail: Schedule readiness and Admin Fix Today now use `OperationalStatusRail` for one compact orientation-plus-exceptions line with bounded visible items, overflow accounting, and shadcn-backed details. Metric cards remain inside details instead of competing with the primary queue.
+- `/admin/fix-today`: removed the duplicate queue health badge, oversized summary card, and separate all-clear card. The shared rail now owns queue orientation and exception priority; section cards retain their status indicators and use semantic Gear Tracker status tokens plus shadcn Card footer and Separator composition.
 
 ## Implementation Roadmap
 Quick wins:

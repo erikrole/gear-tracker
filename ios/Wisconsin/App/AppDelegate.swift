@@ -17,10 +17,19 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         let hex = deviceToken.map { String(format: "%02x", $0) }.joined()
-        Task { try? await APIClient.shared.registerDeviceToken(hex) }
+        Task { @MainActor in
+            do {
+                try await APIClient.shared.registerDeviceToken(hex)
+                sharedAppState?.pushRegistrationState = .registered
+            } catch {
+                sharedAppState?.pushRegistrationState = .failed
+                print("[APNS] Device token registration failed: \(error.localizedDescription)")
+            }
+        }
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        sharedAppState?.pushRegistrationState = .failed
         print("[APNS] Registration failed: \(error.localizedDescription)")
     }
 }

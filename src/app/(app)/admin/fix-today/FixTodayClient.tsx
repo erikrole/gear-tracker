@@ -10,16 +10,18 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { OperationalMetricCard, OperationalPartialResultsAlert } from "@/components/OperationalFeedback";
+import { OperationalStatusRail, type OperationalStatusRailItem } from "@/components/OperationalStatusRail";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import StatusIndicator from "@/components/ui/status-indicator";
 import { useFetch } from "@/hooks/use-fetch";
 import type { AdminFixTodayQueue, AdminFixTodaySection, AdminFixTodaySeverity } from "@/lib/admin-fix-today";
-import { summarizeOperationalHealth, type OperationalHealthState } from "@/lib/operational-health";
+import type { OperationalHealthState } from "@/lib/operational-health";
 import { cn } from "@/lib/utils";
 
 const SEVERITY_META: Record<AdminFixTodaySeverity, {
@@ -31,19 +33,19 @@ const SEVERITY_META: Record<AdminFixTodaySeverity, {
   critical: {
     label: "Critical",
     state: "down",
-    iconTone: "text-red-600 bg-red-50 dark:bg-red-950/30",
-    cardTone: "border-red-200/80 bg-red-50/40 dark:border-red-950 dark:bg-red-950/10",
+    iconTone: "bg-[var(--red-bg)] text-[var(--red-text)]",
+    cardTone: "border-[var(--red-text)]/25 bg-[var(--red-bg)]/20",
   },
   warning: {
     label: "Needs work",
     state: "fixing",
-    iconTone: "text-orange-600 bg-orange-50 dark:bg-orange-950/30",
-    cardTone: "border-orange-200/80 bg-orange-50/40 dark:border-orange-950 dark:bg-orange-950/10",
+    iconTone: "bg-[var(--orange-bg)] text-[var(--orange-text)]",
+    cardTone: "border-[var(--orange-text)]/25 bg-[var(--orange-bg)]/20",
   },
   info: {
     label: "Watch",
     state: "idle",
-    iconTone: "text-blue-600 bg-blue-50 dark:bg-blue-950/30",
+    iconTone: "bg-[var(--blue-bg)] text-[var(--blue-text)]",
     cardTone: "border-border bg-card",
   },
 };
@@ -88,7 +90,7 @@ export default function FixTodayClient() {
 
   if (error && !data) {
     return (
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         <PageHeader title="Fix Today" />
         <Card>
           <CardContent className="flex min-h-44 flex-col items-center justify-center gap-3 text-center">
@@ -100,7 +102,7 @@ export default function FixTodayClient() {
               </p>
             </div>
             <Button onClick={reload}>
-              <RefreshCw className="size-4" />
+              <RefreshCw data-icon="inline-start" />
               Retry
             </Button>
           </CardContent>
@@ -114,39 +116,52 @@ export default function FixTodayClient() {
   const cleanChecks = data ? Math.max(0, data.totals.activeChecks - data.totals.checksNeedingWork) : 0;
   const completion = data?.totals.activeChecks ? Math.round((cleanChecks / data.totals.activeChecks) * 100) : 100;
   const partialFailures = data?.partialFailures ?? [];
-  const queueHealth = data
-    ? summarizeOperationalHealth({
-        cleanLabel: "Queue clean",
-        criticalCount: data.totals.criticalChecks,
-        needsWorkCount: data.totals.checksNeedingWork,
-        partialFailureCount: partialFailures.length,
-      })
-    : null;
+  const railItems: OperationalStatusRailItem[] = data ? [
+    ...(data.totals.criticalChecks > 0 ? [{
+      id: "critical-checks",
+      label: "Critical checks",
+      value: data.totals.criticalChecks,
+      detail: "Checks that need immediate operator attention.",
+      icon: AlertTriangle,
+      tone: "critical" as const,
+    }] : []),
+    ...(data.totals.checksNeedingWork > 0 ? [{
+      id: "checks-needing-work",
+      label: "Needs work",
+      value: data.totals.checksNeedingWork,
+      detail: "Checks with one or more open repair items.",
+      icon: Clock3,
+      tone: "warning" as const,
+    }] : []),
+    ...(data.totals.openItems > 0 ? [{
+      id: "open-items",
+      label: "Open items",
+      value: data.totals.openItems,
+      detail: "Individual records waiting for review or repair.",
+      icon: ArrowUpRight,
+      tone: "warning" as const,
+    }] : []),
+    ...(partialFailures.length > 0 ? [{
+      id: "partial-data",
+      label: "Partial data",
+      value: partialFailures.length,
+      detail: "Some checks did not finish. Refresh before treating this queue as complete.",
+      icon: AlertTriangle,
+      tone: "warning" as const,
+    }] : []),
+  ] : [];
 
   return (
-    <div className="space-y-5">
+    <div className="flex flex-col gap-5">
       <PageHeader title="Fix Today">
         <div className="flex flex-wrap items-center justify-end gap-2">
-          {queueHealth && (
-            <StatusIndicator
-              state={queueHealth.state}
-              label={queueHealth.label}
-              size="sm"
-              title={queueHealth.description}
-            />
-          )}
-          {data && (
-            <span className="text-xs text-muted-foreground">
-              Updated {formatGeneratedAt(data.generatedAt)}
-            </span>
-          )}
           {lastRefreshed && (
             <span className="text-xs text-muted-foreground">
               Cached {formatGeneratedAt(lastRefreshed.toISOString())}
             </span>
           )}
           <Button variant="outline" size="sm" className="h-10" onClick={reload} disabled={refreshing}>
-            <RefreshCw className={cn("size-3.5", refreshing && "animate-spin")} />
+            <RefreshCw data-icon="inline-start" className={cn(refreshing && "animate-spin")} />
             {refreshing ? "Refreshing..." : "Refresh"}
           </Button>
         </div>
@@ -154,61 +169,46 @@ export default function FixTodayClient() {
 
       {data && (
         <>
-          <section className="rounded-lg border bg-card p-4 shadow-xs">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="min-w-0 space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-xl font-semibold text-balance">Admin daily queue</h2>
-                  {queueHealth && (
-                    <StatusIndicator
-                      state={queueHealth.state}
-                      label={queueHealth.label}
-                      size="sm"
-                      title={queueHealth.description}
-                    />
-                  )}
-                  <Badge variant="outline" className="gap-1.5">
-                    <ShieldCheck className="size-3" />
-                    Admin only
-                  </Badge>
+          <OperationalStatusRail
+            orientation={{
+              label: "Queue updated",
+              value: formatGeneratedAt(data.generatedAt),
+              icon: ShieldCheck,
+            }}
+            items={railItems}
+            allClearLabel={activeSections.length === 0 && partialFailures.length === 0 ? "No admin fixes are open" : undefined}
+            details={(
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="text-sm font-semibold">Admin daily queue</span>
+                    <Badge variant="outline">
+                      <ShieldCheck aria-hidden="true" />
+                      Admin only
+                    </Badge>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {pluralize(data.totals.activeChecks, "check")} running
+                  </span>
                 </div>
-                <p className="max-w-3xl text-sm text-muted-foreground text-pretty">
-                  One place to catch overdue custody, kiosk health, calendar sync, inventory exceptions, low batteries, pending handoffs, and license expirations.
-                </p>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                  <OperationalMetricCard label="Open items" value={data.totals.openItems} tone={data.totals.openItems ? "orange" : "green"} />
-                  <OperationalMetricCard label="Critical checks" value={data.totals.criticalChecks} tone={data.totals.criticalChecks ? "red" : "green"} />
-                  <OperationalMetricCard label="Checks needing work" value={data.totals.checksNeedingWork} tone={data.totals.checksNeedingWork ? "orange" : "green"} />
+                  <OperationalMetricCard label="Open items" value={data.totals.openItems} tone={data.totals.openItems ? "orange" : "muted"} />
+                  <OperationalMetricCard label="Critical checks" value={data.totals.criticalChecks} tone={data.totals.criticalChecks ? "red" : "muted"} />
+                  <OperationalMetricCard label="Checks needing work" value={data.totals.checksNeedingWork} tone={data.totals.checksNeedingWork ? "orange" : "muted"} />
                   <OperationalMetricCard label="Checks running" value={data.totals.activeChecks} tone="muted" />
                 </div>
-              </div>
-              <div className="w-full max-w-xs rounded-md bg-muted/50 p-3">
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="font-medium">Clean checks</span>
-                  <span className="tabular-nums text-muted-foreground">{completion}%</span>
+                <div className="rounded-md bg-muted/50 p-3">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="font-medium">Clean checks</span>
+                    <span className="tabular-nums text-muted-foreground">{completion}%</span>
+                  </div>
+                  <Progress value={completion} className="mt-3 h-2" />
                 </div>
-                <Progress value={completion} className="mt-3 h-2" />
               </div>
-            </div>
-          </section>
+            )}
+          />
 
           <OperationalPartialResultsAlert failures={partialFailures} />
-
-          {activeSections.length === 0 && (
-            <Card className="border-green-200/80 bg-green-50/50 dark:border-green-950 dark:bg-green-950/10">
-              <CardContent className="flex min-h-32 items-center gap-3 p-4">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-green-100 text-green-700 dark:bg-green-950/40">
-                  <CheckCircle2 className="size-5" />
-                </div>
-                <div className="min-w-0">
-                  <h2 className="font-semibold">No admin fixes are open</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    All {pluralize(data.totals.activeChecks, "check")} came back clean.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           <div className="grid gap-4 xl:grid-cols-2">
             {sections.map((section) => (
@@ -227,10 +227,10 @@ function QueueSectionCard({ section }: { section: AdminFixTodaySection }) {
 
   return (
     <Card className={cn("min-w-0 overflow-hidden", hasWork ? meta.cardTone : "border-border bg-card")}>
-      <CardHeader className="border-b p-4">
+      <CardHeader className="p-4">
         <div className="flex min-w-0 items-start gap-3">
           <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-md", hasWork ? meta.iconTone : "bg-muted text-muted-foreground")}>
-            {hasWork ? <AlertTriangle className="size-4" /> : <CheckCircle2 className="size-4" />}
+            {hasWork ? <AlertTriangle /> : <CheckCircle2 />}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -250,6 +250,7 @@ function QueueSectionCard({ section }: { section: AdminFixTodaySection }) {
           </div>
         </div>
       </CardHeader>
+      <Separator />
 
       <CardContent className="p-0">
         {section.samples.length > 0 ? (
@@ -264,32 +265,33 @@ function QueueSectionCard({ section }: { section: AdminFixTodaySection }) {
                   <div className="truncate font-medium text-foreground">{sample.label}</div>
                   <div className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{sample.detail}</div>
                 </div>
-                <ArrowUpRight className="size-4 shrink-0 text-muted-foreground opacity-60 transition-[color,opacity,translate] group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground group-hover:opacity-100" />
+                <ArrowUpRight className="shrink-0 text-muted-foreground opacity-60 transition-[color,opacity,translate] group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground group-hover:opacity-100" />
               </Link>
             ))}
           </div>
         ) : (
           <div className="flex min-h-20 items-center gap-2 px-4 py-3 text-sm text-muted-foreground">
-            {hasWork ? <Clock3 className="size-4" /> : <CheckCircle2 className="size-4 text-green-600" />}
+            {hasWork ? <Clock3 className="size-4" /> : <CheckCircle2 className="size-4 text-muted-foreground" />}
             {hasWork ? "No samples returned for this check." : "Nothing needs attention right now."}
           </div>
         )}
-        <div className="border-t bg-muted/30 px-4 py-3">
-          <Button asChild variant="outline" size="sm" className="min-h-10">
-            <Link href={section.href}>
-              {section.ctaLabel}
-              <ArrowUpRight className="size-4" />
-            </Link>
-          </Button>
-        </div>
       </CardContent>
+      <Separator />
+      <CardFooter className="bg-muted/30 px-4 py-3">
+        <Button asChild variant="outline" size="sm" className="min-h-10">
+          <Link href={section.href}>
+            {section.ctaLabel}
+            <ArrowUpRight data-icon="inline-end" />
+          </Link>
+        </Button>
+      </CardFooter>
     </Card>
   );
 }
 
 function FixTodaySkeleton() {
   return (
-    <div className="space-y-5">
+    <div className="flex flex-col gap-5">
       <PageHeader title="Fix Today" />
       <Skeleton className="h-44 w-full rounded-lg" />
       <div className="grid gap-4 xl:grid-cols-2">

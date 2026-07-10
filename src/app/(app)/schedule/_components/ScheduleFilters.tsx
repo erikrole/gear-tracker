@@ -2,7 +2,11 @@ import { useMemo, type ReactNode } from "react";
 import { FilterIcon, ListIcon, CalendarIcon, CalendarDaysIcon, XIcon, WorkflowIcon } from "lucide-react";
 import { FilterChip } from "@/components/FilterChip";
 import { Button } from "@/components/ui/button";
-import { OperationalToolbar } from "@/components/OperationalToolbar";
+import {
+  OperationalActiveFilterChips,
+  type OperationalActiveFilter,
+  OperationalToolbar,
+} from "@/components/OperationalToolbar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -15,14 +19,11 @@ import {
   AREA_LABELS,
   type CalendarEntry,
 } from "./types";
-import { ScheduleSourceSignal } from "./ScheduleSourceSignal";
 import type { ScheduleFilters as ScheduleFiltersType, ViewMode, HomeAwayFilter } from "@/hooks/use-schedule-data";
-import type { ScheduleSourceSignal as ScheduleSourceSignalData } from "@/lib/calendar-source-freshness";
 
 type ScheduleFiltersProps = {
   filters: ScheduleFiltersType;
   entries: CalendarEntry[];
-  sourceSignal: ScheduleSourceSignalData | null;
 };
 
 const VIEW_MODES: { value: ViewMode; label: string; icon: ReactNode }[] = [
@@ -50,7 +51,7 @@ function ToolbarGroup({
   );
 }
 
-export function ScheduleFilters({ filters, entries, sourceSignal }: ScheduleFiltersProps) {
+export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
   const sportOptions = useMemo(() => {
     const codes = new Set(
       entries.map((e) => e.sportCode).filter(Boolean) as string[],
@@ -62,16 +63,69 @@ export function ScheduleFilters({ filters, entries, sourceSignal }: ScheduleFilt
   }, [entries]);
 
   const isListView = filters.viewMode === "list";
-  const popoverFilterCount = [
+  const activeFilterCount = [
     filters.sportFilter,
     filters.areaFilter,
     filters.coverageFilter,
+    filters.homeAwayFilter !== "all" ? filters.homeAwayFilter : "",
+    filters.myShiftsOnly ? "my-shifts" : "",
     isListView && filters.includePast ? "past" : "",
     isListView && filters.includeArchived ? "archived" : "",
   ].filter(Boolean).length;
+  const activeFilters: OperationalActiveFilter[] = [
+    ...(filters.homeAwayFilter !== "all"
+      ? [{
+          key: "venue",
+          label: `Venue: ${HOME_AWAY_OPTIONS.find((option) => option.value === filters.homeAwayFilter)?.label ?? filters.homeAwayFilter}`,
+          onRemove: () => filters.setHomeAwayFilter("all"),
+        }]
+      : []),
+    ...(filters.myShiftsOnly
+      ? [{
+          key: "my-shifts",
+          label: "My shifts",
+          onRemove: () => filters.setMyShiftsOnly(false),
+        }]
+      : []),
+    ...(filters.sportFilter
+      ? [{
+          key: "sport",
+          label: `Sport: ${sportLabel(filters.sportFilter)}`,
+          onRemove: () => filters.setSportFilter(""),
+        }]
+      : []),
+    ...(filters.areaFilter
+      ? [{
+          key: "area",
+          label: `Area: ${AREA_LABELS[filters.areaFilter] ?? filters.areaFilter}`,
+          onRemove: () => filters.setAreaFilter(""),
+        }]
+      : []),
+    ...(filters.coverageFilter
+      ? [{
+          key: "coverage",
+          label: filters.coverageFilter === "unfilled" ? "Coverage: Needs crew" : "Coverage: Fully covered",
+          onRemove: () => filters.setCoverageFilter(""),
+        }]
+      : []),
+    ...(isListView && filters.includePast
+      ? [{
+          key: "past",
+          label: "Showing past events",
+          onRemove: () => filters.setIncludePast(false),
+        }]
+      : []),
+    ...(isListView && filters.includeArchived
+      ? [{
+          key: "archived",
+          label: "Showing archived events",
+          onRemove: () => filters.setIncludeArchived(false),
+        }]
+      : []),
+  ];
 
   return (
-    <OperationalToolbar className="mb-4">
+    <OperationalToolbar className="mb-3">
       {filters.queueMeta && (
         <div className="flex min-h-10 flex-wrap items-center justify-between gap-2 rounded-md bg-primary/5 px-3 py-2 shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.14)]">
           <div className="flex min-w-0 items-center gap-2">
@@ -185,15 +239,15 @@ export function ScheduleFilters({ filters, entries, sourceSignal }: ScheduleFilt
         <Popover>
           <PopoverTrigger asChild>
             <Button
-              variant={popoverFilterCount > 0 ? "default" : "outline"}
+              variant={activeFilterCount > 0 ? "secondary" : "outline"}
               size="sm"
-              className="h-10 gap-1.5 text-[13px]"
+              className="h-10 gap-1.5 text-[13px] transition-[background-color,scale] active:scale-[0.96]"
             >
               <FilterIcon className="size-3.5" />
               Filters
-              {popoverFilterCount > 0 && (
-                <span className="ml-0.5 inline-flex items-center justify-center size-[18px] rounded-full bg-white/20 text-[10px] font-bold">
-                  {popoverFilterCount}
+              {activeFilterCount > 0 && (
+                <span className="ml-0.5 rounded-sm bg-background px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-foreground">
+                  {activeFilterCount}
                 </span>
               )}
             </Button>
@@ -280,8 +334,8 @@ export function ScheduleFilters({ filters, entries, sourceSignal }: ScheduleFilt
           </PopoverContent>
         </Popover>
 
-        <ScheduleSourceSignal signal={sourceSignal} />
       </div>
+      <OperationalActiveFilterChips filters={activeFilters} />
     </OperationalToolbar>
   );
 }

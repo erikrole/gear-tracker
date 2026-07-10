@@ -4,6 +4,35 @@ Last updated: 2026-07-09
 
 ---
 
+## Completed: Shared operational status rail (2026-07-09)
+
+Plan: `tasks/archive/operational-status-rail-plan.md`
+
+- [x] Audit Schedule, Fix Today, peer operational surfaces, and the installed shadcn layer.
+- [x] Add the shared rail and migrate Schedule plus Fix Today.
+- [x] Add contracts, sync docs, and complete web verification.
+
+### Review
+
+- 2026-07-09: Added a shared shadcn-backed operational status rail with bounded priority items, overflow accounting, calm all-clear copy, orientation, and collapsed details. Schedule keeps its queue math and details while using the rail presentation; Fix Today replaces its duplicate health badge, summary card, and all-clear card, and its section cards now use semantic tokens plus shadcn separators/footer composition. Focused Vitest (6 files, 26 tests), ESLint, TypeScript, migration guard, codemaps/docs, whitespace, and `npm run build:app` passed. The build retains the unrelated `BookingEquipmentTab.tsx` warning. Local route smoke reached the expected login redirect, but authenticated visual proof was unavailable because localhost had no signed-in session. Dev server: `http://localhost:3001`.
+
+---
+
+## Completed: Schedule list triage UI (2026-07-09)
+
+Plan: `tasks/archive/completed-2026-06/schedule-list-triage-ui-plan.md`
+
+- [x] Compress the Schedule command and readiness surfaces without removing operational queues.
+- [x] Give event rows stable staffing columns, clearer publication/venue language, and direct open-slot action.
+- [x] Restore mobile date grouping and Hide event access.
+- [x] Add focused contracts, sync docs, and run web verification.
+
+### Review
+
+- 2026-07-09: `/schedule` now keeps all active filters visible, moves source status under readiness Details, scopes crew gaps by affected events, aligns My calls today count/copy/routing, and prevents partial health reads from showing all-clear. Desktop rows use stable Time/Event/Coverage/Status/Crew/Actions columns with direct Assign N actions, explicit venue labels, and Unpublished changes copy; desktop and mobile share compact date groups, and smaller layouts retain Hide event access. Focused Vitest (4 files, 21 tests), ESLint, TypeScript, migration-prefix guard, docs/codemaps, whitespace, and an initial `npm run build:app` passed. Authenticated visual smoke remains unavailable because localhost redirects to login and the production Chrome session is host-scoped. The final build rerun is blocked by a concurrent unrelated licenses `releaseCode` argument mismatch, which this slice leaves untouched.
+
+---
+
 ## Completed: Booking history item identity (2026-07-09)
 
 Plan: `tasks/archive/booking-history-item-identity-plan.md`
@@ -186,6 +215,19 @@ Plan: make production deployable on Vercel Hobby by removing sub-daily cron sche
 - 2026-07-03: Verification passed with focused cron/source Vitest, TypeScript, codemap regeneration and docs check, whitespace, and `npm run build:app`. `vercel.json` now schedules only daily or weekly cron expressions on Hobby.
 
 ---
+
+## Active: iOS push registration health (2026-07-09)
+
+Plan: `tasks/notifications-ios-delivery-fix-plan.md`
+
+- [x] Separate iOS permission state from server-side APNs token-registration state.
+- [x] Retry APNs registration for authorized, provisional, and ephemeral permission states.
+- [x] Surface a recoverable registration failure in Settings > Notifications.
+- [x] Add focused source-contract coverage and sync mobile/notification/risk docs.
+- [ ] Complete production Vercel APNs env/log verification and real-device push QA.
+
+### Review
+- 2026-07-09: Source audit found that token upsert failures were swallowed by `try?`, Settings only reported OS authorization, and foreground retry excluded provisional/ephemeral authorization. The native fix now reports token-registration truth without overstating APNs delivery. Connected Vercel project/deployment/runtime reads returned 403 for the linked team scope, so production env and runtime proof remain external blockers.
 
 ## Active: Notifications support hardening (2026-07-03)
 

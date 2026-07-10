@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { OperationalRowActions } from "@/components/OperationalRowActions";
 import {
   Dialog,
   DialogContent,
@@ -77,6 +79,8 @@ const AREA_BADGE_VARIANT: Record<string, "green" | "purple" | "orange" | "blue">
   GRAPHICS: "blue",
 };
 
+const EVENT_GRID_CLASS = "grid-cols-[44px_72px_minmax(180px,1fr)_80px_136px_minmax(140px,180px)_40px]";
+
 function shiftAssignee(shift: Shift) {
   const active = shift.assignments.find((a) => ACTIVE_STATUSES.includes(a.status));
   return active?.user ?? null;
@@ -98,7 +102,7 @@ function PublicationBadge({ entry, quietPublished = false }: { entry: CalendarEn
   const state = entry.publication;
   if (!state) return null;
   if (!state.publishedAt) return null;
-  if (state.changedAfterPublish) return <Badge variant="orange" size="sm">Changed</Badge>;
+  if (state.changedAfterPublish) return <Badge variant="orange" size="sm">Unpublished changes</Badge>;
   if (state.unacknowledgedCount > 0) return <Badge variant="blue" size="sm">{state.unacknowledgedCount} unack</Badge>;
   if (quietPublished) return null;
   return <Badge variant="green" size="sm">Published</Badge>;
@@ -137,6 +141,26 @@ function eventStartLabel(entry: CalendarEntry) {
   return entry.allDay ? formatCalendarEventAllDayLabel(entry) : formatTimeShort(entry.startsAt);
 }
 
+function DateGroupHeader({ date, eventCount, isToday }: { date: Date; eventCount: number; isToday: boolean }) {
+  const dateLabel = date.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+
+  return (
+    <div className="sticky top-0 z-10 flex min-h-10 items-center gap-2 border-b border-border/50 bg-background/95 px-3 backdrop-blur">
+      <span className={cn("text-xs font-semibold", isToday ? "text-[var(--wi-red)]" : "text-foreground")}>
+        {dateLabel}
+      </span>
+      {isToday && <Badge variant="red" size="sm">Today</Badge>}
+      <span className="ml-auto text-xs font-medium tabular-nums text-muted-foreground">
+        {eventCount} event{eventCount === 1 ? "" : "s"}
+      </span>
+    </div>
+  );
+}
+
 function commonCallWindow(entry: CalendarEntry) {
   if (entry.allDay) return null;
 
@@ -154,28 +178,47 @@ function commonCallWindow(entry: CalendarEntry) {
   return { key: mostCommon[0], count: mostCommon[1].count, window: mostCommon[1].window };
 }
 
-function AssignmentAvatarGroup({
+function CrewSummary({
   entry,
-  isExpanded,
+  isStaff,
+  onSelectGroup,
+  compact = false,
 }: {
   entry: CalendarEntry;
-  isExpanded: boolean;
+  isStaff: boolean;
+  onSelectGroup?: () => void;
+  compact?: boolean;
 }) {
   const assignedUsers = entry.shifts
     .map(shiftAssignee)
     .filter((user): user is NonNullable<ReturnType<typeof shiftAssignee>> => Boolean(user));
+  const openCount = entry.shifts.reduce((count, shift) => count + (shiftAssignee(shift) ? 0 : 1), 0);
 
   if (entry.shifts.length === 0) return null;
 
   return (
-    <div
-      className={cn(
-        "ml-auto flex items-center gap-2 transition-[opacity,scale] duration-150",
-        isExpanded ? "pointer-events-none opacity-0 scale-95" : "opacity-100 scale-100",
-      )}
-      aria-hidden={isExpanded}
-    >
-      <UserAvatarGroup users={assignedUsers} max={4} />
+    <div className={cn("flex min-w-0 items-center gap-2", compact ? "justify-start" : "justify-end")}>
+      {assignedUsers.length > 0 && <UserAvatarGroup users={assignedUsers} max={compact ? 3 : 4} />}
+      {openCount > 0 && isStaff && onSelectGroup ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-10 shrink-0 px-2.5 text-xs transition-[background-color,scale] active:scale-[0.96]"
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelectGroup();
+          }}
+        >
+          Assign {openCount}
+        </Button>
+      ) : openCount > 0 ? (
+        <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
+          {openCount} open
+        </span>
+      ) : assignedUsers.length === 0 ? (
+        <span className="text-xs font-medium text-muted-foreground">No crew</span>
+      ) : null}
     </div>
   );
 }
@@ -476,10 +519,14 @@ export function ListView({
 }: ListViewProps) {
 
   // Scroll to today when includePast is toggled on and data has loaded
-  const todayGroupRef = useRef<HTMLDivElement>(null);
+  const desktopTodayGroupRef = useRef<HTMLDivElement>(null);
+  const mobileTodayGroupRef = useRef<HTMLDivElement>(null);
   const didScrollRef = useRef(false);
   useEffect(() => {
     if (!includePast) { didScrollRef.current = false; return; }
+    const todayGroupRef = window.matchMedia("(max-width: 1023px)").matches
+      ? mobileTodayGroupRef
+      : desktopTodayGroupRef;
     if (didScrollRef.current || !todayGroupRef.current) return;
     didScrollRef.current = true;
     todayGroupRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -647,22 +694,29 @@ export function ListView({
 
   return (
     <>
-      <div className="border border-border/60 rounded-lg overflow-hidden bg-card">
+      <div className="overflow-hidden rounded-md border border-border/60 bg-card">
         {/* ── Header ── */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border/60 bg-muted/20">
+        <div className="flex items-center justify-between border-b border-border/60 bg-muted/15 px-3 py-2.5">
           <div className="flex items-center gap-2">
-            <h3
-              className="text-sm font-bold uppercase tracking-wider text-foreground"
-              style={{ fontFamily: "var(--font-heading)" }}
-            >
+            <h3 className="text-sm font-semibold text-foreground">
               {myShiftsOnly ? "My Shifts" : includePast ? "All Events" : "Upcoming Events"}
             </h3>
-            <span className="text-xs text-muted-foreground font-medium">
+            <span className="text-xs font-medium tabular-nums text-muted-foreground">
               {filteredEntries.length !== entries.length
                 ? `${filteredEntries.length} of ${entries.length}`
                 : filteredEntries.length}
             </span>
           </div>
+        </div>
+
+        <div className={cn("hidden min-h-9 items-center gap-2 border-b border-border/50 bg-muted/10 px-2 text-[11px] font-medium text-muted-foreground lg:grid", EVENT_GRID_CLASS)}>
+          <span aria-hidden="true" />
+          <span>Time</span>
+          <span>Event</span>
+          <span>Coverage</span>
+          <span>Status</span>
+          <span className="text-right">Crew</span>
+          <span className="sr-only">Actions</span>
         </div>
 
         {loading ? (
@@ -716,72 +770,17 @@ export function ListView({
         ) : (
           <>
             {/* ── Desktop: timeline table ── */}
-            <div className="max-md:hidden">
+            <div className="max-lg:hidden">
               {groupedEntries.map(([dateKey, groupEntries], groupIdx) => {
                 const groupDate = new Date(dateKey);
                 const isGroupToday =
                   groupDate.toDateString() === new Date().toDateString();
 
               return (
-                <div key={`${dateKey}-${groupIdx}`} ref={isGroupToday ? todayGroupRef : undefined}>
-                  {/* Date group header - timeline style */}
-                  <div
-                    className={cn(
-                      "sticky top-0 z-10 flex items-stretch border-b border-border/50",
-                      isGroupToday ? "bg-[var(--wi-red)]/[0.04] dark:bg-[var(--wi-red)]/[0.08]" : "bg-card",
-                    )}
-                  >
-                    {/* Date marker */}
-                    <div
-                      className={cn(
-                        "flex flex-col items-center justify-center px-4 py-2 border-r border-border/40 w-[56px] flex-shrink-0",
-                        isGroupToday ? "text-[var(--wi-red)]" : "text-muted-foreground",
-                      )}
-                    >
-                      <span
-                        className="text-[9px] font-bold uppercase tracking-widest leading-none"
-                        style={{ fontFamily: "var(--font-heading)" }}
-                      >
-                        {groupDate.toLocaleDateString("en-US", { weekday: "short" })}
-                      </span>
-                      <span
-                        className={cn(
-                          "text-[22px] font-black leading-tight tabular-nums",
-                          isGroupToday ? "text-[var(--wi-red)]" : "text-foreground",
-                        )}
-                        style={{ fontFamily: "var(--font-heading)" }}
-                      >
-                        {groupDate.getDate()}
-                      </span>
-                      <span
-                        className="text-[9px] leading-none text-muted-foreground"
-                        style={{ fontFamily: "var(--font-heading)" }}
-                      >
-                        {groupDate.toLocaleDateString("en-US", { month: "short" })}
-                      </span>
-                    </div>
-
-                    {/* Event count + today label */}
-                    <div className="flex items-center gap-2 px-3">
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {groupEntries.length} event{groupEntries.length !== 1 ? "s" : ""}
-                      </span>
-                      {isGroupToday && (
-                        <span
-                          className="text-[10px] font-black text-[var(--wi-red)] uppercase tracking-widest"
-                          style={{ fontFamily: "var(--font-heading)" }}
-                        >
-                          Today
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                <div key={`${dateKey}-${groupIdx}`} ref={isGroupToday ? desktopTodayGroupRef : undefined}>
+                  <DateGroupHeader date={groupDate} eventCount={groupEntries.length} isToday={isGroupToday} />
 
                   <table className="w-full border-collapse">
-                    <colgroup>
-                      <col style={{ width: "48px" }} />
-                      <col />
-                    </colgroup>
                     <tbody>
                       {groupEntries.map((entry) => {
                         const isExpanded = expandedRowId === entry.id;
@@ -842,8 +841,15 @@ export function ListView({
           </div>
 
           {/* ── Mobile: card list ── */}
-          <div className="hidden max-md:flex flex-col">
-            {filteredEntries.map((entry) => {
+          <div className="hidden max-lg:flex flex-col">
+            {groupedEntries.map(([dateKey, groupEntries], groupIdx) => {
+              const groupDate = new Date(dateKey);
+              const isGroupToday = groupDate.toDateString() === new Date().toDateString();
+
+              return (
+                <div key={`${dateKey}-${groupIdx}`} ref={isGroupToday ? mobileTodayGroupRef : undefined}>
+                  <DateGroupHeader date={groupDate} eventCount={groupEntries.length} isToday={isGroupToday} />
+                  {groupEntries.map((entry) => {
               const isExpanded = expandedRowId === entry.id;
               const isAssignedToMe = currentUserId ? userHasShift(entry, currentUserId) : false;
               const shiftStatus = currentUserId
@@ -858,13 +864,12 @@ export function ListView({
                 <div
                   key={entry.id}
                   className={cn(
-                    "border-b border-border/50 last:border-b-0 border-l-[3px]",
-                    venueTone.railClass,
+                    "relative border-b border-border/50 last:border-b-0",
                     isAssignedToMe && "bg-primary/5",
                   )}
                 >
                   <button
-                    className="w-full text-left px-4 py-3"
+                    className="w-full px-4 py-3 pr-14 text-left"
                     onClick={() =>
                       entry.shifts.length > 0
                         ? setExpandedRowId(isExpanded ? null : entry.id)
@@ -921,6 +926,7 @@ export function ListView({
                       {titleParts.detail && (
                         <span>{titleParts.detail}</span>
                       )}
+                      <span>{venueTone.label}</span>
                       {entry.subtitle && (
                         <span className="font-medium text-primary/70">{entry.subtitle}</span>
                       )}
@@ -930,9 +936,23 @@ export function ListView({
                           Archived
                         </span>
                       )}
-                      <AssignmentAvatarGroup entry={entry} isExpanded={isExpanded} />
+                      <CrewSummary entry={entry} isStaff={isStaff} compact />
                     </div>
                   </button>
+
+                  {isStaff && onHideEvent && (
+                    <div className="absolute right-2 top-2">
+                      <OperationalRowActions label={`Actions for ${titleParts.title}`}>
+                        <DropdownMenuItem
+                          disabled={hidingEventIds?.has(entry.id) ?? false}
+                          onSelect={() => onHideEvent(entry.id)}
+                        >
+                          <EyeOffIcon className="size-4" />
+                          Hide event
+                        </DropdownMenuItem>
+                      </OperationalRowActions>
+                    </div>
+                  )}
 
                   {isExpanded && entry.shifts.length > 0 && (
                     <div className="border-t border-border/40 px-4 py-3 pl-8">
@@ -968,6 +988,9 @@ export function ListView({
                       />
                     </div>
                   )}
+                </div>
+              );
+                  })}
                 </div>
               );
             })}
@@ -1099,8 +1122,7 @@ function EventRows({
       {/* Parent event row */}
       <tr
         className={cn(
-          "group/row border-l-[3px] transition-colors",
-          venueTone.railClass,
+          "group/row transition-colors",
           hasShifts ? "cursor-pointer" : "",
           isExpanded
             ? "bg-muted/20"
@@ -1110,35 +1132,31 @@ function EventRows({
         )}
         onClick={hasShifts ? onToggle : undefined}
       >
-        <td className="pl-3 pr-1 py-3 border-b border-border/20 w-7">
-          {hasShifts && (
-            <button
-              type="button"
-              aria-label={isExpanded ? "Collapse shifts" : "Expand shifts"}
-              aria-expanded={isExpanded}
-              className="relative flex size-9 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color,scale] duration-150 before:absolute before:-inset-0.5 before:content-[''] hover:bg-muted hover:text-foreground active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggle();
-              }}
-            >
-              {isExpanded ? (
-                <ChevronDownIcon className="size-4" />
-              ) : (
-                <ChevronRightIcon className="size-4" />
+        <td className="border-b border-border/20 px-2 py-1.5">
+          <div className={cn("grid min-h-12 items-center gap-2", EVENT_GRID_CLASS)}>
+            <div>
+              {hasShifts && (
+                <button
+                  type="button"
+                  aria-label={isExpanded ? "Collapse shifts" : "Expand shifts"}
+                  aria-expanded={isExpanded}
+                  className="relative flex size-10 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color,scale] hover:bg-muted hover:text-foreground active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onToggle();
+                  }}
+                >
+                  {isExpanded ? <ChevronDownIcon className="size-4" /> : <ChevronRightIcon className="size-4" />}
+                </button>
               )}
-            </button>
-          )}
-        </td>
-        <td className="px-4 py-3 border-b border-border/20">
-          <div className="flex items-center gap-2 flex-wrap">
+            </div>
             <span
-              className="text-[11px] text-muted-foreground/60 tabular-nums shrink-0"
+              className="shrink-0 text-[11px] tabular-nums text-muted-foreground"
               style={{ fontFamily: entry.allDay ? "var(--font-heading)" : "var(--font-mono)" }}
             >
               {eventStartLabel(entry)}
             </span>
-            <div className="min-w-[180px] max-w-full">
+            <div className="min-w-0">
               <Link
                 href={`/events/${entry.id}`}
                 className="block truncate text-sm font-semibold hover:underline"
@@ -1146,63 +1164,34 @@ function EventRows({
               >
                 {titleParts.title}
               </Link>
-              {titleParts.detail && (
-                <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-                  {titleParts.detail}
-                </span>
-              )}
-              {entry.subtitle && (
-                <span className="mt-0.5 block truncate text-[11px] font-medium text-primary/70">
-                  {entry.subtitle}
+              <div className="mt-0.5 flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
+                <span className="shrink-0">{venueTone.label}</span>
+                {titleParts.detail && <span className="truncate">{titleParts.detail}</span>}
+                {entry.subtitle && <span className="truncate font-medium text-primary/70">{entry.subtitle}</span>}
+              </div>
+            </div>
+            <div>{entry.coverage && <CoverageBadge percentage={entry.coverage.percentage} filled={entry.coverage.filled} total={entry.coverage.total} />}</div>
+            <div className="flex min-w-0 flex-wrap items-center gap-1">
+              <PublicationBadge entry={entry} quietPublished />
+              {isStaff && <ChangeHistoryBadge summary={changeEvent} reviewOnly />}
+              {showShiftStatus && shiftStatus === "Pending" && <Badge variant="orange" size="sm">{shiftStatus}</Badge>}
+              {entry.archivedAt && (
+                <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/60">
+                  <ArchiveIcon className="size-3" />
+                  Archived
                 </span>
               )}
             </div>
-            {entry.coverage && (
-              <CoverageBadge
-                percentage={entry.coverage.percentage}
-                filled={entry.coverage.filled}
-                total={entry.coverage.total}
-              />
-            )}
-            <PublicationBadge entry={entry} quietPublished />
-            {isStaff && <ChangeHistoryBadge summary={changeEvent} reviewOnly />}
-            {showShiftStatus && shiftStatus === "Pending" && (
-              <Badge
-                variant="orange"
-                size="sm"
-              >
-                {shiftStatus}
-              </Badge>
-            )}
-            {entry.archivedAt && (
-              <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/50">
-                <ArchiveIcon className="size-3" />
-                Archived
-              </span>
-            )}
-            <AssignmentAvatarGroup entry={entry} isExpanded={isExpanded} />
-            {isStaff && onHide && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Hide event"
-                    className={cn(
-                      "opacity-0 transition-[background-color,color,opacity,scale] group-hover/row:opacity-100 focus-visible:opacity-100",
-                      isHiding && "opacity-100",
-                    )}
-                    disabled={isHiding}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onHide();
-                    }}
-                  >
-                    <EyeOffIcon className={cn("size-3.5", isHiding && "animate-pulse")} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Hide event from schedule</TooltipContent>
-              </Tooltip>
+            <CrewSummary entry={entry} isStaff={isStaff} onSelectGroup={onSelectGroup} />
+            {isStaff && onHide ? (
+              <OperationalRowActions label={`Actions for ${titleParts.title}`} triggerClassName={isHiding ? "opacity-100" : undefined}>
+                <DropdownMenuItem disabled={isHiding} onSelect={onHide}>
+                  <EyeOffIcon className="size-4" />
+                  Hide event
+                </DropdownMenuItem>
+              </OperationalRowActions>
+            ) : (
+              <span aria-hidden="true" />
             )}
           </div>
         </td>
@@ -1211,9 +1200,8 @@ function EventRows({
       {/* Expanded assignment detail */}
       {isExpanded && (
         <tr className="bg-muted/10">
-          <td className="border-b border-border/15"></td>
           <td className="border-b border-border/15 px-4 py-3">
-            <div className="pl-5">
+            <div className="pl-[116px] pr-10">
               <div className="mb-2 flex items-center justify-between gap-3">
                 <div className="flex min-w-0 flex-col gap-1">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">

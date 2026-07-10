@@ -29,7 +29,7 @@
 | `src/lib/services/kiosk-location.ts` | 72 |
 | `src/lib/services/kiosk-scan.ts` | 36 |
 | `src/lib/services/kits.ts` | 327 |
-| `src/lib/services/licenses.ts` | 493 |
+| `src/lib/services/licenses.ts` | 511 |
 | `src/lib/services/live-activities.ts` | 424 |
 | `src/lib/services/notification-prefs.ts` | 103 |
 | `src/lib/services/notifications.ts` | 834 |
@@ -39,7 +39,7 @@
 | `src/lib/services/reservation-rules.ts` | 32 |
 | `src/lib/services/scans.ts` | 668 |
 | `src/lib/services/schedule-automation.ts` | 336 |
-| `src/lib/services/schedule-change-history.ts` | 354 |
+| `src/lib/services/schedule-change-history.ts` | 377 |
 | `src/lib/services/schedule-exports.ts` | 492 |
 | `src/lib/services/schedule-health.ts` | 378 |
 | `src/lib/services/schedule-notification-policy.ts` | 106 |
@@ -103,7 +103,7 @@
 | `src/lib/guide-freshness.ts` | 81 |
 | `src/lib/guide-ranking.ts` | 78 |
 | `src/lib/guides.ts` | 354 |
-| `src/lib/http.ts` | 90 |
+| `src/lib/http.ts` | 101 |
 | `src/lib/image-search-modal.ts` | 59 |
 | `src/lib/image-search.ts` | 239 |
 | `src/lib/item-asset-tag-sort.ts` | 196 |

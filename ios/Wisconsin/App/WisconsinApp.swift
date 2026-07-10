@@ -78,8 +78,11 @@ struct WisconsinApp: App {
     /// New authorization is collected by `PushPrePromptView` after login.
     private func registerForPushIfAuthorized() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
-        if settings.authorizationStatus == .authorized {
-            await MainActor.run { UIApplication.shared.registerForRemoteNotifications() }
+        switch settings.authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            await MainActor.run { appState.requestRemoteNotificationRegistration() }
+        default:
+            await MainActor.run { appState.pushRegistrationState = .unknown }
         }
     }
 }

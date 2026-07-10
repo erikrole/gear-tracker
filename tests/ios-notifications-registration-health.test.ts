@@ -1,0 +1,33 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+
+function source(relativeFile: string) {
+  return readFileSync(path.join(process.cwd(), relativeFile), "utf8");
+}
+
+describe("iOS push registration health contracts", () => {
+  it("keeps server token registration separate from OS permission state", () => {
+    const appState = source("ios/Wisconsin/Core/AppState.swift");
+    const delegate = source("ios/Wisconsin/App/AppDelegate.swift");
+    const settings = source("ios/Wisconsin/Views/NotificationSettingsView.swift");
+
+    expect(appState).toContain("enum PushRegistrationState: Equatable");
+    expect(appState).toContain("var pushRegistrationState: PushRegistrationState = .unknown");
+    expect(delegate).toContain("try await APIClient.shared.registerDeviceToken(hex)");
+    expect(delegate).toContain("sharedAppState?.pushRegistrationState = .registered");
+    expect(delegate).toContain("sharedAppState?.pushRegistrationState = .failed");
+    expect(settings).toContain("pushRegistrationRow");
+    expect(settings).toContain("Push registration needs attention");
+  });
+
+  it("retries registration for every non-denied authorization state", () => {
+    const app = source("ios/Wisconsin/App/WisconsinApp.swift");
+    const prompt = source("ios/Wisconsin/Views/PushPrePromptView.swift");
+
+    expect(app).toContain("case .authorized, .provisional, .ephemeral:");
+    expect(app).toContain("appState.requestRemoteNotificationRegistration()");
+    expect(prompt).toContain("appState.requestRemoteNotificationRegistration()");
+    expect(app).not.toContain("if settings.authorizationStatus == .authorized");
+  });
+});

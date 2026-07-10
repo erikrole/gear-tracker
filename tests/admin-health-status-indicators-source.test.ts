@@ -18,16 +18,17 @@ describe("admin health status indicators", () => {
     expect(helper).toContain('state: "active"');
   });
 
-  it("shows shared status indicators on Fix Today queue health", () => {
+  it("shows the shared operational rail on Fix Today queue health", () => {
     const sourceText = source("src/app/(app)/admin/fix-today/FixTodayClient.tsx");
 
+    expect(sourceText).toContain('import { OperationalStatusRail, type OperationalStatusRailItem } from "@/components/OperationalStatusRail"');
     expect(sourceText).toContain('import StatusIndicator from "@/components/ui/status-indicator"');
-    expect(sourceText).toContain('import { summarizeOperationalHealth');
-    expect(sourceText).toContain("const queueHealth = data");
-    expect(sourceText).toContain("criticalCount: data.totals.criticalChecks");
-    expect(sourceText).toContain("needsWorkCount: data.totals.checksNeedingWork");
-    expect(sourceText).toContain("partialFailureCount: partialFailures.length");
-    expect(sourceText).toContain("state={queueHealth.state}");
+    expect(sourceText).toContain("const railItems: OperationalStatusRailItem[]");
+    expect(sourceText).toContain('id: "critical-checks"');
+    expect(sourceText).toContain('id: "partial-data"');
+    expect(sourceText).toContain("<OperationalStatusRail");
+    expect(sourceText).toContain('label: "Queue updated"');
+    expect(sourceText).toContain('allClearLabel={activeSections.length === 0 && partialFailures.length === 0 ? "No admin fixes are open"');
     expect(sourceText).toContain("state={hasWork ? meta.state : \"active\"}");
   });
 

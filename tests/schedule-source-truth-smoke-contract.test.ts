@@ -100,7 +100,7 @@ describe("schedule source-of-truth smoke fallback contracts", () => {
     const eventCrew = source("src/app/(app)/events/[id]/_components/ShiftCoverageCard.tsx");
     const tradeBoard = source("src/components/TradeBoard.tsx");
 
-    for (const label of ["Changed", "Published", "unack"]) {
+    for (const label of ["Unpublished changes", "Published", "unack"]) {
       expect(listView).toContain(label);
     }
     expect(listView).not.toContain("Draft");
@@ -128,6 +128,47 @@ describe("schedule source-of-truth smoke fallback contracts", () => {
     expect(listView).toContain("latestChangeLabel");
     expect(eventCrew).toContain("Recent schedule changes");
     expect(eventCrew).toContain("Needs review");
+  });
+
+  it("keeps Schedule list triage dense, grouped, and actionable across viewport sizes", () => {
+    const listView = source("src/app/(app)/schedule/_components/ListView.tsx");
+    const mobile = listView.slice(
+      listView.indexOf("Mobile: card list"),
+      listView.indexOf("<Dialog"),
+    );
+
+    expect(listView).toContain("EVENT_GRID_CLASS");
+    expect(listView).toContain("grid-cols-[44px_72px_minmax(180px,1fr)_80px_136px_minmax(140px,180px)_40px]");
+    expect(listView).toContain("const openCount =");
+    expect(listView).toContain("Assign {openCount}");
+    expect(listView).toContain('weekday: "short"');
+    expect(listView).toContain('month: "short"');
+    expect(listView).toContain('day: "numeric"');
+    expect(listView).not.toContain('text-[22px]');
+    expect(mobile).toContain("groupedEntries.map");
+    expect(mobile).toContain("groupEntries.map");
+    expect(mobile).not.toContain("filteredEntries.map");
+    expect(mobile).toContain("<OperationalRowActions");
+    expect(mobile).toContain("Hide event");
+    expect(mobile).toContain("onHideEvent(entry.id)");
+    expect(mobile).toContain("hidingEventIds?.has(entry.id)");
+  });
+
+  it("keeps all active Schedule filters visible and partial health failures out of the all-clear state", () => {
+    const filters = source("src/app/(app)/schedule/_components/ScheduleFilters.tsx");
+    const readiness = source("src/app/(app)/schedule/_components/ScheduleReadiness.tsx");
+
+    expect(filters).toContain("const activeFilterCount = [");
+    expect(filters).toContain('filters.homeAwayFilter !== "all" ? filters.homeAwayFilter : ""');
+    expect(filters).toContain('filters.myShiftsOnly ? "my-shifts" : ""');
+    expect(filters).toContain("<OperationalActiveFilterChips filters={activeFilters} />");
+    expect(filters).toContain("{activeFilterCount}");
+    expect(filters).not.toContain("popoverFilterCount");
+
+    expect(readiness).toContain("const showAllClear = attentionItems.length === 0 && healthWarnings === 0;");
+    expect(readiness).toContain("value: sourceNeedsAttention || healthWarnings > 0 ? \"Check\"");
+    expect(readiness).toContain("showAllClear ?");
+    expect(readiness).toContain("<ScheduleSourceStatus signal={sourceSignal} />");
   });
 
   it("keeps event editing language clear for type, pickup location, and calendar venue", () => {

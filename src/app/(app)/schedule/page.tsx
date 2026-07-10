@@ -223,7 +223,6 @@ export default function SchedulePage() {
       <ScheduleFilters
         filters={data.filters}
         entries={data.entries}
-        sourceSignal={data.sourceSignal}
       />
 
       <ScheduleReadiness

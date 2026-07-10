@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Dashboard
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-02
+- Last Updated: 2026-07-09
 - Status: Active — V3 shipped, reliability + UX polish complete
 - Version: V3
 
@@ -153,7 +153,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - [x] AC-11: Operational dashboard, booking list, and booking detail queries verify server truth on mount instead of trusting warm persisted cache as fresh.
 - [x] AC-12: Dashboard booking counts and rows converge from committed booking changes without manual refresh while the page is visible and online.
 - [x] AC-13: Dashboard, booking list, and full booking detail expose the shared booking-change sync health as a visible status indicator.
-- [x] AC-14: Admin Fix Today exposes daily queue health and per-section health through the shared status indicator.
+- [x] AC-14: Admin Fix Today exposes daily queue health through the shared operational status rail and per-section health through the shared status indicator.
 
 ## Edge Cases
 - No overdue items: banner hidden.
@@ -181,6 +181,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 7. Add regression tests for permissions, window filtering (7 days), and overdue consistency.
 
 ## Change Log
+- 2026-07-09: **Admin Fix Today adopted the shared operational status rail.** The page now presents queue freshness, critical checks, checks needing work, open items, partial-data state, and all-clear state in one compact shadcn-backed rail. Full metrics and completion remain available under Details, while the duplicate queue health badge, oversized summary card, and separate all-clear card are removed. Queue section cards retain their shared status indicators and now use semantic project status tokens plus shadcn Card footer and Separator composition. The read-only API and repair links are unchanged.
 - 2026-07-09: **All-day event date bug fixed on the dashboard.** Upcoming Events and the "My shifts" card were showing the wrong calendar day and weekday for all-day events (e.g. a Thursday event rendered as "Wednesday, Jul 8") in any non-UTC browser timezone. Root cause: all-day events and full-day-default shift call windows are stored as UTC-midnight instants, but `formatDayLabel` converted them to local time before reading the date, and the shared `isFullDayBoundaryWindow` helper (used to detect "no real call time set, just inherited the event's day boundary") checked local hours instead of UTC hours — so in Central time it never recognized a genuine full-day window, leaking a fabricated clock time like "Call Jul 8, 7:00 PM" onto shifts with no real call time. `formatDayLabel` now takes an `allDay` flag and reuses the existing UTC-safe `calendarDate` helper (already used by `formatDateShort`); `isFullDayBoundaryWindow` now checks UTC hours, which also fixes the same latent bug in the Schedule List View, Schedule Readiness banner, and shift slot cards that already depended on it. No backfill needed — this was a display/detection bug, not corrupted data.
 - 2026-07-06: **Dashboard backend consistency hardening shipped.** Upcoming Events and all five personal shift filters (dashboard `myShifts`/`myEventWork`, stats `myShiftsCount`/`myShiftsTodayCount`, `/api/my-shifts`) now exclude archived events, matching Schedule's canonical `buildScheduleEventWhere` semantics, so an archived-but-future event can no longer resurface on Home or drive a student's shift badge and gear prep. Hidden events deliberately stay visible on personal surfaces: hiding is list hygiene and a real assignment beats it. Also: the shared dashboard-counts pending-pickup lane is guarded to `kind = 'CHECKOUT'`, and `/api/my-shifts` clamps its `limit` param to 1..20 (negative values previously reached Prisma as backwards-pagination `take`). Plan: `tasks/archive/dashboard-hardening-plan.md`.
 - 2026-07-03: iOS Home hero accessibility cleanup. Native Home keeps the same Snow Leopard header visuals, but the hero now exposes the visible date and personalized greeting as one accessibility element so screen readers do not encounter both the combined greeting and its separate child text nodes.

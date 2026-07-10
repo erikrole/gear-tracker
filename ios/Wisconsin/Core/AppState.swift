@@ -1,5 +1,6 @@
 import Foundation
 import os
+import UIKit
 
 private let appStatePerformanceLog = Logger(subsystem: "com.erikrole.Wisconsin", category: "Launch")
 
@@ -9,6 +10,13 @@ private func elapsedMilliseconds(since start: Date) -> Int {
 
 // Used by AppDelegate to post push destinations without importing SwiftUI
 nonisolated(unsafe) var sharedAppState: AppState?
+
+enum PushRegistrationState: Equatable {
+    case unknown
+    case registering
+    case registered
+    case failed
+}
 
 @MainActor
 @Observable
@@ -21,6 +29,10 @@ final class AppState {
     var pendingPushBookingId: String?
     var pendingExtendBookingId: String?
     var pendingPushEventId: String?
+    /// Server-registration truth, kept separate from iOS authorization state.
+    /// `.registered` means the APNs token was accepted by `/api/devices`; it
+    /// does not claim that a later push reached the device.
+    var pushRegistrationState: PushRegistrationState = .unknown
     var pendingAppIntentDestination: GearTrackerAppIntentDestination?
     var selectedTab: Int = 0
     var resetTab: Int?
@@ -48,6 +60,11 @@ final class AppState {
 
     func presentScanLookup() {
         presentSearch()
+    }
+
+    func requestRemoteNotificationRegistration() {
+        pushRegistrationState = .registering
+        UIApplication.shared.registerForRemoteNotifications()
     }
 
     func consumeAppIntentDestination(_ destination: GearTrackerAppIntentDestination) -> Bool {

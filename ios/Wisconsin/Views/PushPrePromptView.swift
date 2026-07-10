@@ -5,6 +5,7 @@ import UserNotifications
 /// Apple only lets you ask for push permission once per install, so we frame
 /// the value before the system alert appears — this materially improves opt-in.
 struct PushPrePromptView: View {
+    @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
     @State private var isRequesting = false
 
@@ -77,7 +78,7 @@ struct PushPrePromptView: View {
         let granted = (try? await UNUserNotificationCenter.current()
             .requestAuthorization(options: [.alert, .badge, .sound])) ?? false
         if granted {
-            UIApplication.shared.registerForRemoteNotifications()
+            appState.requestRemoteNotificationRegistration()
         }
         isRequesting = false
         dismiss()

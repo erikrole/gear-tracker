@@ -216,6 +216,7 @@
 - **Data factories should be minimal and override-friendly**: `makeBooking({ status: "COMPLETED" })`.
 
 ## Process
+- **iOS push permission is not server registration**: Keep `UNUserNotificationCenter` authorization separate from `/api/devices` token-registration state. A user can have OS permission while the server has no usable token because registration failed or a provisional install was never retried. Surface the distinction and retry all non-denied authorization states without claiming that APNs delivery itself is confirmed.
 
 - **When identity capture is blocked by unresolved scanner semantics, relax the capture point broadly**: A Wiscard scan can encode card number plus issue code, so do not keep registration blocked for one role while making another role optional. If the stored identifier needs parsing or normalization work later, make onboarding optional across affected roles and preserve profile/kiosk linking for values that are already known.
 - **Launch/privacy scope needs current product proof**: Do not turn dormant schema or historical fields into App Store disclosures or launch scope. Confirm the feature is present in current UI/API flows and accepted product direction first; if the user says a feature such as booking photos is dead, scrub it from active launch recommendations.
