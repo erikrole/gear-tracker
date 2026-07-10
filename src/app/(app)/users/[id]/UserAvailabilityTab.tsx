@@ -452,9 +452,9 @@ function BlockPill({
   return (
     <div className="group flex min-w-0 items-center gap-1 rounded-md border bg-muted/40 px-2 py-1 text-xs">
       <span className="font-medium tabular-nums">{range}</span>
-      <Badge variant={intentBadge.variant} className="h-4 px-1 text-[10px]">{intentBadge.label}</Badge>
-      {block.label && <Badge variant="secondary" className="h-4 px-1 text-[10px]">{block.label}</Badge>}
-      {block.semesterLabel && <Badge variant="gray" className="h-4 px-1 text-[10px]">{block.semesterLabel}</Badge>}
+      <Badge variant={intentBadge.variant} size="sm">{intentBadge.label}</Badge>
+      {block.label && <Badge variant="secondary" size="sm">{block.label}</Badge>}
+      {block.semesterLabel && <Badge variant="gray" size="sm">{block.semesterLabel}</Badge>}
       {semesterRange && kind === "WEEKLY" && <span className="text-muted-foreground">{semesterRange}</span>}
       {(canReview && intent === "TIME_OFF" && status === "PENDING") && (
         <span className="ml-auto flex items-center gap-0.5">

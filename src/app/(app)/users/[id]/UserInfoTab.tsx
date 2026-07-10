@@ -452,7 +452,7 @@ function SizeMiniInput({
 
   return (
     <label htmlFor={id} className="flex flex-col gap-0.5 min-w-0 flex-1">
-      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+      <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         {label}
         {status === "saving" && " · saving"}
         {status === "saved" && " · saved"}

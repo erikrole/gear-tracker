@@ -141,7 +141,7 @@ function AwardPreviewHeader({
   return (
     <div className={cn("relative isolate overflow-hidden border-b border-border/40 px-6 py-7 text-center", awardPreviewGradient(rarity))}>
       <div className="pointer-events-none absolute inset-0 [background-image:linear-gradient(115deg,transparent_0%,rgba(255,255,255,0.30)_46%,transparent_58%)]" />
-      <p className="relative mb-5 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+      <p className="relative mb-5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         Awarding to {profileName}
       </p>
       <div className="relative flex justify-center">
@@ -711,10 +711,7 @@ export default function UserDetailPage() {
               {isSelf ? "My Profile" : profile.name}
             </h1>
             <div className="mt-2.5 space-y-1">
-              <p
-                className="text-[12px] text-muted-foreground leading-none"
-                style={{ fontFamily: "var(--font-mono)" }}
-              >
+              <p className="text-[12px] text-muted-foreground leading-none">
                 {profile.email}
               </p>
               {profile.role !== "STUDENT" && profile.title && (
@@ -747,7 +744,7 @@ export default function UserDetailPage() {
                       {profile.directReport.name}
                     </Link>
                   ) : (
-                    <span>{profile.directReportName} <span className="text-[10px] uppercase tracking-wide opacity-70">external</span></span>
+                    <span>{profile.directReportName} <span className="text-[11px] text-muted-foreground">(external)</span></span>
                   )}
                 </p>
               )}
