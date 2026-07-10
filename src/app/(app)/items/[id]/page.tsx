@@ -252,10 +252,7 @@ function SerializedItemDetailsPage({ id }: { id: string }) {
               >
                 <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500 }}>{tab.label}</span>
                 {count > 0 && (
-                  <span
-                    className="text-[10px] tabular-nums text-muted-foreground/70"
-                    style={{ fontFamily: "var(--font-mono)" }}
-                  >
+                  <span className="text-[11px] tabular-nums text-muted-foreground">
                     {count}
                   </span>
                 )}

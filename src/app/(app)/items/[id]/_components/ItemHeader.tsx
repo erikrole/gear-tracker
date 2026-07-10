@@ -252,7 +252,7 @@ export function ItemHeader({
               />
               {asset.metadata?.uwAssetTag && (
                 <span
-                  className="text-[10.5px] text-muted-foreground/50 tracking-[0.06em]"
+                  className="text-[11px] tabular-nums text-muted-foreground"
                   style={{ fontFamily: "var(--font-mono)" }}
                 >
                   UW·{asset.metadata.uwAssetTag}
@@ -271,15 +271,12 @@ export function ItemHeader({
               </div>
 
               {showBrandModel && (
-                <p
-                  className="mt-1 text-[11px] leading-none text-muted-foreground/50"
-                  style={{ fontFamily: "var(--font-mono)" }}
-                >
+                <p className="mt-1 text-[12px] leading-none text-muted-foreground">
                   {brandModel}
                 </p>
               )}
 
-              <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground/70">
+              <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-muted-foreground">
                 {metaParts.map((part, index) => (
                   <span key={part} className="inline-flex items-center gap-2">
                     {index > 0 && (
@@ -313,9 +310,9 @@ export function ItemHeader({
               {canEdit && <ActionsMenu asset={asset} disabled={actionBusy} onAction={onAction} />}
             </div>
 
-            <div className="flex items-center gap-1 text-[10px] leading-none text-muted-foreground/40 lg:justify-end">
+            <div className="flex items-center gap-1 text-[11px] leading-none text-muted-foreground lg:justify-end">
               {updatedLabel && (
-                <span className="hidden sm:inline" style={{ fontFamily: "var(--font-mono)" }}>
+                <span className="hidden sm:inline">
                   {updatedLabel}
                 </span>
               )}
@@ -356,10 +353,7 @@ export function ItemHeader({
       {/* ── Parent banner ─────────────────────────────────────── */}
       {asset.parentAsset && (
         <div className="mb-3 rounded-lg border bg-muted/30 px-3 py-2 flex items-center gap-1.5">
-          <span
-            className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/50"
-            style={{ fontFamily: "var(--font-mono)" }}
-          >
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             Attached to
           </span>
           <ChevronRight className="size-3 text-muted-foreground/30" />
@@ -377,10 +371,7 @@ export function ItemHeader({
             </Badge>
           )}
           {(asset.parentAsset.brand || asset.parentAsset.model) && (
-            <span
-              className="text-[11px] text-muted-foreground/50"
-              style={{ fontFamily: "var(--font-mono)" }}
-            >
+            <span className="text-[12px] text-muted-foreground">
               · {[asset.parentAsset.brand, asset.parentAsset.model].filter(Boolean).join(" ")}
             </span>
           )}

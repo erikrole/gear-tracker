@@ -706,7 +706,7 @@ function FirmwareWatchPanel({
 
   return (
     <>
-      <dt className="flex h-8 items-center text-[10px] uppercase tracking-[0.12em] text-muted-foreground/55">
+      <dt className="flex h-8 items-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         Firmware
       </dt>
       <dd className="flex h-8 min-w-0 items-center gap-2">
@@ -743,7 +743,7 @@ function FirmwareWatchPanel({
               <div className="rounded-md bg-muted/25 p-4 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground/70">
+                    <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                       Installed
                     </div>
                     <div
@@ -772,7 +772,7 @@ function FirmwareWatchPanel({
                 </div>
                 <dl className="mt-4 grid grid-cols-3 border-t border-border/40 pt-3 text-sm">
                   <div className="min-w-0 pr-3">
-                    <dt className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground/70">
+                    <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                       Newest
                     </dt>
                     <dd
@@ -785,13 +785,13 @@ function FirmwareWatchPanel({
                     </dd>
                   </div>
                   <div className="min-w-0 border-l border-border/40 px-3">
-                    <dt className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground/70">
+                    <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                       Checked
                     </dt>
                     <dd className="mt-1 truncate tabular-nums">{lastChecked || "Not checked"}</dd>
                   </div>
                   <div className="min-w-0 border-l border-border/40 pl-3">
-                    <dt className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground/70">
+                    <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                       Released
                     </dt>
                     <dd className="mt-1 truncate tabular-nums">{releaseDate || "Not recorded"}</dd>
@@ -1151,7 +1151,7 @@ function ScanValueRow({
 }) {
   return (
     <>
-      <dt className="flex h-8 items-center text-[10px] uppercase tracking-[0.12em] text-muted-foreground/55">
+      <dt className="flex h-8 items-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </dt>
       <dd className="flex h-8 min-w-0 items-center">
@@ -1330,7 +1330,7 @@ export default function ItemInfoCard({
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <div className="text-sm font-semibold">Identity</div>
-                <Badge variant="outline" size="sm" className="rounded-sm bg-background font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+                <Badge variant="outline" size="sm" className="rounded-sm bg-background text-muted-foreground">
                   Admin
                 </Badge>
               </div>
@@ -1344,7 +1344,7 @@ export default function ItemInfoCard({
                   />
                 ) : (
                   <>
-                    <dt className="flex h-8 items-center text-[10px] uppercase tracking-[0.12em] text-muted-foreground/55">QR</dt>
+                    <dt className="flex h-8 items-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground">QR</dt>
                     <dd className="flex h-8 min-w-0 items-center">
                       <span className="font-mono text-muted-foreground">No QR code</span>
                     </dd>
