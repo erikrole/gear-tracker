@@ -34,6 +34,7 @@ import {
   Star,
   StarOff,
 } from "lucide-react";
+import type { BulkActionReferenceAvailability } from "../hooks/use-filter-options";
 
 type Location = { id: string; name: string };
 type Kit = { id: string; name: string };
@@ -43,6 +44,7 @@ export function BulkActionBar({
   locations,
   categoryOptions,
   kits = [],
+  referenceAvailability,
   busy,
   error,
   userRole,
@@ -55,6 +57,7 @@ export function BulkActionBar({
   locations: Location[];
   categoryOptions: { value: string; label: string }[];
   kits?: Kit[];
+  referenceAvailability: BulkActionReferenceAvailability;
   busy: boolean;
   error: string;
   userRole: string;
@@ -101,15 +104,23 @@ export function BulkActionBar({
         <DropdownMenuContent align="end" className="w-52">
           {/* Move location */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
+            <DropdownMenuSubTrigger
+              disabled={!referenceAvailability.locations}
+              className="data-[disabled]:opacity-50"
+              title={!referenceAvailability.locations ? "Locations did not load. Retry item controls to move items." : undefined}
+              aria-label={!referenceAvailability.locations ? "Move location unavailable because locations did not load" : undefined}
+            >
               <MapPin className="mr-2 size-4" />
               Move location
+              {!referenceAvailability.locations && <span className="ml-auto text-xs">Unavailable</span>}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="max-h-60 overflow-y-auto">
               {locations.map((l) => (
                 <DropdownMenuItem
                   key={l.id}
-                  onClick={() => onAction("move_location", { locationId: l.id })}
+                  onClick={() => {
+                    if (referenceAvailability.locations) onAction("move_location", { locationId: l.id });
+                  }}
                 >
                   {l.name}
                 </DropdownMenuItem>
@@ -119,21 +130,31 @@ export function BulkActionBar({
 
           {/* Change category */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
+            <DropdownMenuSubTrigger
+              disabled={!referenceAvailability.categories}
+              className="data-[disabled]:opacity-50"
+              title={!referenceAvailability.categories ? "Categories did not load. Retry item controls to change categories." : undefined}
+              aria-label={!referenceAvailability.categories ? "Change category unavailable because categories did not load" : undefined}
+            >
               <Tag className="mr-2 size-4" />
               Change category
+              {!referenceAvailability.categories && <span className="ml-auto text-xs">Unavailable</span>}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="max-h-60 overflow-y-auto">
               <DropdownMenuItem
                 className="italic"
-                onClick={() => onAction("change_category", { categoryId: null })}
+                onClick={() => {
+                  if (referenceAvailability.categories) onAction("change_category", { categoryId: null });
+                }}
               >
                 None
               </DropdownMenuItem>
               {categoryOptions.map((c) => (
                 <DropdownMenuItem
                   key={c.value}
-                  onClick={() => onAction("change_category", { categoryId: c.value })}
+                  onClick={() => {
+                    if (referenceAvailability.categories) onAction("change_category", { categoryId: c.value });
+                  }}
                 >
                   {c.label}
                 </DropdownMenuItem>
@@ -148,17 +169,25 @@ export function BulkActionBar({
           </DropdownMenuItem>
 
           {/* Add to kit */}
-          {kits.length > 0 && (
+          {(kits.length > 0 || !referenceAvailability.kits) && (
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
+              <DropdownMenuSubTrigger
+                disabled={!referenceAvailability.kits}
+                className="data-[disabled]:opacity-50"
+                title={!referenceAvailability.kits ? "Kits did not load. Retry item controls to add items to a kit." : undefined}
+                aria-label={!referenceAvailability.kits ? "Add to kit unavailable because kits did not load" : undefined}
+              >
                 <Package className="mr-2 size-4" />
                 Add to kit
+                {!referenceAvailability.kits && <span className="ml-auto text-xs">Unavailable</span>}
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="max-h-60 overflow-y-auto">
                 {kits.map((k) => (
                   <DropdownMenuItem
                     key={k.id}
-                    onClick={() => onAction("add_to_kit", { kitId: k.id })}
+                    onClick={() => {
+                      if (referenceAvailability.kits) onAction("add_to_kit", { kitId: k.id });
+                    }}
                   >
                     {k.name}
                   </DropdownMenuItem>

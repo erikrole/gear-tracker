@@ -95,6 +95,7 @@ See `AREA_ITEMS.md` 2026-04-06 entry for kit detail page hardening work:
 - [x] AC-6: Mobile kit list responsive; detail scrollable
 
 ## Change Log
+- 2026-07-10: **Kits search typing stability.** The Kits list search now uses the shared `DebouncedSearchInput` and `useKitsQuery` keeps previous rows visible (`keepPreviousData`) while a changed search/filter refetches, so the full-page skeleton (which previously unmounted the search field and dropped focus on every committed keystroke) only appears on true first load. Regression guard: `tests/search-input-focus-stability.test.ts`.
 - 2026-06-20: Kit detail inline-edit rows inherit the refreshed shared `SaveableField` dirty-row treatment, preserving name/description save semantics while making pending save/cancel actions visually explicit and 40px target sized.
 - 2026-06-20: Kit detail search misses and empty item-family membership now use shared inline `EmptyState` treatment instead of text-only placeholders, keeping serialized-item search, item-family search, and empty membership recovery copy aligned.
 - 2026-06-06: Booking wizard kit lookup recovery shipped. Shared checkout/reservation creation now distinguishes a failed `/api/kits?location_id=...` read from a true no-kit location, showing retryable inline copy while keeping kits optional and preserving the existing `Booking.kitId` payload behavior.

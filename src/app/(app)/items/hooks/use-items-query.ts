@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { SortingState } from "@tanstack/react-table";
 import type { Asset } from "../columns";
@@ -10,7 +10,7 @@ import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 import type { ItemTypeFilter } from "./use-url-filters";
 
 type QueryDeps = {
-  debouncedSearch: string;
+  search: string;
   itemType: ItemTypeFilter;
   statusKey: string;
   locationKey: string;
@@ -84,7 +84,7 @@ function buildUrl(page: number, limit: number, deps: QueryDeps): string {
   params.set("limit", String(limit));
   params.set("offset", String(page * limit));
   if (deps.itemType !== "all") params.set("item_type", deps.itemType);
-  if (deps.debouncedSearch) params.set("q", deps.debouncedSearch);
+  if (deps.search) params.set("q", deps.search);
   deps.statusKey.split(",").filter(Boolean).forEach((v) => params.append("status", v));
   deps.locationKey.split(",").filter(Boolean).forEach((v) => params.append("location_id", v));
   deps.categoryKey.split(",").filter(Boolean).forEach((v) => params.append("category_id", v));
@@ -162,6 +162,10 @@ export function useItemsQuery(deps: QueryDeps) {
     queryFn: ({ signal }) => fetchAssets(url, signal),
     staleTime: 60_000,
     refetchOnMount: "always",
+    // Keep the previous page's rows on screen while a changed filter/search
+    // refetches. Without this every query change flips isLoading, which used
+    // to swap the whole table (and the focused search input) for a skeleton.
+    placeholderData: keepPreviousData,
   });
 
   // Toast on background refresh failure

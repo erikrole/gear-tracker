@@ -18,6 +18,7 @@ import {
 import EmptyState from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -33,7 +34,11 @@ import { NewItemSheet } from "./new-item-sheet";
 import { GapWizardDialog } from "./gap-wizard-dialog";
 import { useUrlFilters } from "./hooks/use-url-filters";
 import { useItemsQuery, type BulkItem } from "./hooks/use-items-query";
-import { useFilterOptions } from "./hooks/use-filter-options";
+import {
+  getBulkActionReferenceAvailability,
+  getItemsControlRecoveryMode,
+  useFilterOptions,
+} from "./hooks/use-filter-options";
 import { useBulkActions } from "./hooks/use-bulk-actions";
 import { BulkActionBar } from "./components/bulk-action-bar";
 import { ItemsToolbar } from "./components/items-toolbar";
@@ -41,8 +46,9 @@ import { ItemsPagination } from "./components/items-pagination";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import { useItemChangeSync } from "@/hooks/use-item-change-sync";
 import { STATUS_STYLES } from "@/lib/status-styles";
-import { Download, Rows3, Rows4 } from "lucide-react";
+import { AlertTriangle, Download, RefreshCw, Rows3, Rows4 } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
+import { OperationalPartialResultsAlert } from "@/components/OperationalFeedback";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { buildBulkRowId, getItemHref, isBulkRowId, parseBulkRowId } from "./lib/item-href";
 import { compareItemAssetTags } from "@/lib/item-asset-tag-sort";
@@ -54,7 +60,7 @@ export default function ItemsPage() {
   useItemChangeSync();
 
   const query = useItemsQuery({
-    debouncedSearch: filters.debouncedSearch,
+    search: filters.search,
     itemType: filters.itemType,
     statusKey: filters.statusKey,
     locationKey: filters.locationKey,
@@ -115,7 +121,7 @@ export default function ItemsPage() {
     setRowSelection({});
   }, [
     query.page,
-    filters.debouncedSearch,
+    filters.search,
     filters.statusKey,
     filters.locationKey,
     filters.categoryKey,
@@ -155,7 +161,7 @@ export default function ItemsPage() {
     try {
       const params = new URLSearchParams();
       params.set("ids_only", "true");
-      if (filters.debouncedSearch) params.set("q", filters.debouncedSearch);
+      if (filters.search) params.set("q", filters.search);
       filters.statusKey.split(",").filter(Boolean).forEach((v) => params.append("status", v));
       filters.locationKey.split(",").filter(Boolean).forEach((v) => params.append("location_id", v));
       filters.categoryKey.split(",").filter(Boolean).forEach((v) => params.append("category_id", v));
@@ -244,6 +250,23 @@ export default function ItemsPage() {
 
   const visibleRowCount = mergedData.length;
   const pageLoading = !preferencesLoaded || query.loading;
+  const failedReferenceGroups = new Set(options.partialFailures);
+  const canCreateItem = !failedReferenceGroups.has("locations") && !failedReferenceGroups.has("categories");
+  const canFillGaps = !failedReferenceGroups.has("categories") && !failedReferenceGroups.has("departments");
+  const canOfferCreateItem = options.canEdit && canCreateItem;
+  const recoveryMode = getItemsControlRecoveryMode(
+    options.initialError,
+    options.refreshError,
+    options.partialFailures,
+  );
+  const unavailableReferenceGroups = options.partialFailures.map((failure) => ({
+    locations: "Locations",
+    departments: "Departments",
+    categories: "Categories",
+    brands: "Brands",
+    kits: "Kits",
+  }[failure] ?? failure));
+  const bulkActionReferenceAvailability = getBulkActionReferenceAvailability(options.partialFailures);
 
   // Optimistic favorite toggle
   const handleToggleFavorite = useCallback(async (asset: Asset) => {
@@ -311,7 +334,7 @@ export default function ItemsPage() {
     try {
       const params = new URLSearchParams();
       params.set("format", "csv");
-      if (filters.debouncedSearch) params.set("q", filters.debouncedSearch);
+      if (filters.search) params.set("q", filters.search);
       filters.statusKey.split(",").filter(Boolean).forEach((v) => params.append("status", v));
       filters.locationKey.split(",").filter(Boolean).forEach((v) => params.append("location_id", v));
       filters.categoryKey.split(",").filter(Boolean).forEach((v) => params.append("category_id", v));
@@ -529,15 +552,64 @@ export default function ItemsPage() {
                 size="sm"
                 className="hidden min-w-[86px] sm:flex"
                 onClick={() => setShowGapWizard(true)}
+                disabled={!canFillGaps}
               >
                 Fill gaps
               </Button>
               <Button variant="outline" size="sm" className="min-w-[76px]" asChild><Link href="/import">Import</Link></Button>
-              <Button size="sm" className="min-w-[92px]" onClick={() => setShowCreate(true)}>New item</Button>
+              <Button size="sm" className="min-w-[92px]" onClick={() => setShowCreate(true)} disabled={!canCreateItem}>New item</Button>
             </>
           )}
         </div>
       </PageHeader>
+
+      {recoveryMode === "initial" && (
+        <Alert className="mb-4 border-destructive/40">
+          <AlertTriangle className="size-4" />
+          <AlertTitle>Item controls did not load</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>You can still browse inventory, but filters and staff actions stay unavailable until role and reference data are confirmed.</span>
+            <Button variant="outline" size="sm" onClick={options.retry} disabled={options.refreshing}>
+              <RefreshCw className={options.refreshing ? "animate-spin" : ""} aria-hidden="true" />
+              Retry controls
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {recoveryMode === "refresh" && (
+        <Alert className="mb-4 border-[var(--orange)]/40 bg-[var(--orange-bg)]">
+          <AlertTriangle className="size-4 text-[var(--orange-text)]" />
+          <AlertTitle>Item controls may be out of date</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>The last loaded filters and permissions remain available while refresh is retried.</span>
+            <Button variant="outline" size="sm" onClick={options.retry} disabled={options.refreshing}>
+              <RefreshCw className={options.refreshing ? "animate-spin" : ""} aria-hidden="true" />
+              Retry refresh
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {recoveryMode === "partial" && (
+        <div className="mb-4 space-y-2">
+          <OperationalPartialResultsAlert
+            failures={unavailableReferenceGroups}
+            failureLabel="Unavailable item controls"
+            noun="reference group"
+            recoveryCopy={options.refreshError
+              ? "The latest refresh also failed. Healthy filters remain available while recovery is retried."
+              : "Healthy filters remain available; retry before relying on the unavailable controls."}
+            title={options.refreshError ? "Some item controls may be out of date" : "Some item controls did not load"}
+          />
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={options.retry} disabled={options.refreshing}>
+              <RefreshCw className={options.refreshing ? "animate-spin" : ""} aria-hidden="true" />
+              Retry controls
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Inventory summary bar */}
       {query.statusBreakdown && !pageLoading && (
@@ -617,6 +689,57 @@ export default function ItemsPage() {
       />
 
       <div className="flex flex-col gap-4">
+        <div className="space-y-2">
+        {/* Toolbar stays mounted across loading/empty/error states so the
+            search input never loses focus while results update. */}
+        <div className="flex items-stretch">
+          {selectedCount > 0 ? (
+            <BulkActionBar
+              count={selectedCount}
+              locations={options.locations}
+              categoryOptions={options.categoryOptions}
+              kits={options.kits}
+              referenceAvailability={bulkActionReferenceAvailability}
+              busy={bulk.busy || selectingAll}
+              error={bulk.error}
+              userRole={options.userRole}
+              onAction={bulk.execute}
+              onClear={() => setRowSelection({})}
+              onSelectAllMatching={handleSelectAllMatching}
+              selectAllMatchingTotal={query.total}
+            />
+          ) : (
+            <ItemsToolbar
+              searchInputRef={searchInputRef}
+              search={filters.search}
+              onSearchChange={withPageReset(filters.setSearch)}
+              statusFilter={filters.statusFilter}
+              onStatusFilterChange={withPageReset(filters.setStatusFilter)}
+              locationFilter={filters.locationFilter}
+              onLocationFilterChange={withPageReset(filters.setLocationFilter)}
+              categoryFilter={filters.categoryFilter}
+              onCategoryFilterChange={withPageReset(filters.setCategoryFilter)}
+              brandFilter={filters.brandFilter}
+              onBrandFilterChange={withPageReset(filters.setBrandFilter)}
+              departmentFilter={filters.departmentFilter}
+              onDepartmentFilterChange={withPageReset(filters.setDepartmentFilter)}
+              showAccessories={filters.showAccessories}
+              onShowAccessoriesChange={(v) => { filters.setShowAccessories(v); query.setPage(0); }}
+              favoritesOnly={filters.favoritesOnly}
+              onFavoritesOnlyChange={(v) => { filters.setFavoritesOnly(v); query.setPage(0); }}
+              itemType={filters.itemType}
+              onItemTypeChange={(v) => { filters.setItemType(v); query.setPage(0); }}
+              sorting={filters.sorting}
+              onSortingChange={(v) => { filters.setSorting(v); query.setPage(0); }}
+              hasActiveFilters={filters.hasActiveFilters}
+              onClearAllFilters={() => { filters.clearAllFilters(); query.setPage(0); }}
+              locations={options.locations}
+              departments={options.departments}
+              categoryOptions={options.categoryOptions}
+              brands={options.brands}
+            />
+          )}
+        </div>
         {pageLoading ? (
           <>
           {/* Desktop skeleton table */}
@@ -677,13 +800,13 @@ export default function ItemsPage() {
           </>
         ) : query.loadError ? (
           <EmptyState icon="box" title="Failed to load items" description="Something went wrong loading your inventory." actionLabel="Retry" onAction={query.reload} />
-        ) : visibleRowCount === 0 && !filters.hasActiveFilters && !filters.debouncedSearch ? (
+        ) : visibleRowCount === 0 && !filters.hasActiveFilters && !filters.search ? (
           <EmptyState
             icon="box"
             title="No items in inventory yet"
-            description={options.canEdit ? "Create your first item to get started." : "No items have been added yet."}
-            actionLabel={options.canEdit ? "New item" : undefined}
-            onAction={options.canEdit ? () => setShowCreate(true) : undefined}
+            description={canOfferCreateItem ? "Create your first item to get started." : "No items have been added yet."}
+            actionLabel={canOfferCreateItem ? "New item" : undefined}
+            onAction={canOfferCreateItem ? () => setShowCreate(true) : undefined}
           />
         ) : visibleRowCount === 0 ? (
           <EmptyState
@@ -713,56 +836,9 @@ export default function ItemsPage() {
             actionBusy={actionBusy}
             onRowAction={handleRowAction}
             onToggleFavorite={handleToggleFavorite}
-            toolbar={
-              <ItemsToolbar
-                searchInputRef={searchInputRef}
-                search={filters.search}
-                onSearchChange={withPageReset(filters.setSearch)}
-                statusFilter={filters.statusFilter}
-                onStatusFilterChange={withPageReset(filters.setStatusFilter)}
-                locationFilter={filters.locationFilter}
-                onLocationFilterChange={withPageReset(filters.setLocationFilter)}
-                categoryFilter={filters.categoryFilter}
-                onCategoryFilterChange={withPageReset(filters.setCategoryFilter)}
-                brandFilter={filters.brandFilter}
-                onBrandFilterChange={withPageReset(filters.setBrandFilter)}
-                departmentFilter={filters.departmentFilter}
-                onDepartmentFilterChange={withPageReset(filters.setDepartmentFilter)}
-                showAccessories={filters.showAccessories}
-                onShowAccessoriesChange={(v) => { filters.setShowAccessories(v); query.setPage(0); }}
-                favoritesOnly={filters.favoritesOnly}
-                onFavoritesOnlyChange={(v) => { filters.setFavoritesOnly(v); query.setPage(0); }}
-                itemType={filters.itemType}
-                onItemTypeChange={(v) => { filters.setItemType(v); query.setPage(0); }}
-                sorting={filters.sorting}
-                onSortingChange={(v) => { filters.setSorting(v); query.setPage(0); }}
-                hasActiveFilters={filters.hasActiveFilters}
-                onClearAllFilters={() => { filters.clearAllFilters(); query.setPage(0); }}
-                locations={options.locations}
-                departments={options.departments}
-                categoryOptions={options.categoryOptions}
-                brands={options.brands}
-              />
-            }
-            bulkBar={
-              selectedCount > 0 ? (
-                <BulkActionBar
-                  count={selectedCount}
-                  locations={options.locations}
-                  categoryOptions={options.categoryOptions}
-                  kits={options.kits}
-                  busy={bulk.busy || selectingAll}
-                  error={bulk.error}
-                  userRole={options.userRole}
-                  onAction={bulk.execute}
-                  onClear={() => setRowSelection({})}
-                  onSelectAllMatching={handleSelectAllMatching}
-                  selectAllMatchingTotal={query.total}
-                />
-              ) : undefined
-            }
           />
         )}
+        </div>
 
         {/* Pagination footer */}
         {!pageLoading && !query.loadError && visibleRowCount > 0 && (

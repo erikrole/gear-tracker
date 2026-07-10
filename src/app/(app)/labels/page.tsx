@@ -3,17 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, ExternalLink, PackageSearch, Printer, Search, X } from "lucide-react";
+import { CheckCircle2, ExternalLink, PackageSearch, Printer } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { DebouncedSearchInput } from "@/components/DebouncedSearchInput";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/PageHeader";
 import EmptyState from "@/components/EmptyState";
 import { useFetch } from "@/hooks/use-fetch";
-import { useDebounce } from "@/hooks/use-url-state";
 import { FadeUp } from "@/components/ui/motion";
 import {
   Item,
@@ -176,17 +175,19 @@ export default function LabelsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [didPreselect, setDidPreselect] = useState(false);
 
-  const debouncedSearch = useDebounce(search, 300);
 
   // Build fetch URL from search state
   const fetchUrl = (() => {
     const params = new URLSearchParams({ limit: "200" });
-    if (debouncedSearch) params.set("q", debouncedSearch);
+    if (search) params.set("q", search);
     return `/api/assets?${params}`;
   })();
 
   const { data: labelItems, loading, error, reload } = useFetch<LabelItem[]>({
     url: fetchUrl,
+    // Keep the previous list visible while a changed search refetches instead
+    // of flashing skeletons on every committed keystroke.
+    keepPreviousData: true,
     transform: (json) => {
       const assets = ((json.data as Asset[] | undefined) ?? []).map(mapAssetToLabelItem);
       const families = ((json.bulkItems as BulkItemFamily[] | undefined) ?? []).map(mapFamilyToLabelItem);
@@ -227,7 +228,7 @@ export default function LabelsPage() {
 
   const selectedItems = (labelItems ?? []).filter((item) => selectedIds.has(item.id));
   const matchingCount = labelItems?.length ?? 0;
-  const hasSearch = debouncedSearch.trim().length > 0;
+  const hasSearch = search.trim().length > 0;
   const allVisibleSelected =
     matchingCount > 0 && labelItems?.every((item) => selectedIds.has(item.id));
 
@@ -270,30 +271,15 @@ export default function LabelsPage() {
       <Card className="no-print mb-4 overflow-hidden" elevation="flat">
         <CardHeader className="gap-3 border-b border-border/70">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="relative min-w-0 flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="labels-search"
-                name="labels-search"
-                type="text"
-                placeholder="Search by item, model, serial, QR, category, location..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="h-10 pl-9 pr-9"
-              />
-              {search && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0.5 top-1/2 size-10 -translate-y-1/2"
-                  onClick={() => setSearch("")}
-                  aria-label="Clear search"
-                >
-                  <X className="size-4" />
-                </Button>
-              )}
-            </div>
+            <DebouncedSearchInput
+              id="labels-search"
+              name="labels-search"
+              containerClassName="min-w-0 flex-1"
+              placeholder="Search by item, model, serial, QR, category, location..."
+              value={search}
+              onValueChange={setSearch}
+              aria-label="Search labels"
+            />
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="tabular-nums">
                 {selectedItems.length} selected

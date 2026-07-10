@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useState, type ReactNode } from "react";
-import { useUrlState, useDebounce } from "@/hooks/use-url-state";
+import { useUrlState } from "@/hooks/use-url-state";
 import { toast } from "sonner";
 import {
   ArchiveIcon,
@@ -11,12 +11,11 @@ import {
   ArrowUpDown,
   BoxIcon,
   PlusIcon,
-  SearchIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
+import { DebouncedSearchInput } from "@/components/DebouncedSearchInput";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -174,7 +173,8 @@ export default function KitsPage() {
     parseStringParam,
     serializeOptionalString,
   );
-  const debouncedSearch = useDebounce(search.trim(), 300);
+  // Commits arrive pre-debounced from DebouncedSearchInput.
+  const trimmedSearch = search.trim();
   const [locationId, setLocationId] = useUrlState<string>(
     "location",
     parseStringParam,
@@ -198,7 +198,7 @@ export default function KitsPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const query = useKitsQuery({
-    search: debouncedSearch,
+    search: trimmedSearch,
     locationId,
     includeArchived,
     sortBy,
@@ -272,7 +272,7 @@ export default function KitsPage() {
     setSortOrder("asc");
   }
 
-  const hasResultFilters = !!debouncedSearch || !!locationId || includeArchived;
+  const hasResultFilters = !!trimmedSearch || !!locationId || includeArchived;
   const canClearFilters = !!search.trim()
     || !!locationId
     || includeArchived
@@ -328,19 +328,16 @@ export default function KitsPage() {
 
       <Card className="mt-4">
         <CardContent className="grid gap-3 p-4 md:grid-cols-[minmax(260px,1fr)_220px_auto_auto] md:items-center">
-          <div className="relative">
+          <div>
             <label htmlFor="kits-search" className="sr-only">
               Search kits
             </label>
-            <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <DebouncedSearchInput
               id="kits-search"
               name="kits-search"
-              type="search"
               placeholder="Search kits and descriptions"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              className="h-10 pl-9"
+              onValueChange={setSearch}
             />
           </div>
 

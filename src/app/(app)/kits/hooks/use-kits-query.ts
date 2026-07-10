@@ -57,6 +57,10 @@ export function useKitsQuery(deps: QueryDeps) {
   const { data, loading, refreshing, error, reload } = useFetch<KitsResponse>({
     url: `/api/kits?${params}`,
     transform: (json) => json as unknown as KitsResponse,
+    // Keep the previous rows visible while a changed search/filter refetches,
+    // so the page never swaps to the full skeleton (and drops input focus)
+    // after the initial load.
+    keepPreviousData: true,
   });
 
   const kits = data?.data ?? [];

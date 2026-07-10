@@ -1,9 +1,9 @@
 "use client";
 
 import { type RefObject, useEffect, useRef, useState } from "react";
-import { SearchIcon, SlidersHorizontal, Star, XIcon } from "lucide-react";
+import { SlidersHorizontal, Star, XIcon } from "lucide-react";
 import type { SortingState } from "@tanstack/react-table";
-import { Input } from "@/components/ui/input";
+import { DebouncedSearchInput } from "@/components/DebouncedSearchInput";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -194,34 +194,17 @@ export function ItemsToolbar({
   return (
     <OperationalToolbar>
       <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-        <div className="relative min-w-0 flex-1">
-          <Input
-            id="items-search"
-            name="items-search"
-            ref={searchInputRef}
-            className="peer h-10 pl-9 pr-9 text-base md:text-sm"
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search tag, model, serial, location"
-            type="text"
-            aria-label="Search items"
-          />
-          <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 left-0 flex items-center justify-center pl-3 peer-disabled:opacity-50">
-            <SearchIcon size={16} />
-          </div>
-          {search && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-xs"
-              className="absolute inset-y-0 right-0 my-auto h-10 w-10 text-muted-foreground/80 hover:text-foreground"
-              onClick={() => onSearchChange("")}
-              aria-label="Clear search"
-            >
-              <XIcon size={14} />
-            </Button>
-          )}
-        </div>
+        <DebouncedSearchInput
+          id="items-search"
+          name="items-search"
+          ref={searchInputRef}
+          containerClassName="min-w-0 flex-1"
+          className="text-base md:text-sm"
+          value={search}
+          onValueChange={onSearchChange}
+          placeholder="Search tag, model, serial, location"
+          aria-label="Search items"
+        />
 
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex min-h-10 items-center rounded-md border border-border/60 bg-background p-0.5">

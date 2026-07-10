@@ -1,8 +1,77 @@
 # Task Queue
 
-Last updated: 2026-07-09
+Last updated: 2026-07-10
 
 ---
+
+## Completed: Global search and text filtering typing stability (2026-07-10)
+
+Problem: fast typing hitches and loses field focus while pages "update" the filter.
+
+Root causes (verified):
+- /items: `useItemsQuery` lacks `placeholderData: keepPreviousData` → every debounced search change flips `isLoading` → whole DataTable + ItemsToolbar (with the focused input) unmounts into a skeleton. Zero-result branch also unmounts the input.
+- /kits: full-page `if (query.loading) return <KitsLoadingState/>` + no keepPreviousData → same focus loss.
+- /labels, /search: input stays mounted but results wipe to skeletons on every debounce (flash, untrustworthy).
+- All pages: keystrokes update page-level state → full page/table re-render per keystroke (the hitch).
+
+Plan:
+- [x] 1. New shared `src/components/DebouncedSearchInput.tsx` with local echo state (instant keystrokes, no parent re-render), debounced commit (250ms), instant commit on clear/Enter/Escape, adoption of external value changes (clear-all, URL nav), ref-forwarding shadcn Input with search icon + clear button.
+- [x] 2. /items: `placeholderData: keepPreviousData` in use-items-query; collapsed search/debouncedSearch in use-url-filters (debounce lives in the input now); toolbar + bulk bar hoisted out of the loading/error/empty conditional so the input never unmounts; DebouncedSearchInput in ItemsToolbar; page resets on committed search change only; removed dead toolbar/bulkBar props from DataTable.
+- [x] 3. /kits: `keepPreviousData: true` in useKitsQuery's useFetch; DebouncedSearchInput; full-page skeleton now first-load-only.
+- [x] 4. /labels: `keepPreviousData: true`; DebouncedSearchInput.
+- [x] 5. /search (global): DebouncedSearchInput committing straight to the `q` URL param (three query states collapsed to one); previous results stay visible dimmed with an Updating spinner while the fan-out is in flight; skeletons only when there are no prior results.
+- [x] 6. /users: left as-is on purpose. UserFilters already implements the local-draft + 150ms debounce pattern with keepPreviousData and its own searching spinner; converting it would be churn, not improvement.
+- [x] 7. Verify (see review).
+
+### Review
+
+- **Shipped:** Shared `DebouncedSearchInput` plus keep-previous-data wiring across Items, Kits, Labels, and global Search. Root cause was twofold: query-key changes flipped `isLoading` and swapped the results surface (including the focused input, on Items and Kits) for a skeleton, and per-keystroke page-level state re-rendered the whole table while typing. Both are fixed structurally: keystrokes never leave the input component, and result surfaces never unmount their search field.
+- **Verified:** `npx tsc --noEmit` clean; ESLint clean on all touched files; full vitest suite 319 files / 1931 tests passing including new `tests/search-input-focus-stability.test.ts` (13 source-contract guards); `npm run build:app` passes (`npm run build` blocked locally by the known Neon 5432 restriction on the prisma migrate step). Live browser proof via a temporary unauthenticated scratch route: 10 keystrokes at 40ms apart produced 0 commits mid-typing, exactly 1 commit after settling, focus held throughout; external clear adopted silently without a spurious commit; Escape cancelled a pending commit; Enter and field-clearing committed instantly. Scratch route deleted after verification.
+- **Deferred:** Authenticated browser proof on /items itself (typing over live data) remains session-blocked, same as prior sessions; the Plan 056 Playwright harness is the right future home for that journey. The mechanism is covered by the scratch-route proof plus source-contract tests.
+
+## Completed implementation: UI launch hardening Plans 052, 054, 055, and 056 (2026-07-10)
+
+- [x] Plan 052: Gate restricted Settings routes before mounting their controls.
+- [x] Plan 054: Make Items reference-data bootstrap failures visible and recoverable.
+- [x] Plan 055: Preserve trustworthy Dashboard totals when fast-count refreshes fail or return partial data.
+- [x] Plan 056: Add the read-only authenticated Playwright harness, release credential contract, and fail-closed release mode.
+- [ ] Plan 056 runtime proof: Run the 25 discovered tests with a dedicated non-production identity against an isolated target.
+- [ ] Plan 053: Define expired-license claim eligibility and its timezone boundary before implementation.
+
+### Review
+
+- **Shipped:** Settings direct-route rendering now follows the canonical `SETTINGS_SECTIONS` role matrix, keeps Personal settings available to all authenticated roles, and recovers from forbidden or unknown routes without mounting child controls. Items now models initial, refresh, and named partial bootstrap failures, preserves healthy or stale options, handles auth expiry, exposes retry/partial alerts, and keeps edit actions fail-closed. Dashboard fast-count partial/error states preserve trustworthy operational totals, scope shift-only failures narrowly, expose stale/retrying status, and provide manual dual-query refresh. The Playwright harness covers Dashboard, Bookings, Items, Search, Schedule, Settings, and Profile on desktop and narrow mobile, with request-intercepted recovery states and release-mode credential enforcement. The prior `BookingEquipmentTab` exhaustive-deps warning is also corrected.
+- **Verified:** `npm test` passed 318 files and 1,918 tests; full ESLint passed with `--max-warnings=0`; `npx tsc --noEmit --pretty false` passed; `npm run db:migrate:check` passed all 93 migrations; `npm run codemap` and `npm run verify:docs` passed; `npm run build:app` passed; `npx playwright test --list` discovered 25 tests; the no-credential local run reported 25 explicit skips; and `PLAYWRIGHT_RELEASE=1` without credentials exited 1 as intended.
+- **Deferred:** The 25 browser tests have not run through authenticated routes. No dedicated non-production credentials or isolated target were available, so this work does not claim STUDENT, STAFF, or ADMIN runtime proof.
+- **Blocked:** Plan 053 is blocked on product policy. `docs/AREA_LICENSES.md` treats expiry as informational and does not define whether an expired code may receive a new claim or which timezone/date boundary controls eligibility. No license behavior or policy was changed.
+- **Proof:** Source and regression artifacts are `src/app/(app)/settings/layout.tsx`, `src/lib/nav-sections.ts`, `tests/settings-route-role-gate.test.ts`, `src/app/(app)/items/hooks/use-filter-options.ts`, `src/app/(app)/items/page.tsx`, `tests/items-filter-options.test.ts`, `tests/items-page-init.test.ts`, `src/hooks/use-dashboard-data.ts`, `src/app/(app)/page.tsx`, `src/app/(app)/dashboard-types.ts`, `tests/dashboard-fast-count-truth.test.ts`, `playwright.config.ts`, `tests/e2e/auth.setup.ts`, `tests/e2e/launch-smoke.spec.ts`, and `tests/schedule-source-truth-smoke-contract.test.ts`.
+- **Next:** Provision a dedicated STUDENT or STAFF identity on an isolated local/review target and run `PLAYWRIGHT_RELEASE=1 npm run test:e2e:smoke`. Resolve the license expiry policy before resuming Plan 053.
+
+## Completed: Schedule event edit hardening (2026-07-09)
+
+Plan: `tasks/archive/completed-2026-06/schedule-event-edit-hardening-plan.md`
+
+- [x] Keep event classification valid after Event detail edits.
+- [x] Let operators repair missing sport context from Event detail.
+- [x] Add regression coverage, sync docs, and complete verification.
+
+### Review
+
+- 2026-07-09: Follow-up audit found that create is strict but Event detail still sends independent `isHome` and `opponent` patches and cannot edit sport. That leaves a path to an incomplete game and makes the data-quality queue's missing-sport recovery incomplete. Calendar sync already preserves the locked classification pair, so this remains a no-migration web/API hardening slice.
+- 2026-07-09: Shipped sport repair and coupled event-classification editing on Event detail. PATCH now derives venue state, rejects incomplete games and uncoupled opponent changes, restores sport/opponent/venue together from the source, and calendar sync preserves the locked triple. Manual events remain Manual and never show calendar-restore actions. Verified with 288 Schedule/calendar/Dashboard tests, focused ESLint, TypeScript, migration guard, codemap/docs, whitespace, and app build; authenticated local visual proof remains session-blocked.
+
+## Completed: Schedule event classification and list rails (2026-07-09)
+
+Plan: `tasks/archive/completed-2026-06/schedule-event-classification-plan.md`
+
+- [x] Harden manual event creation around explicit game and non-game classifications.
+- [x] Restore distinct Home, Away, Neutral, and Non-game list rails.
+- [x] Add regression coverage, sync Schedule docs, and complete verification.
+
+### Review
+
+- 2026-07-09: Root cause confirmed. The shared venue helper labels every nullable `isHome` event as Neutral even though Event detail and manual-event behavior already use `opponent = null` as the Non-game contract. The creation API also accepts independent sport, venue, and opponent values, allowing an incomplete game payload to become indistinguishable from Non-game. This slice preserves the existing schema and makes that contract explicit at the form and API boundary.
+- 2026-07-09: Shipped explicit Home game, Away game, Neutral-site game, and Non-game creation semantics with server-derived venue state; games require sport/opponent while sport-tagged media days remain Non-game. Shared list/week/calendar/assign/dashboard tones and filters now distinguish Non-game, desktop/mobile List rows restore the left rail, and data quality no longer flags the valid media-day shape. Verified with 164 focused Schedule/Dashboard tests, focused ESLint, TypeScript, migration guard, codemap/docs checks, whitespace, and `npm run build:app`. Authenticated local visual proof remained blocked by host-scoped sessions; no production mutation was attempted.
 
 ## Completed: Shared operational status rail (2026-07-09)
 

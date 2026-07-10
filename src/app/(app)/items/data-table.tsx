@@ -64,8 +64,6 @@ interface DataTableProps {
   actionBusy?: boolean;
   onRowAction?: (action: string, asset: Asset) => void;
   onToggleFavorite?: (asset: Asset) => void;
-  toolbar?: ReactNode;
-  bulkBar?: ReactNode;
 }
 
 function RowContextMenu({
@@ -185,8 +183,6 @@ export function DataTable({
   actionBusy = false,
   onRowAction,
   onToggleFavorite,
-  toolbar,
-  bulkBar,
 }: DataTableProps) {
   const densityClass =
     density === "compact"
@@ -215,14 +211,7 @@ export function DataTable({
   });
 
   return (
-    <div className="space-y-2">
-      {(toolbar || bulkBar) && (
-        <div className="flex items-stretch">
-          {bulkBar || toolbar}
-        </div>
-      )}
-
-      <div className={cn("relative rounded-md border", densityClass)} role="region" aria-busy={refreshing}>
+    <div className={cn("relative rounded-md border", densityClass)} role="region" aria-busy={refreshing}>
         {refreshing && (
           <div className="absolute inset-x-0 top-0 z-30 h-0.5 overflow-hidden rounded-t-md">
             <div className="h-full w-1/3 bg-primary/40 animate-[shimmer_1.5s_ease-in-out_infinite]" />
@@ -410,7 +399,6 @@ export function DataTable({
             )}
           </TableBody>
         </Table>
-      </div>
     </div>
   );
 }

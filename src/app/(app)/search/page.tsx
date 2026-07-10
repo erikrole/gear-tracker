@@ -5,13 +5,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { statusBadgeVariant } from "@/lib/status-colors";
 import type { BadgeProps } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { DebouncedSearchInput } from "@/components/DebouncedSearchInput";
 import { Card } from "@/components/ui/card";
 import EmptyState from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { useUrlState } from "@/hooks/use-url-state";
-import { AlertCircleIcon, ArrowRightIcon, SearchIcon, WifiOff, XIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { AlertCircleIcon, ArrowRightIcon, WifiOff } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { OperationalPartialResultsAlert } from "@/components/OperationalFeedback";
 import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
@@ -82,13 +82,14 @@ function formatStatusLabel(status: string): string {
 
 export default function SearchPage() {
   const { data: user } = useCurrentUser();
-  const [urlQuery, setUrlQuery] = useUrlState<string>(
+  // Committed search value. DebouncedSearchInput owns the per-keystroke echo
+  // and only commits settled text, so this state (and the URL) update once per
+  // pause instead of once per character.
+  const [query, setQuery] = useUrlState<string>(
     "q",
     (v) => v ?? "",
-    (v) => (v ? v : null),
+    (v) => (v.trim() ? v : null),
   );
-  const [query, setQuery] = useState(urlQuery);
-  const [debouncedQuery, setDebouncedQuery] = useState(urlQuery);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -109,21 +110,6 @@ export default function SearchPage() {
     setSearchError(false);
     setPartialFailures([]);
   }, []);
-
-  useEffect(() => {
-    setQuery((current) => (current === urlQuery ? current : urlQuery));
-    setDebouncedQuery((current) => (current === urlQuery ? current : urlQuery));
-    if (!urlQuery.trim()) resetSearchState();
-  }, [resetSearchState, urlQuery]);
-
-  // Debounce query input by 300ms
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setDebouncedQuery(query);
-      setUrlQuery(query.trim() || "");
-    }, 300);
-    return () => clearTimeout(t);
-  }, [query, setUrlQuery]);
 
   // NOTE (GAP-11): This page intentionally uses raw fetch() instead of useFetch.
   // The search fans out to 4 endpoints in parallel (assets, checkouts, reservations,
@@ -258,19 +244,11 @@ export default function SearchPage() {
     }
   }, [resetSearchState, user?.role]);
 
-  const handleQueryChange = useCallback((value: string) => {
-    setQuery(value);
-    if (!value.trim()) {
-      setDebouncedQuery("");
-      setUrlQuery("");
-      resetSearchState();
-    }
-  }, [resetSearchState, setUrlQuery]);
-
-  // Auto-search on debounced query change
+  // Auto-search on committed query change (typing pause, Enter, clear, or
+  // browser navigation rehydrating the q param).
   useEffect(() => {
-    runSearch(debouncedQuery);
-  }, [debouncedQuery, runSearch]);
+    runSearch(query);
+  }, [query, runSearch]);
 
   const grouped = {
     page: results.filter((r) => r.type === "page"),
@@ -300,36 +278,26 @@ export default function SearchPage() {
     <div className="p-6">
       <PageHeader title="Search" />
 
-      <div className="relative mb-6 max-w-xl">
-        <Input
+      <div className="mb-6 flex max-w-xl items-center gap-3">
+        <DebouncedSearchInput
           id="global-search-query"
           name="global-search-query"
           ref={inputRef}
-          type="text"
-          className="peer h-10 pl-9 pr-11"
+          containerClassName="min-w-0 flex-1"
           placeholder="Search items, checkouts, reservations, users..."
           value={query}
-          onChange={(e) => handleQueryChange(e.target.value)}
+          onValueChange={setQuery}
           aria-label="Search items, checkouts, reservations, users"
         />
-        <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 peer-disabled:opacity-50">
-          <SearchIcon size={16} />
-        </div>
-        {query && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="absolute inset-y-0 right-0.5 my-auto size-10 text-muted-foreground/80 hover:text-foreground"
-            onClick={() => handleQueryChange("")}
-            aria-label="Clear search"
-          >
-            <XIcon size={14} />
-          </Button>
+        {loading && results.length > 0 && (
+          <span className="inline-flex shrink-0 items-center gap-2 text-sm text-muted-foreground" role="status">
+            <Spinner className="size-4" />
+            Updating
+          </span>
         )}
       </div>
 
-      {loading && (
+      {loading && results.length === 0 && (
         <div className="flex flex-col gap-6" role="status" aria-label="Loading search results">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i}>
@@ -378,8 +346,11 @@ export default function SearchPage() {
         <EmptyState icon="search" title="No results found" description={`Nothing matched "${query}". Try a tag, borrower, page name, setting, or report.`} />
       )}
 
-      {!loading && results.length > 0 && (
-        <div className="flex flex-col gap-6">
+      {results.length > 0 && (
+        <div
+          className={`flex flex-col gap-6 transition-opacity ${loading ? "opacity-60" : ""}`}
+          aria-busy={loading}
+        >
           {(["page", "item", "checkout", "reservation", "user"] as const).map((type) => {
             const items = grouped[type];
             if (items.length === 0) return null;

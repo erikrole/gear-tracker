@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-02
+- Last Updated: 2026-07-10
 - Status: Active
 - Version: V1
 
@@ -36,6 +36,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 2. User filters by status/category/location/item kind and searches by tagName, productName, brand, model, serial, or tracking code.
 3. Searches return one row per item family/SKU; exact unit QR scans resolve to unit context under the parent family rather than producing separate catalog rows.
 4. User opens row details or row actions.
+5. Reference-data bootstrap is query-backed and recoverable: initial failures show Retry, partial failures name unavailable groups while preserving healthy data, and background failures keep stale options visible. Edit actions remain unavailable until role truth is known.
 
 ### Native iOS Items
 1. Items is the first destination inside the compact native Browse tab, not a standalone compact tab.
@@ -427,6 +428,8 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-07-10: **Search typing stability.** Fast typing in the Items (and Labels) search no longer hitches or drops field focus. Keystrokes now echo locally in a shared `DebouncedSearchInput` and commit once per pause (250ms, instant on clear/Enter/Escape), `useItemsQuery` keeps previous rows visible via `placeholderData: keepPreviousData` while a changed query refetches (shimmer bar instead of skeleton swap), and the Items toolbar is mounted outside the loading/empty/error conditional so the search input never unmounts, including when a search matches nothing. Regression guard: `tests/search-input-focus-stability.test.ts`.
+- 2026-07-10: **Items bootstrap recovery.** The Items list now distinguishes initial, refresh, and named partial reference-data failures; preserves healthy or stale filter options; handles expired authentication; offers retry and partial-data alerts; and keeps staff/admin edit actions fail-closed until role truth is available.
 - 2026-07-09: Activity timeline redesign (all four history surfaces: items, bookings, users, audit report). Rows are anchored by a tinted event-type icon node on a hairline rail instead of avatars; timestamps show time-only inside date groups (full datetime on hover), with coalesced runs showing a time range; diffs render old value red + struck and new value green, URLs in mono with protocol stripped; runs of edits to one field render as a value chain (`May 4 → May 8 → May 27`, with day delta) instead of a ×N badge; non-linkable rows expand via chevron to the raw audit entry (actor role, entity ids, before/after JSON). Plan: tasks/archive/timeline-redesign-plan.md.
 - 2026-07-09: Item History timeline clarity pass. `/api/assets/[id]/activity` now joins booking title + kind onto booking-typed audit rows (audit payloads never snapshotted them), so item timelines read `Cancelled checkout "…"` and those rows deep-link to the checkout/reservation. `ActivityTimeline` filters phantom rows (all-hidden-field diffs) before date grouping so empty date headers no longer render, adds describers/colors for the asset, bulk-SKU, and kiosk action families plus a capitalized fallback for unmapped actions, and truncates long diff-pill values (full value on hover).
 - 2026-07-03: Native iOS Item Detail attachment language aligned with D-023. Bundled child rows and VoiceOver labels now say `Attachments`, while standalone category taxonomy such as `Accessories` continues to display as stored data.

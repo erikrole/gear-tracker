@@ -8,7 +8,6 @@ export type ItemTypeFilter = "all" | "serialized" | "unit-tracked" | "quantity-t
 
 export type FilterState = {
   search: string;
-  debouncedSearch: string;
   statusFilter: Set<string>;
   locationFilter: Set<string>;
   categoryFilter: Set<string>;
@@ -66,8 +65,9 @@ export function useUrlFilters() {
   const lastObservedSearchSignatureRef = useRef(searchSignature);
   const skipNextWriteRef = useRef(false);
 
+  // Search commits arrive pre-debounced from DebouncedSearchInput, so this is
+  // already the settled query value.
   const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
-  const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get("q") ?? "");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(() => readSet(searchParams, "status"));
   const [locationFilter, setLocationFilter] = useState<Set<string>>(() => readSet(searchParams, "location"));
   const [categoryFilter, setCategoryFilter] = useState<Set<string>>(() => readSet(searchParams, "category"));
@@ -85,7 +85,6 @@ export function useUrlFilters() {
 
     const nextSearch = searchParams.get("q") ?? "";
     setSearch((current) => (current === nextSearch ? current : nextSearch));
-    setDebouncedSearch((current) => (current === nextSearch ? current : nextSearch));
 
     const nextStatus = readSet(searchParams, "status");
     const nextLocation = readSet(searchParams, "location");
@@ -107,12 +106,6 @@ export function useUrlFilters() {
     const nextSorting = readSorting(searchParams);
     setSorting((current) => (sortingEqual(current, nextSorting) ? current : nextSorting));
   }, [searchParams, searchSignature]);
-
-  // Debounce search input by 300ms
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 300);
-    return () => clearTimeout(t);
-  }, [search]);
 
   const hasActiveFilters =
     statusFilter.size > 0 ||
@@ -146,7 +139,7 @@ export function useUrlFilters() {
       "order",
     ].forEach((key) => params.delete(key));
 
-    if (debouncedSearch) params.set("q", debouncedSearch);
+    if (search) params.set("q", search);
     statusFilter.forEach((v) => params.append("status", v));
     locationFilter.forEach((v) => params.append("location", v));
     categoryFilter.forEach((v) => params.append("category", v));
@@ -162,7 +155,7 @@ export function useUrlFilters() {
     const qs = params.toString();
     const newUrl = qs ? `?${qs}` : window.location.pathname;
     window.history.replaceState(null, "", newUrl);
-  }, [debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter, itemType, showAccessories, favoritesOnly, sorting]);
+  }, [search, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter, itemType, showAccessories, favoritesOnly, sorting]);
 
   const clearAllFilters = useCallback(() => {
     setSearch("");
@@ -190,7 +183,6 @@ export function useUrlFilters() {
     favoritesOnly,
     showAccessories,
     search,
-    debouncedSearch,
     statusFilter,
     locationFilter,
     categoryFilter,
