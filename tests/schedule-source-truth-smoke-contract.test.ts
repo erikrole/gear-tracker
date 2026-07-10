@@ -5,8 +5,8 @@ function source(path: string) {
   return readFileSync(path, "utf8");
 }
 
-describe("schedule source-of-truth smoke fallback contracts", () => {
-  it("documents why Slice 14 uses source-contract fallback smoke coverage", () => {
+describe("schedule source-of-truth and browser smoke contracts", () => {
+  it("keeps the authenticated launch browser gate configured and scoped", () => {
     const packageJson = JSON.parse(source("package.json")) as {
       scripts?: Record<string, string>;
       dependencies?: Record<string, string>;
@@ -16,12 +16,44 @@ describe("schedule source-of-truth smoke fallback contracts", () => {
       ...Object.keys(packageJson.dependencies ?? {}),
       ...Object.keys(packageJson.devDependencies ?? {}),
     ]);
-    const scriptValues = Object.values(packageJson.scripts ?? {}).join("\n");
+    const config = source("playwright.config.ts");
+    const authSetup = source("tests/e2e/auth.setup.ts");
+    const launchSmoke = source("tests/e2e/launch-smoke.spec.ts");
 
-    expect(existsSync("playwright.config.ts")).toBe(false);
-    expect(existsSync("playwright.config.mts")).toBe(false);
-    expect(dependencyNames.has("@playwright/test")).toBe(false);
-    expect(scriptValues).not.toMatch(/\bplaywright\b/);
+    expect(existsSync("playwright.config.ts")).toBe(true);
+    expect(dependencyNames.has("@playwright/test")).toBe(true);
+    expect(packageJson.scripts?.["test:e2e:smoke"]).toBe("playwright test");
+    expect(config).toContain('name: "desktop-chromium"');
+    expect(config).toContain('name: "narrow-mobile-chromium"');
+    expect(config).toContain('trace: "retain-on-failure"');
+    expect(config).toContain('screenshot: "only-on-failure"');
+    expect(config).toContain("resolveSmokeSafety");
+    const safety = source("tests/e2e/smoke-safety.ts");
+    expect(safety).toContain("PLAYWRIGHT_RELEASE");
+    expect(safety).toContain('env.CI !== undefined');
+    expect(safety).toContain('PLAYWRIGHT_TARGET_ISOLATED !== "1"');
+    expect(safety).toContain('"wisconsincreative.com"');
+    expect(safety).toContain("PLAYWRIGHT_PRODUCTION_HOSTS");
+    expect(authSetup).toContain('page.goto("/login")');
+    expect(authSetup).toContain("PLAYWRIGHT_EMAIL");
+    expect(authSetup).toContain("PLAYWRIGHT_PASSWORD");
+    expect(authSetup).toContain("storageState({ path: AUTH_FILE })");
+
+    for (const route of [
+      'path: "/"',
+      'path: "/bookings"',
+      'path: "/items"',
+      'path: "/search"',
+      'path: "/schedule"',
+      'path: "/settings"',
+      'path: "/settings/profile"',
+    ]) {
+      expect(launchSmoke).toContain(route);
+    }
+    expect(launchSmoke).toContain("a direct role-restricted Settings URL fails closed");
+    expect(launchSmoke).toContain("Search keeps available results visible");
+    expect(launchSmoke).toContain("Items names partial bootstrap failures");
+    expect(launchSmoke).toContain("Dashboard preserves trusted counts through failure");
   });
 
   it("keeps readiness cards and Schedule queues URL-backed", () => {
@@ -152,6 +184,9 @@ describe("schedule source-of-truth smoke fallback contracts", () => {
     expect(mobile).toContain("Hide event");
     expect(mobile).toContain("onHideEvent(entry.id)");
     expect(mobile).toContain("hidingEventIds?.has(entry.id)");
+    expect(listView).toContain('"group/row border-l-[3px] transition-colors"');
+    expect(mobile).toContain('"relative border-b border-l-[3px] border-border/50 last:border-b-0"');
+    expect(listView).toContain("venueTone.railClass");
   });
 
   it("keeps all active Schedule filters visible and partial health failures out of the all-clear state", () => {
@@ -184,9 +219,19 @@ describe("schedule source-of-truth smoke fallback contracts", () => {
     }
 
     expect(eventDetail).toContain("Event venue from calendar");
+    expect(eventDetail).toContain("if (!event.source)");
+    expect(eventDetail).toContain("Boolean(event.source) &&");
     expect(eventDetail).toContain("opponentDraft");
+    expect(eventDetail).toContain("sportCodeDraft");
+    expect(eventDetail).toContain("body.eventType = eventTypeDraft");
+    expect(eventDetail).toContain('sportCodeDraft === "__none__"');
+    expect(newEventSheet).toContain("eventType,");
+    expect(newEventSheet).toContain("Sport is required for a game event");
+    expect(newEventSheet).toContain("Opponent is required for a game event");
     expect(patchRoute).toContain("opponent: z.string().max(120).nullable().optional()");
+    expect(patchRoute).toContain("isHomeFromVenueTone(body.eventType)");
     expect(patchRoute).toContain("patch.isHomeLocked = true");
+    expect(syncService).toContain("data.sportCode = existing.sportCode");
     expect(syncService).toContain("data.opponent = existing.opponent");
   });
 

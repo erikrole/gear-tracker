@@ -493,6 +493,7 @@ export function splitEventsForSync(
         // Preserve manually locked fields: sync never overwrites them.
         if (existing.summaryLocked) data.summary = existing.summary;
         if (existing.isHomeLocked) {
+          data.sportCode = existing.sportCode;
           data.isHome = existing.isHome;
           data.opponent = existing.opponent;
         }

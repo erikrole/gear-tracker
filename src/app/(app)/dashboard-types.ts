@@ -22,6 +22,28 @@ export type DashboardStats = {
   myShiftsTodayCount: number;
 };
 
+export type DashboardStatsPartialFailure =
+  | "counts"
+  | "myShiftsCount"
+  | "myShiftsTodayCount";
+
+export type DashboardStatsResponse = {
+  data?: DashboardStats;
+  partialFailures?: DashboardStatsPartialFailure[];
+};
+
+const SHIFT_ONLY_STATS_FAILURES = new Set<DashboardStatsPartialFailure>([
+  "myShiftsCount",
+  "myShiftsTodayCount",
+]);
+
+/** Shift badge failures do not make the web Dashboard's operational totals untrustworthy. */
+export function hasDashboardCountFailure(partialFailures: readonly string[]) {
+  return partialFailures.some(
+    (failure) => !SHIFT_ONLY_STATS_FAILURES.has(failure as DashboardStatsPartialFailure),
+  );
+}
+
 export type ItemThumb = {
   id: string;
   name: string | null;

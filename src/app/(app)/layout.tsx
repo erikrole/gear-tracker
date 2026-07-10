@@ -25,7 +25,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <MotionConfig reducedMotion="user">
-      <QueryProvider>
+      <QueryProvider userId={user.id}>
         <ConfirmProvider>
           <TooltipProvider>
             <OfflineBanner />

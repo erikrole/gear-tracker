@@ -1,4 +1,5 @@
-export type VenueTone = "home" | "away" | "neutral";
+export const VENUE_TONE_VALUES = ["home", "away", "neutral", "non-game"] as const;
+export type VenueTone = (typeof VENUE_TONE_VALUES)[number];
 export type VenueFilter = "all" | VenueTone;
 
 type VenueToneStyle = {
@@ -15,6 +16,7 @@ export const VENUE_FILTER_OPTIONS: Array<{ value: VenueFilter; label: string }> 
   { value: "home", label: "Home" },
   { value: "away", label: "Away" },
   { value: "neutral", label: "Neutral" },
+  { value: "non-game", label: "Non-game" },
 ];
 
 export const VENUE_TONES: Record<VenueTone, VenueToneStyle> = {
@@ -42,19 +44,35 @@ export const VENUE_TONES: Record<VenueTone, VenueToneStyle> = {
     surfaceClass: "bg-muted/50 hover:bg-muted",
     activeTabClass: "bg-muted text-foreground",
   },
+  "non-game": {
+    label: "Non-game",
+    badgeVariant: "gray",
+    railClass: "border-l-[var(--blue)]",
+    solidClass: "bg-[var(--blue)]",
+    surfaceClass: "bg-[var(--blue)]/10 hover:bg-[var(--blue)]/18",
+    activeTabClass: "bg-[var(--blue)]/15 text-[var(--blue-text)]",
+  },
 };
 
-export function venueToneFromIsHome(isHome: boolean | null | undefined): VenueTone {
+export function venueToneFromIsHome(isHome: boolean | null | undefined): Exclude<VenueTone, "non-game"> {
   if (isHome === true) return "home";
   if (isHome === false) return "away";
   return "neutral";
 }
 
+export function isHomeFromVenueTone(tone: VenueTone): boolean | null {
+  if (tone === "home") return true;
+  if (tone === "away") return false;
+  return null;
+}
+
 export function venueToneFromEvent(event: {
   isHome?: boolean | null;
+  opponent?: string | null;
   summary?: string | null;
   rawSummary?: string | null;
 }): VenueTone {
+  if (!event.opponent) return "non-game";
   const title = event.rawSummary ?? event.summary ?? "";
   const prefix = title.match(/^\s*\[([HAN])\]/i)?.[1]?.toUpperCase();
   if (prefix === "H") return "home";

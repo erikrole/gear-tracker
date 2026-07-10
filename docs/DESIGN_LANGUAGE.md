@@ -230,9 +230,15 @@ Medium slices:
 - Keep operational empty states on `EmptyState`, using the inline mode for table/card interiors.
 
 Larger design-system work:
-- Add authenticated browser visual smoke coverage for the main operational surfaces.
+- Run the authenticated browser baseline on an isolated target for release proof, then expand it only when new launch-critical route or recovery contracts need coverage.
 - Extend the route-by-route design-system conformance checklist to lower-traffic routes once the six main routes stay stable.
 - Consider a small internal examples page only if component usage starts drifting again.
+
+## Authenticated Browser Baseline
+
+The launch-critical web baseline lives in `tests/e2e/launch-smoke.spec.ts`. It checks Dashboard, Bookings, Items, Search, Schedule, Settings overview, and Profile in desktop and narrow-mobile Chromium. The baseline is behavior-first rather than pixel-based: accessible headings and controls, keyboard reachability, no horizontal overflow, clean console/runtime state, role-adaptive Settings content, and named recovery states. Failure-only traces and screenshots provide diagnosis without creating brittle visual snapshots.
+
+Run it only against an isolated target with a dedicated identity. The initial suite avoids business-data mutation actions and uses request interception, not database corruption, for partial-failure states. Normal login and authenticated reads still write session, audit, and last-active metadata, so authenticated runs require the isolation opt-in and reject known production hosts. See `docs/TESTING.md` for the credential, target-safety, and strict CI contract.
 
 ## Verification Plan
 For every UI/design-language slice:

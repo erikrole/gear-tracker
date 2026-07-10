@@ -35,6 +35,7 @@
     "cleanup:item-data": "node --env-file=.env scripts/cleanup-item-data.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e:smoke": "playwright test",
     "smoke:deploy": "node scripts/deploy-smoke.mjs",
     "import:cheqroom": "node scripts/import-cheqroom-items.mjs",
     "release": "bash scripts/release.sh",
@@ -95,6 +96,7 @@
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^16.2.4",
+    "@playwright/test": "^1.61.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.19.17",
     "@types/qrcode": "^1.5.6",

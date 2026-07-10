@@ -54,6 +54,7 @@
 | Package | Version |
 |---|---|
 | `@next/bundle-analyzer` | `^16.2.4` |
+| `@playwright/test` | `^1.61.1` |
 | `@types/bcryptjs` | `^2.4.6` |
 | `@types/node` | `^22.19.17` |
 | `@types/qrcode` | `^1.5.6` |
@@ -106,6 +107,7 @@
 - `smoke:deploy`: `node scripts/deploy-smoke.mjs`
 - `start`: `next start`
 - `test`: `vitest run`
+- `test:e2e:smoke`: `playwright test`
 - `test:watch`: `vitest`
 - `verify:docs`: `npm run codemap:check`
 

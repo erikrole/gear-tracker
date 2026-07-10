@@ -18,7 +18,7 @@ import {
   type CalendarSourceFreshnessInput,
   type ScheduleSourceSignal,
 } from "@/lib/calendar-source-freshness";
-import type { VenueFilter } from "@/lib/venue-tone";
+import { venueToneFromEvent, type VenueFilter } from "@/lib/venue-tone";
 import type { ScheduleHealthSnapshot } from "@/lib/schedule-health-types";
 import type { ScheduleAutomationDigest } from "@/lib/schedule-automation-types";
 import {
@@ -409,12 +409,8 @@ export function useScheduleData(): UseScheduleDataResult {
     if (myShiftsOnly && currentUserId) {
       result = result.filter((e) => userHasShift(e, currentUserId));
     }
-    if (homeAwayFilter === "home") {
-      result = result.filter((e) => e.isHome === true);
-    } else if (homeAwayFilter === "away") {
-      result = result.filter((e) => e.isHome === false);
-    } else if (homeAwayFilter === "neutral") {
-      result = result.filter((e) => e.isHome === null && e.opponent);
+    if (homeAwayFilter !== "all") {
+      result = result.filter((e) => venueToneFromEvent(e) === homeAwayFilter);
     }
     if (areaFilter) {
       result = result.filter((e) => e.shifts.some((s) => s.area === areaFilter));

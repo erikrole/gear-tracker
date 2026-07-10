@@ -1,5 +1,37 @@
 # Implementation Plans
 
+## July 2026 Web UI Launch Audit
+
+Generated from a read-only launch audit at `9e92580f` on 2026-07-09. These are the current high-leverage UI hardening plans. The older June registry below remains historical context.
+
+| Plan | Title | Priority | Effort | Depends on | Status |
+|------|-------|----------|--------|------------|--------|
+| 052 | Gate restricted Settings routes before rendering controls | P1 | M | none | DONE: automated gates pass; isolated authenticated proof pending |
+| 053 | Prevent expired license codes from appearing or acting claimable | P1 | M | none | BLOCKED: expiry claim policy and timezone boundary need product decision |
+| 054 | Make Items bootstrap failures visible and recoverable | P1 | M | none | DONE: automated gates pass; isolated authenticated proof pending |
+| 055 | Keep Dashboard fast-count failures from looking healthy | P1 | S | none | DONE: automated gates pass; isolated authenticated proof pending |
+| 056 | Add authenticated browser smoke for launch-critical routes | P1 | L | 052, 054, 055 | BLOCKED: harness complete; dedicated isolated credentials required for first authenticated run |
+
+Recommended order: 055 first for the smallest operational-trust fix, then 052 and 053, then 054, then 056. Plans 052-055 can otherwise run independently if their files do not overlap active work.
+
+Confirmed follow-ups not expanded into first-wave plans:
+
+- Add a real Retry action to the full Search error state (`src/app/(app)/search/page.tsx`).
+- Restore 40px effective targets on remaining Dashboard filters, booking equipment/history controls, availability review actions, and item-creation clear actions.
+- Remove the inert mobile Schedule event button for no-shift rows after the active dirty Schedule slice lands.
+- Add explicit error/retry states to Resources, Venue Mappings, and Extend Presets; Extend Presets must not allow saving until an initial successful read establishes a baseline.
+- Gate the Resource editor for STAFF ownership before mounting the editor.
+- Confirm badge revocation with an AlertDialog and surface failed revocations.
+- Rebaseline current mobile login and authenticated-route performance before changing Sentry loading.
+- After plan 056, automate reservation-to-kiosk fulfillment freshness across Dashboard, list, open detail, and reload.
+
+Findings considered and rejected or deferred:
+
+- Generic `SystemConfig` editing UI: intentionally deferred and not useful for launch.
+- Broad redesign of already-conforming routes: current evidence favors recovery and truth fixes over another aesthetic pass.
+- Route-specific skeletons for all 64 authenticated pages: first replace/measure the shared Dashboard-shaped fallback; add local skeletons only where throttled browser proof shows material mismatch.
+- Current dirty Schedule/notification changes: treated as unshipped and excluded from planned source edits.
+
 This file is a historical registry for the June 2026 improve-plan batch. It is not the active task queue.
 
 For current work, start with `DESLOPPIFY.md` for the active cleanup backlog, `tasks/todo.md` for execution notes, and `tasks/INDEX.md` for task-root/archive rules. Read individual `plans/*.md` files only when reconciling historical improve-plan work or investigating prior implementation decisions.

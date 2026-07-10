@@ -1,6 +1,6 @@
 # Testing Guide
 
-Last refreshed: 2026-06-24
+Last refreshed: 2026-07-10
 
 ## Overview
 
@@ -50,6 +50,11 @@ npm run build:app
 
 # Full production build, including migration deploy wrapper
 npm run build
+
+# Authenticated business-data-safe browser smoke (isolated target only)
+npx playwright install chromium
+npx playwright test --list
+npm run test:e2e:smoke
 ```
 
 Default local closeout for web/API cleanup slices:
@@ -65,6 +70,27 @@ Run `npm test` when shared behavior, auth, route wrappers, booking lifecycle, or
 
 For operator-facing booking freshness work, add authenticated browser proof after the focused automated gates: create or mutate one visible booking from another authenticated client, confirm Dashboard counts/rows and `/bookings` list rows converge without using the manual refresh button, verify an already-open booking detail sheet updates for the changed booking id, then reload Dashboard to prove persisted cache does not resurrect stale rows. Store proof notes or screenshots under `tasks/archive/proofs/`.
 
+## Authenticated Playwright Smoke
+
+`tests/e2e/` is the durable launch smoke layer. It does not invoke business-data mutation actions. It covers the launch-critical web routes in desktop Chromium and a 390px narrow-mobile Chromium viewport. Each route verifies its accessible heading, a keyboard-reachable primary control, console/page error health, and horizontal overflow. Request interception exercises Search partial results, Items bootstrap degradation, and Dashboard count-truth recovery without corrupting business data.
+
+Use a dedicated active test identity on an isolated local or review environment:
+
+```bash
+PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 \
+PLAYWRIGHT_EMAIL=<dedicated-test-email> \
+PLAYWRIGHT_PASSWORD=<dedicated-test-password> \
+PLAYWRIGHT_ROLE=STUDENT \
+PLAYWRIGHT_TARGET_ISOLATED=1 \
+npm run test:e2e:smoke
+```
+
+`PLAYWRIGHT_ROLE` must be `STUDENT`, `STAFF`, or `ADMIN` and must match the account. A `STUDENT` or `STAFF` account is required for the direct role-restricted Settings proof. Authentication uses the real `/login` UI, which creates a session and audit entry. Authenticated requests can also refresh the test user's last-active timestamp. This session metadata is why every authenticated run requires the affirmative `PLAYWRIGHT_TARGET_ISOLATED=1` contract even though the suite avoids business-data mutations. Cookies are written only to ignored `test-results/playwright/auth/user.json`. Traces and screenshots are retained only for failures.
+
+The harness rejects `wisconsincreative.com` and its known legacy production host even if the isolation flag is set. Set comma-separated `PLAYWRIGHT_PRODUCTION_HOSTS` when another hostname must be treated as production. Do not commit auth state, weaken normal auth, seed production, or use production credentials.
+
+Without any credential variables, local tests skip explicitly so `npx playwright test --list` remains useful. Partial credentials fail instead of skipping. Whenever `CI` is set, missing credentials, missing isolation opt-in, or an admin-only identity fail before tests start. Release verification must also add `PLAYWRIGHT_RELEASE=1` to enforce the same strict contract outside CI.
+
 ## Test Layers
 
 - **Service tests:** Pure or DB-mocked business logic, such as booking rules, availability, reports, badge evaluation, schedule health, and status derivation.
@@ -72,6 +98,7 @@ For operator-facing booking freshness work, add authenticated browser proof afte
 - **Source-contract tests:** Static tests that pin important architectural decisions, app/iOS contracts, route wrappers, and UI affordance ownership.
 - **iOS contract tests:** Static checks over Swift files and API contracts used by the native app. These do not replace a simulator build.
 - **Regression tests:** Tests that prevent a fixed bug from returning. They should name the bug in plain language and point at the behavior that must stay true.
+- **Browser smoke tests:** Authenticated Playwright checks against an isolated target. They prove rendered route, responsive, keyboard, role, and recovery behavior that source contracts and builds cannot establish.
 
 ## Mock Pattern: `vi.mock("@/lib/db")` + `_mockTx`
 

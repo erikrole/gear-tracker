@@ -16,6 +16,7 @@ import {
   VENUE_TONES,
   venueBadgeVariant,
   venueFilterActiveClass,
+  venueToneFromEvent,
   venueToneFromIsHome,
   type VenueFilter,
 } from "@/lib/venue-tone";
@@ -57,18 +58,13 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
   const filteredEvents = useMemo(() => {
     const events = filtered?.upcomingEvents ?? data.upcomingEvents;
     if (homeAwayFilter === "all") return events;
-    return events.filter((e) => {
-      if (homeAwayFilter === "home") return e.isHome === true;
-      if (homeAwayFilter === "away") return e.isHome === false;
-      if (homeAwayFilter === "neutral") return e.isHome === null;
-      return true;
-    });
+    return events.filter((e) => venueToneFromEvent(e) === homeAwayFilter);
   }, [filtered?.upcomingEvents, data.upcomingEvents, homeAwayFilter]);
 
   const cappedEvents = useMemo(() => filteredEvents.slice(0, 10), [filteredEvents]);
 
   function eventBorder(e: DashboardData["upcomingEvents"][number]) {
-    return VENUE_TONES[venueToneFromIsHome(e.isHome)].railClass;
+    return VENUE_TONES[venueToneFromEvent(e)].railClass;
   }
 
   function eventCoverageBadge(e: DashboardData["upcomingEvents"][number]) {

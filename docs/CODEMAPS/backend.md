@@ -18,7 +18,7 @@
 | `src/lib/services/bookings.ts` | 4 |
 | `src/lib/services/bulk-unit-scans.ts` | 608 |
 | `src/lib/services/calendar-sync-health.ts` | 165 |
-| `src/lib/services/calendar-sync.ts` | 763 |
+| `src/lib/services/calendar-sync.ts` | 764 |
 | `src/lib/services/candidate-scoring.ts` | 407 |
 | `src/lib/services/checkout-policies.ts` | 32 |
 | `src/lib/services/dashboard-counts.ts` | 116 |
@@ -109,7 +109,7 @@
 | `src/lib/item-asset-tag-sort.ts` | 196 |
 | `src/lib/item-family-state.ts` | 75 |
 | `src/lib/media-embed.ts` | 68 |
-| `src/lib/nav-sections.ts` | 219 |
+| `src/lib/nav-sections.ts` | 249 |
 | `src/lib/observability.ts` | 19 |
 | `src/lib/operational-health.ts` | 50 |
 | `src/lib/permissions.ts` | 163 |
@@ -148,7 +148,7 @@
 | `src/lib/validation.ts` | 550 |
 | `src/lib/venue-mapping-audit.ts` | 56 |
 | `src/lib/venue-mapping-contract.ts` | 46 |
-| `src/lib/venue-tone.ts` | 74 |
+| `src/lib/venue-tone.ts` | 92 |
 
 ## API Route Groups
 

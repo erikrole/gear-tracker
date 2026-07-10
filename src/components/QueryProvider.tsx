@@ -1,11 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { getQueryClient, getQueryPersistOptions } from "@/lib/query-client";
 
-export function QueryProvider({ children }: { children: React.ReactNode }) {
+const AuthenticatedQueryUserContext = createContext<string | null>(null);
+
+export function useAuthenticatedQueryUserId() {
+  return useContext(AuthenticatedQueryUserContext);
+}
+
+export function QueryProvider({
+  children,
+  userId,
+}: {
+  children: React.ReactNode;
+  userId: string;
+}) {
   const [queryClient] = useState(() => getQueryClient());
   const [queryPersistOptions, setQueryPersistOptions] = useState<ReturnType<typeof getQueryPersistOptions>>(null);
 
@@ -19,14 +31,18 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
         client={queryClient}
         persistOptions={queryPersistOptions}
       >
-        {children}
+        <AuthenticatedQueryUserContext.Provider value={userId}>
+          {children}
+        </AuthenticatedQueryUserContext.Provider>
       </PersistQueryClientProvider>
     );
   }
 
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
+      <AuthenticatedQueryUserContext.Provider value={userId}>
+        {children}
+      </AuthenticatedQueryUserContext.Provider>
     </QueryClientProvider>
   );
 }

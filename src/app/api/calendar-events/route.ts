@@ -6,6 +6,7 @@ import { assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
 import { normalizeAllDayToUtcMidnight } from "@/lib/app-time";
 import { normalizeOpponentName } from "@/lib/schedule-event-identity";
 import { buildScheduleEventWhere } from "@/lib/schedule-event-where";
+import { isHomeFromVenueTone, VENUE_TONE_VALUES } from "@/lib/venue-tone";
 import { nullableSportCodeSchema, optionalSportCodeSchema } from "@/lib/validation";
 import { z } from "zod";
 
@@ -28,6 +29,8 @@ const nullableOpponentSchema = z.preprocess((value) => {
   return value;
 }, z.string().max(120).nullable());
 
+const manualEventTypeSchema = z.enum(VENUE_TONE_VALUES);
+
 const createCalendarEventSchema = z.object({
   summary: z.string().trim().min(1, "Title is required").max(500),
   startsAt: z.string().trim().min(1, "Start date/time is required"),
@@ -35,8 +38,24 @@ const createCalendarEventSchema = z.object({
   allDay: z.boolean().optional().default(false),
   locationId: nullableLocationIdSchema,
   sportCode: nullableSportCodeSchema,
-  isHome: z.boolean().nullable().optional().default(null),
+  eventType: manualEventTypeSchema,
   opponent: nullableOpponentSchema,
+}).superRefine((value, ctx) => {
+  if (value.eventType === "non-game") return;
+  if (!value.sportCode) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["sportCode"],
+      message: "Sport is required for a game event",
+    });
+  }
+  if (!value.opponent) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["opponent"],
+      message: "Opponent is required for a game event",
+    });
+  }
 });
 
 export const GET = withAuth(async (req, { user }) => {
@@ -139,6 +158,8 @@ export const POST = withAuth(async (req, { user }) => {
   // instead of the local-midnight encoding the form historically sent.
   const start = isAllDay ? normalizeAllDayToUtcMidnight(rawStart) : rawStart;
   const end = isAllDay ? normalizeAllDayToUtcMidnight(rawEnd) : rawEnd;
+  const isNonGame = body.eventType === "non-game";
+  const isHome = isHomeFromVenueTone(body.eventType);
 
   const event = await db.calendarEvent.create({
     data: {
@@ -150,8 +171,8 @@ export const POST = withAuth(async (req, { user }) => {
       allDay: isAllDay,
       locationId: body.locationId,
       sportCode: body.sportCode,
-      isHome: body.sportCode ? body.isHome : null,
-      opponent: body.sportCode ? normalizeOpponentName(body.opponent) : null,
+      isHome: isNonGame ? null : isHome,
+      opponent: isNonGame ? null : normalizeOpponentName(body.opponent),
     },
     include: {
       location: { select: { id: true, name: true } },
@@ -171,6 +192,8 @@ export const POST = withAuth(async (req, { user }) => {
       locationId: event.locationId,
       sportCode: event.sportCode,
       isHome: event.isHome,
+      opponent: event.opponent,
+      eventType: body.eventType,
     },
   });
 

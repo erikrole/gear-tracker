@@ -211,6 +211,8 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
     if (!startsAt) { setError("Start date is required"); return; }
     if (!endsAt) { setError("End date is required"); return; }
     if (new Date(endsAt) <= new Date(startsAt)) { setError("End must be after start"); return; }
+    if (eventType !== "non-game" && !sportCode) { setError("Sport is required for a game event"); return; }
+    if (eventType !== "non-game" && !opponent.trim()) { setError("Opponent is required for a game event"); return; }
 
     submittingRef.current = true;
     setSubmitting(true);
@@ -225,8 +227,8 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
           allDay,
           locationId: locationId || null,
           sportCode: sportCode || null,
-          isHome: sportCode && eventType !== "non-game" ? (eventType === "home" ? true : eventType === "away" ? false : null) : null,
-          opponent: (sportCode && eventType !== "non-game" && opponent.trim()) ? opponent.trim() : null,
+          eventType,
+          opponent: eventType === "non-game" ? null : opponent.trim(),
         }),
       });
 
@@ -364,9 +366,41 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
               )}
             </div>
 
-            {/* Sport (optional) */}
+            {/* Event classification */}
             <div className="flex flex-col gap-1.5">
-              <Label>Sport <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Label>Event type</Label>
+              <Select
+                value={eventType}
+                onValueChange={(value) => {
+                  const nextType = value as EventTypeDraft;
+                  setEventType(nextType);
+                  if (nextType === "non-game") setOpponent("");
+                }}
+                disabled={submitting}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="home">Home game</SelectItem>
+                  <SelectItem value="away">Away game</SelectItem>
+                  <SelectItem value="neutral">Neutral-site game</SelectItem>
+                  <SelectItem value="non-game">Non-game</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {eventType === "non-game"
+                  ? "Use for media days, practices, meetings, travel, and other schedule work without an opponent."
+                  : "Game events require a sport and opponent so Home, Away, and Neutral stay distinct."}
+              </p>
+            </div>
+
+            {/* Sport */}
+            <div className="flex flex-col gap-1.5">
+              <Label>
+                Sport
+                {eventType === "non-game" && <span className="text-muted-foreground font-normal"> (optional)</span>}
+              </Label>
               <Select
                 value={sportCode || "__none"}
                 onValueChange={(v) => setSportCode(v === "__none" ? "" : v)}
@@ -384,40 +418,17 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
               </Select>
             </div>
 
-            {/* Event type + opponent - only shown when sport is selected */}
-            {sportCode && (
-              <>
-                <div className="flex flex-col gap-1.5">
-                  <Label>Event type</Label>
-                  <Select
-                    value={eventType}
-                    onValueChange={(v) => setEventType(v as EventTypeDraft)}
-                    disabled={submitting}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="home">Home</SelectItem>
-                      <SelectItem value="away">Away</SelectItem>
-                      <SelectItem value="neutral">Neutral site</SelectItem>
-                      <SelectItem value="non-game">Non-game</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {eventType !== "non-game" && (
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="opponent">Opponent <span className="text-muted-foreground font-normal">(optional)</span></Label>
-                    <Input
-                      id="opponent"
-                      placeholder="e.g. Duke"
-                      value={opponent}
-                      onChange={(e) => setOpponent(e.target.value)}
-                      disabled={submitting}
-                    />
-                  </div>
-                )}
-              </>
+            {eventType !== "non-game" && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="opponent">Opponent</Label>
+                <Input
+                  id="opponent"
+                  placeholder="e.g. Duke"
+                  value={opponent}
+                  onChange={(e) => setOpponent(e.target.value)}
+                  disabled={submitting}
+                />
+              </div>
             )}
 
             {error && (

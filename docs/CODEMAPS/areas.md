@@ -33,7 +33,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: _none matched_
 - APIs: `/api/dashboard`, `/api/dashboard/stats`, `/api/kiosk/dashboard`
 - Services: `src/lib/services/dashboard-counts.ts`
-- Tests: `tests/dashboard-accessibility.test.ts`, `tests/dashboard-event-title.test.ts`, `tests/dashboard-overflow-filter-aware.test.ts`, `tests/dashboard-pending-pickup-link.test.ts`, `tests/dashboard-stats-transient-lanes.test.ts`, `tests/kiosk-dashboard-route.test.ts`
+- Tests: `tests/dashboard-accessibility.test.ts`, `tests/dashboard-event-title.test.ts`, `tests/dashboard-fast-count-truth.test.ts`, `tests/dashboard-overflow-filter-aware.test.ts`, `tests/dashboard-pending-pickup-link.test.ts`, `tests/dashboard-stats-transient-lanes.test.ts`, `tests/kiosk-dashboard-route.test.ts`
 
 ## events
 
@@ -97,7 +97,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/notifications`, `/settings/notifications`
 - APIs: `/api/cron/notifications`, `/api/notifications/count`, `/api/notifications/nudge`, `/api/notifications/process`, `/api/notifications`
 - Services: `src/lib/services/notifications.ts`
-- Tests: `tests/ios-notifications-read-recovery.test.ts`, `tests/ios-notifications-tapthrough.test.ts`, `tests/ios-notifications-token-honesty.test.ts`, `tests/notifications-count-route.test.ts`, `tests/notifications-low-stock-dedupe.test.ts`, `tests/notifications-route.test.ts`, `tests/notifications-support-hardening.test.ts`
+- Tests: `tests/ios-notifications-read-recovery.test.ts`, `tests/ios-notifications-registration-health.test.ts`, `tests/ios-notifications-tapthrough.test.ts`, `tests/ios-notifications-token-honesty.test.ts`, `tests/notifications-count-route.test.ts`, `tests/notifications-low-stock-dedupe.test.ts`, `tests/notifications-route.test.ts`, `tests/notifications-support-hardening.test.ts`
 
 ## public-showroom
 
@@ -145,7 +145,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/search`
 - APIs: `/api/assets/picker-search`, `/api/image-search`
 - Services: _none matched_
-- Tests: `tests/api-image-search.test.ts`, `tests/app-shell-search-source.test.ts`, `tests/image-search.test.ts`, `tests/resource-search.test.ts`, `tests/search-page-source.test.ts`, `tests/search-pages.test.ts`, `tests/search-result-title.test.ts`
+- Tests: `tests/api-image-search.test.ts`, `tests/app-shell-search-source.test.ts`, `tests/image-search.test.ts`, `tests/resource-search.test.ts`, `tests/search-input-focus-stability.test.ts`, `tests/search-page-source.test.ts`, `tests/search-pages.test.ts`, `tests/search-result-title.test.ts`
 
 ## settings
 

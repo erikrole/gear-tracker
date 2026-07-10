@@ -34,7 +34,9 @@ durable in-app notification contract or APNs delivery policy.
 Implementation is intentionally limited to registration truth and retry. Focused
 tests (18 passing), iOS drift (71 Swift files), iOS audit gaps (47/47), project
 wiring, whitespace, `npm run build:app`, and the unsandboxed simulator build all
-pass. `npm run verify:docs` remains blocked by pre-existing codemap drift in
-unrelated dirty-worktree docs. APNs credentials, production environment
-configuration, and real-device delivery still require external Vercel/Apple
-access and hardware verification.
+pass. The follow-up Apple Design pass made the failure row Dynamic Type-safe by
+stacking its explanation and native Retry action, with shared haptic feedback
+and an accessibility hint. `npm run verify:docs` remains blocked by
+pre-existing codemap drift in unrelated dirty-worktree docs. APNs credentials,
+production environment configuration, and real-device delivery still require
+external Vercel/Apple access and hardware verification.

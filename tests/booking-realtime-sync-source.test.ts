@@ -9,13 +9,14 @@ describe("booking real-time sync source contract", () => {
   it("forces the persisted dashboard payload to refetch on mount", () => {
     const hook = source("src/hooks/use-dashboard-data.ts");
 
-    expect(hook).toMatch(/queryKey:\s*DASHBOARD_KEY,[\s\S]*?refetchOnMount:\s*"always"/);
+    expect(hook).toMatch(/queryKey:\s*dashboardKey,[\s\S]*?refetchOnMount:\s*"always"/);
+    expect(hook).toContain("enabled: Boolean(userId)");
   });
 
   it("forces the dashboard stats overlay to refetch on mount", () => {
     const hook = source("src/hooks/use-dashboard-data.ts");
 
-    expect(hook).toMatch(/queryKey:\s*DASHBOARD_STATS_KEY,[\s\S]*?refetchOnMount:\s*"always"/);
+    expect(hook).toMatch(/queryKey:\s*statsKey,[\s\S]*?refetchOnMount:\s*"always"/);
   });
 
   it("forces booking detail cache to verify server truth on mount", () => {
@@ -43,8 +44,8 @@ describe("booking real-time sync source contract", () => {
   it("invalidates dashboard, stats, booking lists, and changed booking details", () => {
     const hook = source("src/hooks/use-booking-change-sync.ts");
 
-    expect(hook).toContain("queryKey: DASHBOARD_KEY");
-    expect(hook).toContain("queryKey: DASHBOARD_STATS_KEY");
+    expect(hook).toContain("queryKey: dashboardQueryKey(userId)");
+    expect(hook).toContain("queryKey: dashboardStatsQueryKey(userId)");
     expect(hook).toContain('queryKey: ["bookingList"]');
     expect(hook).toContain('queryKey: ["booking", bookingId]');
     expect(hook).toContain("BOOKING_CHANGE_SYNC_EVENT");

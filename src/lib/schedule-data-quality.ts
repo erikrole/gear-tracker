@@ -74,11 +74,11 @@ export function getScheduleDataQuality(event: ScheduleDataQualityEvent, now = ne
     issues.push({ eventId: event.id, reason: "missing_sport" });
   }
 
-  if (hasSport && !hasOpponent) {
+  if (hasSport && !hasOpponent && event.isHome !== null) {
     issues.push({ eventId: event.id, reason: "missing_opponent" });
   }
 
-  if (hasSport && event.isHome === null && !hasLocation) {
+  if (hasSport && hasOpponent && event.isHome === null && !hasLocation) {
     issues.push({ eventId: event.id, reason: "missing_venue" });
   }
 

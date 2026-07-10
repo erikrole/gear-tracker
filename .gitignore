@@ -17,3 +17,7 @@ xcuserdata/
 # Local UI proof artifacts captured during browser smoke.
 tasks/*.png
 tasks/design-language-proof-*.png
+
+# Playwright auth state and failure-only browser artifacts.
+test-results/
+playwright-report/

@@ -207,6 +207,36 @@ export function isSectionVisible(section: SettingsSection, role: string): boolea
   return meetsRoleRequirement(section.requiredRole, role);
 }
 
+export type SettingsRouteAccess =
+  | { kind: "overview"; section: null; allowed: true }
+  | { kind: "section"; section: SettingsSection; allowed: boolean }
+  | { kind: "unknown"; section: null; allowed: false };
+
+/** Returns the most-specific registered section whose route owns this pathname. */
+export function findSettingsSection(pathname: string): SettingsSection | null {
+  return (
+    SETTINGS_SECTIONS.filter(
+      (section) => pathname === section.href || pathname.startsWith(`${section.href}/`)
+    ).sort((a, b) => b.href.length - a.href.length)[0] ?? null
+  );
+}
+
+/** Central render decision for Settings routes. Unknown routes intentionally fail closed. */
+export function getSettingsRouteAccess(pathname: string, role: string): SettingsRouteAccess {
+  if (pathname === "/settings" || pathname === "/settings/") {
+    return { kind: "overview", section: null, allowed: true };
+  }
+
+  const section = findSettingsSection(pathname);
+  if (!section) return { kind: "unknown", section: null, allowed: false };
+
+  return {
+    kind: "section",
+    section,
+    allowed: isSectionVisible(section, role),
+  };
+}
+
 export const REPORT_SECTIONS = [
   { href: "/reports/utilization", label: "Utilization" },
   { href: "/reports/checkouts", label: "Checkouts" },

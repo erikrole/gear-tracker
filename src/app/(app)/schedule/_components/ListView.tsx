@@ -864,7 +864,8 @@ export function ListView({
                 <div
                   key={entry.id}
                   className={cn(
-                    "relative border-b border-border/50 last:border-b-0",
+                    "relative border-b border-l-[3px] border-border/50 last:border-b-0",
+                    venueTone.railClass,
                     isAssignedToMe && "bg-primary/5",
                   )}
                 >
@@ -1122,7 +1123,8 @@ function EventRows({
       {/* Parent event row */}
       <tr
         className={cn(
-          "group/row transition-colors",
+          "group/row border-l-[3px] transition-colors",
+          venueTone.railClass,
           hasShifts ? "cursor-pointer" : "",
           isExpanded
             ? "bg-muted/20"

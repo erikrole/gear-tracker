@@ -862,7 +862,7 @@ describe("splitEventsForSync", () => {
     expect(result.toUpdate).toHaveLength(0);
   });
 
-  it("isHomeLocked: other field changes still update while preserving isHome and opponent", () => {
+  it("isHomeLocked: other field changes still update while preserving sport, isHome, and opponent", () => {
     const parsed = [makeParsedEvent({
       uid: "evt-1",
       summary: "Football vs Notre Dame",
@@ -878,6 +878,7 @@ describe("splitEventsForSync", () => {
     })];
     const result = splitEventsForSync(parsed, existing, []);
     expect(result.toUpdate).toHaveLength(1);
+    expect(result.toUpdate[0]!.data.sportCode).toBe("FOOTBALL");
     expect(result.toUpdate[0]!.data.isHome).toBeNull();
     expect(result.toUpdate[0]!.data.opponent).toBeNull();
   });

@@ -158,23 +158,31 @@ struct NotificationSettingsView: View {
                 .font(.caption)
                 .foregroundStyle(Color.statusText(.green))
         case .failed:
-            HStack(spacing: 12) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(Color.statusText(.orange))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Push registration needs attention")
-                        .font(.subheadline.weight(.medium))
-                    Text("The app could not register this device with the notification server.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 10) {
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Push registration needs attention")
+                            .font(.subheadline.weight(.medium))
+                        Text("The app could not register this device with the notification server.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(Color.statusText(.orange))
                 }
-                Spacer()
-                Button("Retry") {
+
+                Button {
+                    Haptics.tap()
                     appState.requestRemoteNotificationRegistration()
+                } label: {
+                    Label("Retry registration", systemImage: "arrow.clockwise")
+                        .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
-                .controlSize(.small)
+                .accessibilityHint("Attempts to register this device for push notifications again.")
             }
+            .padding(.vertical, 2)
         }
     }
 

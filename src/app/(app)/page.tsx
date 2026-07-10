@@ -14,11 +14,9 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { useConfirm } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
 import { formatRelativeTime } from "@/lib/format";
-import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
-import { useDashboardData, DASHBOARD_STATS_KEY } from "@/hooks/use-dashboard-data";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { useBookingChangeSync } from "@/hooks/use-booking-change-sync";
-import { useQuery } from "@tanstack/react-query";
-import type { DashboardStats } from "./dashboard-types";
 import { useDashboardFilters } from "@/hooks/use-dashboard-filters";
 import { DashboardSkeleton } from "./dashboard/dashboard-skeleton";
 import { FilterChips } from "./dashboard/filter-chips";
@@ -32,29 +30,25 @@ import { PageTransition, StaggerList, StaggerItem } from "@/components/ui/motion
 import type { BookingSummary, CreateBookingContext } from "./dashboard-types";
 
 export default function DashboardPage() {
-  const { data, fetchError, refreshing, lastRefreshed, loadData, setData } = useDashboardData();
+  const {
+    data,
+    fastStats,
+    fetchError,
+    refreshing,
+    statsSyncIssue,
+    lastRefreshed,
+    loadData,
+    setData,
+  } = useDashboardData();
   const bookingSync = useBookingChangeSync();
 
-  // Fast stats — populated from cache immediately on return visits, then kept
-  // fresh every 60s. Drives the stat strip and overdue count before the full
-  // payload finishes loading, so the top of the page is never skeleton-only.
-  const { data: liveStats } = useQuery<DashboardStats>({
-    queryKey: DASHBOARD_STATS_KEY,
-    queryFn: async ({ signal }) => {
-      const res = await fetch("/api/dashboard/stats", { signal });
-      if (handleAuthRedirect(res, "/")) throw new DOMException("Auth redirect", "AbortError");
-      if (!res.ok) throw new Error("server");
-      const json = await parseJsonSafely<{ data?: DashboardStats }>(res);
-      if (!json?.data) throw new Error("server");
-      return json.data as DashboardStats;
-    },
-    enabled: false, // managed by useDashboardData; we just read from cache here
-  });
-  const stats = data?.stats ?? liveStats?.stats ?? null;
-  const overdueCount = data?.overdueCount ?? liveStats?.overdueCount ?? null;
+  // The hook owns the only fast-stats query and validates partial failures
+  // before exposing cached stats for the early render.
+  const stats = data?.stats ?? fastStats?.stats ?? null;
+  const overdueCount = data?.overdueCount ?? fastStats?.overdueCount ?? null;
   // Role from full payload, falling back to cached stats payload so the early
   // render doesn't briefly show staff-only buttons to a returning student.
-  const role = data?.role ?? liveStats?.role ?? null;
+  const role = data?.role ?? fastStats?.role ?? null;
 
   const filters = useDashboardFilters(data);
   const [now, setNow] = useState(() => new Date());
@@ -199,6 +193,14 @@ export default function DashboardPage() {
             size="sm"
             title={bookingSync.description}
           />
+          {statsSyncIssue && (
+            <StatusIndicator
+              state="fixing"
+              label={statsSyncIssue.label}
+              size="sm"
+              title={statsSyncIssue.description}
+            />
+          )}
           <div className="flex items-center gap-1 rounded-md border border-border/60 bg-muted/20 p-1">
             <Tooltip>
               <TooltipTrigger asChild>

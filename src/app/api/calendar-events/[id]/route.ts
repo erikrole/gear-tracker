@@ -9,13 +9,16 @@ import {
   isHomeLocationText,
 } from "@/lib/services/calendar-sync";
 import { normalizeOpponentName, normalizeVenueText } from "@/lib/schedule-event-identity";
+import { nullableSportCodeSchema } from "@/lib/validation";
+import { isHomeFromVenueTone, VENUE_TONE_VALUES } from "@/lib/venue-tone";
 import { z } from "zod";
 
 const patchSchema = z
   .object({
     summary: z.string().min(1).max(200).optional(),
     subtitle: z.string().max(100).nullable().optional(),
-    isHome: z.boolean().nullable().optional(),
+    eventType: z.enum(VENUE_TONE_VALUES).optional(),
+    sportCode: nullableSportCodeSchema.optional(),
     opponent: z.string().max(120).nullable().optional(),
     locationId: z.string().cuid().nullable().optional(),
     revertTitle: z.literal(true).optional(),
@@ -23,11 +26,28 @@ const patchSchema = z
     revertLocation: z.literal(true).optional(),
   })
   .strict()
+  .superRefine((value, ctx) => {
+    if (value.opponent !== undefined && value.eventType === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["eventType"],
+        message: "Event type is required when changing the opponent",
+      });
+    }
+    if (value.revertHomeAway && (value.eventType !== undefined || value.sportCode !== undefined || value.opponent !== undefined)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["revertHomeAway"],
+        message: "Restore calendar value cannot be combined with event classification edits",
+      });
+    }
+  })
   .refine(
     (v) =>
       v.summary !== undefined ||
       v.subtitle !== undefined ||
-      v.isHome !== undefined ||
+      v.eventType !== undefined ||
+      v.sportCode !== undefined ||
       v.opponent !== undefined ||
       v.locationId !== undefined ||
       v.revertTitle !== undefined ||
@@ -54,6 +74,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
         id: true,
         summary: true,
         subtitle: true,
+        sportCode: true,
         isHome: true,
         locationId: true,
         rawSummary: true,
@@ -100,13 +121,16 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       before.isHome = existing.isHome;
       before.isHomeLocked = existing.isHomeLocked;
       before.opponent = existing.opponent;
+      before.sportCode = existing.sportCode;
       let derived: boolean | null = null;
       let derivedOpponent: string | null = null;
+      let derivedSportCode: string | null = null;
       if (existing.rawSummary) {
         const cleaned = cleanSummary(existing.rawSummary);
         const info = extractSportInfo(cleaned);
         derived = info.isHome;
         derivedOpponent = info.opponent;
+        derivedSportCode = info.sportCode;
         const locationText = normalizeVenueText(existing.rawLocationText) || "";
         if (locationText) {
           const homeByLocation = existing.location?.isHomeVenue === true || isHomeLocationText(locationText);
@@ -116,25 +140,45 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       }
       patch.isHome = derived;
       patch.opponent = derivedOpponent;
+      patch.sportCode = derivedSportCode;
       patch.isHomeLocked = false;
       after.isHome = derived;
       after.opponent = derivedOpponent;
+      after.sportCode = derivedSportCode;
       after.isHomeLocked = false;
-    } else if (body.isHome !== undefined) {
+    } else if (body.eventType !== undefined) {
+      const normalizedOpponent = body.eventType === "non-game"
+        ? null
+        : normalizeOpponentName(body.opponent ?? existing.opponent);
+      const effectiveSportCode = body.sportCode !== undefined ? body.sportCode : existing.sportCode;
+      if (body.eventType !== "non-game" && !effectiveSportCode) {
+        throw new HttpError(400, "Sport is required for a game event");
+      }
+      if (body.eventType !== "non-game" && !normalizedOpponent) {
+        throw new HttpError(400, "Opponent is required for a game event");
+      }
+
       before.isHome = existing.isHome;
       before.isHomeLocked = existing.isHomeLocked;
-      patch.isHome = body.isHome;
-      patch.isHomeLocked = true;
-      after.isHome = body.isHome;
-      after.isHomeLocked = patch.isHomeLocked;
-    }
-
-    if (body.opponent !== undefined) {
       before.opponent = existing.opponent;
-      before.isHomeLocked = existing.isHomeLocked;
-      patch.opponent = normalizeOpponentName(body.opponent);
+      before.sportCode = existing.sportCode;
+      patch.isHome = isHomeFromVenueTone(body.eventType);
+      patch.opponent = normalizedOpponent;
+      patch.sportCode = effectiveSportCode;
       patch.isHomeLocked = true;
+      after.isHome = patch.isHome;
       after.opponent = patch.opponent;
+      after.sportCode = patch.sportCode;
+      after.isHomeLocked = true;
+    } else if (body.sportCode !== undefined) {
+      if (existing.opponent && !body.sportCode) {
+        throw new HttpError(400, "Sport is required for a game event");
+      }
+      before.sportCode = existing.sportCode;
+      before.isHomeLocked = existing.isHomeLocked;
+      patch.sportCode = body.sportCode;
+      patch.isHomeLocked = true;
+      after.sportCode = patch.sportCode;
       after.isHomeLocked = true;
     }
 
@@ -160,6 +204,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
         id: true,
         summary: true,
         subtitle: true,
+        sportCode: true,
         isHome: true,
         opponent: true,
         locationId: true,

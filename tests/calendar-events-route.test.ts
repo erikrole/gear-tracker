@@ -67,7 +67,7 @@ function post(body: Record<string, unknown>) {
       host: "app.example.com",
       origin: "https://app.example.com",
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ eventType: "non-game", ...body }),
   });
 }
 
@@ -134,6 +134,7 @@ beforeEach(() => {
     id: "cmevent000000000000000001",
     summary: "Football vs Notre Dame",
     subtitle: null,
+    sportCode: "FB",
     isHome: true,
     locationId: null,
     rawSummary: "Football vs Notre Dame",
@@ -147,6 +148,7 @@ beforeEach(() => {
     id: "cmevent000000000000000001",
     summary: "Football vs Notre Dame",
     subtitle: null,
+    sportCode: "FB",
     isHome: null,
     locationId: null,
     opponent: null,
@@ -283,7 +285,7 @@ describe("POST /api/calendar-events", () => {
         startsAt: "2026-08-21T20:00:00.000Z",
         endsAt: "2026-08-21T22:00:00.000Z",
         sportCode: "vb",
-        isHome: null,
+        eventType: "neutral",
         opponent: "Kentucky",
       }),
       { params: Promise.resolve({}) },
@@ -309,7 +311,7 @@ describe("POST /api/calendar-events", () => {
         endsAt: "2026-08-22T22:00:00.000Z",
         locationId: "cm000000000000000000000100",
         sportCode: " vb ",
-        isHome: null,
+        eventType: "neutral",
         opponent: "  Louisville  ",
       }),
       { params: Promise.resolve({}) },
@@ -335,7 +337,7 @@ describe("POST /api/calendar-events", () => {
         startsAt: "2026-08-22T20:00:00.000Z",
         endsAt: "2026-08-22T22:00:00.000Z",
         sportCode: "VB",
-        isHome: null,
+        eventType: "neutral",
         opponent: "  No. 7 University of Louisville  ",
       }),
       { params: Promise.resolve({}) },
@@ -351,14 +353,14 @@ describe("POST /api/calendar-events", () => {
     );
   });
 
-  it("clears event type and opponent when no sport is selected", async () => {
+  it("persists a sport-tagged non-game without an opponent", async () => {
     const res = await POST(
       post({
-        summary: "Media day",
+        summary: "Volleyball Media Day",
         startsAt: "2026-08-22T20:00:00.000Z",
         endsAt: "2026-08-22T22:00:00.000Z",
-        sportCode: null,
-        isHome: true,
+        sportCode: "VB",
+        eventType: "non-game",
         opponent: "Iowa",
       }),
       { params: Promise.resolve({}) },
@@ -368,12 +370,87 @@ describe("POST /api/calendar-events", () => {
     expect(db.calendarEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          sportCode: null,
+          sportCode: "VB",
           isHome: null,
           opponent: null,
         }),
       }),
     );
+  });
+
+  it.each([
+    ["home", true],
+    ["away", false],
+    ["neutral", null],
+  ] as const)("derives %s game venue state from the explicit event type", async (eventType, isHome) => {
+    const res = await POST(
+      post({
+        summary: "Volleyball vs Kentucky",
+        startsAt: "2026-08-21T20:00:00.000Z",
+        endsAt: "2026-08-21T22:00:00.000Z",
+        sportCode: "VB",
+        eventType,
+        opponent: "Kentucky",
+      }),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(res.status).toBe(201);
+    expect(db.calendarEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          isHome,
+          opponent: "Kentucky",
+        }),
+      }),
+    );
+  });
+
+  it("rejects a game event without a sport", async () => {
+    const res = await POST(
+      post({
+        summary: "Game",
+        startsAt: "2026-08-21T20:00:00.000Z",
+        endsAt: "2026-08-21T22:00:00.000Z",
+        eventType: "home",
+        opponent: "Kentucky",
+      }),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(res.status).toBe(400);
+    expect(db.calendarEvent.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a game event without an opponent", async () => {
+    const res = await POST(
+      post({
+        summary: "Game",
+        startsAt: "2026-08-21T20:00:00.000Z",
+        endsAt: "2026-08-21T22:00:00.000Z",
+        sportCode: "VB",
+        eventType: "neutral",
+      }),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(res.status).toBe(400);
+    expect(db.calendarEvent.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects unknown manual event types", async () => {
+    const res = await POST(
+      post({
+        summary: "Game",
+        startsAt: "2026-08-21T20:00:00.000Z",
+        endsAt: "2026-08-21T22:00:00.000Z",
+        eventType: "scrimmage",
+      }),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(res.status).toBe(400);
+    expect(db.calendarEvent.create).not.toHaveBeenCalled();
   });
 
   it("rejects unknown manual event sportCode values", async () => {
@@ -466,7 +543,8 @@ describe("PATCH /api/calendar-events/[id]", () => {
   it("lets staff save a game as a locked non-game event by clearing opponent", async () => {
     const res = await PATCH(
       patch({
-        isHome: null,
+        eventType: "non-game",
+        sportCode: "FB",
         opponent: null,
       }),
       { params: Promise.resolve({ id: "cmevent000000000000000001" }) },
@@ -478,6 +556,7 @@ describe("PATCH /api/calendar-events/[id]", () => {
         data: expect.objectContaining({
           isHome: null,
           opponent: null,
+          sportCode: "FB",
           isHomeLocked: true,
         }),
       }),
@@ -488,6 +567,8 @@ describe("PATCH /api/calendar-events/[id]", () => {
   it("normalizes saved opponent edits", async () => {
     const res = await PATCH(
       patch({
+        eventType: "home",
+        sportCode: "FB",
         opponent: "  #12 University of Illinois  ",
       }),
       { params: Promise.resolve({ id: "cmevent000000000000000001" }) },
@@ -498,9 +579,57 @@ describe("PATCH /api/calendar-events/[id]", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           opponent: "Illinois",
+          isHome: true,
           isHomeLocked: true,
         }),
       }),
     );
+  });
+
+  it("rejects converting an event to a game without a sport", async () => {
+    const res = await PATCH(
+      patch({
+        eventType: "home",
+        sportCode: null,
+        opponent: "Illinois",
+      }),
+      { params: Promise.resolve({ id: "cmevent000000000000000001" }) },
+    );
+
+    expect(res.status).toBe(400);
+    expect(db.calendarEvent.update).not.toHaveBeenCalled();
+  });
+
+  it("derives neutral venue state while updating sport and opponent together", async () => {
+    const res = await PATCH(
+      patch({
+        eventType: "neutral",
+        sportCode: "VB",
+        opponent: "Kentucky",
+      }),
+      { params: Promise.resolve({ id: "cmevent000000000000000001" }) },
+    );
+
+    expect(res.status).toBe(200);
+    expect(db.calendarEvent.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          sportCode: "VB",
+          isHome: null,
+          opponent: "Kentucky",
+          isHomeLocked: true,
+        }),
+      }),
+    );
+  });
+
+  it("rejects opponent edits that omit the coupled event type", async () => {
+    const res = await PATCH(
+      patch({ opponent: "Illinois" }),
+      { params: Promise.resolve({ id: "cmevent000000000000000001" }) },
+    );
+
+    expect(res.status).toBe(400);
+    expect(db.calendarEvent.update).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import Link from "next/link";
+import React, { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { PageHeader } from "@/components/PageHeader";
 import {
@@ -9,10 +10,14 @@ import {
   SectionNavList,
   SectionNavSeparator,
 } from "@/components/SectionNav";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   SETTINGS_GROUP_ORDER,
   SETTINGS_SECTIONS,
+  findSettingsSection,
+  getSettingsRouteAccess,
   isSectionVisible,
   type SettingsGroup,
   type SettingsSection,
@@ -43,7 +48,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   // Remember which sub-tab the user is on, so /settings can resume it next visit.
   useEffect(() => {
     if (pathname === "/settings") return;
-    const match = SETTINGS_SECTIONS.find((s) => pathname.startsWith(s.href));
+    const match = findSettingsSection(pathname);
     if (!match) return;
     try {
       localStorage.setItem(LAST_TAB_STORAGE_KEY, match.href);
@@ -70,23 +75,61 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         <SettingsRail pathname={pathname} groupedSections={groupedSections} />
 
         <main className="min-w-0">
-          {isLoading ? (
-            <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-              <div className="sticky top-20 max-lg:static space-y-2">
-                <Skeleton className="h-7 w-32" />
-                <Skeleton className="h-4 w-56" />
-              </div>
-              <div className="min-w-0 space-y-3">
-                <Skeleton className="h-9 w-full max-w-md" />
-                <Skeleton className="h-32 w-full" />
-              </div>
-            </div>
-          ) : currentUser ? (
-            children
-          ) : null}
+          <SettingsRouteContent pathname={pathname} role={role} isLoading={isLoading}>
+            {children}
+          </SettingsRouteContent>
         </main>
       </div>
     </>
+  );
+}
+
+function SettingsRouteContent({
+  pathname,
+  role,
+  isLoading,
+  children,
+}: {
+  pathname: string;
+  role: string | null;
+  isLoading: boolean;
+  children: React.ReactNode;
+}) {
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
+        <div className="sticky top-20 max-lg:static space-y-2">
+          <Skeleton className="h-7 w-32" />
+          <Skeleton className="h-4 w-56" />
+        </div>
+        <div className="min-w-0 space-y-3">
+          <Skeleton className="h-9 w-full max-w-md" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!role) return null;
+
+  const access = getSettingsRouteAccess(pathname, role);
+  if (access.allowed) return children;
+
+  const unknownRoute = access.kind === "unknown";
+  return (
+    <Alert>
+      <AlertTitle>{unknownRoute ? "Settings page unavailable" : "Access denied"}</AlertTitle>
+      <AlertDescription className="space-y-4">
+        <p>
+          {unknownRoute
+            ? "This Settings address does not match an available page."
+            : `Your account does not have permission to open ${access.section.label}.`}
+        </p>
+        <Button asChild variant="outline">
+          <Link href="/settings">Back to Settings</Link>
+        </Button>
+      </AlertDescription>
+    </Alert>
   );
 }
 

@@ -47,6 +47,14 @@ describe("schedule data quality", () => {
     })).map((issue) => issue.reason)).toEqual(["missing_venue"]);
   });
 
+  it("does not flag a sport-tagged non-game as a missing opponent or venue", () => {
+    expect(getScheduleDataQuality(event({
+      opponent: null,
+      isHome: null,
+      locationId: null,
+    }))).toEqual([]);
+  });
+
   it("flags future archived events", () => {
     expect(getScheduleDataQuality(event({
       archivedAt: new Date("2026-06-01T00:00:00Z"),

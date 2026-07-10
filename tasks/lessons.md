@@ -88,6 +88,9 @@
 
 ## UX Patterns
 
+- **Nullable venue state is not enough to identify a non-game event**: Schedule uses `isHome = null` for both neutral-site games and opponent-free non-game work. Classify with the full event contract (`opponent = null` means Non-game), require explicit event type at manual creation, and keep data-quality rules aligned so media days are not labeled correctly in one surface and flagged as broken in another.
+- **A creation invariant must survive editing and source sync**: When event type depends on sport, opponent, and home/away state, mutate and lock those fields as one classification. The recovery screen must expose every field the data-quality queue asks operators to repair, and source sync must preserve the same locked set.
+
 - **Generated storage identifiers must stay out of quiet UI identity**: If a field is generated only to satisfy a database uniqueness contract, do not render it as a row title or primary label. Attachment rows should lead with the human display name/model and keep internal tags available only through direct detail/search/debug contexts.
 - **Separate App Store product name from the installed iOS label**: App Store Connect and `PRODUCT_NAME` can carry the fuller public name, while `CFBundleDisplayName` should stay short enough for the Home Screen. When launch naming feedback distinguishes those two, wire both explicitly instead of choosing one string everywhere.
 - **External calendar titles must optimize for the worker's glance, not the internal event record**: Subscription feeds should carry the role/area, compact sport matchup, call window, and a deep link back to Gear Tracker. Keep prep instructions, gear reminders, and long source-calendar descriptions inside the app where they can stay current.

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Settings
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-30
+- Last Updated: 2026-07-10
 - Status: Active
 - Version: V1
 
@@ -13,7 +13,7 @@ Single Settings surface for both **personal preferences** (visible to every auth
 Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 ## Core Rules
-1. The Settings surface is open to any authenticated user (STUDENT / STAFF / ADMIN). Each sub-page declares its own `requiredRole`; the layout filters tabs accordingly. STUDENTs only see the Personal group.
+1. The Settings surface is open to any authenticated user (STUDENT / STAFF / ADMIN). Each sub-page declares its own `requiredRole`; the layout filters tabs and gates direct-route rendering through the canonical `SETTINGS_SECTIONS` role matrix before child controls mount. STUDENTs only see the Personal group. Forbidden and unknown Settings routes show a recovery path instead of rendering child content.
 2. Settings layout provides unified role-aware section navigation via the shared `SectionNav` treatment; sub-pages should not render their own page-level `<h1>`.
 3. Each sub-page uses `SettingsPageShell`: compact intro rail (title + description) and main content for forms, tables, loading states, and errors.
 4. Mutations should provide immediate feedback via toast notifications and visible form-level errors for create/add forms.
@@ -193,6 +193,7 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages. Role-gated Settings sibling menus now wait for the current role before becoming dropdowns, so the loading frame does not expose an empty menu. The global breadcrumb UI now uses a lighter trail treatment with the current Settings sub-page marked by a subtle underline instead of a filled chip.
 
 ## Change Log
+- 2026-07-10: **Settings direct-route role gating.** The shared Settings layout now checks the canonical `SETTINGS_SECTIONS` role matrix before mounting child controls, keeps Personal settings available to every authenticated role, and gives forbidden or unknown routes a clear recovery path.
 - 2026-06-30: **iOS Browse directory reachability.** Native iOS now exposes Items, Guides, Licenses, and Users from the compact Browse tab. Profile/Settings > Directory remains a fallback path for Guides, Users, and Licenses, with Users visible to every authenticated role as a directory.
 - 2026-06-30: **iOS Settings Directory Licenses.** Native Profile/Settings > Directory now opens `LicensesView.swift` for every authenticated role instead of a staff/admin-only web fallback. The child page handles Photo Mechanic license view, claim, copy, and return self-service; staff/admin management actions remain linked to the web Licenses page from inside the native screen.
 - 2026-06-28: **Web sidebar Settings reachability.** The global web sidebar now keeps a single top-level Settings link visible to every authenticated role, matching the Personal settings contract while leaving individual Settings sections role-filtered by the existing Settings layout rail and command palette.

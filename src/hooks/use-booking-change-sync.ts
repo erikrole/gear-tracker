@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { DASHBOARD_KEY, DASHBOARD_STATS_KEY } from "@/hooks/use-dashboard-data";
+import {
+  dashboardQueryKey,
+  dashboardStatsQueryKey,
+} from "@/hooks/use-dashboard-data";
+import { useAuthenticatedQueryUserId } from "@/components/QueryProvider";
 import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 
 export const BOOKING_CHANGE_SYNC_INTERVAL_MS = 5_000;
@@ -57,12 +61,13 @@ function canPoll() {
 
 export function useBookingChangeSync(enabled = true) {
   const queryClient = useQueryClient();
+  const userId = useAuthenticatedQueryUserId();
   const cursorRef = useRef<string | null>(null);
   const inFlightRef = useRef(false);
   const [status, setStatus] = useState<BookingChangeSyncStatus>(initialSyncStatus);
 
   useEffect(() => {
-    if (!enabled) {
+    if (!enabled || !userId) {
       setStatus({
         state: "idle",
         label: "Sync paused",
@@ -85,8 +90,8 @@ export function useBookingChangeSync(enabled = true) {
 
     const invalidateBookingCaches = (changedBookingIds: string[]) => {
       if (changedBookingIds.length === 0) return;
-      void queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY });
-      void queryClient.invalidateQueries({ queryKey: DASHBOARD_STATS_KEY });
+      void queryClient.invalidateQueries({ queryKey: dashboardQueryKey(userId) });
+      void queryClient.invalidateQueries({ queryKey: dashboardStatsQueryKey(userId) });
       void queryClient.invalidateQueries({ queryKey: ["bookingList"] });
       for (const bookingId of changedBookingIds) {
         void queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
@@ -168,7 +173,7 @@ export function useBookingChangeSync(enabled = true) {
       document.removeEventListener("visibilitychange", pollSoon);
       window.removeEventListener("online", pollSoon);
     };
-  }, [enabled, queryClient]);
+  }, [enabled, queryClient, userId]);
 
   return status;
 }

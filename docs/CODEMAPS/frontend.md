@@ -132,9 +132,9 @@
 |---|---:|
 | `src/hooks/booking-action-copy.ts` | 22 |
 | `src/hooks/use-assignment-grid.ts` | 226 |
-| `src/hooks/use-booking-change-sync.ts` | 175 |
+| `src/hooks/use-booking-change-sync.ts` | 180 |
 | `src/hooks/use-current-user.ts` | 28 |
-| `src/hooks/use-dashboard-data.ts` | 170 |
+| `src/hooks/use-dashboard-data.ts` | 232 |
 | `src/hooks/use-dashboard-filters.ts` | 130 |
 | `src/hooks/use-fetch.ts` | 110 |
 | `src/hooks/use-form-options.ts` | 32 |
@@ -145,7 +145,7 @@
 | `src/hooks/use-mobile.ts` | 20 |
 | `src/hooks/use-mutate.ts` | 89 |
 | `src/hooks/use-scan-submission.ts` | 241 |
-| `src/hooks/use-schedule-data.ts` | 532 |
+| `src/hooks/use-schedule-data.ts` | 528 |
 | `src/hooks/use-url-state.ts` | 166 |
 | `src/hooks/useBookingActions.ts` | 203 |
 | `src/hooks/useBookingDetail.ts` | 70 |
