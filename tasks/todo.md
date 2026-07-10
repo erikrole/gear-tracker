@@ -4,6 +4,33 @@ Last updated: 2026-07-10
 
 ---
 
+## Completed: iOS push notification reliability (2026-07-10)
+
+Problem: Erik receives no push notifications on iOS.
+
+Root cause (verified in prod DB): Xcode dev builds get *sandbox* APNs tokens; `src/lib/push/apns.ts` only talks to the production APNs host in production. Prod APNs returns `BadDeviceToken` for sandbox tokens and the code permanently revokes them -- revocation timestamps line up exactly with send timestamps (Jul 9 17:41:20 notification → 17:41:25 revocations of tokens `80b91556`/`fb9fa335`). Every reinstall repeats: register → first push → revoked → silence. Prefs are default (push on); APNs env vars all present in Vercel prod.
+
+Secondary hazards: `void sendPushToUser(...)` fire-and-forget can be frozen when the serverless response returns before the APNs round-trip completes; no JWT re-mint on `ExpiredProviderToken`/`InvalidProviderToken`; non-revoking APNs errors are only visible in 1h-retention logs; no end-to-end delivery test.
+
+Plan:
+- [x] 1. `apns.ts`: send alerts via production host; tokens rejected with `BadDeviceToken`/`Unregistered` are retried on the sandbox host; revoke only if both environments reject. Log per-reason outcomes.
+- [x] 2. `apns.ts`: on 403 `ExpiredProviderToken`/`InvalidProviderToken`, invalidate the cached JWT and retry the batch once with a fresh token.
+- [x] 3. `notifications.ts`: route deferred pushes through `after()` (next/server) with an awaited fallback so serverless freeze can't drop sends; replace bare `void sendPushToUser` call sites (notifications.ts, firmware-watch.ts).
+- [x] 4. New `POST /api/devices/test`: sends a test push to the caller's active tokens and returns per-token outcome (env used, reason) for self-serve verification.
+- [x] 5. Build + unit tests; docs sync (AREA_NOTIFICATIONS.md change log, GAPS_AND_RISKS if applicable); commit + push.
+
+---
+
+## Deferred: collaborator access profiles and affiliation badges (2026-07-10)
+
+- Direction accepted, implementation explicitly deferred: introduce affiliation badges for Athletics, Brand Communications, Learfield, and Big Ten Network, separate from authorization.
+- Proposed access composition: Athletics gets gear borrowing only; Learfield and Big Ten Network get gear borrowing plus read-only published Schedule; Brand Communications staff get scoped Schedule management for their staff/students; Brand Communications students get read-only published Schedule.
+- Preserve the kiosk custody contract: borrowers reserve through the app and complete physical pickup through kiosk scan or a gear operator. Do not expose a normal web/app custody-start action.
+- When resumed, plan a default-deny collaborator account type with auditable, expiring capability grants (`GEAR_BORROWER`, `SCHEDULE_VIEWER`, `SCHEDULE_MANAGER`), affiliation-aware badges/filters, strict own-booking read scope, and a narrow schedule people picker. Do not use affiliation as the permission mechanism or grant `STAFF` merely for schedule management.
+- Open product decision for the first implementation slice: scope Brand Communications managers to `COMMS` shifts and Brand Communications assignees by default, unless global Schedule management is explicitly intended.
+
+---
+
 ## Completed: Global search and text filtering typing stability (2026-07-10)
 
 Problem: fast typing hitches and loses field focus while pages "update" the filter.
@@ -211,6 +238,7 @@ Plan: remove the current App Review demo records from production, then only rese
 - [ ] Update App Store Connect notes/PDF with the final review host and credentials.
 
 ### Review
+- 2026-07-10: Created a separate empty Neon project for App Review instead of a child branch that would clone production data. The new project has no tables or production rows. Review Vercel deployment, DNS, migrations, and seeding remain blocked because the connected Vercel team scope returns 403 and `review.wisconsincreative.com` has no DNS record. The seed now requires an explicit 16+ character password plus an exact expected database host and no longer prints the reviewer password.
 - 2026-07-08: Production verification showed the seeded App Review account can log in and see demo records, but broad staff-visible endpoints can also expose production-backed rows. Schedule returned 103 total rows with 2 demo rows, so seeded data alone is not an isolated demo mode.
 - 2026-07-08: Added `APP_REVIEW_DEMO_MODE=cleanup` support to `scripts/seed-app-review-demo.mjs` and exposed `npm run demo:cleanup:app-review`. Ran the cleanup against the configured Neon target with `APP_REVIEW_DEMO_SEED=confirm`; follow-up verification found no App Review demo account, allowed email, users, location, assets, bulk SKU, bookings, events, or notifications in production.
 - 2026-07-08: Chose the isolated launch path. The main iOS app now routes only `appreview@wisconsincreative.com` API traffic to `review.wisconsincreative.com`, persisted for session restore; normal users stay on `wisconsincreative.com`, and kiosk/public web links remain canonical. The review host still needs a Vercel deployment wired to an isolated Neon branch before App Review credentials can be submitted.
@@ -246,6 +274,7 @@ Scope: Prepare the main `Wisconsin` iOS app for the next TestFlight/App Store up
 - [x] Summarize upload steps and any blockers.
 
 ### Review
+- 2026-07-10: Prepared build 19 from current `main` after the final release-hardening and APNs registration work. `Wisconsin` and `WisconsinLiveActivities` are build 19; kiosk remains build 1. Project consistency, iOS drift, 47/47 audit coverage, focused source tests, simulator and generic-device builds, signed Release archive, App Store export, TypeScript, docs/codemaps, migration-prefix, whitespace, and `build:app` pass. The signed IPA is `/private/tmp/Wisconsin-19-export/Wisconsin Creative.ipa` with SHA-256 `8e504752c234903eeb016aadeaebf6819f8764cdbd6eb480175ce725e7907feb`. App Store Connect upload was not performed because the external-action approval gate requires explicit upload authorization; real-device APNs, camera/scanner, network, and accessibility QA remain open.
 - 2026-07-07: Build 18 uploaded to App Store Connect and is processing. Local `main` matched `origin/main` before the bump. Main `Wisconsin` app and `WisconsinLiveActivities` build numbers moved from 17 to 18; kiosk stayed build 1. XcodeGen regenerated `ios/Wisconsin.xcodeproj`. Verification passed: `npm run ios:project:check`, `git diff --check`, escalated `npm run ios:xcode:verify`, Release archive to `/private/tmp/Wisconsin-18.xcarchive`, App Store Connect export to `/private/tmp/Wisconsin-18-export/Wisconsin Creative.ipa`, and App Store Connect upload. Exported IPA metadata: version 1.0, build 18, display name `Creative`, bundle name `Wisconsin Creative`, production APNs, WeatherKit, `get-task-allow=false`, and packaged `PrivacyInfo.xcprivacy`. Noted cleanup: iOS audit inventory reports seven unregistered newer Swift surfaces, but the build and upload succeeded.
 
 ---

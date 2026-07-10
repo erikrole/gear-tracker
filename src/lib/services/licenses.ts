@@ -1,8 +1,7 @@
 import { LicenseCodeStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
-import { sendPush } from "@/lib/push/apns";
-import { loadUserPrefs, shouldDeliverPush, shouldDeliverCategory, type NotificationCategory } from "@/lib/services/notification-prefs";
+import { sendPushToUser } from "@/lib/services/notifications";
 import { visibleActiveUserWhere } from "@/lib/user-visibility";
 
 const MAX_SLOTS = 2;
@@ -352,33 +351,6 @@ export async function getClaimHistoryForUser(userId: string, limit = 25) {
     orderBy: { claimedAt: "desc" },
     take: limit,
   });
-}
-
-async function sendPushToUser(
-  userId: string,
-  opts: { title: string; body: string; payload?: Record<string, unknown>; category?: NotificationCategory }
-) {
-  const prefs = await loadUserPrefs(userId);
-  if (!shouldDeliverPush(prefs)) return;
-  if (opts.category && !shouldDeliverCategory(prefs, opts.category)) return;
-
-  const tokens = await db.deviceToken.findMany({
-    where: { userId, revokedAt: null },
-    select: { token: true },
-  });
-  if (tokens.length === 0) return;
-
-  const { revoked } = await sendPush(
-    tokens.map((t) => t.token),
-    { title: opts.title, body: opts.body, payload: opts.payload }
-  );
-
-  if (revoked.length > 0) {
-    await db.deviceToken.updateMany({
-      where: { token: { in: revoked } },
-      data: { revokedAt: new Date() },
-    });
-  }
 }
 
 export async function processExpiryWarnings() {

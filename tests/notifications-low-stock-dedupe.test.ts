@@ -102,16 +102,28 @@ describe("APNs transport contract", () => {
     // Every send path connects through the guarded helper — an unhandled
     // http2 session "error" event would kill the serverless function.
     expect(apns).toContain('client.on("error"');
-    expect(apns).not.toMatch(/const client = http2\.connect\(APNS_HOST\);\s*\n\s*const revoked/);
-    expect((apns.match(/connectApns\(\)/g) ?? []).length).toBeGreaterThanOrEqual(4);
+    // The only raw http2.connect lives inside connectApns.
+    expect((apns.match(/http2\.connect\(/g) ?? []).length).toBe(1);
+    expect(apns).toContain("connectApns(host)");
     expect(apns).toContain("req.setTimeout(APNS_REQUEST_TIMEOUT_MS");
   });
 
   it("caches the provider JWT instead of minting one per send", () => {
     const apns = source("src/lib/push/apns.ts");
     expect(apns).toContain("cachedJwt");
-    expect((apns.match(/const jwt = getJwt\(\);/g) ?? []).length).toBe(4);
+    // All sends fetch the token via the cache, never mint directly.
+    expect((apns.match(/getJwt\(\)/g) ?? []).length).toBeGreaterThanOrEqual(3);
     expect(apns).not.toContain("const jwt = makeJWT();");
+  });
+
+  it("retries wrong-environment tokens on the other APNs host before revoking", () => {
+    const apns = source("src/lib/push/apns.ts");
+    // Dev builds hold sandbox tokens even against the production server;
+    // revoking on the first BadDeviceToken permanently silences those devices.
+    expect(apns).toContain("APNS_FALLBACK_HOST");
+    expect(apns).toContain('outcomes.get(t) === "badToken"');
+    // Auth failures re-mint the provider JWT instead of failing the batch.
+    expect(apns).toContain("invalidateJwt()");
   });
 
   it("sendPushToUser never throws into fire-and-forget call sites", () => {

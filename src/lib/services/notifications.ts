@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { db } from "@/lib/db";
 import { sendEmail, buildNotificationEmail } from "@/lib/email";
 import { sendPush } from "@/lib/push/apns";
@@ -12,6 +13,22 @@ import {
   type GearPrepNotificationSource,
 } from "@/lib/services/schedule-notification-policy";
 import { visibleActiveUserWhere } from "@/lib/user-visibility";
+
+/**
+ * Defers a push send past the response without letting the serverless
+ * function freeze mid-send. A bare `void promise` races the APNs round-trip
+ * against Vercel suspending the lambda once the response is written — pushes
+ * were silently dropped whenever APNs lost that race. `after()` keeps the
+ * function alive until the promise settles.
+ */
+export function deferPush(task: Promise<void>): void {
+  try {
+    after(task);
+  } catch {
+    // Outside a request scope (tests, scripts) — detach; the task never rejects.
+    void task;
+  }
+}
 
 export async function sendPushToUser(
   userId: string,
@@ -198,12 +215,12 @@ export async function processOverdueNotifications(): Promise<{
             localCreated += 1;
 
             const escalationCategory = rule.hoursFromDue < 0 ? "checkoutDue" as const : "checkoutOverdue" as const;
-            void sendPushToUser(checkout.requesterUserId, {
+            deferPush(sendPushToUser(checkout.requesterUserId, {
               title: rule.title,
               body,
               payload: { bookingId: checkout.id },
               category: escalationCategory,
-            });
+            }));
 
             if (checkout.requester.email) {
               await sendEmailToUser(checkout.requesterUserId, {
@@ -253,11 +270,11 @@ export async function processOverdueNotifications(): Promise<{
             existingNotifications.add(adminDedupeKey);
             localCreated += 1;
 
-            void sendPushToUser(admin.id, {
+            deferPush(sendPushToUser(admin.id, {
               title: `Overdue: ${checkout.title}`,
               body: adminBody,
               payload: { bookingId: checkout.id },
-            });
+            }));
 
             if (admin.email) {
               await sendEmailToUser(admin.id, {
@@ -372,12 +389,12 @@ export async function createShiftGearUpNotification(
       },
     });
 
-    void sendPushToUser(assignment.userId, {
+    deferPush(sendPushToUser(assignment.userId, {
       title,
       body,
       payload: pushPayload,
       category: categoryForScheduleNotificationType("shift_gear_up") ?? undefined,
-    });
+    }));
 
     // Also send email notification
     if (assignment.user.email) {
@@ -548,12 +565,12 @@ export async function createShiftScheduleNotification(
       },
     });
 
-    void sendPushToUser(assignment.userId, {
+    deferPush(sendPushToUser(assignment.userId, {
       title: copy.title,
       body: copy.body,
       payload: pushPayload,
       category,
-    });
+    }));
 
     if (assignment.user.email) {
       await sendEmailToUser(assignment.userId, {
@@ -670,7 +687,7 @@ export async function createReservationLifecycleNotification(args: {
       },
     });
 
-    void sendPushToUser(requesterUserId, { title, body, payload: { bookingId }, category: "reservation" });
+    deferPush(sendPushToUser(requesterUserId, { title, body, payload: { bookingId }, category: "reservation" }));
   } catch (err) {
     console.error(`[NOTIFY] Failed to create reservation_${event} notification for booking ${bookingId}:`, err);
   }

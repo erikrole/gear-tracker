@@ -1,10 +1,16 @@
 import crypto from "crypto";
 import http2 from "http2";
 
-const APNS_HOST =
-  process.env.NODE_ENV === "production"
-    ? "https://api.push.apple.com"
-    : "https://api.sandbox.push.apple.com";
+const APNS_PROD_HOST = "https://api.push.apple.com";
+const APNS_SANDBOX_HOST = "https://api.sandbox.push.apple.com";
+
+// Primary host follows the server environment, but device tokens are minted
+// per-build: Xcode development builds carry sandbox tokens even against the
+// production server. A sandbox token sent to the production host answers
+// BadDeviceToken, so tokens rejected by the primary host are retried on the
+// other host before being treated as dead (see dispatch below).
+const APNS_PRIMARY_HOST = process.env.NODE_ENV === "production" ? APNS_PROD_HOST : APNS_SANDBOX_HOST;
+const APNS_FALLBACK_HOST = APNS_PRIMARY_HOST === APNS_PROD_HOST ? APNS_SANDBOX_HOST : APNS_PROD_HOST;
 
 function makeJWT(): string {
   const keyId = process.env.APNS_KEY_ID!;
@@ -42,6 +48,15 @@ function getJwt(): string {
   return token;
 }
 
+/**
+ * Drop the cached provider token. Called when APNs answers
+ * ExpiredProviderToken/InvalidProviderToken — a warm lambda can resume with a
+ * token whose wall-clock validity ran out even though the TTL check passed.
+ */
+function invalidateJwt(): void {
+  cachedJwt = null;
+}
+
 /** Per-request timeout — a stalled APNs stream must not hold the function open. */
 const APNS_REQUEST_TIMEOUT_MS = 10_000;
 
@@ -50,23 +65,34 @@ const APNS_REQUEST_TIMEOUT_MS = 10_000;
  * transient DNS/connection failure emits an unhandled "error" event, which
  * is fatal in Node — it would kill the serverless function mid-request.
  */
-function connectApns(): http2.ClientHttp2Session {
-  const client = http2.connect(APNS_HOST);
+function connectApns(host: string): http2.ClientHttp2Session {
+  const client = http2.connect(host);
   client.on("error", (err) => {
     console.error("[APNS] session error:", err.message);
   });
   return client;
 }
 
-type SendResult = "ok" | "revoked" | "error";
+type TokenOutcome =
+  | "ok"
+  // BadDeviceToken / Unregistered — token invalid for the host it was sent to
+  | "badToken"
+  // ExpiredProviderToken / InvalidProviderToken — our JWT, not the device
+  | "authError"
+  | "error";
+
+interface SendOpts {
+  topic: string;
+  pushType: "alert" | "liveactivity";
+}
 
 function sendOne(
   client: http2.ClientHttp2Session,
   jwt: string,
   token: string,
   notification: object,
-  opts: { topic: string; pushType: "alert" | "liveactivity" }
-): Promise<SendResult> {
+  opts: SendOpts
+): Promise<TokenOutcome> {
   return new Promise((resolve) => {
     let req: http2.ClientHttp2Stream;
     try {
@@ -105,12 +131,16 @@ function sendOne(
       try {
         const { reason } = JSON.parse(body) as { reason?: string };
         if (reason === "BadDeviceToken" || reason === "Unregistered") {
-          resolve("revoked");
+          resolve("badToken");
+        } else if (reason === "ExpiredProviderToken" || reason === "InvalidProviderToken") {
+          console.error(`[APNS] provider token rejected (${reason})`);
+          resolve("authError");
         } else {
-          console.error(`[APNS] ${token.slice(-8)}: ${reason}`);
+          console.error(`[APNS] ${token.slice(-8)}: ${status} ${reason}`);
           resolve("error");
         }
       } catch {
+        console.error(`[APNS] ${token.slice(-8)}: ${status} (unparseable body)`);
         resolve("error");
       }
     });
@@ -123,6 +153,28 @@ function sendOne(
   });
 }
 
+/** Sends one notification to a batch of tokens over a single session to `host`. */
+async function sendBatch(
+  host: string,
+  jwt: string,
+  tokens: string[],
+  notification: object,
+  opts: SendOpts
+): Promise<Map<string, TokenOutcome>> {
+  const client = connectApns(host);
+  const outcomes = new Map<string, TokenOutcome>();
+  try {
+    await Promise.all(
+      tokens.map(async (token) => {
+        outcomes.set(token, await sendOne(client, jwt, token, notification, opts));
+      })
+    );
+  } finally {
+    client.destroy();
+  }
+  return outcomes;
+}
+
 function isConfigured(): boolean {
   return !!(
     process.env.APNS_KEY_ID &&
@@ -132,12 +184,70 @@ function isConfigured(): boolean {
   );
 }
 
+export interface DispatchResult {
+  /** Tokens rejected by BOTH APNs environments — safe to mark revoked. */
+  revoked: string[];
+  /** Count of tokens APNs accepted (either environment). */
+  ok: number;
+}
+
+/**
+ * Delivery core shared by alert and Live Activity sends.
+ *
+ * 1. Send to the primary host (production in prod, sandbox in dev).
+ * 2. Auth failures (expired/invalid provider token) re-mint the JWT and retry
+ *    those tokens once.
+ * 3. Tokens the primary host rejects as bad are retried on the other APNs
+ *    environment — development builds hold sandbox tokens even against the
+ *    production server. Only tokens both environments reject are revoked.
+ */
+async function dispatch(
+  tokens: string[],
+  notification: object,
+  opts: SendOpts
+): Promise<DispatchResult> {
+  if (!isConfigured() || tokens.length === 0) return { revoked: [], ok: 0 };
+
+  const outcomes = await sendBatch(APNS_PRIMARY_HOST, getJwt(), tokens, notification, opts);
+
+  const authFailed = tokens.filter((t) => outcomes.get(t) === "authError");
+  if (authFailed.length > 0) {
+    invalidateJwt();
+    const retried = await sendBatch(APNS_PRIMARY_HOST, getJwt(), authFailed, notification, opts);
+    for (const [token, outcome] of retried) outcomes.set(token, outcome);
+  }
+
+  const revoked: string[] = [];
+  const wrongEnv = tokens.filter((t) => outcomes.get(t) === "badToken");
+  if (wrongEnv.length > 0) {
+    const fallback = await sendBatch(APNS_FALLBACK_HOST, getJwt(), wrongEnv, notification, opts);
+    for (const [token, outcome] of fallback) {
+      if (outcome === "badToken") {
+        revoked.push(token);
+      }
+      outcomes.set(token, outcome);
+    }
+  }
+
+  let ok = 0;
+  for (const outcome of outcomes.values()) {
+    if (outcome === "ok") ok += 1;
+  }
+  if (ok < tokens.length) {
+    console.warn(
+      `[APNS] dispatch: ${ok}/${tokens.length} delivered` +
+        (wrongEnv.length > 0 ? `, ${wrongEnv.length} retried on fallback env` : "") +
+        (revoked.length > 0 ? `, ${revoked.length} revoked` : "")
+    );
+  }
+
+  return { revoked, ok };
+}
+
 export async function sendPush(
   deviceTokens: string[],
   opts: { title: string; body: string; payload?: Record<string, unknown> }
-): Promise<{ revoked: string[] }> {
-  if (!isConfigured() || deviceTokens.length === 0) return { revoked: [] };
-
+): Promise<DispatchResult> {
   const notification = {
     aps: {
       alert: { title: opts.title, body: opts.body },
@@ -146,35 +256,20 @@ export async function sendPush(
     ...(opts.payload ?? {}),
   };
 
-  const jwt = getJwt();
-  const client = connectApns();
-
-  const revoked: string[] = [];
-
-  try {
-    await Promise.all(
-      deviceTokens.map(async (token) => {
-        const result = await sendOne(client, jwt, token, notification, {
-          topic: process.env.APNS_BUNDLE_ID!,
-          pushType: "alert",
-        });
-        if (result === "revoked") revoked.push(token);
-      })
-    );
-  } catch (err) {
-    console.error("[APNS] sendPush error:", err);
-  } finally {
-    client.destroy();
-  }
-
-  return { revoked };
+  return dispatch(deviceTokens, notification, {
+    topic: process.env.APNS_BUNDLE_ID!,
+    pushType: "alert",
+  });
 }
+
+const liveActivityOpts = (): SendOpts => ({
+  topic: `${process.env.APNS_BUNDLE_ID!}.push-type.liveactivity`,
+  pushType: "liveactivity",
+});
 
 export async function endCheckoutReturnLiveActivityTokens(
   tokens: string[]
 ): Promise<{ revoked: string[] }> {
-  if (!isConfigured() || tokens.length === 0) return { revoked: [] };
-
   const nowSeconds = Math.floor(Date.now() / 1000);
   const notification = {
     aps: {
@@ -191,27 +286,7 @@ export async function endCheckoutReturnLiveActivityTokens(
     },
   };
 
-  const jwt = getJwt();
-  const client = connectApns();
-  const revoked: string[] = [];
-
-  try {
-    await Promise.all(
-      tokens.map(async (token) => {
-        const result = await sendOne(client, jwt, token, notification, {
-          topic: `${process.env.APNS_BUNDLE_ID!}.push-type.liveactivity`,
-          pushType: "liveactivity",
-        });
-        if (result === "revoked") revoked.push(token);
-      })
-    );
-  } catch (err) {
-    console.error("[APNS] endCheckoutReturnLiveActivityTokens error:", err);
-  } finally {
-    client.destroy();
-  }
-
-  return { revoked };
+  return dispatch(tokens, notification, liveActivityOpts());
 }
 
 export async function startCheckoutReturnLiveActivityTokens(
@@ -231,8 +306,6 @@ export async function startCheckoutReturnLiveActivityTokens(
     urgency: "normal" | "warning" | "critical" | "overdue";
   }
 ): Promise<{ revoked: string[]; ok: number }> {
-  if (!isConfigured() || tokens.length === 0) return { revoked: [], ok: 0 };
-
   const nowSeconds = Math.floor(Date.now() / 1000);
   const notification = {
     aps: {
@@ -263,29 +336,7 @@ export async function startCheckoutReturnLiveActivityTokens(
     },
   };
 
-  const jwt = getJwt();
-  const client = connectApns();
-  const revoked: string[] = [];
-  let ok = 0;
-
-  try {
-    await Promise.all(
-      tokens.map(async (token) => {
-        const result = await sendOne(client, jwt, token, notification, {
-          topic: `${process.env.APNS_BUNDLE_ID!}.push-type.liveactivity`,
-          pushType: "liveactivity",
-        });
-        if (result === "revoked") revoked.push(token);
-        if (result === "ok") ok += 1;
-      })
-    );
-  } catch (err) {
-    console.error("[APNS] startCheckoutReturnLiveActivityTokens error:", err);
-  } finally {
-    client.destroy();
-  }
-
-  return { revoked, ok };
+  return dispatch(tokens, notification, liveActivityOpts());
 }
 
 export async function updateCheckoutReturnLiveActivityTokens(
@@ -298,8 +349,6 @@ export async function updateCheckoutReturnLiveActivityTokens(
   },
   opts?: { alert?: { title: string; body: string } }
 ): Promise<{ revoked: string[] }> {
-  if (!isConfigured() || tokens.length === 0) return { revoked: [] };
-
   const notification = {
     aps: {
       timestamp: Math.floor(Date.now() / 1000),
@@ -315,25 +364,5 @@ export async function updateCheckoutReturnLiveActivityTokens(
     },
   };
 
-  const jwt = getJwt();
-  const client = connectApns();
-  const revoked: string[] = [];
-
-  try {
-    await Promise.all(
-      tokens.map(async (token) => {
-        const result = await sendOne(client, jwt, token, notification, {
-          topic: `${process.env.APNS_BUNDLE_ID!}.push-type.liveactivity`,
-          pushType: "liveactivity",
-        });
-        if (result === "revoked") revoked.push(token);
-      })
-    );
-  } catch (err) {
-    console.error("[APNS] updateCheckoutReturnLiveActivityTokens error:", err);
-  } finally {
-    client.destroy();
-  }
-
-  return { revoked };
+  return dispatch(tokens, notification, liveActivityOpts());
 }

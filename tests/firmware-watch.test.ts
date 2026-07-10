@@ -17,6 +17,7 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/services/notifications", () => ({
   sendPushToUser: vi.fn(),
+  deferPush: vi.fn(),
 }));
 
 import { db } from "@/lib/db";

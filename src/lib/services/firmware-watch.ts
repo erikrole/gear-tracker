@@ -1,7 +1,7 @@
 import type { FirmwareSourceType, FirmwareSupportMode } from "@prisma/client";
 import { db } from "@/lib/db";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
-import { sendPushToUser } from "@/lib/services/notifications";
+import { deferPush, sendPushToUser } from "@/lib/services/notifications";
 import { validateFirmwareSourceUrl } from "@/lib/firmware-watch-targets";
 import { visibleActiveUserWhere } from "@/lib/user-visibility";
 
@@ -221,11 +221,11 @@ async function notifyAdminsOfFirmwareRelease(
 
   if (created.count > 0) {
     for (const admin of admins) {
-      void sendPushToUser(admin.id, {
+      deferPush(sendPushToUser(admin.id, {
         title,
         body,
         payload,
-      });
+      }));
     }
   }
 
