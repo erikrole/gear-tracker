@@ -57,8 +57,7 @@ function TableOfContents({ items, activeId }: { items: TocItem[]; activeId: stri
     <nav aria-label="Table of contents" className="hidden xl:block">
       <div className="guide-toc sticky top-8">
         <p
-          className="mb-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60"
-          style={{ fontFamily: "var(--font-mono)" }}
+          className="mb-4 text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
         >
           On this page
         </p>
@@ -93,8 +92,7 @@ function SiblingNav({ nav }: { nav: SectionNav }) {
     <nav aria-label="In this section" className="hidden shrink-0 2xl:block 2xl:w-[220px]">
       <div className="guide-section-nav sticky top-8">
         <p
-          className="mb-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60"
-          style={{ fontFamily: "var(--font-mono)" }}
+          className="mb-4 text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
         >
           {nav.typeLabel ?? "In this section"}
         </p>

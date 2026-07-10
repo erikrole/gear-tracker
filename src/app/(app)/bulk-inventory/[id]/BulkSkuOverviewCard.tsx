@@ -55,7 +55,7 @@ export function BulkSkuOverviewCard({ sku }: { sku: BulkSkuDetail }) {
                     <span className={`size-1.5 rounded-full shrink-0 ${DOT_STYLES[statusKey]}`} />
                     <span className="text-muted-foreground">{label}</span>
                   </div>
-                  <span className="tabular-nums font-semibold" style={{ fontFamily: "var(--font-mono)" }}>
+                  <span className="tabular-nums font-semibold">
                     {count}
                   </span>
                 </div>

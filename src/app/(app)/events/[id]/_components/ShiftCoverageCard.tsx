@@ -440,7 +440,7 @@ export function ShiftCoverageCard({
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-64 p-3" align="start">
-            <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Pending requests</p>
+            <p className="text-[11px] font-medium text-muted-foreground mb-2 uppercase tracking-wide">Pending requests</p>
             <div className="flex flex-col gap-2">
               {pendingRequests.map((req) => (
                 <div key={req.id} className="flex items-center justify-between gap-2">
@@ -575,7 +575,7 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
             // Area sub-header
             <TableRow key={`header-${area}`} className="bg-muted/40 hover:bg-muted/40">
               <TableCell colSpan={commandCenter ? 4 : 3} className="py-1.5">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
                   {AREA_LABELS[area] ?? area}
                 </span>
               </TableCell>

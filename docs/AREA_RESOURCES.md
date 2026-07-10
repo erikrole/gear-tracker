@@ -87,6 +87,7 @@ All mutations use `createAuditEntry` per D-007.
 | AC-17 | The guide reader offers docs-style in-section sibling navigation (wide screens) and a prev/next footer | ✅ Complete (2026-07-03, slice 4) |
 
 ## Change Log
+- 2026-07-10: Guide reader table-of-contents and section-nav labels drop faint tracked mono micro-type for the sanctioned small-uppercase label style. Visual only.
 - 2026-07-10: Native Guides loading now exposes one real accessibility status instead of redacted fake rows, the reader relies on native safe areas instead of an artificial 72-point bottom gap, and scalable title typography preserves large-text readability.
 | Date | Change |
 |------|--------|

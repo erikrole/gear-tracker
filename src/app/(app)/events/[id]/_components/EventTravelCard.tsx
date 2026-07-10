@@ -225,7 +225,7 @@ function RosterPicker({
               </TooltipContent>
             </Tooltip>
             <span className="text-sm truncate">{entry.user.name}</span>
-            <Badge variant="gray" className="text-[10px] h-4 px-1 shrink-0">
+            <Badge variant="gray" size="sm" className="shrink-0">
               {userRoleLabel(entry.user.role)}
             </Badge>
           </div>
@@ -372,7 +372,7 @@ export function EventTravelCard({
                     className="shrink-0"
                   />
                   <span className="text-sm truncate">{m.user.name}</span>
-                  <Badge variant="gray" className="text-[10px] h-4 px-1 shrink-0">
+                  <Badge variant="gray" size="sm" className="shrink-0">
                     {userRoleLabel(m.user.role)}
                   </Badge>
                 </div>
