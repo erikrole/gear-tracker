@@ -3,7 +3,7 @@
 import type { PickerAsset, PickerBulkSku } from "@/components/EquipmentPicker";
 import type { TabKey as BookingSheetSection } from "@/components/booking-details/types";
 import type { BookingKind } from "@/lib/booking-actions";
-import { bookingStatusVisual } from "@/lib/booking-status-display";
+import { bookingStatusVisual, type BookingStatusVisual } from "@/lib/booking-status-display";
 
 /* ───── Types ───── */
 
@@ -128,14 +128,7 @@ export function parseSortParam(s: string): { key: SortKey; dir: SortDir } | null
   return null;
 }
 
-export function getStatusVisual(status: string, isOverdue: boolean, kind?: "CHECKOUT" | "RESERVATION"): {
-  dot: string;
-  label: string;
-  /** Tailwind classes to apply to the row wrapper */
-  rowClass: string;
-  /** Tailwind classes to apply to the booking title */
-  titleClass: string;
-} {
+export function getStatusVisual(status: string, isOverdue: boolean, kind?: "CHECKOUT" | "RESERVATION"): BookingStatusVisual {
   return bookingStatusVisual(status, { overdue: isOverdue, kind });
 }
 

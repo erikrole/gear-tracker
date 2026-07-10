@@ -3,7 +3,9 @@
 import { formatDateShort } from "@/lib/format";
 import { formatDateCol, formatDuration, getStatusVisual, type BookingItem } from "./types";
 import { BookingContextMenuWrapper, BookingOverflowMenu, type BookingMenuProps } from "./BookingContextMenu";
+import { GearAvatarStack } from "./BookingCard";
 import { UserAvatar } from "@/components/UserAvatar";
+import { Badge } from "@/components/ui/badge";
 import { TableRow, TableCell } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
@@ -39,72 +41,54 @@ export function BookingTableRow({
         <TableCell>
           <button
             type="button"
-            className="flex w-full flex-col gap-0.5 rounded-sm bg-transparent text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            className="flex w-full flex-col gap-1 rounded-sm bg-transparent text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             aria-label={`View booking: ${item.title}`}
             onClick={(e) => {
               e.stopPropagation();
               onClick();
             }}
           >
-            {item.refNumber && (
-              <span
-                className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground/40 w-fit"
-                style={{ fontFamily: "var(--font-mono)" }}
-              >
-                #{item.refNumber}
-              </span>
-            )}
             <span
               className={cn("leading-snug", sv.titleClass)}
               style={{ fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: "13.5px" }}
             >
               {item.title}
             </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="size-1.5 rounded-full shrink-0" style={{ background: sv.dot }} />
-              <span
-                className="text-[10px] uppercase tracking-[0.13em] text-muted-foreground/60"
-                style={{ fontFamily: "var(--font-mono)" }}
-              >
-                {sv.label}
-              </span>
+            <span className="inline-flex items-center gap-2">
+              <Badge variant={sv.variant} size="sm">{sv.label}</Badge>
+              {item.refNumber && (
+                <span
+                  className="text-[10px] tabular-nums text-muted-foreground/60"
+                  style={{ fontFamily: "var(--font-mono)" }}
+                >
+                  #{item.refNumber}
+                </span>
+              )}
             </span>
           </button>
         </TableCell>
         <TableCell className="hidden md:table-cell">
           <div className="flex flex-col gap-px">
-            <span
-              className="text-[13px] font-semibold tabular-nums"
-              style={{ fontFamily: "var(--font-mono)" }}
-            >
+            <span className="text-[13px] font-medium tabular-nums">
               {from.date}
             </span>
-            <span
-              className="text-[10px] text-muted-foreground/50"
-              style={{ fontFamily: "var(--font-mono)" }}
-            >
+            <span className="text-[11px] text-muted-foreground tabular-nums">
               {from.day} {from.time}
             </span>
           </div>
         </TableCell>
         <TableCell className="hidden md:table-cell">
           <div className="flex flex-col gap-px">
-            <span
-              className="text-[13px] font-semibold tabular-nums"
-              style={{ fontFamily: "var(--font-mono)" }}
-            >
+            <span className="text-[13px] font-medium tabular-nums">
               {to.date}
             </span>
-            <span
-              className="text-[10px] text-muted-foreground/50"
-              style={{ fontFamily: "var(--font-mono)" }}
-            >
+            <span className="text-[11px] text-muted-foreground tabular-nums">
               {to.day} {to.time}
             </span>
           </div>
         </TableCell>
         <TableCell className="hidden md:table-cell">
-          <span className="text-[12px] text-muted-foreground/70" style={{ fontFamily: "var(--font-mono)" }}>
+          <span className="text-[13px] text-muted-foreground">
             {formatDuration(item.startsAt, item.endsAt)}
           </span>
         </TableCell>
@@ -120,9 +104,12 @@ export function BookingTableRow({
           </div>
         </TableCell>
         <TableCell className="hidden md:table-cell">
-          <span className="text-[12px] text-muted-foreground/60 tabular-nums" style={{ fontFamily: "var(--font-mono)" }}>
-            {(item.serializedItems?.length ?? 0) + (item.bulkItems?.reduce((sum, bulkItem) => sum + (bulkItem.plannedQuantity || 0), 0) ?? 0)}
-          </span>
+          <div className="flex items-center gap-2">
+            <GearAvatarStack items={item.serializedItems} bulkItems={item.bulkItems} />
+            <span className="text-[13px] text-muted-foreground tabular-nums">
+              {(item.serializedItems?.length ?? 0) + (item.bulkItems?.reduce((sum, bulkItem) => sum + (bulkItem.plannedQuantity || 0), 0) ?? 0)}
+            </span>
+          </div>
         </TableCell>
         <TableCell onClick={(e) => e.stopPropagation()}>
           <BookingOverflowMenu item={item} {...menuProps} />
@@ -172,29 +159,23 @@ export function BookingMobileCard({
       />
 
       <div className="pointer-events-none relative z-20 flex items-start justify-between gap-2">
-        <div className="flex flex-col gap-0.5 min-w-0">
-          {item.refNumber && (
-            <span
-              className="text-[9px] uppercase tracking-[0.13em] text-muted-foreground/40 w-fit"
-              style={{ fontFamily: "var(--font-mono)" }}
-            >
-              #{item.refNumber}
-            </span>
-          )}
+        <div className="flex flex-col gap-1 min-w-0">
           <span
             className={cn("overflow-hidden text-ellipsis whitespace-nowrap", sv.titleClass)}
             style={{ fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: "13.5px" }}
           >
             {item.title}
           </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="size-1.5 rounded-full shrink-0" style={{ background: sv.dot }} />
-            <span
-              className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/60"
-              style={{ fontFamily: "var(--font-mono)" }}
-            >
-              {sv.label}
-            </span>
+          <span className="inline-flex items-center gap-2">
+            <Badge variant={sv.variant} size="sm">{sv.label}</Badge>
+            {item.refNumber && (
+              <span
+                className="text-[10px] tabular-nums text-muted-foreground/60"
+                style={{ fontFamily: "var(--font-mono)" }}
+              >
+                #{item.refNumber}
+              </span>
+            )}
           </span>
         </div>
         <div className="pointer-events-auto relative z-20" onClick={(e) => e.stopPropagation()}>

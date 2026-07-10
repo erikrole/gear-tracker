@@ -120,7 +120,7 @@ function terminalStatusClasses(status: string): Pick<BookingStatusVisual, "rowCl
     case "CANCELLED":
       return { rowClass: "", titleClass: "line-through text-muted-foreground" };
     case "COMPLETED":
-      return { rowClass: "opacity-60", titleClass: "text-muted-foreground" };
+      return { rowClass: "", titleClass: "text-muted-foreground" };
     default:
       return { rowClass: "", titleClass: "" };
   }

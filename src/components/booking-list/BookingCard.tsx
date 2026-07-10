@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { BookingContextMenuWrapper, BookingOverflowMenu, type BookingMenuProps } from "./BookingContextMenu";
 import { ItemThumbnailStack } from "@/components/ItemThumbnailStack";
 import { UserAvatar } from "@/components/UserAvatar";
+import { Badge } from "@/components/ui/badge";
 
 /* ───── Helpers ───── */
 
@@ -19,7 +20,7 @@ function formatCardTime(iso: string) {
 
 /* ───── Gear thumbnail stack ───── */
 
-function GearAvatarStack({ items, bulkItems }: {
+export function GearAvatarStack({ items, bulkItems }: {
   items: BookingItem["serializedItems"];
   bulkItems: BookingItem["bulkItems"];
 }) {
@@ -76,43 +77,23 @@ export function BookingCard({ item, overdueStatus, onClick, menuProps }: Booking
         />
 
         <div className="relative z-0 p-4 pl-5">
-          {/* Top row: status indicator + duration */}
-          <div className="flex items-center justify-between mb-2.5 pr-10">
-            <div className="flex items-center gap-1.5">
-              <span
-                className="size-1.5 rounded-full shrink-0"
-                style={{ background: sv.dot }}
-                aria-hidden="true"
-              />
-              <span
-                className={cn(
-                  "text-[10px] uppercase tracking-[0.16em] font-semibold",
-                  isOverdue ? "text-destructive" : "text-muted-foreground/70",
-                )}
-                style={{ fontFamily: "var(--font-mono)" }}
-              >
-                {sv.label}
-              </span>
+          {/* Top row: status badge + ref number + duration */}
+          <div className="flex items-center justify-between gap-2 mb-2.5 pr-10">
+            <div className="flex min-w-0 items-center gap-2">
+              <Badge variant={sv.variant} size="sm">{sv.label}</Badge>
+              {item.refNumber && (
+                <span
+                  className="truncate text-[10px] tabular-nums text-muted-foreground/60"
+                  style={{ fontFamily: "var(--font-mono)" }}
+                >
+                  #{item.refNumber}
+                </span>
+              )}
             </div>
-            <span
-              className="text-[10.5px] text-muted-foreground/50 tabular-nums"
-              style={{ fontFamily: "var(--font-mono)" }}
-            >
+            <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
               {duration}
             </span>
           </div>
-
-          {/* Ref number */}
-          {item.refNumber && (
-            <div className="mb-1">
-              <span
-                className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground/40"
-                style={{ fontFamily: "var(--font-mono)" }}
-              >
-                #{item.refNumber}
-              </span>
-            </div>
-          )}
 
           {/* Title */}
           <h3
