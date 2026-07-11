@@ -66,6 +66,7 @@ NotificationsSheet.swift               | notifications-sheet         | audit
 OverdueReportView.swift                | overdue-report              | audit
 LoginView.swift                        | login                       | audit
 PasswordSetupView.swift                | login                       | audit
+LaunchView.swift                       |                             | exempt-tiny
 UsersView.swift                        | users                       | audit
 UserDetailView.swift                   | users                       | audit
 AppTabView.swift                       | profile                     | audit

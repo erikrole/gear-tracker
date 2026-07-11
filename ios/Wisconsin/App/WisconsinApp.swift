@@ -95,7 +95,7 @@ struct RootView: View {
     var body: some View {
         Group {
             if session.isRestoring {
-                Color(.systemBackground).ignoresSafeArea()
+                LaunchView()
             } else if let user = session.currentUser, user.forcePasswordChange {
                 PasswordSetupView(email: user.email)
             } else if session.currentUser != nil {
@@ -115,6 +115,7 @@ struct RootView: View {
                     .animation(reduceMotion ? nil : .easeInOut, value: session.isOffline)
             }
         }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: session.isRestoring)
         .onChange(of: session.currentUser) { old, user in
             // Show the soft push prompt the first time a user lands logged-in,
             // before the OS alert ever fires.

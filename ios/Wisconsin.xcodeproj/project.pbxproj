@@ -109,6 +109,7 @@
 		BA09B1B0BD9687C63E73E59D /* ThumbnailLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6D1B302F1FC5245180A17CD /* ThumbnailLoader.swift */; };
 		BAE863712FA11717C1C77B29 /* NotificationsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E58906A0DD7BCF5024161BE /* NotificationsSheet.swift */; };
 		C3C5D175C583096B0D645F24 /* AssetModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3967BD5EC55792F3B9E94724 /* AssetModels.swift */; };
+		C4B395605B732BF0CA7623DD /* LaunchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C139D1C1F9A3D2C4AB5EEF42 /* LaunchView.swift */; };
 		C72EB6E27A3B853D2B074874 /* KioskNativeTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046675A42DFADB1133461EDD /* KioskNativeTextField.swift */; };
 		CB5A9F4D1449DDAFF063E6A6 /* KioskOnlyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B24728E65A42F40EDB0BBCF8 /* KioskOnlyApp.swift */; };
 		CB86127CB5CF65F1921BE695 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 84430D9886900EA2E8F3CB0B /* AppIcon.icon */; };
@@ -256,6 +257,7 @@
 		BA5C2531E017BDBDE5EFDDFE /* KioskAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskAPIClient.swift; sourceTree = "<group>"; };
 		BB8C14E1F7005B408A6A4CCD /* DashboardModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardModels.swift; sourceTree = "<group>"; };
 		C0F640E220A5DC146DBFD2DC /* AppIconBucky.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = AppIconBucky.icon; sourceTree = "<group>"; };
+		C139D1C1F9A3D2C4AB5EEF42 /* LaunchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchView.swift; sourceTree = "<group>"; };
 		C2159F738CA242773EA9D438 /* NotificationSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSettingsView.swift; sourceTree = "<group>"; };
 		C22B3A50B4815BC1451C26DD /* HIDScannerField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HIDScannerField.swift; sourceTree = "<group>"; };
 		C2BBAACBEA87B1EE9FEBC287 /* UserAvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserAvatarView.swift; sourceTree = "<group>"; };
@@ -551,6 +553,7 @@
 				64F14676788E6FA7CDD08D48 /* HomeView.swift */,
 				80CA4880F08046F8E23F079B /* ItemDetailView.swift */,
 				F12684601FE641B454D0219B /* ItemsView.swift */,
+				C139D1C1F9A3D2C4AB5EEF42 /* LaunchView.swift */,
 				0B3D4226E94BA750868A4D0B /* LicensesView.swift */,
 				6D6258D04F2CBF34C14EBB69 /* LoginView.swift */,
 				C2159F738CA242773EA9D438 /* NotificationSettingsView.swift */,
@@ -857,6 +860,7 @@
 				FC55F8C00EAB32F578B178F0 /* ItemDetailView.swift in Sources */,
 				0342D7B9F506A8995685BC69 /* ItemListText.swift in Sources */,
 				3A34548DD720E71C6B54BB31 /* ItemsView.swift in Sources */,
+				C4B395605B732BF0CA7623DD /* LaunchView.swift in Sources */,
 				089493883612791C05515FAE /* LicensesView.swift in Sources */,
 				2DF5EDC0EA7BAAF2547F1035 /* LinkStickerWizard.swift in Sources */,
 				DACC18C0E1181FD912992FEE /* LoginView.swift in Sources */,
