@@ -13,5 +13,5 @@ export default async function EditGuidePage({ params }: Props) {
     redirect(`/resources/${slug}`);
   }
 
-  return <EditGuideClient slug={slug} userRole={user.role} />;
+  return <EditGuideClient slug={slug} userRole={user.role} userId={user.id} />;
 }

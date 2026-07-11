@@ -43,6 +43,8 @@ import {
 import { legacyGuideMarkdown } from "@/lib/guide-content";
 import { GuideTargetingControls } from "@/components/resources/GuideTargetingControls";
 import { MarkdownEditor } from "@/components/resources/MarkdownEditor";
+import EmptyState from "@/components/EmptyState";
+import { PageHeader } from "@/components/PageHeader";
 
 type Guide = {
   id: string;
@@ -61,7 +63,7 @@ type Guide = {
   updatedAt: string;
 };
 
-type Props = { slug: string; userRole: Role };
+type Props = { slug: string; userRole: Role; userId: string };
 
 type ResourceMutationResponse = {
   data?: {
@@ -73,7 +75,7 @@ type ResourceUploadResponse = {
   url?: string;
 };
 
-export function EditGuideClient({ slug, userRole }: Props) {
+export function EditGuideClient({ slug, userRole, userId }: Props) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [title, setTitle] = useState("");
@@ -103,7 +105,7 @@ export function EditGuideClient({ slug, userRole }: Props) {
     return json.url;
   }
 
-  const { data: guide, loading } = useFetch<Guide>({
+  const { data: guide, loading, error, reload } = useFetch<Guide>({
     url: `/api/resources/${slug}`,
     transform: (json) => (json as { data: Guide }).data,
   });
@@ -139,6 +141,7 @@ export function EditGuideClient({ slug, userRole }: Props) {
   }, [dirty]);
 
   const canDelete = userRole === Role.ADMIN;
+  const canEditGuide = userRole === Role.ADMIN || guide?.author.id === userId;
 
   function updateType(nextType: ResourceType) {
     setCategory((current) => {
@@ -215,6 +218,34 @@ export function EditGuideClient({ slug, userRole }: Props) {
     }
   }
 
+  if (!loading && error && !guide) {
+    return (
+      <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6">
+        <EmptyState
+          icon="wifi-off"
+          title="Could not load this guide"
+          description="The editor did not open. Retry before making changes."
+          actionLabel="Retry"
+          onAction={reload}
+        />
+      </div>
+    );
+  }
+
+  if (!loading && guide && !canEditGuide) {
+    return (
+      <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6">
+        <EmptyState
+          icon="folder"
+          title="You cannot edit this guide"
+          description="Staff can edit their own guides. Ask an administrator or the guide author to make this change."
+          actionLabel="Back to guide"
+          onAction={() => router.push(`/resources/${slug}`)}
+        />
+      </div>
+    );
+  }
+
   if (loading || !ready) {
     return (
       <div className="flex flex-col gap-6 p-6 max-w-5xl mx-auto">
@@ -267,7 +298,7 @@ export function EditGuideClient({ slug, userRole }: Props) {
         )}
       </div>
 
-      <h1 className="text-2xl font-bold">Edit Guide</h1>
+      <PageHeader title="Edit guide" description={`Update ${title} without changing its publication or audience contract.`} />
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
@@ -360,10 +391,10 @@ export function EditGuideClient({ slug, userRole }: Props) {
         />
       </div>
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="sticky bottom-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-background/95 p-3 shadow-lg backdrop-blur">
         <div className="flex items-center gap-3">
-          <Button onClick={submit} disabled={submitting}>
-            Save
+          <Button onClick={submit} disabled={submitting} loading={submitting}>
+            Save changes
           </Button>
           {dirty ? (
             <AlertDialog>

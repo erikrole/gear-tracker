@@ -64,8 +64,8 @@ export default function DatabasePage() {
 
   return (
     <SettingsPageShell
-      title="Database Health"
-      description="Check that your database schema matches the expected Prisma migrations. Surfaces missing tables, enums, columns, and migration drift."
+      title="Database diagnostics"
+      description="Run a bounded baseline check for known tables, enums, columns, extensions, and migration records. Passing does not replace the migration health and deploy checks."
     >
         <div className="flex justify-end mb-3">
           <Button onClick={runCheck} loading={loading}>
@@ -90,7 +90,7 @@ export default function DatabasePage() {
                   className={`shrink-0 inline-block size-3 rounded-full ${result.ok ? "bg-[var(--green)]" : "bg-destructive"}`}
                 />
                 <span className="font-semibold text-[length:var(--text-md)]">
-                  {result.ok ? "Schema is healthy" : "Issues detected"}
+                  {result.ok ? "Baseline checks passed" : "Issues detected"}
                 </span>
               </CardContent>
             </Card>
@@ -239,7 +239,7 @@ export default function DatabasePage() {
                 inline
                 icon="check"
                 title="No diagnostics run yet"
-                description="Run diagnostics to check migration, table, enum, extension, and column health."
+                description="Run the baseline diagnostic, then use the migration health check for release proof."
               />
             </CardContent>
           </Card>

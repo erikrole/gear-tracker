@@ -16,6 +16,7 @@ import {
   SETTINGS_GROUP_ORDER,
   type SettingsSection,
 } from "@/lib/nav-sections";
+import { Button } from "@/components/ui/button";
 
 /**
  * ⌘K / Ctrl+K palette over the visible settings sections. Receives only the
@@ -58,18 +59,20 @@ export function SettingsCommand({ visibleSections }: { visibleSections: Readonly
 
   return (
     <>
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 rounded-md border bg-background px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+        className="h-10 text-muted-foreground"
         aria-label="Search settings"
       >
-        <SearchIcon className="size-3.5" />
+        <SearchIcon data-icon="inline-start" />
         <span>Search settings</span>
         <kbd className="ml-2 hidden md:inline-flex items-center gap-0.5 rounded border bg-muted px-1.5 py-0.5 text-[10px] font-mono">
           ⌘K
         </kbd>
-      </button>
+      </Button>
 
       <CommandDialog open={open} onOpenChange={setOpen}>
         <CommandInput placeholder="Search settings — try 'allowlist', 'cron', 'home venue'…" />

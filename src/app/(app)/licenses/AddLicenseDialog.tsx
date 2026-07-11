@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
 type Props = {
@@ -27,10 +28,12 @@ export function AddLicenseDialog({ open, onOpenChange, onCreated }: Props) {
   const [accountEmail, setAccountEmail] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!code.trim()) return;
+    setErrorMessage(null);
     setLoading(true);
     try {
       const res = await fetch("/api/licenses", {
@@ -53,7 +56,9 @@ export function AddLicenseDialog({ open, onOpenChange, onCreated }: Props) {
       onCreated();
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
+      const message = err instanceof Error ? err.message : "The license was not created";
+      setErrorMessage(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -66,7 +71,12 @@ export function AddLicenseDialog({ open, onOpenChange, onCreated }: Props) {
           <DialogTitle>Add license code</DialogTitle>
           <DialogDescription>Add a single Photo Mechanic license to the pool.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {errorMessage && (
+            <Alert variant="destructive">
+              <AlertDescription>{errorMessage}</AlertDescription>
+            </Alert>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor="code">License code</Label>
             <Input
@@ -75,6 +85,10 @@ export function AddLicenseDialog({ open, onOpenChange, onCreated }: Props) {
               onChange={(e) => setCode(e.target.value)}
               placeholder="PM6-XXXX-XXXX-XXXX"
               className="font-mono"
+              name="licenseCode"
+              autoComplete="off"
+              maxLength={120}
+              autoFocus
               required
             />
           </div>
@@ -87,6 +101,8 @@ export function AddLicenseDialog({ open, onOpenChange, onCreated }: Props) {
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="e.g. Seat 3, renewed 2026"
+              name="licenseLabel"
+              maxLength={200}
             />
           </div>
           <div className="space-y-1.5">
@@ -99,6 +115,8 @@ export function AddLicenseDialog({ open, onOpenChange, onCreated }: Props) {
               value={accountEmail}
               onChange={(e) => setAccountEmail(e.target.value)}
               placeholder="kms@athletics.wisc.edu"
+              name="accountEmail"
+              autoComplete="email"
             />
           </div>
           <div className="space-y-1.5">
@@ -109,6 +127,7 @@ export function AddLicenseDialog({ open, onOpenChange, onCreated }: Props) {
               id="expiresAt"
               type="date"
               value={expiresAt}
+              name="expiresAt"
               onChange={(e) => setExpiresAt(e.target.value)}
             />
           </div>
@@ -117,7 +136,7 @@ export function AddLicenseDialog({ open, onOpenChange, onCreated }: Props) {
               Cancel
             </Button>
             <Button type="submit" loading={loading} disabled={!code.trim()}>
-              {loading ? "Adding…" : "Add license"}
+              Create license
             </Button>
           </DialogFooter>
         </form>

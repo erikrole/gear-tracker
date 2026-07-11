@@ -7,12 +7,19 @@ import { PageHeader } from "@/components/PageHeader";
 import {
   SectionNav,
   SectionNavLink,
-  SectionNavList,
-  SectionNavSeparator,
 } from "@/components/SectionNav";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   SETTINGS_GROUP_ORDER,
   SETTINGS_SECTIONS,
@@ -67,9 +74,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         </div>
       </div>
 
-      <SectionNav aria-label="Settings sections" className="xl:hidden">
-        <SettingsTabStrip pathname={pathname} visibleSections={visibleSections} />
-      </SectionNav>
+      <SettingsMobilePicker pathname={pathname} groupedSections={groupedSections} />
 
       <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[232px_minmax(0,1fr)] xl:items-start">
         <SettingsRail pathname={pathname} groupedSections={groupedSections} />
@@ -137,37 +142,38 @@ function isActiveSection(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function SettingsTabStrip({
+function SettingsMobilePicker({
   pathname,
-  visibleSections,
+  groupedSections,
 }: {
   pathname: string;
-  visibleSections: ReadonlyArray<SettingsSection>;
+  groupedSections: Array<{ group: SettingsGroup; sections: SettingsSection[] }>;
 }) {
-  return (
-    <SectionNavList>
-      <SectionNavLink href="/settings" active={pathname === "/settings"}>
-        Overview
-      </SectionNavLink>
-      {visibleSections.map((section, i) => {
-        const prev = i > 0 ? visibleSections[i - 1] : null;
-        const newGroup = prev && prev.group !== section.group;
-        const active = isActiveSection(pathname, section.href);
+  const router = useRouter();
+  const current = findSettingsSection(pathname);
 
-        return (
-          <div key={section.href} className="flex items-stretch gap-1">
-            {newGroup && <SectionNavSeparator />}
-            <SectionNavLink
-              href={section.href}
-              title={section.description}
-              active={active}
-            >
-              {section.label}
-            </SectionNavLink>
-          </div>
-        );
-      })}
-    </SectionNavList>
+  return (
+    <div className="mb-4 xl:hidden">
+      <Select value={current?.href ?? "/settings"} onValueChange={(href) => router.push(href)}>
+        <SelectTrigger className="h-11 w-full" aria-label="Choose Settings page">
+          <SelectValue placeholder="Overview" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            <SelectLabel>Settings</SelectLabel>
+            <SelectItem value="/settings">Overview</SelectItem>
+          </SelectGroup>
+          {groupedSections.map(({ group, sections }) => (
+            <SelectGroup key={group}>
+              <SelectLabel>{group}</SelectLabel>
+              {sections.map((section) => (
+                <SelectItem key={section.href} value={section.href}>{section.label}</SelectItem>
+              ))}
+            </SelectGroup>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 

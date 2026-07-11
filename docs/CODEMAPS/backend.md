@@ -13,7 +13,7 @@
 | `src/lib/services/booking-rules.ts` | 107 |
 | `src/lib/services/bookings-checkin.ts` | 802 |
 | `src/lib/services/bookings-helpers.ts` | 251 |
-| `src/lib/services/bookings-lifecycle.ts` | 1430 |
+| `src/lib/services/bookings-lifecycle.ts` | 1439 |
 | `src/lib/services/bookings-queries.ts` | 235 |
 | `src/lib/services/bookings.ts` | 4 |
 | `src/lib/services/bulk-unit-scans.ts` | 608 |
@@ -30,7 +30,7 @@
 | `src/lib/services/kiosk-scan.ts` | 36 |
 | `src/lib/services/kits.ts` | 327 |
 | `src/lib/services/licenses.ts` | 483 |
-| `src/lib/services/live-activities.ts` | 424 |
+| `src/lib/services/live-activities.ts` | 521 |
 | `src/lib/services/notification-prefs.ts` | 103 |
 | `src/lib/services/notifications.ts` | 851 |
 | `src/lib/services/onboarding-lifecycle.ts` | 503 |
@@ -108,6 +108,7 @@
 | `src/lib/image-search.ts` | 239 |
 | `src/lib/item-asset-tag-sort.ts` | 196 |
 | `src/lib/item-family-state.ts` | 75 |
+| `src/lib/live-activity-workflow.ts` | 29 |
 | `src/lib/media-embed.ts` | 68 |
 | `src/lib/nav-sections.ts` | 249 |
 | `src/lib/observability.ts` | 19 |

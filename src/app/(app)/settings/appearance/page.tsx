@@ -159,8 +159,7 @@ export default function AppearancePage() {
                 Preview
               </div>
               <p className="text-base m-0">
-                A preview line at the body size, so you can feel the difference
-                before committing.
+                Changes apply immediately on this device. This line shows the current body size.
               </p>
               <p className="text-sm text-muted-foreground m-0">
                 Smaller secondary text, like the help copy under form fields.

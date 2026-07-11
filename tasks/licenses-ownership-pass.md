@@ -1,26 +1,28 @@
-# Licenses Ownership Pass - 2026-05-07
+# Licenses Ownership Pass - 2026-07-10
 
 ## Goal
-- Make the Photo Mechanic license pool scan like a current operational list page, with correct row affordances, clear hidden-retired state, and no dead click paths.
+- Make every Photo Mechanic license screen and flow clear, responsive, role-correct, and privacy-safe while preserving the existing two-slot and informational-expiry contracts.
 
 ## Peer patterns checked
-- Items: compact metric strip with tabular numbers and active filter tiles.
-- Users: roster summary tiles above the table and explicit retry/empty states.
-- Kits: keyboard-operable rows only where navigation actually works.
+- Users: shared page header, operational toolbar, explicit row actions, responsive list treatment.
+- Items: calm operational hierarchy, status-first list scanning, shared feedback primitives.
+- Kiosk devices: target-specific dialogs, stable pending labels, recoverable inline states.
 
 ## Plan
-- [x] Structure
-- [x] UX
-- [x] UI
-- [x] Consistency
-- [x] Hardening
-- [x] Verification
-- [x] Docs
+- [x] Audit route, overlays, API contracts, schema, docs, and peer patterns.
+- [x] Simplify the page hierarchy and move secondary administration into a labeled toolbar.
+- [x] Add explicit responsive claim/inspect actions and correct status color semantics.
+- [x] Polish custody, create, bulk-create, renew, return, history, and admin-detail flows.
+- [x] Redact other holders' personal details from student responses and add regression coverage.
+- [x] Sync area docs and task ledger.
+- [x] Run focused tests, TypeScript, migration guard, codemap/docs, build, and browser smoke.
 
-## Propagation candidates
-- [ ] Kits: consider replacing the full-card wrapper around table/empty states with the lighter Items/Users bordered table pattern in a future pass.
+## Contract boundaries
+- Expiry remains informational. This pass does not change claim eligibility or timezone policy from blocked Plan 053.
+- Two slots per code, one active claim per user, code masking, role permissions, and audit behavior remain unchanged.
 
 ## Review
-- Shipped: compact license health summary, explicit hidden-retired empty state, corrected row affordances for student-held licenses, clearer claim/inspect aria labels, admin bulk renewal for expiring/expired or all visible active codes, and user-visible recent claim/return history.
-- Verified: `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, and `npx next build` passed after user-history wiring.
-- Deferred: admin claim history pagination and full admin per-user license usage reporting remain documented low-volume follow-ups.
+- Shipped a calmer header and admin toolbar, blue active-use semantics, explicit Claim/Inspect actions, retired-record inspection, recoverable overlay failures, personal-history retry, editable labels, and server-side student holder redaction.
+- Verified 11 focused license/iOS contract tests, focused ESLint, TypeScript, all 93 migration prefixes, codemap/docs, whitespace, and `npm run build:app`.
+- Authenticated Chrome smoke verified the loaded admin route, Add license dialog, explicit row actions, and admin detail sheet with no console errors. The existing port-3001 preview stopped serving the route before the narrow-width reload, so narrow runtime proof is limited to the source/build contract and the table's horizontal overflow containment.
+- Deferred policy remains Plan 053: expiry is informational and expired-code claim eligibility was not changed.

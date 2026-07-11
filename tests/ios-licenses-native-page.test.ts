@@ -34,7 +34,9 @@ describe("iOS native Licenses page", () => {
 
     expect(route).toContain('const isAdmin = user.role === "ADMIN" || user.role === "STAFF"');
     expect(route).toContain("const isHolder = c.claims.some((claim) => claim.userId === user.id)");
-    expect(route).toContain('return isHolder ? c : { ...c, code: "" };');
+    expect(route).toContain('code: isHolder ? c.code : ""');
+    expect(route).toContain("claim.userId === user.id");
+    expect(route).toContain("user: null");
   });
 
   it("wires Licenses to native Settings and regular-width sidebar destinations", () => {

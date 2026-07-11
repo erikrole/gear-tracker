@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const COPY_RESET_MS = 1600;
 
@@ -23,6 +24,9 @@ export function ServerPathCopy({ path }: { path: string }) {
       setCopied(true);
     } catch {
       setCopied(false);
+      toast.error("Could not copy the Media Drive path", {
+        description: "Select the visible path and copy it manually.",
+      });
     }
   };
 

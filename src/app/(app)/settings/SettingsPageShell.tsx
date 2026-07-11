@@ -19,9 +19,9 @@ export function SettingsPageShell({
 }: SettingsPageShellProps) {
   return (
     <FadeUp>
-      <div className="grid grid-cols-[220px_minmax(0,1fr)] items-start gap-6 max-lg:grid-cols-1 max-lg:gap-4">
-        <aside className="sticky top-20 max-lg:static">
-          <h2 className="mb-1.5 text-lg font-semibold tracking-tight text-balance">
+      <div className="flex min-w-0 flex-col gap-4">
+        <header className="max-w-3xl">
+          <h2 className="mb-1 text-lg font-semibold tracking-tight text-balance">
             {title}
           </h2>
           {description ? (
@@ -29,7 +29,7 @@ export function SettingsPageShell({
               {description}
             </p>
           ) : null}
-        </aside>
+        </header>
         <div className={cn("min-w-0", mainClassName)}>{children}</div>
       </div>
     </FadeUp>

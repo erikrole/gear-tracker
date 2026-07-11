@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeftIcon,
@@ -40,6 +40,18 @@ import {
 } from "@/lib/guide-categories";
 import { GuideTargetingControls } from "@/components/resources/GuideTargetingControls";
 import { MarkdownEditor } from "@/components/resources/MarkdownEditor";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { PageHeader } from "@/components/PageHeader";
 
 type GuideTemplate = {
   id: string;
@@ -335,6 +347,17 @@ export function NewGuideClient() {
   const [featuredRank, setFeaturedRank] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
+  const dirty = Boolean(
+    title.trim() || category.trim() || markdown.trim() || targetRoles.length || targetAreas.length || featured,
+  );
+
+  useEffect(() => {
+    function onBeforeUnload(event: BeforeUnloadEvent) {
+      if (dirty) event.preventDefault();
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
 
   async function uploadFile(file: File): Promise<string> {
     const fd = new FormData();
@@ -425,22 +448,40 @@ export function NewGuideClient() {
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-5xl mx-auto">
-      <div>
-        <Link
-          href="/resources"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeftIcon className="size-3.5" />
-          Guides
-        </Link>
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold">New Guide</h1>
-        <p className="text-sm text-muted-foreground">
-          Create a focused Guide for one workflow, area, contact set, path, or operating reference.
-        </p>
-      </div>
+      <PageHeader
+        title="New guide"
+        description="Create one focused workflow, reference, or operating guide."
+      >
+        {dirty ? (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="sm" className="h-10">
+                <ArrowLeftIcon data-icon="inline-start" />
+                Back to Resources
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Discard this new guide?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  The title, targeting, and guide content entered here have not been saved.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Keep editing</AlertDialogCancel>
+                <AlertDialogAction onClick={() => router.push("/resources")}>Discard guide</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        ) : (
+          <Button asChild variant="outline" size="sm" className="h-10">
+            <Link href="/resources">
+              <ArrowLeftIcon data-icon="inline-start" />
+              Back to Resources
+            </Link>
+          </Button>
+        )}
+      </PageHeader>
 
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {GUIDE_TEMPLATES.map((template) => {
@@ -543,15 +584,16 @@ export function NewGuideClient() {
         />
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="sticky bottom-3 flex flex-wrap items-center justify-end gap-3 rounded-lg border bg-background/95 p-3 shadow-lg backdrop-blur">
         <Button
           onClick={() => submit(false)}
           variant="outline"
           disabled={submitting}
+          loading={submitting}
         >
           Save draft
         </Button>
-        <Button onClick={() => submit(true)} disabled={submitting}>
+        <Button onClick={() => submit(true)} disabled={submitting} loading={submitting}>
           Publish
         </Button>
       </div>

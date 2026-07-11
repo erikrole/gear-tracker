@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import type { LicenseCode } from "./types";
 
@@ -44,6 +45,7 @@ export function BulkRenewDialog({ open, onOpenChange, codes, onRenewed }: Props)
   const [scope, setScope] = useState<RenewScope>(() => (expiringCodes.length > 0 ? "expiring" : "visible"));
   const [expiresAt, setExpiresAt] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const targetCodes = scope === "expiring" ? expiringCodes : activeCodes;
   const targetCount = targetCodes.length;
@@ -57,6 +59,7 @@ export function BulkRenewDialog({ open, onOpenChange, codes, onRenewed }: Props)
     e.preventDefault();
     if (!expiresAt || targetCount === 0) return;
 
+    setErrorMessage(null);
     setLoading(true);
     try {
       const res = await fetch("/api/licenses/bulk", {
@@ -77,7 +80,9 @@ export function BulkRenewDialog({ open, onOpenChange, codes, onRenewed }: Props)
       onRenewed();
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
+      const message = err instanceof Error ? err.message : "The renewal date was not applied";
+      setErrorMessage(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -92,7 +97,12 @@ export function BulkRenewDialog({ open, onOpenChange, codes, onRenewed }: Props)
             Apply one annual expiry date to a bounded set of visible active license codes.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          {errorMessage && (
+            <Alert variant="destructive">
+              <AlertDescription>{errorMessage}</AlertDescription>
+            </Alert>
+          )}
           <RadioGroup value={scope} onValueChange={(value) => setScope(value as RenewScope)}>
             <div className="flex items-start gap-2 rounded-md border p-3">
               <RadioGroupItem id="renew-expiring" value="expiring" disabled={expiringCodes.length === 0} />
@@ -120,6 +130,7 @@ export function BulkRenewDialog({ open, onOpenChange, codes, onRenewed }: Props)
               id="renew-expiry"
               type="date"
               value={expiresAt}
+              name="renewalExpiry"
               onChange={(e) => setExpiresAt(e.target.value)}
               required
             />
@@ -130,7 +141,7 @@ export function BulkRenewDialog({ open, onOpenChange, codes, onRenewed }: Props)
               Cancel
             </Button>
             <Button type="submit" loading={loading} disabled={!expiresAt || targetCount === 0}>
-              {loading ? "Renewing..." : `Renew ${targetCount}`}
+              Renew {targetCount} license{targetCount === 1 ? "" : "s"}
             </Button>
           </DialogFooter>
         </form>

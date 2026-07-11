@@ -68,6 +68,7 @@ export function AdminClaimSheet({ license, isAdmin, hasMyLicense, onOpenChange, 
   const [addingOccupant, setAddingOccupant] = useState(false);
   const [editExpiry, setEditExpiry] = useState("");
   const [editAccount, setEditAccount] = useState("");
+  const [editLabel, setEditLabel] = useState("");
   const [savingDetails, setSavingDetails] = useState(false);
   const [retiring, setRetiring] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -107,6 +108,7 @@ export function AdminClaimSheet({ license, isAdmin, hasMyLicense, onOpenChange, 
     lastLicenseIdRef.current = license.id;
     setEditExpiry(license.expiresAt ? license.expiresAt.slice(0, 10) : "");
     setEditAccount(license.accountEmail ?? "");
+    setEditLabel(license.label ?? "");
     setHistory([]);
     const controller = new AbortController();
     void loadHistory(controller.signal);
@@ -195,15 +197,16 @@ export function AdminClaimSheet({ license, isAdmin, hasMyLicense, onOpenChange, 
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          label: editLabel.trim(),
           accountEmail: editAccount.trim() || null,
           expiresAt: editExpiry ? new Date(editExpiry).toISOString() : null,
         }),
       });
-      if (await throwLicenseError(res, "Failed to save")) return;
+      if (await throwLicenseError(res, "Could not save license details")) return;
       toast.success("License details updated");
       onAction();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
+      toast.error(err instanceof Error ? err.message : "License details were not saved");
     } finally {
       setSavingDetails(false);
     }
@@ -253,7 +256,7 @@ export function AdminClaimSheet({ license, isAdmin, hasMyLicense, onOpenChange, 
 
   return (
     <Sheet open={!!license} onOpenChange={onOpenChange}>
-      <SheetContent className="overflow-y-auto sm:max-w-md p-8">
+      <SheetContent className="overflow-y-auto p-6 sm:max-w-lg sm:p-8">
         <SheetHeader>
           <div className="flex items-center gap-2 flex-wrap">
             <SheetTitle className="font-mono text-sm break-all">{license?.code}</SheetTitle>
@@ -273,7 +276,7 @@ export function AdminClaimSheet({ license, isAdmin, hasMyLicense, onOpenChange, 
           </SheetDescription>
         </SheetHeader>
 
-        <div className="mt-10 space-y-10">
+        <div className="mt-8 flex flex-col gap-8">
           {/* Active slots */}
           <section className="space-y-4">
             <h3 className="text-sm font-medium">Active slots ({activeClaims.length}/2)</h3>
@@ -411,6 +414,17 @@ export function AdminClaimSheet({ license, isAdmin, hasMyLicense, onOpenChange, 
               <section className="space-y-5">
                 <h3 className="text-sm font-medium">Details</h3>
                 <div className="space-y-1.5">
+                  <Label htmlFor="license-label" className="text-xs">Label</Label>
+                  <Input
+                    id="license-label"
+                    name="licenseLabel"
+                    value={editLabel}
+                    maxLength={200}
+                    onChange={(e) => setEditLabel(e.target.value)}
+                    placeholder="Optional internal label"
+                  />
+                </div>
+                <div className="space-y-1.5">
                   <Label htmlFor="account" className="text-xs">Account email</Label>
                   <Input
                     id="account"
@@ -418,6 +432,7 @@ export function AdminClaimSheet({ license, isAdmin, hasMyLicense, onOpenChange, 
                     type="email"
                     autoComplete="email"
                     value={editAccount}
+                    maxLength={254}
                     onChange={(e) => setEditAccount(e.target.value)}
                   />
                 </div>
@@ -437,8 +452,9 @@ export function AdminClaimSheet({ license, isAdmin, hasMyLicense, onOpenChange, 
                   variant="outline"
                   onClick={handleSaveDetails}
                   disabled={savingDetails}
+                  loading={savingDetails}
                 >
-                  {savingDetails ? "Saving…" : "Save details"}
+                  Save details
                 </Button>
               </section>
             </>
@@ -529,7 +545,10 @@ export function AdminClaimSheet({ license, isAdmin, hasMyLicense, onOpenChange, 
           <section className="space-y-3 pb-8">
             <h3 className="text-sm font-medium">Claim history</h3>
             {loadingHistory ? (
-              <p className="text-xs text-muted-foreground">Loading…</p>
+              <div className="flex flex-col gap-2" aria-label="Loading claim history">
+                <div className="h-10 rounded-md bg-muted/60" />
+                <div className="h-10 rounded-md bg-muted/60" />
+              </div>
             ) : historyError ? (
               <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
                 <div className="flex flex-wrap items-center justify-between gap-2">

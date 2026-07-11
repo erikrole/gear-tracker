@@ -81,7 +81,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/licenses`
 - APIs: `/api/licenses/[id]/claim`, `/api/licenses/[id]/history`, `/api/licenses/[id]/occupy`, `/api/licenses/[id]/release`, `/api/licenses/[id]`, `/api/licenses/bulk`, `/api/licenses/export`, `/api/licenses/my/history`, `/api/licenses/my`, `/api/licenses`
 - Services: `src/lib/services/licenses.ts`
-- Tests: `tests/ios-licenses-native-page.test.ts`
+- Tests: `tests/ios-licenses-native-page.test.ts`, `tests/licenses-ui-privacy-contract.test.ts`
 
 ## mobile
 
@@ -129,7 +129,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/resources/[slug]/edit`, `/resources/[slug]`, `/resources/new`, `/resources`
 - APIs: `/api/resources/[id]`, `/api/resources`, `/api/resources/upload-image`
 - Services: _none matched_
-- Tests: `tests/resources-filters.test.ts`
+- Tests: `tests/resources-filters.test.ts`, `tests/resources-ui-ownership-contract.test.ts`
 
 ## scan
 

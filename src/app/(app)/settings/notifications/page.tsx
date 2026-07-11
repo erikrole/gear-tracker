@@ -79,7 +79,7 @@ export default function NotificationsSettingsPage() {
   const savingRef = useRef(false);
 
   async function save(next: Prefs, { silent = false } = {}) {
-    if (savingRef.current) return;
+    if (savingRef.current) return false;
     savingRef.current = true;
     setLocal(next);
     setSaving(true);
@@ -89,19 +89,22 @@ export default function NotificationsSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(next),
       });
-      if (handleAuthRedirect(res, "/settings/notifications")) return;
+      if (handleAuthRedirect(res, "/settings/notifications")) return false;
       if (!res.ok) {
         const msg = await parseErrorMessage(res, "Failed to save");
         toast.error(msg);
         reload();
+        return false;
       } else if (!silent) {
         toast.success("Saved", { duration: 1200 });
       }
+      return true;
     } catch (err) {
-      if (isAbortError(err)) return;
+      if (isAbortError(err)) return false;
       const kind = classifyError(err);
       toast.error(kind === "network" ? "You’re offline. Check your connection." : "Failed to save");
       reload();
+      return false;
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -119,17 +122,19 @@ export default function NotificationsSettingsPage() {
     save({ ...prefs, categories });
   }
 
-  function pauseFor(ms: number) {
+  async function pauseFor(ms: number) {
     if (!prefs) return;
     const until = new Date(Date.now() + ms).toISOString();
-    save({ ...prefs, pausedUntil: until });
-    toast.success(`Paused — quiet until ${new Date(until).toLocaleString(undefined, { hour: "numeric", minute: "2-digit" })}`);
+    const saved = await save({ ...prefs, pausedUntil: until }, { silent: true });
+    if (saved) {
+      toast.success(`Paused — quiet until ${new Date(until).toLocaleString(undefined, { hour: "numeric", minute: "2-digit" })}`);
+    }
   }
 
-  function resumeNow() {
+  async function resumeNow() {
     if (!prefs) return;
-    save({ ...prefs, pausedUntil: null }, { silent: true });
-    toast.success("Notifications resumed");
+    const saved = await save({ ...prefs, pausedUntil: null }, { silent: true });
+    if (saved) toast.success("Notifications resumed");
   }
 
   const [testingPush, setTestingPush] = useState(false);

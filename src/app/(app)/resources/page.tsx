@@ -56,6 +56,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ResourceCommandPalette } from "@/components/resources/ResourceCommandPalette";
 import { ServerPathCopy } from "@/components/resources/ServerPathCopy";
+import { DebouncedSearchInput } from "@/components/DebouncedSearchInput";
+import { OperationalPartialResultsAlert } from "@/components/OperationalFeedback";
 import { useFetch } from "@/hooks/use-fetch";
 import {
   inferResourceTypeFromCategory,
@@ -548,7 +550,7 @@ export default function ResourcesPage() {
     });
   };
 
-  const { data: guides, loading: guidesLoading } = useFetch<GuideListItem[]>({
+  const { data: guides, loading: guidesLoading, error: guidesError, reload: reloadGuides } = useFetch<GuideListItem[]>({
     url: "/api/resources",
     transform: (json) => (json as { data: GuideListItem[] }).data ?? [],
   });
@@ -560,7 +562,7 @@ export default function ResourcesPage() {
 
   const isStaffOrAdmin = meData?.role === Role.STAFF || meData?.role === Role.ADMIN;
 
-  const { data: contactUsers, loading: contactsLoading } = useFetch<ContactUsersResponse>({
+  const { data: contactUsers, loading: contactsLoading, error: contactsError, reload: reloadContacts } = useFetch<ContactUsersResponse>({
     url: "/api/users?limit=200&sort=name",
     refetchOnFocus: true,
     transform: (json) => json as unknown as ContactUsersResponse,
@@ -695,7 +697,14 @@ export default function ResourcesPage() {
 
       <OperationalToolbar aria-label="Guide search and filters">
         <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
-          <ResourceCommandPalette guides={guides ?? []} className="min-w-0 flex-1" />
+          <DebouncedSearchInput
+            value={search}
+            onValueChange={setSearchParam}
+            placeholder="Filter guides, contacts, and assignments…"
+            aria-label="Filter resources"
+            containerClassName="min-w-0 flex-1"
+          />
+          <ResourceCommandPalette guides={guides ?? []} className="xl:w-auto" />
           <div className="grid gap-2 sm:grid-cols-2 lg:flex lg:shrink-0">
             <Select value={activeFilter} onValueChange={(value) => setFilter(value as FilterKey)}>
               <SelectTrigger className="h-10 lg:w-[210px]" aria-label="Guide focus">
@@ -791,14 +800,41 @@ export default function ResourcesPage() {
         )}
       </OperationalToolbar>
 
-      {guidesLoading ? (
+      {contactsError && !assignmentsView && (
+        <OperationalPartialResultsAlert
+          failures={["Contacts and sport assignments"]}
+          noun="source"
+          title="Guide library loaded without references"
+          recoveryCopy="Guides remain available. Retry before treating Contacts or assignments as complete."
+        />
+      )}
+
+      {!guidesLoading && guidesError && !guides ? (
+        <EmptyState
+          icon="wifi-off"
+          title="Could not load guides"
+          description="The Resources library is unavailable. Check the connection and try again."
+          actionLabel="Retry"
+          onAction={reloadGuides}
+        />
+      ) : guidesLoading ? (
         <ResourcesSkeleton />
       ) : assignmentsView ? (
-        <SportAssignmentsDirectory
-          groups={sportAssignmentGroups}
-          loading={contactsLoading}
-          search={search}
-        />
+        contactsError && !contactUsers ? (
+          <EmptyState
+            icon="wifi-off"
+            title="Could not load sport assignments"
+            description="Guide data is still available. Retry the user directory before trusting assignment coverage."
+            actionLabel="Retry"
+            onAction={reloadContacts}
+          />
+        ) : (
+          <SportAssignmentsDirectory
+            groups={sportAssignmentGroups}
+            loading={contactsLoading}
+            search={search}
+          />
+        )
       ) : filtered.length === 0 && !homeView ? (
         <>
           {contactDirectoryVisible && (

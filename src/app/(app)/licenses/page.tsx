@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, CalendarClock, KeyRound, Plus, RefreshCw, List, Download } from "lucide-react";
+import { AlertTriangle, Archive, CalendarClock, Download, KeyRound, Plus, RefreshCw } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { OperationalMetricCard } from "@/components/OperationalFeedback";
 import { OperationalStatusRail, type OperationalStatusRailItem } from "@/components/OperationalStatusRail";
+import { OperationalToolbar } from "@/components/OperationalToolbar";
 import { useFetch } from "@/hooks/use-fetch";
 import { formatRelativeTime } from "@/lib/format";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
@@ -37,7 +38,7 @@ function LicenseSummary({
   expiringCount: number;
   retiredCount: number;
   myLicense: boolean;
-  onRenew: () => void;
+  onRenew?: () => void;
 }) {
   const totalSlots = activeCodes * MAX_SLOTS;
   const openSlots = Math.max(totalSlots - usedSlots, 0);
@@ -178,74 +179,17 @@ export default function LicensesPage() {
 
   return (
     <FadeUp>
-      <PageHeader title="Photo Mechanic Licenses">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-10"
-              onClick={reloadAll}
-              disabled={codesLoading}
-              aria-label="Refresh"
-            >
-              <RefreshCw className={`size-3.5 ${codesLoading ? "animate-spin" : ""}`} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {lastRefreshed
-              ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), new Date())}`
-              : "Refresh"}
-          </TooltipContent>
-        </Tooltip>
+      <PageHeader
+        title="Photo Mechanic Licenses"
+        description="Claim an open activation or manage the shared two-slot license pool."
+      >
         {isAdmin && (
           <>
-            {hasRetired && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={showRetired ? "secondary" : "ghost"}
-                    size="icon"
-                    className="size-10"
-                    onClick={() => setShowRetired((v) => !v)}
-                    aria-label="Toggle retired codes"
-                  >
-                    <List className="size-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{showRetired ? "Hide retired" : "Show retired"}</TooltipContent>
-              </Tooltip>
-            )}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-10"
-                  onClick={handleExport}
-                  disabled={exporting}
-                  aria-label="Export CSV"
-                >
-                  <Download className="size-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Export CSV</TooltipContent>
-            </Tooltip>
             <Button variant="outline" size="sm" className="h-10" onClick={() => setShowBulk(true)}>
               Bulk add
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-10"
-              onClick={() => setShowRenew(true)}
-              disabled={activeCodes.length === 0}
-            >
-              <CalendarClock className="size-3.5 mr-1" />
-              Renew
-            </Button>
             <Button size="sm" className="h-10" onClick={() => setShowAdd(true)}>
-              <Plus className="size-3.5 mr-1" />
+              <Plus data-icon="inline-start" />
               Add code
             </Button>
           </>
@@ -265,8 +209,45 @@ export default function LicensesPage() {
           expiringCount={expiringCount}
           retiredCount={retiredCount}
           myLicense={!!myLicense}
-          onRenew={() => setShowRenew(true)}
+          onRenew={isAdmin ? () => setShowRenew(true) : undefined}
         />
+      )}
+
+      {isAdmin && allCodes.length > 0 && (
+        <OperationalToolbar className="mb-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" className="h-10" onClick={() => setShowRenew(true)} disabled={activeCodes.length === 0}>
+              <CalendarClock data-icon="inline-start" />
+              Renew licenses
+            </Button>
+            {hasRetired && (
+              <Button
+                variant={showRetired ? "secondary" : "outline"}
+                size="sm"
+                className="h-10"
+                onClick={() => setShowRetired((value) => !value)}
+                aria-pressed={showRetired}
+              >
+                <Archive data-icon="inline-start" />
+                {showRetired ? "Hide retired" : `Show retired (${retiredCount})`}
+              </Button>
+            )}
+            <Button variant="outline" size="sm" className="h-10" onClick={handleExport} disabled={exporting}>
+              <Download data-icon="inline-start" />
+              Export CSV
+            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="size-10" onClick={reloadAll} disabled={codesLoading} aria-label="Refresh license pool">
+                  <RefreshCw className={codesLoading ? "animate-spin" : undefined} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {lastRefreshed ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), new Date())}` : "Refresh license pool"}
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </OperationalToolbar>
       )}
 
       {/* Main table */}
@@ -333,13 +314,6 @@ export default function LicensesPage() {
         onRenewed={reloadAll}
       />
 
-      {/* Footer hint */}
-      {!codesLoading && allCodes.length > 0 && !myLicense && (
-        <div className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
-          <KeyRound className="size-3" />
-          Click an available row to claim. Codes are copied to your clipboard automatically.
-        </div>
-      )}
     </FadeUp>
   );
 }

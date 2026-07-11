@@ -4,6 +4,55 @@ Last updated: 2026-07-10
 
 ---
 
+## In progress: Sweeping Settings ownership pass (2026-07-10)
+
+Plan: `tasks/settings-sweeping-ownership-pass.md`
+
+- [x] Remove the nested content rail and restore working width across every subpage.
+- [x] Replace the flat mobile tab strip with grouped Settings discovery.
+- [x] Rename implementation-shaped destinations without changing routes or RBAC.
+- [x] Fix Booking extensions load honesty and notification pause persistence feedback.
+- [x] Correct Appearance and Database diagnostics trust copy.
+- [ ] Complete repository gates and authenticated desktop/narrow browser verification.
+
+### Review
+
+- Pending final verification.
+
+## Completed: Resources end-to-end UI ownership pass (2026-07-10)
+
+Plan: `tasks/resources-ownership-pass.md`
+
+- [x] Restore visible URL-backed library filtering and preserve Quick find.
+- [x] Add retryable guide, contact, and assignment failure states.
+- [x] Protect unsaved new-guide work and stop failed/unauthorized edit sessions cleanly.
+- [x] Add persistent authoring actions and visible Media Drive copy recovery.
+- [x] Complete repository gates and authenticated desktop browser verification attempt.
+
+### Review
+
+- **Shipped:** Resources now has visible URL-backed filtering plus separate Quick find, named retryable guide/reference failures, partial-data honesty, protected new-guide work, edit load/ownership recovery, persistent authoring actions, and visible Media Drive copy failure recovery.
+- **Verified:** 26 focused Resources tests, focused ESLint, TypeScript, all 93 migration prefixes, codemap/docs, whitespace, and `npm run build:app` passed.
+- **Browser limitation:** Authenticated Chrome rendered the updated toolbar with no console errors, but the local runtime kept guide/API data in its loading shell and did not commit filter input to the URL after debounce or Enter. Browser interaction stopped after two attempts, so result filtering and narrow layout are not claimed as authenticated runtime proof.
+- **Deferred:** Reader verification-vs-update semantics and mobile table-of-contents navigation need separate product/design contracts.
+
+## Completed: Licenses end-to-end UI ownership pass (2026-07-10)
+
+Plan: `tasks/licenses-ownership-pass.md`
+
+- [x] Simplify page hierarchy and role-aware administration controls.
+- [x] Make claim, inspect, retired-history, and custody actions explicit.
+- [x] Polish every create, renew, claim, return, history, and detail overlay.
+- [x] Redact other holders' personal details from student responses.
+- [x] Sync docs and complete repository and browser verification.
+
+### Review
+
+- **Shipped:** Licenses now uses a compact admin toolbar, blue active-use semantics, explicit Claim/Inspect actions, inspectable retired records, stable pending labels, inline recovery states, retryable personal history, editable labels, and server-side student holder redaction.
+- **Verified:** 11 focused tests, focused ESLint, TypeScript, all 93 migration prefixes, codemap/docs, whitespace, and `npm run build:app` passed. Authenticated Chrome smoke covered the loaded admin route, Add license dialog, explicit row actions, and detail sheet with no console errors.
+- **Blocked proof:** The authenticated port-3001 preview stopped serving `/licenses` before the narrow-width reload. Narrow layout remains build/source verified with table overflow containment, but is not claimed as authenticated runtime proof.
+- **Deferred:** Plan 053 remains blocked on expired-code claim eligibility and timezone policy. This UI pass did not change expiry behavior.
+
 ## Completed: Operational status rail page migrations (2026-07-10)
 
 Plan: `tasks/archive/completed-2026-06/operational-status-rail-page-migrations-plan.md`

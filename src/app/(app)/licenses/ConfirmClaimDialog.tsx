@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import type { LicenseCode } from "./types";
 
@@ -28,9 +29,11 @@ type ClaimResponse = {
 
 export function ConfirmClaimDialog({ license, onOpenChange, onClaimed }: Props) {
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function handleClaim() {
     if (!license) return;
+    setErrorMessage(null);
     setLoading(true);
     try {
       const res = await fetch(`/api/licenses/${license.id}/claim`, { method: "POST" });
@@ -57,7 +60,9 @@ export function ConfirmClaimDialog({ license, onOpenChange, onClaimed }: Props) 
       onClaimed();
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
+      const message = err instanceof Error ? err.message : "The license was not claimed";
+      setErrorMessage(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -76,12 +81,17 @@ export function ConfirmClaimDialog({ license, onOpenChange, onClaimed }: Props) 
             )}
           </DialogDescription>
         </DialogHeader>
+        {errorMessage && (
+          <Alert variant="destructive">
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </Alert>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
           <Button onClick={handleClaim} loading={loading}>
-            {loading ? "Claiming…" : "Claim & copy"}
+            Claim and copy
           </Button>
         </DialogFooter>
       </DialogContent>

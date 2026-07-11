@@ -6,7 +6,7 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped
 - Created: 2026-04-14
-- Last Updated: 2026-06-30
+- Last Updated: 2026-07-10
 - Brief: `tasks/guides-plan.md` (archived)
 
 ## Description
@@ -26,7 +26,7 @@ In-app Markdown Guide library for Wisconsin Athletics Creative operational refer
 - `markdown` (Text — Markdown source of truth)
 - `targetRoles` (`Role[]` — empty means all roles)
 - `targetAreas` (`ShiftArea[]` — empty means all areas)
-- `featured`, `featuredRank` (admin-curated priority metadata retained for ranking/backwards compatibility, not shown as a visible pinned section in the cleaned landing UI)
+- `featured`, `featuredRank` (staff/admin-curated priority metadata used by the opt-in Featured section; hidden when no guide is featured)
 - `lastVerifiedAt`, `lastVerifiedById` → `User` (nullable freshness signal for living knowledge-base entries)
 - `content` (Json — legacy BlockNote `Block[]` array retained for backwards-compatible conversion)
 - `published` (boolean, default false)
@@ -68,7 +68,7 @@ All mutations use `createAuditEntry` per D-007.
 
 | ID | Criterion | Status |
 |----|-----------|--------|
-| AC-1 | Staff can create, edit, publish, and delete guides without leaving the app | ✅ Complete |
+| AC-1 | Staff can create, edit, and publish their own guides; admins can edit or delete any guide without leaving the app | ✅ Complete |
 | AC-2 | Students can read published guides; drafts are invisible to them | ✅ Complete |
 | AC-3 | Category filter chips reduce the list correctly | ✅ Complete |
 | AC-4 | Markdown editor supports headings, lists, code blocks, tables, links, and images | ✅ Complete |
@@ -87,6 +87,7 @@ All mutations use `createAuditEntry` per D-007.
 | AC-17 | The guide reader offers docs-style in-section sibling navigation (wide screens) and a prev/next footer | ✅ Complete (2026-07-03, slice 4) |
 
 ## Change Log
+- 2026-07-10: Resources end-to-end UI ownership pass restored real URL-backed filtering while keeping the command palette as Quick find, added named retryable guide/reference failure states, and preserved healthy guide data when supporting references fail. New-guide authoring now guards unsaved work and keeps draft/publish actions in a sticky action bar; edit handles failed loads and staff ownership mismatches instead of hanging or allowing a doomed save, and uses the same persistent action treatment. Media Drive path copy failures now provide a manual-copy recovery message. Guide-first IA, publication visibility, recommendation targeting, optimistic concurrency, and role permissions are unchanged.
 - 2026-07-10: Guide reader table-of-contents and section-nav labels drop faint tracked mono micro-type for the sanctioned small-uppercase label style. Visual only.
 - 2026-07-10: Native Guides loading now exposes one real accessibility status instead of redacted fake rows, the reader relies on native safe areas instead of an artificial 72-point bottom gap, and scalable title typography preserves large-text readability.
 | Date | Change |

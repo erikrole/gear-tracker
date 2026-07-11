@@ -23,7 +23,15 @@ export const GET = withAuth(async (_req, { user }) => {
   if (!isAdmin) {
     const sanitized = codes.map((c) => {
       const isHolder = c.claims.some((claim) => claim.userId === user.id);
-      return isHolder ? c : { ...c, code: "" };
+      return {
+        ...c,
+        code: isHolder ? c.code : "",
+        claims: c.claims.map((claim) => (
+          claim.userId === user.id
+            ? claim
+            : { ...claim, userId: null, user: null, occupantLabel: null }
+        )),
+      };
     });
     return ok({ data: sanitized });
   }

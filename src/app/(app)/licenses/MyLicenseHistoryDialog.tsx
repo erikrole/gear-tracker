@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Clock3 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Clock3, RefreshCw } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { formatRelativeTime } from "@/lib/format";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 
@@ -39,20 +40,29 @@ export function MyLicenseHistoryDialog({ open, onOpenChange }: Props) {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
+  const loadHistory = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setLoadError(false);
-    fetch("/api/licenses/my/history")
-      .then(async (res) => {
-        if (handleAuthRedirect(res)) return;
-        if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to load history"));
-        const json = await parseJsonSafely<HistoryResponse>(res);
-        setHistory(json?.data ?? []);
-      })
-      .catch(() => setLoadError(true))
-      .finally(() => setLoading(false));
-  }, [open]);
+    try {
+      const res = await fetch("/api/licenses/my/history", { signal });
+      if (handleAuthRedirect(res)) return;
+      if (!res.ok) throw new Error(await parseErrorMessage(res, "Could not load license history"));
+      const json = await parseJsonSafely<HistoryResponse>(res);
+      setHistory(json?.data ?? []);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setLoadError(true);
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const controller = new AbortController();
+    void loadHistory(controller.signal);
+    return () => controller.abort();
+  }, [loadHistory, open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -64,7 +74,7 @@ export function MyLicenseHistoryDialog({ open, onOpenChange }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           {loading ? (
             Array.from({ length: 4 }, (_, index) => (
               <div key={index} className="rounded-md border p-3">
@@ -73,8 +83,12 @@ export function MyLicenseHistoryDialog({ open, onOpenChange }: Props) {
               </div>
             ))
           ) : loadError ? (
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-              Failed to load license history.
+            <div className="flex items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+              <span>License history could not load.</span>
+              <Button type="button" variant="outline" size="sm" className="h-10" onClick={() => void loadHistory()}>
+                <RefreshCw data-icon="inline-start" />
+                Retry
+              </Button>
             </div>
           ) : history.length === 0 ? (
             <div className="flex items-center gap-2 rounded-md border p-3 text-sm text-muted-foreground">

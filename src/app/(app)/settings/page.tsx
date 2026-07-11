@@ -9,13 +9,11 @@ import {
   Monitor,
   Package,
   RotateCcw,
-  ShieldCheck,
   Users,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { FadeUp } from "@/components/ui/motion";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -89,7 +87,6 @@ export default function SettingsPage() {
   const lastSection = lastHref
     ? visibleSections.find((section) => section.href === lastHref) ?? null
     : null;
-  const roleLabel = role ? role.charAt(0) + role.slice(1).toLowerCase() : "User";
 
   if (loading || !role) {
     return (
@@ -113,14 +110,10 @@ export default function SettingsPage() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-semibold text-balance">Control center</h2>
-                <Badge variant="outline" className="gap-1.5">
-                  <ShieldCheck className="size-3" />
-                  {roleLabel}
-                </Badge>
+                <h2 className="text-xl font-semibold text-balance">Choose a settings area</h2>
               </div>
               <p className="max-w-3xl text-sm text-muted-foreground text-pretty">
-                A role-aware map of the settings that shape daily gear operations. Use the sections below when you know the domain, or search when you know the intent.
+                Only settings available to your account appear here. Browse by domain or search by the task you need to complete.
               </p>
             </div>
             {lastSection && (
@@ -165,9 +158,6 @@ function SettingsGroupCard({
             <CardTitle className="text-base leading-tight text-balance">{group}</CardTitle>
             <p className="mt-1 text-sm text-muted-foreground text-pretty">{meta.description}</p>
           </div>
-          <Badge variant="outline" className="shrink-0 tabular-nums">
-            {sections.length}
-          </Badge>
         </div>
       </CardHeader>
 
@@ -182,7 +172,6 @@ function SettingsGroupCard({
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="font-medium text-foreground">{section.label}</div>
-                  <SettingsRoleBadge requiredRole={section.requiredRole} />
                 </div>
                 <div className="mt-0.5 text-sm text-muted-foreground text-pretty">{section.description}</div>
               </div>
@@ -192,21 +181,5 @@ function SettingsGroupCard({
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function SettingsRoleBadge({ requiredRole }: { requiredRole: SettingsSection["requiredRole"] }) {
-  if (requiredRole === "STUDENT") {
-    return (
-      <Badge variant="gray" size="sm">
-        Everyone
-      </Badge>
-    );
-  }
-
-  return (
-    <Badge variant={requiredRole === "ADMIN" ? "purple" : "blue"} size="sm">
-      {requiredRole === "ADMIN" ? "Admin" : "Staff+"}
-    </Badge>
   );
 }

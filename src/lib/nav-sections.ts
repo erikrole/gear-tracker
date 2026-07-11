@@ -69,7 +69,7 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
   // People
   {
     href: "/settings/allowed-emails",
-    label: "Allowed Emails",
+    label: "Registration access",
     requiredRole: "STAFF",
     group: "People",
     description: "Pre-approve email addresses for self-service registration.",
@@ -103,7 +103,7 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
   // Inventory
   {
     href: "/settings/checkout-policies",
-    label: "Checkout Policies",
+    label: "Checkout policies",
     requiredRole: "ADMIN",
     group: "Inventory",
     description: "Default loan duration, overdue grace period, and per-user item cap.",
@@ -112,7 +112,7 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
   // Scheduling
   {
     href: "/settings/reservation-rules",
-    label: "Reservation Rules",
+    label: "Reservation rules",
     requiredRole: "ADMIN",
     group: "Scheduling",
     description: "Advance booking window, no-show expiry, and concurrent reservation cap.",
@@ -120,7 +120,7 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
   },
   {
     href: "/settings/calendar-sources",
-    label: "Calendar",
+    label: "Calendar sources",
     requiredRole: "STAFF",
     group: "Scheduling",
     description: "ICS calendar feeds — add, sync, and monitor health.",
@@ -136,7 +136,7 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
   },
   {
     href: "/settings/venue-mappings",
-    label: "Venue Mappings",
+    label: "Venue mappings",
     requiredRole: "ADMIN",
     group: "Scheduling",
     description: "Map raw calendar venue text to your locations.",
@@ -144,7 +144,7 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
   },
   {
     href: "/settings/bookings",
-    label: "Extend Presets",
+    label: "Booking extensions",
     requiredRole: "ADMIN",
     group: "Scheduling",
     description: "Default extend-due-date preset buttons for bookings.",
@@ -152,7 +152,7 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
   },
   {
     href: "/settings/escalation",
-    label: "Escalation",
+    label: "Overdue escalation",
     requiredRole: "ADMIN",
     group: "Scheduling",
     description: "Overdue notification triggers and fatigue cap.",
@@ -161,7 +161,7 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
   // Devices
   {
     href: "/settings/kiosk-devices",
-    label: "Kiosk",
+    label: "Kiosks",
     requiredRole: "ADMIN",
     group: "Devices",
     description: "iPad self-serve checkout stations + activation codes.",
@@ -170,7 +170,7 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
   // System
   {
     href: "/settings/database",
-    label: "Database",
+    label: "Database diagnostics",
     requiredRole: "ADMIN",
     group: "System",
     description: "On-demand schema health diagnostics.",
@@ -178,7 +178,7 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
   },
   {
     href: "/settings/data-export",
-    label: "Data Export",
+    label: "Data exports",
     requiredRole: "ADMIN",
     group: "System",
     description: "Download inventory, bookings, users, and audit logs as CSV.",
@@ -186,7 +186,7 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
   },
   {
     href: "/settings/audit",
-    label: "Audit Log",
+    label: "Audit log",
     requiredRole: "ADMIN",
     group: "System",
     description: "Live admin feed of all create, update, and delete actions across the system.",

@@ -65,10 +65,10 @@ Replace the Google Sheet at `licenses.xlsx` with an in-app pool that mirrors how
 - Components:
   - `MyLicensePanel.tsx` — student banner showing their active code with copy + return
   - `MyLicenseHistoryDialog.tsx` — user-visible recent claim/return history from the active-license banner
-  - `LicenseTable.tsx` — main table, masked codes for non-holders, expiry tooltips
+  - `LicenseTable.tsx` — main table with masked codes, explicit claim/inspect actions, neutral occupied identities for students, and expiry tooltips
   - `ConfirmClaimDialog.tsx` — student claim confirmation, copies code on success
   - `ReleaseDialog.tsx` — student return confirmation
-  - `AdminClaimSheet.tsx` — admin detail sheet (slots, self-claim of an open slot, occupant, details, danger zone, history)
+  - `AdminClaimSheet.tsx` — admin detail sheet (slots, self-claim of an open slot, occupant, editable label/account/expiry, danger zone, history)
   - `AddLicenseDialog.tsx` — single-code add with accountEmail + expiry
   - `BulkAddSheet.tsx` — paste many codes at once
   - `BulkRenewDialog.tsx` — admin renewal dialog for expiring/expired visible codes or all visible active codes
@@ -76,10 +76,10 @@ Replace the Google Sheet at `licenses.xlsx` with an in-app pool that mirrors how
 ### Visual states
 - AVAILABLE row: tinted green, `cursor-pointer` if user has no claim
 - PARTIAL row: tinted blue, `1/2` badge, claimable by anyone without a license
-- CLAIMED row: tinted red, only admin/own holder can click
-- RETIRED row: 50% opacity, hidden by default, toggled via list icon in header
+- CLAIMED row: tinted blue for active use, with an explicit staff inspection action
+- RETIRED row: 50% opacity, hidden by default, shown from the admin toolbar and inspectable for history/details
 - Expiry: ≤30 days = yellow `Xd left`, expired = red `Expired`, normal = grayed date string
-- Holder cell: avatar + name (or `—` for non-admins on others' slots), `unknown` badge for occupant labels
+- Holder cell: avatar + name for staff or the current holder; students see neutral `Occupied` identity for other claims; `unknown` badges remain staff-only
 
 ## Notifications
 
@@ -125,6 +125,7 @@ Implementation: `processLicenseNags` and `processExpiryWarnings` in `src/lib/ser
 - No full admin per-user license usage report beyond the user's own recent history and per-code admin history
 
 ## Change Log
+- 2026-07-10: **End-to-end Licenses UI ownership pass.** Simplified the page header, moved renewal/archive/export commands into a labeled operational toolbar, corrected active-use status semantics from red/green to blue, added explicit Claim and Inspect actions, and made retired records inspectable. The custody panel and all create, bulk-create, renew, claim, return, personal-history, and admin-detail overlays now use stable pending labels and recoverable inline failure states; personal history can retry, and staff can edit license labels. Student API responses now redact other holders' names, avatars, IDs, and occupant labels while preserving anonymous slot occupancy. Expiry remains informational, and two-slot, one-license-per-user, claim, renewal, and role contracts are unchanged.
 - 2026-07-10: **License capacity operational status rail.** Open slot capacity now anchors the shared rail, expiring codes and exhausted capacity receive priority treatment, and the full code, utilization, capacity, expiry, and retired totals remain under Details. Claim, renewal, and role behavior are unchanged.
 - **2026-07-09 (Logic + polish audit fixes)**: Full-page audit pass (`tasks/audit-licenses-web.md`). Admin "Release all slots" now always releases every holder via an explicit `{ all: true }` body (previously it silently released only the admin's own slot when they held one); staff/admins can claim an open slot from the admin sheet ("Claim open slot", disabled with a hint while they hold a license); claim success is never mis-reported when the clipboard write fails (Safari); bulk add dedupes repeated pasted codes and duplicate single adds return 409 instead of 500 (shared P2002 mapping in `fail()`); expiry warnings now repeat monthly (dedupe keyed on current month) and the 2-day nag is tracked per claim so both slot holders get nagged; retire/delete checks run in serializable transactions; input bounds added (code/label/occupant/bulk paste); CSV export fetches via blob so errors toast instead of navigating to raw JSON; expired-today shows "Today"/"expires today" instead of "0d left"; all-retired empty state copy fixed; admin sheet header stays fresh after saves without clobbering in-progress edits; banner copy button reports clipboard failures.
 - **2026-06-30 (Native iOS Browse reachability)**: Licenses is now a first-class compact Browse destination in native iOS, with Settings > Directory kept as a fallback and regular-width iPad still exposing Licenses as a sidebar-only Resources destination. Self-service behavior and web-owned management workflows did not change.

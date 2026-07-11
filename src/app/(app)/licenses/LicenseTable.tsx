@@ -1,6 +1,8 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Eye, KeyRound } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -71,9 +73,15 @@ function HolderCell({
 
         return (
           <div key={claim.id} className="flex items-center gap-1.5">
-            <UserAvatar name={name} avatarUrl={avatarUrl} size="xs" />
+            {showName ? (
+              <UserAvatar name={name} avatarUrl={avatarUrl} size="xs" />
+            ) : (
+              <span className="flex size-6 items-center justify-center rounded-full bg-muted text-muted-foreground" aria-hidden="true">
+                <KeyRound className="size-3" />
+              </span>
+            )}
             <span className={cn("text-sm", !showName && "text-muted-foreground")}>
-              {showName ? name : "—"}
+              {showName ? name : "Occupied"}
             </span>
             {isOwn && <span className="text-xs text-muted-foreground">(you)</span>}
             {claim.userId === null && isAdmin && (
@@ -135,7 +143,7 @@ export function LicenseTable({
   }
 
   return (
-    <div className="rounded-md border overflow-hidden">
+    <div className="overflow-x-auto rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
@@ -143,6 +151,7 @@ export function LicenseTable({
             <TableHead className="w-24">Status</TableHead>
             <TableHead>Holders</TableHead>
             {showExpiry && <TableHead className="w-32">Expires</TableHead>}
+            <TableHead className="w-28 text-right">Action</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -153,16 +162,16 @@ export function LicenseTable({
             // Determine clickability
             const claimable = code.status === "AVAILABLE" || code.status === "PARTIAL";
             const studentCanClaim = claimable && !hasMyLicense;
-            const adminCanInspect = isAdmin && code.status !== "RETIRED";
+            const adminCanInspect = isAdmin;
             const isClickable = studentCanClaim || adminCanInspect;
 
             const rowClass = cn(
               "transition-colors",
               code.status === "AVAILABLE" && "bg-green-50/50 dark:bg-green-950/10",
               code.status === "PARTIAL" && "bg-blue-50/50 dark:bg-blue-950/10",
-              code.status === "CLAIMED" && "bg-red-50/30 dark:bg-red-950/10",
+              code.status === "CLAIMED" && "bg-blue-50/30 dark:bg-blue-950/10",
               code.status === "RETIRED" && "opacity-50",
-              isOwn && "ring-1 ring-inset ring-green-300 dark:ring-green-700",
+              isOwn && "ring-1 ring-inset ring-blue-300 dark:ring-blue-700",
               isClickable && "cursor-pointer hover:bg-muted/60",
               !isClickable && "cursor-default"
             );
@@ -202,7 +211,7 @@ export function LicenseTable({
                 <TableCell>
                   {code.status === "AVAILABLE" && <Badge variant="green">Open</Badge>}
                   {code.status === "PARTIAL" && <Badge variant="blue">1/{MAX_SLOTS}</Badge>}
-                  {code.status === "CLAIMED" && <Badge variant="red">{isOwn ? "Yours" : "Full"}</Badge>}
+                  {code.status === "CLAIMED" && <Badge variant="blue">{isOwn ? "Yours · 2/2" : "Full · 2/2"}</Badge>}
                   {code.status === "RETIRED" && <Badge variant="gray">Retired</Badge>}
                 </TableCell>
                 <TableCell>
@@ -221,6 +230,33 @@ export function LicenseTable({
                     )}
                   </TableCell>
                 )}
+                <TableCell className="text-right">
+                  {adminCanInspect ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10"
+                      onClick={(event) => { event.stopPropagation(); onClickClaimed(code); }}
+                    >
+                      <Eye data-icon="inline-start" />
+                      Inspect
+                    </Button>
+                  ) : studentCanClaim ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-10"
+                      onClick={(event) => { event.stopPropagation(); onClickAvailable(code); }}
+                    >
+                      <KeyRound data-icon="inline-start" />
+                      Claim
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">{isOwn ? "In use" : "Unavailable"}</span>
+                  )}
+                </TableCell>
               </TableRow>
             );
           })}

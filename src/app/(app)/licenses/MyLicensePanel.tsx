@@ -43,10 +43,10 @@ export function MyLicensePanel({ license, isStaff, onReleased }: Props) {
 
   return (
     <>
-      <Card className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30 mb-6">
+      <Card className="mb-6 border-[var(--blue)]/35 bg-[var(--blue-bg)] shadow-none">
         <CardContent className="flex flex-col gap-3 pt-4 pb-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex items-center gap-2 text-green-700 dark:text-green-400 shrink-0">
+            <div className="flex shrink-0 items-center gap-2 text-[var(--blue-text)]">
               <KeyRound className="size-4" />
               <span className="text-xs font-medium uppercase tracking-wide">{headerLabel}</span>
             </div>
@@ -59,21 +59,21 @@ export function MyLicensePanel({ license, isStaff, onReleased }: Props) {
               </span>
             )}
             <div className="flex items-center gap-2 shrink-0">
-              <Button variant="outline" size="sm" onClick={() => setShowHistory(true)} className="gap-1.5">
-                <Clock3 className="size-3.5" />
+              <Button variant="ghost" size="sm" className="h-10" onClick={() => setShowHistory(true)}>
+                <Clock3 data-icon="inline-start" />
                 History
               </Button>
-              <Button variant="outline" size="sm" onClick={handleCopy} className="gap-1.5">
-                {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+              <Button variant="outline" size="sm" className="h-10" onClick={handleCopy}>
+                {copied ? <Check data-icon="inline-start" /> : <Copy data-icon="inline-start" />}
                 {copied ? "Copied" : "Copy"}
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setShowRelease(true)}
-                className="gap-1.5 text-destructive hover:text-destructive"
+                className="h-10 text-destructive hover:text-destructive"
               >
-                <LogOut className="size-3.5" />
+                <LogOut data-icon="inline-start" />
                 {releaseLabel}
               </Button>
             </div>

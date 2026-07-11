@@ -47,6 +47,7 @@
 | `tailwindcss` | `^4.2.1` |
 | `tw-animate-css` | `^1.4.0` |
 | `vaul` | `^1.1.2` |
+| `workflow` | `4.5.0` |
 | `zod` | `^3.24.2` |
 
 ## Dev Dependencies

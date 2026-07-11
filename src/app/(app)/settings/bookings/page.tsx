@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NativeSelect } from "@/components/ui/native-select";
-import { PlusIcon, Trash2Icon, GripVerticalIcon } from "lucide-react";
+import { PlusIcon, Trash2Icon } from "lucide-react";
 import { handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
 import { SettingsPageShell } from "../SettingsPageShell";
 
@@ -37,7 +37,7 @@ export default function BookingSettingsPage() {
   const savingRef = useRef(false);
   const [dirty, setDirty] = useState(false);
 
-  const { data: settingsData, loading } = useFetch<{ presets: Preset[] }>({
+  const { data: settingsData, loading, error, reload } = useFetch<{ presets: Preset[] }>({
     url: "/api/settings/extend-presets",
     refetchOnFocus: false,
   });
@@ -114,12 +114,12 @@ export default function BookingSettingsPage() {
 
   return (
     <SettingsPageShell
-      title="Extend Presets"
+      title="Booking extensions"
       description="Configure the preset buttons shown when extending a booking's due date."
       mainClassName="space-y-6"
     >
         <Card>
-          <CardHeader className="flex-row items-center justify-between">
+          <CardHeader className="flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
             <CardTitle>Extend due date presets</CardTitle>
             <Button onClick={save} disabled={!dirty || saving} className="min-h-10">
               {saving ? "Saving..." : dirty ? "Save changes" : "Saved"}
@@ -127,7 +127,7 @@ export default function BookingSettingsPage() {
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="space-y-3">
+              <div className="flex flex-col gap-3">
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="flex gap-3">
                     <Skeleton className="h-10 flex-1" />
@@ -136,11 +136,19 @@ export default function BookingSettingsPage() {
                   </div>
                 ))}
               </div>
+            ) : error && !settingsData ? (
+              <EmptyState
+                inline
+                icon="wifi-off"
+                title="Could not load booking extensions"
+                description="The current presets are unavailable. Retry before making changes."
+                actionLabel="Retry"
+                onAction={reload}
+              />
             ) : (
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 {presets.map((preset, index) => (
                   <div key={index} className="flex items-center gap-2">
-                    <GripVerticalIcon className="size-4 text-muted-foreground/40 shrink-0" />
                     <Input
                       id={`extend-preset-label-${index}`}
                       name={`extendPresetLabel${index}`}
@@ -178,7 +186,7 @@ export default function BookingSettingsPage() {
 
                 {presets.length < 10 && (
                   <Button variant="outline" onClick={addPreset} className="mt-2 min-h-10" disabled={saving}>
-                    <PlusIcon className="mr-1 size-4" />
+                    <PlusIcon data-icon="inline-start" />
                     Add preset
                   </Button>
                 )}

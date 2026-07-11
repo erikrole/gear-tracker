@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 
 type Props = {
@@ -34,10 +35,13 @@ export function BulkAddSheet({ open, onOpenChange, onCreated }: Props) {
   const [accountEmail, setAccountEmail] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const codeCount = new Set(codes.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)).size;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!codes.trim()) return;
+    setErrorMessage(null);
     setLoading(true);
     try {
       const res = await fetch("/api/licenses/bulk", {
@@ -63,7 +67,9 @@ export function BulkAddSheet({ open, onOpenChange, onCreated }: Props) {
       onCreated();
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
+      const message = err instanceof Error ? err.message : "The licenses were not created";
+      setErrorMessage(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -76,7 +82,12 @@ export function BulkAddSheet({ open, onOpenChange, onCreated }: Props) {
           <SheetTitle>Bulk add licenses</SheetTitle>
           <SheetDescription>Paste one license code per line. Duplicates are skipped.</SheetDescription>
         </SheetHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-4">
+        <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
+          {errorMessage && (
+            <Alert variant="destructive">
+              <AlertDescription>{errorMessage}</AlertDescription>
+            </Alert>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor="bulk-codes">License codes</Label>
             <Textarea
@@ -85,8 +96,13 @@ export function BulkAddSheet({ open, onOpenChange, onCreated }: Props) {
               onChange={(e) => setCodes(e.target.value)}
               placeholder={"PM6-XXXX-XXXX-0001\nPM6-XXXX-XXXX-0002\nPM6-XXXX-XXXX-0003"}
               className="font-mono text-sm min-h-[200px]"
+              name="licenseCodes"
+              maxLength={50_000}
               required
             />
+            <p className="text-xs text-muted-foreground tabular-nums">
+              {codeCount} unique code{codeCount === 1 ? "" : "s"} ready to add
+            </p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="bulk-account">
@@ -98,6 +114,8 @@ export function BulkAddSheet({ open, onOpenChange, onCreated }: Props) {
               value={accountEmail}
               onChange={(e) => setAccountEmail(e.target.value)}
               placeholder="kms@athletics.wisc.edu"
+              name="accountEmail"
+              autoComplete="email"
             />
           </div>
           <div className="space-y-1.5">
@@ -108,6 +126,7 @@ export function BulkAddSheet({ open, onOpenChange, onCreated }: Props) {
               id="bulk-expiry"
               type="date"
               value={expiresAt}
+              name="expiresAt"
               onChange={(e) => setExpiresAt(e.target.value)}
             />
           </div>
@@ -116,7 +135,7 @@ export function BulkAddSheet({ open, onOpenChange, onCreated }: Props) {
               Cancel
             </Button>
             <Button type="submit" loading={loading} disabled={!codes.trim()}>
-              {loading ? "Adding…" : "Add licenses"}
+              Add {codeCount || ""} license{codeCount === 1 ? "" : "s"}
             </Button>
           </SheetFooter>
         </form>

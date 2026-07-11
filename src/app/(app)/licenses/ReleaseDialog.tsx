@@ -36,7 +36,7 @@ export function ReleaseDialog({ open, onOpenChange, licenseId, onReleased }: Pro
       onReleased();
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
+      toast.error(err instanceof Error ? err.message : "The license was not returned");
     } finally {
       setLoading(false);
     }
@@ -55,7 +55,7 @@ export function ReleaseDialog({ open, onOpenChange, licenseId, onReleased }: Pro
         <AlertDialogFooter>
           <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
           <AlertDialogAction onClick={handleRelease} disabled={loading}>
-            {loading ? "Returning…" : "Return license"}
+            Return license
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

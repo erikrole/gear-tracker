@@ -20,6 +20,7 @@ import {
 import { buildResourceSearchIndex, selectRecentEntries } from "@/lib/resource-search";
 import type { GuideListItem } from "@/lib/guides";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 const RECENT_COUNT = 6;
 
@@ -68,21 +69,23 @@ export function ResourceCommandPalette({
 
   return (
     <>
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
         onClick={() => setOpen(true)}
         className={cn(
-          "inline-flex h-10 items-center gap-2 rounded-md border bg-background px-3 text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground",
+          "h-10 min-w-0 justify-start text-muted-foreground",
           className,
         )}
-        aria-label="Search guides"
+        aria-label="Quick find a guide"
       >
-        <SearchIcon className="size-4 shrink-0" />
-        <span className="truncate">Search guides…</span>
+        <SearchIcon data-icon="inline-start" />
+        <span className="truncate">Quick find</span>
         <kbd className="ml-auto hidden shrink-0 items-center gap-0.5 rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] md:inline-flex">
           ⌘K
         </kbd>
-      </button>
+      </Button>
 
       <CommandDialog open={open} onOpenChange={setOpen}>
         <CommandInput
