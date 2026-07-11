@@ -6,6 +6,7 @@ struct AppTabView: View {
     @Environment(NetworkMonitor.self) private var network
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @AppStorage("sidebarTabCustomization") private var tabCustomization: TabViewCustomization
 
     private var isStaffOrAdmin: Bool {
         let role = session.currentUser?.role ?? ""
@@ -45,7 +46,7 @@ struct AppTabView: View {
                 .badge(appState.overdueCount)
                 .accessibilityLabel(appState.overdueCount > 0 ? "\(gearTabLabel), \(appState.overdueCount) overdue" : gearTabLabel)
 
-            Tab("More", systemImage: "ellipsis.circle", value: 2) {
+            Tab("Browse", systemImage: "square.grid.2x2", value: 2) {
                 BrowseView()
             }
 
@@ -60,19 +61,24 @@ struct AppTabView: View {
                         GuidesView()
                     }
                     .tabPlacement(.sidebarOnly)
+                    .customizationID("resources.guides")
 
                     Tab("Licenses", systemImage: "key", value: 7) {
                         LicensesView()
                     }
                     .tabPlacement(.sidebarOnly)
+                    .customizationID("resources.licenses")
 
                     Tab("Users", systemImage: "person.2", value: 5) {
                         UsersView()
                     }
                     .tabPlacement(.sidebarOnly)
+                    .customizationID("resources.users")
                 }
+                .customizationID("resources")
             }
         }
+        .tabViewCustomization($tabCustomization)
         .onChange(of: showsSidebarDestinations) { _, canShowSidebarDestinations in
             if !canShowSidebarDestinations && selectedTabIsSidebarOnly {
                 appState.selectedTab = 0

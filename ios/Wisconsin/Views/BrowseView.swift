@@ -29,7 +29,7 @@ struct BrowseView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("More")
+            .navigationTitle("Browse")
         }
     }
 
