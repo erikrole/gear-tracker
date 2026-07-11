@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "Privacy policy for the Wisconsin Creative iOS app and Gear Tracker service.",
 };
 
-const updatedAt = "July 1, 2026";
+const updatedAt = "July 11, 2026";
 
 const sections = [
   {
@@ -16,7 +16,7 @@ const sections = [
       "Operational records such as gear checkouts, reservations, returns, favorites, schedule assignments, availability, notifications, and audit history.",
       "Device information needed for iOS features, including push notification tokens, Live Activity tokens, app version, and basic session state.",
       "Camera access only when you choose to scan a barcode or QR code. Camera frames are used on device for scanning and are not stored by the app.",
-      "Diagnostics and server logs used to keep the service reliable, secure, and supportable.",
+      "Authenticated API diagnostics and server logs used to keep the service reliable, secure, and supportable. The native iOS app does not embed a crash-reporting, session-replay, or advertising analytics SDK.",
     ],
   },
   {
@@ -26,6 +26,7 @@ const sections = [
       "We do not track users across third-party apps or websites.",
       "We do not collect precise device location for the iOS app.",
       "We do not use booking photo uploads in the iOS launch scope.",
+      "We do not collect native app crash reports, device-performance metrics, generic tap or click analytics, or session replay in the iOS app.",
     ],
   },
   {
@@ -41,7 +42,7 @@ const sections = [
   {
     title: "Sharing",
     body: [
-      "Information is used within Wisconsin Creative operations and the service providers needed to run the app, hosting, database, storage, email, diagnostics, and Apple platform services.",
+      "Information is used within Wisconsin Creative operations and by service providers needed to run the app: Vercel for hosting and platform logs, Neon for database storage, Sentry for web/server error diagnostics, Resend for service email, Upstash for rate limiting, Vercel Blob for stored media, and Apple for push notifications and Live Activities.",
       "We do not share user information for advertising.",
       "We may disclose information when required to comply with legal obligations, security needs, or institutional policy.",
     ],
@@ -59,6 +60,8 @@ const sections = [
     body: [
       "You can manage notification preferences in the app.",
       "You can deny camera access and use manual code entry where available.",
+      "You can delete your account from Account & Security in the iOS app. Deletion immediately removes access and cancels future reservations; open checkouts must be returned first.",
+      "Some historical custody, scheduling, and audit records may remain after account deletion when needed for operational accountability, legal obligations, security, or institutional policy.",
       "You can contact support to request account corrections or access help.",
     ],
   },

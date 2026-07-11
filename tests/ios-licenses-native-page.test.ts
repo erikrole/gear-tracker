@@ -42,16 +42,14 @@ describe("iOS native Licenses page", () => {
   it("wires Licenses to native Settings and regular-width sidebar destinations", () => {
     const appTab = appTabViewShell();
     const browse = source("ios/Wisconsin/Views/BrowseView.swift");
-    const profile = source("ios/Wisconsin/Views/ProfileView.swift");
 
-    expect(appTab).toContain('Tab("More", systemImage: "ellipsis.circle", value: 2)');
+    expect(appTab).toContain('Tab("Browse", systemImage: "square.grid.2x2", value: 2)');
     expect(appTab).toContain("BrowseView()");
     expect(browse).toContain("LicensesView(wrapsInNavigationStack: false)");
     expect(appTab).toContain('Tab("Licenses", systemImage: "key", value: 7)');
     expect(appTab).toContain("LicensesView()");
     expect(appTab).not.toContain("https://wisconsincreative.com/licenses");
-    expect(profile).toContain("LicensesView(wrapsInNavigationStack: false)");
-    expect(profile).not.toMatch(/title: "Licenses"[\s\S]*?SidebarWebDestinationView/);
+    expect(browse).toContain("LicensesView(wrapsInNavigationStack: false)");
   });
 
   it("uses native list, refresh, empty, and confirmation patterns for self-service actions", () => {
@@ -116,14 +114,12 @@ describe("iOS native Licenses page", () => {
 
   it("keeps admin management on web while exposing self-service to every role", () => {
     const view = source("ios/Wisconsin/Views/LicensesView.swift");
-    const profile = source("ios/Wisconsin/Views/ProfileView.swift");
+    const browse = source("ios/Wisconsin/Views/BrowseView.swift");
 
     expect(view).toContain('private static let webManagementURL = AppEnvironment.url(path: "/licenses")');
     expect(view).toContain("if isStaffOrAdmin {");
     expect(view).toContain('title: "Manage on web"');
-    expect(source("ios/Wisconsin/Views/BrowseView.swift")).toContain("LicensesView(wrapsInNavigationStack: false)");
-    expect(profile).toMatch(/Section\("Directory"\)[\s\S]*NavigationLink \{\s*LicensesView\(wrapsInNavigationStack: false\)/);
-    expect(profile).toContain('? "Claim, copy, return, or open web management."');
-    expect(profile).toContain(': "Claim, copy, or return a Photo Mechanic license."');
+    expect(browse).toContain("LicensesView(wrapsInNavigationStack: false)");
+    expect(browse).toContain('"Claim, copy, or return a Photo Mechanic license."');
   });
 });

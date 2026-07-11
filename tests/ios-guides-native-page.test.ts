@@ -62,25 +62,23 @@ describe("iOS native Guides page", () => {
   it("wires native Guides into Settings and the regular-width Resources sidebar", () => {
     const appTab = appTabViewShell();
     const browse = source("ios/Wisconsin/Views/BrowseView.swift");
-    const profile = source("ios/Wisconsin/Views/ProfileView.swift");
 
-    expect(appTab).toContain('Tab("More", systemImage: "ellipsis.circle", value: 2)');
+    expect(appTab).toContain('Tab("Browse", systemImage: "square.grid.2x2", value: 2)');
     expect(appTab).toContain("BrowseView()");
     expect(browse).toContain("GuidesView(wrapsInNavigationStack: false)");
     expect(appTab).toContain('Tab("Guides", systemImage: "book.closed", value: 6)');
     expect(appTab).toContain("GuidesView()");
     expect(appTab).not.toContain("https://wisconsincreative.com/resources");
-    expect(profile).toContain("GuidesView(wrapsInNavigationStack: false)");
-    expect(profile).not.toMatch(/title: "Guides"[\s\S]*?SidebarWebDestinationView/);
+    expect(browse).toContain("GuidesView(wrapsInNavigationStack: false)");
   });
 
   it("keeps Settings Directory as a compact fallback for Guides", () => {
     const appTab = appTabViewShell();
-    const profile = source("ios/Wisconsin/Views/ProfileView.swift");
+    const browse = source("ios/Wisconsin/Views/BrowseView.swift");
 
-    expect(appTab).toContain('Tab("More", systemImage: "ellipsis.circle", value: 2)');
+    expect(appTab).toContain('Tab("Browse", systemImage: "square.grid.2x2", value: 2)');
     expect(appTab).toContain("if showsSidebarDestinations {");
     expect(appTab).toContain(".tabPlacement(.sidebarOnly)");
-    expect(profile).toMatch(/Section\("Directory"\)[\s\S]*NavigationLink \{\s*GuidesView\(wrapsInNavigationStack: false\)/);
+    expect(browse).toContain("GuidesView(wrapsInNavigationStack: false)");
   });
 });

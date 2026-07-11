@@ -6,77 +6,55 @@ function source(relativeFile: string) {
   return readFileSync(path.join(process.cwd(), relativeFile), "utf8");
 }
 
-function bodyBetween(text: string, startNeedle: string, endNeedle: string) {
-  const start = text.indexOf(startNeedle);
-  const end = text.indexOf(endNeedle, start);
-  expect(start).toBeGreaterThanOrEqual(0);
-  expect(end).toBeGreaterThan(start);
-  return text.slice(start, end);
-}
-
 describe("iOS Settings hub", () => {
-  it("presents Profile as a first-class Settings surface", () => {
-    const profile = source("ios/Wisconsin/Views/ProfileView.swift");
-    const profileBody = bodyBetween(profile, "struct ProfileView: View", "// MARK: - Profile destinations");
+  it("presents Settings as a first-class surface from Profile", () => {
+    const settings = source("ios/Wisconsin/Views/SettingsView.swift");
 
-    expect(profileBody).toContain(".navigationTitle(\"Settings\")");
-    expect(profileBody).not.toContain(".navigationTitle(\"Profile\")");
-    expect(profileBody).toContain(".listStyle(.insetGrouped)");
+    expect(settings).toContain(".navigationTitle(\"Settings\")");
+    expect(settings).toContain(".listStyle(.insetGrouped)");
 
     for (const section of [
-      "headerSection",
-      "scheduleSection",
-      "directorySection",
-      "accountSection",
-      "notificationsSection",
-      "appearanceSection",
-      "appSection",
-      "signOutSection",
+      "Account & Security",
+      "Notifications",
+      "Theme",
+      "App Icon",
+      "Privacy Policy",
+      "Contact Support",
+      "Version",
+      "Open iOS Settings",
+      "Sign Out",
     ]) {
-      expect(profileBody).toContain(section);
+      expect(settings).toContain(section);
     }
 
-    expect(profileBody).toContain("SettingsMenuRow(");
-    expect(profileBody).toContain("SettingsRowIcon(systemImage: systemImage, tint: tint)");
-    expect(profileBody).toContain("SettingsStatusMetric(");
-    expect(profileBody).toContain("StatusPill.role(session.currentUser?.role ?? \"\")");
+    expect(settings).toContain("SettingsRow(");
+    expect(settings).toContain("if isStaffOrAdmin");
   });
 
   it("keeps role-gated settings menus reachable without exposing staff tools to students", () => {
-    const profile = source("ios/Wisconsin/Views/ProfileView.swift");
+    const settings = source("ios/Wisconsin/Views/SettingsView.swift");
 
-    expect(profile).toContain("if isStaffOrAdmin { toolsSection }");
-    expect(profile).toContain("title: \"Link Sticker Codes\"");
-    expect(profile).toContain("systemImage: \"qrcode.viewfinder\"");
-
-    const scheduleSection = bodyBetween(profile, "private var scheduleSection", "private var toolsSection");
-    expect(scheduleSection).toContain("Text(\"Schedule\")");
-    expect(scheduleSection).toContain("title: \"Upcoming shifts\"");
-    expect(scheduleSection).toContain("title: \"Overdue bookings\"");
-    expect(scheduleSection).toContain("if isStudent");
-    expect(scheduleSection).toContain("title: \"My Availability\"");
-    expect(scheduleSection).toContain("Availability blocks are advisory");
+    expect(settings).toContain("if isStaffOrAdmin");
+    expect(settings).toContain("SettingsRow(title: \"Link Sticker Codes\"");
+    expect(settings).toContain("SettingsRow(title: \"Scanner Debugger\"");
+    expect(settings).toContain("Section(\"Staff Tools\")");
   });
 
   it("keeps Settings Directory as a fallback for Browse destinations", () => {
-    const profile = source("ios/Wisconsin/Views/ProfileView.swift");
-    const directorySection = bodyBetween(profile, "private var directorySection", "private var toolsSection");
+    const appTab = source("ios/Wisconsin/Views/AppTabView.swift");
+    const browse = source("ios/Wisconsin/Views/BrowseView.swift");
 
-    expect(directorySection).toContain("Section(\"Directory\")");
-    expect(directorySection).toContain("NavigationLink {");
-    expect(directorySection).toContain("title: \"Guides\"");
-    expect(directorySection).toContain("UsersView()");
-    expect(directorySection).toContain("title: \"Users\"");
-    expect(directorySection).toContain("title: \"Licenses\"");
-    expect(directorySection).not.toContain("if isStaffOrAdmin");
-    expect(directorySection.match(/wrapsInNavigationStack: false/g)).toHaveLength(2);
-    expect(profile).not.toContain("case .guides:");
-    expect(profile).not.toContain("case .users:");
-    expect(profile).not.toContain("case .licenses:");
+    expect(appTab).toContain("TabSection(\"Resources\")");
+    expect(appTab).toContain('Tab("Guides", systemImage: "book.closed", value: 6)');
+    expect(appTab).toContain('Tab("Users", systemImage: "person.2", value: 5)');
+    expect(appTab).toContain('Tab("Licenses", systemImage: "key", value: 7)');
+    expect(browse).toContain("GuidesView(wrapsInNavigationStack: false)");
+    expect(browse).toContain("LicensesView(wrapsInNavigationStack: false)");
+    expect(browse).toContain("UsersView()");
   });
 
   it("keeps notification and app settings honest at the menu level", () => {
-    const profile = source("ios/Wisconsin/Views/ProfileView.swift");
+    const settings = source("ios/Wisconsin/Views/SettingsView.swift");
     const notifications = source("ios/Wisconsin/Views/NotificationSettingsView.swift");
 
     expect(notifications).toContain("title: \"Delivery status\"");
@@ -86,9 +64,8 @@ describe("iOS Settings hub", () => {
     expect(notifications).toContain("\"iOS off\"");
     expect(notifications).toContain("Text(\"In-app notifications always show in your inbox, regardless of these settings.\")");
 
-    expect(profile).toContain("title: \"Theme\"");
-    expect(profile).toContain("Text(themeChoice.label)");
-    expect(profile).toContain("title: \"Open iOS Settings\"");
-    expect(profile).toContain("title: \"Sign Out\"");
+    expect(settings).toContain("SettingsRow(title: \"Theme\"");
+    expect(settings).toContain("SettingsRow(title: \"Open iOS Settings\"");
+    expect(settings).toContain("Button(\"Sign Out\", role: .destructive)");
   });
 });

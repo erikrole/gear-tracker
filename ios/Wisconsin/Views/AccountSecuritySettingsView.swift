@@ -13,6 +13,7 @@ struct AccountSecuritySettingsView: View {
     @State private var isSaving = false
     @State private var error: String?
     @State private var successMessage: String?
+    @State private var showDeleteAccount = false
     @FocusState private var focusedField: Field?
 
     private enum Field {
@@ -138,11 +139,24 @@ struct AccountSecuritySettingsView: View {
             } footer: {
                 Text("New passwords must be at least 8 characters and different from the current password.")
             }
+
+            Section {
+                Button("Delete Account", role: .destructive) {
+                    showDeleteAccount = true
+                }
+            } header: {
+                Text("Account Access")
+            } footer: {
+                Text("Deleting your account removes access and signs out every device. Historical custody and audit records may be retained.")
+            }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Account & Security")
         .navigationBarTitleDisplayMode(.inline)
         .interactiveDismissDisabled(isSaving)
+        .sheet(isPresented: $showDeleteAccount) {
+            DeleteAccountView()
+        }
         .onChange(of: error) { _, error in
             if let error {
                 AccessibilityNotification.Announcement(error).post()
@@ -233,5 +247,79 @@ struct AccountSecuritySettingsView: View {
         }
 
         isSaving = false
+    }
+}
+
+private struct DeleteAccountView: View {
+    @Environment(SessionStore.self) private var session
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var currentPassword = ""
+    @State private var isDeleting = false
+    @State private var error: String?
+    @State private var showFinalConfirmation = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text("This immediately removes your access, cancels future reservations, and signs out every device. You must return any checked-out gear first.")
+                    Text("Historical custody, scheduling, and audit records may be retained for operational and legal accountability.")
+                }
+
+                Section("Confirm Your Identity") {
+                    SecureField("Current password", text: $currentPassword)
+                        .textContentType(.password)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .disabled(isDeleting)
+
+                    if let error {
+                        Text(error)
+                            .font(.footnote)
+                            .foregroundStyle(Color.statusText(.red))
+                    }
+                }
+
+                Section {
+                    Button("Delete Account", role: .destructive) {
+                        showFinalConfirmation = true
+                    }
+                    .frame(maxWidth: .infinity)
+                    .disabled(currentPassword.isEmpty || isDeleting)
+                }
+            }
+            .navigationTitle("Delete Account")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .disabled(isDeleting)
+                }
+            }
+            .interactiveDismissDisabled(isDeleting)
+            .confirmationDialog("Permanently delete this account?", isPresented: $showFinalConfirmation, titleVisibility: .visible) {
+                Button("Delete Account", role: .destructive) {
+                    Task { await deleteAccount() }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This cannot be undone from the app.")
+            }
+        }
+    }
+
+    private func deleteAccount() async {
+        isDeleting = true
+        error = nil
+        do {
+            try await APIClient.shared.deleteAccount(currentPassword: currentPassword)
+            Haptics.success()
+            await session.clearDeletedAccountLocally()
+        } catch {
+            self.error = error.localizedDescription
+            Haptics.warning()
+            isDeleting = false
+        }
     }
 }

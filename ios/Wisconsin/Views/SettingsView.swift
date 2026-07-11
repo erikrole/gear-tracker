@@ -20,6 +20,8 @@ struct SettingsView: View {
     @AppStorage("WisconsinThemeChoice") private var themeChoice: ThemeChoice = .system
 
     private static let iosSettingsURL = URL(string: UIApplication.openSettingsURLString)!
+    private static let privacyURL = AppEnvironment.baseURL.appending(path: "privacy")
+    private static let supportURL = URL(string: "mailto:erole@athletics.wisc.edu?subject=Wisconsin%20Creative%20Support")!
 
     private var isStaffOrAdmin: Bool {
         let role = session.currentUser?.role ?? ""
@@ -50,8 +52,13 @@ struct SettingsView: View {
                     SettingsRow(title: "Theme", systemImage: "circle.lefthalf.filled", color: .indigo)
                 }
                 .pickerStyle(.menu)
+                NavigationLink {
+                    AppIconSettingsView()
+                } label: {
+                    SettingsRow(title: "App Icon", systemImage: "app.dashed", color: .purple)
+                }
             } footer: {
-                Text("Theme is saved on this device only.")
+                Text("Appearance choices are saved on this device only.")
             }
 
             if isStaffOrAdmin {
@@ -70,6 +77,20 @@ struct SettingsView: View {
             }
 
             Section {
+                Link(destination: Self.privacyURL) {
+                    SettingsRow(title: "Privacy Policy", systemImage: "hand.raised.fill", color: .blue) {
+                        Image(systemName: "arrow.up.forward")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                Link(destination: Self.supportURL) {
+                    SettingsRow(title: "Contact Support", systemImage: "envelope.fill", color: .green) {
+                        Image(systemName: "arrow.up.forward")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
                 SettingsRow(title: "Version", systemImage: "app.badge", color: .gray) {
                     Text(appVersion)
                         .foregroundStyle(.secondary)

@@ -154,6 +154,17 @@ final class APIClient {
         let _: ChangePasswordResponse = try await perform(req)
     }
 
+    func deleteAccount(currentPassword: String) async throws {
+        struct Body: Encodable {
+            let currentPassword: String
+            let confirmation: String
+        }
+
+        var req = request(path: "/api/me/account", method: "DELETE")
+        req.httpBody = try JSONEncoder().encode(Body(currentPassword: currentPassword, confirmation: "DELETE"))
+        let _: SuccessResponse = try await perform(req)
+    }
+
     // MARK: - Bookings
 
     func reservations(activeOnly: Bool = true, search: String? = nil, requesterId: String? = nil, filter: String? = nil, limit: Int = 30, offset: Int = 0) async throws -> PaginatedResponse<Booking> {

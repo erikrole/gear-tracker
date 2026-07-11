@@ -70,6 +70,8 @@ UsersView.swift                        | users                       | audit
 UserDetailView.swift                   | users                       | audit
 AppTabView.swift                       | profile                     | audit
 ProfileView.swift                      | profile                     | audit
+SettingsView.swift                     | profile                     | audit
+AppIconSettingsView.swift              | profile                     | audit
 LicensesView.swift                     | licenses                    | audit
 GuidesView.swift                       | resources                   | audit
 SidebarWebDestinationView.swift        |                             | exempt-tiny

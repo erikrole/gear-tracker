@@ -168,6 +168,14 @@ _2026-07-08 update: App Review demo data isolation reopened the demo-data decisi
 
 _2026-07-10 update: A separate empty Neon project now exists for App Review, avoiding the production-data clone inherent in a child branch. Seeding is fail-closed on an explicit reviewer password and exact database host, and no credential is logged or committed. The blocker has moved to external Vercel/DNS wiring: the connected Vercel team scope returns 403 and `review.wisconsincreative.com` does not resolve, so no migrations or demo rows have been applied._
 
+_2026-07-11 update: Vercel CLI access is restored. The isolated `gear-tracker-app-review` Vercel project exists, owns `review.wisconsincreative.com`, and Cloudflare authoritatively serves a DNS-only A record to `76.76.21.21`. Remaining external work is limited to approved Review-only secret/env storage, deployment, migrations, seed, and authenticated smoke proof._
+
+_2026-07-11 baseline update: Review-only Vercel secrets and source upload are complete, and the first deployment proved it targets only the isolated Neon host. The build fails safely at Prisma `P3018` because `0001_manual_constraints` assumes `asset_allocations` already exists; the repo lacks a true empty-database baseline migration. After both wrapper-backed deploy and direct schema push failed on the isolated target, further mutation stopped. A repeatable baseline/bootstrap workflow is now the remaining deployment blocker; production was not accessed or changed._
+
+_2026-07-11 bootstrap attempt: A guarded empty-database bootstrap now generates current-schema SQL offline, verifies the exact expected host, and refuses targets with application tables. Unit and TypeScript checks pass, but its first isolated live run stopped on PostgreSQL `42P17` for a generated non-immutable index after creating 58 tables. The Review database is partial and must be reset; no seed ran. Further mutation stopped, and production remained untouched._
+
+_2026-07-11 resolution: The partial Review project was deleted and recreated without touching production. The bootstrap now applies schema and PostgreSQL-only constraints atomically and uses `tsrange` for Prisma's timestamp columns. The new isolated database reports 93/93 applied migrations with no pending, failed, rolled-back, or database-only rows. `gear-tracker-app-review` is deployed READY as a Next.js project, `review.wisconsincreative.com` uses a DNS-only CNAME, the fictional seed completed, and authenticated live smoke returned 200 for login, current user, users, and calendar events. The reviewer sees five `demo-user-*` users and two `demo-*` events only. App Review deployment/data isolation is closed._
+
 _2026-07-02 update: Premier events were removed without opening a new gap. The retired `ShiftGroup` approval flag and `ShiftTrade` approval flag are gone, all new open Student shift pickups create acknowledged `DIRECT_ASSIGNED` assignments, and trade claims execute immediately. Legacy `REQUESTED` assignment handling remains only for existing rows._
 
 _2026-07-03 update: Release verification pipeline documented without opening a new gap. `docs/RELEASE_VERIFICATION.md` now distinguishes safe local `build:app` proof from deploy-shaped `npm run build`, documents database, browser, deploy-smoke, and iOS gates, and points release candidates to the relevant manual QA checklists._
@@ -314,6 +322,7 @@ _2026-07-03 update: iOS App Intents navigation shipped without opening a new gap
 ---
 
 ## Closed Items (for reference)
+- **App Review native privacy access and account deletion (closed 2026-07-11):** Native Settings links the canonical privacy policy and support contact, while Account & Security provides password-reauthenticated self-deletion backed by the safe deactivation lifecycle. Open checkout custody blocks deletion; historical operational and audit records are retained and disclosed in the privacy policy.
 
 | ID | Description | Closed Date | Resolution |
 |---|---|---|---|

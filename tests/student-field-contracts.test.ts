@@ -53,7 +53,7 @@ describe("student field mobile contracts", () => {
     const homeView = source("ios/Wisconsin/Views/HomeView.swift");
 
     expect(appTab).toContain("isStaffOrAdmin ? \"Bookings\" : \"My Gear\"");
-    expect(appTab).toContain('Tab("More", systemImage: "ellipsis.circle", value: 2)');
+    expect(appTab).toContain('Tab("Browse", systemImage: "square.grid.2x2", value: 2)');
     expect(appTab).toContain('Tab("Users", systemImage: "person.2", value: 5)');
     expect(appTab).not.toMatch(/if isStaffOrAdmin \{[\s\S]*?Tab\("Users"/);
     expect(searchView).toContain("@State private var isSearchPresented = false");
@@ -199,6 +199,7 @@ describe("student field mobile contracts", () => {
 
   it("keeps iOS Profile controls self-describing", () => {
     const profile = source("ios/Wisconsin/Views/ProfileView.swift");
+    const settings = source("ios/Wisconsin/Views/SettingsView.swift");
     const notifications = source("ios/Wisconsin/Views/NotificationSettingsView.swift");
     const availability = source("ios/Wisconsin/Views/AvailabilityView.swift");
     const models = source("ios/Wisconsin/Models/Models.swift");
@@ -209,12 +210,12 @@ describe("student field mobile contracts", () => {
     const userPage = source("src/app/(app)/users/[id]/page.tsx");
     const availabilityRoute = source("src/app/api/users/[id]/availability/route.ts");
 
-    expect(notifications).toContain("Text(\"Pause alerts\")");
-    expect(notifications).toContain("Text(\"Pause \\(label)\")");
+    expect(notifications).toContain("Text(\"Pause Alerts\")");
+    expect(notifications).toContain(".accessibilityLabel(\"Pause alerts for \\(label)\")");
     expect(notifications).toContain("title: \"Email alerts\"");
     expect(notifications).toContain("title: \"Push alerts\"");
     expect(notifications).toContain("title: \"Delivery status\"");
-    expect(profile).toContain("title: \"Theme\"");
+    expect(settings).toContain("title: \"Theme\"");
     expect(profile).toContain("title: \"My Availability\"");
     expect(profile).toContain("private var isStudentWorker: Bool");
     expect(profile).toContain("session.currentUser?.staffingType == \"ST\"");

@@ -43,3 +43,16 @@ Raw `prisma migrate status` is not the source of truth in this repo because the 
 - If health reports unresolved failed rows, inspect `_prisma_migrations` before retrying. Do not edit an applied migration file to force a match.
 - If health reports applied DB-only migrations, stop and reconcile the missing migration folder before shipping.
 - If Prisma emits the blank schema-engine failure, let the deploy wrapper fallback handle it. Do not reintroduce one-off migration scripts.
+
+## Empty Database Bootstrap
+
+The historical migration chain begins with PostgreSQL constraints against tables that predate migration tracking, so `prisma migrate deploy` cannot initialize a brand-new empty database. For a new isolated environment only, use the guarded bootstrap:
+
+```bash
+EMPTY_DATABASE_BOOTSTRAP=confirm \
+EMPTY_DATABASE_EXPECTED_HOST=<exact-direct-neon-host> \
+DIRECT_URL=<direct-neon-url> \
+npm run db:bootstrap:empty
+```
+
+The command refuses any target containing application tables, generates the current schema from an offline Prisma empty-to-datamodel diff, restores Prisma-inexpressible exclusion/partial/trigram indexes, and reconciles local migration checksums. It must never be used on production, a database with user data, or as a substitute for normal incremental migrations.

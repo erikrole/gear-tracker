@@ -71,6 +71,11 @@ final class SessionStore {
         currentUser = nil
     }
 
+    func clearDeletedAccountLocally() async {
+        try? await APIClient.shared.logout()
+        currentUser = nil
+    }
+
     /// Clear a stale auth error — call from views when the user starts typing again.
     func clearError() {
         if error != nil { error = nil }

@@ -10,35 +10,34 @@ function appTabViewShell() {
   return source("ios/Wisconsin/Views/AppTabView.swift").split("// MARK: - Profile")[0] ?? "";
 }
 
-describe("iOS More tab", () => {
-  it("uses a native More tab instead of burying Items as its own compact tab", () => {
+describe("iOS Browse tab", () => {
+  it("uses a native Browse tab instead of burying Items as its own compact tab", () => {
     const appTab = appTabViewShell();
 
     const homeIndex = appTab.indexOf('Tab("Home", systemImage: "house", value: 0)');
     const scheduleIndex = appTab.indexOf('Tab("Schedule", systemImage: "calendar", value: 4)');
     const bookingsIndex = appTab.indexOf("Tab(gearTabLabel, systemImage: \"calendar.badge.checkmark\", value: 1)");
-    const moreIndex = appTab.indexOf('Tab("More", systemImage: "ellipsis.circle", value: 2)');
+    const browseIndex = appTab.indexOf('Tab("Browse", systemImage: "square.grid.2x2", value: 2)');
     const searchIndex = appTab.indexOf('Tab("Search", systemImage: "magnifyingglass", value: 3, role: .search)');
 
-    expect([homeIndex, scheduleIndex, bookingsIndex, moreIndex, searchIndex].every((index) => index >= 0)).toBe(true);
+    expect([homeIndex, scheduleIndex, bookingsIndex, browseIndex, searchIndex].every((index) => index >= 0)).toBe(true);
     expect(homeIndex).toBeLessThan(scheduleIndex);
     expect(scheduleIndex).toBeLessThan(bookingsIndex);
-    expect(bookingsIndex).toBeLessThan(moreIndex);
-    expect(moreIndex).toBeLessThan(searchIndex);
+    expect(bookingsIndex).toBeLessThan(browseIndex);
+    expect(browseIndex).toBeLessThan(searchIndex);
     expect(appTab).toContain("BrowseView()");
-    expect(appTab).not.toContain('Tab("Browse", systemImage: "square.grid.2x2", value: 2)');
     expect(appTab).not.toContain('Tab("Items", systemImage: "archivebox", value: 2)');
     expect(appTab).toContain('Tab("Search", systemImage: "magnifyingglass", value: 3, role: .search)');
     expect(appTab).toContain(".tabPlacement(.pinned)");
   });
 
-  it("renders More as a native SwiftUI list of directory links", () => {
+  it("renders Browse as a native SwiftUI list of directory links", () => {
     const browse = source("ios/Wisconsin/Views/BrowseView.swift");
 
     expect(browse).toContain("NavigationStack {");
     expect(browse).toContain("List {");
     expect(browse).toContain(".listStyle(.insetGrouped)");
-    expect(browse).toContain('.navigationTitle("More")');
+    expect(browse).toContain('.navigationTitle("Browse")');
     expect(browse).not.toContain('Text("More")');
     expect(browse).not.toContain('Text("Browse")');
     expect(browse).toContain("NavigationLink {");
@@ -52,20 +51,14 @@ describe("iOS More tab", () => {
 
   it("exposes Users to every authenticated role while preserving admin-only tools elsewhere", () => {
     const appTab = appTabViewShell();
-    const profile = source("ios/Wisconsin/Views/ProfileView.swift");
-    const directorySection = profile.slice(
-      profile.indexOf("private var directorySection"),
-      profile.indexOf("private var toolsSection"),
-    );
+    const browse = source("ios/Wisconsin/Views/BrowseView.swift");
 
     expect(appTab).toContain('TabSection("Resources")');
     expect(appTab).toContain('Tab("Users", systemImage: "person.2", value: 5)');
     expect(appTab).not.toContain('TabSection("Admin")');
     expect(appTab).not.toMatch(/if isStaffOrAdmin \{[\s\S]*?Tab\("Users"/);
 
-    expect(directorySection).toContain('title: "Users"');
-    expect(directorySection).toContain("UsersView()");
-    expect(directorySection).not.toContain("if isStaffOrAdmin");
-    expect(profile).toContain("if isStaffOrAdmin { toolsSection }");
+    expect(browse).toContain("case .users:");
+    expect(browse).toContain("UsersView()");
   });
 });

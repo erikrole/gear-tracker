@@ -17,9 +17,8 @@ function bodyBetween(text: string, startNeedle: string, endNeedle: string) {
 describe("iOS Settings detail menus", () => {
   it("keeps root Settings as a navigation hub for account and notifications", () => {
     const profile = source("ios/Wisconsin/Views/ProfileView.swift");
+    const settings = source("ios/Wisconsin/Views/SettingsView.swift");
     const profileBody = bodyBetween(profile, "struct ProfileView: View", "struct SettingsMenuRow");
-    const accountSection = bodyBetween(profile, "private var accountSection", "private var notificationsSection");
-    const notificationsSection = bodyBetween(profile, "private var notificationsSection", "private var appearanceSection");
 
     expect(profile).toContain("case notifications");
     expect(profile).toContain("case accountSecurity");
@@ -27,16 +26,14 @@ describe("iOS Settings detail menus", () => {
     expect(profileBody).toContain("NotificationSettingsView(");
     expect(profileBody).toContain("AccountSecuritySettingsView(manageAccountURL: Self.manageAccountURL)");
 
-    expect(accountSection).toContain("NavigationLink(value: ProfileDestination.accountSecurity)");
-    expect(accountSection).toContain("title: \"Account & Security\"");
-    expect(accountSection).toContain("StatusPill.role(session.currentUser?.role ?? \"\")");
-
-    expect(notificationsSection).toContain("NavigationLink(value: ProfileDestination.notifications)");
-    expect(notificationsSection).toContain("title: \"Notifications\"");
-    expect(notificationsSection).toContain("notificationSummaryText");
-    expect(notificationsSection).not.toContain("categoryToggle(");
-    expect(notificationsSection).not.toContain("channelToggle(");
-    expect(notificationsSection).not.toContain("pauseChip(");
+    expect(settings).toContain("NavigationLink(value: ProfileDestination.accountSecurity)");
+    expect(settings).toContain("SettingsRow(title: \"Account & Security\"");
+    expect(settings).toContain("NavigationLink(value: ProfileDestination.notifications)");
+    expect(settings).toContain("SettingsRow(title: \"Notifications\"");
+    expect(settings).toContain("notificationStatusText");
+    expect(settings).not.toContain("categoryToggle(");
+    expect(settings).not.toContain("channelToggle(");
+    expect(settings).not.toContain("pauseChip(");
   });
 
   it("moves delivery, channel, pause, and category controls into the native Notifications detail", () => {
@@ -46,10 +43,10 @@ describe("iOS Settings detail menus", () => {
     expect(detail).toContain("title: \"Delivery status\"");
     expect(detail).toContain("pushPermissionRow");
     expect(detail).toContain("Text(\"In-app notifications always show in your inbox, regardless of these settings.\")");
-    expect(detail).toContain("Text(\"Pause alerts\")");
+    expect(detail).toContain("Text(\"Pause Alerts\")");
     expect(detail).toContain("title: \"Email alerts\"");
     expect(detail).toContain("title: \"Push alerts\"");
-    expect(detail).toContain("Text(\"Notification types\")");
+    expect(detail).toContain("Text(\"Notification Types\")");
 
     for (const category of [
       ".checkoutDue",
@@ -92,5 +89,21 @@ describe("iOS Settings detail menus", () => {
     expect(route).toContain("newPassword: z.string().min(8");
     expect(route).toContain("revokeOtherSessions: z.boolean().default(false)");
     expect(route).toContain("New password must be different from the current password.");
+  });
+
+  it("exposes App Review privacy, support, and self-service deletion controls", () => {
+    const settings = source("ios/Wisconsin/Views/SettingsView.swift");
+    const accountDetail = source("ios/Wisconsin/Views/AccountSecuritySettingsView.swift");
+    const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
+    const route = source("src/app/api/me/account/route.ts");
+
+    expect(settings).toContain("SettingsRow(title: \"Privacy Policy\"");
+    expect(settings).toContain("SettingsRow(title: \"Contact Support\"");
+    expect(accountDetail).toContain("Button(\"Delete Account\", role: .destructive)");
+    expect(accountDetail).toContain("SecureField(\"Current password\"");
+    expect(accountDetail).toContain("APIClient.shared.deleteAccount(currentPassword: currentPassword)");
+    expect(apiClient).toContain("request(path: \"/api/me/account\", method: \"DELETE\")");
+    expect(route).toContain("deactivateUserWithCleanup");
+    expect(route).toContain('action: "account_self_deleted"');
   });
 });

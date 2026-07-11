@@ -16,7 +16,7 @@ describe("iOS tab bar stability", () => {
 
     expect(appTab).toContain("TabView(selection:");
     expect(appTab).toContain('Tab("Home", systemImage: "house", value: 0)');
-    expect(appTab).toContain('Tab("More", systemImage: "ellipsis.circle", value: 2)');
+    expect(appTab).toContain('Tab("Browse", systemImage: "square.grid.2x2", value: 2)');
     expect(appTab).toContain("BrowseView()");
     expect(appTab).toContain('Tab("Schedule", systemImage: "calendar", value: 4)');
     expect(appTab).toContain('Tab("Search", systemImage: "magnifyingglass", value: 3, role: .search)');

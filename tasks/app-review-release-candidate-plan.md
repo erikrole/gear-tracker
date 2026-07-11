@@ -13,6 +13,11 @@
 - Production demo rows were removed. Review credentials must not be submitted until the review host uses an isolated Neon target.
 - Build 18 predates the final release-hardening and APNs registration work. The next candidate must increment both the app and Live Activities build metadata.
 - Kiosk remains a separate target and is outside the App Store candidate.
+- Apple Guideline 2.1 requires a complete, crash-tested build plus full reviewer access, live backend services, and any sample QR or other resources needed to exercise the app.
+- Apple Guideline 2.3 requires screenshots, privacy disclosures, description, age rating, and other metadata to match the submitted build and use fictional account information.
+- Apple Guideline 4.2 requires adequate native utility. Wisconsin satisfies this directionally through native reservations, schedule, search, scan, notifications, and Live Activities; Review notes and screenshots must demonstrate those flows rather than presenting the app as a web companion.
+- Apple Guidelines 5.1.1(i) and 5.1.1(v) require an easily accessible in-app privacy-policy link and in-app account deletion when account creation is supported. The current native source contains neither surface. Invitation-only web registration may make deletion applicability debatable, but launch should close the risk instead of depending on reviewer interpretation.
+- Apple Guideline 5.1.1 requires accurate disclosure, consent, minimization, and revocation behavior. The checked-in privacy manifest is only one input; App Store Connect answers must be reconciled against actual server, SDK, diagnostics, notification, and operational-data behavior.
 
 ## Stop Conditions
 - Stop if the production Neon project/branch or Vercel project cannot be identified unambiguously.
@@ -23,31 +28,39 @@
 
 ## Slices
 - [x] Slice 1: Create a separate empty Neon review project and record its non-secret identifiers.
-- [ ] Slice 2: Create or identify the separate Vercel review target, wire review-only environment variables, deploy, and bind `review.wisconsincreative.com`.
-- [ ] Slice 3: Apply migration health/deploy checks to the isolated target, seed the fictional App Review dataset, and verify reviewer-scoped web/API behavior.
+- [x] Slice 2: Create the separate Vercel review target, wire Review-only environment variables, deploy the private source with explicit approval, and bind `review.wisconsincreative.com` through a DNS-only Vercel CNAME.
+- [x] Slice 3: Bootstrap and verify migration health on the isolated target, seed the fictional App Review dataset, and verify reviewer-scoped web/API behavior.
 - [x] Slice 4: Remove the seed's fallback credential/logging path and finalize submission credentials without committing the secret.
-- [x] Slice 5: Reconcile current iOS source, increment app and Live Activities build metadata, regenerate the project, and produce a signed archive.
+- [x] Slice 5: Reconcile current iOS source, increment app and Live Activities build metadata to Build 20, regenerate the project, and produce a signed archive and App Store export.
 - [ ] Slice 6: Run source, simulator, signed-archive, and real-device acceptance gates; upload only the exact verified candidate. Source, simulator, generic-device, archive, and export gates are complete; upload and hardware acceptance remain open.
 - [ ] Slice 7: Update App Store Connect notes and close the existing launch ledgers with proof.
+- [x] Slice 8: Add an easily accessible native Legal/Privacy surface that opens the canonical privacy policy and exposes a support/contact route.
+- [x] Slice 9: Add a safe in-app account-deletion request or deletion flow, including reauthentication/confirmation, server-side lifecycle handling, and reviewer-facing explanation of invitation-only account creation.
+- [x] Slice 10: Perform a data-flow inventory and reconcile the privacy manifest, App Store privacy nutrition label, privacy-policy retention/deletion language, permission timing, and third-party SDK behavior.
+- [ ] Slice 11: Capture final screenshots from the exact candidate using fictional review data; verify every visible feature, role, device frame, age-rating answer, URL, copyright owner, and description claim against the submitted build.
 
 ## Verification
-- [ ] Focused App Review routing and seed tests.
-- [ ] `npm run db:migrate:check`
-- [ ] Read-only migration health against the isolated review database.
-- [ ] Review-host login and broad-surface smoke proving only fictional records are visible.
-- [ ] `npm run drift:ios`
-- [ ] `npm run audit:ios:gaps`
-- [ ] `npm run ios:project:check`
-- [ ] `npm run ios:xcode:verify`
-- [ ] `npm run verify:docs`
-- [ ] `git diff --check`
-- [ ] Signed Release archive/export metadata inspection.
+- [x] Focused App Review routing, bootstrap, and seed tests.
+- [x] `npm run db:migrate:check`
+- [x] Read-only migration health against the isolated review database.
+- [x] Review-host login and broad-surface smoke proving only fictional records are visible.
+- [x] `npm run drift:ios`
+- [x] `npm run audit:ios:gaps`
+- [x] `npm run ios:project:check`
+- [x] `npm run ios:xcode:verify`
+- [x] `npm run verify:docs`
+- [x] `git diff --check`
+- [x] Signed Release archive/export metadata inspection.
 - [ ] Real-device camera, APNs delivery/tap routing, network recovery, accessibility, and install/upgrade checks.
+- [ ] In-app privacy-policy and support links open successfully from a signed candidate.
+- [ ] Account deletion/request completes end to end on an isolated test account and leaves the documented audit/retention state.
+- [ ] App Store Connect privacy answers are checked against an enumerated data-flow and SDK inventory rather than inferred only from `PrivacyInfo.xcprivacy`.
+- [ ] Final screenshot/metadata review uses only fictional identities and matches the exact submitted build.
 
 ## Review
 - Shipped: Created the separate empty Neon project `gear-tracker-app-review` (`long-art-11143851`) with primary branch `main` (`br-steep-pine-ajmzuvn5`) and database `neondb`. Hardened the review seed so seeding requires an explicit 16+ character password and exact expected database host; removed password logging and the committed reviewer password from submission notes.
-- Verified: Neon table inventory returned empty for the new project. Focused seed/routing tests pass, the seed script parses, and a guarded seed attempt without a password refuses before connecting. Build 19 passes project drift, iOS drift, 47/47 audit coverage, focused source tests, simulator and generic-device builds, signed Release archive, App Store export, TypeScript, codemap/docs, migration-prefix, whitespace, and production app-build gates.
-- Deferred:
-- Blocked: The connected Vercel scope returns 403 for the repo's linked team/project. `review.wisconsincreative.com` has no DNS record. No review deployment, migrations, or demo seed can proceed until Vercel access is restored and the review environment is proven to use the isolated database. App Store Connect upload was rejected by the external-action approval gate pending explicit upload authorization. Real-device APNs, camera/scanner, unstable-network, and accessibility checks remain open.
-- Proof artifacts: `/private/tmp/Wisconsin-19.xcarchive`; `/private/tmp/Wisconsin-19-export/Wisconsin Creative.ipa`; SHA-256 `8e504752c234903eeb016aadeaebf6819f8764cdbd6eb480175ce725e7907feb`.
-- Next slice or stop: restore Vercel team access and explicitly authorize the build 19 App Store Connect upload; then wire review DNS/env, migrate, seed, smoke, and complete hardware acceptance.
+- Verified: Neon table inventory returned empty for the new project. Focused seed/routing tests pass, the seed script parses, and a guarded seed attempt without a password refuses before connecting. Build 20 passes project drift, iOS drift, 49/49 audit coverage, 11 focused launch tests, simulator build, signed Release archive, App Store export, TypeScript, codemap/docs, migration-prefix, and whitespace gates. The Next.js production compiler succeeds; the local runner twice ended during its post-compile lint/type phase, so the full `build:app` gate remains unproven for Build 20. The privacy slice now has a source-grounded data/SDK inventory, a reconciled native manifest and App Store Connect table, an updated public policy, plist validation, and a regression contract for declared versus unsupported native data categories.
+- Deferred: Final App Store metadata/screenshots and hardware acceptance remain separate launch slices.
+- Blocked: App Store Connect upload still requires explicit authorization. Real-device APNs, camera/scanner, unstable-network, accessibility, live App Store Connect privacy-answer entry, and final screenshot/metadata checks remain open. The Review deployment/data-isolation blocker is closed.
+- Proof artifacts: `/private/tmp/Wisconsin-20.xcarchive`; `/private/tmp/Wisconsin-20-export/Wisconsin Creative.ipa`; SHA-256 `1ecb556ac68658ab85d064bb59838ea26ec7da0b6b02aa83dd1457a9c09f6c47`.
+- Next slice or stop: capture the final fictional screenshot set and complete real-device acceptance against the live isolated Review environment; then request explicit authorization before uploading the exact verified candidate.

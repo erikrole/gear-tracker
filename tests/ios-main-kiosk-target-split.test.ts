@@ -27,17 +27,17 @@ describe("iOS main app and kiosk target split", () => {
   it("does not expose kiosk launch routes from the main app shell or Settings", () => {
     const app = source("ios/Wisconsin/App/WisconsinApp.swift");
     const delegate = source("ios/Wisconsin/App/AppDelegate.swift");
-    const profile = source("ios/Wisconsin/Views/ProfileView.swift");
+    const settings = source("ios/Wisconsin/Views/SettingsView.swift");
 
     expect(app).not.toContain("KioskStore");
     expect(app).not.toContain("KioskShellView");
     expect(app).not.toContain('url.host == "kiosk"');
     expect(app).toContain('url.host == "booking"');
 
-    expect(profile).not.toContain("KioskStore");
-    expect(profile).not.toContain("Kiosk Mode");
-    expect(profile).not.toContain("enterKiosk");
-    expect(profile).toContain("Scanner Debugger");
+    expect(settings).not.toContain("KioskStore");
+    expect(settings).not.toContain("Kiosk Mode");
+    expect(settings).not.toContain("enterKiosk");
+    expect(settings).toContain("Scanner Debugger");
 
     expect(delegate).not.toContain("sharedKioskStore");
     expect(delegate).toContain("return .all");

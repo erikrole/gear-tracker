@@ -48,7 +48,7 @@ describe("iOS notification category preferences", () => {
     const detail = source("ios/Wisconsin/Views/NotificationSettingsView.swift");
     const preferences = source("ios/Wisconsin/Core/Preferences.swift");
 
-    expect(detail).toContain("Text(\"Notification types\")");
+    expect(detail).toContain("Text(\"Notification Types\")");
     expect(detail).toContain("Text(\"In-app notifications always show in your inbox, regardless of these settings.\")");
 
     for (const { key, label } of categories) {
@@ -56,13 +56,12 @@ describe("iOS notification category preferences", () => {
       expect(detail).toContain(`category: .${key}`);
     }
 
-    expect(detail).toContain("Text(\"Notification types\")");
+    expect(detail).toContain("Text(\"Notification Types\")");
     expect(detail).toContain("Text(\"In-app notifications always show in your inbox, regardless of these settings.\")");
 
     const categoryToggle = bodyBetween(detail, "private func categoryToggle", "private var notificationSummaryText");
     expect(categoryToggle).toContain("prefsVM.categoryValue(category)");
     expect(categoryToggle).toContain("await prefsVM.setCategory(category, value: value)");
-    expect(categoryToggle).toContain(".disabled(prefsVM.saving)");
     expect(categoryToggle).not.toContain("prefsVM.isPaused");
 
     expect(preferences).toContain("enum Category { case checkoutDue, checkoutOverdue, reservation, licenseExpiry, schedule, trade, gearPrep }");

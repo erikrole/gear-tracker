@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Settings
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-10
+- Last Updated: 2026-07-11
 - Status: Active
 - Version: V1
 
@@ -193,6 +193,11 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages. Role-gated Settings sibling menus now wait for the current role before becoming dropdowns, so the loading frame does not expose an empty menu. The global breadcrumb UI now uses a lighter trail treatment with the current Settings sub-page marked by a subtle underline instead of a filled chip.
 
 ## Change Log
+- 2026-07-11: **App Review legal and deletion controls.** Native Settings now provides first-level Privacy Policy and Contact Support links. Account & Security includes a password-reauthenticated, double-confirmed Delete Account flow backed by the existing user-deactivation service. Open custody blocks deletion; successful deletion cancels future work, revokes all sessions, removes access, and preserves required historical custody/audit records.
+- 2026-07-11: **Manually finalized native icons resynced.** The app target now uses exact full-directory copies of the five latest Icon Composer documents, and the App Icon picker previews were regenerated from the artwork each document currently references. This supersedes earlier programmatic icon-package adjustments while preserving the same Motion W, Heritage, Bucky, Helmet, and Metallic selection names.
+- 2026-07-11: **Native icon appearance correction.** The primary Motion W now has separate light and dark artwork/background annotations inside one Icon Composer document, the Heritage safe area is corrected, and primary/Heritage group shadows are strengthened for internal material depth. The App Icon picker names and switching contract are unchanged.
+- 2026-07-11: **Native app-icon picker preview cleanup.** The iOS App Icon page now renders previews from the finalized Wisconsin artwork rather than generic symbols, and each option is a compact single-line name without explanatory subcopy. Selection, error, and UIKit switching behavior are unchanged.
+- 2026-07-11: **Native iOS app-icon personalization.** Wisconsin Settings now includes an App Icon page with the primary Motion W plus Heritage, Bucky, Helmet, and Metallic W alternates. The picker reads `UIApplication.alternateIconName` as system truth, uses the four generated alternate names from Xcode's asset compiler setting, passes `nil` to restore the primary icon, disables duplicate requests during the UIKit handoff, and reports unsupported-device or system failures. This is an on-device native preference; it does not alter web Appearance settings or the dedicated kiosk icon.
 - 2026-07-10: **Sweeping Settings shell and trust pass.** Removed the nested per-page intro rail so every form, table, and diagnostic surface gets the full content column beside the shared desktop navigation. Replaced the 19-destination mobile scroller with a grouped page picker, simplified the overview by removing redundant role/count badges, and renamed implementation-shaped destinations to intent-first labels while preserving every URL and role gate. Booking extensions now distinguishes load failure from an intentionally empty preset list and removes the false drag affordance; notification pause/resume success waits for persistence; Appearance copy reflects immediate local application; and Database diagnostics is labeled as a bounded baseline rather than complete schema-health proof.
 - 2026-07-10: **Allowed Emails operational status rail.** Pending registration access now leads through the shared compact rail, while total, pending, and claimed allowlist counts remain pressed-state-aware filters under Details.
 - 2026-07-10: **Settings direct-route role gating.** The shared Settings layout now checks the canonical `SETTINGS_SECTIONS` role matrix before mounting child controls, keeps Personal settings available to every authenticated role, and gives forbidden or unknown routes a clear recovery path.

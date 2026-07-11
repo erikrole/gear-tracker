@@ -2,7 +2,7 @@
 
 Drafted: 2026-07-08. Paste-ready copy for the `Wisconsin` app's first Unlisted App Store submission. Kiosk (`WisconsinKiosk`) stays off the Store entirely — this content is for the main app only.
 
-Sources used: `docs/AREA_PUBLIC_SHOWROOM.md`, `src/lib/public-showroom.ts`, `ios/Wisconsin/Supporting/PrivacyInfo.xcprivacy`, `scripts/seed-app-review-demo.mjs`, `ios/project.yml`.
+Sources used: `docs/AREA_PUBLIC_SHOWROOM.md`, `src/lib/public-showroom.ts`, `tasks/app-privacy-data-inventory.md`, `ios/Wisconsin/Supporting/PrivacyInfo.xcprivacy`, `scripts/seed-app-review-demo.mjs`, `ios/project.yml`.
 
 ---
 
@@ -141,7 +141,7 @@ This build focuses on release hardening ahead of the first App Store submission:
 
 ## Privacy Nutrition Label (App Privacy section in Connect)
 
-Derived directly from `ios/Wisconsin/Supporting/PrivacyInfo.xcprivacy` — every category below is already declared there with `NSPrivacyTracking: false` and no tracking domains, so answer "No" to "Do you use data to track users."
+Reconciled against `tasks/app-privacy-data-inventory.md`, the native project/dependencies, API/server diagnostics, schema, public privacy policy, and `ios/Wisconsin/Supporting/PrivacyInfo.xcprivacy`. Answer "No" to "Do you use data to track users."
 
 | Data type | Linked to user | Used for | Notes |
 |---|---|---|---|
@@ -150,17 +150,26 @@ Derived directly from `ios/Wisconsin/Supporting/PrivacyInfo.xcprivacy` — every
 | Phone Number | Yes | App Functionality | Contact/roster field |
 | User ID | Yes | App Functionality | Account identity |
 | Device ID | Yes | App Functionality | Push notification targeting |
-| Product Interaction | Yes | App Functionality, Analytics | In-app usage |
 | Other Usage Data | Yes | App Functionality | Operational records (reservations, scans) |
-| Crash Data | Yes | App Functionality, Analytics | Stability |
-| Performance Data | Yes | App Functionality, Analytics | Stability |
-| Other Diagnostic Data | Yes | App Functionality, Analytics | Stability |
+| Other Diagnostic Data | Yes | App Functionality | Authenticated API/server reliability and security diagnostics |
 
-No location, contacts, browsing history, financial info, health, or advertising data is collected. No third-party tracking or data-broker sharing.
+No native crash-reporting, session-replay, performance-upload, or generic product-interaction analytics SDK is embedded in the iOS target. No location, contacts, browsing history, financial info, health, advertising data, third-party tracking, or data-broker sharing applies to this build.
 
 ---
 
 ## Pre-Submission Checklist Pointer
+
+### Guideline audit gates
+
+- [ ] Guideline 2.1: isolated demo login, live review backend, fictional dataset, and a sample QR/code are verified for the full review path.
+- [ ] Guideline 2.3: screenshots and metadata are captured from the exact candidate and contain no real-person data.
+- [ ] Guideline 4.2: screenshots and Review notes visibly demonstrate the app's native reservations, schedule, search/scan, notifications, and operational utility.
+- [x] Guideline 5.1.1(i): the privacy policy is reachable inside the native app, not only through App Store Connect metadata.
+- [x] Guideline 5.1.1(v): account deletion is available in the native app with password reauthentication and explicit destructive confirmation.
+- [x] Guideline 5.1.1: the privacy nutrition label, privacy manifest, privacy policy, permission prompts, SDK inventory, retention/deletion behavior, and actual server data flows agree in source. Recheck against live App Store Connect answers before submission.
+- [ ] Guideline 4.8: confirm the submitted build uses only first-party education/business credentials. If any third-party/social primary login is added, reassess the equivalent-login requirement before submission.
+
+Do not treat the current privacy-label table below as final until the data-flow inventory is complete. The checked-in privacy manifest does not by itself prove every App Store Connect answer.
 
 Code-side readiness, domain cutover verification, and Snow Leopard hardening are tracked in:
 - `tasks/todo.md` → "Active: Unlisted iOS App Store launch readiness"
