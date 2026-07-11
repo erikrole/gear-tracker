@@ -169,7 +169,7 @@ export function WizardStep3({
         >
           <AlertCircleIcon />
           <AlertTitle>{availabilityReview.title}</AlertTitle>
-          <AlertDescription className="space-y-2">
+          <AlertDescription className="flex flex-col gap-2">
             <p>{availabilityReview.description}</p>
             <div className="flex flex-wrap gap-1.5">
               {selectionState.conflictCount > 0 && (

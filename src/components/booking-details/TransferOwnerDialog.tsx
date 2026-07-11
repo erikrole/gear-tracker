@@ -165,7 +165,7 @@ export function TransferOwnerDialog({
             <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md bg-muted">
               <UserRoundPen className="size-4 text-muted-foreground" />
             </div>
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <DialogTitle>Transfer owner</DialogTitle>
               <DialogDescription>
                 Changes the booking requester while keeping the original creator and activity history intact.
@@ -173,7 +173,7 @@ export function TransferOwnerDialog({
             </div>
           </div>
         </DialogHeader>
-        <DialogBody className="space-y-4">
+        <DialogBody className="flex flex-col gap-4">
           <div className="flex items-center gap-3 rounded-md border bg-muted/30 p-3">
             <UserAvatar
               name={booking.requester.name}
@@ -208,7 +208,7 @@ export function TransferOwnerDialog({
             </Alert>
           )}
 
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <Label htmlFor="booking-transfer-owner">New owner</Label>
             <Combobox
               id="booking-transfer-owner"
@@ -234,7 +234,7 @@ export function TransferOwnerDialog({
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <Label htmlFor="booking-transfer-reason">Note</Label>
             <Textarea
               id="booking-transfer-reason"

@@ -184,7 +184,7 @@ export function CallWindowEditor({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       <PopoverContent className="w-72 p-3" align="start" onClick={(event) => event.stopPropagation()}>
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           <div>
             <p className="text-sm font-semibold capitalize">{targetLabel(target)}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">

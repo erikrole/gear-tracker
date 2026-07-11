@@ -124,7 +124,7 @@ export function InlineDateField({
             defaultMonth={pendingDate}
             disabled={minDateObj ? (d) => d < new Date(minDateObj.getTime() - 86400000) : undefined}
           />
-          <div className="border-t px-3 py-2 space-y-2">
+          <div className="border-t px-3 py-2 flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <CalendarIcon className="size-4 text-muted-foreground shrink-0" />
 	              <NativeSelect

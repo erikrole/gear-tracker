@@ -142,7 +142,7 @@ export function UserAvatarPicker({
         <p className="text-xs text-muted-foreground p-2">Loading users...</p>
       ) : loadError ? (
         <Alert variant="destructive" className="p-3">
-          <AlertDescription className="space-y-2 text-xs">
+          <AlertDescription className="flex flex-col gap-2 text-xs">
             <span className="block">
               {loadError === "network"
                 ? "Could not reach the server. Retry before assigning this slot."
@@ -167,9 +167,9 @@ export function UserAvatarPicker({
         </p>
       ) : (
         <ScrollArea className="max-h-52">
-          <div className="space-y-2 pr-2">
+          <div className="flex flex-col gap-2 pr-2">
             {groupedUsers.map((group) => (
-              <div key={group.key} className="space-y-1">
+              <div key={group.key} className="flex flex-col gap-1">
                 {group.label && (
                   <div className="flex items-center justify-between px-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                     <span>{group.label}</span>

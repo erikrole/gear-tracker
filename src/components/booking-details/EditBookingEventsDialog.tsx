@@ -234,7 +234,7 @@ export function EditBookingEventsDialog({
             <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md bg-muted">
               <CalendarDays className="size-4 text-muted-foreground" />
             </div>
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <DialogTitle>Linked events</DialogTitle>
               <DialogDescription>
                 Link this booking to up to 3 scheduled events. The gear window and custody state stay unchanged.
@@ -242,7 +242,7 @@ export function EditBookingEventsDialog({
             </div>
           </div>
         </DialogHeader>
-        <DialogBody className="space-y-4">
+        <DialogBody className="flex flex-col gap-4">
           {eventsError && (
             <Alert variant="destructive">
               <AlertDescription>Events could not load. Current links are still available below.</AlertDescription>

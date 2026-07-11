@@ -699,7 +699,7 @@ export default function ShiftDetailPanel({
             Anyone on the crew can claim your shift. The first valid claim takes the assignment.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-2 py-1">
+        <div className="flex flex-col gap-2 py-1">
           {tradeError && (
             <Alert variant="destructive">
               <AlertDescription>{tradeError}</AlertDescription>
@@ -745,7 +745,7 @@ export default function ShiftDetailPanel({
           </DialogDescription>
         </DialogHeader>
         {autoFillPreview && (
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             <div className="grid grid-cols-3 gap-2 text-sm">
               <div className="rounded-lg bg-muted/50 p-3">
                 <div className="text-xs text-muted-foreground">Open slots</div>
@@ -760,7 +760,7 @@ export default function ShiftDetailPanel({
                 <div className="text-lg font-semibold tabular-nums">{autoFillPreview.summary.warnings}</div>
               </div>
             </div>
-            <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
+            <div className="max-h-80 flex flex-col gap-2 overflow-y-auto pr-1">
               {autoFillPreview.proposals.map((proposal) => (
                 <div key={proposal.shiftId} className="rounded-lg border border-border/60 p-3">
                   <div className="flex items-start justify-between gap-3">
@@ -786,7 +786,7 @@ export default function ShiftDetailPanel({
                   </div>
                   <div className="text-xs text-muted-foreground">{slot.reason}</div>
                   {slot.reasonDetails.length > 0 && (
-                    <ul className="mt-1 list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
+                    <ul className="mt-1 list-disc flex flex-col gap-0.5 pl-4 text-xs text-muted-foreground">
                       {slot.reasonDetails.map((detail) => (
                         <li key={detail}>{detail}</li>
                       ))}

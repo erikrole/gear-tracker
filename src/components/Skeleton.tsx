@@ -8,7 +8,7 @@ export function SkeletonRow() {
   return (
     <div className="flex items-center gap-3 px-4 py-3">
       <Skeleton className="size-8 rounded-full shrink-0" />
-      <div className="flex-1 space-y-2">
+      <div className="flex-1 flex flex-col gap-2">
         <Skeleton className="h-3.5 w-[60%]" />
         <Skeleton className="h-3 w-[40%]" />
       </div>
@@ -26,7 +26,7 @@ export function SkeletonCard({ rows = 3 }: { rows?: number }) {
       <CardContent className="p-0 py-1">
         {Array.from({ length: rows }, (_, i) => (
           <div key={i} className="flex items-center gap-3 px-4 py-3">
-            <div className="flex-1 space-y-2">
+            <div className="flex-1 flex flex-col gap-2">
               <Skeleton className="h-3.5" style={{ width: `${70 - i * 10}%` }} />
               <Skeleton className="h-3" style={{ width: `${45 - i * 5}%` }} />
             </div>

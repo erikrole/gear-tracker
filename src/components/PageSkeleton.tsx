@@ -32,7 +32,7 @@ export function PageSkeleton({
         <CardHeader>
           <Skeleton className="h-5 w-28" />
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="flex flex-col gap-3">
           {Array.from({ length: rows }, (_, i) => (
             <div key={i} className="flex items-center gap-3">
               <Skeleton className="h-4 flex-1" style={{ maxWidth: `${60 + (i % 3) * 12}%` }} />
@@ -49,11 +49,11 @@ export function PageSkeleton({
 export function ListSkeleton({ rows = 8 }: { rows?: number }) {
   return (
     <Card>
-      <CardContent className="py-4 space-y-3">
+      <CardContent className="py-4 flex flex-col gap-3">
         {Array.from({ length: rows }, (_, i) => (
           <div key={i} className="flex items-center gap-3">
             <Skeleton className="size-9 rounded-md" />
-            <div className="flex-1 space-y-1.5">
+            <div className="flex-1 flex flex-col gap-1.5">
               <Skeleton className="h-4" style={{ width: `${50 + (i % 3) * 15}%` }} />
               <Skeleton className="h-3" style={{ width: `${30 + (i % 2) * 10}%` }} />
             </div>

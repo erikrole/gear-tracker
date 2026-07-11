@@ -1234,7 +1234,7 @@ function TimelineEntry({
         {/* Raw entry details — the API already sends this JSON to the client,
             so revealing it adds no exposure. */}
         {expanded && (
-          <div className="mt-2 space-y-2 rounded-md border border-border/40 bg-muted/40 p-2.5 text-xs">
+          <div className="mt-2 flex flex-col gap-2 rounded-md border border-border/40 bg-muted/40 p-2.5 text-xs">
             <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
               <span className="text-muted-foreground">When</span>
               <span className="tabular-nums">{formatDateTime(entry.createdAt)}</span>
