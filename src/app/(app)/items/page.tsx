@@ -685,7 +685,7 @@ export default function ItemsPage() {
       )}
 
       {recoveryMode === "partial" && (
-        <div className="mb-4 space-y-2">
+        <div className="mb-4 flex flex-col gap-2">
           <OperationalPartialResultsAlert
             failures={unavailableReferenceGroups}
             failureLabel="Unavailable item controls"
@@ -751,7 +751,7 @@ export default function ItemsPage() {
       />
 
       <div className="flex flex-col gap-4">
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
         {/* Toolbar stays mounted across loading/empty/error states so the
             search input never loses focus while results update. */}
         <div className="flex items-stretch">

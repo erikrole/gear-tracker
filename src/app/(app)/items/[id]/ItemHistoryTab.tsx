@@ -111,7 +111,7 @@ export default function ActivityFeed({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       {!endpoint && (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <ToggleGroup

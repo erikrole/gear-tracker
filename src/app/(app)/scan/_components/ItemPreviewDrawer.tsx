@@ -116,7 +116,7 @@ export function ItemPreviewDrawer({ item, onClose }: ItemPreviewDrawerProps) {
 
             <div className="px-4 pb-2">
               {item.itemFamily ? (
-                <div className="space-y-3">
+                <div className="flex flex-col gap-3">
                   {item.scannedUnit ? (
                     <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
                       <div className="flex items-start justify-between gap-3">

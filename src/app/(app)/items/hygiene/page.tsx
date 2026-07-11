@@ -285,7 +285,7 @@ export default function InventoryHygienePage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="flex flex-col gap-5">
       <PageHeader title="Inventory Hygiene">
         <div className="flex flex-wrap items-center justify-end gap-2">
           {checklistHealth && (
@@ -381,7 +381,7 @@ export default function InventoryHygienePage() {
 
 function InventoryHygieneSkeleton() {
   return (
-    <div className="space-y-5">
+    <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between gap-3">
         <Skeleton className="h-9 w-72" />
         <Skeleton className="h-8 w-28" />
@@ -432,7 +432,7 @@ function QueueSummary({
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col gap-4">
           {topIssue && topMeta ? (
             <>
               <p className="max-w-3xl text-sm text-muted-foreground text-pretty">{topIssue.description}</p>
@@ -486,7 +486,7 @@ function QueueSummary({
             )}
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="flex flex-col gap-3">
           <Progress value={completion} />
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="rounded-md bg-muted/40 p-3">
@@ -596,7 +596,7 @@ function IssueCard({ issue }: { issue: HygieneIssue }) {
             {meta.cleanLabel}
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             {issue.samples.map((sample) => (
               <Link
                 key={`${issue.key}-${sample.id}`}

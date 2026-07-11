@@ -267,7 +267,7 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
                   if (!sku) return null;
                   const qty = sku.balances.reduce((sum, b) => sum + b.onHandQuantity, 0);
                   return (
-                    <div className="rounded-md border bg-muted/30 px-4 py-3 space-y-1 text-sm">
+                    <div className="rounded-md border bg-muted/30 px-4 py-3 flex flex-col gap-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Current stock</span>
                         <span className="font-medium">{qty}</span>

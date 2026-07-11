@@ -308,12 +308,12 @@ export default function LabelsPage() {
 
         {loading ? (
           <CardContent className="p-0">
-            <div className="space-y-1 p-3">
+            <div className="flex flex-col gap-1 p-3">
               {Array.from({ length: 5 }, (_, i) => (
                 <div key={i} className="flex items-center gap-3 rounded-md px-2 py-3">
                   <Skeleton className="size-5 rounded" />
                   <Skeleton className="size-9 rounded-sm" />
-                  <div className="flex-1 space-y-2">
+                  <div className="flex-1 flex flex-col gap-2">
                     <Skeleton className="h-4 w-48" />
                     <Skeleton className="h-3 w-72 max-w-full" />
                   </div>

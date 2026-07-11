@@ -739,7 +739,7 @@ function FirmwareWatchPanel({
                 </DialogDescription>
               </div>
             </DialogHeader>
-            <DialogBody className="space-y-4 py-4">
+            <DialogBody className="flex flex-col gap-4 py-4">
               <div className="rounded-md bg-muted/25 p-4 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -799,7 +799,7 @@ function FirmwareWatchPanel({
                 </dl>
               </div>
               {canEdit && (
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                   <label htmlFor="installed-firmware-version" className="text-sm font-medium">
                     Installed firmware version
                   </label>

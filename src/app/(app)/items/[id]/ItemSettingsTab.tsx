@@ -297,7 +297,7 @@ export function AccessoriesSection({
   }
 
   return (
-    <div className="mt-3.5 max-w-4xl space-y-3">
+    <div className="mt-3.5 max-w-4xl flex flex-col gap-3">
       <Card className="border-border/40 shadow-none">
         <CardHeader className="flex-row items-start justify-between gap-3">
           <div className="min-w-0">
@@ -329,9 +329,9 @@ export function AccessoriesSection({
           )}
 
           {attachments.length > 0 && (
-            <div className="space-y-5">
+            <div className="flex flex-col gap-5">
               {attachmentGroups.map((group) => (
-                <section key={group.key} className="space-y-2">
+                <section key={group.key} className="flex flex-col gap-2">
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-semibold">{group.label}</h3>
                     <Badge variant={group.key === "sd-card" ? "blue" : group.key === "camera-rig" ? "purple" : "gray"} size="sm">
@@ -444,7 +444,7 @@ function AttachmentPickerDialog({
             <DialogDescription>{description}</DialogDescription>
           </div>
         </DialogHeader>
-        <DialogBody className="space-y-3 py-0">
+        <DialogBody className="flex flex-col gap-3 py-0">
           <div className="relative">
             <Input
               type="text"

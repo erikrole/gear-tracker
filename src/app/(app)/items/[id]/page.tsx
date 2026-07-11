@@ -158,7 +158,7 @@ function SerializedItemDetailsPage({ id }: { id: string }) {
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
           <div className="flex gap-4 items-center">
             <Skeleton className="size-[80px] rounded-lg shrink-0" />
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Skeleton className="h-8 w-48" />
               <Skeleton className="h-4 w-32" />
             </div>
@@ -182,7 +182,7 @@ function SerializedItemDetailsPage({ id }: { id: string }) {
             <CardHeader>
               <Skeleton className="h-6 w-40" />
             </CardHeader>
-            <div className="space-y-0">
+            <div className="flex flex-col gap-0">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div
                   key={i}
@@ -194,12 +194,12 @@ function SerializedItemDetailsPage({ id }: { id: string }) {
               ))}
             </div>
           </Card>
-          <div className="space-y-5">
+          <div className="flex flex-col gap-5">
             <Card>
               <CardHeader>
                 <Skeleton className="h-6 w-32" />
               </CardHeader>
-              <CardContent className="p-4 pt-0 space-y-3">
+              <CardContent className="p-4 pt-0 flex flex-col gap-3">
                 <Skeleton className="h-16 w-full" />
               </CardContent>
             </Card>
@@ -207,7 +207,7 @@ function SerializedItemDetailsPage({ id }: { id: string }) {
               <CardHeader>
                 <Skeleton className="h-6 w-40" />
               </CardHeader>
-              <CardContent className="p-4 pt-0 space-y-3">
+              <CardContent className="p-4 pt-0 flex flex-col gap-3">
                 <Skeleton className="h-12 w-full" />
                 <Skeleton className="h-12 w-full" />
               </CardContent>

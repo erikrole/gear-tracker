@@ -408,11 +408,11 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
           description="Use these fields when purchase or warranty details are already known."
         >
           <FormRow2Col label="Purchase">
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="new-item-purchase-date" className="text-xs text-muted-foreground">Date</Label>
               <Input id="new-item-purchase-date" name="purchaseDate" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} type="date" autoComplete="off" />
             </div>
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="new-item-purchase-price" className="text-xs text-muted-foreground">Price (USD)</Label>
               <div className="flex rounded-md border border-input bg-background shadow-xs transition-[color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
                 <span className="flex items-center border-r px-3 text-sm text-muted-foreground">$</span>
@@ -433,11 +433,11 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
           </FormRow2Col>
 
           <FormRow2Col label="Warranty">
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="new-item-warranty-date" className="text-xs text-muted-foreground">Date</Label>
               <Input id="new-item-warranty-date" name="warrantyDate" value={warrantyDate} onChange={(e) => setWarrantyDate(e.target.value)} type="date" autoComplete="off" />
             </div>
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="new-item-residual-value" className="text-xs text-muted-foreground">Residual value</Label>
               <Input id="new-item-residual-value" name="residualValue" value={residualValue} onChange={(e) => setResidualValue(e.target.value)} type="number" min="0" step="0.01" placeholder="0" autoComplete="off" />
             </div>
@@ -468,7 +468,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
           description="Upload a product photo now, or add search and URL images after the item is created."
         >
           <FormRow label="Photo upload" htmlFor="new-item-photo">
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               <Input
                 id="new-item-photo"
                 ref={photoInputRef}
@@ -531,7 +531,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
           badgeVariant="gray"
           description="These toggles control future workflow eligibility, not current status."
         >
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             {/* Attachment toggle */}
             <div className="flex items-center justify-between gap-1">
               <div>
@@ -561,7 +561,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
 
             {/* Parent asset search */}
             {isAccessory && (
-              <div className="pl-0 space-y-2">
+              <div className="pl-0 flex flex-col gap-2">
                 {parentAsset ? (
                   <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 text-sm">
                     <span className="flex-1 truncate">
@@ -623,7 +623,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
 
             {/* Booking availability — three independent toggles matching detail page */}
             {!isAccessory && (
-              <div className="space-y-3">
+              <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-1">
                   <div>
                     <Label htmlFor="new-item-available-for-reservation" className="text-sm font-medium">Available for reservation</Label>

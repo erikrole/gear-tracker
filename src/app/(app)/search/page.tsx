@@ -305,7 +305,7 @@ export default function SearchPage() {
               <Card>
                 {Array.from({ length: 3 }).map((_, j) => (
                   <div key={j} className={`flex items-center justify-between gap-3 py-3 px-4 ${j < 2 ? "border-b border-border" : ""}`}>
-                    <div className="flex-1 space-y-2">
+                    <div className="flex-1 flex flex-col gap-2">
                       <Skeleton className="h-4 w-[60%]" />
                       <Skeleton className="h-3 w-[35%]" />
                     </div>

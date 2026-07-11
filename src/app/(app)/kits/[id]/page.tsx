@@ -551,7 +551,7 @@ export default function KitDetailPage() {
 
         {/* Members Card */}
         <Card className="min-w-0">
-          <CardHeader className="flex-row items-center justify-between space-y-0">
+          <CardHeader className="flex-row items-center justify-between flex flex-col gap-0">
             <CardTitle className="text-base">
               Equipment ({kit.members.length} item{kit.members.length !== 1 ? "s" : ""})
             </CardTitle>

@@ -670,7 +670,7 @@ export function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; on
           </div>
           <Button variant="ghost" size="sm" onClick={goToday}>Today</Button>
         </CardHeader>
-        <CardContent className="space-y-4 p-4">
+        <CardContent className="flex flex-col gap-4 p-4">
           <div className="overflow-hidden rounded-md border border-border/40 md:block max-md:hidden">
             <div className="grid grid-cols-7 gap-px bg-border">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (

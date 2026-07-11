@@ -194,7 +194,7 @@ export default function ItemInsightsTab({ assetId }: { assetId: string }) {
   const onTimeRate = onTimeTotal > 0 ? Math.round((stats.punctuality.onTime / onTimeTotal) * 100) : null;
 
   return (
-    <div className="mt-3.5 space-y-3">
+    <div className="mt-3.5 flex flex-col gap-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-base font-semibold">Usage Insights</h2>
@@ -262,7 +262,7 @@ export default function ItemInsightsTab({ assetId }: { assetId: string }) {
                   <CardDescription>Signals worth checking before buying, retiring, or restricting this item.</CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="flex flex-col gap-2">
                 <div className="flex items-center justify-between rounded-md bg-muted/40 px-3 py-2">
                   <span className="text-sm text-muted-foreground">Idle streak</span>
                   <span className="text-sm font-medium tabular-nums">{stats.idleStreakDays != null ? `${stats.idleStreakDays}d` : "--"}</span>
