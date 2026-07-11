@@ -101,7 +101,7 @@ clicks or surface the right info at the right time.
 
 ### Components Used
 - shadcn: `Card`, `Table`, `Badge`, `Button`, `Sheet`, `Avatar`, `Skeleton`, `Switch`, `ToggleGroup`, `Tooltip`, `Popover`, `Alert`
-- Custom: `FilterChip`, `PageHeader`, `DataList`, `EmptyState`, `SkeletonTable`
+- Custom: `FilterChip`, `PageHeader`, `EmptyState`, `SkeletonTable`
 - Dynamic: `ShiftDetailPanel`, `TradeBoard`
 
 ### V1.5 Enhancements (Shipped 2026-04-03/04)

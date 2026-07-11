@@ -8,6 +8,7 @@ node_modules/
 tsconfig.tsbuildinfo
 tmp/
 .tmp/
+ios/~ai-*.tmp
 .reports/
 .DS_Store
 .claude/

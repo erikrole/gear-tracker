@@ -12,7 +12,7 @@ A full-page month matrix at `/schedule/assign` where staff can see and manage al
 
 ## Page Design
 
-- URL: `/schedule/assign?month=YYYY-MM&sport=&area=`  
+- URL: `/schedule/assign?month=YYYY-MM&sport=&area=`
 - Route: `src/app/(app)/schedule/assign/page.tsx`
 - Access: staff/admin only (redirect students back to `/schedule`)
 - Month navigation: ← prev / current month label / next →
@@ -41,7 +41,7 @@ Columns derived from shifts that exist in the loaded month. Typically: VIDEO-FT,
 - [x] `src/app/(app)/schedule/assign/page.tsx` — page shell with month nav, sport/area filters, renders grid
 - [x] "Assign shifts" button on Schedule page header (staff only) → links to `/schedule/assign`
 
-### Slice 2 — Grid + Cell components ✅  
+### Slice 2 — Grid + Cell components ✅
 - [x] `src/app/(app)/schedule/assign/_components/AssignmentGrid.tsx` — renders table from hook data
 - [x] `src/app/(app)/schedule/assign/_components/AssignmentCell.tsx` — avatar stack, "+" popover, remove on click
 - [x] Reuse `UserAvatarPicker` from `@/components/shift-detail/UserAvatarPicker`

@@ -26,6 +26,7 @@ export default defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "src/app/.well-known/**",
     "docs/**",
     "tasks/**",
     "plans/**",

@@ -47,7 +47,6 @@ BookingDetailsSheet is a unified side-panel (Sheet) for viewing and editing both
 7. **No asset thumbnails** — imageUrl exists in schema but not shown in picker
 8. **No stale-data detection** — tab backgrounded for 30 min, user interacts with stale data
 9. **Audit log not paginated** — bookings with 1000+ entries will be slow
-10. **DataList is custom** — not using shadcn patterns
 
 ### Schema Fields Not Yet Surfaced
 - `sourceReservationId` — link back to original reservation (for converted checkouts)

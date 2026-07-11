@@ -395,6 +395,7 @@
 
 ### `/api/me`
 
+- `/api/me/account`
 - `/api/me/change-password`
 - `/api/me/notification-preferences`
 - `/api/me/profile`

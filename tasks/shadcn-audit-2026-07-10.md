@@ -19,8 +19,9 @@ ternary classNames.
   `Badge variant="orange"` (expiring = warning per COLOR_SYSTEM.md); row tints and
   own-claim ring moved to `--green-bg`/`--blue-bg`/`--blue` tokens (dark mode now free).
   Contract test updated to assert the token form.
-- [x] `import/_components/SummaryCard.tsx`: variant map moved to tokens; template-literal
-  className replaced with `cn()`.
+- [x] Import summary metric cards in `ImportPreviewStep.tsx` and
+  `ImportResultStep.tsx`: variant maps use tokens and template-literal classNames
+  were replaced with `cn()`.
 - [x] `w-N h-N` -> `size-N` in 9 files (kits, dashboard skeleton, user/booking filters,
   FilterChip, and the four auth forms).
 

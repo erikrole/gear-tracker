@@ -1,6 +1,6 @@
 # Tasks Index
 
-Last updated: 2026-06-22
+Last updated: 2026-07-11
 
 ## Start Here
 
@@ -27,10 +27,10 @@ Move completed plan files to `tasks/archive/completed-2026-06/` instead of leavi
 
 As of this cleanup pass, root `tasks/` contains:
 
-- 160 root files.
-- 42 root `*-plan.md` files.
-- 79 root audit files.
-- 14 roadmap files.
+- 195 root files.
+- 55 root `*-plan.md` files.
+- 85 root audit files.
+- 19 roadmap/reference files.
 - 5 follow-up files.
 
 Audit files intentionally remain at root for now because the repo audit skills read and write `tasks/audit-*.md` paths directly.
@@ -44,6 +44,7 @@ Audit files intentionally remain at root for now because the repo audit skills r
 ## Archive Buckets
 
 - `tasks/archive/completed-2026-06/` - completed plans and queue cleanup summaries from the June cleanup run.
+- `tasks/archive/completed-2026-07/` - completed plans moved during the July 11 repository cleanup.
 - `tasks/archive/proofs/` - browser-smoke and screenshot proof artifacts.
 - `tasks/archive/` root - older archived plans that predate the dated completed bucket.
 
@@ -55,6 +56,8 @@ Audit files intentionally remain at root for now because the repo audit skills r
 - Keep references updated when moving a root plan into archive.
 
 ## Recently Archived
+
+- 46 completed plans from the root task folder - moved to `tasks/archive/completed-2026-07/` on 2026-07-11.
 
 - `operational-status-rail-page-migrations-plan.md` - completed migration of eight page-level operational summaries to the shared rail with deliberate analytics exclusions.
 - `items-status-rail-plan.md` - completed Items adoption of the shared operational status rail with pressed status facets under Details.

@@ -231,6 +231,7 @@
 - `/api/location-mappings` -> `src/app/api/location-mappings/route.ts`
 - `/api/locations/[id]` -> `src/app/api/locations/[id]/route.ts`
 - `/api/locations` -> `src/app/api/locations/route.ts`
+- `/api/me/account` -> `src/app/api/me/account/route.ts`
 - `/api/me/change-password` -> `src/app/api/me/change-password/route.ts`
 - `/api/me/notification-preferences` -> `src/app/api/me/notification-preferences/route.ts`
 - `/api/me/profile` -> `src/app/api/me/profile/route.ts`
