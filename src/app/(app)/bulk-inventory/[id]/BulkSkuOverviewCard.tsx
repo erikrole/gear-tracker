@@ -27,7 +27,7 @@ export function BulkSkuOverviewCard({ sku }: { sku: BulkSkuDetail }) {
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-semibold">Availability</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="flex flex-col gap-3">
         {/* Big count */}
         <div className="flex items-baseline gap-1.5">
           <span
@@ -43,7 +43,7 @@ export function BulkSkuOverviewCard({ sku }: { sku: BulkSkuDetail }) {
 
         {/* Unit breakdown */}
         {unitCounts && (
-          <div className="space-y-1.5 pt-1 border-t border-border/40">
+          <div className="flex flex-col gap-1.5 pt-1 border-t border-border/40">
             {(["available", "checkedOut", "lost", "retired"] as const).map((key) => {
               const count = unitCounts[key];
               if (count === 0) return null;

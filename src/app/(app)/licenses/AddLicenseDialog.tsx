@@ -77,7 +77,7 @@ export function AddLicenseDialog({ open, onOpenChange, onCreated }: Props) {
               <AlertDescription>{errorMessage}</AlertDescription>
             </Alert>
           )}
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="code">License code</Label>
             <Input
               id="code"
@@ -92,7 +92,7 @@ export function AddLicenseDialog({ open, onOpenChange, onCreated }: Props) {
               required
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="label">
               Label <span className="text-muted-foreground">(optional)</span>
             </Label>
@@ -105,7 +105,7 @@ export function AddLicenseDialog({ open, onOpenChange, onCreated }: Props) {
               maxLength={200}
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="accountEmail">
               Account email <span className="text-muted-foreground">(optional)</span>
             </Label>
@@ -119,7 +119,7 @@ export function AddLicenseDialog({ open, onOpenChange, onCreated }: Props) {
               autoComplete="email"
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="expiresAt">
               Annual expiry <span className="text-muted-foreground">(optional)</span>
             </Label>

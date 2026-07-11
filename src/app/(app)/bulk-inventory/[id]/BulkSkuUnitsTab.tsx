@@ -106,7 +106,7 @@ export default function BulkSkuUnitsTab({
   }
 
   return (
-    <div className="mt-3.5 space-y-4">
+    <div className="mt-3.5 flex flex-col gap-4">
       <Card>
         <CardHeader className="flex-row items-center justify-between">
           <div className="flex items-center gap-4 flex-wrap">

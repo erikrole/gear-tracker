@@ -67,7 +67,7 @@ export default function BulkSkuSettingsTab({
   }
 
   return (
-    <div className="mt-3.5 max-w-xl space-y-4">
+    <div className="mt-3.5 max-w-xl flex flex-col gap-4">
       {/* Archive toggle */}
       <Card>
         <CardHeader>
@@ -110,7 +110,7 @@ export default function BulkSkuSettingsTab({
               </Button>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               <p className="text-sm font-medium text-destructive">
                 Delete &ldquo;{sku.name}&rdquo;? This cannot be undone.
               </p>

@@ -53,16 +53,16 @@ export default function BulkSkuQrTab({
   }
 
   return (
-    <div className="mt-3.5 space-y-4 max-w-2xl">
+    <div className="mt-3.5 flex flex-col gap-4 max-w-2xl">
       {/* Item QR */}
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-semibold">Item QR</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col gap-4">
           <div className="flex items-start gap-6">
             <QrCodeImage value={sku.binQrCodeValue} size={160} />
-            <div className="flex-1 space-y-2">
+            <div className="flex-1 flex flex-col gap-2">
               <div>
                 <div className="text-xs text-muted-foreground mb-1">Value</div>
                 {editing ? (

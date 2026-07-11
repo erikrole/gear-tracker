@@ -124,7 +124,7 @@ export function BulkRenewDialog({ open, onOpenChange, codes, onRenewed }: Props)
             </div>
           </RadioGroup>
 
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="renew-expiry">New annual expiry</Label>
             <Input
               id="renew-expiry"

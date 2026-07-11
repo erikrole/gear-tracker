@@ -88,7 +88,7 @@ export function BulkAddSheet({ open, onOpenChange, onCreated }: Props) {
               <AlertDescription>{errorMessage}</AlertDescription>
             </Alert>
           )}
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="bulk-codes">License codes</Label>
             <Textarea
               id="bulk-codes"
@@ -104,7 +104,7 @@ export function BulkAddSheet({ open, onOpenChange, onCreated }: Props) {
               {codeCount} unique code{codeCount === 1 ? "" : "s"} ready to add
             </p>
           </div>
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="bulk-account">
               Shared account email <span className="text-muted-foreground">(optional)</span>
             </Label>
@@ -118,7 +118,7 @@ export function BulkAddSheet({ open, onOpenChange, onCreated }: Props) {
               autoComplete="email"
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="bulk-expiry">
               Shared expiry <span className="text-muted-foreground">(optional)</span>
             </Label>

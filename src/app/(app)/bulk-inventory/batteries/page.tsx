@@ -541,7 +541,7 @@ export default function BatteryCockpitPage() {
 
   if (loading && !data) {
     return (
-      <div className="space-y-5">
+      <div className="flex flex-col gap-5">
         <Skeleton className="h-9 w-64" />
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-lg" />)}
@@ -601,7 +601,7 @@ export default function BatteryCockpitPage() {
   ] : [];
 
   return (
-    <div className="space-y-5">
+    <div className="flex flex-col gap-5">
       <PageHeader title="Battery Ops">
         <Button variant="outline" size="sm" onClick={() => void load({ refresh: true })} disabled={refreshing}>
           <RefreshCw className={cn("size-3.5", refreshing && "animate-spin")} />
@@ -781,7 +781,7 @@ export default function BatteryCockpitPage() {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="flex flex-col gap-4">
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Tag className="size-3.5" />
                     <span className="tabular-nums">
@@ -868,11 +868,11 @@ export default function BatteryCockpitPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           {pendingAction && (
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               <div className="rounded-md bg-muted/40 px-3 py-2 text-sm">
                 {statusImpact(pendingAction)}
               </div>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="battery-status-reason">Reason</Label>
                 <Textarea
                   id="battery-status-reason"
@@ -913,9 +913,9 @@ export default function BatteryCockpitPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           {pendingAddUnits && (
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                   <Label htmlFor="battery-add-count">Units to add</Label>
                   <Input
                     id="battery-add-count"
@@ -936,7 +936,7 @@ export default function BatteryCockpitPage() {
                   </div>
                 </div>
               </div>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="battery-add-reason">Reason</Label>
                 <Textarea
                   id="battery-add-reason"
@@ -977,9 +977,9 @@ export default function BatteryCockpitPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           {pendingQuantityAdjustment && (
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                   <Label htmlFor="battery-quantity-delta">Quantity change</Label>
                   <Input
                     id="battery-quantity-delta"
@@ -999,7 +999,7 @@ export default function BatteryCockpitPage() {
                   </div>
                 </div>
               </div>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="battery-quantity-reason">Reason</Label>
                 <Textarea
                   id="battery-quantity-reason"
@@ -1080,11 +1080,11 @@ export default function BatteryCockpitPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           {pendingStaleRepair && (
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               <div className="rounded-md bg-muted/40 px-3 py-2 text-sm">
                 Units {summarizeUnitNumbers(pendingStaleRepair.units.map((unit) => unit.unitNumber), 12)}
               </div>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="battery-stale-repair-reason">Reason</Label>
                 <Textarea
                   id="battery-stale-repair-reason"
@@ -1180,7 +1180,7 @@ function IntegrityWarningCard({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="flex flex-col gap-3">
         <p className="max-w-3xl text-sm text-muted-foreground">
           These units still have a stored checked-out flag but no active checkout allocation, so Battery Ops is counting them as available.
         </p>

@@ -83,7 +83,7 @@ export function BulkSkuDetailExperience({
 
   if (!sku) {
     return (
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         <Skeleton className="h-4 w-24" />
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-4 w-48" />
