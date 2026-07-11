@@ -28,7 +28,7 @@ describe("licenses UI and privacy contracts", () => {
 
     expect(table).toMatch(/<Eye[\s\S]*?Inspect/);
     expect(table).toMatch(/<KeyRound[\s\S]*?Claim/);
-    expect(table).toContain('code.status === "CLAIMED" && "bg-blue');
-    expect(table).not.toContain('code.status === "CLAIMED" && "bg-red');
+    expect(table).toContain('code.status === "CLAIMED" && "bg-[var(--blue-bg)]');
+    expect(table).not.toContain('code.status === "CLAIMED" && "bg-[var(--red-bg)]');
   });
 });
