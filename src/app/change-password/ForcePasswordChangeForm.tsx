@@ -111,7 +111,7 @@ export default function ForcePasswordChangeForm({ email }: { email: string }) {
           <CardDescription className="text-base">Set a new password</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <Alert>
               <AlertCircle className="size-4" />
               <AlertDescription>
@@ -119,7 +119,7 @@ export default function ForcePasswordChangeForm({ email }: { email: string }) {
               </AlertDescription>
             </Alert>
 
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="currentPassword">Temporary password</Label>
               <Input
                 ref={currentRef}
@@ -142,7 +142,7 @@ export default function ForcePasswordChangeForm({ email }: { email: string }) {
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="newPassword">New password</Label>
               <div className="relative">
                 <Input
@@ -180,7 +180,7 @@ export default function ForcePasswordChangeForm({ email }: { email: string }) {
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="confirmPassword">Confirm password</Label>
               <Input
                 ref={confirmRef}

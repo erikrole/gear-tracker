@@ -68,11 +68,11 @@ export default function PrivacyPage() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-6 py-12 sm:py-16">
-        <header className="space-y-4">
+        <header className="flex flex-col gap-4">
           <Link href="/login" className="text-sm font-medium text-primary underline-offset-4 hover:underline">
             Wisconsin Creative
           </Link>
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">Privacy Policy</p>
             <h1 className="text-4xl font-semibold tracking-tight text-balance">Wisconsin Creative Privacy Policy</h1>
             <p className="text-base leading-7 text-muted-foreground">
@@ -83,11 +83,11 @@ export default function PrivacyPage() {
           </div>
         </header>
 
-        <div className="space-y-8">
+        <div className="flex flex-col gap-8">
           {sections.map((section) => (
-            <section key={section.title} className="space-y-3">
+            <section key={section.title} className="flex flex-col gap-3">
               <h2 className="text-xl font-semibold tracking-tight">{section.title}</h2>
-              <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-muted-foreground">
+              <ul className="list-disc flex flex-col gap-2 pl-5 text-sm leading-6 text-muted-foreground">
                 {section.body.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
@@ -96,7 +96,7 @@ export default function PrivacyPage() {
           ))}
         </div>
 
-        <section className="space-y-3 border-t border-border pt-8">
+        <section className="flex flex-col gap-3 border-t border-border pt-8">
           <h2 className="text-xl font-semibold tracking-tight">Contact</h2>
           <p className="text-sm leading-6 text-muted-foreground">
             For privacy or support questions, contact{" "}

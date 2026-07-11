@@ -108,8 +108,8 @@ export default function RegisterPage() {
           <CardDescription className="text-base">Create your account</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="name">Name</Label>
               <Input
                 ref={nameRef}
@@ -133,7 +133,7 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="email">Email</Label>
               <Input
                 ref={emailRef}
@@ -156,7 +156,7 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="wiscardNumber">Wiscard value</Label>
               <Input
                 id="wiscardNumber"
@@ -178,7 +178,7 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
                 <Input

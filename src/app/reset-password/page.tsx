@@ -78,11 +78,11 @@ function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <div className="space-y-4 text-center animate-in fade-in-0 duration-200">
+      <div className="flex flex-col gap-4 text-center animate-in fade-in-0 duration-200">
         <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-destructive/10">
           <AlertCircle className="size-6 text-destructive" />
         </div>
-        <div className="space-y-1">
+        <div className="flex flex-col gap-1">
           <p className="font-medium">Invalid reset link</p>
           <p className="text-sm text-muted-foreground leading-relaxed">
             This password reset link is invalid or has expired.
@@ -97,11 +97,11 @@ function ResetPasswordForm() {
 
   if (success) {
     return (
-      <div className="space-y-4 text-center animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
+      <div className="flex flex-col gap-4 text-center animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
         <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10">
           <CheckCircle2 className="size-6 text-primary" />
         </div>
-        <div className="space-y-1">
+        <div className="flex flex-col gap-1">
           <p className="font-medium">Password updated</p>
           <p className="text-sm text-muted-foreground leading-relaxed">
             Your password has been reset. You can now sign in with your new password.
@@ -115,8 +115,8 @@ function ResetPasswordForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-1.5">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
         <Label htmlFor="password">New password</Label>
         <div className="relative">
           <Input
@@ -155,7 +155,7 @@ function ResetPasswordForm() {
         </div>
       </div>
 
-      <div className="space-y-1.5">
+      <div className="flex flex-col gap-1.5">
         <Label htmlFor="confirmPassword">Confirm password</Label>
         <Input
           ref={confirmRef}
@@ -215,7 +215,7 @@ export default function ResetPasswordPage() {
           <CardDescription className="text-base">Set a new password</CardDescription>
         </CardHeader>
         <CardContent>
-          <Suspense fallback={<div className="space-y-4"><Skeleton className="h-5 w-24" /><Skeleton className="h-11 w-full" /><Skeleton className="h-5 w-32" /><Skeleton className="h-11 w-full" /><Skeleton className="h-11 w-full" /></div>}>
+          <Suspense fallback={<div className="flex flex-col gap-4"><Skeleton className="h-5 w-24" /><Skeleton className="h-11 w-full" /><Skeleton className="h-5 w-32" /><Skeleton className="h-11 w-full" /><Skeleton className="h-11 w-full" /></div>}>
             <ResetPasswordForm />
           </Suspense>
         </CardContent>

@@ -34,9 +34,15 @@ ternary classNames.
 - `EmptyState` is a sanctioned project primitive alongside `ui/empty` per skill rules.
 
 ## Backlog (deferred, ranked)
-1. **`space-x/y-*` sweep — 264 occurrences across ~80 files.** Replace with
-   `flex flex-col gap-*` / `gap-*`. Margin-based spacing behaves differently from gap
-   (collapsing, absolute children), so do it area-by-area with visual checks, not one sed.
+1. ~~`space-x/y-*` sweep~~ **Done 2026-07-10 (follow-up slice):** all 264 occurrences
+   converted area-by-area in six reviewable commits (settings; shared components; items group;
+   bulk-inventory + licenses; users/events/schedule/dashboard/bookings/reservations; root/auth
+   pages). Conversion was codemod-assisted but conservative: only unambiguous string-literal
+   classNames were rewritten (plain container -> `flex flex-col gap-N`, existing `flex flex-col`
+   -> `gap-N`, flex row `space-x` -> `gap-N`); grids, responsive variants, and cn() fragments
+   were flagged and handled by hand. Full suite + build green after every batch.
+   **Deliberate exceptions kept:** `ItemThumbnailStack.tsx` and `AssignmentCell.tsx` use
+   `-space-x-2` for negative avatar/thumbnail overlap, which gap cannot express.
 2. ~~Remaining raw palette colors~~ **Done 2026-07-10 (follow-up slice):** 23 files migrated
    to tokens/variants (EquipmentPicker, ItemInfoTab/Bookings/Settings tabs, batteries page,
    ChooseImageModal categorical badges, licenses yellow -> orange, TradeBoard warning callout

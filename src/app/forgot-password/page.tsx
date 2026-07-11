@@ -52,11 +52,11 @@ export default function ForgotPasswordPage() {
         </CardHeader>
         <CardContent>
           {submitted ? (
-            <div className="space-y-4 text-center animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
+            <div className="flex flex-col gap-4 text-center animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
               <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10">
                 <MailCheck className="size-6 text-primary" />
               </div>
-              <div className="space-y-1">
+              <div className="flex flex-col gap-1">
                 <p className="font-medium">Password reset request received</p>
                 <p className="text-sm text-muted-foreground leading-relaxed">
                   {submittedMessage}
@@ -67,8 +67,8 @@ export default function ForgotPasswordPage() {
               </Link>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-1.5">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="email">Email address</Label>
                 <Input
                   id="email"
