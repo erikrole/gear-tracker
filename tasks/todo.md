@@ -4,7 +4,23 @@ Last updated: 2026-07-10
 
 ---
 
-## In progress: Sweeping Settings ownership pass (2026-07-10)
+## Completed: Notifications end-to-end ownership pass (2026-07-10)
+
+Plan: `tasks/notifications-ownership-pass.md`
+
+- [x] Clarify inbox hierarchy, preferences access, and role-aware operations.
+- [x] Make counts, unread filtering, row actions, and pagination trustworthy.
+- [x] Cover every notification family with useful labels and destinations.
+- [x] Complete focused tests, docs, repository gates, and browser verification attempt.
+
+### Review
+
+- **Shipped:** Notifications now has a calmer action-inbox hierarchy, direct preferences access, All/Unread controls, complete generic destination actions, broader notification taxonomy, responsive row controls, and named recovery states.
+- **Trust fixes:** Nullable timestamps fall back safely; unread mutations remove filtered rows, invalidate every inbox cache, synchronize the shell badge, and roll back cleanly. Pagination clamps invalid pages, and the API separates filtered totals from whole-inbox totals with deterministic ordering.
+- **Verified:** 30 focused notification tests, focused ESLint, TypeScript, all 93 migration prefixes, codemap/docs, whitespace, and `npm run build:app` passed.
+- **Browser limitation:** Dia rejected the authenticated localhost route with `ERR_BLOCKED_BY_CLIENT`, so interactive desktop/narrow runtime proof is not claimed.
+
+## Completed: Sweeping Settings ownership pass (2026-07-10)
 
 Plan: `tasks/settings-sweeping-ownership-pass.md`
 
@@ -13,11 +29,13 @@ Plan: `tasks/settings-sweeping-ownership-pass.md`
 - [x] Rename implementation-shaped destinations without changing routes or RBAC.
 - [x] Fix Booking extensions load honesty and notification pause persistence feedback.
 - [x] Correct Appearance and Database diagnostics trust copy.
-- [ ] Complete repository gates and authenticated desktop/narrow browser verification.
+- [x] Complete repository gates and authenticated desktop/narrow browser verification attempt.
 
 ### Review
 
-- Pending final verification.
+- **Shipped:** Settings now has a full-width shared page shell, grouped mobile discovery, intent-first destination labels, a quieter overview, named Booking extensions load recovery, persistence-aware notification pause/resume feedback, and honest Appearance/Database diagnostics copy.
+- **Verified:** 40 focused Settings tests, focused ESLint, TypeScript, all 93 migration prefixes, codemap/docs, whitespace, and `npm run build:app` passed.
+- **Browser limitation:** Dia blocks `localhost`; `127.0.0.1` served the freshly compiled Settings route but could not reuse the localhost authentication cookie and redirected to login. Authenticated desktop and narrow visual proof is therefore not claimed.
 
 ## Completed: Resources end-to-end UI ownership pass (2026-07-10)
 

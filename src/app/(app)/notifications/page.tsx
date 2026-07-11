@@ -1,17 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeftRightIcon,
   Bell,
+  CalendarDaysIcon,
   CheckCircle2,
   CircleIcon,
   ExternalLink,
+  KeyRoundIcon,
+  PackageSearchIcon,
   RefreshCw,
+  Settings2Icon,
   ShirtIcon,
-  WifiOff,
+  UserRoundIcon,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -19,34 +23,35 @@ import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
 import { Item, ItemMedia, ItemContent, ItemTitle, ItemDescription, ItemActions } from "@/components/ui/item";
-import { Pagination, PaginationContent, PaginationPrevious, PaginationNext } from "@/components/ui/pagination";
-import { OperationalMetricCard } from "@/components/OperationalFeedback";
 import { OperationalStatusRail, type OperationalStatusRailItem } from "@/components/OperationalStatusRail";
 import { useUrlState } from "@/hooks/use-url-state";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Spinner } from "@/components/ui/spinner";
+import { dispatchNotificationCountChanged } from "@/lib/notification-count-sync";
+import { cn } from "@/lib/utils";
 
 type Notification = {
   id: string;
   type: string;
   title: string;
-  body: string;
+  body: string | null;
   channel: string;
-  payload: Record<string, string> | null;
+  payload: Record<string, unknown> | null;
   readAt: string | null;
-  sentAt: string;
+  sentAt: string | null;
   createdAt: string;
 };
 
 type NotificationsData = {
   notifications: Notification[];
   total: number;
+  inboxTotal: number;
   unreadCount: number;
 };
 
@@ -71,6 +76,12 @@ function notificationMeta(type: string): NotificationMeta {
   }
 
   switch (type) {
+    case "overdue_nudge":
+      return {
+        icon: AlertTriangle,
+        label: "Overdue",
+        toneClass: "bg-[var(--orange-bg)] text-[var(--orange-text)]",
+      };
     case "shift_gear_up":
       return {
         icon: ShirtIcon,
@@ -79,6 +90,7 @@ function notificationMeta(type: string): NotificationMeta {
       };
     case "trade_claimed":
     case "trade_approved":
+    case "trade_completed":
       return {
         icon: ArrowLeftRightIcon,
         label: "Trade",
@@ -91,15 +103,47 @@ function notificationMeta(type: string): NotificationMeta {
         label: "Trade",
         toneClass: "bg-[var(--red-bg)] text-[var(--red-text)]",
       };
-    case "reservation_booked":
-    case "reservation_pickup_ready":
-    case "reservation_cancelled":
+    case "badge_awarded":
       return {
-        icon: Bell,
-        label: "Booking",
+        icon: UserRoundIcon,
+        label: "Recognition",
         toneClass: "bg-[var(--purple-bg)] text-[var(--purple-text)]",
       };
+    case "calendar_sync_failure":
+      return {
+        icon: CalendarDaysIcon,
+        label: "Calendar",
+        toneClass: "bg-[var(--red-bg)] text-[var(--red-text)]",
+      };
+    case "firmware_update_released":
+    case "low_stock":
+      return {
+        icon: PackageSearchIcon,
+        label: "Inventory",
+        toneClass: "bg-[var(--orange-bg)] text-[var(--orange-text)]",
+      };
     default:
+      if (type.startsWith("reservation_")) {
+        return {
+          icon: Bell,
+          label: "Reservation",
+          toneClass: "bg-[var(--purple-bg)] text-[var(--purple-text)]",
+        };
+      }
+      if (type.startsWith("shift_") || type.startsWith("time_off_")) {
+        return {
+          icon: CalendarDaysIcon,
+          label: "Schedule",
+          toneClass: "bg-[var(--blue-bg)] text-[var(--blue-text)]",
+        };
+      }
+      if (type.startsWith("license_")) {
+        return {
+          icon: KeyRoundIcon,
+          label: "License",
+          toneClass: "bg-[var(--orange-bg)] text-[var(--orange-text)]",
+        };
+      }
       return {
         icon: CircleIcon,
         label: "Notice",
@@ -126,6 +170,10 @@ function formatTime(dateStr: string) {
   return d.toLocaleDateString();
 }
 
+function notificationDate(notification: Notification) {
+  return notification.sentAt ?? notification.createdAt;
+}
+
 function dayLabel(dateStr: string): string {
   const d = new Date(dateStr);
   const now = new Date();
@@ -145,11 +193,11 @@ function dayLabel(dateStr: string): string {
 
 function NotificationsSkeleton() {
   return (
-    <div className="space-y-3 p-4">
+    <div className="flex flex-col gap-3 p-4">
       {Array.from({ length: 5 }).map((_, i) => (
         <div key={i} className="flex gap-3 rounded-lg border border-border/50 p-3">
           <Skeleton className="size-9 rounded-full shrink-0" />
-          <div className="flex-1 space-y-2">
+          <div className="flex flex-1 flex-col gap-2">
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-3 w-full" />
           </div>
@@ -164,7 +212,7 @@ const LIMIT = 20;
 export default function NotificationsPage() {
   const [processing, setProcessing] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
-  const [markingId, setMarkingId] = useState<string | null>(null);
+  const [markingIds, setMarkingIds] = useState<Set<string>>(() => new Set());
   const processingRef = useRef(false);
   const markingAllRef = useRef(false);
   const markingIdsRef = useRef(new Set<string>());
@@ -172,7 +220,10 @@ export default function NotificationsPage() {
   // URL-synced filters
   const [page, setPage] = useUrlState<number>(
     "page",
-    (v) => (v ? Number(v) : 0),
+    (v) => {
+      const parsed = v ? Number(v) : 0;
+      return Number.isInteger(parsed) && parsed >= 0 ? parsed : 0;
+    },
     (v) => (v === 0 ? null : String(v)),
   );
   const [unreadOnly, setUnreadOnly] = useUrlState<boolean>(
@@ -198,11 +249,12 @@ export default function NotificationsPage() {
     refetchOnFocus: false,
   });
 
-  const { data, loading, error, reload } = useFetch<NotificationsData>({
+  const { data, loading, refreshing, error, reload } = useFetch<NotificationsData>({
     url: fetchUrl,
     transform: (json) => ({
       notifications: (json.data as Notification[]) ?? [],
       total: (json.total as number) ?? 0,
+      inboxTotal: (json.inboxTotal as number) ?? (json.total as number) ?? 0,
       unreadCount: (json.unreadCount as number) ?? 0,
     }),
   });
@@ -210,9 +262,9 @@ export default function NotificationsPage() {
   const rawNotifications = data?.notifications;
   const notifications = useMemo(() => rawNotifications ?? [], [rawNotifications]);
   const total = data?.total ?? 0;
+  const inboxTotal = data?.inboxTotal ?? 0;
   const unreadCount = data?.unreadCount ?? 0;
-  const readCount = Math.max(total - unreadCount, 0);
-  const hasNotifications = total > 0;
+  const hasNotifications = inboxTotal > 0;
   const canProcess = canProcessNotifications(meData?.role);
   const railItems: OperationalStatusRailItem[] = unreadCount > 0 ? [{
     id: "unread",
@@ -237,6 +289,21 @@ export default function NotificationsPage() {
     [fetchUrl, queryClient],
   );
 
+  const invalidateNotificationQueries = useCallback(() => queryClient.invalidateQueries({
+    predicate: (query) => query.queryKey[0] === "fetch"
+      && typeof query.queryKey[1] === "string"
+      && query.queryKey[1].startsWith("/api/notifications?"),
+  }), [queryClient]);
+
+  const totalPages = Math.ceil(total / LIMIT);
+
+  useEffect(() => {
+    if (loading || page === 0) return;
+    if (total === 0 || page >= totalPages) {
+      setPage(Math.max(0, totalPages - 1));
+    }
+  }, [loading, page, setPage, total, totalPages]);
+
   async function markAllRead() {
     if (markingAllRef.current) return;
     markingAllRef.current = true;
@@ -250,10 +317,12 @@ export default function NotificationsPage() {
     setNotificationsData((prev) => ({
       ...prev,
       unreadCount: 0,
-      data: ((prev.data as Notification[]) ?? []).map((n) =>
-        n.readAt ? n : { ...n, readAt: now },
-      ),
+      total: unreadOnly ? 0 : prev.total,
+      data: unreadOnly
+        ? []
+        : ((prev.data as Notification[]) ?? []).map((n) => n.readAt ? n : { ...n, readAt: now }),
     }));
+    dispatchNotificationCountChanged(0);
 
     try {
       const res = await fetch("/api/notifications", {
@@ -265,12 +334,20 @@ export default function NotificationsPage() {
       if (!res.ok) {
         const message = await parseErrorMessage(res, "Failed to mark notifications as read");
         // Rollback on server error
-        if (prevData) queryClient.setQueryData(queryKey, prevData);
+        if (prevData) {
+          queryClient.setQueryData(queryKey, prevData);
+          dispatchNotificationCountChanged((prevData.unreadCount as number) ?? unreadCount);
+        }
         toast.error(message);
+      } else {
+        await invalidateNotificationQueries();
       }
     } catch (err) {
       // Rollback on network error
-      if (prevData) queryClient.setQueryData(queryKey, prevData);
+      if (prevData) {
+        queryClient.setQueryData(queryKey, prevData);
+        dispatchNotificationCountChanged((prevData.unreadCount as number) ?? unreadCount);
+      }
       toast.error(err instanceof TypeError
         ? "You’re offline. Check your connection."
         : "Failed to mark notifications as read. Please try again.");
@@ -283,7 +360,7 @@ export default function NotificationsPage() {
   async function markRead(id: string) {
     if (markingIdsRef.current.has(id)) return;
     markingIdsRef.current.add(id);
-    setMarkingId(id);
+    setMarkingIds(new Set(markingIdsRef.current));
 
     // Save previous state for rollback
     const prevData = queryClient.getQueryData<Record<string, unknown>>(queryKey);
@@ -293,10 +370,12 @@ export default function NotificationsPage() {
     setNotificationsData((prev) => ({
       ...prev,
       unreadCount: Math.max(0, ((prev.unreadCount as number) ?? 0) - 1),
-      data: ((prev.data as Notification[]) ?? []).map((n) =>
-        n.id === id ? { ...n, readAt: now } : n,
-      ),
+      total: unreadOnly ? Math.max(0, ((prev.total as number) ?? 0) - 1) : prev.total,
+      data: unreadOnly
+        ? ((prev.data as Notification[]) ?? []).filter((n) => n.id !== id)
+        : ((prev.data as Notification[]) ?? []).map((n) => n.id === id ? { ...n, readAt: now } : n),
     }));
+    dispatchNotificationCountChanged(Math.max(0, unreadCount - 1));
 
     try {
       const res = await fetch("/api/notifications", {
@@ -308,18 +387,26 @@ export default function NotificationsPage() {
       if (!res.ok) {
         const message = await parseErrorMessage(res, "Failed to mark notification as read");
         // Rollback on server error
-        if (prevData) queryClient.setQueryData(queryKey, prevData);
+        if (prevData) {
+          queryClient.setQueryData(queryKey, prevData);
+          dispatchNotificationCountChanged((prevData.unreadCount as number) ?? unreadCount);
+        }
         toast.error(message);
+      } else {
+        await invalidateNotificationQueries();
       }
     } catch (err) {
       // Rollback on network error
-      if (prevData) queryClient.setQueryData(queryKey, prevData);
+      if (prevData) {
+        queryClient.setQueryData(queryKey, prevData);
+        dispatchNotificationCountChanged((prevData.unreadCount as number) ?? unreadCount);
+      }
       toast.error(err instanceof TypeError
         ? "You’re offline. Check your connection."
         : "Failed to mark notification as read. Please try again.");
     } finally {
       markingIdsRef.current.delete(id);
-      setMarkingId(null);
+      setMarkingIds(new Set(markingIdsRef.current));
     }
   }
 
@@ -359,7 +446,7 @@ export default function NotificationsPage() {
     const groups: { label: string; items: Notification[] }[] = [];
     let currentLabel = "";
     for (const n of notifications) {
-      const label = dayLabel(n.sentAt);
+      const label = dayLabel(notificationDate(n));
       if (label !== currentLabel) {
         groups.push({ label, items: [n] });
         currentLabel = label;
@@ -370,7 +457,6 @@ export default function NotificationsPage() {
     return groups;
   }, [notifications]);
 
-  const totalPages = Math.ceil(total / LIMIT);
   const visibleStart = total === 0 ? 0 : page * LIMIT + 1;
   const visibleEnd = Math.min((page + 1) * LIMIT, total);
 
@@ -378,20 +464,28 @@ export default function NotificationsPage() {
     <FadeUp>
       <PageHeader
         title="Notifications"
-        description="Action triggers for overdue gear, bookings, shifts, and trades."
+        description="Updates that need your attention across gear, bookings, shifts, and trades."
       >
-        <Button variant="outline" size="sm" className="h-10" onClick={reload} disabled={loading}>
-          <RefreshCw className={loading ? "animate-spin" : undefined} />
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/settings/notifications">
+            <Settings2Icon data-icon="inline-start" />
+            Preferences
+          </Link>
+        </Button>
+        <Button variant="outline" size="sm" onClick={reload} disabled={loading || refreshing}>
+          <RefreshCw data-icon="inline-start" className={refreshing ? "animate-spin" : undefined} />
           Refresh
         </Button>
         {canProcess && (
-          <Button variant="outline" size="sm" className="h-10" onClick={runProcessing} disabled={processing}>
-            {processing ? "Processing..." : "Check overdue"}
+          <Button variant="outline" size="sm" onClick={runProcessing} disabled={processing}>
+            {processing && <Spinner data-icon="inline-start" />}
+            {processing ? "Checking overdue" : "Check overdue"}
           </Button>
         )}
         {unreadCount > 0 && (
-          <Button variant="outline" size="sm" className="h-10" onClick={markAllRead} disabled={markingAll}>
-            {markingAll ? "Marking..." : "Mark all read"}
+          <Button size="sm" onClick={markAllRead} disabled={markingAll}>
+            {markingAll && <Spinner data-icon="inline-start" />}
+            {markingAll ? "Marking all read" : "Mark all read"}
           </Button>
         )}
       </PageHeader>
@@ -400,74 +494,55 @@ export default function NotificationsPage() {
         className="mb-4"
         orientation={{
           label: "Inbox",
-          value: `${total} ${total === 1 ? "notification" : "notifications"}`,
+          value: `${inboxTotal} ${inboxTotal === 1 ? "notification" : "notifications"}`,
           icon: Bell,
         }}
         items={railItems}
         allClearLabel={unreadCount === 0 ? "No unread notifications" : undefined}
-        details={(
-          <div className="grid gap-2 sm:grid-cols-3">
-            <OperationalMetricCard
-              label="Unread"
-              value={unreadCount}
-              helper={unreadCount > 0 ? "Needs review" : "Caught up"}
-              tone={unreadCount > 0 ? "orange" : "green"}
-              onClick={() => {
-                setUnreadOnly(true);
-                setPage(0);
-              }}
-              ariaPressed={unreadOnly}
-            />
-            <OperationalMetricCard label="Read" value={readCount} helper="Already handled" />
-            <OperationalMetricCard label="Total" value={total} helper={unreadOnly ? "Unread filter active" : "Current inbox"} />
-          </div>
-        )}
       />
 
       <Card>
         <CardHeader className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
-            <Switch
-              id="unread-filter"
-              checked={unreadOnly}
-              onCheckedChange={(checked) => {
-                setUnreadOnly(checked);
-                setPage(0);
-              }}
-            />
-            <Label htmlFor="unread-filter" className="text-sm cursor-pointer">
-              Unread only
-            </Label>
-            {unreadOnly && (
-              <Badge variant="orange" className="tabular-nums">
-                {unreadCount} unread
-              </Badge>
+          <ToggleGroup
+            type="single"
+            value={unreadOnly ? "unread" : "all"}
+            onValueChange={(value) => {
+              if (!value) return;
+              setUnreadOnly(value === "unread");
+              setPage(0);
+            }}
+            aria-label="Filter notifications"
+          >
+            <ToggleGroupItem value="all" className="min-h-10">All</ToggleGroupItem>
+            <ToggleGroupItem value="unread" className="min-h-10">
+              Unread
+              {unreadCount > 0 && <span className="tabular-nums">{unreadCount}</span>}
+            </ToggleGroupItem>
+          </ToggleGroup>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            {refreshing && (
+              <span className="inline-flex items-center gap-2" role="status">
+                <Spinner />
+                Updating
+              </span>
             )}
+            <span className="tabular-nums">
+              {total > 0 ? `${visibleStart}-${visibleEnd} of ${total}` : unreadOnly ? "No unread" : "Inbox empty"}
+            </span>
           </div>
-          <span className="text-sm text-muted-foreground tabular-nums">
-            {hasNotifications ? `${visibleStart}-${visibleEnd} of ${total}` : "No notifications"}
-          </span>
         </CardHeader>
 
         <CardContent className="p-0">
           {loading && !data ? (
             <NotificationsSkeleton />
-          ) : error ? (
-            <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
-              {error === "network" ? (
-                <WifiOff className="size-8 text-muted-foreground" />
-              ) : (
-                <AlertTriangle className="size-8 text-muted-foreground" />
-              )}
-              <p className="text-sm text-muted-foreground">
-                {error === "network"
-                  ? "Could not reach the server. Check your connection."
-                  : "Something went wrong loading notifications."}
-              </p>
-              <Button variant="outline" size="sm" className="h-10" onClick={reload}>
-                Try again
-              </Button>
-            </div>
+          ) : error && !data ? (
+            <EmptyState
+              icon={error === "network" ? "wifi-off" : "bell"}
+              title={error === "network" ? "Notifications are offline" : "Could not load notifications"}
+              description={error === "network" ? "Check your connection and try again." : "The inbox is temporarily unavailable."}
+              actionLabel="Try again"
+              onAction={reload}
+            />
           ) : notifications.length === 0 ? (
             <EmptyState
               icon={unreadOnly ? "check" : "bell"}
@@ -478,9 +553,14 @@ export default function NotificationsPage() {
               }
               description={
                 unreadOnly
-                  ? "Nothing new to see here."
-                  : "You'll see overdue alerts and booking updates here."
+                  ? "Every notification has been reviewed. Show all to revisit earlier updates."
+                  : "Overdue alerts, booking updates, schedule changes, and other work will appear here."
               }
+              actionLabel={unreadOnly && hasNotifications ? "Show all" : undefined}
+              onAction={unreadOnly && hasNotifications ? () => {
+                setUnreadOnly(false);
+                setPage(0);
+              } : undefined}
             />
           ) : (
             <div className="divide-y">
@@ -493,7 +573,7 @@ export default function NotificationsPage() {
                   {group.items.map((n) => (
                     <NotificationRow
                       key={n.id}
-                      marking={markingId === n.id}
+                      marking={markingIds.has(n.id)}
                       notification={n}
                       onMarkRead={markRead}
                     />
@@ -505,25 +585,17 @@ export default function NotificationsPage() {
         </CardContent>
       </Card>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
+      {total > 0 && (
+        <div className="mt-4 flex items-center justify-between gap-3 text-sm text-muted-foreground">
           <span className="tabular-nums">
-            Showing {visibleStart}-{visibleEnd} of {total}
+            {totalPages > 1 ? `Showing ${visibleStart}-${visibleEnd} of ${total}` : `${total} ${total === 1 ? "notification" : "notifications"}`}
           </span>
-          <Pagination>
-            <PaginationContent>
-              <PaginationPrevious
-                onClick={() => setPage(page - 1)}
-                aria-disabled={page === 0}
-                className={page === 0 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-              />
-              <PaginationNext
-                onClick={() => setPage(page + 1)}
-                aria-disabled={page >= totalPages - 1}
-                className={page >= totalPages - 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-              />
-            </PaginationContent>
-          </Pagination>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
+              <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</Button>
+            </div>
+          )}
         </div>
       )}
     </FadeUp>
@@ -548,14 +620,13 @@ function NotificationRow({
   return (
     <Item
       size="sm"
-      className={
-        unread
-          ? "group bg-primary/5 transition-[background-color,box-shadow] hover:bg-primary/10 dark:bg-primary/10 dark:hover:bg-primary/15"
-          : "group bg-background transition-[background-color] hover:bg-muted/35"
-      }
+      className={cn(
+        "group items-start transition-[background-color,box-shadow] max-sm:flex-col",
+        unread ? "bg-primary/5 hover:bg-primary/10" : "bg-background hover:bg-muted/35",
+      )}
     >
       <ItemMedia variant="icon" className={meta.toneClass}>
-        <Icon className="size-4" />
+        <Icon />
       </ItemMedia>
       <ItemContent>
         <ItemTitle
@@ -567,11 +638,11 @@ function NotificationRow({
         >
           <span className="min-w-0 flex-1 text-balance">{notification.title}</span>
           <span className="shrink-0 text-xs font-normal tabular-nums text-muted-foreground">
-            {formatTime(notification.sentAt)}
+            {formatTime(notificationDate(notification))}
           </span>
         </ItemTitle>
         <ItemDescription className="text-pretty">
-          {notification.body}
+          {notification.body ?? "Open the related workflow for details."}
         </ItemDescription>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <Badge variant="outline" size="sm">
@@ -583,23 +654,23 @@ function NotificationRow({
             </Badge>
           ) : (
             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-              <CheckCircle2 className="size-3" />
+              <CheckCircle2 />
               Read
             </span>
           )}
         </div>
       </ItemContent>
-      <ItemActions>
+      <ItemActions className="max-sm:w-full max-sm:flex-row max-sm:justify-end">
         {href && actionLabel && (
           <Button
             variant="outline"
             size="sm"
-            className="h-10 text-xs"
+            className="text-xs max-sm:flex-1"
             asChild
           >
             <Link href={href}>
               {actionLabel}
-              <ExternalLink className="size-3" />
+              <ExternalLink data-icon="inline-end" />
             </Link>
           </Button>
         )}
@@ -607,11 +678,12 @@ function NotificationRow({
           <Button
             variant="ghost"
             size="sm"
-            className="h-10 text-xs text-muted-foreground"
+            className="text-xs text-muted-foreground max-sm:flex-1"
             onClick={() => onMarkRead(notification.id)}
             disabled={marking}
           >
-            {marking ? "Marking..." : "Mark read"}
+            {marking && <Spinner data-icon="inline-start" />}
+            {marking ? "Marking read" : "Mark read"}
           </Button>
         )}
       </ItemActions>
@@ -624,13 +696,13 @@ function getNotificationHref(notification: Notification) {
     return notification.payload.href;
   }
 
-  if (notification.payload?.bookingId) {
+  if (typeof notification.payload?.bookingId === "string") {
     return isReservationNotification(notification)
       ? `/reservations/${notification.payload.bookingId}`
       : `/checkouts/${notification.payload.bookingId}`;
   }
 
-  if (notification.payload?.shiftGroupId) {
+  if (typeof notification.payload?.shiftGroupId === "string") {
     return "/schedule";
   }
 
@@ -642,17 +714,25 @@ function getNotificationActionLabel(notification: Notification) {
     return "Open badges";
   }
 
-  if (notification.payload?.bookingId) {
+  if (typeof notification.payload?.bookingId === "string") {
     return isReservationNotification(notification)
       ? "Open reservation"
       : "Open checkout";
   }
 
-  if (notification.payload?.shiftGroupId) {
+  if (typeof notification.payload?.shiftGroupId === "string") {
     return "Open schedule";
   }
 
-  return null;
+  const href = getNotificationHref(notification);
+  if (!href) return null;
+  if (href.startsWith("/events/") || href.startsWith("/schedule")) return "Open event";
+  if (href.startsWith("/settings/")) return "Open settings";
+  if (href.startsWith("/items")) return "Open items";
+  if (href.startsWith("/users/")) return "Open profile";
+  if (href.startsWith("/licenses")) return "Open licenses";
+
+  return "Open details";
 }
 
 function isReservationNotification(notification: Notification) {

@@ -104,7 +104,7 @@
 | `src/components/BookingDetailsSheet.tsx` | 725 |
 | `src/components/ChooseImageModal.tsx` | 716 |
 | `src/components/booking-wizard/BookingWizard.tsx` | 710 |
-| `src/components/AppShell.tsx` | 642 |
+| `src/components/AppShell.tsx` | 655 |
 | `src/components/booking-wizard/WizardStep1.tsx` | 570 |
 | `src/components/BookingListPage.tsx` | 512 |
 | `src/components/ui/heatmap.tsx` | 422 |

@@ -22,18 +22,19 @@ export const GET = withAuth(async (req, { user }) => {
     ...(unreadOnly ? { readAt: null } : {})
   };
 
-  const [data, total, unreadCount] = await Promise.all([
+  const [data, total, inboxTotal, unreadCount] = await Promise.all([
     db.notification.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: limit,
       skip: offset
     }),
     db.notification.count({ where }),
+    db.notification.count({ where: { userId: user.id } }),
     db.notification.count({ where: { userId: user.id, readAt: null } })
   ]);
 
-  return ok({ data, total, limit, offset, unreadCount });
+  return ok({ data, total, inboxTotal, limit, offset, unreadCount });
 });
 
 export const PATCH = withAuth(async (req, { user }) => {

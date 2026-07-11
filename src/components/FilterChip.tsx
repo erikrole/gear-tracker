@@ -62,7 +62,7 @@ export function FilterChip({
             variant="ghost"
             size="icon-xs"
             aria-label={`Clear ${label} filter`}
-            className="h-10 w-10 rounded-none border-l border-border/50 text-muted-foreground shadow-none transition-[background-color,color,scale] hover:bg-primary/[0.08] hover:text-foreground active:scale-[0.96]"
+            className="size-10 rounded-none border-l border-border/50 text-muted-foreground shadow-none transition-[background-color,color,scale] hover:bg-primary/[0.08] hover:text-foreground active:scale-[0.96]"
             onClick={() => { onClear(); setOpen(false); }}
           >
             <X className="size-3" aria-hidden="true" />

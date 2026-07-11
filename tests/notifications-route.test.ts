@@ -7,6 +7,8 @@ vi.mock("@/lib/auth", () => ({
 vi.mock("@/lib/db", () => ({
   db: {
     notification: {
+      findMany: vi.fn(),
+      count: vi.fn(),
       updateMany: vi.fn(),
     },
   },
@@ -23,7 +25,7 @@ vi.mock("@sentry/nextjs", () => ({
 import { createAuditEntry } from "@/lib/audit";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { PATCH } from "@/app/api/notifications/route";
+import { GET, PATCH } from "@/app/api/notifications/route";
 
 const user = {
   id: "cm000000000000000000000001",
@@ -108,5 +110,37 @@ describe("PATCH /api/notifications", () => {
       entityId: "cmotbr3cz0001kv8jfsrg0ank",
       action: "notification_marked_read",
     });
+  });
+});
+
+describe("GET /api/notifications", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(requireAuth).mockResolvedValue(user);
+  });
+
+  it("returns caller-scoped filtered and whole-inbox totals with deterministic ordering", async () => {
+    vi.mocked(db.notification.findMany).mockResolvedValue([] as never);
+    vi.mocked(db.notification.count)
+      .mockResolvedValueOnce(2 as never)
+      .mockResolvedValueOnce(7 as never)
+      .mockResolvedValueOnce(2 as never);
+
+    const res = await GET(
+      new Request("https://app.example.com/api/notifications?limit=20&offset=20&unread=true"),
+      routeParams(),
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toEqual({ data: [], total: 2, inboxTotal: 7, limit: 20, offset: 20, unreadCount: 2 });
+    expect(db.notification.findMany).toHaveBeenCalledWith({
+      where: { userId: user.id, readAt: null },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 20,
+      skip: 20,
+    });
+    expect(db.notification.count).toHaveBeenNthCalledWith(2, { where: { userId: user.id } });
+    expect(db.notification.count).toHaveBeenNthCalledWith(3, { where: { userId: user.id, readAt: null } });
   });
 });

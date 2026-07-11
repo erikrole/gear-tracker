@@ -111,6 +111,7 @@
 | `src/lib/live-activity-workflow.ts` | 29 |
 | `src/lib/media-embed.ts` | 68 |
 | `src/lib/nav-sections.ts` | 249 |
+| `src/lib/notification-count-sync.ts` | 9 |
 | `src/lib/observability.ts` | 19 |
 | `src/lib/operational-health.ts` | 50 |
 | `src/lib/permissions.ts` | 163 |

@@ -30,6 +30,7 @@ import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 import { getVisiblePageSearchResults, type PageSearchResult } from "@/lib/search-pages";
 import { assetSearchTitle } from "@/lib/search-result-title";
 import { cn } from "@/lib/utils";
+import { NOTIFICATION_COUNT_CHANGED_EVENT } from "@/lib/notification-count-sync";
 
 type EntitySearchResult = {
   type: "item" | "checkout" | "reservation" | "user";
@@ -170,6 +171,18 @@ export default function AppShell({
 
     return () => { controller.abort(); };
   }, [pathname, user]);
+
+  useEffect(() => {
+    function handleNotificationCountChanged(event: Event) {
+      const unreadCount = (event as CustomEvent<{ unreadCount?: unknown }>).detail?.unreadCount;
+      if (typeof unreadCount === "number") {
+        setUnreadNotifications(Math.max(0, unreadCount));
+      }
+    }
+
+    window.addEventListener(NOTIFICATION_COUNT_CHANGED_EVENT, handleNotificationCountChanged);
+    return () => window.removeEventListener(NOTIFICATION_COUNT_CHANGED_EVENT, handleNotificationCountChanged);
+  }, []);
 
   // Command palette state
   const [cmdOpen, setCmdOpen] = useState(false);

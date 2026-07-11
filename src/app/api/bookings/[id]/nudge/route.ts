@@ -29,6 +29,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
         title: "Overdue gear reminder",
         body: `"${booking.title}" is ${hours}h overdue. Please return the gear.`,
         payload: { bookingId: booking.id },
+        sentAt: new Date(),
         dedupeKey: `nudge-${booking.id}-${new Date().toISOString().slice(0, 13)}`,
       },
     }),

@@ -151,7 +151,7 @@ export default function LoginForm() {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute right-0 top-0 h-11 w-11 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-0 top-0 size-11 text-muted-foreground hover:text-foreground transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                   disabled={submitting}
                   aria-pressed={showPassword}

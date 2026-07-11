@@ -41,7 +41,7 @@ function ExpiryDisplay({ expiresAt }: { expiresAt: string }) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <Badge variant="outline" className="text-xs border-yellow-400 text-yellow-700 dark:text-yellow-400 cursor-help">
+          <Badge variant="orange" className="text-xs cursor-help">
             {days <= 0 ? "Today" : `${days}d left`}
           </Badge>
         </TooltipTrigger>
@@ -167,11 +167,11 @@ export function LicenseTable({
 
             const rowClass = cn(
               "transition-colors",
-              code.status === "AVAILABLE" && "bg-green-50/50 dark:bg-green-950/10",
-              code.status === "PARTIAL" && "bg-blue-50/50 dark:bg-blue-950/10",
-              code.status === "CLAIMED" && "bg-blue-50/30 dark:bg-blue-950/10",
+              code.status === "AVAILABLE" && "bg-[var(--green-bg)]/60",
+              code.status === "PARTIAL" && "bg-[var(--blue-bg)]/60",
+              code.status === "CLAIMED" && "bg-[var(--blue-bg)]/40",
               code.status === "RETIRED" && "opacity-50",
-              isOwn && "ring-1 ring-inset ring-blue-300 dark:ring-blue-700",
+              isOwn && "ring-1 ring-inset ring-[var(--blue)]/40",
               isClickable && "cursor-pointer hover:bg-muted/60",
               !isClickable && "cursor-default"
             );

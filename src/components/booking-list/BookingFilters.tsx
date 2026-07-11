@@ -114,7 +114,7 @@ export function BookingFilters({
                 type="button"
                 variant="ghost"
                 size="icon-xs"
-                className="absolute inset-y-0 right-0 my-auto h-10 w-10 text-muted-foreground/80 hover:text-foreground"
+                className="absolute inset-y-0 right-0 my-auto size-10 text-muted-foreground/80 hover:text-foreground"
                 onClick={() => onSearchChange("")}
                 aria-label="Clear search"
               >

@@ -65,7 +65,7 @@ function sourceState(event: CalendarEvent) {
       label: "Manual",
       description: "Created directly in Schedule.",
       icon: Sparkles,
-      badgeClassName: "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-500/30 dark:bg-purple-500/10 dark:text-purple-300",
+      badgeVariant: "purple" as const,
     };
   }
   const edited = event.summaryLocked || event.isHomeLocked || event.locationLocked;
@@ -74,14 +74,14 @@ function sourceState(event: CalendarEvent) {
       label: "Edited",
       description: `Synced from ${event.source.name}; display fields were adjusted here.`,
       icon: Pencil,
-      badgeClassName: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300",
+      badgeVariant: "orange" as const,
     };
   }
   return {
     label: "Synced",
     description: `Synced from ${event.source.name}.`,
     icon: Cloud,
-    badgeClassName: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300",
+    badgeVariant: "blue" as const,
   };
 }
 
@@ -378,7 +378,7 @@ export default function EventDetailPage() {
       value: shiftGroup ? `${compactNumber(filledShifts)}/${compactNumber(totalShifts)}` : "Not set up",
       detail: shiftGroup ? "slots filled" : "create crew when ready",
       icon: Users,
-      tone: shiftGroup && totalShifts > 0 && filledShifts >= totalShifts ? "text-green-600" : shiftGroup ? "text-orange-600" : "text-muted-foreground",
+      tone: shiftGroup && totalShifts > 0 && filledShifts >= totalShifts ? "text-[var(--green-text)]" : shiftGroup ? "text-[var(--orange-text)]" : "text-muted-foreground",
       wide: true,
     },
     {
@@ -392,7 +392,7 @@ export default function EventDetailPage() {
             : "no assignment gaps"
         : "gear for this event",
       icon: PackageCheck,
-      tone: missingGearCount > 0 ? "text-red-600" : linkedGearCount > 0 ? "text-green-600" : "text-muted-foreground",
+      tone: missingGearCount > 0 ? "text-[var(--red-text)]" : linkedGearCount > 0 ? "text-[var(--green-text)]" : "text-muted-foreground",
       wide: false,
     },
     {
@@ -400,7 +400,7 @@ export default function EventDetailPage() {
       value: hasTravel ? "Away" : "Local",
       detail: hasTravel ? "travel roster available" : "no travel roster",
       icon: Plane,
-      tone: hasTravel ? "text-orange-600" : "text-muted-foreground",
+      tone: hasTravel ? "text-[var(--orange-text)]" : "text-muted-foreground",
       wide: false,
     },
     ...(anyFieldLocked ? [{
@@ -408,7 +408,7 @@ export default function EventDetailPage() {
       value: source.label,
       detail: anyFieldLocked ? "edited from source" : event.source ? "calendar import" : "manual event",
       icon: source.icon,
-      tone: anyFieldLocked ? "text-amber-600" : event.source ? "text-blue-600" : "text-purple-600",
+      tone: anyFieldLocked ? "text-[var(--orange-text)]" : event.source ? "text-[var(--blue-text)]" : "text-[var(--purple-text)]",
       wide: false,
     }] : []),
   ];
@@ -425,7 +425,7 @@ export default function EventDetailPage() {
                   size="icon"
                   onClick={openEdit}
                   aria-label={anyFieldLocked ? "Edit event with manual overrides" : "Edit event"}
-                  className={anyFieldLocked ? "text-amber-500 hover:text-amber-600" : ""}
+                  className={anyFieldLocked ? "text-[var(--orange-text)] hover:text-[var(--orange-text)]" : ""}
                 >
                   <Pencil className="size-4" />
                 </Button>
@@ -474,7 +474,7 @@ export default function EventDetailPage() {
                 {event.source && event.summaryLocked && (
                   <button
                     type="button"
-                    className="flex items-center gap-1 text-[11px] text-amber-500 hover:text-amber-600"
+                    className="flex items-center gap-1 text-[11px] text-[var(--orange-text)] hover:opacity-80"
                     onClick={() => handleRevertField("title")}
                     disabled={saving}
                   >
@@ -513,7 +513,7 @@ export default function EventDetailPage() {
                 {event.source && event.isHomeLocked && (
                   <button
                     type="button"
-                    className="flex items-center gap-1 text-[11px] text-amber-500 hover:text-amber-600"
+                    className="flex items-center gap-1 text-[11px] text-[var(--orange-text)] hover:opacity-80"
                     onClick={() => handleRevertField("homeAway")}
                     disabled={saving}
                   >
@@ -589,7 +589,7 @@ export default function EventDetailPage() {
                 {event.source && event.locationLocked && (
                   <button
                     type="button"
-                    className="flex items-center gap-1 text-[11px] text-amber-500 hover:text-amber-600"
+                    className="flex items-center gap-1 text-[11px] text-[var(--orange-text)] hover:opacity-80"
                     onClick={() => handleRevertField("location")}
                     disabled={saving}
                   >
@@ -643,10 +643,10 @@ export default function EventDetailPage() {
                 <Badge variant={event.status === "CANCELLED" ? "red" : "green"} className="h-7 px-3 text-xs">
                   {titleCase(event.status)}
                 </Badge>
-                <span className={cn("inline-flex h-7 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold tracking-wide", source.badgeClassName)}>
-                  <SourceIcon className="size-3.5" />
+                <Badge variant={source.badgeVariant} className="h-7 gap-1.5 px-3 text-xs">
+                  <SourceIcon />
                   {source.label}
-                </span>
+                </Badge>
                 {event.sportCode && <Badge variant="purple" className="h-7 px-3 text-xs">{sportLabel(event.sportCode)}</Badge>}
                 {event.opponent ? (
                   <Badge variant={venueBadgeVariant(event.isHome)} className="h-7 px-3 text-xs">
@@ -703,7 +703,7 @@ export default function EventDetailPage() {
           </div>
 
           {anyFieldLocked && (
-            <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+            <div className="flex flex-wrap items-center gap-2 rounded-lg bg-[var(--orange-bg)] px-3 py-2 text-xs text-[var(--orange-text)]">
               <History className="size-3.5" />
               Edited fields:
               {event.summaryLocked && <Badge variant="outline" size="sm">Title</Badge>}

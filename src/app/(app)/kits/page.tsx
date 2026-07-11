@@ -158,7 +158,7 @@ function KitsLoadingState() {
       <Card className="mt-4 p-4">
         {Array.from({ length: 5 }).map((_, index) => (
           <div key={index} className="flex items-center gap-4 py-3">
-            <Skeleton className="h-10 w-10 rounded-md" />
+            <Skeleton className="size-10 rounded-md" />
             <Skeleton className="h-5 w-56" />
             <Skeleton className="h-5 w-32" />
             <Skeleton className="h-5 w-20" />
