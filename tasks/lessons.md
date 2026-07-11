@@ -536,3 +536,7 @@ Systematic audit of every endpoint in `APIClient.swift`/`SearchService.swift` ag
 ## Session 2026-07-10 (Items metric-card height correction)
 
 - **Equal-height grids need the interactive wrapper and inner card to fill the row.** A grid can stretch a wrapping `button` or `a` while its nested card remains content-height, making cards with two-line helper copy start higher than their neighbors. Shared metric cards must apply `h-full` to both the wrapper and the card so the tallest grid item establishes one consistent row height.
+
+## Session 2026-07-11 (clobbered tasks/todo.md via cat > redirect)
+
+- **Never overwrite a file with `cat >` / shell redirection without reading it first.** The Write tool refuses to overwrite a file it hasn't seen — a shell heredoc bypasses that guard silently. Wrote a fresh 8-line plan over a 2,600-line task-queue history because "write plan to tasks/todo.md" was pattern-matched as "create the file". The commit stat line (`2678 deletions`) was the tell; always sanity-check insertions/deletions after `git commit` against the size of the intended change. Recovery was cheap only because the file was committed — the rule exists for the ones that aren't. Append/prepend to living project files (`tasks/todo.md`, `tasks/lessons.md`, changelogs); never replace them.
