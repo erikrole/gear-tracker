@@ -21,7 +21,7 @@ struct WisconsinApp: App {
                 .onAppear {
                     sharedAppState = appState
                 }
-                .onChange(of: session.currentUser) { old, user in
+                .onChange(of: session.currentUser, initial: true) { old, user in
                     if user == nil, old != nil {
                         GearStore.shared.clearAll()
                         Task { await CheckoutReturnLiveActivityManager.shared.endAll() }
