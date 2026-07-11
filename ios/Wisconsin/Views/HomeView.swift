@@ -312,7 +312,6 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showProfile) {
                 ProfileView()
-                    .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
             }
         }

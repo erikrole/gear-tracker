@@ -5,8 +5,9 @@ import UserNotifications
 // MARK: - Settings
 
 /// Dedicated settings page pushed from the gear button on `ProfileView`.
-/// Holds account, notification, appearance, tools, and app sections that
-/// previously shared the profile sheet.
+/// Follows the system Settings app conventions: plain body-text rows with
+/// solid-color icon squares, short trailing values instead of subtitles,
+/// and a centered destructive Sign Out row.
 struct SettingsView: View {
     @Environment(SessionStore.self) private var session
 
@@ -27,12 +28,70 @@ struct SettingsView: View {
 
     var body: some View {
         List {
-            accountSection
-            notificationsSection
-            appearanceSection
-            if isStaffOrAdmin { toolsSection }
-            appSection
-            signOutSection
+            Section {
+                NavigationLink(value: ProfileDestination.accountSecurity) {
+                    SettingsRow(title: "Account & Security", systemImage: "lock.fill", color: .blue)
+                }
+                NavigationLink(value: ProfileDestination.notifications) {
+                    SettingsRow(title: "Notifications", systemImage: "bell.badge.fill", color: .red) {
+                        Text(notificationStatusText)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Section {
+                Picker(selection: $themeChoice) {
+                    ForEach(ThemeChoice.allCases) { choice in
+                        Label(choice.label, systemImage: choice.systemImage)
+                            .tag(choice)
+                    }
+                } label: {
+                    SettingsRow(title: "Theme", systemImage: "circle.lefthalf.filled", color: .indigo)
+                }
+                .pickerStyle(.menu)
+            } footer: {
+                Text("Theme is saved on this device only.")
+            }
+
+            if isStaffOrAdmin {
+                Section("Staff Tools") {
+                    Button {
+                        showLinkStickerWizard = true
+                    } label: {
+                        SettingsRow(title: "Link Sticker Codes", systemImage: "qrcode", color: .teal)
+                    }
+                    Button {
+                        showScannerDebugger = true
+                    } label: {
+                        SettingsRow(title: "Scanner Debugger", systemImage: "barcode.viewfinder", color: .green)
+                    }
+                }
+            }
+
+            Section {
+                SettingsRow(title: "Version", systemImage: "app.badge", color: .gray) {
+                    Text(appVersion)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                Link(destination: Self.iosSettingsURL) {
+                    SettingsRow(title: "Open iOS Settings", systemImage: "gear", color: .gray) {
+                        Image(systemName: "arrow.up.forward")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            } footer: {
+                Text("Camera, notification, and other system permissions live in iOS Settings.")
+            }
+
+            Section {
+                Button("Sign Out", role: .destructive) {
+                    showSignOutConfirm = true
+                }
+                .frame(maxWidth: .infinity)
+            }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Settings")
@@ -59,215 +118,65 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Sections
-
-    @ViewBuilder
-    private var accountSection: some View {
-        Section("Account") {
-            NavigationLink(value: ProfileDestination.accountSecurity) {
-                SettingsMenuRow(
-                    title: "Account & Security",
-                    subtitle: accountSummaryText,
-                    systemImage: "person.crop.circle.badge.checkmark",
-                    tint: Color.brandPrimary
-                ) {
-                    StatusPill.role(session.currentUser?.role ?? "")
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var notificationsSection: some View {
-        Section("Notifications") {
-            NavigationLink(value: ProfileDestination.notifications) {
-                SettingsMenuRow(
-                    title: "Notifications",
-                    subtitle: notificationSummaryText,
-                    systemImage: notificationSummaryIcon,
-                    tint: notificationSummaryTint
-                ) {
-                    Text(pushStatusText)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(pushStatusTone)
-                        .multilineTextAlignment(.trailing)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var appearanceSection: some View {
-        Section {
-            Picker(selection: $themeChoice) {
-                ForEach(ThemeChoice.allCases) { choice in
-                    Label(choice.label, systemImage: choice.systemImage)
-                        .tag(choice)
-                }
-            } label: {
-                SettingsMenuRow(
-                    title: "Theme",
-                    subtitle: "Saved on this device only.",
-                    systemImage: "paintpalette",
-                    tint: Color.statusText(.purple)
-                ) {
-                    Text(themeChoice.label)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .pickerStyle(.menu)
-        } header: {
-            Text("Appearance")
-        } footer: {
-            Text("Saved on this device only — set it again on your other devices.")
-        }
-    }
-
-    @ViewBuilder
-    private var toolsSection: some View {
-        Section("Tools") {
-            Button {
-                showLinkStickerWizard = true
-            } label: {
-                SettingsMenuRow(
-                    title: "Link Sticker Codes",
-                    subtitle: "Pair printed QR stickers with items in the field.",
-                    systemImage: "qrcode.viewfinder",
-                    tint: Color.statusText(.blue)
-                ) {
-                    EmptyView()
-                }
-            }
-            Button {
-                showScannerDebugger = true
-            } label: {
-                SettingsMenuRow(
-                    title: "Scanner Debugger",
-                    subtitle: "Test a hand scanner and preview the scan result card.",
-                    systemImage: "barcode.viewfinder",
-                    tint: Color.statusText(.green)
-                ) {
-                    EmptyView()
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var appSection: some View {
-        Section("App") {
-            SettingsMenuRow(
-                title: "Version",
-                subtitle: appVersion,
-                systemImage: "app.badge",
-                tint: Color.secondary
-            ) {
-                EmptyView()
-            }
-            Link(destination: Self.iosSettingsURL) {
-                SettingsMenuRow(
-                    title: "Open iOS Settings",
-                    subtitle: "Camera, notifications, and system permissions.",
-                    systemImage: "gearshape",
-                    tint: Color.secondary
-                ) {
-                    Image(systemName: "arrow.up.right.square")
-                        .foregroundStyle(.tertiary)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var signOutSection: some View {
-        Section {
-            Button(role: .destructive) {
-                showSignOutConfirm = true
-            } label: {
-                SettingsMenuRow(
-                    title: "Sign Out",
-                    subtitle: "End this session on this device.",
-                    systemImage: "rectangle.portrait.and.arrow.right",
-                    tint: Color.statusText(.red)
-                ) {
-                    EmptyView()
-                }
-            }
-        }
-    }
-
     // MARK: - Helpers
+
+    private var pushAllowed: Bool {
+        pushAuth == .authorized || pushAuth == .provisional || pushAuth == .ephemeral
+    }
+
+    private var notificationStatusText: String {
+        if prefsVM.pausedUntilDate != nil { return "Paused" }
+        guard let prefs = prefsVM.prefs else { return "" }
+        var channels: [String] = []
+        if prefs.channels.email { channels.append("Email") }
+        if prefs.channels.push && pushAllowed { channels.append("Push") }
+        return channels.isEmpty ? "In-app only" : channels.joined(separator: " & ")
+    }
 
     private var appVersion: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
         return "\(version) (\(build))"
     }
+}
 
-    private var accountSummaryText: String {
-        let email = session.currentUser?.email ?? "Signed in"
-        return "\(email) · password and account access"
+// MARK: - Row
+
+/// System-Settings-style row: solid-color rounded square with a white
+/// glyph, body-text title, optional short trailing value.
+private struct SettingsRow<Trailing: View>: View {
+    let title: String
+    let systemImage: String
+    let color: Color
+    let trailing: () -> Trailing
+
+    @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 29
+
+    init(
+        title: String,
+        systemImage: String,
+        color: Color,
+        @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() }
+    ) {
+        self.title = title
+        self.systemImage = systemImage
+        self.color = color
+        self.trailing = trailing
     }
 
-    private var notificationSummaryText: String {
-        if prefsVM.loading && prefsVM.prefs == nil {
-            return "Loading email, push, and notification type preferences."
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: iconSize * 0.52, weight: .medium))
+                .foregroundStyle(.white)
+                .frame(width: iconSize, height: iconSize)
+                .background(color.gradient, in: RoundedRectangle(cornerRadius: iconSize * 0.22, style: .continuous))
+                .accessibilityHidden(true)
+            Text(title)
+                .foregroundStyle(.primary)
+            Spacer(minLength: 8)
+            trailing()
         }
-        if let until = prefsVM.pausedUntilDate {
-            return "Paused until \(until.formatted(date: .abbreviated, time: .shortened)). In-app notifications still appear."
-        }
-        if prefsVM.error != nil && prefsVM.prefs == nil {
-            return "Preferences could not load. Retry below before changing alert behavior."
-        }
-        guard let prefs = prefsVM.prefs else {
-            return "In-app notifications are always available."
-        }
-        let channels = [
-            prefs.channels.email ? "email" : nil,
-            prefs.channels.push ? "push" : nil,
-        ].compactMap { $0 }
-        if channels.isEmpty {
-            return "Only the in-app inbox is enabled."
-        }
-        return "\(channels.joined(separator: " and ").capitalized) alerts are enabled."
-    }
-
-    private var notificationSummaryIcon: String {
-        if prefsVM.pausedUntilDate != nil { return "moon.zzz.fill" }
-        if prefsVM.error != nil && prefsVM.prefs == nil { return "exclamationmark.triangle.fill" }
-        return "bell.badge"
-    }
-
-    private var notificationSummaryTint: Color {
-        if prefsVM.pausedUntilDate != nil { return Color.statusText(.purple) }
-        if prefsVM.error != nil && prefsVM.prefs == nil { return Color.statusText(.orange) }
-        return Color.brandPrimary
-    }
-
-    private var pushStatusText: String {
-        switch pushAuth {
-        case .authorized, .provisional, .ephemeral:
-            "Push allowed"
-        case .denied:
-            "iOS off"
-        case .notDetermined:
-            "Not set"
-        @unknown default:
-            "Unknown"
-        }
-    }
-
-    private var pushStatusTone: Color {
-        switch pushAuth {
-        case .authorized, .provisional, .ephemeral:
-            Color.statusText(.green)
-        case .denied:
-            Color.statusText(.orange)
-        case .notDetermined:
-            .secondary
-        @unknown default:
-            .secondary
-        }
+        .accessibilityElement(children: .combine)
     }
 }
