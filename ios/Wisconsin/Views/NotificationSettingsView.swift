@@ -9,6 +9,8 @@ struct NotificationSettingsView: View {
     let iosSettingsURL: URL
     let showPushPrompt: () -> Void
 
+    @ScaledMetric(relativeTo: .subheadline) private var iconWidth: CGFloat = 22
+
     var body: some View {
         List {
             Section {
@@ -37,13 +39,41 @@ struct NotificationSettingsView: View {
                             .foregroundStyle(.secondary)
                             .font(.subheadline)
                     }
-                } else if let prefs = prefsVM.prefs {
+                } else if prefsVM.prefs == nil, let err = prefsVM.error {
+                    HStack {
+                        Text(err)
+                            .font(.subheadline)
+                            .foregroundStyle(Color.statusText(.red))
+                        Spacer()
+                        Button("Retry") {
+                            Task { await prefsVM.load() }
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                }
+            } footer: {
+                Text("In-app notifications always show in your inbox, regardless of these settings.")
+            }
+
+            if prefsVM.prefs != nil {
+                Section {
                     if let until = prefsVM.pausedUntilDate {
                         pausedRow(until: until)
                     } else {
                         pauseChipsRow
                     }
+                } header: {
+                    Text("Pause Alerts")
+                } footer: {
+                    if prefsVM.pausedUntilDate == nil {
+                        Text("Temporarily silence email and push alerts. In-app notifications keep arriving.")
+                    }
+                }
+            }
 
+            if let prefs = prefsVM.prefs {
+                Section {
                     channelToggle(
                         title: "Email alerts",
                         icon: "envelope",
@@ -59,9 +89,11 @@ struct NotificationSettingsView: View {
                         isOn: prefs.channels.push,
                         onChange: { v in Task { await prefsVM.setChannel(.push, value: v) } }
                     )
+                } header: {
+                    Text("Delivery")
+                }
 
-                    categoryHeaderRow
-
+                Section {
                     categoryToggle(
                         title: "Checkout due reminders",
                         icon: "clock.badge.exclamationmark",
@@ -110,23 +142,11 @@ struct NotificationSettingsView: View {
                         description: "Staff-triggered reminders to reserve or prepare gear.",
                         category: .gearPrep
                     )
-                } else if let err = prefsVM.error {
-                    HStack {
-                        Text(err)
-                            .font(.subheadline)
-                            .foregroundStyle(Color.statusText(.red))
-                        Spacer()
-                        Button("Retry") {
-                            Task { await prefsVM.load() }
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                    }
+                } header: {
+                    Text("Notification Types")
+                } footer: {
+                    Text("Choose which email and push alerts can reach you.")
                 }
-            } header: {
-                Text("Delivery")
-            } footer: {
-                Text("In-app notifications always show in your inbox, regardless of these settings.")
             }
         }
         .listStyle(.insetGrouped)
@@ -194,7 +214,7 @@ struct NotificationSettingsView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "bell.slash.fill")
                         .foregroundStyle(Color.statusText(.orange))
-                        .frame(width: 22)
+                        .frame(width: iconWidth)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Push disabled in iOS Settings")
                             .font(.subheadline.weight(.medium))
@@ -216,7 +236,7 @@ struct NotificationSettingsView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "bell.badge")
                         .foregroundStyle(Color.brandPrimary)
-                        .frame(width: 22)
+                        .frame(width: iconWidth)
                     Text("Turn on notifications")
                         .font(.subheadline.weight(.medium))
                     Spacer()
@@ -229,18 +249,10 @@ struct NotificationSettingsView: View {
 
     @ViewBuilder
     private var pauseChipsRow: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: "bell.slash")
-                    .foregroundStyle(.secondary)
-                Text("Pause alerts")
-                    .font(.subheadline.weight(.medium))
-            }
-            HStack(spacing: 8) {
-                pauseChip(label: "1 hour",  seconds: 3600)
-                pauseChip(label: "1 day",   seconds: 86_400)
-                pauseChip(label: "1 week",  seconds: 604_800)
-            }
+        HStack(spacing: 8) {
+            pauseChip(label: "1 Hour",  seconds: 3600)
+            pauseChip(label: "1 Day",   seconds: 86_400)
+            pauseChip(label: "1 Week",  seconds: 604_800)
         }
         .padding(.vertical, 2)
     }
@@ -251,7 +263,7 @@ struct NotificationSettingsView: View {
                 await prefsVM.pause(for: seconds)
             }
         } label: {
-            Text("Pause \(label)")
+            Text(label)
                 .font(.footnote.weight(.medium))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 6)
@@ -259,6 +271,7 @@ struct NotificationSettingsView: View {
         .buttonStyle(.bordered)
         .controlSize(.small)
         .disabled(prefsVM.saving)
+        .accessibilityLabel("Pause alerts for \(label)")
     }
 
     @ViewBuilder
@@ -304,7 +317,7 @@ struct NotificationSettingsView: View {
             HStack(spacing: 12) {
                 Image(systemName: icon)
                     .foregroundStyle(.secondary)
-                    .frame(width: 22)
+                    .frame(width: iconWidth)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.subheadline.weight(.medium))
@@ -315,19 +328,7 @@ struct NotificationSettingsView: View {
                 }
             }
         }
-        .disabled(prefsVM.saving || prefsVM.isPaused)
-    }
-
-    @ViewBuilder
-    private var categoryHeaderRow: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("Notification types")
-                .font(.subheadline.weight(.semibold))
-            Text("Choose which email and push alerts can reach you.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding(.top, 4)
+        .disabled(prefsVM.isPaused)
     }
 
     @ViewBuilder
@@ -345,7 +346,7 @@ struct NotificationSettingsView: View {
             HStack(spacing: 12) {
                 Image(systemName: icon)
                     .foregroundStyle(.secondary)
-                    .frame(width: 22)
+                    .frame(width: iconWidth)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.subheadline.weight(.medium))
@@ -356,7 +357,6 @@ struct NotificationSettingsView: View {
                 }
             }
         }
-        .disabled(prefsVM.saving)
     }
 
     private var notificationSummaryText: String {

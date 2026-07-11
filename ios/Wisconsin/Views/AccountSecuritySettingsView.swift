@@ -85,7 +85,13 @@ struct AccountSecuritySettingsView: View {
                 }
 
                 Button {
+                    // Swapping SecureField <-> TextField changes view identity and
+                    // drops keyboard focus; restore it on the next runloop pass.
+                    let focus = focusedField
                     showPasswords.toggle()
+                    if let focus {
+                        DispatchQueue.main.async { focusedField = focus }
+                    }
                 } label: {
                     Label(showPasswords ? "Hide passwords" : "Show passwords", systemImage: showPasswords ? "eye.slash" : "eye")
                 }
@@ -198,8 +204,10 @@ struct AccountSecuritySettingsView: View {
         }
 
         isSaving = true
-        error = nil
-        successMessage = nil
+        withAnimation {
+            error = nil
+            successMessage = nil
+        }
 
         do {
             try await APIClient.shared.changePassword(
@@ -211,12 +219,16 @@ struct AccountSecuritySettingsView: View {
             newPassword = ""
             confirmPassword = ""
             focusedField = nil
-            successMessage = revokeOtherSessions
-                ? "Password changed. Other devices were signed out."
-                : "Password changed."
+            withAnimation {
+                successMessage = revokeOtherSessions
+                    ? "Password changed. Other devices were signed out."
+                    : "Password changed."
+            }
             Haptics.success()
         } catch {
-            self.error = error.localizedDescription
+            withAnimation {
+                self.error = error.localizedDescription
+            }
             Haptics.warning()
         }
 

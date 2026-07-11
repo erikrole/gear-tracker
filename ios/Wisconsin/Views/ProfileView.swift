@@ -260,15 +260,17 @@ private struct SettingsRowIcon: View {
     let systemImage: String
     let tint: Color
 
+    @ScaledMetric(relativeTo: .subheadline) private var iconSize: CGFloat = 34
+
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: iconSize * 0.24, style: .continuous)
                 .fill(tint.opacity(0.14))
             Image(systemName: systemImage)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(tint)
         }
-        .frame(width: 34, height: 34)
+        .frame(width: iconSize, height: iconSize)
         .accessibilityHidden(true)
     }
 }
