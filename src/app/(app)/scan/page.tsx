@@ -40,7 +40,7 @@ export default function ScanPage() {
         </PageHeader>
 
         {requestedBookingFlow && (
-          <Alert className="border-blue-200 bg-blue-50/60 text-blue-950 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100">
+          <Alert className="border-[var(--blue)]/25 bg-[var(--blue-bg)]/60 text-[var(--blue-text)]">
             <ShieldCheckIcon className="size-4" />
             <AlertTitle>Checkout scans run at the kiosk</AlertTitle>
             <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -518,7 +518,7 @@ function AttachmentPickerDialog({
                       </div>
                       {meta && <div className="mt-0.5 truncate text-xs text-muted-foreground">{meta}</div>}
                       {statusWarning && (
-                        <div className="mt-1 text-xs text-amber-700 dark:text-amber-300">{statusWarning}</div>
+                        <div className="mt-1 text-xs text-[var(--orange-text)]">{statusWarning}</div>
                       )}
                     </div>
                     <div className="flex h-10 min-w-10 items-center justify-center text-muted-foreground">

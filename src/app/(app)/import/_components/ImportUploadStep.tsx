@@ -32,7 +32,7 @@ export function ImportUploadStep({
           onClick={() => fileRef.current?.click()}
           className={`border-2 border-dashed rounded-xl py-12 px-6 text-center cursor-pointer transition-colors ${
             file
-              ? "border-green-500/50 bg-green-50 dark:bg-green-950/20"
+              ? "border-[var(--green)]/50 bg-[var(--green-bg)]"
               : "border-border bg-muted/50 hover:bg-muted"
           }`}
         >

@@ -322,7 +322,7 @@ export default function CalendarSourcesPage() {
                   </div>
                   {testResult && (
                     <div
-                      className={`mt-1 rounded-md border p-2.5 text-xs ${testResult.ok ? "border-green-300 bg-green-50 dark:bg-green-950/30 dark:border-green-900" : "border-destructive/40 bg-destructive/5"}`}
+                      className={`mt-1 rounded-md border p-2.5 text-xs ${testResult.ok ? "border-[var(--green)]/30 bg-[var(--green-bg)]" : "border-destructive/40 bg-destructive/5"}`}
                     >
                       {testResult.ok ? (
                         <>

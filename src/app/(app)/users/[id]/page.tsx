@@ -978,7 +978,7 @@ export default function UserDetailPage() {
                 rows={3}
               />
               {(selectedAwardRarity === "Rare" || selectedAwardRarity === "Legendary") && !awardNote.trim() && (
-                <p className="text-xs text-amber-600">
+                <p className="text-xs text-[var(--orange-text)]">
                   A note is recommended for {selectedAwardRarity} awards.
                 </p>
               )}

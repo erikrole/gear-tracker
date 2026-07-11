@@ -152,7 +152,7 @@ export function ImportPreviewStep({
                     row.errors.length > 0
                       ? "bg-destructive/10 dark:bg-destructive/20"
                       : row.warnings.length > 0
-                      ? "bg-amber-50 dark:bg-amber-950/20"
+                      ? "bg-[var(--orange-bg)]"
                       : ""
                   }
                 >

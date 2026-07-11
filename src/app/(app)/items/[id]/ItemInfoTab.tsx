@@ -131,7 +131,7 @@ function TextInputField({
           className={cn("h-8 text-sm", mono && "font-mono")}
         />
         {dupWarning && (
-          <p className="text-xs text-orange-600 dark:text-orange-400 mt-0.5 px-1">{dupWarning}</p>
+          <p className="text-xs text-[var(--orange-text)] mt-0.5 px-1">{dupWarning}</p>
         )}
       </div>
     </SaveableField>
@@ -398,7 +398,7 @@ function LinkField({
                   aria-label={copied ? "Copied link" : "Copy link"}
                 >
                   {copied ? (
-                    <Check className="size-3.5 text-green-600 dark:text-green-400" aria-hidden="true" />
+                    <Check className="size-3.5 text-[var(--green-text)]" aria-hidden="true" />
                   ) : (
                     <Copy className="size-3.5" aria-hidden="true" />
                   )}
@@ -833,7 +833,7 @@ function FirmwareWatchPanel({
                 <p className="text-pretty text-sm text-muted-foreground">{firmwareWatch.supportNote}</p>
               )}
               {firmwareWatch.lastError && (
-                <p className="text-pretty text-sm text-orange-600 dark:text-orange-400">
+                <p className="text-pretty text-sm text-[var(--orange-text)]">
                   Last check issue: {firmwareWatch.lastError}
                 </p>
               )}
@@ -1059,7 +1059,7 @@ export function QRModal({
                   aria-label={copied ? "Copied QR code" : `Copy QR code ${asset.qrCodeValue}`}
                 >
                   {copied ? (
-                    <Check className="size-3.5 text-green-600 dark:text-green-400" aria-hidden="true" />
+                    <Check className="size-3.5 text-[var(--green-text)]" aria-hidden="true" />
                   ) : (
                     <Copy className="size-3.5" aria-hidden="true" />
                   )}
@@ -1163,7 +1163,7 @@ function ScanValueRow({
         >
           <span className="min-w-0 truncate">{value}</span>
           {copied ? (
-            <Check className="size-3 shrink-0 text-green-600 dark:text-green-400" aria-hidden="true" />
+            <Check className="size-3 shrink-0 text-[var(--green-text)]" aria-hidden="true" />
           ) : (
             <Copy
               className="size-3 shrink-0 opacity-50 transition-opacity group-hover/copy:opacity-100"

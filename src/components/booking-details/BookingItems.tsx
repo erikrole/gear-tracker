@@ -93,7 +93,7 @@ export default function BookingItems({
                   {canCheckin && onCheckinItem && (
                     <div className="shrink-0">
                       {isReturned ? (
-                        <CheckCircle2 className="size-4 text-green-600" />
+                        <CheckCircle2 className="size-4 text-[var(--green-text)]" />
                       ) : (
                         <Button
                           variant="outline"
@@ -107,7 +107,7 @@ export default function BookingItems({
                     </div>
                   )}
                   {!canCheckin && isReturned && (
-                    <CheckCircle2 className="size-4 text-green-600 shrink-0" />
+                    <CheckCircle2 className="size-4 text-[var(--green-text)] shrink-0" />
                   )}
                 </div>
               );

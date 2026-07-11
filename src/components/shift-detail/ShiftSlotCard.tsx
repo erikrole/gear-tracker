@@ -219,7 +219,7 @@ export function ShiftSlotCard({
                   {activeAssignment.hasConflict && (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <AlertTriangle className="size-3.5 text-amber-500 shrink-0" aria-label="Schedule conflict" />
+                        <AlertTriangle className="size-3.5 text-[var(--orange-text)] shrink-0" aria-label="Schedule conflict" />
                       </TooltipTrigger>
                       <TooltipContent>
                         {activeAssignment.conflictNote ?? "Schedule conflict"}

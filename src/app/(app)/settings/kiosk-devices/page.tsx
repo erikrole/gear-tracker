@@ -604,7 +604,7 @@ export default function KioskDevicesPage() {
                         className={cn(
                           "flex min-h-10 items-center gap-1.5 rounded-md px-3 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                           device.pendingPickupCount > 0
-                            ? "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 cursor-pointer"
+                            ? "text-[var(--orange-text)] hover:bg-[var(--orange-bg)] cursor-pointer"
                             : "text-muted-foreground cursor-default"
                         )}
                         aria-label={
@@ -624,7 +624,7 @@ export default function KioskDevicesPage() {
                       {/* Open checkouts */}
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-2 py-1">
                         {device.openCheckoutCount > 0
-                          ? <CheckCircle2 className="size-3.5 text-emerald-500" />
+                          ? <CheckCircle2 className="size-3.5 text-[var(--green-text)]" />
                           : <Circle className="size-3.5" />
                         }
                         <span>{device.openCheckoutCount} active checkout{device.openCheckoutCount !== 1 ? "s" : ""}</span>

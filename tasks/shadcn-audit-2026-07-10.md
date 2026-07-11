@@ -37,13 +37,17 @@ ternary classNames.
 1. **`space-x/y-*` sweep — 264 occurrences across ~80 files.** Replace with
    `flex flex-col gap-*` / `gap-*`. Margin-based spacing behaves differently from gap
    (collapsing, absolute children), so do it area-by-area with visual checks, not one sed.
-2. **Remaining raw palette colors (~45 left).** Top files: `EquipmentPicker.tsx` (6),
-   `ItemInfoTab.tsx` (5), `bulk-inventory/batteries/page.tsx` (4), `ChooseImageModal.tsx` (3,
-   categorical emerald/sky/amber source badges -> map to green/blue/orange tokens),
-   `ItemBookingsTab.tsx` (3, red/amber row accents -> `--red`/`--orange` with opacity).
-   Same token recipe as this slice.
-3. **Manual `dark:` color pairs (~40 left)** — largely resolved by item 2 since most pair
-   with the raw colors.
+2. ~~Remaining raw palette colors~~ **Done 2026-07-10 (follow-up slice):** 23 files migrated
+   to tokens/variants (EquipmentPicker, ItemInfoTab/Bookings/Settings tabs, batteries page,
+   ChooseImageModal categorical badges, licenses yellow -> orange, TradeBoard warning callout
+   which also gained its missing dark-mode treatment, OfflineBanner, kiosk devices,
+   calendar sources, labels, scan info alert, import steps, avatar picker recommended chip,
+   booking items, shift slot conflict icon, overdue banner, user award hint).
+   **Deliberate exceptions kept:** the gold favorite/default stars
+   (`items/columns.tsx`, `ItemHeader.tsx`, `EventTravelCard.tsx` use `amber-400` fills as
+   affordance iconography, not status color) and `ScanControls.tsx` (always-dark surface).
+3. ~~Manual `dark:` color pairs~~ **Done with item 2** — the paired `dark:` overrides were
+   removed along with the raw colors; remaining `dark:` uses are shadows/opacity, not colors.
 4. **Template-literal ternary classNames (33)** -> `cn()`.
 5. **Manual z-index audit (30)** — most are likely fine (sticky headers, kiosk overlays);
    verify none fight the overlay primitives.

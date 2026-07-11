@@ -722,8 +722,8 @@ export default function EquipmentPicker({
               className={cn(
                 "rounded-md py-2.5",
                 item.isLow
-                  ? "border-orange-500/30 bg-orange-500/[0.06]"
-                  : "border-blue-500/20 bg-blue-500/[0.05]",
+                  ? "border-[var(--orange)]/30 bg-[var(--orange)]/[0.06]"
+                  : "border-[var(--blue)]/20 bg-[var(--blue)]/[0.05]",
               )}
             >
               <AlertTitle className="text-sm">
@@ -848,7 +848,7 @@ export default function EquipmentPicker({
                           </p>
                         )}
                         {upcoming && !conflict && !isUnavailable && (
-                          <p className="mt-0.5 truncate text-[10px] text-blue-600 dark:text-blue-400">
+                          <p className="mt-0.5 truncate text-[10px] text-[var(--blue-text)]">
                             {upcomingCommitmentLabel(upcoming)}
                             {upcoming.bookingTitle ? ` · ${upcoming.bookingTitle}` : ""}
                           </p>
@@ -857,8 +857,8 @@ export default function EquipmentPicker({
                           <p className={cn(
                             "mt-0.5 truncate text-[10px]",
                             risk?.severity === "critical"
-                              ? "text-red-600 dark:text-red-400"
-                              : "text-orange-600 dark:text-orange-400",
+                              ? "text-[var(--red-text)]"
+                              : "text-[var(--orange-text)]",
                           )}>
                             {riskText}
                           </p>
@@ -935,7 +935,7 @@ export default function EquipmentPicker({
                           : `${available} available · ${bulkQuantityHint(sku)}`}
                       </ItemDescription>
                       {riskText && (
-                        <p className="mt-0.5 truncate text-[10px] text-orange-600 dark:text-orange-400">
+                        <p className="mt-0.5 truncate text-[10px] text-[var(--orange-text)]">
                           {riskText}
                         </p>
                       )}

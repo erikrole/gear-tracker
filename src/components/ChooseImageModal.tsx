@@ -78,9 +78,9 @@ type SourceCue = "manufacturer" | "retailer" | "marketplace" | "unknown";
 type ImageSavingAction = "search" | "url" | "upload" | "remove";
 
 const SOURCE_CUE_STYLES: Record<SourceCue, string> = {
-  manufacturer: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300",
-  retailer: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/50 dark:bg-sky-950/40 dark:text-sky-300",
-  marketplace: "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300",
+  manufacturer: "border-transparent bg-[var(--green-bg)] text-[var(--green-text)]",
+  retailer: "border-transparent bg-[var(--blue-bg)] text-[var(--blue-text)]",
+  marketplace: "border-transparent bg-[var(--orange-bg)] text-[var(--orange-text)]",
   unknown: "border-border bg-muted text-muted-foreground",
 };
 

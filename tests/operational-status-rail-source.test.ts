@@ -85,7 +85,7 @@ describe("operational status rail source contract", () => {
     const onboarding = source("src/app/(app)/users/onboarding-status/page.tsx");
     const allowedEmails = source("src/app/(app)/settings/allowed-emails/page.tsx");
 
-    expect(notifications).toContain("ariaPressed={unreadOnly}");
+    expect(notifications).toContain('value={unreadOnly ? "unread" : "all"}');
     expect(onboarding).toContain('ariaPressed={statusFilter === "stale"}');
     expect(allowedEmails).toContain('ariaPressed={statusFilter === "unclaimed"}');
   });

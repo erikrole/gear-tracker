@@ -85,7 +85,7 @@ export function MyLicensePanel({ license, isStaff, onReleased }: Props) {
                 "flex items-center gap-1.5 text-xs " +
                 (isExpired
                   ? "text-destructive"
-                  : "text-yellow-700 dark:text-yellow-400")
+                  : "text-[var(--orange-text)]")
               }
             >
               <AlertTriangle className="size-3.5" />

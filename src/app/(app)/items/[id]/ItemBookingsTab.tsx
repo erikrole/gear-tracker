@@ -62,8 +62,8 @@ export function UpcomingReservationsList({
             key={r.bookingId}
             className={cn(
               "flex items-center justify-between w-full text-left px-4 py-3 min-h-[44px] transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/30",
-              pastStart && "border-l-[3px] border-l-red-600 bg-red-600/[0.06] hover:bg-red-600/10",
-              startsToday && "border-l-[3px] border-l-amber-600 bg-amber-600/[0.04] hover:bg-amber-600/[0.08]",
+              pastStart && "border-l-[3px] border-l-[var(--red)] bg-[var(--red)]/[0.06] hover:bg-[var(--red)]/10",
+              startsToday && "border-l-[3px] border-l-[var(--orange)] bg-[var(--orange)]/[0.04] hover:bg-[var(--orange)]/[0.08]",
             )}
             onClick={() => onSelectBooking(r.bookingId)}
           >
@@ -250,7 +250,7 @@ function SaveableToggle({
         <div className="flex items-center gap-2">
           <Label className="text-sm font-medium">{label}</Label>
           {saveField.status === "saving" && <Spinner className="size-3" />}
-          {saveField.status === "saved" && <Check className="size-3 text-green-600 dark:text-green-400" />}
+          {saveField.status === "saved" && <Check className="size-3 text-[var(--green-text)]" />}
           {saveField.status === "error" && <X className="size-3 text-destructive" />}
         </div>
         <p className="text-xs text-muted-foreground mt-0.5 m-0">{help}</p>

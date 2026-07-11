@@ -262,7 +262,7 @@ export function AdminClaimSheet({ license, isAdmin, hasMyLicense, onOpenChange, 
             <SheetTitle className="font-mono text-sm break-all">{license?.code}</SheetTitle>
             {isExpired && <Badge variant="destructive" className="text-xs">Expired</Badge>}
             {isExpiringSoon && (
-              <Badge variant="outline" className="text-xs border-yellow-400 text-yellow-700 dark:text-yellow-400">
+              <Badge variant="orange" className="text-xs">
                 Expiring soon
               </Badge>
             )}

@@ -108,9 +108,9 @@ export function SelectedEquipmentShelf({
         {unresolvedSelectedAssetIds.map((id) => (
           <div
             key={id}
-            className="flex min-h-10 max-w-full items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/[0.06] py-1 pl-3 pr-1 shadow-xs"
+            className="flex min-h-10 max-w-full items-center gap-2 rounded-full border border-[var(--orange)]/30 bg-[var(--orange)]/[0.06] py-1 pl-3 pr-1 shadow-xs"
           >
-            <AlertCircleIcon className="size-4 shrink-0 text-orange-500" />
+            <AlertCircleIcon className="size-4 shrink-0 text-[var(--orange-text)]" />
             <span className="max-w-[13rem] truncate text-sm font-medium">Unavailable selected item</span>
             <Button
               type="button"

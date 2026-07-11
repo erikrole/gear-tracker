@@ -147,7 +147,7 @@ function LabelMetric({
 }) {
   const toneClass =
     tone === "green"
-      ? "bg-green-50/70 dark:bg-green-950/20"
+      ? "bg-[var(--green-bg)]/70"
       : tone === "muted"
         ? "bg-muted/50"
         : "bg-background";
@@ -357,7 +357,7 @@ export default function LabelsPage() {
                 className={cn(
                   "border border-transparent transition-colors",
                   selectedIds.has(item.id)
-                    ? "border-green-200 bg-[var(--green-bg)] dark:border-green-900/60"
+                    ? "border-[var(--green)]/30 bg-[var(--green-bg)]"
                     : "hover:bg-muted/50",
                 )}
               >

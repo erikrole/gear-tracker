@@ -631,7 +631,7 @@ export default function BatteryCockpitPage() {
       )}
 
       {data && data.compatibility.length > 0 && (
-        <Card className="border-orange-200/70 bg-orange-50/40 shadow-none dark:border-orange-900/50 dark:bg-orange-950/10">
+        <Card className="border-[var(--orange)]/25 bg-[var(--orange-bg)]/40 shadow-none">
           <CardHeader className="pb-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <CardTitle className="flex items-center gap-2 text-base">
@@ -1131,7 +1131,7 @@ function CompatibilityRow({ item }: { item: BatteryCompatibility }) {
   const batteries = item.batterySkuNames.join(", ");
 
   return (
-    <div className="rounded-md border border-orange-200/70 bg-background/80 p-3 dark:border-orange-900/50">
+    <div className="rounded-md border border-[var(--orange)]/25 bg-background/80 p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="font-medium">{item.label}</div>
@@ -1164,7 +1164,7 @@ function IntegrityWarningCard({
   const remaining = Math.max(0, warnings.length - visibleWarnings.length);
 
   return (
-    <Card className="border-orange-200/70 bg-orange-50/40 shadow-none dark:border-orange-900/50 dark:bg-orange-950/10">
+    <Card className="border-[var(--orange)]/25 bg-[var(--orange-bg)]/40 shadow-none">
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -1189,7 +1189,7 @@ function IntegrityWarningCard({
             <Link
               key={warning.id}
               href={`/bulk-inventory/${warning.skuId}`}
-              className="rounded-md border border-orange-200/70 bg-background/80 px-3 py-2 text-sm no-underline transition-colors hover:bg-background dark:border-orange-900/50"
+              className="rounded-md border border-[var(--orange)]/25 bg-background/80 px-3 py-2 text-sm no-underline transition-colors hover:bg-background"
             >
               <div className="font-medium">{warning.skuName} #{warning.unitNumber}</div>
               <div className="mt-0.5 text-xs text-muted-foreground">{warning.locationName}</div>

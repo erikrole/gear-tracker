@@ -231,7 +231,7 @@ export function UserAvatarPicker({
                           size="sm"
                           className={cn(
                             "shrink-0 px-1.5 py-0 text-[9px] tabular-nums",
-                            score.bucket === "recommended" && "bg-emerald-600 text-white hover:bg-emerald-600",
+                            score.bucket === "recommended" && "bg-[var(--green)] text-white hover:bg-[var(--green)]",
                           )}
                         >
                           {score.score}

@@ -295,7 +295,7 @@ function AvailabilityContextNote({ context }: { context?: AvailabilityContext | 
     <div className="flex items-start gap-2 rounded-md border border-border/60 bg-muted/40 px-2.5 py-2 text-xs leading-relaxed text-muted-foreground">
       <AlertTriangleIcon className={cn(
         "mt-0.5 size-3.5 shrink-0",
-        context.state === "blocked" ? "text-destructive" : context.state === "preferred" ? "text-[var(--green-text)]" : "text-amber-700",
+        context.state === "blocked" ? "text-destructive" : context.state === "preferred" ? "text-[var(--green-text)]" : "text-[var(--orange-text)]",
       )} />
       <div className="min-w-0">
         <Badge variant={variant} size="sm" className="mb-1 h-5 px-1.5 text-[10px]">
@@ -714,7 +714,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
                       </div>
 
                       {primaryWarning && (
-                        <p className="flex items-start gap-1.5 rounded-md bg-amber-50 px-2.5 py-2 text-xs leading-relaxed text-amber-800">
+                        <p className="flex items-start gap-1.5 rounded-md bg-[var(--orange-bg)] px-2.5 py-2 text-xs leading-relaxed text-[var(--orange-text)]">
                           <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" />
                           <span>{primaryWarning}</span>
                         </p>

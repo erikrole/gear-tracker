@@ -153,7 +153,7 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
                       {nudgingId === item.bookingId ? (
                         <Spinner />
                       ) : nudgedIds.has(item.bookingId) ? (
-                        <CheckIcon className="size-4 text-green-500" />
+                        <CheckIcon className="size-4 text-[var(--green-text)]" />
                       ) : (
                         <BellRingIcon className="size-4" />
                       )}
