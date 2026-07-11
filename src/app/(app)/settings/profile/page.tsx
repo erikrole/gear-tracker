@@ -213,7 +213,7 @@ export default function ProfileSettingsPage() {
   if (loading) {
     return (
       <SettingsPageShell title="Profile" description="Your name, contact info, area, and profile photo.">
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <Skeleton className="h-24 w-full rounded-lg" />
           <Skeleton className="h-64 w-full rounded-lg" />
         </div>
@@ -241,7 +241,7 @@ export default function ProfileSettingsPage() {
 
   return (
     <SettingsPageShell title="Profile" description="Your name, contact info, area, and profile photo.">
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         {/* Avatar card */}
         <Card>
           <CardContent className="py-5 flex items-center gap-4">
@@ -303,9 +303,9 @@ export default function ProfileSettingsPage() {
 
         {/* Identity fields card */}
         <Card>
-          <CardContent className="py-5 space-y-4">
+          <CardContent className="py-5 flex flex-col gap-4">
             {/* Name */}
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="profile-name">Name</Label>
               <Input
                 id="profile-name"
@@ -322,7 +322,7 @@ export default function ProfileSettingsPage() {
 
             {/* Phone + Primary Area */}
             <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
-              <div className="space-y-1.5">
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="profile-phone">Phone</Label>
                 <Input
                   id="profile-phone"
@@ -336,7 +336,7 @@ export default function ProfileSettingsPage() {
                 />
               </div>
 
-              <div className="space-y-1.5">
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="profile-area">Primary Area</Label>
                 <Select
                   name="primaryArea"
@@ -361,7 +361,7 @@ export default function ProfileSettingsPage() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="profile-wiscard">Wiscard value</Label>
               <Input
                 id="profile-wiscard"
@@ -378,7 +378,7 @@ export default function ProfileSettingsPage() {
             </div>
 
             {/* Title */}
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="profile-title">Title</Label>
               <Input
                 id="profile-title"
@@ -392,7 +392,7 @@ export default function ProfileSettingsPage() {
             </div>
 
             {/* Athletics email */}
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="profile-athletics-email">Athletics email</Label>
               <Input
                 id="profile-athletics-email"
@@ -410,7 +410,7 @@ export default function ProfileSettingsPage() {
             </div>
 
             {/* Slack handle */}
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="profile-slack">Slack handle</Label>
               <Input
                 id="profile-slack"

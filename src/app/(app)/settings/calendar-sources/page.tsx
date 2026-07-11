@@ -330,7 +330,7 @@ export default function CalendarSourcesPage() {
                             ✓ Reachable — {testResult.eventCount} event{testResult.eventCount === 1 ? "" : "s"} in feed ({Math.round(testResult.byteSize / 1024)} KB)
                           </div>
                           {testResult.sampleSummaries.length > 0 && (
-                            <ul className="mt-1.5 list-disc pl-4 space-y-0.5 text-muted-foreground">
+                            <ul className="mt-1.5 list-disc pl-4 flex flex-col gap-0.5 text-muted-foreground">
                               {testResult.sampleSummaries.slice(0, 3).map((s, i) => (
                                 <li key={i} className="truncate">{s}</li>
                               ))}

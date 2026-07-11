@@ -370,7 +370,7 @@ export default function KioskDevicesPage() {
     <SettingsPageShell
       title="Kiosk Devices"
       description="Manage iPad kiosk stations for self-serve gear checkout."
-      mainClassName="space-y-4"
+      mainClassName="flex flex-col gap-4"
     >
         <div className="flex justify-end">
           {!showAdd && (
@@ -404,7 +404,7 @@ export default function KioskDevicesPage() {
             ) : null}
 
             <form onSubmit={handleAdd} className="flex items-end gap-3">
-              <div className="flex-1 space-y-1.5">
+              <div className="flex-1 flex flex-col gap-1.5">
                 <Label htmlFor="kiosk-name">Name</Label>
                 <Input
                   id="kiosk-name"
@@ -415,7 +415,7 @@ export default function KioskDevicesPage() {
                   disabled={adding}
                 />
               </div>
-              <div className="flex-1 space-y-1.5">
+              <div className="flex-1 flex flex-col gap-1.5">
                 <Label htmlFor="kiosk-location">Location</Label>
                 <Select
                   name="kioskLocationId"
@@ -489,13 +489,13 @@ export default function KioskDevicesPage() {
 
       {/* Loading state */}
       {loading && !error && (
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           {[1, 2].map((i) => (
             <Card key={i}>
               <CardContent className="py-4">
                 <div className="flex items-center gap-4">
                   <Skeleton className="size-10 rounded" />
-                  <div className="flex-1 space-y-2">
+                  <div className="flex-1 flex flex-col gap-2">
                     <Skeleton className="h-4 w-40" />
                     <Skeleton className="h-3 w-24" />
                   </div>
@@ -523,12 +523,12 @@ export default function KioskDevicesPage() {
 
       {/* Device list */}
       {!loading && !error && (devices ?? []).length > 0 && (
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           {(devices ?? []).map((device) => {
             const health = kioskHealth(device);
             return (
               <Card key={device.id} className={cn(!device.active && "opacity-60")}>
-                <CardContent className="py-4 space-y-3">
+                <CardContent className="py-4 flex flex-col gap-3">
                   {/* Main row */}
                   <div className="flex items-center gap-4">
                     <div className="flex size-10 items-center justify-center rounded bg-muted shrink-0">
@@ -676,7 +676,7 @@ export default function KioskDevicesPage() {
               Pickups at <strong>{pickupDialog?.location.name}</strong> waiting to be collected. Cancel any that are stuck or expired.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2 py-1 max-h-72 overflow-y-auto">
+          <div className="flex flex-col gap-2 py-1 max-h-72 overflow-y-auto">
             {(pickupDialog?.pendingPickups ?? []).length === 0 && (
               <EmptyState
                 inline

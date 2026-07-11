@@ -80,7 +80,7 @@ export default function ShiftConfigTable({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       {SPORT_GROUPS.map((group) => {
         const primaryCode = group.codes[0]!; // every SPORT_GROUP has at least one code
         const config = getGroupConfig(group.codes);
@@ -113,7 +113,7 @@ export default function ShiftConfigTable({
             </CardHeader>
 
             {active && (
-              <CardContent className="pt-0 space-y-4">
+              <CardContent className="pt-0 flex flex-col gap-4">
                 {/* Shift counts table */}
                 <div className="overflow-x-auto">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">

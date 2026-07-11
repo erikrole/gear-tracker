@@ -147,9 +147,9 @@ export default function ReservationRulesPage() {
           <CardTitle className="text-base">Booking constraints</CardTitle>
           <CardDescription>These apply to all new reservations. Existing reservations are not affected.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col gap-4">
           {/* Advance window */}
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="rr-advance">Advance booking window (days)</Label>
             <Input
               id="rr-advance"
@@ -171,7 +171,7 @@ export default function ReservationRulesPage() {
           </div>
 
           {/* No-show expiry */}
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="rr-expiry">No-show expiry (hours)</Label>
             <Input
               id="rr-expiry"
@@ -192,7 +192,7 @@ export default function ReservationRulesPage() {
           </div>
 
           {/* Max concurrent */}
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="rr-max-concurrent">Max active reservations per user</Label>
             <Input
               id="rr-max-concurrent"

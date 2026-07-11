@@ -103,11 +103,11 @@ function SettingsRouteContent({
   if (isLoading) {
     return (
       <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-        <div className="sticky top-20 max-lg:static space-y-2">
+        <div className="sticky top-20 max-lg:static flex flex-col gap-2">
           <Skeleton className="h-7 w-32" />
           <Skeleton className="h-4 w-56" />
         </div>
-        <div className="min-w-0 space-y-3">
+        <div className="min-w-0 flex flex-col gap-3">
           <Skeleton className="h-9 w-full max-w-md" />
           <Skeleton className="h-32 w-full" />
         </div>
@@ -124,7 +124,7 @@ function SettingsRouteContent({
   return (
     <Alert>
       <AlertTitle>{unknownRoute ? "Settings page unavailable" : "Access denied"}</AlertTitle>
-      <AlertDescription className="space-y-4">
+      <AlertDescription className="flex flex-col gap-4">
         <p>
           {unknownRoute
             ? "This Settings address does not match an available page."

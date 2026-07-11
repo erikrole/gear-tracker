@@ -145,9 +145,9 @@ export default function CheckoutPoliciesPage() {
           <CardTitle className="text-base">Loan rules</CardTitle>
           <CardDescription>These apply to all new checkouts. Existing checkouts are not affected.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col gap-4">
           {/* Default loan duration */}
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="cp-loan-days">Default loan duration (days)</Label>
             <Input
               id="cp-loan-days"
@@ -168,7 +168,7 @@ export default function CheckoutPoliciesPage() {
           </div>
 
           {/* Grace period */}
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="cp-grace">Overdue grace period (hours)</Label>
             <Input
               id="cp-grace"
@@ -190,7 +190,7 @@ export default function CheckoutPoliciesPage() {
           </div>
 
           {/* Max items */}
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="cp-max-items">Max active checkouts per user</Label>
             <Input
               id="cp-max-items"

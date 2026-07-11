@@ -116,7 +116,7 @@ export default function BookingSettingsPage() {
     <SettingsPageShell
       title="Booking extensions"
       description="Configure the preset buttons shown when extending a booking's due date."
-      mainClassName="space-y-6"
+      mainClassName="flex flex-col gap-6"
     >
         <Card>
           <CardHeader className="flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">

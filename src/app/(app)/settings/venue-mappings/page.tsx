@@ -220,7 +220,7 @@ export default function VenueMappingsPage() {
               Refresh audit
             </Button>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="flex flex-col gap-4">
             {auditLoading ? (
               <div className="flex justify-center py-8">
                 <Spinner className="size-8" />
@@ -246,7 +246,7 @@ export default function VenueMappingsPage() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="flex flex-col gap-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="orange">{audit.issueCount} to review</Badge>
                   <p className="text-sm text-muted-foreground">
@@ -255,7 +255,7 @@ export default function VenueMappingsPage() {
                 </div>
 
                 {audit.homeVenuesWithoutMappings.length > 0 && (
-                  <div className="space-y-2">
+                  <div className="flex flex-col gap-2">
                     <h3 className="text-sm font-semibold">Home venues without mappings</h3>
                     <div className="divide-y rounded-md border">
                       {audit.homeVenuesWithoutMappings.map((location) => (
@@ -285,7 +285,7 @@ export default function VenueMappingsPage() {
                 )}
 
                 {audit.mappingsToInactiveLocations.length > 0 && (
-                  <div className="space-y-2">
+                  <div className="flex flex-col gap-2">
                     <h3 className="text-sm font-semibold">Mappings to inactive locations</h3>
                     <div className="divide-y rounded-md border">
                       {audit.mappingsToInactiveLocations.map((mapping) => (
@@ -306,7 +306,7 @@ export default function VenueMappingsPage() {
                 )}
 
                 {audit.mappingsToMissingLocations.length > 0 && (
-                  <div className="space-y-2">
+                  <div className="flex flex-col gap-2">
                     <h3 className="text-sm font-semibold">Mappings to missing locations</h3>
                     <div className="divide-y rounded-md border">
                       {audit.mappingsToMissingLocations.map((mapping) => (
@@ -325,7 +325,7 @@ export default function VenueMappingsPage() {
                 )}
 
                 {audit.homeMappingsToNonHomeLocations.length > 0 && (
-                  <div className="space-y-2">
+                  <div className="flex flex-col gap-2">
                     <h3 className="text-sm font-semibold">Home-looking mappings to non-home locations</h3>
                     <div className="divide-y rounded-md border">
                       {audit.homeMappingsToNonHomeLocations.map((mapping) => (
@@ -436,7 +436,7 @@ export default function VenueMappingsPage() {
                   </Alert>
                 ) : null}
 
-                <div className="mt-3 rounded-md border bg-muted/30 p-3 space-y-2">
+                <div className="mt-3 rounded-md border bg-muted/30 p-3 flex flex-col gap-2">
                   <div className="flex items-center justify-between gap-2">
                     <label htmlFor="vm-test-sample" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Test pattern

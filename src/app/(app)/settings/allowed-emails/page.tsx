@@ -140,7 +140,7 @@ export default function AllowedEmailsPage() {
 
   if (loading) {
     return (
-      <SettingsPageShell title="Allowed Emails" description={description} mainClassName="space-y-3">
+      <SettingsPageShell title="Allowed Emails" description={description} mainClassName="flex flex-col gap-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex items-center gap-4 rounded-md border p-4">
                 <Skeleton className="h-5 w-48" />
@@ -179,7 +179,7 @@ export default function AllowedEmailsPage() {
   }
 
   return (
-    <SettingsPageShell title="Allowed Emails" description={description} mainClassName="space-y-4">
+    <SettingsPageShell title="Allowed Emails" description={description} mainClassName="flex flex-col gap-4">
         {/* Onboarding overview */}
         <OperationalStatusRail
           orientation={{

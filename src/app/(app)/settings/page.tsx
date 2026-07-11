@@ -91,7 +91,7 @@ export default function SettingsPage() {
   if (loading || !role) {
     return (
       <FadeUp>
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <Skeleton className="h-20 w-full rounded-md" />
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
             {Array.from({ length: 4 }).map((_, index) => (
@@ -105,10 +105,10 @@ export default function SettingsPage() {
 
   return (
     <FadeUp>
-      <div className="space-y-5">
+      <div className="flex flex-col gap-5">
         <section className="rounded-lg border bg-card p-4 shadow-xs">
           <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0 space-y-3">
+            <div className="min-w-0 flex flex-col gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-xl font-semibold text-balance">Choose a settings area</h2>
               </div>

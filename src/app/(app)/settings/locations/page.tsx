@@ -211,7 +211,7 @@ export default function LocationsSettingsPage() {
 
   if (loading) {
     return (
-      <SettingsPageShell title="Locations" description={description} mainClassName="space-y-3">
+      <SettingsPageShell title="Locations" description={description} mainClassName="flex flex-col gap-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-12 w-full rounded-md" />
             ))}
@@ -244,7 +244,7 @@ export default function LocationsSettingsPage() {
   const inactive = items.filter((l) => !l.active);
 
   return (
-    <SettingsPageShell title="Locations" description={description} mainClassName="space-y-4">
+    <SettingsPageShell title="Locations" description={description} mainClassName="flex flex-col gap-4">
         <div className="flex justify-end">
           {!showAdd && (
             <Button size="sm" onClick={() => setShowAdd(true)}>
@@ -265,9 +265,9 @@ export default function LocationsSettingsPage() {
                   <AlertDescription>{addError}</AlertDescription>
                 </Alert>
               )}
-              <form onSubmit={handleAdd} className="space-y-4">
+              <form onSubmit={handleAdd} className="flex flex-col gap-4">
                 <div className="grid grid-cols-[1fr_1fr] gap-3 max-sm:grid-cols-1">
-                  <div className="space-y-1.5">
+                  <div className="flex flex-col gap-1.5">
                     <Label htmlFor="loc-name">Name</Label>
                     <Input
                       id="loc-name"
@@ -279,7 +279,7 @@ export default function LocationsSettingsPage() {
                       disabled={adding}
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="flex flex-col gap-1.5">
                     <Label htmlFor="loc-address">Address (optional)</Label>
                     <Input
                       id="loc-address"

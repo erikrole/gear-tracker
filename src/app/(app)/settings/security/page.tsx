@@ -144,15 +144,15 @@ export default function SecuritySettingsPage() {
 
   return (
     <SettingsPageShell title="Security" description="Change your password and manage active sessions.">
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         {/* Change password */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Change password</CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleChangePassword} className="space-y-4">
-              <div className="space-y-1.5">
+            <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="security-current-pw">Current password</Label>
                 <Input
                   id="security-current-pw"
@@ -165,7 +165,7 @@ export default function SecuritySettingsPage() {
                   disabled={saving}
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="security-new-pw">New password</Label>
                 <Input
                   id="security-new-pw"
@@ -179,7 +179,7 @@ export default function SecuritySettingsPage() {
                   disabled={saving}
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="security-confirm-pw">Confirm new password</Label>
                 <Input
                   id="security-confirm-pw"
@@ -237,7 +237,7 @@ export default function SecuritySettingsPage() {
           </CardHeader>
           <CardContent className="p-0">
             {loading ? (
-              <div className="space-y-3 p-4 pt-0">
+              <div className="flex flex-col gap-3 p-4 pt-0">
                 <Skeleton className="h-12 w-full rounded-lg" />
                 <Skeleton className="h-12 w-full rounded-lg" />
               </div>

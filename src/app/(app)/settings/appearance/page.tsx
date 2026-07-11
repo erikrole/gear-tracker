@@ -90,7 +90,7 @@ export default function AppearancePage() {
     <SettingsPageShell
       title="Appearance"
       description="Choose how the app looks. Saved on this device only, so set it again on your phone or other browsers."
-      mainClassName="space-y-4"
+      mainClassName="flex flex-col gap-4"
     >
         <Card>
           <CardHeader>
@@ -130,7 +130,7 @@ export default function AppearancePage() {
               Text size
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="flex flex-col gap-4">
             <div className="grid grid-cols-4 gap-2 max-sm:grid-cols-2">
               {SCALE_CHOICES.map((c) => {
                 const isActive = mounted && Math.abs(scale - c.value) < 0.001;
@@ -154,7 +154,7 @@ export default function AppearancePage() {
             </div>
 
             {/* Live preview */}
-            <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+            <div className="rounded-lg border bg-muted/30 p-4 flex flex-col gap-2">
               <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
                 Preview
               </div>

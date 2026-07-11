@@ -168,7 +168,7 @@ export default function NotificationsSettingsPage() {
 
   if (loading) {
     return (
-      <SettingsPageShell title="Notifications" description={description} mainClassName="space-y-3">
+      <SettingsPageShell title="Notifications" description={description} mainClassName="flex flex-col gap-3">
             <Skeleton className="h-32 w-full rounded-md" />
             <Skeleton className="h-44 w-full rounded-md" />
       </SettingsPageShell>
@@ -198,7 +198,7 @@ export default function NotificationsSettingsPage() {
   const isPaused = !!pausedLabel;
 
   return (
-    <SettingsPageShell title="Notifications" description={description} mainClassName="space-y-4">
+    <SettingsPageShell title="Notifications" description={description} mainClassName="flex flex-col gap-4">
         {/* Pause */}
         <Card>
           <CardHeader>
@@ -207,7 +207,7 @@ export default function NotificationsSettingsPage() {
               Quiet hours
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="flex flex-col gap-3">
             {isPaused ? (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/40 p-3">
                 <div className="text-sm">
@@ -247,7 +247,7 @@ export default function NotificationsSettingsPage() {
           <CardHeader>
             <CardTitle className="text-base">Delivery channels</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-1">
+          <CardContent className="flex flex-col gap-1">
             <ChannelRow
               icon={<Mail className="size-4" />}
               label="Email"
@@ -285,7 +285,7 @@ export default function NotificationsSettingsPage() {
           <CardHeader>
             <CardTitle className="text-base">Notification types</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-1">
+          <CardContent className="flex flex-col gap-1">
             <ChannelRow
               icon={<ShoppingBag className="size-4" />}
               label="Checkout due reminders"

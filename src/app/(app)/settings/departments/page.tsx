@@ -191,7 +191,7 @@ export default function DepartmentsSettingsPage() {
 
   if (loading) {
     return (
-      <SettingsPageShell title="Departments" description={description} mainClassName="space-y-3">
+      <SettingsPageShell title="Departments" description={description} mainClassName="flex flex-col gap-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-12 w-full rounded-md" />
             ))}
@@ -220,7 +220,7 @@ export default function DepartmentsSettingsPage() {
   const inactive = items.filter((department) => !department.active);
 
   return (
-    <SettingsPageShell title="Departments" description={description} mainClassName="space-y-4">
+    <SettingsPageShell title="Departments" description={description} mainClassName="flex flex-col gap-4">
           <div className="flex justify-end">
             {!showAdd && (
               <Button size="sm" onClick={() => setShowAdd(true)}>
@@ -242,7 +242,7 @@ export default function DepartmentsSettingsPage() {
                   </Alert>
                 )}
                 <form onSubmit={addDepartment} className="flex items-end gap-3 max-sm:flex-col max-sm:items-stretch">
-                  <div className="flex-1 space-y-1.5">
+                  <div className="flex-1 flex flex-col gap-1.5">
                     <Label htmlFor="department-name">Name</Label>
                     <Input
                       id="department-name"

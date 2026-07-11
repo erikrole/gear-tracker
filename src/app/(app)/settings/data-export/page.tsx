@@ -114,7 +114,7 @@ export default function DataExportPage() {
       title="Data Export"
       description="Download a CSV snapshot of any data set. Exports are capped at 5,000 rows and include all records visible to your role."
     >
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3">
         {EXPORTS.map((cfg) => {
           const isLoading = downloading === cfg.key;
           const actionLabel = `${isLoading ? "Downloading" : "Download"} ${cfg.label} CSV`;
