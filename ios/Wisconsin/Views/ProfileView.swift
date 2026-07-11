@@ -9,13 +9,9 @@ struct ProfileView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
-    @State private var showSignOutConfirm = false
-    @State private var showLinkStickerWizard = false
-    @State private var showScannerDebugger = false
     @State private var showPushPrompt = false
     @State private var prefsVM = NotificationPrefsViewModel()
     @State private var pushAuth: UNAuthorizationStatus = .notDetermined
-    @AppStorage("WisconsinThemeChoice") private var themeChoice: ThemeChoice = .system
 
     private static let manageAccountURL = AppEnvironment.baseURL
     private static let iosSettingsURL = URL(string: UIApplication.openSettingsURLString)!
@@ -30,54 +26,37 @@ struct ProfileView: View {
         return session.currentUser?.staffingType == nil && (session.currentUser?.role ?? "") == "STUDENT"
     }
 
+    private var profileTitle: String {
+        session.currentUser?.name.split(separator: " ").first.map(String.init) ?? "Profile"
+    }
+
     var body: some View {
         NavigationStack {
             List {
                 headerSection
                 scheduleSection
-                directorySection
-                accountSection
-                notificationsSection
-                appearanceSection
-                if isStaffOrAdmin { toolsSection }
-                appSection
-                signOutSection
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("Settings")
+            .navigationTitle(profileTitle)
             .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showLinkStickerWizard) {
-                LinkStickerWizard()
-            }
-            .sheet(isPresented: $showScannerDebugger) {
-                ScannerDebuggerView()
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
-            }
             .sheet(isPresented: $showPushPrompt) {
                 PushPrePromptView()
                     .presentationDetents([.medium])
                     .presentationDragIndicator(.visible)
             }
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    NavigationLink(value: ProfileDestination.settings) {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel("Settings")
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                 }
             }
             .navigationDestination(for: ProfileDestination.self) { dest in
                 destinationView(for: dest)
-            }
-            .confirmationDialog(
-                "Sign out?",
-                isPresented: $showSignOutConfirm,
-                titleVisibility: .visible
-            ) {
-                Button("Sign Out", role: .destructive) {
-                    Task { await session.logout() }
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("You'll need to sign in again to come back.")
             }
         }
         .task { await prefsVM.load() }
@@ -136,69 +115,6 @@ struct ProfileView: View {
     }
 
     @ViewBuilder
-    private var accountSection: some View {
-        Section("Account") {
-            NavigationLink(value: ProfileDestination.accountSecurity) {
-                SettingsMenuRow(
-                    title: "Account & Security",
-                    subtitle: accountSummaryText,
-                    systemImage: "person.crop.circle.badge.checkmark",
-                    tint: Color.brandPrimary
-                ) {
-                    StatusPill.role(session.currentUser?.role ?? "")
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var notificationsSection: some View {
-        Section("Notifications") {
-            NavigationLink(value: ProfileDestination.notifications) {
-                SettingsMenuRow(
-                    title: "Notifications",
-                    subtitle: notificationSummaryText,
-                    systemImage: notificationSummaryIcon,
-                    tint: notificationSummaryTint
-                ) {
-                    Text(pushStatusText)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(pushStatusTone)
-                        .multilineTextAlignment(.trailing)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var appearanceSection: some View {
-        Section {
-            Picker(selection: $themeChoice) {
-                ForEach(ThemeChoice.allCases) { choice in
-                    Label(choice.label, systemImage: choice.systemImage)
-                        .tag(choice)
-                }
-            } label: {
-                SettingsMenuRow(
-                    title: "Theme",
-                    subtitle: "Saved on this device only.",
-                    systemImage: "paintpalette",
-                    tint: Color.statusText(.purple)
-                ) {
-                    Text(themeChoice.label)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .pickerStyle(.menu)
-        } header: {
-            Text("Appearance")
-        } footer: {
-            Text("Saved on this device only — set it again on your other devices.")
-        }
-    }
-
-    @ViewBuilder
     private var scheduleSection: some View {
         Section {
             NavigationLink(value: ProfileDestination.upcomingShifts) {
@@ -248,134 +164,6 @@ struct ProfileView: View {
         }
     }
 
-    @ViewBuilder
-    private var directorySection: some View {
-        Section("Directory") {
-            NavigationLink {
-                GuidesView(wrapsInNavigationStack: false)
-            } label: {
-                SettingsMenuRow(
-                    title: "Guides",
-                    subtitle: "Reference docs, contacts, venue notes, and team workflows.",
-                    systemImage: "book.closed",
-                    tint: Color.statusText(.purple)
-                ) {
-                    EmptyView()
-                }
-            }
-            NavigationLink {
-                UsersView()
-            } label: {
-                SettingsMenuRow(
-                    title: "Users",
-                    subtitle: "Find people, roles, contact details, and active status.",
-                    systemImage: "person.2",
-                    tint: Color.statusText(.blue)
-                ) {
-                    EmptyView()
-                }
-            }
-            NavigationLink {
-                LicensesView(wrapsInNavigationStack: false)
-            } label: {
-                SettingsMenuRow(
-                    title: "Licenses",
-                    subtitle: isStaffOrAdmin
-                        ? "Claim, copy, return, or open web management."
-                        : "Claim, copy, or return a Photo Mechanic license.",
-                    systemImage: "key",
-                    tint: Color.statusText(.orange)
-                ) {
-                    EmptyView()
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var toolsSection: some View {
-        Section("Tools") {
-            Button {
-                showLinkStickerWizard = true
-            } label: {
-                SettingsMenuRow(
-                    title: "Link Sticker Codes",
-                    subtitle: "Pair printed QR stickers with items in the field.",
-                    systemImage: "qrcode.viewfinder",
-                    tint: Color.statusText(.blue)
-                ) {
-                    EmptyView()
-                }
-            }
-            Button {
-                showScannerDebugger = true
-            } label: {
-                SettingsMenuRow(
-                    title: "Scanner Debugger",
-                    subtitle: "Test a hand scanner and preview the scan result card.",
-                    systemImage: "barcode.viewfinder",
-                    tint: Color.statusText(.green)
-                ) {
-                    EmptyView()
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var appSection: some View {
-        Section("App") {
-            SettingsMenuRow(
-                title: "Version",
-                subtitle: appVersion,
-                systemImage: "app.badge",
-                tint: Color.secondary
-            ) {
-                EmptyView()
-            }
-            Link(destination: Self.iosSettingsURL) {
-                SettingsMenuRow(
-                    title: "Open iOS Settings",
-                    subtitle: "Camera, notifications, and system permissions.",
-                    systemImage: "gearshape",
-                    tint: Color.secondary
-                ) {
-                    Image(systemName: "arrow.up.right.square")
-                        .foregroundStyle(.tertiary)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var signOutSection: some View {
-        Section {
-            Button(role: .destructive) {
-                showSignOutConfirm = true
-            } label: {
-                SettingsMenuRow(
-                    title: "Sign Out",
-                    subtitle: "End this session on this device.",
-                    systemImage: "rectangle.portrait.and.arrow.right",
-                    tint: Color.statusText(.red)
-                ) {
-                    EmptyView()
-                }
-            }
-        }
-    }
-
-    private var appVersion: String {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
-        return "\(version) (\(build))"
-    }
-
-    private var accountSummaryText: String {
-        let email = session.currentUser?.email ?? "Signed in"
-        return "\(email) · password and account access"
-    }
-
     private var notificationMetricValue: String {
         if prefsVM.loading && prefsVM.prefs == nil { return "…" }
         if prefsVM.pausedUntilDate != nil { return "Paused" }
@@ -390,67 +178,6 @@ struct ProfileView: View {
         return .blue
     }
 
-    private var notificationSummaryText: String {
-        if prefsVM.loading && prefsVM.prefs == nil {
-            return "Loading email, push, and notification type preferences."
-        }
-        if let until = prefsVM.pausedUntilDate {
-            return "Paused until \(until.formatted(date: .abbreviated, time: .shortened)). In-app notifications still appear."
-        }
-        if prefsVM.error != nil && prefsVM.prefs == nil {
-            return "Preferences could not load. Retry below before changing alert behavior."
-        }
-        guard let prefs = prefsVM.prefs else {
-            return "In-app notifications are always available."
-        }
-        let channels = [
-            prefs.channels.email ? "email" : nil,
-            prefs.channels.push ? "push" : nil,
-        ].compactMap { $0 }
-        if channels.isEmpty {
-            return "Only the in-app inbox is enabled."
-        }
-        return "\(channels.joined(separator: " and ").capitalized) alerts are enabled."
-    }
-
-    private var notificationSummaryIcon: String {
-        if prefsVM.pausedUntilDate != nil { return "moon.zzz.fill" }
-        if prefsVM.error != nil && prefsVM.prefs == nil { return "exclamationmark.triangle.fill" }
-        return "bell.badge"
-    }
-
-    private var notificationSummaryTint: Color {
-        if prefsVM.pausedUntilDate != nil { return Color.statusText(.purple) }
-        if prefsVM.error != nil && prefsVM.prefs == nil { return Color.statusText(.orange) }
-        return Color.brandPrimary
-    }
-
-    private var pushStatusText: String {
-        switch pushAuth {
-        case .authorized, .provisional, .ephemeral:
-            "Push allowed"
-        case .denied:
-            "iOS off"
-        case .notDetermined:
-            "Not set"
-        @unknown default:
-            "Unknown"
-        }
-    }
-
-    private var pushStatusTone: Color {
-        switch pushAuth {
-        case .authorized, .provisional, .ephemeral:
-            Color.statusText(.green)
-        case .denied:
-            Color.statusText(.orange)
-        case .notDetermined:
-            .secondary
-        @unknown default:
-            .secondary
-        }
-    }
-
     private func refreshPushAuth() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         pushAuth = settings.authorizationStatus
@@ -459,6 +186,8 @@ struct ProfileView: View {
     @ViewBuilder
     private func destinationView(for destination: ProfileDestination) -> some View {
         switch destination {
+        case .settings:
+            SettingsView(prefsVM: prefsVM, pushAuth: pushAuth)
         case .upcomingShifts:
             ProfilePlaceholderView(destination: destination)
         case .overdueBookings:
@@ -586,6 +315,7 @@ private struct SettingsStatusMetric: View {
 // MARK: - Profile destinations
 
 enum ProfileDestination: Hashable {
+    case settings
     case upcomingShifts
     case overdueBookings
     case availability
