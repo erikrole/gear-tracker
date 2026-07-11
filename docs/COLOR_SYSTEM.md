@@ -158,6 +158,28 @@ Badge style: `text.background(color.opacity(0.15), in: Capsule()).foregroundStyl
 
 ---
 
+## Settings control tint (iOS)
+
+The app-wide accent is `brandPrimary` (Wisconsin red), but red doubles as the
+urgent/destructive semantic color. On settings-style surfaces dense with
+interactive controls (toggles, bordered buttons, pickers), a red tint makes
+every control read destructive. The Profile/Settings navigation stack therefore
+overrides the tint to neutral `.primary` (black in light mode, white in dark) —
+mirroring the web, whose interactive accent is neutral `--accent` (`#191919` /
+`#ececec`) and whose shadcn switches/buttons are near-black when active.
+
+| Usage | Color | Rationale |
+|-------|-------|-----------|
+| Toggles, bordered buttons, picker, links in Profile/Settings stack | `.primary` (via `.tint`) | Neutral controls; matches web accent |
+| Sign Out | red (via `role: .destructive`) | Genuinely destructive |
+| Error text, overdue counts/rows | `statusText(.red)` | Semantic urgent/problem |
+| Notifications row icon square (SettingsView) | `.red` solid square, white glyph | Apple Settings convention |
+
+> Brand red remains the accent elsewhere in the app (navigation, hero moments,
+> kiosk CTAs). The override is scoped to `ProfileView`'s `NavigationStack`.
+
+---
+
 ## Kiosk flow colors (iOS)
 
 The kiosk runs always-dark. Shared tokens live in `ios/Wisconsin/Kiosk/KioskDesign.swift`

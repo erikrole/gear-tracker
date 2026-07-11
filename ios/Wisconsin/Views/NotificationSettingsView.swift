@@ -235,7 +235,7 @@ struct NotificationSettingsView: View {
             } label: {
                 HStack(spacing: 12) {
                     Image(systemName: "bell.badge")
-                        .foregroundStyle(Color.brandPrimary)
+                        .foregroundStyle(Color.statusText(.blue))
                         .frame(width: iconWidth)
                     Text("Turn on notifications")
                         .font(.subheadline.weight(.medium))
@@ -391,7 +391,7 @@ struct NotificationSettingsView: View {
     private var notificationSummaryTint: Color {
         if prefsVM.pausedUntilDate != nil { return Color.statusText(.purple) }
         if prefsVM.error != nil && prefsVM.prefs == nil { return Color.statusText(.orange) }
-        return Color.brandPrimary
+        return Color.statusText(.blue)
     }
 
     private var pushStatusText: String {

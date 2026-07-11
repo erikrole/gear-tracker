@@ -59,6 +59,11 @@ struct ProfileView: View {
                 destinationView(for: dest)
             }
         }
+        // Settings surfaces use a neutral control tint (matching the web's
+        // near-black accent) so toggles, buttons, and links don't inherit the
+        // brand red and read destructive. Red here stays reserved for
+        // genuinely destructive/urgent states (Sign Out, errors, overdue).
+        .tint(.primary)
         .task { await prefsVM.load() }
         .task { await refreshPushAuth() }
         .onChange(of: scenePhase) { _, phase in
