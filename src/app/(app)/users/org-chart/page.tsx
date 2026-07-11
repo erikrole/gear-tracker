@@ -201,11 +201,11 @@ export default function OrgChartPage() {
       <Card>
         <CardContent className="p-4">
           {loading && (
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-3">
                   <Skeleton className="size-8 rounded-full" />
-                  <div className="flex-1 space-y-1.5">
+                  <div className="flex-1 flex flex-col gap-1.5">
                     <Skeleton className="h-3.5 w-32" />
                     <Skeleton className="h-3 w-20" />
                   </div>

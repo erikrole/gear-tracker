@@ -17,7 +17,7 @@ function ColumnSkeletons() {
             <CardContent className="p-0 py-1">
               {Array.from({ length: rows }).map((_, j) => (
                 <div key={j} className="flex items-center gap-3 px-5 py-3">
-                  <div className="flex-1 space-y-2">
+                  <div className="flex-1 flex flex-col gap-2">
                     <Skeleton className="h-4" style={{ width: `${70 + (j % 3) * 10}%` }} />
                     <Skeleton className="h-3" style={{ width: `${40 + (j % 2) * 15}%` }} />
                   </div>
@@ -37,7 +37,7 @@ function ColumnSkeletons() {
             <CardContent className="p-0 py-1">
               {Array.from({ length: rows }).map((_, j) => (
                 <div key={j} className="flex items-center gap-3 px-5 py-3">
-                  <div className="flex-1 space-y-2">
+                  <div className="flex-1 flex flex-col gap-2">
                     <Skeleton className="h-4" style={{ width: `${65 + (j % 3) * 12}%` }} />
                     <Skeleton className="h-3" style={{ width: `${45 + (j % 2) * 10}%` }} />
                   </div>

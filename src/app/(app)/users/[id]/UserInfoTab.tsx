@@ -1147,11 +1147,11 @@ export default function UserInfoTab({
           </CardHeader>
           <CardContent>
             <form onSubmit={changePassword} className="grid gap-3 max-w-sm">
-              <div className="space-y-1.5">
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="currentPassword">Current password</Label>
                 <Input id="currentPassword" name="currentPassword" type="password" required minLength={8} disabled={savingPassword} />
               </div>
-              <div className="space-y-1.5">
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="newPassword">New password</Label>
                 <Input id="newPassword" name="newPassword" type="password" required minLength={8} disabled={savingPassword} />
               </div>
@@ -1269,7 +1269,7 @@ function CalendarSubscriptionCard({
       <CardHeader>
         <CardTitle>Calendar subscription</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="flex flex-col gap-3">
         {token ? (
           <>
             <p className="text-sm text-muted-foreground">

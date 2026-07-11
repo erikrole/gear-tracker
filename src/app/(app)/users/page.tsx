@@ -407,7 +407,7 @@ export default function UsersPage() {
       />
 
       {/* Users List */}
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         <UserFilters
           search={search}
           onSearchChange={setSearch}
@@ -476,7 +476,7 @@ export default function UsersPage() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Skeleton className="size-8 rounded-full shrink-0" />
-                        <div className="space-y-1.5 flex-1">
+                        <div className="flex flex-col gap-1.5 flex-1">
                           <Skeleton className="h-3.5" style={{ width: `${55 + (r % 3) * 15}%` }} />
                           <Skeleton className="h-3" style={{ width: `${40 + (r % 4) * 10}%` }} />
                         </div>
@@ -540,7 +540,7 @@ export default function UsersPage() {
             </div>
 
             {/* Mobile cards */}
-            <div className="block sm:hidden space-y-2">
+            <div className="block sm:hidden flex flex-col gap-2">
               {users.map((user) => (
                 <UserMobileCard key={user.id} user={user} />
               ))}

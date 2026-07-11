@@ -163,7 +163,7 @@ function RosterPicker({
 
   if (loading) {
     return (
-      <div className="p-2 space-y-2">
+      <div className="p-2 flex flex-col gap-2">
         {[0, 1, 2].map((i) => <Skeleton key={i} className="h-8 w-full" />)}
       </div>
     );
@@ -342,7 +342,7 @@ export function EventTravelCard({
 
       <CardContent>
         {loading ? (
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             {[0, 1].map((i) => <Skeleton key={i} className="h-9 w-full rounded-lg" />)}
           </div>
         ) : error ? (
@@ -361,7 +361,7 @@ export function EventTravelCard({
             description={isStaff ? "Add sport-roster travelers for this away event." : "Travelers will appear here once staff adds them."}
           />
         ) : (
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             {members.map((m) => (
               <div key={m.id} className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">

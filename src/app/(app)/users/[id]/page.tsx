@@ -562,7 +562,7 @@ export default function UserDetailPage() {
         <Alert variant="destructive" className="max-w-md">
           <AlertCircle className="size-4" />
           <AlertTitle>Failed to load user</AlertTitle>
-          <AlertDescription className="mt-2 space-y-3">
+          <AlertDescription className="mt-2 flex flex-col gap-3">
             <p>User not found or something went wrong.</p>
             <div className="flex items-center gap-3">
               <Button variant="outline" size="sm" onClick={loadUser}>
@@ -580,11 +580,11 @@ export default function UserDetailPage() {
 
   if (!user) {
     return (
-      <div className="space-y-6">
+      <div className="flex flex-col gap-6">
         {/* Header skeleton */}
         <div className="flex items-center gap-3">
           <Skeleton className="size-12 rounded-full" />
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <Skeleton className="h-5 w-36" />
             <Skeleton className="h-3.5 w-48" />
           </div>
@@ -593,7 +593,7 @@ export default function UserDetailPage() {
         <Skeleton className="h-9 w-36" />
         {/* Content skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-1.5">
-          <div className="rounded-xl border p-4 space-y-4">
+          <div className="rounded-xl border p-4 flex flex-col gap-4">
             {[72, 56, 44, 60, 48, 52].map((w, i) => (
               <div key={i} className="flex items-center gap-3">
                 <Skeleton className="h-4 w-[120px] shrink-0" />
@@ -601,7 +601,7 @@ export default function UserDetailPage() {
               </div>
             ))}
           </div>
-          <div className="rounded-xl border p-4 space-y-3">
+          <div className="rounded-xl border p-4 flex flex-col gap-3">
             <Skeleton className="h-4 w-16" />
             <div className="flex gap-1.5">
               <Skeleton className="h-5 w-16 rounded-full" />
@@ -710,7 +710,7 @@ export default function UserDetailPage() {
             >
               {isSelf ? "My Profile" : profile.name}
             </h1>
-            <div className="mt-2.5 space-y-1">
+            <div className="mt-2.5 flex flex-col gap-1">
               <p className="text-[12px] text-muted-foreground leading-none">
                 {profile.email}
               </p>
@@ -806,7 +806,7 @@ export default function UserDetailPage() {
             <AlertDialogTitle>{tempPassword ? "Password Reset" : "Reset password?"}</AlertDialogTitle>
             <AlertDialogDescription>
               {tempPassword ? (
-                <div className="space-y-3">
+                <div className="flex flex-col gap-3">
                   <p>New temporary password for <strong>{profile.name}</strong>:</p>
                   <div className="flex items-center gap-2">
                     <Input value={tempPassword} readOnly className="font-mono" />

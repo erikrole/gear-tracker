@@ -638,7 +638,7 @@ export default function EventDetailPage() {
       <section className="mb-6 rounded-xl bg-background p-4 shadow-[0_1px_2px_rgba(0,0,0,0.05),0_0_0_1px_rgba(0,0,0,0.06)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.25),0_0_0_1px_rgba(255,255,255,0.08)]">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0 space-y-3">
+            <div className="min-w-0 flex flex-col gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant={event.status === "CANCELLED" ? "red" : "green"} className="h-7 px-3 text-xs">
                   {titleCase(event.status)}

@@ -189,7 +189,7 @@ export default function OnboardingStatusPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <PageHeader
         title="Onboarding Status"
         description="Track pending, stale, and claimed onboarding access after roster imports or one-off account setup."

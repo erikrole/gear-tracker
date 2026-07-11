@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 /** Loading skeleton matching the event detail page layout */
 export function EventSkeleton() {
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* PageHeader */}
       <Skeleton className="h-8 w-72" />
 
@@ -26,7 +26,7 @@ export function EventSkeleton() {
       {/* Details card */}
       <Card>
         <CardHeader><Skeleton className="h-5 w-16" /></CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="flex flex-col gap-3">
           <Skeleton className="h-4 w-64" />
           <Skeleton className="h-4 w-80" />
           <Skeleton className="h-4 w-48" />
@@ -39,7 +39,7 @@ export function EventSkeleton() {
           <Skeleton className="h-5 w-28" />
           <Skeleton className="h-8 w-28" />
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="flex flex-col gap-3">
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-3/4" />

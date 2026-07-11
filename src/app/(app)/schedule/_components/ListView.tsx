@@ -1008,20 +1008,20 @@ export function ListView({
       >
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <DialogTitle>Post shift for trade</DialogTitle>
               <DialogDescription>
                 Add a short note so teammates understand the swap.
               </DialogDescription>
             </div>
           </DialogHeader>
-          <div className="space-y-3 px-6 py-1">
+          <div className="flex flex-col gap-3 px-6 py-1">
             {tradeError && (
               <Alert variant="destructive" className="py-2.5">
                 <AlertDescription>{tradeError}</AlertDescription>
               </Alert>
             )}
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="schedule-trade-notes" className="text-xs font-medium">
                 Notes <span className="font-normal text-muted-foreground">(optional)</span>
               </Label>

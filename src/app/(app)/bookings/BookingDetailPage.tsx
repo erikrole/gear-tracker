@@ -185,13 +185,13 @@ export default function BookingDetailPage({
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="flex flex-col gap-6">
         {/* Header card skeleton */}
         <div className="rounded-lg border border-border/50 bg-card px-4 py-4 shadow-xs sm:px-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex gap-4">
               <Skeleton className="size-20 rounded-full shrink-0" />
-              <div className="space-y-2 pt-1">
+              <div className="flex flex-col gap-2 pt-1">
                 <Skeleton className="h-5 w-24 rounded-full" />
                 <Skeleton className="h-8 w-56" />
                 <Skeleton className="h-3 w-40" />
@@ -225,7 +225,7 @@ export default function BookingDetailPage({
               ? "Connection error"
               : `${kindLabel.charAt(0).toUpperCase() + kindLabel.slice(1)} not found`}
           </AlertTitle>
-          <AlertDescription className="space-y-2">
+          <AlertDescription className="flex flex-col gap-2">
             <p>
               {isNetwork
                 ? "Could not reach the server. Check your connection and try again."
@@ -248,7 +248,7 @@ export default function BookingDetailPage({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* ── Header ── */}
       <BookingHeader
         booking={booking}
@@ -284,7 +284,7 @@ export default function BookingDetailPage({
 
       {/* ── Extend panel ── */}
       {showExtend && (
-        <Card elevation="flat" className="p-4 rounded-xl border-border/50 shadow-xs space-y-3">
+        <Card elevation="flat" className="p-4 rounded-xl border-border/50 shadow-xs flex flex-col gap-3">
           <span className="text-sm font-medium">New end date</span>
           <DateTimePicker
             value={extendDate ? new Date(extendDate) : undefined}
@@ -432,8 +432,8 @@ export default function BookingDetailPage({
               Use this only when an admin has physically verified every item is back. The checkout will close and the exception will be recorded in history.
             </DialogDescription>
           </DialogHeader>
-          <DialogBody className="space-y-3">
-            <div className="space-y-2">
+          <DialogBody className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="force-complete-reason">Reason</Label>
               <Textarea
                 id="force-complete-reason"
