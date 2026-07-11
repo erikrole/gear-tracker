@@ -669,7 +669,7 @@ export default function UserDetailPage() {
                         size="xl"
                         className="cursor-pointer ring-2 ring-border ring-offset-2 ring-offset-card"
                       />
-                      <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 transition-opacity flex items-center justify-center group-hover:opacity-100 group-focus-visible:opacity-100">
                         {uploadingAvatar ? (
                           <Spinner className="size-6 text-white" />
                         ) : (
@@ -814,9 +814,13 @@ export default function UserDetailPage() {
                       variant="outline"
                       size="icon"
                       aria-label="Copy temporary password"
-                      onClick={() => {
-                        navigator.clipboard.writeText(tempPassword);
-                        toast.success("Copied to clipboard");
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(tempPassword);
+                          toast.success("Copied to clipboard");
+                        } catch {
+                          toast.error("Could not copy. Select the password and copy it manually.");
+                        }
                       }}
                     >
                       <Copy className="size-4" />

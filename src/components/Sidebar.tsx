@@ -31,7 +31,6 @@ import {
   HelpCircleIcon,
   LogOutIcon,
   BellIcon,
-  PlusIcon,
   KeyIcon,
   BatteryChargingIcon,
   ClipboardCheckIcon,
@@ -45,24 +44,24 @@ import {
   SidebarGroup,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuAction,
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
+import { resolveActiveShellHref } from "@/lib/shell-navigation";
 
 type NavItem = {
   label: string;
   href: string;
   icon: React.ElementType;
   badge?: string;
-  quickCreateHref?: string;
   requiredRole?: "ADMIN" | "STAFF";
 };
 
 type NavGroup = {
   label?: string;
-  adminOnly?: boolean;
+  staffOnly?: boolean;
   items: NavItem[];
 };
 
@@ -72,7 +71,7 @@ const navGroups: NavGroup[] = [
       { label: "Dashboard", href: "/", icon: LayoutGridIcon },
       { label: "Schedule", href: "/schedule", icon: CalendarIcon },
       { label: "Items", href: "/items", icon: LayersIcon },
-      { label: "Bookings", href: "/bookings", icon: BookOpenIcon, quickCreateHref: "/bookings?create=true" },
+      { label: "Bookings", href: "/bookings", icon: BookOpenIcon },
       { label: "Resources", href: "/resources", icon: ScrollTextIcon },
       { label: "Licenses", href: "/licenses", icon: KeyIcon },
       { label: "Notifications", href: "/notifications", icon: BellIcon },
@@ -80,8 +79,8 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: "Admin",
-    adminOnly: true,
+    label: "Operations",
+    staffOnly: true,
     items: [
       { label: "Fix Today", href: "/admin/fix-today", icon: WrenchIcon, requiredRole: "ADMIN" },
       { label: "Kits", href: "/kits", icon: BoxIcon },
@@ -135,17 +134,27 @@ export default function AppSidebar({
 }: AppSidebarProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
+  const { isMobile, setOpenMobile } = useSidebar();
   const canUseAdminNav = user?.role === "ADMIN" || user?.role === "STAFF";
 
   const userInitials = user ? getInitials(user.name) : "?";
 
   const visibleGroups = navGroups
-    .filter((g) => !g.adminOnly || canUseAdminNav)
+    .filter((g) => !g.staffOnly || canUseAdminNav)
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => !item.requiredRole || item.requiredRole === user?.role),
     }))
     .filter((group) => group.items.length > 0);
+
+  const activeHref = resolveActiveShellHref(
+    pathname,
+    visibleGroups.flatMap((group) => group.items.map((item) => item.href)),
+  );
+
+  useEffect(() => {
+    if (isMobile) setOpenMobile(false);
+  }, [isMobile, pathname, setOpenMobile]);
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
@@ -163,7 +172,7 @@ export default function AppSidebar({
             />
             <div className="min-w-0 group-data-[collapsible=icon]:hidden">
               <p
-                className="text-[9.5px] tracking-[0.22em] text-white/60 uppercase leading-none mb-[3px]"
+              className="text-[11px] tracking-[0.16em] text-white/60 uppercase leading-none mb-[3px]"
                 style={{ fontFamily: "var(--font-mono)" }}
               >
                 UW Athletics
@@ -210,7 +219,7 @@ export default function AppSidebar({
                       {user.name}
                     </p>
                     <p
-                      className="text-[9.5px] text-white/60 truncate leading-tight mt-[2px] uppercase tracking-[0.14em]"
+                    className="text-[11px] text-white/60 truncate leading-tight mt-[2px] uppercase tracking-[0.1em]"
                       style={{ fontFamily: "var(--font-mono)" }}
                     >
                       {user.role ?? "Student"}
@@ -225,6 +234,7 @@ export default function AppSidebar({
 
       {/* ── Navigation groups ── */}
       <SidebarContent className="py-1">
+        <nav aria-label="Workspace navigation">
         {visibleGroups.map((group, groupIdx) => (
           <div key={groupIdx}>
             {groupIdx > 0 && (
@@ -233,7 +243,7 @@ export default function AppSidebar({
                 <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
                   <div className="h-px flex-1 bg-white/[0.1]" />
                   <span
-                    className="text-[8.5px] uppercase tracking-[0.28em] text-white/70 select-none"
+                    className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/70 select-none"
                     style={{ fontFamily: "var(--font-mono)" }}
                   >
                     {group.label}
@@ -249,7 +259,7 @@ export default function AppSidebar({
               <SidebarMenu className="gap-px">
                 {group.items.map((item) => {
                   const href = item.href;
-                  const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
+                  const isActive = activeHref === href;
                   const Icon = item.icon;
 
                   const badgeCfg =
@@ -305,20 +315,6 @@ export default function AppSidebar({
                           {badgeLabel}
                         </SidebarMenuBadge>
                       )}
-                      {item.quickCreateHref && canUseAdminNav && !badgeCount && (
-                        <SidebarMenuAction
-                          asChild
-                          showOnHover
-                          className="right-1 top-0.5 size-7 text-white/45 transition-[background-color,color,opacity,scale] hover:bg-white/[0.08] hover:text-white active:scale-[0.96]"
-                        >
-                          <Link
-                            href={item.quickCreateHref}
-                            aria-label={`New ${item.label.toLowerCase().replace(/s$/, "")}`}
-                          >
-                            <PlusIcon />
-                          </Link>
-                        </SidebarMenuAction>
-                      )}
                     </SidebarMenuItem>
                   );
                 })}
@@ -326,6 +322,7 @@ export default function AppSidebar({
             </SidebarGroup>
           </div>
         ))}
+        </nav>
       </SidebarContent>
 
       {/* ── Footer: theme toggle + logout ── */}
@@ -344,7 +341,7 @@ export default function AppSidebar({
                 key={val}
                 value={val}
                 aria-label={`${val.charAt(0).toUpperCase() + val.slice(1)} theme`}
-                className="text-white/60 px-2.5 py-1 text-xs hover:bg-transparent hover:text-white/85 data-[state=on]:bg-white/[0.12] data-[state=on]:text-white/95 data-[state=on]:shadow-none data-[state=on]:rounded"
+                className="min-h-10 min-w-10 text-white/60 px-2.5 py-1 text-xs hover:bg-transparent hover:text-white/85 data-[state=on]:bg-white/[0.12] data-[state=on]:text-white/95 data-[state=on]:shadow-none data-[state=on]:rounded"
               >
                 {i === 0 ? <SunIcon className="size-3.5" /> : i === 1 ? <MoonIcon className="size-3.5" /> : <MonitorIcon className="size-3.5" />}
               </ToggleGroupItem>

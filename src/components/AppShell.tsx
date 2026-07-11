@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { SearchIcon, ClipboardCheckIcon, CalendarCheckIcon, BellIcon, UserIcon, LayoutGridIcon, LayersIcon, CalendarPlusIcon, ScanIcon, ArrowRightIcon } from "lucide-react";
+import { SearchIcon, ClipboardCheckIcon, CalendarCheckIcon, BellIcon, UserIcon, LayoutGridIcon, LayersIcon, BookOpenIcon, ScanIcon, ArrowRightIcon } from "lucide-react";
 import AppSidebar from "./Sidebar";
 import { AssetImage } from "@/components/AssetImage";
 import { OperationalPartialResultsAlert } from "@/components/OperationalFeedback";
@@ -30,6 +30,8 @@ import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 import { getVisiblePageSearchResults, type PageSearchResult } from "@/lib/search-pages";
 import { assetSearchTitle } from "@/lib/search-result-title";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { BOOKING_CHANGE_SYNC_EVENT } from "@/hooks/use-booking-change-sync";
 import { NOTIFICATION_COUNT_CHANGED_EVENT } from "@/lib/notification-count-sync";
 
 type EntitySearchResult = {
@@ -99,18 +101,20 @@ const SEARCH_RESULT_SOURCES = {
 
 const bottomNavItems = [
   { label: "Home", href: "/", icon: LayoutGridIcon },
+  { label: "Schedule", href: "/schedule", icon: CalendarCheckIcon },
+  { label: "Bookings", href: "/bookings", icon: BookOpenIcon, badge: "overdue" as const },
   { label: "Items", href: "/items", icon: LayersIcon },
-  { label: "Reservations", href: "/reservations", icon: CalendarPlusIcon },
-  { label: "Checkouts", href: "/checkouts", icon: ClipboardCheckIcon, badge: "overdue" as const },
   { label: "Lookup", href: "/scan", icon: ScanIcon, primary: true },
 ];
 
 export default function AppShell({
   children,
   initialUser,
+  defaultSidebarOpen = true,
 }: {
   children: React.ReactNode;
   initialUser?: CurrentUser;
+  defaultSidebarOpen?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -170,6 +174,27 @@ export default function AppShell({
     loadBadgeCounts();
 
     return () => { controller.abort(); };
+  }, [pathname, user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const refreshBookingBadges = async () => {
+      try {
+        const response = await fetch("/api/dashboard/stats");
+        if (handleAuthRedirect(response, pathname) || !response.ok) return;
+        const json = await parseJsonSafely<DashboardStatsBadgeResponse>(response);
+        const overdue = json?.data?.myOverdueCount;
+        const dueToday = json?.data?.myDueTodayCount;
+        if (typeof overdue === "number") setOverdueBadgeCount(overdue);
+        if (typeof dueToday === "number") setDueTodayBadgeCount(dueToday);
+      } catch {
+        // Keep the last known chrome counts until the next sync/navigation refresh.
+      }
+    };
+
+    window.addEventListener(BOOKING_CHANGE_SYNC_EVENT, refreshBookingBadges);
+    return () => window.removeEventListener(BOOKING_CHANGE_SYNC_EVENT, refreshBookingBadges);
   }, [pathname, user]);
 
   useEffect(() => {
@@ -346,6 +371,7 @@ export default function AppShell({
       router.replace("/login");
     } catch {
       setLoggingOut(false);
+      toast.error("Could not log out. Check your connection and try again.");
     }
   }
 
@@ -363,7 +389,7 @@ export default function AppShell({
   if (!user) return null;
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={defaultSidebarOpen}>
       <a href="#main-content" className="absolute -top-[100px] left-4 z-[var(--z-sidebar)] px-4 py-2 bg-[var(--btn-primary-bg)] text-[var(--btn-primary-text)] rounded-[var(--radius)] font-[var(--weight-semibold)] text-[var(--text-base)] no-underline transition-[top] duration-200 focus:top-4">Skip to content</a>
 
       {/* Command palette */}

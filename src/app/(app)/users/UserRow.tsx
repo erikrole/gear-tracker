@@ -54,10 +54,6 @@ function mobileMetaParts(user: UserRowType): string[] {
   ].filter((part): part is string => Boolean(part));
 }
 
-function listRoleLabel(role: UserRowType["role"]): UserRowType["role"] {
-  return role === "ADMIN" ? "STAFF" : role;
-}
-
 function LastActiveValue({ lastActiveAt }: { lastActiveAt: string | null }) {
   if (isActiveNow(lastActiveAt)) {
     return (
@@ -122,11 +118,6 @@ function UserNameLine({
       <span className="truncate">
         {user.name}
       </span>
-      {user.role === "ADMIN" && (
-        <Badge variant="purple" className="shrink-0 px-1.5 py-0 text-[10px]">
-          Admin
-        </Badge>
-      )}
       {showInactiveBadge && user.active === false && (
         <Badge variant="outline" className="shrink-0 px-1 py-0 text-[10px] text-muted-foreground">
           Inactive
@@ -172,7 +163,7 @@ export const UserTableRow = memo(function UserTableRow({ user }: { user: UserRow
         </div>
       </TableCell>
       <TableCell className="w-28">
-        <RoleBadge role={listRoleLabel(user.role)} />
+        <RoleBadge role={user.role} />
       </TableCell>
       <TableCell className="hidden min-w-[16rem] lg:table-cell text-muted-foreground text-sm">
         {titleLabel(user) ?? "\u2014"}
@@ -226,7 +217,7 @@ export const UserMobileCard = memo(function UserMobileCard({ user }: { user: Use
                   Inactive
                 </Badge>
               )}
-              <RoleBadge role={listRoleLabel(user.role)} />
+              <RoleBadge role={user.role} />
             </div>
           </div>
           {metaParts.length > 0 && (

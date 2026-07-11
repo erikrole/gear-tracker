@@ -25,13 +25,6 @@ export const GET = withAuth(async (req, { user }) => {
   // Build where clause
   const conditions: Prisma.UserWhereInput[] = [visibleUserWhere(user, { includeHidden })];
 
-  // Default to active-only unless explicitly requesting all or inactive
-  if (activeParam === "false") {
-    conditions.push({ active: false });
-  } else if (activeParam !== "all") {
-    conditions.push({ active: true });
-  }
-
   if (q) {
     conditions.push({
       OR: [
@@ -81,6 +74,15 @@ export const GET = withAuth(async (req, { user }) => {
         { AND: [{ studentYearOverride: null }, derivedMatch] },
       ],
     });
+  }
+
+  const summaryWhere: Prisma.UserWhereInput = { AND: [...conditions] };
+
+  // Default list results to active-only, while summary counts retain inactive visibility.
+  if (activeParam === "false") {
+    conditions.push({ active: false });
+  } else if (activeParam !== "all") {
+    conditions.push({ active: true });
   }
 
   const where: Prisma.UserWhereInput =
@@ -135,12 +137,12 @@ export const GET = withAuth(async (req, { user }) => {
       },
     }),
     db.user.count({ where }),
-    db.user.count({ where: { AND: [where, { active: true }] } }),
-    db.user.count({ where: { AND: [where, { active: false }] } }),
-    db.user.count({ where: { AND: [where, { avatarUrl: null }] } }),
+    db.user.count({ where: { AND: [summaryWhere, { active: true }] } }),
+    db.user.count({ where: { AND: [summaryWhere, { active: false }] } }),
+    db.user.count({ where: { AND: [summaryWhere, { active: true }, { avatarUrl: null }] } }),
     db.user.groupBy({
       by: ["role"],
-      where,
+      where: { AND: [summaryWhere, { active: true }] },
       _count: { _all: true },
     }),
   ]);

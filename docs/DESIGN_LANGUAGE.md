@@ -134,6 +134,7 @@ Feature ideas to consider separately:
 - Continue replacing local text-only empty rows with `EmptyState inline` in remaining admin tables when those surfaces are touched.
 
 ## Consistency Audit
+- App shell navigation: desktop active matching now selects one most-specific route, Staff management is labeled Operations, collapse state persists, collapsed badges remain glanceable, mobile drawers close after navigation, and sidebar triggers/menu/theme controls meet the operational target floor. The mobile web bar uses the same unified Bookings destination as desktop.
 - Shared `StatusIndicator`: status is now carried by the semantic Badge variant, a flat dot, and its label; the decorative ping halo was removed from dashboard, booking, hygiene, Fix Today, and Settings consumers.
 - Public showroom: shared section blocks now use solid backgrounds, restrained borders, inline icons, and compact mockup framing instead of atmospheric gradients, tinted icon tiles, and repeated oversized card shadows.
 - `/dashboard`: pending pickup previously used green row accent. Fixed to orange waiting semantics.

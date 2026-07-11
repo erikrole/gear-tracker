@@ -186,6 +186,9 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   if (body.active !== undefined) {
     // Deactivation requires atomic check + cancel + session cleanup
     if (body.active === false && target.active === true) {
+      if (Object.keys(body).some((key) => key !== "active")) {
+        throw new HttpError(400, "Deactivate the user separately from other profile changes");
+      }
       await deactivateUserWithCleanup({
         targetUserId: id,
         actorId: user.id,

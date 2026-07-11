@@ -64,11 +64,12 @@ function buildForest(users: OrgUser[]): Tree[] {
       children: kids
         .slice()
         .sort((a, b) => a.name.localeCompare(b.name))
+        .filter((child) => !seen.has(child.id))
         .map((k) => buildNode(k, seen)),
     };
   }
 
-  return roots
+  const forest = roots
     .slice()
     .sort((a, b) => {
       // Admins/staff first, then students; tiebreak by name.
@@ -77,6 +78,26 @@ function buildForest(users: OrgUser[]): Tree[] {
       return r !== 0 ? r : a.name.localeCompare(b.name);
     })
     .map((r) => buildNode(r, new Set()));
+
+  const included = new Set<string>();
+  function collect(tree: Tree) {
+    if (included.has(tree.user.id)) return;
+    included.add(tree.user.id);
+    tree.children.forEach(collect);
+  }
+  forest.forEach(collect);
+
+  // Corrupt legacy cycles have no natural root. Keep those people visible instead
+  // of presenting an empty or incomplete chart while write-time guards prevent new cycles.
+  for (const user of users) {
+    if (!included.has(user.id)) {
+      const recovered = buildNode(user, new Set());
+      forest.push(recovered);
+      collect(recovered);
+    }
+  }
+
+  return forest;
 }
 
 function NodeRow({ tree, depth }: { tree: Tree; depth: number }) {
@@ -190,10 +211,10 @@ export default function OrgChartPage() {
 
   return (
     <>
-      <PageHeader title="Org Chart">
+      <PageHeader title="Org chart" description="Reporting relationships for active staff and students.">
         <Button asChild variant="outline" size="sm">
           <Link href="/users">
-            <ArrowLeft className="mr-1 size-4" /> Back to users
+            <ArrowLeft data-icon="inline-start" /> Back to users
           </Link>
         </Button>
       </PageHeader>

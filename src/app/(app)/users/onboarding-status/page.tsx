@@ -201,7 +201,7 @@ export default function OnboardingStatusPage() {
           <Link href="/settings/allowed-emails">Allowed emails</Link>
         </Button>
         <Button asChild>
-          <Link href="/users">
+          <Link href="/users?onboard=1">
             <UserPlus data-icon="inline-start" />
             Onboard users
           </Link>
@@ -282,7 +282,40 @@ export default function OnboardingStatusPage() {
             />
           </CardContent>
         ) : (
-          <Table>
+          <>
+          <div className="grid gap-2 p-3 md:hidden">
+            {visibleRows.map((row) => (
+              <Card key={row.id}>
+                <CardContent className="flex flex-col gap-3 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{row.email}</div>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <Badge variant={ROLE_META[row.role].variant} size="sm">{ROLE_META[row.role].label}</Badge>
+                        {statusBadge(row.onboardingStatus)}
+                      </div>
+                    </div>
+                    <OperationalRowActions label={`Actions for ${row.email}`}>
+                      {!row.claimedAt ? (
+                        <>
+                          <DropdownMenuItem onClick={() => copyRegistrationLink(row)}><Copy />Copy registration link</DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href={registrationPath(row.email)} target="_blank" rel="noreferrer"><ExternalLink />Open registration</Link></DropdownMenuItem>
+                          <DropdownMenuItem variant="destructive" onClick={() => removeInvite(row)} disabled={deletingId === row.id}><Trash2 />{deletingId === row.id ? "Removing" : "Remove pending invite"}</DropdownMenuItem>
+                        </>
+                      ) : (
+                        <DropdownMenuItem disabled>Claimed invites stay for audit</DropdownMenuItem>
+                      )}
+                    </OperationalRowActions>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground">
+                    <div><div className="font-medium text-foreground">Created</div>{formatRelativeTime(row.createdAt, now)} by {row.createdBy.name}</div>
+                    <div><div className="font-medium text-foreground">Claimed</div>{row.claimedBy ? row.claimedBy.name : "Not claimed"}</div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <Table className="hidden md:table">
             <TableHeader>
               <TableRow>
                 <TableHead>Email</TableHead>
@@ -354,6 +387,7 @@ export default function OnboardingStatusPage() {
               ))}
             </TableBody>
           </Table>
+          </>
         )}
       </Card>
     </div>

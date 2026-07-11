@@ -4,6 +4,37 @@ Last updated: 2026-07-10
 
 ---
 
+## Completed: Sidebar end-to-end ownership pass (2026-07-10)
+
+Plan: `tasks/sidebar-ownership-pass.md`
+
+- [x] Clarify desktop hierarchy, active state, badges, and quick actions.
+- [x] Tighten collapsed, account, theme, logout, and mobile behavior.
+- [x] Complete focused tests, docs, repository gates, and browser verification boundary.
+
+### Review
+
+- **Shipped:** The sidebar now resolves one active destination, labels Staff tools as Operations, restores collapse state, keeps collapsed badges visible, uses accessible targets and landmarks, closes its mobile drawer after navigation, and aligns the web bottom bar with unified Bookings.
+- **Trust fixes:** Same-route booking changes refresh shell urgency, logout failures are visible, the conflicting Command-B shortcut is removed, and the unstable hover-only booking shortcut no longer disappears under urgent counts because creation remains owned by Bookings.
+- **Verified:** 11 focused sidebar/navigation tests, focused ESLint, TypeScript, all 93 migration prefixes, codemap/docs, whitespace, and `npm run build:app` passed.
+- **Browser limitation:** Dia continues to block authenticated localhost app routes with `ERR_BLOCKED_BY_CLIENT`, so interactive expanded/collapsed/mobile runtime proof is not claimed.
+
+## Completed: Sweeping Users ownership pass (2026-07-10)
+
+Plan: `tasks/users-ownership-pass.md`
+
+- [x] Unify roster hierarchy, filters, summary, and row identity.
+- [x] Tighten onboarding, org chart, and profile handoffs.
+- [x] Fix role, loading, empty, pagination, and action-state trust issues.
+- [x] Complete focused tests, docs, repository gates, and record the browser boundary.
+
+### Review
+
+- **Shipped:** Users now has a clearer roster hierarchy, one primary onboarding action, grouped secondary tools, operational summary, canonical role badges, responsive onboarding status, direct invite handoff, and stronger empty/loading/action feedback.
+- **Trust fixes:** Availability deletion confirms intent; legacy org-chart cycles stay visible; destructive deactivation cannot be bundled with profile edits; avatar blobs are deleted only after database success; profile-photo focus and sensitive clipboard failure feedback are explicit.
+- **Verified:** 40 focused Users/onboarding/privacy tests, focused ESLint, TypeScript, all 93 migration prefixes, codemap/docs, whitespace, and `npm run build:app` passed.
+- **Browser limitation:** Dia continues to block authenticated localhost app routes with `ERR_BLOCKED_BY_CLIENT`, so interactive desktop/narrow runtime proof is not claimed.
+
 ## Completed: Notifications end-to-end ownership pass (2026-07-10)
 
 Plan: `tasks/notifications-ownership-pass.md`

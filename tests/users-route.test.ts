@@ -24,6 +24,10 @@ vi.mock("@/lib/services/bookings-helpers", () => ({
   upsertBulkBalancesAndMovements: vi.fn(),
 }));
 
+vi.mock("@/lib/services/user-deactivation", () => ({
+  deactivateUserWithCleanup: vi.fn(),
+}));
+
 vi.mock("@sentry/nextjs", () => ({
   captureException: vi.fn(),
 }));
@@ -33,6 +37,7 @@ import { createAuditEntry } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { GET } from "@/app/api/users/route";
 import { PATCH } from "@/app/api/users/[id]/route";
+import { deactivateUserWithCleanup } from "@/lib/services/user-deactivation";
 
 const adminUser = {
   id: "cm000000000000000000000001",
@@ -197,6 +202,21 @@ describe("GET /api/users", () => {
 });
 
 describe("PATCH /api/users/[id]", () => {
+  it("rejects profile changes bundled with destructive deactivation", async () => {
+    vi.mocked(db.user.findUnique).mockResolvedValueOnce(userRow(makeUser({ active: true })));
+
+    const res = await PATCH(
+      patchRequest({ active: false, name: "Changed during deactivation" }),
+      routeParams(),
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toContain("Deactivate the user separately");
+    expect(deactivateUserWithCleanup).not.toHaveBeenCalled();
+    expect(db.user.update).not.toHaveBeenCalled();
+  });
+
   it("saves a linked direct report when the reporting chain is valid", async () => {
     vi.mocked(db.user.findUnique)
       .mockResolvedValueOnce(userRow(makeUser()))

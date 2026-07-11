@@ -19,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Link from "next/link";
-import { ArrowUpDown, ClipboardList, Download, Network, RefreshCw, UserPlus, WifiOff } from "lucide-react";
+import { ArrowUpDown, ClipboardList, Download, ImageOff, MoreHorizontal, Network, RefreshCw, UserPlus, UserRoundX, WifiOff } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/PageHeader";
@@ -27,6 +27,9 @@ import { FadeUp } from "@/components/ui/motion";
 import { formatRelativeTime } from "@/lib/format";
 import { useUrlState } from "@/hooks/use-url-state";
 import { SPORT_CODES } from "@/lib/sports";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { OperationalMetricCard } from "@/components/OperationalFeedback";
+import { OperationalStatusRail, type OperationalStatusRailItem } from "@/components/OperationalStatusRail";
 
 const LIMIT = 50;
 const ROLE_VALUES = new Set<string>(["ADMIN", "STAFF", "STUDENT"]);
@@ -105,6 +108,14 @@ function serializePageParam(value: number): string | null {
   return value > 0 ? String(value) : null;
 }
 
+function parseOnboardParam(raw: string | null): boolean {
+  return raw === "1" || raw === "true";
+}
+
+function serializeOnboardParam(value: boolean): string | null {
+  return value ? "1" : null;
+}
+
 /* ── Sort Header ───────────────────────────────────────── */
 
 function SortableHead({
@@ -131,12 +142,13 @@ function SortableHead({
   }
 
   return (
-    <TableHead className={className}>
+    <TableHead className={className} aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}>
       <Button
         variant="ghost"
         size="sm"
         className="-ml-3 h-8"
         onClick={handleClick}
+        aria-label={`Sort by ${label}${isAsc ? " descending" : isDesc ? " clear sorting" : " ascending"}`}
       >
         {label}
         {isActive ? (
@@ -149,39 +161,35 @@ function SortableHead({
   );
 }
 
-function RosterSummary({ stats, canEdit }: { stats: NonNullable<ListResponse["stats"]>; canEdit: boolean }) {
-  const buckets = [
-    { label: "Total", value: stats.total },
-    { label: "Active", value: stats.active },
-    { label: "Students", value: stats.byRole.STUDENT },
-    { label: "Staff", value: stats.byRole.STAFF + stats.byRole.ADMIN },
+function RosterSummary({
+  stats,
+  canEdit,
+  onRoleChange,
+  onShowInactive,
+}: {
+  stats: NonNullable<ListResponse["stats"]>;
+  canEdit: boolean;
+  onRoleChange: (role: string) => void;
+  onShowInactive: () => void;
+}) {
+  const items: OperationalStatusRailItem[] = [
+    ...(stats.inactive > 0 ? [{ id: "inactive", label: "Inactive", value: stats.inactive, detail: "People excluded from the active roster.", icon: UserRoundX, tone: "warning" as const, onSelect: onShowInactive }] : []),
+    ...(canEdit && stats.missingPhotos > 0 ? [{ id: "missing-photos", label: "Missing photos", value: stats.missingPhotos, detail: "Profiles without a roster photo.", icon: ImageOff, tone: "info" as const }] : []),
   ];
-
-  if (stats.inactive > 0) {
-    buckets.splice(2, 0, { label: "Inactive", value: stats.inactive });
-  }
-
-  if (canEdit && stats.missingPhotos > 0) {
-    buckets.push({ label: "No photos", value: stats.missingPhotos });
-  }
-
-  const desktopCols = buckets.length >= 6 ? "lg:grid-cols-6" : "lg:grid-cols-5";
-
   return (
-    <div className={`grid grid-cols-2 gap-2 rounded-md border border-border/60 bg-muted/20 p-2 sm:grid-cols-3 ${desktopCols}`}>
-      {buckets.map((bucket) => (
-        <div key={bucket.label} className="flex min-h-14 items-center justify-between rounded-sm bg-background px-3 shadow-xs">
-          <div className="min-w-0">
-            <div className="text-[11px] font-medium text-muted-foreground">
-              {bucket.label}
-            </div>
-            <div className="mt-0.5 text-xl font-bold leading-none tabular-nums" style={{ fontFamily: "var(--font-heading)" }}>
-              {bucket.value.toLocaleString()}
-            </div>
-          </div>
+    <OperationalStatusRail
+      orientation={{ label: "Active roster", value: String(stats.active), icon: UserPlus }}
+      items={items}
+      allClearLabel={items.length === 0 ? "Roster profiles are complete" : undefined}
+      details={(
+        <div className="grid gap-2 sm:grid-cols-4">
+          <OperationalMetricCard label="All matching" value={stats.total} />
+          <OperationalMetricCard label="Students" value={stats.byRole.STUDENT} onClick={() => onRoleChange("STUDENT")} />
+          <OperationalMetricCard label="Staff" value={stats.byRole.STAFF} onClick={() => onRoleChange("STAFF")} />
+          <OperationalMetricCard label="Admins" value={stats.byRole.ADMIN} onClick={() => onRoleChange("ADMIN")} />
         </div>
-      ))}
-    </div>
+      )}
+    />
   );
 }
 
@@ -239,10 +247,19 @@ export default function UsersPage() {
     parsePageParam,
     serializePageParam,
   );
+  const [onboardRequested, setOnboardRequested] = useUrlState<boolean>(
+    "onboard",
+    parseOnboardParam,
+    serializeOnboardParam,
+  );
 
   // UI
   const [showCreate, setShowCreate] = useState(false);
   const didMountRef = useRef(false);
+
+  useEffect(() => {
+    if (onboardRequested) setShowCreate(true);
+  }, [onboardRequested]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -343,6 +360,17 @@ export default function UsersPage() {
     (canShowHiddenUsers && showHiddenUsers);
   const isInitialLoad = loading && users.length === 0 && !loadError;
 
+  function clearFilters() {
+    setSearch("");
+    setRoleFilter("");
+    setLocationFilter("");
+    setYearFilter("");
+    setSportFilter("");
+    setAreaFilter("");
+    setShowInactive(false);
+    setShowHiddenUsers(false);
+  }
+
   useEffect(() => {
     if (loading || page === 0) return;
     if (total === 0 || page >= totalPages) {
@@ -353,11 +381,11 @@ export default function UsersPage() {
   return (
     <FadeUp>
       {/* Header */}
-      <PageHeader title="Users">
+      <PageHeader title="Users" description="Find people, manage access, and review roster health.">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-7" onClick={reload} disabled={loading} aria-label="Refresh users list">
-              <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
+            <Button variant="ghost" size="icon" className="size-10" onClick={reload} disabled={loading || refreshing} aria-label="Refresh users list">
+              <RefreshCw className={refreshing ? "animate-spin" : undefined} />
             </Button>
           </TooltipTrigger>
           <TooltipContent>
@@ -367,28 +395,27 @@ export default function UsersPage() {
           </TooltipContent>
         </Tooltip>
         {canEdit && (
-          <Button asChild variant="outline" size="sm">
-            <a
-              href={exportHref}
-              download
-            >
-              <Download className="mr-1 size-4" /> Export CSV
-            </a>
-          </Button>
-        )}
-        {canEdit && (
-          <Button asChild variant="outline" size="sm">
-            <Link href="/users/org-chart">
-              <Network className="mr-1 size-4" /> Org chart
-            </Link>
-          </Button>
-        )}
-        {canEdit && (
-          <Button asChild variant="outline" size="sm">
-            <Link href="/users/onboarding-status">
-              <ClipboardList className="mr-1 size-4" /> Onboarding
-            </Link>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <MoreHorizontal data-icon="inline-start" />
+                More
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuGroup>
+                <DropdownMenuItem asChild>
+                  <Link href="/users/onboarding-status"><ClipboardList />Onboarding status</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/users/org-chart"><Network />Org chart</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <a href={exportHref} download><Download />Export current roster</a>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
         {canEdit && (
           <Button onClick={() => setShowCreate(true)}>
@@ -401,7 +428,10 @@ export default function UsersPage() {
       {/* Onboarding Dialog */}
       <OnboardingDialog
         open={showCreate}
-        onOpenChange={setShowCreate}
+        onOpenChange={(open) => {
+          setShowCreate(open);
+          if (!open && onboardRequested) setOnboardRequested(false);
+        }}
         currentUserRole={currentUserRole}
         onInvitesChanged={() => reload()}
       />
@@ -430,15 +460,7 @@ export default function UsersPage() {
           showHiddenUsers={showHiddenUsers}
           onShowHiddenUsersChange={setShowHiddenUsers}
           searching={refreshing && !loading}
-          onClearAll={() => {
-            setRoleFilter("");
-            setLocationFilter("");
-            setYearFilter("");
-            setSportFilter("");
-            setAreaFilter("");
-            setShowInactive(false);
-            setShowHiddenUsers(false);
-          }}
+          onClearAll={clearFilters}
         />
 
         {formOptionsError && (
@@ -454,7 +476,7 @@ export default function UsersPage() {
         )}
 
         {stats && !isInitialLoad && !loadError && (
-          <RosterSummary stats={stats} canEdit={canEdit} />
+          <RosterSummary stats={stats} canEdit={canEdit} onRoleChange={setRoleFilter} onShowInactive={() => setShowInactive(true)} />
         )}
 
         {isInitialLoad ? (
@@ -510,9 +532,11 @@ export default function UsersPage() {
               hasFilters
                 ? "Try adjusting your search or filters."
                 : canEdit
-                  ? "Click \"Add user\" to get started."
+                  ? "Onboard users to add registration access."
                   : undefined
             }
+            actionLabel={hasFilters ? "Clear filters" : canEdit ? "Onboard users" : undefined}
+            onAction={hasFilters ? clearFilters : canEdit ? () => setShowCreate(true) : undefined}
           />
         ) : (
           <>

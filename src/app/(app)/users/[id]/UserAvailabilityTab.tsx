@@ -20,6 +20,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { cn } from "@/lib/utils";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type AvailabilityKind = "WEEKLY" | "AD_HOC";
 type AvailabilityIntent = "CANNOT_WORK" | "PREFER" | "DISLIKE" | "TIME_OFF";
@@ -489,6 +490,7 @@ export default function UserAvailabilityTab({
   canEdit: boolean;
   currentUserRole: string | null;
 }) {
+  const confirm = useConfirm();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<AvailabilityBlock | null>(null);
   const [localBlocks, setLocalBlocks] = useState<AvailabilityBlock[] | null>(null);
@@ -525,18 +527,30 @@ export default function UserAvailabilityTab({
     setEditing(null);
   }
 
-  async function handleDelete(blockId: string) {
+  async function handleDelete(block: AvailabilityBlock) {
     if (deletingRef.current) return;
+    const kind = blockKind(block);
+    const scheduleLabel = kind === "WEEKLY"
+      ? `${DAY_NAMES[block.dayOfWeek ?? 0]} ${formatTime(block.startsAt)}-${formatTime(block.endsAt)}`
+      : `${formatDate(block.date)} ${formatTime(block.startsAt)}-${formatTime(block.endsAt)}`;
+    const confirmed = await confirm({
+      title: "Remove availability?",
+      message: `Remove ${block.label ? `${block.label}, ` : ""}${scheduleLabel}? This can change scheduling warnings and time-off context.`,
+      confirmLabel: "Remove",
+      variant: "danger",
+    });
+    if (!confirmed) return;
+
     deletingRef.current = true;
-    setDeleting(blockId);
+    setDeleting(block.id);
     try {
-      const res = await fetch(`/api/users/${userId}/availability/${blockId}`, { method: "DELETE" });
+      const res = await fetch(`/api/users/${userId}/availability/${block.id}`, { method: "DELETE" });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         toast.error(await parseErrorMessage(res, "Could not remove availability"));
         return;
       }
-      setLocalBlocks((prev) => (prev ?? fetchedBlocks ?? []).filter((b) => b.id !== blockId));
+      setLocalBlocks((prev) => (prev ?? fetchedBlocks ?? []).filter((b) => b.id !== block.id));
       toast.success("Availability removed");
     } catch {
       toast.error("Network error");
@@ -681,7 +695,7 @@ export default function UserAvailabilityTab({
                             deleting={deleting === block.id}
                             reviewing={reviewing === block.id}
                             onEdit={() => setEditing(block)}
-                            onDelete={() => handleDelete(block.id)}
+                            onDelete={() => handleDelete(block)}
                             onReview={(status) => handleReview(block, status)}
                           />
                         ))}
@@ -720,7 +734,7 @@ export default function UserAvailabilityTab({
                         deleting={deleting === block.id}
                         reviewing={reviewing === block.id}
                         onEdit={() => setEditing(block)}
-                        onDelete={() => handleDelete(block.id)}
+                        onDelete={() => handleDelete(block)}
                         onReview={(status) => handleReview(block, status)}
                       />
                     </div>

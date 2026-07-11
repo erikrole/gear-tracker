@@ -1,5 +1,28 @@
 # Users Ownership Pass - 2026-05-06
 
+## Sweeping Users Pass - 2026-07-10
+
+### Goal
+- Make Users feel like one coherent people operations area across the roster, onboarding, org chart, and profile handoff, with truthful roles, fast discovery, clear secondary tools, and reliable state recovery.
+
+### Plan
+- [x] Audit roster, onboarding, org chart, profile flows, APIs, permissions, docs, tests, and peer pages.
+- [x] Simplify roster hierarchy, filters, summary, row identity, and secondary navigation.
+- [x] Fix high-confidence role, loading, empty, pagination, and action-state issues across Users surfaces.
+- [x] Add focused tests and synchronize Users documentation.
+- [x] Run repository gates and record the authenticated browser boundary.
+
+### Contract boundaries
+- Preserve invite-first onboarding, STUDENT directory visibility, STAFF/ADMIN editing, hidden-user rules, inactive-user lifecycle, and URL-backed roster state.
+
+### Review
+- Shipped a clearer roster hierarchy with one primary onboarding action, grouped secondary tools, an operational summary rail, canonical role badges, accessible sort state, direct empty-state recovery, and truthful active/inactive roster metrics.
+- Onboarding now deep-links into the invite dialog, the dialog stays within the viewport, and onboarding status has a responsive card layout. Availability deletion requires confirmation, org-chart cycles stay visible, profile photo focus and password-copy failure states are explicit, deactivation cannot be bundled with other edits, and avatar blob cleanup follows database success.
+- Verified 40 focused Users/onboarding/privacy tests, focused ESLint, TypeScript, all 93 migration prefixes, codemap/docs, whitespace, and `npm run build:app`.
+- Authenticated browser proof is not repeated or claimed because Dia continues to block local app routes with `ERR_BLOCKED_BY_CLIENT`, the same environment boundary confirmed on the immediately preceding Settings and Notifications passes.
+
+---
+
 ## Goal
 - Make the Users list read like an operator roster: quick roster counts, clear search, contained advanced filters, and a calmer desktop/mobile command surface.
 

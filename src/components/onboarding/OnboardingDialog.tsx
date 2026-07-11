@@ -519,7 +519,7 @@ export default function OnboardingDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!inviting) onOpenChange(next); }}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="grid max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="size-5 shrink-0" />
@@ -532,7 +532,7 @@ export default function OnboardingDialog({
 
         {completion ? (
           <>
-            <DialogBody className="flex flex-col gap-4 py-5">
+            <DialogBody className="min-h-0 overflow-y-auto flex flex-col gap-4 py-5">
               <Alert className="border-[var(--green)]/40 bg-[var(--green-bg)]">
                 <CheckCircle2 className="size-4 text-[var(--green-text)]" />
                 <AlertTitle>Invitations saved</AlertTitle>
@@ -562,7 +562,7 @@ export default function OnboardingDialog({
           </>
         ) : (
           <form onSubmit={handleInviteSubmit} className="contents">
-            <DialogBody className="flex flex-col gap-4 py-5">
+            <DialogBody className="min-h-0 overflow-y-auto flex flex-col gap-4 py-5">
               <p className="text-sm text-muted-foreground">
                 Users set their own password the first time they register. Existing registered or already-invited addresses are skipped without exposing private account details.
               </p>

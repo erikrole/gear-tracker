@@ -45,16 +45,21 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     contentType: file.type,
   });
 
-  // params is provided synchronously by the withAuth wrapper
+  let updated;
+  try {
+    updated = await db.user.update({
+      where: { id },
+      data: { avatarUrl: blob.url },
+      select: { id: true, avatarUrl: true },
+    });
+  } catch (error) {
+    await deleteImage(blob.url).catch(() => {});
+    throw error;
+  }
+
   if (target.avatarUrl && isBlobUrl(target.avatarUrl)) {
     await deleteImage(target.avatarUrl).catch(() => {});
   }
-
-  const updated = await db.user.update({
-    where: { id },
-    data: { avatarUrl: blob.url },
-    select: { id: true, avatarUrl: true },
-  });
 
   await createAuditEntry({
     actorId: user.id,
@@ -85,14 +90,14 @@ export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) =>
     throw new HttpError(400, "No avatar to remove");
   }
 
-  if (isBlobUrl(target.avatarUrl)) {
-    await deleteImage(target.avatarUrl).catch(() => {});
-  }
-
   await db.user.update({
     where: { id },
     data: { avatarUrl: null },
   });
+
+  if (isBlobUrl(target.avatarUrl)) {
+    await deleteImage(target.avatarUrl).catch(() => {});
+  }
 
   await createAuditEntry({
     actorId: user.id,

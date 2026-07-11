@@ -1,5 +1,6 @@
 import { MotionConfig } from "motion/react";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import AppShell from "@/components/AppShell";
 import { QueryProvider } from "@/components/QueryProvider";
 import { Toaster } from "@/components/ui/sonner";
@@ -22,6 +23,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (user.forcePasswordChange) {
     redirect("/change-password");
   }
+  const cookieStore = await cookies();
+  const defaultSidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
   return (
     <MotionConfig reducedMotion="user">
@@ -29,7 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <ConfirmProvider>
           <TooltipProvider>
             <OfflineBanner />
-            <AppShell initialUser={user}>{children}</AppShell>
+            <AppShell initialUser={user} defaultSidebarOpen={defaultSidebarOpen}>{children}</AppShell>
           </TooltipProvider>
           <Toaster position="top-right" duration={4000} />
         </ConfirmProvider>
