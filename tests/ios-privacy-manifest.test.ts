@@ -17,8 +17,22 @@ function manifestJson() {
   };
 }
 
+// `plutil` is a macOS-only binary; on non-macOS CI (Linux) it's absent, so the
+// manifest can't be converted here. Skip rather than fail — the manifest is still
+// validated wherever plutil exists (macOS dev machines / macOS CI, where the iOS
+// app is actually built and archived). ENOENT means "not installed"; any other
+// error (e.g. a non-zero exit from -help) still proves plutil is present.
+function plutilAvailable(): boolean {
+  try {
+    execFileSync("plutil", ["-help"], { stdio: "ignore" });
+    return true;
+  } catch (err) {
+    return (err as NodeJS.ErrnoException)?.code !== "ENOENT";
+  }
+}
+
 describe("Wisconsin privacy manifest", () => {
-  it("matches the source-grounded App Store privacy inventory", () => {
+  it.skipIf(!plutilAvailable())("matches the source-grounded App Store privacy inventory", () => {
     const manifest = manifestJson();
     const declared = new Map(manifest.NSPrivacyCollectedDataTypes.map((entry) => [entry.NSPrivacyCollectedDataType, entry]));
 

@@ -23,7 +23,11 @@ describe("iOS forced password setup", () => {
     expect(apiClient).toContain("let _: ChangePasswordResponse = try await perform(req)");
     expect(sessionStore).toContain("func completeForcedPasswordChange(currentPassword: String, newPassword: String) async");
     expect(sessionStore).toContain("try await APIClient.shared.changePassword");
-    expect(sessionStore).toContain("currentUser = try await APIClient.shared.me()");
+    // The launch-shell refactor split the old `currentUser = try await …me()`
+    // one-liner so the forced-password path can also snapshot the session; assert
+    // the same "refresh current user from /me" contract in its current form.
+    expect(sessionStore).toContain("let user = try await APIClient.shared.me()");
+    expect(sessionStore).toContain("currentUser = user");
   });
 
   it("keeps forced users out of the app shell until the flag clears", () => {
