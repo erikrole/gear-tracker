@@ -2624,7 +2624,7 @@ Archived to `tasks/archive/completed-2026-06/codex-readiness-legacy-tail-cleanup
 - Run `npm run build` before any commit
 - Every mutation endpoint needs audit logging (D-007)
 - Read `NORTH_STAR.md` first in any new Claude session
-- When shipping, update the relevant `AREA_*.md` and `GAPS_AND_RISKS.md` (CLAUDE.md rule 12)
+- When shipping, update the relevant `AREA_*.md` and `GAPS_AND_RISKS.md` per [AGENTS.md](../AGENTS.md)
 
 ---
 

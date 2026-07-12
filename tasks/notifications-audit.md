@@ -21,7 +21,7 @@
 ## Feature Inventory
 | Feature | Status | Source | Notes |
 |---|---|---|---|
-| 4 escalation triggers (-4h, 0h, +2h, +24h) | Shipped | AC-1 | Relative to booking.endsAt. |
+| 4 escalation triggers (+1h, +3h, +8h, +24h) | Shipped | AC-1 | Relative to booking.endsAt. |
 | Dedup by bookingId:type | Shipped | AC-2, AC-5 | Unique index on dedupeKey. Idempotent. |
 | In-app notification records | Shipped | AC-3 | Notification center for requester. |
 | Email via Resend | Shipped | AC-9 | Dev mode logs to console. Non-fatal on failure. |

@@ -15,7 +15,7 @@ Keep root `tasks/` for current work and durable reference ledgers only:
 
 - `todo.md` - current queue and recent archive summaries.
 - `orchestrator.md` - manual Codex cleanup/triage ledger.
-- `lessons.md` - project lessons and correction patterns.
+- `lessons.md` - concise durable lessons and correction patterns.
 - `technical-debt-cleanup-2026-06-19.md` - current task-folder cleanup ledger.
 - Active `*-plan.md` files that still have unchecked implementation, rollout, verification, or follow-up work.
 - Current audit docs used by audit skills, especially `audit-*-ios.md` and route/page audit files.
@@ -46,6 +46,7 @@ Audit files intentionally remain at root for now because the repo audit skills r
 - `tasks/archive/completed-2026-06/` - completed plans and queue cleanup summaries from the June cleanup run.
 - `tasks/archive/completed-2026-07/` - completed plans moved during the July 11 repository cleanup.
 - `tasks/archive/proofs/` - browser-smoke and screenshot proof artifacts.
+- `tasks/archive/lessons-history-2026.md` - dated lesson evidence retained for traceability.
 - `tasks/archive/` root - older archived plans that predate the dated completed bucket.
 
 ## Cleanup Rules

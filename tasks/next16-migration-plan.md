@@ -105,7 +105,7 @@ Each surface gets its own micro-PR. Wire `updateTag(...)` into the corresponding
 ## Out of scope
 
 - Vercel runtime cache adoption (separate plan after Cache Components is stable).
-- Edge runtime migration — the project intentionally runs Node-only per CLAUDE.md (Vercel deployment constraints).
+- Edge runtime migration — the project intentionally runs Node-only per the deployment contract in [AGENTS.md](../AGENTS.md).
 - Routing middleware — none exists today.
 
 ## Open questions

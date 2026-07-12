@@ -51,11 +51,11 @@ export function MyGearColumn({
 
   return (
     <div className="flex flex-col gap-4">
-      <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60 pl-0.5" style={{ fontFamily: "var(--font-mono)" }}>My Gear</span>
+      <span className="px-0.5 text-xs font-semibold text-muted-foreground">My gear</span>
 
       {personalGearEmpty ? (
         <ScaleIn delay={0}>
-          <Card elevation="elevated">
+          <Card elevation="flat">
             <CardContent className="flex min-h-[88px] items-center justify-between gap-4 p-4 max-sm:flex-col max-sm:items-start">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
@@ -88,12 +88,12 @@ export function MyGearColumn({
         <>
           {/* My Checkouts */}
           <ScaleIn delay={0}>
-          <Card elevation="elevated">
+          <Card elevation="flat">
             <DashboardSectionHeader title="My checkouts" href="/checkouts?mine=true" count={myCheckoutsCount} />
             {visibleMyCheckouts.length === 0 ? (
               <div className="flex min-h-[72px] flex-col items-center justify-center gap-1.5 px-4 py-5 text-center text-sm text-muted-foreground"><ClipboardCheckIcon className="size-5 opacity-45" />{activeSport ? `No ${activeSport} checkouts` : "You have no gear checked out"}</div>
             ) : (
-              <CardContent className="p-0 py-1">
+              <CardContent className="p-0">
                 {visibleMyCheckouts.map((c) => {
                   return (
                     <DashboardBookingRow
@@ -135,12 +135,12 @@ export function MyGearColumn({
 
           {/* My Reservations */}
           <ScaleIn delay={0.05}>
-          <Card>
+          <Card elevation="flat">
             <DashboardSectionHeader title="My reservations" href="/reservations?mine=true" count={myReservationsCount} />
             {visibleMyReservations.length === 0 ? (
               <div className="flex min-h-[72px] flex-col items-center justify-center gap-1.5 px-4 py-5 text-center text-sm text-muted-foreground"><CalendarCheckIcon className="size-5 opacity-45" />{activeSport ? `No ${activeSport} reservations` : "No reservations coming up"}</div>
             ) : (
-              <CardContent className="p-0 py-1">
+              <CardContent className="p-0">
                 {visibleMyReservations.map((r) => (
                   <DashboardBookingRow
                     key={r.id}
@@ -163,9 +163,9 @@ export function MyGearColumn({
       {/* My Shifts */}
       {visibleMyShifts.length > 0 && (
         <ScaleIn delay={0.1}>
-        <Card>
+        <Card elevation="flat">
           <DashboardSectionHeader title="My shifts" href="/schedule" count={myShiftsCount} />
-          <CardContent className="p-0 py-1">
+          <CardContent className="p-0">
             {visibleMyShifts.map((s) => {
               const gearLabel = s.gearStatus === "checked_out" ? "Gear out" : s.gearStatus === "reserved" ? "Reserved" : s.gearStatus === "draft" ? "Draft" : null;
               const eventTitle = s.event.opponent
@@ -178,7 +178,7 @@ export function MyGearColumn({
               // fabricated call time, matching the Schedule list convention.
               const isFullDayDefault = isFullDayBoundaryWindow({ startsAt: s.callStartsAt, endsAt: s.callEndsAt });
               return (
-                <div key={s.id} className="group flex items-center justify-between gap-3 w-full px-4 py-2 transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/40">
+                <div key={s.id} className="group flex min-h-16 w-full items-center justify-between gap-3 px-4 py-2.5 transition-colors hover:bg-muted/45 [&+&]:border-t [&+&]:border-border/40">
                   <div className="flex flex-col gap-0.5 min-w-0">
                     <span className="text-sm font-bold text-foreground truncate">
                       {s.event.sportCode && <span className="text-xs font-bold mr-1">{sportLabel(s.event.sportCode)}</span>}
@@ -227,11 +227,11 @@ export function MyGearColumn({
       {/* Drafts */}
       {data.drafts.length > 0 && (
         <ScaleIn delay={0.15}>
-        <Card elevation="elevated">
+        <Card elevation="flat">
           <DashboardSectionHeader title="Drafts" count={data.drafts.length} />
-          <CardContent className="p-0 py-1">
+          <CardContent className="p-0">
             {data.drafts.map((d) => (
-              <div key={d.id} className="group flex items-center justify-between gap-3 w-full px-4 py-2 transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/40">
+              <div key={d.id} className="group flex min-h-16 w-full items-center justify-between gap-3 px-4 py-2.5 transition-colors hover:bg-muted/45 [&+&]:border-t [&+&]:border-border/40">
                 <div className="flex flex-col gap-0.5 min-w-0">
                   <span className="text-sm font-medium text-foreground truncate">
                     <Badge variant="outline" size="sm" className="mr-1.5">{d.kind === "CHECKOUT" ? "Checkout" : "Reservation"}</Badge>

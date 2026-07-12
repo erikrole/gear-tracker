@@ -1,132 +1,89 @@
-## Workflow Orchestration
+# Gear Tracker Agent Contract
 
-### 1. Plan Node Default
-- Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
-- If something goes sideways, STOP and re-plan immediately - don't keep pushing
-- Use plan mode for verification steps, not just building
-- Write detailed specs upfront to reduce ambiguity
+This file is the operating contract for work in this repository. Keep it short, enforceable, and current. Put durable implementation lessons in `tasks/lessons.md`, accepted architecture in `docs/DECISIONS.md`, and area-specific truth in the relevant `docs/AREA_*.md` file.
 
-### 2. Subagent Strategy
-- Use subagents liberally to keep main context window clean
-- Offload research, exploration, and parallel analysis to subagents
-- For complex problems, throw more compute at it via subagents
-- One tack per subagent for focused execution
+## Instruction priority
 
-### 3. Self-Improvement Loop
-- After ANY correction from the user: update `tasks/lessons.md` with the pattern
-- Write rules for yourself that prevent the same mistake
-- Ruthlessly iterate on these lessons until mistake rate drops
-- Review lessons at session start for relevant project
+When guidance conflicts, use this order:
 
-### 4. Verification Before Done
-- Never mark a task complete without proving it works
-- Diff behavior between main and your changes when relevant
-- Ask yourself: "Would a staff engineer approve this?"
-- Run tests, check logs, demonstrate correctness
+1. The user's current request and explicit product direction.
+2. Current accepted contracts in `docs/DECISIONS.md`, the relevant area brief, and the relevant area doc.
+3. Current source, schema, tests, and runtime evidence as proof of what is actually shipped.
+4. Durable lessons in `tasks/lessons.md`.
+5. Historical plans and archived session notes.
 
-### 5. Demand Elegance (Balanced)
-- For non-trivial changes: pause and ask "is there a more elegant way?"
-- If a fix feels hacky: "Knowing everything I know now, implement the elegant solution"
-- Skip this for simple, obvious fixes - don't over-engineer
-- Challenge your own work before presenting it
+If a conflict could change behavior, stop and reconcile the source of truth in the appropriate document before implementing.
 
-### 6. Autonomous Bug Fixing
-- When given a bug report: just fix it. Don't ask for hand-holding
-- Point at logs, errors, failing tests - then resolve them
-- Zero context switching required from the user
-- Go fix failing CI tests without being told how
+## Working rules
 
-## Task Management
+- Inspect the real repository state before making claims or edits.
+- For a non-trivial task, write a bounded plan, identify the files and contracts involved, and verify the plan against the current source before editing.
+- Read each file in full before editing it. Plan all edits to a file first, then make one coherent edit.
+- Preserve unrelated user and parallel-agent work. Never use broad staging such as `git add -A` when unrelated changes are present.
+- Do not stage, commit, push, merge, or delete user work unless the user explicitly asks for that action.
+- If the same approach fails twice, stop repeating it. Re-plan with a safer alternative or report the concrete blocker.
+- Promote a new lesson only when it is reusable, non-obvious, and supported by a verified failure or accepted decision.
 
-1. **Plan First**: Write plan to `tasks/todo.md` with checkable items
-2. **Verify Plan**: Check in before starting implementation
-3. **Track Progress**: Mark items complete as you go
-4. **Explain Changes**: High-level summary at each step
-5. **Document Results**: Add review section to `tasks/todo.md`
-6. **Capture Lessons**: Update `tasks/lessons.md` after corrections
+## Execution flow
 
-## Core Principles
+1. Establish scope: inspect `git status`, read `docs/NORTH_STAR.md`, then inspect the relevant route/view/service, schema, and current docs.
+2. Audit contracts: read the relevant `docs/BRIEF_*`, `docs/AREA_*`, `docs/DECISIONS.md`, and `docs/GAPS_AND_RISKS.md` material. For schema work, inspect `prisma/schema.prisma` and migration state.
+3. Implement the smallest independently verifiable slice. Keep schema/migration, service/API, UI wiring, tests, and hardening separable when the change is substantial.
+4. Verify behavior at the layer that can fail. Tests and builds do not replace authenticated browser proof for web runtime work, and TypeScript checks do not replace an Xcode build for Swift changes.
+5. Sync shipped reality: update the relevant area docs, risks, task ledger, and plan lifecycle when the change changes product behavior.
+6. Close with evidence, remaining risks, and either the next bounded slice or a clear stop recommendation.
 
-- **Simplicity First**: Make every change as simple as possible. Impact minimal code.
-- **No Laziness**: Find root causes. No temporary fixes. Senior developer standards.
-- **Minimat Impact**: Changes should only touch what's necessary. Avoid introducing bugs.
+## Repository contracts
 
----
+### Web and API
 
-## Project-Specific Rules
+- Deploys use standard Node.js serverless functions on Vercel. Do not add an Edge runtime without an explicit decision.
+- Database access uses Neon PostgreSQL through the Prisma adapter. Batch database work where possible and avoid N+1 queries.
+- Keep API routes within the platform timeout budget. Scheduled work belongs in Vercel Cron configuration.
+- Use `withAuth` for authenticated routes and `withHandler` for public routes.
+- Protect every mutation with `requirePermission(role, resource, action)` and write an audit entry with useful before/after snapshots.
+- Use `SERIALIZABLE` for logically concurrent mutations and transactions for logically atomic multi-write flows.
+- Let database constraints decide uniqueness. Catch Prisma `P2002` and return a friendly conflict instead of pre-checking with a race-prone read.
+- Normalize and validate input at the schema boundary. Handle `ZodError` centrally and never assume an error response is JSON.
 
-### 7. Pre-Implementation Audit (NON-NEGOTIABLE)
-Before implementing any feature:
-- Read ALL `docs/BRIEF_*` and `docs/AREA_*` files for the feature area
-- Cross-reference `prisma/schema.prisma` for existing models, field names, and cascade rules
-- Check `docs/DECISIONS.md` for prior architectural choices
-- Review `docs/GAPS_AND_RISKS.md` for related pending decisions or known gaps
-- Skipping this causes missed field requirements, schema mismatches, and rework
+### Native iOS
 
-### 8. Vercel Deployment Constraints
-This project deploys to Vercel (Node.js runtime):
-- Database: Neon serverless PostgreSQL via `@prisma/adapter-neon`
-- No edge runtime — all routes run as standard Node.js serverless functions
-- Serverless function timeout: 10s on Hobby, 60s on Pro — keep API routes fast
-- Batch DB operations where possible for performance (avoid N+1 queries)
-- Vercel Blob for file storage (replaces Cloudflare R2)
-- Vercel Cron Jobs for scheduled tasks (configure in `vercel.json` or dashboard)
-- Always run `npm run build` before committing — build failures are the #1 avoidable time waster
-- If build fails, fix it before pushing. Never leave a broken build on any branch.
+- Native iOS workflows stay native. Do not replace a requested native flow with a web or PWA fallback for convenience.
+- Prefer SwiftUI and system controls before custom chrome. Use the existing design tokens and native interaction patterns.
+- Treat API payloads as versioned contracts. Check the route's actual response against every Swift Codable model, including nullable fields, envelopes, and rollout tolerance.
+- A Swift source refactor requires both an Xcode build and the web-side source-contract tests that inspect Swift files.
+- For explicit Xcode projects, register new Swift files in the project file and verify the target membership.
 
-### 9. Commit Message Format
-Follow conventional commits strictly:
-- `feat:` — new user-facing functionality
-- `fix:` — bug fix (include root cause in message)
-- `chore:` — build/tooling/dependency changes only
-- Never create a standalone `chore: update tsconfig.tsbuildinfo` commit — bundle with the related feature commit or omit
-- Commit messages should describe the **user-facing outcome**, not the code change
+### UI and component standards
 
-### 10. Thin Slice Protocol
-All non-trivial features must be implemented in progressive slices:
-- Each slice must be independently mergeable and independently testable
-- Slice order: Schema/migration → API/service → UI wiring → Tests → Hardening
-- Maximum one PR per slice — no mega-PRs that mix concerns
-- Write the slice plan in `tasks/[feature]-plan.md` before starting
+- Web UI uses existing shadcn/ui primitives from `src/components/ui/`. Add a primitive through the project convention before creating a custom equivalent.
+- Keep user-facing copy in product language, not schema or enum language. Reuse existing status, color, avatar, thumbnail, and feedback primitives.
+- Remove dead consumers only after grepping all references. Do not delete CSS, exports, or helpers before their consumers are migrated.
 
-### 11. Post-Merge Cleanup (Dual-Agent Workflow)
-After merging Codex or any parallel branch:
-- Scan for duplicate type definitions (especially in `src/app/(app)/*/page.tsx`)
-- Check for duplicate function names (e.g. `window.prompt` wrappers)
-- Remove dead modal code or stale imports from merge artifacts
-- Run `npm run build` to confirm clean compilation before declaring done
+## Documentation and task lifecycle
 
-### 12. Doc Sync on Ship (NON-NEGOTIABLE)
-Every commit that ships functionality MUST include doc updates in the same commit:
-- Update the relevant `AREA_*.md` file's change log and mark acceptance criteria as met
-- Update `docs/GAPS_AND_RISKS.md` if the feature closes a gap or pending decision
-- Update `tasks/lessons.md` if you learned something worth capturing
-- Move completed plan files to `tasks/archive/` when all slices ship
-- No feature is "done" until its area doc reflects shipped reality
-- This applies to ALL work — not just PRs. Every push must leave docs in sync with code.
+- Keep `tasks/` root for active work and durable reference ledgers. Archive completed plans instead of deleting them.
+- A shipped behavior change requires the relevant area doc changelog and acceptance state. Update `docs/GAPS_AND_RISKS.md` when a gap or pending decision closes.
+- Keep `tasks/lessons.md` concise. Dated evidence belongs in `tasks/archive/lessons-history-2026.md`; promote only reusable rules.
+- Keep codemaps and task indexes synchronized after shared helper, component, route, or document moves. Run `npm run codemap` before retrying docs verification when generated maps are stale.
+- Use conventional commits when commits are requested: `feat:`, `fix:`, or `chore:`. Describe the user-facing outcome and do not create a standalone generated-artifact commit.
 
-### 13. shadcn/ui Component Standard (NON-NEGOTIABLE)
-All UI work MUST use shadcn/ui components as the standard component library:
-- Use existing shadcn components from `src/components/ui/` for all new features and edits
-- Install new shadcn components via `npx shadcn@latest add <component>` when needed
-- Never build custom UI primitives (buttons, inputs, dialogs, tables, etc.) when a shadcn equivalent exists
-- All components must wire together cleanly — no dead code, no orphaned imports, no unused exports
-- When refactoring, remove old custom components that shadcn replaces
-- Reference installed components: check `src/components/ui/` for what's available before building
+## Verification matrix
 
-### 14. Plan File Lifecycle
-Plan files in `tasks/` follow this lifecycle:
-1. `tasks/[feature]-plan.md` — created during planning
-2. Active during implementation (slices checked off)
-3. Moved to `tasks/archive/` when all slices ship
-4. Never deleted — archive preserves decision context
+| Change | Minimum proof |
+| --- | --- |
+| Docs or task structure | `git diff --check`, link/reference sweep, and the repository docs verification command when affected |
+| Web or TypeScript | focused tests, `npx tsc --noEmit --pretty false`, lint, and `npm run build:app` |
+| API or schema | service/route tests, migration checks, `npm run build:app`, and full deploy-shaped build only in a controlled migration-safe environment |
+| Native iOS | `xcodebuild` for the affected target, plus affected source-contract tests and any required generic-device build |
+| Authenticated UI flow | local authenticated browser proof for the changed route or an explicit statement of why that proof is unavailable |
 
-### 15. Edit Discipline (NON-NEGOTIABLE)
-Derived from Codex-doctor analysis of 34 sessions (edit-thrashing #1 issue):
-- **Read the full file before editing.** No partial reads before making changes.
-- **Plan all changes first, then make ONE complete edit.** If you've touched a file 3+ times, stop and re-read the user's original requirements.
-- **Re-read the user's last message before responding.** Follow through on every instruction completely.
-- **Every few turns, re-read the original request** to confirm you haven't drifted from the goal.
-- **When the user corrects you:** stop, quote back what they asked for, confirm before proceeding.
-- **After 2 consecutive tool/approach failures:** stop entirely, summarize what failed, ask the user for guidance. Do not retry the same approach.
-- **Complete the FULL task before stopping.** If the user asked for multiple things, implement all of them before presenting results.
+Use the full `npm run build` when shipping or validating deploy-shaped behavior, especially schema and migration work. It may run database deployment steps, so do not use it casually against an uncontrolled environment.
+
+## Safety and quality bar
+
+- Prefer the smallest change that closes the root cause.
+- Do not turn a role-specific workflow into a staff-only workflow without evidence.
+- Treat current product direction as stronger than stale historical recommendations.
+- Before deleting a source file, inspect every type it defines, not only the file's primary type, and compile the affected target in the same turn.
+- Before declaring done, inspect the final diff, run the relevant gates, and report any unverified external or visual proof honestly.

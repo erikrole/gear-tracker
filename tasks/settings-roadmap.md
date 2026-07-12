@@ -2,7 +2,7 @@
 
 ## Context
 
-The Settings area is already deep (Notifications, Appearance, Categories, Departments, Sports, Escalation, Database, Locations, Calendar Sources, Venue Mappings, Extend Presets, Kiosk Devices, Allowed Emails). This roadmap captures 11 *gaps* the team wants to close, weighted toward day-to-day gear operations (checkout, reservations, kiosks) and self-service. Each item below is its own slice/PR per the thin-slice protocol (CLAUDE.md rule 10). The first batch (quick wins) is detailed enough to execute; the operational core is medium detail; the big bets carry open questions and each deserve a dedicated `tasks/[feature]-plan.md` before building.
+The Settings area is already deep (Notifications, Appearance, Categories, Departments, Sports, Escalation, Database, Locations, Calendar Sources, Venue Mappings, Extend Presets, Kiosk Devices, Allowed Emails). This roadmap captures 11 *gaps* the team wants to close, weighted toward day-to-day gear operations (checkout, reservations, kiosks) and self-service. Each item below is its own slice/PR per the thin-slice protocol in [AGENTS.md](../AGENTS.md). The first batch (quick wins) is detailed enough to execute; the operational core is medium detail; the big bets carry open questions and each deserve a dedicated `tasks/[feature]-plan.md` before building.
 
 Decisions locked:
 - Security: passkeys + baseline only (change-password + session revoke). No TOTP, no SMS, no email OTP.
@@ -16,9 +16,9 @@ Decisions locked:
 
 - **Config store:** `SystemConfig` key-value table ([prisma/schema.prisma:813](../prisma/schema.prisma)) -- `key` (unique), `value` (Json), `updated_at`. Already holds `escalation` and `extend_presets`. New keys: `checkout_policies`, `reservation_rules`. Read via `db.systemConfig.findUnique({ where: { key }, select: { value: true } })`.
 - **Settings page shell:** every sub-page uses `SettingsPageShell`. New tabs register in `SETTINGS_SECTIONS` with `group`, `requiredRole`, `description`, `keywords`.
-- **UI:** shadcn/ui only (CLAUDE.md rule 13) -- reuse `src/components/ui/*`.
+- **UI:** Web UI uses the shadcn/ui standard in [AGENTS.md](../AGENTS.md) -- reuse `src/components/ui/*`.
 - **Mutations:** rate-limited via `SETTINGS_MUTATION_LIMIT`; toast feedback; visible form-level errors; `useFetch` + `classifyError` + `handleAuthRedirect`.
-- **Migrations:** Prisma workflow only (CLAUDE.md rule 16).
+- **Migrations:** Follow [docs/PRISMA_NEON_RUNBOOK.md](../docs/PRISMA_NEON_RUNBOOK.md).
 - **Docs:** every shipping slice updates `docs/AREA_SETTINGS.md` change log + ACs in the same commit (rule 12).
 
 ---
@@ -100,7 +100,7 @@ Feasibility-first. Today students self-identify by tapping an avatar grid (`api/
 1 (kiosk always-on) and 3 (profile) are the cheapest; 2 (export) and 4 (security baseline) close fast behind them. Then 5 -> 6 -> 7 for the operational rules engine. Big bets (8, 9, 10, 11) are scheduled individually once the team picks one up.
 
 ## Verification (per slice)
-- `npm run build` clean before any commit (CLAUDE.md rule 8).
+- `npm run build:app` is the safe local compile gate. Use full `npm run build` only for approved deploy-shaped validation, per [docs/RELEASE_VERIFICATION.md](../docs/RELEASE_VERIFICATION.md).
 - New `SystemConfig` keys: confirm read path returns defaults when the key is absent (no behavior change for existing data).
 - Migrations: `npm run db:migrate:check` + `npm run db:migrate:status`.
 - Each settings page: authenticated smoke for the gating role -- create/edit/save, toast on success, visible error on failure, mobile layout intact.

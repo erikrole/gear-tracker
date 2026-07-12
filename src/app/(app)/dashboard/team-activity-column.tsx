@@ -79,16 +79,16 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
 
   return (
     <div className="flex flex-col gap-4">
-      <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60 pl-0.5" style={{ fontFamily: "var(--font-mono)" }}>Team Activity</span>
+      <span className="px-0.5 text-xs font-semibold text-muted-foreground">Team activity</span>
 
       {/* Team Checkouts */}
       <ScaleIn delay={0}>
-      <Card elevation="elevated">
+      <Card elevation="flat">
         <DashboardSectionHeader title="Checked out" href="/bookings?tab=checkouts" count={teamCheckoutsCount} />
         {visibleTeamCheckouts.length === 0 ? (
           <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm"><InboxIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} checkouts` : "No team checkouts right now"}</div>
         ) : (
-          <CardContent className="p-0 py-1">
+          <CardContent className="p-0">
             {visibleTeamCheckouts.map((c) => {
               return (
                 <DashboardBookingRow
@@ -131,9 +131,9 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
       {/* Awaiting Pickup - only render when present (transient state) */}
       {visiblePendingPickups.length > 0 && (
         <ScaleIn delay={0.025}>
-        <Card>
+        <Card elevation="flat">
           <DashboardSectionHeader title="Awaiting pickup" href={PENDING_PICKUPS_HREF} count={pendingPickupsCount} />
-          <CardContent className="p-0 py-1">
+          <CardContent className="p-0">
             {visiblePendingPickups.map((p) => {
               const isLate = new Date(p.startsAt).getTime() < now.getTime();
               return (
@@ -158,9 +158,9 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
       {/* Stale Reservations - planning cleanup separate from checked-out overdue custody */}
       {visibleStaleReservations.length > 0 && (
         <ScaleIn delay={0.04}>
-        <Card>
+        <Card elevation="flat">
           <DashboardSectionHeader title="Stale reservations" href={STALE_RESERVATIONS_HREF} count={staleReservationsCount} />
-          <CardContent className="p-0 py-1">
+          <CardContent className="p-0">
             {visibleStaleReservations.map((r) => (
               <DashboardBookingRow
                 key={r.id}
@@ -181,12 +181,12 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
 
       {/* Team Reservations */}
       <ScaleIn delay={0.05}>
-      <Card>
+      <Card elevation="flat">
         <DashboardSectionHeader title="Reserved" href="/bookings?tab=reservations" count={teamReservationsCount} />
         {visibleTeamReservations.length === 0 ? (
           <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm"><InboxIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} reservations` : "No team reservations right now"}</div>
         ) : (
-          <CardContent className="p-0 py-1">
+          <CardContent className="p-0">
             {visibleTeamReservations.map((r) => (
               <DashboardBookingRow
                 key={r.id}
@@ -206,7 +206,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
 
       {/* Upcoming Events */}
       <ScaleIn delay={0.1}>
-      <Card>
+      <Card elevation="flat">
         <DashboardSectionHeader
           title="Upcoming events"
           href="/schedule"
@@ -242,14 +242,13 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
               : activeSport ? `No upcoming ${activeSport} events` : "No upcoming events"}
           </div>
         ) : (
-          <CardContent className="p-0 py-1">
+          <CardContent className="p-0">
             {cappedEvents.map((e) => (
               <div
                 key={e.id}
                 className={cn(
-                  "group flex items-start justify-between gap-3 w-full border-l-[3px] px-4 py-2.5 transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/40 no-underline text-inherit",
+                  "group flex min-h-16 w-full items-start justify-between gap-3 border-l-[3px] px-4 py-3 text-inherit no-underline transition-colors hover:bg-muted/45 [&+&]:border-t [&+&]:border-border/40",
                   eventBorder(e),
-                  e.coverage && e.coverage.filled < e.coverage.total && "bg-[var(--red-bg)]/10",
                 )}
               >
                 <Link href={`/events/${e.id}`} className="flex min-w-0 flex-1 flex-col gap-1 no-underline">

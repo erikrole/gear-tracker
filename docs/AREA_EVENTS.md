@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Events
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-22
+- Last Updated: 2026-07-11
 - Status: Active
 
 ## Direction
@@ -19,7 +19,7 @@ Make athletics schedule data the operational backbone for booking and checkout w
 2. Normalize records into CalendarEvent model for operational use.
 3. Support sport filtering for checkout selection (30-day event picker window via `resolveEventDefaults`).
 4. Persist booking linkage fields (`eventId`, `sportCode`).
-5. Events API defaults to `startsAt >= now()` when no `startDate` param supplied — avoids stale-looking event list.
+5. Events and Schedule reads use an app-timezone day boundary and `endsAt > startOfTodayInAppTz(...)` for current-work windows, so in-progress and all-day events remain visible through the local day.
 6. Calendar source deletion: `DELETE /api/calendar-sources/[id]` — nullifies `eventId` on linked bookings (SET NULL before cascade), then deletes source and its events.
 7. Calendar sync hardening: per-event error isolation so one malformed ICS event cannot crash the entire source sync.
 8. Batch DB operations in sync pipeline for performance (avoid N+1 query patterns).

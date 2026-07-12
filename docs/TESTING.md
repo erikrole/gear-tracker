@@ -1,6 +1,6 @@
 # Testing Guide
 
-Last refreshed: 2026-07-10
+Last refreshed: 2026-07-11
 
 ## Overview
 
@@ -8,24 +8,29 @@ The automated test suite uses Vitest in the Node.js environment. Tests live in `
 
 Current static inventory:
 
-- 251 test files under `tests/`
-- 1,463 `it()` / `test()` declarations by static grep
-- 30 iOS source-contract files named `ios-*.test.ts`
-- 39 source or contract files with `source` or `contract` in the filename
-- 46 route-focused files with `route` or `routes` in the filename
-- 5 current `BUG:`-prefixed tests, in `tests/auth-hardening.test.ts` and `tests/battery-ops-route.test.ts`
+- 331 test files under `tests/`
+- 1,971 `it()` / `test()` declarations by static grep
+- 47 iOS source-contract files named `ios-*.test.ts`
+- 66 source or contract files with `source` or `contract` in the filename
+- 55 route-focused files with `route` in the filename
+- 4 current `BUG:`-prefixed tests across 2 files
 
 Refresh the inventory with:
 
 ```bash
 find tests -name '*.test.ts' -type f | wc -l
 rg -n '\b(it|test)\s*\(' tests --glob '*.test.ts' | wc -l
+find tests -name 'ios-*.test.ts' -type f | wc -l
+find tests -name '*.test.ts' -type f | rg '/[^/]*(source|contract)[^/]*\.test\.ts$' | wc -l
+find tests -name '*.test.ts' -type f | rg '/[^/]*route[^/]*\.test\.ts$' | wc -l
 rg -n 'BUG:' tests --glob '*.test.ts'
 ```
 
 These counts are orientation data, not a coverage guarantee. Use focused tests and the required gates for the code touched by a slice.
 
 ## Verification Gates
+
+Use [docs/RELEASE_VERIFICATION.md](RELEASE_VERIFICATION.md) as the canonical closeout matrix. This guide owns test layers, test patterns, and test inventory; the release guide owns final gate selection for web, API, schema, browser, deploy, and iOS work.
 
 Use the smallest focused test that proves the touched behavior first, then run broader gates according to blast radius.
 

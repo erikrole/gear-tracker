@@ -97,7 +97,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 ### Escalation (`/settings/escalation`)
 - Configure overdue notification triggers (timing, recipients, enabled state).
 - Fatigue controls: max notifications per booking (prevents alert fatigue).
-- Per D-009: escalation schedule is -4h, 0h, +2h, +24h relative to booking.endsAt.
+- Per D-009: escalation schedule is +1h, +3h, +8h, +24h relative to booking.endsAt.
 
 ### Audit Log (`/settings/audit`) — System, ADMIN
 - Admin-only live feed of every create, update, and delete action across the system.

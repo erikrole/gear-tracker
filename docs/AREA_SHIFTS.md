@@ -1,6 +1,10 @@
 # AREA: Shift Calendar & Scheduling
 
-> Status: **Implemented** | Owner: TBD | Last Updated: 2026-07-09
+## Document Control
+- Area: Shift Calendar & Scheduling
+- Owner: Wisconsin Athletics Creative Product
+- Last Updated: 2026-07-11
+- Status: Active — implemented V1 with ongoing hardening
 
 ## Purpose
 

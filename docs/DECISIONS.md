@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-07-03
+- Last Updated: 2026-07-11
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -33,14 +33,19 @@
 - D-023: Item Bundling via Parent-Child Accessories
 - D-024: Booking reference numbers use kind prefix (CO/RV) with global sequence
 - D-025: User-facing status labels are display-only — DB enum stays unchanged
+- D-026: Event sync runs on daily cron with manual refresh
+- D-027: Venue mapping is admin-owned with pattern validation
 - D-028: Photo requirement on checkout/checkin — camera-only, scan-only checkin
 - D-029: Registration gated by admin-managed email allowlist
 - D-030: Kiosk auth uses device-level token, not user sessions
 - D-031: Multi-event booking via junction table with preserved primary FK
+- D-032: Kiosk reads are scoped to the kiosk location
+- D-033: Database enforces one active allocation per asset
 - D-034: Badge achievements are event-sourced, flag-gated, and profile-first
 - D-035: Daily maintenance work is consolidated into morning-refresh
 - D-036: Product image search is Brave-backed and human-picked
 - D-037: Bulk onboarding uses an invitation-scoped account lifecycle
+- D-038: Firmware watch uses official source adapters and silent baselines
 - D-039: Kiosk sessions slide on activity and survive reinstalls via Keychain
 - D-040: Kiosk-only custody, reservation-first app/web
 
@@ -490,7 +495,8 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 1. **Derived status** (D-001): Asset availability is computed from active allocations, never stored as authoritative.
 2. **SERIALIZABLE transactions** (D-006): Booking mutations use SERIALIZABLE isolation + PostgreSQL exclusion constraints for overlap prevention.
 3. **Audit completeness** (D-007): Every mutation path emits audit records with actor, diff, and timestamp.
-4. **Concurrency safety**: Performance improvements must not weaken correctness constraints. Cache boundaries for event and metadata read paths are pending (see Pending Decisions).
+4. **Database-enforced active uniqueness** (D-033): The database remains the final boundary against duplicate active serialized-asset allocations.
+5. **Concurrency safety**: Performance improvements must not weaken correctness constraints. Cache boundaries for event and metadata read paths are pending (see Pending Decisions).
 
 ## Decision Rules for Future Changes
 1. Any proposal that risks D-001 or D-006 requires explicit architecture review.
@@ -617,6 +623,37 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Junction-table approach is symmetric to existing patterns (`BookingSerializedItem`, `BookingBulkItem`, kit memberships) so there's no new idiom.
 
 ---
+
+## D-032: Kiosk Reads Are Scoped to the Kiosk Location
+- Date: 2026-04-29
+- Status: Accepted
+- Context:
+  - Kiosk users, dashboard rows, and student identity choices must reflect the physical kiosk's location.
+- Decision:
+  - Kiosk read paths scope users, dashboard data, and student lookup by `kiosk.locationId`.
+  - Users without a `locationId` remain visible to every kiosk as a transitional rule until all rosters carry a location relation.
+- Consequences:
+  - A kiosk cannot accidentally present another location's operational roster as local context.
+  - The null-location exception remains a documented migration and data-quality concern.
+- Implementation Reference:
+  - `docs/AREA_KIOSK.md`
+
+## D-033: Database Enforces One Active Allocation per Asset
+- Date: 2026-04-29
+- Status: Accepted
+- Context:
+  - Application-level availability checks cannot fully prevent two concurrent custody flows from allocating the same serialized asset.
+- Decision:
+  - PostgreSQL enforces a partial unique index on active asset allocations: `asset_allocations_asset_id_active_unique` where `active = TRUE`.
+  - Application paths attempt the write directly and catch Prisma `P2002` as an unavailable-item conflict.
+  - Migration `0048` includes a preflight check that fails if duplicate active allocations already exist.
+- Consequences:
+  - The database remains the final concurrency boundary even when requests race across checkout, reservation, or kiosk paths.
+  - The migration cannot be applied safely while existing duplicate active allocations remain.
+- Implementation Reference:
+  - `src/lib/services/bookings-lifecycle.ts`
+  - `src/app/api/kiosk/checkout/complete/route.ts`
+  - Migration provenance is recorded in the historical change log below; do not recreate a missing migration directory by hand.
 
 ## D-030: Kiosk Auth Uses Device-Level Token
 - Date: 2026-04-07
@@ -793,6 +830,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 4. ~~Student mobile KPI definitions~~ — resolved (PD-5): taps-to-checkout ≤3, scan success ≥95%, task completion <30s. Telemetry deferred to Phase B.
 
 ## Change Log
+- 2026-07-11: Reconciled the decision index and document-control date, formalized the historical D-032 and D-033 decisions, and added their current implementation references and provenance warning.
 - 2026-07-10: Amended D-026 for checkout return Live Activities. Their 30-minute remote start is now event-driven through a durable workflow scheduled when custody opens or its return time changes, so it no longer depends on a sub-daily cron. The protected sweep remains a manual repair path.
 - 2026-07-10: Amended D-040 so active-checkout editing requires an identified student context; idle dashboard detail remains read-only rather than fabricating requester attribution for an anonymous operator tap.
 - 2026-06-25: Amended D-028 and D-040 for admin close-without-scan. Kiosk remains the standard custody return surface, while admins can close a physically verified returned checkout through a reasoned override with audit and override evidence.

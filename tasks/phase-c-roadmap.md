@@ -1006,7 +1006,7 @@ All other features are independent and can be parallelized.
 
 ## Verification Plan
 
-Each feature follows the Thin Slice Protocol (CLAUDE.md rule 10):
+Each feature follows the thin-slice protocol in [AGENTS.md](../AGENTS.md):
 1. Schema/migration first (if applicable)
 2. API/service layer
 3. UI wiring

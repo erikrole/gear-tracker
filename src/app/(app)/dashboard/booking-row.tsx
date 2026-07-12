@@ -40,14 +40,13 @@ type Props = {
 };
 
 const accentClasses: Record<Accent, string> = {
-  owned: "border-l-primary hover:bg-muted/50",
-  checkout: "border-l-[var(--blue)] hover:bg-muted/50",
-  reservation: "border-l-[var(--purple)] hover:bg-muted/50",
-  due: "border-l-[var(--orange)] bg-[var(--orange)]/[0.04] dark:bg-[var(--orange)]/[0.12] hover:bg-[var(--orange)]/[0.08] dark:hover:bg-[var(--orange)]/[0.18]",
-  overdue: "border-l-[var(--wi-red)] bg-[var(--wi-red)]/[0.06] dark:bg-[var(--wi-red)]/[0.18] hover:bg-[var(--wi-red)]/10 dark:hover:bg-[var(--wi-red)]/25",
-  "pending-pickup":
-    "border-l-[var(--orange)] bg-[var(--orange)]/[0.03] dark:bg-[var(--orange)]/[0.10] hover:bg-[var(--orange)]/[0.07] dark:hover:bg-[var(--orange)]/[0.16]",
-  "pending-pickup-late": "border-l-[var(--orange)] bg-[var(--orange)]/[0.04] dark:bg-[var(--orange)]/[0.12] hover:bg-[var(--orange)]/[0.08] dark:hover:bg-[var(--orange)]/[0.18]",
+  owned: "border-l-primary hover:bg-muted/45",
+  checkout: "border-l-[var(--blue)] hover:bg-muted/45",
+  reservation: "border-l-[var(--purple)] hover:bg-muted/45",
+  due: "border-l-[var(--orange)] hover:bg-muted/45",
+  overdue: "border-l-[var(--wi-red)] hover:bg-muted/45",
+  "pending-pickup": "border-l-[var(--orange)] hover:bg-muted/45",
+  "pending-pickup-late": "border-l-[var(--orange)] hover:bg-muted/45",
 };
 
 export function dashboardBookingAccent(
@@ -82,7 +81,7 @@ export function DashboardBookingRow({
   return (
     <div
       className={cn(
-        "group flex min-h-14 items-center gap-2.5 px-4 py-2.5 transition-colors [&+&]:border-t [&+&]:border-border/40 border-l-[3px] pl-[13px]",
+        "group flex min-h-16 items-center gap-2.5 border-l-[3px] px-4 py-2.5 pl-[13px] transition-colors [&+&]:border-t [&+&]:border-border/40",
         accentClasses[accent],
       )}
     >

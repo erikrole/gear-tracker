@@ -25,7 +25,7 @@
 ## API Route Status
 | Route | Auth | Validation | Notes |
 |---|---|---|---|
-| `GET /api/calendar-events` | All roles | Query params | Default `startsAt >= now()`. Pagination. Excludes CANCELLED + hidden. |
+| `GET /api/calendar-events` | All roles | Query params | Current-work window uses `endsAt > startOfTodayInAppTz(...)`. Pagination. Excludes CANCELLED + hidden. |
 | `GET /api/calendar-events/[id]` | calendar_source view | N/A | Returns event + location + source. |
 | `GET /api/calendar-events/[id]/command-center` | Staff+ | N/A | Gear status per shift area. |
 | `PATCH /api/calendar-events/[id]/visibility` | Staff+ | Zod | Hide/show events. |

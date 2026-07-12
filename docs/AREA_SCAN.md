@@ -1,5 +1,12 @@
 # Area: Scan
 
+## Document Control
+- Area: Scan
+- Owner: Wisconsin Athletics Creative Product
+- Last Updated: 2026-07-10
+- Status: Active — lookup-only app surface; custody scans are kiosk-owned
+- Decision Refs: D-028, D-040
+
 ## Overview
 The app scan page is a camera and manual-code lookup tool for finding inventory items by tag, QR value, serial number, or primary scan code. Checkout pickup, reservation pickup, and return scans are executed by kiosk flows, not by the signed-in web app scan page.
 

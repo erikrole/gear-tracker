@@ -30,11 +30,11 @@ export function DashboardSectionHeader({ title, href, count, action, className, 
   return (
     <CardHeader
       className={cn(
-        "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0 border-b border-border/50 px-4 py-3",
+        "grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0 border-b border-border/50 px-4 py-3",
         className,
       )}
     >
-      <CardTitle className="min-w-0 text-sm">
+      <CardTitle className="min-w-0 text-sm font-semibold">
         {href ? (
           <Link
             href={href}
