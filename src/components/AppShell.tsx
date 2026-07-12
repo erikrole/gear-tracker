@@ -25,7 +25,9 @@ import {
 } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { STATUS_STYLES } from "@/lib/status-styles";
+import { useQueryClient } from "@tanstack/react-query";
 import { type CurrentUser, useCurrentUser } from "@/hooks/use-current-user";
+import { RECENT_SEARCHES_STORAGE_KEY, clearLocalTraces } from "@/lib/local-traces";
 import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 import { getVisiblePageSearchResults, type PageSearchResult } from "@/lib/search-pages";
 import { assetSearchTitle } from "@/lib/search-result-title";
@@ -118,6 +120,7 @@ export default function AppShell({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const queryClient = useQueryClient();
   const { data: user, isLoading } = useCurrentUser(initialUser);
   const [loggingOut, setLoggingOut] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
@@ -330,7 +333,7 @@ export default function AppShell({
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   useEffect(() => {
     try {
-      const stored = localStorage.getItem("recent-searches");
+      const stored = localStorage.getItem(RECENT_SEARCHES_STORAGE_KEY);
       if (stored) setRecentSearches(JSON.parse(stored));
     } catch { /* ignore */ }
   }, []);
@@ -341,7 +344,7 @@ export default function AppShell({
     const updated = [trimmed, ...recentSearches.filter((s) => s !== trimmed)].slice(0, 5);
     setRecentSearches(updated);
     try {
-      localStorage.setItem("recent-searches", JSON.stringify(updated));
+      localStorage.setItem(RECENT_SEARCHES_STORAGE_KEY, JSON.stringify(updated));
     } catch { /* ignore */ }
   }
 
@@ -368,6 +371,11 @@ export default function AppShell({
     setLoggingOut(true);
     try {
       await fetch("/api/auth/logout", { method: "POST" });
+      // Shared-machine hygiene: drop persisted history and cached entity data
+      // so the next person can't read the previous user's traces.
+      clearLocalTraces();
+      setRecentSearches([]);
+      queryClient.clear();
       router.replace("/login");
     } catch {
       setLoggingOut(false);

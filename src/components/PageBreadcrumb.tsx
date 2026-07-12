@@ -23,37 +23,20 @@ import Link from "next/link";
 import { Check, ChevronDown, Clock3, HomeIcon } from "lucide-react";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SETTINGS_SECTIONS, REPORT_SECTIONS, meetsRoleRequirement, type SettingsRole } from "@/lib/nav-sections";
+import {
+  SIBLING_MAP,
+  buildBreadcrumbItems,
+  getRecentEntities,
+  isQuietBreadcrumbRoute,
+  saveRecentEntity,
+  visibleSiblingsForRole,
+  type RecentEntity,
+  type SiblingItem,
+} from "@/lib/breadcrumbs";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { cn } from "@/lib/utils";
 
-// Only segments where the label diverges from default title-casing.
-// Anything else falls through to formatSegment().
-const SEGMENT_OVERRIDE: Record<string, { label: string; href?: string }> = {
-  events: { label: "Schedule", href: "/schedule" },
-  "bulk-inventory": { label: "Item family operations", href: "/items" },
-  scan: { label: "Lookup", href: "/scan" },
-};
-
-type SiblingItem = {
-  href: string;
-  label: string;
-  requiredRole?: SettingsRole;
-  description?: string;
-  group?: string;
-};
-
-const SIBLING_MAP: Record<string, ReadonlyArray<SiblingItem>> = {
-  "/settings": SETTINGS_SECTIONS,
-  "/reports": REPORT_SECTIONS,
-};
-for (const s of SETTINGS_SECTIONS) SIBLING_MAP[s.href] = SETTINGS_SECTIONS;
-for (const s of REPORT_SECTIONS) SIBLING_MAP[s.href] = REPORT_SECTIONS;
-
 const COLLAPSE_THRESHOLD = 3;
-const RECENT_STORAGE_KEY = "breadcrumb-recent";
-const MAX_RECENT_PER_SECTION = 5;
-const MAX_RECENT_TOTAL = 30;
 const CRUMB_MAX_WIDTH = "max-w-[min(240px,58vw)] sm:max-w-[240px]";
 const HOME_CRUMB_COMPACT_THRESHOLD = 3;
 const breadcrumbItemClass = "min-w-0";
@@ -69,63 +52,6 @@ const crumbPageClass = cn(
   "max-md:min-h-11 max-md:px-2 max-md:after:bottom-1.5 [&_svg]:size-3.5 [&_svg]:shrink-0",
 );
 
-type RecentEntity = { href: string; label: string; section: string };
-
-function getRecentEntities(section: string): RecentEntity[] {
-  try {
-    const raw = localStorage.getItem(RECENT_STORAGE_KEY);
-    if (!raw) return [];
-    const all: RecentEntity[] = JSON.parse(raw);
-    return all.filter((e) => e.section === section).slice(0, MAX_RECENT_PER_SECTION);
-  } catch {
-    return [];
-  }
-}
-
-function saveRecentEntity(entity: RecentEntity) {
-  try {
-    const raw = localStorage.getItem(RECENT_STORAGE_KEY);
-    const all: RecentEntity[] = raw ? JSON.parse(raw) : [];
-    if (all[0]?.href === entity.href) return;
-    const filtered = all.filter((e) => e.href !== entity.href);
-    filtered.unshift(entity);
-    localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(filtered.slice(0, MAX_RECENT_TOTAL)));
-  } catch {
-    // localStorage unavailable
-  }
-}
-
-function formatSegment(segment: string): string {
-  return SEGMENT_OVERRIDE[segment]?.label
-    ?? segment.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function isDynamicSegment(segment: string): boolean {
-  if (/^[0-9a-f-]{8,}$/i.test(segment)) return true;
-  if (/^c[a-z0-9]{20,}$/.test(segment)) return true;
-  if (/^bulk-c[a-z0-9]{20,}$/.test(segment)) return true;
-  return false;
-}
-
-function isQuietBreadcrumbRoute(pathname: string): boolean {
-  return pathname === "/import" || pathname.endsWith("/new");
-}
-
-function hasRoleGatedSiblings(siblings: ReadonlyArray<SiblingItem>): boolean {
-  return siblings.some((s) => s.requiredRole != null);
-}
-
-function visibleSiblingsForRole(
-  siblings: ReadonlyArray<SiblingItem>,
-  role: string | undefined,
-): ReadonlyArray<SiblingItem> {
-  if (!hasRoleGatedSiblings(siblings)) return siblings;
-  if (!role) return [];
-  return siblings.filter(
-    (s) => !s.requiredRole || meetsRoleRequirement(s.requiredRole, role),
-  );
-}
-
 export default function PageBreadcrumb() {
   const pathname = usePathname();
   const { label: entityLabel } = useBreadcrumbLabel();
@@ -136,10 +62,9 @@ export default function PageBreadcrumb() {
   // Reset collapse when navigating
   useEffect(() => { setExpanded(false); }, [pathname]);
 
-  const segments = pathname.split("/").filter(Boolean);
-  const firstSegment = segments[0] ?? "";
-  const hasDynamicSegment = segments.some(isDynamicSegment);
-  const onDetailPage = hasDynamicSegment;
+  const firstSegment = pathname.split("/").filter(Boolean)[0] ?? "";
+  const { items: allItems, onDetailPage } = buildBreadcrumbItems(pathname, entityLabel);
+  const hasDynamicSegment = onDetailPage;
   const isQuietRoute = isQuietBreadcrumbRoute(pathname);
 
   // Re-read recents only when section changes or after we save a new entity.
@@ -157,28 +82,7 @@ export default function PageBreadcrumb() {
     }
   }, [entityLabel, pathname, firstSegment, hasDynamicSegment]);
 
-  if (segments.length === 0) return null;
-
-  // Build crumbs, filtering out dynamic segments (IDs)
-  const crumbs: Array<{ href: string; label: string }> = [];
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i]!; // in-bounds by loop condition
-    if (isDynamicSegment(seg)) continue;
-    const href = SEGMENT_OVERRIDE[seg]?.href ?? "/" + segments.slice(0, i + 1).join("/");
-    crumbs.push({ href, label: formatSegment(seg) });
-  }
-
-  const allItems: Array<{ href: string; label: string; isPage: boolean }> = [
-    { href: "/", label: "Home", isPage: false },
-    ...crumbs.map((crumb, i) => ({
-      ...crumb,
-      isPage: i === crumbs.length - 1 && !onDetailPage && !entityLabel,
-    })),
-  ];
-
-  if (onDetailPage && entityLabel) {
-    allItems.push({ href: pathname, label: entityLabel, isPage: true });
-  }
+  if (allItems.length <= 1) return null;
 
   const shouldCollapse = !expanded && allItems.length > COLLAPSE_THRESHOLD;
   const visibleItems: typeof allItems = shouldCollapse
