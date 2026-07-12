@@ -391,19 +391,22 @@ export async function createAllowedEmailInvitesBulk(input: {
   ]);
 
   const toCreate = normalized.filter((entry) => !existingSet.has(entry.email));
-  const skipped = normalized.length - toCreate.length;
 
   if (toCreate.length > 0) {
-    await db.allowedEmail.createMany({
+    // skipDuplicates keeps the batch alive against in-batch repeats and a
+    // concurrent commit racing the pre-read above; the returned count is the
+    // number of rows actually inserted.
+    const createResult = await db.allowedEmail.createMany({
       data: toCreate.map((entry) => ({
         email: entry.email,
         role: entry.role,
         createdById: input.actor.id,
       })),
+      skipDuplicates: true,
     });
 
     const created = await db.allowedEmail.findMany({
-      where: { email: { in: toCreate.map((entry) => entry.email) } },
+      where: { email: { in: toCreate.map((entry) => entry.email) }, createdById: input.actor.id },
       select: { id: true, email: true, role: true },
     });
 
@@ -417,9 +420,11 @@ export async function createAllowedEmailInvitesBulk(input: {
         after: { email: entry.email, role: entry.role },
       })),
     );
+
+    return { created: createResult.count, skipped: normalized.length - createResult.count };
   }
 
-  return { created: toCreate.length, skipped };
+  return { created: 0, skipped: normalized.length };
 }
 
 export async function previewAllowedEmailInvitesBulk(input: {

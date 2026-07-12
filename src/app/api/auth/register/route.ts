@@ -12,6 +12,12 @@ import { createAuditEntry } from "@/lib/audit";
 // an onboarding wave from a shared network rather than for abuse defense.
 const REGISTER_LIMIT = { max: 40, windowMs: 15 * 60 * 1000 }; // per IP per 15 min
 
+// One shared response for missing invite, claimed invite, and existing account,
+// so public registration can't be used to probe which emails the system knows
+// about (D-037 membership-enumeration boundary).
+const INVITE_GATE_MESSAGE =
+  "Registration is by invitation only. If you already have an account, sign in. Otherwise contact an administrator to request access.";
+
 export const POST = withHandler(async (req) => {
   const ip = getClientIp(req);
   const { allowed } = await checkRateLimit(`register:${ip}`, REGISTER_LIMIT);
@@ -26,20 +32,17 @@ export const POST = withHandler(async (req) => {
   });
 
   if (!allowedEntry) {
-    throw new HttpError(
-      403,
-      "Registration is by invitation only. Contact an administrator to request access."
-    );
+    throw new HttpError(403, INVITE_GATE_MESSAGE);
   }
 
   if (allowedEntry.claimedAt) {
-    throw new HttpError(409, "This invitation has already been used");
+    throw new HttpError(403, INVITE_GATE_MESSAGE);
   }
   // ────────────────────────────────────────────────────────
 
   const existing = await db.user.findUnique({ where: { email } });
   if (existing) {
-    throw new HttpError(409, "An account with this email already exists");
+    throw new HttpError(403, INVITE_GATE_MESSAGE);
   }
 
   const passwordHash = await hashPassword(body.password);
@@ -74,7 +77,7 @@ export const POST = withHandler(async (req) => {
       if (targetStr.includes("wiscard_number") || targetStr.includes("wiscardNumber")) {
         throw new HttpError(409, "That Wiscard value is already linked to another account");
       }
-      throw new HttpError(409, "An account with this email already exists");
+      throw new HttpError(403, INVITE_GATE_MESSAGE);
     }
     throw error;
   }

@@ -281,7 +281,7 @@ export default function OnboardingDialog({
   const [bulkEmails, setBulkEmails] = useState("");
   const [inviteError, setInviteError] = useState("");
   const [inviting, setInviting] = useState(false);
-  const [serverPreview, setServerPreview] = useState<ServerPreviewResponse | null>(null);
+  const [serverPreview, setServerPreview] = useState<(ServerPreviewResponse & { signature: string }) | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [previewError, setPreviewError] = useState("");
   const [completion, setCompletion] = useState<CompletionResult | null>(null);
@@ -295,6 +295,12 @@ export default function OnboardingDialog({
   const readyPreviewRows = useMemo(
     () => previewRows.filter((row) => row.status === "ready"),
     [previewRows],
+  );
+  // Identifies the exact ready set a server preview was computed for, so a
+  // stale preview can never gate a commit for different rows.
+  const readySignature = useMemo(
+    () => readyPreviewRows.map((row) => `${row.email} ${row.role}`).join("\n"),
+    [readyPreviewRows],
   );
   const previewCounts = useMemo(() => {
     const counts: Record<InvitePreviewStatus, number> = {
@@ -332,7 +338,7 @@ export default function OnboardingDialog({
     () => readyPreviewRows.filter((row) => serverReadyEmails.has(row.email)),
     [readyPreviewRows, serverReadyEmails],
   );
-  const serverPreviewComplete = serverPreviewRows.length > 0 && serverPreviewRows.length === readyPreviewRows.length;
+  const serverPreviewComplete = serverPreview !== null && serverPreview.signature === readySignature;
 
   useEffect(() => {
     if (!open) return;
@@ -360,6 +366,12 @@ export default function OnboardingDialog({
       setPreviewing(false);
       setPreviewError("");
       return;
+    }
+
+    if (serverPreview) {
+      if (serverPreview.signature === readySignature) return;
+      // The rows changed since this preview was fetched; drop it before refetching.
+      setServerPreview(null);
     }
 
     const controller = new AbortController();
@@ -392,7 +404,7 @@ export default function OnboardingDialog({
           return;
         }
 
-        setServerPreview(result);
+        setServerPreview({ ...result, signature: readySignature });
       } catch (error) {
         if (isAbortError(error)) return;
         const kind = classifyError(error);
@@ -409,7 +421,7 @@ export default function OnboardingDialog({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [blockingPreviewCount, inviteMode, open, overBulkLimit, readyPreviewRows]);
+  }, [blockingPreviewCount, inviteMode, open, overBulkLimit, readyPreviewRows, readySignature, serverPreview]);
 
   function resetForAnother() {
     setCompletion(null);

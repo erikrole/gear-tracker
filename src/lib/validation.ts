@@ -271,7 +271,7 @@ export const loginSchema = z.object({
 
 export const registerSchema = z.object({
   name: z.string().trim().min(1).max(100),
-  email: z.string().email(),
+  email: z.string().max(254).email(),
   wiscardNumber: z.string().trim().max(128).nullable().optional(),
   password: z.string().min(8).max(128)
 });
@@ -508,13 +508,13 @@ export const updateUserSchedulingSchema = z.object({
 });
 
 export const createAllowedEmailSchema = z.object({
-  email: z.string().email(),
+  email: z.string().max(254).email(),
   role: z.enum(["STAFF", "STUDENT"]).default("STUDENT"),
 });
 
 export const createAllowedEmailBulkSchema = z.object({
   emails: z.array(z.object({
-    email: z.string().email(),
+    email: z.string().max(254).email(),
     role: z.enum(["STAFF", "STUDENT"]).default("STUDENT"),
   })).min(1).max(50),
 });

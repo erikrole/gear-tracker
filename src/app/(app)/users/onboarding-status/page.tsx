@@ -156,8 +156,12 @@ export default function OnboardingStatusPage() {
   }
 
   async function copyRegistrationLink(row: AllowedEmail) {
-    await navigator.clipboard.writeText(`${window.location.origin}${registrationPath(row.email)}`);
-    toast.success("Registration link copied");
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}${registrationPath(row.email)}`);
+      toast.success("Registration link copied");
+    } catch {
+      toast.error("Could not copy the link. Use Open registration and copy the address instead.");
+    }
   }
 
   async function removeInvite(row: AllowedEmail) {
@@ -256,6 +260,11 @@ export default function OnboardingStatusPage() {
               </SelectContent>
             </Select>
           </div>
+          {data && data.total > rows.length && (
+            <p className="text-xs text-muted-foreground">
+              Showing the {rows.length} most recent of {data.total} entries. Counts above cover only the loaded rows; use Allowed emails to search older entries.
+            </p>
+          )}
         </CardHeader>
 
         {error ? (

@@ -151,4 +151,43 @@ describe("POST /api/auth/register", () => {
       }),
     );
   });
+
+  it("returns one indistinguishable response for missing, claimed, and registered emails", async () => {
+    const registerBody = {
+      name: "Probe User",
+      email: "probe@example.com",
+      password: "long-enough-password",
+    };
+
+    // Missing invite
+    vi.mocked(db.allowedEmail.findUnique).mockResolvedValue(null);
+    const missing = await POST(postRegister(registerBody), noParams);
+
+    // Claimed invite
+    vi.mocked(db.allowedEmail.findUnique).mockResolvedValue({
+      ...allowedInvite(Role.STUDENT),
+      claimedAt: new Date(),
+    } as Awaited<ReturnType<typeof db.allowedEmail.findUnique>>);
+    const claimed = await POST(postRegister(registerBody), noParams);
+
+    // Existing account behind an unclaimed invite
+    vi.mocked(db.allowedEmail.findUnique).mockResolvedValue(allowedInvite(Role.STUDENT));
+    vi.mocked(db.user.findUnique).mockResolvedValue(
+      createdUser(Role.STUDENT, null) as Awaited<ReturnType<typeof db.user.findUnique>>,
+    );
+    const existing = await POST(postRegister(registerBody), noParams);
+
+    const [missingBody, claimedBody, existingBody] = await Promise.all([
+      missing.json(),
+      claimed.json(),
+      existing.json(),
+    ]);
+
+    expect(missing.status).toBe(403);
+    expect(claimed.status).toBe(missing.status);
+    expect(existing.status).toBe(missing.status);
+    expect(claimedBody).toEqual(missingBody);
+    expect(existingBody).toEqual(missingBody);
+    expect(tx.user.create).not.toHaveBeenCalled();
+  });
 });

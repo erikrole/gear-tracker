@@ -284,6 +284,7 @@ describe("onboarding lifecycle service", () => {
           createdById: "admin-1",
         },
       ],
+      skipDuplicates: true,
     });
     expect(createAuditEntries).toHaveBeenCalledWith([
       expect.objectContaining({
