@@ -16,7 +16,7 @@ import { PencilIcon, ImageIcon, RefreshCw, Star, ChevronRight } from "lucide-rea
 
 import type { AssetDetail } from "../types";
 import { getAttachmentKind, getSdCardSlotLabel } from "@/lib/asset-attachments";
-import { normalizeAssetImageSrc } from "@/lib/asset-image";
+import { isOptimizableAssetImageSrc, normalizeAssetImageSrc } from "@/lib/asset-image";
 
 /* ── Status Line ────────────────────────────────────────── */
 
@@ -210,7 +210,7 @@ export function ItemHeader({
                   sizes="104px"
                   priority
                   className="aspect-square object-cover"
-                  unoptimized
+                  unoptimized={!isOptimizableAssetImageSrc(imageSrc)}
                   onError={() => setImageFailed(true)}
                 />
                 {canEdit && (

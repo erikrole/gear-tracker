@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Package } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { normalizeAssetImageSrc } from "@/lib/asset-image";
+import { isOptimizableAssetImageSrc, normalizeAssetImageSrc } from "@/lib/asset-image";
 
 type AssetImageProps = {
   src: string | null | undefined;
@@ -59,7 +59,7 @@ export function AssetImage({
         width={size * 2}
         height={size * 2}
         className="size-full object-cover"
-        unoptimized
+        unoptimized={!isOptimizableAssetImageSrc(normalizedSrc)}
         onError={() => setFailed(true)}
       />
     </div>

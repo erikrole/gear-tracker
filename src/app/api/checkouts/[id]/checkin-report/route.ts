@@ -6,15 +6,9 @@ import { requireBookingAction } from "@/lib/services/booking-rules";
 import { createAuditEntry } from "@/lib/audit";
 import { checkinReportSchema } from "@/lib/validation";
 import { notifyItemReport } from "@/lib/services/notifications";
-import { deleteImage, isBlobUrl, validateImage } from "@/lib/blob";
+import { deleteImage, imageExtensionForType, isBlobUrl, validateImage } from "@/lib/blob";
 import { put } from "@vercel/blob";
 
-const IMAGE_CONTENT_TYPES: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif",
-};
 const REPORT_DEDUP_WINDOW_MS = 5_000;
 
 async function readReportPayload(req: Request) {
@@ -45,7 +39,7 @@ async function uploadReportImage(file: File, bookingId: string, assetId: string)
   const validationError = await validateImage(file);
   if (validationError) throw new HttpError(400, validationError);
 
-  const ext = IMAGE_CONTENT_TYPES[file.type] ?? "jpg";
+  const ext = imageExtensionForType(file.type);
   const blob = await put(
     `checkin-reports/${bookingId}/${assetId}/${Date.now()}.${ext}`,
     file.stream(),

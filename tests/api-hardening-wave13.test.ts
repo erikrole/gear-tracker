@@ -59,6 +59,7 @@ vi.mock("@/lib/blob", () => ({
   validateImage: vi.fn(() => null),
   deleteImage: vi.fn(async () => undefined),
   isBlobUrl: vi.fn(() => true),
+  imageExtensionForType: vi.fn(() => "jpg"),
 }));
 
 vi.mock("@vercel/blob", () => ({

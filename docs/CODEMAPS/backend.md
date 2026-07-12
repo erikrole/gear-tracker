@@ -33,7 +33,7 @@
 | `src/lib/services/live-activities.ts` | 521 |
 | `src/lib/services/notification-prefs.ts` | 103 |
 | `src/lib/services/notifications.ts` | 851 |
-| `src/lib/services/onboarding-lifecycle.ts` | 503 |
+| `src/lib/services/onboarding-lifecycle.ts` | 508 |
 | `src/lib/services/pending-pickup-expiry.ts` | 218 |
 | `src/lib/services/reports.ts` | 1378 |
 | `src/lib/services/reservation-rules.ts` | 32 |
@@ -63,7 +63,7 @@
 | `src/lib/api.ts` | 144 |
 | `src/lib/app-time.ts` | 104 |
 | `src/lib/asset-attachments.ts` | 166 |
-| `src/lib/asset-image.ts` | 11 |
+| `src/lib/asset-image.ts` | 26 |
 | `src/lib/asset-qr-code.ts` | 9 |
 | `src/lib/assignment-conflict-review.ts` | 97 |
 | `src/lib/audit.ts` | 168 |
@@ -72,11 +72,12 @@
 | `src/lib/avatar.ts` | 44 |
 | `src/lib/battery-compatibility.ts` | 166 |
 | `src/lib/bhphoto-image.ts` | 67 |
-| `src/lib/blob.ts` | 151 |
+| `src/lib/blob.ts` | 160 |
 | `src/lib/booking-action-policy.ts` | 169 |
 | `src/lib/booking-actions.ts` | 14 |
 | `src/lib/booking-availability-window.ts` | 19 |
 | `src/lib/booking-status-display.ts` | 128 |
+| `src/lib/breadcrumbs.ts` | 145 |
 | `src/lib/bulk-batteries.ts` | 28 |
 | `src/lib/bulk-unit-qr.ts` | 109 |
 | `src/lib/bulk-unit-status.ts` | 52 |
@@ -109,15 +110,16 @@
 | `src/lib/item-asset-tag-sort.ts` | 196 |
 | `src/lib/item-family-state.ts` | 75 |
 | `src/lib/live-activity-workflow.ts` | 29 |
+| `src/lib/local-traces.ts` | 28 |
 | `src/lib/media-embed.ts` | 68 |
-| `src/lib/nav-sections.ts` | 249 |
+| `src/lib/nav-sections.ts` | 260 |
 | `src/lib/notification-count-sync.ts` | 9 |
 | `src/lib/observability.ts` | 19 |
 | `src/lib/operational-health.ts` | 50 |
-| `src/lib/permissions.ts` | 163 |
+| `src/lib/permissions.ts` | 166 |
 | `src/lib/public-showroom.ts` | 444 |
-| `src/lib/query-client.ts` | 56 |
-| `src/lib/rate-limit.ts` | 159 |
+| `src/lib/query-client.ts` | 58 |
+| `src/lib/rate-limit.ts` | 176 |
 | `src/lib/rbac.ts` | 25 |
 | `src/lib/remark-callouts.ts` | 73 |
 | `src/lib/resource-search.ts` | 124 |
@@ -416,7 +418,6 @@
 
 ### `/api/profile`
 
-- `/api/profile/avatar`
 - `/api/profile`
 
 ### `/api/reports`

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { normalizeAssetImageSrc } from "@/lib/asset-image";
+import { isOptimizableAssetImageSrc, normalizeAssetImageSrc } from "@/lib/asset-image";
 
 export type ItemThumbnailStackItem = {
   id: string;
@@ -86,7 +86,7 @@ function StackImage({ src, fallback }: { src?: string | null; fallback: string }
       sizes="24px"
       className="object-cover"
       loading="lazy"
-      unoptimized
+      unoptimized={!isOptimizableAssetImageSrc(normalizedSrc)}
       onError={() => setFailed(true)}
     />
   );

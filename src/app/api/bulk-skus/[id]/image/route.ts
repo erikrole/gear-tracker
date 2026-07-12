@@ -4,6 +4,7 @@ import { createAuditEntry } from "@/lib/audit";
 import { requirePermission } from "@/lib/rbac";
 import { HttpError, ok } from "@/lib/http";
 import { validateImage, uploadImage, deleteImage, downloadImageToBlob, isBlobUrl } from "@/lib/blob";
+import { enforceRateLimit, IMAGE_MUTATION_LIMIT } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
 
 const setImageUrlSchema = z.object({
@@ -15,6 +16,7 @@ const setImageUrlSchema = z.object({
  */
 export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "bulk_sku", "edit");
+  await enforceRateLimit(`image-mutation:${user.id}`, IMAGE_MUTATION_LIMIT);
 
   const { id } = params;
 
@@ -35,17 +37,26 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     throw new HttpError(400, validationError);
   }
 
+  // Upload new image, then point the record at it before touching the old
+  // blob — deleting first would leave the SKU referencing a dead URL if
+  // the update fails.
   const imageUrl = await uploadImage(file, id);
+
+  let updated;
+  try {
+    updated = await db.bulkSku.update({
+      where: { id },
+      data: { imageUrl },
+      select: { id: true, imageUrl: true },
+    });
+  } catch (error) {
+    await deleteImage(imageUrl).catch(() => {});
+    throw error;
+  }
 
   if (sku.imageUrl && isBlobUrl(sku.imageUrl)) {
     await deleteImage(sku.imageUrl).catch(() => {});
   }
-
-  const updated = await db.bulkSku.update({
-    where: { id },
-    data: { imageUrl },
-    select: { id: true, imageUrl: true },
-  });
 
   await createAuditEntry({
     actorId: user.id,
@@ -65,6 +76,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
  */
 export const PUT = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "bulk_sku", "edit");
+  await enforceRateLimit(`image-mutation:${user.id}`, IMAGE_MUTATION_LIMIT);
 
   const { id } = params;
 
@@ -94,15 +106,22 @@ export const PUT = withAuth<{ id: string }>(async (req, { user, params }) => {
     throw new HttpError(400, "Could not download image from that URL");
   }
 
+  let updated;
+  try {
+    updated = await db.bulkSku.update({
+      where: { id },
+      data: { imageUrl: blobUrl },
+      select: { id: true, imageUrl: true },
+    });
+  } catch (error) {
+    await deleteImage(blobUrl).catch(() => {});
+    throw error;
+  }
+
+  // Delete previous blob image only after the record points at the new one
   if (sku.imageUrl && isBlobUrl(sku.imageUrl)) {
     await deleteImage(sku.imageUrl).catch(() => {});
   }
-
-  const updated = await db.bulkSku.update({
-    where: { id },
-    data: { imageUrl: blobUrl },
-    select: { id: true, imageUrl: true },
-  });
 
   await createAuditEntry({
     actorId: user.id,
@@ -132,15 +151,16 @@ export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) =>
   if (!sku) throw new HttpError(404, "Bulk SKU not found");
   if (!sku.imageUrl) throw new HttpError(400, "Bulk SKU has no image");
 
-  if (isBlobUrl(sku.imageUrl)) {
-    await deleteImage(sku.imageUrl).catch(() => {});
-  }
-
   const updated = await db.bulkSku.update({
     where: { id },
     data: { imageUrl: null },
     select: { id: true, imageUrl: true },
   });
+
+  // Delete from blob storage only after the record no longer references it
+  if (isBlobUrl(sku.imageUrl)) {
+    await deleteImage(sku.imageUrl).catch(() => {});
+  }
 
   await createAuditEntry({
     actorId: user.id,

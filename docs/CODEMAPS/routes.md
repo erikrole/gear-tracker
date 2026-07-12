@@ -243,7 +243,6 @@
 - `/api/notifications/nudge` -> `src/app/api/notifications/nudge/route.ts`
 - `/api/notifications/process` -> `src/app/api/notifications/process/route.ts`
 - `/api/notifications` -> `src/app/api/notifications/route.ts`
-- `/api/profile/avatar` -> `src/app/api/profile/avatar/route.ts`
 - `/api/profile` -> `src/app/api/profile/route.ts`
 - `/api/reports/audit` -> `src/app/api/reports/audit/route.ts`
 - `/api/reports/badges` -> `src/app/api/reports/badges/route.ts`

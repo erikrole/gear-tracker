@@ -99,18 +99,17 @@
 | `src/components/TradeBoard.tsx` | 1192 |
 | `src/components/EquipmentPicker.tsx` | 1001 |
 | `src/components/ShiftDetailPanel.tsx` | 813 |
-| `src/components/onboarding/OnboardingDialog.tsx` | 768 |
+| `src/components/onboarding/OnboardingDialog.tsx` | 780 |
 | `src/components/BookingDetailsSheet.tsx` | 725 |
 | `src/components/ChooseImageModal.tsx` | 716 |
 | `src/components/booking-wizard/BookingWizard.tsx` | 710 |
 | `src/components/ui/sidebar.tsx` | 710 |
-| `src/components/AppShell.tsx` | 681 |
+| `src/components/AppShell.tsx` | 689 |
 | `src/components/booking-wizard/WizardStep1.tsx` | 570 |
 | `src/components/BookingListPage.tsx` | 512 |
 | `src/components/ui/heatmap.tsx` | 422 |
 | `src/components/ui/chart.tsx` | 389 |
 | `src/components/Sidebar.tsx` | 380 |
-| `src/components/PageBreadcrumb.tsx` | 379 |
 | `src/components/shift-detail/ShiftSlotCard.tsx` | 375 |
 | `src/components/booking-details/BookingInfoCard.tsx` | 342 |
 | `src/components/booking-details/BookingHeader.tsx` | 339 |
@@ -119,6 +118,7 @@
 | `src/components/resources/MarkdownReader.tsx` | 293 |
 | `src/components/public-showroom/showroom-blocks.tsx` | 290 |
 | `src/components/QrScanner.tsx` | 288 |
+| `src/components/PageBreadcrumb.tsx` | 283 |
 | `src/components/booking-details/TransferOwnerDialog.tsx` | 266 |
 | `src/components/booking-wizard/WizardStep3.tsx` | 263 |
 | `src/components/ui/dropdown-menu.tsx` | 258 |
@@ -132,7 +132,7 @@
 |---|---:|
 | `src/hooks/booking-action-copy.ts` | 22 |
 | `src/hooks/use-assignment-grid.ts` | 226 |
-| `src/hooks/use-booking-change-sync.ts` | 180 |
+| `src/hooks/use-booking-change-sync.ts` | 182 |
 | `src/hooks/use-current-user.ts` | 28 |
 | `src/hooks/use-dashboard-data.ts` | 232 |
 | `src/hooks/use-dashboard-filters.ts` | 130 |
@@ -140,7 +140,7 @@
 | `src/hooks/use-form-options.ts` | 32 |
 | `src/hooks/use-form-submit.ts` | 188 |
 | `src/hooks/use-item-cache-invalidation.ts` | 18 |
-| `src/hooks/use-item-change-sync.ts` | 92 |
+| `src/hooks/use-item-change-sync.ts` | 94 |
 | `src/hooks/use-last-audit.ts` | 77 |
 | `src/hooks/use-mobile.ts` | 20 |
 | `src/hooks/use-scan-submission.ts` | 241 |
