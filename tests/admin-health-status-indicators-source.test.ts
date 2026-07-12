@@ -26,8 +26,8 @@ describe("admin health status indicators", () => {
     expect(helper).toContain('state: "active"');
   });
 
-  it("shows the shared operational rail on Fix Today queue health", () => {
-    const sourceText = source("src/app/(app)/admin/fix-today/FixTodayClient.tsx");
+  it("shows the shared operational rail and status indicators on Operations", () => {
+    const sourceText = source("src/app/(app)/operations/OperationsClient.tsx");
 
     expect(sourceText).toContain('import { OperationalStatusRail, type OperationalStatusRailItem } from "@/components/OperationalStatusRail"');
     expect(sourceText).toContain('import StatusIndicator from "@/components/ui/status-indicator"');
@@ -35,20 +35,12 @@ describe("admin health status indicators", () => {
     expect(sourceText).toContain('id: "critical-checks"');
     expect(sourceText).toContain('id: "partial-data"');
     expect(sourceText).toContain("<OperationalStatusRail");
-    expect(sourceText).toContain('label: "Queue updated"');
-    expect(sourceText).toContain('allClearLabel={activeSections.length === 0 && partialFailures.length === 0 ? "No admin fixes are open"');
-    expect(sourceText).toContain("state={hasWork ? meta.state : \"active\"}");
+    expect(sourceText).toContain('"Operations are clear"');
+    expect(sourceText).toContain("state={meta.state}");
   });
 
-  it("shows shared status indicators on Inventory Hygiene checklist health", () => {
-    const sourceText = source("src/app/(app)/items/hygiene/page.tsx");
-
-    expect(sourceText).toContain('import StatusIndicator from "@/components/ui/status-indicator"');
-    expect(sourceText).toContain('import { summarizeOperationalHealth } from "@/lib/operational-health"');
-    expect(sourceText).toContain("const checklistHealth = data");
-    expect(sourceText).toContain("needsWorkCount: data.totals.checksNeedingWork");
-    expect(sourceText).toContain("partialFailureCount: partialFailures.length");
-    expect(sourceText).toContain("state={checklistHealth.state}");
-    expect(sourceText).toContain("state={health.state}");
+  it("redirects the merged Fix Today and Inventory Hygiene routes to Operations", () => {
+    expect(source("src/app/(app)/admin/fix-today/page.tsx")).toContain('redirect("/operations")');
+    expect(source("src/app/(app)/items/hygiene/page.tsx")).toContain('redirect("/operations")');
   });
 });

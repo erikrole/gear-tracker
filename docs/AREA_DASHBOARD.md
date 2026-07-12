@@ -153,7 +153,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - [x] AC-11: Operational dashboard, booking list, and booking detail queries verify server truth on mount instead of trusting warm persisted cache as fresh.
 - [x] AC-12: Dashboard booking counts and rows converge from committed booking changes without manual refresh while the page is visible and online.
 - [x] AC-13: Dashboard, booking list, and full booking detail expose the shared booking-change sync health as a visible status indicator.
-- [x] AC-14: Admin Fix Today exposes daily queue health through the shared operational status rail and per-section health through the shared status indicator.
+- [x] AC-14: The Operations page (which absorbed Admin Fix Today) exposes daily queue health through the shared operational status rail and per-check health through the shared status indicator.
 
 ## Edge Cases
 - No overdue items: banner hidden.
@@ -182,6 +182,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 7. Add regression tests for permissions, window filtering (7 days), and overdue consistency.
 
 ## Change Log
+- 2026-07-12: **Fix Today merged into `/operations`.** The standalone `/admin/fix-today` page is now a redirect; its checks render as the ADMIN-only "Run the day" lane on the consolidated Operations page (sidebar: Operations / Kits / Reports), alongside the staff-visible Inventory Hygiene lane and a compact battery summary card that links to Battery Ops. The page defaults to needs-work checks only, folds clean checks into a collapsible summary, and collapses to a single all-clear line when nothing is open. `GET /api/admin/fix-today` remains ADMIN-only and unchanged. See `tasks/ops-consolidation-plan.md`.
 - 2026-07-11: **Dashboard action-column UI catchup.** My Gear and Team Activity now use flat shared cards, consistent compact headers and row density, quieter column labels, and neutral hover surfaces. Overdue, due-today, pending-pickup, reservation, checkout, and venue meaning remains visible through semantic rails and badges instead of full-row color washes. Shift, draft, empty, and upcoming-event presentation now follows the same card vocabulary without changing routes, filters, permissions, or actions.
 - 2026-07-11: **Overdue checkout card UI catchup.** The dashboard overdue queue now uses the shared card, header, badge, button, focus, and neutral row-hover patterns used by the current action lanes. Red remains focused on the severity accent, icon, count, and elapsed badge instead of washing the full card, while detail selection, checkout routing, permission-gated actions, and nudge behavior are unchanged.
 - 2026-07-10: **Dashboard operational status rail.** The custom four-card stat strip now uses the shared action-first rail, prioritizing overdue and due-today work while keeping linked checkout and reservation counts under Details. Dashboard queries, role scope, and booking destinations are unchanged.

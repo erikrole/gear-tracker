@@ -34,7 +34,7 @@ describe("operational status rail source contract", () => {
   it("keeps route calculations outside the shared presentation contract", () => {
     const rail = source("src/components/OperationalStatusRail.tsx");
     const schedule = source("src/app/(app)/schedule/_components/ScheduleReadiness.tsx");
-    const fixToday = source("src/app/(app)/admin/fix-today/FixTodayClient.tsx");
+    const fixToday = source("src/app/(app)/operations/OperationsClient.tsx");
     const items = source("src/app/(app)/items/page.tsx");
 
     expect(rail).not.toContain("ScheduleQueue");
@@ -62,7 +62,7 @@ describe("operational status rail source contract", () => {
   it("migrates page-level operational summaries without converting analytical reports", () => {
     const migratedPages = [
       "src/app/(app)/page.tsx",
-      "src/app/(app)/items/hygiene/page.tsx",
+      "src/app/(app)/operations/OperationsClient.tsx",
       "src/app/(app)/bulk-inventory/batteries/page.tsx",
       "src/app/(app)/notifications/page.tsx",
       "src/app/(app)/kits/page.tsx",

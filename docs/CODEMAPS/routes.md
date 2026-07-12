@@ -22,6 +22,7 @@
 - `/labels` -> `src/app/(app)/labels/page.tsx`
 - `/licenses` -> `src/app/(app)/licenses/page.tsx`
 - `/notifications` -> `src/app/(app)/notifications/page.tsx`
+- `/operations` -> `src/app/(app)/operations/page.tsx`
 - `/` -> `src/app/(app)/page.tsx`
 - `/profile` -> `src/app/(app)/profile/page.tsx`
 - `/reports/audit` -> `src/app/(app)/reports/audit/page.tsx`

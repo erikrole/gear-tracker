@@ -167,7 +167,7 @@ Feature ideas to consider separately:
 - `/settings/allowed-emails`: add-mode controls now use 40px segmented targets with visible focus and `aria-pressed`.
 - `/settings/database`: initial no-diagnostics state now uses shared inline `EmptyState` copy instead of a route-local text placeholder.
 - `/settings/audit`: filter controls now use `OperationalToolbar` plus shared active-filter chips, and audit rows render through shadcn `Table` with shared empty/error states.
-- `/admin/fix-today` and `/items/hygiene`: duplicate metric and partial-results patterns now use shared primitives.
+- `/operations` (absorbed `/admin/fix-today` and `/items/hygiene`, which now redirect there): merged queue uses the shared rail, metric, and partial-results primitives with one check-card vocabulary.
 - `/settings`: uses `PageHeader` plus role-aware grouped navigation. Large desktop uses a left rail; smaller screens keep a horizontal section scroller. Sub-pages now share `SettingsPageShell` for the compact intro/main split.
 - `/reports/*`: report metric cards now render through `OperationalMetricCard` via the report adapter, preserving report links, tooltips, badges, and string values without maintaining a separate metric primitive.
 - `/reports/checkouts`, `/reports/scans`, and `/reports/audit`: non-default period and phase filters now render removable shared active-filter chips through the report toolbar.
@@ -214,8 +214,8 @@ Feature ideas to consider separately:
 - `/schedule` nav controls: Calendar month and Week navigation chevrons now use shadcn `Button` icon buttons (matching the Assign page) instead of route-local `<button>` elements.
 - `/schedule` in-row density exception: dense shift-row controls keep their compact footprint per the density rules. The always-visible icon-only controls (remove-assignment and the expand/collapse chevron) now carry a ≥40px effective hit target via the existing expanded-hit-area idiom (`before:-inset-*`) without resizing rows; the remaining text-labeled compact actions (Add, Trade, Manage event, Reserve gear) are a documented density exception, not drift.
 - `/schedule` Readiness strip: the "filters hide everything" notice now uses shared `EmptyState inline` instead of a one-off dashed text row.
-- Shared operational status rail: Schedule readiness and Admin Fix Today now use `OperationalStatusRail` for one compact orientation-plus-exceptions line with bounded visible items, overflow accounting, and shadcn-backed details. Metric cards remain inside details instead of competing with the primary queue.
-- `/admin/fix-today`: removed the duplicate queue health badge, oversized summary card, and separate all-clear card. The shared rail now owns queue orientation and exception priority; section cards retain their status indicators and use semantic Gear Tracker status tokens plus shadcn Card footer and Separator composition.
+- Shared operational status rail: Schedule readiness and Operations (formerly Admin Fix Today) now use `OperationalStatusRail` for one compact orientation-plus-exceptions line with bounded visible items, overflow accounting, and shadcn-backed details. Metric cards remain inside details instead of competing with the primary queue.
+- `/operations` (formerly `/admin/fix-today`): no duplicate queue health badge, oversized summary card, or separate all-clear card. The shared rail owns queue orientation and exception priority; check cards retain their status indicators and use semantic Gear Tracker status tokens plus shadcn Card footer and Separator composition.
 
 ## Implementation Roadmap
 Quick wins:

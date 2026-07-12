@@ -48,8 +48,8 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 7. The mobile Items list intentionally avoids desktop-only bulk actions and advanced filter density.
 
 ### Inventory Hygiene
-1. Staff/admin opens `/items/hygiene` from the Admin nav.
-2. The page shows cleanup checks that improve picker, search, checkout, kit, and scan quality.
+1. Staff/admin opens the "Keep data clean" lane on `/operations` (the old `/items/hygiene` route redirects there). `GET /api/inventory-hygiene` is unchanged.
+2. The lane shows cleanup checks that improve picker, search, checkout, kit, and scan quality.
 3. Each issue card links to the existing repair surface instead of adding new mutation paths.
 4. Slice 1 checks missing category, missing department, missing primary scan code, missing image, duplicate scan identity, retired items still in active kits, camera bodies with no attachments, and active bulk SKUs below threshold.
 5. The page frames those checks as a read-only cleanup queue with priority ordering, clean/check progress, needs-work/all/clean views, partial-failure warnings, and tag-first sample rows.
@@ -428,6 +428,7 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-07-12: **Inventory Hygiene merged into `/operations`.** The standalone `/items/hygiene` page is now a redirect; its checks render as the staff-visible "Keep data clean" lane on the consolidated Operations page, sharing one status rail and check-card vocabulary with the former admin Fix Today queue. The duplicated `low-bulk-stock` check is dropped at normalize time (Fix Today's `low-batteries` check and Battery Ops own that signal). `GET /api/inventory-hygiene` and all repair links are unchanged. See `tasks/ops-consolidation-plan.md`.
 - 2026-07-12: **Image write hardening + thumbnail optimization.** Asset and bulk-SKU image writes (upload, URL mirror) now share a per-user `image-mutation` rate limit (60/hour), update the database before deleting the previous blob (deleting first left records pointing at dead URLs on update failure), and delete the freshly uploaded blob when the record update fails. Blob pathname extensions derive from the validated MIME type via shared `imageExtensionForType` instead of the client-controlled filename. Item thumbnails (`AssetImage`, `ItemThumbnailStack`, item-detail header) now use the next/image optimizer for blob-hosted images (matching the check-in condition-photo behavior) and stay `unoptimized` only for legacy external URLs pending the rehost cron. Regression guards: `tests/asset-image-route.test.ts`, `tests/asset-image.test.ts`.
 - 2026-07-10: **New-item sheet label polish.** Summary row labels unify to the sanctioned small-uppercase label style. Visual only.
 - 2026-07-10: **Inventory Hygiene operational status rail.** Open records, checks needing work, and partial-data state now lead through the shared compact rail, while all checklist totals remain under Details and the existing cleanup queue, filters, and repair links remain available.

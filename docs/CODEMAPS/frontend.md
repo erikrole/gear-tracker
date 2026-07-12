@@ -24,6 +24,7 @@
 | `/labels` | `src/app/(app)/labels/page.tsx` |
 | `/licenses` | `src/app/(app)/licenses/page.tsx` |
 | `/notifications` | `src/app/(app)/notifications/page.tsx` |
+| `/operations` | `src/app/(app)/operations/page.tsx` |
 | `/` | `src/app/(app)/page.tsx` |
 | `/profile` | `src/app/(app)/profile/page.tsx` |
 | `/reports/audit` | `src/app/(app)/reports/audit/page.tsx` |
@@ -109,7 +110,7 @@
 | `src/components/BookingListPage.tsx` | 512 |
 | `src/components/ui/heatmap.tsx` | 422 |
 | `src/components/ui/chart.tsx` | 389 |
-| `src/components/Sidebar.tsx` | 380 |
+| `src/components/Sidebar.tsx` | 376 |
 | `src/components/shift-detail/ShiftSlotCard.tsx` | 375 |
 | `src/components/booking-details/BookingInfoCard.tsx` | 342 |
 | `src/components/booking-details/BookingHeader.tsx` | 339 |

@@ -10,7 +10,6 @@ const ITEM_CLIENT_FILES = [
   "src/app/(app)/items/[id]/ItemInsightsTab.tsx",
   "src/app/(app)/items/[id]/ItemSettingsTab.tsx",
   "src/app/(app)/items/gap-wizard-dialog.tsx",
-  "src/app/(app)/items/hygiene/page.tsx",
 ];
 
 describe("items client response parsing", () => {

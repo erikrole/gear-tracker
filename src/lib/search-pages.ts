@@ -24,15 +24,11 @@ const CORE_SEARCH_PAGES: PageSearchResult[] = [
 
 const STAFF_SEARCH_PAGES: PageSearchResult[] = [
   { type: "page", id: "kits", title: "Kits", subtitle: "Reusable gear bundles and member availability", href: "/kits", keywords: ["bundles", "kit members", "interview kit"] },
+  { type: "page", id: "operations", title: "Operations", subtitle: "Daily queue for operational exceptions and inventory cleanup", href: "/operations", keywords: ["fix today", "hygiene", "cleanup", "queue", "problems", "repair", "ops"] },
   { type: "page", id: "battery-ops", title: "Battery Ops", subtitle: "Battery family counts, missing units, and unit status", href: "/bulk-inventory/batteries", keywords: ["batteries", "units", "missing", "bulk"] },
-  { type: "page", id: "hygiene", title: "Inventory Hygiene", subtitle: "Cleanup queue for missing item data and bad scan identity", href: "/items/hygiene", keywords: ["fill gaps", "missing category", "missing department", "cleanup"] },
   { type: "page", id: "users", title: "Users", subtitle: "Roster, roles, assignments, and profile records", href: "/users", keywords: ["people", "roster", "students", "staff", "profiles"] },
   { type: "page", id: "reports", title: "Reports", subtitle: "Utilization, checkout, overdue, scan, and audit analytics", href: "/reports", keywords: ["analytics", "metrics", "charts", "audit"] },
   { type: "page", id: "settings", title: "Settings", subtitle: "Personal preferences and operational configuration", href: "/settings", keywords: ["configuration", "admin", "preferences"] },
-];
-
-const ADMIN_SEARCH_PAGES: PageSearchResult[] = [
-  { type: "page", id: "fix-today", title: "Fix Today", subtitle: "Admin queue for operational problems that need attention", href: "/admin/fix-today", keywords: ["admin", "problems", "queue", "repair"] },
 ];
 
 export function getVisiblePageSearchResults(role: string | undefined, query: string, limit = 8): PageSearchResult[] {
@@ -42,7 +38,6 @@ export function getVisiblePageSearchResults(role: string | undefined, query: str
   const pages = [
     ...CORE_SEARCH_PAGES,
     ...(canUseStaffPages ? STAFF_SEARCH_PAGES : []),
-    ...(role === "ADMIN" ? ADMIN_SEARCH_PAGES : []),
     ...SETTINGS_SECTIONS
       .filter((section) => role ? isSectionVisible(section, role) : false)
       .map((section) => ({

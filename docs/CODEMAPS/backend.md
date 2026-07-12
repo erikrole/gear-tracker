@@ -116,6 +116,7 @@
 | `src/lib/notification-count-sync.ts` | 9 |
 | `src/lib/observability.ts` | 19 |
 | `src/lib/operational-health.ts` | 50 |
+| `src/lib/ops-checks.ts` | 176 |
 | `src/lib/permissions.ts` | 166 |
 | `src/lib/public-showroom.ts` | 444 |
 | `src/lib/query-client.ts` | 58 |
@@ -135,7 +136,7 @@
 | `src/lib/schedule-publication-types.ts` | 34 |
 | `src/lib/schedule-queues.ts` | 174 |
 | `src/lib/schedule-template-review-types.ts` | 105 |
-| `src/lib/search-pages.ts` | 72 |
+| `src/lib/search-pages.ts` | 67 |
 | `src/lib/search-result-title.ts` | 13 |
 | `src/lib/shell-navigation.ts` | 11 |
 | `src/lib/shift-call-windows.ts` | 182 |
