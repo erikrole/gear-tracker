@@ -29,19 +29,23 @@ Change Log entry — a compile break once sat undetected precisely because no st
   `APIError.unauthorized → login`, freshness gating, and banner copy unchanged.
 - **Verification:** `drift:ios` + `git diff --check` clean here; **Xcode build pending** (gate).
 
-### Slice 2 — Route network errors through `APIError.networkError` (NEXT, recommended)
-- **Files:** `ios/Wisconsin/Core/APIClient.swift` (request helpers around the ~15
-  `try await session.data(for: req)` sites).
-- **Finding:** raw `URLError`s from `session.data(for:)` are **not** wrapped into
-  `APIError.networkError`, so the branded `humanize()` copy ("No internet connection. Check your
-  network and try again.") is effectively dead for the main list/detail loads — users get Apple's
-  generic `URLError.localizedDescription` instead. (It is *not* the raw "NSURLErrorDomain -1009"
-  string — that framing was corrected during investigation; `URLError` does localize.)
-- **Approach:** add one private `performData(_:)` helper that wraps `session.data(for:)` and
-  re-throws `catch let e as URLError { throw APIError.networkError(e) }`; route call sites through it.
-  Keeps 401/serverError/decoding paths untouched. Consistent branded copy app-wide, single source.
-- **Effort:** S–M (mechanical, one helper + call-site routing). Higher compile-risk surface than
-  Slice 1 → warrants an Xcode build before merge.
+### Slice 2 — Route network errors through `APIError.networkError` ✅ SHIPPED 2026-07-11
+- **Files:** `ios/Wisconsin/Core/APIClient.swift`.
+- **Finding:** the generic `perform<T>` helper already wrapped `session.data(for:)` failures as
+  `APIError.networkError` (feeding `humanize()`), but ~13 endpoints bypassed it with an inline
+  `try await session.data(for: req)` and threw a raw `URLError` on network failure — so users got
+  Apple's generic `URLError.localizedDescription` instead of the app's branded copy. (It is *not*
+  the raw "NSURLErrorDomain -1009" string — that framing was corrected during investigation.)
+- **Fix:** extracted a `performData(_:)` wrapper (same do/catch `perform` used), routed all 13
+  inline sites through it, and refactored `perform` to build on it (no duplicated wrapping).
+  `try?` best-effort fetches left as-is; 401/404/409/5xx handling untouched.
+- **Verification:** `drift:ios` + `git diff --check` clean here; **Xcode build pending** (gate).
+
+### Also shipped 2026-07-11 (unblocks CI)
+- **`chore: sync package-lock.json`** — `npm ci` was failing on every PR and on `main` because
+  `d5c3259` bumped `package.json` without regenerating the lock (@swc/helpers, ws, chokidar,
+  readdirp missing). Regenerated additively (11 added, 0 removed, no direct-dep version changes;
+  audit clean at `--audit-level=high`). Not an iOS change — bundled here to get PR #370 CI green.
 
 ## Deferred — NOT quick wins (need a product-direction call first)
 - Staff role-gated Home sections (drafts / flagged items / lost bulk units) — biggest dashboard
