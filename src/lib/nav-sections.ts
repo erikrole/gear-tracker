@@ -237,12 +237,23 @@ export function getSettingsRouteAccess(pathname: string, role: string): Settings
   };
 }
 
-export const REPORT_SECTIONS = [
+export type ReportSection = {
+  href: string;
+  label: string;
+  /** Minimum role required to see this report tab; omitted means every report viewer. */
+  requiredRole?: SettingsRole;
+};
+
+export const REPORT_SECTIONS: ReadonlyArray<ReportSection> = [
   { href: "/reports/utilization", label: "Utilization" },
   { href: "/reports/checkouts", label: "Checkouts" },
   { href: "/reports/overdue", label: "Overdue" },
   { href: "/reports/bulk-losses", label: "Missing Units" },
   { href: "/reports/scans", label: "Scans" },
-  { href: "/reports/audit", label: "Audit" },
+  { href: "/reports/audit", label: "Audit", requiredRole: "ADMIN" },
   { href: "/reports/badges", label: "Badges" },
 ] as const;
+
+export function isReportSectionVisible(section: ReportSection, role: string): boolean {
+  return !section.requiredRole || meetsRoleRequirement(section.requiredRole, role);
+}

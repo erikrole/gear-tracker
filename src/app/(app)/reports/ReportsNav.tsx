@@ -2,15 +2,15 @@
 
 import { usePathname } from "next/navigation";
 import { SectionNav, SectionNavLink, SectionNavList } from "@/components/SectionNav";
-import { REPORT_SECTIONS } from "@/lib/nav-sections";
+import { isReportSectionVisible, REPORT_SECTIONS } from "@/lib/nav-sections";
 
-export function ReportsNav() {
+export function ReportsNav({ role }: { role: string }) {
   const pathname = usePathname();
 
   return (
     <SectionNav aria-label="Report sections">
       <SectionNavList>
-        {REPORT_SECTIONS.map((section) => (
+        {REPORT_SECTIONS.filter((section) => isReportSectionVisible(section, role)).map((section) => (
           <SectionNavLink
             key={section.href}
             href={section.href}

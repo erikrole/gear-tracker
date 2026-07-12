@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api";
 import { csvField } from "@/lib/csv";
 import { HttpError, ok, parsePagination } from "@/lib/http";
+import { enforceRateLimit, REPORT_EXPORT_LIMIT } from "@/lib/rate-limit";
 import { requirePermission } from "@/lib/rbac";
 import { getScanHistoryReport, getScanHistoryReportExport } from "@/lib/services/reports";
 
@@ -53,6 +54,7 @@ export const GET = withAuth(async (req, { user }) => {
   }
 
   if (searchParams.get("format") === "csv") {
+    await enforceRateLimit(`report:export:${user.id}`, REPORT_EXPORT_LIMIT);
     const exportData = await getScanHistoryReportExport(startDate, endDate, phase);
     const date = new Date().toISOString().slice(0, 10);
     return new NextResponse(`${buildScanReportCsv(exportData.data)}\n`, {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api";
 import { csvField } from "@/lib/csv";
 import { HttpError, ok, parsePagination } from "@/lib/http";
+import { enforceRateLimit, REPORT_EXPORT_LIMIT } from "@/lib/rate-limit";
 import { requirePermission } from "@/lib/rbac";
 import { getAuditReport, getAuditReportExport } from "@/lib/services/reports";
 
@@ -29,7 +30,7 @@ function buildAuditReportCsv(rows: Awaited<ReturnType<typeof getAuditReportExpor
 }
 
 export const GET = withAuth(async (req, { user }) => {
-  requirePermission(user.role, "report", "view");
+  requirePermission(user.role, "report", "audit");
   const { searchParams } = new URL(req.url);
   const { limit, offset } = parsePagination(searchParams);
   const startDate = parseOptionalDate(searchParams, "startDate");
@@ -41,6 +42,7 @@ export const GET = withAuth(async (req, { user }) => {
   }
 
   if (searchParams.get("format") === "csv") {
+    await enforceRateLimit(`report:export:${user.id}`, REPORT_EXPORT_LIMIT);
     const exportData = await getAuditReportExport(startDate, endDate, action);
     const date = new Date().toISOString().slice(0, 10);
     return new NextResponse(`${buildAuditReportCsv(exportData.data)}\n`, {

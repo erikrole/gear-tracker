@@ -11,7 +11,7 @@
 Provide staff and admin with analytics dashboards to track checkout/reservation activity, utilization patterns, scan success rates, badge awards, and audit events. Reports are read-only views gated to ADMIN/STAFF.
 
 ## Core Rules
-1. All reports are ADMIN/STAFF only (enforced on routes and endpoints).
+1. All reports are ADMIN/STAFF only (enforced on routes and endpoints), except the Audit report, which is ADMIN only (`report.audit`) to match the admin-only `/api/audit` browse feed.
 2. Reports are tab-based: users navigate between report types via sidebar link to `/reports` which redirects to `/reports/utilization`.
 3. Each report has filters (date range, status, location) and metrics cards.
 4. Data is cached via React Query with focus refresh.
@@ -40,8 +40,8 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - **Type:** Charts + metrics dashboard
 - **Metrics:** Total inventory, checked out, available, maintenance, retired
 - **Charts:** Utilization trends (equipment category breakdown, location breakdown, time-series checkout rate)
-- **Filters:** Date range, location, category
-- **Data:** `GET /api/reports/utilization?from=...&to=...&location=...&category=...`
+- **Filters:** None — the report is a whole-inventory snapshot; drill-down happens through metric-card links into `/items`.
+- **Data:** `GET /api/reports/utilization`
 - **Export:** `GET /api/reports/utilization?format=csv` returns up to 5,000 inventory rows with derived status, stored status, physical identity fields, location, department, category, availability flags, `X-Exported-Count`, `X-Total-Count`, and `X-Truncated` headers when capped.
 
 ### `/reports/checkouts`
@@ -90,12 +90,12 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 
 ### `/reports/audit`
 - **Page:** `src/app/(app)/reports/audit/page.tsx`
-- **Type:** Audit log viewer (admin only within ADMIN/STAFF)
+- **Type:** Audit log viewer (ADMIN only, enforced by `report.audit` on the route and hidden from STAFF nav/search/breadcrumb siblings)
 - **Columns:** Timestamp, actor, action, resource (item/booking/user), details, outcome
 - **Metrics:** Total events (period), events by action type, events by actor role
 - **Charts:** Event frequency over time, action breakdown, actor breakdown
-- **Filters:** Date range, action type, actor, resource type
-- **Data:** `GET /api/reports/audit?from=...&to=...&action=...&actor=...&resourceType=...`
+- **Filters:** Period (all, 7d, 30d, 90d)
+- **Data:** `GET /api/reports/audit?limit=...&offset=...&startDate=...&endDate=...&action=...`
 - **Export:** `GET /api/reports/audit?format=csv&startDate=...&endDate=...&action=...` returns up to 5,000 matching rows with `X-Exported-Count`, `X-Total-Count`, and `X-Truncated` headers when capped.
 
 ### `/reports/badges`
@@ -126,8 +126,9 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - No new tables; reports are read-only views via API endpoints that SELECT/aggregate
 
 ## Security
-- `requirePermission("report", "view")` on all report routes + endpoints
-- ADMIN/STAFF only
+- `requirePermission("report", "view")` on all report routes + endpoints, except `/api/reports/audit`, which requires `report.audit` (ADMIN only)
+- ADMIN/STAFF only; the Audit report is ADMIN only
+- CSV export branches are rate limited per user (`report:export`, 10/min shared across all report exports)
 - Audit log endpoint logs report access (low priority)
 
 ## Acceptance Criteria
@@ -141,6 +142,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - [x] AC-8: Missing Units report includes unit-tracked battery missing-unit, missing-rate, custody-history, and repeat-pattern reporting
 
 ## Change Log
+- 2026-07-12: Reports hardening sweep. `/api/reports/audit` now requires the new `report.audit` permission (ADMIN only), matching the admin-only `/api/audit` browse feed and AC-6; the Audit tab is hidden from STAFF in the reports nav, global search, and breadcrumb siblings via `requiredRole` on `REPORT_SECTIONS`. All six report CSV export branches now share a per-user `report:export` rate limit (10/min). Corrected doc drift: Utilization has no filters or query params, and the Audit report filters by period only with `startDate`/`endDate`/`action` params.
 - 2026-06-20: Report toolbars inherit the refreshed shared active-filter chip treatment, keeping Checkouts, Scans, and Audit non-default filters removable while making applied filters read as lighter controls with 40px targets and active underline.
 - 2026-06-20: Reports navigation now uses the shared `SectionNav` treatment adopted by Settings. The report switcher keeps mobile horizontal scrolling and active underlines, but drops the heavier bordered card shell so the nav reads as page chrome instead of another content panel.
 - 2026-06-18: Schedule Source Of Truth Slice 13 added Schedule CSV exports outside the main Reports shell. `/api/schedule/export?type=...` is still governed by `report.view`, uses shared formula-safe CSV escaping, returns export count/truncation headers, caps date windows to 366 days, and supports roster, hours, open slots, conflicts, trades/open-work requests, and gear-readiness exports from the Schedule page.

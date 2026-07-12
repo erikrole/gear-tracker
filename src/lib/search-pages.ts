@@ -1,4 +1,4 @@
-import { REPORT_SECTIONS, SETTINGS_SECTIONS, isSectionVisible } from "@/lib/nav-sections";
+import { REPORT_SECTIONS, SETTINGS_SECTIONS, isReportSectionVisible, isSectionVisible } from "@/lib/nav-sections";
 
 export type PageSearchResult = {
   type: "page";
@@ -54,7 +54,7 @@ export function getVisiblePageSearchResults(role: string | undefined, query: str
         keywords: [section.group, ...(section.keywords ?? [])],
       })),
     ...(canUseStaffPages
-      ? REPORT_SECTIONS.map((section) => ({
+      ? REPORT_SECTIONS.filter((section) => role ? isReportSectionVisible(section, role) : false).map((section) => ({
           type: "page" as const,
           id: `reports:${section.href}`,
           title: section.label,

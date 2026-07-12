@@ -22,6 +22,11 @@ vi.mock("@sentry/nextjs", () => ({
   captureException: vi.fn(),
 }));
 
+vi.mock("@/lib/rate-limit", () => ({
+  enforceRateLimit: vi.fn(async () => undefined),
+  REPORT_EXPORT_LIMIT: { max: 10, windowMs: 60_000 },
+}));
+
 import { requireAuth } from "@/lib/auth";
 import {
   getUtilizationReport,

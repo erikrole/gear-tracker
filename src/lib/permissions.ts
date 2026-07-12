@@ -79,6 +79,9 @@ export const PERMISSIONS: Record<string, Record<string, Role[]>> = {
   },
   report: {
     view: ["ADMIN", "STAFF"],
+    // The audit report exposes the full cross-user audit trail; keep it
+    // aligned with the admin-only /api/audit browse feed.
+    audit: ["ADMIN"],
   },
   notification: {
     view: ["ADMIN", "STAFF", "STUDENT"],

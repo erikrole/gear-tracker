@@ -156,3 +156,20 @@ export const SETTINGS_MUTATION_LIMIT: RateLimitConfig = {
   max: 60,
   windowMs: 60_000,
 };
+
+/** Common preset for bounded report CSV export endpoints. */
+export const REPORT_EXPORT_LIMIT: RateLimitConfig = {
+  max: 10,
+  windowMs: 60_000,
+};
+
+/**
+ * Common preset for image write endpoints (asset/bulk-SKU uploads and
+ * URL mirroring). Sized for intake sessions, where staff attach images to
+ * many items in a row, while still capping blob writes and outbound
+ * mirror fetches from a compromised account.
+ */
+export const IMAGE_MUTATION_LIMIT: RateLimitConfig = {
+  max: 60,
+  windowMs: 60 * 60_000,
+};

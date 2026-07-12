@@ -14,9 +14,22 @@ vi.mock("@sentry/nextjs", () => ({
   captureException: vi.fn(),
 }));
 
+vi.mock("@/lib/rate-limit", () => ({
+  enforceRateLimit: vi.fn(async () => undefined),
+  REPORT_EXPORT_LIMIT: { max: 10, windowMs: 60_000 },
+}));
+
 import { requireAuth } from "@/lib/auth";
 import { getAuditReport, getAuditReportExport } from "@/lib/services/reports";
 import { GET as getAuditReportRoute } from "@/app/api/reports/audit/route";
+
+const adminUser = {
+  id: "admin-1",
+  email: "admin@example.com",
+  name: "Admin One",
+  role: Role.ADMIN,
+  avatarUrl: null,
+};
 
 const staffUser = {
   id: "staff-1",
@@ -35,7 +48,7 @@ function authedGet(path: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(requireAuth).mockResolvedValue(staffUser);
+  vi.mocked(requireAuth).mockResolvedValue(adminUser);
   vi.mocked(getAuditReport).mockResolvedValue({
     data: [],
     total: 0,
@@ -146,6 +159,24 @@ describe("audit report CSV export route", () => {
 
     expect(invalid.status).toBe(400);
     expect(inverted.status).toBe(400);
+    expect(getAuditReportExport).not.toHaveBeenCalled();
+  });
+
+  it("keeps the audit report admin-only for both browse and CSV export", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(staffUser);
+
+    const browse = await getAuditReportRoute(
+      authedGet("/api/reports/audit"),
+      { params: Promise.resolve({}) },
+    );
+    const csv = await getAuditReportRoute(
+      authedGet("/api/reports/audit?format=csv"),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(browse.status).toBe(403);
+    expect(csv.status).toBe(403);
+    expect(getAuditReport).not.toHaveBeenCalled();
     expect(getAuditReportExport).not.toHaveBeenCalled();
   });
 });

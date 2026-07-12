@@ -22,7 +22,7 @@ export default async function ReportsLayout({ children }: { children: React.Reac
         className="mb-4"
       />
 
-      <ReportsNav />
+      <ReportsNav role={user.role} />
 
       {children}
     </>
