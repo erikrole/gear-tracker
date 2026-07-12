@@ -30,7 +30,7 @@ export function UserAvatar({
 
   return (
     <Avatar size={size} className={cn("bg-muted", className)}>
-      {avatarUrl && <AvatarImage src={avatarUrl} alt={name} className="object-cover" />}
+      {avatarUrl && <AvatarImage src={avatarUrl} alt={name} />}
       <AvatarFallback
         className={cn(
           "font-semibold uppercase shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)]",

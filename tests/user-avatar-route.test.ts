@@ -22,6 +22,7 @@ vi.mock("@/lib/blob", () => ({
   validateImage: vi.fn(() => null),
   deleteImage: vi.fn(async () => undefined),
   isBlobUrl: vi.fn(() => true),
+  imageExtensionForType: vi.fn((type: string) => (type === "image/webp" ? "webp" : "jpg")),
 }));
 
 vi.mock("@vercel/blob", () => ({
@@ -76,9 +77,9 @@ function params(id = targetId) {
   return { params: Promise.resolve({ id }) };
 }
 
-function avatarPostRequest(pathId = targetId) {
+function avatarPostRequest(pathId = targetId, fileName = "avatar.webp") {
   const form = new FormData();
-  form.set("file", new File(["image"], "avatar.webp", { type: "image/webp" }));
+  form.set("file", new File(["image"], fileName, { type: "image/webp" }));
 
   return new Request(`https://app.example.com/api/users/${pathId}/avatar`, {
     method: "POST",
@@ -156,6 +157,25 @@ describe("/api/users/[id]/avatar", () => {
       action: "avatar_deleted",
       before: { avatarUrl: oldAvatarUrl },
     }));
+  });
+
+  it("derives the blob pathname extension from the MIME type, not the client filename", async () => {
+    const res = await POST(avatarPostRequest(targetId, "evil.png/../../x.html"), params());
+
+    expect(res.status).toBe(200);
+    const pathname = vi.mocked(put).mock.calls[0]![0] as string;
+    expect(pathname).toMatch(/^avatars\/student-1\/\d+\.webp$/);
+  });
+
+  it("deletes the freshly uploaded blob when the database update fails", async () => {
+    vi.mocked(db.user.update).mockRejectedValueOnce(new Error("db down"));
+
+    const res = await POST(avatarPostRequest(), params());
+
+    expect(res.status).toBe(500);
+    expect(deleteImage).toHaveBeenCalledWith("https://blob.example.com/new-avatar.webp");
+    expect(deleteImage).not.toHaveBeenCalledWith(oldAvatarUrl);
+    expect(createAuditEntry).not.toHaveBeenCalled();
   });
 
   it("blocks staff from changing another user's profile photo", async () => {

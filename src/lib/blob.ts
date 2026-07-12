@@ -59,11 +59,20 @@ export function isBlobUrl(url: string): boolean {
   return url.includes(".public.blob.vercel-storage.com");
 }
 
+/**
+ * Extension for a validated upload, derived from the (already whitelisted)
+ * MIME type. Never derive it from `file.name` — the multipart filename is
+ * client-controlled and would flow into the blob pathname.
+ */
+export function imageExtensionForType(type: string): string {
+  return CONTENT_TYPE_TO_EXT[type] ?? "jpg";
+}
+
 export async function uploadImage(
   file: File,
   assetId: string
 ): Promise<string> {
-  const ext = file.name.split(".").pop() || "jpg";
+  const ext = imageExtensionForType(file.type);
   const pathname = `assets/${assetId}/${Date.now()}.${ext}`;
 
   const blob = await put(pathname, file.stream(), {
