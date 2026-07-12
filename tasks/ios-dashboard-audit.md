@@ -99,7 +99,7 @@
 
 4. **Skeleton for overdue banner slot** (`HomeView.swift`) — add a faint placeholder row in the skeleton to hint at the overdue section before data loads, reducing layout shift. 8 min.
 
-5. **Graceful partial failure in ScheduleView** (`ScheduleViewModel.swift`) — if events succeed but shifts fail (or vice versa), show what loaded + a non-blocking error banner instead of blanking the screen. 20 min.
+5. **Graceful partial failure in ScheduleView** (`ScheduleViewModel.swift`) — **Shipped 2026-07-11.** Events and shifts now resolve in independent `do/catch` blocks; whichever succeeds is applied and a single failure surfaces the non-blocking refresh banner instead of blanking the screen (blocking error only when nothing loaded). Xcode build remains the outstanding verification gate.
 
 ---
 

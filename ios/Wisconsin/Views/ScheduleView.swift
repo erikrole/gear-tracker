@@ -85,16 +85,18 @@ final class ScheduleViewModel {
         isLoading = true
         if events.isEmpty { error = nil }
         refreshError = nil
+
+        async let eventsTask = APIClient.shared.calendarEvents(includePast: includePast)
+        async let shiftsTask = APIClient.shared.myShifts()
+
+        // Resolve each request independently so a failure in one doesn't discard a
+        // successful result from the other — events and shifts are separate reads
+        // (mirrors the web dashboard's Promise.allSettled partial-recovery behavior).
+        var loadFailure: Error?
+
         do {
-            async let eventsTask = APIClient.shared.calendarEvents(includePast: includePast)
-            async let shiftsTask = APIClient.shared.myShifts()
-            let (fetchedEvents, fetchedShifts) = try await (eventsTask, shiftsTask)
+            let fetchedEvents = try await eventsTask
             events = fetchedEvents
-            myShifts = fetchedShifts
-            shiftsByEventId = Dictionary(uniqueKeysWithValues: fetchedShifts.map { ($0.event.id, $0) })
-            hasLoaded = true
-            lastLoadedAt = .now
-            error = nil
             GearStore.shared.seedScheduleEvents(fetchedEvents)
         } catch APIError.unauthorized {
             // SessionStore listens for the global notification and routes the
@@ -102,13 +104,34 @@ final class ScheduleViewModel {
             isLoading = false
             return
         } catch {
-            // Refresh failure must not blank an already-populated screen.
-            if events.isEmpty {
-                self.error = error.localizedDescription
-            } else {
-                self.refreshError = error.localizedDescription
-            }
+            loadFailure = error
         }
+
+        do {
+            let fetchedShifts = try await shiftsTask
+            myShifts = fetchedShifts
+            shiftsByEventId = Dictionary(uniqueKeysWithValues: fetchedShifts.map { ($0.event.id, $0) })
+        } catch APIError.unauthorized {
+            isLoading = false
+            return
+        } catch {
+            loadFailure = error
+        }
+
+        if let loadFailure {
+            // Keep whatever loaded visible; block the screen only when nothing is on
+            // it. A partial failure surfaces the non-blocking refresh banner instead.
+            if events.isEmpty && myShifts.isEmpty {
+                self.error = loadFailure.localizedDescription
+            } else {
+                self.refreshError = loadFailure.localizedDescription
+            }
+        } else {
+            hasLoaded = true
+            lastLoadedAt = .now
+            error = nil
+        }
+
         isLoading = false
     }
 }

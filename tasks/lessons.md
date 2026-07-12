@@ -219,6 +219,9 @@
 - **Track transaction calls to verify isolation levels**: Assert `isolationLevel: "Serializable"` where required.
 - **Bug-proof tests**: Name `BUG: <description>`, assert broken behavior. When fixed, the test guides the fix.
 - **Data factories should be minimal and override-friendly**: `makeBooking({ status: "COMPLETED" })`.
+- **Source-contract tests go stale when the Swift they grep for is refactored**: TS tests that `toContain(...)` exact Swift lines break silently when a refactor rewords the code, even though the behavioral contract still holds (e.g. `currentUser = try await …me()` split into `let user = …me()` + `currentUser = user` to add snapshotting). Update the assertion to the current form; don't "fix" correct code to satisfy a stale string.
+- **Tests that shell out to platform-only binaries must guard for the CI OS**: `plutil` is macOS-only, so a test calling it throws `ENOENT` on Linux CI. Detect availability (ENOENT = absent; any other error still means present) and `it.skipIf(...)` rather than letting the whole suite fail on the runner where the binary can't exist.
+- **One red CI step masks every step behind it**: an out-of-sync `package-lock.json` failed `npm ci` first, so `npm test` never ran and two unrelated pre-existing test failures stayed invisible on every PR and on main. When you fix an early CI blocker, expect later steps to surface their own latent failures — run the full suite locally with the CI env (`prisma generate` + placeholder `DATABASE_URL`/`DIRECT_URL`) before assuming green.
 
 ## Process
 - **iOS push permission is not server registration**: Keep `UNUserNotificationCenter` authorization separate from `/api/devices` token-registration state. A user can have OS permission while the server has no usable token because registration failed or a provisional install was never retried. Surface the distinction and retry all non-denied authorization states without claiming that APNs delivery itself is confirmed.
