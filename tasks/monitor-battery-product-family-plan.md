@@ -46,12 +46,12 @@
 - [x] `git diff --check`
 - [x] `npm run build:app`
 - [ ] Authenticated browser smoke for `/items/bulk-{id}`, or record why blocked
-- [ ] Live migration deploy and data consolidation only after the physical product map is confirmed and shared-database mutation is approved
+- [x] Live migration deploy and guarded data consolidation
 
 ## Review
-- Shipped: Local schema, migration, audited APIs, item-family product management UI, exact unit assignment, and guarded consolidation script.
-- Verified: Prisma format and validation, migration-chain check, 43 focused tests, TypeScript, focused ESLint, codemap, docs verification, diff check, and application build.
-- Deferred: Authenticated browser proof and live migration/data consolidation. The new schema is intentionally not deployed to the shared database.
-- Blocked: Migration `0092_profile_completion_fields` precedes this slice and is still pending. The physical split of the current 14 batteries and the exact GVM model are also unknown.
-- Proof artifacts: `prisma/migrations/0093_item_family_products/migration.sql`, `tests/item-family-products-route.test.ts`, `tests/item-family-products-schema.test.ts`, and the successful dry-run output from `npm run consolidate:monitor-batteries`.
-- Next slice or stop: Confirm the Watson NP-F770 count, GVM count, and GVM model; deploy migrations in order with explicit shared-database approval; apply the guarded consolidation; then smoke-test and reprint the derived unit labels.
+- Shipped: Schema, migration, audited APIs, item-family product management UI, exact unit assignment, and live Monitor Battery consolidation into one 18-unit family.
+- Verified: Prisma format and validation, migration-chain check, focused tests, TypeScript, focused ESLint, codemap, docs verification, diff check, application build, guarded live apply, and independent live database audit.
+- Deferred: Authenticated browser proof and physical product assignment for Monitor units 1-14.
+- Blocked: None for the singular catalog outcome. Physical staff verification is still required before units 1-14 can be assigned to Watson NP-F770 or GVM products.
+- Proof artifacts: `prisma/migrations/0093_item_family_products/migration.sql`, `tests/item-family-products-route.test.ts`, `tests/item-family-products-schema.test.ts`, `scripts/consolidate-battery-families.mjs`, and `.tmp/battery-family-consolidation-1784148055331.json`.
+- Next slice or stop: Stop software work. Physically identify Monitor units 1-14, assign products in item-family detail, and print the derived labels.

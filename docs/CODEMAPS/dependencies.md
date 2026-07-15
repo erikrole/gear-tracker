@@ -78,7 +78,7 @@
 - `cleanup:item-data`: `node --env-file=.env scripts/cleanup-item-data.mjs`
 - `codemap`: `node scripts/generate-codemaps.mjs`
 - `codemap:check`: `node scripts/generate-codemaps.mjs --check`
-- `consolidate:monitor-batteries`: `node --env-file=.env scripts/consolidate-monitor-battery-family.mjs`
+- `consolidate:battery-families`: `node --env-file=.env scripts/consolidate-battery-families.mjs`
 - `db:bootstrap:empty`: `node scripts/bootstrap-empty-database.mjs`
 - `db:check:dupe-allocations`: `node --env-file=.env scripts/check-dupe-allocations.mjs`
 - `db:migrate:check`: `node scripts/check-migration-prefixes.mjs`

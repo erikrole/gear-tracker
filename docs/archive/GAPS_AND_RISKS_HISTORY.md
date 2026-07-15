@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-10
+- Last Updated: 2026-07-15
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -21,6 +21,8 @@
 _2026-06-06 update: iOS Scan result retry recovery shipped as HIG polish. No new gap or pending decision opened._
 
 _2026-06-26 update: Items list/detail freshness shipped without opening a new gap. `/items` now refetches on mount, successful serialized-item and item-family detail mutations invalidate shared catalog caches, and `/api/items/changes` lets visible item surfaces converge from committed `Asset`, `BulkSku`, and audit-log changes._
+
+_2026-07-15 update: The temporary Monitor Battery product-mapping gap was narrowed and removed from the active registry. Live consolidation no longer depends on guessing the Watson/GVM split: all 14 formerly quantity-only units now exist as product-unassigned numbered records, the four known Watson NP-F550 units retain exact product identity as units 15-18, and staff can assign units 1-14 after physical verification. The active battery catalog is now exactly Monitor Battery, Sony Battery, Gold Mount Battery, and FX6 Battery._
 
 _2026-06-06 update: Web booking wizard kit-list recovery shipped for checkout/reservation creation. No new gap or pending decision opened._
 

@@ -384,6 +384,8 @@
   - All unit operations use `createMany`/`updateMany` to batch DB calls efficiently.
   - QR-coded batteries continue to use this model when they behave like the existing Sony battery flow: one item family with unit-level tracking beneath it.
   - Product breakdowns are operational metadata beneath the family. Reservations continue to request the family quantity, while item-family detail and unit lookup can identify the exact product assigned to a scanned unit.
+  - The operational battery catalog uses four canonical unit-tracked families: `Monitor Battery`, `Sony Battery`, `Gold Mount Battery`, and `FX6 Battery`. Product or model differences stay beneath those rows instead of creating parallel quantity, serialized, or model-specific catalog entries.
+  - Catalog consolidation hard-deletes only history-free duplicates. Rows with booking, allocation, scan, or stock-movement history are retired or deactivated so the active catalog stays singular without erasing operational evidence.
   - Derived unit QR scans keep batteries out of top-level serialized assets while still supporting individual QR labels and custody.
   - Camera-model battery compatibility warnings are advisory at creation; they do not block checkout creation because physical battery accountability happens at kiosk pickup.
   - Printed-label state (when a physical Brother label was printed and applied) may be stored per `BulkSkuUnit` via `labelPrintedAt`, `labelPrintedById`, and `labelPrintBatchId`. This is a physical-workflow state distinct from `BulkUnitStatus` and never gates availability. QR data itself remains derived and is never stored per unit; the Brother CSV `qr_code` column is computed at export time from `{binQrCodeValue}-{unitNumber}`.
@@ -834,6 +836,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 4. ~~Student mobile KPI definitions~~ — resolved (PD-5): taps-to-checkout ≤3, scan success ≥95%, task completion <30s. Telemetry deferred to Phase B.
 
 ## Change Log
+- 2026-07-15: Applied D-022 to the live battery catalog by consolidating active batteries into the four canonical unit-tracked Monitor, Sony, Gold Mount, and FX6 families while preserving history-bearing legacy rows outside active discovery.
 - 2026-07-15: Extended D-022 so one numbered item family can contain multiple branded products while preserving one booking line, one base QR sequence, permanent unit numbers, and exact-unit custody.
 - 2026-07-11: Reconciled the decision index and document-control date, formalized the historical D-032 and D-033 decisions, and added their current implementation references and provenance warning.
 - 2026-07-10: Amended D-026 for checkout return Live Activities. Their 30-minute remote start is now event-driven through a durable workflow scheduled when custody opens or its return time changes, so it no longer depends on a sub-daily cron. The protected sweep remains a manual repair path.

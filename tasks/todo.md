@@ -1499,21 +1499,22 @@ Plan: align `/reservations/new` equipment selection with server availability win
 
 ---
 
-## Active: Monitor Battery multi-product family (2026-07-15)
+## Completed: Canonical battery families and Monitor products (2026-07-15)
 
-Plan: `tasks/monitor-battery-product-family-plan.md`
+Plans: `tasks/monitor-battery-product-family-plan.md` and `tasks/archive/completed-2026-07/battery-family-consolidation-plan.md`
 
 - [x] Extend D-022 and the schema so one numbered family can contain multiple branded products.
 - [x] Add audited product create/edit/archive and exact-unit product assignment routes.
 - [x] Add product management, counts, add-unit product selection, and unit assignment to item-family detail.
-- [x] Add a dry-run-first consolidation script with live state guards and physical-map requirements.
+- [x] Add a dry-run-first consolidation script with exact live-state guards, proof capture, and post-apply verification.
 - [x] Add focused product, assignment, schema, QR, label, and item-family tests.
-- [ ] Apply migrations `0092` and `0093` in order after the existing profile migration is ready.
-- [ ] Confirm the physical split of the 14 current Monitor Battery units: Watson NP-F770 count, GVM count, and exact GVM model.
-- [ ] Run the guarded consolidation apply, reprint `bdf15b57-1` through `bdf15b57-18`, and verify authenticated item-family and kiosk scan behavior.
+- [x] Apply migrations `0092` and `0093` in order.
+- [x] Consolidate the live active catalog to Monitor Battery, Sony Battery, Gold Mount Battery, and FX6 Battery.
+- [x] Preserve Sony units 1-52, current custody, and printed placeholders while consolidating Monitor to 18 units, Gold Mount to 10, and FX6 to 12.
+- [ ] Physical follow-up: identify Monitor units 1-14 as Watson NP-F770 or GVM, assign their product records, and print labels `bdf15b57-1` through `bdf15b57-18`.
 
 ### Review
-- 2026-07-15: Local product-family support is implemented. The read-only consolidation preflight found the expected 14-count Monitor Battery family, four-unit Watson NP-F550 family, and history-free serialized BA-001 duplicate, with no GVM database records and no state blockers. Live mutation remains blocked on the physical Watson/GVM map and the pre-existing pending `0092_profile_completion_fields` migration.
+- 2026-07-15: Live consolidation completed through an exact-state-guarded serializable transaction attributed to Erik Role. The active battery catalog now contains exactly four unit-tracked families. Monitor units 1-14 are intentionally product-unassigned pending physical identification, while known Watson NP-F550 units moved intact to 15-18. History-bearing legacy rows were retired or deactivated; only history-free duplicates were hard-deleted. Independent read-only verification found 13 consolidation audit entries and no active serialized battery rows.
 
 ---
 
