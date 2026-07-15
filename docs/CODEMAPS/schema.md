@@ -9,6 +9,14 @@ Values: `ADMIN`, `STAFF`, `STUDENT`
 
 Values: `FRESHMAN`, `SOPHOMORE`, `JUNIOR`, `SENIOR`, `GRAD`
 
+## Enum `ApparelFit`
+
+Values: `UNISEX`, `WOMENS`, `MENS`
+
+## Enum `ShoeSizeSystem`
+
+Values: `US_WOMENS`, `US_MENS`
+
 ## Enum `AssetStatus`
 
 Values: `AVAILABLE`, `MAINTENANCE`, `RETIRED`
@@ -75,81 +83,89 @@ Values: `ACTIVE`, `MAINTENANCE`, `UNKNOWN`
 
 ## Model `User`
 
-Fields: 73
+Fields: 81
 
-- `id                   String                     @id @default(cuid())`
-- `name                 String`
-- `email                String                     @unique`
-- `passwordHash         String                     @map("password_hash")`
-- `forcePasswordChange  Boolean                    @default(false) @map("force_password_change")`
-- `role                 Role`
-- `staffingType         ShiftWorkerType            @default(ST) @map("staffing_type")`
-- `active               Boolean                    @default(true)`
-- `hiddenFromRoster     Boolean                    @default(false) @map("hidden_from_roster")`
-- `phone                String?`
-- `wiscardNumber        String?                    @unique @map("wiscard_number")`
-- `slackHandle          String?                    @map("slack_handle")`
-- `slackProfileUrl      String?                    @map("slack_profile_url")`
-- `avatarUrl            String?                    @map("avatar_url")`
-- `primaryArea          ShiftArea?                 @map("primary_area")`
-- `locationId           String?                    @map("location_id")`
-- `createdAt            DateTime                   @default(now()) @map("created_at")`
-- `updatedAt            DateTime                   @updatedAt @map("updated_at")`
-- `lastActiveAt         DateTime?                  @map("last_active_at")`
-- `location             Location?                  @relation(fields: [locationId], references: [id], onDelete: SetNull)`
-- `sessions             Session[]`
-- `requested            Booking[]                  @relation("BookingRequester")`
-- `createdBookings      Booking[]                  @relation("BookingCreator")`
-- `scanEvents           ScanEvent[]`
-- `scanSessions         ScanSession[]`
-- `overrides            OverrideEvent[]`
-- `bulkMovements        BulkStockMovement[]`
-- `audits               AuditLog[]                 @relation("AuditActor")`
-- `shiftAssignments     ShiftAssignment[]          @relation("ShiftAssignee")`
-- `shiftAssignedBy      ShiftAssignment[]          @relation("ShiftAssigner")`
-- `shiftGroupsPublished ShiftGroup[]               @relation("ShiftGroupPublisher")`
-- `shiftAcknowledged    ShiftAssignment[]          @relation("ShiftAssignmentAcknowledgedBy")`
-- `sportAssignments     StudentSportAssignment[]`
-- `areaAssignments      StudentAreaAssignment[]`
-- `tradesPosted         ShiftTrade[]               @relation("TradePostedBy")`
-- `tradesClaimed        ShiftTrade[]               @relation("TradeClaimedBy")`
-- `favorites            FavoriteItem[]`
-- `familyFavorites      FavoriteItemFamily[]`
-- `passwordResetTokens  PasswordResetToken[]`
-- `notifications        Notification[]`
-- `deviceTokens         DeviceToken[]`
-- `liveActivityTokens   LiveActivityToken[]`
-- `liveActivityStartTokens LiveActivityStartToken[]`
-- `liveActivityStarts   LiveActivityStart[]`
-- `bookingPhotos        BookingPhoto[]             @relation("BookingPhotoActor")`
-- `checkinReports       CheckinItemReport[]        @relation("CheckinReports")`
-- `allowedEmailsCreated AllowedEmail[]             @relation("AllowedEmailCreator")`
-- `allowedEmailsClaimed AllowedEmail[]             @relation("AllowedEmailClaimer")`
-- `licenseCodesHeld     LicenseCode[]              @relation("LicenseClaimedBy")`
-- `licenseCodesCreated  LicenseCode[]              @relation("LicenseCreatedBy")`
-- `licenseClaims        LicenseCodeClaim[]`
-- `resources            Resource[]`
-- `resourcesVerified    Resource[]                 @relation("ResourceLastVerifiedBy")`
-- `availabilityBlocks   StudentAvailabilityBlock[]`
-- `availabilityReviewed StudentAvailabilityBlock[] @relation("AvailabilityReviewer")`
-- `travelMemberships    EventTravelMember[]        @relation("TravelMembers")`
-- `badges               StudentBadge[]`
-- `badgesAwardedByMe    StudentBadge[]             @relation("BadgeAwardedBy")`
-- `badgeStreaks         BadgeStreak[]`
-- `notificationPrefs    Json?                      @map("notification_prefs")`
-- `icsToken             String?                    @unique @map("ics_token")`
+- `id                        String                     @id @default(cuid())`
+- `name                      String`
+- `email                     String                     @unique`
+- `passwordHash              String                     @map("password_hash")`
+- `forcePasswordChange       Boolean                    @default(false) @map("force_password_change")`
+- `role                      Role`
+- `staffingType              ShiftWorkerType            @default(ST) @map("staffing_type")`
+- `active                    Boolean                    @default(true)`
+- `hiddenFromRoster          Boolean                    @default(false) @map("hidden_from_roster")`
+- `phone                     String?`
+- `personalPhone             String?                    @map("personal_phone")`
+- `workPhone                 String?                    @map("work_phone")`
+- `workPhoneNotApplicable    Boolean                    @default(false) @map("work_phone_not_applicable")`
+- `wiscardNumber             String?                    @unique @map("wiscard_number")`
+- `wiscardCardNumber         String?                    @unique @map("wiscard_card_number")`
+- `wiscardIssueCode          String?                    @map("wiscard_issue_code")`
+- `profilePromptSnoozedUntil DateTime?                  @map("profile_prompt_snoozed_until")`
+- `slackHandle               String?                    @map("slack_handle")`
+- `slackProfileUrl           String?                    @map("slack_profile_url")`
+- `avatarUrl                 String?                    @map("avatar_url")`
+- `primaryArea               ShiftArea?                 @map("primary_area")`
+- `locationId                String?                    @map("location_id")`
+- `createdAt                 DateTime                   @default(now()) @map("created_at")`
+- `updatedAt                 DateTime                   @updatedAt @map("updated_at")`
+- `lastActiveAt              DateTime?                  @map("last_active_at")`
+- `location                  Location?                  @relation(fields: [locationId], references: [id], onDelete: SetNull)`
+- `sessions                  Session[]`
+- `requested                 Booking[]                  @relation("BookingRequester")`
+- `createdBookings           Booking[]                  @relation("BookingCreator")`
+- `scanEvents                ScanEvent[]`
+- `scanSessions              ScanSession[]`
+- `overrides                 OverrideEvent[]`
+- `bulkMovements             BulkStockMovement[]`
+- `audits                    AuditLog[]                 @relation("AuditActor")`
+- `shiftAssignments          ShiftAssignment[]          @relation("ShiftAssignee")`
+- `shiftAssignedBy           ShiftAssignment[]          @relation("ShiftAssigner")`
+- `shiftGroupsPublished      ShiftGroup[]               @relation("ShiftGroupPublisher")`
+- `shiftAcknowledged         ShiftAssignment[]          @relation("ShiftAssignmentAcknowledgedBy")`
+- `sportAssignments          StudentSportAssignment[]`
+- `areaAssignments           StudentAreaAssignment[]`
+- `tradesPosted              ShiftTrade[]               @relation("TradePostedBy")`
+- `tradesClaimed             ShiftTrade[]               @relation("TradeClaimedBy")`
+- `favorites                 FavoriteItem[]`
+- `familyFavorites           FavoriteItemFamily[]`
+- `passwordResetTokens       PasswordResetToken[]`
+- `notifications             Notification[]`
+- `deviceTokens              DeviceToken[]`
+- `liveActivityTokens        LiveActivityToken[]`
+- `liveActivityStartTokens   LiveActivityStartToken[]`
+- `liveActivityStarts        LiveActivityStart[]`
+- `bookingPhotos             BookingPhoto[]             @relation("BookingPhotoActor")`
+- `checkinReports            CheckinItemReport[]        @relation("CheckinReports")`
+- `allowedEmailsCreated      AllowedEmail[]             @relation("AllowedEmailCreator")`
+- `allowedEmailsClaimed      AllowedEmail[]             @relation("AllowedEmailClaimer")`
+- `licenseCodesHeld          LicenseCode[]              @relation("LicenseClaimedBy")`
+- `licenseCodesCreated       LicenseCode[]              @relation("LicenseCreatedBy")`
+- `licenseClaims             LicenseCodeClaim[]`
+- `resources                 Resource[]`
+- `resourcesVerified         Resource[]                 @relation("ResourceLastVerifiedBy")`
+- `availabilityBlocks        StudentAvailabilityBlock[]`
+- `availabilityReviewed      StudentAvailabilityBlock[] @relation("AvailabilityReviewer")`
+- `travelMemberships         EventTravelMember[]        @relation("TravelMembers")`
+- `badges                    StudentBadge[]`
+- `badgesAwardedByMe         StudentBadge[]             @relation("BadgeAwardedBy")`
+- `badgeStreaks              BadgeStreak[]`
+- `notificationPrefs         Json?                      @map("notification_prefs")`
+- `icsToken                  String?                    @unique @map("ics_token")`
 - `title               String?`
-- `athleticsEmail      String?      @unique @map("athletics_email")`
-- `startDate           DateTime?    @map("start_date") @db.Date`
-- `directReportId      String?      @map("direct_report_id")`
-- `directReport        User?        @relation("DirectReports", fields: [directReportId], references: [id], onDelete: SetNull)`
-- `reports             User[]       @relation("DirectReports")`
-- `directReportName    String?      @map("direct_report_name")`
-- `gradYear            Int?         @map("grad_year")`
-- `studentYearOverride StudentYear? @map("student_year_override")`
-- `topSize             String?      @map("top_size")`
-- `bottomSize          String?      @map("bottom_size")`
-- `shoeSize            String?      @map("shoe_size")`
+- `athleticsEmail      String?         @unique @map("athletics_email")`
+- `startDate           DateTime?       @map("start_date") @db.Date`
+- `directReportId      String?         @map("direct_report_id")`
+- `directReport        User?           @relation("DirectReports", fields: [directReportId], references: [id], onDelete: SetNull)`
+- `reports             User[]          @relation("DirectReports")`
+- `directReportName    String?         @map("direct_report_name")`
+- `gradYear            Int?            @map("grad_year")`
+- `studentYearOverride StudentYear?    @map("student_year_override")`
+- `topSizeFit          ApparelFit?     @map("top_size_fit")`
+- `topSize             String?         @map("top_size")`
+- `bottomSize          String?         @map("bottom_size")`
+- `shoeSizeSystem      ShoeSizeSystem? @map("shoe_size_system")`
+- `shoeSize            String?         @map("shoe_size")`
 
 Indexes and constraints:
 
@@ -462,7 +478,7 @@ Indexes and constraints:
 
 ## Model `BulkSku`
 
-Fields: 28
+Fields: 29
 
 - `id                  String               @id @default(cuid())`
 - `name                String`
@@ -489,6 +505,7 @@ Fields: 28
 - `movements           BulkStockMovement[]`
 - `bookingItems        BookingBulkItem[]`
 - `scans               ScanEvent[]`
+- `products            BulkSkuProduct[]`
 - `units               BulkSkuUnit[]`
 - `kitBulkMembers      KitBulkMembership[]`
 - `favoritedBy         FavoriteItemFamily[]`
@@ -500,6 +517,28 @@ Indexes and constraints:
 - `@@index([categoryId])`
 - `@@index([departmentId])`
 - `@@map("bulk_skus")`
+
+## Model `BulkSkuProduct`
+
+Fields: 11
+
+- `id             String        @id @default(cuid())`
+- `bulkSkuId      String        @map("bulk_sku_id")`
+- `name           String`
+- `normalizedName String        @map("normalized_name")`
+- `brand          String`
+- `model          String?`
+- `active         Boolean       @default(true)`
+- `createdAt      DateTime      @default(now()) @map("created_at")`
+- `updatedAt      DateTime      @updatedAt @map("updated_at")`
+- `bulkSku        BulkSku       @relation(fields: [bulkSkuId], references: [id], onDelete: Cascade)`
+- `units          BulkSkuUnit[]`
+
+Indexes and constraints:
+
+- `@@unique([bulkSkuId, normalizedName])`
+- `@@index([bulkSkuId, active])`
+- `@@map("bulk_sku_products")`
 
 ## Model `BulkStockBalance`
 
@@ -547,10 +586,11 @@ Indexes and constraints:
 
 ## Model `BulkSkuUnit`
 
-Fields: 12
+Fields: 14
 
 - `id                String                      @id @default(cuid())`
 - `bulkSkuId         String                      @map("bulk_sku_id")`
+- `productId         String?                     @map("product_id")`
 - `unitNumber        Int                         @map("unit_number")`
 - `status            BulkUnitStatus              @default(AVAILABLE)`
 - `notes             String?`
@@ -560,6 +600,7 @@ Fields: 12
 - `createdAt         DateTime                    @default(now()) @map("created_at")`
 - `updatedAt         DateTime                    @updatedAt @map("updated_at")`
 - `bulkSku           BulkSku                     @relation(fields: [bulkSkuId], references: [id], onDelete: Cascade)`
+- `product           BulkSkuProduct?             @relation(fields: [productId], references: [id], onDelete: SetNull)`
 - `allocations       BookingBulkUnitAllocation[]`
 
 Indexes and constraints:
@@ -567,6 +608,7 @@ Indexes and constraints:
 - `@@unique([bulkSkuId, unitNumber])`
 - `@@index([bulkSkuId, status])`
 - `@@index([bulkSkuId, labelPrintedAt])`
+- `@@index([productId])`
 - `@@map("bulk_sku_units")`
 
 ## Model `BookingBulkUnitAllocation`

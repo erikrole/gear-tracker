@@ -63,6 +63,7 @@ import { formatDateFull } from "@/lib/format";
 import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { useUrlState } from "@/hooks/use-url-state";
+import { ProfileCompletionNotice } from "@/components/profile-completion/ProfileCompletionNotice";
 
 /* ── Tab Definitions ───────────────────────────────────── */
 
@@ -796,6 +797,8 @@ export default function UserDetailPage() {
           </div>
         </div>
       </div>
+
+      {isSelf && <ProfileCompletionNotice />}
 
       {/* Password Reset Dialog */}
       <AlertDialog open={resetPwDialog || !!tempPassword} onOpenChange={(open) => {

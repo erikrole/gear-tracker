@@ -8,6 +8,7 @@ import {
 } from "@/lib/schedule-event-identity";
 import { SPORT_CODES } from "@/lib/sports";
 import { sortVenueMappings, venueMappingMatches } from "@/lib/venue-mapping-contract";
+import { normalizeScheduledEventTitle } from "@/lib/title-normalization";
 
 /** Max events per createMany / update batch */
 export const WRITE_CHUNK_SIZE = 500;
@@ -455,7 +456,7 @@ export function splitEventsForSync(
         }
       }
 
-      const cleaned = cleanSummary(event.summary);
+      const cleaned = normalizeScheduledEventTitle(cleanSummary(event.summary));
       const { sportCode, opponent, isHome: extractedIsHome } = extractSportInfo(cleaned);
       let isHome = extractedIsHome;
 

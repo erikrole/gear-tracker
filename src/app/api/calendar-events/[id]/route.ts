@@ -12,6 +12,7 @@ import { normalizeOpponentName, normalizeVenueText } from "@/lib/schedule-event-
 import { nullableSportCodeSchema } from "@/lib/validation";
 import { isHomeFromVenueTone, VENUE_TONE_VALUES } from "@/lib/venue-tone";
 import { z } from "zod";
+import { normalizeScheduledEventTitle } from "@/lib/title-normalization";
 
 const patchSchema = z
   .object({
@@ -104,16 +105,16 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       const derived = existing.rawSummary
         ? cleanSummary(existing.rawSummary)
         : existing.summary;
-      patch.summary = derived;
+      patch.summary = normalizeScheduledEventTitle(derived);
       patch.summaryLocked = false;
-      after.summary = derived;
+      after.summary = patch.summary;
       after.summaryLocked = false;
     } else if (body.summary !== undefined) {
       before.summary = existing.summary;
       before.summaryLocked = existing.summaryLocked;
-      patch.summary = body.summary.trim();
+      patch.summary = normalizeScheduledEventTitle(body.summary);
       patch.summaryLocked = true;
-      after.summary = body.summary.trim();
+      after.summary = patch.summary;
       after.summaryLocked = true;
     }
 

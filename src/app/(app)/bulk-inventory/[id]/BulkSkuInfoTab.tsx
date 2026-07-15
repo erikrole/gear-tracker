@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, X, ExternalLink } from "lucide-react";
+import { Check, X, ExternalLink, QrCode } from "lucide-react";
 import { useInvalidateItemCatalog } from "@/hooks/use-item-cache-invalidation";
 import { Spinner } from "@/components/ui/spinner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { NativeSelect } from "@/components/ui/native-select";
+import { Button } from "@/components/ui/button";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { useSaveField } from "@/components/SaveableField";
 import type { BulkSkuDetail } from "./types";
@@ -68,10 +69,12 @@ export function BulkSkuInfoTab({
   sku,
   canEdit,
   onFieldSaved,
+  onManageQr,
 }: {
   sku: BulkSkuDetail;
   canEdit: boolean;
   onFieldSaved: (partial: Partial<BulkSkuDetail>) => void;
+  onManageQr: () => void;
 }) {
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const invalidateItemCatalog = useInvalidateItemCatalog();
@@ -217,17 +220,15 @@ export function BulkSkuInfoTab({
 
         <InfoSection title="Identification">
           <InfoRow label="QR code">
-            {canEdit ? (
-              <EditableText
-                value={sku.binQrCodeValue}
-                id="bulk-sku-bin-qr-code"
-                name="binQrCodeValue"
-                onSave={(v) => patchField("binQrCodeValue", v)}
-                mono
-              />
-            ) : (
-              <span className="text-sm font-mono">{sku.binQrCodeValue}</span>
-            )}
+            <div className="flex items-center justify-end gap-2">
+              <span className="truncate font-mono text-sm">{sku.binQrCodeValue}</span>
+              {canEdit && (
+                <Button type="button" variant="outline" size="sm" onClick={onManageQr}>
+                  <QrCode className="size-3.5" aria-hidden="true" />
+                  Manage
+                </Button>
+              )}
+            </div>
           </InfoRow>
         </InfoSection>
 

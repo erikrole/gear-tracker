@@ -13,12 +13,12 @@
 | `src/lib/services/booking-rules.ts` | 107 |
 | `src/lib/services/bookings-checkin.ts` | 802 |
 | `src/lib/services/bookings-helpers.ts` | 251 |
-| `src/lib/services/bookings-lifecycle.ts` | 1439 |
+| `src/lib/services/bookings-lifecycle.ts` | 1443 |
 | `src/lib/services/bookings-queries.ts` | 235 |
 | `src/lib/services/bookings.ts` | 4 |
 | `src/lib/services/bulk-unit-scans.ts` | 608 |
 | `src/lib/services/calendar-sync-health.ts` | 165 |
-| `src/lib/services/calendar-sync.ts` | 764 |
+| `src/lib/services/calendar-sync.ts` | 765 |
 | `src/lib/services/candidate-scoring.ts` | 407 |
 | `src/lib/services/checkout-policies.ts` | 32 |
 | `src/lib/services/dashboard-counts.ts` | 116 |
@@ -108,6 +108,7 @@
 | `src/lib/image-search-modal.ts` | 59 |
 | `src/lib/image-search.ts` | 239 |
 | `src/lib/item-asset-tag-sort.ts` | 196 |
+| `src/lib/item-family-products.ts` | 14 |
 | `src/lib/item-family-state.ts` | 75 |
 | `src/lib/live-activity-workflow.ts` | 29 |
 | `src/lib/local-traces.ts` | 28 |
@@ -117,7 +118,9 @@
 | `src/lib/observability.ts` | 19 |
 | `src/lib/operational-health.ts` | 50 |
 | `src/lib/ops-checks.ts` | 176 |
-| `src/lib/permissions.ts` | 166 |
+| `src/lib/permissions.ts` | 167 |
+| `src/lib/profile-completion-events.ts` | 6 |
+| `src/lib/profile-completion.ts` | 84 |
 | `src/lib/public-showroom.ts` | 444 |
 | `src/lib/query-client.ts` | 58 |
 | `src/lib/rate-limit.ts` | 176 |
@@ -148,10 +151,11 @@
 | `src/lib/student-availability.ts` | 189 |
 | `src/lib/theme.ts` | 145 |
 | `src/lib/time.ts` | 28 |
+| `src/lib/title-normalization.ts` | 30 |
 | `src/lib/url-sync.ts` | 16 |
 | `src/lib/user-visibility.ts` | 45 |
 | `src/lib/utils.ts` | 7 |
-| `src/lib/validation.ts` | 550 |
+| `src/lib/validation.ts` | 570 |
 | `src/lib/venue-mapping-audit.ts` | 56 |
 | `src/lib/venue-mapping-contract.ts` | 46 |
 | `src/lib/venue-tone.ts` | 92 |
@@ -234,7 +238,11 @@
 - `/api/bulk-skus/[id]/convert-to-numbered`
 - `/api/bulk-skus/[id]/favorite`
 - `/api/bulk-skus/[id]/image`
+- `/api/bulk-skus/[id]/products/[productId]`
+- `/api/bulk-skus/[id]/products`
+- `/api/bulk-skus/[id]/qr-code`
 - `/api/bulk-skus/[id]`
+- `/api/bulk-skus/[id]/units/[unitNumber]/product`
 - `/api/bulk-skus/[id]/units/[unitNumber]`
 - `/api/bulk-skus/[id]/units/labels`
 - `/api/bulk-skus/[id]/units`
@@ -401,6 +409,7 @@
 - `/api/me/account`
 - `/api/me/change-password`
 - `/api/me/notification-preferences`
+- `/api/me/profile-completion`
 - `/api/me/profile`
 - `/api/me`
 - `/api/me/sessions/[id]`

@@ -30,6 +30,7 @@ import {
   updateCheckoutReturnLiveActivities,
 } from "./live-activities";
 import { scheduleCheckoutReturnLiveActivity } from "@/lib/live-activity-workflow";
+import { normalizeBookingTitle } from "@/lib/title-normalization";
 
 type CreateBookingInput = {
   kind: BookingKind;
@@ -300,10 +301,11 @@ export async function createBooking(input: CreateBookingInput) {
       const prefix = input.kind === BookingKind.CHECKOUT ? "CO" : "RV";
       const refNumber = await nextBookingRef(tx, prefix);
 
+      const title = normalizeBookingTitle(input.title);
       const booking = await tx.booking.create({
         data: {
           kind: input.kind,
-          title: input.title,
+          title,
           refNumber,
           requesterUserId: input.requesterUserId,
           locationId: input.locationId,
@@ -478,7 +480,7 @@ export async function createBooking(input: CreateBookingInput) {
         action: "created",
         after: {
           kind: input.kind,
-          title: input.title,
+          title,
           startsAt: input.startsAt,
           endsAt: input.endsAt,
           serializedAssetIds: resolvedSerializedAssetIds,
@@ -601,10 +603,11 @@ export async function updateReservation(
         }
       }
 
+      const title = updates.title === undefined ? undefined : normalizeBookingTitle(updates.title);
       await tx.booking.update({
         where: { id: bookingId },
         data: {
-          title: updates.title,
+          title,
           requesterUserId: updates.requesterUserId,
           locationId: nextLocationId,
           startsAt: nextStartsAt,
@@ -670,7 +673,7 @@ export async function updateReservation(
 
       // General "updated" entry for non-equipment fields
       const fieldChanges: AuditJson = {};
-      if (updates.title && updates.title !== existing.title) fieldChanges.title = updates.title;
+      if (title && title !== existing.title) fieldChanges.title = title;
       if (updates.notes !== undefined && updates.notes !== existing.notes) fieldChanges.notes = updates.notes ?? null;
       if (updates.startsAt && updates.startsAt.toISOString() !== existing.startsAt.toISOString()) fieldChanges.startsAt = updates.startsAt.toISOString();
       if (updates.endsAt && updates.endsAt.toISOString() !== existing.endsAt.toISOString()) fieldChanges.endsAt = updates.endsAt.toISOString();
@@ -942,10 +945,11 @@ export async function updateCheckout(
         }
       }
 
+      const title = updates.title === undefined ? undefined : normalizeBookingTitle(updates.title);
       await tx.booking.update({
         where: { id: bookingId },
         data: {
-          title: updates.title,
+          title,
           endsAt: nextEndsAt,
           notes: updates.notes
         }
@@ -1080,7 +1084,7 @@ export async function updateCheckout(
       );
 
       const fieldChanges: AuditJson = {};
-      if (updates.title && updates.title !== existing.title) fieldChanges.title = updates.title;
+      if (title && title !== existing.title) fieldChanges.title = title;
       if (updates.notes !== undefined && updates.notes !== existing.notes) fieldChanges.notes = updates.notes ?? null;
       if (updates.endsAt && updates.endsAt.toISOString() !== existing.endsAt.toISOString()) fieldChanges.endsAt = updates.endsAt.toISOString();
 

@@ -3,7 +3,7 @@
 ## Document Control
 
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-11
+- Last Updated: 2026-07-15
 - Status: Active registry
 - Purpose: Track only open gaps, pending decisions, active risks, and intentionally deferred scope.
 - Historical record: [GAPS_AND_RISKS_HISTORY.md](archive/GAPS_AND_RISKS_HISTORY.md)
@@ -20,6 +20,7 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 | GAP-34 | iOS Bookings list lacks the status scope filters and column sorting available on web | AREA_MOBILE | Expected | iOS currently uses `activeOnly: true`, which is acceptable for the V1 student bar. Power-user parity remains deferred. Source: `tasks/audit-bookings-ios.md`. |
 | GAP-36 | iOS Item detail does not expose AC-8 admin actions: Duplicate, Retire, Delete, and Needs Maintenance | AREA_MOBILE | Expected | These destructive and lifecycle actions remain web-only by design for V1. Track staff-mobile parity separately from student operational work. Source: `tasks/audit-items-ios.md`. |
 | GAP-59 | Firmware watch does not cover every live camera body | AREA_ITEMS | Expected | The inventory-driven seed covers verified Sony pages. DJI, GoPro, Insta360, and JVC remain deferred until official-source adapters exist for each vendor's page format. Source: `tasks/firmware-watch-inventory-report.md`. |
+| GAP-60 | The physical Watson/GVM split inside the 14-count Monitor Battery stock is not recorded | AREA_BULK_INVENTORY | Blocked | Product-aware family support and a guarded consolidation script are implemented locally. Live consolidation refuses to run until staff confirms the Watson NP-F770 count, GVM count, and exact GVM model. Source: `tasks/monitor-battery-product-family-plan.md`. |
 
 ## Deferred Product Scope
 

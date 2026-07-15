@@ -17,6 +17,7 @@ describe("asset QR code generation", () => {
     for (const file of [
       "src/app/api/assets/[id]/generate-qr/route.ts",
       "src/app/api/assets/[id]/duplicate/route.ts",
+      "src/app/api/bulk-skus/[id]/qr-code/route.ts",
       "src/app/(app)/items/new-item-sheet/helpers.ts",
     ]) {
       const source = readFileSync(file, "utf8");

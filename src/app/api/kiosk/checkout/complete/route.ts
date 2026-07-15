@@ -12,6 +12,7 @@ import { checkAvailability, type AvailabilityResult } from "@/lib/services/avail
 import { parseDateRange } from "@/lib/time";
 import { badges } from "@/lib/badges";
 import { scheduleCheckoutReturnLiveActivity } from "@/lib/live-activity-workflow";
+import { normalizeBookingTitle } from "@/lib/title-normalization";
 
 function hasBlockingAvailabilityIssue(result: AvailabilityResult) {
   return result.conflicts.length > 0 || result.shortages.length > 0 || result.unavailableAssets.length > 0;
@@ -104,10 +105,11 @@ export const POST = withKiosk(async (req, { kiosk }) => {
           body.endsAt ?? defaultEndsAt.toISOString(),
         );
 
-        const title = event?.summary ?? customPurpose;
-        if (!title) {
+        const rawTitle = event?.summary ?? customPurpose;
+        if (!rawTitle) {
           throw new HttpError(400, "Select an event or enter what this checkout is for");
         }
+        const title = normalizeBookingTitle(rawTitle);
         // The pickup kiosk is captured on `pickupKioskDeviceId`, so we no longer
         // duplicate it as a note. Keep only a real user-entered purpose.
         const notes = event && customPurpose ? `Purpose: ${customPurpose}` : null;

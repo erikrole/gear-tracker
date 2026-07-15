@@ -25,3 +25,13 @@
 - Shipped: active unit totals exclude retired records; item-family detail now leads with operational inventory, explains retired records, groups metadata, contains the header, and enlarges unit/editor controls.
 - Verified: 27 focused tests passed; focused ESLint and TypeScript passed; migration-prefix check passed; docs/codemap verification passed; `git diff --check` passed; `npm run build:app` compiled all 197 static pages and the item-family routes successfully.
 - Deferred: authenticated visual smoke. The local runtime redirected correctly to `/login`, but no dedicated local test identity is configured. Production still shows the old UI until these code changes are deployed.
+
+## QR replacement follow-up - 2026-07-15
+- [x] Replace the unsafe inline QR edit with a clear Manage action and dedicated QR workspace.
+- [x] Support both generated replacement codes and scanned/manual replacement values.
+- [x] Warn that changing the family code invalidates the bin label and every derived unit label without changing unit records.
+- [x] Enforce case-insensitive scan-identity uniqueness across item-family codes and serialized QR, primary scan, and asset-tag values.
+- [x] Write the QR replacement and its before/after values into the audit trail atomically.
+- [x] Verify focused tests, TypeScript, lint, build, docs, and the authenticated interaction path where available.
+
+QR replacement proof: 33 focused tests passed across replacement, generation format, item-family updates, derived unit QR parsing, and Brother label export. Focused ESLint, TypeScript, docs verification, migration-prefix checks, `git diff --check`, and `npm run build:app` passed. The local route compiled and redirected to `/login`; the reset confirmation remains visually unverified because no authenticated local test identity is configured.

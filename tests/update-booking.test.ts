@@ -154,6 +154,25 @@ describe("updateReservation", () => {
     );
   });
 
+  it("normalizes reservation titles before storing and auditing them", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingReservation());
+
+    await updateReservation("r-1", "actor-1", { title: "wbb PRACTICE" });
+
+    expect(mockTx.booking.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ title: "WBB Practice" }),
+      }),
+    );
+    expect(mockTx.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          afterJson: expect.objectContaining({ title: "WBB Practice" }),
+        }),
+      }),
+    );
+  });
+
   it("does not check availability or rebuild equipment when only reservation details change", async () => {
     mockTx.booking.findUnique.mockResolvedValue(makeExistingReservation());
 
@@ -315,6 +334,18 @@ describe("updateCheckout", () => {
         where: { id: "c-1" },
         data: expect.objectContaining({ title: "New Title", endsAt: newEnd }),
       })
+    );
+  });
+
+  it("normalizes checkout titles before storing them", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout());
+
+    await updateCheckout("c-1", "actor-1", { title: "MBB GOLF" });
+
+    expect(mockTx.booking.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ title: "MBB Golf" }),
+      }),
     );
   });
 

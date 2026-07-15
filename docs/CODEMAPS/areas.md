@@ -15,7 +15,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 
 - Doc: `docs/AREA_BULK_INVENTORY.md`
 - Pages: `/bulk-inventory/[id]`, `/bulk-inventory/batteries`, `/bulk-inventory`
-- APIs: `/api/bulk-skus/[id]/activity`, `/api/bulk-skus/[id]/adjust`, `/api/bulk-skus/[id]/convert-to-numbered`, `/api/bulk-skus/[id]/favorite`, `/api/bulk-skus/[id]/image`, `/api/bulk-skus/[id]`, `/api/bulk-skus/[id]/units/[unitNumber]`, `/api/bulk-skus/[id]/units/labels`, `/api/bulk-skus/[id]/units`, `/api/bulk-skus/batteries/repair-stale`
+- APIs: `/api/bulk-skus/[id]/activity`, `/api/bulk-skus/[id]/adjust`, `/api/bulk-skus/[id]/convert-to-numbered`, `/api/bulk-skus/[id]/favorite`, `/api/bulk-skus/[id]/image`, `/api/bulk-skus/[id]/products/[productId]`, `/api/bulk-skus/[id]/products`, `/api/bulk-skus/[id]/qr-code`, `/api/bulk-skus/[id]`, `/api/bulk-skus/[id]/units/[unitNumber]/product`
 - Services: _none matched_
 - Tests: _none matched_
 
@@ -167,6 +167,6 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 
 - Doc: `docs/AREA_USERS.md`
 - Pages: `/profile`, `/settings/allowed-emails`, `/settings/profile`, `/users/[id]`, `/users/onboarding-status`, `/users/org-chart`, `/users`
-- APIs: `/api/allowed-emails/[id]`, `/api/allowed-emails/preview`, `/api/allowed-emails`, `/api/kiosk/users`, `/api/me/profile`, `/api/profile`, `/api/users/[id]/activity`, `/api/users/[id]/availability/[blockId]`, `/api/users/[id]/availability`, `/api/users/[id]/avatar`
+- APIs: `/api/allowed-emails/[id]`, `/api/allowed-emails/preview`, `/api/allowed-emails`, `/api/kiosk/users`, `/api/me/profile-completion`, `/api/me/profile`, `/api/profile`, `/api/users/[id]/activity`, `/api/users/[id]/availability/[blockId]`, `/api/users/[id]/availability`
 - Services: `src/lib/services/hidden-users-cleanup.ts`, `src/lib/services/onboarding-lifecycle.ts`
-- Tests: `tests/allowed-emails-preview.test.ts`, `tests/allowed-emails.test.ts`, `tests/hidden-users-cleanup.test.ts`, `tests/ios-notification-categories-profile.test.ts`, `tests/onboarding-dialog-source.test.ts`, `tests/onboarding-lifecycle.test.ts`, `tests/onboarding-status-page-source.test.ts`, `tests/settings-allowed-emails-display.test.ts`
+- Tests: `tests/allowed-emails-preview.test.ts`, `tests/allowed-emails.test.ts`, `tests/hidden-users-cleanup.test.ts`, `tests/ios-notification-categories-profile.test.ts`, `tests/onboarding-dialog-source.test.ts`, `tests/onboarding-lifecycle.test.ts`, `tests/onboarding-status-page-source.test.ts`, `tests/profile-completion-route.test.ts`

@@ -3,6 +3,19 @@
 Last updated: 2026-07-15
 
 ---
+## Completed: Booking and Schedule title normalization (2026-07-15)
+
+- [x] Preserve canonical UW sport codes such as `MBB` and `WBB` in uppercase.
+- [x] Normalize ordinary booking-title words across reservation, draft, shared edit, and kiosk write paths.
+- [x] Keep title connectors lowercase and intentional camel-case names intact.
+- [x] Add focused utility, persistence, and audit regression coverage.
+- [x] Apply the same rule to manual, edited, restored, and ICS-synced scheduled events while retaining raw source summaries.
+
+### Review
+
+- **Shipped:** New and edited booking titles plus manual and synced scheduled-event titles now store one normalized display value, so Schedule, booking autofill, lists, detail, notifications, search, exports, and audit history agree. Examples: `MBB practice` becomes `MBB Practice`; `MBB GOLF` becomes `MBB Golf`; `MBB vs IOWA` becomes `MBB vs Iowa`.
+- **Boundary:** Existing stored bookings and events are not silently rewritten by a read. They normalize the next time their title is edited; synced events also normalize on their next source update. A separate reviewed backfill would be required to rewrite all historical records in bulk.
+
 ## Completed: Native iOS Guides repair, reader polish, and Licenses polish (2026-07-15)
 
 - [x] Restore full guide reading after the Resources list-payload slimming.
@@ -1483,6 +1496,24 @@ Plan: align `/reservations/new` equipment selection with server availability win
 
 ### Review
 - 2026-06-26: Reservation equipment future-return selection shipped locally. The shared picker and scan-to-add path now allow serialized gear currently held by someone else only when the holder's due-back time is at least 60 minutes before the requested reservation start; tighter handoffs, overlapping allocations, and terminal item states stay blocked. Server availability now applies the same 60-minute serialized turnaround buffer, so submit-time conflict checks match the picker. Verification passed with focused availability/picker/booking UX tests, TypeScript, docs/codemap check, whitespace diff check, and `npm run build:app`.
+
+---
+
+## Active: Monitor Battery multi-product family (2026-07-15)
+
+Plan: `tasks/monitor-battery-product-family-plan.md`
+
+- [x] Extend D-022 and the schema so one numbered family can contain multiple branded products.
+- [x] Add audited product create/edit/archive and exact-unit product assignment routes.
+- [x] Add product management, counts, add-unit product selection, and unit assignment to item-family detail.
+- [x] Add a dry-run-first consolidation script with live state guards and physical-map requirements.
+- [x] Add focused product, assignment, schema, QR, label, and item-family tests.
+- [ ] Apply migrations `0092` and `0093` in order after the existing profile migration is ready.
+- [ ] Confirm the physical split of the 14 current Monitor Battery units: Watson NP-F770 count, GVM count, and exact GVM model.
+- [ ] Run the guarded consolidation apply, reprint `bdf15b57-1` through `bdf15b57-18`, and verify authenticated item-family and kiosk scan behavior.
+
+### Review
+- 2026-07-15: Local product-family support is implemented. The read-only consolidation preflight found the expected 14-count Monitor Battery family, four-unit Watson NP-F550 family, and history-free serialized BA-001 duplicate, with no GVM database records and no state blockers. Live mutation remains blocked on the physical Watson/GVM map and the pre-existing pending `0092_profile_completion_fields` migration.
 
 ---
 

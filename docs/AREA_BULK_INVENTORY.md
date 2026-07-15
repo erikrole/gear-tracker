@@ -24,6 +24,7 @@ Operate item families backed by `BulkSku` records. Normal discovery happens in `
 11. Numbered battery available quantity derives from effective unit status: active `BookingBulkUnitAllocation` rows make a unit checked out, `LOST` and `RETIRED` remain unavailable, and orphaned raw `CHECKED_OUT` flags with no active allocation read as available. Orphaned flags are also claimable — kiosk checkout/add/bind paths accept them through the shared `CLAIMABLE_BULK_UNIT_WHERE` guard and self-heal the flag on claim; the repair-stale tool remains for bulk cleanup and reporting hygiene.
 12. Quantity-only available quantity derives from current `BulkStockBalance.onHandQuantity`; checkout creation, pending pickup, cancellation, and return paths move that balance through audited stock movements, so read models must not subtract active checkout quantities again.
 13. Unit-tracked active inventory totals exclude `RETIRED` records. Retired unit numbers remain visible for labels and audit history, but availability denominators, item-list summaries, exports, and picker-facing on-hand totals count only AVAILABLE, CHECKED_OUT, and LOST units.
+14. A unit-tracked family may contain multiple interchangeable branded products. `BulkSkuProduct` stores product identity and `BulkSkuUnit.productId` assigns the exact product to a permanent unit without changing the family booking line, status, allocation, or QR sequence.
 
 ## Routes
 
@@ -72,6 +73,8 @@ Operate item families backed by `BulkSku` records. Normal discovery happens in `
 - `BulkStockBalance` — bulk SKU FK, location FK, onHandQuantity, timestamps (aggregate per SKU per location)
 - `BulkStockMovement` — bulk SKU FK, location FK, quantity change (positive/negative), reason (ADDED / CHECKED_OUT / RETURNED / LOST / RETIRED), timestamps (audit trail)
 - `BulkSkuUnit` — bulk SKU FK, unitNumber (sequential), status (AVAILABLE / CHECKED_OUT / LOST / RETIRED), notes, timestamps (only exists if trackByNumber = true)
+- `BulkSkuProduct` — family FK, unique normalized product name within the family, brand, optional model, active state, and timestamps
+- `BulkSkuUnit.productId` — optional exact-product assignment with `ON DELETE SET NULL`; product archiving preserves assigned unit identity and history
 - `BookingBulkItem` — booking FK, bulk SKU FK, quantity, timestamps
 - `BookingBulkUnitAllocation` — bulk SKU unit FK, booking bulk item FK, timestamps (links unit to booking)
 
@@ -79,7 +82,9 @@ Operate item families backed by `BulkSku` records. Normal discovery happens in `
 - Quantity-only SKUs scan by `BulkSku.binQrCodeValue` and prompt for quantity.
 - Numbered SKUs scan by `BulkSku.binQrCodeValue` to open the unit picker, or by `{binQrCodeValue}-{unitNumber}` to submit one specific unit directly.
 - Unit QR values are derived; there is no separate QR field on `BulkSkuUnit` in V1.
+- Product assignment is not part of QR identity. `Monitor Battery #12` keeps `{binQrCodeValue}-12` when its Watson or GVM product metadata changes.
 - Kiosk pickup and check-in accept derived numbered unit QR values so batteries are physically scanned one by one.
+- Staff and admins can replace a bad family QR with a generated code or a scanned/manual value from the detail QR tab. Replacement requires confirmation because the old bin label and all derived unit labels stop resolving immediately; unit numbers, inventory state, custody, and history remain unchanged. The mutation rejects case-insensitive collisions across item-family codes and serialized-item QR, primary scan, and asset-tag identities, and records the before/after values in the audit trail.
 - Kiosk checkout detail responses mark numbered battery rows with type/SKU/unit metadata and include scan-summary counts so the iOS kiosk can separate battery-unit scan progress from generic item progress.
 
 **Brother label CSV + printed-label tracking:**
@@ -98,6 +103,18 @@ Operate item families backed by `BulkSku` records. Normal discovery happens in `
 **GET `/api/bulk-skus/[id]/units`**
 - Returns: `{ data: BulkSkuUnit[], total: number }`
 - Used for lazy-loading unit details when expanding a SKU row
+
+**GET/POST `/api/bulk-skus/[id]/products`**
+- Lists all family products and assigned-unit counts, or creates a product for a unit-tracked family.
+- Product names are normalized for family-scoped uniqueness; create writes the product and audit entry in one serializable transaction.
+
+**PATCH `/api/bulk-skus/[id]/products/[productId]`**
+- Edits name, brand, model, or active state without deleting assigned units.
+- Archived products remain readable on assigned units but cannot be assigned to more units until restored.
+
+**PATCH `/api/bulk-skus/[id]/units/[unitNumber]/product`**
+- Assigns an active product from the same family or clears the assignment.
+- Writes the previous and next product identity to the audit trail in the same serializable transaction.
 
 **POST `/api/bulk-skus`**
 - Body: `{ name, categoryId, unit, binQrCodeValue, minThreshold, locationId }`
@@ -176,8 +193,12 @@ See `AREA_ITEMS.md` 2026-04-06 entry for bulk inventory page hardening:
 - [x] AC-8: Staff can export a Brother P-Touch label CSV (`item_number,qr_code`) for a numbered SKU and mark the exported labels printed, with printed-label state visible per card and per unit and surviving refresh
 - [x] AC-9: Item-family detail edits and unit/image mutations invalidate `/items` catalog caches and participate in the shared item-change signal so Back navigation and open detail views converge without manual refresh.
 - [x] AC-10: Unit-tracked item-family summaries exclude retired records from active inventory totals while preserving retired unit numbers, label state, and audit visibility.
+- [x] AC-11: Staff and admins can replace a bad item-family QR with a generated or manually scanned value through a confirmed, collision-safe, audited mutation that preserves inventory and unit identity while clearly requiring label reprints.
+- [x] AC-12: A numbered item family can define multiple branded products, assign one product to each permanent unit, show product counts and identity in the unit workspace, and keep one booking line and derived QR sequence.
 
 ## Change Log
+- 2026-07-15: **Multi-product item families.** Added family-scoped product records with normalized uniqueness, optional per-unit product assignment, audited product create/edit/archive and unit assignment routes, product-aware add-unit controls, product counts, and unit-grid product identity. QR values remain `{family QR}-{unit number}` and reservations continue to request one family quantity. A guarded Monitor Battery consolidation script defaults to dry run and refuses apply until the physical Watson/GVM split and actor are supplied.
+- 2026-07-15: **Item-family QR replacement recovery.** The detail Identity section now routes staff/admin operators to a dedicated QR workspace with `Reset with new code` and scanned/manual replacement options. Both paths require confirmation that the current bin label and all `{binQrCodeValue}-{unitNumber}` labels will stop resolving, while inventory counts, unit numbers, custody, and history stay intact. The dedicated serializable mutation checks case-insensitive collisions against other item families plus serialized QR, primary scan, and asset-tag identities, retries generated collisions, and writes before/after QR values into the same transaction's audit entry. The numbered QR preview remains available for label verification.
 - 2026-07-15: **Item-family detail ownership pass.** Active inventory totals now exclude retired numbered records across the shared item-family state helper, so Sony Battery reports 47 available out of 49 active units while keeping units 50-52 visible as three retired records. The detail page now leads with operational inventory truth, label readiness, and the retired-record rule; metadata is grouped into a quieter secondary column; the header is contained and shows active stock; unit controls distinguish active units from numbered records and use larger interaction targets. Focused state/route tests, TypeScript, lint, and app build cover the change; authenticated local visual proof remains unavailable without a configured local test identity.
 - 2026-07-10: **Bulk SKU detail visual polish.** Unit-count values in the overview card drop forced mono for standard tabular numerals. Visual only.
 - 2026-07-10: **Battery Ops operational status rail.** Missing units, low families, stale flags, and checked-out units now use the shared prioritized rail; available, checked-out, missing, retired, and low-family totals remain under Details without changing effective-status or repair behavior.

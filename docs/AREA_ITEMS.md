@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-10
+- Last Updated: 2026-07-15
 - Status: Active
 - Version: V1
 
@@ -28,6 +28,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
    - `STUDENT` can view all items, no item edit rights.
 9. Metadata enrichment from external product URLs is not supported in V1.
 10. Camera-tied SD cards, cages, and fixed camera parts are tracked as item attachments when they should travel with the parent camera and not be individually checked out.
+11. One unit-tracked family may contain multiple interchangeable branded products. The family remains the one catalog and reservation row; product identity belongs to each numbered physical unit.
 
 ## V1 Workflow
 
@@ -381,7 +382,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 ## Unit-Tracked Item Families
 
 ### Overview
-Item families can optionally enable `trackByNumber` on the backing `BulkSku` implementation record to assign individually numbered units (e.g., Battery #1-#40) under one parent bin QR. Unit QR values are derived from that parent QR plus the unit number, so physical labels can show only the unit number while scans still resolve a specific unit.
+Item families can optionally enable `trackByNumber` on the backing `BulkSku` implementation record to assign individually numbered units (e.g., Battery #1-#40) under one parent bin QR. Unit QR values are derived from that parent QR plus the unit number, so physical labels can show only the unit number while scans still resolve a specific unit. Family-scoped products can identify the Watson, GVM, or other product assigned to each unit without splitting the catalog row or QR sequence.
 
 ### Creation
 1. Staff toggle "Track by number" during item-family creation.
@@ -403,6 +404,8 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 
 ### Data Model
 - `BulkSkuUnit`: numbered unit with status, linked to BulkSku (cascade delete)
+- `BulkSkuProduct`: product identity beneath one BulkSku, with family-scoped normalized-name uniqueness
+- `BulkSkuUnit.productId`: optional exact-product assignment; product ranges are never inferred from unit numbers
 - `BookingBulkUnitAllocation`: links specific units to bookings with checkout/checkin timestamps
 - `trackByNumber` boolean on BulkSku determines behavior branching
 
@@ -428,6 +431,7 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-07-15: Unit-tracked families can now contain multiple branded products while remaining one Items row and one reservation line. Item-family detail owns product creation, archive/restore, assigned-unit counts, add-unit product selection, and exact per-unit product assignment.
 - 2026-07-12: **Inventory Hygiene merged into `/operations`.** The standalone `/items/hygiene` page is now a redirect; its checks render as the staff-visible "Keep data clean" lane on the consolidated Operations page, sharing one status rail and check-card vocabulary with the former admin Fix Today queue. The duplicated `low-bulk-stock` check is dropped at normalize time (Fix Today's `low-batteries` check and Battery Ops own that signal). `GET /api/inventory-hygiene` and all repair links are unchanged. See `tasks/ops-consolidation-plan.md`.
 - 2026-07-12: **Image write hardening + thumbnail optimization.** Asset and bulk-SKU image writes (upload, URL mirror) now share a per-user `image-mutation` rate limit (60/hour), update the database before deleting the previous blob (deleting first left records pointing at dead URLs on update failure), and delete the freshly uploaded blob when the record update fails. Blob pathname extensions derive from the validated MIME type via shared `imageExtensionForType` instead of the client-controlled filename. Item thumbnails (`AssetImage`, `ItemThumbnailStack`, item-detail header) now use the next/image optimizer for blob-hosted images (matching the check-in condition-photo behavior) and stay `unoptimized` only for legacy external URLs pending the rehost cron. Regression guards: `tests/asset-image-route.test.ts`, `tests/asset-image.test.ts`.
 - 2026-07-10: **New-item sheet label polish.** Summary row labels unify to the sanctioned small-uppercase label style. Visual only.

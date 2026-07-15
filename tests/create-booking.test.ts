@@ -146,6 +146,23 @@ describe("createBooking", () => {
     );
   });
 
+  it("normalizes the stored title while preserving sport codes", async () => {
+    await createBooking(baseInput({ title: "mbb PRACTICE" }));
+
+    expect(mockTx.booking.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ title: "MBB Practice" }),
+      }),
+    );
+    expect(mockTx.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          afterJson: expect.objectContaining({ title: "MBB Practice" }),
+        }),
+      }),
+    );
+  });
+
   it("generates ref number with CO- prefix for checkout", async () => {
     await createBooking(baseInput({ kind: "CHECKOUT" }));
     expect(mockTx.booking.create).toHaveBeenCalledWith(

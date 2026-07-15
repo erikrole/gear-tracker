@@ -59,6 +59,8 @@ Audit files intentionally remain at root for now because the repo audit skills r
 ## Recently Archived
 
 - 46 completed plans from the root task folder - moved to `tasks/archive/completed-2026-07/` on 2026-07-11.
+- `booking-title-normalization-ownership-pass.md` - standardized stored booking titles while preserving canonical UW sport codes across web, drafts, and kiosk writes.
+- `schedule-title-normalization-ownership-pass.md` - extended the same title rule to manual and synced scheduled events while preserving raw source evidence and sync locks.
 
 - `operational-status-rail-page-migrations-plan.md` - completed migration of eight page-level operational summaries to the shared rail with deliberate analytics exclusions.
 - `items-status-rail-plan.md` - completed Items adoption of the shared operational status rail with pressed status facets under Details.

@@ -247,7 +247,7 @@ describe("POST /api/calendar-events", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           sourceId: null,
-          summary: "Manual smoke event",
+          summary: "Manual Smoke Event",
         }),
       }),
     );
@@ -540,6 +540,29 @@ describe("POST /api/calendar-events", () => {
 });
 
 describe("PATCH /api/calendar-events/[id]", () => {
+  it("normalizes manually edited event titles and locks the result", async () => {
+    const res = await PATCH(
+      patch({ summary: "mbb PRACTICE" }),
+      { params: Promise.resolve({ id: "cmevent000000000000000001" }) },
+    );
+
+    expect(res.status).toBe(200);
+    expect(db.calendarEvent.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          summary: "MBB Practice",
+          summaryLocked: true,
+        }),
+      }),
+    );
+    expect(createAuditEntryTx).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        after: expect.objectContaining({ summary: "MBB Practice" }),
+      }),
+    );
+  });
+
   it("lets staff save a game as a locked non-game event by clearing opponent", async () => {
     const res = await PATCH(
       patch({

@@ -12,6 +12,7 @@ import { upsertBulkBalancesAndMovements } from "@/lib/services/bookings-helpers"
 import { BookingKind, BulkMovementKind, BulkUnitStatus, Prisma } from "@prisma/client";
 import { scheduleCheckoutReturnLiveActivity } from "@/lib/live-activity-workflow";
 import { updateCheckoutReturnLiveActivities } from "@/lib/services/live-activities";
+import { normalizeBookingTitle } from "@/lib/title-normalization";
 
 function hasBlockingAvailabilityIssue(result: Awaited<ReturnType<typeof checkAvailability>>) {
   return result.conflicts.length > 0 || result.shortages.length > 0 || result.unavailableAssets.length > 0;
@@ -319,7 +320,7 @@ export const PATCH = withKiosk<{ id: string }>(async (req, { kiosk, params }) =>
     const next = await tx.booking.update({
       where: { id: booking.id },
       data: {
-        title: body.title,
+        title: body.title === undefined ? undefined : normalizeBookingTitle(body.title),
         endsAt: requestedEndsAt ?? undefined,
       },
       select: { id: true, title: true, endsAt: true },

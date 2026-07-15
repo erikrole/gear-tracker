@@ -7,8 +7,10 @@ import EmptyState from "@/components/EmptyState";
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { BulkUnitGrid } from "@/components/BulkUnitGrid";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { BulkSkuProductsCard } from "./BulkSkuProductsCard";
 import type { BulkSkuDetail } from "./types";
 
 export default function BulkSkuUnitsTab({
@@ -24,10 +26,12 @@ export default function BulkSkuUnitsTab({
 }) {
   const [addingUnits, setAddingUnits] = useState(false);
   const [addCount, setAddCount] = useState(10);
+  const [addProductId, setAddProductId] = useState("");
   const [busy, setBusy] = useState(false);
   const [exporting, setExporting] = useState(false);
   const addBusyRef = useRef(false);
   const statusBusyRef = useRef(new Set<string>());
+  const productBusyRef = useRef(new Set<number>());
 
   const units = sku.units ?? [];
   const available = units.filter((u) => u.status === "AVAILABLE").length;
@@ -36,6 +40,8 @@ export default function BulkSkuUnitsTab({
   const retired = units.filter((u) => u.status === "RETIRED").length;
   const activeUnits = units.filter((u) => u.status !== "RETIRED");
   const printedLabels = activeUnits.filter((u) => !!u.labelPrintedAt).length;
+  const activeProducts = sku.products.filter((product) => product.active);
+  const selectedAddProductId = activeProducts.some((product) => product.id === addProductId) ? addProductId : "";
 
   async function handleExportLabels() {
     if (exporting) return;
@@ -81,6 +87,26 @@ export default function BulkSkuUnitsTab({
     }
   }
 
+  async function handleProductChange(unitNumber: number, productId: string | null) {
+    if (productBusyRef.current.has(unitNumber)) return;
+    productBusyRef.current.add(unitNumber);
+    try {
+      const res = await fetch(`/api/bulk-skus/${sku.id}/units/${unitNumber}/product`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId }),
+      });
+      if (handleAuthRedirect(res)) return;
+      if (!res.ok) { toast.error(await parseErrorMessage(res, "Failed to assign product")); return; }
+      toast.success(productId ? `Product assigned to unit #${unitNumber}` : `Product cleared from unit #${unitNumber}`);
+      onRefresh();
+    } catch (err) {
+      toast.error(err instanceof TypeError ? "You’re offline. Check your connection." : "Failed to assign product. Try again.");
+    } finally {
+      productBusyRef.current.delete(unitNumber);
+    }
+  }
+
   async function handleAddUnits() {
     if (addCount <= 0) return;
     if (addBusyRef.current) return;
@@ -90,7 +116,7 @@ export default function BulkSkuUnitsTab({
       const res = await fetch(`/api/bulk-skus/${sku.id}/units`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ count: addCount }),
+        body: JSON.stringify({ count: addCount, productId: selectedAddProductId || null }),
       });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) { toast.error(await parseErrorMessage(res, "Failed to add units")); return; }
@@ -108,6 +134,7 @@ export default function BulkSkuUnitsTab({
 
   return (
     <div className="mt-3.5 flex flex-col gap-4">
+      <BulkSkuProductsCard sku={sku} canEdit={canEdit} onRefresh={onRefresh} />
       <Card className="border-border/40 shadow-none">
         <CardHeader className="flex-col gap-4 border-b border-border/40 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -141,7 +168,21 @@ export default function BulkSkuUnitsTab({
           )}
           {canEdit && (
             addingUnits ? (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {activeProducts.length > 0 && (
+                  <NativeSelect
+                    aria-label="Product for new units"
+                    value={selectedAddProductId}
+                    onChange={(event) => setAddProductId(event.target.value)}
+                    className="h-10 w-48"
+                    disabled={busy}
+                  >
+                    <option value="">Unassigned product</option>
+                    {activeProducts.map((product) => (
+                      <option key={product.id} value={product.id}>{product.name}</option>
+                    ))}
+                  </NativeSelect>
+                )}
                 <Input
                   id="bulk-sku-add-units-count"
                   name="addUnitsCount"
@@ -176,7 +217,9 @@ export default function BulkSkuUnitsTab({
             <>
               <BulkUnitGrid
                 units={units}
+                products={sku.products}
                 onStatusChange={handleStatusChange}
+                onProductChange={handleProductChange}
                 disabled={!canEdit}
               />
               {canEdit && checkedOut > 0 ? (

@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-07-11
+- Last Updated: 2026-07-15
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -376,12 +376,14 @@
   - Unit QR values derived as `{binQrCodeValue}-{unitNumber}` are accepted as a direct scan of that specific numbered unit.
   - `BookingBulkUnitAllocation` links specific units to bookings with checkout/checkin timestamps.
   - Existing quantity-only SKUs can be converted to numbered tracking via a dedicated endpoint.
+  - A numbered item family may contain multiple interchangeable branded products while remaining one booking line and one QR sequence. `BulkSkuProduct` stores the product identity, and each `BulkSkuUnit` may reference one product without changing its family, unit number, status, allocation, or derived QR value.
 - Consequences:
   - One item-family row can display availability like `43/46 available`.
   - Loss tracking works at the individual unit level without creating catalog rows for every battery.
   - Physical unit labels must match unit numbers.
   - All unit operations use `createMany`/`updateMany` to batch DB calls efficiently.
   - QR-coded batteries continue to use this model when they behave like the existing Sony battery flow: one item family with unit-level tracking beneath it.
+  - Product breakdowns are operational metadata beneath the family. Reservations continue to request the family quantity, while item-family detail and unit lookup can identify the exact product assigned to a scanned unit.
   - Derived unit QR scans keep batteries out of top-level serialized assets while still supporting individual QR labels and custody.
   - Camera-model battery compatibility warnings are advisory at creation; they do not block checkout creation because physical battery accountability happens at kiosk pickup.
   - Printed-label state (when a physical Brother label was printed and applied) may be stored per `BulkSkuUnit` via `labelPrintedAt`, `labelPrintedById`, and `labelPrintBatchId`. This is a physical-workflow state distinct from `BulkUnitStatus` and never gates availability. QR data itself remains derived and is never stored per unit; the Brother CSV `qr_code` column is computed at export time from `{binQrCodeValue}-{unitNumber}`.
@@ -389,6 +391,8 @@
   - Unit status is NOT derived like serialized assets (D-001). It is stored directly because units lack the full allocation time-window model.
   - Checked-out units cannot be marked lost/retired — must be checked in first.
   - Unit numbers are permanent; retiring #7 does not renumber #8–40.
+  - Product assignments must not be inferred from unit-number ranges. The unit-to-product relation is the source of truth.
+  - Removing or archiving a product must not delete or renumber its units; assigned historical identity remains readable.
 
 ## D-023: Item Bundling via Parent-Child Accessories
 - Date: 2026-03-16
@@ -830,6 +834,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 4. ~~Student mobile KPI definitions~~ — resolved (PD-5): taps-to-checkout ≤3, scan success ≥95%, task completion <30s. Telemetry deferred to Phase B.
 
 ## Change Log
+- 2026-07-15: Extended D-022 so one numbered item family can contain multiple branded products while preserving one booking line, one base QR sequence, permanent unit numbers, and exact-unit custody.
 - 2026-07-11: Reconciled the decision index and document-control date, formalized the historical D-032 and D-033 decisions, and added their current implementation references and provenance warning.
 - 2026-07-10: Amended D-026 for checkout return Live Activities. Their 30-minute remote start is now event-driven through a durable workflow scheduled when custody opens or its return time changes, so it no longer depends on a sub-daily cron. The protected sweep remains a manual repair path.
 - 2026-07-10: Amended D-040 so active-checkout editing requires an identified student context; idle dashboard detail remains read-only rather than fabricating requester attribution for an anonymous operator tap.

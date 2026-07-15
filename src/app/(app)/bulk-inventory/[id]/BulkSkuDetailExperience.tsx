@@ -47,7 +47,7 @@ export function BulkSkuDetailExperience({
 }) {
   const [activeTab, setActiveTab] = useUrlState<TabKey>("tab", parseBulkDetailTab, serializeDetailTab);
 
-  const { sku, setSku, fetchError, refreshing, canEdit, currentUserRole, loadSku } = useBulkSkuData(id);
+  const { sku, setSku, fetchError, refreshing, canEdit, loadSku } = useBulkSkuData(id);
   const invalidateItemCatalog = useInvalidateItemCatalog();
   useItemChangeSync();
 
@@ -61,13 +61,13 @@ export function BulkSkuDetailExperience({
       activeTab === "info" ||
       activeTab === "history" ||
       (activeTab === "units" && sku.trackByNumber) ||
-      (activeTab === "qr" && currentUserRole === "ADMIN") ||
+      (activeTab === "qr" && canEdit) ||
       (activeTab === "settings" && canEdit);
 
     if (!tabIsVisible) {
       setActiveTab("info");
     }
-  }, [activeTab, canEdit, currentUserRole, setActiveTab, sku]);
+  }, [activeTab, canEdit, setActiveTab, sku]);
 
   if (fetchError && !sku) {
     return (
@@ -99,7 +99,7 @@ export function BulkSkuDetailExperience({
   const tabDefs: Array<{ key: TabKey; label: string; hidden?: boolean }> = [
     { key: "info", label: "Info" },
     { key: "units", label: "Units", hidden: !sku.trackByNumber },
-    { key: "qr", label: "QR", hidden: currentUserRole !== "ADMIN" },
+    { key: "qr", label: "QR", hidden: !canEdit },
     { key: "history", label: "History" },
     { key: "settings", label: "Settings", hidden: !canEdit },
   ];
@@ -144,6 +144,7 @@ export function BulkSkuDetailExperience({
                 setSku((prev) => prev ? { ...prev, ...partial } : prev);
                 invalidateItemCatalog();
               }}
+              onManageQr={() => switchTab("qr")}
             />
           </div>
         )}

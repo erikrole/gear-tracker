@@ -2,6 +2,7 @@ import { ResourceType, Role, ShiftArea, ShiftWorkerType, StudentYear } from "@pr
 import { z } from "zod";
 import { sanitizeText } from "./sanitize";
 import { isSportCode, normalizeSportCode } from "./sports";
+import { normalizeBookingTitle } from "./title-normalization";
 
 const cuidSchema = z.string().cuid();
 const uuidSchema = z.string().uuid();
@@ -62,7 +63,7 @@ export const nullableHttpUrlSchema = z.preprocess(
 /** Sanitize user-facing text fields in a booking payload */
 export function sanitizeBookingFields<T extends Record<string, unknown>>(data: T): T {
   const d = data as Record<string, unknown>;
-  if (typeof d.title === "string") d.title = sanitizeText(d.title);
+  if (typeof d.title === "string") d.title = normalizeBookingTitle(sanitizeText(d.title));
   if (typeof d.notes === "string") d.notes = sanitizeText(d.notes);
   return data;
 }
@@ -230,7 +231,6 @@ export const updateBulkSkuSchema = z.object({
   departmentId: databaseIdSchema.nullable().optional(),
   unit: z.string().min(1).max(100).optional(),
   locationId: databaseIdSchema.optional(),
-  binQrCodeValue: z.string().min(1).max(500).optional(),
   minThreshold: z.number().int().min(0).optional(),
   purchasePrice: moneyDecimalSchema.nullable().optional(),
   purchaseLink: nullableHttpUrlSchema.optional(),
@@ -240,8 +240,28 @@ export const updateBulkSkuSchema = z.object({
 
 export const addBulkUnitsSchema = z.object({
   count: z.number().int().min(1).max(500),
-  reason: z.string().trim().min(3).max(500).optional()
+  reason: z.string().trim().min(3).max(500).optional(),
+  productId: databaseIdSchema.nullable().optional(),
 });
+
+const bulkSkuProductFields = {
+  name: z.string().trim().min(1).max(200),
+  brand: z.string().trim().min(1).max(120),
+  model: z.string().trim().max(120).nullable().optional(),
+};
+
+export const createBulkSkuProductSchema = z.object(bulkSkuProductFields).strict();
+
+export const updateBulkSkuProductSchema = z.object({
+  name: bulkSkuProductFields.name.optional(),
+  brand: bulkSkuProductFields.brand.optional(),
+  model: bulkSkuProductFields.model,
+  active: z.boolean().optional(),
+}).strict().refine((value) => Object.keys(value).length > 0, "At least one product field is required");
+
+export const assignBulkUnitProductSchema = z.object({
+  productId: databaseIdSchema.nullable(),
+}).strict();
 
 export const updateBulkUnitSchema = z.object({
   status: z.enum(["AVAILABLE", "LOST", "RETIRED"]),

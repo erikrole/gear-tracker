@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
 import { z } from "zod";
 import { optionalSportCodeSchema } from "@/lib/validation";
+import { normalizeBookingTitle } from "@/lib/title-normalization";
 
 const saveDraftSchema = z.object({
   id: z.string().cuid().optional(),
@@ -108,7 +109,7 @@ export const POST = withAuth(async (req, { user }) => {
 
   const bookingData = {
     kind: body.kind as "CHECKOUT" | "RESERVATION",
-    title: body.title || "Untitled draft",
+    title: normalizeBookingTitle(body.title || "Untitled draft"),
     status: "DRAFT" as const,
     requesterUserId: body.requesterUserId ?? user.id,
     locationId: body.locationId ?? (await defaultLocationId()),

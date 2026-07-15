@@ -106,8 +106,9 @@
 | `src/components/ChooseImageModal.tsx` | 716 |
 | `src/components/booking-wizard/BookingWizard.tsx` | 710 |
 | `src/components/ui/sidebar.tsx` | 710 |
-| `src/components/AppShell.tsx` | 689 |
+| `src/components/AppShell.tsx` | 692 |
 | `src/components/booking-wizard/WizardStep1.tsx` | 570 |
+| `src/components/profile-completion/ProfileCompletionWizard.tsx` | 555 |
 | `src/components/BookingListPage.tsx` | 512 |
 | `src/components/ui/heatmap.tsx` | 422 |
 | `src/components/ui/chart.tsx` | 389 |
@@ -126,7 +127,6 @@
 | `src/components/ui/dropdown-menu.tsx` | 258 |
 | `src/components/shift-detail/UserAvatarPicker.tsx` | 256 |
 | `src/components/shift-detail/CallWindowEditor.tsx` | 243 |
-| `src/components/ui/context-menu.tsx` | 242 |
 
 ## Hooks
 
@@ -145,6 +145,7 @@
 | `src/hooks/use-item-change-sync.ts` | 94 |
 | `src/hooks/use-last-audit.ts` | 77 |
 | `src/hooks/use-mobile.ts` | 20 |
+| `src/hooks/use-profile-completion.ts` | 55 |
 | `src/hooks/use-scan-submission.ts` | 241 |
 | `src/hooks/use-schedule-data.ts` | 528 |
 | `src/hooks/use-url-state.ts` | 166 |

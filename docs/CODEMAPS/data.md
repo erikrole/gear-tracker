@@ -11,7 +11,7 @@
 
 | Model | Fields | Model-level indexes/constraints |
 |---|---:|---:|
-| `User` | 73 | 3 |
+| `User` | 81 | 3 |
 | `Session` | 6 | 2 |
 | `PasswordResetToken` | 6 | 2 |
 | `Location` | 17 | 1 |
@@ -23,10 +23,11 @@
 | `BookingSerializedItem` | 7 | 3 |
 | `BookingBulkItem` | 10 | 3 |
 | `AssetAllocation` | 11 | 4 |
-| `BulkSku` | 28 | 5 |
+| `BulkSku` | 29 | 5 |
+| `BulkSkuProduct` | 11 | 3 |
 | `BulkStockBalance` | 7 | 4 |
 | `BulkStockMovement` | 13 | 4 |
-| `BulkSkuUnit` | 12 | 4 |
+| `BulkSkuUnit` | 14 | 5 |
 | `BookingBulkUnitAllocation` | 8 | 3 |
 | `ScanEvent` | 19 | 4 |
 | `ScanSession` | 9 | 2 |
@@ -84,6 +85,17 @@
 - `JUNIOR`
 - `SENIOR`
 - `GRAD`
+
+### `ApparelFit`
+
+- `UNISEX`
+- `WOMENS`
+- `MENS`
+
+### `ShoeSizeSystem`
+
+- `US_WOMENS`
+- `US_MENS`
 
 ### `AssetStatus`
 

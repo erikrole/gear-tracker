@@ -15,6 +15,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { params }) => {
 
   const units = await db.bulkSkuUnit.findMany({
     where: { bulkSkuId: id },
+    include: { product: true },
     orderBy: { unitNumber: "asc" }
   });
 
@@ -31,6 +32,16 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     if (!sku) throw new HttpError(404, "Bulk SKU not found");
     if (!sku.trackByNumber) throw new HttpError(400, "This SKU does not track by number");
 
+    const product = body.productId
+      ? await tx.bulkSkuProduct.findFirst({
+          where: { id: body.productId, bulkSkuId: id, active: true },
+          select: { id: true, name: true },
+        })
+      : null;
+    if (body.productId && !product) {
+      throw new HttpError(400, "Active product not found in this item family");
+    }
+
     const maxUnit = await tx.bulkSkuUnit.findFirst({
       where: { bulkSkuId: id },
       orderBy: { unitNumber: "desc" }
@@ -41,6 +52,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     await tx.bulkSkuUnit.createMany({
       data: Array.from({ length: body.count }, (_, i) => ({
         bulkSkuId: id,
+        productId: product?.id ?? null,
         unitNumber: startNumber + i
       }))
     });
@@ -74,7 +86,14 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
       }
     });
 
-    return { startNumber, endNumber: startNumber + body.count - 1, count: body.count, reason };
+    return {
+      startNumber,
+      endNumber: startNumber + body.count - 1,
+      count: body.count,
+      reason,
+      productId: product?.id ?? null,
+      productName: product?.name ?? null,
+    };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   await createAuditEntry({

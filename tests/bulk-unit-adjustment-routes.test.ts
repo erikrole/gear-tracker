@@ -12,6 +12,9 @@ const tx = {
     findUnique: vi.fn(),
     update: vi.fn(),
   },
+  bulkSkuProduct: {
+    findFirst: vi.fn(),
+  },
   bulkStockBalance: {
     upsert: vi.fn(),
     update: vi.fn(),
@@ -94,6 +97,10 @@ beforeEach(() => {
     status: BulkUnitStatus.LOST,
     notes: null,
   });
+  tx.bulkSkuProduct.findFirst.mockResolvedValue({
+    id: "cmnrtqudd0005jp04hlg8vauz",
+    name: "Watson NP-F550",
+  });
   tx.bulkStockBalance.upsert.mockResolvedValue({});
   tx.bulkStockBalance.update.mockResolvedValue({});
   tx.bulkStockMovement.create.mockResolvedValue({});
@@ -114,6 +121,8 @@ describe("bulk unit adjustment routes", () => {
       endNumber: 14,
       count: 2,
       reason: "Added units #13-#14: New charger kit batteries",
+      productId: null,
+      productName: null,
     });
     expect(tx.bulkStockBalance.upsert).toHaveBeenCalledWith(expect.objectContaining({
       update: { onHandQuantity: { increment: 2 } },
@@ -151,6 +160,30 @@ describe("bulk unit adjustment routes", () => {
     expect(createAuditEntry).toHaveBeenCalledWith(expect.objectContaining({
       action: "update_status",
       after: expect.objectContaining({ status: "LOST", reason: "Missing after Saturday audit" }),
+    }));
+  });
+
+  it("assigns a selected product to every newly added unit", async () => {
+    const productId = "cmnrtqudd0005jp04hlg8vauz";
+    const res = await addBulkUnits(
+      request("/api/bulk-skus/sku-1/units", "POST", { count: 2, productId }),
+      addRouteParams,
+    );
+
+    expect(res.status).toBe(201);
+    expect(tx.bulkSkuProduct.findFirst).toHaveBeenCalledWith({
+      where: { id: productId, bulkSkuId: "sku-1", active: true },
+      select: { id: true, name: true },
+    });
+    expect(tx.bulkSkuUnit.createMany).toHaveBeenCalledWith({
+      data: [
+        { bulkSkuId: "sku-1", productId, unitNumber: 13 },
+        { bulkSkuId: "sku-1", productId, unitNumber: 14 },
+      ],
+    });
+    expect((await res.json()).data).toEqual(expect.objectContaining({
+      productId,
+      productName: "Watson NP-F550",
     }));
   });
 

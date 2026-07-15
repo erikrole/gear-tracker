@@ -13,6 +13,7 @@ import { Role } from "@prisma/client";
 export const PERMISSIONS: Record<string, Record<string, Role[]>> = {
   user: {
     view: ["ADMIN", "STAFF", "STUDENT"],
+    edit_self: ["ADMIN", "STAFF", "STUDENT"],
     create: ["ADMIN", "STAFF"],
     edit: ["ADMIN", "STAFF"],
     manage_role: ["ADMIN", "STAFF"],

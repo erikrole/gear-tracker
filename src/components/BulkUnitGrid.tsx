@@ -5,9 +5,14 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuRadioGroup,
+  ContextMenuRadioItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import type { BulkUnit } from "@/app/(app)/bulk-inventory/[id]/types";
+import type { BulkSkuProduct, BulkUnit } from "@/app/(app)/bulk-inventory/[id]/types";
 
 const UNIT_STYLES: Record<string, { bg: string; dot: string; label: string }> = {
   AVAILABLE:   { bg: "bg-[var(--green-bg)]",  dot: "bg-[var(--green)]",       label: "Available" },
@@ -18,13 +23,15 @@ const UNIT_STYLES: Record<string, { bg: string; dot: string; label: string }> = 
 
 type Props = {
   units: BulkUnit[];
+  products: BulkSkuProduct[];
   onStatusChange: (unitNumber: number, newStatus: "AVAILABLE" | "LOST" | "RETIRED") => void;
+  onProductChange: (unitNumber: number, productId: string | null) => void;
   disabled?: boolean;
 };
 
-export function BulkUnitGrid({ units, onStatusChange, disabled = false }: Props) {
+export function BulkUnitGrid({ units, products, onStatusChange, onProductChange, disabled = false }: Props) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(56px,1fr))] gap-2">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(72px,1fr))] gap-2">
       {units.map((u) => {
         const style = UNIT_STYLES[u.status] ?? UNIT_STYLES["AVAILABLE"]!; // AVAILABLE always present in the map
         const lastAlloc = u.allocations?.[0]?.bookingBulkItem?.booking;
@@ -51,6 +58,7 @@ export function BulkUnitGrid({ units, onStatusChange, disabled = false }: Props)
               `#${u.unitNumber} — ${style.label}`,
               lastUser && `Last: ${lastUser}`,
               labelTitle,
+              u.product && `Product: ${u.product.name}`,
               isCheckedOut && "Check in first to change status",
             ].filter(Boolean).join(" · ")}
           >
@@ -70,6 +78,11 @@ export function BulkUnitGrid({ units, onStatusChange, disabled = false }: Props)
               <div className={`size-1.5 rounded-full shrink-0 ${style.dot}`} />
               <span style={{ fontFamily: "var(--font-mono)" }}>{u.unitNumber}</span>
             </div>
+            {u.product && (
+              <div className="max-w-full truncate text-[9px] font-normal leading-tight text-muted-foreground">
+                {u.product.brand}
+              </div>
+            )}
             {u.status === "LOST" && lastUser && (
               <div className="text-[9px] font-normal text-muted-foreground truncate max-w-full leading-tight">
                 {lastUser.split(" ")[0]}
@@ -86,6 +99,27 @@ export function BulkUnitGrid({ units, onStatusChange, disabled = false }: Props)
           <ContextMenu key={u.id}>
             <ContextMenuTrigger asChild>{cell}</ContextMenuTrigger>
             <ContextMenuContent>
+              {products.length > 0 && (
+                <>
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger>Assign product</ContextMenuSubTrigger>
+                    <ContextMenuSubContent>
+                      <ContextMenuRadioGroup
+                        value={u.productId ?? "unassigned"}
+                        onValueChange={(value) => onProductChange(u.unitNumber, value === "unassigned" ? null : value)}
+                      >
+                        <ContextMenuRadioItem value="unassigned">Unassigned</ContextMenuRadioItem>
+                        {products.filter((product) => product.active || product.id === u.productId).map((product) => (
+                          <ContextMenuRadioItem key={product.id} value={product.id} disabled={!product.active && product.id !== u.productId}>
+                            {product.name}{product.active ? "" : " (archived)"}
+                          </ContextMenuRadioItem>
+                        ))}
+                      </ContextMenuRadioGroup>
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
+                  <ContextMenuSeparator />
+                </>
+              )}
               <ContextMenuItem
                 disabled={u.status === "AVAILABLE"}
                 onClick={() => onStatusChange(u.unitNumber, "AVAILABLE")}
