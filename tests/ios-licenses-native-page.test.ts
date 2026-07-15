@@ -93,6 +93,18 @@ describe("iOS native Licenses page", () => {
     expect(activeButtons).toMatch(/Button\("Return License", role: \.destructive\)[\s\S]*?\.buttonStyle\(\.bordered\)[\s\S]*?\.buttonBorderShape\(\.capsule\)[\s\S]*?\.controlSize\(\.small\)/);
   });
 
+  it("summarizes shared capacity and uses operational status colors", () => {
+    const view = source("ios/Wisconsin/Views/LicensesView.swift");
+
+    expect(view).toContain("LicensePoolOverview(");
+    expect(view).toContain('openSlotCount == 0 ? "All licenses are in use" : "Licenses are available"');
+    expect(view).toContain('case .available: "2 open"');
+    expect(view).toContain('case .partial: "1 open"');
+    expect(view).toContain('case .claimed: "Full"');
+    expect(view).toMatch(/case \.partial: StatusTone\.blue[\s\S]*?case \.claimed: StatusTone\.blue/);
+    expect(view).not.toContain("case .claimed: StatusTone.red");
+  });
+
   it("hides unclaimed pool codes from students even if a future payload includes them", () => {
     const view = source("ios/Wisconsin/Views/LicensesView.swift");
 

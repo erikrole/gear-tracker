@@ -23,10 +23,10 @@
           "image-name" : "Vintage Bucky.svg",
           "name" : "Vintage Bucky",
           "position" : {
-            "scale" : 3.82,
+            "scale" : 1.67,
             "translation-in-points" : [
-              23.85068645471256,
-              412.8661328977487
+              25.117078317753112,
+              28.78757215022597
             ]
           }
         }

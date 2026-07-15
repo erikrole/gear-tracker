@@ -24,7 +24,7 @@ type Props = {
 
 export function BulkUnitGrid({ units, onStatusChange, disabled = false }: Props) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-1.5">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(56px,1fr))] gap-2">
       {units.map((u) => {
         const style = UNIT_STYLES[u.status] ?? UNIT_STYLES["AVAILABLE"]!; // AVAILABLE always present in the map
         const lastAlloc = u.allocations?.[0]?.bookingBulkItem?.booking;
@@ -41,9 +41,11 @@ export function BulkUnitGrid({ units, onStatusChange, disabled = false }: Props)
         const cell = (
           <div
             className={[
-              "relative flex flex-col items-center justify-center gap-0 px-1 py-1.5 rounded-md text-sm font-semibold select-none",
+              "relative flex min-h-11 flex-col items-center justify-center gap-0 rounded-md px-1 py-2 text-sm font-semibold tabular-nums select-none",
               style.bg,
-              isCheckedOut || disabled ? "cursor-default opacity-70" : "cursor-context-menu",
+              isCheckedOut || disabled
+                ? "cursor-default opacity-70"
+                : "cursor-context-menu transition-[scale,box-shadow] hover:shadow-xs active:scale-[0.96]",
             ].join(" ")}
             title={[
               `#${u.unitNumber} — ${style.label}`,

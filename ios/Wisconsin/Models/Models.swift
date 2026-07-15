@@ -528,6 +528,7 @@ struct GuideListItem: Codable, Identifiable, Hashable {
     let type: ResourceType
     let category: String
     let summary: String
+    let searchText: String
     let markdown: String
     let targetRoles: [String]
     let targetAreas: [String]
@@ -542,7 +543,7 @@ struct GuideListItem: Codable, Identifiable, Hashable {
     let author: GuideAuthor
 
     enum CodingKeys: String, CodingKey {
-        case id, title, slug, type, category, summary, markdown, targetRoles, targetAreas
+        case id, title, slug, type, category, summary, searchText, markdown, targetRoles, targetAreas
         case featured, featuredRank, lastVerifiedAt, lastVerifiedBy, personalizationReason
         case published, createdAt, updatedAt, author
     }
@@ -555,6 +556,7 @@ struct GuideListItem: Codable, Identifiable, Hashable {
         type = try container.decodeIfPresent(ResourceType.self, forKey: .type) ?? .general
         category = try container.decodeIfPresent(String.self, forKey: .category) ?? ""
         summary = try container.decodeIfPresent(String.self, forKey: .summary) ?? ""
+        searchText = try container.decodeIfPresent(String.self, forKey: .searchText) ?? ""
         markdown = try container.decodeIfPresent(String.self, forKey: .markdown) ?? ""
         targetRoles = try container.decodeIfPresent([String].self, forKey: .targetRoles) ?? []
         targetAreas = try container.decodeIfPresent([String].self, forKey: .targetAreas) ?? []

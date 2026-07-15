@@ -1,8 +1,22 @@
 # Task Queue
 
-Last updated: 2026-07-11
+Last updated: 2026-07-15
 
 ---
+## Completed: Native iOS Guides repair, reader polish, and Licenses polish (2026-07-15)
+
+- [x] Restore full guide reading after the Resources list-payload slimming.
+- [x] Preserve bounded client-side guide body search without restoring heavy list Markdown.
+- [x] Replace the web-like guide reader chrome with a compact native header, typography, step, and callout treatments without repeating the generated body excerpt.
+- [x] Improve native Licenses capacity, active-code, occupancy, and status hierarchy.
+- [x] Add focused contract coverage and sync Mobile, Resources, Licenses, and iOS audit docs.
+- [x] Pass focused Vitest, iOS drift/gap/project checks, docs verification, whitespace checks, and the Wisconsin simulator build.
+
+### Review
+
+- **Shipped:** Native Guides now fetches full Markdown by slug with loading, retry, and refresh states while the guide list remains compact. The reader uses a compact metadata header, native Dynamic Type hierarchy, a cardless article canvas, and clearer operational steps. Generated body excerpts and leading Markdown rules no longer duplicate article content in the header transition. Licenses now surfaces shared capacity first, highlights the active code, keeps student occupancy neutral, and uses blue for in-use states.
+- **Boundaries preserved:** Guides remains read-only; license create, renew, retire, export, occupant, and full-history administration remains web-owned.
+
 ## Completed: Apple-design pass — iOS settings pages (2026-07-11)
 
 - [x] NotificationSettingsView: split mega-section into real sections (Status / Pause Alerts / Delivery / Notification Types); delete fake categoryHeaderRow

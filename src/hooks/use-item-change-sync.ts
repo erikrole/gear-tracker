@@ -3,7 +3,9 @@
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-export const ITEM_CHANGE_SYNC_INTERVAL_MS = 5_000;
+// Inventory mutation feedback is immediate locally; background freshness can
+// use a slower cadence so a browsed Items tab does not keep Neon compute awake.
+export const ITEM_CHANGE_SYNC_INTERVAL_MS = 60_000;
 export const ITEM_CHANGE_SYNC_EVENT = "item-change-sync";
 
 export type ItemChangeSyncEventDetail = {

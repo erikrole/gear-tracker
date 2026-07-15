@@ -107,31 +107,63 @@ export function BulkSkuDetailExperience({
 
   return (
     <FadeUp>
-      <BulkSkuHeader
-        sku={sku}
-        refreshing={refreshing}
-        canEdit={canEdit}
-        onRefresh={loadSku}
-        operationsHref={operationsHref}
-        onImageChanged={(url) => {
-          setSku((prev) => prev ? { ...prev, imageUrl: url } : prev);
-          invalidateItemCatalog();
-        }}
-      />
+      <div className="mx-auto w-full max-w-7xl">
+        <BulkSkuHeader
+          sku={sku}
+          refreshing={refreshing}
+          canEdit={canEdit}
+          onRefresh={loadSku}
+          operationsHref={operationsHref}
+          onImageChanged={(url) => {
+            setSku((prev) => prev ? { ...prev, imageUrl: url } : prev);
+            invalidateItemCatalog();
+          }}
+        />
 
-      <Tabs value={activeTab} onValueChange={(v) => switchTab(v as TabKey)}>
-        <TabsList className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm overflow-x-auto scrollbar-hide">
-          {visibleTabs.map((tab) => (
-            <TabsTrigger key={tab.key} value={tab.key} className="shrink-0">
-              <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500 }}>{tab.label}</span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+        <Tabs value={activeTab} onValueChange={(v) => switchTab(v as TabKey)}>
+          <TabsList className="sticky top-0 z-10 overflow-x-auto bg-background/95 backdrop-blur-sm scrollbar-hide">
+            {visibleTabs.map((tab) => (
+              <TabsTrigger
+                key={tab.key}
+                value={tab.key}
+                className="relative shrink-0 border-b-transparent data-[state=active]:border-b-transparent after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-[var(--wi-red)] after:opacity-0 after:transition-opacity data-[state=active]:after:opacity-100"
+              >
+                <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500 }}>{tab.label}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
 
-      {activeTab === "info" && (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 mt-3.5">
-          <BulkSkuInfoTab
+        {activeTab === "info" && (
+          <div className="mt-3.5 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+            <BulkSkuOverviewCard sku={sku} onOpenUnits={() => switchTab("units")} />
+            <BulkSkuInfoTab
+              sku={sku}
+              canEdit={canEdit}
+              onFieldSaved={(partial) => {
+                setSku((prev) => prev ? { ...prev, ...partial } : prev);
+                invalidateItemCatalog();
+              }}
+            />
+          </div>
+        )}
+
+        {activeTab === "units" && sku.trackByNumber && (
+          <BulkSkuUnitsTab
+            sku={sku}
+            canEdit={canEdit}
+            onRefresh={loadSku}
+            onUnitsAdded={(count) => {
+              invalidateItemCatalog();
+              setSku((prev) =>
+                prev ? { ...prev, onHand: prev.onHand + count, availableQuantity: prev.availableQuantity + count } : prev
+              );
+            }}
+          />
+        )}
+
+        {activeTab === "qr" && (
+          <BulkSkuQrTab
             sku={sku}
             canEdit={canEdit}
             onFieldSaved={(partial) => {
@@ -139,57 +171,31 @@ export function BulkSkuDetailExperience({
               invalidateItemCatalog();
             }}
           />
-          <BulkSkuOverviewCard sku={sku} />
-        </div>
-      )}
+        )}
 
-      {activeTab === "units" && sku.trackByNumber && (
-        <BulkSkuUnitsTab
-          sku={sku}
-          canEdit={canEdit}
-          onRefresh={loadSku}
-          onUnitsAdded={(count) => {
-            invalidateItemCatalog();
-            setSku((prev) =>
-              prev ? { ...prev, onHand: prev.onHand + count, availableQuantity: prev.availableQuantity + count } : prev
-            );
-          }}
-        />
-      )}
+        {activeTab === "history" && (
+          <Card className="mt-3.5 max-w-4xl border-border/40 shadow-none">
+            <CardHeader><CardTitle>Item history</CardTitle></CardHeader>
+            <CardContent className="p-4">
+              <ActivityFeed
+                assetId={sku.id}
+                assetName={sku.name}
+                endpoint={`/api/bulk-skus/${sku.id}/activity`}
+              />
+            </CardContent>
+          </Card>
+        )}
 
-      {activeTab === "qr" && (
-        <BulkSkuQrTab
-          sku={sku}
-          canEdit={canEdit}
-          onFieldSaved={(partial) => {
-            setSku((prev) => prev ? { ...prev, ...partial } : prev);
-            invalidateItemCatalog();
-          }}
-        />
-      )}
-
-      {activeTab === "history" && (
-        <Card className="mt-3.5 border-border/40 max-w-3xl">
-          <CardHeader><CardTitle>Activity</CardTitle></CardHeader>
-          <CardContent className="p-4">
-            <ActivityFeed
-              assetId={sku.id}
-              assetName={sku.name}
-              endpoint={`/api/bulk-skus/${sku.id}/activity`}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {activeTab === "settings" && canEdit && (
-        <BulkSkuSettingsTab
-          sku={sku}
-          onRefresh={() => {
-            invalidateItemCatalog();
-            void loadSku();
-          }}
-        />
-      )}
+        {activeTab === "settings" && canEdit && (
+          <BulkSkuSettingsTab
+            sku={sku}
+            onRefresh={() => {
+              invalidateItemCatalog();
+              void loadSku();
+            }}
+          />
+        )}
+      </div>
     </FadeUp>
   );
 }

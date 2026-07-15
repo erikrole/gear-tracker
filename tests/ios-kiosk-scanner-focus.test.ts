@@ -25,7 +25,9 @@ describe("iOS kiosk scanner focus", () => {
 
     // Ownership gate: the sink can never take first responder while a visible
     // UIKit text input is editing — not just during a fixed time window.
-    expect(scanner).toContain("activeVisibleEditors.isEmpty && Date() >= suppressedUntil");
+    expect(scanner).toContain("activeVisibleEditors: [ObjectIdentifier: WeakVisibleEditor]");
+    expect(scanner).toContain("tracked.editor?.isFirstResponder == true");
+    expect(scanner).toContain("return activeVisibleEditors.isEmpty && Date() >= suppressedUntil");
     expect(scanner).toContain("static func installEditingObserversIfNeeded()");
     expect(scanner).toContain("UITextField.textDidBeginEditingNotification");
     expect(scanner).toContain("UITextView.textDidBeginEditingNotification");
@@ -37,6 +39,9 @@ describe("iOS kiosk scanner focus", () => {
     expect(scanner).toContain("func ensureScannerFocus(_ textField: UITextField)");
     expect(scanner).toContain("private func scheduleFocusRetry(_ textField: UITextField)");
     expect(scanner).toContain("pendingFocusRetry?.cancel()");
+    expect(scanner).toContain("if textField.becomeFirstResponder(), textField.isFirstResponder");
+    expect(scanner).toContain("else {\n                    scheduleFocusRetry(textField)");
+    expect(scanner).toContain("private func reportFocus(_ focused: Bool)");
 
     // Plain @State, never @FocusState: the UIKit-backed booking-name field is
     // invisible to SwiftUI's focus system, so a @FocusState value for it gets
@@ -46,11 +51,15 @@ describe("iOS kiosk scanner focus", () => {
     expect(checkout).not.toContain("@FocusState private var focusedCheckoutField");
     expect(checkout).not.toContain("FocusState<KioskCheckoutFocusedField?>.Binding");
     expect(checkout).toContain("@State private var scannerCaptureEnabled = false");
+    expect(checkout).toContain("@State private var scannerHasFocus = false");
     expect(checkout).toContain("private var shouldListenForHIDScans: Bool");
     expect(checkout).toContain("scannerCaptureEnabled && checkoutContextReady");
     expect(checkout).toContain("focusedCheckoutField == nil");
     expect(checkout).toContain("if scannerCaptureEnabled {");
-    expect(checkout).toContain("HIDScannerField(isEnabled: shouldListenForHIDScans)");
+    expect(checkout).toContain("isEnabled: shouldListenForHIDScans");
+    expect(checkout).toContain("onFocusChange: { scannerHasFocus = $0 }");
+    expect(checkout).toContain("KioskScannerReadinessBadge(");
+    expect(checkout).toContain("isReady: scannerHasFocus");
     expect(checkout).toContain("KioskNativeTextField(");
     expect(checkout).toContain("focusedField.wrappedValue == .customPurpose");
     expect(checkout).toContain("HIDScannerFocusGate.allowScannerFocusNow()");
@@ -59,6 +68,26 @@ describe("iOS kiosk scanner focus", () => {
     expect(checkout).toContain("scannerCaptureEnabled = true");
     expect(checkout).toContain("scannerCaptureEnabled = false");
     expect(checkout).not.toContain("private struct KioskPurposeKeyboard: View");
+
+    const pickup = source("ios/Wisconsin/Kiosk/KioskPickupView.swift");
+    const kioskReturn = source("ios/Wisconsin/Kiosk/KioskReturnView.swift");
+    const components = source("ios/Wisconsin/Kiosk/KioskComponents.swift");
+    for (const flow of [pickup, kioskReturn]) {
+      expect(flow).toContain("@State private var scannerHasFocus = false");
+      expect(flow).toContain("onFocusChange: { scannerHasFocus = $0 }");
+      expect(flow).toContain("KioskScannerReadinessBadge(");
+      expect(flow).toContain("isReady: scannerHasFocus");
+    }
+    expect(components).toContain("struct KioskScannerReadinessBadge: View");
+    expect(components).toContain('guard isReady else { return "Scanner reconnecting" }');
+    expect(components).toContain('guard let lastScanAt else { return "Scanner ready" }');
+
+    // The scanner target itself stays geometrically stable on entrance. The
+    // readiness badge owns reconnecting orange, avoiding an orange flash and
+    // the iPadOS PhaseAnimator bracket translation seen on hardware.
+    expect(components).not.toContain("shape.phaseAnimator");
+    expect(checkout).toContain("case nil: return Color.white.opacity(0.3)");
+    expect(checkout).not.toContain("case nil: return scannerHasFocus");
 
     // Existing-checkout equipment editing owns a separate scanner phase. It
     // submits HID scans directly and yields whenever the visible title field,

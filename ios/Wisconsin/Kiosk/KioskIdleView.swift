@@ -19,7 +19,10 @@ struct KioskIdleView: View {
     @State private var debugForcesSleepMode = false
     #endif
 
-    private let refreshInterval: TimeInterval = 30
+    /// The idle screen is a monitoring surface, not a live custody mutation
+    /// flow. Five minutes lets Neon scale down between unattended checks while
+    /// the view still loads immediately whenever the kiosk returns to idle.
+    private let refreshInterval: TimeInterval = 5 * 60
     private let sleepWakeDuration: TimeInterval = 10 * 60
 
     var body: some View {
@@ -208,6 +211,20 @@ struct KioskIdleView: View {
                         .foregroundStyle(KioskText.tertiary)
                 }
                 Spacer(minLength: 8)
+                Button {
+                    store.resetInactivity()
+                    Task { await loadAll() }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(KioskText.secondary)
+                        .frame(width: 44, height: 44)
+                        .background(KioskSurface.cardRaised, in: Circle())
+                        .overlay(Circle().stroke(KioskStroke.hairline, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .disabled(isLoading)
+                .accessibilityLabel("Refresh kiosk data")
                 kioskHealthDot
             }
 

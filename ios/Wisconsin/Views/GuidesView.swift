@@ -48,7 +48,7 @@ struct GuidesView: View {
         let currentRole = session.currentUser?.role ?? ""
         let visible = vm.guides.filter { guide in
             focus.includes(guide, currentRole: currentRole) &&
-                (query.isEmpty || guide.searchText.contains(query))
+                (query.isEmpty || guide.searchIndex.contains(query))
         }
 
         switch sort {
@@ -258,42 +258,115 @@ private struct GuideRow: View {
 private struct GuideReaderView: View {
     let guide: GuideListItem
 
+    @State private var loadedGuide: GuideListItem?
+    @State private var isLoading = false
+    @State private var error: String?
+
+    private var displayedGuide: GuideListItem {
+        loadedGuide ?? guide
+    }
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(guide.title)
-                        .font(.gothamBold(size: 30))
-                        .lineLimit(4)
-                        .minimumScaleFactor(0.78)
+            VStack(alignment: .leading, spacing: 22) {
+                GuideReaderHeader(guide: displayedGuide)
 
-                    HStack(spacing: 8) {
-                        StatusPill(label: guide.type.label, tone: guide.type.tone)
-                        if !guide.category.isEmpty && guide.category != guide.type.label {
-                            StatusPill(label: guide.category, tone: .gray)
-                        }
-                        if !guide.published {
-                            StatusPill(label: "Draft", tone: .gray)
-                        }
-                    }
-
-                    Text("Updated \(guide.updatedSummary) by \(guide.author.name)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                NativeMarkdownArticle(markdown: guide.markdown)
+                articleContent
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 22)
-            .frame(maxWidth: 820, alignment: .leading)
+            .padding(.horizontal, 24)
+            .padding(.top, 12)
+            .padding(.bottom, 44)
+            .frame(maxWidth: 720, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color(.systemBackground))
         .toolbar(.hidden, for: .tabBar)
-        .navigationTitle("Guide")
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .refreshable { await load(forceRefresh: true) }
+        .task(id: guide.slug) { await load() }
+    }
+
+    @ViewBuilder
+    private var articleContent: some View {
+        if isLoading && displayedGuide.markdown.isEmpty {
+            VStack(spacing: 12) {
+                ProgressView()
+                Text("Loading guide")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, minHeight: 220)
+            .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .accessibilityElement(children: .combine)
+        } else if let error, displayedGuide.markdown.isEmpty {
+            ContentUnavailableView {
+                Label("Couldn't load this guide", systemImage: "wifi.exclamationmark")
+            } description: {
+                Text(error)
+            } actions: {
+                Button("Retry") { Task { await load(forceRefresh: true) } }
+                    .buttonStyle(.borderedProminent)
+            }
+            .frame(maxWidth: .infinity, minHeight: 260)
+            .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        } else {
+            NativeMarkdownArticle(markdown: displayedGuide.markdown)
+        }
+    }
+
+    private func load(forceRefresh: Bool = false) async {
+        if !forceRefresh, loadedGuide != nil { return }
+        guard !isLoading else { return }
+
+        isLoading = true
+        if forceRefresh { error = nil }
+        do {
+            loadedGuide = try await APIClient.shared.guide(slug: guide.slug)
+            error = nil
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isLoading = false
+    }
+}
+
+private struct GuideReaderHeader: View {
+    let guide: GuideListItem
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Label(guide.type.label, systemImage: guide.type.systemImage)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Color.statusText(guide.type.tone))
+
+                if !guide.category.isEmpty && guide.category != guide.type.label {
+                    Text("·")
+                        .foregroundStyle(.tertiary)
+                    Text(guide.category)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                if !guide.published {
+                    StatusPill(label: "Draft", tone: .gray)
+                }
+            }
+
+            Text(guide.title)
+                .font(.title.weight(.bold))
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text("Updated \(guide.updatedSummary) by \(guide.author.name)")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            Divider()
+                .padding(.top, 4)
+        }
+        .accessibilityElement(children: .contain)
     }
 }
 
@@ -301,7 +374,11 @@ private struct NativeMarkdownArticle: View {
     let markdown: String
 
     private var blocks: [MarkdownBlock] {
-        MarkdownBlock.parse(markdown.trimmingCharacters(in: .whitespacesAndNewlines))
+        let parsed = MarkdownBlock.parse(markdown.trimmingCharacters(in: .whitespacesAndNewlines))
+        return Array(parsed.drop { block in
+            if case .rule = block.kind { return true }
+            return false
+        })
     }
 
     var body: some View {
@@ -311,55 +388,72 @@ private struct NativeMarkdownArticle: View {
                     .font(.body)
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(blocks) { block in
-                    blockView(block)
+                ForEach(Array(blocks.enumerated()), id: \.element.id) { index, block in
+                    blockView(block, isFirst: index == 0)
                 }
             }
         }
-        .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(Color.hairline, lineWidth: 0.5)
-        }
     }
 
     @ViewBuilder
-    private func blockView(_ block: MarkdownBlock) -> some View {
+    private func blockView(_ block: MarkdownBlock, isFirst: Bool) -> some View {
         switch block.kind {
         case .heading(let level, let text):
             Text(text)
                 .font(headingFont(level))
                 .foregroundStyle(.primary)
-                .padding(.top, level == 1 ? 4 : 10)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, isFirst ? 0 : (level <= 2 ? 22 : 10))
         case .paragraph(let text):
             inlineText(text)
                 .font(.body)
-                .lineSpacing(4)
+                .lineSpacing(5)
+                .fixedSize(horizontal: false, vertical: true)
                 .textSelection(.enabled)
         case .bullet(let text):
-            HStack(alignment: .firstTextBaseline, spacing: 9) {
-                Text("•").foregroundStyle(.secondary)
-                inlineText(text).font(.body).lineSpacing(4)
+            HStack(alignment: .top, spacing: 12) {
+                Circle()
+                    .fill(Color.secondary.opacity(0.65))
+                    .frame(width: 6, height: 6)
+                    .padding(.top, 8)
+                inlineText(text)
+                    .font(.body)
+                    .lineSpacing(5)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .textSelection(.enabled)
         case .numbered(let number, let text):
-            HStack(alignment: .firstTextBaseline, spacing: 9) {
-                Text("\(number).").foregroundStyle(.secondary)
-                inlineText(text).font(.body).lineSpacing(4)
-            }
-            .textSelection(.enabled)
-        case .quote(let text):
-            HStack(alignment: .top, spacing: 10) {
-                Rectangle()
-                    .fill(Color.brandPrimary.opacity(0.55))
-                    .frame(width: 3)
+            HStack(alignment: .top, spacing: 12) {
+                Text("\(number)")
+                    .font(.caption.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(.primary)
+                    .frame(width: 28, height: 28)
+                    .background(Color.cardSurfaceRaised, in: Circle())
+                    .accessibilityHidden(true)
                 inlineText(text)
                     .font(.body)
-                    .foregroundStyle(.secondary)
-                    .lineSpacing(4)
+                    .lineSpacing(5)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            .textSelection(.enabled)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Step \(number). \(text)")
+        case .quote(let text):
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "quote.opening")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.statusText(.blue))
+                inlineText(text)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .lineSpacing(5)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.statusBackground(.blue), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .textSelection(.enabled)
         case .code(let text), .table(let text):
             ScrollView(.horizontal, showsIndicators: false) {
@@ -406,9 +500,9 @@ private struct NativeMarkdownArticle: View {
 
     private func headingFont(_ level: Int) -> Font {
         switch level {
-        case 1: .title2.weight(.bold)
-        case 2: .title3.weight(.semibold)
-        default: .headline
+        case 1: .title.weight(.bold)
+        case 2: .title2.weight(.bold)
+        default: .title3.weight(.semibold)
         }
     }
 
@@ -676,14 +770,14 @@ private extension GuideListItem {
         return date.formatted(date: .abbreviated, time: .omitted)
     }
 
-    var searchText: String {
+    var searchIndex: String {
         [
             title,
             category,
             type.label,
             author.name,
             summary,
-            markdown,
+            searchText,
             targetRoles.joined(separator: " "),
             targetAreas.joined(separator: " "),
         ].joined(separator: " ").lowercased()
@@ -704,6 +798,7 @@ private extension GuideListItem {
           "type": "GENERAL",
           "category": "General Info",
           "summary": "Guide preview placeholder",
+          "searchText": "Guide content",
           "markdown": "Guide content",
           "author": { "id": "placeholder-author", "name": "Creative" }
         }

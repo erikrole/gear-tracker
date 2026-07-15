@@ -79,6 +79,7 @@
 - `/privacy` -> `src/app/privacy/page.tsx`
 - `/register` -> `src/app/register/page.tsx`
 - `/reset-password` -> `src/app/reset-password/page.tsx`
+- `/support` -> `src/app/support/page.tsx`
 
 ## Layouts
 

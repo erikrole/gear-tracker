@@ -45,7 +45,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { params }) => {
   const activeAllocationByUnitId = await loadActiveBulkUnitAllocationMap(sku.units.map((unit) => unit.id));
   const state = summarizeItemFamilyState(sku, activeAllocationByUnitId);
 
-  return ok({ data: { ...sku, units: state.effectiveUnits, onHand: state.balanceOnHandQuantity, availableQuantity: state.availableQuantity } });
+  return ok({ data: { ...sku, units: state.effectiveUnits, onHand: state.onHandQuantity, availableQuantity: state.availableQuantity } });
 });
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
@@ -110,7 +110,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     after: afterDiff,
   });
 
-  return ok({ data: { ...skuRest, onHand: state.balanceOnHandQuantity, availableQuantity: state.availableQuantity } });
+  return ok({ data: { ...skuRest, onHand: state.onHandQuantity, availableQuantity: state.availableQuantity } });
 });
 
 async function loadActiveBulkUnitAllocationMap(unitIds: string[]) {

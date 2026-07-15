@@ -17,7 +17,7 @@ describe("item freshness sync source contract", () => {
 
     expect(hook).toContain('"/api/items/changes"');
     expect(hook).not.toContain('"/api/assets"');
-    expect(hook).toContain("ITEM_CHANGE_SYNC_INTERVAL_MS = 5_000");
+    expect(hook).toContain("ITEM_CHANGE_SYNC_INTERVAL_MS = 60_000");
     expect(hook).toContain('document.visibilityState === "hidden"');
     expect(hook).toContain("!navigator.onLine");
   });

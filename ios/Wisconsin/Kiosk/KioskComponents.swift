@@ -133,38 +133,24 @@ struct KioskSectionIcon: View {
 // MARK: Scan target
 
 /// The scan-zone focal point: viewfinder corner brackets around a barcode
-/// glyph, tinted by the flow's scan-feedback color. The brackets breathe
-/// gently while waiting for a scan (static under Reduce Motion).
+/// glyph, tinted by the flow's scan-feedback color. Keep the bracket geometry
+/// static: PhaseAnimator caused the shape to translate during its first phase
+/// on the managed iPad instead of producing a clean opacity pulse.
 struct KioskScanTarget: View {
     var tint: Color
     var width: CGFloat = 220
     var height: CGFloat = 140
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
-            brackets
+            KioskCornerBrackets()
+                .stroke(tint, style: StrokeStyle(lineWidth: 3, lineCap: .round))
             Image(systemName: "barcode.viewfinder")
                 .font(.system(size: 56))
                 .foregroundStyle(tint)
         }
         .frame(width: width, height: height)
         .accessibilityHidden(true)
-    }
-
-    @ViewBuilder
-    private var brackets: some View {
-        let shape = KioskCornerBrackets()
-            .stroke(tint, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-        if reduceMotion {
-            shape
-        } else {
-            shape.phaseAnimator([0.55, 1.0]) { view, phase in
-                view.opacity(phase)
-            } animation: { _ in
-                .easeInOut(duration: 1.6)
-            }
-        }
     }
 }
 
@@ -213,6 +199,62 @@ private struct KioskCornerBrackets: Shape {
         path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY - arm))
 
         return path
+    }
+}
+
+/// Reports the hidden HID sink's real first-responder state. Scan screens must
+/// never claim the hand scanner is ready merely because the field is mounted.
+struct KioskScannerReadinessBadge: View {
+    let isReady: Bool
+    var lastScanAt: Date?
+    var onTap: (() -> Void)?
+
+    var body: some View {
+        Group {
+            if let onTap {
+                Button(action: onTap) { content }
+                    .buttonStyle(.plain)
+            } else {
+                content
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Scanner status, \(label)")
+    }
+
+    private var content: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(statusColor)
+                .frame(width: 8, height: 8)
+                .accessibilityHidden(true)
+            Text(label)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(KioskText.secondary)
+            if onTap != nil {
+                Image(systemName: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(KioskText.muted)
+                    .accessibilityHidden(true)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .kioskCard(KioskSurface.card, radius: KioskRadius.md, stroke: KioskStroke.hairline)
+    }
+
+    private var statusColor: Color {
+        guard isReady else { return Color.statusText(.orange) }
+        return lastScanAt == nil ? Color.statusText(.blue) : Color.statusText(.green)
+    }
+
+    private var label: String {
+        guard isReady else { return "Scanner reconnecting" }
+        guard let lastScanAt else { return "Scanner ready" }
+        let seconds = max(0, Int(Date().timeIntervalSince(lastScanAt)))
+        if seconds < 5 { return "Scan received" }
+        if seconds < 60 { return "Last scan \(seconds)s ago" }
+        return "Last scan \(seconds / 60)m ago"
     }
 }
 

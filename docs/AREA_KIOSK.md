@@ -4,7 +4,7 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped — iOS canonical (web kiosk deprecated 2026-04-24)
 - Created: 2026-04-07
-- Last Updated: 2026-07-09
+- Last Updated: 2026-07-13
 - Brief: `BRIEF_KIOSK.md`
 - Decision Refs: D-030, D-040
 
@@ -37,7 +37,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 - **`KioskStore.swift`** — `@Observable` state machine. Owns `screen` (`activation | idle | studentHub | checkout | pickup | return | success`), `info` (KioskInfo from activation), inactivity timer, heartbeat task, persisted `kiosk_info_v1` in UserDefaults.
 - **`KioskShellView.swift`** — switches between screens, applies dark color scheme, hides system overlays + status bar, and tracks activity through non-cancelling UIKit recognizers so embedded controls keep their own tap handling.
 - **`KioskActivationView.swift`** — 6-digit numpad, calls `/api/kiosk/activate`.
-- **`KioskIdleView.swift`** — left panel: stats + today's events + active checkouts (polls `/api/kiosk/dashboard` every 30s). Right panel: location-scoped student roster grid (`/api/kiosk/users`).
+- **`KioskIdleView.swift`** — left panel: stats + today's events + active checkouts. It loads immediately when the kiosk returns to idle, supports an explicit Refresh control, and otherwise refreshes its dashboard and location-scoped roster on a five-minute idle cadence.
 - **`KioskStudentHubView.swift`** — entry point after a student taps their tile; lists their active checkouts/reservations and routes to checkout/pickup/return.
 - **`KioskCheckoutView.swift`** — scan zone + scanned-items list + Complete button.
 - **`KioskPickupView.swift`** — for reservation pickup handoffs and compatibility `PENDING_PICKUP` bookings.
@@ -112,6 +112,9 @@ Files under `ios/Wisconsin/Kiosk/`:
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-07-13 | Connected-device follow-up: physical HID checkout scanning is user-confirmed working again on the canonical M2 iPad Air. The scan target no longer runs its corner brackets through `PhaseAnimator`, which made the orange reconnecting shape slide downward on page entry under iPadOS 26. The bracket geometry is now static and neutral before the first scan; the adjacent readiness badge remains the sole reconnecting indicator. |
+| 2026-07-13 | Kiosk item scanning focus recovery: the shared HID sink now retries when UIKit rejects first-responder acquisition during a SwiftUI mount or transition and weakly tracks visible editors so a missing end-editing notification cannot block scanning forever. Checkout, pickup, and return now show actual capture state as Scanner reconnecting or Scanner ready, plus scan-recency feedback after input arrives. Focused contracts, simulator and connected-device builds, install, and launch pass on the canonical M2 iPad Air running iPadOS 26.5.2; physical HID checkout scanning was subsequently user-confirmed. The former iPadOS 17 kiosk is retired. |
+| 2026-07-12 | **Compute-aware freshness** — the idle kiosk now loads immediately on entry and after custody success, offers a manual refresh, and reduces unattended dashboard/roster refreshes from 30 seconds to five minutes. Its device heartbeat now runs every five minutes. The server retains its one-minute heartbeat allowance during rollout so installed older kiosk builds stay valid. This preserves kiosk-only custody and visible recovery while allowing the Neon database to scale down between idle checks. |
 | 2026-07-10 | Apple Design custody and recovery hardening: rapid checkout scans merge into fresh cart state and completion waits for pending scans; failed availability verification blocks checkout; any 401 immediately clears the device session and returns to activation; idle checkout details are read-only while a selected student's Manage surface owns edits and return; checkout context now resumes with its cart after inactivity; camera denial exposes Settings and manual entry; shared progress, feedback, success, and typography honor accessibility motion/type behavior. |
 | 2026-07-09 | Kiosk audit history now keeps item identity. Active-checkout add/remove audit rows store a human-readable serialized-asset or numbered-unit name, and completed returns store their returned item names alongside the existing counts. The shared web timeline renders those names directly, while older audit rows without identity retain their generic fallback. |
 | 2026-07-09 | Kiosk windowing/compiler cleanup: removed deprecated `UIRequiresFullScreen`, declared all iPad orientations, and set a 640×540 content minimum for resizable scenes. A shared adaptive split keeps checkout scanning, pickup, return, and the student hub wide in landscape while stacking their rail below the work surface in compact or portrait scenes. The HID scanner suppression default now resolves inside its main-actor method, clearing the future Swift 6 isolation warning. Kiosk simulator and generic-device builds are warning-free; managed M2 iPad Air resize/orientation confirmation remains open. |

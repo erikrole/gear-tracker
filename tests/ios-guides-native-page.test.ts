@@ -15,10 +15,16 @@ function guidesClientFunction(apiClient: string) {
   return match?.[0] ?? "";
 }
 
+function guideDetailClientFunction(apiClient: string) {
+  const match = apiClient.match(/func guide\(slug: String\)[\s\S]*?\n    }\n/);
+  return match?.[0] ?? "";
+}
+
 describe("iOS native Guides page", () => {
   it("uses the existing read-only Resources API contract", () => {
     const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
     const guidesClient = guidesClientFunction(apiClient);
+    const guideDetailClient = guideDetailClientFunction(apiClient);
     const models = source("ios/Wisconsin/Models/Models.swift");
     const listRoute = source("src/app/api/resources/route.ts");
     const detailRoute = source("src/app/api/resources/[id]/route.ts");
@@ -27,9 +33,12 @@ describe("iOS native Guides page", () => {
     expect(guidesClient).toContain('request(path: "/api/resources", queryItems: items)');
     expect(guidesClient).not.toContain('request(path: "/api/resources/upload-image"');
     expect(guidesClient).not.toContain('method: "POST")');
+    expect(guideDetailClient).toContain("func guide(slug: String) async throws -> GuideListItem");
+    expect(guideDetailClient).toContain('request(path: "/api/resources/\\(slug)")');
 
     expect(models).toContain("enum ResourceType: String, Codable");
     expect(models).toContain("struct GuideListItem: Codable, Identifiable, Hashable");
+    expect(models).toContain('searchText = try container.decodeIfPresent(String.self, forKey: .searchText) ?? ""');
     expect(models).toContain("markdown = try container.decodeIfPresent(String.self, forKey: .markdown) ?? \"\"");
     expect(models).toContain("targetRoles = try container.decodeIfPresent([String].self, forKey: .targetRoles) ?? []");
     expect(models).toContain("targetAreas = try container.decodeIfPresent([String].self, forKey: .targetAreas) ?? []");
@@ -52,7 +61,21 @@ describe("iOS native Guides page", () => {
     expect(view).toContain("ContentUnavailableView");
     expect(view).toContain("NavigationLink {");
     expect(view).toContain("GuideReaderView(guide: guide)");
-    expect(view).toContain("NativeMarkdownArticle(markdown: guide.markdown)");
+    expect(view).toContain("loadedGuide = try await APIClient.shared.guide(slug: guide.slug)");
+    expect(view).toContain('Label("Couldn\'t load this guide", systemImage: "wifi.exclamationmark")');
+    expect(view).toContain(".refreshable { await load(forceRefresh: true) }");
+    expect(view).toContain("NativeMarkdownArticle(markdown: displayedGuide.markdown)");
+    expect(view).toContain("GuideReaderHeader(");
+    expect(view).toContain(".font(.title.weight(.bold))");
+    expect(view).toContain('.navigationTitle("")');
+    expect(view).toContain('Text("Updated \\(guide.updatedSummary) by \\(guide.author.name)")');
+    expect(view).not.toContain("let summary: String");
+    expect(view).toContain("if case .rule = block.kind { return true }");
+    expect(view).toContain("blockView(block, isFirst: index == 0)");
+    expect(view).toContain(".background(Color(.systemBackground))");
+    expect(view).toContain(".background(Color.cardSurfaceRaised, in: Circle())");
+    expect(view).toContain('.accessibilityLabel("Step \\(number). \\(text)")');
+    expect(view).not.toContain(".font(.gothamBold(size: 30))");
     expect(view).toContain("AttributedString(markdown: markdown");
     expect(view).not.toContain("Edit");
     expect(view).not.toContain("markVerified");

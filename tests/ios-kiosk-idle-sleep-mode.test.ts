@@ -7,6 +7,18 @@ function source(relativeFile: string) {
 }
 
 describe("iOS kiosk idle sleep mode", () => {
+  it("uses cost-bounded idle polling while retaining a manual refresh and durable device health check", () => {
+    const idle = source("ios/Wisconsin/Kiosk/KioskIdleView.swift");
+    const store = source("ios/Wisconsin/Kiosk/KioskStore.swift");
+
+    expect(idle).toContain("private let refreshInterval: TimeInterval = 5 * 60");
+    expect(idle).toContain('Image(systemName: "arrow.clockwise")');
+    expect(idle).toContain('accessibilityLabel("Refresh kiosk data")');
+    expect(idle).toContain(".task { await loadAll() }");
+    expect(store).toContain("private static let heartbeatInterval: UInt64 = 300_000_000_000");
+    expect(store).toContain("Task.sleep(nanoseconds: Self.heartbeatInterval)");
+  });
+
   it("keeps sleep dismissal across idle navigation and preserves readable overlay text", () => {
     const idle = source("ios/Wisconsin/Kiosk/KioskIdleView.swift");
     const sleepView = source("ios/Wisconsin/Kiosk/KioskSleepModeView.swift");

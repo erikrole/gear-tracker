@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Download, PlusIcon } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BulkUnitGrid } from "@/components/BulkUnitGrid";
@@ -34,7 +34,8 @@ export default function BulkSkuUnitsTab({
   const checkedOut = units.filter((u) => u.status === "CHECKED_OUT").length;
   const lost = units.filter((u) => u.status === "LOST").length;
   const retired = units.filter((u) => u.status === "RETIRED").length;
-  const printedLabels = units.filter((u) => !!u.labelPrintedAt).length;
+  const activeUnits = units.filter((u) => u.status !== "RETIRED");
+  const printedLabels = activeUnits.filter((u) => !!u.labelPrintedAt).length;
 
   async function handleExportLabels() {
     if (exporting) return;
@@ -107,26 +108,34 @@ export default function BulkSkuUnitsTab({
 
   return (
     <div className="mt-3.5 flex flex-col gap-4">
-      <Card>
-        <CardHeader className="flex-row items-center justify-between">
-          <div className="flex items-center gap-4 flex-wrap">
-            <CardTitle className="text-sm font-semibold">
-              {units.length} units
-            </CardTitle>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+      <Card className="border-border/40 shadow-none">
+        <CardHeader className="flex-col gap-4 border-b border-border/40 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex flex-wrap items-baseline gap-2">
+              <CardTitle className="text-base tabular-nums">
+                {activeUnits.length} active units
+              </CardTitle>
+              {retired > 0 ? (
+                <span className="text-xs text-muted-foreground tabular-nums">{units.length} numbered records</span>
+              ) : null}
+            </div>
+            <CardDescription className="mt-1 text-pretty">
+              Right-click or press and hold an available unit to change its status.
+            </CardDescription>
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
               {available > 0 && <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-[var(--green)]" />{available} available</span>}
               {checkedOut > 0 && <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-[var(--blue)]" />{checkedOut} out</span>}
               {lost > 0 && <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-destructive" />{lost} missing</span>}
-              {retired > 0 && <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-muted-foreground" />{retired} retired</span>}
+              {retired > 0 && <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-muted-foreground" />{retired} retired records</span>}
               {sku.trackByNumber && units.length > 0 && (
-                <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-muted-foreground/60" />{printedLabels} labeled</span>
+                <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-muted-foreground/60" />{printedLabels}/{activeUnits.length} active labels</span>
               )}
             </div>
           </div>
           <div className="flex items-center gap-2">
           {sku.trackByNumber && units.length > 0 && (
-            <Button size="sm" variant="outline" onClick={handleExportLabels} disabled={exporting}>
-              <Download className="size-3.5 mr-1" />
+            <Button variant="outline" className="h-10 active:scale-[0.96] transition-transform" onClick={handleExportLabels} disabled={exporting}>
+              <Download className="size-4" />
               {exporting ? "Exporting…" : "Brother CSV"}
             </Button>
           )}
@@ -141,19 +150,19 @@ export default function BulkSkuUnitsTab({
                   className="w-20"
                   disabled={busy}
                 />
-                <Button size="sm" onClick={handleAddUnits} disabled={busy}>{busy ? "Adding…" : "Add"}</Button>
-                <Button size="sm" variant="outline" onClick={() => setAddingUnits(false)} disabled={busy}>Cancel</Button>
+                <Button className="h-10" onClick={handleAddUnits} disabled={busy}>{busy ? "Adding…" : "Add"}</Button>
+                <Button className="h-10" variant="outline" onClick={() => setAddingUnits(false)} disabled={busy}>Cancel</Button>
               </div>
             ) : (
-              <Button size="sm" variant="outline" onClick={() => setAddingUnits(true)}>
-                <PlusIcon className="size-3.5 mr-1" />
+              <Button variant="outline" className="h-10 active:scale-[0.96] transition-transform" onClick={() => setAddingUnits(true)}>
+                <PlusIcon className="size-4" />
                 Add units
               </Button>
             )
           )}
           </div>
         </CardHeader>
-        <CardContent className="pt-0">
+        <CardContent className="pt-5">
           {units.length === 0 ? (
             <EmptyState
               inline
@@ -170,11 +179,11 @@ export default function BulkSkuUnitsTab({
                 onStatusChange={handleStatusChange}
                 disabled={!canEdit}
               />
-              {canEdit && (
-                <p className="text-xs text-muted-foreground mt-3">
-                  Open a unit&apos;s menu to mark it available, missing, or retired. Checked-out units return through check-in.
+              {canEdit && checkedOut > 0 ? (
+                <p className="mt-4 text-xs text-muted-foreground">
+                  Checked-out units are locked here and return through kiosk check-in.
                 </p>
-              )}
+              ) : null}
             </>
           )}
         </CardContent>

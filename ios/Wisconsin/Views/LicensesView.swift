@@ -92,6 +92,14 @@ struct LicensesView: View {
         return role == "STAFF" || role == "ADMIN"
     }
 
+    private var openSlotCount: Int {
+        vm.codes.reduce(into: 0) { total, code in
+            guard code.status != .retired else { return }
+            let activeClaims = code.claims.filter { $0.releasedAt == nil }.count
+            total += max(0, 2 - min(activeClaims, 2))
+        }
+    }
+
     var body: some View {
         if wrapsInNavigationStack {
             NavigationStack { configuredContent }
@@ -175,6 +183,16 @@ struct LicensesView: View {
 
     private var licenseList: some View {
         List {
+            Section {
+                LicensePoolOverview(
+                    hasActiveLicense: vm.activeClaim != nil,
+                    openSlotCount: openSlotCount,
+                    codeCount: vm.codes.filter { $0.status != .retired }.count
+                )
+            }
+            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+            .listRowBackground(Color.clear)
+
             if let notice = vm.notice {
                 Section {
                     Label(notice, systemImage: "checkmark.circle.fill")
@@ -221,7 +239,13 @@ struct LicensesView: View {
         Section("My License") {
             if let activeClaim = vm.activeClaim {
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    HStack(alignment: .center, spacing: 12) {
+                        Image(systemName: "key.fill")
+                            .font(.headline)
+                            .foregroundStyle(Color.statusText(.blue))
+                            .frame(width: 40, height: 40)
+                            .background(Color.statusBackground(.blue), in: Circle())
+
                         VStack(alignment: .leading, spacing: 3) {
                             Text(activeClaim.label?.isEmpty == false ? activeClaim.label! : "Photo Mechanic")
                                 .font(.headline)
@@ -236,10 +260,14 @@ struct LicensesView: View {
                     }
 
                     Text(activeClaim.code)
-                        .font(.system(.body, design: .monospaced).weight(.semibold))
+                        .font(.system(.body, design: .monospaced).weight(.medium))
                         .textSelection(.enabled)
                         .lineLimit(2)
                         .minimumScaleFactor(0.82)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.cardSurfaceRaised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
                     Label(expirySummary(activeClaim.expiresAt), systemImage: "calendar")
                         .font(.caption)
@@ -256,11 +284,24 @@ struct LicensesView: View {
                         }
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, 6)
+                .listRowBackground(Color.statusBackground(.blue))
             } else {
-                Label("No active Photo Mechanic license", systemImage: "key.slash")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 12) {
+                    Image(systemName: "key.slash")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 40, height: 40)
+                        .background(Color.cardSurfaceRaised, in: Circle())
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("No active license")
+                            .font(.headline)
+                        Text(openSlotCount > 0 ? "Choose an open slot below when you need one." : "Every shared slot is currently in use.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 4)
             }
         }
     }
@@ -304,6 +345,56 @@ struct LicensesView: View {
     }
 }
 
+private struct LicensePoolOverview: View {
+    let hasActiveLicense: Bool
+    let openSlotCount: Int
+    let codeCount: Int
+
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: hasActiveLicense ? "checkmark.seal.fill" : "key.horizontal.fill")
+                .font(.title2)
+                .foregroundStyle(Color.statusText(hasActiveLicense ? .blue : availabilityTone))
+                .frame(width: 48, height: 48)
+                .background(Color.statusBackground(hasActiveLicense ? .blue : availabilityTone), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(hasActiveLicense ? "Your license is ready" : availabilityTitle)
+                    .font(.headline)
+                Text(summary)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 8)
+        }
+        .padding(16)
+        .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(Color.hairline, lineWidth: 0.5)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var availabilityTitle: String {
+        openSlotCount == 0 ? "All licenses are in use" : "Licenses are available"
+    }
+
+    private var summary: String {
+        let codeLabel = codeCount == 1 ? "code" : "codes"
+        let slotLabel = openSlotCount == 1 ? "slot" : "slots"
+        if hasActiveLicense {
+            return "Copy your code below. \(openSlotCount) open \(slotLabel) remain across \(codeCount) \(codeLabel)."
+        }
+        return "\(openSlotCount) open \(slotLabel) across \(codeCount) shared \(codeLabel)."
+    }
+
+    private var availabilityTone: StatusTone {
+        openSlotCount > 0 ? .green : .gray
+    }
+}
+
 private struct LicensePoolRow: View {
     let code: LicenseCode
     let currentUserId: String?
@@ -337,7 +428,13 @@ private struct LicensePoolRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: statusSystemImage)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.statusText(statusTone))
+                    .frame(width: 36, height: 36)
+                    .background(Color.statusBackground(statusTone), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+
                 VStack(alignment: .leading, spacing: 3) {
                     Text(licenseTitle(code))
                         .font(.headline)
@@ -353,7 +450,7 @@ private struct LicensePoolRow: View {
 
                 Spacer(minLength: 8)
 
-                StatusPill(label: code.status.label, tone: statusTone)
+                StatusPill(label: availabilityLabel, tone: statusTone)
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -382,7 +479,8 @@ private struct LicensePoolRow: View {
                 .font(.caption)
                 .foregroundStyle(expiryTone(code.expiresAt))
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
+        .listRowBackground(rowBackground)
     }
 
     private var codeDisplay: String {
@@ -390,7 +488,10 @@ private struct LicensePoolRow: View {
     }
 
     private var slotSummary: String {
-        if activeClaims.isEmpty { return "2 slots open" }
+        if activeClaims.isEmpty { return "No one is using this code" }
+        guard canRevealUnclaimedCodes else {
+            return slotCount == 1 ? "1 of 2 slots in use" : "Both slots in use"
+        }
         let names = activeClaims.map { claim -> String in
             if let name = claim.user?.name, !name.isEmpty { return name }
             if let label = claim.occupantLabel, !label.isEmpty { return label }
@@ -402,10 +503,38 @@ private struct LicensePoolRow: View {
     private var statusTone: StatusTone {
         switch code.status {
         case .available: StatusTone.green
-        case .partial: StatusTone.orange
-        case .claimed: StatusTone.red
+        case .partial: StatusTone.blue
+        case .claimed: StatusTone.blue
         case .retired: StatusTone.gray
         case .unknown: StatusTone.gray
+        }
+    }
+
+    private var availabilityLabel: String {
+        switch code.status {
+        case .available: "2 open"
+        case .partial: "1 open"
+        case .claimed: "Full"
+        case .retired: "Retired"
+        case .unknown: "Unknown"
+        }
+    }
+
+    private var statusSystemImage: String {
+        switch code.status {
+        case .available: "checkmark"
+        case .partial: "person.badge.plus"
+        case .claimed: "person.2.fill"
+        case .retired: "archivebox.fill"
+        case .unknown: "questionmark"
+        }
+    }
+
+    private var rowBackground: Color {
+        switch code.status {
+        case .available: Color.statusBackground(.green)
+        case .partial, .claimed: Color.statusBackground(.blue)
+        case .retired, .unknown: Color.cardSurface
         }
     }
 

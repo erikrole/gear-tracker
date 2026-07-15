@@ -15,6 +15,8 @@ struct KioskReturnView: View {
     @State private var loadError: String?
     @State private var showCamera = false
     @State private var lastReturnedId: String?
+    @State private var scannerHasFocus = false
+    @State private var lastScanAt: Date?
 
     enum ScanFeedback: Equatable {
         case success(String)
@@ -56,7 +58,10 @@ struct KioskReturnView: View {
             checklistPanel(isCompact: isCompact)
         }
         .overlay(alignment: .bottom) {
-            HIDScannerField { value in handleScan(value) }
+            HIDScannerField(
+                onScan: handleScan,
+                onFocusChange: { scannerHasFocus = $0 }
+            )
                 .frame(width: 1, height: 1)
                 .opacity(0)
         }
@@ -114,6 +119,11 @@ struct KioskReturnView: View {
                                 .multilineTextAlignment(.center)
                         }
                     }
+
+                    KioskScannerReadinessBadge(
+                        isReady: scannerHasFocus,
+                        lastScanAt: lastScanAt
+                    )
 
                     if hasBatteryScanStep {
                         KioskBatteryScanStatus(
@@ -245,6 +255,7 @@ struct KioskReturnView: View {
         }
 
         store.resetInactivity()
+        lastScanAt = Date()
 
         Task {
             do {

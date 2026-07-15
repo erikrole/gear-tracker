@@ -576,6 +576,11 @@ final class APIClient {
         return resp.data
     }
 
+    func guide(slug: String) async throws -> GuideListItem {
+        let resp: DataWrapper<GuideListItem> = try await perform(request(path: "/api/resources/\(slug)"))
+        return resp.data
+    }
+
     // MARK: - Assets
 
     func assets(

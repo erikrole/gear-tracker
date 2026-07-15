@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Bulk Inventory Management
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-29
+- Last Updated: 2026-07-15
 - Status: Active
 - Version: V1
 
@@ -23,6 +23,7 @@ Operate item families backed by `BulkSku` records. Normal discovery happens in `
 10. Camera-slot SD cards are not bulk inventory when assigned to a specific camera slot; they are serialized item attachments under the camera.
 11. Numbered battery available quantity derives from effective unit status: active `BookingBulkUnitAllocation` rows make a unit checked out, `LOST` and `RETIRED` remain unavailable, and orphaned raw `CHECKED_OUT` flags with no active allocation read as available. Orphaned flags are also claimable — kiosk checkout/add/bind paths accept them through the shared `CLAIMABLE_BULK_UNIT_WHERE` guard and self-heal the flag on claim; the repair-stale tool remains for bulk cleanup and reporting hygiene.
 12. Quantity-only available quantity derives from current `BulkStockBalance.onHandQuantity`; checkout creation, pending pickup, cancellation, and return paths move that balance through audited stock movements, so read models must not subtract active checkout quantities again.
+13. Unit-tracked active inventory totals exclude `RETIRED` records. Retired unit numbers remain visible for labels and audit history, but availability denominators, item-list summaries, exports, and picker-facing on-hand totals count only AVAILABLE, CHECKED_OUT, and LOST units.
 
 ## Routes
 
@@ -53,6 +54,16 @@ Operate item families backed by `BulkSku` records. Normal discovery happens in `
   - Unit actions reuse the audited `/api/bulk-skus/[id]/units/[unitNumber]` status endpoint.
   - Checked-out units are read-only in this surface and must be returned through check-in before status changes.
   - Stale checked-out flag repair uses `POST /api/bulk-skus/batteries/repair-stale`; it is limited to active battery families, requires `bulk_sku.adjust`, defaults to a dry-run preview, and writes one audit entry per repaired unit only when an operator explicitly applies the repair.
+
+### `/items/bulk-{id}` and `/bulk-inventory/{id}`
+- **Page:** `src/app/(app)/bulk-inventory/[id]/BulkSkuDetailExperience.tsx`
+- **Type:** Shared item-family detail and staff stockroom detail
+- **Structure:**
+  1. Contained item header with active inventory count, category, location, image, refresh, and stockroom handoff.
+  2. Info overview led by current availability, active total, status breakdown, label readiness, and retired-record explanation.
+  3. Secondary grouped metadata for identity, stock policy, procurement, QR identity, and operator notes.
+  4. Unit operations, QR, history, and settings remain URL-backed tabs.
+- **Count language:** `available / active` excludes retired records from the denominator. Retired records remain visible as a separate status and keep their permanent unit numbers.
 
 ## Data Model
 
@@ -164,8 +175,10 @@ See `AREA_ITEMS.md` 2026-04-06 entry for bulk inventory page hardening:
 - [x] AC-7: Unit-tracked battery audit/reporting exposes missing units, loss rate by family, custody history, and repeated missing-unit patterns
 - [x] AC-8: Staff can export a Brother P-Touch label CSV (`item_number,qr_code`) for a numbered SKU and mark the exported labels printed, with printed-label state visible per card and per unit and surviving refresh
 - [x] AC-9: Item-family detail edits and unit/image mutations invalidate `/items` catalog caches and participate in the shared item-change signal so Back navigation and open detail views converge without manual refresh.
+- [x] AC-10: Unit-tracked item-family summaries exclude retired records from active inventory totals while preserving retired unit numbers, label state, and audit visibility.
 
 ## Change Log
+- 2026-07-15: **Item-family detail ownership pass.** Active inventory totals now exclude retired numbered records across the shared item-family state helper, so Sony Battery reports 47 available out of 49 active units while keeping units 50-52 visible as three retired records. The detail page now leads with operational inventory truth, label readiness, and the retired-record rule; metadata is grouped into a quieter secondary column; the header is contained and shows active stock; unit controls distinguish active units from numbered records and use larger interaction targets. Focused state/route tests, TypeScript, lint, and app build cover the change; authenticated local visual proof remains unavailable without a configured local test identity.
 - 2026-07-10: **Bulk SKU detail visual polish.** Unit-count values in the overview card drop forced mono for standard tabular numerals. Visual only.
 - 2026-07-10: **Battery Ops operational status rail.** Missing units, low families, stale flags, and checked-out units now use the shared prioritized rail; available, checked-out, missing, retired, and low-family totals remain under Details without changing effective-status or repair behavior.
 - 2026-07-06: **Bulk check-in ledger unification shipped.** `checkedInQuantity` had two incompatible conventions: web `checkinBulkItem` incremented it AND restocked `BulkStockBalance` immediately, while kiosk unit check-in scans and admin-override scans incremented WITHOUT restocking. Completion paths then guessed: `maybeAutoComplete` restocked the full checked-out quantity (double-restocking anything returned via `checkinBulkItem`), while `markCheckoutCompleted`/`forceCompleteCheckout` restocked out-minus-in (permanently under-restocking scan-based returns). Mixing paths on one checkout, e.g. batteries returned at the kiosk then completed from the web, silently corrupted on-hand stock, which availability reads. Now: (1) every check-in scan restocks at the moment of physical return (kiosk unit scans, admin-override numbered and plain scans), so each `checkedInQuantity` increment carries its own CHECKIN movement and availability sees a returned battery immediately; (2) all three completion paths reconcile through the new movement-sourced `settleBulkLedgerAtCompletion` helper (CHECKOUT movements minus CHECKIN movements minus lost units), which is self-healing for pre-deploy returns that never wrote movements; (3) reservation-pickup unit binding enforces bound == plannedQuantity per numbered SKU inside the transaction (the route blocked under-staging but not over-staging, and the ledger was decremented by planned). Contract pinned in `tests/bulk-checkin-ledger-contract.test.ts`. Plan: `tasks/archive/checkin-hardening-plan.md`.

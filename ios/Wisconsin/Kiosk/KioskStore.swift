@@ -117,6 +117,7 @@ final class KioskStore {
     private static let inactivityTotal: UInt64 = 300_000_000_000        // 5 min
     private static let inactivityWarning: UInt64 = 270_000_000_000      // 4:30
     private static let sleepDismissalDuration: TimeInterval = 10 * 60
+    private static let heartbeatInterval: UInt64 = 300_000_000_000      // 5 min
 
     init() {
         if let data = UserDefaults.standard.data(forKey: Self.infoKey),
@@ -375,7 +376,7 @@ final class KioskStore {
         heartbeatTask?.cancel()
         heartbeatTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 60_000_000_000) // 60s
+                try? await Task.sleep(nanoseconds: Self.heartbeatInterval)
                 guard let self else { return }
                 do {
                     try await KioskAPI.shared.kioskHeartbeat()

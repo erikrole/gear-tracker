@@ -8,7 +8,7 @@ enum HIDScannerFocusGate {
     /// re-acquire cannot slip in during a field-to-field keyboard handoff.
     private static let editingHandoffGrace: TimeInterval = 1.0
     private static var suppressedUntil = Date.distantPast
-    private static var activeVisibleEditors = Set<ObjectIdentifier>()
+    private static var activeVisibleEditors: [ObjectIdentifier: WeakVisibleEditor] = [:]
     private static var observersInstalled = false
 
     /// The scanner sink may only take first responder when no visible text
@@ -18,7 +18,14 @@ enum HIDScannerFocusGate {
     /// keeps the keyboard up, unlike the old time-window-only design that
     /// lapsed after 20 idle seconds.
     static var canAcquireScannerFocus: Bool {
-        activeVisibleEditors.isEmpty && Date() >= suppressedUntil
+        // SwiftUI can remove a UIKit-backed editor during a view transition
+        // without delivering the balanced end-editing notification we expect.
+        // Prune editors that disappeared or no longer own first responder so a
+        // stale object identifier can never leave the scanner blocked forever.
+        activeVisibleEditors = activeVisibleEditors.filter { _, tracked in
+            tracked.editor?.isFirstResponder == true
+        }
+        return activeVisibleEditors.isEmpty && Date() >= suppressedUntil
     }
 
     static func suppressScannerFocus(for duration: TimeInterval? = nil) {
@@ -56,7 +63,7 @@ enum HIDScannerFocusGate {
                 // already runtime-true without sending non-Sendable values.
                 let id = ObjectIdentifier(editor)
                 MainActor.assumeIsolated {
-                    _ = activeVisibleEditors.insert(id)
+                    activeVisibleEditors[id] = WeakVisibleEditor(editor)
                 }
             }
         }
@@ -65,7 +72,7 @@ enum HIDScannerFocusGate {
                 guard let editor = note.object as? UIResponder, !(editor is HIDTextField) else { return }
                 let id = ObjectIdentifier(editor)
                 MainActor.assumeIsolated {
-                    activeVisibleEditors.remove(id)
+                    activeVisibleEditors.removeValue(forKey: id)
                     suppressScannerFocus(for: editingHandoffGrace)
                 }
             }
@@ -148,6 +155,7 @@ struct HIDScannerField: UIViewRepresentable {
         private var pendingFlush: DispatchWorkItem?
         private var pendingFocusRetry: DispatchWorkItem?
         private(set) var isEnabled = true
+        private var reportedFocus = false
 
         init(
             onScan: @escaping (String) -> Void,
@@ -164,6 +172,7 @@ struct HIDScannerField: UIViewRepresentable {
                 pendingFlush = nil
                 pendingFocusRetry?.cancel()
                 pendingFocusRetry = nil
+                reportFocus(false)
             }
         }
 
@@ -174,7 +183,15 @@ struct HIDScannerField: UIViewRepresentable {
         func ensureScannerFocus(_ textField: UITextField) {
             guard isEnabled, !textField.isFirstResponder else { return }
             if HIDScannerFocusGate.canAcquireScannerFocus {
-                textField.becomeFirstResponder()
+                // UIKit may reject first responder while SwiftUI is still
+                // attaching this hidden field to its window. Treat the Bool as
+                // authoritative and retry until the sink truly owns focus.
+                if textField.becomeFirstResponder(), textField.isFirstResponder {
+                    pendingFocusRetry?.cancel()
+                    pendingFocusRetry = nil
+                } else {
+                    scheduleFocusRetry(textField)
+                }
             } else {
                 scheduleFocusRetry(textField)
             }
@@ -191,7 +208,7 @@ struct HIDScannerField: UIViewRepresentable {
         }
 
         func textFieldDidBeginEditing(_ textField: UITextField) {
-            onFocusChange?(true)
+            reportFocus(true)
         }
 
         func textField(
@@ -222,13 +239,19 @@ struct HIDScannerField: UIViewRepresentable {
         }
 
         func textFieldDidEndEditing(_ textField: UITextField) {
-            onFocusChange?(false)
+            reportFocus(false)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self, weak textField] in
                 guard let self, self.isEnabled, let textField else { return }
                 // ensureScannerFocus checks the focus gate and keeps retrying
                 // until the visible field releases the keyboard.
                 self.ensureScannerFocus(textField)
             }
+        }
+
+        private func reportFocus(_ focused: Bool) {
+            guard reportedFocus != focused else { return }
+            reportedFocus = focused
+            onFocusChange?(focused)
         }
 
         private func scheduleFlush(for textField: UITextField) {
@@ -250,6 +273,14 @@ struct HIDScannerField: UIViewRepresentable {
             if !value.isEmpty { onScan(value) }
             textField.text = ""
         }
+    }
+}
+
+private final class WeakVisibleEditor {
+    weak var editor: UIResponder?
+
+    init(_ editor: UIResponder) {
+        self.editor = editor
     }
 }
 

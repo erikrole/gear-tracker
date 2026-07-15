@@ -10,6 +10,16 @@ _None._
 
 ## P1 - polish before ship
 
+- [x] [UI polish] The guide reader presented the title and article inside web-like chrome instead of using native reading hierarchy.
+      `ios/Wisconsin/Views/GuidesView.swift`
+      Why it mattered: the generic navigation title, small tag pills, and one oversized article card made operational guides feel embedded rather than at home on iOS.
+      Fix: the reader now uses a compact semantic header, Dynamic Type system typography, a cardless article canvas, distinct numbered-step markers, and an accessible callout treatment while keeping the content read-only. It does not repeat the generated body excerpt above the article, and it suppresses a leading Markdown rule that would duplicate the header separator.
+
+- [x] [Breaking] The July 5 Resources payload slimming removed full Markdown from `/api/resources`, but the native reader still opened from that compact list model.
+      `ios/Wisconsin/Views/GuidesView.swift`, `ios/Wisconsin/Core/APIClient.swift`, `ios/Wisconsin/Models/Models.swift`
+      Why it mattered: the guide directory loaded, but opening a guide rendered an empty article.
+      Fix: list rows now decode the bounded `searchText`, local search uses it, and the reader fetches the full guide by slug with loading, retry, and pull-to-refresh states.
+
 - [x] [Flows] Native Markdown numbered lists repeated `1.` for every ordered step.
       `ios/Wisconsin/Views/GuidesView.swift`
       Why it mattered: operational guides use numbered steps; repeating `1.` makes instructions harder to follow in the field.
@@ -34,6 +44,8 @@ _None._
 - [x] Native guide list loads from the existing Resources contract.
 - [x] Search, focus filtering, sort, pull-to-refresh, loading, empty, and error states are present.
 - [x] Guide reader renders Markdown article content in native SwiftUI.
+- [x] Reader fetches full Markdown from the detail route after the compact list payload loads.
+- [x] Reader hierarchy, metadata, steps, and callouts use native SwiftUI presentation and Dynamic Type.
 - [x] Guide authoring and management remain web-owned.
 
 ## Runtime proof

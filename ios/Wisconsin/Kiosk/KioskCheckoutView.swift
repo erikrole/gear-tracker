@@ -42,6 +42,7 @@ struct KioskCheckoutView: View {
     @State private var customPurpose = ""
     @State private var checkoutContextReady = false
     @State private var scannerCaptureEnabled = false
+    @State private var scannerHasFocus = false
     @State private var showScannerHelp = false
     @State private var showEditContextConfirm = false
     @State private var lastScanAt: Date?
@@ -97,9 +98,11 @@ struct KioskCheckoutView: View {
             if scannerCaptureEnabled {
                 // Hidden HID scanner field stays mounted in scan mode, but yields
                 // first responder whenever visible checkout inputs need the keyboard.
-                HIDScannerField(isEnabled: shouldListenForHIDScans) { value in
-                    handleScan(value)
-                }
+                HIDScannerField(
+                    isEnabled: shouldListenForHIDScans,
+                    onScan: handleScan,
+                    onFocusChange: { scannerHasFocus = $0 }
+                )
                 .frame(width: 1, height: 1)
                 .opacity(0)
             }
@@ -324,7 +327,8 @@ struct KioskCheckoutView: View {
                     .font(.caption)
                     .foregroundStyle(KioskText.muted)
 
-                KioskScannerHealthBadge(
+                KioskScannerReadinessBadge(
+                    isReady: scannerHasFocus,
                     lastScanAt: lastScanAt,
                     onTap: { showScannerHelp = true }
                 )
@@ -450,6 +454,9 @@ struct KioskCheckoutView: View {
         case .success: return Color.statusText(.green)
         case .error: return Color.statusText(.red)
         case .duplicate, .warning: return Color.statusText(.orange)
+        // Readiness is already explicit in the badge below the target. Keep
+        // the target neutral during the brief first-responder handoff so the
+        // scan screen does not enter with a false orange warning flash.
         case nil: return Color.white.opacity(0.3)
         }
     }
@@ -1590,46 +1597,6 @@ private struct KioskCheckoutSideSummary: View {
             }
         }
         .padding(20)
-    }
-}
-
-private struct KioskScannerHealthBadge: View {
-    let lastScanAt: Date?
-    let onTap: () -> Void
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(statusColor)
-                    .frame(width: 8, height: 8)
-                    .accessibilityHidden(true)
-                Text(label)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(KioskText.secondary)
-                Image(systemName: "info.circle")
-                    .font(.caption)
-                    .foregroundStyle(KioskText.muted)
-                    .accessibilityHidden(true)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .kioskCard(KioskSurface.card, radius: KioskRadius.md, stroke: KioskStroke.hairline)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Scanner status, \(label)")
-    }
-
-    private var statusColor: Color {
-        lastScanAt == nil ? Color.statusText(.blue) : Color.statusText(.green)
-    }
-
-    private var label: String {
-        guard let lastScanAt else { return "Scanner listening" }
-        let seconds = max(0, Int(Date().timeIntervalSince(lastScanAt)))
-        if seconds < 5 { return "Scan received" }
-        if seconds < 60 { return "Last scan \(seconds)s ago" }
-        return "Last scan \(seconds / 60)m ago"
     }
 }
 

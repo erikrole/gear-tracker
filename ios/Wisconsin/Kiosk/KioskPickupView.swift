@@ -15,6 +15,8 @@ struct KioskPickupView: View {
     @State private var error: String?
     @State private var showCamera = false
     @State private var lastConfirmedId: String?
+    @State private var scannerHasFocus = false
+    @State private var lastScanAt: Date?
     @State private var confirmedItemOverrides: [String: KioskScanResult.ScannedItem] = [:]
 
     enum ScanFeedback: Equatable {
@@ -57,7 +59,10 @@ struct KioskPickupView: View {
             checklistPanel(isCompact: isCompact)
         }
         .overlay(alignment: .bottom) {
-            HIDScannerField { value in handleScan(value) }
+            HIDScannerField(
+                onScan: handleScan,
+                onFocusChange: { scannerHasFocus = $0 }
+            )
                 .frame(width: 1, height: 1)
                 .opacity(0)
         }
@@ -107,6 +112,11 @@ struct KioskPickupView: View {
                                 .multilineTextAlignment(.center)
                         }
                     }
+
+                    KioskScannerReadinessBadge(
+                        isReady: scannerHasFocus,
+                        lastScanAt: lastScanAt
+                    )
 
                     if hasBatteryScanStep {
                         KioskBatteryScanStatus(
@@ -245,6 +255,7 @@ struct KioskPickupView: View {
         }
 
         store.resetInactivity()
+        lastScanAt = Date()
         guard let items = detail?.items else { return }
 
         Task {

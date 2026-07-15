@@ -18,6 +18,8 @@ The native scope is self-service only: view pool state, claim one slot, copy the
 _None._
 
 ## P1 — polish before ship
+- [x] [UI polish] **License capacity and active-use hierarchy should be readable before scanning every row.** The page now leads with open-slot capacity, elevates the holder's code into a distinct active-license card, labels pool rows by open capacity, and uses blue for partial/full operational use. Student occupancy remains anonymous and claim/return rules are unchanged.
+
 - [x] [Flows] **Release must not expose the admin "release all active claims" fallback.** The server permits staff/admin release without `claimId` to release all active claims on a code when the requester does not personally hold that code. Native iOS only calls `releaseLicense(id:)` from `releaseActiveClaim()`, guarded by `activeClaim.id`, and the pool rows do not expose arbitrary release buttons.
 
 - [x] [Flows] **Claim and return need native confirmations.** `LicensesView.swift` uses separate `confirmationDialog` flows for claiming and returning so one tap on a row never mutates custody silently.

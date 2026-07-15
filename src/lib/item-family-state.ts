@@ -58,7 +58,7 @@ export function summarizeItemFamilyState<TUnit extends UnitLike>(
   return {
     effectiveUnits,
     balanceOnHandQuantity,
-    onHandQuantity: sku.units.length,
+    onHandQuantity: effectiveUnits.filter((unit) => unit.status !== BulkUnitStatus.RETIRED).length,
     availableQuantity: countUnits(effectiveUnits, BulkUnitStatus.AVAILABLE),
     checkedOutQuantity: countUnits(effectiveUnits, BulkUnitStatus.CHECKED_OUT),
     lostQuantity: countUnits(effectiveUnits, BulkUnitStatus.LOST),

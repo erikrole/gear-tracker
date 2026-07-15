@@ -36,7 +36,7 @@ describe("booking real-time sync source contract", () => {
 
     expect(hook).toContain('"/api/bookings/changes"');
     expect(hook).not.toContain('"/api/dashboard"');
-    expect(hook).toContain("BOOKING_CHANGE_SYNC_INTERVAL_MS = 5_000");
+    expect(hook).toContain("BOOKING_CHANGE_SYNC_INTERVAL_MS = 30_000");
     expect(hook).toContain('document.visibilityState === "hidden"');
     expect(hook).toContain("!navigator.onLine");
   });

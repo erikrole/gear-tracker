@@ -9,7 +9,9 @@ import {
 import { useAuthenticatedQueryUserId } from "@/components/QueryProvider";
 import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 
-export const BOOKING_CHANGE_SYNC_INTERVAL_MS = 5_000;
+// Booking pages remain operationally fresh without a visible tab keeping the
+// database awake continuously. Kiosk custody uses its native immediate reloads.
+export const BOOKING_CHANGE_SYNC_INTERVAL_MS = 30_000;
 export const BOOKING_CHANGE_SYNC_EVENT = "booking-change-sync";
 
 type BookingChangeSignal = {

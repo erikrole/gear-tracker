@@ -18,6 +18,10 @@ Sources used: `docs/AREA_PUBLIC_SHOWROOM.md`, `src/lib/public-showroom.ts`, `tas
 
 **Notes to reviewer**
 ```
+This submission is intended for unlisted app distribution. The unlisted distribution
+request will be submitted through Apple's request form after this version is submitted to
+App Review.
+
 Wisconsin Creative is an internal equipment-management tool for a university athletics
 creative/production department. It is not a public consumer app — access is invitation-only,
 which is why the demo account above is required to sign in.
@@ -32,6 +36,15 @@ What the demo account can see:
   catalog seeded for this review; no physical gear is required to test lookup).
 - Reservation creation and the equipment picker.
 - Schedule/shift views.
+
+Sample lookup and QR codes:
+- DEMO-CAM-001
+- DEMO-LENS-001
+- DEMO-AUDIO-001
+- DEMO-BATT-1
+
+To test without a printed QR code, open Search, choose the scan action, tap Type Code, and
+enter any code above. Matching QR images may also be attached to the review submission.
 
 What is intentionally NOT reachable from this app on the App Store:
 - Checkout, pickup, and return custody actions run exclusively through a separate iPad
@@ -57,19 +70,52 @@ Privacy policy: https://wisconsincreative.com/privacy
 **Subtitle** (30 char max): `Gear reservations & schedule` (28 chars)
 **Primary category:** Business (or Productivity — both fit; Business reads slightly better for an internal ops tool)
 **Secondary category:** Productivity
-**Age Rating:** 4+ — no objectionable content, no user-generated content exposed to strangers, no unrestricted web access, no gambling. Answer every questionnaire toggle "No."
+**Expected Age Rating:** 4+
+
+Use the current App Store Connect questionnaire rather than a blanket answer:
+- In-App Controls: Parental Controls **No**; Age Assurance **No**.
+- Capabilities: Unrestricted Web Access **No**; User-Generated Content **No**; Social Media **No**; Social Media Disabled for Users Under 13 **No**; Messaging and Chat **No**; Advertising **No**.
+- Mature Themes, Medical or Wellness, Sexuality or Nudity, and Violence: **None** for every descriptor.
+- Chance-Based Activities: Gambling **No**; Simulated Gambling **None**; Contests **None**; Loot Boxes **No**.
+- Age Categories and Override: **Not Applicable**. Do not select Made for Kids and do not override the calculated rating.
+
+The operational records, internal guides, reservations, and equipment notes in this build are not broadly distributed user-created media, a social feed, public posting, or direct messaging. Recheck these answers if a future build adds any such feature.
 **Content rights:** You own or have rights to all submitted content (confirm — app icon/branding assets are internal).
 
 ## Pricing and Availability
 
 **Price:** Free
-**Availability:** Unlisted (Distribution tab → set to "Unlisted" so the app doesn't appear in search/browse; installable only via direct link, TestFlight-style sharing, or QR/link the department distributes to staff and students)
+**Distribution during submission:** Public and available on the App Store. Apple requires a new app to be submitted to App Review before it will consider the separate unlisted-distribution request.
+**Unlisted request:** After submitting this version to App Review, submit Apple's unlisted app distribution request. If Apple approves it, App Store Connect changes the distribution method to **Unlisted App** and generates the direct App Store link. Do not choose private distribution for this workflow.
 
 ## URLs
 
-- **Support URL:** `https://wisconsincreative.com/about` (no dedicated `/support` page exists yet — `/about` is live, reachable, and describes the product; consider adding a real support/contact page later, but this satisfies the requirement now)
+- **Support URL:** `https://wisconsincreative.com/support` (dedicated public support page with a direct contact email; deploy and verify the production URL before submission)
 - **Marketing URL** (optional): `https://wisconsincreative.com/about`
 - **Privacy Policy URL:** `https://wisconsincreative.com/privacy` (required, already live — verified rendering during domain cutover checks)
+
+## Screenshot Capture Set
+
+Capture these from Build 20 while signed into the isolated fictional reviewer account. Use portrait orientation, no alpha channel, no real people, and no production records.
+
+**Required device sets**
+- iPhone 6.9-inch: `1320 x 2868` pixels using iPhone 17 Pro Max or another accepted 6.9-inch simulator size.
+- iPad 13-inch: `2064 x 2752` pixels using iPad Pro 13-inch or iPad Air 13-inch.
+
+**Seven-shot order for both device sets**
+1. Dashboard action queue with demo checkout and operational context.
+2. Bookings list showing fictional checkouts and reservations across multiple statuses.
+3. Schedule list showing the fictional event and shift context.
+4. Item detail for the Sony FX6 Demo Kit, including status and reservation action.
+5. Users directory showing fictional staff and student roles.
+6. Reservation creation or equipment-picker screen tied to fictional inventory.
+7. Search result for `DEMO-CAM-001`.
+
+The first three images communicate the app's daily operational utility. The remaining four demonstrate catalog depth, people context, creation, and direct lookup. Keep the raw in-app presentation unless a later marketing pass adds truthful text overlays.
+
+## Optional Reviewer Walkthrough Video
+
+No video is required for the initial submission. The written notes, fictional account, typed sample codes, and attached QR images cover the non-obvious review path. Record and attach a short walkthrough only if final device acceptance reveals a step that remains difficult to explain in text.
 
 ## Version Information
 
@@ -115,7 +161,14 @@ gear,equipment,reservation,checkout,inventory,schedule,shift,scan,barcode,athlet
 ```
 (89 chars — Apple strips App Name/Subtitle words automatically, so avoid repeating "Wisconsin Creative" here)
 
-**Copyright:** `© 2026 Wisconsin Athletics` (confirm exact legal entity name before submitting)
+**Copyright:** enter `2026 <copyright owner>` using the exact owner confirmed by the App Store Connect Account Holder. Do not include the copyright symbol because App Store Connect asks for the year followed by the owner. `Wisconsin Athletics` is the product-facing organization name, but the repository does not prove that it is the legal copyright owner.
+
+## Compliance and Legal Fields
+
+- **Export compliance:** No non-exempt encryption. The submitted target declares `ITSAppUsesNonExemptEncryption = false`. Confirm the processed Build 20 record shows the same answer.
+- **Content rights:** confirm Yes only after the Account Holder confirms rights to the Wisconsin branding, app icon, submitted screenshots, and fictional review assets.
+- **Digital Services Act:** use the organization-level trader status already established by the Account Holder. Do not infer or change this from repository content.
+- **Custom license agreement:** none is required by the app. Use Apple's standard EULA unless the Account Holder has an approved institutional agreement.
 
 ---
 
@@ -177,4 +230,4 @@ Code-side readiness, domain cutover verification, and Snow Leopard hardening are
 - `tasks/ios-snow-leopard-release-plan.md`
 - `tasks/ios-testflight-readiness-2026-05-11.md` (remaining hardware-only QA)
 
-This file covers only the App Store Connect *content* — the account-level setup (creating the app record, selecting Unlisted distribution, entering this text, uploading screenshots) still has to happen in Connect itself.
+This file covers only the App Store Connect *content*. Account-level setup still happens in Connect: keep the new app publicly available for its initial App Review submission, enter this text, upload screenshots, submit the version, and then send Apple's separate unlisted-distribution request.

@@ -101,6 +101,7 @@ describe("bulk SKU effective unit status routes", () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
+    expect(body.data.onHand).toBe(3);
     expect(body.data.availableQuantity).toBe(1);
     expect(body.data.units).toEqual([
       expect.objectContaining({ id: "unit-orphan", status: BulkUnitStatus.AVAILABLE }),
