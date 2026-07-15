@@ -7,13 +7,16 @@ import { createAuditEntry } from "@/lib/audit";
 import { deactivateUserWithCleanup } from "@/lib/services/user-deactivation";
 import { normalizeSlackHandle, normalizeSlackProfileUrl, normalizeWiscardNumber, slackHandleSchema, slackProfileUrlSchema, wiscardNumberSchema } from "@/lib/validation";
 import { canReadUserProfile } from "@/lib/user-visibility";
+import { normalizeProfilePhone, nullableProfilePhoneSchema, phoneAuditValue } from "@/lib/profile-phone";
 import { z } from "zod";
 
 const updateUserSchema = z.object({
   name: z.string().trim().min(1).max(100).optional(),
   email: z.string().email().optional(),
   locationId: z.string().cuid().nullable().optional(),
-  phone: z.string().max(20).nullable().optional(),
+  phone: nullableProfilePhoneSchema,
+  personalPhone: nullableProfilePhoneSchema,
+  workPhone: nullableProfilePhoneSchema,
   wiscardNumber: wiscardNumberSchema,
   slackHandle: slackHandleSchema,
   slackProfileUrl: slackProfileUrlSchema,
@@ -35,6 +38,11 @@ const updateUserSchema = z.object({
 });
 
 const MAX_DIRECT_REPORT_CHAIN_DEPTH = 50;
+const PHONE_AUDIT_FIELDS = new Set(["phone", "personalPhone", "workPhone"]);
+
+function auditProfileValue(key: string, value: unknown): unknown {
+  return PHONE_AUDIT_FIELDS.has(key) ? phoneAuditValue(value) : value;
+}
 
 async function assertDirectReportAssignment(targetUserId: string, directReportId: string) {
   if (directReportId === targetUserId) {
@@ -100,6 +108,9 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
       locationId: target.locationId,
       location: target.location?.name ?? null,
       phone: target.phone,
+      personalPhone: target.personalPhone ?? null,
+      workPhone: target.workPhone ?? null,
+      workPhoneNotApplicable: target.workPhoneNotApplicable,
       wiscardNumber: target.wiscardNumber ?? null,
       slackHandle: target.slackHandle ?? null,
       slackProfileUrl: target.slackProfileUrl ?? null,
@@ -162,7 +173,19 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   }
 
   if (body.phone !== undefined) {
-    updateData.phone = body.phone;
+    const personalPhone = normalizeProfilePhone(body.phone);
+    updateData.phone = personalPhone;
+    updateData.personalPhone = personalPhone;
+  }
+  if (body.personalPhone !== undefined) {
+    const personalPhone = normalizeProfilePhone(body.personalPhone);
+    updateData.personalPhone = personalPhone;
+    updateData.phone = personalPhone;
+  }
+  if (body.workPhone !== undefined) {
+    const workPhone = normalizeProfilePhone(body.workPhone);
+    updateData.workPhone = workPhone;
+    updateData.workPhoneNotApplicable = workPhone === null;
   }
   if (Object.prototype.hasOwnProperty.call(body, "wiscardNumber")) {
     updateData.wiscardNumber = normalizeWiscardNumber(body.wiscardNumber);
@@ -250,7 +273,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   const beforeDiff: Record<string, unknown> = {};
   const afterDiff: Record<string, unknown> = {};
   for (const key of Object.keys(updateData)) {
-    beforeDiff[key] = (target as Record<string, unknown>)[key] ?? null;
+    beforeDiff[key] = auditProfileValue(key, (target as Record<string, unknown>)[key] ?? null);
   }
 
   let updated;
@@ -280,7 +303,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   }
 
   for (const key of Object.keys(updateData)) {
-    afterDiff[key] = (updated as Record<string, unknown>)[key] ?? null;
+    afterDiff[key] = auditProfileValue(key, (updated as Record<string, unknown>)[key] ?? null);
   }
 
   await createAuditEntry({
@@ -303,6 +326,9 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       locationId: updated.locationId,
       location: updated.location?.name ?? null,
       phone: updated.phone,
+      personalPhone: updated.personalPhone ?? null,
+      workPhone: updated.workPhone ?? null,
+      workPhoneNotApplicable: updated.workPhoneNotApplicable,
       wiscardNumber: updated.wiscardNumber ?? null,
       slackHandle: updated.slackHandle ?? null,
       slackProfileUrl: updated.slackProfileUrl ?? null,

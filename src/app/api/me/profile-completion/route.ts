@@ -5,17 +5,10 @@ import { createAuditEntryTx } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { getProfileCompletion, isCampusLoginEmail } from "@/lib/profile-completion";
+import { profilePhoneSchema } from "@/lib/profile-phone";
 import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 import { requirePermission } from "@/lib/rbac";
 
-const phoneSchema = z.string()
-  .trim()
-  .min(7, "Enter a complete phone number")
-  .max(30)
-  .refine(
-    (value) => value.replace(/\D/g, "").length >= 7,
-    "Enter a phone number with at least 7 digits",
-  );
 const digitsSchema = z.string().trim().regex(/^\d+$/, "Use numbers only");
 
 const patchSchema = z.discriminatedUnion("step", [
@@ -28,8 +21,8 @@ const patchSchema = z.discriminatedUnion("step", [
   }),
   z.object({
     step: z.literal("PHONES"),
-    personalPhone: phoneSchema,
-    workPhone: phoneSchema.nullable(),
+    personalPhone: profilePhoneSchema,
+    workPhone: profilePhoneSchema.nullable(),
     workPhoneNotApplicable: z.boolean(),
   }),
   z.object({

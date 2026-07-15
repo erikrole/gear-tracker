@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { sportLabel } from "@/lib/sports";
 import { SPORT_CODES } from "@/lib/sports";
@@ -41,6 +41,7 @@ import { SaveableField, useSaveField } from "@/components/SaveableField";
 import { OperationalRowActions } from "@/components/OperationalRowActions";
 import { cn } from "@/lib/utils";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
+import { PROFILE_COMPLETION_QUERY_KEY } from "@/hooks/use-profile-completion";
 
 type ApiEnvelope<T = unknown> = {
   data?: T;
@@ -544,6 +545,7 @@ export default function UserInfoTab({
   isSelf?: boolean;
   onUpdated: () => void;
 }) {
+  const queryClient = useQueryClient();
   const [savingPassword, setSavingPassword] = useState(false);
   const [addingSport, setAddingSport] = useState(false);
   const [addingArea, setAddingArea] = useState(false);
@@ -568,7 +570,7 @@ export default function UserInfoTab({
 
   // Fields a user can edit on their own profile (mirrors updateProfileSchema).
   const SELF_EDITABLE_FIELDS = new Set([
-    "name", "locationId", "phone", "slackHandle", "slackProfileUrl",
+    "name", "locationId", "phone", "personalPhone", "workPhone", "slackHandle", "slackProfileUrl",
     "wiscardNumber",
     "title", "athleticsEmail", "startDate", "gradYear", "studentYearOverride",
     "topSize", "bottomSize", "shoeSize",
@@ -593,6 +595,7 @@ export default function UserInfoTab({
       throw new Error(msg);
     }
     onUpdated();
+    await queryClient.invalidateQueries({ queryKey: PROFILE_COMPLETION_QUERY_KEY });
   }
 
   async function changeRole(newRole: string) {
@@ -796,11 +799,19 @@ export default function UserInfoTab({
             type="email"
           />
           <TextInputField
-            label="Phone"
-            value={user.phone || ""}
-            placeholder="Add phone number"
+            label="Personal Phone"
+            value={user.personalPhone || ""}
+            placeholder="Add personal phone"
             canEdit={canEditProfile || canEditSelf}
-            onSave={(v) => patchUser({ phone: v || null })}
+            onSave={(v) => patchUser({ personalPhone: v || null })}
+            type="tel"
+          />
+          <TextInputField
+            label="Work Phone"
+            value={user.workPhone || ""}
+            placeholder={user.workPhoneNotApplicable ? "No work phone" : "Add work phone"}
+            canEdit={canEditProfile || canEditSelf}
+            onSave={(v) => patchUser({ workPhone: v || null })}
             type="tel"
           />
           <TextInputField

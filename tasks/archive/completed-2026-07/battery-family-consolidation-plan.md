@@ -1,5 +1,9 @@
 # Battery Family Consolidation Plan - 2026-07-15
 
+## Later Physical-Count Correction
+- On 2026-07-15, the owner confirmed the two Anton Bauer Digital 150 records did not represent physical batteries. A guarded live correction removed Gold Mount units 9-10 and the archived Digital product, adjusted the Gold Mount balance from 10 to 8, and retained the inactive source-family row only for its two historical booking references.
+- Current Gold Mount truth is eight available units, all assigned to Anton/Bauer Dionic XT 150Wh. This correction supersedes the plan's original 10-unit result without changing the four-family catalog decision.
+
 ## Goal
 - Make the active battery catalog contain exactly four unit-tracked item families: `Monitor Battery`, `Sony Battery`, `Gold Mount Battery`, and `FX6 Battery`.
 - Remove quantity-tracked and serialized battery rows from active discovery without destroying booking, custody, scan, movement, or audit history.

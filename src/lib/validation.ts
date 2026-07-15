@@ -3,6 +3,7 @@ import { z } from "zod";
 import { sanitizeText } from "./sanitize";
 import { isSportCode, normalizeSportCode } from "./sports";
 import { normalizeBookingTitle } from "./title-normalization";
+import { nullableProfilePhoneSchema } from "./profile-phone";
 
 const cuidSchema = z.string().cuid();
 const uuidSchema = z.string().uuid();
@@ -362,7 +363,9 @@ export function normalizeWiscardNumber(value: string | null | undefined) {
 // Direct report and assignments are intentionally excluded — staff/admin only.
 export const updateProfileSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  phone: z.string().max(30).nullable().optional(),
+  phone: nullableProfilePhoneSchema,
+  personalPhone: nullableProfilePhoneSchema,
+  workPhone: nullableProfilePhoneSchema,
   wiscardNumber: wiscardNumberSchema,
   slackHandle: slackHandleSchema,
   slackProfileUrl: slackProfileUrlSchema,

@@ -26,12 +26,15 @@ import {
   parseJsonSafely,
 } from "@/lib/errors";
 import { AREA_OPTIONS } from "@/app/(app)/users/types";
+import { PROFILE_COMPLETION_QUERY_KEY } from "@/hooks/use-profile-completion";
 import { SettingsPageShell } from "../SettingsPageShell";
 
 type Profile = {
   id: string;
   name: string;
-  phone: string | null;
+  personalPhone: string | null;
+  workPhone: string | null;
+  workPhoneNotApplicable: boolean;
   wiscardNumber: string | null;
   avatarUrl: string | null;
   primaryArea: "VIDEO" | "PHOTO" | "GRAPHICS" | "COMMS" | null;
@@ -40,12 +43,13 @@ type Profile = {
   slackHandle: string | null;
 };
 
-type FormState = Omit<Profile, "id" | "avatarUrl">;
+type FormState = Omit<Profile, "id" | "avatarUrl" | "workPhoneNotApplicable">;
 
 function toForm(p: Profile): FormState {
   return {
     name: p.name,
-    phone: p.phone ?? "",
+    personalPhone: p.personalPhone ?? "",
+    workPhone: p.workPhone ?? "",
     wiscardNumber: p.wiscardNumber ?? "",
     primaryArea: p.primaryArea,
     title: p.title ?? "",
@@ -115,7 +119,8 @@ export default function ProfileSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.name,
-          phone: form.phone || null,
+          personalPhone: form.personalPhone || null,
+          workPhone: form.workPhone || null,
           wiscardNumber: form.wiscardNumber || null,
           primaryArea: form.primaryArea || null,
           title: form.title || null,
@@ -140,6 +145,7 @@ export default function ProfileSettingsPage() {
       }
 
       syncProfileCache(json.data);
+      await queryClient.invalidateQueries({ queryKey: PROFILE_COMPLETION_QUERY_KEY });
       setLocal(null);
       setAvatarUrl(undefined);
       toast.success("Profile saved.");
@@ -320,45 +326,59 @@ export default function ProfileSettingsPage() {
               {nameError && <p className="text-xs text-destructive">{nameError}</p>}
             </div>
 
-            {/* Phone + Primary Area */}
+            {/* Phone numbers */}
             <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="profile-phone">Phone</Label>
+                <Label htmlFor="profile-personal-phone">Personal phone</Label>
                 <Input
-                  id="profile-phone"
-                  name="phone"
+                  id="profile-personal-phone"
+                  name="personalPhone"
                   type="tel"
                   autoComplete="tel"
-                  value={form.phone ?? ""}
-                  onChange={(e) => setField("phone", e.target.value)}
+                  value={form.personalPhone ?? ""}
+                  onChange={(e) => setField("personalPhone", e.target.value)}
                   placeholder="(555) 000-0000"
                   disabled={saving}
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="profile-area">Primary Area</Label>
-                <Select
-                  name="primaryArea"
-                  value={form.primaryArea ?? "__none__"}
-                  onValueChange={(v) =>
-                    setField("primaryArea", v === "__none__" ? null : v as FormState["primaryArea"])
-                  }
+                <Label htmlFor="profile-work-phone">Work phone</Label>
+                <Input
+                  id="profile-work-phone"
+                  name="workPhone"
+                  type="tel"
+                  autoComplete="work tel"
+                  value={form.workPhone ?? ""}
+                  onChange={(e) => setField("workPhone", e.target.value)}
+                  placeholder={fetched?.workPhoneNotApplicable ? "No work phone" : "(555) 000-0000"}
                   disabled={saving}
-                >
-                  <SelectTrigger id="profile-area">
-                    <SelectValue placeholder="Select area" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">None</SelectItem>
-                    {AREA_OPTIONS.map((a) => (
-                      <SelectItem key={a.value} value={a.value}>
-                        {a.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="profile-area">Primary Area</Label>
+              <Select
+                name="primaryArea"
+                value={form.primaryArea ?? "__none__"}
+                onValueChange={(v) =>
+                  setField("primaryArea", v === "__none__" ? null : v as FormState["primaryArea"])
+                }
+                disabled={saving}
+              >
+                <SelectTrigger id="profile-area">
+                  <SelectValue placeholder="Select area" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">None</SelectItem>
+                  {AREA_OPTIONS.map((a) => (
+                    <SelectItem key={a.value} value={a.value}>
+                      {a.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex flex-col gap-1.5">

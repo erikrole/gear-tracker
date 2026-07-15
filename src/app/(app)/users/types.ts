@@ -41,6 +41,9 @@ export type StudentYear = "FRESHMAN" | "SOPHOMORE" | "JUNIOR" | "SENIOR" | "GRAD
 
 export type UserDetail = UserRow & {
   createdAt: string | null;
+  personalPhone: string | null;
+  workPhone: string | null;
+  workPhoneNotApplicable: boolean;
   sportAssignments: SportAssignment[];
   areaAssignments: AreaAssignment[];
   icsToken?: string | null;

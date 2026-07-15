@@ -5,11 +5,13 @@ import { HttpError, ok } from "@/lib/http";
 import { hashPassword, verifyPassword } from "@/lib/auth";
 import { changePasswordSchema, normalizeSlackHandle, normalizeSlackProfileUrl, normalizeWiscardNumber, updateProfileSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
+import { normalizeProfilePhone, phoneAuditValue } from "@/lib/profile-phone";
 
 const profilePatchSchema = z.union([
   changePasswordSchema.extend({ action: z.literal("change_password") }),
   updateProfileSchema,
 ]);
+const PHONE_AUDIT_FIELDS = new Set(["phone", "personalPhone", "workPhone"]);
 
 export const GET = withAuth(async (_req, { user }) => {
   const profile = await db.user.findUniqueOrThrow({
@@ -94,7 +96,8 @@ export const PATCH = withAuth(async (req, { user }) => {
   const current = await db.user.findUniqueOrThrow({
     where: { id: user.id },
     select: {
-      name: true, phone: true, wiscardNumber: true, locationId: true,
+      name: true, phone: true, personalPhone: true, workPhone: true,
+      workPhoneNotApplicable: true, wiscardNumber: true, locationId: true,
       slackHandle: true, slackProfileUrl: true,
       title: true, athleticsEmail: true, startDate: true,
       gradYear: true, studentYearOverride: true,
@@ -104,7 +107,21 @@ export const PATCH = withAuth(async (req, { user }) => {
 
   const data: Record<string, unknown> = {};
   if (payload.name !== undefined) data.name = payload.name;
-  if (Object.prototype.hasOwnProperty.call(payload, "phone")) data.phone = payload.phone ?? null;
+  if (Object.prototype.hasOwnProperty.call(payload, "phone")) {
+    const personalPhone = normalizeProfilePhone(payload.phone);
+    data.phone = personalPhone;
+    data.personalPhone = personalPhone;
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "personalPhone")) {
+    const personalPhone = normalizeProfilePhone(payload.personalPhone);
+    data.personalPhone = personalPhone;
+    data.phone = personalPhone;
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "workPhone")) {
+    const workPhone = normalizeProfilePhone(payload.workPhone);
+    data.workPhone = workPhone;
+    data.workPhoneNotApplicable = workPhone === null;
+  }
   if (Object.prototype.hasOwnProperty.call(payload, "wiscardNumber")) {
     data.wiscardNumber = normalizeWiscardNumber(payload.wiscardNumber);
   }
@@ -148,8 +165,12 @@ export const PATCH = withAuth(async (req, { user }) => {
   for (const key of Object.keys(data)) {
     const before = (current as Record<string, unknown>)[key] ?? null;
     const after = (updated as Record<string, unknown>)[key] ?? null;
-    const beforeKey = before instanceof Date ? before.toISOString() : before;
-    const afterKey = after instanceof Date ? after.toISOString() : after;
+    const beforeKey = PHONE_AUDIT_FIELDS.has(key)
+      ? phoneAuditValue(before)
+      : before instanceof Date ? before.toISOString() : before;
+    const afterKey = PHONE_AUDIT_FIELDS.has(key)
+      ? phoneAuditValue(after)
+      : after instanceof Date ? after.toISOString() : after;
     if (beforeKey !== afterKey) {
       beforeDiff[key] = beforeKey;
       afterDiff[key] = afterKey;
@@ -174,6 +195,9 @@ export const PATCH = withAuth(async (req, { user }) => {
       name: updated.name,
       email: updated.email,
       role: updated.role,
+      personalPhone: updated.personalPhone ?? null,
+      workPhone: updated.workPhone ?? null,
+      workPhoneNotApplicable: updated.workPhoneNotApplicable,
       wiscardNumber: updated.wiscardNumber ?? null,
       slackHandle: updated.slackHandle ?? null,
       slackProfileUrl: updated.slackProfileUrl ?? null,

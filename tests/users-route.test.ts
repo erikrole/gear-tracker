@@ -75,6 +75,9 @@ function makeUser(overrides: Record<string, unknown> = {}) {
     locationId: null,
     location: null,
     phone: null,
+    personalPhone: null,
+    workPhone: null,
+    workPhoneNotApplicable: false,
     slackHandle: null,
     slackProfileUrl: null,
     primaryArea: null,
@@ -202,6 +205,50 @@ describe("GET /api/users", () => {
 });
 
 describe("PATCH /api/users/[id]", () => {
+  it("saves distinct phone fields while keeping the legacy phone synced to personal", async () => {
+    vi.mocked(db.user.findUnique).mockResolvedValueOnce(userRow(makeUser({
+      phone: "608-555-0100",
+      personalPhone: "608-555-0100",
+    })));
+    vi.mocked(db.user.update).mockResolvedValueOnce(updatedUser(makeUser({
+      phone: "608-555-0111",
+      personalPhone: "608-555-0111",
+      workPhone: "608-555-0222",
+      workPhoneNotApplicable: false,
+    })));
+
+    const res = await PATCH(
+      patchRequest({
+        personalPhone: "608-555-0111",
+        workPhone: "608-555-0222",
+      }),
+      routeParams(),
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(db.user.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        phone: "608-555-0111",
+        personalPhone: "608-555-0111",
+        workPhone: "608-555-0222",
+        workPhoneNotApplicable: false,
+      }),
+    }));
+    expect(body.data).toEqual(expect.objectContaining({
+      personalPhone: "608-555-0111",
+      workPhone: "608-555-0222",
+      workPhoneNotApplicable: false,
+    }));
+    expect(createAuditEntry).toHaveBeenCalledWith(expect.objectContaining({
+      after: expect.objectContaining({
+        personalPhone: "***0111",
+        workPhone: "***0222",
+      }),
+    }));
+    expect(JSON.stringify(vi.mocked(createAuditEntry).mock.calls.at(-1))).not.toContain("608-555");
+  });
+
   it("rejects profile changes bundled with destructive deactivation", async () => {
     vi.mocked(db.user.findUnique).mockResolvedValueOnce(userRow(makeUser({ active: true })));
 

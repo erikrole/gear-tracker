@@ -121,6 +121,7 @@
 | `src/lib/permissions.ts` | 167 |
 | `src/lib/profile-completion-events.ts` | 6 |
 | `src/lib/profile-completion.ts` | 84 |
+| `src/lib/profile-phone.ts` | 27 |
 | `src/lib/public-showroom.ts` | 444 |
 | `src/lib/query-client.ts` | 58 |
 | `src/lib/rate-limit.ts` | 176 |
@@ -155,7 +156,7 @@
 | `src/lib/url-sync.ts` | 16 |
 | `src/lib/user-visibility.ts` | 45 |
 | `src/lib/utils.ts` | 7 |
-| `src/lib/validation.ts` | 570 |
+| `src/lib/validation.ts` | 573 |
 | `src/lib/venue-mapping-audit.ts` | 56 |
 | `src/lib/venue-mapping-contract.ts` | 46 |
 | `src/lib/venue-tone.ts` | 92 |
