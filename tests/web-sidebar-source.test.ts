@@ -84,4 +84,13 @@ describe("web sidebar source contract", () => {
     expect(primitive).toContain('default: "h-10 text-sm"');
     expect(primitive).toContain("group-data-[collapsible=icon]:size-10!");
   });
+
+  it("keeps profile navigation in the sidebar identity card", () => {
+    const appShell = source("src/components/AppShell.tsx");
+    const sidebar = source("src/components/Sidebar.tsx");
+
+    expect(sidebar).toContain('href={`/users/${user.id}`}');
+    expect(appShell).not.toContain('aria-label="My profile"');
+    expect(appShell).not.toContain("<TooltipContent>Profile</TooltipContent>");
+  });
 });

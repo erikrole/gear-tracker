@@ -1,8 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Badge } from "@/components/ui/badge";
-import { ArrowUpRightIcon } from "lucide-react";
+import { Clock3Icon } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -11,7 +10,6 @@ import {
 import { UserAvatar } from "@/components/UserAvatar";
 import { cn } from "@/lib/utils";
 import { formatDueLabel, formatEventDateTime, formatPickupLabel, isDueToday } from "@/lib/format";
-import { GearAvatarStack } from "./dashboard-avatars";
 import type { ItemThumb } from "../dashboard-types";
 
 type DashboardBookingRowItem = {
@@ -69,14 +67,16 @@ export function DashboardBookingRow({
   onSelectBooking,
 }: Props) {
   const dueLabel = formatDueLabel(booking.endsAt, now);
-  const dueVariant = booking.isOverdue
-    ? "red"
-    : isDueToday(booking.endsAt, now)
-    ? "orange"
-    : "gray";
   const pickupIsLate = showPickupBadge && new Date(booking.startsAt).getTime() < now.getTime();
   const pickupLabel = showPickupBadge ? formatPickupLabel(booking.startsAt, now) : "";
-  const pickupVariant = pickupIsLate ? "orange" : "gray";
+  const timingLabel = showPickupBadge
+    ? (pickupIsLate ? pickupLabel : `Pickup ${pickupLabel}`)
+    : dueLabel;
+  const timingTone = booking.isOverdue
+    ? "text-[var(--wi-red)]"
+    : isDueToday(booking.endsAt, now) || pickupIsLate
+      ? "text-[var(--orange)]"
+      : "text-muted-foreground";
 
   return (
     <div
@@ -91,47 +91,39 @@ export function DashboardBookingRow({
         onClick={() => onSelectBooking(booking.id)}
         aria-label={`Open ${booking.title}`}
       >
+        <UserAvatar
+          name={booking.requesterName}
+          avatarUrl={booking.requesterAvatarUrl}
+          size="md"
+          className="ring-1 ring-foreground/10"
+        />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate text-sm font-bold text-foreground">
+          <span className="truncate text-[0.9375rem] font-bold leading-tight text-foreground">
             {booking.title}
           </span>
-          <span className="flex min-w-0 items-center gap-1 text-xs leading-snug text-muted-foreground">
-            <UserAvatar name={booking.requesterName} avatarUrl={booking.requesterAvatarUrl} />
+          <span className="flex min-w-0 items-center gap-1.5 text-xs leading-snug text-muted-foreground">
             <span className="truncate">{booking.requesterName}</span>
-            <span aria-hidden="true">/</span>
+            <span className="text-muted-foreground/50" aria-hidden="true">·</span>
             <span className="shrink-0">
               {booking.itemCount} item{booking.itemCount !== 1 ? "s" : ""}
             </span>
           </span>
         </div>
-        <ArrowUpRightIcon className="size-3.5 shrink-0 text-muted-foreground/35 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100" aria-hidden="true" />
       </button>
 
-      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
         {actions}
-        {showDueBadge && (
+        {(showDueBadge || showPickupBadge) && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Badge variant={dueVariant} size="sm" className="cursor-default tabular-nums">
-                {dueLabel}
-              </Badge>
+              <span className={cn("inline-flex cursor-default items-center gap-1 whitespace-nowrap text-xs font-semibold tabular-nums", timingTone)}>
+                <Clock3Icon className="size-3.5" aria-hidden="true" />
+                {timingLabel}
+              </span>
             </TooltipTrigger>
             <TooltipContent>{formatEventDateTime(booking.startsAt, booking.endsAt)}</TooltipContent>
           </Tooltip>
         )}
-        {showPickupBadge && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge variant={pickupVariant} size="sm" className="cursor-default tabular-nums">
-                {pickupIsLate ? pickupLabel : `Pickup ${pickupLabel}`}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>{formatEventDateTime(booking.startsAt, booking.endsAt)}</TooltipContent>
-          </Tooltip>
-        )}
-        <div className="hidden sm:block">
-          <GearAvatarStack items={booking.items} totalCount={booking.itemCount} />
-        </div>
       </div>
     </div>
   );

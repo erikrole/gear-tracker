@@ -31,7 +31,7 @@ describe("operational loading states", () => {
     expect(bookingSheet).toContain('title="Booking details could not load"');
     expect(bookingSheet).toContain('title="Booking not found"');
     expect(bookingSheet).toContain("loading={equipSaving}");
-    expect(bookingSheet).toContain("loading={cancelling}");
+    expect(bookingSheet).toContain("cancelling ? <Spinner />");
     expect(bookingSheet).not.toContain('import { Skeleton } from "@/components/ui/skeleton"');
     expect(bookingSheet).not.toContain("Loading...");
     expect(bookingSheet).not.toContain("Saving...");

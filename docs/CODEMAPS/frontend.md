@@ -102,11 +102,11 @@
 | `src/components/EquipmentPicker.tsx` | 1001 |
 | `src/components/ShiftDetailPanel.tsx` | 813 |
 | `src/components/onboarding/OnboardingDialog.tsx` | 791 |
-| `src/components/BookingDetailsSheet.tsx` | 725 |
 | `src/components/ChooseImageModal.tsx` | 716 |
 | `src/components/booking-wizard/BookingWizard.tsx` | 710 |
 | `src/components/ui/sidebar.tsx` | 710 |
-| `src/components/AppShell.tsx` | 692 |
+| `src/components/AppShell.tsx` | 682 |
+| `src/components/BookingDetailsSheet.tsx` | 680 |
 | `src/components/booking-wizard/WizardStep1.tsx` | 570 |
 | `src/components/profile-completion/ProfileCompletionWizard.tsx` | 544 |
 | `src/components/BookingListPage.tsx` | 512 |
@@ -121,12 +121,12 @@
 | `src/components/resources/MarkdownReader.tsx` | 293 |
 | `src/components/public-showroom/showroom-blocks.tsx` | 290 |
 | `src/components/QrScanner.tsx` | 288 |
+| `src/components/booking-details/BookingSheetOverview.tsx` | 284 |
 | `src/components/PageBreadcrumb.tsx` | 283 |
 | `src/components/booking-details/TransferOwnerDialog.tsx` | 266 |
 | `src/components/booking-wizard/WizardStep3.tsx` | 263 |
 | `src/components/ui/dropdown-menu.tsx` | 258 |
 | `src/components/shift-detail/UserAvatarPicker.tsx` | 257 |
-| `src/components/shift-detail/CallWindowEditor.tsx` | 243 |
 
 ## Hooks
 

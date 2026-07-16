@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 interface PageHeaderProps {
   title: string;
   description?: string;
+  titleAccessory?: React.ReactNode;
   children?: React.ReactNode; // Right-side actions
   className?: string;
 }
@@ -17,6 +18,7 @@ interface PageHeaderProps {
 export function PageHeader({
   title,
   description,
+  titleAccessory,
   children,
   className,
 }: PageHeaderProps) {
@@ -28,7 +30,10 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0 border-l-[3px] border-l-[var(--wi-red)] pl-3">
-        <h1 className="truncate">{title}</h1>
+        <div className="flex min-w-0 items-center gap-2.5">
+          <h1 className="truncate text-wrap-balance">{title}</h1>
+          {titleAccessory && <div className="shrink-0">{titleAccessory}</div>}
+        </div>
         {description && (
           <p className="mt-1 text-sm text-muted-foreground">{description}</p>
         )}

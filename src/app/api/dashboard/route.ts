@@ -296,6 +296,7 @@ export const GET = withAuth(async (req, { user }) => {
                 asset: { select: { id: true, assetTag: true, name: true, imageUrl: true } },
               },
             },
+            _count: { select: { serializedItems: true, bulkItems: true } },
           },
         }),
     // Drafts: current user's in-progress work
@@ -422,7 +423,9 @@ export const GET = withAuth(async (req, { user }) => {
     requesterUserId: string;
     requester: { name: string; avatarUrl: string | null };
     serializedItems: Array<{ asset: { id: string; assetTag: string; name: string | null; imageUrl: string | null } }>;
+    startsAt: Date;
     endsAt: Date;
+    _count: { serializedItems: number; bulkItems: number };
   }>, "topOverdue", partialFailures);
   const myDrafts = settledValue(myDraftsResult, [] as Array<{
     id: string;
@@ -631,7 +634,9 @@ export const GET = withAuth(async (req, { user }) => {
     requesterInitials: getInitials(b.requester.name),
     requesterAvatarUrl: b.requester.avatarUrl ?? null,
     assetTags: b.serializedItems.map((si) => si.asset.assetTag),
+    startsAt: b.startsAt.toISOString(),
     endsAt: b.endsAt.toISOString(),
+    itemCount: b._count.serializedItems + b._count.bulkItems,
     items: b.serializedItems.map((si) => ({
       id: si.asset.id,
       name: si.asset.name,

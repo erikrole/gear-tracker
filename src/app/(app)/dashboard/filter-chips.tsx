@@ -104,7 +104,7 @@ export function FilterChips({
     <div className="flex items-center gap-1">
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant={hasActiveFilter ? "default" : "outline"} size="sm" className="h-8 gap-1.5">
+          <Button variant={hasActiveFilter ? "default" : "outline"} size="sm" className="h-10 gap-1.5">
             <FilterIcon className="size-3.5" />
             {triggerLabel}
           </Button>

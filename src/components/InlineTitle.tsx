@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
+import { Button } from "@/components/ui/button";
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,12 +14,14 @@ export function InlineTitle({
   onSave,
   className,
   placeholder,
+  saveMode = "blur",
 }: {
   value: string;
   canEdit: boolean;
   onSave: (v: string) => Promise<void>;
   className?: string;
   placeholder?: string;
+  saveMode?: "blur" | "explicit";
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -31,12 +34,16 @@ export function InlineTitle({
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   async function commit() {
-    setEditing(false);
     const trimmed = draft.trim();
-    if (!trimmed || trimmed === value) { setDraft(value); return; }
+    if (!trimmed || trimmed === value) {
+      setDraft(value);
+      setEditing(false);
+      return;
+    }
     setStatus("saving");
     try {
       await onSave(trimmed);
+      setEditing(false);
       setStatus("saved");
       timerRef.current = setTimeout(() => setStatus("idle"), 2000);
     } catch {
@@ -65,18 +72,50 @@ export function InlineTitle({
 
   if (editing) {
     return (
-      <input
-        ref={inputRef}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") e.currentTarget.blur();
-          if (e.key === "Escape") { setDraft(value); setEditing(false); }
-        }}
-        aria-label={placeholder || "Edit title"}
-        className={`${className} bg-transparent border-none outline-none ring-1 ring-ring rounded px-1 -mx-1`}
-      />
+      <span className="flex min-w-0 items-center gap-1.5">
+        <input
+          ref={inputRef}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={saveMode === "blur" ? () => void commit() : undefined}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              if (saveMode === "blur") e.currentTarget.blur();
+              else void commit();
+            }
+            if (e.key === "Escape") { setDraft(value); setEditing(false); }
+          }}
+          aria-label={placeholder || "Edit title"}
+          className={`${className} min-w-0 bg-transparent border-none outline-none ring-1 ring-ring rounded px-1 -mx-1`}
+        />
+        {saveMode === "explicit" && (
+          <span className="flex shrink-0 items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-10 border border-primary/20 bg-primary/[0.06]"
+              onClick={() => void commit()}
+              disabled={status === "saving"}
+              aria-label="Save title"
+            >
+              {status === "saving" ? <Spinner className="size-4" /> : <Check className="size-4" />}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-10 border border-border/60 text-muted-foreground"
+              onClick={() => { setDraft(value); setEditing(false); }}
+              disabled={status === "saving"}
+              aria-label="Cancel title edit"
+            >
+              <X className="size-4" />
+            </Button>
+          </span>
+        )}
+      </span>
     );
   }
 

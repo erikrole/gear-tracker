@@ -4,6 +4,7 @@ export type SerializedItem = {
   asset: {
     id: string;
     assetTag: string;
+    name?: string | null;
     brand: string;
     model: string;
     serialNumber: string;

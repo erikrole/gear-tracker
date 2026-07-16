@@ -92,6 +92,7 @@ export function OperationalStatusRail({
   className,
   defaultOpen = false,
   details,
+  detailsLabel = "Details",
   items,
   maxVisibleItems = 3,
   notice,
@@ -101,6 +102,7 @@ export function OperationalStatusRail({
   className?: string;
   defaultOpen?: boolean;
   details?: ReactNode;
+  detailsLabel?: string;
   items: OperationalStatusRailItem[];
   maxVisibleItems?: number;
   notice?: ReactNode;
@@ -162,9 +164,13 @@ export function OperationalStatusRail({
                 variant="ghost"
                 size="lg"
                 className="self-end px-2.5 text-xs font-semibold text-muted-foreground lg:self-auto"
-                aria-label={hiddenCount > 0 ? `Show details and ${hiddenCount} more statuses` : "Show status details"}
+                aria-label={open
+                  ? `Hide ${detailsLabel.toLowerCase()}`
+                  : hiddenCount > 0
+                    ? `Show ${detailsLabel.toLowerCase()} and ${hiddenCount} more statuses`
+                    : `Show ${detailsLabel.toLowerCase()}`}
               >
-                Details
+                {detailsLabel}
                 {hiddenCount > 0 ? <Badge variant="gray" size="sm">+{hiddenCount}</Badge> : null}
                 <ChevronDownIcon
                   data-icon="inline-end"

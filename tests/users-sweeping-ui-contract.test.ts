@@ -14,6 +14,30 @@ describe("Users sweeping ownership contracts", () => {
     expect(row).toContain("<RoleBadge role={user.role} />");
     expect(row).not.toContain("listRoleLabel");
     expect(page).toContain('aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}');
+    expect(page).toContain('<ArrowUp className="ml-1 size-4 text-foreground"');
+    expect(page).toContain('opacity-20 transition-opacity group-hover:opacity-50');
+  });
+
+  it("keeps the desktop roster compact and removes repetitive columns", () => {
+    const page = source("src/app/(app)/users/page.tsx");
+    const row = source("src/app/(app)/users/UserRow.tsx");
+    const rail = source("src/components/OperationalStatusRail.tsx");
+
+    expect(page).toContain('className="mb-5"');
+    expect(page).toContain('detailsLabel="Roster breakdown"');
+    expect(page).toContain("Title / area");
+    expect(page).toContain('label="Last active" sortKey="lastActive"');
+    expect(page).not.toContain('>Location</TableHead>');
+    expect(page).not.toContain('aria-label="Refresh users list"');
+    expect(page).not.toContain("<RefreshCw");
+    expect(row).toContain("<TitleAreaValue user={user} />");
+    expect(row).not.toContain("{user.location || \"\\u2014\"}");
+    expect(row).toContain("focus-visible:ring-[3px]");
+    expect(row).toContain('bg-muted-foreground/40');
+    expect(row).toContain('border border-muted-foreground/50');
+    expect(row).toContain('<time dateTime={lastActiveAt} className="tabular-nums">');
+    expect(rail).toContain('detailsLabel = "Details"');
+    expect(rail).toContain('`Hide ${detailsLabel.toLowerCase()}`');
   });
 
   it("derives student roster titles from primary area and keeps roster cleanup staff-only", () => {
@@ -32,7 +56,7 @@ describe("Users sweeping ownership contracts", () => {
     const page = source("src/app/(app)/users/page.tsx");
     const dialog = source("src/components/onboarding/OnboardingDialog.tsx");
 
-    expect(page).toContain('<PageHeader title="Users">');
+    expect(page).toContain('<PageHeader title="Users" className="mb-5">');
     expect(page).not.toContain("Find people, manage access, and review roster health.");
     expect(page).toContain("Add users");
     expect(dialog).toContain("Grant registration access to one person or paste a roster.");

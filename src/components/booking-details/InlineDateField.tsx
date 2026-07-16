@@ -26,6 +26,7 @@ export function InlineDateField({
   canEdit,
   onSave,
   minDate,
+  formatValue,
 }: {
   /** ISO string */
   value: string;
@@ -33,9 +34,10 @@ export function InlineDateField({
   onSave: (iso: string) => Promise<void>;
   /** Optional lower bound (ISO string) */
   minDate?: string;
+  formatValue?: (iso: string) => string;
 }) {
   const current = new Date(value);
-  const displayText = current.toLocaleString("en-US", {
+  const displayText = formatValue?.(value) ?? current.toLocaleString("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -160,7 +162,7 @@ export function InlineDateField({
               onClick={handleApply}
               disabled={status === "saving"}
             >
-              {status === "saving" ? "Saving…" : "Apply"}
+              {status === "saving" ? "Saving…" : "Confirm date"}
             </Button>
           </div>
         </PopoverContent>

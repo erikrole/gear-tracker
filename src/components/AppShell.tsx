@@ -616,16 +616,6 @@ export default function AppShell({
               </TooltipTrigger>
               <TooltipContent>Notifications</TooltipContent>
             </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative p-2 no-underline text-muted-foreground rounded-lg transition-colors hover:bg-black/5 hover:text-foreground max-md:p-2.5 max-md:min-w-[44px] max-md:min-h-[44px] max-md:flex max-md:items-center max-md:justify-center [&_a]:no-underline" asChild>
-                  <Link href={`/users/${user.id}`} aria-label="My profile">
-                    <UserIcon className="size-5" />
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Profile</TooltipContent>
-            </Tooltip>
           </div>
         </header>
         <BreadcrumbProvider>

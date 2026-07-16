@@ -19,21 +19,37 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { getBookingCancelCopy } from "@/hooks/booking-action-copy";
 import { BOOKING_CHANGE_SYNC_EVENT } from "@/hooks/use-booking-change-sync";
 import { statusBadgeVariant, statusLabel } from "./booking-details/helpers";
-import { toLocalDateTimeValue } from "./booking-details/helpers";
-import { BookingEditForm, BookingItems } from "./booking-details";
-import BookingInfoCard from "./booking-details/BookingInfoCard";
+import { BookingItems } from "./booking-details";
+import BookingSheetOverview from "./booking-details/BookingSheetOverview";
+import { InlineTitle } from "@/components/InlineTitle";
 import { EditBookingEventsDialog } from "./booking-details/EditBookingEventsDialog";
 import { TransferOwnerDialog } from "./booking-details/TransferOwnerDialog";
 import dynamic from "next/dynamic";
 import type { PickerBulkSku } from "@/components/EquipmentPicker";
 const EquipmentPicker = dynamic(() => import("@/components/EquipmentPicker"), { ssr: false });
 import { UserAvatar } from "@/components/UserAvatar";
+import { isDueToday } from "@/lib/format";
 import Link from "next/link";
-import { ExternalLinkIcon, TriangleAlert } from "lucide-react";
+import {
+  CalendarRangeIcon,
+  ExternalLinkIcon,
+  MoreHorizontalIcon,
+  TriangleAlert,
+  UserRoundCogIcon,
+  XCircleIcon,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type {
   BookingDetail,
   BulkSkuOption,
@@ -62,6 +78,8 @@ type FormOptionsResponse = {
     bulkSkus?: BulkSkuOption[];
   };
 };
+
+type EditableBookingField = "title" | "startsAt" | "endsAt" | "notes";
 
 /* ───── Section heading ───── */
 
@@ -101,17 +119,9 @@ export default function BookingDetailsSheet({
 
   const [booking, setBooking] = useState<BookingDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editMode, setEditMode] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [equipSearch, setEquipSearch] = useState("");
   const [transferOwnerOpen, setTransferOwnerOpen] = useState(false);
   const [editEventsOpen, setEditEventsOpen] = useState(false);
-
-  // Edit form state
-  const [editTitle, setEditTitle] = useState("");
-  const [editEndsAt, setEditEndsAt] = useState("");
-  const [editStartsAt, setEditStartsAt] = useState("");
-  const [editNotes, setEditNotes] = useState("");
 
   // Equipment editing state
   const [equipEditMode, setEquipEditMode] = useState(false);
@@ -127,7 +137,6 @@ export default function BookingDetailsSheet({
   const [fetchError, setFetchError] = useState(false);
 
   const [cancelling, setCancelling] = useState(false);
-  const saveBusyRef = useRef(false);
   const equipSaveBusyRef = useRef(false);
   const cancelBusyRef = useRef(false);
   const sheetBodyRef = useRef<HTMLDivElement | null>(null);
@@ -170,7 +179,6 @@ export default function BookingDetailsSheet({
   useEffect(() => {
     if (bookingId) {
       fetchBooking();
-      setEditMode(false);
       setEquipEditMode(false);
       setConflictError(null);
     }
@@ -192,7 +200,7 @@ export default function BookingDetailsSheet({
 
   // Scroll to the equipment section when opened with that intent.
   useEffect(() => {
-    if (!bookingId || loading || !booking || editMode || equipEditMode) return;
+    if (!bookingId || loading || !booking || equipEditMode) return;
     if (initialTab !== "equipment") return;
     const section = equipmentSectionRef.current;
     if (!section) return;
@@ -202,7 +210,7 @@ export default function BookingDetailsSheet({
       body.scrollTo({ top: section.offsetTop - body.offsetTop, behavior: "auto" });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [bookingId, booking, loading, editMode, equipEditMode, initialTab]);
+  }, [bookingId, booking, loading, equipEditMode, initialTab]);
 
   const loadFormOptions = useCallback(async () => {
     try {
@@ -239,7 +247,7 @@ export default function BookingDetailsSheet({
   const canCancel = booking && actions.includes("cancel");
   const canTransferOwner = booking && actions.includes("transfer-owner");
   const canEditEvents = booking && actions.includes("edit");
-  const canEditEquipment = canEdit;
+  const canEditEquipment = canEdit && booking?.kind === "RESERVATION";
 
   /* ───── Filtered equipment ───── */
 
@@ -263,15 +271,6 @@ export default function BookingDetailsSheet({
     (booking?.serializedItems?.length ?? 0) + (booking?.bulkItems?.length ?? 0);
 
   /* ───── Handlers ───── */
-
-  function enterEditMode() {
-    if (!booking) return;
-    setEditTitle(booking.title);
-    setEditStartsAt(toLocalDateTimeValue(new Date(booking.startsAt)));
-    setEditEndsAt(toLocalDateTimeValue(new Date(booking.endsAt)));
-    setEditNotes(booking.notes || "");
-    setEditMode(true);
-  }
 
   function enterEquipEditMode() {
     if (!booking) return;
@@ -324,79 +323,35 @@ export default function BookingDetailsSheet({
     }
   }
 
-  async function handleSave() {
-    if (!booking || saveBusyRef.current) return;
-    saveBusyRef.current = true;
-    setSaving(true);
-
-    const payload: Record<string, unknown> = {};
-    if (editTitle !== booking.title) payload.title = editTitle;
-    if (editNotes !== (booking.notes || "")) payload.notes = editNotes;
-
-    const newEndsAt = new Date(editEndsAt).toISOString();
-    if (newEndsAt !== booking.endsAt) payload.endsAt = newEndsAt;
-
-    if (booking.kind === "RESERVATION") {
-      const newStartsAt = new Date(editStartsAt).toISOString();
-      if (newStartsAt !== booking.startsAt) payload.startsAt = newStartsAt;
-    }
-
-    if (Object.keys(payload).length === 0) {
-      toast.info("No changes to save");
-      saveBusyRef.current = false;
-      setSaving(false);
-      return;
-    }
-
+  async function handleSaveField(field: EditableBookingField, value: string) {
+    if (!booking) return;
     try {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (booking.updatedAt) headers["If-Unmodified-Since"] = new Date(booking.updatedAt).toUTCString();
       const res = await fetchWithTimeout(`/api/bookings/${booking.id}`, {
         method: "PATCH",
         headers,
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ [field]: value }),
       });
 
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        toast.success("Booking updated");
-        setEditMode(false);
+        toast.success(field === "title" ? "Title updated" : field === "notes" ? "Notes updated" : "Schedule updated");
         await fetchBooking({ silent: true });
         onUpdated?.();
-      } else {
-        const json = await parseJsonSafely<ApiEnvelope<ConflictData>>(res);
-        if (res.status === 409 && json?.data) setConflictError(json.data);
-        toast.error(json?.error || "Could not save booking changes. Review conflicts and try again.");
+        return;
       }
-    } catch {
-      toast.error("Could not reach the server. Booking changes were not saved.");
-    } finally {
-      saveBusyRef.current = false;
-      setSaving(false);
-    }
-  }
 
-  function mergeBooking(patch: Partial<BookingDetail>) {
-    setBooking((prev) => (prev ? { ...prev, ...patch } : prev));
-  }
-
-  async function handleSaveField(field: string, value: unknown) {
-    if (!booking) return;
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (booking.updatedAt) headers["If-Unmodified-Since"] = new Date(booking.updatedAt).toUTCString();
-    const res = await fetchWithTimeout(`/api/bookings/${booking.id}`, {
-      method: "PATCH",
-      headers,
-      body: JSON.stringify({ [field]: value }),
-    });
-    if (handleAuthRedirect(res)) throw new DOMException("Auth redirect", "AbortError");
-    if (!res.ok) {
       const json = await parseJsonSafely<ApiEnvelope<ConflictData>>(res);
       if (res.status === 409 && json?.data) setConflictError(json.data);
-      throw new Error(json?.error || "Failed to save");
+      throw new Error(json?.error || "Could not save this change. Review conflicts and try again.");
+    } catch (error) {
+      const message = error instanceof Error && error.message
+        ? error.message
+        : "Could not reach the server. Booking changes were not saved.";
+      toast.error(message);
+      throw error;
     }
-    await fetchBooking({ silent: true });
-    onUpdated?.();
   }
 
   async function handleCancel() {
@@ -442,7 +397,7 @@ export default function BookingDetailsSheet({
 
   return (
     <Sheet open={!!bookingId} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <SheetContent className="flex flex-col sm:max-w-lg">
+      <SheetContent className="flex flex-col sm:max-w-xl">
 
         {/* Header */}
         <SheetHeader>
@@ -457,16 +412,27 @@ export default function BookingDetailsSheet({
                 />
               )}
               <div className="min-w-0 flex-1">
-              <SheetTitle className="truncate">
-                {booking?.title || "Loading booking"}
-              </SheetTitle>
-              <SheetDescription className="sr-only">
-                Booking summary with timing, requester, equipment, and a link to the full booking page.
-              </SheetDescription>
-              {booking && (
+                <SheetTitle className="min-w-0 text-lg">
+                  {booking ? (
+                    <InlineTitle
+                      value={booking.title}
+                      canEdit={Boolean(canEdit)}
+                      onSave={(value) => handleSaveField("title", value)}
+                      saveMode="explicit"
+                      className="text-lg font-semibold tracking-tight"
+                      placeholder="Booking title"
+                    />
+                  ) : "Loading booking"}
+                </SheetTitle>
+                <SheetDescription className="sr-only">
+                  Booking summary with timing, requester, equipment, and a link to the full booking page.
+                </SheetDescription>
+                {booking && (
                   <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs leading-relaxed text-muted-foreground">
+                    <span className="font-medium text-foreground/80">{booking.requester?.name ?? "Unknown requester"}</span>
+                    <span aria-hidden="true">·</span>
                     {booking.refNumber && <span className="font-mono">{booking.refNumber}</span>}
-                    {booking.refNumber && <span aria-hidden="true">/</span>}
+                    {booking.refNumber && <span aria-hidden="true">·</span>}
                     <span>{booking.bookingType}</span>
                   </p>
                 )}
@@ -474,7 +440,13 @@ export default function BookingDetailsSheet({
             </div>
             {booking && (
               <Badge
-                variant={(booking.isOverdue ? "red" : statusBadgeVariant(booking.status, booking.kind)) as BadgeProps["variant"]}
+                variant={(
+                  booking.isOverdue
+                    ? "red"
+                    : booking.kind === "CHECKOUT" && booking.isActive && isDueToday(booking.endsAt, new Date())
+                      ? "orange"
+                      : statusBadgeVariant(booking.status, booking.kind)
+                ) as BadgeProps["variant"]}
                 className="shrink-0 mt-0.5"
               >
                 {booking.isOverdue ? "Overdue" : statusLabel(booking.status, booking.kind)}
@@ -484,7 +456,7 @@ export default function BookingDetailsSheet({
         </SheetHeader>
 
         {/* Body — single scrollable column */}
-        <SheetBody ref={sheetBodyRef} className="relative flex flex-col bg-muted/20 px-0 py-0">
+        <SheetBody ref={sheetBodyRef} className="relative flex flex-col bg-muted/25 px-0 py-0">
           {loading ? (
             <OperationalLoadingState
               variant="sheet"
@@ -508,26 +480,6 @@ export default function BookingDetailsSheet({
               title="Booking not found"
               description="The booking may have been cancelled, archived, or moved since this sheet opened."
             />
-          ) : editMode ? (
-
-            /* ── Edit mode ── */
-            <div className="px-6 py-5 flex-1">
-              <BookingEditForm
-                booking={booking}
-                editTitle={editTitle}
-                editStartsAt={editStartsAt}
-                editEndsAt={editEndsAt}
-                editNotes={editNotes}
-                saving={saving}
-                onEditTitle={setEditTitle}
-                onEditStartsAt={setEditStartsAt}
-                onEditEndsAt={setEditEndsAt}
-                onEditNotes={setEditNotes}
-                onSave={handleSave}
-                onCancel={() => setEditMode(false)}
-              />
-            </div>
-
           ) : equipEditMode ? (
 
             /* ── Equipment edit mode ── */
@@ -588,9 +540,8 @@ export default function BookingDetailsSheet({
             /* ── Summary view ── */
             <>
               {/* ─ Details section ─ */}
-              <div ref={detailsSectionRef} data-booking-sheet-section="details" className="border-b border-border/40 bg-background">
-                <SectionHead label="Details" />
-                <div className="px-6 pb-4 pt-2 flex flex-col gap-4">
+              <div ref={detailsSectionRef} data-booking-sheet-section="details" className="border-b border-border/40 p-4 sm:p-5">
+                <div className="flex flex-col gap-4">
                   {conflictError?.conflicts && conflictError.conflicts.length > 0 && (
                     <Alert variant="destructive">
                       <TriangleAlert className="size-4" />
@@ -612,18 +563,16 @@ export default function BookingDetailsSheet({
                       </span>
                     </div>
                   )}
-                  <BookingInfoCard
+                  <BookingSheetOverview
                     booking={booking}
-                    canEdit={false}
-                    onSave={handleSaveField}
-                    onPatch={mergeBooking}
-                    bare
+                    canEdit={Boolean(canEdit)}
+                    onSaveField={handleSaveField}
                   />
                 </div>
               </div>
 
               {/* ─ Equipment section ─ */}
-              <div ref={equipmentSectionRef} data-booking-sheet-section="equipment" className="bg-background">
+              <div ref={equipmentSectionRef} data-booking-sheet-section="equipment" className="bg-background/70">
                 <SectionHead
                   label="Equipment"
                   count={totalEquipItems}
@@ -632,16 +581,16 @@ export default function BookingDetailsSheet({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 px-2 text-xs"
+                        className="h-10 px-3 text-xs"
                         onClick={enterEquipEditMode}
                       >
-                        Edit
+                        Edit equipment
                       </Button>
                     ) : undefined
                   }
                 />
 
-                <div className="px-6 pb-4 pt-2">
+                <div className="px-5 pb-5 pt-2 sm:px-6">
                   <BookingItems
                     booking={booking}
                     equipSearch={equipSearch}
@@ -660,39 +609,45 @@ export default function BookingDetailsSheet({
         </SheetBody>
 
         {/* Footer */}
-        {booking && !editMode && !equipEditMode && (
-          <SheetFooter className="bg-background">
-            <div className="flex w-full flex-wrap items-center gap-2">
-              {/* Left: Edit + Cancel */}
-              {canEdit && (
-                <Button variant="outline" size="sm" onClick={enterEditMode}>
-                  Edit
-                </Button>
-              )}
-              {canCancel && (
-                <Button variant="destructive" size="sm" onClick={handleCancel} loading={cancelling}>
-                  Cancel
-                </Button>
-              )}
-              {canTransferOwner && (
-                <Button variant="outline" size="sm" onClick={() => setTransferOwnerOpen(true)}>
-                  Transfer owner
-                </Button>
-              )}
-              {canEditEvents && (
-                <Button variant="outline" size="sm" onClick={() => setEditEventsOpen(true)}>
-                  Edit events
-                </Button>
-              )}
-
+        {booking && !equipEditMode && (
+          <SheetFooter className="bg-background/95 backdrop-blur-sm">
+            <div className="flex w-full items-center gap-2">
               <div className="flex-1" />
-
-              {/* Right: Full page */}
-              <Button variant="outline" size="sm" asChild>
+              <Button variant="outline" className="h-10" asChild>
                 <Link href={detailHref}>
                   Open full booking <ExternalLinkIcon data-icon="inline-end" />
                 </Link>
               </Button>
+              {(canTransferOwner || canEditEvents || canCancel) && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon" className="size-10" aria-label="More booking actions">
+                      <MoreHorizontalIcon className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-48">
+                    {canTransferOwner && (
+                      <DropdownMenuItem onSelect={() => setTransferOwnerOpen(true)}>
+                        <UserRoundCogIcon />
+                        Transfer owner
+                      </DropdownMenuItem>
+                    )}
+                    {canEditEvents && (
+                      <DropdownMenuItem onSelect={() => setEditEventsOpen(true)}>
+                        <CalendarRangeIcon />
+                        Edit events
+                      </DropdownMenuItem>
+                    )}
+                    {canCancel && (canTransferOwner || canEditEvents) && <DropdownMenuSeparator />}
+                    {canCancel && (
+                      <DropdownMenuItem variant="destructive" onSelect={handleCancel} disabled={cancelling}>
+                        {cancelling ? <Spinner /> : <XCircleIcon />}
+                        Cancel booking
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </SheetFooter>
         )}

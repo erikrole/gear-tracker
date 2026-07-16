@@ -111,7 +111,9 @@ export type OverdueItem = {
   requesterInitials: string;
   requesterAvatarUrl: string | null;
   assetTags: string[];
+  startsAt: string;
   endsAt: string;
+  itemCount: number;
   items: ItemThumb[];
 };
 

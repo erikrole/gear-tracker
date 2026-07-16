@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-09
+- Last Updated: 2026-07-16
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -56,9 +56,9 @@ Legacy documentation below describes the retired web wizard contract and is pres
 
 ### Edit Checkout
 1. User opens checkout detail via BookingDetailsSheet.
-2. Editable fields respect role and ownership.
-3. Equipment editing uses full `EquipmentPicker` in the Equipment tab (same UX as creation — QR scan-to-add, section tabs, availability conflicts).
-4. Mutations must preserve overlap and transaction constraints.
+2. Safe metadata fields respect role and ownership and save as single-field audited patches.
+3. Active checkout equipment remains read-only on web. Item additions, removals, and exact-unit custody corrections run through the identified-student kiosk flow.
+4. Schedule mutations must preserve overlap and transaction constraints.
 
 ### Extend Checkout
 1. `OPEN` checkouts can be extended if no conflicts exist.
@@ -220,10 +220,11 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - Returned items show green checkmark and muted row background
 - Breadcrumb handled by global `PageBreadcrumb` in AppShell (no duplicate)
 
-### Tabs (BookingDetailsSheet)
-1. **Details** — Booking overview: dates, requester, location, event context, extend presets, checkin progress, conflict banner.
-2. **Equipment** — Item list with thumbnails, return progress, kiosk handoff context, and gated equipment-edit controls where policy allows. Badge shows unreturned item count.
-3. **History** — Audit timeline with ToggleGroup filters (All / Booking changes / Equipment changes), cursor-paginated load-more.
+### BookingDetailsSheet quick view
+1. Due back is the stable schedule headline, with weekday-first dates and urgency aligned to the dashboard rail.
+2. Title, due date, and notes edit in context through single-field patches with explicit confirmation. Checkout start remains read-only because custody already began.
+3. Equipment remains readable with thumbnails, return progress, and direct numbered-unit identities. Active checkout equipment editing is not exposed on web.
+4. Full history and broader workflows remain on the full checkout detail page.
 
 ### Inline Editing
 - Title: `InlineTitle` component with save status indicator (spinner/check/error)
@@ -303,6 +304,9 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 5. Add regression coverage for race conditions, partial returns, non-kiosk custody attempts, and permission bypass attempts.
 
 ## Change Log
+- 2026-07-16: **Quick-view equipment identity cleanup.** Serialized equipment rows now pair the Gotham asset tag with the product name as supporting context. Brand/model remains a fallback when a product name is absent, while the serial number is no longer repeated in the quick-view row. Numbered family units remain directly visible, and custody behavior is unchanged.
+- 2026-07-16: **Checkout quick-view custody alignment.** The shared sheet now uses urgency-aligned status color, weekday-first schedule formatting, explicit inline title/date/notes saves, and direct numbered-unit labels. It removes broad Edit booking and active-checkout Edit equipment controls; kiosk remains the only normal surface for changing checkout contents, while Open full booking and permission-gated secondary actions remain available.
+- 2026-07-16: **Shared booking sheet hierarchy refresh.** Checkout sheets now lead with the due window and urgency, condense pickup and creation context, and keep equipment as the main working section. Full detail remains directly available; transfer, event relinking, and cancellation move into the named More actions menu without changing their permission or mutation contracts.
 - 2026-07-15: Booking titles now normalize at every current checkout title write path, including kiosk event/purpose creation, reservation pickup through the shared lifecycle service, shared booking edits, and active-kiosk edits. Canonical UW sport codes remain uppercase while ordinary all-caps or lowercase words become title case; connectors such as `at` and `vs` stay lowercase, whitespace is collapsed, and camel-case product names are preserved.
 - 2026-07-10: **Booking equipment tab annotation polish.** Upcoming-commitment and risk annotations on equipment rows move from raw Tailwind color literals to semantic status tokens (`--blue-text`, `--orange-text`, `--red-text`) at readable 11px. Visual only.
 - 2026-07-10: **Bookings list visual refresh shipped.** Shared booking list rows/cards (`/bookings` table, card grid, and mobile rows) now show status as the semantic `Badge` variant beside the ref number under the title, replacing the tiny uppercase letterspaced mono ref/status lines. COMPLETED rows no longer render at 60% opacity, so the Past scope reads as data instead of a disabled page (muted title is kept; CANCELLED keeps strikethrough). The table's Items column now shows the item thumbnail stack (shared `GearAvatarStack`) with the count, and date/duration cells drop the forced mono styling for standard tabular text. No behavior, data, or route changes. The booking detail activity timeline now annotates return rows (`kiosk_checkin`, `checkin_completed`, `items_returned*`) that land after the booking's final due date with an amber "N minutes/hours/days late" note (Cheqroom-inspired; compares against `booking.endsAt`, which extends keep current). `auto_completed_by_kiosk_checkin` / `_bulk_checkin` now render as "Booking completed by the kiosk/bulk return" with the kiosk scan icon instead of raw fallback text, and the collapsed activity preview line labels the auto-complete actions properly.

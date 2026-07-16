@@ -16,7 +16,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { useConfirm } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
 import { formatRelativeTime } from "@/lib/format";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect } from "@/lib/errors";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { useBookingChangeSync } from "@/hooks/use-booking-change-sync";
 import { useDashboardFilters } from "@/hooks/use-dashboard-filters";
@@ -28,7 +28,7 @@ import { LostBulkUnitsCard } from "./dashboard/lost-bulk-units-card";
 import { MyGearColumn } from "./dashboard/my-gear-column";
 import { TeamActivityColumn } from "./dashboard/team-activity-column";
 import { PageTransition } from "@/components/ui/motion";
-import type { BookingSummary, CreateBookingContext } from "./dashboard-types";
+import type { CreateBookingContext } from "./dashboard-types";
 
 export default function DashboardPage() {
   const {
@@ -115,36 +115,6 @@ export default function DashboardPage() {
     }
   };
 
-  /* ── Inline Actions ─────────────────────────────────── */
-
-  const handleExtend = async (booking: BookingSummary, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (actionBusyRef.current) return;
-    actionBusyRef.current = true;
-    setActing(booking.id);
-    try {
-      const newEnd = new Date(new Date(booking.endsAt).getTime() + 24 * 60 * 60 * 1000);
-      const res = await fetch(`/api/bookings/${booking.id}/extend`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ endsAt: newEnd.toISOString() }),
-      });
-      if (handleAuthRedirect(res, "/")) return;
-      if (res.ok) {
-        toast.success("Extended by 1 day");
-        loadData();
-      } else {
-        const msg = await parseErrorMessage(res, "Could not extend the booking. Refresh and check for conflicts.");
-        toast.error(msg);
-      }
-    } catch {
-      toast.error("Could not reach the server. The booking was not extended.");
-    } finally {
-      actionBusyRef.current = false;
-      setActing(null);
-    }
-  };
-
   if (fetchError) {
     return (
       <EmptyState
@@ -224,47 +194,52 @@ export default function DashboardPage() {
   return (
     <PageTransition>
       {/* ══════ Page Header + Quick Actions ══════ */}
-      <PageHeader title="Dashboard" className="mb-4 max-md:mb-3">
-        <div className="flex flex-wrap items-center justify-end gap-2">
+      <PageHeader
+        title="Dashboard"
+        titleAccessory={(
           <StatusIndicator
             state={bookingSync.state}
             label={bookingSync.label}
             size="sm"
             title={bookingSync.description}
+            className="h-6 px-2 text-[11px] font-bold shadow-[0_0_14px_rgba(34,197,94,0.2)]"
+            labelClassName="font-bold"
           />
+        )}
+        className="mb-4 max-md:mb-3"
+      >
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {statsSyncIssue && (
             <StatusIndicator
               state="fixing"
               label={statsSyncIssue.label}
               size="sm"
               title={statsSyncIssue.description}
+              className="h-10 px-3"
             />
           )}
-          <div className="flex items-center gap-1 rounded-md border border-border/60 bg-muted/20 p-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => loadData()}
-                  disabled={refreshing}
-                  className="text-muted-foreground"
-                  aria-label="Refresh dashboard"
-                >
-                  <RefreshCwIcon className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{lastRefreshed ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), now)}` : "Refresh"}</TooltipContent>
-            </Tooltip>
-            <FilterChips {...filters} />
-          </div>
-          {roleKnown && !isStudent && (
-            <div className="flex gap-2">
-              <Button onClick={() => handleCreateBooking({ kind: "RESERVATION" })}>
-                <PlusIcon className="size-3.5" />
-                New reservation
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-10"
+                onClick={() => loadData()}
+                disabled={refreshing}
+                aria-label="Refresh dashboard"
+              >
+                <RefreshCwIcon className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} data-icon="inline-start" />
+                Refresh
               </Button>
-            </div>
+            </TooltipTrigger>
+            <TooltipContent>{lastRefreshed ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), now)}` : "Refresh dashboard"}</TooltipContent>
+          </Tooltip>
+          <FilterChips {...filters} />
+          {roleKnown && !isStudent && (
+            <Button className="h-10" onClick={() => handleCreateBooking({ kind: "RESERVATION" })}>
+              <PlusIcon className="size-3.5" data-icon="inline-start" />
+              New reservation
+            </Button>
           )}
         </div>
       </PageHeader>
@@ -281,6 +256,7 @@ export default function DashboardPage() {
           }}
           items={dashboardRailItems}
           allClearLabel={dashboardRailItems.length === 0 ? "No active booking work" : undefined}
+          detailsLabel="Booking breakdown"
           details={(
             <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
               <OperationalMetricCard label="Overdue" value={stats.overdue} tone={stats.overdue > 0 ? "red" : "muted"} href="/checkouts?filter=overdue" />
@@ -373,7 +349,6 @@ export default function DashboardPage() {
             acting={acting !== null}
             onSelectBooking={setSelectedBookingId}
             onDeleteDraft={handleDeleteDraft}
-            onExtend={handleExtend}
             onCreateBooking={handleCreateBooking}
           />
           {!isStudent && (
@@ -383,10 +358,7 @@ export default function DashboardPage() {
               activeSport={filters.activeSport}
               hasActiveFilter={filters.hasActiveFilter}
               now={now}
-              isStaff={isStaff}
-              acting={acting !== null}
               onSelectBooking={setSelectedBookingId}
-              onExtend={handleExtend}
             />
           )}
         </div>

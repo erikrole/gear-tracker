@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-09
+- Last Updated: 2026-07-16
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -87,7 +87,8 @@ The reservation detail page (`/reservations/[id]`) uses the shared `BookingDetai
 
 ### Inline Editing
 - Title: `InlineTitle` component with save status indicator (spinner/check/error)
-- Notes: blur-save via `useSaveField` pattern
+- Quick-view sheet title and notes use explicit save/cancel controls; Enter confirms the title and Command/Ctrl+Enter confirms notes.
+- Reservation start and due-back dates use an explicit confirmation popover.
 - PATCH `/api/bookings/[id]` with single-field partial update
 - Audit entries capture before-snapshot for field-level diffs
 - "Refreshing…" spinner shown during data reload after actions
@@ -244,6 +245,8 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - Mobile operations contract from `AREA_MOBILE.md`.
 
 ## Change Log
+- 2026-07-16: **Reservation quick-view inline editing.** The shared sheet keeps due back as the stable schedule anchor, formats dates weekday-first, and replaces the broad Edit booking mode with explicit inline title, start, due-back, and notes saves. Reservation equipment planning remains editable on web, while numbered units display directly when already bound by a custody flow.
+- 2026-07-16: **Shared booking sheet hierarchy refresh.** Reservation sheets now lead with the reserved window and start timing, condense pickup and linked context, and keep equipment as the main working section. Full detail remains directly available; transfer, event relinking, and cancellation move into the named More actions menu without changing their permission or mutation contracts.
 - 2026-07-15: Booking titles now normalize at write boundaries across reservation creation, drafts, shared edits, and kiosk checkout paths. Canonical UW sport codes remain uppercase (`MBB`, `WBB`, and peers), ordinary words use title case, common connectors such as `at` and `vs` stay lowercase, repeated whitespace collapses, and intentional camel-case names remain intact. Stored titles, audit history, notifications, search, and exports now share the same normalized value for new or edited bookings.
 - 2026-07-10: Native reservation equipment selection now honors Reduce Motion for cart feedback and disables fully allocated bulk-family rows instead of accepting dead taps, while shared scalable typography and quieter card depth improve large-text hierarchy without changing reservation or custody contracts.
 - 2026-07-10: **Bookings list visual refresh shipped.** Shared booking list rows/cards used by the Reservations tab now show status as the semantic `Badge` variant beside the ref number under the title, COMPLETED rows drop the 60% row opacity on the Past scope, and the table's Items column shows the item thumbnail stack with the count. Visual-only; see `AREA_CHECKOUTS.md` 2026-07-10 for full detail. Kiosk add/remove entries now persist the serialized tag or numbered-unit identity plus the kiosk name, and completed kiosk returns persist the returned item list plus kiosk name. Shared booking history now renders direct summaries such as `Added FX3 1 at the Video Office Kiosk` and `Returned Sony Battery #7 at the Video Office Kiosk`; historical rows with no stored identity keep the generic fallback.

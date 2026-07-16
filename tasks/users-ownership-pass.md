@@ -1,5 +1,27 @@
 # Users Ownership Pass - 2026-05-06
 
+## Compact roster table polish - 2026-07-16
+
+### Goal
+- Make the 14-person desktop roster faster to scan without removing useful identity, access, area, or activity signals.
+
+### Peer patterns checked
+- `items`: confirms active sort direction should be prominent while available sorting stays quiet, and clickable rows need stable hover plus inset focus treatment.
+- `kits`: confirms compact list headings can pair a primary value with muted secondary context without adding another column.
+
+### Plan
+- [x] Hide the repetitive Location column while preserving location filters and mobile metadata.
+- [x] Combine Title and Area so staff retain both signals and Student rows show the derived title only once.
+- [x] Tighten the page-header and roster-stack spacing.
+- [x] Clarify active sorting, rename Details to Roster breakdown, and strengthen row hover/focus feedback.
+- [x] Replace the plain Last active timestamps with compact activity states and remove redundant manual refresh chrome.
+- [x] Add focused source-contract coverage and verify the authenticated desktop interaction path.
+
+### Review
+- **Shipped:** The desktop table now uses Name, Role, Title / area, and Last active. Staff area appears as quiet secondary context, while Student rows keep labels such as `Video Student` without a second Video cell. Last active uses green only for current presence, a neutral marker for earlier activity, and a hollow marker for never active; exact timestamps remain available on hover. Automatic mount and focus revalidation replaces the header refresh command, while explicit retry actions remain available for failed requests.
+- **Verified:** Focused Users tests, focused ESLint, TypeScript, migration/docs checks, whitespace, `npm run build:app`, and authenticated localhost proof for default sorting, last-active sorting, disclosure open/close labels, and the updated four-column roster.
+- **Deferred:** Location remains available as a filter and in narrow-screen metadata; it is only hidden from the desktop table.
+
 ## Profile-to-roster freshness - 2026-07-16
 
 ### Goal

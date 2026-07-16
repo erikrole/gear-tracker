@@ -19,12 +19,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Link from "next/link";
-import { ArrowUpDown, ClipboardList, Download, ImageOff, MoreHorizontal, Network, RefreshCw, UserPlus, UserRoundX, WifiOff } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ArrowDown, ArrowUp, ArrowUpDown, ClipboardList, Download, ImageOff, MoreHorizontal, Network, UserPlus, UserRoundX, WifiOff } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
-import { formatRelativeTime } from "@/lib/format";
 import { useUrlState } from "@/hooks/use-url-state";
 import { SPORT_CODES } from "@/lib/sports";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -146,15 +144,17 @@ function SortableHead({
       <Button
         variant="ghost"
         size="sm"
-        className="-ml-3 h-8"
+        className="group -ml-3 h-8"
         onClick={handleClick}
         aria-label={`Sort by ${label}${isAsc ? " descending" : isDesc ? " clear sorting" : " ascending"}`}
       >
         {label}
-        {isActive ? (
-          <span className="ml-1 text-xs">{isAsc ? "\u2191" : "\u2193"}</span>
+        {isAsc ? (
+          <ArrowUp className="ml-1 size-4 text-foreground" aria-hidden="true" />
+        ) : isDesc ? (
+          <ArrowDown className="ml-1 size-4 text-foreground" aria-hidden="true" />
         ) : (
-          <ArrowUpDown className="ml-1 size-3.5 opacity-50" />
+          <ArrowUpDown className="ml-1 size-3.5 opacity-20 transition-opacity group-hover:opacity-50 group-focus-visible:opacity-50" aria-hidden="true" />
         )}
       </Button>
     </TableHead>
@@ -181,6 +181,7 @@ function RosterSummary({
       orientation={{ label: "Active roster", value: String(stats.active), icon: UserPlus }}
       items={items}
       allClearLabel={items.length === 0 ? "Roster profiles are complete" : undefined}
+      detailsLabel="Roster breakdown"
       details={(
         <div className="grid gap-2 sm:grid-cols-4">
           <OperationalMetricCard label="All matching" value={stats.total} />
@@ -324,7 +325,6 @@ export default function UsersPage() {
     loading,
     refreshing,
     error: loadError,
-    lastRefreshed: lastFetched,
     reload,
   } = useFetch<ListResponse>({
     url: usersUrl,
@@ -382,19 +382,7 @@ export default function UsersPage() {
   return (
     <FadeUp>
       {/* Header */}
-      <PageHeader title="Users">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-10" onClick={reload} disabled={loading || refreshing} aria-label="Refresh users list">
-              <RefreshCw className={refreshing ? "animate-spin" : undefined} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {lastFetched
-              ? `Updated ${formatRelativeTime(lastFetched.toISOString(), new Date())}`
-              : "Refresh"}
-          </TooltipContent>
-        </Tooltip>
+      <PageHeader title="Users" className="mb-5">
         {canEdit && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -438,7 +426,7 @@ export default function UsersPage() {
       />
 
       {/* Users List */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3">
         <UserFilters
           search={search}
           onSearchChange={setSearch}
@@ -487,9 +475,7 @@ export default function UsersPage() {
                 <TableRow>
                   <TableHead><Skeleton className="h-4 w-16" /></TableHead>
                   <TableHead><Skeleton className="h-4 w-12" /></TableHead>
-                  <TableHead className="hidden lg:table-cell"><Skeleton className="h-4 w-20" /></TableHead>
-                  <TableHead className="hidden md:table-cell"><Skeleton className="h-4 w-20" /></TableHead>
-                  <TableHead className="hidden md:table-cell"><Skeleton className="h-4 w-14" /></TableHead>
+                  <TableHead className="hidden md:table-cell"><Skeleton className="h-4 w-24" /></TableHead>
                   <TableHead className="hidden xl:table-cell"><Skeleton className="h-4 w-20" /></TableHead>
                 </TableRow>
               </TableHeader>
@@ -506,9 +492,7 @@ export default function UsersPage() {
                       </div>
                     </TableCell>
                     <TableCell><Skeleton className="h-5 w-14 rounded-full" /></TableCell>
-                    <TableCell className="hidden lg:table-cell"><Skeleton className="h-3.5" style={{ width: `${45 + (r % 3) * 15}%` }} /></TableCell>
                     <TableCell className="hidden md:table-cell"><Skeleton className="h-3.5" style={{ width: `${50 + (r % 3) * 20}%` }} /></TableCell>
-                    <TableCell className="hidden md:table-cell"><Skeleton className="h-3.5" style={{ width: `${40 + (r % 4) * 15}%` }} /></TableCell>
                     <TableCell className="hidden xl:table-cell"><Skeleton className="h-3.5 w-16" /></TableCell>
                   </TableRow>
                 ))}
@@ -549,9 +533,7 @@ export default function UsersPage() {
                     <TableRow>
                       <SortableHead label="Name" sortKey="name" currentSort={sort} onSort={setSort} className="w-[26rem] normal-case tracking-normal" />
                       <SortableHead label="Role" sortKey="role" currentSort={sort} onSort={setSort} className="w-28 normal-case tracking-normal" />
-                      <TableHead className="hidden min-w-[16rem] normal-case tracking-normal lg:table-cell">Title</TableHead>
-                      <TableHead className="hidden w-32 normal-case tracking-normal md:table-cell">Area</TableHead>
-                      <TableHead className="hidden w-40 normal-case tracking-normal md:table-cell">Location</TableHead>
+                      <TableHead className="hidden min-w-[18rem] normal-case tracking-normal md:table-cell">Title / area</TableHead>
                       <SortableHead label="Last active" sortKey="lastActive" currentSort={sort} onSort={setSort} className="hidden w-36 normal-case tracking-normal xl:table-cell" />
                     </TableRow>
                   </TableHeader>

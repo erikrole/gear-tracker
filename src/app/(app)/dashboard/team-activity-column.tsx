@@ -3,13 +3,11 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { CalendarIcon, ClockIcon, InboxIcon } from "lucide-react";
+import { CalendarDaysIcon, CalendarIcon, InboxIcon } from "lucide-react";
 import { ScaleIn } from "@/components/ui/motion";
-import { formatDayLabel, formatTimeShort, isDueToday } from "@/lib/format";
+import { formatDayLabel, formatTimeShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   VENUE_FILTER_OPTIONS,
@@ -24,7 +22,7 @@ import { ShiftAvatarStack } from "./dashboard-avatars";
 import { DashboardBookingRow, dashboardBookingAccent } from "./booking-row";
 import { dashboardEventTitle } from "./event-title";
 import { DashboardSectionHeader } from "./section-header";
-import type { DashboardData, BookingSummary } from "../dashboard-types";
+import type { DashboardData } from "../dashboard-types";
 import type { FilteredDashboardData } from "@/hooks/use-dashboard-filters";
 
 type HomeAwayFilter = VenueFilter;
@@ -38,13 +36,10 @@ type Props = {
   activeSport: string | null;
   hasActiveFilter: boolean;
   now: Date;
-  isStaff: boolean;
-  acting: boolean;
   onSelectBooking: (id: string) => void;
-  onExtend: (booking: BookingSummary, e: React.MouseEvent) => void;
 };
 
-export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilter, now, isStaff, acting, onSelectBooking, onExtend }: Props) {
+export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilter, now, onSelectBooking }: Props) {
   const [homeAwayFilter, setHomeAwayFilter] = useState<HomeAwayFilter>("all");
   const visibleTeamCheckouts = filtered?.teamCheckouts ?? data.teamCheckouts.items;
   const visiblePendingPickups = filtered?.pendingPickups ?? data.pendingPickups.items;
@@ -86,7 +81,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
       <Card elevation="flat">
         <DashboardSectionHeader title="Checked out" href="/bookings?tab=checkouts" count={teamCheckoutsCount} />
         {visibleTeamCheckouts.length === 0 ? (
-          <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm"><InboxIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} checkouts` : "No team checkouts right now"}</div>
+          <div className="flex min-h-16 items-center justify-center gap-2 px-4 py-3 text-center text-sm text-muted-foreground"><InboxIcon className="size-4 opacity-40" />{activeSport ? `No ${activeSport} checkouts` : "No team checkouts right now"}</div>
         ) : (
           <CardContent className="p-0">
             {visibleTeamCheckouts.map((c) => {
@@ -98,25 +93,6 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
                   accent={dashboardBookingAccent(c, now, "checkout")}
                   showDueBadge
                   onSelectBooking={onSelectBooking}
-                  actions={
-                    isStaff && (c.isOverdue || isDueToday(c.endsAt, now)) ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="opacity-100 transition-opacity duration-150 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                            disabled={acting}
-                            onClick={(e) => onExtend(c, e)}
-                            aria-label={`Extend checkout "${c.title}" by 1 day`}
-                          >
-                            <ClockIcon className="size-3.5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Extend 1 day</TooltipContent>
-                      </Tooltip>
-                    ) : null
-                  }
                 />
               );
             })}
@@ -184,7 +160,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
       <Card elevation="flat">
         <DashboardSectionHeader title="Reserved" href="/bookings?tab=reservations" count={teamReservationsCount} />
         {visibleTeamReservations.length === 0 ? (
-          <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm"><InboxIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} reservations` : "No team reservations right now"}</div>
+          <div className="flex min-h-16 items-center justify-center gap-2 px-4 py-3 text-center text-sm text-muted-foreground"><InboxIcon className="size-4 opacity-40" />{activeSport ? `No ${activeSport} reservations` : "No team reservations right now"}</div>
         ) : (
           <CardContent className="p-0">
             {visibleTeamReservations.map((r) => (
@@ -210,21 +186,22 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
         <DashboardSectionHeader
           title="Upcoming events"
           href="/schedule"
-          className="grid-cols-1 gap-y-2"
-          actionClassName="col-start-1 row-start-2 justify-self-start"
+          className="grid-cols-1 gap-y-2 xl:grid-cols-[minmax(0,1fr)_auto] xl:gap-y-0"
+          actionClassName="col-start-1 row-start-2 justify-self-start xl:col-start-2 xl:row-start-1 xl:justify-self-end"
           action={
             <ToggleGroup
               type="single"
               value={homeAwayFilter}
               onValueChange={(v) => v && setHomeAwayFilter(v as HomeAwayFilter)}
               aria-label="Venue filter"
+              className="shrink-0"
             >
               {VENUE_FILTER_OPTIONS.map((option) => (
                 <ToggleGroupItem
                   key={option.value}
                   value={option.value}
                   className={cn(
-                    "text-xs px-2 py-1 data-[state=on]:shadow-sm",
+                    "h-8 px-2 text-xs data-[state=on]:shadow-sm",
                     homeAwayFilter === option.value && venueFilterActiveClass(option.value),
                   )}
                 >
@@ -247,18 +224,25 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
               <div
                 key={e.id}
                 className={cn(
-                  "group flex min-h-16 w-full items-start justify-between gap-3 border-l-[3px] px-4 py-3 text-inherit no-underline transition-colors hover:bg-muted/45 [&+&]:border-t [&+&]:border-border/40",
+                  "group flex min-h-[4.5rem] w-full items-center justify-between gap-3 border-l-[3px] px-4 py-3 text-inherit no-underline transition-colors hover:bg-muted/45 [&+&]:border-t [&+&]:border-border/40",
                   eventBorder(e),
                 )}
               >
-                <Link href={`/events/${e.id}`} className="flex min-w-0 flex-1 flex-col gap-1 no-underline">
-                  <span className="text-sm font-bold text-foreground truncate">{dashboardEventTitle(e)}</span>
-                  <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground leading-snug">
-                    <span>
-                      {formatDayLabel(e.startsAt, now, e.allDay)}{e.allDay ? " \u2013 All day" : `, ${formatTimeShort(e.startsAt)} \u2013 ${formatTimeShort(e.endsAt)}`}
+                <Link href={`/events/${e.id}`} className="flex min-w-0 flex-1 items-center gap-3 no-underline">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted/70 text-muted-foreground ring-1 ring-foreground/5">
+                    <CalendarDaysIcon className="size-4" aria-hidden="true" />
+                  </span>
+                  <span className="flex min-w-0 flex-1 flex-col gap-1">
+                    <span className="truncate text-sm font-bold text-foreground">{dashboardEventTitle(e)}</span>
+                    <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs leading-snug text-muted-foreground">
+                      <span>
+                        {formatDayLabel(e.startsAt, now, e.allDay)}{e.allDay ? " \u2013 All day" : `, ${formatTimeShort(e.startsAt)} \u2013 ${formatTimeShort(e.endsAt)}`}
+                      </span>
+                      {e.location && <span className="text-muted-foreground/40" aria-hidden="true">·</span>}
+                      {e.location && <span className="truncate">{e.location}</span>}
+                      {e.callTime && <span className="text-muted-foreground/40" aria-hidden="true">·</span>}
+                      {e.callTime && <span>Call {formatTimeShort(e.callTime)}</span>}
                     </span>
-                    {e.location && <span className="truncate">{e.location}</span>}
-                    {e.callTime && <span>Call {formatTimeShort(e.callTime)}</span>}
                   </span>
                 </Link>
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">

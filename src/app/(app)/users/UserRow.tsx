@@ -50,6 +50,21 @@ function areaLabel(area: string | null): string | null {
   return lower.charAt(0).toUpperCase() + lower.slice(1);
 }
 
+function TitleAreaValue({ user }: { user: UserRowType }) {
+  const title = titleLabel(user);
+  const area = areaLabel(user.primaryArea);
+  const showAreaAsSecondary = user.role !== "STUDENT" && area && area !== title;
+
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <span className="truncate text-sm text-foreground/80">{title ?? area ?? "\u2014"}</span>
+      {showAreaAsSecondary ? (
+        <span className="truncate text-[11px] leading-tight text-muted-foreground">{area}</span>
+      ) : null}
+    </div>
+  );
+}
+
 function mobileMetaParts(user: UserRowType): string[] {
   return [
     titleLabel(user),
@@ -60,16 +75,32 @@ function mobileMetaParts(user: UserRowType): string[] {
 }
 
 function LastActiveValue({ lastActiveAt }: { lastActiveAt: string | null }) {
-  if (isActiveNow(lastActiveAt)) {
+  if (!lastActiveAt) {
     return (
-      <span className="inline-flex items-center gap-1.5 font-medium text-[var(--green-text)]">
-        <span className="size-1.5 rounded-full bg-[var(--green-text)]" aria-hidden="true" />
-        Now
+      <span className="inline-flex items-center gap-2 text-muted-foreground">
+        <span className="size-1.5 rounded-full border border-muted-foreground/50" aria-hidden="true" />
+        Never
       </span>
     );
   }
 
-  return <span className={lastActiveAt ? "tabular-nums" : "text-muted-foreground"}>{lastActiveLabel(lastActiveAt)}</span>;
+  if (isActiveNow(lastActiveAt)) {
+    return (
+      <span className="inline-flex items-center gap-2 font-medium text-[var(--green-text)]">
+        <span className="size-1.5 rounded-full bg-[var(--green-text)]" aria-hidden="true" />
+        <time dateTime={lastActiveAt}>Now</time>
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-2 text-muted-foreground">
+      <span className="size-1.5 rounded-full bg-muted-foreground/40" aria-hidden="true" />
+      <time dateTime={lastActiveAt} className="tabular-nums">
+        {lastActiveLabel(lastActiveAt)}
+      </time>
+    </span>
+  );
 }
 
 function PresenceAvatar({
@@ -139,7 +170,7 @@ export const UserTableRow = memo(function UserTableRow({ user }: { user: UserRow
 
   return (
     <TableRow
-      className="cursor-pointer transition-colors hover:bg-muted/35 focus-visible:bg-muted/35 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+      className="cursor-pointer transition-[background-color,box-shadow] hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/50"
       tabIndex={0}
       role="link"
       aria-label={`View ${user.name}`}
@@ -170,14 +201,8 @@ export const UserTableRow = memo(function UserTableRow({ user }: { user: UserRow
       <TableCell className="w-28">
         <RoleBadge role={user.role} />
       </TableCell>
-      <TableCell className="hidden min-w-[16rem] lg:table-cell text-muted-foreground text-sm">
-        {titleLabel(user) ?? "\u2014"}
-      </TableCell>
-      <TableCell className="hidden w-32 md:table-cell text-muted-foreground text-sm">
-        {areaLabel(user.primaryArea) || "\u2014"}
-      </TableCell>
-      <TableCell className="hidden w-40 md:table-cell text-muted-foreground text-sm">
-        {user.location || "\u2014"}
+      <TableCell className="hidden min-w-[18rem] md:table-cell">
+        <TitleAreaValue user={user} />
       </TableCell>
       <TableCell className="hidden w-36 xl:table-cell text-muted-foreground text-sm" title={lastActiveTitle(user.lastActiveAt)}>
         <div className="flex items-center">

@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
 import { AssetImage } from "@/components/AssetImage";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CheckCircle2, Search } from "lucide-react";
 import type { BookingDetail, SerializedItem, BulkItem } from "./types";
 
@@ -82,12 +81,12 @@ export default function BookingItems({
                     <Link
                       href={`/items/${item.asset.id}`}
                       className="text-sm font-semibold text-foreground no-underline hover:text-[var(--wi-red)] transition-colors truncate block"
+                      style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}
                     >
                       {item.asset.assetTag}
                     </Link>
                     <div className="text-xs text-muted-foreground truncate">
-                      {item.asset.brand} {item.asset.model}
-                      {item.asset.serialNumber && ` · ${item.asset.serialNumber}`}
+                      {item.asset.name?.trim() || `${item.asset.brand} ${item.asset.model}`.trim()}
                     </div>
                   </div>
                   {canCheckin && onCheckinItem && (
@@ -124,32 +123,26 @@ export default function BookingItems({
               const assignedUnits = item.unitAllocations
                 ?.map((a) => a.bulkSkuUnit.unitNumber)
                 .sort((a, b) => a - b) ?? [];
-              const showUnitTooltip = item.bulkSku.trackByNumber && assignedUnits.length > 0;
-
-              const qtyBadge = (
-                <Badge variant="secondary" size="sm">
-                  {item.plannedQuantity} {item.bulkSku.unit}
-                </Badge>
-              );
+              const showAssignedUnits = item.bulkSku.trackByNumber && assignedUnits.length > 0;
 
               return (
                 <div key={item.id} className="flex items-center gap-3 px-3 py-2.5">
                   <AssetImage src={item.bulkSku.imageUrl} alt={item.bulkSku.name} size={36} />
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold truncate">{item.bulkSku.name}</div>
-                    <div className="text-xs text-muted-foreground">{item.bulkSku.category}</div>
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                      <span>{item.bulkSku.category}</span>
+                      {showAssignedUnits && assignedUnits.map((unitNumber) => (
+                        <Badge key={unitNumber} variant="outline" size="sm" className="font-mono tabular-nums">
+                          #{unitNumber}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {showUnitTooltip ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>{qtyBadge}</TooltipTrigger>
-                        <TooltipContent side="top" className="text-xs">
-                          {assignedUnits.map((n) => `#${n}`).join(" · ")}
-                        </TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      qtyBadge
-                    )}
+                    <Badge variant="secondary" size="sm">
+                      {item.plannedQuantity} {item.bulkSku.unit}
+                    </Badge>
                     {isOpen && booking.kind === "CHECKOUT" && scannedOut > 0 && (
                       <Badge variant={allOut ? "green" : "orange"} size="sm">
                         {scannedOut}/{item.plannedQuantity} out

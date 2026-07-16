@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowUpRightIcon } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import {
   CardAction,
   CardHeader,
@@ -14,12 +14,21 @@ type Props = {
   title: string;
   href?: string;
   count?: number;
+  countVariant?: BadgeProps["variant"];
   action?: React.ReactNode;
   className?: string;
   actionClassName?: string;
 };
 
-export function DashboardSectionHeader({ title, href, count, action, className, actionClassName }: Props) {
+export function DashboardSectionHeader({
+  title,
+  href,
+  count,
+  countVariant = "gray",
+  action,
+  className,
+  actionClassName,
+}: Props) {
   const titleNode = (
     <span className="inline-flex min-w-0 items-center gap-1.5">
       <span className="truncate">{title}</span>
@@ -44,8 +53,17 @@ export function DashboardSectionHeader({ title, href, count, action, className, 
           </Link>
         ) : titleNode}
       </CardTitle>
-      <CardAction className={cn("col-start-2 row-start-1 flex items-center gap-2 self-center", actionClassName)}>
-        {typeof count === "number" && <Badge variant="gray" size="sm">{count}</Badge>}
+      <CardAction
+        className={cn(
+          "col-start-2 row-start-1 flex items-center gap-2 self-center",
+          actionClassName,
+        )}
+      >
+        {typeof count === "number" && (
+          <Badge variant={countVariant} size="sm">
+            {count}
+          </Badge>
+        )}
         {action}
       </CardAction>
     </CardHeader>

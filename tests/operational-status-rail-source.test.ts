@@ -26,7 +26,7 @@ describe("operational status rail source contract", () => {
     expect(rail).toContain("maxVisibleItems = 3");
     expect(rail).toContain("const visibleItems = prioritizedItems.slice(0, maxVisibleItems)");
     expect(rail).toContain("const hiddenCount = Math.max(0, prioritizedItems.length - visibleItems.length)");
-    expect(rail).toContain("Show details and ${hiddenCount} more statuses");
+    expect(rail).toContain("Show ${detailsLabel.toLowerCase()} and ${hiddenCount} more statuses");
     expect(rail).toContain("allClearLabel");
     expect(rail).toContain("tabular-nums");
   });

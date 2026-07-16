@@ -3,17 +3,16 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
-import { ClipboardCheckIcon, CalendarCheckIcon, ClockIcon } from "lucide-react";
+import { ClipboardCheckIcon, CalendarCheckIcon } from "lucide-react";
 import { ScaleIn } from "@/components/ui/motion";
-import { formatDayLabel, formatRelativeTime, isDueToday } from "@/lib/format";
+import { formatDayLabel, formatRelativeTime } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
 import { formatCallTime, isFullDayBoundaryWindow } from "@/lib/shift-call-windows";
 import { GearAvatarStack } from "./dashboard-avatars";
 import { DashboardBookingRow, dashboardBookingAccent } from "./booking-row";
 import { DashboardSectionHeader } from "./section-header";
-import type { DashboardData, BookingSummary, CreateBookingContext } from "../dashboard-types";
+import type { DashboardData, CreateBookingContext } from "../dashboard-types";
 import type { FilteredDashboardData } from "@/hooks/use-dashboard-filters";
 
 type Props = {
@@ -25,7 +24,6 @@ type Props = {
   acting: boolean;
   onSelectBooking: (id: string) => void;
   onDeleteDraft: (draftId: string) => void;
-  onExtend: (booking: BookingSummary, e: React.MouseEvent) => void;
   onCreateBooking?: (ctx: CreateBookingContext) => void;
 };
 
@@ -38,7 +36,6 @@ export function MyGearColumn({
   acting,
   onSelectBooking,
   onDeleteDraft,
-  onExtend,
   onCreateBooking,
 }: Props) {
   const visibleMyCheckouts = filtered?.myCheckouts ?? data.myCheckouts.items;
@@ -103,25 +100,6 @@ export function MyGearColumn({
                       accent={dashboardBookingAccent(c, now, "checkout")}
                       showDueBadge
                       onSelectBooking={onSelectBooking}
-                      actions={
-                        (c.isOverdue || isDueToday(c.endsAt, now)) ? (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                className="opacity-100 transition-opacity duration-150 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                                disabled={acting}
-                                onClick={(e) => onExtend(c, e)}
-                                aria-label={`Extend checkout "${c.title}" by 1 day`}
-                              >
-                                <ClockIcon className="size-3.5" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Extend 1 day</TooltipContent>
-                          </Tooltip>
-                        ) : null
-                      }
                     />
                   );
                 })}
