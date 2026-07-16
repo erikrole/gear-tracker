@@ -64,6 +64,9 @@ import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { useUrlState } from "@/hooks/use-url-state";
 import { ProfileCompletionNotice } from "@/components/profile-completion/ProfileCompletionNotice";
+import { AvatarCropDialog } from "./AvatarCropDialog";
+import { useQueryClient } from "@tanstack/react-query";
+import { syncCachedUserLists } from "@/lib/user-list-cache";
 
 /* ── Tab Definitions ───────────────────────────────────── */
 
@@ -216,45 +219,6 @@ function serializeDetailTab(tab: TabKey): string | null {
   return tab === "info" ? null : tab;
 }
 
-async function resizeAvatarFile(file: File): Promise<File> {
-  if (file.type === "image/gif" || !file.type.startsWith("image/")) return file;
-
-  const objectUrl = URL.createObjectURL(file);
-  try {
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new window.Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error("Image could not be loaded"));
-      img.src = objectUrl;
-    });
-    const size = 512;
-    const sourceSize = Math.min(image.naturalWidth, image.naturalHeight);
-    if (sourceSize <= 0) return file;
-
-    const canvas = document.createElement("canvas");
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return file;
-
-    const sx = Math.floor((image.naturalWidth - sourceSize) / 2);
-    const sy = Math.floor((image.naturalHeight - sourceSize) / 2);
-    ctx.drawImage(image, sx, sy, sourceSize, sourceSize, 0, 0, size, size);
-
-    const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, "image/webp", 0.88);
-    });
-    if (!blob || blob.size >= file.size) return file;
-
-    const name = file.name.replace(/\.[^.]+$/, "") || "avatar";
-    return new File([blob], `${name}.webp`, { type: "image/webp" });
-  } catch {
-    return file;
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
-}
-
 /* ── Main Page ─────────────────────────────────────────── */
 
 export default function UserDetailPage() {
@@ -263,6 +227,7 @@ export default function UserDetailPage() {
 
   const [activeTab, setActiveTab] = useUrlState<TabKey>("tab", parseUserDetailTab, serializeDetailTab);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
   const [togglingActive, setTogglingActive] = useState(false);
   const [resetPwDialog, setResetPwDialog] = useState(false);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
@@ -284,6 +249,7 @@ export default function UserDetailPage() {
   const resetBusyRef = useRef(false);
   const awardBusyRef = useRef(false);
   const confirm = useConfirm();
+  const queryClient = useQueryClient();
 
   // ── Data fetching via useFetch ──
   const {
@@ -338,26 +304,30 @@ export default function UserDetailPage() {
     }
   }, [activeTab, setActiveTab, user]);
 
-  async function uploadAvatar(file: File) {
-    if (avatarBusyRef.current) return;
+  async function uploadAvatar(file: File): Promise<boolean> {
+    if (avatarBusyRef.current) return false;
     avatarBusyRef.current = true;
     setUploadingAvatar(true);
     try {
-      const uploadFile = await resizeAvatarFile(file);
       const formData = new FormData();
-      formData.append("file", uploadFile);
+      formData.append("file", file);
       const res = await fetch(`/api/users/${id}/avatar`, { method: "POST", body: formData });
-      if (handleAuthRedirect(res)) return;
+      if (handleAuthRedirect(res)) return false;
       if (!res.ok) {
         const msg = await parseErrorMessage(res, "Failed to upload avatar");
         toast.error(msg);
+        return false;
       } else {
         const json = await parseJsonSafely<ApiEnvelope<AvatarResponse>>(res);
-        setUserOverrides((prev) => ({ ...prev, avatarUrl: json?.data?.avatarUrl ?? null }));
+        const avatarUrl = json?.data?.avatarUrl ?? null;
+        setUserOverrides((prev) => ({ ...prev, avatarUrl }));
+        await syncCachedUserLists(queryClient, id, { avatarUrl });
         toast.success("Profile photo updated");
+        return true;
       }
     } catch {
       toast.error("Network error");
+      return false;
     } finally {
       avatarBusyRef.current = false;
       setUploadingAvatar(false);
@@ -386,6 +356,7 @@ export default function UserDetailPage() {
         const msg = await parseErrorMessage(res, "Failed to remove avatar");
         toast.error(msg);
       } else {
+        await syncCachedUserLists(queryClient, id, { avatarUrl: null });
         toast.success("Profile photo removed");
       }
     } catch {
@@ -415,6 +386,7 @@ export default function UserDetailPage() {
         const msg = await parseErrorMessage(res, "Failed to update status");
         toast.error(msg);
       } else {
+        await syncCachedUserLists(queryClient, id, { active: newActive });
         toast.success(newActive ? "User activated" : "User deactivated");
       }
     } catch {
@@ -649,11 +621,11 @@ export default function UserDetailPage() {
                   ref={fileInputRef}
                   type="file"
                   aria-label={`Upload profile photo for ${profile.name}`}
-                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  accept="image/jpeg,image/png,image/webp"
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    if (file) uploadAvatar(file);
+                    if (file) setPendingAvatarFile(file);
                     e.target.value = "";
                   }}
                 />
@@ -709,7 +681,7 @@ export default function UserDetailPage() {
               className="text-[28px] sm:text-[32px] leading-none tracking-tight mb-0"
               style={{ fontFamily: "var(--font-heading)", fontWeight: 800 }}
             >
-              {isSelf ? "My Profile" : profile.name}
+              {profile.name}
             </h1>
             <div className="mt-2.5 flex flex-col gap-1">
               <p className="text-[12px] text-muted-foreground leading-none">
@@ -764,16 +736,24 @@ export default function UserDetailPage() {
             {profile.active === false && (
               <Badge variant="outline" className="text-muted-foreground">Inactive</Badge>
             )}
-            {currentUserRole === "ADMIN" && (
+            {(isSelf || currentUserRole === "ADMIN") && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-1.5" disabled={togglingActive}>
-                    <Shield className="size-3.5" />
-                    Admin actions
+                    {currentUserRole === "ADMIN" ? <Shield /> : <UserRound />}
+                    {currentUserRole === "ADMIN" ? "Admin actions" : "Profile actions"}
                     <ChevronDown className="size-3.5 opacity-70" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {isSelf && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/settings/security">
+                        <KeyRound />
+                        Change password
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   {!isSelf && (
                     <>
                       <DropdownMenuItem onClick={toggleActive} disabled={togglingActive}>
@@ -799,6 +779,13 @@ export default function UserDetailPage() {
       </div>
 
       {isSelf && <ProfileCompletionNotice />}
+
+      <AvatarCropDialog
+        file={pendingAvatarFile}
+        profileName={profile.name}
+        onClose={() => setPendingAvatarFile(null)}
+        onConfirm={uploadAvatar}
+      />
 
       {/* Password Reset Dialog */}
       <AlertDialog open={resetPwDialog || !!tempPassword} onOpenChange={(open) => {

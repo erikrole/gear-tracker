@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { AlertCircle, CheckCircle2, UserPlus } from "lucide-react";
+import { AlertCircle, CheckCircle2, ShieldCheck, UserPlus } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -339,6 +339,9 @@ export default function OnboardingDialog({
     [readyPreviewRows, serverReadyEmails],
   );
   const serverPreviewComplete = serverPreview !== null && serverPreview.signature === readySignature;
+  const submitLabel = inviteMode === "bulk" && finalReadyPreviewRows.length > 0
+    ? `Add ${finalReadyPreviewRows.length} invitation${finalReadyPreviewRows.length === 1 ? "" : "s"}`
+    : "Add invitation";
 
   useEffect(() => {
     if (!open) return;
@@ -532,14 +535,18 @@ export default function OnboardingDialog({
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!inviting) onOpenChange(next); }}>
       <DialogContent className="grid max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <UserPlus className="size-5 shrink-0" />
-            Onboard users
-          </DialogTitle>
-          <DialogDescription className="sr-only">
-            Add people to the registration allowlist.
-          </DialogDescription>
+        <DialogHeader className="pr-10">
+          <div className="flex items-start gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <UserPlus aria-hidden="true" />
+            </div>
+            <div className="flex min-w-0 flex-col gap-1">
+              <DialogTitle className="text-wrap-balance">Add users</DialogTitle>
+              <DialogDescription className="text-wrap-pretty">
+                Grant registration access to one person or paste a roster.
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
         {completion ? (
@@ -562,7 +569,7 @@ export default function OnboardingDialog({
 
             <DialogFooter className="border-t border-border/40 px-6 py-4">
               <Button type="button" variant="outline" className="h-10" onClick={resetForAnother}>
-                Onboard another
+                Add another
               </Button>
               <Button asChild variant="outline" className="h-10" onClick={() => onOpenChange(false)}>
                 <Link href="/users/onboarding-status">View status</Link>
@@ -575,14 +582,18 @@ export default function OnboardingDialog({
         ) : (
           <form onSubmit={handleInviteSubmit} className="contents">
             <DialogBody className="min-h-0 overflow-y-auto flex flex-col gap-4 py-5">
-              <p className="text-sm text-muted-foreground">
-                Users set their own password the first time they register. Existing registered or already-invited addresses are skipped without exposing private account details.
-              </p>
+              <Alert>
+                <ShieldCheck aria-hidden="true" />
+                <AlertTitle>Invite-only access</AlertTitle>
+                <AlertDescription>
+                  Users set their own password the first time they register. Existing registered or already-invited addresses are skipped without exposing private account details.
+                </AlertDescription>
+              </Alert>
 
               <Tabs value={inviteMode} onValueChange={(value) => { setInviteMode(value as InviteMode); setInviteError(""); }} className="grid gap-4">
                 <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="bulk">Bulk paste</TabsTrigger>
-                  <TabsTrigger value="single">One email</TabsTrigger>
+                  <TabsTrigger value="bulk">Paste a roster</TabsTrigger>
+                  <TabsTrigger value="single">Add one person</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="bulk" className="m-0">
@@ -768,7 +779,7 @@ export default function OnboardingDialog({
                 }
               >
                 {inviting && <Spinner data-icon="inline-start" />}
-                {inviting ? "Saving..." : "Add invitations"}
+                {inviting ? "Saving..." : submitLabel}
               </Button>
             </DialogFooter>
           </form>

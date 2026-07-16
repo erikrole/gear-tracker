@@ -24,6 +24,7 @@ const AREA_LABELS: Record<string, string> = {
   PHOTO: "Photo",
   GRAPHICS: "Graphics",
   COMMS: "Comms",
+  LIVE_PRODUCTION: "Live Production",
 };
 
 export function ShiftAvatarStack({ assignedUsers }: { assignedUsers: EventSummary["assignedUsers"] }) {

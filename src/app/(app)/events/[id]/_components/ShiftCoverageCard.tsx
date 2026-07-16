@@ -36,7 +36,7 @@ import { shiftWorkerLabel, shiftWorkerLabelForProfile, shiftWorkerSlotLabel } fr
 import { effectiveCallWindow, isInheritedFullDayCallWindow, type EffectiveCallWindow } from "@/lib/shift-call-windows";
 import type { AutoFillPreviewResponse } from "@/lib/auto-fill-preview-types";
 
-const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"] as const;
+const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS", "LIVE_PRODUCTION"] as const;
 
 type Shift = ShiftGroupSummary["shifts"][number];
 type Assignment = Shift["assignments"][number];

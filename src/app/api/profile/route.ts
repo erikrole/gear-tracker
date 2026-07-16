@@ -12,6 +12,10 @@ const profilePatchSchema = z.union([
   updateProfileSchema,
 ]);
 const PHONE_AUDIT_FIELDS = new Set(["phone", "personalPhone", "workPhone"]);
+const PRESENCE_ONLY_AUDIT_FIELDS = new Set([
+  "wiscardNumber", "wiscardCardNumber", "wiscardIssueCode",
+  "birthdayMonth", "birthdayDay", "birthYear",
+]);
 
 export const GET = withAuth(async (_req, { user }) => {
   const profile = await db.user.findUniqueOrThrow({
@@ -35,6 +39,8 @@ export const GET = withAuth(async (_req, { user }) => {
         email: profile.email,
         role: profile.role,
         wiscardNumber: profile.wiscardNumber ?? null,
+        wiscardCardNumber: profile.wiscardCardNumber ?? null,
+        wiscardIssueCode: profile.wiscardIssueCode ?? null,
         slackHandle: profile.slackHandle ?? null,
         slackProfileUrl: profile.slackProfileUrl ?? null,
         avatarUrl: profile.avatarUrl ?? null,
@@ -98,10 +104,12 @@ export const PATCH = withAuth(async (req, { user }) => {
     select: {
       name: true, phone: true, personalPhone: true, workPhone: true,
       workPhoneNotApplicable: true, wiscardNumber: true, locationId: true,
+      wiscardCardNumber: true, wiscardIssueCode: true,
       slackHandle: true, slackProfileUrl: true,
       title: true, athleticsEmail: true, startDate: true,
       gradYear: true, studentYearOverride: true,
-      topSize: true, bottomSize: true, shoeSize: true,
+      topSizeFit: true, topSize: true, bottomSize: true, shoeSizeSystem: true, shoeSize: true,
+      birthdayMonth: true, birthdayDay: true, birthYear: true,
     },
   });
 
@@ -125,6 +133,13 @@ export const PATCH = withAuth(async (req, { user }) => {
   if (Object.prototype.hasOwnProperty.call(payload, "wiscardNumber")) {
     data.wiscardNumber = normalizeWiscardNumber(payload.wiscardNumber);
   }
+  if (Object.prototype.hasOwnProperty.call(payload, "wiscardCardNumber") || Object.prototype.hasOwnProperty.call(payload, "wiscardIssueCode")) {
+    const cardNumber = Object.prototype.hasOwnProperty.call(payload, "wiscardCardNumber") ? payload.wiscardCardNumber : current.wiscardCardNumber;
+    const issueCode = Object.prototype.hasOwnProperty.call(payload, "wiscardIssueCode") ? payload.wiscardIssueCode : current.wiscardIssueCode;
+    data.wiscardCardNumber = cardNumber || null;
+    data.wiscardIssueCode = issueCode || null;
+    data.wiscardNumber = cardNumber && issueCode ? `${cardNumber}${issueCode}` : null;
+  }
   if (Object.prototype.hasOwnProperty.call(payload, "slackHandle")) data.slackHandle = normalizeSlackHandle(payload.slackHandle);
   if (Object.prototype.hasOwnProperty.call(payload, "slackProfileUrl")) data.slackProfileUrl = normalizeSlackProfileUrl(payload.slackProfileUrl);
   if (Object.prototype.hasOwnProperty.call(payload, "locationId")) data.locationId = payload.locationId ?? null;
@@ -138,8 +153,13 @@ export const PATCH = withAuth(async (req, { user }) => {
   if (Object.prototype.hasOwnProperty.call(payload, "gradYear")) data.gradYear = payload.gradYear ?? null;
   if (Object.prototype.hasOwnProperty.call(payload, "studentYearOverride")) data.studentYearOverride = payload.studentYearOverride ?? null;
   if (Object.prototype.hasOwnProperty.call(payload, "topSize")) data.topSize = payload.topSize ?? null;
+  if (Object.prototype.hasOwnProperty.call(payload, "topSizeFit")) data.topSizeFit = payload.topSizeFit ?? null;
   if (Object.prototype.hasOwnProperty.call(payload, "bottomSize")) data.bottomSize = payload.bottomSize ?? null;
   if (Object.prototype.hasOwnProperty.call(payload, "shoeSize")) data.shoeSize = payload.shoeSize ?? null;
+  if (Object.prototype.hasOwnProperty.call(payload, "shoeSizeSystem")) data.shoeSizeSystem = payload.shoeSizeSystem ?? null;
+  if (Object.prototype.hasOwnProperty.call(payload, "birthdayMonth")) data.birthdayMonth = payload.birthdayMonth ?? null;
+  if (Object.prototype.hasOwnProperty.call(payload, "birthdayDay")) data.birthdayDay = payload.birthdayDay ?? null;
+  if (Object.prototype.hasOwnProperty.call(payload, "birthYear")) data.birthYear = payload.birthYear ?? null;
 
   let updated;
   try {
@@ -152,7 +172,7 @@ export const PATCH = withAuth(async (req, { user }) => {
     if (err && typeof err === "object" && "code" in err && (err as { code?: string }).code === "P2002") {
       const target = ((err as { meta?: { target?: string[] | string } }).meta?.target) ?? [];
       const targetValues = Array.isArray(target) ? target : [String(target)];
-      if (targetValues.some((t) => t.includes("wiscard_number") || t.includes("wiscardNumber"))) {
+      if (targetValues.some((t) => t.includes("wiscard_number") || t.includes("wiscardNumber") || t.includes("wiscard_card_number"))) {
         throw new HttpError(409, "That Wiscard value is already linked to another account");
       }
       throw new HttpError(409, "That athletics email is already in use");
@@ -165,12 +185,18 @@ export const PATCH = withAuth(async (req, { user }) => {
   for (const key of Object.keys(data)) {
     const before = (current as Record<string, unknown>)[key] ?? null;
     const after = (updated as Record<string, unknown>)[key] ?? null;
-    const beforeKey = PHONE_AUDIT_FIELDS.has(key)
+    let beforeKey = PHONE_AUDIT_FIELDS.has(key)
       ? phoneAuditValue(before)
+      : PRESENCE_ONLY_AUDIT_FIELDS.has(key) ? (before == null ? null : "[set]")
       : before instanceof Date ? before.toISOString() : before;
-    const afterKey = PHONE_AUDIT_FIELDS.has(key)
+    let afterKey = PHONE_AUDIT_FIELDS.has(key)
       ? phoneAuditValue(after)
+      : PRESENCE_ONLY_AUDIT_FIELDS.has(key) ? (after == null ? null : "[set]")
       : after instanceof Date ? after.toISOString() : after;
+    if (PRESENCE_ONLY_AUDIT_FIELDS.has(key) && before !== after && beforeKey === afterKey) {
+      beforeKey = "[set]";
+      afterKey = "[updated]";
+    }
     if (beforeKey !== afterKey) {
       beforeDiff[key] = beforeKey;
       afterDiff[key] = afterKey;
@@ -199,6 +225,8 @@ export const PATCH = withAuth(async (req, { user }) => {
       workPhone: updated.workPhone ?? null,
       workPhoneNotApplicable: updated.workPhoneNotApplicable,
       wiscardNumber: updated.wiscardNumber ?? null,
+      wiscardCardNumber: updated.wiscardCardNumber ?? null,
+      wiscardIssueCode: updated.wiscardIssueCode ?? null,
       slackHandle: updated.slackHandle ?? null,
       slackProfileUrl: updated.slackProfileUrl ?? null,
       avatarUrl: updated.avatarUrl ?? null,

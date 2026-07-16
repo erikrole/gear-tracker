@@ -167,7 +167,7 @@ export default function OnboardingStatusPage() {
   async function removeInvite(row: AllowedEmail) {
     const ok = await confirm({
       title: "Remove pending invite",
-      message: `Remove ${row.email} from the registration allowlist? Existing users are not changed. You can reissue access from Onboard users.`,
+      message: `Remove ${row.email} from the registration allowlist? Existing users are not changed. You can reissue access from Add users.`,
       confirmLabel: "Remove",
       variant: "danger",
     });
@@ -207,7 +207,7 @@ export default function OnboardingStatusPage() {
         <Button asChild>
           <Link href="/users?onboard=1">
             <UserPlus data-icon="inline-start" />
-            Onboard users
+            Add users
           </Link>
         </Button>
       </PageHeader>
@@ -287,7 +287,7 @@ export default function OnboardingStatusPage() {
               inline
               icon="search"
               title={rows.length === 0 ? "No onboarding rows yet" : "No onboarding rows match"}
-              description={rows.length === 0 ? "Use Onboard users to create invitations." : "Adjust the search or status filter."}
+              description={rows.length === 0 ? "Use Add users to create invitations." : "Adjust the search or status filter."}
             />
           </CardContent>
         ) : (

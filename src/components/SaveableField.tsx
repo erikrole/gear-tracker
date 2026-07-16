@@ -102,9 +102,10 @@ export function SaveableField({
   className,
   labelClassName,
   htmlFor,
+  ariaLabel,
   children,
 }: {
-  label: string;
+  label: React.ReactNode;
   status?: SaveStatus;
   isDirty?: boolean;
   onCommit?: () => void;
@@ -112,6 +113,7 @@ export function SaveableField({
   className?: string;
   labelClassName?: string;
   htmlFor?: string;
+  ariaLabel?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -145,7 +147,7 @@ export function SaveableField({
               size="icon"
               className="size-10 border border-primary/20 bg-primary/[0.06] text-foreground shadow-[0_1px_0_rgba(15,23,42,0.05)] hover:bg-primary/[0.1]"
               onClick={onCommit}
-              aria-label={`Save ${label}`}
+              aria-label={`Save ${ariaLabel ?? (typeof label === "string" ? label : "field")}`}
             >
               <Check className="size-4" aria-hidden="true" />
             </Button>
@@ -154,7 +156,7 @@ export function SaveableField({
               size="icon"
               className="size-10 border border-border/60 bg-background/70 text-muted-foreground shadow-[0_1px_0_rgba(15,23,42,0.05)] hover:bg-foreground/[0.04] hover:text-foreground"
               onClick={onCancel}
-              aria-label={`Cancel ${label}`}
+              aria-label={`Cancel ${ariaLabel ?? (typeof label === "string" ? label : "field")}`}
             >
               <X className="size-4" aria-hidden="true" />
             </Button>

@@ -118,6 +118,7 @@ export const GUIDE_AREA_OPTIONS = [
   { value: "PHOTO", label: "Photo" },
   { value: "GRAPHICS", label: "Graphics" },
   { value: "COMMS", label: "Comms" },
+  { value: "LIVE_PRODUCTION", label: "Live Production" },
 ] as const;
 
 export const GUIDE_AREA_LABELS = {
@@ -125,6 +126,7 @@ export const GUIDE_AREA_LABELS = {
   PHOTO: "Photo",
   GRAPHICS: "Graphics",
   COMMS: "Comms",
+  LIVE_PRODUCTION: "Live Production",
 } as const;
 
 export const GUIDE_ROLE_LABELS = {

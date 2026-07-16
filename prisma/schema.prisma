@@ -214,6 +214,9 @@ model User {
   bottomSize          String?         @map("bottom_size")
   shoeSizeSystem      ShoeSizeSystem? @map("shoe_size_system")
   shoeSize            String?         @map("shoe_size")
+  birthdayMonth       Int?            @map("birthday_month")
+  birthdayDay         Int?            @map("birthday_day")
+  birthYear           Int?            @map("birth_year")
 
   @@index([active, hiddenFromRoster])
   @@index([directReportId])
@@ -1098,6 +1101,7 @@ enum ShiftArea {
   PHOTO
   GRAPHICS
   COMMS
+  LIVE_PRODUCTION
 }
 
 enum ShiftWorkerType {

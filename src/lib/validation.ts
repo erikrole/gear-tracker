@@ -359,6 +359,25 @@ export function normalizeWiscardNumber(value: string | null | undefined) {
   return normalized ? normalized : null;
 }
 
+export const wiscardCardNumberSchema = z.string().trim().regex(/^\d{10}$/, "Wiscard card number must be 10 digits").nullable().optional();
+export const wiscardIssueCodeSchema = z.string().trim().regex(/^\d$/, "Wiscard issue code must be 1 digit").nullable().optional();
+
+export function validateBirthdayParts(value: { birthdayMonth?: number | null; birthdayDay?: number | null; birthYear?: number | null }, ctx: z.RefinementCtx) {
+  const month = value.birthdayMonth;
+  const day = value.birthdayDay;
+  if ((month == null) !== (day == null)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Birthday month and day must be saved together", path: [month == null ? "birthdayMonth" : "birthdayDay"] });
+    return;
+  }
+  if (month != null && day != null) {
+    const year = value.birthYear ?? 2000;
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Enter a valid birthday", path: ["birthdayDay"] });
+    }
+  }
+}
+
 // Fields a user is allowed to edit on their own profile.
 // Direct report and assignments are intentionally excluded — staff/admin only.
 export const updateProfileSchema = z.object({
@@ -367,6 +386,8 @@ export const updateProfileSchema = z.object({
   personalPhone: nullableProfilePhoneSchema,
   workPhone: nullableProfilePhoneSchema,
   wiscardNumber: wiscardNumberSchema,
+  wiscardCardNumber: wiscardCardNumberSchema,
+  wiscardIssueCode: wiscardIssueCodeSchema,
   slackHandle: slackHandleSchema,
   slackProfileUrl: slackProfileUrlSchema,
   locationId: z.string().cuid().nullable().optional(),
@@ -376,9 +397,14 @@ export const updateProfileSchema = z.object({
   gradYear: z.number().int().min(1900).max(2100).nullable().optional(),
   studentYearOverride: z.nativeEnum(StudentYear).nullable().optional(),
   topSize: z.string().max(40).nullable().optional(),
+  topSizeFit: z.enum(["UNISEX", "WOMENS", "MENS"]).nullable().optional(),
   bottomSize: z.string().max(40).nullable().optional(),
-  shoeSize: z.string().max(40).nullable().optional()
-});
+  shoeSize: z.string().max(40).nullable().optional(),
+  shoeSizeSystem: z.enum(["US_WOMENS", "US_MENS"]).nullable().optional(),
+  birthdayMonth: z.number().int().min(1).max(12).nullable().optional(),
+  birthdayDay: z.number().int().min(1).max(31).nullable().optional(),
+  birthYear: z.number().int().min(1900).max(2100).nullable().optional(),
+}).superRefine(validateBirthdayParts);
 
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(8),

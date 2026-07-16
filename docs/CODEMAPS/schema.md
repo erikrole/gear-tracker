@@ -83,7 +83,7 @@ Values: `ACTIVE`, `MAINTENANCE`, `UNKNOWN`
 
 ## Model `User`
 
-Fields: 81
+Fields: 84
 
 - `id                        String                     @id @default(cuid())`
 - `name                      String`
@@ -166,6 +166,9 @@ Fields: 81
 - `bottomSize          String?         @map("bottom_size")`
 - `shoeSizeSystem      ShoeSizeSystem? @map("shoe_size_system")`
 - `shoeSize            String?         @map("shoe_size")`
+- `birthdayMonth       Int?            @map("birthday_month")`
+- `birthdayDay         Int?            @map("birthday_day")`
+- `birthYear           Int?            @map("birth_year")`
 
 Indexes and constraints:
 
@@ -1197,7 +1200,7 @@ Indexes and constraints:
 
 ## Enum `ShiftArea`
 
-Values: `VIDEO`, `PHOTO`, `GRAPHICS`, `COMMS`
+Values: `VIDEO`, `PHOTO`, `GRAPHICS`, `COMMS`, `LIVE_PRODUCTION`
 
 ## Enum `ShiftWorkerType`
 

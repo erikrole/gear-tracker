@@ -20,7 +20,7 @@ function parseStatusFilter(value: string | null): ShiftTradeStatus | undefined {
 function parseAreaFilter(value: string | null): Area | undefined {
   if (!value) return undefined;
   if (!(AREAS as readonly string[]).includes(value)) {
-    throw new HttpError(400, "area must be VIDEO, PHOTO, GRAPHICS, or COMMS");
+    throw new HttpError(400, "area must be VIDEO, PHOTO, GRAPHICS, COMMS, or LIVE_PRODUCTION");
   }
   return value as Area;
 }

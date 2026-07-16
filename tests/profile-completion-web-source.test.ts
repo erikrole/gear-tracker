@@ -24,13 +24,15 @@ describe("profile completion web wiring", () => {
     expect(wizard).toContain('title: "Add your apparel sizes"');
     expect(wizard).toContain("Which number is it?");
     expect(wizard).toContain("I don’t have a work phone");
-    expect(wizard).toContain("Wiscard card number");
+    expect(wizard).toContain("Wiscard number");
     expect(wizard).toContain("Issue code");
     expect(wizard).not.toContain("scan or type");
     expect(wizard).not.toContain("Scan your");
     expect(wizard).toContain("Women’s");
-    expect(wizard).toContain("US Women’s");
-    expect(wizard).toContain("US Men’s");
+    expect(wizard).not.toContain("US Women’s");
+    expect(wizard).not.toContain("US Men’s");
+    expect(wizard).toContain("Issue code can be found in the bottom right of your Wiscard");
+    expect(wizard).toContain("formatPhoneInput(event.target.value)");
   });
 
   it("keeps missing details visible on the signed-in user's web profile", () => {
@@ -39,5 +41,6 @@ describe("profile completion web wiring", () => {
     expect(notice).toContain("Complete profile");
     expect(notice).toContain("hidden");
     expect(notice).toContain("md:block");
+    expect(notice).toContain("if (data.completion.isComplete) return null");
   });
 });

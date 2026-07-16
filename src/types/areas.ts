@@ -1,6 +1,6 @@
 /** Shift area definitions — shared between schedule and sports-settings domains */
 
-export const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"] as const;
+export const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS", "LIVE_PRODUCTION"] as const;
 export type Area = (typeof AREAS)[number];
 
 export const AREA_LABELS: Record<string, string> = {
@@ -8,4 +8,5 @@ export const AREA_LABELS: Record<string, string> = {
   PHOTO: "Photo",
   GRAPHICS: "Graphics",
   COMMS: "Comms",
+  LIVE_PRODUCTION: "Live Production",
 };

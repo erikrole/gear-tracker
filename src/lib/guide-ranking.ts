@@ -72,6 +72,7 @@ function areaLabel(area: ShiftArea) {
     PHOTO: "Photo",
     GRAPHICS: "Graphics",
     COMMS: "Comms",
+    LIVE_PRODUCTION: "Live Production",
   };
   return labels[area];
 }

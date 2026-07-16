@@ -11,7 +11,7 @@
 
 | Model | Fields | Model-level indexes/constraints |
 |---|---:|---:|
-| `User` | 81 | 3 |
+| `User` | 84 | 3 |
 | `Session` | 6 | 2 |
 | `PasswordResetToken` | 6 | 2 |
 | `Location` | 17 | 1 |
@@ -224,6 +224,7 @@
 - `PHOTO`
 - `GRAPHICS`
 - `COMMS`
+- `LIVE_PRODUCTION`
 
 ### `ShiftWorkerType`
 

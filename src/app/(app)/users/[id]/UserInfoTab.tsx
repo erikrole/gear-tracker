@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { sportLabel } from "@/lib/sports";
@@ -11,13 +11,13 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { AlertCircle, Check, ChevronsUpDown, ClockIcon, Copy, RefreshCw, X } from "lucide-react";
+import { AlertCircle, Check, ChevronsUpDown, ClockIcon, Copy, InfoIcon, RefreshCw, X } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -42,6 +42,10 @@ import { OperationalRowActions } from "@/components/OperationalRowActions";
 import { cn } from "@/lib/utils";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { PROFILE_COMPLETION_QUERY_KEY } from "@/hooks/use-profile-completion";
+import { syncCachedUserLists } from "@/lib/user-list-cache";
+import { formatPhoneInput } from "@/lib/profile-phone";
+import { APPAREL_FIT_OPTIONS, MENS_SHOE_SIZE_OPTIONS, SHOE_SYSTEM_OPTIONS, TOP_SIZE_OPTIONS, WOMENS_SHOE_SIZE_OPTIONS } from "@/lib/profile-sizing";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 type ApiEnvelope<T = unknown> = {
   data?: T;
@@ -57,13 +61,15 @@ function TextInputField({
   canEdit,
   onSave,
   type = "text",
+  formatInput,
 }: {
-  label: string;
+  label: ReactNode;
   value: string;
   placeholder?: string;
   canEdit: boolean;
   onSave: (v: string) => Promise<void>;
   type?: "text" | "email" | "tel" | "url";
+  formatInput?: (value: string) => string;
 }) {
   const [draft, setDraft] = useState(value);
   const { status, save } = useSaveField(onSave);
@@ -85,7 +91,7 @@ function TextInputField({
         id={id}
         type={type}
         value={draft}
-        onChange={(e) => setDraft(e.target.value)}
+        onChange={(e) => setDraft(formatInput ? formatInput(e.target.value) : e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
@@ -135,7 +141,7 @@ function SelectInputField({
         <SelectTrigger size="sm" className="text-sm" aria-label={label}>
           <SelectValue placeholder={emptyLabel || "None"} />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent><SelectGroup>
           {allowEmpty && (
             <SelectItem value="__none__">{emptyLabel || "None"}</SelectItem>
           )}
@@ -144,7 +150,7 @@ function SelectInputField({
               {o.label}
             </SelectItem>
           ))}
-        </SelectContent>
+        </SelectGroup></SelectContent>
       </Select>
     </SaveableField>
   );
@@ -344,13 +350,7 @@ function DirectReportField({
             {displayValue ? (
               <span className="flex items-center gap-1.5 truncate">
                 <span className="truncate">{displayValue}</span>
-                {linkedName ? (
-                  <Badge variant="blue" size="sm">Linked</Badge>
-                ) : (
-                  user.directReportName && (
-                    <Badge variant="gray" size="sm">Unlinked</Badge>
-                  )
-                )}
+                {!linkedName && user.directReportName && <span className="text-xs text-muted-foreground">(external)</span>}
               </span>
             ) : (
               <span className="text-muted-foreground">No direct report</span>
@@ -423,54 +423,40 @@ function DirectReportField({
 
 /* ── Sizes Row (compact 2- or 3-column inline edit) ───── */
 
-function SizeMiniInput({
+function SizeMiniSelect({
   label,
   value,
-  placeholder,
+  options,
   canEdit,
   onSave,
 }: {
   label: string;
   value: string;
-  placeholder: string;
+  options: readonly { value: string; label: string }[];
   canEdit: boolean;
   onSave: (v: string | null) => Promise<void>;
 }) {
-  const [draft, setDraft] = useState(value);
   const { status, save } = useSaveField<string | null>(onSave);
-  const id = useId();
-  const inputName = `${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-size`;
-
-  useEffect(() => {
-    setDraft(value);
-  }, [value]);
-
-  const commit = useCallback(() => {
-    const trimmed = draft.trim();
-    if (trimmed === value.trim()) return;
-    save(trimmed || null);
-  }, [draft, value, save]);
+  const choices = value && !options.some((option) => option.value === value)
+    ? [{ value, label: value }, ...options]
+    : options;
 
   return (
-    <label htmlFor={id} className="flex flex-col gap-0.5 min-w-0 flex-1">
+    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
       <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         {label}
         {status === "saving" && " · saving"}
         {status === "saved" && " · saved"}
         {status === "error" && " · error"}
       </span>
-      <Input
-        id={id}
-        name={inputName}
-        value={draft}
-        placeholder={placeholder}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-        disabled={!canEdit}
-        className="h-7 text-sm px-2"
-      />
-    </label>
+      <Select value={value || "__none__"} onValueChange={(next) => save(next === "__none__" ? null : next)} disabled={!canEdit}>
+        <SelectTrigger size="sm" aria-label={label}><SelectValue placeholder="Select" /></SelectTrigger>
+        <SelectContent><SelectGroup>
+          <SelectItem value="__none__">Not set</SelectItem>
+          {choices.map((choice) => <SelectItem key={choice.value} value={choice.value}>{choice.label}</SelectItem>)}
+        </SelectGroup></SelectContent>
+      </Select>
+    </div>
   );
 }
 
@@ -488,32 +474,196 @@ function SizesRow({
   return (
     <div className="px-3 py-2 border-t flex flex-col gap-1">
       <span className="text-xs text-muted-foreground">Sizes</span>
-      <div className="flex items-end gap-2">
-        <SizeMiniInput
-          label={isStudent ? "Clothing" : "Top"}
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        <SizeMiniSelect
+          label="Top fit"
+          value={user.topSizeFit ?? ""}
+          options={APPAREL_FIT_OPTIONS}
+          canEdit={canEdit}
+          onSave={(v) => onPatch({ topSizeFit: v })}
+        />
+        <SizeMiniSelect
+          label={isStudent ? "Clothing size" : "Top size"}
           value={user.topSize ?? ""}
-          placeholder="e.g. M"
+          options={TOP_SIZE_OPTIONS.map((value) => ({ value, label: value }))}
           canEdit={canEdit}
           onSave={(v) => onPatch({ topSize: v })}
         />
         {!isStudent && (
-          <SizeMiniInput
-            label="Bottom"
+          <SizeMiniSelect
+            label="Bottom size"
             value={user.bottomSize ?? ""}
-            placeholder="e.g. M, 32"
+            options={TOP_SIZE_OPTIONS.map((value) => ({ value, label: value }))}
             canEdit={canEdit}
             onSave={(v) => onPatch({ bottomSize: v })}
           />
         )}
-        <SizeMiniInput
-          label="Shoes"
+        <SizeMiniSelect
+          label="Shoe sizing"
+          value={user.shoeSizeSystem ?? ""}
+          options={SHOE_SYSTEM_OPTIONS}
+          canEdit={canEdit}
+          onSave={(v) => onPatch({ shoeSizeSystem: v })}
+        />
+        <SizeMiniSelect
+          label="Shoe size"
           value={user.shoeSize ?? ""}
-          placeholder="e.g. 10.5"
+          options={(user.shoeSizeSystem === "US_MENS" ? MENS_SHOE_SIZE_OPTIONS : WOMENS_SHOE_SIZE_OPTIONS).map((value) => ({ value, label: value }))}
           canEdit={canEdit}
           onSave={(v) => onPatch({ shoeSize: v })}
         />
       </div>
     </div>
+  );
+}
+
+const MONTH_OPTIONS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function BirthdayField({
+  user,
+  canEdit,
+  canViewBirthYear,
+  onPatch,
+}: {
+  user: UserDetail;
+  canEdit: boolean;
+  canViewBirthYear: boolean;
+  onPatch: (payload: Record<string, unknown>) => Promise<void>;
+}) {
+  const [month, setMonth] = useState(user.birthdayMonth ? String(user.birthdayMonth) : "");
+  const [day, setDay] = useState(user.birthdayDay ? String(user.birthdayDay) : "");
+  const [year, setYear] = useState(user.birthYear ? String(user.birthYear) : "");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setMonth(user.birthdayMonth ? String(user.birthdayMonth) : "");
+    setDay(user.birthdayDay ? String(user.birthdayDay) : "");
+    setYear(user.birthYear ? String(user.birthYear) : "");
+  }, [user.birthdayMonth, user.birthdayDay, user.birthYear]);
+
+  const dirty = month !== (user.birthdayMonth ? String(user.birthdayMonth) : "")
+    || day !== (user.birthdayDay ? String(user.birthdayDay) : "")
+    || (canViewBirthYear && year !== (user.birthYear ? String(user.birthYear) : ""));
+
+  async function saveBirthday() {
+    if ((month && !day) || (!month && day)) {
+      toast.error("Choose both a birthday month and day");
+      return;
+    }
+    setSaving(true);
+    try {
+      await onPatch({
+        birthdayMonth: month ? Number(month) : null,
+        birthdayDay: day ? Number(day) : null,
+        ...(canViewBirthYear ? { birthYear: year ? Number(year) : null } : {}),
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <SaveableField label="Birthday" ariaLabel="birthday" className="items-start">
+      <div className={cn("grid grid-cols-2 gap-2", canViewBirthYear ? "sm:grid-cols-[1.5fr_0.8fr_1fr_auto]" : "sm:grid-cols-[1.5fr_0.8fr_auto]")}>
+        <Select value={month || "__none__"} onValueChange={(value) => setMonth(value === "__none__" ? "" : value)} disabled={!canEdit || saving}>
+          <SelectTrigger size="sm" aria-label="Birthday month"><SelectValue placeholder="Month" /></SelectTrigger>
+          <SelectContent><SelectGroup>
+            <SelectItem value="__none__">Month</SelectItem>
+            {MONTH_OPTIONS.map((label, index) => <SelectItem key={label} value={String(index + 1)}>{label}</SelectItem>)}
+          </SelectGroup></SelectContent>
+        </Select>
+        <Select value={day || "__none__"} onValueChange={(value) => setDay(value === "__none__" ? "" : value)} disabled={!canEdit || saving}>
+          <SelectTrigger size="sm" aria-label="Birthday day"><SelectValue placeholder="Day" /></SelectTrigger>
+          <SelectContent><SelectGroup>
+            <SelectItem value="__none__">Day</SelectItem>
+            {Array.from({ length: 31 }, (_, index) => String(index + 1)).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
+          </SelectGroup></SelectContent>
+        </Select>
+        {canViewBirthYear && (
+          <Input type="number" inputMode="numeric" min={1900} max={2100} value={year} onChange={(event) => setYear(event.target.value.slice(0, 4))} placeholder="Year" aria-label="Birth year" disabled={!canEdit || saving} className="h-8" />
+        )}
+        <Button type="button" size="sm" onClick={saveBirthday} disabled={!canEdit || !dirty || saving}>
+          {saving && <Spinner data-icon="inline-start" />}
+          Save
+        </Button>
+      </div>
+    </SaveableField>
+  );
+}
+
+function WiscardFields({
+  cardNumber,
+  issueCode,
+  canEdit,
+  onPatch,
+}: {
+  cardNumber: string;
+  issueCode: string;
+  canEdit: boolean;
+  onPatch: (payload: Record<string, unknown>) => Promise<void>;
+}) {
+  const [cardDraft, setCardDraft] = useState(cardNumber);
+  const [issueDraft, setIssueDraft] = useState(issueCode);
+  const cardSave = useSaveField<string>((value) => onPatch({ wiscardCardNumber: value || null }));
+  const issueSave = useSaveField<string>((value) => onPatch({ wiscardIssueCode: value || null }));
+  const cardId = useId();
+  const issueId = useId();
+
+  useEffect(() => setCardDraft(cardNumber), [cardNumber]);
+  useEffect(() => setIssueDraft(issueCode), [issueCode]);
+
+  const status = cardSave.status === "saving" || issueSave.status === "saving"
+    ? "saving"
+    : cardSave.status === "error" || issueSave.status === "error"
+      ? "error"
+      : cardSave.status === "saved" || issueSave.status === "saved"
+        ? "saved"
+        : "idle";
+
+  return (
+    <SaveableField label="Wiscard number" status={status} htmlFor={cardId}>
+      <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+        <Input
+          id={cardId}
+          inputMode="numeric"
+          autoComplete="off"
+          value={cardDraft}
+          onChange={(event) => setCardDraft(event.target.value.replace(/\D/g, "").slice(0, 10))}
+          onBlur={() => { if (cardDraft !== cardNumber) void cardSave.save(cardDraft); }}
+          onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
+          placeholder="XXXXXXXXXX"
+          disabled={!canEdit}
+          className="h-8 text-sm"
+        />
+        <div className="flex min-w-0 items-center gap-1.5">
+          <label htmlFor={issueId} className="whitespace-nowrap text-xs text-muted-foreground">Issue code</label>
+          <Input
+            id={issueId}
+            inputMode="numeric"
+            autoComplete="off"
+            aria-label="Issue code"
+            value={issueDraft}
+            onChange={(event) => setIssueDraft(event.target.value.replace(/\D/g, "").slice(0, 1))}
+            onBlur={() => { if (issueDraft !== issueCode) void issueSave.save(issueDraft); }}
+            onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
+            placeholder="X"
+            disabled={!canEdit}
+            className="h-8 w-14 min-w-0 text-sm"
+          />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button type="button" aria-label="Where to find the Wiscard issue code" className="inline-flex size-10 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <InfoIcon />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Issue code can be found in the bottom right of your Wiscard</TooltipContent>
+          </Tooltip>
+        </div>
+      </div>
+    </SaveableField>
   );
 }
 
@@ -546,10 +696,8 @@ export default function UserInfoTab({
   onUpdated: () => void;
 }) {
   const queryClient = useQueryClient();
-  const [savingPassword, setSavingPassword] = useState(false);
   const [addingSport, setAddingSport] = useState(false);
   const [addingArea, setAddingArea] = useState(false);
-  const passwordBusyRef = useRef(false);
   const sportBusyRef = useRef(false);
   const areaBusyRef = useRef(false);
 
@@ -571,9 +719,10 @@ export default function UserInfoTab({
   // Fields a user can edit on their own profile (mirrors updateProfileSchema).
   const SELF_EDITABLE_FIELDS = new Set([
     "name", "locationId", "phone", "personalPhone", "workPhone", "slackHandle", "slackProfileUrl",
-    "wiscardNumber",
+    "wiscardNumber", "wiscardCardNumber", "wiscardIssueCode",
     "title", "athleticsEmail", "startDate", "gradYear", "studentYearOverride",
-    "topSize", "bottomSize", "shoeSize",
+    "topSizeFit", "topSize", "bottomSize", "shoeSizeSystem", "shoeSize",
+    "birthdayMonth", "birthdayDay", "birthYear",
   ]);
 
   async function patchUser(payload: Record<string, unknown>) {
@@ -594,6 +743,12 @@ export default function UserInfoTab({
       const msg = await parseErrorMessage(res, "Failed to update user");
       throw new Error(msg);
     }
+    const cachePatch = { ...payload };
+    if (Object.prototype.hasOwnProperty.call(payload, "locationId")) {
+      const locationId = typeof payload.locationId === "string" ? payload.locationId : null;
+      cachePatch.location = locations.find((location) => location.id === locationId)?.name ?? null;
+    }
+    await syncCachedUserLists(queryClient, user.id, cachePatch);
     onUpdated();
     await queryClient.invalidateQueries({ queryKey: PROFILE_COMPLETION_QUERY_KEY });
   }
@@ -610,37 +765,8 @@ export default function UserInfoTab({
       toast.error(msg);
       throw new Error(msg);
     }
+    await syncCachedUserLists(queryClient, user.id, { role: newRole });
     onUpdated();
-  }
-
-  async function changePassword(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (passwordBusyRef.current) return;
-    passwordBusyRef.current = true;
-    setSavingPassword(true);
-    try {
-      const form = new FormData(e.currentTarget);
-      const currentPassword = String(form.get("currentPassword") || "");
-      const newPassword = String(form.get("newPassword") || "");
-      const res = await fetch("/api/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "change_password", currentPassword, newPassword }),
-      });
-      if (handleAuthRedirect(res)) return;
-      if (!res.ok) {
-        const msg = await parseErrorMessage(res, "Failed to update password");
-        toast.error(msg);
-      } else {
-        e.currentTarget.reset();
-        toast.success("Password updated");
-      }
-    } catch {
-      toast.error("Network error");
-    } finally {
-      passwordBusyRef.current = false;
-      setSavingPassword(false);
-    }
   }
 
   async function addSport(sportCode: string) {
@@ -800,41 +926,27 @@ export default function UserInfoTab({
           />
           <TextInputField
             label="Personal Phone"
-            value={user.personalPhone || ""}
-            placeholder="Add personal phone"
+            value={formatPhoneInput(user.personalPhone || "")}
+            placeholder="(XXX) XXX-XXXX"
             canEdit={canEditProfile || canEditSelf}
             onSave={(v) => patchUser({ personalPhone: v || null })}
             type="tel"
+            formatInput={formatPhoneInput}
           />
           <TextInputField
             label="Work Phone"
-            value={user.workPhone || ""}
-            placeholder={user.workPhoneNotApplicable ? "No work phone" : "Add work phone"}
+            value={formatPhoneInput(user.workPhone || "")}
+            placeholder={user.workPhoneNotApplicable ? "No work phone" : "(XXX) XXX-XXXX"}
             canEdit={canEditProfile || canEditSelf}
             onSave={(v) => patchUser({ workPhone: v || null })}
             type="tel"
+            formatInput={formatPhoneInput}
           />
-          <TextInputField
-            label="Wiscard"
-            value={user.wiscardNumber || ""}
-            placeholder="Scan or type Wiscard value"
+          <WiscardFields
+            cardNumber={user.wiscardCardNumber || ""}
+            issueCode={user.wiscardIssueCode || ""}
             canEdit={canEditProfile || canEditSelf}
-            onSave={(v) => patchUser({ wiscardNumber: v || null })}
-          />
-          <TextInputField
-            label="Slack"
-            value={user.slackHandle || ""}
-            placeholder="@username"
-            canEdit={canEditProfile || canEditSelf}
-            onSave={(v) => patchUser({ slackHandle: v || null })}
-          />
-          <TextInputField
-            label="Slack Profile URL"
-            value={user.slackProfileUrl || ""}
-            placeholder="https://app.slack.com/team/U..."
-            canEdit={canEditProfile || canEditSelf}
-            onSave={(v) => patchUser({ slackProfileUrl: v || null })}
-            type="url"
+            onPatch={patchUser}
           />
           <SelectInputField
             label="Role"
@@ -949,6 +1061,12 @@ export default function UserInfoTab({
             canEdit={canEditProfile}
             onSavePicked={(pickedId) => patchUser({ directReportId: pickedId })}
             onSaveFreeText={(name) => patchUser({ directReportName: name })}
+          />
+          <BirthdayField
+            user={user}
+            canEdit={canEditProfile || canEditSelf}
+            canViewBirthYear={isSelf || isAdmin}
+            onPatch={patchUser}
           />
           <SizesRow
             user={user}
@@ -1150,30 +1268,6 @@ export default function UserInfoTab({
         </CardContent>
       </Card>
 
-      {/* Password Change Card — only shown when viewing own profile */}
-      {isSelf && (
-        <Card className="lg:col-span-full">
-          <CardHeader>
-            <CardTitle>Change password</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={changePassword} className="grid gap-3 max-w-sm">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="currentPassword">Current password</Label>
-                <Input id="currentPassword" name="currentPassword" type="password" required minLength={8} disabled={savingPassword} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="newPassword">New password</Label>
-                <Input id="newPassword" name="newPassword" type="password" required minLength={8} disabled={savingPassword} />
-              </div>
-              <Button type="submit" disabled={savingPassword} className="w-fit">
-                {savingPassword && <Spinner data-icon="inline-start" />}
-                {savingPassword ? "Updating..." : "Update password"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

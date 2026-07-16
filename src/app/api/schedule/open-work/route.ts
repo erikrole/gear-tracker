@@ -8,7 +8,7 @@ import { AREAS } from "@/types/areas";
 function parseAreaFilter(value: string | null): ShiftArea | undefined {
   if (!value) return undefined;
   if (!(AREAS as readonly string[]).includes(value)) {
-    throw new HttpError(400, "area must be VIDEO, PHOTO, GRAPHICS, or COMMS");
+    throw new HttpError(400, "area must be VIDEO, PHOTO, GRAPHICS, COMMS, or LIVE_PRODUCTION");
   }
   return value as ShiftArea;
 }

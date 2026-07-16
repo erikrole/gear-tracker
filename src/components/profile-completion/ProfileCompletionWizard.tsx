@@ -33,6 +33,8 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { OPEN_PROFILE_COMPLETION_EVENT } from "@/lib/profile-completion-events";
 import { PROFILE_COMPLETION_STEPS, type ProfileCompletionStep } from "@/lib/profile-completion";
+import { formatPhoneInput } from "@/lib/profile-phone";
+import { MENS_SHOE_SIZE_OPTIONS, TOP_SIZE_OPTIONS, WOMENS_SHOE_SIZE_OPTIONS } from "@/lib/profile-sizing";
 import {
   PROFILE_COMPLETION_QUERY_KEY,
   type ProfileCompletionResponse,
@@ -57,19 +59,6 @@ const STEP_COPY: Record<ProfileCompletionStep, { title: string; description: str
     description: "Choose the sizing systems that make clothing and shoe orders unambiguous.",
   },
 };
-
-const TOP_SIZES = ["XXS", "XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL"];
-
-function halfSizes(start: number, end: number) {
-  const values: string[] = [];
-  for (let value = start * 2; value <= end * 2; value += 1) {
-    values.push(value % 2 === 0 ? String(value / 2) : (value / 2).toFixed(1));
-  }
-  return values;
-}
-
-const WOMENS_SHOE_SIZES = halfSizes(5, 16);
-const MENS_SHOE_SIZES = halfSizes(4, 18);
 
 type LegacyPhoneType = "PERSONAL" | "WORK" | "";
 type ApiEnvelope = { data?: ProfileCompletionResponse };
@@ -129,7 +118,7 @@ export function ProfileCompletionWizard() {
     setWiscardCardNumber(profile.wiscardCardNumber ?? "");
     setWiscardIssueCode(profile.wiscardIssueCode ?? "");
     setTopSizeFit(profile.topSizeFit ?? "");
-    if (isKnownOption(profile.topSize, TOP_SIZES)) {
+    if (isKnownOption(profile.topSize, [...TOP_SIZE_OPTIONS])) {
       setTopSizeChoice(profile.topSize ?? "");
       setTopSizeOther("");
     } else if (profile.topSize) {
@@ -137,7 +126,7 @@ export function ProfileCompletionWizard() {
       setTopSizeOther(profile.topSize);
     }
     setShoeSizeSystem(profile.shoeSizeSystem ?? "");
-    const shoeOptions = profile.shoeSizeSystem === "US_MENS" ? MENS_SHOE_SIZES : WOMENS_SHOE_SIZES;
+    const shoeOptions = profile.shoeSizeSystem === "US_MENS" ? MENS_SHOE_SIZE_OPTIONS : WOMENS_SHOE_SIZE_OPTIONS;
     if (isKnownOption(profile.shoeSize, shoeOptions)) {
       setShoeSizeChoice(profile.shoeSize ?? "");
       setShoeSizeOther("");
@@ -168,7 +157,7 @@ export function ProfileCompletionWizard() {
   }, [data, isDesktop]);
 
   const stepIndex = PROFILE_COMPLETION_STEPS.indexOf(step);
-  const shoeOptions = shoeSizeSystem === "US_MENS" ? MENS_SHOE_SIZES : WOMENS_SHOE_SIZES;
+  const shoeOptions = shoeSizeSystem === "US_MENS" ? MENS_SHOE_SIZE_OPTIONS : WOMENS_SHOE_SIZE_OPTIONS;
   const copy = STEP_COPY[step];
   const legacyPhone = data?.profile.phone?.trim() ?? "";
   const needsLegacyClassification = Boolean(
@@ -183,8 +172,8 @@ export function ProfileCompletionWizard() {
     }
     if (step === "PHONES") {
       return (!needsLegacyClassification || Boolean(legacyPhoneType))
-        && personalPhone.trim().length >= 7
-        && (noWorkPhone || workPhone.trim().length >= 7);
+        && personalPhone.replace(/\D/g, "").length === 10
+        && (noWorkPhone || workPhone.replace(/\D/g, "").length === 10);
     }
     if (step === "WISCARD") {
       return /^\d{4,32}$/.test(wiscardCardNumber.trim()) && /^\d{1,8}$/.test(wiscardIssueCode.trim());
@@ -393,8 +382,8 @@ export function ProfileCompletionWizard() {
                     type="tel"
                     autoComplete="tel"
                     value={personalPhone}
-                    onChange={(event) => { setPersonalPhone(event.target.value); setError(""); }}
-                    placeholder="(608) 555-0000"
+                    onChange={(event) => { setPersonalPhone(formatPhoneInput(event.target.value)); setError(""); }}
+                    placeholder="(XXX) XXX-XXXX"
                     disabled={saving}
                   />
                 </div>
@@ -406,8 +395,8 @@ export function ProfileCompletionWizard() {
                     type="tel"
                     autoComplete="work tel"
                     value={workPhone}
-                    onChange={(event) => { setWorkPhone(event.target.value); setNoWorkPhone(false); setError(""); }}
-                    placeholder="(608) 555-0000"
+                    onChange={(event) => { setWorkPhone(formatPhoneInput(event.target.value)); setNoWorkPhone(false); setError(""); }}
+                    placeholder="(XXX) XXX-XXXX"
                     disabled={saving || noWorkPhone}
                   />
                 </div>
@@ -428,15 +417,15 @@ export function ProfileCompletionWizard() {
             <div className="flex flex-col gap-5">
               <div className="grid grid-cols-[minmax(0,1fr)_160px] gap-4">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="profile-completion-wiscard-number">Wiscard card number</Label>
+                  <Label htmlFor="profile-completion-wiscard-number">Wiscard number</Label>
                   <Input
                     id="profile-completion-wiscard-number"
                     name="wiscardCardNumber"
                     inputMode="numeric"
                     autoComplete="off"
                     value={wiscardCardNumber}
-                    onChange={(event) => setWiscardCardNumber(event.target.value.replace(/\D/g, ""))}
-                    placeholder="Card number"
+                    onChange={(event) => setWiscardCardNumber(event.target.value.replace(/\D/g, "").slice(0, 10))}
+                    placeholder="XXXXXXXXXX"
                     disabled={saving}
                   />
                 </div>
@@ -448,13 +437,13 @@ export function ProfileCompletionWizard() {
                     inputMode="numeric"
                     autoComplete="off"
                     value={wiscardIssueCode}
-                    onChange={(event) => setWiscardIssueCode(event.target.value.replace(/\D/g, ""))}
-                    placeholder="Issue code"
+                    onChange={(event) => setWiscardIssueCode(event.target.value.replace(/\D/g, "").slice(0, 1))}
+                    placeholder="X"
                     disabled={saving}
                   />
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">Type both values. Gear Tracker combines them into the exact kiosk lookup value.</p>
+              <p className="text-xs text-muted-foreground">Issue code can be found in the bottom right of your Wiscard. Gear Tracker combines both values into the exact kiosk lookup value.</p>
             </div>
           )}
 
@@ -477,7 +466,7 @@ export function ProfileCompletionWizard() {
                   <Select value={topSizeChoice} onValueChange={setTopSizeChoice} disabled={saving}>
                     <SelectTrigger id="profile-completion-top-size"><SelectValue placeholder="Select size" /></SelectTrigger>
                     <SelectContent><SelectGroup>
-                      {TOP_SIZES.map((size) => <SelectItem key={size} value={size}>{size}</SelectItem>)}
+                      {TOP_SIZE_OPTIONS.map((size) => <SelectItem key={size} value={size}>{size}</SelectItem>)}
                       <SelectItem value="OTHER">Other</SelectItem>
                     </SelectGroup></SelectContent>
                   </Select>
@@ -499,8 +488,8 @@ export function ProfileCompletionWizard() {
                   >
                     <SelectTrigger id="profile-completion-shoe-system"><SelectValue placeholder="Select system" /></SelectTrigger>
                     <SelectContent><SelectGroup>
-                      <SelectItem value="US_WOMENS">US Women’s</SelectItem>
-                      <SelectItem value="US_MENS">US Men’s</SelectItem>
+                      <SelectItem value="US_WOMENS">Women’s</SelectItem>
+                      <SelectItem value="US_MENS">Men’s</SelectItem>
                     </SelectGroup></SelectContent>
                   </Select>
                 </div>

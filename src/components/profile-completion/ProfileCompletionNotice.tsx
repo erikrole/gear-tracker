@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircleIcon, CheckCircle2Icon } from "lucide-react";
+import { AlertCircleIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,20 +22,7 @@ export function ProfileCompletionNotice() {
   const { data, isLoading, isError } = useProfileCompletion();
   if (isLoading || isError || !data) return null;
 
-  if (data.completion.isComplete) {
-    return (
-      <Alert className="mb-4 hidden md:block">
-        <CheckCircle2Icon />
-        <AlertTitle>Profile details complete</AlertTitle>
-        <AlertDescription className="flex items-center justify-between gap-4">
-          <p>Your contact, Wiscard, and apparel details are available for review.</p>
-          <Button type="button" variant="outline" size="sm" onClick={openProfileCompletion}>
-            Review details
-          </Button>
-        </AlertDescription>
-      </Alert>
-    );
-  }
+  if (data.completion.isComplete) return null;
 
   return (
     <Alert className="mb-4 hidden border-[var(--orange)]/50 bg-[var(--orange-bg)] md:block">

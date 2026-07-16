@@ -219,7 +219,7 @@ export default function AllowedEmailsPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Button className="min-h-10" onClick={() => setShowOnboarding(true)}>
               <UserPlus data-icon="inline-start" />
-              Onboard users
+              Add users
             </Button>
             <Button asChild variant="outline" className="min-h-10">
               <Link href="/users/onboarding-status">

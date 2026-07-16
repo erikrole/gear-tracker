@@ -7,6 +7,7 @@ export type ResourceFilterKey =
   | "area-photo"
   | "area-graphics"
   | "area-comms"
+  | "area-live-production"
   | "contacts"
   | "building-numbers"
   | "media-drive"
@@ -30,6 +31,7 @@ const FILTER_PARAM_MAP: Record<string, ResourceFilterKey> = {
   "area-photo": "area-photo",
   "area-graphics": "area-graphics",
   "area-comms": "area-comms",
+  "area-live-production": "area-live-production",
   contacts: "contacts",
   "building-numbers": "building-numbers",
   "media-drive": "media-drive",
@@ -49,6 +51,7 @@ const LEGACY_AREA_PARAM_MAP: Record<string, ResourceFilterKey> = {
   photo: "area-photo",
   graphics: "area-graphics",
   comms: "area-comms",
+  "live-production": "area-live-production",
 };
 
 const SORT_PARAM_VALUES = new Set<ResourceSortKey>(["personalized", "recent", "title"]);

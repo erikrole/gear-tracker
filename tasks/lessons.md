@@ -28,6 +28,7 @@
 
 ## Security and authorization
 
+- **Private profile fields are response contracts**: Omit restricted values from unauthorized API responses and block unauthorized mutations. CSS or conditional rendering is not a privacy boundary.
 - **Role scope is not product scope**: Preserve legitimate read and self-service workflows while tightening mutation permissions.
 - **Guard both sides of role operations**: Check the actor and target when granting, revoking, or editing privileged users. STAFF must not edit ADMIN users.
 - **Bulk endpoints mirror single-endpoint authorization**: Compare the bulk path with the single-item path and carry over every relevant guard.

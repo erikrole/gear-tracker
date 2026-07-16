@@ -101,14 +101,14 @@
 | `src/components/TradeBoard.tsx` | 1192 |
 | `src/components/EquipmentPicker.tsx` | 1001 |
 | `src/components/ShiftDetailPanel.tsx` | 813 |
-| `src/components/onboarding/OnboardingDialog.tsx` | 780 |
+| `src/components/onboarding/OnboardingDialog.tsx` | 791 |
 | `src/components/BookingDetailsSheet.tsx` | 725 |
 | `src/components/ChooseImageModal.tsx` | 716 |
 | `src/components/booking-wizard/BookingWizard.tsx` | 710 |
 | `src/components/ui/sidebar.tsx` | 710 |
 | `src/components/AppShell.tsx` | 692 |
 | `src/components/booking-wizard/WizardStep1.tsx` | 570 |
-| `src/components/profile-completion/ProfileCompletionWizard.tsx` | 555 |
+| `src/components/profile-completion/ProfileCompletionWizard.tsx` | 544 |
 | `src/components/BookingListPage.tsx` | 512 |
 | `src/components/ui/heatmap.tsx` | 422 |
 | `src/components/ui/chart.tsx` | 389 |
@@ -125,7 +125,7 @@
 | `src/components/booking-details/TransferOwnerDialog.tsx` | 266 |
 | `src/components/booking-wizard/WizardStep3.tsx` | 263 |
 | `src/components/ui/dropdown-menu.tsx` | 258 |
-| `src/components/shift-detail/UserAvatarPicker.tsx` | 256 |
+| `src/components/shift-detail/UserAvatarPicker.tsx` | 257 |
 | `src/components/shift-detail/CallWindowEditor.tsx` | 243 |
 
 ## Hooks
@@ -138,7 +138,7 @@
 | `src/hooks/use-current-user.ts` | 28 |
 | `src/hooks/use-dashboard-data.ts` | 232 |
 | `src/hooks/use-dashboard-filters.ts` | 130 |
-| `src/hooks/use-fetch.ts` | 110 |
+| `src/hooks/use-fetch.ts` | 113 |
 | `src/hooks/use-form-options.ts` | 32 |
 | `src/hooks/use-form-submit.ts` | 188 |
 | `src/hooks/use-item-cache-invalidation.ts` | 18 |

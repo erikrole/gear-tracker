@@ -132,6 +132,7 @@ const CONTACT_AREA_FILTERS: { value: ContactAreaFilter; label: string }[] = [
   { value: ShiftArea.PHOTO, label: "Photo" },
   { value: ShiftArea.GRAPHICS, label: "Graphics" },
   { value: ShiftArea.COMMS, label: "Comms" },
+  { value: ShiftArea.LIVE_PRODUCTION, label: "Live Production" },
   { value: "UNASSIGNED", label: "No area" },
 ];
 
@@ -159,6 +160,7 @@ const AREA_FILTERS: (ScopeOption & { area: ShiftArea })[] = [
   { value: "area-photo", label: "Photo", area: ShiftArea.PHOTO },
   { value: "area-graphics", label: "Graphics", area: ShiftArea.GRAPHICS },
   { value: "area-comms", label: "Comms", area: ShiftArea.COMMS },
+  { value: "area-live-production", label: "Live Production", area: ShiftArea.LIVE_PRODUCTION },
 ];
 
 const SMART_FILTERS: ScopeOption[] = [
@@ -239,6 +241,7 @@ function formatArea(area: ShiftArea | null) {
     PHOTO: "Photo",
     GRAPHICS: "Graphics",
     COMMS: "Comms",
+    LIVE_PRODUCTION: "Live Production",
   };
   return labels[area];
 }

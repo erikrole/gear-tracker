@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -28,6 +29,8 @@ import {
 import { AREA_OPTIONS } from "@/app/(app)/users/types";
 import { PROFILE_COMPLETION_QUERY_KEY } from "@/hooks/use-profile-completion";
 import { SettingsPageShell } from "../SettingsPageShell";
+import { formatPhoneInput } from "@/lib/profile-phone";
+import { syncCachedUserLists } from "@/lib/user-list-cache";
 
 type Profile = {
   id: string;
@@ -37,7 +40,7 @@ type Profile = {
   workPhoneNotApplicable: boolean;
   wiscardNumber: string | null;
   avatarUrl: string | null;
-  primaryArea: "VIDEO" | "PHOTO" | "GRAPHICS" | "COMMS" | null;
+  primaryArea: "VIDEO" | "PHOTO" | "GRAPHICS" | "COMMS" | "LIVE_PRODUCTION" | null;
   title: string | null;
   athleticsEmail: string | null;
   slackHandle: string | null;
@@ -48,8 +51,8 @@ type FormState = Omit<Profile, "id" | "avatarUrl" | "workPhoneNotApplicable">;
 function toForm(p: Profile): FormState {
   return {
     name: p.name,
-    personalPhone: p.personalPhone ?? "",
-    workPhone: p.workPhone ?? "",
+    personalPhone: formatPhoneInput(p.personalPhone ?? ""),
+    workPhone: formatPhoneInput(p.workPhone ?? ""),
     wiscardNumber: p.wiscardNumber ?? "",
     primaryArea: p.primaryArea,
     title: p.title ?? "",
@@ -145,6 +148,7 @@ export default function ProfileSettingsPage() {
       }
 
       syncProfileCache(json.data);
+      await syncCachedUserLists(queryClient, fetched.id, json.data);
       await queryClient.invalidateQueries({ queryKey: PROFILE_COMPLETION_QUERY_KEY });
       setLocal(null);
       setAvatarUrl(undefined);
@@ -182,6 +186,7 @@ export default function ProfileSettingsPage() {
       const nextAvatarUrl = json.data.avatarUrl ?? null;
       setAvatarUrl(nextAvatarUrl);
       if (fetched) syncProfileCache({ ...fetched, avatarUrl: nextAvatarUrl });
+      await syncCachedUserLists(queryClient, fetched.id, { avatarUrl: nextAvatarUrl });
       toast.success("Profile photo updated.");
     } catch (err) {
       if (isAbortError(err)) return;
@@ -206,6 +211,7 @@ export default function ProfileSettingsPage() {
       }
       setAvatarUrl(null);
       syncProfileCache({ ...fetched, avatarUrl: null });
+      await syncCachedUserLists(queryClient, fetched.id, { avatarUrl: null });
       toast.success("Profile photo removed.");
     } catch (err) {
       if (isAbortError(err)) return;
@@ -336,8 +342,8 @@ export default function ProfileSettingsPage() {
                   type="tel"
                   autoComplete="tel"
                   value={form.personalPhone ?? ""}
-                  onChange={(e) => setField("personalPhone", e.target.value)}
-                  placeholder="(555) 000-0000"
+                  onChange={(e) => setField("personalPhone", formatPhoneInput(e.target.value))}
+                  placeholder="(XXX) XXX-XXXX"
                   disabled={saving}
                 />
               </div>
@@ -350,8 +356,8 @@ export default function ProfileSettingsPage() {
                   type="tel"
                   autoComplete="work tel"
                   value={form.workPhone ?? ""}
-                  onChange={(e) => setField("workPhone", e.target.value)}
-                  placeholder={fetched?.workPhoneNotApplicable ? "No work phone" : "(555) 000-0000"}
+                  onChange={(e) => setField("workPhone", formatPhoneInput(e.target.value))}
+                  placeholder={fetched?.workPhoneNotApplicable ? "No work phone" : "(XXX) XXX-XXXX"}
                   disabled={saving}
                 />
               </div>
@@ -370,14 +376,14 @@ export default function ProfileSettingsPage() {
                 <SelectTrigger id="profile-area">
                   <SelectValue placeholder="Select area" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent><SelectGroup>
                   <SelectItem value="__none__">None</SelectItem>
                   {AREA_OPTIONS.map((a) => (
                     <SelectItem key={a.value} value={a.value}>
                       {a.label}
                     </SelectItem>
                   ))}
-                </SelectContent>
+                </SelectGroup></SelectContent>
               </Select>
             </div>
 
@@ -427,21 +433,6 @@ export default function ProfileSettingsPage() {
               <p className="text-xs text-muted-foreground">
                 Your UW Athletics email -- separate from your login email.
               </p>
-            </div>
-
-            {/* Slack handle */}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="profile-slack">Slack handle</Label>
-              <Input
-                id="profile-slack"
-                name="slackHandle"
-                autoComplete="off"
-                value={form.slackHandle ?? ""}
-                onChange={(e) => setField("slackHandle", e.target.value)}
-                placeholder="yourhandle"
-                disabled={saving}
-              />
-              <p className="text-xs text-muted-foreground">Without the @ prefix.</p>
             </div>
 
             {/* Save */}

@@ -29,6 +29,8 @@ export type UseFetchOptions<T> = {
   enabled?: boolean;
   /** Keep the previous response visible while a changed URL is refetching. */
   keepPreviousData?: boolean;
+  /** Refetch when this consumer mounts, even if its cached response is still fresh. */
+  refetchOnMount?: boolean | "always";
 };
 
 export type UseFetchResult<T> = {
@@ -65,7 +67,7 @@ async function fetchJson(url: string, returnTo?: string, signal?: AbortSignal): 
  * - Manual reload trigger
  */
 export function useFetch<T = unknown>(options: UseFetchOptions<T>): UseFetchResult<T> {
-  const { url, returnTo, refetchOnFocus = true, enabled = true, keepPreviousData = false } = options;
+  const { url, returnTo, refetchOnFocus = true, enabled = true, keepPreviousData = false, refetchOnMount } = options;
   const transformRef = useRef(options.transform);
   transformRef.current = options.transform;
 
@@ -85,6 +87,7 @@ export function useFetch<T = unknown>(options: UseFetchOptions<T>): UseFetchResu
       return (json.data ?? json) as T;
     },
     refetchOnWindowFocus: refetchOnFocus,
+    refetchOnMount,
     enabled,
     placeholderData: keepPreviousData ? (previousData) => previousData : undefined,
   });

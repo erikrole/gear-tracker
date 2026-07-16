@@ -2,10 +2,10 @@ import { z } from "zod";
 
 export const profilePhoneSchema = z.string()
   .trim()
-  .max(30)
+  .max(18)
   .refine(
-    (value) => value.replace(/\D/g, "").length >= 7,
-    "Enter a phone number with at least 7 digits",
+    (value) => normalizedPhoneDigits(value).length === 10,
+    "Enter a 10-digit phone number",
   );
 
 export const nullableProfilePhoneSchema = z.preprocess(
@@ -15,8 +15,25 @@ export const nullableProfilePhoneSchema = z.preprocess(
 
 export function normalizeProfilePhone(value: string | null | undefined): string | null {
   if (value == null) return null;
-  const normalized = value.trim();
-  return normalized || null;
+  const digits = normalizedPhoneDigits(value);
+  return digits.length === 10 ? formatPhoneDigits(digits) : null;
+}
+
+function normalizedPhoneDigits(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  return digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+}
+
+function formatPhoneDigits(digits: string): string {
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+}
+
+export function formatPhoneInput(value: string): string {
+  const digits = normalizedPhoneDigits(value).slice(0, 10);
+  if (!digits) return "";
+  if (digits.length <= 3) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return formatPhoneDigits(digits);
 }
 
 export function phoneAuditValue(value: unknown): string | null {

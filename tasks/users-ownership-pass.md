@@ -1,5 +1,43 @@
 # Users Ownership Pass - 2026-05-06
 
+## Profile-to-roster freshness - 2026-07-16
+
+### Goal
+- Make browser Back return to a current Users roster after profile edits without waiting for the list cache to expire.
+
+### Plan
+- [x] Patch roster-safe fields into every cached Users query after successful profile, role, avatar, and status mutations.
+- [x] Mark cached roster queries stale without forcing a hidden refetch from the detail page.
+- [x] Revalidate the Users query on mount so membership, ordering, pagination, and summary counts reconcile with the server.
+- [x] Cover cache filtering, multi-query updates, mutation wiring, and remount behavior with focused tests.
+
+### Review
+- **Shipped:** Returning to Users after a successful profile edit immediately shows the new row data for name, title, area, location, role, active state, and avatar. Only roster-safe fields enter list caches.
+- **Verified:** Focused Users/profile tests, ESLint, TypeScript, migration/docs checks, whitespace, `npm run build:app`, and authenticated browser Back navigation.
+- **Deferred:** Pre-request optimistic mutation with rollback is intentionally not used. The roster changes after the server accepts the save, which avoids showing a profile change that failed to persist.
+
+## Roster labels and add-users polish - 2026-07-16
+
+### Goal
+- Make student roster titles useful without maintaining duplicate profile text, simplify the Users header, and strengthen the shared invitation dialog while preserving its invite-first and role-gated contracts.
+
+### Peer patterns checked
+- `items`: confirms the Users header can stay action-led without explanatory subtitle copy.
+- `resources`: confirms area labels must include Live Production anywhere assignment areas are presented.
+- `profile-completion`: confirms a concise icon-led dialog header and neutral security callout fit the current web design language.
+
+### Plan
+- [x] Derive Student roster titles from primary area and avoid repeating the area in compact cards.
+- [x] Rename the primary invitation command and shared dialog to Add users, remove the Users subtitle, and strengthen dialog hierarchy.
+- [x] Verify Missing photos remains limited to Staff/Admin and preserve that gate in regression coverage.
+- [x] Verify Live Production comes from the shared Users area options and renders with a human label.
+- [x] Run focused tests, TypeScript, lint, migration/docs/build gates, and authenticated browser proof.
+
+### Review
+- **Shipped:** Student roster titles now derive from the shared primary-area label plus Student status, the Users header is quieter, and every active invitation entry point uses the stronger Add users dialog hierarchy.
+- **Verified:** 28 focused Users/onboarding tests, focused ESLint, TypeScript, all 96 migration prefixes, codemap/docs checks, whitespace, and `npm run build:app` passed. Authenticated localhost browser proof covered William's `Video Student` row, the revised dialog, Staff/Admin-only Missing photos visibility, and the global Live Production option with no console warnings or errors.
+- **Deferred:** None for this slice. Stored Staff/Admin titles and invitation API behavior are intentionally unchanged.
+
 ## Sweeping Users Pass - 2026-07-10
 
 ### Goal

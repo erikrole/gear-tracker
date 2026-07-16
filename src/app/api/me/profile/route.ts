@@ -13,7 +13,7 @@ const putSchema = z.object({
   personalPhone: nullableProfilePhoneSchema,
   workPhone: nullableProfilePhoneSchema,
   wiscardNumber: z.string().max(128).nullable().optional().transform((s) => normalizeWiscardNumber(s)),
-  primaryArea: z.enum(["VIDEO", "PHOTO", "GRAPHICS", "COMMS"]).nullable(),
+  primaryArea: z.enum(["VIDEO", "PHOTO", "GRAPHICS", "COMMS", "LIVE_PRODUCTION"]).nullable(),
   title: z.string().max(100).nullable().transform((s) => s?.trim() || null),
   athleticsEmail: z
     .string()
@@ -29,6 +29,8 @@ function auditProfileData(data: Record<string, unknown>): Record<string, unknown
     key,
     key === "phone" || key === "personalPhone" || key === "workPhone"
       ? phoneAuditValue(value)
+      : key === "wiscardNumber"
+        ? (value == null ? null : "[set]")
       : value,
   ]));
 }

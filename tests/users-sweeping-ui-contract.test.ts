@@ -16,6 +16,29 @@ describe("Users sweeping ownership contracts", () => {
     expect(page).toContain('aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}');
   });
 
+  it("derives student roster titles from primary area and keeps roster cleanup staff-only", () => {
+    const page = source("src/app/(app)/users/page.tsx");
+    const row = source("src/app/(app)/users/UserRow.tsx");
+    const types = source("src/app/(app)/users/types.ts");
+
+    expect(row).toContain('user.role === "STUDENT"');
+    expect(row).toContain('`${area} Student`');
+    expect(row).toContain('AREA_LABELS[area]');
+    expect(page).toContain('canEdit && stats.missingPhotos > 0');
+    expect(types).toContain('LIVE_PRODUCTION: "Live Production"');
+  });
+
+  it("uses the concise Add users command and omits the roster subtitle", () => {
+    const page = source("src/app/(app)/users/page.tsx");
+    const dialog = source("src/components/onboarding/OnboardingDialog.tsx");
+
+    expect(page).toContain('<PageHeader title="Users">');
+    expect(page).not.toContain("Find people, manage access, and review roster health.");
+    expect(page).toContain("Add users");
+    expect(dialog).toContain("Grant registration access to one person or paste a roster.");
+    expect(dialog).toContain("Invite-only access");
+  });
+
   it("keeps onboarding direct and viewport-safe", () => {
     const users = source("src/app/(app)/users/page.tsx");
     const status = source("src/app/(app)/users/onboarding-status/page.tsx");

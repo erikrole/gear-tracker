@@ -113,7 +113,7 @@ type Props = {
   currentUserRole?: string;
 };
 
-const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"] as const;
+const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS", "LIVE_PRODUCTION"] as const;
 
 function publicationLabel(publication: ShiftGroupDetail["publication"]) {
   if (!publication?.publishedAt) return { label: "Draft", variant: "gray" as const };

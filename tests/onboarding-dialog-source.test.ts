@@ -5,7 +5,7 @@ describe("onboarding dialog source wiring", () => {
   it("presents one shared invite-first flow without temporary-password onboarding", () => {
     const source = readFileSync("src/components/onboarding/OnboardingDialog.tsx", "utf8");
 
-    expect(source).toContain("registration allowlist");
+    expect(source).toContain("Grant registration access");
     expect(source).toContain('fetch("/api/allowed-emails"');
     expect(source).toContain("Max 50 per batch");
     expect(source).toContain("already allowlisted or registered");
@@ -57,13 +57,13 @@ describe("onboarding dialog source wiring", () => {
     const usersSource = readFileSync("src/app/(app)/users/page.tsx", "utf8");
     const allowedEmailsSource = readFileSync("src/app/(app)/settings/allowed-emails/page.tsx", "utf8");
 
-    expect(usersSource).toContain("Onboard users");
+    expect(usersSource).toContain("Add users");
     expect(usersSource).toContain("onInvitesChanged={() => reload()}");
     expect(usersSource).not.toContain("initialMode=\"invite\"");
     expect(usersSource).not.toContain("onCreated={() => reload()}");
 
     expect(allowedEmailsSource).toContain("OnboardingDialog");
-    expect(allowedEmailsSource).toContain("Onboard users");
+    expect(allowedEmailsSource).toContain("Add users");
     expect(allowedEmailsSource).toContain('url: "/api/me"');
     expect(allowedEmailsSource).not.toContain('url: "/api/form-options"');
   });

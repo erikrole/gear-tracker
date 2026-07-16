@@ -330,6 +330,7 @@ export default function UsersPage() {
     url: usersUrl,
     transform: (json) => json as unknown as ListResponse,
     keepPreviousData: true,
+    refetchOnMount: "always",
   });
 
   const users = listData?.data ?? [];
@@ -381,7 +382,7 @@ export default function UsersPage() {
   return (
     <FadeUp>
       {/* Header */}
-      <PageHeader title="Users" description="Find people, manage access, and review roster health.">
+      <PageHeader title="Users">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button variant="ghost" size="icon" className="size-10" onClick={reload} disabled={loading || refreshing} aria-label="Refresh users list">
@@ -420,7 +421,7 @@ export default function UsersPage() {
         {canEdit && (
           <Button onClick={() => setShowCreate(true)}>
             <UserPlus data-icon="inline-start" />
-            Onboard users
+            Add users
           </Button>
         )}
       </PageHeader>
@@ -532,10 +533,10 @@ export default function UsersPage() {
               hasFilters
                 ? "Try adjusting your search or filters."
                 : canEdit
-                  ? "Onboard users to add registration access."
+                  ? "Add users to grant registration access."
                   : undefined
             }
-            actionLabel={hasFilters ? "Clear filters" : canEdit ? "Onboard users" : undefined}
+            actionLabel={hasFilters ? "Clear filters" : canEdit ? "Add users" : undefined}
             onAction={hasFilters ? clearFilters : canEdit ? () => setShowCreate(true) : undefined}
           />
         ) : (

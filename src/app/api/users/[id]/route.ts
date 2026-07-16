@@ -5,7 +5,7 @@ import { HttpError, ok } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 import { deactivateUserWithCleanup } from "@/lib/services/user-deactivation";
-import { normalizeSlackHandle, normalizeSlackProfileUrl, normalizeWiscardNumber, slackHandleSchema, slackProfileUrlSchema, wiscardNumberSchema } from "@/lib/validation";
+import { normalizeSlackHandle, normalizeSlackProfileUrl, normalizeWiscardNumber, slackHandleSchema, slackProfileUrlSchema, validateBirthdayParts, wiscardCardNumberSchema, wiscardIssueCodeSchema, wiscardNumberSchema } from "@/lib/validation";
 import { canReadUserProfile } from "@/lib/user-visibility";
 import { normalizeProfilePhone, nullableProfilePhoneSchema, phoneAuditValue } from "@/lib/profile-phone";
 import { z } from "zod";
@@ -18,6 +18,8 @@ const updateUserSchema = z.object({
   personalPhone: nullableProfilePhoneSchema,
   workPhone: nullableProfilePhoneSchema,
   wiscardNumber: wiscardNumberSchema,
+  wiscardCardNumber: wiscardCardNumberSchema,
+  wiscardIssueCode: wiscardIssueCodeSchema,
   slackHandle: slackHandleSchema,
   slackProfileUrl: slackProfileUrlSchema,
   primaryArea: z.nativeEnum(ShiftArea).nullable().optional(),
@@ -30,18 +32,29 @@ const updateUserSchema = z.object({
   gradYear: z.number().int().min(1900).max(2100).nullable().optional(),
   studentYearOverride: z.nativeEnum(StudentYear).nullable().optional(),
   topSize: z.string().max(40).nullable().optional(),
+  topSizeFit: z.enum(["UNISEX", "WOMENS", "MENS"]).nullable().optional(),
   bottomSize: z.string().max(40).nullable().optional(),
   shoeSize: z.string().max(40).nullable().optional(),
+  shoeSizeSystem: z.enum(["US_WOMENS", "US_MENS"]).nullable().optional(),
+  birthdayMonth: z.number().int().min(1).max(12).nullable().optional(),
+  birthdayDay: z.number().int().min(1).max(31).nullable().optional(),
+  birthYear: z.number().int().min(1900).max(2100).nullable().optional(),
   // Staff/admin only — direct report (FK + free-text fallback).
   directReportId: z.string().cuid().nullable().optional(),
   directReportName: z.string().trim().max(120).nullable().optional(),
-});
+}).superRefine(validateBirthdayParts);
 
 const MAX_DIRECT_REPORT_CHAIN_DEPTH = 50;
 const PHONE_AUDIT_FIELDS = new Set(["phone", "personalPhone", "workPhone"]);
+const PRESENCE_ONLY_AUDIT_FIELDS = new Set([
+  "wiscardNumber", "wiscardCardNumber", "wiscardIssueCode",
+  "birthdayMonth", "birthdayDay", "birthYear",
+]);
 
 function auditProfileValue(key: string, value: unknown): unknown {
-  return PHONE_AUDIT_FIELDS.has(key) ? phoneAuditValue(value) : value;
+  if (PHONE_AUDIT_FIELDS.has(key)) return phoneAuditValue(value);
+  if (PRESENCE_ONLY_AUDIT_FIELDS.has(key)) return value == null ? null : "[set]";
+  return value;
 }
 
 async function assertDirectReportAssignment(targetUserId: string, directReportId: string) {
@@ -112,6 +125,8 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
       workPhone: target.workPhone ?? null,
       workPhoneNotApplicable: target.workPhoneNotApplicable,
       wiscardNumber: target.wiscardNumber ?? null,
+      wiscardCardNumber: target.wiscardCardNumber ?? null,
+      wiscardIssueCode: target.wiscardIssueCode ?? null,
       slackHandle: target.slackHandle ?? null,
       slackProfileUrl: target.slackProfileUrl ?? null,
       primaryArea: target.primaryArea,
@@ -133,8 +148,13 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
       gradYear: target.gradYear ?? null,
       studentYearOverride: target.studentYearOverride ?? null,
       topSize: target.topSize ?? null,
+      topSizeFit: target.topSizeFit ?? null,
       bottomSize: target.bottomSize ?? null,
       shoeSize: target.shoeSize ?? null,
+      shoeSizeSystem: target.shoeSizeSystem ?? null,
+      birthdayMonth: target.birthdayMonth ?? null,
+      birthdayDay: target.birthdayDay ?? null,
+      birthYear: isSelfOrAdmin ? (target.birthYear ?? null) : undefined,
     },
   });
 });
@@ -143,6 +163,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   requireRole(user.role, ["ADMIN", "STAFF"]);
 
   const { id } = params;
+  const canViewBirthYear = user.id === id || user.role === "ADMIN";
   const body = updateUserSchema.parse(await req.json());
 
   const target = await db.user.findUnique({ where: { id } });
@@ -153,6 +174,9 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   // STAFF can only edit STUDENT users — not other STAFF or ADMIN
   if (user.role === "STAFF" && target.role !== "STUDENT") {
     throw new HttpError(403, "Staff can only edit student profiles");
+  }
+  if (user.role !== "ADMIN" && Object.prototype.hasOwnProperty.call(body, "birthYear")) {
+    throw new HttpError(403, "Only the user or an admin can update the birth year");
   }
 
   const updateData: Record<string, unknown> = {};
@@ -189,6 +213,13 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   }
   if (Object.prototype.hasOwnProperty.call(body, "wiscardNumber")) {
     updateData.wiscardNumber = normalizeWiscardNumber(body.wiscardNumber);
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "wiscardCardNumber") || Object.prototype.hasOwnProperty.call(body, "wiscardIssueCode")) {
+    const cardNumber = Object.prototype.hasOwnProperty.call(body, "wiscardCardNumber") ? body.wiscardCardNumber : target.wiscardCardNumber;
+    const issueCode = Object.prototype.hasOwnProperty.call(body, "wiscardIssueCode") ? body.wiscardIssueCode : target.wiscardIssueCode;
+    updateData.wiscardCardNumber = cardNumber || null;
+    updateData.wiscardIssueCode = issueCode || null;
+    updateData.wiscardNumber = cardNumber && issueCode ? `${cardNumber}${issueCode}` : null;
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "slackHandle")) {
@@ -240,12 +271,17 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   if (Object.prototype.hasOwnProperty.call(body, "topSize")) {
     updateData.topSize = body.topSize ?? null;
   }
+  if (Object.prototype.hasOwnProperty.call(body, "topSizeFit")) updateData.topSizeFit = body.topSizeFit ?? null;
   if (Object.prototype.hasOwnProperty.call(body, "bottomSize")) {
     updateData.bottomSize = body.bottomSize ?? null;
   }
   if (Object.prototype.hasOwnProperty.call(body, "shoeSize")) {
     updateData.shoeSize = body.shoeSize ?? null;
   }
+  if (Object.prototype.hasOwnProperty.call(body, "shoeSizeSystem")) updateData.shoeSizeSystem = body.shoeSizeSystem ?? null;
+  if (Object.prototype.hasOwnProperty.call(body, "birthdayMonth")) updateData.birthdayMonth = body.birthdayMonth ?? null;
+  if (Object.prototype.hasOwnProperty.call(body, "birthdayDay")) updateData.birthdayDay = body.birthdayDay ?? null;
+  if (Object.prototype.hasOwnProperty.call(body, "birthYear")) updateData.birthYear = body.birthYear ?? null;
 
   // Direct report — staff/admin only. UI sends *either* a cuid (existing user)
   // *or* a free-text name. Setting one nulls the other so display logic stays unambiguous.
@@ -294,7 +330,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       if (target.some((t) => t.includes("athletics_email"))) {
         throw new HttpError(409, "That athletics email is already in use");
       }
-      if (target.some((t) => t.includes("wiscard_number") || t.includes("wiscardNumber"))) {
+      if (target.some((t) => t.includes("wiscard_number") || t.includes("wiscardNumber") || t.includes("wiscard_card_number"))) {
         throw new HttpError(409, "That Wiscard value is already linked to another account");
       }
       throw new HttpError(409, "A user with this email already exists");
@@ -330,6 +366,8 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       workPhone: updated.workPhone ?? null,
       workPhoneNotApplicable: updated.workPhoneNotApplicable,
       wiscardNumber: updated.wiscardNumber ?? null,
+      wiscardCardNumber: updated.wiscardCardNumber ?? null,
+      wiscardIssueCode: updated.wiscardIssueCode ?? null,
       slackHandle: updated.slackHandle ?? null,
       slackProfileUrl: updated.slackProfileUrl ?? null,
       primaryArea: updated.primaryArea,
@@ -350,8 +388,13 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       gradYear: updated.gradYear ?? null,
       studentYearOverride: updated.studentYearOverride ?? null,
       topSize: updated.topSize ?? null,
+      topSizeFit: updated.topSizeFit ?? null,
       bottomSize: updated.bottomSize ?? null,
       shoeSize: updated.shoeSize ?? null,
+      shoeSizeSystem: updated.shoeSizeSystem ?? null,
+      birthdayMonth: updated.birthdayMonth ?? null,
+      birthdayDay: updated.birthdayDay ?? null,
+      birthYear: canViewBirthYear ? (updated.birthYear ?? null) : undefined,
     },
   });
 });

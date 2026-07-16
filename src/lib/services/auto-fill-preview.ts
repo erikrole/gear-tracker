@@ -39,7 +39,7 @@ type BuildPreviewArgs = {
 };
 
 const ACTIVE_STATUSES = new Set<string>(ACTIVE_ASSIGNMENT_STATUSES);
-const AREA_ORDER = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"] as const;
+const AREA_ORDER = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS", "LIVE_PRODUCTION"] as const;
 const AREA_RANK = new Map<string, number>(AREA_ORDER.map((area, index) => [area, index]));
 
 function userMatchesShift(workerType: string, user: PreviewUser) {

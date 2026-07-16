@@ -36,7 +36,7 @@ import { requireAuth } from "@/lib/auth";
 import { createAuditEntry } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { GET } from "@/app/api/users/route";
-import { PATCH } from "@/app/api/users/[id]/route";
+import { GET as GET_DETAIL, PATCH } from "@/app/api/users/[id]/route";
 import { deactivateUserWithCleanup } from "@/lib/services/user-deactivation";
 
 const adminUser = {
@@ -62,6 +62,12 @@ function patchRequest(body: Record<string, unknown>) {
   });
 }
 
+function detailRequest() {
+  return new Request(`https://app.example.com/api/users/${targetId}`, {
+    headers: { host: "app.example.com" },
+  });
+}
+
 function routeParams(id = targetId) {
   return { params: Promise.resolve({ id }) };
 }
@@ -72,6 +78,7 @@ function makeUser(overrides: Record<string, unknown> = {}) {
     name: "Student One",
     email: "student@test.com",
     role: "STUDENT",
+    staffingType: "ST",
     locationId: null,
     location: null,
     phone: null,
@@ -83,6 +90,7 @@ function makeUser(overrides: Record<string, unknown> = {}) {
     primaryArea: null,
     avatarUrl: null,
     active: true,
+    hiddenFromRoster: false,
     lastActiveAt: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     sportAssignments: [],
@@ -98,6 +106,11 @@ function makeUser(overrides: Record<string, unknown> = {}) {
     topSize: null,
     bottomSize: null,
     shoeSize: null,
+    topSizeFit: null,
+    shoeSizeSystem: null,
+    birthdayMonth: 7,
+    birthdayDay: 15,
+    birthYear: 1995,
     ...overrides,
   };
 }
@@ -204,16 +217,53 @@ describe("GET /api/users", () => {
   });
 });
 
+describe("GET /api/users/[id]", () => {
+  it("omits the birth year when staff view another user's profile", async () => {
+    vi.mocked(requireAuth).mockResolvedValue({ ...adminUser, id: managerId, role: "STAFF" });
+    vi.mocked(db.user.findUnique).mockResolvedValueOnce(userRow(makeUser()));
+
+    const res = await GET_DETAIL(detailRequest(), routeParams());
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data.birthdayMonth).toBe(7);
+    expect(body.data.birthdayDay).toBe(15);
+    expect(body.data).not.toHaveProperty("birthYear");
+  });
+
+  it("returns the birth year to admins", async () => {
+    vi.mocked(db.user.findUnique).mockResolvedValueOnce(userRow(makeUser()));
+
+    const res = await GET_DETAIL(detailRequest(), routeParams());
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data.birthYear).toBe(1995);
+  });
+});
+
 describe("PATCH /api/users/[id]", () => {
+  it("blocks staff from changing another user's birth year", async () => {
+    vi.mocked(requireAuth).mockResolvedValue({ ...adminUser, id: managerId, role: "STAFF" });
+    vi.mocked(db.user.findUnique).mockResolvedValueOnce(userRow(makeUser()));
+
+    const res = await PATCH(patchRequest({ birthYear: 1996 }), routeParams());
+    const body = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(body.error).toContain("Only the user or an admin");
+    expect(db.user.update).not.toHaveBeenCalled();
+  });
+
   it("saves distinct phone fields while keeping the legacy phone synced to personal", async () => {
     vi.mocked(db.user.findUnique).mockResolvedValueOnce(userRow(makeUser({
       phone: "608-555-0100",
       personalPhone: "608-555-0100",
     })));
     vi.mocked(db.user.update).mockResolvedValueOnce(updatedUser(makeUser({
-      phone: "608-555-0111",
-      personalPhone: "608-555-0111",
-      workPhone: "608-555-0222",
+      phone: "(608) 555-0111",
+      personalPhone: "(608) 555-0111",
+      workPhone: "(608) 555-0222",
       workPhoneNotApplicable: false,
     })));
 
@@ -229,15 +279,15 @@ describe("PATCH /api/users/[id]", () => {
     expect(res.status).toBe(200);
     expect(db.user.update).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
-        phone: "608-555-0111",
-        personalPhone: "608-555-0111",
-        workPhone: "608-555-0222",
+        phone: "(608) 555-0111",
+        personalPhone: "(608) 555-0111",
+        workPhone: "(608) 555-0222",
         workPhoneNotApplicable: false,
       }),
     }));
     expect(body.data).toEqual(expect.objectContaining({
-      personalPhone: "608-555-0111",
-      workPhone: "608-555-0222",
+      personalPhone: "(608) 555-0111",
+      workPhone: "(608) 555-0222",
       workPhoneNotApplicable: false,
     }));
     expect(createAuditEntry).toHaveBeenCalledWith(expect.objectContaining({
@@ -247,6 +297,52 @@ describe("PATCH /api/users/[id]", () => {
       }),
     }));
     expect(JSON.stringify(vi.mocked(createAuditEntry).mock.calls.at(-1))).not.toContain("608-555");
+  });
+
+  it("stores split Wiscard values while preserving the combined kiosk lookup", async () => {
+    vi.mocked(db.user.findUnique).mockResolvedValueOnce(userRow(makeUser({
+      wiscardCardNumber: null,
+      wiscardIssueCode: null,
+    })));
+    vi.mocked(db.user.update).mockResolvedValueOnce(updatedUser(makeUser({
+      wiscardCardNumber: "9070324810",
+      wiscardIssueCode: "2",
+      wiscardNumber: "90703248102",
+    })));
+
+    const res = await PATCH(
+      patchRequest({ wiscardCardNumber: "9070324810", wiscardIssueCode: "2" }),
+      routeParams(),
+    );
+
+    expect(res.status).toBe(200);
+    expect(db.user.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        wiscardCardNumber: "9070324810",
+        wiscardIssueCode: "2",
+        wiscardNumber: "90703248102",
+      }),
+    }));
+    expect(JSON.stringify(vi.mocked(createAuditEntry).mock.calls.at(-1))).not.toContain("9070324810");
+  });
+
+  it("stores birthday month and day with a nullable birth year", async () => {
+    vi.mocked(db.user.findUnique).mockResolvedValueOnce(userRow(makeUser()));
+    vi.mocked(db.user.update).mockResolvedValueOnce(updatedUser(makeUser({
+      birthdayMonth: 7,
+      birthdayDay: 15,
+      birthYear: null,
+    })));
+
+    const res = await PATCH(
+      patchRequest({ birthdayMonth: 7, birthdayDay: 15, birthYear: null }),
+      routeParams(),
+    );
+
+    expect(res.status).toBe(200);
+    expect(db.user.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ birthdayMonth: 7, birthdayDay: 15, birthYear: null }),
+    }));
   });
 
   it("rejects profile changes bundled with destructive deactivation", async () => {

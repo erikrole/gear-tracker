@@ -2,7 +2,7 @@ import { memo } from "react";
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { UserRow as UserRowType } from "./types";
+import { AREA_LABELS, type UserRow as UserRowType } from "./types";
 import RoleBadge from "./RoleBadge";
 import { formatRelativeTime } from "@/lib/format";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -14,6 +14,10 @@ import { cn } from "@/lib/utils";
 const ACTIVE_NOW_MS = 1000 * 60 * 5;
 
 function titleLabel(user: UserRowType): string | null {
+  if (user.role === "STUDENT") {
+    const area = areaLabel(user.primaryArea);
+    return area ? `${area} Student` : "Student";
+  }
   if (user.title) return user.title;
   return null;
 }
@@ -41,6 +45,7 @@ function lastActiveTitle(lastActiveAt: string | null): string | undefined {
 
 function areaLabel(area: string | null): string | null {
   if (!area) return null;
+  if (AREA_LABELS[area]) return AREA_LABELS[area];
   const lower = area.toLowerCase();
   return lower.charAt(0).toUpperCase() + lower.slice(1);
 }
@@ -48,7 +53,7 @@ function areaLabel(area: string | null): string | null {
 function mobileMetaParts(user: UserRowType): string[] {
   return [
     titleLabel(user),
-    areaLabel(user.primaryArea),
+    user.role === "STUDENT" ? null : areaLabel(user.primaryArea),
     user.location,
     user.lastActiveAt ? `Active ${lastActiveLabel(user.lastActiveAt)}` : "Never active",
   ].filter((part): part is string => Boolean(part));

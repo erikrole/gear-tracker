@@ -100,6 +100,9 @@ function makeUser(overrides: Partial<User> = {}): User {
     profilePromptSnoozedUntil: null,
     topSizeFit: null,
     shoeSizeSystem: null,
+    birthdayMonth: null,
+    birthdayDay: null,
+    birthYear: null,
     icsToken: null,
     ...overrides,
   };

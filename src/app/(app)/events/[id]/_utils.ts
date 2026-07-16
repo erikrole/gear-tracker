@@ -100,6 +100,7 @@ export const AREA_LABELS: Record<string, string> = {
   PHOTO: "Photo",
   GRAPHICS: "Graphics",
   COMMS: "Comms",
+  LIVE_PRODUCTION: "Live Production",
 };
 
 export const WORKER_LABELS: Record<string, string> = {

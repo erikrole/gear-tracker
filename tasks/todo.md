@@ -1,6 +1,40 @@
 # Task Queue
 
-Last updated: 2026-07-15
+Last updated: 2026-07-16
+
+---
+## Completed: Users roster labels and Add users polish (2026-07-16)
+
+- [x] Derive Student roster titles from primary area and Student status.
+- [x] Rename invitation commands to Add users and remove the Users subtitle.
+- [x] Strengthen the shared invite-first dialog hierarchy without changing submission behavior.
+- [x] Confirm Missing photos remains Staff/Admin-only and Live Production remains globally selectable.
+- [x] Complete repository gates and record final dev-server handoff.
+
+### Review
+
+- **Shipped:** William and other Video students now read `Video Student` in the roster, with the equivalent shared area label used for Photo, Graphics, Communications, and Live Production students. The dialog now separates Paste a roster from Add one person with clearer access guidance and a count-aware submit label.
+- **Boundary:** This is display derivation only. It does not overwrite stored profile titles or change user roles, permissions, invitation APIs, or the Staff/Admin visibility gate for roster cleanup metrics.
+- **Browser proof:** Authenticated localhost verified the derived William row, concise Users header, Add users dialog, and Live Production option without submitting data.
+- **Verified:** 28 focused Users/onboarding tests, focused ESLint, TypeScript, all 96 migration prefixes, codemap/docs checks, whitespace, and `npm run build:app` passed. The dev server was restarted cleanly at `http://localhost:3001` for follow-up work.
+
+## Completed: Annotated web profile-data standardization (2026-07-15)
+
+- [x] Standardize Personal and Work phone input and storage formatting.
+- [x] Hide Slack profile fields without removing their schema columns.
+- [x] Separate Wiscard card number and issue code while preserving the combined kiosk lookup.
+- [x] Add standardized clothing and shoe size systems plus birthday month/day and nullable year.
+- [x] Add Live Production to assignment areas and every exhaustive area contract.
+- [x] Apply profile-page hierarchy, completion-notice, direct-report badge, and password-action feedback.
+- [x] Add focused validation, API, and source-contract coverage.
+- [x] Refine apparel sizing, birth-year privacy, one-row Wiscard editing, and profile-photo cropping from authenticated browser feedback.
+
+### Review
+
+- **Shipped:** The web profile now uses the person's name, masks both phone inputs into `(XXX) XXX-XXXX`, keeps the ten-digit Wiscard number and one-digit issue code together on one desktop row, standardizes top and bottom apparel sizes, assumes US for visible shoe sizing, protects birth year from other viewers, lets authorized users crop and reposition profile photos, hides stored Slack fields, removes redundant completion and direct-report badges, and routes password changes through the top profile menu.
+- **Data:** Migration `0094_user_birthday_and_live_production` adds birthday month/day/year columns and the `LIVE_PRODUCTION` area enum. Existing combined Wiscard lookup values and Slack data are retained.
+- **Verified:** 58 focused profile, Users, Resources, and Schedule tests passed with focused ESLint, TypeScript, Prisma validation, all 96 migration prefixes, codemap/docs checks, whitespace checks, and `npm run build:app`.
+- **Deployment:** `0094_user_birthday_and_live_production` was applied to Neon through the repository's HTTP fallback on 2026-07-15. Live health reports all 96 local migrations applied, no pending migrations, no unresolved failures, and no database-only migrations. Authenticated localhost browser proof now covers the refined profile layout and selectors; automated file selection remained unavailable for the crop dialog.
 
 ---
 ## Completed: Booking and Schedule title normalization (2026-07-15)

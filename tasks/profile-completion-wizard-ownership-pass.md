@@ -36,6 +36,7 @@
 - [x] Slice 4: Add self-profile completion guidance and highlight missing fields without changing other users' profile views.
 - [x] Slice 5: Add focused API, source-contract, and completion-calculation tests; sync Users docs and risks.
 - [x] Hardening follow-up: Make profile and audit writes atomic, mask sensitive audit values, enforce explicit self-profile permission, minimize the response, and validate phone digit count.
+- [x] Annotation follow-up: Keep Wiscard number and issue code on one desktop row, assume US in shoe labels, limit bottoms to apparel sizes, protect birth year at the API boundary, and add a client-side avatar crop step.
 
 ## Verification
 - [x] Focused Vitest for profile completion, API authorization/validation, and web source contracts.
@@ -56,3 +57,10 @@
 - Blocked: Authenticated browser proof is unavailable because no isolated Playwright target or credentials are configured, and a real runtime also needs migration 0092 applied first. The earlier build stall was isolated to stale `.next` output; a clean production build completed successfully with lint verified independently.
 - Proof artifacts: Focused command output in this task session; no browser screenshots claimed.
 - Next slice or stop: Stop implementation. Apply migration 0092 in a controlled environment, then run authenticated desktop smoke for auto-open, each saved step, one-day snooze, resume, and profile review.
+
+## 2026-07-15 Annotation Follow-up Proof
+- Shipped: Bottom sizes use the same XXS–4XL apparel scale as tops; shoe system labels display Women’s/Men’s while stored US enums remain compatible; Wiscard number and issue code share one desktop row with a persistent issue-code label and help tooltip; avatar replacement opens a crop dialog with drag, zoom, horizontal, vertical, and reset controls.
+- Privacy: Staff responses omit another member's birth year, and staff PATCH attempts to change it return 403. The member's self-profile route and admin user-detail route retain year access.
+- Browser: Authenticated localhost proof confirmed the one-row Wiscard layout, explicit labels, Men’s shoe display, apparel-only bottom options, Live Production assignment, and a clean page console. File-selection automation was unavailable, so the crop dialog interaction is covered by TypeScript, lint, and source-contract tests rather than a browser-selected image.
+- Verified: 36 focused profile tests, TypeScript, focused ESLint, migration-prefix validation, codemap/docs checks, `git diff --check`, and `npm run build:app` with all 198 static pages generated.
+- Next slice or stop: Stop. No schema or deployment work is required for this follow-up.

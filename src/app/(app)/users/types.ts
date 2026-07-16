@@ -44,6 +44,8 @@ export type UserDetail = UserRow & {
   personalPhone: string | null;
   workPhone: string | null;
   workPhoneNotApplicable: boolean;
+  wiscardCardNumber: string | null;
+  wiscardIssueCode: string | null;
   sportAssignments: SportAssignment[];
   areaAssignments: AreaAssignment[];
   icsToken?: string | null;
@@ -57,8 +59,13 @@ export type UserDetail = UserRow & {
   gradYear: number | null;
   studentYearOverride: StudentYear | null;
   topSize: string | null;
+  topSizeFit: "UNISEX" | "WOMENS" | "MENS" | null;
   bottomSize: string | null;
   shoeSize: string | null;
+  shoeSizeSystem: "US_WOMENS" | "US_MENS" | null;
+  birthdayMonth: number | null;
+  birthdayDay: number | null;
+  birthYear?: number | null;
 };
 
 export const STUDENT_YEAR_OPTIONS: { value: StudentYear; label: string }[] = [
@@ -134,6 +141,7 @@ export const AREA_LABELS: Record<string, string> = {
   PHOTO: "Photo",
   GRAPHICS: "Graphics",
   COMMS: "Communications",
+  LIVE_PRODUCTION: "Live Production",
 };
 
 export const AREA_OPTIONS = Object.entries(AREA_LABELS).map(([value, label]) => ({

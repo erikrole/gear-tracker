@@ -123,7 +123,7 @@ type OpenWorkResponse = {
   pickupRequests: PickupRequest[];
 };
 
-const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"] as const;
+const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS", "LIVE_PRODUCTION"] as const;
 const TRADE_STATUSES = ["OPEN", "CLAIMED", "COMPLETED", "CANCELLED"] as const;
 
 const STATUS_OPTIONS = [
