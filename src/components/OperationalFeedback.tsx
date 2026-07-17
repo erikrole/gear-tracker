@@ -56,7 +56,7 @@ export function OperationalMetricCard({
       className={cn(
         "h-full min-h-[104px] border-border/40 shadow-none",
         (href || onClick) && "cursor-pointer transition-[background-color,box-shadow,scale] hover:bg-muted/50 hover:shadow-xs active:scale-[0.99]",
-        ariaPressed && "border-primary/40 bg-primary/5 shadow-[inset_3px_0_0_hsl(var(--primary))]",
+        ariaPressed && "border-primary/40 bg-primary/5 shadow-[inset_3px_0_0_var(--primary)]",
         className,
       )}
     >

@@ -356,10 +356,10 @@ export default function BookingsPage() {
               className="shrink-0 rounded-md border border-border/60 bg-background p-0.5"
               aria-label="Booking time scope"
             >
-              <ToggleGroupItem value="active" className="h-9 px-3 text-xs" aria-label="Show active bookings">
+              <ToggleGroupItem value="active" className="h-10 px-3 text-xs" aria-label="Show active bookings">
                 Active
               </ToggleGroupItem>
-              <ToggleGroupItem value="past" className="h-9 px-3 text-xs" aria-label="Show past bookings">
+              <ToggleGroupItem value="past" className="h-10 px-3 text-xs" aria-label="Show past bookings">
                 Past
               </ToggleGroupItem>
             </ToggleGroup>
@@ -372,10 +372,10 @@ export default function BookingsPage() {
               className={`shrink-0 ${preferencesLoaded ? "" : "opacity-80"}`}
               aria-label="Booking view"
             >
-              <ToggleGroupItem value="cards" className="size-9 p-0" aria-label="Card view">
+              <ToggleGroupItem value="cards" className="size-10 p-0" aria-label="Card view">
                 <LayoutGridIcon className="size-4" />
               </ToggleGroupItem>
-              <ToggleGroupItem value="table" className="size-9 p-0" aria-label="List view">
+              <ToggleGroupItem value="table" className="size-10 p-0" aria-label="List view">
                 <ListIcon className="size-4" />
               </ToggleGroupItem>
             </ToggleGroup>

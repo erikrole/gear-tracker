@@ -60,8 +60,21 @@ type AllowedEmail = {
 };
 
 type AllowedEmailsResponse = {
-  data: AllowedEmail[];
-  total: number;
+  invitations: AllowedEmail[];
+  accounts: ReadinessAccount[];
+};
+
+type ReadinessAccount = {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  avatarUrl: string | null;
+  operationalReady: boolean;
+  profileComplete: boolean;
+  missingFields: string[];
+  completedCount: number;
+  totalCount: number;
 };
 
 const STALE_DAYS = 14;
@@ -70,6 +83,18 @@ const ROLE_META: Record<Role, { label: string; variant: BadgeProps["variant"] }>
   STAFF: { label: "Staff", variant: "blue" },
   STUDENT: { label: "Student", variant: "gray" },
   COLLABORATOR: { label: "Collaborator", variant: "blue" },
+};
+const READINESS_FIELD_LABELS: Record<string, string> = {
+  campusEmail: "Campus login",
+  athleticsEmail: "Athletics email",
+  personalPhone: "Personal phone",
+  workPhone: "Work phone",
+  wiscard: "Wiscard",
+  studentYear: "Year",
+  anticipatedGraduation: "Graduation",
+  clothingSize: "Clothing size",
+  shoeSize: "Shoe size",
+  photo: "Photo",
 };
 
 function statusFor(item: AllowedEmail, now: Date): OnboardingStatus {
@@ -98,9 +123,12 @@ export default function OnboardingStatusPage() {
     reload,
     lastRefreshed,
   } = useFetch<AllowedEmailsResponse>({
-    url: "/api/allowed-emails?limit=500",
+    url: "/api/users/onboarding-readiness",
     returnTo: "/users/onboarding-status",
-    transform: (json) => ({ data: (json.data as AllowedEmail[]) ?? [], total: (json.total as number) ?? 0 }),
+    transform: (json) => {
+      const payload = json.data as AllowedEmailsResponse | undefined;
+      return { invitations: payload?.invitations ?? [], accounts: payload?.accounts ?? [] };
+    },
   });
 
   const [localRows, setLocalRows] = useState<AllowedEmail[] | null>(null);
@@ -110,8 +138,9 @@ export default function OnboardingStatusPage() {
     setLocalRows(null);
   }
 
-  const fetchedRows = data?.data;
+  const fetchedRows = data?.invitations;
   const rows = useMemo(() => localRows ?? fetchedRows ?? [], [fetchedRows, localRows]);
+  const accounts = useMemo(() => data?.accounts ?? [], [data?.accounts]);
   const enrichedRows = useMemo(
     () => rows.map((row) => ({ ...row, onboardingStatus: statusFor(row, now) })),
     [now, rows],
@@ -127,6 +156,16 @@ export default function OnboardingStatusPage() {
       { total: 0, pending: 0, stale: 0, claimed: 0 },
     );
   }, [enrichedRows]);
+  const readinessCounts = useMemo(() => ({
+    setupNeeded: accounts.filter((account) => !account.operationalReady).length,
+    operational: accounts.filter((account) => account.operationalReady && !account.profileComplete).length,
+    complete: accounts.filter((account) => account.profileComplete).length,
+  }), [accounts]);
+  const visibleAccounts = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return accounts;
+    return accounts.filter((account) => account.name.toLowerCase().includes(normalizedQuery) || account.email.toLowerCase().includes(normalizedQuery));
+  }, [accounts, query]);
 
   const visibleRows = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -158,6 +197,14 @@ export default function OnboardingStatusPage() {
       icon: UserPlus,
       tone: "info" as const,
       onSelect: () => setStatusFilter("pending"),
+    }] : []),
+    ...(readinessCounts.setupNeeded > 0 ? [{
+      id: "setup-needed",
+      label: "Setup needed",
+      value: readinessCounts.setupNeeded,
+      detail: "Active accounts still missing operational essentials.",
+      icon: AlertTriangle,
+      tone: "warning" as const,
     }] : []),
   ];
 
@@ -207,7 +254,7 @@ export default function OnboardingStatusPage() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Onboarding Status"
-        description="Track pending, stale, and claimed onboarding access after roster imports or one-off account setup."
+        description="Track invitations and the readiness of every active account."
       >
         <Button variant="ghost" size="icon" className="size-10" onClick={reload} disabled={loading} aria-label="Refresh onboarding status">
           <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
@@ -225,18 +272,20 @@ export default function OnboardingStatusPage() {
 
       <OperationalStatusRail
         orientation={{
-          label: "Allowlist",
-          value: `${counts.total} ${counts.total === 1 ? "entry" : "entries"}`,
+          label: "Onboarding",
+          value: `${accounts.length} active ${accounts.length === 1 ? "account" : "accounts"}`,
           icon: ClipboardList,
         }}
         items={railItems}
-        allClearLabel={railItems.length === 0 ? "All onboarding access is claimed" : undefined}
+        allClearLabel={railItems.length === 0 ? "All invitations and active accounts are ready" : undefined}
         details={(
-          <div className="grid gap-2 sm:grid-cols-4">
-            <OperationalMetricCard label="Total" value={counts.total} onClick={() => setStatusFilter("all")} ariaPressed={statusFilter === "all"} />
+          <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            <OperationalMetricCard label="Invitations" value={counts.total} onClick={() => setStatusFilter("all")} ariaPressed={statusFilter === "all"} />
             <OperationalMetricCard label="Pending" value={counts.pending} tone={counts.pending ? "blue" : "muted"} onClick={() => setStatusFilter("pending")} ariaPressed={statusFilter === "pending"} />
             <OperationalMetricCard label="Stale pending" value={counts.stale} tone={counts.stale > 0 ? "orange" : "muted"} onClick={() => setStatusFilter("stale")} ariaPressed={statusFilter === "stale"} />
-            <OperationalMetricCard label="Claimed" value={counts.claimed} onClick={() => setStatusFilter("claimed")} ariaPressed={statusFilter === "claimed"} />
+            <OperationalMetricCard label="Setup needed" value={readinessCounts.setupNeeded} tone={readinessCounts.setupNeeded ? "orange" : "muted"} />
+            <OperationalMetricCard label="Operational" value={readinessCounts.operational} tone={readinessCounts.operational ? "blue" : "muted"} />
+            <OperationalMetricCard label="Profile complete" value={readinessCounts.complete} />
           </div>
         )}
       />
@@ -271,11 +320,6 @@ export default function OnboardingStatusPage() {
               </SelectContent>
             </Select>
           </div>
-          {data && data.total > rows.length && (
-            <p className="text-xs text-muted-foreground">
-              Showing the {rows.length} most recent of {data.total} entries. Counts above cover only the loaded rows; use Allowed emails to search older entries.
-            </p>
-          )}
         </CardHeader>
 
         {error ? (
@@ -408,6 +452,28 @@ export default function OnboardingStatusPage() {
             </TableBody>
           </Table>
           </>
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Active account readiness</CardTitle></CardHeader>
+        {visibleAccounts.length === 0 ? (
+          <CardContent><EmptyState inline icon="search" title="No active accounts match" description="Adjust the search above." /></CardContent>
+        ) : (
+          <Table>
+            <TableHeader><TableRow><TableHead>Person</TableHead><TableHead>Role</TableHead><TableHead>Readiness</TableHead><TableHead>Progress</TableHead><TableHead>Missing</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {visibleAccounts.map((account) => (
+                <TableRow key={account.id}>
+                  <TableCell><Link href={`/users/${account.id}`} className="font-medium hover:underline">{account.name}</Link><div className="text-xs text-muted-foreground">{account.email}</div></TableCell>
+                  <TableCell><Badge variant={ROLE_META[account.role].variant} size="sm">{ROLE_META[account.role].label}</Badge></TableCell>
+                  <TableCell>{account.profileComplete ? <Badge variant="green">Profile complete</Badge> : account.operationalReady ? <Badge variant="blue">Operationally ready</Badge> : <Badge variant="orange">Setup needed</Badge>}</TableCell>
+                  <TableCell className="tabular-nums text-muted-foreground">{account.completedCount}/{account.totalCount}</TableCell>
+                  <TableCell className="max-w-sm text-sm text-muted-foreground">{account.missingFields.length ? account.missingFields.map((field) => READINESS_FIELD_LABELS[field] ?? field).join(", ") : "None"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
       </Card>
     </div>

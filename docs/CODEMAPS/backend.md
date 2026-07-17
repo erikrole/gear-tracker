@@ -50,7 +50,7 @@
 | `src/lib/services/schedule-template-review.ts` | 551 |
 | `src/lib/services/shift-assignments.ts` | 628 |
 | `src/lib/services/shift-generation.ts` | 378 |
-| `src/lib/services/shift-trade-emails.ts` | 72 |
+| `src/lib/services/shift-trade-emails.ts` | 56 |
 | `src/lib/services/shift-trades.ts` | 901 |
 | `src/lib/services/sport-configs.ts` | 257 |
 | `src/lib/services/status.ts` | 439 |
@@ -94,7 +94,7 @@
 | `src/lib/csv.ts` | 17 |
 | `src/lib/db.ts` | 18 |
 | `src/lib/editor-snippets.ts` | 28 |
-| `src/lib/email.ts` | 91 |
+| `src/lib/email.ts` | 109 |
 | `src/lib/env.ts` | 88 |
 | `src/lib/equipment-guidance.ts` | 133 |
 | `src/lib/equipment-section-filters.ts` | 87 |
@@ -124,7 +124,7 @@
 | `src/lib/ops-checks.ts` | 176 |
 | `src/lib/permissions.ts` | 171 |
 | `src/lib/profile-completion-events.ts` | 6 |
-| `src/lib/profile-completion.ts` | 100 |
+| `src/lib/profile-completion.ts` | 155 |
 | `src/lib/profile-phone.ts` | 44 |
 | `src/lib/profile-sizing.ts` | 24 |
 | `src/lib/public-showroom.ts` | 444 |
@@ -559,5 +559,6 @@
 - `/api/users/bulk-create`
 - `/api/users/export`
 - `/api/users/hidden-cleanup`
+- `/api/users/onboarding-readiness`
 - `/api/users/org-chart`
 - `/api/users`

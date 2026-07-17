@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { AnimatePresence } from "motion/react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,9 +22,10 @@ import {
 import { ShiftAvatarStack } from "./dashboard-avatars";
 import { DashboardBookingRow, dashboardBookingAccent } from "./booking-row";
 import { dashboardEventTitle } from "./event-title";
-import { DashboardSectionHeader } from "./section-header";
+import { DashboardFooterLink, DashboardSectionHeader } from "./section-header";
 import type { DashboardData } from "../dashboard-types";
 import type { FilteredDashboardData } from "@/hooks/use-dashboard-filters";
+import { DashboardLayoutItem, DashboardStateSurface } from "./dashboard-motion";
 
 type HomeAwayFilter = VenueFilter;
 
@@ -77,87 +79,92 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
       <span className="px-0.5 text-xs font-semibold text-muted-foreground">Team activity</span>
 
       {/* Team Checkouts */}
-      <ScaleIn delay={0}>
-      <Card elevation="flat">
-        <DashboardSectionHeader title="Checked out" href="/bookings?tab=checkouts" count={teamCheckoutsCount} />
-        {visibleTeamCheckouts.length === 0 ? (
-          <div className="flex min-h-16 items-center justify-center gap-2 px-4 py-3 text-center text-sm text-muted-foreground"><InboxIcon className="size-4 opacity-40" />{activeSport ? `No ${activeSport} checkouts` : "No team checkouts right now"}</div>
-        ) : (
-          <CardContent className="p-0">
-            {visibleTeamCheckouts.map((c) => {
-              return (
-                <DashboardBookingRow
-                  key={c.id}
-                  booking={c}
-                  now={now}
-                  accent={dashboardBookingAccent(c, now, "checkout")}
-                  showDueBadge
-                  onSelectBooking={onSelectBooking}
-                />
-              );
-            })}
-            {!hasActiveFilter && data.teamCheckouts.total > data.teamCheckouts.items.length && (
-              <Link href="/bookings?tab=checkouts" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.teamCheckouts.total} &rarr;</Link>
+      <DashboardLayoutItem>
+        <ScaleIn delay={0}>
+          <Card elevation="flat">
+            <DashboardSectionHeader title="Checked out" href="/bookings?tab=checkouts" count={teamCheckoutsCount} />
+            {visibleTeamCheckouts.length === 0 ? (
+              <div className="flex min-h-16 items-center justify-center gap-2 px-4 py-3 text-center text-sm text-muted-foreground"><InboxIcon className="size-4 opacity-40" />{activeSport ? `No ${activeSport} checkouts` : "No team checkouts right now"}</div>
+            ) : (
+              <CardContent className="p-0">
+                {visibleTeamCheckouts.map((c) => {
+                  return (
+                    <DashboardBookingRow
+                      key={c.id}
+                      booking={c}
+                      now={now}
+                      accent={dashboardBookingAccent(c, now, "checkout")}
+                      showDueBadge
+                      onSelectBooking={onSelectBooking}
+                    />
+                  );
+                })}
+                {!hasActiveFilter && data.teamCheckouts.total > data.teamCheckouts.items.length && (
+                  <DashboardFooterLink href="/bookings?tab=checkouts">View all {data.teamCheckouts.total} &rarr;</DashboardFooterLink>
+                )}
+              </CardContent>
             )}
-          </CardContent>
-        )}
-      </Card>
-      </ScaleIn>
+          </Card>
+        </ScaleIn>
+      </DashboardLayoutItem>
 
       {/* Awaiting Pickup - only render when present (transient state) */}
-      {visiblePendingPickups.length > 0 && (
-        <ScaleIn delay={0.025}>
-        <Card elevation="flat">
-          <DashboardSectionHeader title="Awaiting pickup" href={PENDING_PICKUPS_HREF} count={pendingPickupsCount} />
-          <CardContent className="p-0">
-            {visiblePendingPickups.map((p) => {
-              const isLate = new Date(p.startsAt).getTime() < now.getTime();
-              return (
-                <DashboardBookingRow
-                  key={p.id}
-                  booking={p}
-                  now={now}
-                  accent={isLate ? "pending-pickup-late" : "pending-pickup"}
-                  showPickupBadge
-                  onSelectBooking={onSelectBooking}
-                />
-              );
-            })}
-            {!hasActiveFilter && data.pendingPickups.total > data.pendingPickups.items.length && (
-              <Link href={PENDING_PICKUPS_HREF} className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.pendingPickups.total} &rarr;</Link>
-            )}
-          </CardContent>
-        </Card>
-        </ScaleIn>
-      )}
+      <AnimatePresence initial={false}>
+        {visiblePendingPickups.length > 0 && (
+          <DashboardStateSurface key="pending-pickups" layout>
+            <Card elevation="flat">
+              <DashboardSectionHeader title="Awaiting pickup" href={PENDING_PICKUPS_HREF} count={pendingPickupsCount} />
+              <CardContent className="p-0">
+                {visiblePendingPickups.map((p) => {
+                  const isLate = new Date(p.startsAt).getTime() < now.getTime();
+                  return (
+                    <DashboardBookingRow
+                      key={p.id}
+                      booking={p}
+                      now={now}
+                      accent={isLate ? "pending-pickup-late" : "pending-pickup"}
+                      showPickupBadge
+                      onSelectBooking={onSelectBooking}
+                    />
+                  );
+                })}
+                {!hasActiveFilter && data.pendingPickups.total > data.pendingPickups.items.length && (
+                  <DashboardFooterLink href={PENDING_PICKUPS_HREF}>View all {data.pendingPickups.total} &rarr;</DashboardFooterLink>
+                )}
+              </CardContent>
+            </Card>
+          </DashboardStateSurface>
+        )}
 
-      {/* Stale Reservations - planning cleanup separate from checked-out overdue custody */}
-      {visibleStaleReservations.length > 0 && (
-        <ScaleIn delay={0.04}>
-        <Card elevation="flat">
-          <DashboardSectionHeader title="Stale reservations" href={STALE_RESERVATIONS_HREF} count={staleReservationsCount} />
-          <CardContent className="p-0">
-            {visibleStaleReservations.map((r) => (
-              <DashboardBookingRow
-                key={r.id}
-                booking={r}
-                now={now}
-                accent="overdue"
-                showDueBadge
-                onSelectBooking={onSelectBooking}
-              />
-            ))}
-            {!hasActiveFilter && data.staleReservations.total > data.staleReservations.items.length && (
-              <Link href={STALE_RESERVATIONS_HREF} className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.staleReservations.total} &rarr;</Link>
-            )}
-          </CardContent>
-        </Card>
-        </ScaleIn>
-      )}
+        {/* Stale Reservations - planning cleanup separate from checked-out overdue custody */}
+        {visibleStaleReservations.length > 0 && (
+          <DashboardStateSurface key="stale-reservations" layout>
+            <Card elevation="flat">
+              <DashboardSectionHeader title="Stale reservations" href={STALE_RESERVATIONS_HREF} count={staleReservationsCount} />
+              <CardContent className="p-0">
+                {visibleStaleReservations.map((r) => (
+                  <DashboardBookingRow
+                    key={r.id}
+                    booking={r}
+                    now={now}
+                    accent="overdue"
+                    showDueBadge
+                    onSelectBooking={onSelectBooking}
+                  />
+                ))}
+                {!hasActiveFilter && data.staleReservations.total > data.staleReservations.items.length && (
+                  <DashboardFooterLink href={STALE_RESERVATIONS_HREF}>View all {data.staleReservations.total} &rarr;</DashboardFooterLink>
+                )}
+              </CardContent>
+            </Card>
+          </DashboardStateSurface>
+        )}
+      </AnimatePresence>
 
       {/* Team Reservations */}
-      <ScaleIn delay={0.05}>
-      <Card elevation="flat">
+      <DashboardLayoutItem>
+        <ScaleIn delay={0.05}>
+          <Card elevation="flat">
         <DashboardSectionHeader title="Reserved" href="/bookings?tab=reservations" count={teamReservationsCount} />
         {visibleTeamReservations.length === 0 ? (
           <div className="flex min-h-16 items-center justify-center gap-2 px-4 py-3 text-center text-sm text-muted-foreground"><InboxIcon className="size-4 opacity-40" />{activeSport ? `No ${activeSport} reservations` : "No team reservations right now"}</div>
@@ -173,16 +180,18 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
               />
             ))}
             {!hasActiveFilter && data.teamReservations.total > data.teamReservations.items.length && (
-              <Link href="/bookings?tab=reservations" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.teamReservations.total} &rarr;</Link>
+              <DashboardFooterLink href="/bookings?tab=reservations">View all {data.teamReservations.total} &rarr;</DashboardFooterLink>
             )}
           </CardContent>
         )}
-      </Card>
-      </ScaleIn>
+          </Card>
+        </ScaleIn>
+      </DashboardLayoutItem>
 
       {/* Upcoming Events */}
-      <ScaleIn delay={0.1}>
-      <Card elevation="flat">
+      <DashboardLayoutItem>
+        <ScaleIn delay={0.1}>
+          <Card elevation="flat">
         <DashboardSectionHeader
           title="Upcoming events"
           href="/schedule"
@@ -201,7 +210,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
                   key={option.value}
                   value={option.value}
                   className={cn(
-                    "h-8 px-2 text-xs data-[state=on]:shadow-sm",
+                    "h-10 px-3 text-xs data-[state=on]:shadow-sm",
                     homeAwayFilter === option.value && venueFilterActiveClass(option.value),
                   )}
                 >
@@ -228,7 +237,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
                   eventBorder(e),
                 )}
               >
-                <Link href={`/events/${e.id}`} className="flex min-w-0 flex-1 items-center gap-3 no-underline">
+                <Link href={`/events/${e.id}`} className="flex min-w-0 flex-1 self-stretch items-center gap-3 rounded-sm no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted/70 text-muted-foreground ring-1 ring-foreground/5">
                     <CalendarDaysIcon className="size-4" aria-hidden="true" />
                   </span>
@@ -257,12 +266,13 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
               </div>
             ))}
             {filteredEvents.length > 10 && (
-              <Link href="/schedule" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">Show all {filteredEvents.length} events &rarr;</Link>
+              <DashboardFooterLink href="/schedule">Show all {filteredEvents.length} events &rarr;</DashboardFooterLink>
             )}
           </CardContent>
         )}
-      </Card>
-      </ScaleIn>
+          </Card>
+        </ScaleIn>
+      </DashboardLayoutItem>
     </div>
   );
 }

@@ -38,8 +38,6 @@ export default function RegisterPage() {
   const passwordRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [wiscardNumber, setWiscardNumber] = useState("");
-  const [isBtnInvite, setIsBtnInvite] = useState(false);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isNetworkError, setIsNetworkError] = useState(false);
@@ -47,8 +45,6 @@ export default function RegisterPage() {
 
   useEffect(() => {
     const invitedEmail = new URLSearchParams(window.location.search).get("email")?.trim() ?? "";
-    const inviteProfile = new URLSearchParams(window.location.search).get("profile")?.trim().toLowerCase();
-    setIsBtnInvite(inviteProfile === "btn");
     if (invitedEmail) {
       setEmail(invitedEmail);
     }
@@ -57,7 +53,7 @@ export default function RegisterPage() {
   const { submit, submitting, formError, clearErrors } = useFormSubmit({
     url: "/api/auth/register",
     skipAuthRedirect: true,
-    onSuccess: () => router.replace("/"),
+    onSuccess: () => router.replace("/welcome"),
     onError: (kind) => setIsNetworkError(kind === "network"),
   });
 
@@ -96,7 +92,7 @@ export default function RegisterPage() {
     }
 
     setIsNetworkError(false);
-    await submit({ name, email, wiscardNumber: isBtnInvite ? "" : wiscardNumber, password });
+    await submit({ name, email, password });
   }
 
   return (
@@ -158,28 +154,6 @@ export default function RegisterPage() {
                 <p id="email-error" role="alert" className="overflow-hidden text-destructive text-xs">{fieldErrors.email || " "}</p>
               </div>
             </div>
-
-            {!isBtnInvite && <div className="flex flex-col gap-1.5">
-              <Label htmlFor="wiscardNumber">Wiscard value</Label>
-              <Input
-                id="wiscardNumber"
-                name="wiscardNumber"
-                type="text"
-                value={wiscardNumber}
-                onChange={(e) => { setWiscardNumber(e.target.value); clearFieldError("wiscardNumber"); }}
-                onBlur={() => handleBlur("wiscardNumber")}
-                placeholder="Scan or type your Wiscard value"
-                autoComplete="off"
-                disabled={submitting}
-                aria-invalid={!!fieldErrors.wiscardNumber}
-                aria-describedby={fieldErrors.wiscardNumber ? "wiscard-error" : "wiscard-help"}
-                className="h-11 text-base transition-colors"
-              />
-              <p id="wiscard-help" className="text-xs text-muted-foreground">Optional for now. Kiosk card scanning will be linked later.</p>
-              <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.wiscardNumber} aria-hidden={!fieldErrors.wiscardNumber}>
-                <p id="wiscard-error" role="alert" className="overflow-hidden text-destructive text-xs">{fieldErrors.wiscardNumber || " "}</p>
-              </div>
-            </div>}
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="password">Password</Label>

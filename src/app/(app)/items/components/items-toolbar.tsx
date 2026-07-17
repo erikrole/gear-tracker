@@ -215,10 +215,10 @@ export function ItemsToolbar({
               className="shrink-0"
               aria-label="Item type filter"
             >
-              <ToggleGroupItem value="all" className="h-9 px-3 text-xs">All</ToggleGroupItem>
-              <ToggleGroupItem value="serialized" className="h-9 px-3 text-xs">Standard</ToggleGroupItem>
-              <ToggleGroupItem value="unit-tracked" className="h-9 px-3 text-xs">Units</ToggleGroupItem>
-              <ToggleGroupItem value="quantity-tracked" className="h-9 px-3 text-xs">Quantity</ToggleGroupItem>
+              <ToggleGroupItem value="all" className="h-10 px-3 text-xs">All</ToggleGroupItem>
+              <ToggleGroupItem value="serialized" className="h-10 px-3 text-xs">Standard</ToggleGroupItem>
+              <ToggleGroupItem value="unit-tracked" className="h-10 px-3 text-xs">Units</ToggleGroupItem>
+              <ToggleGroupItem value="quantity-tracked" className="h-10 px-3 text-xs">Quantity</ToggleGroupItem>
             </ToggleGroup>
           </div>
           <div className="hidden h-6 w-px bg-border/70 lg:block" aria-hidden="true" />
@@ -310,17 +310,17 @@ export function ItemsToolbar({
               onSelectionChange={onBrandFilterChange}
             />
           )}
-          <div className="flex h-10 items-center gap-2 rounded-md border border-border/70 bg-background px-3">
+          <Label htmlFor="show-accessories" className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-border/70 bg-background px-3">
             <Switch
               id="show-accessories"
               checked={showAccessories}
               onCheckedChange={onShowAccessoriesChange}
               className="h-4 w-7 [&>span]:size-3 [&>span]:data-[state=checked]:translate-x-3"
             />
-            <Label htmlFor="show-accessories" className="cursor-pointer whitespace-nowrap text-xs text-muted-foreground">
+            <span className="whitespace-nowrap text-xs text-muted-foreground">
               Hidden attachments only
-            </Label>
-          </div>
+            </span>
+          </Label>
         </div>
       )}
       <OperationalActiveFilterChips filters={activeFilters} />

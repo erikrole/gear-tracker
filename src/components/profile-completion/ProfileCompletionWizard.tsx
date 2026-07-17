@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertCircleIcon, ArrowLeftIcon, ArrowRightIcon, CheckIcon } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion, type Variants } from "motion/react";
+import { AlertCircleIcon, ArrowLeftIcon, ArrowRightIcon, CameraIcon, CheckIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -29,10 +30,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { UserAvatar } from "@/components/UserAvatar";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { OPEN_PROFILE_COMPLETION_EVENT } from "@/lib/profile-completion-events";
-import { PROFILE_COMPLETION_STEPS, type ProfileCompletionStep } from "@/lib/profile-completion";
+import { visibleProfileSteps, type ProfileCompletionStep } from "@/lib/profile-completion";
+import { AvatarCropDialog } from "@/app/(app)/users/[id]/AvatarCropDialog";
 import { formatPhoneInput } from "@/lib/profile-phone";
 import { MENS_SHOE_SIZE_OPTIONS, TOP_SIZE_OPTIONS, WOMENS_SHOE_SIZE_OPTIONS } from "@/lib/profile-sizing";
 import {
@@ -69,22 +72,55 @@ const STEP_COPY: Record<ProfileCompletionStep, { title: string; description: str
     title: "Add your apparel sizes",
     description: "Choose the sizing systems that make clothing and shoe orders unambiguous.",
   },
+  PHOTO: {
+    title: "Add a profile photo",
+    description: "A clear photo helps teammates recognize you across the roster, schedule, and kiosk.",
+  },
 };
 
 type LegacyPhoneType = "PERSONAL" | "WORK" | "";
 type ApiEnvelope = { data?: ProfileCompletionResponse };
+type StepDirection = -1 | 1;
+type StepMotionContext = { direction: StepDirection; reduceMotion: boolean };
 const GRADUATION_OPTIONS = anticipatedGraduationOptions();
+const STEP_EASE_OUT = [0.16, 1, 0.3, 1] as const;
+const STEP_EASE_IN_OUT = [0.4, 0, 0.2, 1] as const;
+
+const STEP_TRANSITION_VARIANTS: Variants = {
+  initial: ({ direction, reduceMotion }: StepMotionContext) => ({
+    opacity: 0,
+    ...(reduceMotion ? {} : { transform: `translate3d(0, ${direction * 4}px, 0)` }),
+  }),
+  animate: ({ reduceMotion }: StepMotionContext) => ({
+    opacity: 1,
+    ...(reduceMotion ? {} : { transform: "translate3d(0, 0, 0)" }),
+    transition: {
+      duration: reduceMotion ? 0.12 : 0.2,
+      ease: STEP_EASE_OUT,
+    },
+  }),
+  exit: ({ direction, reduceMotion }: StepMotionContext) => ({
+    opacity: 0,
+    ...(reduceMotion ? {} : { transform: `translate3d(0, ${direction * -4}px, 0)` }),
+    transition: {
+      duration: 0.12,
+      ease: STEP_EASE_IN_OUT,
+    },
+  }),
+};
 
 function isKnownOption(value: string | null, options: string[]) {
   return Boolean(value && options.includes(value));
 }
 
-export function ProfileCompletionWizard() {
+export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?: () => void; onSnooze?: () => void } = {}) {
   const queryClient = useQueryClient();
   const { data } = useProfileCompletion();
+  const reduceMotion = Boolean(useReducedMotion());
   const [isDesktop, setIsDesktop] = useState(false);
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<ProfileCompletionStep>("EMAIL");
+  const [stepDirection, setStepDirection] = useState<StepDirection>(1);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const autoOpenedRef = useRef(false);
@@ -106,6 +142,7 @@ export function ProfileCompletionWizard() {
   const [shoeSizeSystem, setShoeSizeSystem] = useState<"US_WOMENS" | "US_MENS" | "">("");
   const [shoeSizeChoice, setShoeSizeChoice] = useState("");
   const [shoeSizeOther, setShoeSizeOther] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
 
   useEffect(() => {
     const media = window.matchMedia("(min-width: 768px)");
@@ -172,12 +209,7 @@ export function ProfileCompletionWizard() {
     return () => window.removeEventListener(OPEN_PROFILE_COMPLETION_EVENT, openWizard);
   }, [data, isDesktop]);
 
-  const visibleSteps = useMemo(
-    () => data?.profile.role === "STUDENT"
-      ? [...PROFILE_COMPLETION_STEPS]
-      : PROFILE_COMPLETION_STEPS.filter((candidate) => candidate !== "STUDENT"),
-    [data?.profile.role],
-  );
+  const visibleSteps = useMemo(() => data ? visibleProfileSteps(data.profile.role) : [], [data]);
   const stepIndex = visibleSteps.indexOf(step);
   const isLastStep = stepIndex === visibleSteps.length - 1;
   const shoeOptions = shoeSizeSystem === "US_MENS" ? MENS_SHOE_SIZE_OPTIONS : WOMENS_SHOE_SIZE_OPTIONS;
@@ -186,6 +218,7 @@ export function ProfileCompletionWizard() {
   const copy = step === "PHONES" && isStudent
     ? { title: "Add your phone number", description: "Add the personal phone number we should use to reach you." }
     : STEP_COPY[step];
+  const stepMotionContext = { direction: stepDirection, reduceMotion };
   const needsLegacyClassification = Boolean(
     !isStudent && legacyPhone && !data?.profile.personalPhone && !data?.profile.workPhone,
   );
@@ -209,6 +242,7 @@ export function ProfileCompletionWizard() {
     if (step === "STUDENT") {
       return Boolean(studentYear && parseAnticipatedGraduation(anticipatedGraduation));
     }
+    if (step === "PHOTO") return Boolean(data.profile.avatarUrl);
     const topSize = topSizeChoice === "OTHER" ? topSizeOther.trim() : topSizeChoice;
     const shoeSize = shoeSizeChoice === "OTHER" ? shoeSizeOther.trim() : shoeSizeChoice;
     return Boolean(topSizeFit && topSize && shoeSizeSystem && shoeSize);
@@ -246,6 +280,12 @@ export function ProfileCompletionWizard() {
     if (!json?.data) throw new Error("Profile details were saved, but the response could not be read. Refresh before continuing.");
     queryClient.setQueryData(PROFILE_COMPLETION_QUERY_KEY, json.data);
     return json.data;
+  }
+
+  function goToStep(nextStep: ProfileCompletionStep, direction: StepDirection) {
+    setStepDirection(direction);
+    setStep(nextStep);
+    setError("");
   }
 
   async function saveCurrentStep() {
@@ -292,18 +332,59 @@ export function ProfileCompletionWizard() {
         manualReviewRef.current = false;
         setOpen(false);
         toast.success("Profile complete");
+        onComplete?.();
         return;
       }
-      setStep(
+      goToStep(
         manualReviewRef.current
           ? visibleSteps[Math.min(stepIndex + 1, visibleSteps.length - 1)]!
           : updated.completion.firstIncompleteStep ?? visibleSteps[Math.min(stepIndex + 1, visibleSteps.length - 1)]!,
+        1,
       );
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Profile details were not saved.");
     } finally {
       setSaving(false);
     }
+  }
+
+  async function uploadPhoto(file: File) {
+    if (!data || saving) return false;
+    setSaving(true);
+    setError("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch(`/api/users/${data.profile.id}/avatar`, { method: "POST", body: formData });
+      if (handleAuthRedirect(response)) return false;
+      if (!response.ok) throw new Error(await parseErrorMessage(response, "Profile photo was not saved."));
+      await queryClient.invalidateQueries({ queryKey: PROFILE_COMPLETION_QUERY_KEY });
+      closeWithoutSnoozeRef.current = true;
+      setOpen(false);
+      toast.success("Profile complete");
+      onComplete?.();
+      return true;
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Profile photo was not saved.");
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function skipOptionalStep() {
+    if (isLastStep) {
+      void snooze();
+      return;
+    }
+    goToStep(visibleSteps[stepIndex + 1]!, 1);
+  }
+
+  function finishPhotoStep() {
+    closeWithoutSnoozeRef.current = true;
+    setOpen(false);
+    toast.success("Profile complete");
+    onComplete?.();
   }
 
   async function snooze() {
@@ -315,6 +396,7 @@ export function ProfileCompletionWizard() {
       closeWithoutSnoozeRef.current = true;
       setOpen(false);
       toast.message("We’ll remind you tomorrow.");
+      onSnooze?.();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "The reminder could not be postponed.");
     } finally {
@@ -362,13 +444,36 @@ export function ProfileCompletionWizard() {
             </span>
           </div>
           <Progress value={((stepIndex + 1) / visibleSteps.length) * 100} aria-label={`Step ${stepIndex + 1} of ${visibleSteps.length}`} />
-          <div className="flex flex-col gap-1">
-            <DialogTitle>{copy.title}</DialogTitle>
-            <DialogDescription>{copy.description}</DialogDescription>
+          <div className="grid w-full">
+            <AnimatePresence initial={false} custom={stepMotionContext}>
+              <motion.div
+                key={`heading-${step}`}
+                custom={stepMotionContext}
+                variants={STEP_TRANSITION_VARIANTS}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                className="col-start-1 row-start-1 flex flex-col gap-1"
+              >
+                <DialogTitle>{copy.title}</DialogTitle>
+                <DialogDescription>{copy.description}</DialogDescription>
+              </motion.div>
+            </AnimatePresence>
           </div>
         </DialogHeader>
 
         <DialogBody className="flex min-h-[300px] flex-col gap-5 py-5">
+          <div className="relative grid flex-1">
+            <AnimatePresence initial={false} custom={stepMotionContext}>
+              <motion.div
+                key={`body-${step}`}
+                custom={stepMotionContext}
+                variants={STEP_TRANSITION_VARIANTS}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                className="col-start-1 row-start-1"
+              >
           {step === "EMAIL" && (
             <div className="flex flex-col gap-5">
               <div className="flex flex-col gap-2">
@@ -588,6 +693,37 @@ export function ProfileCompletionWizard() {
             </div>
           )}
 
+          {step === "PHOTO" && (
+            <div className="flex flex-col items-center gap-5 py-4 text-center">
+              <UserAvatar
+                avatarUrl={data.profile.avatarUrl}
+                name={data.profile.name}
+                size="xl"
+                className="size-28"
+              />
+              <div className="flex flex-col items-center gap-2">
+                <Button type="button" variant="outline" asChild disabled={saving}>
+                  <label htmlFor="profile-completion-photo">
+                    <CameraIcon data-icon="inline-start" />
+                    {data.profile.avatarUrl ? "Change photo" : "Choose photo"}
+                  </label>
+                </Button>
+                <input
+                  id="profile-completion-photo"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  onChange={(event) => setPhotoFile(event.target.files?.[0] ?? null)}
+                  disabled={saving}
+                />
+                <p className="text-xs text-muted-foreground">JPEG, PNG, or WebP. You can crop and reposition before saving.</p>
+              </div>
+            </div>
+          )}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
           {error && (
             <Alert variant="destructive">
               <AlertCircleIcon />
@@ -601,18 +737,27 @@ export function ProfileCompletionWizard() {
             Remind me tomorrow
           </Button>
           {stepIndex > 0 && (
-            <Button type="button" variant="outline" onClick={() => { setStep(visibleSteps[stepIndex - 1]!); setError(""); }} disabled={saving}>
+            <Button type="button" variant="outline" onClick={() => goToStep(visibleSteps[stepIndex - 1]!, -1)} disabled={saving}>
               <ArrowLeftIcon data-icon="inline-start" />
               Back
             </Button>
           )}
-          <Button type="button" onClick={saveCurrentStep} disabled={saving || !canContinue}>
+          {(step === "APPAREL" || step === "PHOTO") && !canContinue && (
+            <Button type="button" variant="outline" onClick={skipOptionalStep} disabled={saving}>Skip for now</Button>
+          )}
+          <Button type="button" onClick={step === "PHOTO" ? finishPhotoStep : saveCurrentStep} disabled={saving || !canContinue}>
             {saving ? <Spinner data-icon="inline-start" /> : isLastStep ? <CheckIcon data-icon="inline-start" /> : null}
             {isLastStep ? "Finish" : "Continue"}
             {!saving && !isLastStep && <ArrowRightIcon data-icon="inline-end" />}
           </Button>
         </DialogFooter>
       </DialogContent>
+      <AvatarCropDialog
+        file={photoFile}
+        profileName={data.profile.name}
+        onClose={() => setPhotoFile(null)}
+        onConfirm={uploadPhoto}
+      />
     </Dialog>
   );
 }

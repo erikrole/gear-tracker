@@ -64,11 +64,11 @@ export function SettingsCommand({ visibleSections }: { visibleSections: Readonly
         variant="outline"
         size="sm"
         onClick={() => setOpen(true)}
-        className="h-10 text-muted-foreground"
+        className="size-10 text-muted-foreground sm:w-auto sm:px-3"
         aria-label="Search settings"
       >
         <SearchIcon data-icon="inline-start" />
-        <span>Search settings</span>
+        <span className="hidden sm:inline">Search settings</span>
         <kbd className="ml-2 hidden md:inline-flex items-center gap-0.5 rounded border bg-muted px-1.5 py-0.5 text-[10px] font-mono">
           ⌘K
         </kbd>
@@ -85,6 +85,7 @@ export function SettingsCommand({ visibleSections }: { visibleSections: Readonly
                   key={s.href}
                   value={`${s.label} ${s.description} ${(s.keywords ?? []).join(" ")}`}
                   onSelect={() => go(s.href)}
+                  className="min-h-11 transition-[background-color,color]"
                 >
                   <div className="flex flex-col gap-0.5 min-w-0">
                     <span className="font-medium">{s.label}</span>

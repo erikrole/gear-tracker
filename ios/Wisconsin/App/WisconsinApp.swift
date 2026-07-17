@@ -6,6 +6,7 @@ import UserNotifications
 struct WisconsinApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var session = SessionStore()
+    @State private var profileCompletion = ProfileCompletionStore()
     @State private var appState = AppState()
     @State private var network = NetworkMonitor()
     @Environment(\.scenePhase) private var scenePhase
@@ -15,6 +16,7 @@ struct WisconsinApp: App {
         WindowGroup {
             RootView()
                 .environment(session)
+                .environment(profileCompletion)
                 .environment(appState)
                 .environment(network)
                 .preferredColorScheme(themeChoice.colorScheme)
@@ -24,6 +26,7 @@ struct WisconsinApp: App {
                 .onChange(of: session.currentUser, initial: true) { old, user in
                     if user == nil, old != nil {
                         GearStore.shared.clearAll()
+                        profileCompletion.resetSession()
                         Task { await CheckoutReturnLiveActivityManager.shared.endAll() }
                     }
                     // Push permission is now requested via PushPrePromptView,
@@ -48,6 +51,9 @@ struct WisconsinApp: App {
                             await CheckoutReturnLiveActivityManager.shared.reconcileCurrentUserCheckouts(
                                 requesterId: session.currentUser?.id
                             )
+                        }
+                        if let user = session.currentUser {
+                            Task { await profileCompletion.load(for: user, force: true) }
                         }
                     }
                 }
@@ -89,6 +95,7 @@ struct WisconsinApp: App {
 
 struct RootView: View {
     @Environment(SessionStore.self) private var session
+    @Environment(ProfileCompletionStore.self) private var profileCompletion
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showPushPrePrompt = false
 
@@ -98,8 +105,16 @@ struct RootView: View {
                 LaunchView()
             } else if let user = session.currentUser, user.forcePasswordChange {
                 PasswordSetupView(email: user.email)
-            } else if session.currentUser != nil {
-                AppTabView()
+            } else if let user = session.currentUser {
+                switch profileCompletion.route(
+                    for: user,
+                    optimisticSession: session.usedOptimisticSessionSnapshot
+                ) {
+                case .welcome:
+                    ProfileCompletionWelcomeView()
+                case .app:
+                    AppTabView()
+                }
             } else {
                 LoginView()
                     .overlay(alignment: .top) {
@@ -116,12 +131,13 @@ struct RootView: View {
             }
         }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: session.isRestoring)
-        .onChange(of: session.currentUser) { old, user in
-            // Show the soft push prompt the first time a user lands logged-in,
-            // before the OS alert ever fires.
-            if let user, !user.forcePasswordChange, old?.forcePasswordChange != false {
-                Task { await maybeShowPushPrompt() }
-            }
+        .task(id: session.currentUser?.id) {
+            guard let user = session.currentUser, !user.forcePasswordChange else { return }
+            await profileCompletion.load(for: user)
+        }
+        .onChange(of: profileCompletion.pushPromptEligibleUserId, initial: true) { _, userId in
+            guard let userId, session.currentUser?.id == userId else { return }
+            Task { await maybeShowPushPrompt() }
         }
         .sheet(isPresented: $showPushPrePrompt) {
             PushPrePromptView()

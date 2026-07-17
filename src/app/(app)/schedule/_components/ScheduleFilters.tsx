@@ -127,7 +127,7 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
   return (
     <OperationalToolbar className="mb-3">
       {filters.queueMeta && (
-        <div className="flex min-h-10 flex-wrap items-center justify-between gap-2 rounded-md bg-primary/5 px-3 py-2 shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.14)]">
+        <div className="flex min-h-10 flex-wrap items-center justify-between gap-2 rounded-md bg-primary/5 px-3 py-2 shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--primary)_14%,transparent)]">
           <div className="flex min-w-0 items-center gap-2">
             <WorkflowIcon className="size-4 shrink-0 text-primary" />
             <div className="min-w-0">
@@ -220,20 +220,19 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
         <div className="mx-0.5 h-6 w-px bg-border/80 max-sm:hidden" />
 
         {/* My Shifts toggle */}
-        <div className="flex min-h-10 items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2.5">
+        <Label
+          htmlFor="my-shifts-toggle"
+          className="flex min-h-10 cursor-pointer items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2.5"
+        >
           <Switch
             id="my-shifts-toggle"
             checked={filters.myShiftsOnly}
             onCheckedChange={filters.setMyShiftsOnly}
-            className="scale-[0.8] origin-center"
           />
-          <Label
-            htmlFor="my-shifts-toggle"
-            className="text-[13px] font-medium cursor-pointer whitespace-nowrap"
-          >
+          <span className="whitespace-nowrap text-[13px] font-medium">
             My Shifts
-          </Label>
-        </div>
+          </span>
+        </Label>
 
         {/* Data filters popover */}
         <Popover>

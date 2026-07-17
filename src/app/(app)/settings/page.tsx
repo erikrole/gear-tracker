@@ -104,8 +104,8 @@ export default function SettingsPage() {
   }
 
   return (
-    <FadeUp>
-      <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5">
+      <FadeUp>
         <section className="rounded-lg border bg-card p-4 shadow-xs">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0 flex flex-col gap-3">
@@ -126,14 +126,16 @@ export default function SettingsPage() {
             )}
           </div>
         </section>
+      </FadeUp>
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          {groupedSections.map(({ group, sections }) => (
-            <SettingsGroupCard key={group} group={group} sections={sections} />
-          ))}
-        </div>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        {groupedSections.map(({ group, sections }, index) => (
+          <FadeUp key={group} className="h-full" delay={index * 0.08}>
+            <SettingsGroupCard group={group} sections={sections} />
+          </FadeUp>
+        ))}
       </div>
-    </FadeUp>
+    </div>
   );
 }
 
@@ -148,7 +150,7 @@ function SettingsGroupCard({
   const Icon = meta.icon;
 
   return (
-    <Card className="min-w-0 overflow-hidden">
+    <Card className="h-full min-w-0 overflow-hidden">
       <CardHeader className="border-b bg-muted/30 p-4">
         <div className="flex min-w-0 items-start gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground shadow-xs">
@@ -167,7 +169,7 @@ function SettingsGroupCard({
             <Link
               key={section.href}
               href={section.href}
-              className="group flex min-h-16 items-center gap-3 px-4 py-3 no-underline transition-[background-color,scale] hover:bg-muted/50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+              className="group flex min-h-16 items-center gap-3 px-4 py-3 no-underline transition-[background-color,scale] hover:bg-muted/50 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">

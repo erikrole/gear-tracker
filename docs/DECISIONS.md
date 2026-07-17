@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-07-15
+- Last Updated: 2026-07-17
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -600,6 +600,8 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Audit every create, claim, skip, retry, and follow-up onboarding action.
 - Consequences:
   - `/api/allowed-emails` and registration remain the first-time onboarding path.
+  - Successful registration enters role-aware Welcome setup on web or native iOS. Operational readiness is derived from role-specific canonical profile fields, while apparel, shoes, and a profile photo determine the separate profile-complete state.
+  - Collaborator setup remains limited to welcome and an optional photo; internal contact, Wiscard, student, sizing, area, and location requirements do not apply.
   - First-time onboarding must not generate, export, or require shared temporary passwords.
   - The web operator experience should make allowlist invitations feel like the single account-access workflow.
   - iOS cannot treat login success as enough if `forcePasswordChange` is true for reset/recovery.
@@ -868,6 +870,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 4. ~~Student mobile KPI definitions~~ — resolved (PD-5): taps-to-checkout ≤3, scan success ≥95%, task completion <30s. Telemetry deferred to Phase B.
 
 ## Change Log
+- 2026-07-17: Extended D-037 so authenticated profile completion is native on iOS while registration remains web-owned and the canonical server completion contract remains shared.
 - 2026-07-16: Added D-041 for fixed default-deny external collaborator profiles and the BTN_STANDARD gear plus published-Schedule contract.
 - 2026-07-16: Hardened D-041 with a single profile registry, mandatory collaborator response sanitization across idempotent branches, direct audit-history denial, published-only collaborator event linking, and route-level negative tests.
 - 2026-07-16: Amended D-041 from fixed BTN profiles to database-backed affiliation policies with nine validated grants, immutable revisions, immediate suspension, BTN parity, and Learfield suspended by default.

@@ -48,6 +48,8 @@ const patchSchema = z.discriminatedUnion("step", [
 ]);
 
 const profileSelect = {
+  id: true,
+  name: true,
   role: true,
   email: true,
   athleticsEmail: true,
@@ -64,6 +66,7 @@ const profileSelect = {
   topSize: true,
   shoeSizeSystem: true,
   shoeSize: true,
+  avatarUrl: true,
   profilePromptSnoozedUntil: true,
 } as const;
 
@@ -143,10 +146,15 @@ export const PATCH = withAuth(async (req, { user }) => {
   if (
     body.step === "PHONES"
     && user.role !== "STUDENT"
+    && user.role !== "COLLABORATOR"
     && !body.workPhoneNotApplicable
     && !body.workPhone
   ) {
     throw new HttpError(400, "Enter a work phone or choose that you do not have one");
+  }
+
+  if (user.role === "COLLABORATOR" && body.step !== "SNOOZE") {
+    throw new HttpError(400, "Collaborator setup only includes a profile photo.");
   }
 
   const data = body.step === "EMAIL"

@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import {
   type ColumnDef,
   type SortingState,
@@ -38,6 +39,7 @@ import { statusBadge } from "./columns";
 import { getItemHref, isBulkRowId } from "./lib/item-href";
 import { AssetImage } from "@/components/AssetImage";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -186,7 +188,7 @@ export function DataTable({
 }: DataTableProps) {
   const densityClass =
     density === "compact"
-      ? "[&_td]:py-1 [&_td]:px-3 [&_th]:h-8 [&_th]:px-3 [&_tbody_tr]:h-10"
+      ? "[&_td]:py-1 [&_td]:px-3 [&_th]:h-10 [&_th]:px-3 [&_tbody_tr]:h-10"
       : "";
   const router = useRouter();
 
@@ -253,7 +255,7 @@ export function DataTable({
                 >
                   <div
                     data-state={row.getIsSelected() ? "selected" : undefined}
-                    className="relative flex items-start gap-3 px-3 py-3 transition-colors active:bg-muted/50 data-[state=selected]:bg-muted/40"
+                    className="relative flex items-start gap-3 px-3 py-3 transition-[background-color,scale] active:scale-[0.96] active:bg-muted/50 data-[state=selected]:bg-muted/40"
                   >
                     <button
                       type="button"
@@ -321,25 +323,46 @@ export function DataTable({
                     <TableHead
                       key={header.id}
                       className={cn(
-                        "h-10 select-none text-[11px] uppercase tracking-wide text-muted-foreground group/th",
-                        canSort && "cursor-pointer hover:bg-muted/80",
+                        "h-10 select-none text-[11px] text-muted-foreground group/th",
                         header.column.columnDef.meta?.thClassName
                       )}
-                      onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                      aria-sort={canSort ? (sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : "none") : undefined}
                     >
                       {header.isPlaceholder ? null : (
-                        <div className="flex items-center gap-1">
-                          {flexRender(header.column.columnDef.header, header.getContext())}
-                          {canSort && (
-                            sorted === "asc" ? (
-                              <ArrowUp className="size-3.5 text-foreground" />
-                            ) : sorted === "desc" ? (
-                              <ArrowDown className="size-3.5 text-foreground" />
-                            ) : (
-                              <ArrowUpDown className="size-3.5 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100" />
-                            )
-                          )}
-                        </div>
+                        canSort ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="group -ml-3 h-10 transition-[background-color,color,box-shadow,scale] active:scale-[0.96]"
+                            onClick={header.column.getToggleSortingHandler()}
+                            aria-label={`Sort by ${String(header.column.columnDef.header)} ${sorted === "asc" ? "descending" : "ascending"}`}
+                          >
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                            <AnimatePresence initial={false} mode="popLayout">
+                              <motion.span
+                                key={sorted || "unsorted"}
+                                initial={{ opacity: 0, scale: 0.25, filter: "blur(4px)" }}
+                                animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+                                exit={{ opacity: 0, scale: 0.25, filter: "blur(4px)" }}
+                                transition={{ type: "spring", duration: 0.3, bounce: 0 }}
+                                className="inline-flex items-center justify-center"
+                              >
+                                {sorted === "asc" ? (
+                                  <ArrowUp className="size-3.5 text-foreground" aria-hidden="true" />
+                                ) : sorted === "desc" ? (
+                                  <ArrowDown className="size-3.5 text-foreground" aria-hidden="true" />
+                                ) : (
+                                  <ArrowUpDown className="size-3.5 text-muted-foreground/40 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" aria-hidden="true" />
+                                )}
+                              </motion.span>
+                            </AnimatePresence>
+                          </Button>
+                        ) : (
+                          <div className="flex h-10 items-center gap-1">
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                          </div>
+                        )
                       )}
                     </TableHead>
                   );

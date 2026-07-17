@@ -7,10 +7,14 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { REPORT_CHART_COLORS, ReportChartCard } from "../report-ui";
+import {
+  REPORT_CHART_COLORS,
+  REPORT_SEMANTIC_CHART_COLORS,
+  ReportChartCard,
+} from "../report-ui";
 
 const trendConfig: ChartConfig = {
-  count: { label: "Checkouts", color: "hsl(220 70% 55%)" },
+  count: { label: "Checkouts", color: REPORT_SEMANTIC_CHART_COLORS.active },
 };
 
 function formatDateLabel(dateStr: unknown) {
@@ -31,7 +35,14 @@ export function CheckoutTrendChart({ dailyTrend, days }: { dailyTrend: { date: s
               interval={Math.max(0, Math.floor(dailyTrend.length / 7) - 1)} />
             <YAxis allowDecimals={false} tickLine={false} axisLine={false} className="text-xs" width={30} />
             <ChartTooltip content={<ChartTooltipContent />} />
-            <Area type="monotone" dataKey="count" name="Checkouts" fill="hsl(220 70% 55% / 0.2)" stroke="hsl(220 70% 55%)" strokeWidth={2} />
+            <Area
+              type="monotone"
+              dataKey="count"
+              name="Checkouts"
+              fill={REPORT_SEMANTIC_CHART_COLORS.activeSoft}
+              stroke={REPORT_SEMANTIC_CHART_COLORS.active}
+              strokeWidth={2}
+            />
           </AreaChart>
         </ChartContainer>
     </ReportChartCard>

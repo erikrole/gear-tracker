@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import StatusIndicator from "@/components/ui/status-indicator";
@@ -332,7 +333,9 @@ export default function CalendarSourcesPage() {
                           {testResult.sampleSummaries.length > 0 && (
                             <ul className="mt-1.5 list-disc pl-4 flex flex-col gap-0.5 text-muted-foreground">
                               {testResult.sampleSummaries.slice(0, 3).map((s, i) => (
-                                <li key={i} className="truncate">{s}</li>
+                                <li key={i}>
+                                  <TruncatedText text={s} />
+                                </li>
                               ))}
                             </ul>
                           )}

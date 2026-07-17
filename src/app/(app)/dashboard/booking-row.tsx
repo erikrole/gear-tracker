@@ -87,7 +87,7 @@ export function DashboardBookingRow({
     >
       <button
         type="button"
-        className="flex min-w-0 flex-1 items-center gap-3 rounded-sm border-0 bg-transparent p-0 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        className="flex min-w-0 flex-1 self-stretch items-center gap-3 rounded-sm border-0 bg-transparent p-0 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         onClick={() => onSelectBooking(booking.id)}
         aria-label={`Open ${booking.title}`}
       >

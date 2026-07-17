@@ -134,13 +134,13 @@
   /* Semantic palette */
   --green: #22c55e;
   --green-bg: #f0fdf4;
-  --green-text: #16a34a;
+  --green-text: oklch(0.520 0.140 149.214);
   --orange: #f59e0b;
   --orange-bg: #fffbeb;
-  --orange-text: #d97706;
+  --orange-text: oklch(0.540 0.124 58.318);
   --red: #ef4444;
   --red-bg: #fef2f2;
-  --red-text: #dc2626;
+  --red-text: oklch(0.540 0.211 27.325);
   --purple: #7c3aed;
   --purple-bg: #f5f3ff;
   --purple-text: #7c3aed;
@@ -268,12 +268,43 @@
   --destructive-foreground: #ffffff;
   --input: var(--border);
   --ring: var(--accent);
-  --chart-1: var(--blue);
-  --chart-2: var(--green);
-  --chart-3: var(--purple);
-  --chart-4: var(--orange);
-  --chart-5: var(--red);
-  --heatmap-zero: rgb(221, 221, 221);
+  /* Report charts — equal-lightness, gamut-safe OKLCH categorical palette */
+  --report-chart-1: oklch(0.580 0.150 260);
+  --report-chart-2: oklch(0.580 0.169 295);
+  --report-chart-3: oklch(0.580 0.119 145);
+  --report-chart-4: oklch(0.580 0.093 55);
+  --report-chart-5: oklch(0.580 0.164 340);
+  --report-chart-6: oklch(0.580 0.064 200);
+  --report-chart-7: oklch(0.580 0.077 90);
+  --report-chart-8: oklch(0.580 0.153 25);
+  --report-chart-active-soft: oklch(0.580 0.150 260 / 0.2);
+
+  /* Stable-hue overdue ramp, strongest first */
+  --report-overdue-1: oklch(0.480 0.137 27.325);
+  --report-overdue-2: oklch(0.494 0.141 27.325);
+  --report-overdue-3: oklch(0.509 0.145 27.325);
+  --report-overdue-4: oklch(0.523 0.149 27.325);
+  --report-overdue-5: oklch(0.538 0.154 27.325);
+  --report-overdue-6: oklch(0.552 0.158 27.325);
+  --report-overdue-7: oklch(0.567 0.162 27.325);
+  --report-overdue-8: oklch(0.581 0.166 27.325);
+  --report-overdue-9: oklch(0.596 0.170 27.325);
+  --report-overdue-10: oklch(0.610 0.174 27.325);
+
+  /* Shared semantic chart roles */
+  --chart-1: var(--report-chart-1);
+  --chart-2: var(--report-chart-3);
+  --chart-3: var(--report-chart-2);
+  --chart-4: var(--report-chart-4);
+  --chart-5: var(--report-chart-8);
+
+  /* Checkout activity heatmap — blue means active use */
+  --heatmap-zero: oklch(0.940 0.008 260);
+  --heatmap-1: oklch(0.620 0.140 260);
+  --heatmap-2: oklch(0.580 0.157 260);
+  --heatmap-3: oklch(0.540 0.150 260);
+  --heatmap-4: oklch(0.500 0.139 260);
+  --heatmap-5: oklch(0.460 0.128 260);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -398,6 +429,35 @@
   --destructive-foreground: #ffffff;
   --input: var(--border);
   --ring: var(--accent);
+
+  /* Report charts — lighter equal-lightness palette for dark surfaces */
+  --report-chart-1: oklch(0.720 0.095 260);
+  --report-chart-2: oklch(0.720 0.106 295);
+  --report-chart-3: oklch(0.720 0.147 145);
+  --report-chart-4: oklch(0.720 0.116 55);
+  --report-chart-5: oklch(0.720 0.156 340);
+  --report-chart-6: oklch(0.720 0.080 200);
+  --report-chart-7: oklch(0.720 0.096 90);
+  --report-chart-8: oklch(0.720 0.113 25);
+  --report-chart-active-soft: oklch(0.720 0.095 260 / 0.22);
+
+  --report-overdue-1: oklch(0.780 0.090 27.325);
+  --report-overdue-2: oklch(0.766 0.097 27.325);
+  --report-overdue-3: oklch(0.751 0.105 27.325);
+  --report-overdue-4: oklch(0.737 0.113 27.325);
+  --report-overdue-5: oklch(0.722 0.121 27.325);
+  --report-overdue-6: oklch(0.708 0.129 27.325);
+  --report-overdue-7: oklch(0.693 0.138 27.325);
+  --report-overdue-8: oklch(0.679 0.147 27.325);
+  --report-overdue-9: oklch(0.664 0.156 27.325);
+  --report-overdue-10: oklch(0.650 0.165 27.325);
+
+  --heatmap-zero: oklch(0.240 0.008 260);
+  --heatmap-1: oklch(0.620 0.140 260);
+  --heatmap-2: oklch(0.660 0.123 260);
+  --heatmap-3: oklch(0.700 0.107 260);
+  --heatmap-4: oklch(0.740 0.091 260);
+  --heatmap-5: oklch(0.780 0.076 260);
 }
 
 /* ===== shadcn/ui base reset =====
@@ -438,6 +498,7 @@
 body {
   margin: 0;
   font-family: var(--font-body);
+  font-synthesis: none;
   background: var(--bg);
   color: var(--text);
   font-size: var(--text-base);
@@ -643,6 +704,7 @@ a[data-slot="button"]:hover {
 }
 
 .guide-heading-anchor {
+  position: relative;
   display: inline-flex;
   width: 1.5rem;
   height: 1.5rem;
@@ -656,8 +718,15 @@ a[data-slot="button"]:hover {
   transition:
     opacity var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out),
-    background-color var(--duration-fast) var(--ease-out);
+    background-color var(--duration-fast) var(--ease-out),
+    scale var(--duration-fast) var(--ease-out);
   vertical-align: middle;
+}
+
+.guide-heading-anchor::after {
+  position: absolute;
+  inset: -0.5rem;
+  content: "";
 }
 
 .guide-markdown-heading:hover .guide-heading-anchor,
@@ -665,10 +734,19 @@ a[data-slot="button"]:hover {
   opacity: 1;
 }
 
+.guide-heading-anchor:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
 .guide-heading-anchor:hover {
   background: var(--accent-soft);
   color: var(--foreground);
   text-decoration: none;
+}
+
+.guide-heading-anchor:active {
+  scale: 0.96;
 }
 
 .guide-markdown-h1 {
@@ -834,8 +912,8 @@ a[data-slot="button"]:hover {
 .guide-alert {
   margin-block: 1.5rem;
   border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--callout-accent, var(--foreground)) 32%, transparent);
-  background: color-mix(in srgb, var(--callout-accent, var(--foreground)) 8%, var(--card));
+  border: 1px solid color-mix(in oklch, var(--callout-accent, var(--foreground)) 32%, transparent);
+  background: color-mix(in oklch, var(--callout-accent, var(--foreground)) 8%, var(--card));
   padding: 0.9rem 1.15rem;
 }
 
@@ -863,43 +941,43 @@ a[data-slot="button"]:hover {
 }
 
 .guide-alert-note {
-  --callout-accent: #2563eb;
+  --callout-accent: oklch(0.540 0.210 262.881);
 }
 
 .guide-alert-tip {
-  --callout-accent: #16a34a;
+  --callout-accent: oklch(0.520 0.140 149.214);
 }
 
 .guide-alert-important {
-  --callout-accent: #7c3aed;
+  --callout-accent: oklch(0.540 0.238 293.009);
 }
 
 .guide-alert-warning {
-  --callout-accent: #d97706;
+  --callout-accent: oklch(0.540 0.124 58.318);
 }
 
 .guide-alert-caution {
-  --callout-accent: #dc2626;
+  --callout-accent: oklch(0.540 0.200 27.325);
 }
 
 [data-theme="dark"] .guide-alert-note {
-  --callout-accent: #60a5fa;
+  --callout-accent: oklch(0.710 0.140 254.624);
 }
 
 [data-theme="dark"] .guide-alert-tip {
-  --callout-accent: #4ade80;
+  --callout-accent: oklch(0.800 0.175 151.711);
 }
 
 [data-theme="dark"] .guide-alert-important {
-  --callout-accent: #a78bfa;
+  --callout-accent: oklch(0.710 0.155 293.541);
 }
 
 [data-theme="dark"] .guide-alert-warning {
-  --callout-accent: #fbbf24;
+  --callout-accent: oklch(0.835 0.160 84.429);
 }
 
 [data-theme="dark"] .guide-alert-caution {
-  --callout-accent: #f87171;
+  --callout-accent: oklch(0.710 0.160 22.216);
 }
 
 /* Safe video embeds (YouTube / Vimeo) */

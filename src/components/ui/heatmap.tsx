@@ -97,7 +97,7 @@ function defaultColourMap(value: number, max: number, colorCount: number) {
   return Math.min(Math.max(index, 0), colorCount - 1);
 }
 
-function interpolateRgb(
+function interpolateOklch(
   value: number,
   max: number,
   minColor: string,
@@ -120,31 +120,18 @@ function interpolateRgb(
   // Clamp t between 0 and 1
   t = Math.min(Math.max(t, 0), 1);
 
-  const s = {
-    r: parseInt(minColor.slice(1, 3), 16),
-    g: parseInt(minColor.slice(3, 5), 16),
-    b: parseInt(minColor.slice(5, 7), 16)
-  };
+  const minPercent = Number(((1 - t) * 100).toFixed(3));
+  const maxPercent = Number((t * 100).toFixed(3));
 
-  const e = {
-    r: parseInt(maxColor.slice(1, 3), 16),
-    g: parseInt(maxColor.slice(3, 5), 16),
-    b: parseInt(maxColor.slice(5, 7), 16)
-  };
-
-  const r = Math.round(s.r + (e.r - s.r) * t);
-  const g = Math.round(s.g + (e.g - s.g) * t);
-  const b = Math.round(s.b + (e.b - s.b) * t);
-
-  return `rgb(${r}, ${g}, ${b})`;
+  return `color-mix(in oklch, ${minColor} ${minPercent}%, ${maxColor} ${maxPercent}%)`;
 }
 
 const defaultIntensityColours = [
-  "#f0fdf4", // green-50
-  "#bbf7d0", // green-200
-  "#86efac", // green-300
-  "#22c55e", // green-500
-  "#166534" // green-700
+  "var(--heatmap-1)",
+  "var(--heatmap-2)",
+  "var(--heatmap-3)",
+  "var(--heatmap-4)",
+  "var(--heatmap-5)"
 ];
 
 const daysOfTheWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -315,11 +302,11 @@ export default function Heatmap(props: HeatmapProps) {
 
       // 0 < value <= maxValue
       // interpolate between minColor and maxColor
-      return interpolateRgb(
+      return interpolateOklch(
         value,
         maxValue,
-        props.minColor ?? "#aceebb",
-        props.maxColor ?? "#116329",
+        props.minColor ?? "var(--heatmap-1)",
+        props.maxColor ?? "var(--heatmap-5)",
         props.interpolation ?? "linear"
       );
     } else {

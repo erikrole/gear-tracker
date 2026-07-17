@@ -1,6 +1,7 @@
 "use client";
 
 import { type ColumnDef, type RowData } from "@tanstack/react-table";
+import { AnimatePresence, motion } from "motion/react";
 
 declare module "@tanstack/react-table" {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -121,7 +122,12 @@ function AssigneeStatus({
       <Tooltip>
         <TooltipTrigger asChild>
           <span className="cursor-default">
-            <UserAvatar name={name} avatarUrl={avatarUrl} size="xs" />
+            <UserAvatar
+              name={name}
+              avatarUrl={avatarUrl}
+              size="xs"
+              className="outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
+            />
           </span>
         </TooltipTrigger>
         <TooltipContent>{name}</TooltipContent>
@@ -233,14 +239,16 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
   columns.push({
     id: "select",
     header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
+      <div className="-m-3 flex size-10 items-center justify-center">
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      </div>
     ),
     cell: ({ row }) => {
       const canSelect = row.getCanSelect();
@@ -249,7 +257,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       }
       return (
         <div
-          className="-m-2 p-2 inline-flex items-center justify-center"
+          className="-m-3 inline-flex size-10 items-center justify-center"
           onClick={(e) => e.stopPropagation()}
         >
           <Checkbox
@@ -262,7 +270,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
     },
     enableSorting: false,
     enableHiding: false,
-    meta: { thClassName: "w-9" },
+    meta: { thClassName: "w-12" },
   });
 
   // Favorite star column
@@ -278,7 +286,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
         <Button
           variant="ghost"
           size="icon"
-          className="size-9 active:scale-[0.96] transition-transform"
+          className="size-10"
           onClick={(e) => {
             e.stopPropagation();
             meta.onToggleFavorite?.(asset);
@@ -286,13 +294,25 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
           aria-label={asset.isFavorited ? "Remove from favorites" : "Add to favorites"}
           aria-pressed={!!asset.isFavorited}
         >
-          <Star
-            className={`size-4 ${
-              asset.isFavorited
-                ? "fill-amber-400 text-amber-400"
-                : "text-muted-foreground"
-            }`}
-          />
+          <AnimatePresence initial={false} mode="popLayout">
+            <motion.span
+              key={asset.isFavorited ? "favorited" : "not-favorited"}
+              initial={{ opacity: 0, scale: 0.25, filter: "blur(4px)" }}
+              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+              exit={{ opacity: 0, scale: 0.25, filter: "blur(4px)" }}
+              transition={{ type: "spring", duration: 0.3, bounce: 0 }}
+              className="inline-flex items-center justify-center"
+            >
+              <Star
+                className={`size-4 ${
+                  asset.isFavorited
+                    ? "fill-amber-400 text-amber-400"
+                    : "text-muted-foreground"
+                }`}
+                aria-hidden="true"
+              />
+            </motion.span>
+          </AnimatePresence>
         </Button>
       );
     },

@@ -121,7 +121,7 @@ export function FilterChips({
                       key={`sport-${code}`}
                       variant={activeSport === code ? "default" : "outline"}
                       size="sm"
-                      className="h-7 text-xs px-2.5"
+                      className="h-10 px-3 text-xs"
                       onClick={() => setActiveSport(activeSport === code ? null : code)}
                     >
                       {code}
@@ -141,7 +141,7 @@ export function FilterChips({
                       key={`loc-${name}`}
                       variant={activeLocation === name ? "default" : "outline"}
                       size="sm"
-                      className="h-7 text-xs px-2.5"
+                      className="h-10 px-3 text-xs"
                       onClick={() => setActiveLocation(activeLocation === name ? null : name)}
                     >
                       {name}
@@ -160,7 +160,7 @@ export function FilterChips({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 text-xs px-2 text-muted-foreground"
+                        className="h-10 px-3 text-xs text-muted-foreground"
                         onClick={handleSavePreset}
                       >
                         <BookmarkPlusIcon className="size-3 mr-1" />
@@ -173,7 +173,7 @@ export function FilterChips({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 text-xs px-2 text-muted-foreground"
+                  className="h-10 px-3 text-xs text-muted-foreground"
                   onClick={clearFilters}
                 >
                   <XIcon className="size-3 mr-1" />
@@ -197,7 +197,7 @@ export function FilterChips({
                         <Button
                           variant={isActive ? "default" : "outline"}
                           size="sm"
-                          className="h-7 px-2 text-xs"
+                          className="h-10 px-3 text-xs"
                           onClick={() => {
                             if (isActive) {
                               clearFilters();
@@ -211,7 +211,7 @@ export function FilterChips({
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          className="size-7 text-muted-foreground"
+                          className="size-10 text-muted-foreground"
                           onClick={() => handleDeletePreset(preset.id)}
                           aria-label={`Delete saved filter "${preset.label}"`}
                         >
@@ -230,7 +230,7 @@ export function FilterChips({
         <Button
           variant="ghost"
           size="icon-sm"
-          className="text-muted-foreground"
+          className="size-10 text-muted-foreground"
           onClick={clearFilters}
           aria-label="Clear dashboard filters"
         >

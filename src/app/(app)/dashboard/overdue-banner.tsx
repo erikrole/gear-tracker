@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { BellRingIcon, CheckIcon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
@@ -56,7 +57,7 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
   return (
     <Card
       elevation="flat"
-      className="mb-4 overflow-hidden border-[var(--wi-red)]/20 animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none"
+      className="mb-4 overflow-hidden border-[var(--wi-red)]/20"
     >
       <DashboardSectionHeader
         title="Overdue checkouts"
@@ -73,18 +74,29 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="shrink-0 text-muted-foreground hover:bg-[var(--red-bg)] hover:text-[var(--red-text)]"
+                  className="size-10 shrink-0 text-muted-foreground hover:bg-[var(--red-bg)] hover:text-[var(--red-text)]"
                   disabled={nudgedIds.has(item.bookingId) || nudgingId === item.bookingId}
                   onClick={() => handleNudge(item.bookingId)}
                   aria-label={`Nudge ${item.requesterName}`}
                 >
-                  {nudgingId === item.bookingId ? (
-                    <Spinner />
-                  ) : nudgedIds.has(item.bookingId) ? (
-                    <CheckIcon className="size-4 text-[var(--green-text)]" />
-                  ) : (
-                    <BellRingIcon className="size-4" />
-                  )}
+                  <AnimatePresence initial={false} mode="popLayout">
+                    <motion.span
+                      key={nudgingId === item.bookingId ? "loading" : nudgedIds.has(item.bookingId) ? "sent" : "idle"}
+                      initial={{ opacity: 0, scale: 0.25, filter: "blur(4px)" }}
+                      animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+                      exit={{ opacity: 0, scale: 0.25, filter: "blur(4px)" }}
+                      transition={{ type: "spring", duration: 0.3, bounce: 0 }}
+                      className="inline-flex items-center justify-center"
+                    >
+                      {nudgingId === item.bookingId ? (
+                        <Spinner />
+                      ) : nudgedIds.has(item.bookingId) ? (
+                        <CheckIcon className="size-4 text-[var(--green-text)]" />
+                      ) : (
+                        <BellRingIcon className="size-4" />
+                      )}
+                    </motion.span>
+                  </AnimatePresence>
                 </Button>
               </TooltipTrigger>
               <TooltipContent>

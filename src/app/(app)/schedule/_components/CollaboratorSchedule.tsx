@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { BellIcon, BellOffIcon, CalendarDaysIcon, MapPinIcon } from "lucide-react";
 import { toast } from "sonner";
 import EmptyState from "@/components/EmptyState";
@@ -131,7 +132,18 @@ export function CollaboratorSchedule() {
                   loading={pendingFollowId === item.id}
                   onClick={() => void setFollowing(item, !item.isFollowing)}
                 >
-                  {item.isFollowing ? <BellOffIcon data-icon="inline-start" /> : <BellIcon data-icon="inline-start" />}
+                  <AnimatePresence initial={false} mode="popLayout">
+                    <motion.span
+                      key={item.isFollowing ? "mute" : "follow"}
+                      initial={{ opacity: 0, scale: 0.25, filter: "blur(4px)" }}
+                      animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+                      exit={{ opacity: 0, scale: 0.25, filter: "blur(4px)" }}
+                      transition={{ type: "spring", duration: 0.3, bounce: 0 }}
+                      className="inline-flex items-center justify-center"
+                    >
+                      {item.isFollowing ? <BellOffIcon data-icon="inline-start" /> : <BellIcon data-icon="inline-start" />}
+                    </motion.span>
+                  </AnimatePresence>
                   {item.isFollowing ? "Mute updates" : "Follow event"}
                 </Button>
               </CardHeader>

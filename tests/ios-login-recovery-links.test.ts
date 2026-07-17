@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 describe("iOS login recovery links", () => {
   const source = readFileSync("ios/Wisconsin/Views/LoginView.swift", "utf8");
+  const apiClient = readFileSync("ios/Wisconsin/Core/APIClient.swift", "utf8");
 
   it("keeps password reset and allowlist registration reachable from native login", () => {
     expect(source).toContain('private static let forgotPasswordURL = AppEnvironment.url(path: "/forgot-password")');
@@ -14,5 +15,11 @@ describe("iOS login recovery links", () => {
   it("names the password visibility control by action and state", () => {
     expect(source).toContain('.accessibilityLabel(showPassword ? "Hide password" : "Show password")');
     expect(source).toContain('.accessibilityValue(showPassword ? "Password visible" : "Password hidden")');
+  });
+
+  it("shows credential failures without broadcasting a session expiry", () => {
+    expect(apiClient).toContain("perform(req, broadcastsSessionExpiry: false)");
+    expect(apiClient).toContain("if broadcastsSessionExpiry {");
+    expect(apiClient).toContain('?? "Invalid credentials"');
   });
 });

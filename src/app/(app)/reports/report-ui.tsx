@@ -33,21 +33,37 @@ import {
 } from "./report-export";
 
 export const REPORT_CHART_COLORS = [
-  "hsl(220 70% 55%)",
-  "hsl(270 60% 60%)",
-  "hsl(142 60% 45%)",
-  "hsl(25 90% 55%)",
-  "hsl(340 70% 55%)",
-  "hsl(180 50% 45%)",
-  "hsl(45 80% 50%)",
-  "hsl(0 0% 60%)",
-  "hsl(200 60% 50%)",
-  "hsl(120 40% 50%)",
-  "hsl(290 50% 55%)",
-  "hsl(30 70% 50%)",
-  "hsl(160 50% 50%)",
-  "hsl(350 60% 50%)",
-  "hsl(240 50% 55%)",
+  "var(--report-chart-1)",
+  "var(--report-chart-2)",
+  "var(--report-chart-3)",
+  "var(--report-chart-4)",
+  "var(--report-chart-5)",
+  "var(--report-chart-6)",
+  "var(--report-chart-7)",
+  "var(--report-chart-8)",
+] as const;
+
+export const REPORT_SEMANTIC_CHART_COLORS = {
+  active: "var(--chart-1)",
+  available: "var(--chart-2)",
+  reserved: "var(--chart-3)",
+  waiting: "var(--chart-4)",
+  problem: "var(--chart-5)",
+  neutral: "var(--text-muted)",
+  activeSoft: "var(--report-chart-active-soft)",
+} as const;
+
+export const REPORT_OVERDUE_CHART_COLORS = [
+  "var(--report-overdue-1)",
+  "var(--report-overdue-2)",
+  "var(--report-overdue-3)",
+  "var(--report-overdue-4)",
+  "var(--report-overdue-5)",
+  "var(--report-overdue-6)",
+  "var(--report-overdue-7)",
+  "var(--report-overdue-8)",
+  "var(--report-overdue-9)",
+  "var(--report-overdue-10)",
 ] as const;
 
 export function downloadReportCsv(

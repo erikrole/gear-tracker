@@ -82,7 +82,7 @@ function EventChip({
   const venueTone = VENUE_TONES[venueToneFromEvent(entry)];
 
   const chipClass = cn(
-    "flex items-stretch rounded-sm w-full text-left mb-px overflow-hidden transition-colors cursor-pointer",
+    "mb-px flex w-full cursor-pointer items-stretch overflow-hidden rounded-sm text-left outline-none transition-[background-color,scale] active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-ring",
   );
 
   const inner = (
@@ -237,7 +237,7 @@ export function CalendarView({
       <div className="hidden max-md:flex flex-col items-center gap-3 py-8 px-4 text-muted-foreground text-sm border border-border/60 rounded-lg bg-muted/20 text-center">
         <span>Calendar view is best on desktop.</span>
         {onSwitchToList && (
-          <Button variant="outline" size="sm" onClick={onSwitchToList}>
+          <Button variant="outline" size="sm" className="h-10" onClick={onSwitchToList}>
             Switch to List view
           </Button>
         )}
@@ -298,10 +298,10 @@ export function CalendarView({
                     <div className="flex justify-center mb-1">
                       <span
                         className={cn(
-                          "inline-flex items-center justify-center size-[26px] text-sm leading-none rounded-full font-bold transition-colors",
+                          "inline-flex size-[26px] items-center justify-center rounded-full text-sm font-bold leading-none",
                           today
                             ? "bg-[var(--wi-red)] text-white"
-                            : "text-foreground hover:bg-muted/60",
+                            : "text-foreground",
                         )}
                         style={{ fontFamily: "var(--font-heading)" }}
                       >
@@ -322,7 +322,7 @@ export function CalendarView({
                     {!isExpanded && hiddenCount > 0 && (
                       <button
                         type="button"
-                        className="block text-[9px] font-medium text-muted-foreground hover:text-foreground px-1 w-full text-left transition-colors"
+                        className="flex min-h-10 w-full items-center rounded-sm px-1 text-left text-[9px] font-medium text-muted-foreground outline-none transition-[color,scale] hover:text-foreground active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-ring"
                         onClick={() => setExpandedDay(cell.day)}
                       >
                         +{hiddenCount} more
@@ -331,7 +331,7 @@ export function CalendarView({
                     {isExpanded && hiddenCount > 0 && (
                       <button
                         type="button"
-                        className="block text-[9px] font-medium text-muted-foreground hover:text-foreground px-1 w-full text-left transition-colors"
+                        className="flex min-h-10 w-full items-center rounded-sm px-1 text-left text-[9px] font-medium text-muted-foreground outline-none transition-[color,scale] hover:text-foreground active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-ring"
                         onClick={() => setExpandedDay(null)}
                       >
                         show less

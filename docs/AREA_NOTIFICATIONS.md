@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Notifications
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-03
+- Last Updated: 2026-07-16
 - Status: Active: escalation schedule + iOS booking/event tap-through + APNs native push + calendar sync health alerts + schedule notification policy shipped
 - Version: V1.2
 
@@ -117,7 +117,7 @@ Implementation: `src/lib/services/notifications.ts`
 - **In-app**: `Notification` record created for the checkout requester; visible in notification center
 - **Email**: Via Resend (`RESEND_API_KEY` env var). Falls back to `console.log` in dev. Non-fatal on failure.
 - **Admin escalation**: +24h trigger notifies requester + all admins via both in-app and email
-- **Email service**: `src/lib/email.ts` — `sendEmail()` + `buildNotificationEmail()` for HTML template
+- **Email service**: `src/lib/email.ts` provides `sendEmail()`, the email-safe shared hex palette, HTML escaping, the common document shell, and notification content. Shift-trade and password-reset email producers reuse the same shell.
 
 ## Cron / Job Runner
 - **Cron endpoint**: `GET /api/cron/notifications` — validates `CRON_SECRET` bearer token, no user session needed
@@ -251,6 +251,7 @@ Current behavior:
 | `EMAIL_FROM` | No | From address for transactional email. Default: `Wisconsin Creative <noreply@wisconsincreative.com>` |
 
 ## Change Log
+- 2026-07-16: Transactional email HTML now shares one email-client-safe hex palette, escaping helper, document header, divider, and footer across notification, shift-trade, and password-reset producers. The 11px footer gray was strengthened from `#9CA3AF` to `#6B7280` for WCAG AA contrast on white. Delivery, recipients, preference gating, reset behavior, and notification semantics are unchanged.
 - 2026-07-10: **Notifications end-to-end ownership pass.** The web inbox now leads with All/Unread filtering, a direct preferences handoff, simplified operational status, responsive row actions, named filtered-empty recovery, and visible refresh progress. Every documented `payload.href` can render an owning action, shipped notification families receive useful category labels, and legacy rows fall back from nullable `sentAt` to `createdAt`. Read mutations now remove rows from the unread view, invalidate every inbox cache, clamp stale pages, and synchronize the app-shell unread badge with rollback on failure. The list API returns separate filtered and whole-inbox totals with deterministic ordering; manual booking nudges now persist `sentAt`. Persistent inbox, producer, delivery preference, and role contracts are unchanged.
 - 2026-07-10: **Notification inbox operational status rail.** Unread work now leads through the shared compact rail and can activate the existing unread-only filter, while unread, read, and total counts remain pressed-state-aware under Details. Notification delivery and read mutation contracts are unchanged.
 - 2026-07-10: Native notification settings keeps Resume independently actionable under VoiceOver, notification mutation and pagination failures announce live, and the push pre-prompt uses scalable controls, hides decorative symbols, and removes bounce when Reduce Motion is enabled.

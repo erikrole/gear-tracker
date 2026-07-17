@@ -87,7 +87,7 @@ final class APIClient {
         }
         var req = request(path: "/api/auth/login", method: "POST")
         req.httpBody = try JSONEncoder().encode(Body(email: email, password: password, rememberMe: true))
-        let resp: LoginResponse = try await perform(req)
+        let resp: LoginResponse = try await perform(req, broadcastsSessionExpiry: false)
         return resp.user
     }
 
@@ -994,6 +994,40 @@ final class APIClient {
         }
     }
 
+    // MARK: - Profile completion
+
+    func profileCompletion() async throws -> ProfileCompletionResponse {
+        let response: DataWrapper<ProfileCompletionResponse> = try await perform(
+            request(path: "/api/me/profile-completion")
+        )
+        return response.data
+    }
+
+    func updateProfileCompletion(_ update: ProfileCompletionUpdate) async throws -> ProfileCompletionResponse {
+        var req = request(path: "/api/me/profile-completion", method: "PATCH")
+        req.httpBody = try JSONEncoder().encode(update)
+        let response: DataWrapper<ProfileCompletionResponse> = try await perform(req)
+        return response.data
+    }
+
+    func uploadProfileAvatar(userId: String, jpegData: Data) async throws -> String {
+        struct AvatarData: Decodable { let avatarUrl: String }
+
+        let boundary = "WisconsinAvatar-\(UUID().uuidString)"
+        var body = Data()
+        body.append(Data("--\(boundary)\r\n".utf8))
+        body.append(Data("Content-Disposition: form-data; name=\"file\"; filename=\"profile.jpg\"\r\n".utf8))
+        body.append(Data("Content-Type: image/jpeg\r\n\r\n".utf8))
+        body.append(jpegData)
+        body.append(Data("\r\n--\(boundary)--\r\n".utf8))
+
+        var req = request(path: "/api/users/\(userId)/avatar", method: "POST")
+        req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        req.httpBody = body
+        let response: DataWrapper<AvatarData> = try await perform(req)
+        return response.data.avatarUrl
+    }
+
     // MARK: - Internals
 
     /// `path` must be a pure path — `appendingPathComponent` percent-encodes
@@ -1023,7 +1057,10 @@ final class APIClient {
         return formatter.string(from: date)
     }
 
-    private func perform<T: Decodable>(_ request: URLRequest) async throws -> T {
+    private func perform<T: Decodable>(
+        _ request: URLRequest,
+        broadcastsSessionExpiry: Bool = true
+    ) async throws -> T {
         let data: Data
         let response: URLResponse
         do {
@@ -1044,10 +1081,15 @@ final class APIClient {
                 throw APIError.decodingError(error)
             }
         case 401:
-            // Single point where 401 broadcasts globally; SessionStore listens
-            // and routes the user back to login.
-            NotificationCenter.default.post(name: .sessionDidExpire, object: nil)
-            throw APIError.unauthorized
+            if broadcastsSessionExpiry {
+                // Authenticated requests broadcast globally so SessionStore can
+                // route the user back to login when their session expires.
+                NotificationCenter.default.post(name: .sessionDidExpire, object: nil)
+                throw APIError.unauthorized
+            }
+            let message = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error
+                ?? "Invalid credentials"
+            throw APIError.serverError(message)
         case 404:
             throw APIError.notFound
         case 403:

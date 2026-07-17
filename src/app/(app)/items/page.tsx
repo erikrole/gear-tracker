@@ -620,7 +620,7 @@ export default function ItemsPage() {
           <Button
             variant="outline"
             size="icon-sm"
-            className="hidden sm:flex"
+            className="hidden size-10 sm:flex"
             onClick={() => setDensity((d) => (d === "compact" ? "comfortable" : "compact"))}
             aria-label={density === "compact" ? "Switch to comfortable density" : "Switch to compact density"}
             title={density === "compact" ? "Comfortable density" : "Compact density"}
@@ -634,7 +634,7 @@ export default function ItemsPage() {
                 size="sm"
                 onClick={handleExport}
                 disabled={exporting}
-                className="hidden min-w-[86px] sm:flex"
+                className="hidden h-10 min-w-[86px] sm:flex"
                 aria-label={exporting ? "Exporting items" : "Export items to CSV"}
               >
                 <Download className="size-3.5" aria-hidden="true" />
@@ -643,14 +643,14 @@ export default function ItemsPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="hidden min-w-[86px] sm:flex"
+                className="hidden h-10 min-w-[86px] sm:flex"
                 onClick={() => setShowGapWizard(true)}
                 disabled={!canFillGaps}
               >
                 Fill gaps
               </Button>
-              <Button variant="outline" size="sm" className="min-w-[76px]" asChild><Link href="/import">Import</Link></Button>
-              <Button size="sm" className="min-w-[92px]" onClick={() => setShowCreate(true)} disabled={!canCreateItem}>New item</Button>
+              <Button variant="outline" size="sm" className="h-10 min-w-[76px]" asChild><Link href="/import">Import</Link></Button>
+              <Button size="sm" className="h-10 min-w-[92px]" onClick={() => setShowCreate(true)} disabled={!canCreateItem}>Add item</Button>
             </>
           )}
         </div>
@@ -662,7 +662,7 @@ export default function ItemsPage() {
           <AlertTitle>Item controls did not load</AlertTitle>
           <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
             <span>You can still browse inventory, but filters and staff actions stay unavailable until role and reference data are confirmed.</span>
-            <Button variant="outline" size="sm" onClick={options.retry} disabled={options.refreshing}>
+            <Button variant="outline" size="sm" className="h-10" onClick={options.retry} disabled={options.refreshing}>
               <RefreshCw className={options.refreshing ? "animate-spin" : ""} aria-hidden="true" />
               Retry controls
             </Button>
@@ -676,7 +676,7 @@ export default function ItemsPage() {
           <AlertTitle>Item controls may be out of date</AlertTitle>
           <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
             <span>The last loaded filters and permissions remain available while refresh is retried.</span>
-            <Button variant="outline" size="sm" onClick={options.retry} disabled={options.refreshing}>
+            <Button variant="outline" size="sm" className="h-10" onClick={options.retry} disabled={options.refreshing}>
               <RefreshCw className={options.refreshing ? "animate-spin" : ""} aria-hidden="true" />
               Retry refresh
             </Button>
@@ -696,7 +696,7 @@ export default function ItemsPage() {
             title={options.refreshError ? "Some item controls may be out of date" : "Some item controls did not load"}
           />
           <div className="flex justify-end">
-            <Button variant="outline" size="sm" onClick={options.retry} disabled={options.refreshing}>
+            <Button variant="outline" size="sm" className="h-10" onClick={options.retry} disabled={options.refreshing}>
               <RefreshCw className={options.refreshing ? "animate-spin" : ""} aria-hidden="true" />
               Retry controls
             </Button>
@@ -867,7 +867,7 @@ export default function ItemsPage() {
             icon="box"
             title="No items in inventory yet"
             description={canOfferCreateItem ? "Create your first item to get started." : "No items have been added yet."}
-            actionLabel={canOfferCreateItem ? "New item" : undefined}
+            actionLabel={canOfferCreateItem ? "Add item" : undefined}
             onAction={canOfferCreateItem ? () => setShowCreate(true) : undefined}
           />
         ) : visibleRowCount === 0 ? (

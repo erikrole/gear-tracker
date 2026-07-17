@@ -28,6 +28,26 @@ describe("dashboard accessibility contracts", () => {
     expect(filters).toContain('className="h-10 gap-1.5"');
   });
 
+  it("keeps dashboard secondary actions at the 40px target baseline", () => {
+    const filters = readFileSync("src/app/(app)/dashboard/filter-chips.tsx", "utf8");
+    const sectionHeader = readFileSync("src/app/(app)/dashboard/section-header.tsx", "utf8");
+    const teamActivity = readFileSync("src/app/(app)/dashboard/team-activity-column.tsx", "utf8");
+
+    expect(filters).not.toContain('className="h-7');
+    expect(filters).not.toContain('className="size-7');
+    expect(sectionHeader).toContain("flex min-h-10 items-center justify-center");
+    expect(sectionHeader).toContain("flex min-h-10 min-w-0 items-center");
+    expect(teamActivity).toContain('"h-10 px-3 text-xs data-[state=on]:shadow-sm"');
+  });
+
+  it("animates nudge state changes without replaying on first render", () => {
+    const overdue = readFileSync("src/app/(app)/dashboard/overdue-banner.tsx", "utf8");
+
+    expect(overdue).toContain('<AnimatePresence initial={false} mode="popLayout">');
+    expect(overdue).toContain('initial={{ opacity: 0, scale: 0.25, filter: "blur(4px)" }}');
+    expect(overdue).toContain('transition={{ type: "spring", duration: 0.3, bounce: 0 }}');
+  });
+
   it("keeps live sync compact and attached to the dashboard title", () => {
     const page = readFileSync("src/app/(app)/page.tsx", "utf8");
     const header = readFileSync("src/components/PageHeader.tsx", "utf8");

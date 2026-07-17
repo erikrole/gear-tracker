@@ -156,7 +156,7 @@ export function AvatarCropDialog({
           {loadError ? (
             <p role="alert" className="text-sm text-destructive">{loadError}</p>
           ) : (
-            <div className="mx-auto aspect-square w-full max-w-80 rounded-full bg-muted p-1 shadow-[0_0_0_1px_hsl(var(--border))]">
+            <div className="mx-auto aspect-square w-full max-w-80 rounded-full bg-muted p-1 shadow-[0_0_0_1px_var(--border)]">
               <canvas
                 ref={canvasRef}
                 aria-label="Profile photo crop preview"

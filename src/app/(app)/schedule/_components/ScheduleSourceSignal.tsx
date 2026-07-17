@@ -69,7 +69,7 @@ export function ScheduleSourceSignal({ signal }: { signal: ScheduleSourceSignalD
             <CountBadge label="Disabled" value={signal.disabledSourceCount} />
           </div>
 
-          <Button variant="outline" size="sm" asChild className="w-fit">
+          <Button variant="outline" size="sm" asChild className="h-10 w-fit">
             <Link href="/settings/calendar-sources">Open Calendar Sources</Link>
           </Button>
         </div>

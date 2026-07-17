@@ -4,12 +4,15 @@ options:
   deploymentTarget:
     iOS: "26.0"
   createIntermediateGroups: true
-  xcodeVersion: "26.0"
+  xcodeVersion: "26.6"
 
 settings:
   base:
-    SWIFT_VERSION: "5.10"
+    SWIFT_VERSION: "6.0"
     ENABLE_PREVIEWS: "NO"
+    ENABLE_USER_SCRIPT_SANDBOXING: "YES"
+    DEVELOPMENT_TEAM: T26T3G8C7Q
+    STRING_CATALOG_GENERATE_SYMBOLS: "YES"
 
 targets:
   Wisconsin:
@@ -62,16 +65,11 @@ targets:
     settings:
       base:
         PRODUCT_NAME: Wisconsin Creative
+        PRODUCT_MODULE_NAME: Wisconsin
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES:
-          - AppIconHeritage
-          - AppIconBucky
-          - AppIconHelmet
-          - AppIconMetallic
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "20"
         TARGETED_DEVICE_FAMILY: "1,2"
-        DEVELOPMENT_TEAM: T26T3G8C7Q
         SWIFT_STRICT_CONCURRENCY: complete
       configs:
         Debug:
@@ -116,7 +114,6 @@ targets:
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
         TARGETED_DEVICE_FAMILY: "2"
-        DEVELOPMENT_TEAM: T26T3G8C7Q
       configs:
         Debug:
           OTHER_SWIFT_FLAGS: "-DDEBUG"
@@ -134,7 +131,8 @@ targets:
         GENERATE_INFOPLIST_FILE: "YES"
         PRODUCT_NAME: WisconsinTests
         PRODUCT_BUNDLE_IDENTIFIER: com.erikrole.WisconsinTests
-        DEVELOPMENT_TEAM: T26T3G8C7Q
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Wisconsin Creative.app/Wisconsin Creative"
+        BUNDLE_LOADER: "$(TEST_HOST)"
 
   WisconsinKioskTests:
     type: bundle.unit-test
@@ -149,7 +147,6 @@ targets:
         GENERATE_INFOPLIST_FILE: "YES"
         PRODUCT_NAME: WisconsinKioskTests
         PRODUCT_BUNDLE_IDENTIFIER: com.erikrole.WisconsinKioskTests
-        DEVELOPMENT_TEAM: T26T3G8C7Q
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Wisconsin Kiosk.app/Wisconsin Kiosk"
         BUNDLE_LOADER: "$(TEST_HOST)"
 
@@ -175,7 +172,6 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.erikrole.Wisconsin.LiveActivities
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "20"
-        DEVELOPMENT_TEAM: T26T3G8C7Q
         SKIP_INSTALL: YES
         SWIFT_STRICT_CONCURRENCY: complete
 

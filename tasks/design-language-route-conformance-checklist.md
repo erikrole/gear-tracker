@@ -43,12 +43,12 @@ This is a working checklist, not a redesign brief. Use it before future page-spe
 
 | Route | Status | Finding | Next Fix |
 |---|---|---|---|
-| `/` | Strong | Uses `PageHeader`, shared empty state, role-aware actions, queue columns, and `OperationalStatusRail` for prioritized booking work with expanded shared metrics. | No immediate code fix. Keep future queue cards out of nested-card layouts and preserve orange pending-pickup semantics. |
+| `/` | Strong | Uses `PageHeader`, shared empty state, role-aware actions, queue columns, and `OperationalStatusRail` for prioritized booking work with expanded shared metrics. Secondary filters, footer links, section links, collaborator actions, and event controls meet the 40px target baseline; overdue nudge state changes use interruptible Motion. | No immediate code fix. Keep future queue cards out of nested-card layouts and preserve orange pending-pickup semantics. |
 | `/schedule` | Mostly conforming, intentional exception | Uses `PageHeader`, shadcn `Sheet`, shared `EmptyState` in list/trade surfaces, shadcn `ToggleGroup` for view and venue command groups, Trade Board active chips, and `OperationalRowActions` for trade secondary/destructive commands. `ScheduleFilters` remains route-local because it controls schedule-specific modes rather than a generic list toolbar. | No immediate code fix. Keep future Schedule controls shadcn-backed and preserve the command-bar exception. |
-| `/items` | Strong | Uses `PageHeader`, `OperationalToolbar`, `OperationalActiveFilterChips`, shadcn table, shared empty states, stable pagination, and documented tag-first identity. | No immediate code fix. Keep item-family rows and serialized rows in one discovery surface, but do not add item-family-only custom controls unless they also meet the shared toolbar/row-action rules. |
-| `/bookings` | Strong | Uses `PageHeader`, shadcn tabs/toggles, shared `BookingListPage`, `OperationalToolbar`, shared active-filter chips, shared empty states, and `OperationalRowActions` in table rows, mobile rows, and cards. The list content is still framed in a route-level `Card`, which is acceptable because the card owns filters plus results, not a decorative page section. | No immediate code fix. Do not disturb unified checkout/reservation behavior. |
+| `/items` | Strong | Uses `PageHeader`, `OperationalToolbar`, `OperationalActiveFilterChips`, 40px commands and filter/selection controls, sentence-case shadcn table headers with accessible animated sort state, shared empty states, stable pagination, tactile mobile rows, neutral image outlines, `Add item` creation language, and documented tag-first identity. | No immediate code fix. Keep item-family rows and serialized rows in one discovery surface, but do not add item-family-only custom controls unless they also meet the shared toolbar/row-action rules. |
+| `/bookings` | Strong | Uses `PageHeader`, shadcn tabs/toggles, shared `BookingListPage`, `OperationalToolbar`, shared active-filter chips, shared empty states, and `OperationalRowActions` in table rows, mobile rows, and cards. Scope/view controls and list commands meet the 40px baseline, sortable headers expose accessible animated state, and cards/mobile rows have precise press feedback. The list content is still framed in a route-level `Card`, which is acceptable because the card owns filters plus results, not a decorative page section. | No immediate code fix. Do not disturb unified checkout/reservation behavior. |
 | `/users` | Strong | Uses `PageHeader`, `OperationalToolbar`, `OperationalActiveFilterChips`, shadcn table, shared empty states, URL state, roster stats, and role-aware actions. | No immediate code fix. If row-level user actions expand beyond navigation, use `OperationalRowActions` instead of adding local icon menus. |
-| `/settings` | Strong | Uses `PageHeader`, role-aware grouped rail, horizontal smaller-screen scroller, search command, overview map, and `SettingsPageShell` for the shared sub-page split. Area 4 aligned high-confidence sub-page drift in Bookings, Kiosk Devices, Allowed Emails, Database Health, and Audit. | No immediate code fix. Keep new Settings pages on `SettingsPageShell`, shared inline empty states, and shared command surfaces when a sub-page has search/filter/clear controls. |
+| `/settings` | Strong | Uses `PageHeader`, role-aware grouped rail, grouped mobile picker, search command, overview map, and `SettingsPageShell` for the shared sub-page split. Overview destinations use precise press feedback, semantic staggered entrance, compact responsive search, 44px command results, and a 40px access-recovery action. Area 4 aligned high-confidence sub-page drift in Bookings, Kiosk Devices, Allowed Emails, Database Health, and Audit. | No immediate code fix. Keep new Settings pages on `SettingsPageShell`, shared inline empty states, and shared command surfaces when a sub-page has search/filter/clear controls. |
 | `/kits` | Strong | Uses `PageHeader`, `OperationalStatusRail`, URL-backed search/filter/sort, shared `EmptyState`, expanded shared metrics, and responsive table/card layouts. The route-local filter shell remains acceptable until it needs the full search/filter/clear toolbar pattern. | No immediate code fix. Re-evaluate the search/location/archived row only when Kits gets more filter complexity. |
 | `/licenses` | Strong | Uses `PageHeader`, `OperationalStatusRail` for capacity and expiry, shared `EmptyState`, explicit admin/user actions, expanded shared metrics, and lifecycle copy that matches the 2-slot license model. | No immediate code fix. If license row actions expand, keep destructive actions in shared menu or dialogs with target/consequence copy. |
 | `/resources` | Intentional exception | Uses `PageHeader`, shared `EmptyState`, URL-backed search/sort/filter state, shared active-filter chips, shadcn `Select`, and 40px search/filter/sort/contact controls, but the sticky left rail is a knowledge-base navigation model rather than a standard operational toolbar. | No immediate code fix. Keep the rail as the documented resources exception; avoid adding a second competing toolbar. |
@@ -69,10 +69,10 @@ This is a working checklist, not a redesign brief. Use it before future page-spe
 - **Toolbar and filters**: route-specific pass. Dashboard filter chips sit in a compact refresh/filter command group because the home surface is a queue, not a searchable table.
 - **Rows and actions**: pass. Existing action handlers are role-aware and route through shared booking detail or wizard flows.
 - **Empty, loading, error**: pass. Uses `DashboardSkeleton`, shared `EmptyState`, and cached stat-first rendering.
-- **Targets and focus**: pass based on current visual proof and prior 40px dashboard/event control passes.
+- **Targets and focus**: pass. Filter options, saved-view controls, queue footer links, section-title links, collaborator actions, draft actions, event venue toggles, exception links, and row-open surfaces meet the 40px target baseline with visible focus. First-run links use the shared 0.96 press treatment, and overdue nudge icons transition without replaying on initial render.
 - **Status and color**: pass. Pending pickup is documented as orange, not green.
 - **Copy**: pass. Queue labels use operational language such as Due today, Checked out, Reserved, and draft recovery.
-- **Evidence**: `src/app/(app)/page.tsx`; authenticated screenshot `tasks/design-language-proof-dashboard.png`.
+- **Evidence**: `src/app/(app)/page.tsx`, `src/app/(app)/dashboard/`, `tests/dashboard-accessibility.test.ts`; authenticated screenshot `tasks/design-language-proof-dashboard.png` predates the 2026-07-16 interaction-detail pass.
 
 ### `/schedule`
 
@@ -80,10 +80,10 @@ This is a working checklist, not a redesign brief. Use it before future page-spe
 - **Toolbar and filters**: pass with documented exception. `ScheduleFilters` is route-local because it controls view mode, venue, coverage, my shifts, past events, and schedule-specific filters. View and venue groups now use shadcn `ToggleGroup`.
 - **Rows and actions**: pass for Trade Board. Trade secondary/destructive commands use `OperationalRowActions`; visible primary actions remain visible.
 - **Empty, loading, error**: pass in Trade Board and list surfaces.
-- **Targets and focus**: pass. Command targets stay at the 40px baseline and segmented controls are shadcn-backed.
+- **Targets and focus**: pass. Header commands, the My Shifts label, calendar overflow controls, source settings, list retry/trade/manage actions, and row-open links meet the 40px target baseline or use their full containing row. Calendar and Week event cards have explicit press and keyboard-focus feedback; dense calendar chips remain the documented grid-density exception.
 - **Status and color**: pass. Trade status mapping uses semantic badges.
 - **Copy**: pass with one note: trade cancellation confirmation should name the event or shift in a future copy pass.
-- **Evidence**: `src/app/(app)/schedule/page.tsx`, `src/app/(app)/schedule/_components/ScheduleFilters.tsx`, `src/components/TradeBoard.tsx`.
+- **Evidence**: `src/app/(app)/schedule/page.tsx`, `src/app/(app)/schedule/_components/`, `src/components/TradeBoard.tsx`, `tests/schedule-ui-polish-source.test.ts`.
 
 ### `/items`
 
@@ -91,10 +91,10 @@ This is a working checklist, not a redesign brief. Use it before future page-spe
 - **Toolbar and filters**: pass. `ItemsToolbar` uses `OperationalToolbar`, `OperationalActiveFilterChips`, shadcn inputs, switches, toggles, and filter controls.
 - **Rows and actions**: pass. Item row overflow uses the shared row-action pattern through the table columns.
 - **Empty, loading, error**: pass. Uses shared `EmptyState`, shadcn skeletons, and table/card skeletons.
-- **Targets and focus**: pass. Header actions, toolbar controls, row controls, and image controls were covered in prior slices.
+- **Targets and focus**: pass. Header commands, retry actions, item-type toggles, advanced facets, full-container attachment filtering, selection and favorite controls, and sortable headers meet the 40px baseline. Sort headers are keyboard-operable with contextual icon motion; mobile rows use precise press feedback; requester photos use neutral image outlines.
 - **Status and color**: pass. Status buckets match the design-language color contract.
-- **Copy**: pass. Item-family labels distinguish Standard, Units, and Quantity without exposing implementation names.
-- **Evidence**: `src/app/(app)/items/page.tsx`, `src/app/(app)/items/components/items-toolbar.tsx`, `docs/AREA_ITEMS.md`, authenticated screenshots `tasks/design-language-proof-items.png` and `tasks/design-language-proof-item-scan-identity.png`.
+- **Copy**: pass. Creation entry points and the sheet agree on `Add item`; item-family labels distinguish Standard, Units, and Quantity without exposing implementation names; desktop table headers preserve authored sentence case.
+- **Evidence**: `src/app/(app)/items/page.tsx`, `src/app/(app)/items/components/items-toolbar.tsx`, `src/app/(app)/items/faceted-filter.tsx`, `src/app/(app)/items/data-table.tsx`, `src/app/(app)/items/columns.tsx`, `tests/items-ui-source.test.ts`, `docs/AREA_ITEMS.md`. Authenticated screenshots `tasks/design-language-proof-items.png` and `tasks/design-language-proof-item-scan-identity.png` predate the 2026-07-16 interaction-detail pass.
 
 ### `/bookings`
 
@@ -102,10 +102,10 @@ This is a working checklist, not a redesign brief. Use it before future page-spe
 - **Toolbar and filters**: pass. `BookingFilters` now uses `OperationalToolbar` and `OperationalActiveFilterChips`.
 - **Rows and actions**: pass. Booking rows, mobile rows, and cards use `OperationalRowActions`; context menus keep the same action policy.
 - **Empty, loading, error**: pass. `BookingListPage` uses shared empty states, retryable filter-load warning, skeletons, and cached-data refresh handling.
-- **Targets and focus**: pass from Area 2 for shared booking picker controls and prior booking row-action pass.
+- **Targets and focus**: pass. Active/Past scope, card/list view, reservation creation, filter recovery, sortable headers, row actions, and pagination meet the 40px desktop baseline. Sort headers are keyboard-operable with accessible state and contextual icon motion; booking cards and mobile rows use the shared 0.96 press treatment, and requester photos use neutral image outlines.
 - **Status and color**: pass with one watch item. UI status copy uses user-facing labels, but route config still includes internal values behind the scenes.
 - **Copy**: pass. Active/Past scope language is clear and not a raw data dump.
-- **Evidence**: `src/app/(app)/bookings/page.tsx`, `src/components/BookingListPage.tsx`, `docs/AREA_CHECKOUTS.md`, `docs/AREA_RESERVATIONS.md`.
+- **Evidence**: `src/app/(app)/bookings/page.tsx`, `src/components/BookingListPage.tsx`, `src/components/booking-list/`, `tests/bookings-ui-polish-source.test.ts`, `docs/AREA_CHECKOUTS.md`, `docs/AREA_RESERVATIONS.md`. Authenticated booking-list screenshots predate the 2026-07-16 interaction-detail pass.
 
 ### `/users`
 
@@ -113,22 +113,21 @@ This is a working checklist, not a redesign brief. Use it before future page-spe
 - **Toolbar and filters**: pass. `UserFilters` uses `OperationalToolbar` and shared active-filter chips.
 - **Rows and actions**: pass. Current row behavior is primarily navigation; there is no extra local row-action menu to standardize.
 - **Empty, loading, error**: pass. Uses shared `EmptyState`, shadcn skeletons, and retry copy.
-- **Targets and focus**: pass. Toolbar actions and filters meet the 40px control baseline.
+- **Targets and focus**: pass. Header commands, toolbar actions, filters, sortable headers, recovery actions, and pagination meet the 40px control baseline. Inactive/hidden filters use their full labeled container, mobile roster cards have visible focus and the shared 0.96 press treatment, sort-state icons transition without replaying on initial render, and roster photos use neutral image outlines.
 - **Status and color**: pass. Role badges and inactive handling avoid using green for non-availability states.
 - **Copy**: pass. Add user and temp-password handoff are documented in the area source and prior implementation.
-- **Evidence**: `src/app/(app)/users/page.tsx`, `src/app/(app)/users/UserFilters.tsx`, `docs/AREA_USERS.md`, authenticated screenshot `tasks/design-language-proof-users.png`.
+- **Evidence**: `src/app/(app)/users/page.tsx`, `src/app/(app)/users/UserFilters.tsx`, `src/app/(app)/users/UserRow.tsx`, `tests/users-ui-polish-source.test.ts`, `docs/AREA_USERS.md`, authenticated screenshot `tasks/design-language-proof-users.png` predates the 2026-07-16 interaction-detail pass.
 
 ### `/settings`
 
 - **Header**: pass. Settings layout owns the page header via `PageHeader`.
-- **Toolbar and filters**: pass for navigation. The settings command/search palette is a navigation affordance, not an operational list toolbar.
 - **Toolbar and filters**: pass for navigation and Audit. The settings command/search palette is a navigation affordance, not an operational list toolbar; Audit now uses `OperationalToolbar` plus active-filter chips because it has a standard admin search/filter/clear pattern.
 - **Rows and actions**: pass at the shell level; sub-pages need the Area 4 inventory.
 - **Empty, loading, error**: pass at overview and shell level. Sub-pages need follow-through verification.
-- **Targets and focus**: pass for rail, strip, command entry, and overview cards.
+- **Targets and focus**: pass. Rail links, the mobile picker, command entry/results, access recovery, and overview destinations meet the 40px desktop or 44px touch baseline. Overview rows use the exact 0.96 press treatment, and the intro plus group cards enter as separate staggered chunks.
 - **Status and color**: pass. Role badges use Staff+, Admin, and Everyone labels rather than hiding policy.
 - **Copy**: pass. Overview explains control domains without marketing language.
-- **Evidence**: `src/app/(app)/settings/layout.tsx`, `src/app/(app)/settings/page.tsx`, `src/app/(app)/settings/SettingsPageShell.tsx`, `src/app/(app)/settings/audit/page.tsx`, `docs/AREA_SETTINGS.md`, authenticated screenshot `tasks/design-language-proof-settings.png`.
+- **Evidence**: `src/app/(app)/settings/layout.tsx`, `src/app/(app)/settings/page.tsx`, `src/app/(app)/settings/SettingsCommand.tsx`, `src/app/(app)/settings/SettingsPageShell.tsx`, `src/app/(app)/settings/audit/page.tsx`, `tests/settings-ui-polish-source.test.ts`, `docs/AREA_SETTINGS.md`. The archived authenticated screenshot `tasks/archive/proofs/design-language-proof-settings.png` predates the 2026-07-16 interaction-detail pass.
 
 ## First Decision From This Pass
 
@@ -175,10 +174,10 @@ Do not force every route into `OperationalToolbar`. Use it when the route has th
 - **Toolbar and filters**: intentional exception. The sticky left rail and mobile filter sheet are correct for a knowledge-base directory.
 - **Rows and actions**: pass. Resource cards and reader/edit actions are role-aware.
 - **Empty, loading, error**: pass. Uses shared `EmptyState` for empty and filtered-empty cases.
-- **Targets and focus**: pass. Search, filter sheet trigger, shadcn sort select, rail buttons, active filter removals, resource cards, contact links, and profile links now have visible focus and target sizing.
+- **Targets and focus**: pass. Search, filter sheet trigger, shadcn sort select, rail buttons, active filter removals, layout toggles, resource cards, reference shortcuts, reader navigation, heading deep links, contact links, and profile links now have visible focus and target sizing. Cards, reader navigation, and copy utilities use the shared 0.96 press treatment; contextual copy/success icons transition without replaying on initial render.
 - **Status and color**: pass. Freshness and featured states are content metadata, not operational availability.
 - **Copy**: pass. The surface reads as internal reference, not marketing.
-- **Evidence**: `docs/AREA_RESOURCES.md`, `src/app/(app)/resources/page.tsx`.
+- **Evidence**: `docs/AREA_RESOURCES.md`, `src/app/(app)/resources/page.tsx`, `src/app/(app)/resources/[slug]/_components/GuideReader.tsx`, `src/components/resources/ServerPathCopy.tsx`, `src/components/resources/MarkdownReader.tsx`, `tests/resources-ui-polish-source.test.ts`.
 
 ### `/labels`
 

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reports & Analytics
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-20
+- Last Updated: 2026-07-16
 - Status: Active
 - Version: V1
 
@@ -49,7 +49,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - **Type:** Tabular report with filterable list
 - **Columns:** Title, requester, due date, item count, status
 - **Metrics:** Total custody checkout activity in the selected period, currently overdue checkouts
-- **Charts:** Daily checkout trend, top requesters, 365-day heatmap
+- **Charts:** Daily checkout trend, top requesters, and a theme-aware blue 365-day heatmap where stronger intensity means more custody activity
 - **Filters:** Period (7d, 30d, 90d)
 - **Data:** `GET /api/reports/checkouts?days=...`
 - **Export:** `GET /api/reports/checkouts?format=csv&days=...` returns up to 5,000 matching custody checkout activity rows with `X-Exported-Count`, `X-Total-Count`, and `X-Truncated` headers when capped.
@@ -142,6 +142,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - [x] AC-8: Missing Units report includes unit-tracked battery missing-unit, missing-rate, custody-history, and repeat-pattern reporting
 
 ## Change Log
+- 2026-07-16: Checkout report heatmap colors now use a theme-aware blue OKLCH intensity scale, matching the product rule that blue means active use. The visual change does not alter report data, custody semantics, filters, or APIs.
 - 2026-07-12: Reports hardening sweep. `/api/reports/audit` now requires the new `report.audit` permission (ADMIN only), matching the admin-only `/api/audit` browse feed and AC-6; the Audit tab is hidden from STAFF in the reports nav, global search, and breadcrumb siblings via `requiredRole` on `REPORT_SECTIONS`. All six report CSV export branches now share a per-user `report:export` rate limit (10/min). Corrected doc drift: Utilization has no filters or query params, and the Audit report filters by period only with `startDate`/`endDate`/`action` params.
 - 2026-06-20: Report toolbars inherit the refreshed shared active-filter chip treatment, keeping Checkouts, Scans, and Audit non-default filters removable while making applied filters read as lighter controls with 40px targets and active underline.
 - 2026-06-20: Reports navigation now uses the shared `SectionNav` treatment adopted by Settings. The report switcher keeps mobile horizontal scrolling and active underlines, but drops the heavier bordered card shell so the nav reads as page chrome instead of another content panel.

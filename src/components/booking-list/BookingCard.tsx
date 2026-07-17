@@ -58,7 +58,7 @@ export function BookingCard({ item, overdueStatus, onClick, menuProps }: Booking
     <BookingContextMenuWrapper item={item} {...menuProps}>
       <div
         className={cn(
-          "group relative overflow-hidden rounded-lg border bg-card transition-colors hover:bg-muted/30",
+          "group relative overflow-hidden rounded-lg border bg-card transition-[background-color,box-shadow,scale] hover:bg-muted/30 hover:shadow-sm active:scale-[0.96]",
           isOverdue && "border-[var(--wi-red)]/25 bg-[var(--wi-red)]/[0.02]",
         )}
       >
@@ -129,7 +129,7 @@ export function BookingCard({ item, overdueStatus, onClick, menuProps }: Booking
                 name={item.requester?.name ?? "?"}
                 avatarUrl={item.requester?.avatarUrl}
                 size="sm"
-                className="border border-border shrink-0"
+                className="shrink-0 outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
               />
               <span
                 className="text-[12px] truncate"

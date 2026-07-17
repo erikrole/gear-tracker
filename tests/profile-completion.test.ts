@@ -3,6 +3,8 @@ import { getProfileCompletion } from "@/lib/profile-completion";
 
 function profile(overrides: Record<string, unknown> = {}) {
   return {
+    id: "user-1",
+    name: "Person",
     role: "STAFF",
     email: "person@wisc.edu",
     athleticsEmail: null,
@@ -19,6 +21,7 @@ function profile(overrides: Record<string, unknown> = {}) {
     topSize: null,
     shoeSizeSystem: null,
     shoeSize: null,
+    avatarUrl: null,
     profilePromptSnoozedUntil: null,
     ...overrides,
   } as Parameters<typeof getProfileCompletion>[0];
@@ -30,7 +33,7 @@ describe("profile completion", () => {
 
     expect(result.isComplete).toBe(false);
     expect(result.completedCount).toBe(1);
-    expect(result.totalCount).toBe(7);
+    expect(result.totalCount).toBe(8);
     expect(result.firstIncompleteStep).toBe("EMAIL");
     expect(result.missingFields).toEqual([
       "athleticsEmail",
@@ -39,6 +42,7 @@ describe("profile completion", () => {
       "wiscard",
       "clothingSize",
       "shoeSize",
+      "photo",
     ]);
   });
 
@@ -61,6 +65,7 @@ describe("profile completion", () => {
       topSize: "M",
       shoeSizeSystem: "US_WOMENS",
       shoeSize: "9.5",
+      avatarUrl: "https://example.com/avatar.webp",
     }));
 
     expect(result.isComplete).toBe(true);
@@ -70,7 +75,7 @@ describe("profile completion", () => {
   it("requires year and anticipated graduation for students", () => {
     const result = getProfileCompletion(profile({ role: "STUDENT" }));
 
-    expect(result.totalCount).toBe(8);
+    expect(result.totalCount).toBe(9);
     expect(result.missingFields).not.toContain("workPhone");
     expect(result.missingFields).toContain("studentYear");
     expect(result.missingFields).toContain("anticipatedGraduation");
@@ -91,10 +96,35 @@ describe("profile completion", () => {
       topSize: "M",
       shoeSizeSystem: "US_MENS",
       shoeSize: "10",
+      avatarUrl: "https://example.com/avatar.webp",
     }));
 
     expect(result.isComplete).toBe(true);
-    expect(result.completedCount).toBe(8);
+    expect(result.completedCount).toBe(9);
+  });
+
+  it("separates operational readiness from profile completion", () => {
+    const result = getProfileCompletion(profile({
+      athleticsEmail: "person@athletics.wisc.edu",
+      personalPhone: "608-555-0100",
+      workPhoneNotApplicable: true,
+      wiscardCardNumber: "907032481",
+      wiscardIssueCode: "2",
+    }));
+
+    expect(result.operationalReady).toBe(true);
+    expect(result.profileComplete).toBe(false);
+    expect(result.missingFields).toEqual(["clothingSize", "shoeSize", "photo"]);
+  });
+
+  it("keeps collaborator setup limited to an optional profile photo", () => {
+    const incomplete = getProfileCompletion(profile({ role: "COLLABORATOR", email: "guest@example.com" }));
+    const complete = getProfileCompletion(profile({ role: "COLLABORATOR", email: "guest@example.com", avatarUrl: "https://example.com/avatar.webp" }));
+
+    expect(incomplete.operationalReady).toBe(true);
+    expect(incomplete.missingFields).toEqual(["photo"]);
+    expect(incomplete.firstIncompleteStep).toBe("PHOTO");
+    expect(complete.profileComplete).toBe(true);
   });
 
   it("suppresses the automatic prompt only until the 24-hour snooze expires", () => {

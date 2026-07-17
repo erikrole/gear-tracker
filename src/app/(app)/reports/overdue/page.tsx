@@ -29,6 +29,8 @@ import {
   ReportMetaLine,
   ReportMetricGrid,
   ReportMobileCard,
+  REPORT_OVERDUE_CHART_COLORS,
+  REPORT_SEMANTIC_CHART_COLORS,
   ReportSectionCard,
   ReportTableLink,
   ReportToolbar,
@@ -254,14 +256,14 @@ export default function OverdueLeaderboardPage() {
       {/* Overdue hours bar chart */}
       {leaderboard.length > 0 && (
         <ReportSectionCard title="Overdue hours by person" className="mb-4">
-          <ChartContainer config={{ hours: { label: "Overdue hours", color: "hsl(0 70% 55%)" } }} className="w-full" style={{ height: Math.max(150, leaderboard.length * 36) }}>
+          <ChartContainer config={{ hours: { label: "Overdue hours", color: REPORT_SEMANTIC_CHART_COLORS.problem } }} className="w-full" style={{ height: Math.max(150, leaderboard.length * 36) }}>
             <BarChart data={leaderboard.slice(0, 10).map((e) => ({ name: e.name, hours: e.totalOverdueHours }))} layout="vertical" margin={{ left: 0, right: 12 }}>
               <YAxis dataKey="name" type="category" width={100} tickLine={false} axisLine={false} className="text-xs" />
               <XAxis type="number" hide />
               <ChartTooltip content={<ChartTooltipContent />} />
               <Bar dataKey="hours" name="Overdue hours" radius={[0, 4, 4, 0]}>
                 {leaderboard.slice(0, 10).map((_, i) => (
-                  <Cell key={i} fill={`hsl(0 ${70 - i * 4}% ${45 + i * 3}%)`} />
+                  <Cell key={i} fill={REPORT_OVERDUE_CHART_COLORS[i]} />
                 ))}
               </Bar>
             </BarChart>

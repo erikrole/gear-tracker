@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import EmptyState from "@/components/EmptyState";
 import type { Location, Role, SortKey, ListResponse } from "./types";
 import { AREA_LABELS, STUDENT_YEAR_OPTIONS } from "./types";
@@ -144,18 +145,29 @@ function SortableHead({
       <Button
         variant="ghost"
         size="sm"
-        className="group -ml-3 h-8"
+        className="group -ml-3 h-10 transition-[background-color,color,box-shadow,scale] active:scale-[0.96]"
         onClick={handleClick}
         aria-label={`Sort by ${label}${isAsc ? " descending" : isDesc ? " clear sorting" : " ascending"}`}
       >
         {label}
-        {isAsc ? (
-          <ArrowUp className="ml-1 size-4 text-foreground" aria-hidden="true" />
-        ) : isDesc ? (
-          <ArrowDown className="ml-1 size-4 text-foreground" aria-hidden="true" />
-        ) : (
-          <ArrowUpDown className="ml-1 size-3.5 opacity-20 transition-opacity group-hover:opacity-50 group-focus-visible:opacity-50" aria-hidden="true" />
-        )}
+        <AnimatePresence initial={false} mode="popLayout">
+          <motion.span
+            key={isAsc ? "ascending" : isDesc ? "descending" : "unsorted"}
+            initial={{ opacity: 0, scale: 0.25, filter: "blur(4px)" }}
+            animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+            exit={{ opacity: 0, scale: 0.25, filter: "blur(4px)" }}
+            transition={{ type: "spring", duration: 0.3, bounce: 0 }}
+            className="ml-1 inline-flex items-center justify-center"
+          >
+            {isAsc ? (
+              <ArrowUp className="size-4 text-foreground" aria-hidden="true" />
+            ) : isDesc ? (
+              <ArrowDown className="size-4 text-foreground" aria-hidden="true" />
+            ) : (
+              <ArrowUpDown className="size-3.5 opacity-20 transition-opacity group-hover:opacity-50 group-focus-visible:opacity-50" aria-hidden="true" />
+            )}
+          </motion.span>
+        </AnimatePresence>
       </Button>
     </TableHead>
   );
@@ -387,7 +399,7 @@ export default function UsersPage() {
         {canEdit && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="h-10 active:scale-[0.96] transition-[background-color,color,box-shadow,scale]">
                 <MoreHorizontal data-icon="inline-start" />
                 More
               </Button>
@@ -408,7 +420,7 @@ export default function UsersPage() {
           </DropdownMenu>
         )}
         {canEdit && (
-          <Button onClick={() => setShowCreate(true)}>
+          <Button className="h-10 active:scale-[0.96] transition-[background-color,color,box-shadow,scale]" onClick={() => setShowCreate(true)}>
             <UserPlus data-icon="inline-start" />
             Add users
           </Button>
@@ -458,7 +470,7 @@ export default function UsersPage() {
             <WifiOff className="size-4" />
             <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <span>Locations could not load. User location filters are unavailable until locations are readable.</span>
-              <Button type="button" variant="outline" size="sm" onClick={reloadFormOptions} className="h-8 shrink-0">
+              <Button type="button" variant="outline" size="sm" onClick={reloadFormOptions} className="h-10 shrink-0 active:scale-[0.96] transition-[background-color,color,box-shadow,scale]">
                 Retry locations
               </Button>
             </AlertDescription>
@@ -567,10 +579,10 @@ export default function UsersPage() {
             </span>
             {totalPages > 1 && (
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
+                <Button variant="outline" size="sm" className="h-10 active:scale-[0.96] transition-[background-color,color,box-shadow,scale]" disabled={page === 0} onClick={() => setPage(page - 1)}>
                   Previous
                 </Button>
-                <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>
+                <Button variant="outline" size="sm" className="h-10 active:scale-[0.96] transition-[background-color,color,box-shadow,scale]" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>
                   Next
                 </Button>
               </div>

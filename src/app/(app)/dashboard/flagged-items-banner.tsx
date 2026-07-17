@@ -32,12 +32,12 @@ export function FlaggedItemsBanner({ items }: Props) {
   if (maintenance > 0) parts.push(`${maintenance} maintenance`);
 
   return (
-    <div className="relative border border-[var(--orange)]/20 bg-[var(--orange)]/[0.04] dark:bg-[var(--orange)]/[0.08] rounded-lg mb-4 overflow-hidden animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none">
+    <div className="relative mb-4 overflow-hidden rounded-lg border border-[var(--orange)]/20 bg-[var(--orange)]/[0.04] dark:bg-[var(--orange)]/[0.08]">
       {/* Left accent bar */}
       <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[var(--orange)]" aria-hidden="true" />
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-[var(--orange)]/15">
+      <div className="flex min-h-10 items-center justify-between gap-3 border-b border-[var(--orange)]/15 px-4">
         <div className="flex items-center gap-2">
           <AlertTriangleIcon className="size-3.5 text-[var(--orange-text)] shrink-0" />
           <span
@@ -49,7 +49,7 @@ export function FlaggedItemsBanner({ items }: Props) {
         </div>
         <Link
           href={inventoryHref}
-          className="text-[10.5px] text-muted-foreground/60 hover:text-muted-foreground no-underline transition-colors whitespace-nowrap"
+          className="flex min-h-10 items-center whitespace-nowrap rounded-sm text-[10.5px] text-muted-foreground/60 no-underline transition-colors hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
           style={{ fontFamily: "var(--font-mono)" }}
         >
           {inventoryLabel}
@@ -64,7 +64,7 @@ export function FlaggedItemsBanner({ items }: Props) {
             <Link
               key={item.id}
               href={`/items/${item.assetId}`}
-              className="flex items-center gap-2.5 px-4 py-2.5 no-underline text-inherit transition-colors hover:bg-[var(--orange)]/[0.07] border-b border-[var(--orange)]/10 last:border-b-0"
+              className="flex min-h-10 items-center gap-2.5 border-b border-[var(--orange)]/10 px-4 py-2.5 text-inherit no-underline transition-colors last:border-b-0 hover:bg-[var(--orange)]/[0.07] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/50"
             >
               {item.type === "MAINTENANCE" ? (
                 <WrenchIcon className="size-3.5 text-muted-foreground/50 shrink-0" />

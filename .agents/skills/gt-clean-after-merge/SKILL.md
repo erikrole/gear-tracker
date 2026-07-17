@@ -1,45 +1,32 @@
 ---
 name: gt-clean-after-merge
-description: Gear Tracker post-merge cleanup workflow. Use when the user runs /gt-clean-after-merge, after merging Codex or parallel branches, or when duplicate types, duplicate helpers, stale imports, dead modal code, or merge artifacts may exist.
+description: Gear Tracker merge and parallel-work cleanup workflow. Use after merges, cherry-picks, worktree integrations, or parallel edits when duplicate types, helpers, UI remnants, imports, exports, CSS, routes, docs, tests, or task records may remain. Remove only confirmed artifacts and preserve intentional user work.
 ---
 
-# /gt-clean-after-merge
+# GT Clean After Merge
 
-Clean merge artifacts before normal feature work resumes.
+Remove integration debris without turning cleanup into a broad refactor.
 
-## Required Reads
+## Orient
 
-1. `git status --short`
-2. Recent merge diff or changed files
-3. `AGENTS.md`
-4. Touched page files and sibling components in full before editing
+1. Read `AGENTS.md`, `git status --short`, the merge or integration diff, and the active ledger.
+2. Identify which files came from the integration and which dirty files are unrelated user work.
+3. Read every affected file completely before editing it.
 
-## Checks
+## Inspect
 
-- Duplicate local type definitions in `src/app/(app)/*/page.tsx`
-- Duplicate function names and wrapper helpers
-- Dead modal, sheet, or dialog code left after replacement
-- Stale imports and unused exports
-- Duplicate CSS classes or removed class consumers
-- Conflicting route copies or stale API helpers
-- Area docs and task files that describe old behavior
+- Duplicate types, functions, helpers, wrappers, components, routes, tests, and exports.
+- Dead modal, sheet, dialog, state, CSS, import, and feature-flag remnants.
+- Conflicting copies where ownership is unclear.
+- Stale docs, task records, generated maps, and tests that describe removed behavior.
+- New files missing project membership, exports, registrations, or callers.
 
-## Workflow
+Use `rg` to prove consumers before deleting anything. Keep intentional parallel variants when current contracts do not resolve ownership.
 
-1. Inventory suspicious duplicate names with `rg`.
-2. Read affected full files before editing.
-3. Remove only confirmed merge artifacts.
-4. Keep user work intact.
-5. Run verification.
+## Verify
 
-## Verification
+Select proof from the `AGENTS.md` verification matrix for every affected platform. Add focused tests or builds that prove removed symbols and retained behavior. Inspect the final diff for unrelated reversions.
 
-- `npx tsc --noEmit`
-- Relevant focused tests
-- `git diff --check`
-- `npx next build`
+Stop when ownership is ambiguous, cleanup would revert unrelated work, or the same cleanup approach fails twice. Report the conflict and the smallest safe reconciliation step.
 
-## Stop Conditions
-
-- A duplicate might be intentional and current source does not resolve ownership.
-- Cleanup would require reverting unrelated user changes.
+Do not stage, commit, push, or open a PR unless explicitly requested.

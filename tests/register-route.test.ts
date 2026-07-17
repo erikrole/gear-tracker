@@ -133,9 +133,9 @@ describe("POST /api/auth/register", () => {
     );
   });
 
-  it("still stores a provided scanned Wiscard value for later kiosk identity lookup", async () => {
+  it("ignores legacy Wiscard input so setup owns card-number collection", async () => {
     vi.mocked(db.allowedEmail.findUnique).mockResolvedValue(allowedInvite(Role.STUDENT));
-    tx.user.create.mockResolvedValue(createdUser(Role.STUDENT, "90703248102"));
+    tx.user.create.mockResolvedValue(createdUser(Role.STUDENT, null));
 
     const response = await POST(
       postRegister({
@@ -150,12 +150,12 @@ describe("POST /api/auth/register", () => {
     expect(response.status).toBe(201);
     expect(tx.user.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
-        wiscardNumber: "90703248102",
+        wiscardNumber: null,
       }),
     }));
     expect(createAuditEntry).toHaveBeenCalledWith(
       expect.objectContaining({
-        after: expect.objectContaining({ wiscardLinked: true }),
+        after: expect.objectContaining({ wiscardLinked: false }),
       }),
     );
   });

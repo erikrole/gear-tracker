@@ -27,11 +27,21 @@ describe("iOS production domain cutover", () => {
     expect(environment).toContain('static let legacyHost = "gear.erikrole.com"');
     expect(environment).toContain('static let appReviewHost = "review.wisconsincreative.com"');
     expect(environment).toContain('static let appReviewEmail = "appreview@wisconsincreative.com"');
+    expect(environment).toContain('"jordan.lee.demo@wisc.edu"');
+    expect(environment).toContain('"alex.rivera.demo@wisc.edu"');
+    expect(environment).toContain("appReviewTestEmails.contains(normalized)");
     expect(environment).toContain('static let baseURL = URL(string: "https://\\(canonicalHost)")!');
     expect(environment).toContain("static let origin = baseURL.absoluteString");
     expect(environment).toContain("static var activeAPIBaseURL: URL");
     expect(environment).toContain("static var activeAPIOrigin: String");
     expect(environment).toContain('return URL(string: "webcal://\\(canonicalHost)\\(normalizedPath)")');
+  });
+
+  it("routes only explicit review identities to the isolated review host", () => {
+    const environment = source("ios/Wisconsin/Shared/AppEnvironment.swift");
+
+    expect(environment).not.toContain("hasSuffix");
+    expect(environment).not.toContain("@wisc.edu\") ? appReviewHost");
   });
 
   it("keeps app, kiosk, recovery, profile, licenses, and calendar URLs on the shared host config", () => {

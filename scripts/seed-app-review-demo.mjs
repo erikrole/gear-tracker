@@ -197,7 +197,7 @@ async function main() {
         {
           id: ids.staffJordan,
           name: "Jordan Lee",
-          email: "jordan.lee.demo@wisconsincreative.com",
+          email: "jordan.lee.demo@wisc.edu",
           passwordHash,
           role: Role.STAFF,
           staffingType: ShiftWorkerType.FT,
@@ -219,7 +219,7 @@ async function main() {
         {
           id: ids.studentAlex,
           name: "Alex Rivera",
-          email: "alex.rivera.demo@wisconsincreative.com",
+          email: "alex.rivera.demo@wisc.edu",
           passwordHash,
           role: Role.STUDENT,
           staffingType: ShiftWorkerType.ST,
@@ -628,6 +628,8 @@ async function main() {
   } else {
     console.log("App Review demo seed complete.");
     console.log("Login: appreview@wisconsincreative.com");
+    console.log("Welcome test staff: jordan.lee.demo@wisc.edu");
+    console.log("Welcome test student: alex.rivera.demo@wisc.edu");
     console.log("Sample QR codes: DEMO-CAM-001, DEMO-LENS-001, DEMO-AUDIO-001, DEMO-BATT-1");
   }
 }

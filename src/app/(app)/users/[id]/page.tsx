@@ -115,10 +115,10 @@ const customIconMap: Record<string, ComponentType<{ className?: string }>> = {
 type AwardMode = "existing" | "custom";
 
 function awardPreviewGradient(rarity: BadgeRarity): string {
-  if (rarity === "Legendary") return "bg-[radial-gradient(circle_at_50%_100%,var(--purple-bg),transparent_60%),linear-gradient(165deg,var(--background),hsl(var(--muted)))]";
-  if (rarity === "Rare") return "bg-[radial-gradient(circle_at_50%_100%,var(--orange-bg),transparent_60%),linear-gradient(165deg,var(--background),hsl(var(--muted)))]";
-  if (rarity === "Uncommon") return "bg-[radial-gradient(circle_at_50%_100%,var(--blue-bg),transparent_60%),linear-gradient(165deg,var(--background),hsl(var(--muted)))]";
-  return "bg-[linear-gradient(165deg,var(--background),hsl(var(--muted)))]";
+  if (rarity === "Legendary") return "bg-[radial-gradient(circle_at_50%_100%,var(--purple-bg),transparent_60%),linear-gradient(165deg,var(--background),var(--muted))]";
+  if (rarity === "Rare") return "bg-[radial-gradient(circle_at_50%_100%,var(--orange-bg),transparent_60%),linear-gradient(165deg,var(--background),var(--muted))]";
+  if (rarity === "Uncommon") return "bg-[radial-gradient(circle_at_50%_100%,var(--blue-bg),transparent_60%),linear-gradient(165deg,var(--background),var(--muted))]";
+  return "bg-[linear-gradient(165deg,var(--background),var(--muted))]";
 }
 
 function AwardPreviewHeader({
@@ -940,7 +940,7 @@ export default function UserDetailPage() {
                     </p>
                   )}
                   {selectedAwardDefinition && selectedAwardRarity && (
-                    <div className="rounded-xl bg-muted/40 px-4 py-3 shadow-[inset_0_0_0_1px_hsl(var(--border))]">
+                    <div className="rounded-xl bg-muted/40 px-4 py-3 shadow-[inset_0_0_0_1px_var(--border)]">
                       <p className="text-sm leading-6 text-muted-foreground">
                         {manualAwardGuidance[selectedAwardDefinition.key] ?? selectedAwardDefinition.description}
                       </p>

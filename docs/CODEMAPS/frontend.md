@@ -71,6 +71,7 @@
 | `/users/onboarding-status` | `src/app/(app)/users/onboarding-status/page.tsx` |
 | `/users/org-chart` | `src/app/(app)/users/org-chart/page.tsx` |
 | `/users` | `src/app/(app)/users/page.tsx` |
+| `/welcome` | `src/app/(app)/welcome/page.tsx` |
 | `/about/features` | `src/app/(public)/about/features/page.tsx` |
 | `/about/field-work` | `src/app/(public)/about/field-work/page.tsx` |
 | `/about` | `src/app/(public)/about/page.tsx` |
@@ -103,15 +104,15 @@
 | `src/components/EquipmentPicker.tsx` | 1001 |
 | `src/components/onboarding/OnboardingDialog.tsx` | 884 |
 | `src/components/ShiftDetailPanel.tsx` | 813 |
-| `src/components/AppShell.tsx` | 739 |
+| `src/components/profile-completion/ProfileCompletionWizard.tsx` | 764 |
+| `src/components/AppShell.tsx` | 740 |
 | `src/components/ChooseImageModal.tsx` | 716 |
 | `src/components/booking-wizard/BookingWizard.tsx` | 710 |
 | `src/components/ui/sidebar.tsx` | 710 |
 | `src/components/BookingDetailsSheet.tsx` | 680 |
-| `src/components/profile-completion/ProfileCompletionWizard.tsx` | 619 |
 | `src/components/booking-wizard/WizardStep1.tsx` | 570 |
 | `src/components/BookingListPage.tsx` | 512 |
-| `src/components/ui/heatmap.tsx` | 422 |
+| `src/components/ui/heatmap.tsx` | 409 |
 | `src/components/Sidebar.tsx` | 402 |
 | `src/components/ui/chart.tsx` | 389 |
 | `src/components/shift-detail/ShiftSlotCard.tsx` | 375 |
@@ -119,7 +120,7 @@
 | `src/components/booking-details/BookingHeader.tsx` | 339 |
 | `src/components/booking-details/EditBookingEventsDialog.tsx` | 335 |
 | `src/components/FormCombobox.tsx` | 329 |
-| `src/components/resources/MarkdownReader.tsx` | 293 |
+| `src/components/resources/MarkdownReader.tsx` | 305 |
 | `src/components/public-showroom/showroom-blocks.tsx` | 290 |
 | `src/components/QrScanner.tsx` | 288 |
 | `src/components/booking-details/BookingSheetOverview.tsx` | 284 |
@@ -147,7 +148,7 @@
 | `src/hooks/use-last-audit.ts` | 77 |
 | `src/hooks/use-mobile.ts` | 20 |
 | `src/hooks/use-operational-polling-activity.ts` | 131 |
-| `src/hooks/use-profile-completion.ts` | 60 |
+| `src/hooks/use-profile-completion.ts` | 65 |
 | `src/hooks/use-scan-submission.ts` | 241 |
 | `src/hooks/use-schedule-data.ts` | 528 |
 | `src/hooks/use-url-state.ts` | 166 |

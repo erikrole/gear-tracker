@@ -29,13 +29,13 @@ export function PageHeader({
         className
       )}
     >
-      <div className="min-w-0 border-l-[3px] border-l-[var(--wi-red)] pl-3">
+      <div className="min-w-0 flex-1 border-l-[3px] border-l-[var(--wi-red)] pl-3">
         <div className="flex min-w-0 items-center gap-2.5">
-          <h1 className="truncate text-wrap-balance">{title}</h1>
+          <h1 className="min-w-0 break-words text-wrap-balance">{title}</h1>
           {titleAccessory && <div className="shrink-0">{titleAccessory}</div>}
         </div>
         {description && (
-          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+          <p className="mt-1 max-w-2xl text-pretty text-sm text-muted-foreground">{description}</p>
         )}
       </div>
       {children && (

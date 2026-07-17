@@ -8,7 +8,7 @@ describe("profile completion web wiring", () => {
   const profilePage = readFileSync("src/app/(app)/users/[id]/page.tsx", "utf8");
 
   it("mounts one desktop-only returning-user wizard in authenticated web chrome", () => {
-    expect(shell).toContain("<ProfileCompletionWizard />");
+    expect(shell).toContain('pathname !== "/welcome" && <ProfileCompletionWizard />');
     expect(wizard).toContain('matchMedia("(min-width: 768px)")');
     expect(wizard).toContain("data?.completion.shouldPrompt");
     expect(wizard).toContain("Remind me tomorrow");
@@ -23,6 +23,8 @@ describe("profile completion web wiring", () => {
     expect(wizard).toContain('title: "Link your Wiscard"');
     expect(wizard).toContain('title: "Add your student details"');
     expect(wizard).toContain('title: "Add your apparel sizes"');
+    expect(wizard).toContain('title: "Add a profile photo"');
+    expect(wizard).toContain("Skip for now");
     expect(wizard).toContain("Which number is it?");
     expect(wizard).toContain("I don’t have a work phone");
     expect(wizard).toContain('!isStudent && (');
@@ -38,7 +40,21 @@ describe("profile completion web wiring", () => {
     expect(wizard).toContain("formatPhoneInput(event.target.value)");
     expect(wizard).toContain("Anticipated graduation");
     expect(wizard).toContain("STUDENT_YEAR_OPTIONS");
-    expect(wizard).toContain('profile.role === "STUDENT"');
+    expect(wizard).toContain("visibleProfileSteps(data.profile.role)");
+  });
+
+  it("connects wizard steps with restrained directional motion", () => {
+    expect(wizard).toContain('import { AnimatePresence, motion, useReducedMotion, type Variants } from "motion/react"');
+    expect(wizard).toContain("type StepDirection = -1 | 1");
+    expect(wizard).toContain("const reduceMotion = Boolean(useReducedMotion())");
+    expect(wizard).toContain("setStepDirection(direction)");
+    expect(wizard.match(/<AnimatePresence initial=\{false\} custom=\{stepMotionContext\}>/g)).toHaveLength(2);
+    expect(wizard).toContain("translate3d(0, ${direction * 4}px, 0)");
+    expect(wizard).toContain("translate3d(0, ${direction * -4}px, 0)");
+    expect(wizard).toContain("duration: reduceMotion ? 0.12 : 0.2");
+    expect(wizard).toContain("duration: 0.12");
+    expect(wizard).toContain("reduceMotion ? {} : { transform:");
+    expect(wizard).not.toContain('mode="wait"');
   });
 
   it("keeps missing details visible on the signed-in user's web profile", () => {

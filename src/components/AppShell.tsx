@@ -134,6 +134,7 @@ const COLLABORATOR_ROUTE_CAPABILITY: Array<{ matches: (pathname: string) => bool
 
 function collaboratorCanVisit(pathname: string, user: CurrentUser): boolean {
   const alwaysAllowed = pathname === "/"
+    || pathname === "/welcome"
     || pathname === "/profile"
     || pathname === "/settings/profile"
     || pathname === "/settings/security"
@@ -459,7 +460,7 @@ export default function AppShell({
       <a href="#main-content" className="absolute -top-[100px] left-4 z-[var(--z-sidebar)] px-4 py-2 bg-[var(--btn-primary-bg)] text-[var(--btn-primary-text)] rounded-[var(--radius)] font-[var(--weight-semibold)] text-[var(--text-base)] no-underline transition-[top] duration-200 focus:top-4">Skip to content</a>
 
       {/* Command palette */}
-      {!isCollaborator && <ProfileCompletionWizard />}
+      {pathname !== "/welcome" && <ProfileCompletionWizard />}
 
       {!isCollaborator && <CommandDialog open={cmdOpen} onOpenChange={(open) => { setCmdOpen(open); if (!open) { setCmdQuery(""); setCmdResults([]); setCmdError(null); setCmdPartialFailures([]); } }}>
         <CommandInput placeholder="Search tag, borrower, page, setting, report..." value={cmdQuery} onValueChange={setCmdQuery} />

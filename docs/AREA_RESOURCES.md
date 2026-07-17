@@ -6,7 +6,7 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped
 - Created: 2026-04-14
-- Last Updated: 2026-07-15
+- Last Updated: 2026-07-16
 - Brief: `tasks/guides-plan.md` (archived)
 
 ## Description
@@ -87,6 +87,7 @@ All mutations use `createAuditEntry` per D-007.
 | AC-17 | The guide reader offers docs-style in-section sibling navigation (wide screens) and a prev/next footer | ✅ Complete (2026-07-03, slice 4) |
 
 ## Change Log
+- 2026-07-16: Guide interaction-detail polish aligned cards, list rows, reference shortcuts, reader navigation, and copy utilities with the shared 0.96 press treatment; raised the cards/list layout controls and reader edit commands to the 40px baseline; added visible keyboard focus to reader navigation; expanded heading deep-link hit areas without changing their visible footprint; and cross-faded copy/success icons without animating initial render. Guide IA, filtering, ranking, publication, targeting, verification, and reference data behavior are unchanged.
 - 2026-07-15: Native iOS Guides now follows the slimmed Resources contract end to end: list decoding retains the bounded `searchText`, local search uses that excerpt, and the reader fetches full Markdown by slug with native loading, retry, and refresh states instead of rendering an empty article from the compact list row. The reader now uses a compact semantic header, Dynamic Type system typography, a cardless article canvas, distinct numbered-step markers, and accessible callout styling. Generated body excerpts and leading Markdown rules no longer duplicate the opening article content. Read-only scope is unchanged.
 - 2026-07-10: Resources end-to-end UI ownership pass restored real URL-backed filtering while keeping the command palette as Quick find, added named retryable guide/reference failure states, and preserved healthy guide data when supporting references fail. New-guide authoring now guards unsaved work and keeps draft/publish actions in a sticky action bar; edit handles failed loads and staff ownership mismatches instead of hanging or allowing a doomed save, and uses the same persistent action treatment. Media Drive path copy failures now provide a manual-copy recovery message. Guide-first IA, publication visibility, recommendation targeting, optimistic concurrency, and role permissions are unchanged.
 - 2026-07-10: Guide reader table-of-contents and section-nav labels drop faint tracked mono micro-type for the sanctioned small-uppercase label style. Visual only.

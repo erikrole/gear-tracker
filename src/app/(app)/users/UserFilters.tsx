@@ -279,27 +279,27 @@ export default function UserFilters({
               ))}
             </SelectContent>
           </Select>
-          <div className="flex h-10 items-center gap-2 rounded-md border border-border/70 bg-background px-3">
+          <Label htmlFor="show-inactive" className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-border/70 bg-background px-3">
             <Checkbox
               id="show-inactive"
               checked={showInactive}
               onCheckedChange={(v) => onShowInactiveChange(!!v)}
             />
-            <Label htmlFor="show-inactive" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+            <span className="whitespace-nowrap text-xs text-muted-foreground">
               Show inactive
-            </Label>
-          </div>
+            </span>
+          </Label>
           {canShowHiddenUsers && (
-            <div className="flex h-10 items-center gap-2 rounded-md border border-border/70 bg-background px-3">
+            <Label htmlFor="show-hidden-users" className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-border/70 bg-background px-3">
               <Checkbox
                 id="show-hidden-users"
                 checked={showHiddenUsers}
                 onCheckedChange={(v) => onShowHiddenUsersChange(!!v)}
               />
-              <Label htmlFor="show-hidden-users" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+              <span className="whitespace-nowrap text-xs text-muted-foreground">
                 Show hidden test users
-              </Label>
-            </div>
+              </span>
+            </Label>
           )}
         </div>
       )}

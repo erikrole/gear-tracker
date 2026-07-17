@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 const BookingDetailsSheet = lazy(() => import("@/components/BookingDetailsSheet"));
@@ -31,6 +32,7 @@ import { PageTransition } from "@/components/ui/motion";
 import type { CreateBookingContext } from "./dashboard-types";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { CollaboratorHome } from "./dashboard/collaborator-home";
+import { DashboardStateSurface } from "./dashboard/dashboard-motion";
 
 export default function DashboardPage() {
   const { data: user, isLoading } = useCurrentUser();
@@ -304,7 +306,7 @@ function InternalDashboardPage() {
                 <Link
                   key={href}
                   href={href}
-                  className="flex items-center gap-3 py-2.5 px-3.5 border border-border rounded-lg no-underline flex-1 transition-colors hover:border-[var(--wi-red)]/30 hover:bg-[var(--wi-red)]/[0.03] group"
+                  className="group flex min-h-10 flex-1 items-center gap-3 rounded-lg border border-border px-3.5 py-2.5 no-underline transition-[background-color,border-color,scale] hover:border-[var(--wi-red)]/30 hover:bg-[var(--wi-red)]/[0.03] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 >
                   <span
                     className="text-[11px] tabular-nums text-muted-foreground/40 group-hover:text-[var(--wi-red)]/60 transition-colors shrink-0"
@@ -325,57 +327,73 @@ function InternalDashboardPage() {
         </div>
       )}
 
-      {/* ══════ Overdue Banner ══════ */}
-      {overdueCount !== null && (
-        <OverdueBanner
-          overdueCount={overdueCount}
-          overdueItems={data?.overdueItems ?? []}
-          now={now}
-          onSelectBooking={setSelectedBookingId}
-          canAction={roleKnown && !isStudent}
-        />
-      )}
+      <AnimatePresence initial={false}>
+        {/* ══════ Overdue Banner ══════ */}
+        {overdueCount !== null && overdueCount > 0 && (
+          <DashboardStateSurface key="overdue" layout>
+            <OverdueBanner
+              overdueCount={overdueCount}
+              overdueItems={data?.overdueItems ?? []}
+              now={now}
+              onSelectBooking={setSelectedBookingId}
+              canAction={roleKnown && !isStudent}
+            />
+          </DashboardStateSurface>
+        )}
 
-      {/* ══════ Flagged Items Banner (staff/admin only) ══════ */}
-      {isStaff && data && data.flaggedItems.length > 0 && (
-        <FlaggedItemsBanner items={data.flaggedItems} />
-      )}
+        {/* ══════ Flagged Items Banner (staff/admin only) ══════ */}
+        {isStaff && data && data.flaggedItems.length > 0 && (
+          <DashboardStateSurface key="flagged-items" layout>
+            <FlaggedItemsBanner items={data.flaggedItems} />
+          </DashboardStateSurface>
+        )}
 
-      {/* ══════ Lost Bulk Units (admin only) ══════ */}
-      {isAdmin && data && data.lostBulkUnits.length > 0 && (
-        <LostBulkUnitsCard items={data.lostBulkUnits} />
-      )}
+        {/* ══════ Lost Bulk Units (admin only) ══════ */}
+        {isAdmin && data && data.lostBulkUnits.length > 0 && (
+          <DashboardStateSurface key="lost-bulk-units" layout>
+            <LostBulkUnitsCard items={data.lostBulkUnits} />
+          </DashboardStateSurface>
+        )}
+      </AnimatePresence>
 
       {/* ══════ Two-Column Split ══════ */}
-      {data ? (
-        <div className={isStudent ? "grid grid-cols-1 gap-6 max-w-[640px]" : "grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 items-start"}>
-          <MyGearColumn
-            data={data}
-            filtered={filters.filtered}
-            activeSport={filters.activeSport}
-            hasActiveFilter={filters.hasActiveFilter}
-            now={now}
-            acting={acting !== null}
-            onSelectBooking={setSelectedBookingId}
-            onDeleteDraft={handleDeleteDraft}
-            onCreateBooking={handleCreateBooking}
-          />
-          {!isStudent && (
-            <TeamActivityColumn
+      <AnimatePresence initial={false} mode="popLayout">
+        {data ? (
+          <DashboardStateSurface
+            key="dashboard-columns"
+            variant="shift"
+            layout
+            className={isStudent ? "grid max-w-[640px] grid-cols-1 gap-6" : "grid grid-cols-1 items-start gap-4 md:grid-cols-2 md:gap-6"}
+          >
+            <MyGearColumn
               data={data}
               filtered={filters.filtered}
               activeSport={filters.activeSport}
               hasActiveFilter={filters.hasActiveFilter}
               now={now}
+              acting={acting !== null}
               onSelectBooking={setSelectedBookingId}
+              onDeleteDraft={handleDeleteDraft}
+              onCreateBooking={handleCreateBooking}
             />
-          )}
-        </div>
-      ) : (
-        /* Stats were available from cache but full data is still loading — */
-        /* show column skeletons only, the top section already rendered.    */
-        <DashboardSkeleton columnsOnly />
-      )}
+            {!isStudent && (
+              <TeamActivityColumn
+                data={data}
+                filtered={filters.filtered}
+                activeSport={filters.activeSport}
+                hasActiveFilter={filters.hasActiveFilter}
+                now={now}
+                onSelectBooking={setSelectedBookingId}
+              />
+            )}
+          </DashboardStateSurface>
+        ) : (
+          <DashboardStateSurface key="dashboard-columns-loading" variant="shift" layout>
+            {/* Stats were available from cache but full data is still loading. */}
+            <DashboardSkeleton columnsOnly />
+          </DashboardStateSurface>
+        )}
+      </AnimatePresence>
 
       {/* ══════ Booking Detail Sheet ══════ */}
       {selectedBookingId && (

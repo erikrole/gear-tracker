@@ -20,6 +20,23 @@ type Props = {
   actionClassName?: string;
 };
 
+export function DashboardFooterLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex min-h-10 items-center justify-center border-t border-border/50 px-4 text-center text-xs text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/50"
+    >
+      {children}
+    </Link>
+  );
+}
+
 export function DashboardSectionHeader({
   title,
   href,
@@ -39,7 +56,7 @@ export function DashboardSectionHeader({
   return (
     <CardHeader
       className={cn(
-        "grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0 border-b border-border/50 px-4 py-3",
+        "grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0 border-b border-border/50 px-4 py-2",
         className,
       )}
     >
@@ -47,7 +64,7 @@ export function DashboardSectionHeader({
         {href ? (
           <Link
             href={href}
-            className="group flex min-w-0 items-center text-inherit no-underline hover:no-underline"
+            className="group flex min-h-10 min-w-0 items-center rounded-sm text-inherit no-underline outline-none hover:no-underline focus-visible:ring-[3px] focus-visible:ring-ring/50"
           >
             {titleNode}
           </Link>

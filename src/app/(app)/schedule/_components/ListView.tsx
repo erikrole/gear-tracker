@@ -325,7 +325,7 @@ function ShiftRowList({
                 <div className="group/assignment flex min-h-10 w-full items-center rounded-md px-2 transition-[background-color] hover:bg-muted/45 focus-within:bg-muted/45">
                   <button
                     type="button"
-                    className="inline-flex min-w-0 flex-1 items-center gap-2 rounded-md text-left transition-[scale] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+                    className="inline-flex min-w-0 flex-1 self-stretch items-center gap-2 rounded-md text-left transition-[scale] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
                     aria-label={`Open ${areaLabel} shift assigned to ${user.name}`}
                     onClick={onSelectGroup}
                   >
@@ -387,7 +387,7 @@ function ShiftRowList({
                       aria-label={emptyAssignAriaLabel}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-background/70 text-muted-foreground shadow-[inset_0_0_0_1px_hsl(var(--border)/0.55)]">
+                      <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-background/70 text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--border)_55%,transparent)]">
                         <UserIcon className="size-3 opacity-70" />
                       </div>
                       <span className="min-w-0 truncate text-sm font-medium text-muted-foreground group-hover:text-foreground">
@@ -469,13 +469,13 @@ function ShiftRowList({
               </div>
             )}
 
-            <div className={cn("flex min-h-9", compact ? "justify-start" : "shrink-0 justify-end")}>
+            <div className={cn("flex min-h-10", compact ? "justify-start" : "shrink-0 justify-end")}>
               <div className={cn("flex min-w-0 items-center gap-1.5", compact && "flex-wrap")}>
                 {onPostTrade && myAssignment && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-9 shrink-0 px-2 text-xs text-muted-foreground transition-[background-color,color,scale] hover:text-foreground active:scale-[0.96]"
+                    className="h-10 shrink-0 px-2 text-xs text-muted-foreground transition-[background-color,color,scale] hover:text-foreground active:scale-[0.96]"
                     disabled={postingTradeId === myAssignment.id}
                     onClick={async (e) => {
                       e.stopPropagation();
@@ -728,7 +728,7 @@ export function ListView({
                 ? "You appear to be offline. Check your connection and try again."
                 : "Something went wrong loading schedule data."}
             </p>
-            <Button variant="outline" size="sm" onClick={loadData}>
+            <Button variant="outline" size="sm" className="h-10" onClick={loadData}>
               Retry
             </Button>
           </div>
@@ -1161,7 +1161,7 @@ function EventRows({
             <div className="min-w-0">
               <Link
                 href={`/events/${entry.id}`}
-                className="block truncate text-sm font-semibold hover:underline"
+                className="flex min-h-10 items-center truncate rounded-sm text-sm font-semibold outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={(e) => e.stopPropagation()}
               >
                 {titleParts.title}
@@ -1218,7 +1218,7 @@ function EventRows({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-9 px-2 text-xs text-muted-foreground transition-[background-color,color,scale] hover:text-foreground active:scale-[0.96]"
+                  className="h-10 px-2 text-xs text-muted-foreground transition-[background-color,color,scale] hover:text-foreground active:scale-[0.96]"
                   onClick={onSelectGroup}
                 >
                   Manage event

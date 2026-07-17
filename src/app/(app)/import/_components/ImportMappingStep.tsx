@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import type { ColumnMapping } from "../_types";
 import { FIELD_OPTIONS } from "../_types";
 
@@ -61,8 +62,8 @@ export function ImportMappingStep({
               {csvHeaders.map((header, colIdx) => (
                 <TableRow key={header}>
                   <TableCell className="font-semibold">{header}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground font-mono max-w-[200px] truncate">
-                    {csvSample[0]?.[colIdx] || "—"}
+                  <TableCell className="max-w-[200px] text-sm font-mono text-muted-foreground">
+                    <TruncatedText text={csvSample[0]?.[colIdx] || "—"} />
                   </TableCell>
                   <TableCell>
                     <Select

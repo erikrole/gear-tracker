@@ -2,15 +2,18 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("onboarding status page source wiring", () => {
-  it("renders a dedicated onboarding status route from the allowlist source of truth", () => {
+  it("renders a dedicated onboarding status route from invitation and account readiness truth", () => {
     const source = readFileSync("src/app/(app)/users/onboarding-status/page.tsx", "utf8");
 
     expect(source).toContain("Onboarding Status");
-    expect(source).toContain('url: "/api/allowed-emails?limit=500"');
+    expect(source).toContain('url: "/api/users/onboarding-readiness"');
     expect(source).toContain("const STALE_DAYS = 14");
     expect(source).toContain("Stale pending");
     expect(source).toContain("Pending");
     expect(source).toContain("Claimed");
+    expect(source).toContain("Operationally ready");
+    expect(source).toContain("Profile complete");
+    expect(source).toContain("Setup needed");
     expect(source).toContain("OperationalMetricCard");
     expect(source).toContain('name="onboardingStatusSearch"');
     expect(source).toContain('aria-label="Onboarding status filter"');

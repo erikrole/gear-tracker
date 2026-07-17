@@ -76,22 +76,48 @@ its own palette. Each accent drives the border, header text, and a tinted backgr
 
 | Callout | Accent (light) | Accent (dark) | Meaning |
 |---------|----------------|---------------|---------|
-| Note | `#2563eb` (blue) | `#60a5fa` | Neutral context / FYI |
-| Tip | `#16a34a` (green) | `#4ade80` | Helpful best practice |
-| Important | `#7c3aed` (violet) | `#a78bfa` | Do-not-miss requirement |
-| Warning | `#d97706` (amber) | `#fbbf24` | Proceed with caution |
-| Caution | `#dc2626` (red) | `#f87171` | Risk of damage / data loss |
+| Note | `oklch(0.540 0.210 262.881)` | `oklch(0.710 0.140 254.624)` | Neutral context / FYI |
+| Tip | `oklch(0.520 0.140 149.214)` | `oklch(0.800 0.175 151.711)` | Helpful best practice |
+| Important | `oklch(0.540 0.238 293.009)` | `oklch(0.710 0.155 293.541)` | Do-not-miss requirement |
+| Warning | `oklch(0.540 0.124 58.318)` | `oklch(0.835 0.160 84.429)` | Proceed with caution |
+| Caution | `oklch(0.540 0.200 27.325)` | `oklch(0.710 0.160 22.216)` | Risk of damage / data loss |
 
 > **Note:** Caution red here is scoped to in-prose author warnings inside a titled
 > callout card; it never appears on gear/booking rows, so it does not collide with the
-> overdue/error red reserved for status. Verified for light/dark contrast in the slice-1
-> browser check.
+> overdue/error red reserved for status. Callout accents and their 8% tinted card
+> backgrounds mix in OKLCH. `tests/guide-callout-color-contrast.test.ts` enforces
+> sRGB gamut and 4.5:1 header contrast in both themes.
+
+### Checkout activity heatmap
+
+The Reports checkout heatmap uses a single-hue blue scale because its cells represent
+actual custody activity. Green remains reserved for available or free gear. The shared
+heatmap component interpolates in OKLCH and accepts custom CSS colors when another
+domain needs a different scale.
+
+| Token | Light theme | Dark theme | Role |
+|-------|-------------|------------|------|
+| `--heatmap-zero` | `oklch(0.940 0.008 260)` | `oklch(0.240 0.008 260)` | No activity, intentionally quiet |
+| `--heatmap-1` | `oklch(0.620 0.140 260)` | `oklch(0.620 0.140 260)` | Lowest active intensity |
+| `--heatmap-2` | `oklch(0.580 0.157 260)` | `oklch(0.660 0.123 260)` | Low activity |
+| `--heatmap-3` | `oklch(0.540 0.150 260)` | `oklch(0.700 0.107 260)` | Medium activity |
+| `--heatmap-4` | `oklch(0.500 0.139 260)` | `oklch(0.740 0.091 260)` | High activity |
+| `--heatmap-5` | `oklch(0.460 0.128 260)` | `oklch(0.780 0.076 260)` | Highest activity |
+
+Active heatmap steps maintain at least 3:1 contrast against supported report surfaces
+in both themes. The zero cell is excluded because its job is to recede and communicate
+the absence of activity.
 
 ---
 
 ## Web tokens
 
 All semantic badge colors use the two-token pattern: background tint + foreground text.
+
+CSS variables in `globals.css` contain complete colors, not raw HSL channel lists.
+Use them directly as `var(--token)`. When a shadow, border, or overlay needs alpha,
+use `color-mix(in oklch, var(--token) N%, transparent)`. Do not wrap tokens in
+`hsl(var(--token))`; that produces invalid CSS for hex and OKLCH token values.
 
 ```
 Badge variant → CSS variables
@@ -108,11 +134,11 @@ gray    → bg: var(--accent-soft) text: muted-foreground
 
 | Token | Background | Text |
 |-------|-----------|------|
-| green | `#f0fdf4` | `#16a34a` |
+| green | `#f0fdf4` | `oklch(0.520 0.140 149.214)` |
 | blue | `#eff6ff` | `#2563eb` |
 | purple | `#f5f3ff` | `#7c3aed` |
-| red | `#fef2f2` | `#dc2626` |
-| orange | `#fffbeb` | `#d97706` |
+| red | `#fef2f2` | `oklch(0.540 0.211 27.325)` |
+| orange | `#fffbeb` | `oklch(0.540 0.124 58.318)` |
 
 ### Dark mode values
 
@@ -123,6 +149,28 @@ gray    → bg: var(--accent-soft) text: muted-foreground
 | purple | `rgba(124,58,237,0.12)` | `#a78bfa` |
 | red | `rgba(239,68,68,0.12)` | `#f87171` |
 | orange | `rgba(245,158,11,0.12)` | `#fbbf24` |
+
+### Report chart colors
+
+Reports use shared chart roles instead of route-local color literals. Semantic
+charts preserve operational meaning, while unrelated categorical breakdowns use
+an eight-color OKLCH palette with equal lightness and matched relative chroma.
+Light and dark themes keep the same hues but use different lightness values for
+graphical contrast.
+
+| Chart role | Token | Meaning |
+|------------|-------|---------|
+| Active | `var(--chart-1)` | Checked out, active use, checkout trends |
+| Available | `var(--chart-2)` | Available inventory, successful scans |
+| Reserved | `var(--chart-3)` | Reserved or claimed inventory |
+| Waiting | `var(--chart-4)` | Pending pickup and maintenance |
+| Problem | `var(--chart-5)` | Overdue and failed scans |
+| Neutral | `var(--text-muted)` | Retired or unknown states |
+
+`--report-chart-1` through `--report-chart-8` provide the categorical sequence.
+`--report-overdue-1` through `--report-overdue-10` form a fixed red ramp at hue
+`27.325`; only lightness and gamut-safe chroma change. Report source files must
+not introduce `hsl()` or `hsla()` literals.
 
 ### List dot colors (`getStatusVisual`)
 
@@ -232,13 +280,16 @@ Badge text is `text-xs font-semibold` (12px / ~9pt). At this size, WCAG 2.1 AA r
 
 | Variant | Light contrast (approx) | Dark contrast (approx) | AA pass? |
 |---------|------------------------|----------------------|---------|
-| green | 3.0:1 | ~8:1 | ⚠️ light borderline |
-| blue | 5.9:1 | ~8:1 | ✅ |
-| purple | 5.4:1 | ~7:1 | ✅ |
-| red | 5.7:1 | ~7:1 | ✅ |
-| orange | 3.2:1 | ~8:1 | ⚠️ light borderline |
+| green | 4.9:1 | ~8:1 | ✅ |
+| blue | 4.7:1 | ~8:1 | ✅ |
+| purple | 5.2:1 | ~7:1 | ✅ |
+| red | 5.2:1 | ~7:1 | ✅ |
+| orange | 5.1:1 | ~8:1 | ✅ |
 
-> **⚠️ Green and orange badges in light mode are borderline for small text.** Acceptable tradeoff for now given the color-meaning pairing, but avoid using these for any text longer than a short label.
+Light-mode green, orange, and red foregrounds use gamut-safe OKLCH values so
+contrast is repaired through perceptual lightness without changing their semantic
+hues. `tests/status-color-contrast.test.ts` enforces the 4.5:1 minimum for every
+semantic badge pair in both themes.
 
 ### Dark mode requirements
 - Every `var(--X-bg)` must switch to a lower-opacity tint in dark mode (already done — see dark mode values above)

@@ -75,7 +75,7 @@ export function ResourceCommandPalette({
         size="sm"
         onClick={() => setOpen(true)}
         className={cn(
-          "h-10 min-w-0 justify-start text-muted-foreground",
+          "h-10 min-w-0 justify-start text-muted-foreground transition-[background-color,color,box-shadow,scale] active:scale-[0.96]",
           className,
         )}
         aria-label="Quick find a guide"

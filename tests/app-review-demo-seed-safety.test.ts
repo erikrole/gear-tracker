@@ -18,4 +18,11 @@ describe("App Review demo seed safety", () => {
   it("does not print the reviewer password", () => {
     expect(source).not.toContain("Password: ${password}");
   });
+
+  it("seeds valid campus-login identities for Staff and Student Welcome testing", () => {
+    expect(source).toContain('email: "jordan.lee.demo@wisc.edu"');
+    expect(source).toContain('email: "alex.rivera.demo@wisc.edu"');
+    expect(source).not.toContain("jordan.lee.demo@wisconsincreative.com");
+    expect(source).not.toContain("alex.rivera.demo@wisconsincreative.com");
+  });
 });

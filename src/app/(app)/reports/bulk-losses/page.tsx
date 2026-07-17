@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { FadeUp } from "@/components/ui/motion";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import { useFetch } from "@/hooks/use-fetch";
 import {
   ReportEmptyState,
@@ -310,7 +311,7 @@ export default function BulkLossesReportPage() {
                         <TableCell>
                           <div className="font-medium">{unit.skuName} #{unit.unitNumber}</div>
                           {unit.notes ? (
-                            <div className="text-xs text-muted-foreground line-clamp-1">{unit.notes}</div>
+                            <TruncatedText className="text-xs text-muted-foreground" text={unit.notes} />
                           ) : null}
                         </TableCell>
                         <TableCell>

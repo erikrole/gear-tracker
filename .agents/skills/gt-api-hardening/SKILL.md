@@ -1,54 +1,37 @@
 ---
 name: gt-api-hardening
-description: Gear Tracker API hardening workflow. Use when the user runs /gt-api-hardening, asks for route security, auth, RBAC, mutation, transaction, N+1, Vercel timeout, cron, kiosk, or public route hardening.
+description: Canonical Gear Tracker API hardening workflow. Use when the user runs /gt-api-hardening or asks to audit or improve route authentication, authorization, validation, transactions, concurrency, audit entries, query efficiency, public or kiosk boundaries, cron behavior, exports, bulk work, or Vercel runtime safety.
 ---
 
-# /gt-api-hardening
+# GT API Hardening
 
-Harden API routes from current source, not stale audit notes.
+Harden one route family from current contracts and source. Do not apply generic security prescriptions without proving they fit the route.
 
-## Inputs
+## Orient
 
-- Area, route family, finding, or broad hardening request.
+1. Read `AGENTS.md`, the owning area and brief docs, decisions, gaps, active ledger, and relevant lessons.
+2. Read target routes, wrappers, services, schema models, tests, callers, and client response handling completely.
+3. Inspect `git status --short` and preserve unrelated work.
+4. Record the route inventory, actor types, trust boundary, mutation effects, response envelopes, and runtime constraints.
 
-## Required Reads
+## Check
 
-1. `AGENTS.md`
-2. Relevant `docs/AREA_*.md`
-3. `docs/DECISIONS.md`
-4. `docs/GAPS_AND_RISKS.md`
-5. `tasks/lessons.md`
-6. Target `src/app/api/**/route.ts` files
-7. Shared wrappers in `src/lib` used by those routes
-8. Services and Prisma models touched by the route family
-9. Existing tests for the route family
+- Authentication wrapper matches the actor: user, kiosk device, cron, or intentional public caller.
+- Every protected mutation enforces server-side permission and writes a useful audit entry when product state changes.
+- Params, query, body, and external data are normalized and validated at the correct boundary.
+- Atomic multi-write work uses a transaction; logically concurrent invariants use the isolation or conflict strategy required by the contract.
+- Database constraints own uniqueness and conflicts return actionable responses.
+- Public, export, upload, and bulk routes have evidence-based abuse and resource bounds. Add rate limiting only where the threat and infrastructure support it.
+- Query shape avoids proven N+1 or unbounded work. Use parallel or partial-result behavior only when the product contract allows partial success.
+- Error handling preserves status, never assumes JSON, and does not leak sensitive internals.
+- Client and native models match the actual response envelope and rollout order.
 
-## Checks
+## Execute
 
-- Every handler export is wrapped by `withAuth`, `withKiosk`, `withCron`, or `withHandler`.
-- Mutations use server-side `requirePermission`, not just UI hiding.
-- Route params, query, and body are validated.
-- Mutations write audit entries where product state changes.
-- Multi-write flows use transactions, with `Serializable` where races matter.
-- Uniqueness relies on DB constraints and `P2002` handling.
-- Public routes are disabled, rate-limited, or intentionally allowlisted.
-- Cron routes use shared bearer validation.
-- Kiosk routes stay under device-token auth.
-- Read bundles use `Promise.allSettled` when partial data is acceptable.
-- Export and bulk operations are bounded for Vercel function limits.
+Use `gt-plan` for a non-trivial route family. Implement P0/P1 fixes as independently testable service, route, client, test, and documentation slices. Stop on contract, schema, live-data, or permission mismatches instead of improvising.
 
-## Workflow
+## Verify
 
-1. Inventory the route family and wrappers.
-2. Write findings to `tasks/api-hardening-<area>.md` unless an active audit file exists.
-3. Implement P0/P1 fixes in thin slices.
-4. Add focused route/service tests.
-5. Sync area docs and gaps.
+Select proof from the `AGENTS.md` verification matrix. Add focused route/service tests for authorization, validation, concurrency, audit behavior, and failure responses. Use deploy-shaped proof only when deployment behavior is in scope and safe.
 
-## Verification
-
-- Focused `npx vitest run ...`
-- `npx tsc --noEmit`
-- `npm run db:migrate:check`
-- `git diff --check`
-- `npx next build`
+Use `area-doc-sync` when behavior ships. Do not commit, push, or open a PR unless explicitly requested.

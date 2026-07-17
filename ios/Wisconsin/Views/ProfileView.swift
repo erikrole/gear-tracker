@@ -6,6 +6,7 @@ import UserNotifications
 
 struct ProfileView: View {
     @Environment(SessionStore.self) private var session
+    @Environment(ProfileCompletionStore.self) private var profileCompletion
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
@@ -34,6 +35,7 @@ struct ProfileView: View {
         NavigationStack {
             List {
                 headerSection
+                profileCompletionSection
                 scheduleSection
             }
             .listStyle(.insetGrouped)
@@ -117,6 +119,33 @@ struct ProfileView: View {
             .padding(.vertical, 6)
         }
         .listRowBackground(Color(.secondarySystemGroupedBackground))
+    }
+
+    @ViewBuilder
+    private var profileCompletionSection: some View {
+        if let user = session.currentUser, profileCompletion.hasIncompleteProfile(for: user.id) {
+            Section {
+                Button {
+                    dismiss()
+                    profileCompletion.presentManually(for: user.id)
+                } label: {
+                    SettingsMenuRow(
+                        title: "Complete profile",
+                        subtitle: "Review your missing contact, Wiscard, apparel, or photo details.",
+                        systemImage: "person.crop.circle.badge.checkmark",
+                        tint: Color.statusText(.orange)
+                    ) {
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens the profile completion steps")
+            } header: {
+                Text("Account")
+            }
+        }
     }
 
     @ViewBuilder

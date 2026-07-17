@@ -45,6 +45,8 @@ final class SessionStore {
     /// snapshot, so the app shell rendered before `/me` confirmed the session.
     private var didSeedFromSnapshot = false
 
+    var usedOptimisticSessionSnapshot: Bool { didSeedFromSnapshot }
+
     init() {
         // Optimistic launch: if the last session left a snapshot, render the
         // app shell immediately (Home shows its own skeleton while fresh data
@@ -68,6 +70,7 @@ final class SessionStore {
             Task { @MainActor in
                 guard let self else { return }
                 if self.currentUser != nil {
+                    self.didSeedFromSnapshot = false
                     self.currentUser = nil
                     SessionSnapshot.clear()
                     self.error = "Your session expired — please sign in again."
@@ -88,6 +91,7 @@ final class SessionStore {
         error = nil
         do {
             let user = try await APIClient.shared.login(email: email, password: password)
+            didSeedFromSnapshot = false
             currentUser = user
             SessionSnapshot.save(user)
         } catch {
@@ -105,9 +109,9 @@ final class SessionStore {
                 newPassword: newPassword,
                 revokeOtherSessions: true
             )
-            let user = try await APIClient.shared.me()
-            currentUser = user
-            SessionSnapshot.save(user)
+            currentUser = try await APIClient.shared.me()
+            didSeedFromSnapshot = false
+            if let currentUser { SessionSnapshot.save(currentUser) }
             isOffline = false
         } catch {
             self.error = error.localizedDescription
@@ -122,12 +126,14 @@ final class SessionStore {
         try? await APIClient.shared.revokeCheckoutReturnLiveActivityStartTokens()
         try? await APIClient.shared.logout()
         SessionSnapshot.clear()
+        didSeedFromSnapshot = false
         currentUser = nil
     }
 
     func clearDeletedAccountLocally() async {
         try? await APIClient.shared.logout()
         SessionSnapshot.clear()
+        didSeedFromSnapshot = false
         currentUser = nil
     }
 

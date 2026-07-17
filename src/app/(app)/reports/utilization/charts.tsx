@@ -8,15 +8,19 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { statusLabelEquipment } from "@/lib/status-colors";
-import { REPORT_CHART_COLORS, ReportChartCard } from "../report-ui";
+import {
+  REPORT_CHART_COLORS,
+  REPORT_SEMANTIC_CHART_COLORS,
+  ReportChartCard,
+} from "../report-ui";
 
 const STATUS_COLORS: Record<string, string> = {
-  AVAILABLE: "hsl(142 60% 45%)",
-  CHECKED_OUT: "hsl(220 70% 55%)",
-  PENDING_PICKUP: "hsl(32 95% 52%)",
-  RESERVED: "hsl(270 60% 60%)",
-  MAINTENANCE: "hsl(25 90% 55%)",
-  RETIRED: "hsl(0 0% 60%)",
+  AVAILABLE: REPORT_SEMANTIC_CHART_COLORS.available,
+  CHECKED_OUT: REPORT_SEMANTIC_CHART_COLORS.active,
+  PENDING_PICKUP: REPORT_SEMANTIC_CHART_COLORS.waiting,
+  RESERVED: REPORT_SEMANTIC_CHART_COLORS.reserved,
+  MAINTENANCE: REPORT_SEMANTIC_CHART_COLORS.waiting,
+  RETIRED: REPORT_SEMANTIC_CHART_COLORS.neutral,
 };
 
 export function StatusDonut({ statusCounts }: { statusCounts: Record<string, number> }) {
@@ -25,7 +29,7 @@ export function StatusDonut({ statusCounts }: { statusCounts: Record<string, num
     .map(([status, count]) => ({
       status: statusLabelEquipment(status),
       count,
-      fill: STATUS_COLORS[status] ?? "hsl(0 0% 50%)",
+      fill: STATUS_COLORS[status] ?? REPORT_SEMANTIC_CHART_COLORS.neutral,
     }));
 
   if (chartData.length === 0) return null;

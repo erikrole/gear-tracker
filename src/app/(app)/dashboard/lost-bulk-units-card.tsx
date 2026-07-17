@@ -15,12 +15,12 @@ export function LostBulkUnitsCard({ items }: Props) {
   const totalLost = items.reduce((sum, i) => sum + i.count, 0);
 
   return (
-    <div className="relative border border-[var(--wi-red)]/25 bg-[var(--wi-red)]/[0.04] dark:bg-[var(--wi-red)]/[0.08] rounded-lg mb-4 overflow-hidden animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none">
+    <div className="relative mb-4 overflow-hidden rounded-lg border border-[var(--wi-red)]/25 bg-[var(--wi-red)]/[0.04] dark:bg-[var(--wi-red)]/[0.08]">
       {/* Left accent bar */}
       <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[var(--wi-red)]" aria-hidden="true" />
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-[var(--wi-red)]/15">
+      <div className="flex min-h-10 items-center justify-between gap-3 border-b border-[var(--wi-red)]/15 px-4">
         <div className="flex items-center gap-2">
           <AlertTriangleIcon className="size-3.5 text-[var(--wi-red)] shrink-0" />
           <span
@@ -32,7 +32,7 @@ export function LostBulkUnitsCard({ items }: Props) {
         </div>
         <Link
           href="/reports/bulk-losses"
-          className="text-[10.5px] text-muted-foreground/60 hover:text-muted-foreground no-underline transition-colors whitespace-nowrap"
+          className="flex min-h-10 items-center whitespace-nowrap rounded-sm text-[10.5px] text-muted-foreground/60 no-underline transition-colors hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
           style={{ fontFamily: "var(--font-mono)" }}
         >
           Review →

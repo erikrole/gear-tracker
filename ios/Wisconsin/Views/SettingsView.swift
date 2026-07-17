@@ -52,13 +52,8 @@ struct SettingsView: View {
                     SettingsRow(title: "Theme", systemImage: "circle.lefthalf.filled", color: .indigo)
                 }
                 .pickerStyle(.menu)
-                NavigationLink {
-                    AppIconSettingsView()
-                } label: {
-                    SettingsRow(title: "App Icon", systemImage: "app.dashed", color: .purple)
-                }
             } footer: {
-                Text("Appearance choices are saved on this device only.")
+                Text("Your theme choice is saved on this device only.")
             }
 
             if isStaffOrAdmin {

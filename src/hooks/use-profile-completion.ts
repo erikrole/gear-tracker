@@ -7,6 +7,8 @@ import type { GraduationTermValue, StudentYearValue } from "@/lib/student-profil
 
 export type ProfileCompletionResponse = {
   profile: {
+    id: string;
+    name: string;
     role: "ADMIN" | "STAFF" | "STUDENT" | "COLLABORATOR";
     email: string;
     athleticsEmail: string | null;
@@ -23,9 +25,12 @@ export type ProfileCompletionResponse = {
     topSize: string | null;
     shoeSizeSystem: "US_WOMENS" | "US_MENS" | null;
     shoeSize: string | null;
+    avatarUrl: string | null;
     profilePromptSnoozedUntil: string | null;
   };
   completion: {
+    operationalReady: boolean;
+    profileComplete: boolean;
     isComplete: boolean;
     isSnoozed: boolean;
     shouldPrompt: boolean;

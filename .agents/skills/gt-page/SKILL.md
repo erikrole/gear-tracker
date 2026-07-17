@@ -1,61 +1,49 @@
 ---
 name: gt-page
-description: Gear Tracker web page execution workflow. Use when the user runs /gt-page, asks for a page ownership pass, UI or UX pass, hardening pass, consistency pass, or wants a route or page slice implemented end to end.
+description: Canonical Gear Tracker web page execution workflow. Use when the user runs /gt-page or asks to take a web route or tightly scoped page surface end to end through UX, UI, consistency, hardening, implementation, verification, and documentation. Use gt-audit-web instead for findings only.
 ---
 
-# /gt-page
+# GT Page
 
-Own one web route or one route slice through implementation, verification, and docs.
+Own one web route or one tightly scoped route surface through verified implementation. Keep the work operational, evidence-driven, and consistent with the best shipped peer pages.
 
-This is execution-oriented. Use `/gt-audit-web` when the user wants findings only.
+## Orient
 
-## Inputs
+1. Read `AGENTS.md`, `docs/NORTH_STAR.md`, and `docs/DESIGN_LANGUAGE.md`.
+2. Read the owning `docs/AREA_*.md`, relevant `docs/BRIEF_*.md`, decisions, gaps, active task ledger, and prior audits.
+3. Read the target page and affected siblings completely. Trace referenced components, hooks, API routes, services, tests, and Prisma models.
+4. Inspect `git status --short`. Preserve unrelated work.
+5. Compare at least two shipped pages with the same workflow shape. Record the patterns worth reusing and any intentional difference.
 
-- Route: `/items`, `/users`, `/settings/categories`, etc.
-- Optional slice: filters, row actions, empty state, detail tabs, create flow, permissions, responsive pass.
+## Own the surface
 
-## Required Reads
+- Structure: route hierarchy, primary action, command bar, tabs, filters, scanability.
+- UX: role-specific golden paths; loading, empty, filtered-empty, error, success, stale, slow-network, and expired-session states.
+- UI: installed shadcn primitives, Gear Tracker operational components, 40px targets, restrained motion, wrapping, and semantic status colors.
+- Consistency: reuse local patterns before adding abstractions. Record propagation candidates when this page establishes a better shared pattern.
+- Hardening: server-side authorization, schema-boundary validation, concurrency, auditability, bounded bulk/export work, and useful failure recovery.
 
-1. `AGENTS.md`
-2. Matching `docs/AREA_*.md`
-3. Relevant `docs/BRIEF_*.md`
-4. `docs/DECISIONS.md`
-5. `docs/GAPS_AND_RISKS.md`
-6. `prisma/schema.prisma` for models touched by the route
-7. Target `src/app/(app)/<route>/page.tsx` and siblings in full before editing
-8. Referenced API routes, services, hooks, shared components, and tests
-9. At least two peer pages with the same workflow shape
+## Execute
 
-## Lenses
+1. Use `gt-plan` for a non-trivial pass. Update the existing owner plan when one already exists.
+2. Implement the smallest coherent slice that does not leave a broken midpoint.
+3. Keep schema/migration, API/service, UI wiring, tests, and docs independently reviewable when the change is substantial.
+4. Update the task review after each slice with shipped, verified, deferred, blocked, proof, and next-slice/stop notes.
+5. Use `area-doc-sync` before closeout when shipped behavior changed.
 
-- Structure: primary action, command bar, tabs, route shape, page scanability.
-- UX: loading, empty, filtered-empty, error, success, expired session, slow network.
-- UI: shadcn primitives, hit areas, density, icon buttons, wrapping, tabular numbers.
-- Consistency: reuse local patterns before creating abstractions.
-- Hardening: auth, RBAC, Zod, transactions, N+1 risk, bulk/export bounds.
-- Verification: focused tests, TypeScript, migration check, whitespace, build, browser smoke when visible UI changed.
+## Verify
 
-## Workflow
+Select the minimum proof from the `AGENTS.md` verification matrix. Add:
 
-1. Create or update `tasks/<route>-ownership-pass.md`.
-2. Record peer patterns checked.
-3. Implement the smallest coherent slice.
-4. Update the task file as each checklist item completes.
-5. Sync relevant area docs and gaps.
-6. Run verification.
+- Focused route/service tests for changed behavior.
+- Authenticated browser proof for visible work, including console, network, the changed interaction, and relevant desktop/tablet widths.
+- A recorded blocker when runtime proof is unavailable. Do not substitute build success for browser behavior.
 
-## Verification Defaults
+## Stop
 
-- `npx tsc --noEmit`
-- `npm run db:migrate:check`
-- `git diff --check`
-- `npx next build`
-- Focused `npx vitest run ...` for touched service/API behavior
-- Browser smoke for visible page changes, including console and the changed interaction path
+- Current source, API response, schema, permissions, or live data contradicts the plan.
+- Peer patterns disagree and accepted product direction does not resolve ownership.
+- The selected slice requires behavior outside its approved scope.
+- The same approach or verification failure occurs twice without new evidence.
 
-## Stop Conditions
-
-- Peer pages disagree and product direction is ambiguous.
-- The route's API contract differs from the client assumption.
-- Two verification or approach attempts fail.
-- A schema or permission change is needed outside the selected slice.
+Close with the user-facing outcome, exact proof, remaining risk, and the next bounded slice or stop recommendation. Do not commit, push, or open a PR unless explicitly requested.

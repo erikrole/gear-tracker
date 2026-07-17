@@ -182,12 +182,12 @@ function InternalSchedulePage() {
       <PageHeader title="Schedule">
         {isStaff ? (
           <>
-            <Button size="sm" asChild>
+            <Button size="sm" className="h-10" asChild>
               <Link href="/schedule/assign">Assign shifts</Link>
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" aria-label="More schedule actions">
+                <Button variant="outline" size="sm" className="h-10" aria-label="More schedule actions">
                   <MoreHorizontalIcon data-icon="inline-start" />
                   More
                 </Button>
@@ -220,6 +220,7 @@ function InternalSchedulePage() {
           <Button
             variant="outline"
             size="sm"
+            className="h-10"
             onClick={() => data.setTradeSheetOpen(true)}
           >
             Trade Board

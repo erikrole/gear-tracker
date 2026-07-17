@@ -18,6 +18,7 @@ const FIELD_LABELS: Record<ProfileCompletionField, string> = {
   anticipatedGraduation: "Anticipated graduation",
   clothingSize: "Clothing size",
   shoeSize: "Shoe size",
+  photo: "Profile photo",
 };
 
 export function ProfileCompletionNotice() {

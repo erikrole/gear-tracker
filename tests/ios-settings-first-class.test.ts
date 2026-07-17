@@ -17,7 +17,6 @@ describe("iOS Settings hub", () => {
       "Account & Security",
       "Notifications",
       "Theme",
-      "App Icon",
       "Privacy Policy",
       "Contact Support",
       "Version",
@@ -29,6 +28,8 @@ describe("iOS Settings hub", () => {
 
     expect(settings).toContain("SettingsRow(");
     expect(settings).toContain("if isStaffOrAdmin");
+    expect(settings).not.toContain("AppIconSettingsView");
+    expect(settings).not.toContain('SettingsRow(title: "App Icon"');
   });
 
   it("keeps role-gated settings menus reachable without exposing staff tools to students", () => {
@@ -67,5 +68,15 @@ describe("iOS Settings hub", () => {
     expect(settings).toContain("SettingsRow(title: \"Theme\"");
     expect(settings).toContain("SettingsRow(title: \"Open iOS Settings\"");
     expect(settings).toContain("Button(\"Sign Out\", role: .destructive)");
+  });
+
+  it("ships one primary app icon without alternate-icon switching", () => {
+    const project = source("ios/project.yml");
+    const settings = source("ios/Wisconsin/Views/SettingsView.swift");
+
+    expect(project).toContain("ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon");
+    expect(project).not.toContain("ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES");
+    expect(settings).not.toContain("setAlternateIconName");
+    expect(settings).not.toContain("AppIconSettingsView");
   });
 });

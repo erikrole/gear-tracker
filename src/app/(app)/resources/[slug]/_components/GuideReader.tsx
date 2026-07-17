@@ -67,7 +67,7 @@ function TableOfContents({ items, activeId }: { items: TocItem[]; activeId: stri
               key={item.id}
               onClick={() => scrollToHeading(item.id)}
               className={cn(
-                "guide-toc-link min-h-10 w-full rounded-md px-2 py-2 text-left text-sm leading-snug transition-colors hover:text-foreground",
+                "guide-toc-link min-h-10 w-full rounded-md px-2 py-2 text-left text-sm leading-snug outline-none transition-[background-color,color,scale] hover:text-foreground active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-ring",
                 item.level === 1 && "font-semibold",
                 item.level === 2 && "pl-4",
                 item.level === 3 && "pl-7",
@@ -103,7 +103,7 @@ function SiblingNav({ nav }: { nav: SectionNav }) {
               href={`/resources/${item.slug}`}
               aria-current={item.current ? "page" : undefined}
               className={cn(
-                "guide-section-link min-h-10 rounded-md px-2 py-2 text-sm leading-snug transition-colors hover:text-foreground",
+                "guide-section-link min-h-10 rounded-md px-2 py-2 text-sm leading-snug outline-none transition-[background-color,color,scale] hover:text-foreground active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-ring",
                 item.current
                   ? "guide-section-link-active font-semibold text-foreground"
                   : "text-muted-foreground/70",
@@ -129,7 +129,7 @@ function PrevNext({ nav }: { nav: SectionNav }) {
       {nav.prev ? (
         <Link
           href={`/resources/${nav.prev.slug}`}
-          className="flex flex-col gap-1 rounded-lg border p-4 transition-colors hover:border-foreground/30 hover:bg-muted/40"
+          className="flex min-h-11 flex-col gap-1 rounded-lg border p-4 outline-none transition-[background-color,border-color,scale] hover:border-foreground/30 hover:bg-muted/40 active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-ring"
         >
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
             <ArrowLeftIcon className="size-3.5" aria-hidden="true" />
@@ -143,7 +143,7 @@ function PrevNext({ nav }: { nav: SectionNav }) {
       {nav.next ? (
         <Link
           href={`/resources/${nav.next.slug}`}
-          className="flex flex-col items-end gap-1 rounded-lg border p-4 text-right transition-colors hover:border-foreground/30 hover:bg-muted/40"
+          className="flex min-h-11 flex-col items-end gap-1 rounded-lg border p-4 text-right outline-none transition-[background-color,border-color,scale] hover:border-foreground/30 hover:bg-muted/40 active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-ring"
         >
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
             Next
@@ -255,7 +255,7 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
       <div>
         <Link
           href="/resources"
-          className="inline-flex min-h-10 items-center gap-2 rounded-md text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex min-h-10 items-center gap-2 rounded-md text-sm font-medium text-muted-foreground outline-none transition-[color,scale] hover:text-foreground active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-ring"
         >
           <ArrowLeftIcon className="size-3.5" />
           All guides
@@ -289,7 +289,7 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
               type="button"
               variant="outline"
               size="sm"
-              className="shrink-0"
+              className="h-10 shrink-0 active:scale-[0.96] transition-transform"
               loading={verifying}
               disabled={verifying}
               onClick={markVerified}
@@ -297,7 +297,7 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
               {!verifying && <CheckCircle2Icon data-icon="inline-start" />}
               Mark verified
             </Button>
-            <Button asChild variant="outline" size="sm" className="shrink-0">
+            <Button asChild variant="outline" size="sm" className="h-10 shrink-0 active:scale-[0.96] transition-transform">
               <Link href={`/resources/${slug}/edit`}>
                 <PencilIcon data-icon="inline-start" />
                 Edit

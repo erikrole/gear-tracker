@@ -1,42 +1,32 @@
 ---
 name: gt-ios-slice
-description: Gear Tracker iOS implementation workflow. Use when the user runs /gt-ios-slice, asks to implement or polish an iOS Wisconsin screen, handles API payload changes consumed by iOS, or wants native app readiness work.
+description: Canonical Gear Tracker native iOS implementation workflow. Use when the user runs /gt-ios-slice, asks to implement or polish a Wisconsin SwiftUI workflow, changes an API payload consumed by iOS, or needs native app readiness work. Keep native workflows native and verify the affected target.
 ---
 
-# /gt-ios-slice
+# GT iOS Slice
 
-Implement one iOS slice while respecting the web API contract and production rollout skew.
+Implement one native slice while preserving API rollout safety, target membership, and product boundaries.
 
-## Required Reads
+## Orient
 
-1. `docs/AREA_MOBILE.md`
-2. Relevant feature `docs/AREA_*.md`
-3. `docs/DECISIONS.md`
-4. `docs/GAPS_AND_RISKS.md`
-5. Target SwiftUI view in full
-6. Dependent models, stores, API clients, and services
-7. Web API route returning payloads consumed by the iOS screen
-8. Existing audit or plan files for the iOS surface
+1. Read `AGENTS.md`, `docs/NORTH_STAR.md`, `docs/AREA_MOBILE.md`, the feature area doc, decisions, gaps, active ledger, and prior audit.
+2. Read the target view and dependent stores, models, clients, services, tests, server routes, and response envelopes completely.
+3. Confirm the affected Xcode target, deployment baseline, existing native pattern, and project membership rules.
+4. Inspect `git status --short` and preserve unrelated work.
 
-## Workflow
+## Execute
 
-1. Define the user-facing slice.
-2. Check whether API payload changes need backward-compatible decoding.
-3. Implement the smallest coherent Swift or shared API change.
-4. Keep Home action-first and student-core flows clear.
-5. Update mobile and feature area docs.
-6. Run iOS drift and gap checks after meaningful changes.
+1. Use `gt-plan` for a non-trivial slice.
+2. Define the user-facing workflow and recovery behavior.
+3. Keep the experience native-first, action-first, role-aware, and accessible.
+4. Make decoded payload changes tolerant of rollout skew unless server-first deployment is guaranteed and recorded.
+5. Register new Swift files in the explicit Xcode project and correct target membership.
+6. Keep shared API, model, store/service, view, tests, and docs independently reviewable when substantial.
 
-## Verification
+## Verify
 
-- `npx tsc --noEmit` when shared TypeScript/API changed
-- `npm run drift:ios`
-- `npm run audit:ios:gaps`
-- `git diff --check`
-- `xcodebuild -project ios/Wisconsin.xcodeproj -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build`
+Select proof from the `AGENTS.md` verification matrix. Use the current iOS scripts in `package.json`, including project checks, drift/gap checks, the affected target build, and relevant Swift source-contract tests. Launch and inspect the changed flow when simulator runtime proof is requested and available.
 
-## Rules
+Do not call the slice ready from source edits or TypeScript tests alone. Record any build, device, entitlement, authentication, or runtime blocker precisely.
 
-- Do not call iOS ready until drift, gap audit, and simulator build pass.
-- New decoded fields must tolerate old production payloads unless the server deploy is guaranteed first.
-- iOS phone workflows matter more than mobile web parity.
+Use `area-doc-sync` when behavior ships. Do not commit, push, upload, or open a PR unless explicitly requested.

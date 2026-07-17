@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AnimatePresence } from "motion/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,9 +12,10 @@ import { sportLabel } from "@/lib/sports";
 import { formatCallTime, isFullDayBoundaryWindow } from "@/lib/shift-call-windows";
 import { GearAvatarStack } from "./dashboard-avatars";
 import { DashboardBookingRow, dashboardBookingAccent } from "./booking-row";
-import { DashboardSectionHeader } from "./section-header";
+import { DashboardFooterLink, DashboardSectionHeader } from "./section-header";
 import type { DashboardData, CreateBookingContext } from "../dashboard-types";
 import type { FilteredDashboardData } from "@/hooks/use-dashboard-filters";
+import { DashboardStateSurface } from "./dashboard-motion";
 
 type Props = {
   data: DashboardData;
@@ -71,7 +73,7 @@ export function MyGearColumn({
                 <div className="flex shrink-0 gap-2 max-sm:w-full">
                   <Button
                     size="sm"
-                    className="max-sm:flex-1"
+                    className="h-10 max-sm:flex-1"
                     onClick={() => onCreateBooking({ kind: "RESERVATION" })}
                   >
                     Reserve
@@ -104,7 +106,7 @@ export function MyGearColumn({
                   );
                 })}
                 {!hasActiveFilter && data.myCheckouts.total > data.myCheckouts.items.length && (
-                  <Link href="/checkouts?mine=true" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.myCheckouts.total} &rarr;</Link>
+                  <DashboardFooterLink href="/checkouts?mine=true">View all {data.myCheckouts.total} &rarr;</DashboardFooterLink>
                 )}
               </CardContent>
             )}
@@ -129,7 +131,7 @@ export function MyGearColumn({
                   />
                 ))}
                 {!hasActiveFilter && data.myReservations.length >= 5 && (
-                  <Link href="/reservations?mine=true" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all &rarr;</Link>
+                  <DashboardFooterLink href="/reservations?mine=true">View all &rarr;</DashboardFooterLink>
                 )}
               </CardContent>
             )}
@@ -180,6 +182,7 @@ export function MyGearColumn({
                       <Button
                         variant="outline"
                         size="sm"
+                        className="h-10"
                         onClick={() => onCreateBooking?.({
                           kind: "RESERVATION",
                           title: eventTitle,
@@ -203,46 +206,55 @@ export function MyGearColumn({
       )}
 
       {/* Drafts */}
-      {data.drafts.length > 0 && (
-        <ScaleIn delay={0.15}>
-        <Card elevation="flat">
-          <DashboardSectionHeader title="Drafts" count={data.drafts.length} />
-          <CardContent className="p-0">
-            {data.drafts.map((d) => (
-              <div key={d.id} className="group flex min-h-16 w-full items-center justify-between gap-3 px-4 py-2.5 transition-colors hover:bg-muted/45 [&+&]:border-t [&+&]:border-border/40">
-                <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="text-sm font-medium text-foreground truncate">
-                    <Badge variant="outline" size="sm" className="mr-1.5">{d.kind === "CHECKOUT" ? "Checkout" : "Reservation"}</Badge>
-                    {d.title || "Untitled"}
-                  </span>
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground leading-snug">
-                    {d.itemCount > 0 && <>{d.itemCount} item{d.itemCount !== 1 ? "s" : ""} &middot; </>}
-                    Edited {formatRelativeTime(d.updatedAt, now)}
-                  </span>
-                </div>
-                <div className="flex gap-1.5 shrink-0">
-                  {d.kind === "RESERVATION" && (
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/reservations?draftId=${d.id}`}>
-                        Continue
-                      </Link>
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={acting}
-                    onClick={() => onDeleteDraft(d.id)}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-        </ScaleIn>
-      )}
+      <AnimatePresence initial={false}>
+        {data.drafts.length > 0 && (
+          <DashboardStateSurface key="drafts" layout>
+            <Card elevation="flat">
+              <DashboardSectionHeader title="Drafts" count={data.drafts.length} />
+              <CardContent className="p-0">
+                <AnimatePresence initial={false}>
+                  {data.drafts.map((d) => (
+                    <DashboardStateSurface
+                      key={d.id}
+                      layout
+                      className="group flex min-h-16 w-full items-center justify-between gap-3 px-4 py-2.5 transition-colors hover:bg-muted/45 [&+&]:border-t [&+&]:border-border/40"
+                    >
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <span className="text-sm font-medium text-foreground truncate">
+                          <Badge variant="outline" size="sm" className="mr-1.5">{d.kind === "CHECKOUT" ? "Checkout" : "Reservation"}</Badge>
+                          {d.title || "Untitled"}
+                        </span>
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground leading-snug">
+                          {d.itemCount > 0 && <>{d.itemCount} item{d.itemCount !== 1 ? "s" : ""} &middot; </>}
+                          Edited {formatRelativeTime(d.updatedAt, now)}
+                        </span>
+                      </div>
+                      <div className="flex gap-1.5 shrink-0">
+                        {d.kind === "RESERVATION" && (
+                          <Button variant="outline" size="sm" className="h-10" asChild>
+                            <Link href={`/reservations?draftId=${d.id}`}>
+                              Continue
+                            </Link>
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-10"
+                          disabled={acting}
+                          onClick={() => onDeleteDraft(d.id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </DashboardStateSurface>
+                  ))}
+                </AnimatePresence>
+              </CardContent>
+            </Card>
+          </DashboardStateSurface>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

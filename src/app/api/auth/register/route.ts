@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { createSession, hashPassword } from "@/lib/auth";
 import { HttpError, ok } from "@/lib/http";
-import { normalizeWiscardNumber, registerSchema } from "@/lib/validation";
+import { registerSchema } from "@/lib/validation";
 import { shiftWorkerTypeForRole } from "@/lib/shift-display";
 import { withHandler } from "@/lib/api";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
@@ -52,10 +52,6 @@ export const POST = withHandler(async (req) => {
   }
 
   const passwordHash = await hashPassword(body.password);
-  const wiscardNumber = allowedEntry.role === "COLLABORATOR"
-    ? null
-    : normalizeWiscardNumber(body.wiscardNumber);
-
   // Atomic: create user + claim invitation in one transaction
   let user;
   try {
@@ -64,7 +60,7 @@ export const POST = withHandler(async (req) => {
         data: {
           name: body.name.trim(),
           email,
-          wiscardNumber,
+          wiscardNumber: null,
           passwordHash,
           role: allowedEntry.role, // Use role from allowlist (not hardcoded STUDENT)
           affiliation: allowedEntry.affiliation,

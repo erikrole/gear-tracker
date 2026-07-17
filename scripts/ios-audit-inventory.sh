@@ -67,12 +67,15 @@ OverdueReportView.swift                | overdue-report              | audit
 LoginView.swift                        | login                       | audit
 PasswordSetupView.swift                | login                       | audit
 LaunchView.swift                       |                             | exempt-tiny
+Welcome/ProfileCompletionWelcomeView.swift | welcome                  | audit
+Welcome/ProfilePhotoCropView.swift     | welcome                     | audit
+Welcome/ProfileCompletionDraft.swift   |                             | exempt-infra
+Welcome/ProfileCompletionWelcomeComponents.swift |                   | exempt-shared
 UsersView.swift                        | users                       | audit
 UserDetailView.swift                   | users                       | audit
 AppTabView.swift                       | profile                     | audit
 ProfileView.swift                      | profile                     | audit
 SettingsView.swift                     | profile                     | audit
-AppIconSettingsView.swift              | profile                     | audit
 LicensesView.swift                     | licenses                    | audit
 GuidesView.swift                       | resources                   | audit
 SidebarWebDestinationView.swift        |                             | exempt-tiny

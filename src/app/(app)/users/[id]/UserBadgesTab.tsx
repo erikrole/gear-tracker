@@ -211,7 +211,7 @@ function BadgeGridSkeleton() {
           <Skeleton className="h-5 w-32" />
           <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {[0, 1, 2, 3].map((index) => (
-              <div key={index} className="flex flex-col items-center gap-3 rounded-xl bg-card p-4 shadow-[0_0_0_1px_hsl(var(--border))]">
+              <div key={index} className="flex flex-col items-center gap-3 rounded-xl bg-card p-4 shadow-[0_0_0_1px_var(--border)]">
                 <Skeleton className="size-14 rounded-2xl" />
                 <Skeleton className="h-4 w-20" />
                 <Skeleton className="h-3 w-16" />
@@ -255,7 +255,7 @@ function rarityGlowClass(rarity: BadgeRarity) {
   if (rarity === "Legendary") return "shadow-[0_0_0_1px_var(--purple-text),0_0_34px_var(--purple-bg)]";
   if (rarity === "Rare") return "shadow-[0_0_0_1px_var(--orange-text),0_0_30px_var(--orange-bg)]";
   if (rarity === "Uncommon") return "shadow-[0_0_0_1px_var(--blue-text),0_0_26px_var(--blue-bg)]";
-  return "shadow-[0_0_0_1px_hsl(var(--primary)/0.25),0_0_22px_hsl(var(--primary)/0.12)]";
+  return "shadow-[0_0_0_1px_color-mix(in_oklch,var(--primary)_25%,transparent),0_0_22px_color-mix(in_oklch,var(--primary)_12%,transparent)]";
 }
 
 function rarityStageClass(rarity: BadgeRarity) {
@@ -405,7 +405,7 @@ function BadgeTile({
       type="button"
       onClick={() => onSelect(badge)}
       className={cn(
-        "group relative flex w-full flex-col items-center gap-2 rounded-xl bg-card px-3 pb-4 pt-5 text-center shadow-[0_0_0_1px_hsl(var(--border))] outline-none transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_34px_hsl(var(--foreground)/0.08),0_0_0_1px_hsl(var(--border))] focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-[0.96]",
+        "group relative flex w-full flex-col items-center gap-2 rounded-xl bg-card px-3 pb-4 pt-5 text-center shadow-[0_0_0_1px_var(--border)] outline-none transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_34px_color-mix(in_oklch,var(--foreground)_8%,transparent),0_0_0_1px_var(--border)] focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-[0.96]",
         !badge.earned && "bg-muted/30",
         recentlyEarned && rarityGlowClass(rarity),
         selected && "ring-[3px] ring-ring/30",
@@ -442,7 +442,7 @@ function BadgeTile({
 
 function SurpriseTile({ count }: { count: number }) {
   return (
-    <div className="flex w-full flex-col items-center gap-2 rounded-xl bg-muted/30 px-3 pb-4 pt-5 text-center text-muted-foreground shadow-[0_0_0_1px_hsl(var(--border))]">
+    <div className="flex w-full flex-col items-center gap-2 rounded-xl bg-muted/30 px-3 pb-4 pt-5 text-center text-muted-foreground shadow-[0_0_0_1px_var(--border)]">
       <BadgeMedallion icon={Sparkles} earned={false} rarity="Rare" shape="hex" className="size-14 opacity-80" iconClassName="size-6" />
       <div className="min-w-0">
         <h3 className="text-sm font-semibold text-foreground">Surprise awards</h3>
@@ -474,7 +474,7 @@ function ShelfSection({
     <section aria-label={`${shelf.title} awards`}>
       <div className="flex items-end justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground shadow-[inset_0_0_0_1px_hsl(var(--border))]" aria-hidden="true">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]" aria-hidden="true">
             <ShelfIcon className="size-4" />
           </div>
           <div className="min-w-0">
@@ -541,7 +541,7 @@ function BadgeDetailDialog({
       <DialogContent className="max-w-[720px] overflow-hidden border-0 p-0 shadow-[0_24px_80px_rgba(0,0,0,0.22),0_0_0_1px_var(--border)] sm:rounded-2xl">
         {badge ? (
           <>
-            <DialogHeader className={cn("relative isolate block overflow-hidden border-b-0 px-6 pb-8 pt-10 shadow-[0_1px_0_0_hsl(var(--border)/0.5)] sm:px-10", rarityStageClass(rarity))}>
+            <DialogHeader className={cn("relative isolate block overflow-hidden border-b-0 px-6 pb-8 pt-10 shadow-[0_1px_0_0_color-mix(in_oklch,var(--border)_50%,transparent)] sm:px-10", rarityStageClass(rarity))}>
               <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:linear-gradient(115deg,transparent_0%,rgba(255,255,255,0.40)_46%,transparent_58%)] motion-safe:animate-[badge-shine_4.8s_ease-in-out_infinite] motion-reduce:animate-none" />
               <div className="pointer-events-none absolute left-1/2 top-0 size-56 -translate-x-1/2 -translate-y-1/3 rounded-full bg-background/15 blur-3xl" />
               <div className="pointer-events-none absolute bottom-0 left-1/4 size-32 rounded-full bg-background/10 blur-2xl" />
@@ -584,7 +584,7 @@ function BadgeDetailDialog({
               </div>
             </DialogHeader>
             <DialogBody className="bg-background px-6 pb-7 pt-5 sm:px-8">
-              <div className="flex flex-wrap gap-4 rounded-2xl bg-muted/35 px-5 py-4 shadow-[inset_0_0_0_1px_hsl(var(--border))]">
+              <div className="flex flex-wrap gap-4 rounded-2xl bg-muted/35 px-5 py-4 shadow-[inset_0_0_0_1px_var(--border)]">
                 <DetailMetric icon={Trophy} label="Category" value={readableCategory(badge.category)} />
                 <div className="w-px self-stretch bg-border/60" aria-hidden="true" />
                 <DetailMetric icon={UserCheck} label="Source" value={badge.source === "MANUAL" ? "Manual award" : badge.earned ? "Automatic" : "Not earned"} />
@@ -593,7 +593,7 @@ function BadgeDetailDialog({
               </div>
 
               {hasProgress(badge) ? (
-                <div className="mt-5 rounded-2xl bg-muted/40 p-4 shadow-[inset_0_0_0_1px_hsl(var(--border))]">
+                <div className="mt-5 rounded-2xl bg-muted/40 p-4 shadow-[inset_0_0_0_1px_var(--border)]">
                   <div className="mb-2 flex items-center justify-between gap-3 text-sm">
                     <span className="font-medium text-foreground">Progress</span>
                     <span className="text-muted-foreground tabular-nums">{badge.progressCurrent}/{badge.progressTarget}</span>
@@ -603,7 +603,7 @@ function BadgeDetailDialog({
               ) : null}
 
               {(badge.note || badge.awardedByName) ? (
-                <div className="mt-5 flex gap-4 overflow-hidden rounded-2xl bg-muted/30 shadow-[inset_0_0_0_1px_hsl(var(--border))]">
+                <div className="mt-5 flex gap-4 overflow-hidden rounded-2xl bg-muted/30 shadow-[inset_0_0_0_1px_var(--border)]">
                   <div
                     className={cn(
                       "w-1 shrink-0 rounded-l-2xl",
@@ -681,7 +681,7 @@ function DetailMetric({
 }) {
   return (
     <div className="flex min-w-0 flex-1 items-center gap-3">
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-background text-muted-foreground shadow-[inset_0_0_0_1px_hsl(var(--border))]" aria-hidden="true">
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-background text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]" aria-hidden="true">
         <Icon className="size-4" />
       </div>
       <div className="min-w-0">

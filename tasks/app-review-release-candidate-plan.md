@@ -9,7 +9,7 @@
 - Existing references: `tasks/app-store-connect-submission-content.md`, `tasks/notifications-ios-delivery-fix-plan.md`, `tasks/ios-testflight-readiness-2026-05-11.md`, and `docs/RELEASE_VERIFICATION.md`.
 
 ## Source Checks
-- Normal users remain on `wisconsincreative.com`; only `appreview@wisconsincreative.com` routes to `review.wisconsincreative.com`.
+- Normal users remain on `wisconsincreative.com`; only the reviewer plus the exact Jordan Lee Staff and Alex Rivera Student test identities route to `review.wisconsincreative.com`.
 - Production demo rows were removed. Review credentials must not be submitted until the review host uses an isolated Neon target.
 - Build 18 predates the final release-hardening and APNs registration work. The next candidate must increment both the app and Live Activities build metadata.
 - Kiosk remains a separate target and is outside the App Store candidate.

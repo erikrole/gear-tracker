@@ -1,55 +1,36 @@
 ---
 name: gt-ship
-description: Gear Tracker ship workflow. Use when the user runs /gt-ship, asks to commit, push, close out, prepare a PR, or verify and ship a completed Gear Tracker slice.
+description: Canonical Gear Tracker closeout and shipping workflow. Use when the user runs /gt-ship or explicitly asks to verify and close out a completed slice, stage and commit it, push it, prepare a PR, or perform another named shipping action. Never sweep unrelated dirty work or infer permission for later shipping steps.
 ---
 
-# /gt-ship
+# GT Ship
 
-Close out a slice without sweeping unrelated dirty work.
+Close out only the authorized slice. Treat stage, commit, push, PR, deployment, upload, and release as separate permissions unless the user explicitly groups them.
 
-## Required Reads
+## Establish scope
 
-1. `git status --short`
-2. `git diff --name-only HEAD` for tracked-file detail after `git status --short`
-3. Active task or plan file
-4. Relevant `docs/AREA_*.md`
-5. `docs/GAPS_AND_RISKS.md`
-6. `tasks/lessons.md` only if the user corrected behavior or a durable rule was learned
+1. Read `AGENTS.md`, `git status --short`, `git diff --name-only HEAD`, the active ledger, relevant area docs, and gaps.
+2. Identify in-scope tracked and untracked files from the user request and ledger.
+3. Inspect the final diff and leave unrelated files unstaged.
+4. Use `area-doc-sync` when shipped behavior or accepted contracts changed.
 
-## Workflow
+## Verify
 
-1. Identify in-scope files from the user's request and active plan.
-2. Use `git status --short` as the authoritative file inventory because `git diff --name-only HEAD` does not show untracked files.
-3. Leave unrelated dirty files unstaged.
-4. Ensure area docs and gaps reflect shipped reality.
-5. Archive completed plan files only when all slices are shipped.
-6. Run focused verification before staging.
-7. Stage only in-scope files, including in-scope untracked files.
-8. Commit with conventional commit format and a user-facing outcome.
-9. Push only when requested or when the active workflow explicitly includes push.
+Select the complete minimum proof from the `AGENTS.md` verification matrix for every affected platform and behavior. Add:
 
-## Verification Matrix
+- Focused tests for the changed contract.
+- Authenticated browser proof for visible web workflows, or the recorded blocker.
+- Relevant iOS project, drift, source-contract, build, and runtime proof for native work.
+- Controlled migration health and deploy-shaped proof for schema or deployment work.
 
-- App-only web/UI/API slice:
-  - Focused tests
-  - `npx tsc --noEmit`
-  - `npm run db:migrate:check`
-  - `git diff --check`
-  - `npx next build`
-- Schema/deploy slice:
-  - `npx prisma validate`
-  - `npm run db:migrate:health`
-  - `npm run build`
-- iOS slice:
-  - `npx tsc --noEmit` when shared API models changed
-  - `npm run drift:ios`
-  - `npm run audit:ios:gaps`
-  - targeted `xcodebuild` simulator build
+Do not treat an existing failure as harmless until evidence shows it is unrelated to the slice.
 
-## Commit Messages
+## Ship only what was requested
 
-- `feat: <user-facing outcome>`
-- `fix: <root cause and user-facing outcome>`
-- `chore: <tooling-only outcome>`
+1. Stage only in-scope files, including intentional untracked files.
+2. Recheck the staged diff and staged file list.
+3. Commit only when requested, using `feat:`, `fix:`, or `chore:` and a user-facing outcome.
+4. Push, open or update a PR, deploy, upload, or release only when each action is explicitly requested or already part of the named workflow.
+5. Record resulting commit, branch, PR, deployment, or release evidence in the active ledger when created.
 
-Never make a standalone tsbuildinfo commit.
+Never create a standalone generated-artifact or tsbuildinfo commit. Close with shipped scope, proof, external blockers, and exact remaining actions.

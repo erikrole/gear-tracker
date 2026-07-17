@@ -108,7 +108,7 @@ export function badgeRarityVariant(rarity: BadgeRarity): BadgeProps["variant"] {
 
 export function badgeRarityMedallionClass(rarity: BadgeRarity, earned: boolean): string {
   if (!earned) {
-    return "bg-muted text-muted-foreground shadow-[inset_0_0_0_1px_hsl(var(--border))]";
+    return "bg-muted text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]";
   }
   if (rarity === "Legendary") {
     return "bg-[var(--purple-bg)] text-[var(--purple-text)] shadow-[inset_0_0_0_1px_var(--purple-text),0_0_0_4px_var(--purple-bg)]";

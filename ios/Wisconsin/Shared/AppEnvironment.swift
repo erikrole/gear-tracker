@@ -5,6 +5,11 @@ enum AppEnvironment {
     static let legacyHost = "gear.erikrole.com"
     static let appReviewHost = "review.wisconsincreative.com"
     static let appReviewEmail = "appreview@wisconsincreative.com"
+    static let appReviewTestEmails: Set<String> = [
+        appReviewEmail,
+        "jordan.lee.demo@wisc.edu",
+        "alex.rivera.demo@wisc.edu",
+    ]
     static let baseURL = URL(string: "https://\(canonicalHost)")!
     static let origin = baseURL.absoluteString
 
@@ -24,7 +29,7 @@ enum AppEnvironment {
 
     static func apiHost(forLoginEmail email: String) -> String {
         let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        return normalized == appReviewEmail ? appReviewHost : canonicalHost
+        return appReviewTestEmails.contains(normalized) ? appReviewHost : canonicalHost
     }
 
     static func setActiveAPIHost(_ host: String) {

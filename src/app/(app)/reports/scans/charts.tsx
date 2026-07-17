@@ -7,11 +7,11 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { ReportChartCard } from "../report-ui";
+import { REPORT_SEMANTIC_CHART_COLORS, ReportChartCard } from "../report-ui";
 
 const scanConfig: ChartConfig = {
-  success: { label: "Success", color: "hsl(142 60% 45%)" },
-  fail: { label: "Failed", color: "hsl(0 72% 51%)" },
+  success: { label: "Success", color: REPORT_SEMANTIC_CHART_COLORS.available },
+  fail: { label: "Failed", color: REPORT_SEMANTIC_CHART_COLORS.problem },
 };
 
 function formatDateLabel(dateStr: unknown) {
@@ -61,14 +61,14 @@ export function DailyScanVolumeChart({
               dataKey="success"
               name="Success"
               stackId="scans"
-              fill="hsl(142 60% 45%)"
+              fill={REPORT_SEMANTIC_CHART_COLORS.available}
               radius={[0, 0, 0, 0]}
             />
             <Bar
               dataKey="fail"
               name="Failed"
               stackId="scans"
-              fill="hsl(0 72% 51%)"
+              fill={REPORT_SEMANTIC_CHART_COLORS.problem}
               radius={[4, 4, 0, 0]}
             />
           </BarChart>

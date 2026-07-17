@@ -1,6 +1,6 @@
 import type { GraduationTermValue, StudentYearValue } from "@/lib/student-profile";
 
-export const PROFILE_COMPLETION_STEPS = ["EMAIL", "PHONES", "WISCARD", "STUDENT", "APPAREL"] as const;
+export const PROFILE_COMPLETION_STEPS = ["EMAIL", "PHONES", "WISCARD", "STUDENT", "APPAREL", "PHOTO"] as const;
 
 export type ProfileCompletionStep = (typeof PROFILE_COMPLETION_STEPS)[number];
 export type ProfileCompletionField =
@@ -12,9 +12,12 @@ export type ProfileCompletionField =
   | "studentYear"
   | "anticipatedGraduation"
   | "clothingSize"
-  | "shoeSize";
+  | "shoeSize"
+  | "photo";
 
 export type ProfileCompletionProfile = {
+  id: string;
+  name: string;
   role: "ADMIN" | "STAFF" | "STUDENT" | "COLLABORATOR";
   email: string;
   athleticsEmail: string | null;
@@ -31,6 +34,7 @@ export type ProfileCompletionProfile = {
   topSize: string | null;
   shoeSizeSystem: "US_WOMENS" | "US_MENS" | null;
   shoeSize: string | null;
+  avatarUrl: string | null;
   profilePromptSnoozedUntil: Date | string | null;
 };
 
@@ -44,7 +48,51 @@ const FIELD_STEP: Record<ProfileCompletionField, ProfileCompletionStep> = {
   anticipatedGraduation: "STUDENT",
   clothingSize: "APPAREL",
   shoeSize: "APPAREL",
+  photo: "PHOTO",
 };
+
+const INTERNAL_OPERATIONAL_FIELDS: ProfileCompletionField[] = [
+  "campusEmail",
+  "athleticsEmail",
+  "personalPhone",
+  "workPhone",
+  "wiscard",
+];
+
+export function applicableProfileFields(role: ProfileCompletionProfile["role"]): ProfileCompletionField[] {
+  if (role === "COLLABORATOR") return ["photo"];
+  const fields: ProfileCompletionField[] = [
+    "campusEmail",
+    "athleticsEmail",
+    "personalPhone",
+    "workPhone",
+    "wiscard",
+    "clothingSize",
+    "shoeSize",
+    "photo",
+  ];
+  if (role === "STUDENT") {
+    return [
+      "campusEmail",
+      "athleticsEmail",
+      "personalPhone",
+      "wiscard",
+      "studentYear",
+      "anticipatedGraduation",
+      "clothingSize",
+      "shoeSize",
+      "photo",
+    ];
+  }
+  return fields;
+}
+
+export function visibleProfileSteps(role: ProfileCompletionProfile["role"]): ProfileCompletionStep[] {
+  if (role === "COLLABORATOR") return ["PHOTO"];
+  return role === "STUDENT"
+    ? [...PROFILE_COMPLETION_STEPS]
+    : PROFILE_COMPLETION_STEPS.filter((step) => step !== "STUDENT");
+}
 
 function hasText(value: string | null | undefined): boolean {
   return Boolean(value?.trim());
@@ -69,11 +117,14 @@ export function getProfileCompletion(profile: ProfileCompletionProfile, now = ne
     anticipatedGraduation: profile.role !== "STUDENT" || Boolean(profile.gradYear && profile.graduationTerm),
     clothingSize: Boolean(profile.topSizeFit) && hasText(profile.topSize),
     shoeSize: Boolean(profile.shoeSizeSystem) && hasText(profile.shoeSize),
+    photo: hasText(profile.avatarUrl),
   };
-  const applicableFields = (Object.keys(completeByField) as ProfileCompletionField[])
-    .filter((field) => profile.role === "STUDENT"
-      ? field !== "workPhone"
-      : field !== "studentYear" && field !== "anticipatedGraduation");
+  const applicableFields = applicableProfileFields(profile.role);
+  const operationalFields = profile.role === "COLLABORATOR"
+    ? []
+    : profile.role === "STUDENT"
+      ? INTERNAL_OPERATIONAL_FIELDS.filter((field) => field !== "workPhone").concat("studentYear", "anticipatedGraduation")
+      : INTERNAL_OPERATIONAL_FIELDS;
   const missingFields = applicableFields
     .filter((field) => !completeByField[field]);
   const completedCount = applicableFields.filter((field) => completeByField[field]).length;
@@ -81,12 +132,16 @@ export function getProfileCompletion(profile: ProfileCompletionProfile, now = ne
     ? new Date(profile.profilePromptSnoozedUntil)
     : null;
   const isSnoozed = Boolean(snoozedUntil && snoozedUntil.getTime() > now.getTime());
-  const firstIncompleteStep = PROFILE_COMPLETION_STEPS.find((step) =>
+  const firstIncompleteStep = visibleProfileSteps(profile.role).find((step) =>
     missingFields.some((field) => FIELD_STEP[field] === step),
   ) ?? null;
+  const operationalReady = operationalFields.every((field) => completeByField[field]);
+  const profileComplete = missingFields.length === 0;
 
   return {
-    isComplete: missingFields.length === 0,
+    operationalReady,
+    profileComplete,
+    isComplete: profileComplete,
     isSnoozed,
     shouldPrompt: missingFields.length > 0 && !isSnoozed,
     snoozedUntil: snoozedUntil?.toISOString() ?? null,

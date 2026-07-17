@@ -5,7 +5,7 @@
 - Owner: Wisconsin Athletics Creative Product
 - Status: Active - invite-first V1 shipped and launch-smoked
 - Version: V1
-- Last Updated: 2026-06-08
+- Last Updated: 2026-07-17
 - Decision Reference: D-037
 
 ## Problem
@@ -60,6 +60,8 @@ Public registration and login responses must stay generic where membership discl
 6. Status and follow-up controls for pending, claimed, stale, and failed rows.
 7. Native iOS forced-password handling for reset/recovery users before the normal app shell.
 8. Focused tests for bulk role boundaries, duplicates, existing records, audit writes, and forced-password access.
+9. Role-aware Welcome setup on web and native iOS after registration or sign-in, with a one-day continue-later path.
+10. Derived operational-readiness and profile-completion status for all active accounts in the staff/admin onboarding view.
 
 ## Data and API Notes
 1. Keep the existing `AllowedEmail` and `User.forcePasswordChange` models for V1.
@@ -67,8 +69,9 @@ Public registration and login responses must stay generic where membership discl
 3. Preview endpoints must not mutate data.
 4. Commit endpoints should use transactions for create-or-claim flows and audit entries.
 5. The public registration endpoint continues to derive role from the allowlist entry.
-6. The current forced-password API exception list must stay narrow: password setup and logout only.
-7. iOS `CurrentUser` keeps `forcePasswordChange` so the native shell can route reset/recovery users correctly after login and `/api/me`.
+6. Registration accepts legacy Wiscard input for rollout compatibility but ignores it; typed card number and issue code belong to authenticated setup.
+7. The current forced-password API exception list must stay narrow: password setup and logout only.
+8. iOS `CurrentUser` keeps `forcePasswordChange` so the native shell can route reset/recovery users correctly after login and `/api/me`.
 
 ## Acceptance Criteria
 - [x] Operator can onboard a roster-sized batch without manually switching between Users and Allowed Emails.
@@ -81,9 +84,11 @@ Public registration and login responses must stay generic where membership discl
 - [x] Native iOS blocks recovery forced-password users from the app shell and provides a password setup path.
 - [x] Audit log records onboarding mutations with enough detail for later review.
 - [x] Docs, task plan, web tests, API tests, and iOS verification are updated before shipping.
+- [x] New web registrations enter role-aware setup, and active-account readiness remains derived from canonical profile fields.
+- [x] Native iOS mirrors the role-aware setup contract without caching private profile values on device.
 
 ## Launch Notes
-1. V1 keeps registration web-owned. Native iOS links invited users to `/register`.
+1. V1 keeps registration web-owned. Native iOS links invited users to `/register`, then owns the authenticated profile-completion experience natively.
 2. First-time direct-create and bulk direct-create endpoints are retired for beta. Operators should add allowlist invitations instead.
 3. Admin password reset stays available as a recovery path and still requires password setup before normal app access.
 4. Production launch smoke passed on June 8, 2026 for invite-to-register, stale invite removal, `/register?email=...` prefill, and forced-password recovery.
@@ -95,7 +100,8 @@ Public registration and login responses must stay generic where membership discl
 4. Bulk security and operational hardening.
 5. iOS forced-password setup.
 6. iOS registration and recovery polish.
-7. Verification, docs sync, and plan archival.
+7. Native iOS role-aware profile completion and photo crop.
+8. Verification, docs sync, and plan archival.
 
 ## Verification Plan
 1. API tests for allowed emails, users, registration, login, and onboarding bulk paths.

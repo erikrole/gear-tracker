@@ -130,7 +130,7 @@ function SettingsRouteContent({
             ? "This Settings address does not match an available page."
             : `Your account does not have permission to open ${access.section.label}.`}
         </p>
-        <Button asChild variant="outline">
+        <Button asChild variant="outline" className="h-10">
           <Link href="/settings">Back to Settings</Link>
         </Button>
       </AlertDescription>

@@ -332,7 +332,7 @@ function GuideCard({ guide, compact = false }: { guide: GuideListItem; compact?:
       <Card
         elevation="flat"
         className={cn(
-          "h-full min-h-36 transition-[border-color,box-shadow,scale] group-hover:border-foreground/30 group-hover:shadow-sm group-active:scale-[0.99]",
+          "h-full min-h-36 transition-[border-color,box-shadow,scale] group-hover:border-foreground/30 group-hover:shadow-sm group-active:scale-[0.96]",
           compact && "min-h-32",
         )}
       >
@@ -387,7 +387,7 @@ function GuideListRow({ guide }: { guide: GuideListItem }) {
   return (
     <Link
       href={`/resources/${guide.slug}`}
-      className="group grid min-h-24 gap-3 rounded-lg border bg-card p-4 text-card-foreground transition-[border-color,box-shadow,scale] hover:border-foreground/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-[0.99] md:grid-cols-[minmax(0,1fr)_auto]"
+      className="group grid min-h-24 gap-3 rounded-lg border bg-card p-4 text-card-foreground transition-[border-color,box-shadow,scale] hover:border-foreground/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-[0.96] md:grid-cols-[minmax(0,1fr)_auto]"
     >
       <div className="flex min-w-0 gap-3">
         <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
@@ -774,11 +774,11 @@ export default function ResourcesPage() {
               className="min-h-10 justify-self-start [&_svg]:size-4"
               aria-label="Guide layout"
             >
-              <ToggleGroupItem value="cards" aria-label="Cards" className="min-h-9 px-3">
+              <ToggleGroupItem value="cards" aria-label="Cards" className="min-h-10 px-3">
                 <LayoutGridIcon aria-hidden="true" />
                 <span className="hidden sm:inline">Cards</span>
               </ToggleGroupItem>
-              <ToggleGroupItem value="list" aria-label="List" className="min-h-9 px-3">
+              <ToggleGroupItem value="list" aria-label="List" className="min-h-10 px-3">
                 <ListIcon aria-hidden="true" />
                 <span className="hidden sm:inline">List</span>
               </ToggleGroupItem>
@@ -958,7 +958,7 @@ function ReferenceCard({
     <button
       type="button"
       onClick={onClick}
-      className="group flex items-center gap-3 rounded-lg border bg-card p-4 text-left transition-colors hover:border-foreground/30 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+      className="group flex items-center gap-3 rounded-lg border bg-card p-4 text-left transition-[background-color,border-color,scale] hover:border-foreground/30 hover:bg-muted/40 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
     >
       <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
         <Icon className="size-4" aria-hidden="true" />

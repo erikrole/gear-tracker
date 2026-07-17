@@ -57,7 +57,7 @@ Read only the relevant area docs and plan files, but read selected files complet
 6. Before client work reads API data, inspect the route's `return ok(...)` or equivalent response shape.
 7. For UI work, use existing shadcn/ui primitives and local patterns before adding custom controls.
 8. For web flow work, include authenticated browser smoke unless credentials/session/runtime are genuinely unavailable.
-9. For iOS work, include `npm run drift:ios`, `npm run audit:ios:gaps`, and the relevant XcodeBuildMCP simulator/device build gates.
+9. For iOS work, include the current project, drift, gap-audit, source-contract, build, and runtime gates from `package.json` and `AGENTS.md`.
 
 ## Plan File Shape
 

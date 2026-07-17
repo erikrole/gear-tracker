@@ -92,7 +92,7 @@ function EventCard({
   const canOpenPanel = entry.shiftGroupId && isStaff;
 
   const wrapClass = cn(
-    "flex items-stretch rounded-sm mb-1.5 w-full text-left overflow-hidden transition-colors",
+    "mb-1.5 flex w-full items-stretch overflow-hidden rounded-sm text-left outline-none transition-[background-color,opacity,scale] active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-ring",
     venueTone.surfaceClass,
     myShiftsOnly && !hasShift && "opacity-40",
     hasShift && "ring-1 ring-[var(--blue)]/50",
@@ -232,7 +232,10 @@ function MobileDaySection({
       )}
     >
       <CollapsibleTrigger asChild>
-        <button className="flex items-center justify-between w-full px-3 py-2.5 text-left">
+        <button
+          type="button"
+          className="flex min-h-14 w-full items-center justify-between px-3 py-2.5 text-left outline-none transition-[background-color,scale] hover:bg-muted/30 active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        >
           <div className="flex items-center gap-2.5">
             {/* Date marker */}
             <div

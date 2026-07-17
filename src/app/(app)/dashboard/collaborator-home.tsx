@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { AnimatePresence } from "motion/react";
 import { BellIcon, CalendarDaysIcon, PackageIcon } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { OperationalLoadingState } from "@/components/OperationalLoadingState";
@@ -10,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
+import { DashboardStateSurface } from "./dashboard-motion";
 
 type Booking = {
   id: string;
@@ -84,75 +86,81 @@ export function CollaboratorHome({ name, capabilities }: { name: string; capabil
   return (
     <div className="space-y-4">
       <PageHeader title={`Welcome, ${name.split(" ")[0]}`} description="Your gear handoffs and followed event updates." />
-      {loading ? (
-        <OperationalLoadingState variant="page" title="Loading your workspace" rows={4} />
-      ) : error ? (
-        <EmptyState icon="wifi-off" title="Could not load your workspace" description="Retry before relying on pickup or return times." actionLabel="Retry" onAction={() => void load()} />
-      ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {!canViewGear && !canViewSchedule && (
-            <Card className="shadow-xs lg:col-span-2">
-              <CardContent className="p-6">
-                <EmptyState inline icon="bell" title="Your collaborator account is active" description="An administrator has not enabled gear or published Schedule access for this affiliation." actionLabel="View notifications" actionHref="/notifications" />
-              </CardContent>
-            </Card>
-          )}
-          {canViewGear && (
-          <Card className="shadow-xs">
-            <CardHeader className="flex-row items-center justify-between p-4">
-              <CardTitle className="flex items-center gap-2 text-base"><PackageIcon className="size-4" />My Gear</CardTitle>
-              <Button variant="outline" size="sm" asChild><Link href="/bookings">View all</Link></Button>
-            </CardHeader>
-            <CardContent className="p-0">
-              {bookings.length === 0 ? (
-                <EmptyState inline icon="box" title="No active gear" description="Your reservations and kiosk handoffs will appear here." actionLabel={canBrowseGear ? "Browse items" : undefined} actionHref={canBrowseGear ? "/items" : undefined} />
-              ) : (
-                <div className="divide-y">
-                  {bookings.map((booking) => {
-                    const state = bookingState(booking);
-                    return (
-                      <Link key={booking.id} href="/bookings" className="flex min-h-14 items-center gap-3 px-4 py-3 no-underline transition-colors hover:bg-muted/50">
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-foreground">{booking.title}</p>
-                          <p className="text-xs text-muted-foreground tabular-nums">{state.detail} · {booking.location.name}</p>
-                        </div>
-                        <Badge variant={state.variant} size="sm">{state.label}</Badge>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          )}
+      <AnimatePresence initial={false} mode="popLayout">
+        {loading ? (
+          <DashboardStateSurface key="collaborator-loading" variant="shift" layout>
+            <OperationalLoadingState variant="page" title="Loading your workspace" rows={4} />
+          </DashboardStateSurface>
+        ) : error ? (
+          <DashboardStateSurface key="collaborator-error" variant="shift" layout>
+            <EmptyState icon="wifi-off" title="Could not load your workspace" description="Retry before relying on pickup or return times." actionLabel="Retry" onAction={() => void load()} />
+          </DashboardStateSurface>
+        ) : (
+          <DashboardStateSurface key="collaborator-content" variant="shift" layout className="grid gap-4 lg:grid-cols-2">
+            {!canViewGear && !canViewSchedule && (
+              <Card className="shadow-xs lg:col-span-2">
+                <CardContent className="p-6">
+                  <EmptyState inline icon="bell" title="Your collaborator account is active" description="An administrator has not enabled gear or published Schedule access for this affiliation." actionLabel="View notifications" actionHref="/notifications" />
+                </CardContent>
+              </Card>
+            )}
+            {canViewGear && (
+              <Card className="shadow-xs">
+                <CardHeader className="flex-row items-center justify-between p-4">
+                  <CardTitle className="flex items-center gap-2 text-base"><PackageIcon className="size-4" />My Gear</CardTitle>
+                  <Button variant="outline" size="sm" className="h-10" asChild><Link href="/bookings">View all</Link></Button>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {bookings.length === 0 ? (
+                    <EmptyState inline icon="box" title="No active gear" description="Your reservations and kiosk handoffs will appear here." actionLabel={canBrowseGear ? "Browse items" : undefined} actionHref={canBrowseGear ? "/items" : undefined} />
+                  ) : (
+                    <div className="divide-y">
+                      {bookings.map((booking) => {
+                        const state = bookingState(booking);
+                        return (
+                          <Link key={booking.id} href="/bookings" className="flex min-h-14 items-center gap-3 px-4 py-3 no-underline transition-colors hover:bg-muted/50">
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium text-foreground">{booking.title}</p>
+                              <p className="text-xs text-muted-foreground tabular-nums">{state.detail} · {booking.location.name}</p>
+                            </div>
+                            <Badge variant={state.variant} size="sm">{state.label}</Badge>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
-          {canViewSchedule && (
-          <Card className="shadow-xs">
-            <CardHeader className="flex-row items-center justify-between p-4">
-              <CardTitle className="flex items-center gap-2 text-base"><BellIcon className="size-4" />Followed events</CardTitle>
-              <Button variant="outline" size="sm" asChild><Link href="/schedule">Published Schedule</Link></Button>
-            </CardHeader>
-            <CardContent className="p-0">
-              {events.length === 0 ? (
-                <EmptyState inline icon="calendar" title="No followed events" description="Follow a published event to keep its crew updates here." actionLabel="Open Schedule" actionHref="/schedule" />
-              ) : (
-                <div className="divide-y">
-                  {events.slice(0, 6).map((item) => (
-                    <Link key={item.id} href="/schedule" className="flex min-h-14 items-center gap-3 px-4 py-3 no-underline transition-colors hover:bg-muted/50">
-                      <CalendarDaysIcon className="size-4 shrink-0 text-muted-foreground" />
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-foreground">{item.event.summary}</p>
-                        <p className="text-xs text-muted-foreground tabular-nums">{dateTime(item.event.startsAt)}{item.event.venue ? ` · ${item.event.venue.name}` : ""}</p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          )}
-        </div>
-      )}
+            {canViewSchedule && (
+              <Card className="shadow-xs">
+                <CardHeader className="flex-row items-center justify-between p-4">
+                  <CardTitle className="flex items-center gap-2 text-base"><BellIcon className="size-4" />Followed events</CardTitle>
+                  <Button variant="outline" size="sm" className="h-10" asChild><Link href="/schedule">Published Schedule</Link></Button>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {events.length === 0 ? (
+                    <EmptyState inline icon="calendar" title="No followed events" description="Follow a published event to keep its crew updates here." actionLabel="Open Schedule" actionHref="/schedule" />
+                  ) : (
+                    <div className="divide-y">
+                      {events.slice(0, 6).map((item) => (
+                        <Link key={item.id} href="/schedule" className="flex min-h-14 items-center gap-3 px-4 py-3 no-underline transition-colors hover:bg-muted/50">
+                          <CalendarDaysIcon className="size-4 shrink-0 text-muted-foreground" />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-foreground">{item.event.summary}</p>
+                            <p className="text-xs text-muted-foreground tabular-nums">{dateTime(item.event.startsAt)}{item.event.venue ? ` · ${item.event.venue.name}` : ""}</p>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </DashboardStateSurface>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

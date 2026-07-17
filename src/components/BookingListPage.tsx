@@ -323,14 +323,14 @@ export default function BookingListPage({
       {!hideHeader && (
         <div className="flex items-center justify-between mb-6 max-md:mb-4 max-md:flex-col max-md:items-start max-md:gap-3">
           <h1 className="text-[30px] tracking-[-0.03em] leading-none m-0 max-md:text-[22px]">{config.labelPlural}</h1>
-          <Button onClick={navigateToCreate}>
+          <Button className="h-10" onClick={navigateToCreate}>
             New {config.label}
           </Button>
         </div>
       )}
       {hideHeader && !hideNewButton && (
         <div className="flex justify-end px-4 pt-3">
-          <Button onClick={navigateToCreate}>
+          <Button className="h-10" onClick={navigateToCreate}>
             New {config.label}
           </Button>
         </div>
@@ -349,7 +349,7 @@ export default function BookingListPage({
                   variant="outline"
                   size="sm"
                   onClick={() => { void refetchFormOptions(); }}
-                  className="shrink-0"
+                  className="h-10 shrink-0"
                 >
                   Retry
                 </Button>
@@ -480,10 +480,10 @@ export default function BookingListPage({
                 <Pagination>
                   <PaginationContent>
                     <PaginationItem>
-                      <PaginationPrevious onClick={() => setPage(page - 1)} aria-disabled={page === 0} className={page === 0 ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+                      <PaginationPrevious onClick={() => setPage(page - 1)} aria-disabled={page === 0} className={page === 0 ? "h-10 pointer-events-none opacity-50" : "h-10 cursor-pointer"} />
                     </PaginationItem>
                     <PaginationItem>
-                      <PaginationNext onClick={() => setPage(page + 1)} aria-disabled={page >= totalPages - 1} className={page >= totalPages - 1 ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+                      <PaginationNext onClick={() => setPage(page + 1)} aria-disabled={page >= totalPages - 1} className={page >= totalPages - 1 ? "h-10 pointer-events-none opacity-50" : "h-10 cursor-pointer"} />
                     </PaginationItem>
                   </PaginationContent>
                 </Pagination>

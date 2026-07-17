@@ -94,7 +94,11 @@ export function BookingTableRow({
         </TableCell>
         <TableCell className="hidden md:table-cell">
           <div className="flex items-center gap-2">
-            <UserAvatar name={item.requester?.name ?? "Unknown"} avatarUrl={item.requester?.avatarUrl} />
+            <UserAvatar
+              name={item.requester?.name ?? "Unknown"}
+              avatarUrl={item.requester?.avatarUrl}
+              className="outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
+            />
             <span
               className="text-[13px]"
               style={{ fontFamily: "var(--font-heading)", fontWeight: 500 }}
@@ -140,7 +144,7 @@ export function BookingMobileCard({
   return (
     <div
       className={cn(
-        "relative flex flex-col gap-1 overflow-hidden border-b border-border px-4 py-3 active:bg-muted last:border-b-0",
+        "relative flex flex-col gap-1 overflow-hidden border-b border-border px-4 py-3 transition-[background-color,scale] active:scale-[0.96] active:bg-muted last:border-b-0",
         sv.rowClass,
       )}
     >
@@ -189,7 +193,12 @@ export function BookingMobileCard({
       >
         <span className="tabular-nums">{formatDateShort(item.startsAt)} – {formatDateShort(item.endsAt)}</span>
         <span aria-hidden="true">·</span>
-        <UserAvatar name={item.requester?.name ?? "Unknown"} avatarUrl={item.requester?.avatarUrl} size="sm" />
+        <UserAvatar
+          name={item.requester?.name ?? "Unknown"}
+          avatarUrl={item.requester?.avatarUrl}
+          size="sm"
+          className="outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
+        />
         <span>{item.requester?.name ?? "Unknown"}</span>
         <span aria-hidden="true">·</span>
         <span className="tabular-nums">{formatDuration(item.startsAt, item.endsAt)}</span>

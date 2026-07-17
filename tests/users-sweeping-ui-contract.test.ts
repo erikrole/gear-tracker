@@ -14,7 +14,8 @@ describe("Users sweeping ownership contracts", () => {
     expect(row).toContain("<RoleBadge role={user.role} />");
     expect(row).not.toContain("listRoleLabel");
     expect(page).toContain('aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}');
-    expect(page).toContain('<ArrowUp className="ml-1 size-4 text-foreground"');
+    expect(page).toContain('<AnimatePresence initial={false} mode="popLayout">');
+    expect(page).toContain('<ArrowUp className="size-4 text-foreground"');
     expect(page).toContain('opacity-20 transition-opacity group-hover:opacity-50');
   });
 

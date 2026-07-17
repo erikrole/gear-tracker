@@ -122,7 +122,7 @@ function PresenceAvatar({
         name={user.name}
         avatarUrl={user.avatarUrl}
         size={size}
-        className="ring-1 ring-border"
+        className="outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
       />
       {activeNow && (
         <span
@@ -223,8 +223,11 @@ export const UserMobileCard = memo(function UserMobileCard({ user }: { user: Use
   const metaParts = mobileMetaParts(user);
 
   return (
-    <Link href={`/users/${user.id}`} className="block no-underline">
-      <Card className="hover:shadow-sm transition-shadow duration-150">
+    <Link
+      href={`/users/${user.id}`}
+      className="block rounded-lg no-underline outline-none transition-[scale] active:scale-[0.96] focus-visible:ring-[3px] focus-visible:ring-ring/50"
+    >
+      <Card className="transition-[box-shadow] duration-150 hover:shadow-sm">
         <CardContent className="p-3.5">
           <div className="flex items-center gap-3.5">
             <PresenceAvatar

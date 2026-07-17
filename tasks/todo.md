@@ -1,6 +1,24 @@
 # Task Queue
 
-Last updated: 2026-07-16
+Last updated: 2026-07-17
+
+---
+## Completed: Gear Tracker skill-system consolidation (2026-07-17)
+
+- [x] Make `gt-page`, `gt-audit-web`, and `gt-audit-ios` the canonical page and audit owners.
+- [x] Convert the three legacy page/audit workflows into explicit-invocation compatibility aliases.
+- [x] Rework `improve` around current task-ledger routing while preserving explicit branch, plan, execute, reconcile, and issue variants.
+- [x] Replace generic UI doctrine with Gear Tracker-specific design-language and installed-component workflows.
+- [x] Normalize API, iOS, deployment, merge-cleanup, doc-sync, planning, and shipping guidance against `AGENTS.md` verification and authorization boundaries.
+- [x] Remove unreferenced generic skill reference material and migrate shadcn UI metadata to `agents/openai.yaml`.
+- [x] Validate all 18 skills, YAML metadata, whitespace, stale references, and cold routing behavior.
+
+### Review
+
+- **Routing:** Broad page, web-audit, and iOS-audit requests now have one canonical owner each; legacy slash commands route without loading a competing workflow.
+- **Safety:** Audit-only requests no longer imply task-file writes, and implementation no longer implies branch, delegation, commit, push, PR, deploy, upload, or release authority.
+- **Verification:** All 18 skill folders and shadcn UI metadata validate; whitespace, stale-reference, alias-routing, audit-verdict, and `improve execute` cold tests pass. `npm run verify:docs` remains blocked by pre-existing `docs/CODEMAPS/frontend.md` drift from active application changes; `.agents` is excluded from codemap generation.
+- **Boundary:** No application source, active plan registry, or unrelated dirty documentation was changed by this maintenance slice.
 
 ---
 ## Completed: Student year and anticipated graduation profiles (2026-07-16)
@@ -456,12 +474,13 @@ Plan: remove the current App Review demo records from production, then only rese
 - [x] Run cleanup against the current production Neon target after explicit approval.
 - [x] Decide isolated target: separate Neon branch plus separate review API deployment, or delay App Review until that target exists.
 - [x] Add native iOS API-host routing so only the App Review email targets the isolated review host.
-- [ ] Seed and verify the App Review account only in the isolated target.
+- [x] Seed and verify the App Review account only in the isolated target.
 - [ ] Update App Store Connect notes/PDF with the final review host and credentials.
 
 ### Review
 - 2026-07-10: Created a separate empty Neon project for App Review instead of a child branch that would clone production data. The new project has no tables or production rows. Review Vercel deployment, DNS, migrations, and seeding remain blocked because the connected Vercel team scope returns 403 and `review.wisconsincreative.com` has no DNS record. The seed now requires an explicit 16+ character password plus an exact expected database host and no longer prints the reviewer password.
 - 2026-07-11: Closed the App Review deployment/data-isolation blocker without touching production. Vercel access was restored; `gear-tracker-app-review` now deploys as a separate Next.js project at `review.wisconsincreative.com` with Review-only secrets and a standalone recreated Neon project. The guarded atomic empty-database bootstrap reconciled 93/93 migrations, the fictional seed completed, and authenticated live smoke returned 200 for login/current-user/users/events with only five `demo-user-*` users and two `demo-*` events visible. The reviewer password is stored in macOS Keychain service `gear-tracker-app-review`, not in the repository or logs.
+- 2026-07-17: Advanced the isolated review deployment through migration `0098` and added exact native routing for `jordan.lee.demo@wisc.edu` and `alex.rivera.demo@wisc.edu`. Both disposable accounts retain the Keychain-held review password, authenticate with 200 responses, and return role-correct incomplete profile-completion states; the Student response excludes work phone. The updated simulator build is installed and ready for interactive Welcome testing without production data.
 - 2026-07-08: Production verification showed the seeded App Review account can log in and see demo records, but broad staff-visible endpoints can also expose production-backed rows. Schedule returned 103 total rows with 2 demo rows, so seeded data alone is not an isolated demo mode.
 - 2026-07-08: Added `APP_REVIEW_DEMO_MODE=cleanup` support to `scripts/seed-app-review-demo.mjs` and exposed `npm run demo:cleanup:app-review`. Ran the cleanup against the configured Neon target with `APP_REVIEW_DEMO_SEED=confirm`; follow-up verification found no App Review demo account, allowed email, users, location, assets, bulk SKU, bookings, events, or notifications in production.
 - 2026-07-08: Chose the isolated launch path. The main iOS app now routes only `appreview@wisconsincreative.com` API traffic to `review.wisconsincreative.com`, persisted for session restore; normal users stay on `wisconsincreative.com`, and kiosk/public web links remain canonical. The review host still needs a Vercel deployment wired to an isolated Neon branch before App Review credentials can be submitted.
