@@ -1,26 +1,23 @@
+import { Prisma } from "@prisma/client";
+import { after } from "next/server";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { updateShiftSchema } from "@/lib/validation";
-import { createAuditEntry } from "@/lib/audit";
+import { createAuditEntry, createAuditEntryTx } from "@/lib/audit";
 import { assertCallTimePair, assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
-import { createShiftScheduleNotification } from "@/lib/services/notifications";
 import { availabilityConflictNote } from "@/lib/student-availability";
 import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
+import { updateShiftAssignmentConflictsTx } from "@/lib/services/shift-assignment-conflicts";
+import { scheduleShiftTimeChangedNotifications } from "@/lib/shift-notification-workflow";
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "shift", "edit");
   const { id } = params;
 
   const body = updateShiftSchema.parse(await req.json());
-  const existing = await db.shift.findUnique({
-    where: { id },
-    include: { shiftGroup: { select: { publishedAt: true } } },
-  });
-  if (!existing) throw new HttpError(404, "Shift not found");
-
   const data: Record<string, unknown> = {};
   const startsAt = parseOptionalDate(body.startsAt, "startsAt");
   const endsAt = parseOptionalDate(body.endsAt, "endsAt");
@@ -33,94 +30,112 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   assertDateOrder(startsAt, endsAt, "endsAt must be after startsAt", { allowEqual: false });
   assertDateOrder(callStartsAt, callEndsAt, "callEndsAt must be after callStartsAt", { allowEqual: false });
 
-  // Updating only one bound must not invert the window against the stored value
-  const mergedStartsAt = startsAt ?? existing.startsAt;
-  const mergedEndsAt = endsAt ?? existing.endsAt;
-  if (mergedEndsAt <= mergedStartsAt) {
-    throw new HttpError(400, "endsAt must be after startsAt");
-  }
-
   if (startsAt) data.startsAt = startsAt;
   if (endsAt) data.endsAt = endsAt;
   if (body.callStartsAt !== undefined) data.callStartsAt = callStartsAt;
   if (body.callEndsAt !== undefined) data.callEndsAt = callEndsAt;
   if (body.notes !== undefined) data.notes = body.notes;
 
-  const updated = await db.shift.update({ where: { id }, data });
+  const changesTimeWindow = body.startsAt !== undefined
+    || body.endsAt !== undefined
+    || body.callStartsAt !== undefined
+    || body.callEndsAt !== undefined;
 
-  await createAuditEntry({
-    actorId: user.id,
-    actorRole: user.role,
-    entityType: "shift",
-    entityId: id,
-    action: "shift_updated",
-    before: {
-      startsAt: existing.startsAt,
-      endsAt: existing.endsAt,
-      callStartsAt: existing.callStartsAt,
-      callEndsAt: existing.callEndsAt,
-    },
-    after: {
-      startsAt: updated.startsAt,
-      endsAt: updated.endsAt,
-      callStartsAt: updated.callStartsAt,
-      callEndsAt: updated.callEndsAt,
-    },
-  });
+  const { updated, assignmentIds } = await db.$transaction(async (tx) => {
+    const existing = await tx.shift.findUnique({
+      where: { id },
+      include: { shiftGroup: { select: { publishedAt: true } } },
+    });
+    if (!existing) throw new HttpError(404, "Shift not found");
 
-  if (body.startsAt !== undefined || body.endsAt !== undefined || body.callStartsAt !== undefined || body.callEndsAt !== undefined) {
-    const assignments = await db.shiftAssignment.findMany({
-      where: { shiftId: id, status: { in: ACTIVE_ASSIGNMENT_STATUSES } },
-      select: {
-        id: true,
-        callStartsAt: true,
-        callEndsAt: true,
-        user: {
-          select: {
-            role: true,
-            staffingType: true,
-            availabilityBlocks: {
-              select: {
-                kind: true,
-                intent: true,
-                status: true,
-                dayOfWeek: true,
-                date: true,
-                startsAt: true,
-                endsAt: true,
-                label: true,
-                semesterLabel: true,
-                semesterStartsOn: true,
-                semesterEndsOn: true,
+    // Validate one-bound edits against the row visible to this transaction.
+    const mergedStartsAt = startsAt ?? existing.startsAt;
+    const mergedEndsAt = endsAt ?? existing.endsAt;
+    if (mergedEndsAt <= mergedStartsAt) {
+      throw new HttpError(400, "endsAt must be after startsAt");
+    }
+
+    const result = await tx.shift.update({ where: { id }, data });
+    const changedAssignmentIds: string[] = [];
+
+    if (changesTimeWindow) {
+      const assignments = await tx.shiftAssignment.findMany({
+        where: { shiftId: id, status: { in: ACTIVE_ASSIGNMENT_STATUSES } },
+        select: {
+          id: true,
+          callStartsAt: true,
+          callEndsAt: true,
+          user: {
+            select: {
+              role: true,
+              staffingType: true,
+              availabilityBlocks: {
+                select: {
+                  kind: true,
+                  intent: true,
+                  status: true,
+                  dayOfWeek: true,
+                  date: true,
+                  startsAt: true,
+                  endsAt: true,
+                  label: true,
+                  semesterLabel: true,
+                  semesterStartsOn: true,
+                  semesterEndsOn: true,
+                },
               },
             },
           },
         },
+      });
+      const conflictRefreshes = assignments.map((assignment) => {
+        const effectiveStartsAt = assignment.callStartsAt ?? result.callStartsAt ?? result.startsAt;
+        const effectiveEndsAt = assignment.callEndsAt ?? result.callEndsAt ?? result.endsAt;
+        const conflictNote = shiftWorkerTypeForProfile(assignment.user) === "ST"
+          ? availabilityConflictNote(assignment.user.availabilityBlocks, {
+              startsAt: effectiveStartsAt,
+              endsAt: effectiveEndsAt,
+            })
+          : null;
+        return {
+          id: assignment.id,
+          hasConflict: Boolean(conflictNote),
+          conflictNote,
+        };
+      });
+      await updateShiftAssignmentConflictsTx(
+        tx,
+        conflictRefreshes,
+        existing.shiftGroup.publishedAt !== null,
+      );
+      changedAssignmentIds.push(...assignments.map((assignment) => assignment.id));
+    }
+
+    await createAuditEntryTx(tx, {
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "shift",
+      entityId: id,
+      action: "shift_updated",
+      before: {
+        startsAt: existing.startsAt,
+        endsAt: existing.endsAt,
+        callStartsAt: existing.callStartsAt,
+        callEndsAt: existing.callEndsAt,
+      },
+      after: {
+        startsAt: result.startsAt,
+        endsAt: result.endsAt,
+        callStartsAt: result.callStartsAt,
+        callEndsAt: result.callEndsAt,
       },
     });
-    for (const assignment of assignments) {
-      const effectiveStartsAt = assignment.callStartsAt ?? updated.callStartsAt ?? updated.startsAt;
-      const effectiveEndsAt = assignment.callEndsAt ?? updated.callEndsAt ?? updated.endsAt;
-      const conflictNote = shiftWorkerTypeForProfile(assignment.user) === "ST"
-        ? availabilityConflictNote(assignment.user.availabilityBlocks, {
-            startsAt: effectiveStartsAt,
-            endsAt: effectiveEndsAt,
-          })
-        : null;
-      if (assignment.user) {
-        await db.shiftAssignment.update({
-          where: { id: assignment.id },
-          data: {
-            hasConflict: Boolean(conflictNote),
-            conflictNote,
-            ...(existing.shiftGroup.publishedAt
-              ? { acknowledgedAt: null, acknowledgedById: null }
-              : {}),
-          },
-        });
-      }
-      createShiftScheduleNotification(assignment.id, "shift_time_changed").catch(() => {});
-    }
+
+    return { updated: result, assignmentIds: changedAssignmentIds };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+  if (assignmentIds.length > 0) {
+    after(() => scheduleShiftTimeChangedNotifications(assignmentIds));
   }
 
   return ok({ data: updated });

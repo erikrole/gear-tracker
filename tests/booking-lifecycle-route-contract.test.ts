@@ -120,7 +120,7 @@ describe("booking lifecycle route contract", () => {
   it("treats stale duplicate booking edits as idempotent when the change already landed", async () => {
     vi.mocked(getBookingDetail).mockResolvedValue(bookingDetail({
       ...baseDetail,
-      title: "Updated checkout",
+      title: "Updated Checkout",
       updatedAt: new Date("2026-06-01T09:01:00.000Z"),
     }));
 
@@ -176,7 +176,7 @@ describe("booking lifecycle route contract", () => {
 
     expect(res.status).toBe(200);
     expect(updateCheckout).toHaveBeenCalledWith(baseDetail.id, staffUser.id, {
-      title: "Updated checkout",
+      title: "Updated Checkout",
       endsAt: new Date("2026-06-01T13:00:00.000Z"),
       serializedAssetIds: undefined,
       bulkItems: undefined,
@@ -214,7 +214,7 @@ describe("booking lifecycle route contract", () => {
 
     expect(res.status).toBe(200);
     expect(updateReservation).toHaveBeenCalledWith(baseDetail.id, staffUser.id, {
-      title: "Updated reservation",
+      title: "Updated Reservation",
       requesterUserId: "cm000000000000000000000006",
       locationId: "cm000000000000000000000007",
       startsAt: new Date("2026-06-01T11:00:00.000Z"),

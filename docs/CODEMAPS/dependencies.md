@@ -61,6 +61,7 @@
 | `@types/qrcode` | `^1.5.6` |
 | `@types/react` | `^19.2.17` |
 | `@types/react-dom` | `^19.0.4` |
+| `@vitest/coverage-v8` | `^3.2.6` |
 | `eslint` | `^9.39.4` |
 | `eslint-config-next` | `^15.5.16` |
 | `prisma` | `^6.19.3` |
@@ -110,6 +111,7 @@
 - `smoke:deploy`: `node scripts/deploy-smoke.mjs`
 - `start`: `next start`
 - `test`: `vitest run`
+- `test:coverage`: `vitest run --coverage`
 - `test:e2e:smoke`: `playwright test`
 - `test:watch`: `vitest`
 - `verify:docs`: `npm run codemap:check`

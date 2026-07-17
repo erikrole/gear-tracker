@@ -258,9 +258,11 @@ describe("iOS API contracts — kiosk dashboard decoding", () => {
     const client = source("ios/Wisconsin/Kiosk/KioskAPIClient.swift");
 
     expect(client).toContain("d.dateDecodingStrategy = .custom");
-    expect(client).toContain("isoDateFormatterWithFractionalSeconds.date(from: value)");
-    expect(client).toContain("KioskAPI.isoDateFormatter.date(from: value)");
+    expect(client).toContain("KioskAPI.parseISODate(value)");
+    expect(client).toContain("private static func parseISODate(_ value: String) -> Date?");
     expect(client).toContain("formatOptions = [.withInternetDateTime, .withFractionalSeconds]");
+    expect(client).toContain("formatOptions = [.withInternetDateTime]");
+    expect(client).not.toMatch(/private static let \w*[Ff]ormatter/);
     expect(client).not.toContain("d.dateDecodingStrategy = .iso8601");
   });
 });
@@ -306,7 +308,7 @@ describe("iOS API contracts — kiosk checkout context", () => {
     expect(route).toContain("tx.bookingEvent.create");
     expect(route).toContain("checkAvailability(tx");
     expect(route).toContain("parseDateRange(");
-    expect(route).toContain("title: booking.title");
+    expect(route).toContain("title: b.title");
     expect(availabilityRoute).toContain("withKiosk");
     expect(availabilityRoute).toContain("checkAvailability(db");
     expect(client).toContain("func kioskCheckoutEvents() async throws -> [KioskCheckoutEvent]");

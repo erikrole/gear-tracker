@@ -66,6 +66,40 @@ function isForcePasswordAllowed(req: Request): boolean {
   );
 }
 
+class MalformedRequestJsonError extends Error {
+  constructor(cause: SyntaxError) {
+    super("Request body must be valid JSON", { cause });
+    this.name = "MalformedRequestJsonError";
+  }
+}
+
+function tagRequestJsonParseErrors(req: Request) {
+  const parseJson = req.json.bind(req);
+  Object.defineProperty(req, "json", {
+    configurable: true,
+    value: async () => {
+      try {
+        return await parseJson();
+      } catch (error) {
+        if (error instanceof SyntaxError) {
+          throw new MalformedRequestJsonError(error);
+        }
+        throw error;
+      }
+    },
+  });
+  return req;
+}
+
+function failRequest(error: unknown) {
+  // Only errors tagged at the actual Request.json() boundary are malformed
+  // input. A SyntaxError thrown later by handler code remains a server error.
+  if (error instanceof MalformedRequestJsonError) {
+    return fail(new HttpError(400, "Request body must be valid JSON"));
+  }
+  return fail(error);
+}
+
 /**
  * Authenticated API route handler.
  * Wraps try/catch, calls requireAuth(), and resolves dynamic params.
@@ -90,9 +124,9 @@ export function withAuth<P extends Record<string, string> = Record<string, strin
         throw new HttpError(403, "Password change required before continuing");
       }
       const params = (context?.params ? await context.params : {}) as P;
-      return await handler(req, { user, params });
+      return await handler(tagRequestJsonParseErrors(req), { user, params });
     } catch (error) {
-      return fail(error);
+      return failRequest(error);
     }
   };
 }
@@ -118,9 +152,9 @@ export function withKiosk<P extends Record<string, string> = Record<string, stri
       }
       const kiosk = await requireKiosk();
       const params = (context?.params ? await context.params : {}) as P;
-      return await handler(req, { kiosk, params });
+      return await handler(tagRequestJsonParseErrors(req), { kiosk, params });
     } catch (error) {
-      return fail(error);
+      return failRequest(error);
     }
   };
 }
@@ -135,9 +169,9 @@ export function withHandler<P extends Record<string, string> = Record<string, st
   return async (req: Request, context: { params: Promise<P> }): Promise<NextResponse> => {
     try {
       const params = (context?.params ? await context.params : {}) as P;
-      return await handler(req, { params });
+      return await handler(tagRequestJsonParseErrors(req), { params });
     } catch (error) {
-      return fail(error);
+      return failRequest(error);
     }
   };
 }

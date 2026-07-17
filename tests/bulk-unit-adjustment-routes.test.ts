@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BulkUnitStatus, Role } from "@prisma/client";
+import { MAX_BULK_UNIT_NUMBER } from "@/lib/request-limits";
 
 const tx = {
   bulkSku: {
@@ -16,6 +17,7 @@ const tx = {
     findFirst: vi.fn(),
   },
   bulkStockBalance: {
+    findUnique: vi.fn(),
     upsert: vi.fn(),
     update: vi.fn(),
   },
@@ -102,12 +104,30 @@ beforeEach(() => {
     name: "Watson NP-F550",
   });
   tx.bulkStockBalance.upsert.mockResolvedValue({});
+  tx.bulkStockBalance.findUnique.mockResolvedValue({ onHandQuantity: 12 });
   tx.bulkStockBalance.update.mockResolvedValue({});
   tx.bulkStockMovement.create.mockResolvedValue({});
   vi.mocked(createAuditEntry).mockResolvedValue(undefined);
 });
 
 describe("bulk unit adjustment routes", () => {
+  it.each(["7junk", String(MAX_BULK_UNIT_NUMBER + 1)])(
+    "rejects invalid unit-number route params before Prisma: %s",
+    async (unitNumber) => {
+      const res = await updateBulkUnit(
+        request(`/api/bulk-skus/sku-1/units/${unitNumber}`, "PATCH", {
+          status: "LOST",
+          reason: "Invalid route input",
+        }),
+        { params: Promise.resolve({ id: "sku-1", unitNumber }) },
+      );
+
+      expect(res.status).toBe(400);
+      expect(tx.bulkSkuUnit.findUnique).not.toHaveBeenCalled();
+      expect(tx.bulkSkuUnit.update).not.toHaveBeenCalled();
+    },
+  );
+
   it("adds numbered units with an operator reason in stock movement and audit", async () => {
     const res = await addBulkUnits(
       request("/api/bulk-skus/sku-1/units", "POST", { count: 2, reason: "New charger kit batteries" }),
@@ -138,6 +158,84 @@ describe("bulk unit adjustment routes", () => {
       action: "add_units",
       after: expect.objectContaining({ count: 2, reason: "Added units #13-#14: New charger kit batteries" }),
     }));
+  });
+
+  it("adds units through the exact PostgreSQL Int boundary", async () => {
+    tx.bulkSkuUnit.findFirst.mockResolvedValueOnce({
+      unitNumber: MAX_BULK_UNIT_NUMBER - 2,
+    });
+
+    const res = await addBulkUnits(
+      request("/api/bulk-skus/sku-1/units", "POST", { count: 2 }),
+      addRouteParams,
+    );
+
+    expect(res.status).toBe(201);
+    expect(tx.bulkSkuUnit.createMany).toHaveBeenCalledWith({
+      data: [
+        { bulkSkuId: "sku-1", productId: null, unitNumber: MAX_BULK_UNIT_NUMBER - 1 },
+        { bulkSkuId: "sku-1", productId: null, unitNumber: MAX_BULK_UNIT_NUMBER },
+      ],
+    });
+    expect((await res.json()).data).toEqual(expect.objectContaining({
+      startNumber: MAX_BULK_UNIT_NUMBER - 1,
+      endNumber: MAX_BULK_UNIT_NUMBER,
+    }));
+  });
+
+  it("rejects unit-number overflow before any write", async () => {
+    tx.bulkSkuUnit.findFirst.mockResolvedValueOnce({
+      unitNumber: MAX_BULK_UNIT_NUMBER - 1,
+    });
+
+    const res = await addBulkUnits(
+      request("/api/bulk-skus/sku-1/units", "POST", { count: 2 }),
+      addRouteParams,
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toContain(`beyond number ${MAX_BULK_UNIT_NUMBER}`);
+    expect(tx.bulkSkuUnit.createMany).not.toHaveBeenCalled();
+    expect(tx.bulkStockBalance.upsert).not.toHaveBeenCalled();
+    expect(tx.bulkStockMovement.create).not.toHaveBeenCalled();
+    expect(createAuditEntry).not.toHaveBeenCalled();
+  });
+
+  it("rejects stock-balance overflow before any write", async () => {
+    tx.bulkStockBalance.findUnique.mockResolvedValueOnce({
+      onHandQuantity: MAX_BULK_UNIT_NUMBER - 1,
+    });
+
+    const res = await addBulkUnits(
+      request("/api/bulk-skus/sku-1/units", "POST", { count: 2 }),
+      addRouteParams,
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toContain(`beyond ${MAX_BULK_UNIT_NUMBER}`);
+    expect(tx.bulkSkuUnit.createMany).not.toHaveBeenCalled();
+    expect(tx.bulkStockBalance.upsert).not.toHaveBeenCalled();
+    expect(tx.bulkStockMovement.create).not.toHaveBeenCalled();
+    expect(createAuditEntry).not.toHaveBeenCalled();
+  });
+
+  it("rejects a negative stock balance before any write", async () => {
+    tx.bulkStockBalance.findUnique.mockResolvedValueOnce({ onHandQuantity: -1 });
+
+    const res = await addBulkUnits(
+      request("/api/bulk-skus/sku-1/units", "POST", { count: 1 }),
+      addRouteParams,
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(body.error).toContain("cannot be negative");
+    expect(tx.bulkSkuUnit.createMany).not.toHaveBeenCalled();
+    expect(tx.bulkStockBalance.upsert).not.toHaveBeenCalled();
+    expect(tx.bulkStockMovement.create).not.toHaveBeenCalled();
+    expect(createAuditEntry).not.toHaveBeenCalled();
   });
 
   it("records status-change reasons and stock movement when availability changes", async () => {

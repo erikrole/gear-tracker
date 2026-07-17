@@ -52,7 +52,7 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
             select: {
               plannedQuantity: true,
               checkedOutQuantity: true,
-              bulkSku: { select: { name: true } },
+              bulkSku: { select: { name: true, trackByNumber: true } },
             },
           },
         },
@@ -91,7 +91,8 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
       }
 
       const incompleteBulk = booking.bulkItems.find(
-        (item) => (item.checkedOutQuantity ?? 0) < item.plannedQuantity,
+        (item) => item.bulkSku.trackByNumber &&
+          (item.checkedOutQuantity ?? 0) < item.plannedQuantity,
       );
       if (incompleteBulk) {
         throw new HttpError(
@@ -213,6 +214,8 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
 
     const bulkUnitItems: Array<{ bulkSkuId: string; unitNumber: number }> = [];
     for (const item of sourceReservation.bulkItems) {
+      if (!item.bulkSku.trackByNumber) continue;
+
       const stagedUnits = sourceReservation.scanEvents
         .filter((event) => event.scanType === "BULK_BIN" && event.bulkSkuId === item.bulkSkuId)
         .map((event) => parseDerivedBulkUnitQr(event.scanValue, [item.bulkSku]))

@@ -35,6 +35,11 @@ vi.mock("@sentry/nextjs", () => ({
 
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import {
+  MAX_BULK_QUANTITY_PER_LINE,
+  MAX_BULK_SKU_LINES_PER_REQUEST,
+  MAX_EQUIPMENT_SELECTIONS_PER_REQUEST,
+} from "@/lib/request-limits";
 import { POST } from "@/app/api/drafts/route";
 import { GET } from "@/app/api/drafts/[id]/route";
 
@@ -52,6 +57,10 @@ function location(row: unknown) {
 
 function draft(row: unknown) {
   return row as Awaited<ReturnType<typeof db.booking.findFirst>>;
+}
+
+function cuid(index: number) {
+  return `cm${index.toString(36).padStart(23, "0")}`;
 }
 
 const noParams = { params: Promise.resolve({}) };
@@ -180,6 +189,87 @@ describe("POST /api/drafts", () => {
     expect(res.status).toBe(400);
     expect(mockTx.booking.create).not.toHaveBeenCalled();
     expect(mockTx.booking.update).not.toHaveBeenCalled();
+  });
+
+  it("accepts the equipment maxima and batches each collection into one write", async () => {
+    const serializedAssetIds = Array.from(
+      { length: MAX_EQUIPMENT_SELECTIONS_PER_REQUEST },
+      (_, index) => cuid(index),
+    );
+    const bulkItems = Array.from(
+      { length: MAX_BULK_SKU_LINES_PER_REQUEST },
+      (_, index) => ({
+        bulkSkuId: cuid(MAX_EQUIPMENT_SELECTIONS_PER_REQUEST + index),
+        quantity: MAX_BULK_QUANTITY_PER_LINE,
+      }),
+    );
+    mockTx.booking.create.mockResolvedValue({ id: "cm000000000000000000000010" });
+
+    const res = await POST(
+      makePostRequest({ kind: "RESERVATION", serializedAssetIds, bulkItems }),
+      noParams,
+    );
+
+    expect(res.status).toBe(201);
+    expect(mockTx.bookingSerializedItem.createMany).toHaveBeenCalledTimes(1);
+    expect(mockTx.bookingSerializedItem.createMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({ assetId: serializedAssetIds[0] }),
+      ]),
+    });
+    expect(mockTx.bookingSerializedItem.createMany.mock.calls[0]?.[0].data).toHaveLength(
+      MAX_EQUIPMENT_SELECTIONS_PER_REQUEST,
+    );
+    expect(mockTx.bookingBulkItem.createMany).toHaveBeenCalledTimes(1);
+    expect(mockTx.bookingBulkItem.createMany.mock.calls[0]?.[0].data).toHaveLength(
+      MAX_BULK_SKU_LINES_PER_REQUEST,
+    );
+  });
+
+  it("rejects serialized equipment above the request ceiling before opening a transaction", async () => {
+    const serializedAssetIds = Array.from(
+      { length: MAX_EQUIPMENT_SELECTIONS_PER_REQUEST + 1 },
+      (_, index) => cuid(index),
+    );
+
+    const res = await POST(
+      makePostRequest({ kind: "RESERVATION", serializedAssetIds }),
+      noParams,
+    );
+
+    expect(res.status).toBe(400);
+    expect(db.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects bulk lines above the request ceiling before opening a transaction", async () => {
+    const bulkItems = Array.from(
+      { length: MAX_BULK_SKU_LINES_PER_REQUEST + 1 },
+      (_, index) => ({ bulkSkuId: cuid(index), quantity: 1 }),
+    );
+
+    const res = await POST(
+      makePostRequest({ kind: "RESERVATION", bulkItems }),
+      noParams,
+    );
+
+    expect(res.status).toBe(400);
+    expect(db.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects bulk quantity above the per-line ceiling before opening a transaction", async () => {
+    const res = await POST(
+      makePostRequest({
+        kind: "RESERVATION",
+        bulkItems: [{
+          bulkSkuId: "cm000000000000000000000004",
+          quantity: MAX_BULK_QUANTITY_PER_LINE + 1,
+        }],
+      }),
+      noParams,
+    );
+
+    expect(res.status).toBe(400);
+    expect(db.$transaction).not.toHaveBeenCalled();
   });
 });
 

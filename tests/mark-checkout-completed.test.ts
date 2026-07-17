@@ -59,8 +59,13 @@ vi.mock("@/lib/badges", () => ({
   },
 }));
 
+vi.mock("@/lib/services/live-activities", () => ({
+  endCheckoutReturnLiveActivities: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { db } from "@/lib/db";
 import { badges } from "@/lib/badges";
+import { endCheckoutReturnLiveActivities } from "@/lib/services/live-activities";
 import { forceCompleteCheckout, markCheckoutCompleted } from "@/lib/services/bookings";
 
 const mockTx = (db as unknown as { _mockTx: MarkCheckoutCompletedTx })._mockTx;
@@ -144,6 +149,7 @@ describe("markCheckoutCompleted", () => {
         data: { active: false },
       })
     );
+    expect(endCheckoutReturnLiveActivities).toHaveBeenCalledWith("b-1");
   });
 
   it("closes open checkin scan sessions", async () => {

@@ -13,6 +13,7 @@ import { BookingKind, BulkMovementKind, BulkUnitStatus, Prisma } from "@prisma/c
 import { scheduleCheckoutReturnLiveActivity } from "@/lib/live-activity-workflow";
 import { updateCheckoutReturnLiveActivities } from "@/lib/services/live-activities";
 import { normalizeBookingTitle } from "@/lib/title-normalization";
+import { MAX_EQUIPMENT_SELECTIONS_PER_REQUEST } from "@/lib/request-limits";
 
 function hasBlockingAvailabilityIssue(result: Awaited<ReturnType<typeof checkAvailability>>) {
   return result.conflicts.length > 0 || result.shortages.length > 0 || result.unavailableAssets.length > 0;
@@ -58,6 +59,18 @@ function activeBulkQuantity(item: { checkedOutQuantity: number; checkedInQuantit
 function quantityLabel(name: string, quantity: number) {
   return quantity === 1 ? name : `${name} x${quantity}`;
 }
+
+type KioskBulkDetailItem = {
+  id: string;
+  tagName: string;
+  name: string;
+  returned: boolean;
+  type: "numbered_bulk" | "bulk_quantity";
+  bulkSkuId: string;
+  bulkSkuName: string;
+  unitNumber: number | null;
+  imageUrl: string | null;
+};
 
 /** Get checkout details for kiosk return and pickup flows */
 export const GET = withKiosk<{ id: string }>(async (_req, { params }) => {
@@ -158,8 +171,35 @@ export const GET = withKiosk<{ id: string }>(async (_req, { params }) => {
     imageUrl: si.asset.imageUrl,
   }));
 
-  const bulkItems = isPickupChecklist
-    ? booking.bulkItems.flatMap((bi) => {
+  const numberedBulkItems = booking.bulkItems.filter((bi) => bi.bulkSku.trackByNumber);
+  const numberedPickupTotal = numberedBulkItems.reduce(
+    (sum, bi) => sum + bi.plannedQuantity,
+    0,
+  );
+  if (isPickupChecklist && numberedPickupTotal > MAX_EQUIPMENT_SELECTIONS_PER_REQUEST) {
+    throw new HttpError(
+      409,
+      `Numbered pickup lists support at most ${MAX_EQUIPMENT_SELECTIONS_PER_REQUEST} units total`,
+    );
+  }
+
+  const bulkItems: KioskBulkDetailItem[] = isPickupChecklist
+    ? booking.bulkItems.flatMap((bi): KioskBulkDetailItem[] => {
+        if (!bi.bulkSku.trackByNumber) {
+          return [{
+            id: `${bi.id}:bulk-quantity`,
+            tagName: `x${bi.plannedQuantity}`,
+            name: quantityLabel(bi.bulkSku.name, bi.plannedQuantity),
+            // Quantity-tracked stock is checked out as one aggregate ledger row,
+            // so there is no physical per-unit QR scan for the native checklist.
+            returned: true,
+            type: "bulk_quantity" as const,
+            bulkSkuId: bi.bulkSku.id,
+            bulkSkuName: bi.bulkSku.name,
+            unitNumber: null,
+            imageUrl: bi.bulkSku.imageUrl,
+          }];
+        }
         const pickedUnits = booking.kind === "CHECKOUT" && booking.status === "PENDING_PICKUP"
           ? bi.unitAllocations.filter((allocation) => !allocation.checkedInAt)
           : [];
@@ -193,7 +233,7 @@ export const GET = withKiosk<{ id: string }>(async (_req, { params }) => {
           };
         });
       })
-    : booking.bulkItems.flatMap((bi) => {
+    : booking.bulkItems.flatMap((bi): KioskBulkDetailItem[] => {
         const activeAllocations = bi.unitAllocations.map((allocation) => ({
           id: allocation.bulkSkuUnit.id,
           tagName: `#${allocation.bulkSkuUnit.unitNumber}`,
@@ -222,7 +262,6 @@ export const GET = withKiosk<{ id: string }>(async (_req, { params }) => {
           },
         ];
       });
-  const numberedBulkItems = booking.bulkItems.filter((bi) => bi.bulkSku.trackByNumber);
   const numberedBulkTotal = isPickupChecklist
     ? numberedBulkItems.reduce((sum, bi) => sum + bi.plannedQuantity, 0)
     : numberedBulkItems.reduce((sum, bi) => sum + Math.max(bi.unitAllocations.length, bi.checkedOutQuantity), 0);

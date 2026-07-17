@@ -162,12 +162,13 @@ export const GET = withKiosk<{ userId: string }>(async (req, { kiosk, params }) 
       items: c.serializedItems.map((si) => ({
         name: si.asset.name || si.asset.assetTag,
         tagName: si.asset.assetTag,
-      })).concat(c.bulkItems.flatMap((bi) =>
-        Array.from({ length: bi.checkedOutQuantity || bi.plannedQuantity }, (_, index) => ({
-          name: `${bi.bulkSku.name} ${index + 1}`,
-          tagName: `#${index + 1}`,
-        }))
-      )),
+      })).concat(c.bulkItems.map((bi) => {
+        const quantity = bi.checkedOutQuantity || bi.plannedQuantity;
+        return {
+          name: quantity === 1 ? bi.bulkSku.name : `${bi.bulkSku.name} x${quantity}`,
+          tagName: `x${quantity}`,
+        };
+      })),
       endsAt: c.endsAt,
       isOverdue: c.endsAt < now,
     })),

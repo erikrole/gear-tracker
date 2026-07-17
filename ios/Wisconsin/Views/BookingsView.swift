@@ -52,6 +52,7 @@ final class BookingsViewModel {
     private let limit = 30
     private var searchTask: Task<Void, Never>?
     private var loadTask: Task<Void, Never>?
+    private var loadRequests = LatestRequestGeneration()
     private var didApplyUserDefault = false
 
     var isEmpty: Bool { checkouts.isEmpty && reservations.isEmpty }
@@ -82,12 +83,19 @@ final class BookingsViewModel {
             // Pagination: ignore if a load is already running.
             return
         }
-        let task = Task { await performLoad(reset: reset, clearExistingRows: clearExistingRows) }
+        let requestToken = loadRequests.begin()
+        let task = Task {
+            await performLoad(
+                reset: reset,
+                clearExistingRows: clearExistingRows,
+                requestToken: requestToken
+            )
+        }
         loadTask = task
         await task.value
     }
 
-    private func performLoad(reset: Bool, clearExistingRows: Bool) async {
+    private func performLoad(reset: Bool, clearExistingRows: Bool, requestToken: UUID) async {
         if reset {
             checkoutOffset = 0
             reservationOffset = 0
@@ -101,6 +109,9 @@ final class BookingsViewModel {
         }
         isLoading = true
         if reset { error = nil }
+        defer {
+            if loadRequests.owns(requestToken) { isLoading = false }
+        }
         do {
             let search = searchText.isEmpty ? nil : searchText
             let requesterId = mineOnly ? currentUserId : nil
@@ -115,7 +126,7 @@ final class BookingsViewModel {
                 async let reservationPage = fetchReservations(search: search, requesterId: requesterId)
                 (checkoutResult, reservationResult) = try await (checkoutPage, reservationPage)
             }
-            if Task.isCancelled { isLoading = false; return }
+            guard loadRequests.owns(requestToken), !Task.isCancelled else { return }
             if reset {
                 checkouts = checkoutResult.data
                 reservations = reservationResult.data
@@ -138,6 +149,7 @@ final class BookingsViewModel {
         } catch is CancellationError {
             // Superseded by a newer load; leave state alone.
         } catch {
+            guard loadRequests.owns(requestToken), !Task.isCancelled else { return }
             if reset {
                 self.error = error.localizedDescription
             } else {
@@ -146,7 +158,6 @@ final class BookingsViewModel {
                 hasMoreReservations = false
             }
         }
-        isLoading = false
     }
 
     private func fetchCheckouts(search: String?, requesterId: String?, filter: String? = nil) async throws -> PaginatedResponse<Booking> {
@@ -251,6 +262,7 @@ final class BookingsViewModel {
     func resetDefaults() {
         searchTask?.cancel()
         loadTask?.cancel()
+        loadRequests.invalidate()
         searchText = ""
         scope = currentUserRole == "STUDENT" || currentUserRole == "COLLABORATOR" ? .mine : .all
         checkouts = []
@@ -261,6 +273,7 @@ final class BookingsViewModel {
         hasMoreReservations = true
         error = nil
         pageError = nil
+        isLoading = false
     }
 }
 

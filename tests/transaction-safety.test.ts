@@ -67,7 +67,6 @@ vi.mock("@/lib/services/availability", () => ({
 }));
 
 import { db } from "@/lib/db";
-import { createAuditEntries } from "@/lib/audit";
 import { recordScan, completeCheckoutScan, completeCheckinScan, startScanSession } from "@/lib/services/scans";
 
 type TransactionMock = {
@@ -95,48 +94,9 @@ beforeEach(() => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// createAuditEntries
-// ═══════════════════════════════════════════════════════════════════════════════
-describe("createAuditEntries", () => {
-  it("is exported and callable", () => {
-    expect(typeof createAuditEntries).toBe("function");
-  });
-
-  it("returns immediately for empty array (no DB call)", async () => {
-    await createAuditEntries([]);
-    expect(createAuditEntries).toHaveBeenCalledWith([]);
-  });
-
-  it("accepts a single entry", async () => {
-    const entry = {
-      actorId: "user-1",
-      actorRole: "ADMIN" as const,
-      entityType: "booking",
-      entityId: "b-1",
-      action: "test_action",
-    };
-    await createAuditEntries([entry]);
-    expect(createAuditEntries).toHaveBeenCalledWith([entry]);
-  });
-
-  it("accepts multiple entries", async () => {
-    const entries = [
-      { actorId: "u1", actorRole: "ADMIN" as const, entityType: "booking", entityId: "b1", action: "a1" },
-      { actorId: "u2", actorRole: "STAFF" as const, entityType: "asset", entityId: "a1", action: "a2", after: { note: "x" } },
-    ];
-    await createAuditEntries(entries);
-    expect(createAuditEntries).toHaveBeenCalledWith(entries);
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
 // recordScan — transaction isolation + input validation
 // ═══════════════════════════════════════════════════════════════════════════════
 describe("recordScan", () => {
-  it("is exported and callable", () => {
-    expect(typeof recordScan).toBe("function");
-  });
-
   it("uses SERIALIZABLE isolation level", async () => {
     mockTx.scanEvent.findFirst.mockResolvedValue(null);
     mockTx.booking.findUnique.mockResolvedValue({
@@ -350,10 +310,6 @@ describe("recordScan", () => {
 // startScanSession — booking validation
 // ═══════════════════════════════════════════════════════════════════════════════
 describe("startScanSession", () => {
-  it("is exported and callable", () => {
-    expect(typeof startScanSession).toBe("function");
-  });
-
   it("throws when booking is not found", async () => {
     mockTx.booking.findUnique.mockResolvedValue(null);
 
@@ -406,10 +362,6 @@ describe("startScanSession", () => {
 // completeCheckoutScan — SERIALIZABLE isolation + validation
 // ═══════════════════════════════════════════════════════════════════════════════
 describe("completeCheckoutScan", () => {
-  it("is exported and callable", () => {
-    expect(typeof completeCheckoutScan).toBe("function");
-  });
-
   it("uses SERIALIZABLE isolation level", async () => {
     mockTx.booking.findUnique.mockResolvedValue({
       id: "b-1",
@@ -530,10 +482,6 @@ describe("completeCheckoutScan", () => {
 // completeCheckinScan — SERIALIZABLE isolation + validation
 // ═══════════════════════════════════════════════════════════════════════════════
 describe("completeCheckinScan", () => {
-  it("is exported and callable", () => {
-    expect(typeof completeCheckinScan).toBe("function");
-  });
-
   it("uses SERIALIZABLE isolation level", async () => {
     mockTx.booking.findUnique.mockResolvedValue({
       id: "b-1",
@@ -585,15 +533,5 @@ describe("completeCheckinScan", () => {
     await completeCheckinScan("b-1", "actor-1", Role.ADMIN);
 
     expect(markCheckoutCompleted).toHaveBeenCalledWith("b-1", "actor-1");
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// markCheckoutCompleted — SERIALIZABLE isolation (tested via import check)
-// ═══════════════════════════════════════════════════════════════════════════════
-describe("markCheckoutCompleted", () => {
-  it("is exported and callable", async () => {
-    const { markCheckoutCompleted } = await import("@/lib/services/bookings");
-    expect(typeof markCheckoutCompleted).toBe("function");
   });
 });

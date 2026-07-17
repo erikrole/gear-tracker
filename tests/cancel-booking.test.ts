@@ -46,7 +46,12 @@ vi.mock("@/lib/services/availability", () => ({
   checkAvailability: vi.fn().mockResolvedValue({ conflicts: [], shortages: [], unavailableAssets: [] }),
 }));
 
+vi.mock("@/lib/services/live-activities", () => ({
+  endCheckoutReturnLiveActivities: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { db } from "@/lib/db";
+import { endCheckoutReturnLiveActivities } from "@/lib/services/live-activities";
 import { cancelBooking, cancelReservation } from "@/lib/services/bookings";
 
 const mockTx = (db as unknown as { _mockTx: CancelBookingTx })._mockTx;
@@ -95,6 +100,7 @@ describe("cancelBooking", () => {
       where: { bookingId: "b-1" },
       data: { active: false },
     });
+    expect(endCheckoutReturnLiveActivities).toHaveBeenCalledWith("b-1");
   });
 
   it("cancels open scan sessions", async () => {

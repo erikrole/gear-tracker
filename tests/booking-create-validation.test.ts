@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { createCheckoutSchema, createReservationSchema } from "@/lib/validation";
+import {
+  availabilitySchema,
+  createBulkSkuSchema,
+  createCheckoutSchema,
+  createReservationSchema,
+  updateBookingSchema,
+} from "@/lib/validation";
+import {
+  MAX_BULK_QUANTITY_PER_LINE,
+  MAX_BULK_SKU_LINES_PER_REQUEST,
+  MAX_EQUIPMENT_SELECTIONS_PER_REQUEST,
+  MAX_NUMBERED_UNITS_PER_CREATE,
+} from "@/lib/request-limits";
 
 const ids = {
   requester: "cm000000000000000000000001",
@@ -19,6 +31,10 @@ const basePayload = {
   startsAt: "2026-06-01T12:00:00.000Z",
   endsAt: "2026-06-01T18:00:00.000Z",
 };
+
+function cuid(index: number) {
+  return `cm${index.toString(36).padStart(23, "0")}`;
+}
 
 describe("booking create validation", () => {
   it("requires reservation creation to include equipment", () => {
@@ -67,5 +83,69 @@ describe("booking create validation", () => {
 
     expect(parsed.serializedAssetIds).toEqual([ids.asset]);
     expect(parsed.bulkItems).toHaveLength(2);
+  });
+
+  it("bounds serialized equipment fan-out at the request boundary", () => {
+    const maximum = Array.from({ length: MAX_EQUIPMENT_SELECTIONS_PER_REQUEST }, (_, index) => cuid(index));
+
+    expect(() => createReservationSchema.parse({
+      ...basePayload,
+      serializedAssetIds: maximum,
+    })).not.toThrow();
+    expect(() => createReservationSchema.parse({
+      ...basePayload,
+      serializedAssetIds: [...maximum, cuid(MAX_EQUIPMENT_SELECTIONS_PER_REQUEST)],
+    })).toThrow(`Array must contain at most ${MAX_EQUIPMENT_SELECTIONS_PER_REQUEST} element(s)`);
+    expect(() => availabilitySchema.parse({
+      locationId: ids.location,
+      startsAt: basePayload.startsAt,
+      endsAt: basePayload.endsAt,
+      serializedAssetIds: [...maximum, cuid(MAX_EQUIPMENT_SELECTIONS_PER_REQUEST)],
+    })).toThrow(`Array must contain at most ${MAX_EQUIPMENT_SELECTIONS_PER_REQUEST} element(s)`);
+    expect(() => updateBookingSchema.parse({
+      serializedAssetIds: [...maximum, cuid(MAX_EQUIPMENT_SELECTIONS_PER_REQUEST)],
+    })).toThrow(`Array must contain at most ${MAX_EQUIPMENT_SELECTIONS_PER_REQUEST} element(s)`);
+  });
+
+  it("bounds bulk-line fan-out and rejects unsafe quantities", () => {
+    const maximum = Array.from({ length: MAX_BULK_SKU_LINES_PER_REQUEST }, (_, index) => ({
+      bulkSkuId: cuid(index),
+      quantity: 1,
+    }));
+
+    expect(() => createReservationSchema.parse({ ...basePayload, bulkItems: maximum })).not.toThrow();
+    expect(() => createReservationSchema.parse({
+      ...basePayload,
+      bulkItems: [...maximum, { bulkSkuId: cuid(MAX_BULK_SKU_LINES_PER_REQUEST), quantity: 1 }],
+    })).toThrow(`Array must contain at most ${MAX_BULK_SKU_LINES_PER_REQUEST} element(s)`);
+    expect(() => createReservationSchema.parse({
+      ...basePayload,
+      bulkItems: [{ bulkSkuId: ids.bulk, quantity: MAX_BULK_QUANTITY_PER_LINE + 1 }],
+    })).toThrow(`Number must be less than or equal to ${MAX_BULK_QUANTITY_PER_LINE}`);
+  });
+
+  it("caps only numbered item-family materialization, not quantity-tracked stock", () => {
+    const baseBulkSku = {
+      name: "Sony Battery",
+      category: "Batteries",
+      locationId: ids.location,
+      binQrCodeValue: "SONY-BATTERY",
+    };
+
+    expect(() => createBulkSkuSchema.parse({
+      ...baseBulkSku,
+      trackByNumber: true,
+      initialQuantity: MAX_NUMBERED_UNITS_PER_CREATE,
+    })).not.toThrow();
+    expect(() => createBulkSkuSchema.parse({
+      ...baseBulkSku,
+      trackByNumber: true,
+      initialQuantity: MAX_NUMBERED_UNITS_PER_CREATE + 1,
+    })).toThrow(`Create at most ${MAX_NUMBERED_UNITS_PER_CREATE} numbered units at once`);
+    expect(() => createBulkSkuSchema.parse({
+      ...baseBulkSku,
+      trackByNumber: false,
+      initialQuantity: MAX_NUMBERED_UNITS_PER_CREATE + 1,
+    })).not.toThrow();
   });
 });

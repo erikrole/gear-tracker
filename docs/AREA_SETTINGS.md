@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Settings
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-16
+- Last Updated: 2026-07-17
 - Status: Active
 - Version: V1
 
@@ -195,6 +195,7 @@ All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-j
 
 ## Change Log
 
+- 2026-07-17: **Category graph mutations are atomic.** Category create, move, and delete perform graph, duplicate, dependency, write, and audit work in one `SERIALIZABLE` transaction with a bounded retry. Reciprocal moves and concurrent root duplicates fail safely, and a resulting subtree is capped at 25 parent-child edges. Name-only edits on a legacy overdeep tree remain available because unchanged placement is not revalidated; explicitly supplying a parent still enforces the cap.
 - 2026-07-16: **Settings directory interaction-detail conformance.** The overview intro and role-aware group cards now enter as separate semantic chunks with a short stagger, destination rows use the shared exact 0.96 press response, the search trigger stays a compact 40px control on small screens, command results provide 44px touch targets, and blocked-route recovery provides an explicit 40px action. Section visibility, direct-route access gating, last-tab resume behavior, route URLs, and all sub-page data behavior are unchanged.
 - 2026-07-16: Added admin-only Collaborator Access settings for affiliation creation, identity, validated capability replacement, suspension/reactivation, affected-count previews, history restoration, and constrained archival.
 - 2026-07-16: **Activity-aware audit live feed.** Audit auto-refresh keeps its opt-in 30-second cadence while an admin is active, pauses requests for hidden, offline, or two-minute-idle sessions, and checks immediately on return. Existing rows, stale-feed recovery, filters, and pagination behavior are unchanged.

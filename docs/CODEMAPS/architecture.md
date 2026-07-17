@@ -12,9 +12,9 @@ Gear Tracker is a Next.js App Router application with a companion native iOS app
 | App pages | 79 |
 | App layouts | 5 |
 | API route handlers | 243 |
-| Service files | 50 |
+| Service files | 52 |
 | Component files | 138 |
-| Test files | 375 |
+| Test files | 391 |
 
 ## Oversized Source Watchlist
 
@@ -22,16 +22,16 @@ Informational only. These are the largest TypeScript and TSX files under `src/`;
 
 | File | Lines |
 |---|---:|
+| `src/lib/services/bookings-lifecycle.ts` | 1614 |
 | `src/app/(app)/items/[id]/ItemInfoTab.tsx` | 1589 |
-| `src/lib/services/bookings-lifecycle.ts` | 1500 |
 | `src/app/(app)/users/[id]/UserInfoTab.tsx` | 1443 |
 | `src/app/(app)/resources/page.tsx` | 1427 |
 | `src/lib/services/reports.ts` | 1378 |
 | `src/components/ActivityTimeline.tsx` | 1369 |
 | `src/app/(app)/bulk-inventory/batteries/page.tsx` | 1342 |
 | `src/app/(app)/schedule/_components/ListView.tsx` | 1253 |
+| `src/app/api/assets/route.ts` | 1212 |
 | `src/components/TradeBoard.tsx` | 1192 |
-| `src/app/api/assets/route.ts` | 1183 |
 | `src/app/(app)/users/[id]/page.tsx` | 1090 |
 | `src/components/EquipmentPicker.tsx` | 1001 |
 | `src/app/(app)/kits/[id]/page.tsx` | 979 |

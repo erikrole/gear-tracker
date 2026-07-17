@@ -13,8 +13,10 @@ describe("iOS kiosk checkout details polish", () => {
     expect(checkout).toContain("@State private var isLinkedToEvent = false");
     expect(checkout).toContain('Toggle("Link to event", isOn: $isLinkedToEvent)');
     expect(checkout).toContain("isLinkedToEvent ? selectedEvent != nil : !trimmedCustomPurpose.isEmpty");
-    expect(checkout).toContain("eventId: isLinkedToEvent ? selectedEvent?.id : nil");
-    expect(checkout).toContain("customPurpose: !isLinkedToEvent && !trimmedCustomPurpose.isEmpty ? trimmedCustomPurpose : nil");
+    expect(checkout).toContain("let eventId = isLinkedToEvent ? selectedEvent?.id : nil");
+    expect(checkout).toContain("let purpose = !isLinkedToEvent && !trimmedCustomPurpose.isEmpty ? trimmedCustomPurpose : nil");
+    expect(checkout).toContain("eventId: eventId");
+    expect(checkout).toContain("customPurpose: purpose");
     expect(checkout).toContain(".onChange(of: isLinkedToEvent)");
     expect(checkout).toContain("customPurpose = \"\"");
     expect(checkout).not.toContain("person.crop.circle.badge.checkmark");

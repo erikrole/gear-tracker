@@ -1,6 +1,6 @@
 # Testing Guide
 
-Last refreshed: 2026-07-11
+Last refreshed: 2026-07-17
 
 ## Overview
 
@@ -8,12 +8,12 @@ The automated test suite uses Vitest in the Node.js environment. Tests live in `
 
 Current static inventory:
 
-- 331 test files under `tests/`
-- 1,971 `it()` / `test()` declarations by static grep
-- 47 iOS source-contract files named `ios-*.test.ts`
-- 66 source or contract files with `source` or `contract` in the filename
-- 55 route-focused files with `route` in the filename
-- 4 current `BUG:`-prefixed tests across 2 files
+- 391 test files under `tests/`
+- 2,331 `it()` / `test()` declarations by static grep
+- 54 iOS source-contract files named `ios-*.test.ts`
+- 79 source or contract files with `source` or `contract` in the filename
+- 66 route-focused files with `route` in the filename
+- 35 current `BUG:` references across 11 files
 
 Refresh the inventory with:
 
@@ -28,6 +28,8 @@ rg -n 'BUG:' tests --glob '*.test.ts'
 
 These counts are orientation data, not a coverage guarantee. Use focused tests and the required gates for the code touched by a slice.
 
+The 2026-07-17 adversarial baseline is 391 files and 2,464 passing runtime tests. The normal full suite, the instrumented coverage run, and shuffled full-suite runs with seeds `1701`, `1702`, and `20260717` all passed without skips. The measured critical-server scope is 70.80% statements/lines, 78.03% branches, and 77.35% functions across `src/lib/services/**`, `src/lib/api.ts`, `src/lib/rbac.ts`, and `src/lib/permissions.ts`. `npm run test:coverage` enforces non-regression floors of 70% statements/lines and 75% branches/functions. These percentages describe the configured critical-server scope, not the entire Next.js or Swift codebase.
+
 ## Verification Gates
 
 Use [docs/RELEASE_VERIFICATION.md](RELEASE_VERIFICATION.md) as the canonical closeout matrix. This guide owns test layers, test patterns, and test inventory; the release guide owns final gate selection for web, API, schema, browser, deploy, and iOS work.
@@ -40,6 +42,9 @@ npx vitest run tests/<feature>.test.ts
 
 # Full Vitest suite
 npm test
+
+# Full suite with enforced critical-server coverage floors
+npm run test:coverage
 
 # TypeScript
 npx tsc --noEmit --pretty false
@@ -185,10 +190,7 @@ const result = await checkSerializedConflicts(tx as any, { /* ... */ });
 
 ## `BUG:` Convention
 
-Use `BUG:` sparingly. It currently appears only in `tests/auth-hardening.test.ts`, where the tests document fixed high-risk authentication regressions:
-
-- Self-service password change must invalidate existing sessions atomically.
-- Password reset must consume the token inside a Serializable transaction.
+Use `BUG:` sparingly for fixed, high-risk regressions. The live inventory spans multiple areas, so use the repository search below instead of maintaining a stale list here.
 
 For new tests:
 

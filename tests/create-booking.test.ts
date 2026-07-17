@@ -1,15 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { BookingKind, CollaboratorProfile, Prisma, Role } from "@prisma/client";
 import { expectSerializableIsolation } from "./_helpers/assert-transaction";
+import {
+  MAX_BULK_SKU_LINES_PER_REQUEST,
+  MAX_CHECKOUT_DISTINCT_BULK_SKUS_PER_REQUEST,
+  MAX_EQUIPMENT_SELECTIONS_PER_REQUEST,
+} from "@/lib/request-limits";
 
 type MockFn = ReturnType<typeof vi.fn>;
 type CreateBookingTx = {
-  booking: Record<"findUnique" | "findUniqueOrThrow" | "create" | "update", MockFn>;
+  booking: Record<"findUnique" | "findUniqueOrThrow" | "create" | "update" | "count", MockFn>;
   calendarEvent: Record<"findMany", MockFn>;
   bookingEvent: Record<"createMany", MockFn>;
   scheduleEventFollow: Record<"createMany", MockFn>;
   bookingSerializedItem: Record<"createMany", MockFn>;
   bookingBulkItem: Record<"createMany", MockFn>;
+  bulkSku: Record<"findMany", MockFn>;
   assetAllocation: Record<"createMany" | "updateMany", MockFn>;
   bulkStockBalance: Record<"findMany" | "upsert", MockFn>;
   bulkStockMovement: Record<"createMany", MockFn>;
@@ -30,12 +36,14 @@ vi.mock("@/lib/db", () => {
       findUniqueOrThrow: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      count: vi.fn(),
     },
     calendarEvent: { findMany: vi.fn() },
     bookingEvent: { createMany: vi.fn() },
     scheduleEventFollow: { createMany: vi.fn() },
     bookingSerializedItem: { createMany: vi.fn() },
     bookingBulkItem: { createMany: vi.fn() },
+    bulkSku: { findMany: vi.fn() },
     assetAllocation: { createMany: vi.fn(), updateMany: vi.fn() },
     bulkStockBalance: { findMany: vi.fn(), upsert: vi.fn() },
     bulkStockMovement: { createMany: vi.fn() },
@@ -67,7 +75,12 @@ vi.mock("@/lib/services/availability", () => ({
   }),
 }));
 
+vi.mock("@/lib/live-activity-workflow", () => ({
+  scheduleCheckoutReturnLiveActivity: vi.fn(),
+}));
+
 import { db } from "@/lib/db";
+import { scheduleCheckoutReturnLiveActivity } from "@/lib/live-activity-workflow";
 import { checkAvailability } from "@/lib/services/availability";
 import { createBooking } from "@/lib/services/bookings";
 
@@ -89,9 +102,24 @@ function baseInput(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function serializableConflict() {
+  return new Prisma.PrismaClientKnownRequestError("Serializable conflict", {
+    code: "P2034",
+    clientVersion: "test",
+  });
+}
+
+function bulkRequests(count: number) {
+  return Array.from({ length: count }, (_, index) => ({
+    bulkSkuId: `sku-${index}`,
+    quantity: 1,
+  }));
+}
+
 beforeEach(() => {
   transactionCalls.length = 0;
   mockTx.booking.create.mockResolvedValue({ id: "b-new" });
+  mockTx.booking.count.mockResolvedValue(0);
   mockTx.$queryRaw.mockResolvedValue([{ nextval: 1n }]);
   mockTx.booking.update.mockResolvedValue({});
   mockTx.booking.findUniqueOrThrow.mockResolvedValue({ id: "b-new", refNumber: "CO-0001" });
@@ -101,6 +129,7 @@ beforeEach(() => {
   mockTx.bookingSerializedItem.createMany.mockResolvedValue({});
   mockTx.assetAllocation.createMany.mockResolvedValue({});
   mockTx.bookingBulkItem.createMany.mockResolvedValue({});
+  mockTx.bulkSku.findMany.mockResolvedValue([]);
   mockTx.bulkStockBalance.findMany.mockResolvedValue([]);
   mockTx.bulkStockBalance.upsert.mockResolvedValue({});
   mockTx.bulkStockMovement.createMany.mockResolvedValue({});
@@ -152,6 +181,61 @@ describe("createBooking", () => {
         data: expect.objectContaining({ kind: "RESERVATION", status: "BOOKED" }),
       })
     );
+  });
+
+  it("BUG: rejects a reservation at its concurrent reservation cap inside the transaction", async () => {
+    mockTx.booking.count.mockResolvedValueOnce(2);
+
+    await expect(createBooking(baseInput({
+      kind: BookingKind.RESERVATION,
+      custodySource: undefined,
+      maxConcurrentReservations: 2,
+    }))).rejects.toMatchObject({
+      status: 409,
+      message: "This user already has 2 active reservations (limit: 2).",
+    });
+
+    expect(mockTx.booking.count).toHaveBeenCalledWith({
+      where: {
+        requesterUserId: "user-1",
+        kind: BookingKind.RESERVATION,
+        status: "BOOKED",
+      },
+    });
+    expect(mockTx.booking.create).not.toHaveBeenCalled();
+  });
+
+  it("BUG: creates a reservation when the transactional count is just below the cap", async () => {
+    mockTx.booking.count.mockResolvedValueOnce(1);
+
+    await createBooking(baseInput({
+      kind: BookingKind.RESERVATION,
+      custodySource: undefined,
+      maxConcurrentReservations: 2,
+    }));
+
+    expect(mockTx.booking.count).toHaveBeenCalledOnce();
+    expect(mockTx.booking.create).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["zero", 0],
+    ["fraction", 1.5],
+    ["NaN", Number.NaN],
+    ["infinity", Number.POSITIVE_INFINITY],
+    ["above maximum", 51],
+  ])("BUG: rejects a malformed reservation cap: %s", async (_label, maxConcurrentReservations) => {
+    await expect(createBooking(baseInput({
+      kind: BookingKind.RESERVATION,
+      custodySource: undefined,
+      maxConcurrentReservations,
+    }))).rejects.toMatchObject({
+      status: 400,
+      message: "maxConcurrentReservations must be a whole number between 1 and 50",
+    });
+
+    expect(transactionCalls).toHaveLength(0);
+    expect(mockTx.booking.count).not.toHaveBeenCalled();
   });
 
   it("normalizes the stored title while preserving sport codes", async () => {
@@ -240,6 +324,33 @@ describe("createBooking", () => {
     expect(mockTx.bulkStockMovement.createMany).toHaveBeenCalled();
   });
 
+  it("allows a direct checkout at the 10-SKU execution boundary", async () => {
+    const bulkItems = bulkRequests(MAX_CHECKOUT_DISTINCT_BULK_SKUS_PER_REQUEST);
+    mockTx.bulkStockBalance.findMany.mockResolvedValue(
+      bulkItems.map((item) => ({ bulkSkuId: item.bulkSkuId, onHandQuantity: 10 })),
+    );
+
+    await createBooking(baseInput({ serializedAssetIds: [], bulkItems }));
+
+    expect(mockTx.bulkStockBalance.upsert).toHaveBeenCalledTimes(
+      MAX_CHECKOUT_DISTINCT_BULK_SKUS_PER_REQUEST,
+    );
+  });
+
+  it("rejects a direct checkout above 10 distinct bulk SKUs before transaction work", async () => {
+    await expect(createBooking(baseInput({
+      serializedAssetIds: [],
+      bulkItems: bulkRequests(MAX_CHECKOUT_DISTINCT_BULK_SKUS_PER_REQUEST + 1),
+    }))).rejects.toMatchObject({
+      status: 400,
+      message: `A checkout may include at most ${MAX_CHECKOUT_DISTINCT_BULK_SKUS_PER_REQUEST} distinct bulk item types`,
+    });
+
+    expect(transactionCalls).toHaveLength(0);
+    expect(checkAvailability).not.toHaveBeenCalled();
+    expect(mockTx.booking.create).not.toHaveBeenCalled();
+  });
+
   it("creates bulk items but NO stock movements for RESERVATION", async () => {
     await createBooking(baseInput({
       kind: "RESERVATION",
@@ -249,6 +360,93 @@ describe("createBooking", () => {
 
     expect(mockTx.bookingBulkItem.createMany).toHaveBeenCalled();
     expect(mockTx.bulkStockMovement.createMany).not.toHaveBeenCalled();
+  });
+
+  it("keeps the 50-line boundary available for reservation-only planning", async () => {
+    const bulkItems = bulkRequests(MAX_BULK_SKU_LINES_PER_REQUEST);
+
+    await createBooking(baseInput({
+      kind: BookingKind.RESERVATION,
+      custodySource: undefined,
+      serializedAssetIds: [],
+      bulkItems,
+    }));
+
+    expect(mockTx.bookingBulkItem.createMany).toHaveBeenCalledWith({
+      data: bulkItems.map((item) => ({
+        bookingId: "b-new",
+        bulkSkuId: item.bulkSkuId,
+        plannedQuantity: item.quantity,
+      })),
+    });
+    expect(db.$transaction).toHaveBeenCalledTimes(1);
+    expect(mockTx.bulkStockBalance.upsert).not.toHaveBeenCalled();
+    expect(scheduleCheckoutReturnLiveActivity).not.toHaveBeenCalled();
+  });
+
+  it("allows a numbered reservation at the native pickup checklist ceiling", async () => {
+    mockTx.bulkSku.findMany.mockResolvedValue([{ id: "sku-numbered" }]);
+
+    await createBooking(baseInput({
+      kind: BookingKind.RESERVATION,
+      custodySource: undefined,
+      serializedAssetIds: [],
+      bulkItems: [{
+        bulkSkuId: "sku-numbered",
+        quantity: MAX_EQUIPMENT_SELECTIONS_PER_REQUEST,
+      }],
+    }));
+
+    expect(mockTx.bulkSku.findMany).toHaveBeenCalledWith({
+      where: {
+        id: { in: ["sku-numbered"] },
+        trackByNumber: true,
+      },
+      select: { id: true },
+    });
+    expect(mockTx.bookingBulkItem.createMany).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a numbered reservation above the native pickup checklist ceiling before availability or writes", async () => {
+    mockTx.bulkSku.findMany.mockResolvedValue([
+      { id: "sku-numbered-1" },
+      { id: "sku-numbered-2" },
+    ]);
+
+    await expect(createBooking(baseInput({
+      kind: BookingKind.RESERVATION,
+      custodySource: undefined,
+      serializedAssetIds: [],
+      bulkItems: [
+        { bulkSkuId: "sku-numbered-1", quantity: 250 },
+        { bulkSkuId: "sku-numbered-2", quantity: 251 },
+      ],
+    }))).rejects.toMatchObject({
+      status: 400,
+      message: `Numbered pickup plans support at most ${MAX_EQUIPMENT_SELECTIONS_PER_REQUEST} units total`,
+    });
+
+    expect(checkAvailability).not.toHaveBeenCalled();
+    expect(mockTx.booking.create).not.toHaveBeenCalled();
+    expect(mockTx.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it("allows large quantity-tracked reservation quantities without expanding them into pickup units", async () => {
+    await createBooking(baseInput({
+      kind: BookingKind.RESERVATION,
+      custodySource: undefined,
+      serializedAssetIds: [],
+      bulkItems: [{ bulkSkuId: "sku-quantity", quantity: 1_000_000 }],
+    }));
+
+    expect(mockTx.bulkSku.findMany).toHaveBeenCalledOnce();
+    expect(mockTx.bookingBulkItem.createMany).toHaveBeenCalledWith({
+      data: [{
+        bookingId: "b-new",
+        bulkSkuId: "sku-quantity",
+        plannedQuantity: 1_000_000,
+      }],
+    });
   });
 
   it("creates audit log", async () => {
@@ -377,18 +575,62 @@ describe("createBooking", () => {
     });
   });
 
-  it("maps serializable transaction races to retryable conflicts", async () => {
-    vi.mocked(db.$transaction).mockRejectedValueOnce(
-      new Prisma.PrismaClientKnownRequestError("Serializable conflict", {
-        code: "P2034",
-        clientVersion: "test",
-      }),
-    );
+  it("BUG: retries a serialization conflict once and then observes the reservation cap", async () => {
+    vi.mocked(db.$transaction).mockRejectedValueOnce(serializableConflict());
+    mockTx.booking.count.mockResolvedValueOnce(2);
+
+    await expect(createBooking(baseInput({
+      kind: BookingKind.RESERVATION,
+      custodySource: undefined,
+      maxConcurrentReservations: 2,
+    }))).rejects.toMatchObject({
+      status: 409,
+      message: "This user already has 2 active reservations (limit: 2).",
+    });
+
+    expect(db.$transaction).toHaveBeenCalledTimes(2);
+    expect(mockTx.booking.count).toHaveBeenCalledOnce();
+    expect(mockTx.booking.create).not.toHaveBeenCalled();
+    expect(mockTx.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it("BUG: maps a persistent serialization conflict to a friendly 409 after one retry", async () => {
+    vi.mocked(db.$transaction)
+      .mockRejectedValueOnce(serializableConflict())
+      .mockRejectedValueOnce(serializableConflict());
 
     await expect(createBooking(baseInput())).rejects.toMatchObject({
       status: 409,
       message: "Someone else submitted at the same time; please try again.",
     });
+
+    expect(db.$transaction).toHaveBeenCalledTimes(2);
+    expect(scheduleCheckoutReturnLiveActivity).not.toHaveBeenCalled();
+  });
+
+  it("BUG: runs post-commit checkout effects once after a successful serialization retry", async () => {
+    vi.mocked(db.$transaction).mockRejectedValueOnce(serializableConflict());
+    mockTx.booking.findUnique.mockResolvedValue({
+      id: "rv-1",
+      kind: BookingKind.RESERVATION,
+      status: "BOOKED",
+      locationId: "loc-1",
+      serializedItems: [],
+      bulkItems: [],
+    });
+    const endsAt = new Date("2026-04-01T17:00:00Z");
+    mockTx.booking.findUniqueOrThrow.mockResolvedValue({
+      id: "b-new",
+      kind: BookingKind.CHECKOUT,
+      status: "OPEN",
+      endsAt,
+    });
+
+    await createBooking(baseInput({ sourceReservationId: "rv-1" }));
+
+    expect(db.$transaction).toHaveBeenCalledTimes(2);
+    expect(scheduleCheckoutReturnLiveActivity).toHaveBeenCalledTimes(1);
+    expect(scheduleCheckoutReturnLiveActivity).toHaveBeenCalledWith({ bookingId: "b-new", endsAt });
   });
 
   // Source reservation tests
@@ -418,6 +660,33 @@ describe("createBooking", () => {
         data: { status: "COMPLETED", completedAt: expect.any(Date) },
       })
     );
+  });
+
+  it("rejects reservation pickup above 10 distinct bulk SKUs before availability or writes", async () => {
+    mockTx.booking.findUnique.mockResolvedValue({
+      id: "rv-1",
+      kind: BookingKind.RESERVATION,
+      status: "BOOKED",
+      locationId: "loc-1",
+      serializedItems: [],
+      bulkItems: bulkRequests(MAX_CHECKOUT_DISTINCT_BULK_SKUS_PER_REQUEST + 1).map((item) => ({
+        bulkSkuId: item.bulkSkuId,
+        plannedQuantity: item.quantity,
+      })),
+    });
+
+    await expect(createBooking(baseInput({
+      sourceReservationId: "rv-1",
+      serializedAssetIds: [],
+      bulkItems: [],
+    }))).rejects.toMatchObject({
+      status: 400,
+      message: `A reservation pickup may include at most ${MAX_CHECKOUT_DISTINCT_BULK_SKUS_PER_REQUEST} distinct bulk item types`,
+    });
+
+    expect(checkAvailability).not.toHaveBeenCalled();
+    expect(mockTx.booking.create).not.toHaveBeenCalled();
+    expect(mockTx.booking.update).not.toHaveBeenCalled();
   });
 
   it("throws 400 when the requester does not exist", async () => {

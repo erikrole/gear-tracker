@@ -36,9 +36,17 @@ import {
   type CollaboratorActor,
 } from "@/lib/collaborator-access";
 import { collaboratorPolicyActorSelect } from "@/lib/services/collaborator-policies";
+import {
+  MAX_CHECKOUT_BULK_LINE_CHANGES_PER_REQUEST,
+  MAX_EQUIPMENT_SELECTIONS_PER_REQUEST,
+} from "@/lib/request-limits";
+import { assertCheckoutDistinctBulkSkuLimit } from "@/lib/services/kiosk-checkout-complete";
 
 type CreateBookingInput = {
   kind: BookingKind;
+  /** Reservation-only concurrency cap. When present, the active BOOKED count
+   * is checked in the same SERIALIZABLE transaction as the insert. */
+  maxConcurrentReservations?: number;
   custodySource?: "KIOSK";
   title: string;
   requesterUserId: string;
@@ -151,9 +159,67 @@ function assertValidCreateEquipment(serializedAssetIds: string[], bulkItems: Bul
   }
 }
 
+async function assertNumberedPickupPlanLimit(
+  tx: Prisma.TransactionClient,
+  bulkItems: BulkRequest[],
+) {
+  if (bulkItems.length === 0) return;
+
+  const numberedSkus = await tx.bulkSku.findMany({
+    where: {
+      id: { in: [...new Set(bulkItems.map((item) => item.bulkSkuId))] },
+      trackByNumber: true,
+    },
+    select: { id: true },
+  });
+  const numberedSkuIds = new Set(numberedSkus.map((sku) => sku.id));
+  const numberedPickupTotal = bulkItems.reduce(
+    (total, item) => total + (numberedSkuIds.has(item.bulkSkuId) ? item.quantity : 0),
+    0,
+  );
+
+  if (numberedPickupTotal > MAX_EQUIPMENT_SELECTIONS_PER_REQUEST) {
+    throw new HttpError(
+      400,
+      `Numbered pickup plans support at most ${MAX_EQUIPMENT_SELECTIONS_PER_REQUEST} units total`,
+    );
+  }
+}
+
+function assertCheckoutBulkLineChangeLimit(
+  existingItems: Array<{ bulkSkuId: string; plannedQuantity: number }>,
+  nextItems: BulkRequest[],
+) {
+  const nextBySku = new Map(nextItems.map((item) => [item.bulkSkuId, item.quantity]));
+  const existingSkuIds = new Set(existingItems.map((item) => item.bulkSkuId));
+  const changedExistingCount = existingItems.filter(
+    (item) => nextBySku.get(item.bulkSkuId) !== item.plannedQuantity,
+  ).length;
+  const addedCount = nextItems.filter((item) => !existingSkuIds.has(item.bulkSkuId)).length;
+  const changeCount = changedExistingCount + addedCount;
+
+  if (changeCount > MAX_CHECKOUT_BULK_LINE_CHANGES_PER_REQUEST) {
+    throw new HttpError(
+      400,
+      `Change at most ${MAX_CHECKOUT_BULK_LINE_CHANGES_PER_REQUEST} bulk lines per checkout update`,
+    );
+  }
+}
+
 function assertCheckoutCustodySource(input: CreateBookingInput) {
   if (input.kind === BookingKind.CHECKOUT && input.custodySource !== "KIOSK") {
     throw new HttpError(403, "Direct checkout custody can only be created at a kiosk");
+  }
+}
+
+function assertValidMaxConcurrentReservations(input: CreateBookingInput) {
+  const cap = input.maxConcurrentReservations;
+  if (cap === undefined) return;
+  if (input.kind !== BookingKind.RESERVATION) {
+    throw new HttpError(400, "maxConcurrentReservations only applies to reservations");
+  }
+  if (!Number.isFinite(cap) || !Number.isInteger(cap) || cap < 1 || cap > 50) {
+    throw new HttpError(400, "maxConcurrentReservations must be a whole number between 1 and 50");
   }
 }
 
@@ -170,6 +236,15 @@ function isSerializableConflict(error: unknown) {
   const code = (error as { code?: unknown }).code;
   const metaCode = (error as { meta?: { code?: unknown } }).meta?.code;
   return code === "P2034" || code === "40001" || metaCode === "40001";
+}
+
+async function withSerializableRetryOnce<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (!isSerializableConflict(error)) throw error;
+    return operation();
+  }
 }
 
 function isBookingAllocationConstraintError(error: unknown) {
@@ -234,341 +309,371 @@ export async function createBooking(input: CreateBookingInput) {
   assertValidBookingWindow(input.startsAt, input.endsAt);
   assertValidCreateEventLinks(input);
   assertCheckoutCustodySource(input);
+  assertValidMaxConcurrentReservations(input);
+  if (input.kind === BookingKind.CHECKOUT && input.bulkItems.length > 0) {
+    assertCheckoutDistinctBulkSkuLimit(input.bulkItems);
+  }
   if (input.bulkUnitItems && input.bulkUnitItems.length > 0 && input.kind !== BookingKind.CHECKOUT) {
     throw new HttpError(400, "bulkUnitItems only apply to checkout custody");
   }
 
   try {
-    const booking = await db.$transaction(
-    async (tx) => {
-      // A missing requester would otherwise surface as an FK 500; an inactive
-      // one would silently hold gear they can no longer account for.
-      const requester = await tx.user.findUnique({
-        where: { id: input.requesterUserId },
-        select: {
-          active: true,
-          role: true,
-          collaboratorProfile: true,
-          collaboratorPolicy: { select: collaboratorPolicyActorSelect },
-        },
-      });
-      if (!requester) throw new HttpError(400, "Requester not found");
-      if (!requester.active) throw new HttpError(400, "Cannot create a booking for an inactive user");
-
-      // Resolve items from source reservation if provided
-      let resolvedSerializedAssetIds = dedupeIds(input.serializedAssetIds);
-      let resolvedBulkItems = input.bulkItems;
-
-      if (input.sourceReservationId) {
-        const sourceReservation = await tx.booking.findUnique({
-          where: { id: input.sourceReservationId },
-          include: { serializedItems: true, bulkItems: true }
-        });
-
-        if (!sourceReservation) {
-          throw new HttpError(404, "Source reservation not found");
-        }
-        if (sourceReservation.kind !== BookingKind.RESERVATION) {
-          throw new HttpError(400, "sourceReservationId does not refer to a reservation");
-        }
-        if (sourceReservation.status !== BookingStatus.BOOKED) {
-          throw new HttpError(400, `Source reservation is not in BOOKED status (current: ${sourceReservation.status})`);
-        }
-        if (sourceReservation.locationId !== input.locationId) {
-          throw new HttpError(400, "Source reservation belongs to a different location");
-        }
-
-        if (resolvedSerializedAssetIds.length === 0) {
-          resolvedSerializedAssetIds = sourceReservation.serializedItems.map((item) => item.assetId);
-        }
-        if (resolvedBulkItems.length === 0) {
-          resolvedBulkItems = sourceReservation.bulkItems.map((item) => ({
-            bulkSkuId: item.bulkSkuId,
-            quantity: item.plannedQuantity
-          }));
-        }
-      }
-
-      assertValidCreateEquipment(resolvedSerializedAssetIds, resolvedBulkItems);
-
-      const availability = await checkAvailability(tx, {
-        locationId: input.locationId,
-        startsAt: input.startsAt,
-        endsAt: input.endsAt,
-        serializedAssetIds: resolvedSerializedAssetIds,
-        bulkItems: resolvedBulkItems,
-        excludeBookingId: input.sourceReservationId,
-        bookingKind: input.kind,
-      });
-
-      if (availability.conflicts.length > 0 || availability.shortages.length > 0 || availability.unavailableAssets.length > 0) {
-        throw new HttpError(409, "Availability conflict", availability);
-      }
-
-      const status = input.kind === BookingKind.RESERVATION
-        ? BookingStatus.BOOKED
-        : input.custodySource === "KIOSK" && input.sourceReservationId
-          ? BookingStatus.OPEN
-          : BookingStatus.PENDING_PICKUP;
-
-      // Resolve event linking: multi-event (eventIds) or legacy single (eventId).
-      // Sort chronologically so primary = first.
-      const requestedEventIds = input.eventIds && input.eventIds.length > 0
-        ? input.eventIds
-        : input.eventId ? [input.eventId] : [];
-      let sortedEventIds: string[] = [];
-      if (requestedEventIds.length > 0) {
-        const events = await tx.calendarEvent.findMany({
-          where: eventLinkWhereForActor(requestedEventIds, requester),
-          select: { id: true, startsAt: true },
-        });
-        if (events.length !== requestedEventIds.length) {
-          throw new HttpError(400, "One or more eventIds do not exist");
-        }
-        sortedEventIds = [...events]
-          .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
-          .map((e) => e.id);
-      }
-      const primaryEventId = sortedEventIds[0] ?? null;
-
-      const prefix = input.kind === BookingKind.CHECKOUT ? "CO" : "RV";
-      const refNumber = await nextBookingRef(tx, prefix);
-
-      const title = normalizeBookingTitle(input.title);
-      const booking = await tx.booking.create({
-        data: {
-          kind: input.kind,
-          title,
-          refNumber,
-          requesterUserId: input.requesterUserId,
-          locationId: input.locationId,
-          startsAt: input.startsAt,
-          endsAt: input.endsAt,
-          status,
-          createdBy: input.createdBy,
-          notes: input.notes,
-          sourceReservationId: input.sourceReservationId ?? null,
-          eventId: primaryEventId,
-          sportCode: input.sportCode ?? null,
-          shiftAssignmentId: input.shiftAssignmentId ?? null,
-          kitId: input.kitId ?? null,
-          pickupKioskDeviceId: input.pickupKioskDeviceId ?? null
-        }
-      });
-
-      if (sortedEventIds.length > 0) {
-        await tx.bookingEvent.createMany({
-          data: sortedEventIds.map((eventId, ordinal) => ({
-            bookingId: booking.id,
-            eventId,
-            ordinal,
-          })),
-        });
-        if (
-          input.kind === BookingKind.RESERVATION &&
-          hasCollaboratorCapability(requester, "SCHEDULE_FOLLOW")
-        ) {
-          await tx.scheduleEventFollow.createMany({
-            data: sortedEventIds.map((eventId) => ({
-              userId: input.requesterUserId,
-              eventId,
-              source: "BOOKING" as const,
-            })),
-            skipDuplicates: true,
-          });
-        }
-      }
-
-      if (resolvedSerializedAssetIds.length > 0) {
-        await tx.bookingSerializedItem.createMany({
-          data: resolvedSerializedAssetIds.map((assetId) => ({
-            bookingId: booking.id,
-            assetId,
-            allocationStatus: "active"
-          }))
-        });
-
-        await tx.assetAllocation.createMany({
-          data: resolvedSerializedAssetIds.map((assetId) => ({
-            bookingId: booking.id,
-            assetId,
-            startsAt: input.startsAt,
-            endsAt: input.endsAt,
-            active: true,
-            kind: input.kind === BookingKind.RESERVATION ? AllocationKind.RESERVATION : AllocationKind.CHECKOUT
-          }))
-        });
-      }
-
-      if (resolvedBulkItems.length > 0) {
-        await tx.bookingBulkItem.createMany({
-          data: resolvedBulkItems.map((item) => ({
-            bookingId: booking.id,
-            bulkSkuId: item.bulkSkuId,
-            plannedQuantity: item.quantity,
-          }))
-        });
-
-        if (input.kind === BookingKind.CHECKOUT) {
-          await upsertBulkBalancesAndMovements(tx, {
-            locationId: input.locationId,
-            bookingId: booking.id,
-            actorUserId: input.createdBy,
-            kind: BulkMovementKind.CHECKOUT,
-            items: resolvedBulkItems
-          });
-        }
-      }
-
-      // Bind exact numbered bulk units (kiosk reservation pickup). Runs in the
-      // same transaction as booking creation and reservation fulfillment: if a
-      // unit was grabbed between scan-staging and confirm, everything rolls
-      // back and the reservation stays BOOKED so the student can retry.
-      if (input.bulkUnitItems && input.bulkUnitItems.length > 0) {
-        const checkoutBulkItems = await tx.bookingBulkItem.findMany({
-          where: { bookingId: booking.id },
-          select: {
-            id: true,
-            bulkSkuId: true,
-            plannedQuantity: true,
-            bulkSku: { select: { name: true, trackByNumber: true } },
-          },
-        });
-        const bulkItemBySku = new Map(checkoutBulkItems.map((item) => [item.bulkSkuId, item.id]));
-
-        const units = await tx.bulkSkuUnit.findMany({
-          where: {
-            OR: input.bulkUnitItems.map((item) => ({
-              bulkSkuId: item.bulkSkuId,
-              unitNumber: item.unitNumber,
-            })),
-          },
-          select: {
-            id: true,
-            bulkSkuId: true,
-            unitNumber: true,
-            status: true,
-            bulkSku: { select: { name: true } },
-            allocations: {
-              where: ACTIVE_BULK_UNIT_ALLOCATION_WHERE,
-              take: 1,
-              select: { id: true },
+    const booking = await withSerializableRetryOnce(() =>
+      db.$transaction(
+        async (tx) => {
+          // A missing requester would otherwise surface as an FK 500; an inactive
+          // one would silently hold gear they can no longer account for.
+          const requester = await tx.user.findUnique({
+            where: { id: input.requesterUserId },
+            select: {
+              active: true,
+              role: true,
+              collaboratorProfile: true,
+              collaboratorPolicy: { select: collaboratorPolicyActorSelect },
             },
-          },
-        });
-        if (units.length !== input.bulkUnitItems.length) {
-          throw new HttpError(404, "One or more battery units were not found");
-        }
-        const unbindable = units.find((unit) => !bulkItemBySku.has(unit.bulkSkuId));
-        if (unbindable) {
-          throw new HttpError(409, `${unbindable.bulkSku.name} #${unbindable.unitNumber} no longer matches this checkout`);
-        }
-        // Effective status, not raw: orphaned CHECKED_OUT flags with no active
-        // allocation are claimable and self-heal on claim.
-        const unavailable = units.find(
-          (unit) => effectiveBulkUnitStatus(unit, unit.allocations[0]) !== BulkUnitStatus.AVAILABLE,
-        );
-        if (unavailable) {
-          throw new HttpError(409, `${unavailable.bulkSku.name} #${unavailable.unitNumber} is no longer available`);
-        }
+          });
+          if (!requester) throw new HttpError(400, "Requester not found");
+          if (!requester.active) throw new HttpError(400, "Cannot create a booking for an inactive user");
 
-        // The ledger was decremented by plannedQuantity — custody must bind
-        // exactly that many units per numbered SKU, or the balance and the
-        // physical checkout disagree from the first minute. (The kiosk route
-        // blocks under-staging; this is the in-transaction backstop and also
-        // catches over-staging.)
-        for (const item of checkoutBulkItems) {
-          if (!item.bulkSku.trackByNumber) continue;
-          const bound = units.filter((unit) => unit.bulkSkuId === item.bulkSkuId).length;
-          if (bound !== item.plannedQuantity) {
-            throw new HttpError(
-              409,
-              `${item.bulkSku.name}: ${bound} of ${item.plannedQuantity} numbered units scanned — scan exactly the planned units before confirming`,
+          if (input.maxConcurrentReservations !== undefined) {
+            const activeCount = await tx.booking.count({
+              where: {
+                requesterUserId: input.requesterUserId,
+                kind: BookingKind.RESERVATION,
+                status: BookingStatus.BOOKED,
+              },
+            });
+            if (activeCount >= input.maxConcurrentReservations) {
+              throw new HttpError(
+                409,
+                `This user already has ${activeCount} active reservation${activeCount === 1 ? "" : "s"} (limit: ${input.maxConcurrentReservations}).`,
+              );
+            }
+          }
+
+          // Resolve items from source reservation if provided
+          let resolvedSerializedAssetIds = dedupeIds(input.serializedAssetIds);
+          let resolvedBulkItems = input.bulkItems;
+
+          if (input.sourceReservationId) {
+            const sourceReservation = await tx.booking.findUnique({
+              where: { id: input.sourceReservationId },
+              include: { serializedItems: true, bulkItems: true }
+            });
+
+            if (!sourceReservation) {
+              throw new HttpError(404, "Source reservation not found");
+            }
+            if (sourceReservation.kind !== BookingKind.RESERVATION) {
+              throw new HttpError(400, "sourceReservationId does not refer to a reservation");
+            }
+            if (sourceReservation.status !== BookingStatus.BOOKED) {
+              throw new HttpError(400, `Source reservation is not in BOOKED status (current: ${sourceReservation.status})`);
+            }
+            if (sourceReservation.locationId !== input.locationId) {
+              throw new HttpError(400, "Source reservation belongs to a different location");
+            }
+
+            if (resolvedSerializedAssetIds.length === 0) {
+              resolvedSerializedAssetIds = sourceReservation.serializedItems.map((item) => item.assetId);
+            }
+            if (resolvedBulkItems.length === 0) {
+              resolvedBulkItems = sourceReservation.bulkItems.map((item) => ({
+                bulkSkuId: item.bulkSkuId,
+                quantity: item.plannedQuantity
+              }));
+            }
+          }
+
+          assertValidCreateEquipment(resolvedSerializedAssetIds, resolvedBulkItems);
+          if (input.kind === BookingKind.CHECKOUT) {
+            assertCheckoutDistinctBulkSkuLimit(
+              resolvedBulkItems,
+              input.sourceReservationId ? "reservation pickup" : "checkout",
             );
           }
-        }
+          await assertNumberedPickupPlanLimit(tx, resolvedBulkItems);
 
-        const updatedUnits = await tx.bulkSkuUnit.updateMany({
-          where: { id: { in: units.map((unit) => unit.id) }, ...CLAIMABLE_BULK_UNIT_WHERE },
-          data: { status: BulkUnitStatus.CHECKED_OUT },
-        });
-        if (updatedUnits.count !== units.length) {
-          throw new HttpError(409, "One or more battery units are no longer available");
-        }
+          const availability = await checkAvailability(tx, {
+            locationId: input.locationId,
+            startsAt: input.startsAt,
+            endsAt: input.endsAt,
+            serializedAssetIds: resolvedSerializedAssetIds,
+            bulkItems: resolvedBulkItems,
+            excludeBookingId: input.sourceReservationId,
+            bookingKind: input.kind,
+          });
 
-        const checkedOutAt = new Date();
-        await tx.bookingBulkUnitAllocation.createMany({
-          data: units.map((unit) => ({
-            bookingBulkItemId: bulkItemBySku.get(unit.bulkSkuId)!,
-            bulkSkuUnitId: unit.id,
-            checkedOutAt,
-          })),
-        });
+          if (availability.conflicts.length > 0 || availability.shortages.length > 0 || availability.unavailableAssets.length > 0) {
+            throw new HttpError(409, "Availability conflict", availability);
+          }
 
-        for (const [bulkSkuId, bulkItemId] of bulkItemBySku) {
-          const quantity = units.filter((unit) => unit.bulkSkuId === bulkSkuId).length;
-          if (quantity > 0) {
-            await tx.bookingBulkItem.update({
-              where: { id: bulkItemId },
-              data: { checkedOutQuantity: quantity },
+          const status = input.kind === BookingKind.RESERVATION
+            ? BookingStatus.BOOKED
+            : input.custodySource === "KIOSK" && input.sourceReservationId
+              ? BookingStatus.OPEN
+              : BookingStatus.PENDING_PICKUP;
+
+          // Resolve event linking: multi-event (eventIds) or legacy single (eventId).
+          // Sort chronologically so primary = first.
+          const requestedEventIds = input.eventIds && input.eventIds.length > 0
+            ? input.eventIds
+            : input.eventId ? [input.eventId] : [];
+          let sortedEventIds: string[] = [];
+          if (requestedEventIds.length > 0) {
+            const events = await tx.calendarEvent.findMany({
+              where: eventLinkWhereForActor(requestedEventIds, requester),
+              select: { id: true, startsAt: true },
+            });
+            if (events.length !== requestedEventIds.length) {
+              throw new HttpError(400, "One or more eventIds do not exist");
+            }
+            sortedEventIds = [...events]
+              .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
+              .map((e) => e.id);
+          }
+          const primaryEventId = sortedEventIds[0] ?? null;
+
+          const prefix = input.kind === BookingKind.CHECKOUT ? "CO" : "RV";
+          const refNumber = await nextBookingRef(tx, prefix);
+
+          const title = normalizeBookingTitle(input.title);
+          const booking = await tx.booking.create({
+            data: {
+              kind: input.kind,
+              title,
+              refNumber,
+              requesterUserId: input.requesterUserId,
+              locationId: input.locationId,
+              startsAt: input.startsAt,
+              endsAt: input.endsAt,
+              status,
+              createdBy: input.createdBy,
+              notes: input.notes,
+              sourceReservationId: input.sourceReservationId ?? null,
+              eventId: primaryEventId,
+              sportCode: input.sportCode ?? null,
+              shiftAssignmentId: input.shiftAssignmentId ?? null,
+              kitId: input.kitId ?? null,
+              pickupKioskDeviceId: input.pickupKioskDeviceId ?? null
+            }
+          });
+
+          if (sortedEventIds.length > 0) {
+            await tx.bookingEvent.createMany({
+              data: sortedEventIds.map((eventId, ordinal) => ({
+                bookingId: booking.id,
+                eventId,
+                ordinal,
+              })),
+            });
+            if (
+              input.kind === BookingKind.RESERVATION &&
+              hasCollaboratorCapability(requester, "SCHEDULE_FOLLOW")
+            ) {
+              await tx.scheduleEventFollow.createMany({
+                data: sortedEventIds.map((eventId) => ({
+                  userId: input.requesterUserId,
+                  eventId,
+                  source: "BOOKING" as const,
+                })),
+                skipDuplicates: true,
+              });
+            }
+          }
+
+          if (resolvedSerializedAssetIds.length > 0) {
+            await tx.bookingSerializedItem.createMany({
+              data: resolvedSerializedAssetIds.map((assetId) => ({
+                bookingId: booking.id,
+                assetId,
+                allocationStatus: "active"
+              }))
+            });
+
+            await tx.assetAllocation.createMany({
+              data: resolvedSerializedAssetIds.map((assetId) => ({
+                bookingId: booking.id,
+                assetId,
+                startsAt: input.startsAt,
+                endsAt: input.endsAt,
+                active: true,
+                kind: input.kind === BookingKind.RESERVATION ? AllocationKind.RESERVATION : AllocationKind.CHECKOUT
+              }))
             });
           }
-        }
-      }
 
-      const actorRole = await lookupActorRole(tx, input.createdBy);
+          if (resolvedBulkItems.length > 0) {
+            const checkoutUnitCountBySku = new Map<string, number>();
+            for (const unit of input.bulkUnitItems ?? []) {
+              checkoutUnitCountBySku.set(
+                unit.bulkSkuId,
+                (checkoutUnitCountBySku.get(unit.bulkSkuId) ?? 0) + 1,
+              );
+            }
+            await tx.bookingBulkItem.createMany({
+              data: resolvedBulkItems.map((item) => {
+                const checkedOutQuantity = checkoutUnitCountBySku.get(item.bulkSkuId);
+                return {
+                  bookingId: booking.id,
+                  bulkSkuId: item.bulkSkuId,
+                  plannedQuantity: item.quantity,
+                  ...(checkedOutQuantity === undefined ? {} : { checkedOutQuantity }),
+                };
+              })
+            });
 
-      await createAuditEntryTx(tx, {
-        actorId: input.createdBy,
-        actorRole,
-        entityType: "booking",
-        entityId: booking.id,
-        action: "created",
-        after: {
-          kind: input.kind,
-          title,
-          startsAt: input.startsAt,
-          endsAt: input.endsAt,
-          serializedAssetIds: resolvedSerializedAssetIds,
-          bulkItems: resolvedBulkItems,
-          sourceReservationId: input.sourceReservationId,
-          eventIds: sortedEventIds,
+            if (input.kind === BookingKind.CHECKOUT) {
+              await upsertBulkBalancesAndMovements(tx, {
+                locationId: input.locationId,
+                bookingId: booking.id,
+                actorUserId: input.createdBy,
+                kind: BulkMovementKind.CHECKOUT,
+                items: resolvedBulkItems
+              });
+            }
+          }
+
+          // Bind exact numbered bulk units (kiosk reservation pickup). Runs in the
+          // same transaction as booking creation and reservation fulfillment: if a
+          // unit was grabbed between scan-staging and confirm, everything rolls
+          // back and the reservation stays BOOKED so the student can retry.
+          if (input.bulkUnitItems && input.bulkUnitItems.length > 0) {
+            const checkoutBulkItems = await tx.bookingBulkItem.findMany({
+              where: { bookingId: booking.id },
+              select: {
+                id: true,
+                bulkSkuId: true,
+                plannedQuantity: true,
+                bulkSku: { select: { name: true, trackByNumber: true } },
+              },
+            });
+            const bulkItemBySku = new Map(checkoutBulkItems.map((item) => [item.bulkSkuId, item.id]));
+
+            const units = await tx.bulkSkuUnit.findMany({
+              where: {
+                OR: input.bulkUnitItems.map((item) => ({
+                  bulkSkuId: item.bulkSkuId,
+                  unitNumber: item.unitNumber,
+                })),
+              },
+              select: {
+                id: true,
+                bulkSkuId: true,
+                unitNumber: true,
+                status: true,
+                bulkSku: { select: { name: true } },
+                allocations: {
+                  where: ACTIVE_BULK_UNIT_ALLOCATION_WHERE,
+                  take: 1,
+                  select: { id: true },
+                },
+              },
+            });
+            if (units.length !== input.bulkUnitItems.length) {
+              throw new HttpError(404, "One or more battery units were not found");
+            }
+            const unbindable = units.find((unit) => !bulkItemBySku.has(unit.bulkSkuId));
+            if (unbindable) {
+              throw new HttpError(409, `${unbindable.bulkSku.name} #${unbindable.unitNumber} no longer matches this checkout`);
+            }
+            // Effective status, not raw: orphaned CHECKED_OUT flags with no active
+            // allocation are claimable and self-heal on claim.
+            const unavailable = units.find(
+              (unit) => effectiveBulkUnitStatus(unit, unit.allocations[0]) !== BulkUnitStatus.AVAILABLE,
+            );
+            if (unavailable) {
+              throw new HttpError(409, `${unavailable.bulkSku.name} #${unavailable.unitNumber} is no longer available`);
+            }
+
+            // The ledger was decremented by plannedQuantity — custody must bind
+            // exactly that many units per numbered SKU, or the balance and the
+            // physical checkout disagree from the first minute. (The kiosk route
+            // blocks under-staging; this is the in-transaction backstop and also
+            // catches over-staging.)
+            for (const item of checkoutBulkItems) {
+              if (!item.bulkSku.trackByNumber) continue;
+              const bound = units.filter((unit) => unit.bulkSkuId === item.bulkSkuId).length;
+              if (bound !== item.plannedQuantity) {
+                throw new HttpError(
+                  409,
+                  `${item.bulkSku.name}: ${bound} of ${item.plannedQuantity} numbered units scanned — scan exactly the planned units before confirming`,
+                );
+              }
+            }
+
+            const updatedUnits = await tx.bulkSkuUnit.updateMany({
+              where: { id: { in: units.map((unit) => unit.id) }, ...CLAIMABLE_BULK_UNIT_WHERE },
+              data: { status: BulkUnitStatus.CHECKED_OUT },
+            });
+            if (updatedUnits.count !== units.length) {
+              throw new HttpError(409, "One or more battery units are no longer available");
+            }
+
+            const checkedOutAt = new Date();
+            await tx.bookingBulkUnitAllocation.createMany({
+              data: units.map((unit) => ({
+                bookingBulkItemId: bulkItemBySku.get(unit.bulkSkuId)!,
+                bulkSkuUnitId: unit.id,
+                checkedOutAt,
+              })),
+            });
+          }
+
+          const actorRole = await lookupActorRole(tx, input.createdBy);
+
+          await createAuditEntryTx(tx, {
+            actorId: input.createdBy,
+            actorRole,
+            entityType: "booking",
+            entityId: booking.id,
+            action: "created",
+            after: {
+              kind: input.kind,
+              title,
+              startsAt: input.startsAt,
+              endsAt: input.endsAt,
+              serializedAssetIds: resolvedSerializedAssetIds,
+              bulkItems: resolvedBulkItems,
+              sourceReservationId: input.sourceReservationId,
+              eventIds: sortedEventIds,
+            },
+          });
+
+          // Fulfill the source reservation atomically within the same transaction.
+          if (input.sourceReservationId) {
+            await tx.booking.update({
+              where: { id: input.sourceReservationId },
+              data: { status: BookingStatus.COMPLETED, completedAt: new Date() }
+            });
+
+            await tx.assetAllocation.updateMany({
+              where: { bookingId: input.sourceReservationId },
+              data: { active: false }
+            });
+
+            await tx.scanSession.updateMany({
+              where: { bookingId: input.sourceReservationId, status: ScanSessionStatus.OPEN },
+              data: { status: ScanSessionStatus.CANCELLED }
+            });
+
+            await createAuditEntryTx(tx, {
+              actorId: input.createdBy,
+              actorRole,
+              entityType: "booking",
+              entityId: input.sourceReservationId,
+              action: "fulfilled_by_kiosk_pickup",
+              after: { convertedToCheckoutId: booking.id },
+            });
+          }
+
+          return tx.booking.findUniqueOrThrow({
+            where: { id: booking.id },
+            include: bookingInclude
+          });
         },
-      });
-
-      // Fulfill the source reservation atomically within the same transaction.
-      if (input.sourceReservationId) {
-        await tx.booking.update({
-          where: { id: input.sourceReservationId },
-          data: { status: BookingStatus.COMPLETED, completedAt: new Date() }
-        });
-
-        await tx.assetAllocation.updateMany({
-          where: { bookingId: input.sourceReservationId },
-          data: { active: false }
-        });
-
-        await tx.scanSession.updateMany({
-          where: { bookingId: input.sourceReservationId, status: ScanSessionStatus.OPEN },
-          data: { status: ScanSessionStatus.CANCELLED }
-        });
-
-        await createAuditEntryTx(tx, {
-          actorId: input.createdBy,
-          actorRole,
-          entityType: "booking",
-          entityId: input.sourceReservationId,
-          action: "fulfilled_by_kiosk_pickup",
-          after: { convertedToCheckoutId: booking.id },
-        });
-      }
-
-      return tx.booking.findUniqueOrThrow({
-        where: { id: booking.id },
-        include: bookingInclude
-      });
-    },
-    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      ),
     );
 
     if (booking.kind === BookingKind.CHECKOUT && booking.status === BookingStatus.OPEN) {
@@ -632,6 +737,10 @@ export async function updateReservation(
         }));
       const updatesEquipment = updates.serializedAssetIds !== undefined || updates.bulkItems !== undefined;
       const updatesWindow = updates.startsAt !== undefined || updates.endsAt !== undefined || updates.locationId !== undefined;
+
+      if (updatesEquipment) {
+        await assertNumberedPickupPlanLimit(tx, bulkItems);
+      }
 
       if (updatesEquipment || updatesWindow) {
         const availability = await checkAvailability(tx, {
@@ -985,6 +1094,11 @@ export async function updateCheckout(
         }));
       const updatesEquipment = updates.serializedAssetIds !== undefined || updates.bulkItems !== undefined;
       const updatesWindow = updates.endsAt !== undefined || updates.locationId !== undefined;
+
+      if (updates.bulkItems !== undefined) {
+        assertCheckoutDistinctBulkSkuLimit(bulkItems);
+        assertCheckoutBulkLineChangeLimit(existing.bulkItems, bulkItems);
+      }
 
       if (updatesEquipment || updatesWindow) {
         const availability = await checkAvailability(tx, {

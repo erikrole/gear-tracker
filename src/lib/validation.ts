@@ -4,9 +4,20 @@ import { sanitizeText } from "./sanitize";
 import { isSportCode, normalizeSportCode } from "./sports";
 import { normalizeBookingTitle } from "./title-normalization";
 import { nullableProfilePhoneSchema } from "./profile-phone";
+import {
+  MAX_BULK_QUANTITY_PER_LINE,
+  MAX_BULK_SKU_LINES_PER_REQUEST,
+  MAX_BULK_UNIT_NUMBER,
+  MAX_EQUIPMENT_SELECTIONS_PER_REQUEST,
+  MAX_NUMBERED_UNITS_PER_CREATE,
+  MAX_SPORT_CONFIG_GROUP_CODES_PER_REQUEST,
+  MAX_SPORT_ROSTER_USERS_PER_REQUEST,
+  MAX_SPORT_SHIFT_CONFIGS_PER_REQUEST,
+} from "./request-limits";
 
 const cuidSchema = z.string().cuid();
 const uuidSchema = z.string().uuid();
+const bulkUnitNumberSchema = z.number().int().positive().max(MAX_BULK_UNIT_NUMBER);
 
 export const databaseIdSchema = z.string().trim().min(1).refine(
   (value) => cuidSchema.safeParse(value).success || uuidSchema.safeParse(value).success,
@@ -71,10 +82,13 @@ export function sanitizeBookingFields<T extends Record<string, unknown>>(data: T
 
 const bulkItemSchema = z.object({
   bulkSkuId: z.string().cuid(),
-  quantity: z.number().int().positive()
+  quantity: z.number().int().positive().max(MAX_BULK_QUANTITY_PER_LINE),
 });
 
-const bulkItemsSchema = z.array(bulkItemSchema).default([]).superRefine((items, ctx) => {
+const bulkItemsSchema = z.array(bulkItemSchema)
+  .max(MAX_BULK_SKU_LINES_PER_REQUEST)
+  .default([])
+  .superRefine((items, ctx) => {
   const seen = new Set<string>();
   items.forEach((item, index) => {
     if (seen.has(item.bulkSkuId)) {
@@ -127,7 +141,7 @@ export const availabilitySchema = z.object({
   locationId: z.string().cuid(),
   startsAt: z.string(),
   endsAt: z.string(),
-  serializedAssetIds: z.array(z.string().cuid()).default([]),
+  serializedAssetIds: z.array(z.string().cuid()).max(MAX_EQUIPMENT_SELECTIONS_PER_REQUEST).default([]),
   bulkItems: bulkItemsSchema,
   excludeBookingId: z.string().cuid().optional(),
   // Optional so older clients keep legacy behavior; when present, preflight
@@ -142,7 +156,7 @@ const bookingBaseShape = {
   locationId: z.string().cuid(),
   startsAt: z.string(),
   endsAt: z.string(),
-  serializedAssetIds: z.array(z.string().cuid()).default([]),
+  serializedAssetIds: z.array(z.string().cuid()).max(MAX_EQUIPMENT_SELECTIONS_PER_REQUEST).default([]),
   bulkItems: bulkItemsSchema,
   eventId: z.string().cuid().optional(),
   eventIds: eventIdsSchema,
@@ -196,8 +210,23 @@ export const scanSchema = z.object({
   phase: z.enum(["CHECKOUT", "CHECKIN"]),
   scanType: z.enum(["SERIALIZED", "BULK_BIN"]),
   scanValue: z.string().trim().min(1),
-  quantity: z.number().int().positive().optional(),
-  unitNumbers: z.array(z.number().int().positive()).optional(),
+  quantity: z.number().int().positive().max(MAX_BULK_QUANTITY_PER_LINE).optional(),
+  unitNumbers: z.array(bulkUnitNumberSchema)
+    .max(MAX_NUMBERED_UNITS_PER_CREATE)
+    .superRefine((unitNumbers, ctx) => {
+      const seen = new Set<number>();
+      unitNumbers.forEach((unitNumber, index) => {
+        if (seen.has(unitNumber)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "unitNumbers must be unique",
+            path: [index],
+          });
+        }
+        seen.add(unitNumber);
+      });
+    })
+    .optional(),
   deviceContext: z.string().max(500).optional()
 });
 
@@ -219,10 +248,21 @@ export const createBulkSkuSchema = z.object({
   unit: z.string().min(1).default("ea"),
   locationId: databaseIdSchema,
   binQrCodeValue: z.string().min(1),
-  minThreshold: z.number().int().min(0).default(0),
+  minThreshold: z.number().int().min(0).max(MAX_BULK_QUANTITY_PER_LINE).default(0),
   active: z.boolean().default(true),
-  initialQuantity: z.number().int().min(0).default(0),
-  trackByNumber: z.boolean().default(false)
+  initialQuantity: z.number().int().min(0).max(MAX_BULK_QUANTITY_PER_LINE).default(0),
+  trackByNumber: z.boolean().default(false),
+}).superRefine((value, ctx) => {
+  if (value.trackByNumber && value.initialQuantity > MAX_NUMBERED_UNITS_PER_CREATE) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.too_big,
+      maximum: MAX_NUMBERED_UNITS_PER_CREATE,
+      inclusive: true,
+      type: "number",
+      path: ["initialQuantity"],
+      message: `Create at most ${MAX_NUMBERED_UNITS_PER_CREATE} numbered units at once`,
+    });
+  }
 });
 
 export const updateBulkSkuSchema = z.object({
@@ -232,7 +272,7 @@ export const updateBulkSkuSchema = z.object({
   departmentId: databaseIdSchema.nullable().optional(),
   unit: z.string().min(1).max(100).optional(),
   locationId: databaseIdSchema.optional(),
-  minThreshold: z.number().int().min(0).optional(),
+  minThreshold: z.number().int().min(0).max(MAX_BULK_QUANTITY_PER_LINE).optional(),
   purchasePrice: moneyDecimalSchema.nullable().optional(),
   purchaseLink: nullableHttpUrlSchema.optional(),
   notes: z.string().max(5000).nullable().optional(),
@@ -275,7 +315,7 @@ export const bulkUnitLabelExportQuerySchema = z.object({
 });
 
 export const markBulkUnitLabelsSchema = z.object({
-  unitNumbers: z.array(z.number().int().positive()).min(1).max(500),
+  unitNumbers: z.array(bulkUnitNumberSchema).min(1).max(500),
   printed: z.literal(true),
 });
 
@@ -423,8 +463,8 @@ export const updateBookingSchema = z.object({
   locationId: z.string().cuid().optional(),
   startsAt: z.string().datetime({ offset: true }).optional(),
   endsAt: z.string().datetime({ offset: true }).optional(),
-  serializedAssetIds: z.array(z.string().cuid()).optional(),
-  bulkItems: z.array(bulkItemSchema).optional(),
+  serializedAssetIds: z.array(z.string().cuid()).max(MAX_EQUIPMENT_SELECTIONS_PER_REQUEST).optional(),
+  bulkItems: bulkItemsSchema.optional(),
   notes: z.string().max(10000).optional()
 });
 
@@ -451,17 +491,33 @@ export const sportShiftConfigSchema = z.object({
   awayStudentCount: z.number().int().min(0).max(20).optional(),
 });
 
+const sportShiftConfigsSchema = z.array(sportShiftConfigSchema)
+  .max(MAX_SPORT_SHIFT_CONFIGS_PER_REQUEST)
+  .superRefine((shiftConfigs, ctx) => {
+    const seenAreas = new Set<ShiftArea>();
+    shiftConfigs.forEach((shiftConfig, index) => {
+      if (seenAreas.has(shiftConfig.area)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Shift config areas must be unique",
+          path: [index, "area"],
+        });
+      }
+      seenAreas.add(shiftConfig.area);
+    });
+  });
+
 export const upsertSportConfigSchema = z.object({
   sportCode: sportCodeSchema,
   active: z.boolean().optional(),
-  shiftConfigs: z.array(sportShiftConfigSchema).optional(),
+  shiftConfigs: sportShiftConfigsSchema.optional(),
   shiftStartOffset: z.number().int().min(0).max(480).optional(),
   shiftEndOffset: z.number().int().min(0).max(480).optional(),
 });
 
 export const updateSportConfigSchema = z.object({
   active: z.boolean().optional(),
-  shiftConfigs: z.array(sportShiftConfigSchema).optional(),
+  shiftConfigs: sportShiftConfigsSchema.optional(),
   shiftStartOffset: z.number().int().min(0).max(480).optional(),
   shiftEndOffset: z.number().int().min(0).max(480).optional(),
 });
@@ -469,9 +525,24 @@ export const updateSportConfigSchema = z.object({
 /** Group update — apply the same patch atomically to N sport codes. */
 export const updateSportConfigGroupSchema = z
   .object({
-    codes: z.array(sportCodeSchema).min(1).max(10),
+    codes: z.array(sportCodeSchema)
+      .min(1)
+      .max(MAX_SPORT_CONFIG_GROUP_CODES_PER_REQUEST)
+      .superRefine((codes, ctx) => {
+        const seenCodes = new Set<string>();
+        codes.forEach((code, index) => {
+          if (seenCodes.has(code)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Sport codes must be unique",
+              path: [index],
+            });
+          }
+          seenCodes.add(code);
+        });
+      }),
     active: z.boolean().optional(),
-    shiftConfigs: z.array(sportShiftConfigSchema).optional(),
+    shiftConfigs: sportShiftConfigsSchema.optional(),
     shiftStartOffset: z.number().int().min(0).max(480).optional(),
     shiftEndOffset: z.number().int().min(0).max(480).optional(),
   })
@@ -490,7 +561,7 @@ export const sportRosterSchema = z.object({
 });
 
 export const sportRosterBulkSchema = z.object({
-  userIds: z.array(z.string().cuid()).min(1),
+  userIds: z.array(z.string().cuid()).min(1).max(MAX_SPORT_ROSTER_USERS_PER_REQUEST),
   sportCode: sportCodeSchema,
 });
 

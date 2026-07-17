@@ -168,7 +168,9 @@ describe("/api/users/[id]/avatar", () => {
   });
 
   it("deletes the freshly uploaded blob when the database update fails", async () => {
-    vi.mocked(db.user.update).mockRejectedValueOnce(new Error("db down"));
+    const databaseError = new Error("db down");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(db.user.update).mockRejectedValueOnce(databaseError);
 
     const res = await POST(avatarPostRequest(), params());
 
@@ -176,6 +178,8 @@ describe("/api/users/[id]/avatar", () => {
     expect(deleteImage).toHaveBeenCalledWith("https://blob.example.com/new-avatar.webp");
     expect(deleteImage).not.toHaveBeenCalledWith(oldAvatarUrl);
     expect(createAuditEntry).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(databaseError);
+    consoleError.mockRestore();
   });
 
   it("blocks staff from changing another user's profile photo", async () => {

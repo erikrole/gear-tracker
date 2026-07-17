@@ -97,7 +97,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/settings/kiosk-devices`
 - APIs: `/api/kiosk-devices/[id]/regenerate-code`, `/api/kiosk-devices/[id]`, `/api/kiosk-devices`, `/api/kiosk/activate`, `/api/kiosk/checkin/[id]/complete`, `/api/kiosk/checkin/[id]/scan`, `/api/kiosk/checkout/[id]`, `/api/kiosk/checkout/availability`, `/api/kiosk/checkout/complete`, `/api/kiosk/checkout/scan`
 - Services: `src/lib/services/kiosk-checkout-complete.ts`, `src/lib/services/kiosk-location.ts`, `src/lib/services/kiosk-scan.ts`
-- Tests: `tests/bulk-unit-kiosk-scans.test.ts`, `tests/ios-accessibility-layout-hardening.test.ts`, `tests/ios-api-contract.test.ts`, `tests/ios-app-intents.test.ts`, `tests/ios-appstate-refresh.test.ts`, `tests/ios-bookings-empty-state.test.ts`, `tests/ios-browse-tab.test.ts`, `tests/ios-checkout-return-live-activity-source.test.ts`
+- Tests: `tests/bulk-unit-kiosk-scans.test.ts`, `tests/ios-accessibility-layout-hardening.test.ts`, `tests/ios-api-contract.test.ts`, `tests/ios-app-intents.test.ts`, `tests/ios-appstate-refresh.test.ts`, `tests/ios-async-request-ownership.test.ts`, `tests/ios-booking-surface-alignment.test.ts`, `tests/ios-bookings-empty-state.test.ts`
 
 ## notifications
 
@@ -121,7 +121,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/reports/audit`, `/reports/badges`, `/reports/bulk-losses`, `/reports/checkouts`, `/reports/overdue`, `/reports`, `/reports/scans`, `/reports/utilization`
 - APIs: `/api/audit/export`, `/api/audit/last`, `/api/audit`, `/api/bookings/[id]/audit-logs`, `/api/cron/audit-archive`, `/api/location-mappings/audit`, `/api/reports/audit`, `/api/reports/badges`, `/api/reports/bulk-losses`, `/api/reports/checkouts`
 - Services: `src/lib/services/reports.ts`
-- Tests: `tests/audit-archive-cron.test.ts`, `tests/booking-audit-history-recovery.test.ts`, `tests/reports-audit-export-route.test.ts`, `tests/reports-routes.test.ts`, `tests/reports-service.test.ts`, `tests/reports-utilization-display.test.ts`, `tests/settings-audit-command-surface-source.test.ts`, `tests/settings-audit-filters.test.ts`
+- Tests: `tests/audit-archive-cron.test.ts`, `tests/audit-helper.test.ts`, `tests/booking-audit-history-recovery.test.ts`, `tests/reports-audit-export-route.test.ts`, `tests/reports-routes.test.ts`, `tests/reports-service.test.ts`, `tests/reports-utilization-display.test.ts`, `tests/settings-audit-command-surface-source.test.ts`
 
 ## reservations
 

@@ -274,7 +274,9 @@ describe("/api/me/profile-completion", () => {
   });
 
   it("fails the transaction when the audit write fails", async () => {
-    vi.mocked(createAuditEntryTx).mockRejectedValueOnce(new Error("audit unavailable"));
+    const auditError = new Error("audit unavailable");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(createAuditEntryTx).mockRejectedValueOnce(auditError);
 
     const response = await PATCH(patchRequest({
       step: "EMAIL",
@@ -284,5 +286,7 @@ describe("/api/me/profile-completion", () => {
     expect(response.status).toBe(500);
     expect(dbMock.$transaction).toHaveBeenCalledTimes(1);
     expect(createAuditEntryTx).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith(auditError);
+    consoleError.mockRestore();
   });
 });

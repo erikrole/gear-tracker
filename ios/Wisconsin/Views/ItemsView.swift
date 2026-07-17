@@ -45,6 +45,7 @@ final class ItemsViewModel {
     private let limit = 30
     private var searchTask: Task<Void, Never>?
     private var loadTask: Task<Void, Never>?
+    private var loadRequests = LatestRequestGeneration()
 
     func load(reset: Bool = false) async {
         if reset {
@@ -53,12 +54,13 @@ final class ItemsViewModel {
         } else if isLoading {
             return
         }
-        let task = Task { await performLoad(reset: reset) }
+        let requestToken = loadRequests.begin()
+        let task = Task { await performLoad(reset: reset, requestToken: requestToken) }
         loadTask = task
         await task.value
     }
 
-    private func performLoad(reset: Bool) async {
+    private func performLoad(reset: Bool, requestToken: UUID) async {
         if reset {
             offset = 0
             hasMore = true
@@ -66,6 +68,9 @@ final class ItemsViewModel {
         }
         isLoading = true
         if reset { error = nil }
+        defer {
+            if loadRequests.owns(requestToken) { isLoading = false }
+        }
         do {
             let result = try await APIClient.shared.assets(
                 search: searchText.isEmpty ? nil : searchText,
@@ -75,7 +80,7 @@ final class ItemsViewModel {
                 limit: limit,
                 offset: offset
             )
-            if Task.isCancelled { isLoading = false; return }
+            guard loadRequests.owns(requestToken), !Task.isCancelled else { return }
             let resultRows = result.orderedRows
             if reset { rows = resultRows } else { rows += resultRows }
             offset += resultRows.count
@@ -87,6 +92,7 @@ final class ItemsViewModel {
         } catch is CancellationError {
             // Superseded by a newer load.
         } catch {
+            guard loadRequests.owns(requestToken), !Task.isCancelled else { return }
             if reset {
                 self.error = itemListErrorMessage(error)
             } else {
@@ -94,7 +100,6 @@ final class ItemsViewModel {
                 hasMore = false
             }
         }
-        isLoading = false
     }
 
     func retryPage() async {
@@ -115,6 +120,7 @@ final class ItemsViewModel {
     func resetDefaults() {
         searchTask?.cancel()
         loadTask?.cancel()
+        loadRequests.invalidate()
         searchText = ""
         selectedStatuses = []
         favoritesOnly = false
@@ -124,6 +130,7 @@ final class ItemsViewModel {
         hasMore = true
         error = nil
         pageError = nil
+        isLoading = false
     }
 
     func toggleFavorite(_ asset: Asset) async throws {

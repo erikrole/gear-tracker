@@ -12,16 +12,24 @@ export const DEFAULT_CHECKOUT_POLICIES: CheckoutPolicies = {
   maxItemsPerUser: null,
 };
 
+function normalizeBoundedInteger(value: unknown, min: number, max: number): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  const rounded = Math.round(value);
+  return rounded >= min && rounded <= max ? rounded : null;
+}
+
 export function normalizeCheckoutPolicies(raw: unknown): CheckoutPolicies {
   if (!raw || typeof raw !== "object") return DEFAULT_CHECKOUT_POLICIES;
   const r = raw as Record<string, unknown>;
+  const defaultLoanDays = normalizeBoundedInteger(r.defaultLoanDays, 1, 365);
   return {
-    defaultLoanDays: typeof r.defaultLoanDays === "number" && r.defaultLoanDays > 0
-      ? Math.round(r.defaultLoanDays) : DEFAULT_CHECKOUT_POLICIES.defaultLoanDays,
-    gracePeriodHours: typeof r.gracePeriodHours === "number" && r.gracePeriodHours >= 0
+    defaultLoanDays: defaultLoanDays ?? DEFAULT_CHECKOUT_POLICIES.defaultLoanDays,
+    gracePeriodHours: typeof r.gracePeriodHours === "number"
+      && Number.isFinite(r.gracePeriodHours)
+      && r.gracePeriodHours >= 0
+      && r.gracePeriodHours <= 168
       ? r.gracePeriodHours : DEFAULT_CHECKOUT_POLICIES.gracePeriodHours,
-    maxItemsPerUser: typeof r.maxItemsPerUser === "number" && r.maxItemsPerUser > 0
-      ? Math.round(r.maxItemsPerUser) : null,
+    maxItemsPerUser: normalizeBoundedInteger(r.maxItemsPerUser, 1, 100),
   };
 }
 

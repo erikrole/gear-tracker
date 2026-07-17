@@ -33,8 +33,7 @@ struct KioskAPI {
         d.dateDecodingStrategy = .custom { decoder in
             let container = try decoder.singleValueContainer()
             let value = try container.decode(String.self)
-            if let date = KioskAPI.isoDateFormatterWithFractionalSeconds.date(from: value) ??
-                KioskAPI.isoDateFormatter.date(from: value) {
+            if let date = KioskAPI.parseISODate(value) {
                 return date
             }
             throw DecodingError.dataCorruptedError(
@@ -301,20 +300,20 @@ struct KioskAPI {
     }
 
     private func isoString(from date: Date) -> String {
-        Self.isoDateFormatter.string(from: date)
-    }
-
-    private static let isoDateFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
-        return formatter
-    }()
+        return formatter.string(from: date)
+    }
 
-    private static let isoDateFormatterWithFractionalSeconds: ISO8601DateFormatter = {
+    private static func parseISODate(_ value: String) -> Date? {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }()
+        if let date = formatter.date(from: value) {
+            return date
+        }
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: value)
+    }
 
     private func request(path: String, method: String = "GET") -> URLRequest {
         var req = URLRequest(url: baseURL.appendingPathComponent(path))

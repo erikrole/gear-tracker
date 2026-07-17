@@ -5,6 +5,7 @@ import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { addBulkUnitsSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
+import { MAX_BULK_UNIT_NUMBER } from "@/lib/request-limits";
 
 export const GET = withAuth<{ id: string }>(async (_req, { params }) => {
   const { id } = params;
@@ -47,7 +48,34 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
       orderBy: { unitNumber: "desc" }
     });
 
-    const startNumber = (maxUnit?.unitNumber ?? 0) + 1;
+    const currentMaxUnitNumber = maxUnit?.unitNumber ?? 0;
+    if (currentMaxUnitNumber > MAX_BULK_UNIT_NUMBER - body.count) {
+      throw new HttpError(
+        400,
+        `Cannot add units beyond number ${MAX_BULK_UNIT_NUMBER}`,
+      );
+    }
+
+    const currentBalance = await tx.bulkStockBalance.findUnique({
+      where: {
+        bulkSkuId_locationId: {
+          bulkSkuId: id,
+          locationId: sku.locationId,
+        },
+      },
+      select: { onHandQuantity: true },
+    });
+    const currentOnHandQuantity = currentBalance?.onHandQuantity ?? 0;
+    if (currentOnHandQuantity < 0) {
+      throw new HttpError(409, "Bulk stock balance cannot be negative");
+    }
+    if (currentOnHandQuantity > MAX_BULK_UNIT_NUMBER - body.count) {
+      throw new HttpError(
+        400,
+        `Cannot increase bulk stock beyond ${MAX_BULK_UNIT_NUMBER}`,
+      );
+    }
+    const startNumber = currentMaxUnitNumber + 1;
 
     await tx.bulkSkuUnit.createMany({
       data: Array.from({ length: body.count }, (_, i) => ({

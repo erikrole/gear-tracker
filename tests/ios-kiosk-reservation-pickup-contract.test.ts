@@ -47,6 +47,12 @@ describe("iOS kiosk reservation pickup contract", () => {
     expect(lifecycle).toContain("bulkUnitItems?: Array<{ bulkSkuId: string; unitNumber: number }>");
     expect(lifecycle).toContain("status: BulkUnitStatus.CHECKED_OUT");
     expect(lifecycle).toContain("bookingBulkUnitAllocation.createMany");
+    expect(lifecycle).toContain("checkoutUnitCountBySku.get(item.bulkSkuId)");
+    const numberedBind = lifecycle.slice(
+      lifecycle.indexOf("// Bind exact numbered bulk units"),
+      lifecycle.indexOf("const actorRole", lifecycle.indexOf("// Bind exact numbered bulk units")),
+    );
+    expect(numberedBind).not.toContain("await tx.bookingBulkItem.update({");
 
     // The bind must cover exactly plannedQuantity per numbered SKU — the
     // ledger was decremented by planned, so under- or over-binding desyncs
@@ -59,5 +65,22 @@ describe("iOS kiosk reservation pickup contract", () => {
     // Already-done confirms read as success states, not raw status leaks.
     expect(confirmRoute).toContain("This reservation was already picked up");
     expect(confirmRoute).toContain("This pickup was already confirmed");
+  });
+
+  it("preconfirms aggregate quantity rows while retaining scans for numbered families", () => {
+    const detailRoute = source("src/app/api/kiosk/checkout/[id]/route.ts");
+    const confirmRoute = source("src/app/api/kiosk/pickup/[id]/confirm/route.ts");
+    const pickupView = source("ios/Wisconsin/Kiosk/KioskPickupView.swift");
+
+    expect(detailRoute).toContain('type: "bulk_quantity" as const');
+    expect(detailRoute).toMatch(/if \(!bi\.bulkSku\.trackByNumber\)[\s\S]*?returned: true/);
+    expect(confirmRoute).toContain("item.bulkSku.trackByNumber &&");
+    expect(confirmRoute).toContain("if (!item.bulkSku.trackByNumber) continue;");
+
+    // Native pickup already treats returned detail rows as confirmed, so one
+    // aggregate quantity row can complete without inventing unit-level scans.
+    expect(pickupView).toContain("for item in loaded.items where item.returned");
+    expect(pickupView).toContain("confirmedIds.insert(item.id)");
+    expect(pickupView).toContain("private var allConfirmed: Bool");
   });
 });

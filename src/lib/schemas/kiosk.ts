@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  MAX_BULK_UNIT_NUMBER,
+  MAX_EQUIPMENT_SELECTIONS_PER_REQUEST,
+} from "@/lib/request-limits";
 
 /**
  * Zod schemas for the kiosk-route boundary.
@@ -9,19 +13,22 @@ import { z } from "zod";
  */
 
 const cuidish = z.string().min(1);
+const bulkUnitNumber = z.number().int().positive().max(MAX_BULK_UNIT_NUMBER);
 
 const checkoutCompleteItem = z.union([
-  z.object({ assetId: cuidish }),
+  z.object({ assetId: cuidish }).strict(),
   z.object({
     bulkSkuId: cuidish,
-    unitNumber: z.number().int().positive(),
-  }),
+    unitNumber: bulkUnitNumber,
+  }).strict(),
 ]);
 
 export const checkoutCompleteBody = z.object({
   actorId: cuidish,
   locationId: cuidish.optional(),
-  items: z.array(checkoutCompleteItem).min(1, "At least one item required"),
+  items: z.array(checkoutCompleteItem)
+    .min(1, "At least one item required")
+    .max(MAX_EQUIPMENT_SELECTIONS_PER_REQUEST),
   eventId: cuidish.optional(),
   customPurpose: z.string().trim().min(1).max(160).optional(),
   // No startsAt: checkout start is server-authoritative (the moment of completion).
@@ -39,7 +46,9 @@ export type CheckoutCompleteBody = z.infer<typeof checkoutCompleteBody>;
 
 export const checkoutAvailabilityBody = z.object({
   locationId: cuidish.optional(),
-  items: z.array(checkoutCompleteItem).min(1, "At least one item required"),
+  items: z.array(checkoutCompleteItem)
+    .min(1, "At least one item required")
+    .max(MAX_EQUIPMENT_SELECTIONS_PER_REQUEST),
   startsAt: z.string().datetime({ offset: true }),
   endsAt: z.string().datetime({ offset: true }),
 });
@@ -64,7 +73,7 @@ export const activeCheckoutRemoveItemBody = z.object({
   actorId: cuidish,
   assetId: cuidish.optional(),
   bulkSkuId: cuidish.optional(),
-  unitNumber: z.number().int().positive().optional(),
+  unitNumber: bulkUnitNumber.optional(),
 }).refine((body) => {
   const serialized = !!body.assetId;
   const bulkUnit = !!body.bulkSkuId && body.unitNumber !== undefined;

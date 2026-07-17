@@ -6,12 +6,16 @@ import { requirePermission } from "@/lib/rbac";
 import { updateBulkUnitSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
 import { effectiveBulkUnitStatus } from "@/lib/bulk-unit-status";
+import { MAX_BULK_UNIT_NUMBER } from "@/lib/request-limits";
 
 export const PATCH = withAuth<{ id: string; unitNumber: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "bulk_sku", "adjust");
   const { id, unitNumber: unitNumStr } = params;
-  const unitNumber = parseInt(unitNumStr, 10);
-  if (isNaN(unitNumber)) throw new HttpError(400, "Invalid unit number");
+  if (!/^[1-9]\d*$/.test(unitNumStr)) throw new HttpError(400, "Invalid unit number");
+  const unitNumber = Number(unitNumStr);
+  if (!Number.isSafeInteger(unitNumber) || unitNumber > MAX_BULK_UNIT_NUMBER) {
+    throw new HttpError(400, "Invalid unit number");
+  }
 
   const body = updateBulkUnitSchema.parse(await req.json());
 

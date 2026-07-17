@@ -70,6 +70,11 @@ type BulkScanMockTx = {
     createMany: ReturnType<typeof vi.fn>;
     updateMany: ReturnType<typeof vi.fn>;
   };
+  bulkStockBalance: {
+    findMany: ReturnType<typeof vi.fn>;
+    upsert: ReturnType<typeof vi.fn>;
+  };
+  bulkStockMovement: { createMany: ReturnType<typeof vi.fn> };
 };
 
 const mockTx = (db as unknown as { _mockTx: BulkScanMockTx })._mockTx;
@@ -91,6 +96,7 @@ describe("non-numbered bulk scan TOCTOU", () => {
       id: "b-1",
       kind: "CHECKOUT",
       status: "OPEN",
+      locationId: "loc-1",
       serializedItems: [],
       bulkItems: [{
         id: "bi-1",
@@ -219,10 +225,14 @@ describe("numbered bulk derived unit QR scans", () => {
       { id: "unit-7", bulkSkuId: "sku-1", unitNumber: 7, status: "AVAILABLE" },
     ]);
     mockTx.bookingBulkUnitAllocation.findMany.mockResolvedValue([]);
+    mockTx.bookingBulkUnitAllocation.updateMany.mockResolvedValue({ count: 1 });
     mockTx.scanEvent.create.mockResolvedValue({ id: "event-1" });
     mockTx.bulkSkuUnit.updateMany.mockResolvedValue({ count: 1 });
     mockTx.bookingBulkUnitAllocation.createMany.mockResolvedValue({ count: 1 });
     mockTx.bookingBulkItem.update.mockResolvedValue({});
+    mockTx.bulkStockBalance.findMany.mockResolvedValue([]);
+    mockTx.bulkStockBalance.upsert.mockResolvedValue({});
+    mockTx.bulkStockMovement.createMany.mockResolvedValue({ count: 1 });
   }
 
   it("treats binQr-unitNumber as a one-unit checkout scan", async () => {
@@ -309,6 +319,63 @@ describe("numbered bulk derived unit QR scans", () => {
         bulkSkuUnitId: "unit-7",
       })],
     });
+  });
+
+  it("closes all numbered-unit allocations with one set-based check-in write", async () => {
+    setupNumberedBulkScan();
+    mockTx.bulkSkuUnit.findMany.mockResolvedValue([
+      { id: "unit-7", bulkSkuId: "sku-1", unitNumber: 7, status: "CHECKED_OUT" },
+      { id: "unit-8", bulkSkuId: "sku-1", unitNumber: 8, status: "CHECKED_OUT" },
+      { id: "unit-9", bulkSkuId: "sku-1", unitNumber: 9, status: "CHECKED_OUT" },
+    ]);
+    mockTx.bookingBulkUnitAllocation.findMany.mockResolvedValue([
+      { bookingBulkItemId: "bi-1", bulkSkuUnitId: "unit-7" },
+      { bookingBulkItemId: "bi-1", bulkSkuUnitId: "unit-8" },
+      { bookingBulkItemId: "bi-1", bulkSkuUnitId: "unit-9" },
+    ]);
+    mockTx.bookingBulkUnitAllocation.updateMany.mockResolvedValue({ count: 3 });
+
+    await recordScan({
+      bookingId: "b-1",
+      actorUserId: "actor-1",
+      phase: ScanPhase.CHECKIN,
+      scanType: ScanType.BULK_BIN,
+      scanValue: "94e068d1",
+      unitNumbers: [7, 8, 9],
+    });
+
+    expect(mockTx.bookingBulkUnitAllocation.updateMany).toHaveBeenCalledTimes(1);
+    expect(mockTx.bookingBulkUnitAllocation.updateMany).toHaveBeenCalledWith({
+      where: {
+        bookingBulkItemId: "bi-1",
+        bulkSkuUnitId: { in: ["unit-7", "unit-8", "unit-9"] },
+        checkedOutAt: { not: null },
+        checkedInAt: null,
+      },
+      data: { checkedInAt: expect.any(Date) },
+    });
+  });
+
+  it("rejects numbered-unit check-in when the set-based allocation count changes", async () => {
+    setupNumberedBulkScan();
+    mockTx.bulkSkuUnit.findMany.mockResolvedValue([
+      { id: "unit-7", bulkSkuId: "sku-1", unitNumber: 7, status: "CHECKED_OUT" },
+    ]);
+    mockTx.bookingBulkUnitAllocation.findMany.mockResolvedValue([
+      { bookingBulkItemId: "bi-1", bulkSkuUnitId: "unit-7" },
+    ]);
+    mockTx.bookingBulkUnitAllocation.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(recordScan({
+      bookingId: "b-1",
+      actorUserId: "actor-1",
+      phase: ScanPhase.CHECKIN,
+      scanType: ScanType.BULK_BIN,
+      scanValue: "94e068d1-7",
+    })).rejects.toThrow("unit allocations changed during check-in");
+
+    expect(mockTx.bookingBulkUnitAllocation.updateMany).toHaveBeenCalledTimes(1);
+    expect(mockTx.bookingBulkItem.update).not.toHaveBeenCalled();
   });
 
   it("keeps exact bin QR matches ahead of derived unit parsing", async () => {

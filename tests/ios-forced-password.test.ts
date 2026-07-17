@@ -23,7 +23,9 @@ describe("iOS forced password setup", () => {
     expect(apiClient).toContain("let _: ChangePasswordResponse = try await perform(req)");
     expect(sessionStore).toContain("func completeForcedPasswordChange(currentPassword: String, newPassword: String) async");
     expect(sessionStore).toContain("try await APIClient.shared.changePassword");
-    expect(sessionStore).toContain("currentUser = try await APIClient.shared.me()");
+    expect(sessionStore).toContain("let user = try await APIClient.shared.me()");
+    expect(sessionStore).toContain("guard authRequests.owns(requestToken) else { return }");
+    expect(sessionStore).toContain("currentUser = user");
   });
 
   it("keeps forced users out of the app shell until the flag clears", () => {

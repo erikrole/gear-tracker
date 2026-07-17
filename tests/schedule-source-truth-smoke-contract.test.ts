@@ -235,19 +235,4 @@ describe("schedule source-of-truth and browser smoke contracts", () => {
     expect(syncService).toContain("data.opponent = existing.opponent");
   });
 
-  it("keeps Schedule exports discoverable and bounded from the source-of-truth page", () => {
-    const page = source("src/app/(app)/schedule/page.tsx");
-    const route = source("src/app/api/schedule/export/route.ts");
-    const service = source("src/lib/services/schedule-exports.ts");
-
-    expect(page).toContain("Export CSV");
-    expect(page).toContain("/api/schedule/export?");
-    expect(page).toContain("Weekly roster");
-    expect(page).toContain("Gear readiness");
-    expect(route).toContain('requirePermission(user.role, "report", "view")');
-    expect(route).toContain('"Content-Type": "text/csv; charset=utf-8"');
-    expect(route).toContain("X-Exported-Count");
-    expect(service).toContain("SCHEDULE_EXPORT_LIMIT = 5000");
-    expect(service).toContain("SCHEDULE_EXPORT_MAX_DAYS = 366");
-  });
 });

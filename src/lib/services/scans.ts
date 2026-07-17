@@ -291,17 +291,20 @@ export async function recordScan(args: {
       if (args.phase === ScanPhase.CHECKOUT) {
         await tx.bookingBulkUnitAllocation.createMany({ data: allocationData });
       } else {
-        // On check-in, update existing allocation records
-        for (const unit of units) {
-          await tx.bookingBulkUnitAllocation.updateMany({
-            where: {
-              bookingBulkItemId: bulkItem.id,
-              bulkSkuUnitId: unit.id,
-              checkedOutAt: { not: null },
-              checkedInAt: null,
-            },
-            data: { checkedInAt: now }
-          });
+        // On check-in, close every active allocation in one write. The count
+        // backstops the ownership read above if allocation state changes before
+        // this SERIALIZABLE transaction commits.
+        const updatedAllocations = await tx.bookingBulkUnitAllocation.updateMany({
+          where: {
+            bookingBulkItemId: bulkItem.id,
+            bulkSkuUnitId: { in: units.map((unit) => unit.id) },
+            checkedOutAt: { not: null },
+            checkedInAt: null,
+          },
+          data: { checkedInAt: now }
+        });
+        if (updatedAllocations.count !== units.length) {
+          throw new HttpError(409, "One or more unit allocations changed during check-in; scan again");
         }
       }
 

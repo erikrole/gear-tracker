@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { MAX_EQUIPMENT_SELECTIONS_PER_REQUEST } from "@/lib/request-limits";
 
 const mocks = vi.hoisted(() => ({
   bookingFindUnique: vi.fn(),
@@ -178,6 +179,128 @@ describe("kiosk checkout detail bulk units", () => {
       numberedBulkTotal: 2,
       numberedBulkCompleted: 0,
     });
+  });
+
+  it("preserves individual numbered pickup slots at the exact checklist ceiling", async () => {
+    mocks.bookingFindUnique.mockResolvedValue({
+      id: "booking-1",
+      title: "Pickup",
+      refNumber: "CO-1001",
+      status: "PENDING_PICKUP",
+      kind: "CHECKOUT",
+      endsAt: new Date("2026-05-06T12:00:00.000Z"),
+      scanEvents: [],
+      serializedItems: [],
+      bulkItems: [{
+        id: "bulk-item-1",
+        plannedQuantity: MAX_EQUIPMENT_SELECTIONS_PER_REQUEST,
+        checkedOutQuantity: 0,
+        checkedInQuantity: 0,
+        bulkSku: {
+          id: "sku-1",
+          name: "Sony Battery",
+          category: "Batteries",
+          trackByNumber: true,
+        },
+        unitAllocations: [],
+      }],
+    });
+
+    const res = await getKioskCheckoutDetail(new Request("http://test"), routeCtx("booking-1"));
+    const json = await res.json();
+
+    expect(json.items).toHaveLength(MAX_EQUIPMENT_SELECTIONS_PER_REQUEST);
+    expect(json.items[0]).toMatchObject({ id: "bulk-item-1:slot:1", type: "numbered_bulk" });
+    expect(json.items.at(-1)).toMatchObject({
+      id: `bulk-item-1:slot:${MAX_EQUIPMENT_SELECTIONS_PER_REQUEST}`,
+      type: "numbered_bulk",
+    });
+  });
+
+  it("rejects numbered pickup lists above the checklist ceiling before expansion", async () => {
+    mocks.bookingFindUnique.mockResolvedValue({
+      id: "booking-1",
+      title: "Pickup",
+      refNumber: "CO-1001",
+      status: "PENDING_PICKUP",
+      kind: "CHECKOUT",
+      endsAt: new Date("2026-05-06T12:00:00.000Z"),
+      scanEvents: [],
+      serializedItems: [],
+      bulkItems: [
+        {
+          id: "bulk-item-1",
+          plannedQuantity: 250,
+          checkedOutQuantity: 0,
+          checkedInQuantity: 0,
+          bulkSku: {
+            id: "sku-1",
+            name: "Sony Battery",
+            category: "Batteries",
+            trackByNumber: true,
+          },
+          unitAllocations: [],
+        },
+        {
+          id: "bulk-item-2",
+          plannedQuantity: 251,
+          checkedOutQuantity: 0,
+          checkedInQuantity: 0,
+          bulkSku: {
+            id: "sku-2",
+            name: "Canon Battery",
+            category: "Batteries",
+            trackByNumber: true,
+          },
+          unitAllocations: [],
+        },
+      ],
+    });
+
+    await expect(getKioskCheckoutDetail(
+      new Request("http://test"),
+      routeCtx("booking-1"),
+    )).rejects.toThrow(`at most ${MAX_EQUIPMENT_SELECTIONS_PER_REQUEST} units total`);
+  });
+
+  it("emits one aggregate row for a large non-numbered pickup quantity", async () => {
+    mocks.bookingFindUnique.mockResolvedValue({
+      id: "booking-1",
+      title: "Pickup",
+      refNumber: "CO-1001",
+      status: "PENDING_PICKUP",
+      kind: "CHECKOUT",
+      endsAt: new Date("2026-05-06T12:00:00.000Z"),
+      scanEvents: [],
+      serializedItems: [],
+      bulkItems: [{
+        id: "bulk-item-1",
+        plannedQuantity: 1_000_000,
+        checkedOutQuantity: 0,
+        checkedInQuantity: 0,
+        bulkSku: {
+          id: "sku-tape",
+          name: "Gaffer Tape",
+          category: "Supplies",
+          trackByNumber: false,
+        },
+        unitAllocations: [],
+      }],
+    });
+
+    const res = await getKioskCheckoutDetail(new Request("http://test"), routeCtx("booking-1"));
+    const json = await res.json();
+
+    expect(json.items).toEqual([{
+      id: "bulk-item-1:bulk-quantity",
+      tagName: "x1000000",
+      name: "Gaffer Tape x1000000",
+      returned: true,
+      type: "bulk_quantity",
+      bulkSkuId: "sku-tape",
+      bulkSkuName: "Gaffer Tape",
+      unitNumber: null,
+    }]);
   });
 
   it("includes checked-out battery units in return detail", async () => {
@@ -628,7 +751,7 @@ describe("kiosk pickup confirm bulk guard", () => {
       bulkItems: [{
         plannedQuantity: 3,
         checkedOutQuantity: 2,
-        bulkSku: { name: "Sony Battery" },
+        bulkSku: { name: "Sony Battery", trackByNumber: true },
       }],
     });
 
@@ -638,6 +761,34 @@ describe("kiosk pickup confirm bulk guard", () => {
     }), routeCtx("booking-1"))).rejects.toThrow("Scan all Sony Battery units before confirming pickup");
 
     expect(mocks.bookingUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("allows quantity-tracked pickup confirmation without fake per-unit scans", async () => {
+    mocks.userFindUnique.mockResolvedValue({ id: "user-1", name: "User", role: "STUDENT" });
+    mocks.bookingFindUnique.mockResolvedValue({
+      id: "booking-1",
+      status: "PENDING_PICKUP",
+      kind: "CHECKOUT",
+      title: "Pickup",
+      serializedItems: [],
+      scanEvents: [],
+      bulkItems: [{
+        plannedQuantity: 1_000_000,
+        checkedOutQuantity: 0,
+        bulkSku: { name: "Gaffer Tape", trackByNumber: false },
+      }],
+    });
+
+    const res = await confirmKioskPickup(new Request("http://test", {
+      method: "POST",
+      body: JSON.stringify({ actorId: "user-1" }),
+    }), routeCtx("booking-1"));
+
+    expect((await res.json()).success).toBe(true);
+    expect(mocks.bookingUpdateMany).toHaveBeenCalledWith({
+      where: { id: "booking-1", status: "PENDING_PICKUP" },
+      data: { status: "OPEN", pickupKioskDeviceId: "kiosk-1" },
+    });
   });
 });
 
@@ -714,6 +865,59 @@ describe("kiosk reservation pickup confirmation", () => {
       source: "kiosk_pickup",
       sourceKey: "reservation-1",
     });
+  });
+
+  it("creates a linked checkout for quantity-tracked stock without per-unit scans", async () => {
+    mocks.userFindUnique.mockResolvedValue({ id: "user-1", name: "User", role: "STUDENT" });
+    mocks.bookingFindUnique
+      .mockResolvedValueOnce({
+        id: "reservation-1",
+        status: "BOOKED",
+        kind: "RESERVATION",
+        title: "Supply reservation",
+        serializedItems: [],
+        scanEvents: [],
+        bulkItems: [],
+      })
+      .mockResolvedValueOnce({
+        id: "reservation-1",
+        status: "BOOKED",
+        kind: "RESERVATION",
+        title: "Supply reservation",
+        requesterUserId: "user-1",
+        locationId: "loc-1",
+        startsAt: new Date("2026-06-18T16:00:00.000Z"),
+        endsAt: new Date("2026-06-18T20:00:00.000Z"),
+        notes: null,
+        eventId: null,
+        sportCode: null,
+        shiftAssignmentId: null,
+        kitId: null,
+        serializedItems: [],
+        bulkItems: [{
+          bulkSkuId: "sku-tape",
+          plannedQuantity: 1_000_000,
+          bulkSku: {
+            id: "sku-tape",
+            name: "Gaffer Tape",
+            binQrCodeValue: "TAPE",
+            trackByNumber: false,
+          },
+        }],
+        scanEvents: [],
+        events: [],
+      });
+
+    const res = await confirmKioskPickup(new Request("http://test", {
+      method: "POST",
+      body: JSON.stringify({ actorId: "user-1" }),
+    }), routeCtx("reservation-1"));
+
+    expect((await res.json()).bookingId).toBe("checkout-1");
+    expect(mocks.createBooking).toHaveBeenCalledWith(expect.objectContaining({
+      sourceReservationId: "reservation-1",
+      bulkUnitItems: [],
+    }));
   });
 
   it("blocks reservation pickup at the wrong kiosk location", async () => {

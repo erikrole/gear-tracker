@@ -4,7 +4,7 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped — iOS canonical (web kiosk deprecated 2026-04-24)
 - Created: 2026-04-07
-- Last Updated: 2026-07-13
+- Last Updated: 2026-07-17
 - Brief: `BRIEF_KIOSK.md`
 - Decision Refs: D-030, D-040
 
@@ -116,6 +116,10 @@ Files under `ios/Wisconsin/Kiosk/`:
 | 2026-07-16 | Kiosk collaborator eligibility now comes from the active affiliation policy's `KIOSK_ROSTER_ELIGIBLE` grant; eligible collaborators appear globally with their dynamic badge and no Wiscard requirement. |
 | Date | Change |
 |------|--------|
+| 2026-07-17 | Reservation pickup now distinguishes numbered custody from quantity-only custody. Quantity-tracked rows are explicitly confirmable without fake unit scans, while numbered rows still require exact unit evidence and are bounded to 500 units from planning through pickup. Native contract coverage pins the same behavior. |
+| 2026-07-17 | Kiosk detail and student-summary reads aggregate quantity-only rows instead of materializing one element per unit. Numbered pickup expansion is rejected above its 500-unit invariant, keeping malformed or historical state from exhausting a serverless request. |
+| 2026-07-17 | Direct kiosk checkout completion now keeps policy, cap, availability, booking, allocation, bulk-stock, and audit writes in one `SERIALIZABLE` transaction with one bounded serialization retry. Bulk writes are batched, and badge/live-activity effects run only after commit. |
+| 2026-07-17 | Native kiosk availability uses latest-request ownership. Only the newest cart/window response may update the screen, and completion validates its own preflight result so an older successful response cannot authorize a newer cart. |
 | 2026-07-16 | Kiosk intent-routing rebuild. Home scans now resolve identity, available gear, active custody, and still-active booked reservations through the read-only `/api/kiosk/resolve-scan` route; event, person, reservation, and active-checkout surfaces retain intent and enter checkout, pickup, or return. A dedicated roster-first identity screen requires the expected requester for inferred pickup/return. Checkout opens scanner-first with details in a focused sheet and an adaptive Review Details/Checkout CTA. One logical scanner coordinator drives a persistent status pill, privacy-safe OSLog transitions, DEBUG flow inspection, editing pause, and exactly-once in-memory scan replay through existing custody routes. Added `WisconsinKioskTests` and resolver/source contracts; simulator and generic-device Xcode verification pass. The managed-iPad HID/camera/typed-entry walkthrough remains the release gate. |
 | 2026-07-16 | Upcoming reservation cards in the student hub are now pickup actions instead of read-only status. A student can open and fulfill a still-booked reservation before its scheduled start time through the same kiosk scan, custody, and audit flow. |
 | 2026-07-13 | Connected-device follow-up: physical HID checkout scanning is user-confirmed working again on the canonical M2 iPad Air. The scan target no longer runs its corner brackets through `PhaseAnimator`, which made the orange reconnecting shape slide downward on page entry under iPadOS 26. The bracket geometry is now static and neutral before the first scan; the adjacent readiness badge remains the sole reconnecting indicator. |

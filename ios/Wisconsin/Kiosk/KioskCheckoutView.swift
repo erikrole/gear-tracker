@@ -53,6 +53,7 @@ struct KioskCheckoutView: View {
     @State private var isCheckingAvailability = false
     @State private var availabilityError: String?
     @State private var hasVerifiedAvailability = false
+    @State private var availabilityRequests = LatestRequestGeneration()
     // Plain @State on purpose — NOT @FocusState. The booking-name field is a
     // UIKit-backed KioskNativeTextField, invisible to SwiftUI's focus system,
     // so no view ever claims a @FocusState value for it. SwiftUI then resets
@@ -218,6 +219,8 @@ struct KioskCheckoutView: View {
             persistDraft()
         }
         .onDisappear {
+            availabilityRequests.invalidate()
+            isCheckingAvailability = false
             scannerCaptureEnabled = false
             store.scanner.setEditing(false)
             store.scanner.release(.checkout)
@@ -694,15 +697,17 @@ struct KioskCheckoutView: View {
         guard !cart.isEmpty, hasCheckoutContext, hasValidReturnTime, let locationId = store.info?.locationId else { return }
         guard !isCompleting, pendingScanIdentities.isEmpty else { return }
         let message = successMessage
+        let endsAt = dueBackAt
+        let eventId = isLinkedToEvent ? selectedEvent?.id : nil
+        let purpose = !isLinkedToEvent && !trimmedCustomPurpose.isEmpty ? trimmedCustomPurpose : nil
         isCompleting = true
         Task {
-            await refreshAvailability(for: cart)
-            guard hasVerifiedAvailability, availabilityError == nil else {
+            guard let preflight = await refreshAvailability(for: cart, endsAt: endsAt) else {
                 isCompleting = false
                 showFeedback(.error(availabilityError ?? "Verify item availability before checkout"))
                 return
             }
-            guard !availabilityResult.hasBlockingIssue else {
+            guard !preflight.hasBlockingIssue else {
                 isCompleting = false
                 showFeedback(.error("Resolve item conflicts before checkout"))
                 return
@@ -712,9 +717,9 @@ struct KioskCheckoutView: View {
                     actorId: userId,
                     locationId: locationId,
                     items: cart,
-                    eventId: isLinkedToEvent ? selectedEvent?.id : nil,
-                    customPurpose: !isLinkedToEvent && !trimmedCustomPurpose.isEmpty ? trimmedCustomPurpose : nil,
-                    endsAt: dueBackAt
+                    eventId: eventId,
+                    customPurpose: purpose,
+                    endsAt: endsAt
                 )
                 Haptics.success()
                 store.clearCart(for: userId)
@@ -783,37 +788,52 @@ struct KioskCheckoutView: View {
     }
 
     @MainActor
-    private func refreshAvailability(for cart: [KioskCartItem]) async {
+    @discardableResult
+    private func refreshAvailability(
+        for cart: [KioskCartItem],
+        endsAt requestedEndsAt: Date? = nil
+    ) async -> KioskCheckoutAvailabilityResult? {
+        let requestToken = availabilityRequests.begin()
         guard let locationId = store.info?.locationId, !cart.isEmpty else {
             availabilityResult = KioskCheckoutAvailabilityResult()
             availabilityError = nil
             hasVerifiedAvailability = false
-            return
+            isCheckingAvailability = false
+            return nil
         }
-        guard hasValidReturnTime else {
+        let endsAt = requestedEndsAt ?? dueBackAt
+        guard endsAt > Date().addingTimeInterval(60) else {
             availabilityResult = KioskCheckoutAvailabilityResult()
             availabilityError = "Choose a return time later than pickup"
             hasVerifiedAvailability = false
-            return
+            isCheckingAvailability = false
+            return nil
         }
 
         isCheckingAvailability = true
         hasVerifiedAvailability = false
         availabilityError = nil
+        defer {
+            if availabilityRequests.owns(requestToken) { isCheckingAvailability = false }
+        }
         do {
-            availabilityResult = try await KioskAPI.shared.kioskCheckoutAvailability(
+            let result = try await KioskAPI.shared.kioskCheckoutAvailability(
                 locationId: locationId,
                 items: cart,
                 startsAt: Date(),
-                endsAt: dueBackAt
+                endsAt: endsAt
             )
+            guard availabilityRequests.owns(requestToken) else { return nil }
+            availabilityResult = result
             hasVerifiedAvailability = true
+            return result
         } catch {
+            guard availabilityRequests.owns(requestToken) else { return nil }
             availabilityError = (error as? APIError)?.errorDescription ?? "Conflict check unavailable"
             availabilityResult = KioskCheckoutAvailabilityResult()
             hasVerifiedAvailability = false
+            return nil
         }
-        isCheckingAvailability = false
     }
 
     private func availabilityIssue(for group: KioskCartDisplayGroup) -> KioskCartAvailabilityIssue? {
@@ -1575,7 +1595,7 @@ private struct KioskUIDatePicker: UIViewRepresentable {
             self.parent = parent
         }
 
-        @objc func valueChanged(_ picker: UIDatePicker) {
+        @MainActor @objc func valueChanged(_ picker: UIDatePicker) {
             parent.selection = parent.mergedSelection(from: picker.date)
         }
     }

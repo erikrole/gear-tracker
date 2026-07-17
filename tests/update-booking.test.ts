@@ -6,6 +6,7 @@ type UpdateBookingTx = {
   booking: Record<"findUnique" | "findUniqueOrThrow" | "update", MockFn>;
   bookingSerializedItem: Record<"deleteMany" | "createMany", MockFn>;
   bookingBulkItem: Record<"deleteMany" | "createMany" | "update", MockFn>;
+  bulkSku: Record<"findMany", MockFn>;
   assetAllocation: Record<"deleteMany" | "createMany" | "updateMany", MockFn>;
   auditLog: Record<"create" | "createMany", MockFn>;
   user: Record<"findUnique", MockFn>;
@@ -22,6 +23,7 @@ vi.mock("@/lib/db", () => {
     booking: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn() },
     bookingSerializedItem: { deleteMany: vi.fn(), createMany: vi.fn() },
     bookingBulkItem: { deleteMany: vi.fn(), createMany: vi.fn(), update: vi.fn() },
+    bulkSku: { findMany: vi.fn() },
     assetAllocation: { deleteMany: vi.fn(), createMany: vi.fn(), updateMany: vi.fn() },
     auditLog: { create: vi.fn(), createMany: vi.fn() },
     user: { findUnique: vi.fn().mockResolvedValue({ role: "ADMIN", active: true }) },
@@ -52,6 +54,11 @@ vi.mock("@/lib/services/availability", () => ({
 }));
 
 import { db } from "@/lib/db";
+import {
+  MAX_CHECKOUT_BULK_LINE_CHANGES_PER_REQUEST,
+  MAX_CHECKOUT_DISTINCT_BULK_SKUS_PER_REQUEST,
+  MAX_EQUIPMENT_SELECTIONS_PER_REQUEST,
+} from "@/lib/request-limits";
 import { checkAvailability } from "@/lib/services/availability";
 import { updateReservation, updateCheckout } from "@/lib/services/bookings";
 
@@ -99,6 +106,17 @@ function makeExistingCheckout(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function makeCheckoutBulkItems(count: number) {
+  return Array.from({ length: count }, (_, index) => ({
+    id: `bbi-${index}`,
+    bulkSkuId: `sku-${index}`,
+    plannedQuantity: 5,
+    checkedOutQuantity: null,
+    checkedInQuantity: 0,
+    unitAllocations: [],
+  }));
+}
+
 const returnedBooking = { id: "r-1", kind: "RESERVATION", status: "BOOKED" };
 
 beforeEach(() => {
@@ -110,6 +128,7 @@ beforeEach(() => {
   mockTx.bookingSerializedItem.createMany.mockResolvedValue({});
   mockTx.bookingBulkItem.deleteMany.mockResolvedValue({});
   mockTx.bookingBulkItem.createMany.mockResolvedValue({});
+  mockTx.bulkSku.findMany.mockResolvedValue([]);
   mockTx.assetAllocation.deleteMany.mockResolvedValue({});
   mockTx.assetAllocation.createMany.mockResolvedValue({});
   mockTx.assetAllocation.updateMany.mockResolvedValue({});
@@ -241,6 +260,66 @@ describe("updateReservation", () => {
         expect.objectContaining({ bookingId: "r-1", assetId: "a-1" }),
         expect.objectContaining({ bookingId: "r-1", assetId: "a-2" }),
       ]),
+    });
+  });
+
+  it("allows a numbered reservation update at the native pickup checklist ceiling", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingReservation());
+    mockTx.bulkSku.findMany.mockResolvedValue([{ id: "sku-numbered" }]);
+
+    await updateReservation("r-1", "actor-1", {
+      bulkItems: [{
+        bulkSkuId: "sku-numbered",
+        quantity: MAX_EQUIPMENT_SELECTIONS_PER_REQUEST,
+      }],
+    });
+
+    expect(mockTx.bookingBulkItem.createMany).toHaveBeenCalledWith({
+      data: [{
+        bookingId: "r-1",
+        bulkSkuId: "sku-numbered",
+        plannedQuantity: MAX_EQUIPMENT_SELECTIONS_PER_REQUEST,
+      }],
+    });
+  });
+
+  it("rejects a numbered reservation update above the native pickup checklist ceiling before availability or writes", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingReservation());
+    mockTx.bulkSku.findMany.mockResolvedValue([
+      { id: "sku-numbered-1" },
+      { id: "sku-numbered-2" },
+    ]);
+
+    await expect(updateReservation("r-1", "actor-1", {
+      bulkItems: [
+        { bulkSkuId: "sku-numbered-1", quantity: 250 },
+        { bulkSkuId: "sku-numbered-2", quantity: 251 },
+      ],
+    })).rejects.toMatchObject({
+      status: 400,
+      message: `Numbered pickup plans support at most ${MAX_EQUIPMENT_SELECTIONS_PER_REQUEST} units total`,
+    });
+
+    expect(checkAvailability).not.toHaveBeenCalled();
+    expect(mockTx.booking.update).not.toHaveBeenCalled();
+    expect(mockTx.bookingBulkItem.deleteMany).not.toHaveBeenCalled();
+    expect(mockTx.auditLog.create).not.toHaveBeenCalled();
+    expect(mockTx.auditLog.createMany).not.toHaveBeenCalled();
+  });
+
+  it("allows a large quantity-tracked reservation update", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingReservation());
+
+    await updateReservation("r-1", "actor-1", {
+      bulkItems: [{ bulkSkuId: "sku-quantity", quantity: 1_000_000 }],
+    });
+
+    expect(mockTx.bookingBulkItem.createMany).toHaveBeenCalledWith({
+      data: [{
+        bookingId: "r-1",
+        bulkSkuId: "sku-quantity",
+        plannedQuantity: 1_000_000,
+      }],
     });
   });
 
@@ -489,6 +568,86 @@ describe("updateCheckout", () => {
       data: [expect.objectContaining({ bulkSkuId: "sku-1", kind: "CHECKOUT", quantity: 3 })],
     });
     expect(mockTx.bulkStockBalance.upsert).toHaveBeenCalled();
+  });
+
+  it("allows the exact checkout bulk-line change ceiling", async () => {
+    const removedCount = Math.floor(MAX_CHECKOUT_BULK_LINE_CHANGES_PER_REQUEST / 2);
+    const addedCount = MAX_CHECKOUT_BULK_LINE_CHANGES_PER_REQUEST - removedCount;
+    const existingBulkItems = makeCheckoutBulkItems(removedCount);
+    const replacements = Array.from(
+      { length: addedCount },
+      (_, index) => ({ bulkSkuId: `replacement-sku-${index}`, quantity: 1 }),
+    );
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout({
+      bulkItems: existingBulkItems,
+    }));
+    mockTx.bulkStockBalance.findMany.mockResolvedValue([
+      ...existingBulkItems.map((item) => ({ bulkSkuId: item.bulkSkuId, onHandQuantity: 50 })),
+      ...replacements.map((item) => ({ bulkSkuId: item.bulkSkuId, onHandQuantity: 50 })),
+    ]);
+
+    await updateCheckout("c-1", "actor-1", {
+      bulkItems: replacements,
+    });
+
+    expect(mockTx.bookingBulkItem.deleteMany).toHaveBeenCalledTimes(removedCount);
+    expect(mockTx.bookingBulkItem.createMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining(
+        replacements.map((item) => expect.objectContaining({ bulkSkuId: item.bulkSkuId })),
+      ),
+    });
+    expect(mockTx.bulkStockBalance.upsert).toHaveBeenCalledTimes(
+      MAX_CHECKOUT_BULK_LINE_CHANGES_PER_REQUEST,
+    );
+  });
+
+  it("rejects checkout bulk-line changes above the ceiling before availability or writes", async () => {
+    const removedCount = Math.floor(MAX_CHECKOUT_BULK_LINE_CHANGES_PER_REQUEST / 2);
+    const addedCount = MAX_CHECKOUT_BULK_LINE_CHANGES_PER_REQUEST - removedCount + 1;
+    const existingBulkItems = makeCheckoutBulkItems(removedCount);
+    const replacements = Array.from(
+      { length: addedCount },
+      (_, index) => ({ bulkSkuId: `replacement-sku-${index}`, quantity: 1 }),
+    );
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout({
+      bulkItems: existingBulkItems,
+    }));
+
+    await expect(updateCheckout("c-1", "actor-1", {
+      bulkItems: replacements,
+    })).rejects.toThrow(
+      `Change at most ${MAX_CHECKOUT_BULK_LINE_CHANGES_PER_REQUEST} bulk lines per checkout update`,
+    );
+
+    expect(checkAvailability).not.toHaveBeenCalled();
+    expect(mockTx.booking.update).not.toHaveBeenCalled();
+    expect(mockTx.bookingBulkItem.update).not.toHaveBeenCalled();
+    expect(mockTx.bulkStockBalance.upsert).not.toHaveBeenCalled();
+  });
+
+  it("rejects a checkout update that would exceed 10 distinct bulk SKUs", async () => {
+    const existingBulkItems = makeCheckoutBulkItems(1);
+    const additions = Array.from(
+      { length: MAX_CHECKOUT_DISTINCT_BULK_SKUS_PER_REQUEST },
+      (_, index) => ({ bulkSkuId: `added-sku-${index}`, quantity: 1 }),
+    );
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout({
+      bulkItems: existingBulkItems,
+    }));
+
+    await expect(updateCheckout("c-1", "actor-1", {
+      bulkItems: [
+        { bulkSkuId: existingBulkItems[0]!.bulkSkuId, quantity: existingBulkItems[0]!.plannedQuantity },
+        ...additions,
+      ],
+    })).rejects.toThrow(
+      `A checkout may include at most ${MAX_CHECKOUT_DISTINCT_BULK_SKUS_PER_REQUEST} distinct bulk item types`,
+    );
+
+    expect(checkAvailability).not.toHaveBeenCalled();
+    expect(mockTx.booking.update).not.toHaveBeenCalled();
+    expect(mockTx.bookingBulkItem.createMany).not.toHaveBeenCalled();
+    expect(mockTx.bulkStockBalance.upsert).not.toHaveBeenCalled();
   });
 
   it("restocks the ledger when a bulk row is removed from a checkout", async () => {

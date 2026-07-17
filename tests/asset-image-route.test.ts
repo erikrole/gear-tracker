@@ -114,13 +114,17 @@ describe("/api/assets/[id]/image", () => {
   });
 
   it("keeps the old blob and removes the new one when the upload update fails", async () => {
-    vi.mocked(db.asset.update).mockRejectedValueOnce(new Error("db down"));
+    const databaseError = new Error("db down");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(db.asset.update).mockRejectedValueOnce(databaseError);
 
     const res = await POST(imagePostRequest(), params());
 
     expect(res.status).toBe(500);
     expect(deleteImage).toHaveBeenCalledWith(newImageUrl);
     expect(deleteImage).not.toHaveBeenCalledWith(oldImageUrl);
+    expect(consoleError).toHaveBeenCalledWith(databaseError);
+    consoleError.mockRestore();
   });
 
   it("mirrors external URLs to blob storage before saving", async () => {
@@ -148,11 +152,15 @@ describe("/api/assets/[id]/image", () => {
   });
 
   it("clears the record before deleting the blob on remove", async () => {
-    vi.mocked(db.asset.update).mockRejectedValueOnce(new Error("db down"));
+    const databaseError = new Error("db down");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(db.asset.update).mockRejectedValueOnce(databaseError);
 
     const res = await DELETE(imageDeleteRequest(), params());
 
     expect(res.status).toBe(500);
     expect(deleteImage).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(databaseError);
+    consoleError.mockRestore();
   });
 });

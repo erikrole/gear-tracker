@@ -42,11 +42,16 @@ vi.mock("@/lib/services/event-defaults", () => ({
   resolveEventDefaults: vi.fn(),
 }));
 
+vi.mock("@/lib/services/reservation-rules", () => ({
+  loadReservationRules: vi.fn(),
+}));
+
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { createBooking, listBookings } from "@/lib/services/bookings";
 import { loadCheckoutPolicies } from "@/lib/services/checkout-policies";
 import { resolveEventDefaults } from "@/lib/services/event-defaults";
+import { loadReservationRules } from "@/lib/services/reservation-rules";
 import { POST as postCheckouts } from "@/app/api/checkouts/route";
 import { GET as getReservations, POST as postReservations } from "@/app/api/reservations/route";
 
@@ -105,6 +110,11 @@ beforeEach(() => {
     defaultLoanDays: 2,
     gracePeriodHours: 1,
     maxItemsPerUser: null,
+  });
+  vi.mocked(loadReservationRules).mockResolvedValue({
+    advanceWindowDays: null,
+    noShowExpiryHours: 48,
+    maxConcurrentReservations: null,
   });
   vi.mocked(db.booking.count).mockResolvedValue(0);
   vi.mocked(createBooking).mockResolvedValue({ id: "booking-1", title: "Event kit", bulkItems: [] } as never);
@@ -202,6 +212,39 @@ describe("booking list routes", () => {
     expect(res.status).toBe(400);
     expect(body.error).toBe("Request body must be valid JSON");
     expect(createBooking).not.toHaveBeenCalled();
+  });
+
+  it("BUG: passes the reservation cap into the transactional service without counting in the route", async () => {
+    vi.mocked(loadReservationRules).mockResolvedValue({
+      advanceWindowDays: null,
+      noShowExpiryHours: 48,
+      maxConcurrentReservations: 2,
+    });
+    const startsAt = new Date(Date.now() + 3_600_000);
+    const endsAt = new Date(startsAt.getTime() + 3_600_000);
+
+    const res = await postReservations(
+      post("/api/reservations", {
+        title: "Event kit",
+        requesterUserId: "cm000000000000000000000001",
+        locationId: "cm000000000000000000000002",
+        startsAt: startsAt.toISOString(),
+        endsAt: endsAt.toISOString(),
+        serializedAssetIds: ["cm000000000000000000000003"],
+        bulkItems: [],
+      }),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(res.status).toBe(201);
+    expect(db.booking.count).not.toHaveBeenCalled();
+    expect(createBooking).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: BookingKind.RESERVATION,
+        maxConcurrentReservations: 2,
+        requesterUserId: "cm000000000000000000000001",
+      }),
+    );
   });
 
   it("does not run checkout event-default or create logic for app/web checkout POST", async () => {

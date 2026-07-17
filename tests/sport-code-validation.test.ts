@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { MAX_SPORT_CONFIG_GROUP_CODES_PER_REQUEST } from "@/lib/request-limits";
 import {
   nullableSportCodeSchema,
   optionalSportCodeSchema,
@@ -27,10 +28,25 @@ describe("sport code validation", () => {
 
   it("normalizes grouped sport config codes before service writes", () => {
     const parsed = updateSportConfigGroupSchema.parse({
-      codes: ["mxc", "wxc"],
+      codes: ["mrow", "wrow", "lrow"],
       active: true,
     });
 
-    expect(parsed.codes).toEqual(["MXC", "WXC"]);
+    expect(parsed.codes).toEqual(["MROW", "WROW", "LROW"]);
+    expect(parsed.codes).toHaveLength(MAX_SPORT_CONFIG_GROUP_CODES_PER_REQUEST);
+  });
+
+  it("rejects grouped sport config writes above the Rowing boundary", () => {
+    expect(() => updateSportConfigGroupSchema.parse({
+      codes: ["mrow", "wrow", "lrow", "fb"],
+      active: true,
+    })).toThrow(`Array must contain at most ${MAX_SPORT_CONFIG_GROUP_CODES_PER_REQUEST} element(s)`);
+  });
+
+  it("rejects duplicate grouped sport codes after case normalization", () => {
+    expect(() => updateSportConfigGroupSchema.parse({
+      codes: ["mxc", "MXC"],
+      active: true,
+    })).toThrow("Sport codes must be unique");
   });
 });

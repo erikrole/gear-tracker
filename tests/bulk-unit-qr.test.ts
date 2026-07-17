@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildDerivedBulkUnitQrValue, parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
+import { MAX_BULK_UNIT_NUMBER } from "@/lib/request-limits";
 
 describe("buildDerivedBulkUnitQrValue", () => {
   it("formats the derived unit QR value as {binQrCodeValue}-{unitNumber}", () => {
@@ -21,6 +22,12 @@ describe("buildDerivedBulkUnitQrValue", () => {
     expect(() => buildDerivedBulkUnitQrValue("   ", 1)).toThrow();
     expect(() => buildDerivedBulkUnitQrValue("BIN", 0)).toThrow();
     expect(() => buildDerivedBulkUnitQrValue("BIN", -2)).toThrow();
+    expect(() => buildDerivedBulkUnitQrValue("BIN", MAX_BULK_UNIT_NUMBER + 1)).toThrow();
+  });
+
+  it("accepts the PostgreSQL Int maximum", () => {
+    expect(buildDerivedBulkUnitQrValue("BIN", MAX_BULK_UNIT_NUMBER))
+      .toBe(`BIN-${MAX_BULK_UNIT_NUMBER}`);
   });
 });
 
@@ -63,6 +70,15 @@ describe("parseDerivedBulkUnitQr", () => {
     expect(parseDerivedBulkUnitQr("94e068d1-", skus)).toBeNull();
     expect(parseDerivedBulkUnitQr("94e068d1-0", skus)).toBeNull();
     expect(parseDerivedBulkUnitQr("94e068d1-7A", skus)).toBeNull();
+  });
+
+  it("accepts the PostgreSQL Int maximum and rejects max plus one", () => {
+    const skus = [{ id: "sony-battery", binQrCodeValue: "94e068d1", trackByNumber: true }];
+
+    expect(parseDerivedBulkUnitQr(`94e068d1-${MAX_BULK_UNIT_NUMBER}`, skus)?.unitNumber)
+      .toBe(MAX_BULK_UNIT_NUMBER);
+    expect(parseDerivedBulkUnitQr(`94e068d1-${MAX_BULK_UNIT_NUMBER + 1}`, skus))
+      .toBeNull();
   });
 
   it("prefers the longest bin QR prefix when bin QR values contain hyphens", () => {

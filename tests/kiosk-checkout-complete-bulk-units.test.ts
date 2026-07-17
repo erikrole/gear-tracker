@@ -1,23 +1,34 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  after: vi.fn(),
   transaction: vi.fn(),
   userFindFirst: vi.fn(),
+  transactionUserFindFirst: vi.fn(),
   bookingCreate: vi.fn(),
+  bookingCount: vi.fn(),
+  systemConfigFindUnique: vi.fn(),
   bookingSerializedItemCreateMany: vi.fn(),
   assetAllocationCreateMany: vi.fn(),
   assetUpdateMany: vi.fn(),
   bulkSkuUnitFindMany: vi.fn(),
   bulkSkuUnitUpdateMany: vi.fn(),
-  bookingBulkItemCreate: vi.fn(),
+  bookingBulkItemCreateMany: vi.fn(),
+  bookingBulkItemFindMany: vi.fn(),
   bookingBulkUnitAllocationCreateMany: vi.fn(),
   calendarEventFindFirst: vi.fn(),
   bookingEventCreate: vi.fn(),
-  createAuditEntry: vi.fn(),
+  createAuditEntryTx: vi.fn(),
   nextBookingRef: vi.fn(),
   upsertBulkBalancesAndMovements: vi.fn(),
   badgeOnCheckoutOpened: vi.fn(),
   checkAvailability: vi.fn(),
+  scheduleCheckoutReturnLiveActivity: vi.fn(),
+}));
+
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: mocks.after,
 }));
 
 type KioskTestHandler = (
@@ -50,7 +61,7 @@ vi.mock("@/lib/api", () => ({
 }));
 
 vi.mock("@/lib/audit", () => ({
-  createAuditEntry: mocks.createAuditEntry,
+  createAuditEntryTx: mocks.createAuditEntryTx,
 }));
 
 vi.mock("@/lib/services/booking-ref", () => ({
@@ -69,6 +80,10 @@ vi.mock("@/lib/badges", () => ({
   badges: {
     onCheckoutOpened: mocks.badgeOnCheckoutOpened,
   },
+}));
+
+vi.mock("@/lib/live-activity-workflow", () => ({
+  scheduleCheckoutReturnLiveActivity: mocks.scheduleCheckoutReturnLiveActivity,
 }));
 
 import { POST as completeKioskCheckout } from "@/app/api/kiosk/checkout/complete/route";
@@ -93,7 +108,9 @@ function completeRequest(items: Array<Record<string, unknown>>, extra: Record<st
 
 function transactionClient() {
   return {
-    booking: { create: mocks.bookingCreate },
+    user: { findFirst: mocks.transactionUserFindFirst },
+    booking: { create: mocks.bookingCreate, count: mocks.bookingCount },
+    systemConfig: { findUnique: mocks.systemConfigFindUnique },
     bookingSerializedItem: { createMany: mocks.bookingSerializedItemCreateMany },
     assetAllocation: { createMany: mocks.assetAllocationCreateMany },
     asset: { updateMany: mocks.assetUpdateMany },
@@ -101,7 +118,10 @@ function transactionClient() {
       findMany: mocks.bulkSkuUnitFindMany,
       updateMany: mocks.bulkSkuUnitUpdateMany,
     },
-    bookingBulkItem: { create: mocks.bookingBulkItemCreate },
+    bookingBulkItem: {
+      createMany: mocks.bookingBulkItemCreateMany,
+      findMany: mocks.bookingBulkItemFindMany,
+    },
     bookingBulkUnitAllocation: { createMany: mocks.bookingBulkUnitAllocationCreateMany },
     calendarEvent: { findFirst: mocks.calendarEventFindFirst },
     bookingEvent: { create: mocks.bookingEventCreate },
@@ -110,14 +130,21 @@ function transactionClient() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.after.mockImplementation((callback: () => Promise<void>) => {
+    void callback();
+  });
   mocks.userFindFirst.mockResolvedValue({ id: "user-1", name: "Bucky Badger", role: "STUDENT" });
+  mocks.transactionUserFindFirst.mockResolvedValue({ id: "user-1", role: "STUDENT" });
   mocks.nextBookingRef.mockResolvedValue("CO-1001");
+  mocks.systemConfigFindUnique.mockResolvedValue(null);
+  mocks.bookingCount.mockResolvedValue(0);
   mocks.bookingCreate.mockImplementation(({ data }) => Promise.resolve({
     id: "booking-1",
     title: data.title,
     startsAt: data.startsAt,
     endsAt: data.endsAt,
   }));
+  mocks.assetAllocationCreateMany.mockResolvedValue(undefined);
   mocks.bulkSkuUnitFindMany.mockResolvedValue([
     {
       id: "unit-31",
@@ -129,7 +156,8 @@ beforeEach(() => {
     },
   ]);
   mocks.bulkSkuUnitUpdateMany.mockResolvedValue({ count: 1 });
-  mocks.bookingBulkItemCreate.mockResolvedValue({ id: "bulk-item-1" });
+  mocks.bookingBulkItemCreateMany.mockResolvedValue({ count: 1 });
+  mocks.bookingBulkItemFindMany.mockResolvedValue([{ id: "bulk-item-1", bulkSkuId: "sku-sony" }]);
   mocks.calendarEventFindFirst.mockResolvedValue(null);
   mocks.checkAvailability.mockResolvedValue({
     conflicts: [],
@@ -139,6 +167,8 @@ beforeEach(() => {
     turnaroundRisks: [],
     bulkTurnaroundRisks: [],
   });
+  mocks.createAuditEntryTx.mockResolvedValue(undefined);
+  mocks.scheduleCheckoutReturnLiveActivity.mockResolvedValue(undefined);
   mocks.transaction.mockImplementation((handler) => handler(transactionClient()));
 });
 
@@ -167,7 +197,7 @@ describe("kiosk checkout complete bulk units", () => {
     expect(json.itemCount).toBe(1);
     expect(mocks.bookingCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        title: "Practice checkout",
+        title: "Practice Checkout",
         eventId: undefined,
       }),
     });
@@ -194,13 +224,20 @@ describe("kiosk checkout complete bulk units", () => {
         },
       },
     });
-    expect(mocks.bookingBulkItemCreate).toHaveBeenCalledWith({
-      data: {
+    expect(mocks.bookingBulkItemCreateMany).toHaveBeenCalledWith({
+      data: [{
         bookingId: "booking-1",
         bulkSkuId: "sku-sony",
         plannedQuantity: 1,
         checkedOutQuantity: 1,
+      }],
+    });
+    expect(mocks.bookingBulkItemFindMany).toHaveBeenCalledWith({
+      where: {
+        bookingId: "booking-1",
+        bulkSkuId: { in: ["sku-sony"] },
       },
+      select: { id: true, bulkSkuId: true },
     });
     expect(mocks.bookingBulkUnitAllocationCreateMany).toHaveBeenCalledWith({
       data: [{
@@ -215,15 +252,89 @@ describe("kiosk checkout complete bulk units", () => {
       actorUserId: "user-1",
       items: [{ bulkSkuId: "sku-sony", quantity: 1 }],
     }));
-    expect(mocks.createAuditEntry).toHaveBeenCalledWith(expect.objectContaining({
-      action: "kiosk_checkout",
-      after: expect.objectContaining({ itemCount: 1 }),
-    }));
+    expect(mocks.createAuditEntryTx).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        action: "kiosk_checkout",
+        after: expect.objectContaining({ itemCount: 1 }),
+      }),
+    );
     expect(mocks.badgeOnCheckoutOpened).toHaveBeenCalledWith({
       userId: "user-1",
       bookingId: "booking-1",
       source: "kiosk_checkout",
       sourceKey: "booking-1",
+    });
+    expect(mocks.scheduleCheckoutReturnLiveActivity).toHaveBeenCalledWith({
+      bookingId: "booking-1",
+      endsAt: expect.any(Date),
+    });
+    expect(mocks.after).toHaveBeenCalledOnce();
+  });
+
+  it("BUG: batches distinct battery SKUs instead of issuing writes per SKU", async () => {
+    mocks.bulkSkuUnitFindMany.mockResolvedValue([
+      {
+        id: "unit-31",
+        bulkSkuId: "sku-sony",
+        unitNumber: 31,
+        status: "AVAILABLE",
+        bulkSku: { id: "sku-sony", name: "Sony Battery", active: true },
+        allocations: [],
+      },
+      {
+        id: "unit-4",
+        bulkSkuId: "sku-canon",
+        unitNumber: 4,
+        status: "AVAILABLE",
+        bulkSku: { id: "sku-canon", name: "Canon Battery", active: true },
+        allocations: [],
+      },
+    ]);
+    mocks.bulkSkuUnitUpdateMany.mockResolvedValue({ count: 2 });
+    mocks.bookingBulkItemCreateMany.mockResolvedValue({ count: 2 });
+    mocks.bookingBulkItemFindMany.mockResolvedValue([
+      { id: "bulk-item-sony", bulkSkuId: "sku-sony" },
+      { id: "bulk-item-canon", bulkSkuId: "sku-canon" },
+    ]);
+
+    const res = await runCompleteKioskCheckout(completeRequest([
+      { bulkSkuId: "sku-sony", unitNumber: 31 },
+      { bulkSkuId: "sku-canon", unitNumber: 4 },
+    ]));
+
+    expect(res.status).toBe(200);
+    expect(mocks.bookingBulkItemCreateMany).toHaveBeenCalledOnce();
+    expect(mocks.bookingBulkItemCreateMany).toHaveBeenCalledWith({
+      data: [
+        {
+          bookingId: "booking-1",
+          bulkSkuId: "sku-sony",
+          plannedQuantity: 1,
+          checkedOutQuantity: 1,
+        },
+        {
+          bookingId: "booking-1",
+          bulkSkuId: "sku-canon",
+          plannedQuantity: 1,
+          checkedOutQuantity: 1,
+        },
+      ],
+    });
+    expect(mocks.bookingBulkUnitAllocationCreateMany).toHaveBeenCalledOnce();
+    expect(mocks.bookingBulkUnitAllocationCreateMany).toHaveBeenCalledWith({
+      data: [
+        {
+          bookingBulkItemId: "bulk-item-sony",
+          bulkSkuUnitId: "unit-31",
+          checkedOutAt: expect.any(Date),
+        },
+        {
+          bookingBulkItemId: "bulk-item-canon",
+          bulkSkuUnitId: "unit-4",
+          checkedOutAt: expect.any(Date),
+        },
+      ],
     });
   });
 
@@ -303,6 +414,116 @@ describe("kiosk checkout complete bulk units", () => {
         endsAt: new Date(endsAt),
       })],
     });
+  });
+
+  it("BUG: uses the configured default loan duration when no return time or event end is supplied", async () => {
+    mocks.systemConfigFindUnique.mockResolvedValue({
+      value: { defaultLoanDays: 5, gracePeriodHours: 0, maxItemsPerUser: null },
+    });
+    const startedAt = Date.now();
+
+    const res = await runCompleteKioskCheckout(completeRequest(
+      [{ assetId: "asset-1" }],
+      { endsAt: undefined },
+    ));
+
+    expect(res.status).toBe(200);
+    expect(mocks.systemConfigFindUnique).toHaveBeenCalledWith({
+      where: { key: "checkout_policies" },
+      select: { value: true },
+    });
+    const createdEndsAt = mocks.bookingCreate.mock.calls[0]![0].data.endsAt as Date;
+    expect(createdEndsAt.getTime()).toBeGreaterThanOrEqual(startedAt + 5 * 24 * 60 * 60 * 1000);
+    expect(createdEndsAt.getTime()).toBeLessThanOrEqual(Date.now() + 5 * 24 * 60 * 60 * 1000);
+  });
+
+  it("BUG: rejects at the configured active-checkout cap inside the Serializable transaction", async () => {
+    mocks.systemConfigFindUnique.mockResolvedValue({
+      value: { defaultLoanDays: 3, gracePeriodHours: 0, maxItemsPerUser: 2 },
+    });
+    mocks.bookingCount.mockResolvedValue(2);
+
+    await expect(runCompleteKioskCheckout(completeRequest([
+      { assetId: "asset-1" },
+    ]))).rejects.toThrow("maximum number of active checkouts");
+
+    expect(mocks.bookingCount).toHaveBeenCalledWith({
+      where: {
+        kind: "CHECKOUT",
+        requesterUserId: "user-1",
+        status: { in: ["OPEN", "PENDING_PICKUP"] },
+      },
+    });
+    expect(mocks.transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      { isolationLevel: "Serializable" },
+    );
+    expect(mocks.bookingCreate).not.toHaveBeenCalled();
+    expect(mocks.checkAvailability).not.toHaveBeenCalled();
+  });
+
+  it("rejects an actor deactivated before the transaction without checkout writes or effects", async () => {
+    mocks.transactionUserFindFirst.mockResolvedValue(null);
+
+    await expect(runCompleteKioskCheckout(completeRequest([
+      { assetId: "asset-1" },
+    ]))).rejects.toThrow("User not found");
+
+    expect(mocks.transactionUserFindFirst).toHaveBeenCalledWith({
+      where: { id: "user-1", active: true },
+      select: { id: true, role: true },
+    });
+    expect(mocks.userFindFirst).not.toHaveBeenCalled();
+    expect(mocks.nextBookingRef).not.toHaveBeenCalled();
+    expect(mocks.checkAvailability).not.toHaveBeenCalled();
+    expect(mocks.bookingCreate).not.toHaveBeenCalled();
+    expect(mocks.bookingSerializedItemCreateMany).not.toHaveBeenCalled();
+    expect(mocks.assetAllocationCreateMany).not.toHaveBeenCalled();
+    expect(mocks.bulkSkuUnitUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.createAuditEntryTx).not.toHaveBeenCalled();
+    expect(mocks.after).not.toHaveBeenCalled();
+    expect(mocks.badgeOnCheckoutOpened).not.toHaveBeenCalled();
+    expect(mocks.scheduleCheckoutReturnLiveActivity).not.toHaveBeenCalled();
+  });
+
+  it("allows the checkout immediately below the configured active-checkout cap", async () => {
+    mocks.systemConfigFindUnique.mockResolvedValue({
+      value: { defaultLoanDays: 3, gracePeriodHours: 0, maxItemsPerUser: 2 },
+    });
+    mocks.bookingCount.mockResolvedValue(1);
+
+    const res = await runCompleteKioskCheckout(completeRequest([
+      { assetId: "asset-1" },
+    ]));
+
+    expect(res.status).toBe(200);
+    expect(mocks.bookingCreate).toHaveBeenCalledOnce();
+  });
+
+  it("BUG: retries one serialization race before publishing post-commit effects", async () => {
+    mocks.transaction.mockRejectedValueOnce({ code: "P2034" });
+
+    const res = await runCompleteKioskCheckout(completeRequest([
+      { assetId: "asset-1" },
+    ]));
+
+    expect(res.status).toBe(200);
+    expect(mocks.transaction).toHaveBeenCalledTimes(2);
+    expect(mocks.badgeOnCheckoutOpened).toHaveBeenCalledOnce();
+    expect(mocks.scheduleCheckoutReturnLiveActivity).toHaveBeenCalledOnce();
+  });
+
+  it("maps a persistent serialization race to a retryable conflict without post-commit effects", async () => {
+    mocks.transaction.mockRejectedValue({ code: "40001" });
+
+    await expect(runCompleteKioskCheckout(completeRequest([
+      { assetId: "asset-1" },
+    ]))).rejects.toThrow("Please retry");
+
+    expect(mocks.transaction).toHaveBeenCalledTimes(2);
+    expect(mocks.after).not.toHaveBeenCalled();
+    expect(mocks.badgeOnCheckoutOpened).not.toHaveBeenCalled();
+    expect(mocks.scheduleCheckoutReturnLiveActivity).not.toHaveBeenCalled();
   });
 
   it("ignores client-supplied location and records the authenticated kiosk location", async () => {
@@ -428,7 +649,28 @@ describe("kiosk checkout complete bulk units", () => {
     await expect(runCompleteKioskCheckout(completeRequest([
       { assetId: "asset-1" },
     ]))).rejects.toThrow("One or more items are no longer available");
-    expect(mocks.createAuditEntry).not.toHaveBeenCalled();
+    expect(mocks.createAuditEntryTx).not.toHaveBeenCalled();
     expect(mocks.badgeOnCheckoutOpened).not.toHaveBeenCalled();
+  });
+
+  it("BUG: audit failure rejects the transaction before badge or Live Activity success", async () => {
+    const tx = transactionClient();
+    mocks.transaction.mockImplementationOnce((handler) => handler(tx));
+    mocks.createAuditEntryTx.mockRejectedValueOnce(new Error("audit write failed"));
+
+    await expect(runCompleteKioskCheckout(completeRequest([
+      { assetId: "asset-1" },
+    ]))).rejects.toThrow("audit write failed");
+
+    expect(mocks.createAuditEntryTx).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        action: "kiosk_checkout",
+        entityId: "booking-1",
+      }),
+    );
+    expect(mocks.after).not.toHaveBeenCalled();
+    expect(mocks.badgeOnCheckoutOpened).not.toHaveBeenCalled();
+    expect(mocks.scheduleCheckoutReturnLiveActivity).not.toHaveBeenCalled();
   });
 });

@@ -25,6 +25,7 @@ export default defineConfig([
     "node_modules/**",
     "out/**",
     "build/**",
+    "coverage/**",
     "next-env.d.ts",
     "src/app/.well-known/**",
     "docs/**",

@@ -74,6 +74,7 @@ describe("schedule assign source wiring", () => {
     const approveRoute = readFileSync("src/app/api/shift-assignments/[id]/approve/route.ts", "utf8");
     const assignmentRoute = readFileSync("src/app/api/shift-assignments/[id]/route.ts", "utf8");
     const shiftRoute = readFileSync("src/app/api/shifts/[id]/route.ts", "utf8");
+    const conflictRefresh = readFileSync("src/lib/services/shift-assignment-conflicts.ts", "utf8");
     const publishRoute = readFileSync("src/app/api/shift-groups/[id]/publish/route.ts", "utf8");
 
     expect(assignRoute).toContain("dispatchScheduleAssignmentNotifications(assignment.id, \"assigned\")");
@@ -81,8 +82,11 @@ describe("schedule assign source wiring", () => {
     expect(approveRoute).toContain("dispatchScheduleAssignmentNotifications(assignment.id, \"approved\")");
     expect(assignmentRoute).toContain("existing.shift?.shiftGroup?.publishedAt");
     expect(assignmentRoute).toContain("data.acknowledgedAt = null");
-    expect(shiftRoute).toContain("existing.shiftGroup.publishedAt");
-    expect(shiftRoute).toContain("acknowledgedById: null");
+    expect(shiftRoute).toContain("updateShiftAssignmentConflictsTx(");
+    expect(shiftRoute).toContain("existing.shiftGroup.publishedAt !== null");
+    expect(shiftRoute).toContain("scheduleShiftTimeChangedNotifications(assignmentIds)");
+    expect(conflictRefresh).toContain("acknowledged_by_id");
+    expect(conflictRefresh).toContain("WHEN CAST(${resetAcknowledgements} AS BOOLEAN) THEN NULL");
     expect(publishRoute).toContain("createPublishedShiftGroupNotifications(params.id)");
     expect(publishRoute).toContain("if (!result.before.publishedAt)");
   });

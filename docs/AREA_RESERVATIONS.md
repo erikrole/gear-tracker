@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-16
+- Last Updated: 2026-07-17
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -247,6 +247,8 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 
 ## Change Log
 
+- 2026-07-17: **Numbered reservation quantities stay pickable.** Create and equipment-update transactions read each referenced family's actual `trackByNumber` state and reject a combined numbered quantity above 500. The limit is checked inside the booking transaction, preserves the 50-line planning cap, and does not restrict large quantity-tracked counts. Kiosk pickup uses the same 500-unit boundary so accepted reservations cannot later dead-end during handoff.
+- 2026-07-17: **Reservation-cap creation is atomic.** The active reservation count is read inside the same `SERIALIZABLE` transaction that creates the reservation, with one bounded serialization retry. Simultaneous requests cannot both pass a stale count check, conflicts return a user-safe response, and post-commit effects run only after a successful commit.
 - 2026-07-17: **Native booking hierarchy alignment.** Native Bookings rows now match the Item Detail custody hierarchy with title first, live timing second, and requester plus location/item context third. Normal open checkouts use the blue leading rail without a redundant `Checked Out` pill; reservations and exceptional checkout states retain explicit status labels. List controls, record ordering, payloads, actions, and kiosk-only custody behavior are unchanged.
 - 2026-07-16: **Shared Bookings list interaction-detail polish.** The unified `/bookings` surface now keeps Active/Past and card/list controls, reservation creation, filter recovery, sortable headers, and pagination on the 40px desktop target baseline. Sort headers are keyboard-operable buttons with accessible sort state and contextual icons that transition without replaying on initial render. Booking cards and mobile rows use precise 0.96 press feedback, cards gain restrained hover lift, and requester photos use neutral black/white image outlines. Reservation visibility, action permissions, creation, lifecycle policy, kiosk pickup, filters, and list data are unchanged.
 - 2026-07-16: **Reservation quick-view inline editing.** The shared sheet keeps due back as the stable schedule anchor, formats dates weekday-first, and replaces the broad Edit booking mode with explicit inline title, start, due-back, and notes saves. Reservation equipment planning remains editable on web, while numbered units display directly when already bound by a custody flow.

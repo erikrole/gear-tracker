@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Shift Calendar & Scheduling
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-16
+- Last Updated: 2026-07-17
 - Status: Active — implemented V1 with ongoing hardening
 
 ## Purpose
@@ -94,6 +94,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-07-17: **Shift-time edits are atomic.** Current-row validation, the shift write, assignment-conflict recomputation and acknowledgement reset, and audit history now commit in one `SERIALIZABLE` transaction. Conflict refresh rejects partial updates, while durable notification scheduling starts only after commit so delivery failure cannot roll back the shift.
 - 2026-07-16: **Schedule interaction-detail pass.** Header commands, the My Shifts control, calendar overflow controls, source settings, list retry/trade/manage actions, and row-open links now meet the 40px desktop target baseline or use the full containing row as their target. Calendar and Week event cards gain explicit press and keyboard-focus feedback, the noninteractive calendar date numeral no longer suggests a hover action, mobile week-day disclosure rows gain tactile feedback, and collaborator follow-state icons cross-fade without animating their initial state. Schedule data, filters, staffing, publication, trade, queue, and calendar-source behavior are unchanged.
 - 2026-07-10: Native Schedule recovery and assignment scale hardened. Shift-time edits stay open with entered values after a failed save and use adaptive sheet detents; staffing actions meet the 44-point target; Assign Student now uses debounced server search, pagination, and area-first ranking instead of truncating the roster at 200 local rows.
 - 2026-07-09: Event classification edit recovery hardened. Event detail now edits Sport with Home, Away, Neutral, and Non-game, requires sport/opponent before saving a game, and submits the three classification fields together. The PATCH route derives `isHome` server-side, rejects incomplete games or uncoupled opponent edits, and uses the existing `isHomeLocked` flag to preserve sport, opponent, and venue classification together across later calendar syncs. Restore calendar value now restores all three derived fields. Existing crew setup is intentionally not regenerated when sport context changes.

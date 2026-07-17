@@ -79,22 +79,36 @@ export function fail(error: unknown) {
 
 const PAGINATION_DEFAULT_LIMIT = 50;
 const PAGINATION_MAX_LIMIT = 200;
+const PAGINATION_MAX_OFFSET = 10_000;
 
 export type PaginationParams = {
   limit: number;
   offset: number;
 };
 
+function parseUnsignedInteger(raw: string | null): number | null {
+  if (raw === null || !/^\d+$/.test(raw)) return null;
+  const value = Number(raw);
+  return Number.isSafeInteger(value) ? value : Number.POSITIVE_INFINITY;
+}
+
 export function parsePagination(searchParams: URLSearchParams): PaginationParams {
-  const rawLimit = parseInt(searchParams.get("limit") ?? "", 10);
-  const rawOffset = parseInt(searchParams.get("offset") ?? "", 10);
+  const rawLimit = parseUnsignedInteger(searchParams.get("limit"));
+  const rawOffset = parseUnsignedInteger(searchParams.get("offset"));
+
+  if (rawOffset !== null && rawOffset > PAGINATION_MAX_OFFSET) {
+    throw new HttpError(
+      400,
+      `offset must be a whole number between 0 and ${PAGINATION_MAX_OFFSET}`,
+    );
+  }
 
   const limit =
-    Number.isFinite(rawLimit) && rawLimit > 0
+    rawLimit !== null && rawLimit > 0
       ? Math.min(rawLimit, PAGINATION_MAX_LIMIT)
       : PAGINATION_DEFAULT_LIMIT;
 
-  const offset = Number.isFinite(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
+  const offset = rawOffset ?? 0;
 
   return { limit, offset };
 }

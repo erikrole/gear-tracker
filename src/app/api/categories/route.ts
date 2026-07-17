@@ -4,8 +4,14 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
 import { requirePermission, requirePermissionOrCollaboratorCapability } from "@/lib/rbac";
-import { createAuditEntry } from "@/lib/audit";
+import { createAuditEntryTx } from "@/lib/audit";
 import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
+import {
+  assertValidCategoryPlacement,
+  loadCategoryGraph,
+  rethrowCategoryMutationError,
+  withCategorySerializableRetry,
+} from "@/lib/services/category-mutations";
 
 const createSchema = z.object({
   name: z.string().trim().min(1).max(100),
@@ -64,41 +70,44 @@ export const POST = withAuth(async (req, { user }) => {
   const body = createSchema.parse(await req.json());
   const parentId = body.parentId ?? null;
 
-  if (parentId) {
-    const parent = await db.category.findUnique({ where: { id: parentId } });
-    if (!parent) throw new HttpError(404, "Parent category not found");
-  }
-
-  const duplicate = await db.category.findFirst({
-    where: { name: body.name, parentId },
-  });
-  if (duplicate) throw new HttpError(409, "Category already exists in this level");
-
   try {
-    const category = await db.category.create({
-      data: {
-        name: body.name,
-        parentId,
-      },
-    });
+    const category = await withCategorySerializableRetry(() => db.$transaction(async (tx) => {
+      if (parentId) {
+        const graph = await loadCategoryGraph(tx);
+        assertValidCategoryPlacement(graph, null, parentId);
+      }
 
-    await createAuditEntry({
-      actorId: user.id,
-      actorRole: user.role,
-      entityType: "category",
-      entityId: category.id,
-      action: "created",
-      after: { name: category.name, parentId: category.parentId },
-    });
+      // This read is required even with the composite unique constraint because
+      // PostgreSQL permits duplicate NULL parentId values. SERIALIZABLE turns a
+      // concurrent root insert into a retry instead of a duplicate root.
+      const duplicate = await tx.category.findFirst({
+        where: { name: body.name, parentId },
+      });
+      if (duplicate) throw new HttpError(409, "Category already exists in this level");
+
+      const created = await tx.category.create({
+        data: {
+          name: body.name,
+          parentId,
+        },
+      });
+
+      await createAuditEntryTx(tx, {
+        actorId: user.id,
+        actorRole: user.role,
+        entityType: "category",
+        entityId: created.id,
+        action: "created",
+        after: { name: created.name, parentId: created.parentId },
+      });
+
+      return created;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
 
     return ok({ data: category }, 201);
   } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError
-      && error.code === "P2002"
-    ) {
-      throw new HttpError(409, "Category already exists in this level");
-    }
-    throw error;
+    rethrowCategoryMutationError(error, {
+      foreignKeyMessage: "Parent category not found",
+    });
   }
 });

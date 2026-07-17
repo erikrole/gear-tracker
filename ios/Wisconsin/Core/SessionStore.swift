@@ -44,6 +44,8 @@ final class SessionStore {
     /// True when this launch optimistically seeded `currentUser` from a stored
     /// snapshot, so the app shell rendered before `/me` confirmed the session.
     private var didSeedFromSnapshot = false
+    private var authRequests = LatestRequestGeneration()
+    private let authMutations = AuthMutationQueue()
 
     var usedOptimisticSessionSnapshot: Bool { didSeedFromSnapshot }
 
@@ -60,7 +62,8 @@ final class SessionStore {
             isRestoring = false
             didSeedFromSnapshot = true
         }
-        Task { await restoreSession() }
+        let restoreToken = authRequests.begin()
+        Task { await restoreSession(requestToken: restoreToken) }
         // Listen for global 401s posted from APIClient and route the user back to login.
         NotificationCenter.default.addObserver(
             forName: .sessionDidExpire,
@@ -70,6 +73,8 @@ final class SessionStore {
             Task { @MainActor in
                 guard let self else { return }
                 if self.currentUser != nil {
+                    self.authRequests.invalidate()
+                    self.isRestoring = false
                     self.didSeedFromSnapshot = false
                     self.currentUser = nil
                     SessionSnapshot.clear()
@@ -87,54 +92,82 @@ final class SessionStore {
     }
 
     func login(email: String, password: String) async {
-        isLoading = true
-        error = nil
-        do {
-            let user = try await APIClient.shared.login(email: email, password: password)
-            didSeedFromSnapshot = false
-            currentUser = user
-            SessionSnapshot.save(user)
-        } catch {
-            self.error = error.localizedDescription
+        let mutation = authMutations.enqueue { [weak self] in
+            guard let self else { return }
+            let requestToken = self.authRequests.begin()
+            self.isLoading = true
+            self.error = nil
+            do {
+                let user = try await APIClient.shared.login(email: email, password: password)
+                guard self.authRequests.owns(requestToken) else { return }
+                self.didSeedFromSnapshot = false
+                self.currentUser = user
+                SessionSnapshot.save(user)
+            } catch {
+                guard self.authRequests.owns(requestToken) else { return }
+                self.error = error.localizedDescription
+            }
+            if self.authRequests.owns(requestToken) { self.isLoading = false }
         }
-        isLoading = false
+        await mutation.value
     }
 
     func completeForcedPasswordChange(currentPassword: String, newPassword: String) async {
-        isLoading = true
-        error = nil
-        do {
-            try await APIClient.shared.changePassword(
-                currentPassword: currentPassword,
-                newPassword: newPassword,
-                revokeOtherSessions: true
-            )
-            currentUser = try await APIClient.shared.me()
-            didSeedFromSnapshot = false
-            if let currentUser { SessionSnapshot.save(currentUser) }
-            isOffline = false
-        } catch {
-            self.error = error.localizedDescription
+        let mutation = authMutations.enqueue { [weak self] in
+            guard let self else { return }
+            let requestToken = self.authRequests.begin()
+            self.isLoading = true
+            self.error = nil
+            do {
+                try await APIClient.shared.changePassword(
+                    currentPassword: currentPassword,
+                    newPassword: newPassword,
+                    revokeOtherSessions: true
+                )
+                let user = try await APIClient.shared.me()
+                guard self.authRequests.owns(requestToken) else { return }
+                self.currentUser = user
+                self.didSeedFromSnapshot = false
+                if let currentUser = self.currentUser { SessionSnapshot.save(currentUser) }
+                self.isOffline = false
+            } catch {
+                guard self.authRequests.owns(requestToken) else { return }
+                self.error = error.localizedDescription
+            }
+            if self.authRequests.owns(requestToken) { self.isLoading = false }
         }
-        isLoading = false
+        await mutation.value
     }
 
     func logout() async {
         // Best-effort: a stuck server must not strand the user signed in.
-        // Local sign-out (clear `currentUser` + cookies) always wins.
-        try? await APIClient.shared.revokeAllDeviceTokens()
-        try? await APIClient.shared.revokeCheckoutReturnLiveActivityStartTokens()
-        try? await APIClient.shared.logout()
+        // Clear UI state before suspending, and invalidate any in-flight `/me`
+        // request so it cannot repopulate the signed-out shell afterward.
+        authRequests.invalidate()
         SessionSnapshot.clear()
         didSeedFromSnapshot = false
         currentUser = nil
+        isLoading = false
+        isRestoring = false
+        let mutation = authMutations.enqueue {
+            try? await APIClient.shared.revokeAllDeviceTokens()
+            try? await APIClient.shared.revokeCheckoutReturnLiveActivityStartTokens()
+            try? await APIClient.shared.logout()
+        }
+        await mutation.value
     }
 
     func clearDeletedAccountLocally() async {
-        try? await APIClient.shared.logout()
+        authRequests.invalidate()
         SessionSnapshot.clear()
         didSeedFromSnapshot = false
         currentUser = nil
+        isLoading = false
+        isRestoring = false
+        let mutation = authMutations.enqueue {
+            try? await APIClient.shared.logout()
+        }
+        await mutation.value
     }
 
     /// Clear a stale auth error — call from views when the user starts typing again.
@@ -144,26 +177,31 @@ final class SessionStore {
 
     func refreshCurrentUser() async {
         guard currentUser != nil else { return }
+        let requestToken = authRequests.begin()
         do {
             let user = try await APIClient.shared.me()
+            guard authRequests.owns(requestToken) else { return }
             currentUser = user
             SessionSnapshot.save(user)
             isOffline = false
             error = nil
         } catch APIError.unauthorized {
+            guard authRequests.owns(requestToken) else { return }
+            authRequests.invalidate()
             SessionSnapshot.clear()
             currentUser = nil
         } catch {
+            guard authRequests.owns(requestToken) else { return }
             self.error = error.localizedDescription
         }
     }
 
-    private func restoreSession() async {
+    private func restoreSession(requestToken: UUID) async {
         let startedAt = Date()
         let optimistic = didSeedFromSnapshot
         var result = "unknown"
         defer {
-            isRestoring = false
+            if authRequests.owns(requestToken) { isRestoring = false }
             // Distinguish the optimistic path (shell already shown) from a cold
             // blocking restore so launch timings stay comparable in Console.
             let phase = optimistic ? "launch.session.optimistic" : "launch.session.restore"
@@ -171,17 +209,22 @@ final class SessionStore {
         }
         do {
             let user = try await APIClient.shared.me()
+            guard authRequests.owns(requestToken) else { return }
             currentUser = user
             SessionSnapshot.save(user)
             isOffline = false
             result = "authenticated"
         } catch APIError.unauthorized {
+            guard authRequests.owns(requestToken) else { return }
             // Confirmed revoked/expired session — drop the optimistic shell and
             // send the user to Login.
+            authRequests.invalidate()
+            isRestoring = false
             SessionSnapshot.clear()
             currentUser = nil
             result = "unauthorized"
         } catch {
+            guard authRequests.owns(requestToken) else { return }
             // Network failure — don't clear session state; keep any optimistic
             // session and let the user retry.
             isOffline = true

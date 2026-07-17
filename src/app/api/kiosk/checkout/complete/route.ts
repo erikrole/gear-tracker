@@ -1,8 +1,9 @@
-import { BookingKind, BulkMovementKind, BulkUnitStatus, CalendarEventStatus, Prisma } from "@prisma/client";
+import { BookingKind, BookingStatus, BulkMovementKind, BulkUnitStatus, CalendarEventStatus, Prisma } from "@prisma/client";
+import { after } from "next/server";
 import { db } from "@/lib/db";
 import { withKiosk } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
-import { createAuditEntry } from "@/lib/audit";
+import { createAuditEntryTx } from "@/lib/audit";
 import { checkoutCompleteBody } from "@/lib/schemas/kiosk";
 import { nextBookingRef } from "@/lib/services/booking-ref";
 import { upsertBulkBalancesAndMovements } from "@/lib/services/bookings-helpers";
@@ -13,6 +14,9 @@ import { parseDateRange } from "@/lib/time";
 import { badges } from "@/lib/badges";
 import { scheduleCheckoutReturnLiveActivity } from "@/lib/live-activity-workflow";
 import { normalizeBookingTitle } from "@/lib/title-normalization";
+import { normalizeCheckoutPolicies } from "@/lib/services/checkout-policies";
+
+const MAX_SERIALIZABLE_ATTEMPTS = 2;
 
 function hasBlockingAvailabilityIssue(result: AvailabilityResult) {
   return result.conflicts.length > 0 || result.shortages.length > 0 || result.unavailableAssets.length > 0;
@@ -51,6 +55,26 @@ function isBookingAllocationConstraintError(error: unknown) {
   return error.code === "P2004" && text.includes("asset_allocations");
 }
 
+function isSerializableConflict(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const code = (error as { code?: unknown }).code;
+  const metaCode = (error as { meta?: { code?: unknown } }).meta?.code;
+  return code === "P2034" || code === "40001" || metaCode === "40001";
+}
+
+async function withSerializableRetry<T>(operation: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; attempt <= MAX_SERIALIZABLE_ATTEMPTS; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (!isSerializableConflict(error) || attempt === MAX_SERIALIZABLE_ATTEMPTS) {
+        throw error;
+      }
+    }
+  }
+  throw new Error("Serializable checkout retry exhausted");
+}
+
 /**
  * Complete a kiosk checkout: create booking + allocations in one step.
  * This is the scan-first flow: items were validated during scanning,
@@ -63,22 +87,39 @@ export const POST = withKiosk(async (req, { kiosk }) => {
   const { assetIds, bulkUnitItems } = normalizeCheckoutCompleteItems(body.items);
   const customPurpose = body.customPurpose?.trim();
 
-  // Verify user exists and is active
-  const user = await db.user.findFirst({
-    where: { id: actorId, active: true },
-    select: { id: true, name: true, role: true },
-  });
-  if (!user) throw new HttpError(404, "User not found");
-
   const now = new Date();
   const eventWindowEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
   try {
-    const { booking, refNumber } = await db.$transaction(
+    const { booking, refNumber } = await withSerializableRetry(() => db.$transaction(
       async (tx) => {
+        const transactionalUser = await tx.user.findFirst({
+          where: { id: actorId, active: true },
+          select: { id: true, role: true },
+        });
+        if (!transactionalUser) throw new HttpError(404, "User not found");
+
         // Generate ref-number inside the transaction so the advisory lock
         // (held by `nextBookingRef`) serializes concurrent kiosk completions.
         const refNumber = await nextBookingRef(tx, "CO");
+
+        const policyRow = await tx.systemConfig.findUnique({
+          where: { key: "checkout_policies" },
+          select: { value: true },
+        });
+        const policies = normalizeCheckoutPolicies(policyRow?.value);
+        if (policies.maxItemsPerUser !== null) {
+          const activeCheckoutCount = await tx.booking.count({
+            where: {
+              kind: BookingKind.CHECKOUT,
+              requesterUserId: actorId,
+              status: { in: [BookingStatus.OPEN, BookingStatus.PENDING_PICKUP] },
+            },
+          });
+          if (activeCheckoutCount >= policies.maxItemsPerUser) {
+            throw new HttpError(409, "This user already has the maximum number of active checkouts");
+          }
+        }
 
         const event = body.eventId
           ? await tx.calendarEvent.findFirst({
@@ -99,7 +140,7 @@ export const POST = withKiosk(async (req, { kiosk }) => {
 
         const defaultEndsAt = event?.endsAt && event.endsAt > now
           ? event.endsAt
-          : new Date(now.getTime() + 24 * 60 * 60 * 1000);
+          : new Date(now.getTime() + policies.defaultLoanDays * 24 * 60 * 60 * 1000);
         const { start: startsAt, end: endsAt } = parseDateRange(
           now.toISOString(),
           body.endsAt ?? defaultEndsAt.toISOString(),
@@ -250,23 +291,39 @@ export const POST = withKiosk(async (req, { kiosk }) => {
             unitsBySku.set(unit.bulkSkuId, [...(unitsBySku.get(unit.bulkSkuId) ?? []), unit]);
           }
 
-          for (const [bulkSkuId, skuUnits] of unitsBySku) {
-            const bulkItem = await tx.bookingBulkItem.create({
-              data: {
-                bookingId: b.id,
-                bulkSkuId,
-                plannedQuantity: skuUnits.length,
-                checkedOutQuantity: skuUnits.length,
-              },
-            });
-            await tx.bookingBulkUnitAllocation.createMany({
-              data: skuUnits.map((unit) => ({
-                bookingBulkItemId: bulkItem.id,
+          await tx.bookingBulkItem.createMany({
+            data: [...unitsBySku.entries()].map(([bulkSkuId, skuUnits]) => ({
+              bookingId: b.id,
+              bulkSkuId,
+              plannedQuantity: skuUnits.length,
+              checkedOutQuantity: skuUnits.length,
+            })),
+          });
+          const createdBulkItems = await tx.bookingBulkItem.findMany({
+            where: {
+              bookingId: b.id,
+              bulkSkuId: { in: [...unitsBySku.keys()] },
+            },
+            select: { id: true, bulkSkuId: true },
+          });
+          if (createdBulkItems.length !== unitsBySku.size) {
+            throw new Error("Failed to resolve created checkout bulk items");
+          }
+          const bulkItemIdBySku = new Map(createdBulkItems.map((item) => [item.bulkSkuId, item.id]));
+
+          await tx.bookingBulkUnitAllocation.createMany({
+            data: units.flatMap((unit) => {
+              const bookingBulkItemId = bulkItemIdBySku.get(unit.bulkSkuId);
+              if (!bookingBulkItemId) {
+                throw new Error("Failed to match a checkout bulk unit to its booking item");
+              }
+              return [{
+                bookingBulkItemId,
                 bulkSkuUnitId: unit.id,
                 checkedOutAt: now,
-              })),
-            });
-          }
+              }];
+            }),
+          });
 
           await upsertBulkBalancesAndMovements(tx, {
             locationId,
@@ -280,41 +337,44 @@ export const POST = withKiosk(async (req, { kiosk }) => {
           });
         }
 
+        await createAuditEntryTx(tx, {
+          actorId,
+          actorRole: transactionalUser.role,
+          entityType: "booking",
+          entityId: b.id,
+          action: "kiosk_checkout",
+          after: {
+            refNumber,
+            itemCount: assetIds.length + bulkUnitItems.length,
+            source: "KIOSK",
+            kioskDeviceId: kiosk.kioskId,
+            locationName: kiosk.locationName,
+            eventId: body.eventId ?? null,
+            customPurpose: customPurpose ?? null,
+            title: b.title,
+            startsAt: b.startsAt.toISOString(),
+            endsAt: b.endsAt.toISOString(),
+          },
+        });
+
         return { booking: b, refNumber };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
-    );
+    ));
 
-    await createAuditEntry({
-      actorId,
-      actorRole: user.role,
-      entityType: "booking",
-      entityId: booking.id,
-      action: "kiosk_checkout",
-      after: {
-        refNumber,
-        itemCount: assetIds.length + bulkUnitItems.length,
-        source: "KIOSK",
-        kioskDeviceId: kiosk.kioskId,
-        locationName: kiosk.locationName,
-        eventId: body.eventId ?? null,
-        customPurpose: customPurpose ?? null,
-        title: booking.title,
-        startsAt: booking.startsAt.toISOString(),
-        endsAt: booking.endsAt.toISOString(),
-      },
-    });
-
-    await badges.onCheckoutOpened({
-      userId: actorId,
-      bookingId: booking.id,
-      source: "kiosk_checkout",
-      sourceKey: booking.id,
-    });
-
-    await scheduleCheckoutReturnLiveActivity({
-      bookingId: booking.id,
-      endsAt: booking.endsAt,
+    after(async () => {
+      await Promise.allSettled([
+        badges.onCheckoutOpened({
+          userId: actorId,
+          bookingId: booking.id,
+          source: "kiosk_checkout",
+          sourceKey: booking.id,
+        }),
+        scheduleCheckoutReturnLiveActivity({
+          bookingId: booking.id,
+          endsAt: booking.endsAt,
+        }),
+      ]);
     });
 
     return ok({
@@ -324,6 +384,10 @@ export const POST = withKiosk(async (req, { kiosk }) => {
       endsAt: booking.endsAt,
     });
   } catch (error) {
+    if (isSerializableConflict(error)) {
+      throw new HttpError(409, "Checkout changed while it was being created. Please retry");
+    }
+
     if (isBookingAllocationConstraintError(error)) {
       throw new HttpError(409, "One or more items are no longer available");
     }

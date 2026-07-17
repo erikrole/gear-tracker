@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Role } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: vi.fn(),
@@ -58,6 +58,21 @@ function post(body: Record<string, unknown>) {
     },
     body: JSON.stringify(body),
   });
+}
+
+function validCreateBody(overrides: Record<string, unknown> = {}) {
+  return {
+    assetTag: "SMOKE-1",
+    name: "Smoke Test Asset",
+    type: "equipment",
+    brand: "Smoke",
+    model: "Verifier",
+    serialNumber: "SN-SMOKE-1",
+    qrCodeValue: "QR-SMOKE-1",
+    locationId: "cmlocation000000000000001",
+    categoryId: "cmcategory000000000000001",
+    ...overrides,
+  };
 }
 
 beforeEach(() => {
@@ -157,5 +172,48 @@ describe("POST /api/assets", () => {
         linkUrl: "https://bhphotovideo.com/c/product/sony",
       }),
     }));
+  });
+
+  it.each([
+    { field: "purchaseDate", value: "not-a-purchase-date" },
+    { field: "warrantyDate", value: "not-a-warranty-date" },
+  ])("BUG: rejects invalid $field strings before Prisma writes", async ({ field, value }) => {
+    const res = await POST(
+      post(validCreateBody({ [field]: value })),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(res.status).toBe(400);
+    expect(db.asset.create).not.toHaveBeenCalled();
+    expect(createAuditEntry).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { target: "tagName", expected: 'Asset tag "SMOKE-1" is already in use' },
+    { target: "tag_name", expected: 'Asset tag "SMOKE-1" is already in use' },
+    { target: "serialNumber", expected: 'Serial number "SN-SMOKE-1" is already in use' },
+    { target: "serial_number", expected: 'Serial number "SN-SMOKE-1" is already in use' },
+    { target: "qrCodeValue", expected: 'QR code "QR-SMOKE-1" is already in use' },
+    { target: "qr_code_value", expected: 'QR code "QR-SMOKE-1" is already in use' },
+    { target: "primaryScanCode", expected: "Primary scan code is already in use" },
+    { target: "primary_scan_code", expected: "Primary scan code is already in use" },
+  ])("BUG: maps P2002 $target collisions to truthful asset identity errors", async ({ target, expected }) => {
+    vi.mocked(db.asset.create).mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+        code: "P2002",
+        clientVersion: "test",
+        meta: { target: [target] },
+      }),
+    );
+
+    const res = await POST(
+      post(validCreateBody()),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(res.status).toBe(409);
+    await expect(res.json()).resolves.toEqual({ error: expected });
+    expect(db.asset.create).toHaveBeenCalledOnce();
+    expect(createAuditEntry).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,5 @@
 import { BookingKind, BookingStatus, Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
-import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermissionOrCollaboratorCapability } from "@/lib/rbac";
 import { createBooking, listBookings } from "@/lib/services/bookings";
@@ -62,25 +61,9 @@ export const POST = withAuth(async (req, { user }) => {
     }
   }
 
-  // Enforce max concurrent reservations per user
-  if (rules.maxConcurrentReservations !== null) {
-    const activeCount = await db.booking.count({
-      where: {
-        requesterUserId: body.requesterUserId,
-        kind: BookingKind.RESERVATION,
-        status: BookingStatus.BOOKED,
-      },
-    });
-    if (activeCount >= rules.maxConcurrentReservations) {
-      throw new HttpError(
-        409,
-        `This user already has ${activeCount} active reservation${activeCount === 1 ? "" : "s"} (limit: ${rules.maxConcurrentReservations}).`
-      );
-    }
-  }
-
   const reservation = await createBooking({
     kind: BookingKind.RESERVATION,
+    maxConcurrentReservations: rules.maxConcurrentReservations ?? undefined,
     title: body.title,
     requesterUserId: body.requesterUserId,
     locationId: body.locationId,

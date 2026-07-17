@@ -14,6 +14,7 @@ import { withAuth, withHandler } from "@/lib/api";
 import { requireAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { HttpError } from "@/lib/http";
+import * as Sentry from "@sentry/nextjs";
 
 const mockUser = {
   id: "user-1",
@@ -35,6 +36,18 @@ function makeRequest(method: string, headers: Record<string, string> = {}) {
       host: "app.example.com",
       ...headers,
     },
+  });
+}
+
+function makeMalformedJsonRequest() {
+  return new Request("https://app.example.com/api/test", {
+    method: "POST",
+    headers: {
+      host: "app.example.com",
+      origin: "https://app.example.com",
+      "content-type": "application/json; charset=utf-8",
+    },
+    body: '{"broken":',
   });
 }
 
@@ -99,7 +112,9 @@ describe("withAuth", () => {
   });
 
   it("returns 500 for unknown errors", async () => {
-    const handler = vi.fn().mockRejectedValue(new Error("unexpected"));
+    const unexpectedError = new Error("unexpected");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const handler = vi.fn().mockRejectedValue(unexpectedError);
     const wrapped = withAuth(handler);
 
     const res = await wrapped(
@@ -108,6 +123,58 @@ describe("withAuth", () => {
     );
 
     expect(res.status).toBe(500);
+    expect(consoleError).toHaveBeenCalledWith(unexpectedError);
+    consoleError.mockRestore();
+  });
+
+  it("returns 400 when an authenticated JSON handler parses a malformed body", async () => {
+    const handler = vi.fn(async (req: Request) => {
+      await req.json();
+      return NextResponse.json({ ok: true });
+    });
+    const wrapped = withAuth(handler);
+
+    const res = await wrapped(makeMalformedJsonRequest(), { params: Promise.resolve({}) });
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: "Request body must be valid JSON" });
+  });
+
+  it("does not misclassify a non-JSON server SyntaxError as malformed input", async () => {
+    const syntaxError = new SyntaxError("server invariant failed");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const wrapped = withAuth(vi.fn().mockRejectedValue(syntaxError));
+
+    const res = await wrapped(makeRequest("GET"), { params: Promise.resolve({}) });
+
+    expect(res.status).toBe(500);
+    expect(consoleError).toHaveBeenCalledWith(syntaxError);
+    consoleError.mockRestore();
+  });
+
+  it("does not misclassify a server SyntaxError after valid JSON parsing", async () => {
+    const syntaxError = new SyntaxError("server invariant failed");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const wrapped = withAuth(async (req: Request) => {
+      await req.json();
+      throw syntaxError;
+    });
+    const request = new Request("https://app.example.com/api/test", {
+      method: "POST",
+      headers: {
+        host: "app.example.com",
+        origin: "https://app.example.com",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ valid: true }),
+    });
+
+    const res = await wrapped(request, { params: Promise.resolve({}) });
+
+    expect(res.status).toBe(500);
+    expect(consoleError).toHaveBeenCalledWith(syntaxError);
+    expect(Sentry.captureException).toHaveBeenCalledWith(syntaxError);
+    consoleError.mockRestore();
   });
 
   // ── CSRF tests ──────────────────────────────────────────────────────────
@@ -360,5 +427,18 @@ describe("withHandler", () => {
       expect.anything(),
       expect.objectContaining({ params: { id: "456" } })
     );
+  });
+
+  it("returns 400 when a public JSON handler parses a malformed body", async () => {
+    const handler = vi.fn(async (req: Request) => {
+      await req.json();
+      return NextResponse.json({ ok: true });
+    });
+    const wrapped = withHandler(handler);
+
+    const res = await wrapped(makeMalformedJsonRequest(), { params: Promise.resolve({}) });
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: "Request body must be valid JSON" });
   });
 });

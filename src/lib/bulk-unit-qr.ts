@@ -1,3 +1,5 @@
+import { MAX_BULK_UNIT_NUMBER } from "@/lib/request-limits";
+
 export type DerivedBulkUnitQrSku = {
   id: string;
   binQrCodeValue: string | null;
@@ -24,7 +26,7 @@ export function buildDerivedBulkUnitQrValue(
   if (!trimmed) {
     throw new Error("Cannot derive a unit QR value without a bin QR code");
   }
-  if (!Number.isSafeInteger(unitNumber) || unitNumber <= 0) {
+  if (!Number.isSafeInteger(unitNumber) || unitNumber <= 0 || unitNumber > MAX_BULK_UNIT_NUMBER) {
     throw new Error(`Invalid unit number for derived QR value: ${unitNumber}`);
   }
   return `${trimmed}-${unitNumber}`;
@@ -94,7 +96,7 @@ export function parseDerivedBulkUnitQr(
       if (!/^\d+$/.test(suffix)) return null;
 
       const unitNumber = Number(suffix);
-      if (!Number.isSafeInteger(unitNumber) || unitNumber <= 0) return null;
+      if (!Number.isSafeInteger(unitNumber) || unitNumber <= 0 || unitNumber > MAX_BULK_UNIT_NUMBER) return null;
 
       return {
         bulkSkuId: sku.id,

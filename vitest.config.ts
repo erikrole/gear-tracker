@@ -18,7 +18,13 @@ export default defineConfig({
         "src/lib/rbac.ts",
         "src/lib/permissions.ts",
         "src/lib/api.ts"
-      ]
+      ],
+      thresholds: {
+        statements: 70,
+        branches: 75,
+        functions: 75,
+        lines: 70
+      }
     }
   }
 });

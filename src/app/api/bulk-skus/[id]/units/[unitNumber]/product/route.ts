@@ -5,11 +5,15 @@ import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { assignBulkUnitProductSchema } from "@/lib/validation";
+import { MAX_BULK_UNIT_NUMBER } from "@/lib/request-limits";
 
 export const PATCH = withAuth<{ id: string; unitNumber: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "bulk_sku", "adjust");
+  if (!/^[1-9]\d*$/.test(params.unitNumber)) {
+    throw new HttpError(400, "Invalid unit number");
+  }
   const unitNumber = Number(params.unitNumber);
-  if (!Number.isSafeInteger(unitNumber) || unitNumber <= 0) {
+  if (!Number.isSafeInteger(unitNumber) || unitNumber > MAX_BULK_UNIT_NUMBER) {
     throw new HttpError(400, "Invalid unit number");
   }
   const body = assignBulkUnitProductSchema.parse(await req.json());

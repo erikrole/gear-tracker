@@ -10,6 +10,14 @@ DERIVED_DATA_PATH="${IOS_DERIVED_DATA_PATH:-${TMPDIR:-/tmp}/gear-tracker-xcode-d
 PROJECT_PATH="ios/Wisconsin.xcodeproj"
 XCODEBUILD_FLAGS=()
 
+if [[ -n "${IOS_TEST_DESTINATION:-}" ]]; then
+  TEST_DESTINATION="$IOS_TEST_DESTINATION"
+elif [[ "$SCHEME" == "WisconsinKiosk" ]]; then
+  TEST_DESTINATION="platform=iOS Simulator,name=iPad (A16),OS=latest"
+else
+  TEST_DESTINATION="platform=iOS Simulator,name=iPhone 16,OS=latest"
+fi
+
 if [[ "${IOS_XCODEBUILD_VERBOSE:-0}" != "1" ]]; then
   XCODEBUILD_FLAGS+=("-quiet")
 fi
@@ -26,6 +34,7 @@ printf 'Project: %s\n' "$PROJECT_PATH"
 printf 'Scheme: %s\n' "$SCHEME"
 printf 'Configuration: %s\n' "$CONFIGURATION"
 printf 'DerivedData: %s\n' "$DERIVED_DATA_PATH"
+printf 'Test destination: %s\n' "$TEST_DESTINATION"
 
 if [[ "${IOS_SKIP_PROJECT_CHECK:-0}" != "1" ]]; then
   run_step "XcodeGen project drift" npm run ios:project:check
@@ -45,6 +54,18 @@ run_step "Xcode simulator build" \
     -configuration "$CONFIGURATION" \
     -derivedDataPath "$DERIVED_DATA_PATH" \
     build
+
+if [[ "${IOS_SKIP_TESTS:-0}" != "1" ]]; then
+  run_step "XCTest simulator suite" \
+    xcodebuild \
+      "${XCODEBUILD_FLAGS[@]}" \
+      -project "$PROJECT_PATH" \
+      -scheme "$SCHEME" \
+      -destination "$TEST_DESTINATION" \
+      -configuration "$CONFIGURATION" \
+      -derivedDataPath "$DERIVED_DATA_PATH" \
+      test
+fi
 
 if [[ "${IOS_SKIP_DEVICE_BUILD:-0}" != "1" ]]; then
   run_step "Xcode generic iOS build" \

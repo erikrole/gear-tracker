@@ -3,6 +3,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
+import { MAX_SPORT_ROSTER_USERS_PER_REQUEST } from "@/lib/request-limits";
 import { sportCodeSchema, sportRosterSchema, sportRosterBulkSchema } from "@/lib/validation";
 import {
   getSportRoster,
@@ -13,7 +14,12 @@ import {
 import { createAuditEntry } from "@/lib/audit";
 
 const rosterBodySchema = z.union([
-  z.object({ userIds: z.array(z.string().cuid()).min(1) }),
+  z.object({
+    userIds: z
+      .array(z.string().cuid())
+      .min(1)
+      .max(MAX_SPORT_ROSTER_USERS_PER_REQUEST),
+  }),
   z.object({ userId: z.string().cuid() }),
 ]);
 

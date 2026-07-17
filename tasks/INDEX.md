@@ -58,6 +58,7 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Recently Archived
 
+- `archive/completed-2026-07/adversarial-unit-test-sweep-plan.md` - completed adversarial integrity sweep with 2,464 clean tests, shuffled-order proof, measured server coverage floors, native XCTest, and full build verification.
 - `ios-booking-surface-alignment-plan.md` - aligned native Bookings rows with Item Detail's title, timing, requester, context, and restrained status hierarchy.
 - `ios-item-detail-hierarchy-plan.md` - refreshed native Item Detail around compact Gotham identity, title-first custody, persistent upcoming-reservation state, neutral previous-booking history, grouped metadata, quiet attachments, and production-backed simulator proof.
 - `ios-app-store-toggle-row-polish-plan.md` - refined dark-mode Settings and notification controls and replaced inactive Home metric cards with active-only disclosure rows.

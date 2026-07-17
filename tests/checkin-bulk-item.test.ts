@@ -53,8 +53,13 @@ vi.mock("@/lib/badges", () => ({
   },
 }));
 
+vi.mock("@/lib/services/live-activities", () => ({
+  endCheckoutReturnLiveActivities: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { db } from "@/lib/db";
 import { badges } from "@/lib/badges";
+import { endCheckoutReturnLiveActivities } from "@/lib/services/live-activities";
 import { checkinBulkItem } from "@/lib/services/bookings";
 
 const mockTx = (db as unknown as { _mockTx: CheckinBulkTx })._mockTx;
@@ -200,6 +205,7 @@ describe("checkinBulkItem", () => {
         completedAt: expect.any(Date),
       }),
     });
+    expect(endCheckoutReturnLiveActivities).toHaveBeenCalledWith("b-1");
     expect(badges.onCheckoutReturned).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",

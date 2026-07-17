@@ -27,9 +27,9 @@ const createAssetSchema = z.object({
   model: z.string().min(1),
   serialNumber: z.string().optional(),
   qrCodeValue: z.string().min(1),
-  purchaseDate: z.string().optional(),
+  purchaseDate: z.string().date().optional(),
   purchasePrice: moneyDecimalSchema.optional(),
-  warrantyDate: z.string().optional(),
+  warrantyDate: z.string().date().optional(),
   residualValue: moneyDecimalSchema.optional(),
   locationId: databaseIdSchema,
   categoryId: databaseIdSchema.optional(),
@@ -1103,6 +1103,35 @@ function normalizeSuggestionKey(value?: string | null) {
   return value?.trim().toLowerCase().replace(/\s+/g, " ") ?? "";
 }
 
+function assetCreateConflictMessage(
+  error: Prisma.PrismaClientKnownRequestError,
+  body: z.infer<typeof createAssetSchema>,
+) {
+  const rawTarget = error.meta?.target;
+  const targets = (Array.isArray(rawTarget) ? rawTarget : [rawTarget])
+    .filter((target): target is string | number => target !== null && target !== undefined)
+    .map((target) => String(target).toLowerCase());
+  const matches = (...aliases: string[]) =>
+    targets.some((target) => aliases.some((alias) => target.includes(alias.toLowerCase())));
+
+  if (matches("tagName", "tag_name", "assetTag", "asset_tag")) {
+    return `Asset tag "${body.assetTag}" is already in use`;
+  }
+  if (matches("serialNumber", "serial_number")) {
+    const serialNumber = body.serialNumber?.trim();
+    return serialNumber
+      ? `Serial number "${serialNumber}" is already in use`
+      : "Serial number is already in use";
+  }
+  if (matches("qrCodeValue", "qr_code_value")) {
+    return `QR code "${body.qrCodeValue}" is already in use`;
+  }
+  if (matches("primaryScanCode", "primary_scan_code")) {
+    return "Primary scan code is already in use";
+  }
+  return "A unique asset identity is already in use";
+}
+
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "asset", "create");
   const body = createAssetSchema.parse(await req.json());
@@ -1146,7 +1175,7 @@ export const POST = withAuth(async (req, { user }) => {
       error.code === "P2002"
     ) {
       return NextResponse.json(
-        { error: `Asset tag "${body.assetTag}" is already in use` },
+        { error: assetCreateConflictMessage(error, body) },
         { status: 409 }
       );
     }

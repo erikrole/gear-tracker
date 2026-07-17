@@ -5,6 +5,11 @@ import { ok, HttpError } from "@/lib/http";
 import { z } from "zod";
 import { optionalSportCodeSchema } from "@/lib/validation";
 import { normalizeBookingTitle } from "@/lib/title-normalization";
+import {
+  MAX_BULK_QUANTITY_PER_LINE,
+  MAX_BULK_SKU_LINES_PER_REQUEST,
+  MAX_EQUIPMENT_SELECTIONS_PER_REQUEST,
+} from "@/lib/request-limits";
 
 const saveDraftSchema = z.object({
   id: z.string().cuid().optional(),
@@ -18,9 +23,16 @@ const saveDraftSchema = z.object({
   eventIds: z.array(z.string().cuid()).max(3).optional(),
   sportCode: optionalSportCodeSchema,
   notes: z.string().max(10000).optional(),
-  serializedAssetIds: z.array(z.string().cuid()).default([]),
+  serializedAssetIds: z
+    .array(z.string().cuid())
+    .max(MAX_EQUIPMENT_SELECTIONS_PER_REQUEST)
+    .default([]),
   bulkItems: z
-    .array(z.object({ bulkSkuId: z.string().cuid(), quantity: z.number().int().positive() }))
+    .array(z.object({
+      bulkSkuId: z.string().cuid(),
+      quantity: z.number().int().positive().max(MAX_BULK_QUANTITY_PER_LINE),
+    }))
+    .max(MAX_BULK_SKU_LINES_PER_REQUEST)
     .default([]),
 });
 

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Role } from "@prisma/client";
+import { MAX_BULK_UNIT_NUMBER } from "@/lib/request-limits";
 
 const mocks = vi.hoisted(() => ({
   requireAuth: vi.fn(),
@@ -107,6 +108,22 @@ beforeEach(() => {
 });
 
 describe("item-family products", () => {
+  it.each(["7junk", String(MAX_BULK_UNIT_NUMBER + 1)])(
+    "rejects invalid product-assignment unit params before Prisma: %s",
+    async (unitNumber) => {
+      const res = await assignProduct(
+        request(`/api/bulk-skus/family-1/units/${unitNumber}/product`, "PATCH", {
+          productId: PRODUCT_TWO_ID,
+        }),
+        { params: Promise.resolve({ id: "family-1", unitNumber }) },
+      );
+
+      expect(res.status).toBe(400);
+      expect(mocks.transaction).not.toHaveBeenCalled();
+      expect(mocks.unitFindUnique).not.toHaveBeenCalled();
+    },
+  );
+
   it("creates a normalized product and audit record in one transaction", async () => {
     const res = await createProduct(
       request("/api/bulk-skus/family-1/products", "POST", {
