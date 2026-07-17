@@ -94,6 +94,8 @@ final class KioskStore {
     var screen: KioskScreen = .activation
     var isActive: Bool = false
     var isKioskMode: Bool { info != nil }
+    let scanner = KioskScannerCoordinator()
+    var pendingIntent: KioskFlowIntent?
 
     /// Active student's checkout cart, persisted in-memory across inactivity
     /// resets. Keyed by `userId` so a quick reset → re-tap restores the cart.
@@ -239,6 +241,7 @@ final class KioskStore {
         KioskSessionVault.clear()
         checkoutCarts.removeAll()
         checkoutDrafts.removeAll()
+        clearIntent(reason: .deactivation)
         screen = .activation
         for cookie in HTTPCookieStorage.shared.cookies ?? [] where cookie.name == "kiosk_session" {
             HTTPCookieStorage.shared.deleteCookie(cookie)
@@ -312,6 +315,7 @@ final class KioskStore {
             // Soft reset: keep the cart for the active student so a returning
             // tap restores progress; just route back to idle.
             self.inactivityWarningVisible = false
+            self.clearIntent(reason: .timeout)
             self.screen = .idle
         }
     }
@@ -361,6 +365,17 @@ final class KioskStore {
 
     func clearCheckoutDraft(for userId: String) {
         checkoutDrafts.removeValue(forKey: userId)
+    }
+
+    func setIntent(_ intent: KioskFlowIntent) {
+        pendingIntent = intent
+    }
+
+    func clearIntent(reason: KioskIntentCleanupReason) {
+        pendingIntent = nil
+        #if DEBUG
+        print("[KioskFlow] intent cleared: \(reason.rawValue)")
+        #endif
     }
 
     // MARK: - Internals

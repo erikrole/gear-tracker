@@ -135,7 +135,7 @@
 |---|---:|
 | `src/hooks/booking-action-copy.ts` | 22 |
 | `src/hooks/use-assignment-grid.ts` | 226 |
-| `src/hooks/use-booking-change-sync.ts` | 182 |
+| `src/hooks/use-booking-change-sync.ts` | 167 |
 | `src/hooks/use-current-user.ts` | 39 |
 | `src/hooks/use-dashboard-data.ts` | 232 |
 | `src/hooks/use-dashboard-filters.ts` | 130 |
@@ -143,9 +143,10 @@
 | `src/hooks/use-form-options.ts` | 32 |
 | `src/hooks/use-form-submit.ts` | 188 |
 | `src/hooks/use-item-cache-invalidation.ts` | 18 |
-| `src/hooks/use-item-change-sync.ts` | 94 |
+| `src/hooks/use-item-change-sync.ts` | 86 |
 | `src/hooks/use-last-audit.ts` | 77 |
 | `src/hooks/use-mobile.ts` | 20 |
+| `src/hooks/use-operational-polling-activity.ts` | 131 |
 | `src/hooks/use-profile-completion.ts` | 60 |
 | `src/hooks/use-scan-submission.ts` | 241 |
 | `src/hooks/use-schedule-data.ts` | 528 |

@@ -62,5 +62,8 @@ describe("settings audit pagination recovery", () => {
     expect(source).toContain("<AlertTitle>{refreshCopy.title}</AlertTitle>");
     expect(source).toContain("Retry now");
     expect(source).toContain("setRefreshError(null)");
+    expect(source).toContain("useOperationalPollingActivity(autoRefresh)");
+    expect(source).toContain('pollingState !== "active"');
+    expect(source).toContain("void pollForNew()");
   });
 });

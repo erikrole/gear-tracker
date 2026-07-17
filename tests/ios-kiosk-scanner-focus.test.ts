@@ -50,10 +50,10 @@ describe("iOS kiosk scanner focus", () => {
     expect(checkout).toContain("@State private var focusedCheckoutField: KioskCheckoutFocusedField? = nil");
     expect(checkout).not.toContain("@FocusState private var focusedCheckoutField");
     expect(checkout).not.toContain("FocusState<KioskCheckoutFocusedField?>.Binding");
-    expect(checkout).toContain("@State private var scannerCaptureEnabled = false");
+    expect(checkout).toContain("@State private var scannerCaptureEnabled = true");
     expect(checkout).toContain("@State private var scannerHasFocus = false");
     expect(checkout).toContain("private var shouldListenForHIDScans: Bool");
-    expect(checkout).toContain("scannerCaptureEnabled && checkoutContextReady");
+    expect(checkout).toContain("scannerCaptureEnabled && focusedCheckoutField == nil");
     expect(checkout).toContain("focusedCheckoutField == nil");
     expect(checkout).toContain("if scannerCaptureEnabled {");
     expect(checkout).toContain("isEnabled: shouldListenForHIDScans");

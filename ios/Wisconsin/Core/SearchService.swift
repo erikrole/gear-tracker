@@ -41,11 +41,18 @@ final class SearchService {
     static let shared = SearchService()
     private init() {}
 
-    func search(query: String, rawScan: String? = nil) async throws -> SearchResults {
+    func search(query: String, rawScan: String? = nil, gearOnly: Bool = false) async throws -> SearchResults {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return SearchResults() }
 
         let api = APIClient.shared
+        if gearOnly {
+            let itemsResp = try await api.assets(search: q, limit: 10)
+            return SearchResults(
+                items: itemsResp.data.filter(Self.isSearchVisibleAsset),
+                itemFamilies: itemsResp.bulkItems.filter(Self.isSearchVisibleFamily)
+            )
+        }
         async let itemsTask = api.assets(search: q, qr: rawScan, limit: 10)
         async let reservationsTask = api.reservations(activeOnly: false, search: q, limit: 10)
         async let checkoutsTask = api.checkouts(activeOnly: false, search: q, limit: 10)

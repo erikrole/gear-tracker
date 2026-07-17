@@ -7,7 +7,7 @@ function source(relativeFile: string) {
 }
 
 describe("iOS kiosk reservation pickup contract", () => {
-  it("routes due reservation pickups through the existing native pickup flow", () => {
+  it("routes booked reservations through the native pickup flow before or after their start time", () => {
     const studentRoute = source("src/app/api/kiosk/student/[userId]/route.ts");
     const detailRoute = source("src/app/api/kiosk/checkout/[id]/route.ts");
     const scanRoute = source("src/app/api/kiosk/pickup/[id]/scan/route.ts");
@@ -23,7 +23,10 @@ describe("iOS kiosk reservation pickup contract", () => {
     expect(confirmRoute).toContain("sourceReservationId: sourceReservation.id");
 
     expect(models).toContain("struct KioskPendingPickup: Decodable, Identifiable");
-    expect(studentHub).toContain("store.screen = .pickup(bookingId: pickup.id, userId: user.id)");
+    expect(studentHub).toContain("startPickup(id: pickup.id, title: pickup.title, startsAt: pickup.startsAt)");
+    expect(studentHub).toContain("startPickup(id: res.id, title: res.title, startsAt: res.startsAt)");
+    expect(studentHub).toContain("source: .reservation");
+    expect(studentHub).toContain('accessibilityHint("Start pickup now")');
     expect(apiClient).toContain("func kioskCheckoutDetail(id: String)");
     expect(apiClient).toContain("func kioskPickupScan(bookingId: String, scanValue: String)");
     expect(apiClient).toContain("func kioskPickupConfirm(bookingId: String, actorId: String)");

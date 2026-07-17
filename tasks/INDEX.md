@@ -1,6 +1,6 @@
 # Tasks Index
 
-Last updated: 2026-07-11
+Last updated: 2026-07-16
 
 ## Start Here
 
@@ -58,6 +58,7 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Recently Archived
 
+- `operational-polling-activity-plan.md` - completed shared two-minute activity governor for booking, item, and audit polling so unattended tabs allow Neon compute to autosuspend.
 - 46 completed plans from the root task folder - moved to `tasks/archive/completed-2026-07/` on 2026-07-11.
 - `booking-title-normalization-ownership-pass.md` - standardized stored booking titles while preserving canonical UW sport codes across web, drafts, and kiosk writes.
 - `schedule-title-normalization-ownership-pass.md` - extended the same title rule to manual and synced scheduled events while preserving raw source evidence and sync locks.

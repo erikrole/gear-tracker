@@ -14,6 +14,7 @@ struct KioskShellView: View {
         case .activation: return "activation"
         case .idle: return "idle"
         case .studentHub(let user): return "hub-\(user.id)"
+        case .identity: return "identity"
         case .checkout(let user): return "checkout-\(user.id)"
         case .pickup(let bookingId, _): return "pickup-\(bookingId)"
         case .return(let bookingId, _): return "return-\(bookingId)"
@@ -48,6 +49,8 @@ struct KioskShellView: View {
                         KioskIdleView()
                     case .studentHub(let user):
                         KioskStudentHubView(user: user)
+                    case .identity:
+                        KioskIdentityView()
                     case .checkout(let user):
                         KioskCheckoutView(user: user)
                     case .pickup(let bookingId, let userId):
@@ -67,6 +70,12 @@ struct KioskShellView: View {
                     store.dismissInactivityWarning()
                 }
                 .transition(.opacity)
+            }
+
+            if store.isActive, !store.isResuming, store.screen != .activation {
+                KioskScannerStatusPill()
+                    .padding(20)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
         }
         .preferredColorScheme(.dark)

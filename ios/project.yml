@@ -136,6 +136,23 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.erikrole.WisconsinTests
         DEVELOPMENT_TEAM: T26T3G8C7Q
 
+  WisconsinKioskTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: WisconsinKioskTests
+    dependencies:
+      - target: WisconsinKiosk
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: "YES"
+        PRODUCT_NAME: WisconsinKioskTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.erikrole.WisconsinKioskTests
+        DEVELOPMENT_TEAM: T26T3G8C7Q
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Wisconsin Kiosk.app/Wisconsin Kiosk"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
   WisconsinLiveActivities:
     type: app-extension
     platform: iOS
@@ -178,3 +195,8 @@ schemes:
     build:
       targets:
         WisconsinKiosk: all
+    test:
+      targets:
+        - name: WisconsinKioskTests
+          randomExecutionOrder: true
+      gatherCoverageData: true

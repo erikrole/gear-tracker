@@ -150,7 +150,7 @@
 | `src/lib/shell-navigation.ts` | 11 |
 | `src/lib/shift-call-windows.ts` | 182 |
 | `src/lib/shift-constants.ts` | 8 |
-| `src/lib/shift-display.ts` | 70 |
+| `src/lib/shift-display.ts` | 71 |
 | `src/lib/sports.ts` | 78 |
 | `src/lib/status-colors.ts` | 40 |
 | `src/lib/status-styles.ts` | 46 |
@@ -373,6 +373,7 @@
 - `/api/kiosk/me`
 - `/api/kiosk/pickup/[id]/confirm`
 - `/api/kiosk/pickup/[id]/scan`
+- `/api/kiosk/resolve-scan`
 - `/api/kiosk/scan-lookup`
 - `/api/kiosk/student/[userId]`
 - `/api/kiosk/users`

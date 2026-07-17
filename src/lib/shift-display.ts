@@ -25,13 +25,14 @@ export function shiftWorkerSlotLabel(workerType: ShiftWorkerType | string | null
 function normalizeRole(role: ShiftUserRoleKind): Role | null {
   if (typeof role !== "string") return null;
   const normalized = role.trim().toUpperCase();
-  return normalized === "ADMIN" || normalized === "STAFF" || normalized === "STUDENT"
+  return normalized === "ADMIN" || normalized === "STAFF" || normalized === "STUDENT" || normalized === "COLLABORATOR"
     ? normalized
     : null;
 }
 
 export function shiftWorkerTypeForRole(role: Role | string | null | undefined): ShiftWorkerType {
-  return normalizeRole(role) === "STUDENT" ? "ST" : "FT";
+  const normalized = normalizeRole(role);
+  return normalized === "STUDENT" || normalized === "COLLABORATOR" ? "ST" : "FT";
 }
 
 export function shiftWorkerTypeForStaffingType(staffingType: ShiftWorkerType | string | null | undefined): ShiftWorkerType | null {

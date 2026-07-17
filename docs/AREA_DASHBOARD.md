@@ -151,7 +151,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - [x] AC-9: Draft delete is optimistic with rollback on failure.
 - [x] AC-10: Manual refresh button shows data freshness ("Updated X ago").
 - [x] AC-11: Operational dashboard, booking list, and booking detail queries verify server truth on mount instead of trusting warm persisted cache as fresh.
-- [x] AC-12: Dashboard booking counts and rows converge from committed booking changes without manual refresh while the page is visible and online.
+- [x] AC-12: Dashboard booking counts and rows converge from committed booking changes without manual refresh while the page is visible, online, and recently active. Polling pauses after two minutes without browser activity and refreshes immediately when the user returns.
 - [x] AC-13: Dashboard, booking list, and full booking detail expose the shared booking-change sync health as a visible status indicator.
 - [x] AC-14: The Operations page (which absorbed Admin Fix Today) exposes daily queue health through the shared operational status rail and per-check health through the shared status indicator.
 
@@ -182,6 +182,9 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 7. Add regression tests for permissions, window filtering (7 days), and overdue consistency.
 
 ## Change Log
+
+- 2026-07-16: Collaborator Home now loads and links only the My Gear and published Schedule modules granted by the current affiliation policy.
+- 2026-07-16: **Activity-aware operational polling.** Dashboard, booking list, and booking detail keep the existing 30-second booking-change cadence while the user is active. The shared poller stops requests when the tab is hidden, the browser is offline, or no browser activity has occurred for two minutes, then performs an immediate freshness check on focus, visibility, connectivity, or user activity. This lets Neon's five-minute autosuspend window begin overnight without weakening active-session freshness.
 - 2026-07-16: **Dashboard exception queue and shell identity cleanup.** The overdue queue now composes the shared dashboard section header and booking row instead of maintaining a separate thumbnail-stack banner. Red stays focused on the count and urgency rail, row selection opens the shared booking sheet, and the header owns the full overdue route. The redundant top-right profile control is removed because the sidebar identity card already owns profile navigation. Overdue sorting, nudge permissions, routes, and booking behavior are unchanged.
 - 2026-07-16: **Booking sheet inline-edit and custody alignment.** The dashboard quick-view sheet now matches its status badge to the checkout urgency rail, formats schedule dates weekday-first, and keeps due-back timing as the stable headline. Safe metadata edits happen in context with explicit confirmation or Enter, numbered battery units render directly, active checkout equipment editing stays kiosk-only, and the footer no longer duplicates the sheet with a broad Edit booking action.
 - 2026-07-16: **Dashboard sync hierarchy and booking sheet refresh.** Booking sync health now sits beside the Dashboard title as a compact bold indicator with restrained green depth, leaving the command group for Refresh, filters, and New reservation. The shared booking sheet now leads with due or reservation timing, keeps pickup and linked context in a quieter summary, preserves equipment as the working section, and consolidates secondary commands under a named More actions menu. Booking data, permissions, custody rules, and mutation routes are unchanged.

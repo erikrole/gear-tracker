@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Settings
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-11
+- Last Updated: 2026-07-16
 - Status: Active
 - Version: V1
 
@@ -103,7 +103,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Admin-only live feed of every create, update, and delete action across the system.
 - First page loads on mount; "Load older entries" button fetches the next keyset-paginated page via `?cursor=<nextCursor>`.
 - Older-page failures preserve the loaded entries and show persistent inline recovery copy plus a retry-labeled pagination action so partial history is not mistaken for complete history.
-- **Auto-refresh** toggle: when on, polls `GET /api/audit?after=<newestCursor>` every 30 seconds and prepends new rows with a dismissible new-count banner.
+- **Auto-refresh** toggle: when on, polls `GET /api/audit?after=<newestCursor>` every 30 seconds while the browser is visible, online, and recently active, then prepends new rows with a dismissible new-count banner. Polling pauses after two minutes without activity and checks immediately when the user returns.
 - Auto-refresh failures preserve the loaded entries, show an inline stale-data warning, and expose `Retry now` so admins do not mistake a failed live-tail check for a current audit feed.
 - Filters: entity type (exact), action (substring), from date, to date. The filter row uses the shared operational toolbar and removable active-filter chips. Apply validates invalid or inverted dates inline before a fresh first-page load; "Clear filters" resets to unfiltered.
 - Retention banner shows the configured retention window (90 days) from the API response.
@@ -185,6 +185,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - [x] AC-10: Allowed emails: add/delete with role pre-assignment, registration gating enforced
 - [x] AC-11: Departments: staff/admin CRUD surface for inventory ownership groups
 - [x] AC-12: Sports: separate Staff and Student staffing counts plus default call-time copy
+- [x] AC-13: Audit auto-refresh stops requests for hidden, offline, or two-minute-idle sessions and checks immediately when activity resumes.
 
 ## Breadcrumb Roadmap
 
@@ -193,6 +194,9 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages. Role-gated Settings sibling menus now wait for the current role before becoming dropdowns, so the loading frame does not expose an empty menu. The global breadcrumb UI now uses a lighter trail treatment with the current Settings sub-page marked by a subtle underline instead of a filled chip.
 
 ## Change Log
+
+- 2026-07-16: Added admin-only Collaborator Access settings for affiliation creation, identity, validated capability replacement, suspension/reactivation, affected-count previews, history restoration, and constrained archival.
+- 2026-07-16: **Activity-aware audit live feed.** Audit auto-refresh keeps its opt-in 30-second cadence while an admin is active, pauses requests for hidden, offline, or two-minute-idle sessions, and checks immediately on return. Existing rows, stale-feed recovery, filters, and pagination behavior are unchanged.
 - 2026-07-11: **App Review legal and deletion controls.** Native Settings now provides first-level Privacy Policy and Contact Support links. Account & Security includes a password-reauthenticated, double-confirmed Delete Account flow backed by the existing user-deactivation service. Open custody blocks deletion; successful deletion cancels future work, revokes all sessions, removes access, and preserves required historical custody/audit records.
 - 2026-07-11: **Manually finalized native icons resynced.** The app target now uses exact full-directory copies of the five latest Icon Composer documents, and the App Icon picker previews were regenerated from the artwork each document currently references. This supersedes earlier programmatic icon-package adjustments while preserving the same Motion W, Heritage, Bucky, Helmet, and Metallic selection names.
 - 2026-07-11: **Native icon appearance correction.** The primary Motion W now has separate light and dark artwork/background annotations inside one Icon Composer document, the Heritage safe area is corrected, and primary/Heritage group shadows are strengthened for internal material depth. The App Icon picker names and switching contract are unchanged.

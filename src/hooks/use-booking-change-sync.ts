@@ -8,6 +8,7 @@ import {
 } from "@/hooks/use-dashboard-data";
 import { useAuthenticatedQueryUserId } from "@/components/QueryProvider";
 import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
+import { useOperationalPollingActivity } from "@/hooks/use-operational-polling-activity";
 
 // Booking pages remain operationally fresh without a visible tab keeping the
 // database awake continuously. Kiosk custody uses its native immediate reloads.
@@ -51,19 +52,10 @@ async function fetchBookingChanges(cursor: string | null, signal: AbortSignal): 
   };
 }
 
-function getPollBlockReason(): "hidden" | "offline" | null {
-  if (typeof document !== "undefined" && document.visibilityState === "hidden") return "hidden";
-  if (typeof navigator !== "undefined" && !navigator.onLine) return "offline";
-  return null;
-}
-
-function canPoll() {
-  return getPollBlockReason() === null;
-}
-
 export function useBookingChangeSync(enabled = true) {
   const queryClient = useQueryClient();
   const userId = useAuthenticatedQueryUserId();
+  const pollingState = useOperationalPollingActivity(enabled && Boolean(userId));
   const cursorRef = useRef<string | null>(null);
   const inFlightRef = useRef(false);
   const [status, setStatus] = useState<BookingChangeSyncStatus>(initialSyncStatus);
@@ -76,6 +68,20 @@ export function useBookingChangeSync(enabled = true) {
         description: "Booking freshness sync is disabled for this view.",
         lastCheckedAt: null,
       });
+      return;
+    }
+
+    if (pollingState !== "active") {
+      setStatus((prev) => ({
+        state: pollingState === "offline" ? "down" : "idle",
+        label: pollingState === "offline" ? "Offline" : "Sync paused",
+        description: pollingState === "offline"
+          ? "Booking freshness sync will retry when the browser is online."
+          : pollingState === "idle"
+            ? "Booking freshness sync paused after inactivity and will resume when you return."
+            : "Booking freshness sync pauses while this tab is in the background.",
+        lastCheckedAt: prev.lastCheckedAt,
+      }));
       return;
     }
 
@@ -113,19 +119,6 @@ export function useBookingChangeSync(enabled = true) {
 
     const poll = async () => {
       if (stopped) return;
-      const blockReason = getPollBlockReason();
-      if (blockReason) {
-        setStatus((prev) => ({
-          state: blockReason === "offline" ? "down" : "idle",
-          label: blockReason === "offline" ? "Offline" : "Sync paused",
-          description: blockReason === "offline"
-            ? "Booking freshness sync will retry when the browser is online."
-            : "Booking freshness sync pauses while this tab is in the background.",
-          lastCheckedAt: prev.lastCheckedAt,
-        }));
-        schedule(BOOKING_CHANGE_SYNC_INTERVAL_MS);
-        return;
-      }
       if (inFlightRef.current) return;
 
       inFlightRef.current = true;
@@ -160,22 +153,14 @@ export function useBookingChangeSync(enabled = true) {
       }
     };
 
-    const pollSoon = () => {
-      if (canPoll()) schedule(0);
-    };
-
-    document.addEventListener("visibilitychange", pollSoon);
-    window.addEventListener("online", pollSoon);
     schedule(0);
 
     return () => {
       stopped = true;
       clearPending();
       controller?.abort();
-      document.removeEventListener("visibilitychange", pollSoon);
-      window.removeEventListener("online", pollSoon);
     };
-  }, [enabled, queryClient, userId]);
+  }, [enabled, pollingState, queryClient, userId]);
 
   return status;
 }

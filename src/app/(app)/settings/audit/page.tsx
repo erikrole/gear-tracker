@@ -25,6 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { handleAuthRedirect, classifyError, isAbortError, parseJsonSafely } from "@/lib/errors";
+import { useOperationalPollingActivity } from "@/hooks/use-operational-polling-activity";
 import { SettingsPageShell } from "../SettingsPageShell";
 import {
   auditPaginationErrorCopy,
@@ -97,9 +98,9 @@ export default function AuditLogPage() {
   const [filters, setFilters] = useState<AuditFilters>(EMPTY_FILTERS);
   const [draftFilters, setDraftFilters] = useState<AuditFilters>(EMPTY_FILTERS);
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const pollingState = useOperationalPollingActivity(autoRefresh);
   const [newCount, setNewCount] = useState(0);
   const newestCursorRef = useRef<string | null>(null);
-  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchPage = useCallback(async (appliedFilters: AuditFilters) => {
     setLoading(true);
@@ -165,13 +166,16 @@ export default function AuditLogPage() {
   }, [filters]);
 
   useEffect(() => {
-    if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-    if (!autoRefresh) setRefreshError(null);
-    if (autoRefresh) {
-      pollTimerRef.current = setInterval(pollForNew, POLL_INTERVAL_MS);
+    if (!autoRefresh) {
+      setRefreshError(null);
+      return;
     }
-    return () => { if (pollTimerRef.current) clearInterval(pollTimerRef.current); };
-  }, [autoRefresh, pollForNew]);
+    if (pollingState !== "active") return;
+
+    void pollForNew();
+    const interval = window.setInterval(pollForNew, POLL_INTERVAL_MS);
+    return () => window.clearInterval(interval);
+  }, [autoRefresh, pollingState, pollForNew]);
 
   async function loadMore() {
     if (!nextCursor || loadingMore) return;

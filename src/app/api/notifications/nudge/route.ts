@@ -11,7 +11,7 @@ const nudgeSchema = z.object({
 });
 
 export const POST = withAuth(async (req, { user }) => {
-  if (user.role === "STUDENT") {
+  if (user.role !== "STAFF" && user.role !== "ADMIN") {
     throw new HttpError(403, "Staff or admin access required");
   }
 

@@ -18,6 +18,7 @@ struct KioskPickupView: View {
     @State private var scannerHasFocus = false
     @State private var lastScanAt: Date?
     @State private var confirmedItemOverrides: [String: KioskScanResult.ScannedItem] = [:]
+    @State private var queuedScanValues: [String] = []
 
     enum ScanFeedback: Equatable {
         case success(String)
@@ -60,13 +61,18 @@ struct KioskPickupView: View {
         }
         .overlay(alignment: .bottom) {
             HIDScannerField(
-                onScan: handleScan,
+                onScan: { store.scanner.receive($0) },
                 onFocusChange: { scannerHasFocus = $0 }
             )
                 .frame(width: 1, height: 1)
                 .opacity(0)
         }
-        .task { await loadDetail() }
+        .task {
+            store.scanner.claim(.pickup) { handleScan($0) }
+            await loadDetail()
+            replayPendingIntentScan()
+        }
+        .onDisappear { store.scanner.release(.pickup) }
         .sheet(isPresented: $showCamera) {
             KioskBarcodeCameraView(
                 feedbackMessage: lastResult?.message,
@@ -83,7 +89,7 @@ struct KioskPickupView: View {
         KioskScanZoneColumn {
             KioskFlowHeader(
                 title: "Pickup",
-                onBack: { store.screen = .idle },
+                onBack: { backToPerson() },
                 onCamera: { showCamera = true }
             )
 
@@ -256,7 +262,10 @@ struct KioskPickupView: View {
 
         store.resetInactivity()
         lastScanAt = Date()
-        guard let items = detail?.items else { return }
+        guard let items = detail?.items else {
+            queuedScanValues.append(value)
+            return
+        }
 
         Task {
             do {
@@ -307,6 +316,7 @@ struct KioskPickupView: View {
                     kind: .pickup,
                     message: "Pickup confirmed! \(confirmedCount) \(itemWord) checked out."
                 ))
+                store.clearIntent(reason: .success)
             } catch {
                 let message = (error as? APIError)?.errorDescription
                     ?? "Could not confirm pickup. Please try again."
@@ -336,9 +346,25 @@ struct KioskPickupView: View {
                 )
             }
             detail = loaded
+            let queued = queuedScanValues
+            queuedScanValues.removeAll()
+            for scan in queued { handleScan(scan) }
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? "Could not load pickup details."
         }
         isLoading = false
+    }
+
+    private func replayPendingIntentScan() {
+        guard var intent = store.pendingIntent, intent.targetBooking?.id == bookingId else { return }
+        let consumed = KioskFlowIntentReducer.consumePendingScans(in: intent)
+        intent = consumed.intent
+        store.setIntent(intent)
+        for scan in consumed.scans { handleScan(scan) }
+    }
+
+    private func backToPerson() {
+        if let user = store.pendingIntent?.identifiedUser { store.screen = .studentHub(user) }
+        else { store.screen = .idle }
     }
 }

@@ -99,6 +99,7 @@ Search/QRScannerSheet.swift            | scan                        | audit
 Kiosk/KioskActivationView.swift        | kiosk-activation            | audit
 Kiosk/KioskIdleView.swift              | kiosk-idle                  | audit
 Kiosk/KioskStudentHubView.swift        | kiosk-student-hub           | audit
+Kiosk/KioskIdentityView.swift          | kiosk-flow-routing          | audit
 Kiosk/KioskCheckoutView.swift          | kiosk-checkout              | audit
 Kiosk/KioskPickupView.swift            | kiosk-pickup                | audit
 Kiosk/KioskReturnView.swift            | kiosk-return                | audit
@@ -127,6 +128,7 @@ Kiosk/KioskDesign.swift                |                             | exempt-in
 Kiosk/KioskComponents.swift            |                             | exempt-shared
 Kiosk/KioskModels.swift                |                             | exempt-infra
 Kiosk/KioskStore.swift                 |                             | exempt-infra
+Kiosk/KioskFlowRouting.swift           |                             | exempt-infra
 EOF
 
 # ─── Discover Swift files actually present ───

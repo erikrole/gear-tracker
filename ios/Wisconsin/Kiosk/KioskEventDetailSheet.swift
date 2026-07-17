@@ -139,6 +139,8 @@ struct KioskEventDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     let event: KioskEvent
     let capabilities: KioskDashboard.Capabilities
+    var onStartCheckout: (() -> Void)? = nil
+    var onScan: ((String) -> Void)? = nil
 
     var body: some View {
         ZStack {
@@ -173,6 +175,16 @@ struct KioskEventDetailSheet: View {
                     if !event.displayAllDay {
                         KioskEventTimeRow(label: "Call", value: callTimeLabel)
                     }
+                }
+
+                if let onStartCheckout {
+                    Button {
+                        dismiss(); onStartCheckout()
+                    } label: {
+                        Label("Start Checkout for This Event", systemImage: "barcode.viewfinder")
+                            .font(.headline).frame(maxWidth: .infinity, minHeight: 54)
+                    }
+                    .buttonStyle(.borderedProminent).tint(Color.kioskRed)
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
@@ -212,6 +224,10 @@ struct KioskEventDetailSheet: View {
                 Spacer(minLength: 0)
             }
             .padding(28)
+
+            if let onScan {
+                HIDScannerField(onScan: onScan).frame(width: 1, height: 1).opacity(0)
+            }
         }
     }
 

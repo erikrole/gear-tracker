@@ -114,6 +114,13 @@ struct KioskAPI {
         return try await perform(req)
     }
 
+    func kioskResolveScan(scanValue: String, userId: String? = nil) async throws -> KioskResolveScanResult {
+        struct Body: Encodable { let scanValue: String; let userId: String? }
+        var req = request(path: "/api/kiosk/resolve-scan", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(scanValue: scanValue, userId: userId))
+        return try await perform(req)
+    }
+
     // MARK: - Student
 
     func kioskStudentContext(userId: String) async throws -> KioskStudentContext {

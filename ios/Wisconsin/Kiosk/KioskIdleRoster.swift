@@ -42,6 +42,14 @@ struct UserTile: View {
                     .lineLimit(1)
                     .multilineTextAlignment(.center)
                     .minimumScaleFactor(0.74)
+                if user.isAffiliatedCollaborator, let badge = user.affiliationBadge {
+                    Text(badge)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(Color.kioskRed)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(Color.kioskRed.opacity(0.14), in: Capsule())
+                }
             }
             .frame(maxWidth: .infinity)
             .frame(minHeight: 92)
@@ -51,7 +59,7 @@ struct UserTile: View {
         }
         .buttonStyle(KioskPressStyle())
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(user.name)
+        .accessibilityLabel(user.isAffiliatedCollaborator ? "\(user.name), \(user.affiliationBadge ?? "collaborator")" : user.name)
         .accessibilityHint("Tap to start checkout for \(user.name)")
     }
 

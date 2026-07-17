@@ -77,7 +77,7 @@ struct KioskIdleView: View {
                 // or fight a presented view for first responder.
                 if !isScannerPaused {
                     HIDScannerField { value in
-                        handleIdentityScan(value)
+                        store.scanner.receive(value)
                     }
                     .frame(width: 1, height: 1)
                     .opacity(0)
@@ -85,6 +85,8 @@ struct KioskIdleView: View {
             }
         }
         .task { await loadAll() }
+        .onAppear { store.scanner.claim(.home) { handleIdentityScan($0) } }
+        .onDisappear { store.scanner.release(.home) }
         .task(id: "refresh") {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: UInt64(refreshInterval * 1_000_000_000))
@@ -94,13 +96,17 @@ struct KioskIdleView: View {
         .sheet(item: $selectedEvent) { event in
             KioskEventDetailSheet(
                 event: event,
-                capabilities: dashboard?.capabilities ?? KioskDashboard.Capabilities()
+                capabilities: dashboard?.capabilities ?? KioskDashboard.Capabilities(),
+                onStartCheckout: { startCheckout(for: event) },
+                onScan: { store.scanner.receive($0) }
             )
                 .presentationDetents([.height(440), .large])
                 .presentationDragIndicator(.visible)
         }
         .sheet(item: $selectedCheckout) { context in
-            KioskCheckoutDetailSheet(context: context, allowsEditing: false) {
+            KioskCheckoutDetailSheet(context: context, allowsEditing: false, onReturn: {
+                startReturn(for: context)
+            }, onScan: { store.scanner.receive($0) }) {
                 Task { await loadAll() }
             }
                 .presentationDetents([.height(520), .large])
@@ -710,17 +716,32 @@ struct KioskIdleView: View {
         guard !isIdentifyingScan else { return }
         store.resetInactivity()
         isIdentifyingScan = true
-        identityScanFeedback = .working("Reading Wiscard...")
+        identityScanFeedback = .working("Resolving scan...")
         Task {
             do {
-                let result = try await KioskAPI.shared.kioskIdentify(scanValue: value)
-                if result.success, let user = result.data {
+                let result = try await KioskAPI.shared.kioskResolveScan(scanValue: value)
+                if result.kind == "identity", let user = result.user {
                     Haptics.success()
                     identityScanFeedback = .success(user.name)
                     store.screen = .studentHub(user)
+                } else if result.kind == "pending_identity" || result.kind == "action" {
+                    let action = KioskFlowAction(rawValue: result.action?.rawValue ?? inferredAction(from: result.disposition)) ?? .checkout
+                    let intent = KioskFlowIntent(
+                        action: action,
+                        source: .scan,
+                        identifiedUser: nil,
+                        expectedRequester: result.expectedRequester,
+                        selectedEvent: nil,
+                        targetBooking: result.booking.map { KioskIntentBooking(id: $0.id, title: $0.title, startsAt: $0.startsAt, endsAt: $0.endsAt) },
+                        pendingScanValues: [value],
+                        createdAt: Date(),
+                        ambiguity: .none
+                    )
+                    store.setIntent(intent)
+                    store.screen = .identity
                 } else {
                     Haptics.warning()
-                    identityScanFeedback = .error(result.error ?? "No user found for that Wiscard")
+                    identityScanFeedback = .error(result.message ?? "That scan cannot start a kiosk flow.")
                 }
             } catch {
                 if isUnauthorized(error) {
@@ -732,6 +753,49 @@ struct KioskIdleView: View {
             }
             isIdentifyingScan = false
         }
+    }
+
+    private func inferredAction(from disposition: String?) -> String {
+        switch disposition {
+        case "booked_reservation": return "pickup"
+        case "active_custody": return "return"
+        default: return "checkout"
+        }
+    }
+
+    private func startCheckout(for event: KioskEvent) {
+        store.setIntent(KioskFlowIntent(
+            action: .checkout,
+            source: .event,
+            identifiedUser: nil,
+            expectedRequester: nil,
+            selectedEvent: KioskIntentEvent(id: event.id, title: event.title, endsAt: event.endsAt),
+            targetBooking: nil,
+            pendingScanValues: [],
+            createdAt: Date(),
+            ambiguity: .none
+        ))
+        store.screen = .identity
+    }
+
+    private func startReturn(for context: KioskCheckoutDrawerContext) {
+        guard let requesterId = context.requesterId else {
+            identityScanFeedback = .error("This checkout is missing its requester.")
+            return
+        }
+        let requester = KioskUser(id: requesterId, name: context.requesterName, avatarUrl: context.requesterAvatarUrl, role: "STUDENT", affiliation: nil, affiliationBadge: nil)
+        store.setIntent(KioskFlowIntent(
+            action: .return,
+            source: .activeCheckout,
+            identifiedUser: nil,
+            expectedRequester: requester,
+            selectedEvent: nil,
+            targetBooking: KioskIntentBooking(id: context.checkoutId, title: context.title, startsAt: nil, endsAt: context.endsAt),
+            pendingScanValues: [],
+            createdAt: Date(),
+            ambiguity: .none
+        ))
+        store.screen = .identity
     }
 }
 

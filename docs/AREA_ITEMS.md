@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-15
+- Last Updated: 2026-07-16
 - Status: Active
 - Version: V1
 
@@ -372,7 +372,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - [x] AC-12: Export visibility follows role rules. **(Shipped — Export button in items page header, visible to ADMIN/STAFF only. Downloads filtered CSV.)**
 - [x] AC-13: Image and metadata prefill never overwrite `tagName`.
 - [x] AC-14: All item mutations are auditable.
-- [x] AC-15: Items list and detail surfaces verify committed item and item-family changes without requiring manual browser refresh. `/items` refetches on mount, successful detail mutations invalidate item-family caches, and a lightweight item-change signal converges visible list/detail state from `Asset`, `BulkSku`, and audit changes.
+- [x] AC-15: Items list and detail surfaces verify committed item and item-family changes without requiring manual browser refresh. `/items` refetches on mount, successful detail mutations invalidate item-family caches, and a lightweight item-change signal converges visible, online, recently active list/detail state from `Asset`, `BulkSku`, and audit changes. Polling pauses after two minutes without browser activity and checks immediately when activity resumes.
 
 ## Dependencies
 - User role and ownership model from `AREA_USERS.md`.
@@ -432,6 +432,9 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+
+- 2026-07-16: Collaborator catalog visibility now derives from the active affiliation policy's `GEAR_CATALOG_VIEW` capability while retaining the permanent sanitized response boundary.
+- 2026-07-16: **Activity-aware item freshness.** Items and item-family detail keep the existing 60-second change-signal cadence while the user is active. The shared poller stops requests for hidden, offline, or two-minute-idle sessions and checks immediately when the user returns, allowing Neon compute to autosuspend overnight while preserving active-session freshness.
 - 2026-07-15: Gold Mount inventory was corrected from 10 to eight physical batteries after confirming the consolidated Anton Bauer Digital 150 units 9-10 do not exist. The archived Digital product and its two never-allocated unit records were removed; all eight remaining units are Anton/Bauer Dionic XT 150Wh. The old inactive Digital family row stays hidden to preserve two historical booking references.
 - 2026-07-15: The live battery catalog was consolidated to four active unit-tracked Items rows: Monitor Battery, Sony Battery, Gold Mount Battery, and FX6 Battery. Product-specific families became product metadata beneath the canonical row; history-free duplicates were deleted, and history-bearing rows were retired or deactivated to preserve operational evidence.
 - 2026-07-15: Unit-tracked families can now contain multiple branded products while remaining one Items row and one reservation line. Item-family detail owns product creation, archive/restore, assigned-unit counts, add-unit product selection, and exact per-unit product assignment.

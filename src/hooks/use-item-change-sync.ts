@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useOperationalPollingActivity } from "@/hooks/use-operational-polling-activity";
 
 // Inventory mutation feedback is immediate locally; background freshness can
 // use a slower cadence so a browsed Items tab does not keep Neon compute awake.
@@ -23,16 +24,17 @@ type ItemChangeResponse = {
 
 export function useItemChangeSync() {
   const queryClient = useQueryClient();
+  const pollingState = useOperationalPollingActivity();
   const cursorRef = useRef<string | null>(null);
   const inFlightRef = useRef(false);
 
   useEffect(() => {
+    if (pollingState !== "active") return;
+
     let cancelled = false;
 
     async function checkForChanges() {
       if (cancelled || inFlightRef.current) return;
-      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-      if (typeof navigator !== "undefined" && !navigator.onLine) return;
 
       inFlightRef.current = true;
       try {
@@ -74,20 +76,10 @@ export function useItemChangeSync() {
 
     void checkForChanges();
     const interval = window.setInterval(checkForChanges, ITEM_CHANGE_SYNC_INTERVAL_MS);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") void checkForChanges();
-    };
-    const onOnline = () => {
-      void checkForChanges();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("online", onOnline);
 
     return () => {
       cancelled = true;
       window.clearInterval(interval);
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("online", onOnline);
     };
-  }, [queryClient]);
+  }, [pollingState, queryClient]);
 }

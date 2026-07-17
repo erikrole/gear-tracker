@@ -40,8 +40,9 @@ struct KioskCheckoutView: View {
     @State private var isLinkedToEvent = false
     @State private var selectedEventId: String?
     @State private var customPurpose = ""
-    @State private var checkoutContextReady = false
-    @State private var scannerCaptureEnabled = false
+    @State private var checkoutContextReady = true
+    @State private var scannerCaptureEnabled = true
+    @State private var showDetailsSheet = false
     @State private var scannerHasFocus = false
     @State private var showScannerHelp = false
     @State private var showEditContextConfirm = false
@@ -89,7 +90,7 @@ struct KioskCheckoutView: View {
         KioskCartDisplayGroup.groups(from: scannedItems)
     }
     private var shouldListenForHIDScans: Bool {
-        scannerCaptureEnabled && checkoutContextReady && focusedCheckoutField == nil && !showCamera && !showScannerHelp && !showEditContextConfirm
+        scannerCaptureEnabled && focusedCheckoutField == nil && !showCamera && !showScannerHelp && !showEditContextConfirm && !showDetailsSheet
     }
 
     var body: some View {
@@ -100,7 +101,7 @@ struct KioskCheckoutView: View {
                 // first responder whenever visible checkout inputs need the keyboard.
                 HIDScannerField(
                     isEnabled: shouldListenForHIDScans,
-                    onScan: handleScan,
+                    onScan: { store.scanner.receive($0) },
                     onFocusChange: { scannerHasFocus = $0 }
                 )
                 .frame(width: 1, height: 1)
@@ -116,7 +117,7 @@ struct KioskCheckoutView: View {
                 store.clearCart(for: userId)
                 store.clearCheckoutDraft(for: userId)
                 Haptics.warning()
-                store.screen = .idle
+                store.screen = .studentHub(user)
             }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -158,9 +159,32 @@ struct KioskCheckoutView: View {
                 }
             )
         }
+        .sheet(isPresented: $showDetailsSheet) {
+            VStack(spacing: 16) {
+                HStack {
+                    Text("Checkout Details").font(.title2.bold()).foregroundStyle(KioskText.primary)
+                    Spacer()
+                    Button("Done") { startScanning() }
+                }
+                checkoutSetupPanel
+                KioskCompletionButton(
+                    title: "Save Details",
+                    isEnabled: hasCheckoutContext && hasValidReturnTime,
+                    isBusy: false,
+                    accessibilityLabel: startScanningAccessibilityLabel,
+                    action: startScanning
+                )
+            }
+            .padding(28)
+            .background(KioskSurface.base)
+            .presentationDetents([.large])
+        }
         .task {
             restoreDraftIfNeeded()
+            applyRetainedIntent()
+            store.scanner.claim(.checkout) { handleScan($0) }
             await loadCheckoutEvents()
+            applySelectedEventDueTime()
         }
         .onChange(of: selectedEventId) { _, _ in
             applySelectedEventDueTime()
@@ -184,6 +208,9 @@ struct KioskCheckoutView: View {
             guard checkoutContextReady, !scannedItems.isEmpty else { return }
             Task { await refreshAvailability(for: scannedItems) }
         }
+        .onChange(of: focusedCheckoutField) { _, field in
+            store.scanner.setEditing(field != nil)
+        }
         .onChange(of: checkoutContextReady) { _, isReady in
             if !isReady {
                 scannerCaptureEnabled = false
@@ -192,22 +219,18 @@ struct KioskCheckoutView: View {
         }
         .onDisappear {
             scannerCaptureEnabled = false
+            store.scanner.setEditing(false)
+            store.scanner.release(.checkout)
         }
     }
 
     // MARK: - Scan Zone
 
     private var checkoutLayout: some View {
-        Group {
-            if checkoutContextReady {
-                KioskAdaptiveSplit { _ in
-                    activeScanZone
-                } secondary: { isCompact in
-                    itemsList(isCompact: isCompact)
-                }
-            } else {
-                checkoutContextSetupZone
-            }
+        KioskAdaptiveSplit { _ in
+            activeScanZone
+        } secondary: { isCompact in
+            itemsList(isCompact: isCompact)
         }
     }
 
@@ -220,7 +243,7 @@ struct KioskCheckoutView: View {
                 backAccessibilityLabel: "Back to roster",
                 onBack: {
                     if scannedItems.isEmpty {
-                        store.screen = .idle
+                        store.screen = .studentHub(user)
                     } else {
                         showBackConfirm = true
                     }
@@ -275,7 +298,11 @@ struct KioskCheckoutView: View {
             customPurpose: $customPurpose,
             dueBackAt: $dueBackAt,
             selectedEvent: selectedEvent,
-            focusedField: $focusedCheckoutField
+            focusedField: $focusedCheckoutField,
+            onScannerBurstRejected: {
+                store.scanner.rejectEditingBurst()
+                showFeedback(.warning("Finish editing before scanning"))
+            }
         )
         .frame(maxWidth: KioskCheckoutSetupLayout.maxWidth)
         .frame(maxWidth: .infinity)
@@ -291,7 +318,7 @@ struct KioskCheckoutView: View {
                     : "Back to roster, will prompt to discard \(scannedItems.count) items",
                 onBack: {
                     if scannedItems.isEmpty {
-                        store.screen = .idle
+                        store.screen = .studentHub(user)
                     } else {
                         showBackConfirm = true
                     }
@@ -300,11 +327,11 @@ struct KioskCheckoutView: View {
             )
 
             KioskCheckoutContextSummary(
-                title: checkoutContextTitle,
-                detail: checkoutContextDetail,
+                title: hasCheckoutContext ? checkoutContextTitle : "Details needed",
+                detail: hasCheckoutContext ? checkoutContextDetail : "Keep scanning, then review before checkout.",
                 dueBackAt: dueBackAt,
                 onEdit: {
-                    requestEditContext()
+                    showDetailsSheet = true
                 }
             )
 
@@ -344,11 +371,14 @@ struct KioskCheckoutView: View {
             Spacer()
 
             KioskCompletionButton(
-                title: completeButtonTitle,
-                isEnabled: !scannedItems.isEmpty && pendingScanIdentities.isEmpty && hasCheckoutContext && hasValidReturnTime && hasVerifiedAvailability && !isCheckingAvailability && availabilityError == nil && !availabilityResult.hasBlockingIssue,
+                title: hasCheckoutContext && hasValidReturnTime ? completeButtonTitle : "Review Details",
+                isEnabled: !scannedItems.isEmpty && pendingScanIdentities.isEmpty && (!hasCheckoutContext || !hasValidReturnTime || (hasVerifiedAvailability && !isCheckingAvailability && availabilityError == nil && !availabilityResult.hasBlockingIssue)),
                 isBusy: isCompleting,
                 accessibilityLabel: completeAccessibilityLabel,
-                action: completeCheckout
+                action: {
+                    if hasCheckoutContext && hasValidReturnTime { completeCheckout() }
+                    else { showDetailsSheet = true }
+                }
             )
         }
     }
@@ -523,8 +553,6 @@ struct KioskCheckoutView: View {
     }
 
     private func handleScan(_ value: String) {
-        guard checkoutContextReady else { return }
-
         // Ignore scans during the complete-API window — a late scan would
         // land in the cart but miss the assetIds payload, then get wiped on
         // success. Phantom checkouts are worse than a "hold on" feedback.
@@ -636,6 +664,7 @@ struct KioskCheckoutView: View {
         HIDScannerFocusGate.allowScannerFocusNow()
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         checkoutContextReady = true
+        showDetailsSheet = false
         store.resetInactivity()
         Haptics.success()
         DispatchQueue.main.async {
@@ -690,6 +719,7 @@ struct KioskCheckoutView: View {
                 Haptics.success()
                 store.clearCart(for: userId)
                 store.clearCheckoutDraft(for: userId)
+                store.clearIntent(reason: .success)
                 scannerCaptureEnabled = false
                 store.screen = .success(KioskSuccessInfo(kind: .checkout, message: message))
             } catch {
@@ -715,10 +745,21 @@ struct KioskCheckoutView: View {
         selectedEventId = draft.selectedEventId
         customPurpose = draft.customPurpose
         dueBackAt = max(draft.dueBackAt, Date().addingTimeInterval(5 * 60))
-        checkoutContextReady = draft.contextReady
-        if checkoutContextReady {
-            armScannerCaptureAfterRestore()
+        checkoutContextReady = true
+        armScannerCaptureAfterRestore()
+    }
+
+    private func applyRetainedIntent() {
+        guard var intent = store.pendingIntent, intent.identifiedUser?.id == user.id else { return }
+        if let event = intent.selectedEvent {
+            isLinkedToEvent = true
+            selectedEventId = event.id
+            if let end = event.endsAt, end > Date().addingTimeInterval(60) { dueBackAt = end }
         }
+        let consumed = KioskFlowIntentReducer.consumePendingScans(in: intent)
+        intent = consumed.intent
+        store.setIntent(intent)
+        for scan in consumed.scans { handleScan(scan) }
     }
 
     private func persistDraft() {
@@ -879,6 +920,7 @@ private struct KioskCheckoutSetupPanel: View {
     @Binding var dueBackAt: Date
     let selectedEvent: KioskCheckoutEvent?
     let focusedField: Binding<KioskCheckoutFocusedField?>
+    let onScannerBurstRejected: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: KioskSpacing.lg) {
@@ -910,7 +952,8 @@ private struct KioskCheckoutSetupPanel: View {
             selectedEventId: $selectedEventId,
             selectedEvent: selectedEvent,
             customPurpose: $customPurpose,
-            focusedField: focusedField
+            focusedField: focusedField,
+            onScannerBurstRejected: onScannerBurstRejected
         )
     }
 
@@ -1035,6 +1078,7 @@ private struct KioskCheckoutContextWindow: View {
     let selectedEvent: KioskCheckoutEvent?
     @Binding var customPurpose: String
     let focusedField: Binding<KioskCheckoutFocusedField?>
+    let onScannerBurstRejected: () -> Void
 
     var body: some View {
         KioskCheckoutWindow(
@@ -1116,7 +1160,8 @@ private struct KioskCheckoutContextWindow: View {
                 isFocused: Binding(
                     get: { focusedField.wrappedValue == .customPurpose },
                     set: { focusedField.wrappedValue = $0 ? .customPurpose : nil }
-                )
+                ),
+                onScannerBurstRejected: onScannerBurstRejected
             )
             .padding(.horizontal, 16)
             .frame(height: 68)

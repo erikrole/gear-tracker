@@ -7,6 +7,7 @@ struct KioskStudentHubView: View {
     @State private var isLoading = true
     @State private var error: String?
     @State private var selectedCheckout: KioskCheckoutDrawerContext?
+    @State private var scanMessage: String?
 
     private let refreshInterval: TimeInterval = 30
 
@@ -38,7 +39,16 @@ struct KioskStudentHubView: View {
             }
         }
         .kioskScreenPadding()
-        .task { await loadContext() }
+        .overlay(alignment: .bottom) {
+            if selectedCheckout == nil {
+                HIDScannerField(onScan: { store.scanner.receive($0) }).frame(width: 1, height: 1).opacity(0)
+            }
+        }
+        .task {
+            store.scanner.claim(.studentHub) { routeScan($0) }
+            await loadContext()
+        }
+        .onDisappear { store.scanner.release(.studentHub) }
         .task(id: "refresh") {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: UInt64(refreshInterval * 1_000_000_000))
@@ -50,7 +60,7 @@ struct KioskStudentHubView: View {
                 context: checkout,
                 allowsEditing: true,
                 onReturn: {
-                    store.screen = .return(bookingId: checkout.checkoutId, userId: user.id)
+                    startReturn(checkout)
                 }
             ) {
                 Task { await loadContext() }
@@ -82,6 +92,7 @@ struct KioskStudentHubView: View {
                             color: Color.kioskRed,
                             isHero: true
                         ) {
+                            store.setIntent(KioskFlowIntent(action: .checkout, source: .person, identifiedUser: user, expectedRequester: nil, selectedEvent: nil, targetBooking: nil, pendingScanValues: [], createdAt: Date(), ambiguity: .none))
                             store.screen = .checkout(user: user)
                         }
 
@@ -93,7 +104,7 @@ struct KioskStudentHubView: View {
                                     icon: "tray.and.arrow.down.fill",
                                     color: Color.statusText(.orange)
                                 ) {
-                                    store.screen = .pickup(bookingId: pickup.id, userId: user.id)
+                                    startPickup(id: pickup.id, title: pickup.title, startsAt: pickup.startsAt)
                                 }
                             }
                         }
@@ -233,7 +244,9 @@ struct KioskStudentHubView: View {
             if let reservations = context?.reservations, !reservations.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(reservations) { res in
-                        ReservationCard(title: res.title, startsAt: res.startsAt)
+                        ReservationCard(title: res.title, startsAt: res.startsAt) {
+                            startPickup(id: res.id, title: res.title, startsAt: res.startsAt)
+                        }
                     }
                 }
             } else {
@@ -345,6 +358,61 @@ struct KioskStudentHubView: View {
         }
     }
 
+    private func routeScan(_ scan: String) {
+        Task {
+            do {
+                let result = try await KioskAPI.shared.kioskResolveScan(scanValue: scan, userId: user.id)
+                guard result.kind == "action", let action = result.action else {
+                    scanMessage = result.message ?? "That item cannot start a flow for \(user.name)."
+                    Haptics.warning()
+                    return
+                }
+                let intent = KioskFlowIntent(
+                    action: action,
+                    source: .scan,
+                    identifiedUser: user,
+                    expectedRequester: result.expectedRequester,
+                    selectedEvent: nil,
+                    targetBooking: result.booking.map { KioskIntentBooking(id: $0.id, title: $0.title, startsAt: $0.startsAt, endsAt: $0.endsAt) },
+                    pendingScanValues: [scan],
+                    createdAt: Date(),
+                    ambiguity: .none
+                )
+                store.setIntent(intent)
+                switch action {
+                case .checkout: store.screen = .checkout(user: user)
+                case .pickup:
+                    if let id = result.booking?.id { store.screen = .pickup(bookingId: id, userId: user.id) }
+                case .return:
+                    if let id = result.booking?.id { store.screen = .return(bookingId: id, userId: user.id) }
+                case .manage: break
+                }
+            } catch {
+                scanMessage = (error as? APIError)?.errorDescription ?? "Could not route that scan."
+                Haptics.error()
+            }
+        }
+    }
+
+    private func startPickup(id: String, title: String, startsAt: Date?) {
+        store.setIntent(KioskFlowIntent(
+            action: .pickup, source: .reservation, identifiedUser: user, expectedRequester: user,
+            selectedEvent: nil, targetBooking: KioskIntentBooking(id: id, title: title, startsAt: startsAt, endsAt: nil),
+            pendingScanValues: [], createdAt: Date(), ambiguity: .none
+        ))
+        store.screen = .pickup(bookingId: id, userId: user.id)
+    }
+
+    private func startReturn(_ checkout: KioskCheckoutDrawerContext) {
+        store.setIntent(KioskFlowIntent(
+            action: .return, source: .activeCheckout, identifiedUser: user, expectedRequester: user,
+            selectedEvent: nil,
+            targetBooking: KioskIntentBooking(id: checkout.checkoutId, title: checkout.title, startsAt: nil, endsAt: checkout.endsAt),
+            pendingScanValues: [], createdAt: Date(), ambiguity: .none
+        ))
+        store.screen = .return(bookingId: checkout.checkoutId, userId: user.id)
+    }
+
     private func studentContextErrorMessage(for error: Error) -> String {
         if let apiError = error as? APIError {
             switch apiError {
@@ -445,36 +513,45 @@ private struct ActionButton: View {
 private struct ReservationCard: View {
     let title: String
     let startsAt: Date
+    let action: () -> Void
 
     var body: some View {
-        HStack(spacing: 14) {
-            VStack(spacing: 1) {
-                Text(startsAt.formatted(.dateTime.day()))
-                    .font(.title2.weight(.heavy).monospacedDigit())
-                    .foregroundStyle(KioskText.primary)
-                Text(startsAt.formatted(.dateTime.weekday(.abbreviated)).uppercased())
-                    .font(.caption2.weight(.bold))
-                    .tracking(0.8)
-                    .foregroundStyle(Color.statusText(.purple))
-            }
-            .frame(width: 50, height: 54)
-            .background(Color.statusText(.purple).opacity(0.12), in: RoundedRectangle(cornerRadius: KioskRadius.sm))
+        Button(action: action) {
+            HStack(spacing: 14) {
+                VStack(spacing: 1) {
+                    Text(startsAt.formatted(.dateTime.day()))
+                        .font(.title2.weight(.heavy).monospacedDigit())
+                        .foregroundStyle(KioskText.primary)
+                    Text(startsAt.formatted(.dateTime.weekday(.abbreviated)).uppercased())
+                        .font(.caption2.weight(.bold))
+                        .tracking(0.8)
+                        .foregroundStyle(Color.statusText(.purple))
+                }
+                .frame(width: 50, height: 54)
+                .background(Color.statusText(.purple).opacity(0.12), in: RoundedRectangle(cornerRadius: KioskRadius.sm))
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(KioskText.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                Text(startsAt.formatted(date: .omitted, time: .shortened))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(KioskText.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                    Text(startsAt.formatted(date: .omitted, time: .shortened))
+                        .font(.caption)
+                        .foregroundStyle(KioskText.tertiary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
                     .font(.caption)
-                    .foregroundStyle(KioskText.tertiary)
+                    .foregroundStyle(KioskText.secondary)
+                    .accessibilityHidden(true)
             }
-            Spacer()
+            .padding(12)
+            .kioskCard(KioskSurface.card, radius: KioskRadius.md, stroke: Color.statusText(.purple).opacity(0.3))
         }
-        .padding(12)
-        .kioskCard(KioskSurface.card, radius: KioskRadius.md, stroke: KioskStroke.hairline)
+        .buttonStyle(KioskPressStyle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(title), \(startsAt.formatted(date: .abbreviated, time: .shortened))")
+        .accessibilityHint("Start pickup now")
     }
 }

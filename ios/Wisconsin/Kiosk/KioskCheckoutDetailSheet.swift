@@ -33,6 +33,7 @@ struct KioskCheckoutDetailSheet: View {
     let context: KioskCheckoutDrawerContext
     let allowsEditing: Bool
     var onReturn: (() -> Void)? = nil
+    var onScan: ((String) -> Void)? = nil
     let onChanged: () -> Void
 
     @State private var detail: KioskCheckoutDetail?
@@ -149,6 +150,11 @@ struct KioskCheckoutDetailSheet: View {
                 }
                 .frame(width: 1, height: 1)
                 .opacity(0)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if !allowsEditing, let onScan {
+                HIDScannerField(onScan: onScan).frame(width: 1, height: 1).opacity(0)
             }
         }
         .task {

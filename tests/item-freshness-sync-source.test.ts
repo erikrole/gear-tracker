@@ -18,8 +18,8 @@ describe("item freshness sync source contract", () => {
     expect(hook).toContain('"/api/items/changes"');
     expect(hook).not.toContain('"/api/assets"');
     expect(hook).toContain("ITEM_CHANGE_SYNC_INTERVAL_MS = 60_000");
-    expect(hook).toContain('document.visibilityState === "hidden"');
-    expect(hook).toContain("!navigator.onLine");
+    expect(hook).toContain("useOperationalPollingActivity()");
+    expect(hook).toContain('pollingState !== "active"');
   });
 
   it("invalidates list, picker, serialized detail, and item-family detail caches", () => {

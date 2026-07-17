@@ -59,13 +59,18 @@ struct KioskReturnView: View {
         }
         .overlay(alignment: .bottom) {
             HIDScannerField(
-                onScan: handleScan,
+                onScan: { store.scanner.receive($0) },
                 onFocusChange: { scannerHasFocus = $0 }
             )
                 .frame(width: 1, height: 1)
                 .opacity(0)
         }
-        .task { await loadDetail() }
+        .task {
+            store.scanner.claim(.return) { handleScan($0) }
+            await loadDetail()
+            replayPendingIntentScan()
+        }
+        .onDisappear { store.scanner.release(.return) }
         .sheet(isPresented: $showCamera) {
             KioskBarcodeCameraView(
                 feedbackMessage: lastResult?.message,
@@ -82,7 +87,7 @@ struct KioskReturnView: View {
         KioskScanZoneColumn {
             KioskFlowHeader(
                 title: "Return",
-                onBack: { store.screen = .idle },
+                onBack: { backToPerson() },
                 onCamera: { showCamera = true }
             )
 
@@ -299,6 +304,7 @@ struct KioskReturnView: View {
             do {
                 let result = try await KioskAPI.shared.kioskCheckinComplete(bookingId: bookingId, actorId: userId)
                 Haptics.success()
+                store.clearIntent(reason: .success)
                 store.screen = .success(KioskSuccessInfo(kind: .returned, message: successMessage(for: result)))
             } catch {
                 let message = (error as? APIError)?.errorDescription
@@ -333,6 +339,19 @@ struct KioskReturnView: View {
             self.loadError = (error as? APIError)?.errorDescription ?? "Could not load return details."
         }
         isLoading = false
+    }
+
+    private func replayPendingIntentScan() {
+        guard var intent = store.pendingIntent, intent.targetBooking?.id == bookingId else { return }
+        let consumed = KioskFlowIntentReducer.consumePendingScans(in: intent)
+        intent = consumed.intent
+        store.setIntent(intent)
+        for scan in consumed.scans { handleScan(scan) }
+    }
+
+    private func backToPerson() {
+        if let user = store.pendingIntent?.identifiedUser { store.screen = .studentHub(user) }
+        else { store.screen = .idle }
     }
 }
 

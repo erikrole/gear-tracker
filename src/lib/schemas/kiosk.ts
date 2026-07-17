@@ -89,6 +89,12 @@ export const checkoutScanBody = scanBody;
 export const pickupScanBody = scanBody;
 export const scanLookupBody = scanBody;
 
+export const resolveKioskScanBody = z.object({
+  scanValue: z.string().trim().min(1, "Scan value required").max(256),
+  userId: cuidish.optional(),
+});
+export type ResolveKioskScanBody = z.infer<typeof resolveKioskScanBody>;
+
 export const pickupConfirmBody = z.object({
   actorId: cuidish,
 });

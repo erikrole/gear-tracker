@@ -11,6 +11,7 @@ struct GlobalSearchSheet: View {
     var showsCancelButton = true
     @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var appState
+    @Environment(SessionStore.self) private var session
     @State private var query = ""
     @State private var results = SearchResults()
     @State private var isSearching = false
@@ -47,7 +48,7 @@ struct GlobalSearchSheet: View {
                 text: $query,
                 isPresented: $isSearchPresented,
                 placement: .navigationBarDrawer(displayMode: .always),
-                prompt: Text("Search items, bookings, people")
+                prompt: Text(isCollaborator ? "Search reservable gear" : "Search items, bookings, people")
             )
             .autocorrectionDisabled()
             .textInputAutocapitalization(.never)
@@ -58,12 +59,14 @@ struct GlobalSearchSheet: View {
                         Button("Cancel") { dismiss() }
                     }
                 }
+                if !isCollaborator {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         showScanner = true
                     } label: {
                         Label("Scan QR code", systemImage: "qrcode.viewfinder")
                     }
+                }
                 }
             }
             .navigationDestination(for: SearchDestination.self) { destination in
@@ -108,6 +111,10 @@ struct GlobalSearchSheet: View {
     }
 
     private func consumePendingAppIntent() {
+        if isCollaborator {
+            _ = appState.consumeAppIntentDestination(.scan)
+            return
+        }
         if appState.consumeAppIntentDestination(.scan) {
             isSearchPresented = false
             showScanner = true
@@ -123,7 +130,7 @@ struct GlobalSearchSheet: View {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 40))
                         .foregroundStyle(.quaternary)
-                    Text("Search gear, bookings, people")
+                    Text(isCollaborator ? "Search reservable gear" : "Search gear, bookings, people")
                         .foregroundStyle(.secondary)
                         .font(.subheadline)
                 }
@@ -317,7 +324,7 @@ struct GlobalSearchSheet: View {
         searchError = nil
         defer { isSearching = false }
         do {
-            let outcome = try await SearchService.shared.search(query: query)
+            let outcome = try await SearchService.shared.search(query: query, gearOnly: isCollaborator)
             // Stale-write guard: if the live `query` no longer matches what
             // this request was for (user typed more characters mid-flight),
             // drop the result. Without this guard, on slow networks an older
@@ -330,6 +337,10 @@ struct GlobalSearchSheet: View {
             guard self.query.trimmingCharacters(in: .whitespaces) == query else { return }
             searchError = error.localizedDescription
         }
+    }
+
+    private var isCollaborator: Bool {
+        session.currentUser?.role == "COLLABORATOR"
     }
 
     private func addToRecents(_ term: String) {

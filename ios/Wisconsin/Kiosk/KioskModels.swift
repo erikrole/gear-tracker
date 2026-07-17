@@ -370,6 +370,12 @@ struct KioskUser: Decodable, Identifiable, Equatable {
     let name: String
     let avatarUrl: String?
     let role: String
+    let affiliation: String?
+    let affiliationBadge: String?
+
+    var isAffiliatedCollaborator: Bool {
+        role == "COLLABORATOR" && affiliationBadge != nil
+    }
 
     var initials: String {
         name.split(separator: " ").prefix(2).compactMap { $0.first }.map { String($0) }.joined().uppercased()
@@ -380,6 +386,34 @@ struct KioskIdentifyResult: Decodable {
     let success: Bool
     let error: String?
     let data: KioskUser?
+}
+
+struct KioskResolveScanResult: Decodable {
+    let kind: String
+    let action: KioskFlowAction?
+    let disposition: String?
+    let code: String?
+    let message: String?
+    let user: KioskUser?
+    let expectedRequester: KioskUser?
+    let item: KioskResolvedItem?
+    let booking: KioskResolvedBooking?
+}
+
+struct KioskResolvedItem: Decodable, Equatable {
+    let id: String
+    let name: String
+    let tagName: String
+    let type: String?
+    let bulkSkuId: String?
+    let unitNumber: Int?
+}
+
+struct KioskResolvedBooking: Decodable, Equatable {
+    let id: String
+    let title: String
+    let startsAt: Date?
+    let endsAt: Date?
 }
 
 // MARK: - Student Context
@@ -635,6 +669,7 @@ enum KioskScreen: Equatable {
     case activation
     case idle
     case studentHub(KioskUser)
+    case identity
     case checkout(user: KioskUser)
     case pickup(bookingId: String, userId: String)
     case `return`(bookingId: String, userId: String)

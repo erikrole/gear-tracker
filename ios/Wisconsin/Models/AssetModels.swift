@@ -106,6 +106,35 @@ struct Asset: Codable, Identifiable, Hashable {
     }
 }
 
+extension Asset {
+    private enum SafeCodingKeys: String, CodingKey {
+        case id, assetTag, name, brand, model, serialNumber, imageUrl, computedStatus
+        case location, category, department, activeBooking, purchaseDate, purchasePrice
+        case residualValue, isFavorited
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: SafeCodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        assetTag = try c.decodeIfPresent(String.self, forKey: .assetTag)
+        name = try c.decodeIfPresent(String.self, forKey: .name)
+        brand = try c.decodeIfPresent(String.self, forKey: .brand) ?? ""
+        model = try c.decodeIfPresent(String.self, forKey: .model) ?? ""
+        serialNumber = try c.decodeIfPresent(String.self, forKey: .serialNumber)
+        imageUrl = try c.decodeIfPresent(String.self, forKey: .imageUrl)
+        computedStatus = try c.decode(AssetComputedStatus.self, forKey: .computedStatus)
+        location = try c.decodeIfPresent(AssetLocation.self, forKey: .location)
+            ?? AssetLocation(id: "", name: "")
+        category = try c.decodeIfPresent(AssetCategory.self, forKey: .category)
+        department = try c.decodeIfPresent(AssetDepartment.self, forKey: .department)
+        activeBooking = try c.decodeIfPresent(AssetActiveBooking.self, forKey: .activeBooking)
+        purchaseDate = try c.decodeIfPresent(String.self, forKey: .purchaseDate)
+        purchasePrice = try c.decodeIfPresent(String.self, forKey: .purchasePrice)
+        residualValue = try c.decodeIfPresent(String.self, forKey: .residualValue)
+        isFavorited = try c.decodeIfPresent(Bool.self, forKey: .isFavorited) ?? false
+    }
+}
+
 struct FamilyUnitSummary: Codable, Hashable {
     let unitNumber: Int
     let status: String
@@ -164,6 +193,48 @@ struct AssetFamilySearchResult: Codable, Identifiable, Hashable {
             return "Unit #\(matchedUnitNumber) · \(status)"
         }
         return "Unit #\(matchedUnitNumber)"
+    }
+}
+
+extension AssetFamilySearchResult {
+    private enum SafeCodingKeys: String, CodingKey {
+        case id, kind, name, category, unit, trackByNumber, onHandQuantity, availableQuantity
+        case checkedOutQuantity, lostQuantity, retiredQuantity, matchedUnitNumber, matchedUnitStatus
+        case matchedUnitHolder, matchedUnitHolderAvatarUrl, matchedUnitDueAt, matchedUnitBookingTitle
+        case matchedUnitBookingId, units, imageUrl, locationName, locationId, location, categoryId
+        case departmentId, departmentName, binQrCodeValue
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: SafeCodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        kind = try c.decodeIfPresent(String.self, forKey: .kind) ?? "bulk"
+        name = try c.decode(String.self, forKey: .name)
+        let categoryObject = try? c.decode(AssetCategory.self, forKey: .category)
+        category = (try? c.decode(String.self, forKey: .category)) ?? categoryObject?.name ?? "Items"
+        unit = try c.decodeIfPresent(String.self, forKey: .unit) ?? "item"
+        trackByNumber = try c.decodeIfPresent(Bool.self, forKey: .trackByNumber) ?? false
+        availableQuantity = try c.decodeIfPresent(Int.self, forKey: .availableQuantity) ?? 0
+        onHandQuantity = try c.decodeIfPresent(Int.self, forKey: .onHandQuantity) ?? availableQuantity
+        checkedOutQuantity = try c.decodeIfPresent(Int.self, forKey: .checkedOutQuantity) ?? 0
+        lostQuantity = try c.decodeIfPresent(Int.self, forKey: .lostQuantity) ?? 0
+        retiredQuantity = try c.decodeIfPresent(Int.self, forKey: .retiredQuantity) ?? 0
+        matchedUnitNumber = try c.decodeIfPresent(Int.self, forKey: .matchedUnitNumber)
+        matchedUnitStatus = try c.decodeIfPresent(String.self, forKey: .matchedUnitStatus)
+        matchedUnitHolder = try c.decodeIfPresent(String.self, forKey: .matchedUnitHolder)
+        matchedUnitHolderAvatarUrl = try c.decodeIfPresent(String.self, forKey: .matchedUnitHolderAvatarUrl)
+        matchedUnitDueAt = try c.decodeIfPresent(Date.self, forKey: .matchedUnitDueAt)
+        matchedUnitBookingTitle = try c.decodeIfPresent(String.self, forKey: .matchedUnitBookingTitle)
+        matchedUnitBookingId = try c.decodeIfPresent(String.self, forKey: .matchedUnitBookingId)
+        units = try c.decodeIfPresent([FamilyUnitSummary].self, forKey: .units)
+        imageUrl = try c.decodeIfPresent(String.self, forKey: .imageUrl)
+        let locationObject = try? c.decode(AssetLocation.self, forKey: .location)
+        locationName = try c.decodeIfPresent(String.self, forKey: .locationName) ?? locationObject?.name ?? ""
+        locationId = try c.decodeIfPresent(String.self, forKey: .locationId) ?? locationObject?.id ?? ""
+        categoryId = try c.decodeIfPresent(String.self, forKey: .categoryId) ?? categoryObject?.id
+        departmentId = try c.decodeIfPresent(String.self, forKey: .departmentId)
+        departmentName = try c.decodeIfPresent(String.self, forKey: .departmentName)
+        binQrCodeValue = try c.decodeIfPresent(String.self, forKey: .binQrCodeValue) ?? ""
     }
 }
 
@@ -349,5 +420,41 @@ struct AssetDetail: Codable, Identifiable, Hashable {
             purchasePrice: purchasePrice, residualValue: residualValue,
             isFavorited: isFavorited
         )
+    }
+}
+
+extension AssetDetail {
+    private enum SafeCodingKeys: String, CodingKey {
+        case id, assetTag, name, brand, model, serialNumber, imageUrl, qrCodeValue, linkUrl
+        case computedStatus, location, category, department, activeBooking, upcomingReservations
+        case parentAsset, accessories, metadata, purchaseDate, purchasePrice, residualValue, notes, isFavorited
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: SafeCodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        assetTag = try c.decodeIfPresent(String.self, forKey: .assetTag)
+        name = try c.decodeIfPresent(String.self, forKey: .name)
+        brand = try c.decodeIfPresent(String.self, forKey: .brand) ?? ""
+        model = try c.decodeIfPresent(String.self, forKey: .model) ?? ""
+        serialNumber = try c.decodeIfPresent(String.self, forKey: .serialNumber)
+        imageUrl = try c.decodeIfPresent(String.self, forKey: .imageUrl)
+        qrCodeValue = try c.decodeIfPresent(String.self, forKey: .qrCodeValue)
+        linkUrl = try c.decodeIfPresent(String.self, forKey: .linkUrl)
+        computedStatus = try c.decode(AssetComputedStatus.self, forKey: .computedStatus)
+        location = try c.decodeIfPresent(AssetLocation.self, forKey: .location)
+            ?? AssetLocation(id: "", name: "")
+        category = try c.decodeIfPresent(AssetCategory.self, forKey: .category)
+        department = try c.decodeIfPresent(AssetDepartment.self, forKey: .department)
+        activeBooking = try c.decodeIfPresent(AssetActiveBooking.self, forKey: .activeBooking)
+        upcomingReservations = try c.decodeIfPresent([UpcomingReservation].self, forKey: .upcomingReservations) ?? []
+        parentAsset = try c.decodeIfPresent(AssetParentLink.self, forKey: .parentAsset)
+        accessories = try c.decodeIfPresent([AssetAccessory].self, forKey: .accessories)
+        metadata = try c.decodeIfPresent(AssetMetadata.self, forKey: .metadata)
+        purchaseDate = try c.decodeIfPresent(String.self, forKey: .purchaseDate)
+        purchasePrice = try c.decodeIfPresent(String.self, forKey: .purchasePrice)
+        residualValue = try c.decodeIfPresent(String.self, forKey: .residualValue)
+        notes = try c.decodeIfPresent(String.self, forKey: .notes)
+        isFavorited = try c.decodeIfPresent(Bool.self, forKey: .isFavorited) ?? false
     }
 }

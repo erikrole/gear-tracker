@@ -218,6 +218,7 @@
 - `/api/kiosk/me` -> `src/app/api/kiosk/me/route.ts`
 - `/api/kiosk/pickup/[id]/confirm` -> `src/app/api/kiosk/pickup/[id]/confirm/route.ts`
 - `/api/kiosk/pickup/[id]/scan` -> `src/app/api/kiosk/pickup/[id]/scan/route.ts`
+- `/api/kiosk/resolve-scan` -> `src/app/api/kiosk/resolve-scan/route.ts`
 - `/api/kiosk/scan-lookup` -> `src/app/api/kiosk/scan-lookup/route.ts`
 - `/api/kiosk/student/[userId]` -> `src/app/api/kiosk/student/[userId]/route.ts`
 - `/api/kiosk/users` -> `src/app/api/kiosk/users/route.ts`

@@ -64,3 +64,13 @@
 - Browser: Authenticated localhost proof confirmed the one-row Wiscard layout, explicit labels, Men’s shoe display, apparel-only bottom options, Live Production assignment, and a clean page console. File-selection automation was unavailable, so the crop dialog interaction is covered by TypeScript, lint, and source-contract tests rather than a browser-selected image.
 - Verified: 36 focused profile tests, TypeScript, focused ESLint, migration-prefix validation, codemap/docs checks, `git diff --check`, and `npm run build:app` with all 198 static pages generated.
 - Next slice or stop: Stop. No schema or deployment work is required for this follow-up.
+
+## 2026-07-16 Student Academic Details Follow-up
+
+- Shipped in source: Student profiles now require an explicit Year (`Freshman`, `Sophomore`, `Junior`, `Senior`, or `Grad`) and one combined Anticipated Graduation choice such as `Spring 2027`.
+- Scope: The academic step appears only for Student accounts. Staff, Admin, and Collaborator completion counts and wizard steps are unchanged.
+- Phone boundary: Student completion asks only for a personal phone. Work-phone entry and legacy work/personal classification remain limited to non-student accounts, and saving a student's personal number preserves any existing work-phone data.
+- Data: Migration `0097_student_graduation_term` adds the nullable graduation term enum; the existing `gradYear` and `studentYearOverride` columns retain their established meanings.
+- Profile: Authorized editors can update both fields directly on the student profile, and the profile header displays the selected term and year.
+- Boundary: These fields are anticipated profile metadata only. They do not automatically change account role, activation, scheduling class, or offboarding state.
+- Deployment: Pending a controlled migration deploy because unrelated collaborator migrations `0095` and `0096` are also currently pending in this shared worktree.
