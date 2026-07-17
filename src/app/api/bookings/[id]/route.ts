@@ -9,6 +9,8 @@ import { getAllowedBookingActions, requireBookingAction } from "@/lib/services/b
 import { updateBookingSchema, sanitizeBookingFields } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
 import type { z } from "zod";
+import { requireCollaboratorCapability } from "@/lib/collaborator-access";
+import { collaboratorBookingResponse } from "@/lib/collaborator-gear";
 
 type BookingPatchBody = z.infer<typeof updateBookingSchema>;
 
@@ -55,27 +57,51 @@ function isIdempotentStalePatch(body: BookingPatchBody, detail: Awaited<ReturnTy
 }
 
 export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
+  if (user.role === "COLLABORATOR") {
+    requireCollaboratorCapability(user, "MY_GEAR_VIEW");
+  }
   const { id } = params;
   const detail = await getBookingDetail(id);
 
   // Students may only view bookings they requested or created. ADMIN/STAFF
   // can view any booking. Without this check, a student iterating booking
   // IDs could read every requester's PII (IDOR).
-  if (user.role === "STUDENT" && detail.requesterUserId !== user.id && detail.createdBy !== user.id) {
+  if (
+    (user.role === "STUDENT" || user.role === "COLLABORATOR") &&
+    detail.requesterUserId !== user.id &&
+    detail.createdBy !== user.id
+  ) {
     throw new HttpError(404, "Booking not found");
   }
 
   const allowedActions = getAllowedBookingActions(user, detail);
 
-  return ok({ data: { ...detail, allowedActions } });
+  return ok({
+    data: user.role === "COLLABORATOR"
+      ? collaboratorBookingResponse(detail, allowedActions)
+      : { ...detail, allowedActions },
+  });
 });
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
+  if (user.role === "COLLABORATOR") {
+    requireCollaboratorCapability(user, "RESERVATION_EDIT_OWN");
+  }
   const { id } = params;
   const body = sanitizeBookingFields(updateBookingSchema.parse(await req.json()));
+  if (
+    user.role === "COLLABORATOR" &&
+    body.requesterUserId !== undefined &&
+    body.requesterUserId !== user.id
+  ) {
+    throw new HttpError(403, "Collaborators cannot reassign reservations");
+  }
 
   // Fetch current state for before-snapshot and kind detection
   const detail = await getBookingDetail(id);
+  if (user.role === "COLLABORATOR" && detail.kind !== "RESERVATION") {
+    throw new HttpError(403, "Collaborators cannot edit checkouts");
+  }
 
   // Optimistic locking: every edit client must send the snapshot it edited.
   const ifUnmodified = req.headers.get("if-unmodified-since");
@@ -91,7 +117,11 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     if (isIdempotentStalePatch(body, detail)) {
       await requireBookingAction(id, user, "edit");
       const allowedActions = getAllowedBookingActions(user, detail);
-      return ok({ data: { ...detail, allowedActions } });
+      return ok({
+        data: user.role === "COLLABORATOR"
+          ? collaboratorBookingResponse(detail, allowedActions)
+          : { ...detail, allowedActions },
+      });
     }
     throw new HttpError(409, "This booking was modified by someone else. Please refresh and try again.");
   }
@@ -146,5 +176,9 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   // Re-fetch enriched detail so the UI has full state (auditLogs, allowedActions, etc.)
   const refreshed = await getBookingDetail(id);
   const allowedActions = getAllowedBookingActions(user, refreshed);
-  return ok({ data: { ...refreshed, allowedActions } });
+  return ok({
+    data: user.role === "COLLABORATOR"
+      ? collaboratorBookingResponse(refreshed, allowedActions)
+      : { ...refreshed, allowedActions },
+  });
 });

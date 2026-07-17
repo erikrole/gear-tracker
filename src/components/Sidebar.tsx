@@ -57,6 +57,12 @@ type NavItem = {
   requiredRole?: "ADMIN" | "STAFF";
 };
 
+const COLLABORATOR_NAV_CAPABILITY: Partial<Record<string, string>> = {
+  "/schedule": "PUBLISHED_SCHEDULE_VIEW",
+  "/items": "GEAR_CATALOG_VIEW",
+  "/bookings": "MY_GEAR_VIEW",
+};
+
 type NavGroup = {
   label?: string;
   staffOnly?: boolean;
@@ -89,7 +95,15 @@ const navGroups: NavGroup[] = [
 ];
 
 type AppSidebarProps = {
-  user: { id: string; name: string; email: string; role?: string; avatarUrl?: string | null } | null;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role?: string;
+    avatarUrl?: string | null;
+    capabilities?: string[];
+    collaboratorPolicy?: { badgeLabel: string } | null;
+  } | null;
   onSignOut?: () => void;
   isLoggingOut?: boolean;
   overdueBadgeCount?: number;
@@ -132,6 +146,8 @@ export default function AppSidebar({
   const { theme, setTheme } = useTheme();
   const { isMobile, setOpenMobile } = useSidebar();
   const canUseAdminNav = user?.role === "ADMIN" || user?.role === "STAFF";
+  const isCollaborator = user?.role === "COLLABORATOR";
+  const collaboratorCapabilities = new Set(user?.capabilities ?? []);
 
   const userInitials = user ? getInitials(user.name) : "?";
 
@@ -139,7 +155,15 @@ export default function AppSidebar({
     .filter((g) => !g.staffOnly || canUseAdminNav)
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => !item.requiredRole || item.requiredRole === user?.role),
+      items: group.items
+        .filter((item) => !item.requiredRole || item.requiredRole === user?.role)
+        .filter((item) => {
+          if (!isCollaborator) return true;
+          if (!["/", "/schedule", "/items", "/bookings", "/notifications"].includes(item.href)) return false;
+          const requiredCapability = COLLABORATOR_NAV_CAPABILITY[item.href];
+          return !requiredCapability || collaboratorCapabilities.has(requiredCapability);
+        })
+        .map((item) => isCollaborator && item.href === "/bookings" ? { ...item, label: "My Gear" } : item),
     }))
     .filter((group) => group.items.length > 0);
 
@@ -218,7 +242,9 @@ export default function AppSidebar({
                     className="text-[11px] text-white/60 truncate leading-tight mt-[2px] uppercase tracking-[0.1em]"
                       style={{ fontFamily: "var(--font-mono)" }}
                     >
-                      {user.role ?? "Student"}
+                      {user.role === "COLLABORATOR"
+                        ? `${user.collaboratorPolicy?.badgeLabel ?? "External"} Collaborator`
+                        : user.role ?? "Student"}
                     </p>
                   </div>
                 </Link>

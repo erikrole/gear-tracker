@@ -142,7 +142,7 @@ export function GuideTargetingControls({
           <div className="flex flex-wrap gap-2">
             {targetRoles.map((role) => (
               <Badge key={role} variant="secondary">
-                {GUIDE_ROLE_LABELS[role]}
+                {GUIDE_ROLE_LABELS[role] ?? "Collaborators"}
               </Badge>
             ))}
             {targetAreas.map((area) => (

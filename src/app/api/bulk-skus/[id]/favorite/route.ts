@@ -3,10 +3,10 @@ import { withAuth } from "@/lib/api";
 import { createAuditEntry } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
-import { requirePermission } from "@/lib/rbac";
+import { requirePermissionOrCollaboratorCapability } from "@/lib/rbac";
 
 export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
-  requirePermission(user.role, "asset", "favorite");
+  requirePermissionOrCollaboratorCapability(user, "asset", "favorite", "GEAR_CATALOG_VIEW");
 
   const { id } = params;
   const sku = await db.bulkSku.findUnique({

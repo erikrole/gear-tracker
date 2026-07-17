@@ -2,16 +2,18 @@ import { Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
-import { requirePermission } from "@/lib/rbac";
+import { requirePermission, requirePermissionOrCollaboratorCapability } from "@/lib/rbac";
 import { createBulkSkuSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
 import { buildActiveBulkUnitAllocationMap } from "@/lib/bulk-unit-status";
 import { summarizeItemFamilyState } from "@/lib/item-family-state";
+import { sanitizeCollaboratorBulkItem } from "@/lib/collaborator-gear";
 
-export const GET = withAuth(async (req) => {
+export const GET = withAuth(async (req, { user }) => {
+  requirePermissionOrCollaboratorCapability(user, "bulk_sku", "view", "GEAR_CATALOG_VIEW");
   const { searchParams } = new URL(req.url);
   const locationId = searchParams.get("location_id");
-  const includeArchived = searchParams.get("archived") === "true";
+  const includeArchived = user.role !== "COLLABORATOR" && searchParams.get("archived") === "true";
   const limit = Math.min(Math.max(Number(searchParams.get("limit")) || 50, 1), 200);
   const offset = Math.max(Number(searchParams.get("offset")) || 0, 0);
 
@@ -61,7 +63,18 @@ export const GET = withAuth(async (req) => {
     return { ...sku, units: state.effectiveUnits, availableQuantity: state.availableQuantity };
   });
 
-  return ok({ data, total, limit, offset });
+  return ok({
+    data: user.role === "COLLABORATOR"
+      ? data.map((sku) => sanitizeCollaboratorBulkItem({
+          ...sku,
+          locationName: sku.location.name,
+          category: sku.categoryRel?.name ?? sku.category,
+        }))
+      : data,
+    total,
+    limit,
+    offset,
+  });
 });
 
 export const POST = withAuth(async (req, { user }) => {

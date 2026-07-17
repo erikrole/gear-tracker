@@ -31,7 +31,9 @@ describe("onboarding dialog source wiring", () => {
     expect(source).toContain("Fix these rows before saving.");
     expect(source).toContain("Duplicate in this paste");
     expect(source).toContain("Your role cannot invite this account role");
-    expect(source).toContain("readyPreviewRows.map((row) => ({ email: row.email, role: row.role }))");
+    expect(source).toContain("readyPreviewRows.map((row) => ({");
+    expect(source).toContain("...inviteProfileFields(row.role, selectedPolicyId)");
+    expect(source).toContain("Select an active affiliation");
     expect(source).toContain('fetch("/api/allowed-emails/preview"');
     expect(source).toContain("Authenticated preview checks existing users and invitations before commit.");
     expect(source).toContain("Review account status before saving invitations.");

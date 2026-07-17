@@ -1,4 +1,4 @@
-import { Prisma, Role } from "@prisma/client";
+import { Affiliation, CollaboratorProfile, Prisma, Role } from "@prisma/client";
 import { createAuditEntries, createAuditEntry } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
@@ -9,7 +9,13 @@ export type OnboardingActor = {
   role: Role;
 };
 
-type InviteRole = Extract<Role, "STAFF" | "STUDENT">;
+type InviteRole = Extract<Role, "STAFF" | "STUDENT" | "COLLABORATOR">;
+
+type InviteProfile = {
+  affiliation?: Affiliation | null;
+  collaboratorProfile?: CollaboratorProfile | null;
+  collaboratorPolicyId?: string | null;
+};
 
 type AllowedEmailAudit = {
   id: string;
@@ -42,6 +48,9 @@ export type AllowedEmailInvitePreviewStatus =
 export type AllowedEmailInvitePreviewRow = {
   email: string;
   requestedRole: InviteRole;
+  requestedAffiliation?: Affiliation | null;
+  requestedCollaboratorProfile?: CollaboratorProfile | null;
+  requestedCollaboratorPolicyId?: string | null;
   status: AllowedEmailInvitePreviewStatus;
   existingRole?: Role;
 };
@@ -54,15 +63,62 @@ export function assertCanInviteRole(actor: OnboardingActor, role: Role) {
   if (role === "STAFF" && actor.role !== "ADMIN") {
     throw new HttpError(403, "Only admins can pre-approve staff accounts");
   }
+  if (role === "COLLABORATOR" && actor.role !== "ADMIN") {
+    throw new HttpError(403, "Only admins can pre-approve collaborator accounts");
+  }
+}
+
+async function resolveInviteProfile(role: InviteRole, profile: InviteProfile) {
+  if (role !== "COLLABORATOR") {
+    if (profile.collaboratorPolicyId || profile.affiliation || profile.collaboratorProfile) {
+      throw new HttpError(400, "Internal invitations cannot receive collaborator policy metadata");
+    }
+    return { collaboratorPolicyId: null, affiliation: null, collaboratorProfile: null };
+  }
+
+  const policy = profile.collaboratorPolicyId
+    ? await db.collaboratorPolicy.findUnique({
+        where: { id: profile.collaboratorPolicyId },
+        include: { affiliation: true },
+      })
+    : profile.affiliation === "BIG_TEN_NETWORK" && profile.collaboratorProfile === "BTN_STANDARD"
+      ? await db.collaboratorPolicy.findFirst({
+          where: { affiliation: { key: "BIG_TEN_NETWORK" } },
+          include: { affiliation: true },
+        })
+      : null;
+  if (!policy || policy.affiliation.archivedAt) {
+    throw new HttpError(400, "Choose a recognized collaborator affiliation");
+  }
+  if (policy.status !== "ACTIVE") {
+    throw new HttpError(409, "That collaborator affiliation is suspended");
+  }
+  const isLegacyBtn = policy.affiliation.key === "BIG_TEN_NETWORK";
+  return {
+    collaboratorPolicyId: policy.id,
+    affiliation: isLegacyBtn ? Affiliation.BIG_TEN_NETWORK : null,
+    collaboratorProfile: isLegacyBtn ? CollaboratorProfile.BTN_STANDARD : null,
+  };
 }
 
 function allowedEmailAuditAfter(
-  entry: { email: string; role: Role; claimedAt?: Date | null; claimedById?: string | null },
+  entry: {
+    email: string;
+    role: Role;
+    affiliation?: Affiliation | null;
+    collaboratorProfile?: CollaboratorProfile | null;
+    collaboratorPolicyId?: string | null;
+    claimedAt?: Date | null;
+    claimedById?: string | null;
+  },
   source: string,
 ) {
   return {
     email: entry.email,
     role: entry.role,
+    affiliation: entry.affiliation ?? null,
+    collaboratorProfile: entry.collaboratorProfile ?? null,
+    collaboratorPolicyId: entry.collaboratorPolicyId ?? null,
     claimedById: entry.claimedById ?? null,
     claimedAt: entry.claimedAt?.toISOString() ?? null,
     source,
@@ -128,6 +184,9 @@ export async function createDirectUserAccount(input: {
   role: Role;
   locationId?: string | null;
 }) {
+  if (input.role === "COLLABORATOR") {
+    throw new HttpError(400, "Collaborators must register from an administrator invitation");
+  }
   const email = normalizeOnboardingEmail(input.email);
 
   const result = await db.$transaction(async (tx) => {
@@ -196,7 +255,7 @@ export async function createDirectUserAccountsBulk(input: {
     locationId?: string | null;
   }>;
 }) {
-  if (input.users.some((entry) => entry.role === "ADMIN")) {
+  if (input.users.some((entry) => entry.role === "ADMIN" || entry.role === "COLLABORATOR")) {
     throw new HttpError(403, "Bulk onboarding can only create staff or student users");
   }
 
@@ -286,13 +345,17 @@ export async function createAllowedEmailInvite(input: {
   actor: OnboardingActor;
   email: string;
   role: InviteRole;
+  affiliation?: Affiliation | null;
+  collaboratorProfile?: CollaboratorProfile | null;
+  collaboratorPolicyId?: string | null;
 }): Promise<AllowedEmailInviteResult> {
   assertCanInviteRole(input.actor, input.role);
+  const resolvedProfile = await resolveInviteProfile(input.role, input);
 
   const email = normalizeOnboardingEmail(input.email);
   const existingUser = await db.user.findUnique({
     where: { email },
-    select: { id: true, role: true },
+    select: { id: true, role: true, affiliation: true, collaboratorProfile: true, collaboratorPolicyId: true },
   });
 
   if (existingUser) {
@@ -305,6 +368,9 @@ export async function createAllowedEmailInvite(input: {
         data: {
           email,
           role: existingUser.role,
+          affiliation: existingUser.affiliation,
+          collaboratorProfile: existingUser.collaboratorProfile,
+          collaboratorPolicyId: existingUser.collaboratorPolicyId,
           createdById: input.actor.id,
           claimedAt: new Date(),
           claimedById: existingUser.id,
@@ -335,7 +401,14 @@ export async function createAllowedEmailInvite(input: {
 
   try {
     const entry = await db.allowedEmail.create({
-      data: { email, role: input.role, createdById: input.actor.id },
+      data: {
+        email,
+        role: input.role,
+        affiliation: resolvedProfile.affiliation,
+        collaboratorProfile: resolvedProfile.collaboratorProfile,
+        collaboratorPolicyId: resolvedProfile.collaboratorPolicyId,
+        createdById: input.actor.id,
+      },
       include: {
         createdBy: { select: { id: true, name: true } },
         claimedBy: { select: { id: true, name: true } },
@@ -348,7 +421,13 @@ export async function createAllowedEmailInvite(input: {
       entityType: "allowed_email",
       entityId: entry.id,
       action: "created",
-      after: { email, role: input.role },
+      after: {
+        email,
+        role: input.role,
+        affiliation: resolvedProfile.affiliation,
+        collaboratorProfile: resolvedProfile.collaboratorProfile,
+        collaboratorPolicyId: resolvedProfile.collaboratorPolicyId,
+      },
     });
 
     return { skipped: false, entry };
@@ -362,14 +441,19 @@ export async function createAllowedEmailInvite(input: {
 
 export async function createAllowedEmailInvitesBulk(input: {
   actor: OnboardingActor;
-  emails: Array<{ email: string; role: InviteRole }>;
+  emails: Array<{ email: string; role: InviteRole } & InviteProfile>;
 }) {
-  if (input.emails.some((entry) => entry.role === "STAFF")) {
-    assertCanInviteRole(input.actor, "STAFF");
+  for (const entry of input.emails) {
+    assertCanInviteRole(input.actor, entry.role);
   }
 
-  const normalized = input.emails.map((entry) => ({
+  const resolvedProfiles = await Promise.all(
+    input.emails.map((entry) => resolveInviteProfile(entry.role, entry)),
+  );
+
+  const normalized = input.emails.map((entry, index) => ({
     ...entry,
+    ...resolvedProfiles[index]!,
     email: normalizeOnboardingEmail(entry.email),
   }));
   const emailList = normalized.map((entry) => entry.email);
@@ -400,6 +484,9 @@ export async function createAllowedEmailInvitesBulk(input: {
       data: toCreate.map((entry) => ({
         email: entry.email,
         role: entry.role,
+        ...(entry.affiliation ? { affiliation: entry.affiliation } : {}),
+        ...(entry.collaboratorProfile ? { collaboratorProfile: entry.collaboratorProfile } : {}),
+        ...(entry.collaboratorPolicyId ? { collaboratorPolicyId: entry.collaboratorPolicyId } : {}),
         createdById: input.actor.id,
       })),
       skipDuplicates: true,
@@ -407,7 +494,7 @@ export async function createAllowedEmailInvitesBulk(input: {
 
     const created = await db.allowedEmail.findMany({
       where: { email: { in: toCreate.map((entry) => entry.email) }, createdById: input.actor.id },
-      select: { id: true, email: true, role: true },
+      select: { id: true, email: true, role: true, affiliation: true, collaboratorProfile: true, collaboratorPolicyId: true },
     });
 
     await createAuditEntries(
@@ -417,7 +504,13 @@ export async function createAllowedEmailInvitesBulk(input: {
         entityType: "allowed_email",
         entityId: entry.id,
         action: "created",
-        after: { email: entry.email, role: entry.role },
+        after: {
+          email: entry.email,
+          role: entry.role,
+          affiliation: entry.affiliation,
+          collaboratorProfile: entry.collaboratorProfile,
+          collaboratorPolicyId: entry.collaboratorPolicyId,
+        },
       })),
     );
 
@@ -429,14 +522,19 @@ export async function createAllowedEmailInvitesBulk(input: {
 
 export async function previewAllowedEmailInvitesBulk(input: {
   actor: OnboardingActor;
-  emails: Array<{ email: string; role: InviteRole }>;
+  emails: Array<{ email: string; role: InviteRole } & InviteProfile>;
 }) {
-  if (input.emails.some((entry) => entry.role === "STAFF")) {
-    assertCanInviteRole(input.actor, "STAFF");
+  for (const entry of input.emails) {
+    assertCanInviteRole(input.actor, entry.role);
   }
 
-  const normalized = input.emails.map((entry) => ({
+  const resolvedProfiles = await Promise.all(
+    input.emails.map((entry) => resolveInviteProfile(entry.role, entry)),
+  );
+
+  const normalized = input.emails.map((entry, index) => ({
     ...entry,
+    ...resolvedProfiles[index]!,
     email: normalizeOnboardingEmail(entry.email),
   }));
   const emailList = normalized.map((entry) => entry.email);
@@ -460,6 +558,9 @@ export async function previewAllowedEmailInvitesBulk(input: {
       return {
         email: entry.email,
         requestedRole: entry.role,
+        requestedAffiliation: entry.affiliation ?? null,
+        requestedCollaboratorProfile: entry.collaboratorProfile ?? null,
+        requestedCollaboratorPolicyId: entry.collaboratorPolicyId ?? null,
         status: "duplicate",
       };
     }
@@ -470,6 +571,9 @@ export async function previewAllowedEmailInvitesBulk(input: {
       return {
         email: entry.email,
         requestedRole: entry.role,
+        requestedAffiliation: entry.affiliation ?? null,
+        requestedCollaboratorProfile: entry.collaboratorProfile ?? null,
+        requestedCollaboratorPolicyId: entry.collaboratorPolicyId ?? null,
         existingRole: allowed.role,
         status: allowed.claimedAt ? "claimed_invite" : "pending_invite",
       };
@@ -480,6 +584,9 @@ export async function previewAllowedEmailInvitesBulk(input: {
       return {
         email: entry.email,
         requestedRole: entry.role,
+        requestedAffiliation: entry.affiliation ?? null,
+        requestedCollaboratorProfile: entry.collaboratorProfile ?? null,
+        requestedCollaboratorPolicyId: entry.collaboratorPolicyId ?? null,
         existingRole: user.role,
         status: "existing_user",
       };
@@ -488,6 +595,9 @@ export async function previewAllowedEmailInvitesBulk(input: {
     return {
       email: entry.email,
       requestedRole: entry.role,
+      requestedAffiliation: entry.affiliation ?? null,
+      requestedCollaboratorProfile: entry.collaboratorProfile ?? null,
+      requestedCollaboratorPolicyId: entry.collaboratorPolicyId ?? null,
       status: "ready",
     };
   });

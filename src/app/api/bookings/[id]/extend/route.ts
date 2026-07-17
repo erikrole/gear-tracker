@@ -3,8 +3,13 @@ import { ok, HttpError } from "@/lib/http";
 import { extendBooking, getBookingDetail } from "@/lib/services/bookings";
 import { requireBookingAction, getAllowedBookingActions } from "@/lib/services/booking-rules";
 import { extendBookingSchema } from "@/lib/validation";
+import { requireCollaboratorCapability } from "@/lib/collaborator-access";
+import { sanitizeCollaboratorBooking } from "@/lib/collaborator-gear";
 
 export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
+  if (user.role === "COLLABORATOR") {
+    requireCollaboratorCapability(user, "RESERVATION_EXTEND_OWN");
+  }
   const { id } = params;
   const body = extendBookingSchema.parse(await req.json());
 
@@ -33,5 +38,9 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   // Re-fetch enriched detail so UI has full state (auditLogs, allowedActions, etc.)
   const refreshed = await getBookingDetail(id);
   const allowedActions = getAllowedBookingActions(user, refreshed);
-  return ok({ data: { ...refreshed, allowedActions } });
+  return ok({
+    data: user.role === "COLLABORATOR"
+      ? { ...sanitizeCollaboratorBooking(refreshed), allowedActions }
+      : { ...refreshed, allowedActions },
+  });
 });

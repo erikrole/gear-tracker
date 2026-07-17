@@ -9,7 +9,7 @@ import type { CategoryOption } from "@/types/category";
 type Location = { id: string; name: string };
 type Department = { id: string; name: string };
 type Kit = { id: string; name: string };
-type ItemsPageRole = "ADMIN" | "STAFF" | "STUDENT";
+type ItemsPageRole = "ADMIN" | "STAFF" | "STUDENT" | "COLLABORATOR";
 
 export type ItemsPageInitData = {
   user: { role: ItemsPageRole };
@@ -45,7 +45,7 @@ function isCategoryOption(value: unknown): value is CategoryOption {
 }
 
 function isItemsPageRole(value: unknown): value is ItemsPageRole {
-  return value === "ADMIN" || value === "STAFF" || value === "STUDENT";
+  return value === "ADMIN" || value === "STAFF" || value === "STUDENT" || value === "COLLABORATOR";
 }
 
 function parseItemsPageInitResponse(value: unknown): ItemsPageInitResponse | null {

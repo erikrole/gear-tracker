@@ -1,13 +1,39 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
-import { requirePermission } from "@/lib/rbac";
+import { requirePermission, requirePermissionOrCollaboratorCapability } from "@/lib/rbac";
 import { updateBulkSkuSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
 import { buildActiveBulkUnitAllocationMap } from "@/lib/bulk-unit-status";
 import { summarizeItemFamilyState } from "@/lib/item-family-state";
+import { sanitizeCollaboratorBulkItem } from "@/lib/collaborator-gear";
 
-export const GET = withAuth<{ id: string }>(async (_req, { params }) => {
+export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
+  requirePermissionOrCollaboratorCapability(user, "bulk_sku", "view", "GEAR_CATALOG_VIEW");
+
+  if (user.role === "COLLABORATOR") {
+    const sku = await db.bulkSku.findFirst({
+      where: { id: params.id, active: true },
+      include: {
+        location: { select: { id: true, name: true } },
+        categoryRel: { select: { id: true, name: true } },
+        balances: { select: { onHandQuantity: true } },
+        units: { select: { id: true, unitNumber: true, status: true } },
+      },
+    });
+    if (!sku) throw new HttpError(404, "Bulk SKU not found");
+    const activeAllocationByUnitId = await loadActiveBulkUnitAllocationMap(sku.units.map((unit) => unit.id));
+    const state = summarizeItemFamilyState(sku, activeAllocationByUnitId);
+    return ok({
+      data: sanitizeCollaboratorBulkItem({
+        ...sku,
+        locationName: sku.location.name,
+        category: sku.categoryRel?.name ?? sku.category,
+        availableQuantity: state.availableQuantity,
+      }),
+    });
+  }
+
   const sku = await db.bulkSku.findUnique({
     where: { id: params.id },
     include: {

@@ -24,11 +24,36 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   if (user.role !== "ADMIN" && (body.role === "ADMIN" || target.role === "ADMIN")) {
     throw new HttpError(403, "Only admins can change admin roles");
   }
+  if (user.role !== "ADMIN" && (body.role === "COLLABORATOR" || target.role === "COLLABORATOR")) {
+    throw new HttpError(403, "Only admins can change collaborator access");
+  }
 
   const previousRole = target.role;
+  const collaboratorPolicyId = body.role === "COLLABORATOR"
+    ? body.collaboratorPolicyId ?? target.collaboratorPolicyId
+    : null;
+  const collaboratorPolicy = collaboratorPolicyId
+    ? await db.collaboratorPolicy.findUnique({
+        where: { id: collaboratorPolicyId },
+        include: { affiliation: true },
+      })
+    : null;
+  if (body.role === "COLLABORATOR" && (
+    !collaboratorPolicy ||
+    collaboratorPolicy.status !== "ACTIVE" ||
+    collaboratorPolicy.affiliation.archivedAt
+  )) {
+    throw new HttpError(400, "Choose an active collaborator affiliation");
+  }
+  const legacyBtn = collaboratorPolicy?.affiliation.key === "BIG_TEN_NETWORK";
   const updated = await db.user.update({
     where: { id },
-    data: { role: body.role }
+    data: {
+      role: body.role,
+      affiliation: legacyBtn ? "BIG_TEN_NETWORK" : null,
+      collaboratorProfile: legacyBtn ? "BTN_STANDARD" : null,
+      collaboratorPolicyId,
+    }
   });
 
   await createAuditEntry({
@@ -37,8 +62,18 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     entityType: "user",
     entityId: id,
     action: "role_changed",
-    before: { role: previousRole },
-    after: { role: updated.role },
+    before: {
+      role: previousRole,
+      affiliation: target.affiliation,
+      collaboratorProfile: target.collaboratorProfile,
+      collaboratorPolicyId: target.collaboratorPolicyId,
+    },
+    after: {
+      role: updated.role,
+      affiliation: updated.affiliation,
+      collaboratorProfile: updated.collaboratorProfile,
+      collaboratorPolicyId: updated.collaboratorPolicyId,
+    },
   });
 
   return ok({

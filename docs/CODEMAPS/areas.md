@@ -27,6 +27,14 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Services: _none matched_
 - Tests: _none matched_
 
+## collaborators
+
+- Doc: `docs/AREA_COLLABORATORS.md`
+- Pages: _none matched_
+- APIs: _none matched_
+- Services: _none matched_
+- Tests: _none matched_
+
 ## dashboard
 
 - Doc: `docs/AREA_DASHBOARD.md`
@@ -150,7 +158,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 ## settings
 
 - Doc: `docs/AREA_SETTINGS.md`
-- Pages: `/settings/allowed-emails`, `/settings/appearance`, `/settings/audit`, `/settings/bookings`, `/settings/calendar-sources`, `/settings/categories`, `/settings/checkout-policies`, `/settings/data-export`
+- Pages: `/settings/allowed-emails`, `/settings/appearance`, `/settings/audit`, `/settings/bookings`, `/settings/calendar-sources`, `/settings/categories`, `/settings/checkout-policies`, `/settings/collaborator-access`
 - APIs: `/api/settings/checkout-policies`, `/api/settings/escalation`, `/api/settings/extend-presets`, `/api/settings/reservation-rules`
 - Services: _none matched_
 - Tests: `tests/ios-settings-detail-menus.test.ts`, `tests/ios-settings-first-class.test.ts`, `tests/settings-allowed-emails-display.test.ts`, `tests/settings-audit-command-surface-source.test.ts`, `tests/settings-audit-filters.test.ts`, `tests/settings-audit-pagination.test.ts`, `tests/settings-calendar-sources-load-state.test.ts`, `tests/settings-kiosk-devices-location-state.test.ts`
@@ -159,9 +167,9 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 
 - Doc: `docs/AREA_SHIFTS.md`
 - Pages: `/schedule/assign`, `/schedule`
-- APIs: `/api/my-shifts`, `/api/schedule/automation`, `/api/schedule/export`, `/api/schedule/health`, `/api/schedule/open-work`, `/api/shift-assignments/[id]/acknowledge`, `/api/shift-assignments/[id]/approve`, `/api/shift-assignments/[id]/attendance`, `/api/shift-assignments/[id]/decline`, `/api/shift-assignments/[id]/repair-role-slot`
-- Services: `src/lib/services/schedule-automation.ts`, `src/lib/services/schedule-change-history.ts`, `src/lib/services/schedule-exports.ts`, `src/lib/services/schedule-health.ts`, `src/lib/services/schedule-notification-policy.ts`, `src/lib/services/schedule-open-work.ts`, `src/lib/services/schedule-publication.ts`, `src/lib/services/schedule-template-review.ts`
-- Tests: `tests/ios-schedule-all-day-display.test.ts`, `tests/ios-schedule-calendar-hit-targets.test.ts`, `tests/ios-schedule-dynamic-type.test.ts`, `tests/ios-schedule-ui-cleanup.test.ts`, `tests/schedule-assign-source.test.ts`, `tests/schedule-automation-source.test.ts`, `tests/schedule-automation.test.ts`, `tests/schedule-change-history.test.ts`
+- APIs: `/api/my-shifts`, `/api/schedule/automation`, `/api/schedule/export`, `/api/schedule/health`, `/api/schedule/open-work`, `/api/schedule/published/[id]/follow`, `/api/schedule/published/[id]`, `/api/schedule/published`, `/api/shift-assignments/[id]/acknowledge`, `/api/shift-assignments/[id]/approve`
+- Services: `src/lib/services/collaborator-schedule.ts`, `src/lib/services/schedule-automation.ts`, `src/lib/services/schedule-change-history.ts`, `src/lib/services/schedule-exports.ts`, `src/lib/services/schedule-health.ts`, `src/lib/services/schedule-notification-policy.ts`, `src/lib/services/schedule-open-work.ts`, `src/lib/services/schedule-publication.ts`
+- Tests: `tests/collaborator-schedule-follow.test.ts`, `tests/ios-schedule-all-day-display.test.ts`, `tests/ios-schedule-calendar-hit-targets.test.ts`, `tests/ios-schedule-dynamic-type.test.ts`, `tests/ios-schedule-ui-cleanup.test.ts`, `tests/schedule-assign-source.test.ts`, `tests/schedule-automation-source.test.ts`, `tests/schedule-automation.test.ts`
 
 ## users
 

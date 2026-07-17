@@ -66,6 +66,23 @@ function hasAccess(actor: ActorContext, booking: BookingContext): boolean {
   return isStaffOrAbove(actor.role) || isOwner(actor, booking);
 }
 
+function collaboratorActionCheck(
+  actor: ActorContext,
+  booking: BookingContext,
+  action: string,
+  kind: BookingKind | null,
+): ActionCheckResult | null {
+  if (actor.role !== "COLLABORATOR") return null;
+  if (!isOwner(actor, booking)) {
+    return { allowed: false, reason: "You do not have permission to access this booking" };
+  }
+  if (action === "view") return { allowed: true };
+  if (kind !== "RESERVATION" || !["edit", "extend", "cancel"].includes(action)) {
+    return { allowed: false, reason: "This action is not available to collaborators" };
+  }
+  return null;
+}
+
 function resolveKind(booking: BookingContext, kind?: BookingKind): BookingKind | null {
   return kind ?? booking.kind ?? null;
 }
@@ -83,13 +100,16 @@ export function canPerformBookingAction(
   action: string,
   kind?: BookingKind,
 ): ActionCheckResult {
+  const resolvedKind = resolveKind(booking, kind);
+  const collaboratorCheck = collaboratorActionCheck(actor, booking, action, resolvedKind);
+  if (collaboratorCheck) return collaboratorCheck;
+
   if (action === "view") {
     return hasAccess(actor, booking)
       ? { allowed: true }
       : { allowed: false, reason: "You do not have permission to view this booking" };
   }
 
-  const resolvedKind = resolveKind(booking, kind);
   if (!resolvedKind) {
     return { allowed: false, reason: "Unknown booking kind" };
   }

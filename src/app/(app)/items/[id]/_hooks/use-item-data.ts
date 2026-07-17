@@ -16,6 +16,38 @@ import {
 import type { AssetDetail, CategoryOption } from "../types";
 import type { DepartmentOption } from "../ItemInfoTab";
 
+function normalizeAssetDetail(asset: AssetDetail): AssetDetail {
+  return {
+    ...asset,
+    updatedAt: asset.updatedAt ?? "",
+    type: asset.type ?? asset.category?.name ?? "",
+    brand: asset.brand ?? "",
+    model: asset.model ?? "",
+    serialNumber: asset.serialNumber ?? null,
+    qrCodeValue: asset.qrCodeValue ?? "",
+    purchaseDate: asset.purchaseDate ?? null,
+    purchasePrice: asset.purchasePrice ?? null,
+    warrantyDate: asset.warrantyDate ?? null,
+    residualValue: asset.residualValue ?? null,
+    status: asset.status ?? asset.computedStatus,
+    isFavorited: asset.isFavorited ?? false,
+    notes: asset.notes ?? null,
+    linkUrl: asset.linkUrl ?? null,
+    department: asset.department ?? null,
+    availableForReservation: asset.availableForReservation ?? true,
+    availableForCheckout: asset.availableForCheckout ?? false,
+    availableForCustody: asset.availableForCustody ?? false,
+    metadata: asset.metadata ?? null,
+    activeBooking: asset.activeBooking ?? null,
+    hasBookingHistory: asset.hasBookingHistory ?? false,
+    parentAsset: asset.parentAsset ?? null,
+    firmwareWatch: asset.firmwareWatch ?? null,
+    accessories: asset.accessories ?? [],
+    upcomingReservations: asset.upcomingReservations ?? [],
+    history: asset.history ?? [],
+  };
+}
+
 export type UseItemDataReturn = {
   asset: AssetDetail | null;
   setAsset: React.Dispatch<React.SetStateAction<AssetDetail | null>>;
@@ -78,7 +110,8 @@ export default function useItemData(id: string): UseItemDataReturn {
           return;
         }
         if (json?.data) {
-          setAsset(json.data);
+          const normalized = normalizeAssetDetail(json.data);
+          setAsset(normalized);
           setBreadcrumbLabel(json.data.assetTag);
           fetchErrorRef.current = false;
           setFetchError(false);

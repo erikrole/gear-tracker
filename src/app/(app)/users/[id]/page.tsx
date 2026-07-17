@@ -67,6 +67,7 @@ import { ProfileCompletionNotice } from "@/components/profile-completion/Profile
 import { AvatarCropDialog } from "./AvatarCropDialog";
 import { useQueryClient } from "@tanstack/react-query";
 import { syncCachedUserLists } from "@/lib/user-list-cache";
+import { formatAnticipatedGraduation } from "@/lib/student-profile";
 
 /* ── Tab Definitions ───────────────────────────────────── */
 
@@ -590,6 +591,36 @@ export default function UserDetailPage() {
   }
 
   const profile = effectiveUser ?? user;
+  if (profile.role === "COLLABORATOR" && currentUserRole !== "ADMIN") {
+    return (
+      <FadeUp>
+        <div className="mx-auto max-w-2xl rounded-xl border bg-card p-6">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+            <UserAvatar
+              name={profile.name}
+              avatarUrl={profile.avatarUrl}
+              size="xl"
+              className="ring-2 ring-border ring-offset-2 ring-offset-card"
+            />
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl font-bold tracking-tight">{profile.name}</h1>
+              {profile.title ? <p className="mt-1 text-sm text-muted-foreground">{profile.title}</p> : null}
+              {isSelf && profile.email ? <p className="mt-1 text-sm text-muted-foreground">{profile.email}</p> : null}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <RoleBadge role={profile.role} />
+                <Badge variant="outline">{profile.collaboratorPolicy?.affiliation.displayName ?? "External collaborator"}</Badge>
+              </div>
+            </div>
+            {isSelf ? (
+              <Button asChild variant="outline">
+                <Link href="/settings/profile">Edit profile</Link>
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      </FadeUp>
+    );
+  }
   const hasStudentAvailability = profile.staffingType === "ST";
   const availableTabs = hasStudentAvailability
     ? tabDefs
@@ -697,11 +728,15 @@ export default function UserDetailPage() {
                 const y = deriveStudentYear(profile.gradYear, profile.studentYearOverride);
                 if (!y) return null;
                 const label = STUDENT_YEAR_OPTIONS.find((o) => o.value === y)?.label ?? y;
+                const anticipatedGraduation = formatAnticipatedGraduation(
+                  profile.graduationTerm,
+                  profile.gradYear,
+                );
                 return (
                   <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <GraduationCap className="size-3 shrink-0" />
                     {label}
-                    {profile.gradYear ? ` · Class of ${profile.gradYear}` : ""}
+                    {anticipatedGraduation ? ` · ${anticipatedGraduation}` : ""}
                   </p>
                 );
               })()}

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
+import { GraduationTerm, Prisma, StudentYear } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { createAuditEntryTx } from "@/lib/audit";
 import { db } from "@/lib/db";
@@ -10,6 +10,7 @@ import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 import { requirePermission } from "@/lib/rbac";
 
 const digitsSchema = z.string().trim().regex(/^\d+$/, "Use numbers only");
+const currentYear = new Date().getFullYear();
 
 const patchSchema = z.discriminatedUnion("step", [
   z.object({
@@ -22,13 +23,19 @@ const patchSchema = z.discriminatedUnion("step", [
   z.object({
     step: z.literal("PHONES"),
     personalPhone: profilePhoneSchema,
-    workPhone: profilePhoneSchema.nullable(),
-    workPhoneNotApplicable: z.boolean(),
+    workPhone: profilePhoneSchema.nullable().optional(),
+    workPhoneNotApplicable: z.boolean().optional(),
   }),
   z.object({
     step: z.literal("WISCARD"),
     wiscardCardNumber: digitsSchema.min(4).max(32),
     wiscardIssueCode: digitsSchema.min(1).max(8),
+  }),
+  z.object({
+    step: z.literal("STUDENT"),
+    studentYearOverride: z.nativeEnum(StudentYear),
+    graduationTerm: z.nativeEnum(GraduationTerm),
+    gradYear: z.number().int().min(currentYear - 1).max(currentYear + 10),
   }),
   z.object({
     step: z.literal("APPAREL"),
@@ -38,17 +45,10 @@ const patchSchema = z.discriminatedUnion("step", [
     shoeSize: z.string().trim().min(1).max(40),
   }),
   z.object({ step: z.literal("SNOOZE") }),
-]).superRefine((value, context) => {
-  if (value.step === "PHONES" && !value.workPhoneNotApplicable && !value.workPhone) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Enter a work phone or choose that you do not have one",
-      path: ["workPhone"],
-    });
-  }
-});
+]);
 
 const profileSelect = {
+  role: true,
   email: true,
   athleticsEmail: true,
   phone: true,
@@ -57,6 +57,9 @@ const profileSelect = {
   workPhoneNotApplicable: true,
   wiscardCardNumber: true,
   wiscardIssueCode: true,
+  studentYearOverride: true,
+  gradYear: true,
+  graduationTerm: true,
   topSizeFit: true,
   topSize: true,
   shoeSizeSystem: true,
@@ -77,10 +80,15 @@ function loadProfile(client: ProfileClient, userId: string) {
   return client.user.findUnique({ where: { id: userId }, select: profileSelect });
 }
 
-function changedFields(step: PatchBody["step"]): string[] {
+function changedFields(step: PatchBody["step"], role: Profile["role"]): string[] {
   if (step === "EMAIL") return ["athleticsEmail"];
-  if (step === "PHONES") return ["personalPhone", "workPhone", "workPhoneNotApplicable"];
+  if (step === "PHONES") {
+    return role === "STUDENT"
+      ? ["personalPhone", "phone"]
+      : ["personalPhone", "phone", "workPhone", "workPhoneNotApplicable"];
+  }
   if (step === "WISCARD") return ["wiscardCardNumber", "wiscardIssueCode", "wiscardNumber"];
+  if (step === "STUDENT") return ["studentYearOverride", "graduationTerm", "gradYear"];
   if (step === "APPAREL") return ["topSizeFit", "topSize", "shoeSizeSystem", "shoeSize"];
   return ["profilePromptSnoozedUntil"];
 }
@@ -98,6 +106,12 @@ function auditState(profile: Profile, step: PatchBody["step"]): Record<string, u
   }
   if (step === "WISCARD") {
     return { wiscardLinked: Boolean(profile.wiscardCardNumber && profile.wiscardIssueCode) };
+  }
+  if (step === "STUDENT") {
+    return {
+      studentYearSet: Boolean(profile.studentYearOverride),
+      anticipatedGraduationSet: Boolean(profile.graduationTerm && profile.gradYear),
+    };
   }
   if (step === "APPAREL") {
     return {
@@ -126,16 +140,31 @@ export const PATCH = withAuth(async (req, { user }) => {
     throw error;
   }
 
+  if (
+    body.step === "PHONES"
+    && user.role !== "STUDENT"
+    && !body.workPhoneNotApplicable
+    && !body.workPhone
+  ) {
+    throw new HttpError(400, "Enter a work phone or choose that you do not have one");
+  }
+
   const data = body.step === "EMAIL"
     ? { athleticsEmail: body.athleticsEmail.toLowerCase(), profilePromptSnoozedUntil: null }
     : body.step === "PHONES"
-      ? {
-          personalPhone: body.personalPhone,
-          phone: body.personalPhone,
-          workPhone: body.workPhoneNotApplicable ? null : body.workPhone,
-          workPhoneNotApplicable: body.workPhoneNotApplicable,
-          profilePromptSnoozedUntil: null,
-        }
+      ? user.role === "STUDENT"
+        ? {
+            personalPhone: body.personalPhone,
+            phone: body.personalPhone,
+            profilePromptSnoozedUntil: null,
+          }
+        : {
+            personalPhone: body.personalPhone,
+            phone: body.personalPhone,
+            workPhone: body.workPhoneNotApplicable ? null : body.workPhone,
+            workPhoneNotApplicable: body.workPhoneNotApplicable,
+            profilePromptSnoozedUntil: null,
+          }
       : body.step === "WISCARD"
         ? {
             wiscardCardNumber: body.wiscardCardNumber,
@@ -143,7 +172,14 @@ export const PATCH = withAuth(async (req, { user }) => {
             wiscardNumber: `${body.wiscardCardNumber}${body.wiscardIssueCode}`,
             profilePromptSnoozedUntil: null,
           }
-        : body.step === "APPAREL"
+        : body.step === "STUDENT"
+          ? {
+              studentYearOverride: body.studentYearOverride,
+              graduationTerm: body.graduationTerm,
+              gradYear: body.gradYear,
+              profilePromptSnoozedUntil: null,
+            }
+          : body.step === "APPAREL"
           ? {
               topSizeFit: body.topSizeFit,
               topSize: body.topSize,
@@ -161,6 +197,9 @@ export const PATCH = withAuth(async (req, { user }) => {
       if (body.step === "EMAIL" && !isCampusLoginEmail(before.email)) {
         throw new HttpError(409, "Your site login must be a @wisc.edu email. Ask an administrator to update it before completing your profile.");
       }
+      if (body.step === "STUDENT" && before.role !== "STUDENT") {
+        throw new HttpError(400, "Student details can only be saved for a student profile.");
+      }
 
       const next = await tx.user.update({
         where: { id: user.id },
@@ -177,7 +216,7 @@ export const PATCH = withAuth(async (req, { user }) => {
         before: { step: body.step, ...auditState(before, body.step) },
         after: {
           step: body.step,
-          fieldsChanged: changedFields(body.step),
+          fieldsChanged: changedFields(body.step, before.role),
           ...auditState(next, body.step),
         },
       });

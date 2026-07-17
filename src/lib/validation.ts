@@ -1,4 +1,4 @@
-import { ResourceType, Role, ShiftArea, ShiftWorkerType, StudentYear } from "@prisma/client";
+import { GraduationTerm, ResourceType, Role, ShiftArea, ShiftWorkerType, StudentYear } from "@prisma/client";
 import { z } from "zod";
 import { sanitizeText } from "./sanitize";
 import { isSportCode, normalizeSportCode } from "./sports";
@@ -395,6 +395,7 @@ export const updateProfileSchema = z.object({
   athleticsEmail: z.string().email().max(255).nullable().optional(),
   startDate: z.string().datetime().nullable().optional(),
   gradYear: z.number().int().min(1900).max(2100).nullable().optional(),
+  graduationTerm: z.nativeEnum(GraduationTerm).nullable().optional(),
   studentYearOverride: z.nativeEnum(StudentYear).nullable().optional(),
   topSize: z.string().max(40).nullable().optional(),
   topSizeFit: z.enum(["UNISEX", "WOMENS", "MENS"]).nullable().optional(),
@@ -412,7 +413,8 @@ export const changePasswordSchema = z.object({
 });
 
 export const updateUserRoleSchema = z.object({
-  role: z.nativeEnum(Role)
+  role: z.nativeEnum(Role),
+  collaboratorPolicyId: z.string().min(1).max(100).nullable().optional(),
 });
 
 export const updateBookingSchema = z.object({
@@ -556,16 +558,34 @@ export const updateUserSchedulingSchema = z.object({
   primaryArea: z.nativeEnum(ShiftArea).optional().nullable(),
 });
 
-export const createAllowedEmailSchema = z.object({
+const internalAllowedEmailSchema = z.object({
   email: z.string().max(254).email(),
   role: z.enum(["STAFF", "STUDENT"]).default("STUDENT"),
+  affiliation: z.null().optional(),
+  collaboratorProfile: z.null().optional(),
+  collaboratorPolicyId: z.null().optional(),
 });
 
+const collaboratorAllowedEmailSchema = z.object({
+  email: z.string().max(254).email(),
+  role: z.literal("COLLABORATOR"),
+  collaboratorPolicyId: z.string().min(1).max(100).optional(),
+  affiliation: z.literal("BIG_TEN_NETWORK").optional(),
+  collaboratorProfile: z.literal("BTN_STANDARD").optional(),
+}).refine(
+  (value) => Boolean(value.collaboratorPolicyId) || (
+    value.affiliation === "BIG_TEN_NETWORK" && value.collaboratorProfile === "BTN_STANDARD"
+  ),
+  { message: "Choose an active collaborator affiliation" },
+);
+
+export const createAllowedEmailSchema = z.union([
+  internalAllowedEmailSchema,
+  collaboratorAllowedEmailSchema,
+]);
+
 export const createAllowedEmailBulkSchema = z.object({
-  emails: z.array(z.object({
-    email: z.string().max(254).email(),
-    role: z.enum(["STAFF", "STUDENT"]).default("STUDENT"),
-  })).min(1).max(50),
+  emails: z.array(createAllowedEmailSchema).min(1).max(50),
 });
 
 export const createGuideSchema = z.object({

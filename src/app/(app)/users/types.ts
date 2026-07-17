@@ -1,4 +1,10 @@
-export type Role = "ADMIN" | "STAFF" | "STUDENT";
+import {
+  STUDENT_YEAR_OPTIONS as SHARED_STUDENT_YEAR_OPTIONS,
+  type GraduationTermValue,
+  type StudentYearValue,
+} from "@/lib/student-profile";
+
+export type Role = "ADMIN" | "STAFF" | "STUDENT" | "COLLABORATOR";
 export type StaffingType = "FT" | "ST";
 
 export type UserRow = {
@@ -6,6 +12,19 @@ export type UserRow = {
   name: string;
   email: string;
   role: Role;
+  affiliation?: string | null;
+  collaboratorProfile?: string | null;
+  collaboratorPolicy?: {
+    id: string;
+    status: "ACTIVE" | "SUSPENDED";
+    version: number;
+    capabilities?: string[];
+    affiliation: {
+      key: string;
+      displayName: string;
+      badgeLabel: string;
+    };
+  } | null;
   staffingType: StaffingType;
   phone: string | null;
   wiscardNumber?: string | null;
@@ -37,7 +56,8 @@ export type AreaAssignment = {
   createdAt: string;
 };
 
-export type StudentYear = "FRESHMAN" | "SOPHOMORE" | "JUNIOR" | "SENIOR" | "GRAD";
+export type StudentYear = StudentYearValue;
+export type GraduationTerm = GraduationTermValue;
 
 export type UserDetail = UserRow & {
   createdAt: string | null;
@@ -57,6 +77,7 @@ export type UserDetail = UserRow & {
   directReportName: string | null;
   directReport: { id: string; name: string } | null;
   gradYear: number | null;
+  graduationTerm: GraduationTerm | null;
   studentYearOverride: StudentYear | null;
   topSize: string | null;
   topSizeFit: "UNISEX" | "WOMENS" | "MENS" | null;
@@ -69,11 +90,7 @@ export type UserDetail = UserRow & {
 };
 
 export const STUDENT_YEAR_OPTIONS: { value: StudentYear; label: string }[] = [
-  { value: "FRESHMAN", label: "Freshman" },
-  { value: "SOPHOMORE", label: "Sophomore" },
-  { value: "JUNIOR", label: "Junior" },
-  { value: "SENIOR", label: "Senior" },
-  { value: "GRAD", label: "Grad" },
+  ...SHARED_STUDENT_YEAR_OPTIONS,
 ];
 
 /**
@@ -129,6 +146,7 @@ export const ROLE_OPTIONS: { value: string; label: string }[] = [
   { value: "ADMIN", label: "Admin" },
   { value: "STAFF", label: "Staff" },
   { value: "STUDENT", label: "Student" },
+  { value: "COLLABORATOR", label: "Collaborator" },
 ];
 
 export const STAFFING_TYPE_OPTIONS: { value: StaffingType; label: string }[] = [

@@ -39,6 +39,7 @@ export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [wiscardNumber, setWiscardNumber] = useState("");
+  const [isBtnInvite, setIsBtnInvite] = useState(false);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isNetworkError, setIsNetworkError] = useState(false);
@@ -46,6 +47,8 @@ export default function RegisterPage() {
 
   useEffect(() => {
     const invitedEmail = new URLSearchParams(window.location.search).get("email")?.trim() ?? "";
+    const inviteProfile = new URLSearchParams(window.location.search).get("profile")?.trim().toLowerCase();
+    setIsBtnInvite(inviteProfile === "btn");
     if (invitedEmail) {
       setEmail(invitedEmail);
     }
@@ -93,7 +96,7 @@ export default function RegisterPage() {
     }
 
     setIsNetworkError(false);
-    await submit({ name, email, wiscardNumber, password });
+    await submit({ name, email, wiscardNumber: isBtnInvite ? "" : wiscardNumber, password });
   }
 
   return (
@@ -156,7 +159,7 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
+            {!isBtnInvite && <div className="flex flex-col gap-1.5">
               <Label htmlFor="wiscardNumber">Wiscard value</Label>
               <Input
                 id="wiscardNumber"
@@ -176,7 +179,7 @@ export default function RegisterPage() {
               <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.wiscardNumber} aria-hidden={!fieldErrors.wiscardNumber}>
                 <p id="wiscard-error" role="alert" className="overflow-hidden text-destructive text-xs">{fieldErrors.wiscardNumber || " "}</p>
               </div>
-            </div>
+            </div>}
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="password">Password</Label>

@@ -5,8 +5,12 @@ import { BookingKind } from "@prisma/client";
 import { requireBookingAction } from "@/lib/services/booking-rules";
 import { ok } from "@/lib/http";
 import { createReservationLifecycleNotification } from "@/lib/services/notifications";
+import { requireCollaboratorCapability } from "@/lib/collaborator-access";
 
 export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
+  if (user.role === "COLLABORATOR") {
+    requireCollaboratorCapability(user, "RESERVATION_CANCEL_OWN");
+  }
   const { id } = params;
 
   await requireBookingAction(id, user, "cancel", BookingKind.RESERVATION);

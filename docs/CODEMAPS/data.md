@@ -11,7 +11,7 @@
 
 | Model | Fields | Model-level indexes/constraints |
 |---|---:|---:|
-| `User` | 84 | 3 |
+| `User` | 91 | 5 |
 | `Session` | 6 | 2 |
 | `PasswordResetToken` | 6 | 2 |
 | `Location` | 17 | 1 |
@@ -37,7 +37,8 @@
 | `KitMembership` | 6 | 2 |
 | `KitBulkMembership` | 7 | 3 |
 | `CalendarSource` | 11 | 2 |
-| `CalendarEvent` | 30 | 6 |
+| `CalendarEvent` | 31 | 6 |
+| `ScheduleEventFollow` | 9 | 3 |
 | `BookingEvent` | 7 | 4 |
 | `LocationMapping` | 6 | 1 |
 | `DeviceToken` | 9 | 2 |
@@ -48,7 +49,11 @@
 | `EscalationRule` | 10 | 1 |
 | `FavoriteItem` | 6 | 3 |
 | `FavoriteItemFamily` | 6 | 4 |
-| `AllowedEmail` | 9 | 2 |
+| `AllowedEmail` | 13 | 4 |
+| `CollaboratorAffiliation` | 8 | 2 |
+| `CollaboratorPolicy` | 11 | 2 |
+| `CollaboratorPolicyGrant` | 5 | 3 |
+| `CollaboratorPolicyRevision` | 9 | 3 |
 | `SystemConfig` | 3 | 1 |
 | `BadgeDefinition` | 14 | 3 |
 | `StudentBadge` | 10 | 5 |
@@ -77,6 +82,20 @@
 - `ADMIN`
 - `STAFF`
 - `STUDENT`
+- `COLLABORATOR`
+
+### `Affiliation`
+
+- `BIG_TEN_NETWORK`
+
+### `CollaboratorProfile`
+
+- `BTN_STANDARD`
+
+### `CollaboratorPolicyStatus`
+
+- `ACTIVE`
+- `SUSPENDED`
 
 ### `StudentYear`
 
@@ -85,6 +104,13 @@
 - `JUNIOR`
 - `SENIOR`
 - `GRAD`
+
+### `GraduationTerm`
+
+- `WINTER`
+- `SPRING`
+- `SUMMER`
+- `FALL`
 
 ### `ApparelFit`
 
@@ -200,6 +226,11 @@
 - `CONFIRMED`
 - `TENTATIVE`
 - `CANCELLED`
+
+### `ScheduleFollowSource`
+
+- `MANUAL`
+- `BOOKING`
 
 ### `NotificationChannel`
 

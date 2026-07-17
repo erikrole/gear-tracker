@@ -73,7 +73,7 @@ function buildForest(users: OrgUser[]): Tree[] {
     .slice()
     .sort((a, b) => {
       // Admins/staff first, then students; tiebreak by name.
-      const order: Record<Role, number> = { ADMIN: 0, STAFF: 1, STUDENT: 2 };
+      const order: Record<Role, number> = { ADMIN: 0, STAFF: 1, STUDENT: 2, COLLABORATOR: 3 };
       const r = order[a.role] - order[b.role];
       return r !== 0 ? r : a.name.localeCompare(b.name);
     })

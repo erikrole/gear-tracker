@@ -36,7 +36,7 @@ import { classifyError, handleAuthRedirect, isAbortError, parseErrorMessage } fr
 import { formatDateFull, formatRelativeTime } from "@/lib/format";
 import { AlertTriangle, ClipboardList, Copy, ExternalLink, RefreshCw, Trash2, UserPlus, WifiOff } from "lucide-react";
 
-type Role = "ADMIN" | "STAFF" | "STUDENT";
+type Role = "ADMIN" | "STAFF" | "STUDENT" | "COLLABORATOR";
 type StatusFilter = "all" | "pending" | "stale" | "claimed";
 type OnboardingStatus = "pending" | "stale" | "claimed";
 
@@ -44,6 +44,15 @@ type AllowedEmail = {
   id: string;
   email: string;
   role: Role;
+  affiliation: string | null;
+  collaboratorProfile: string | null;
+  collaboratorPolicy: {
+    id: string;
+    status: "ACTIVE" | "SUSPENDED";
+    version: number;
+    capabilities: string[];
+    affiliation: { key: string; displayName: string; badgeLabel: string };
+  } | null;
   claimedAt: string | null;
   createdAt: string;
   createdBy: { id: string; name: string };
@@ -60,6 +69,7 @@ const ROLE_META: Record<Role, { label: string; variant: BadgeProps["variant"] }>
   ADMIN: { label: "Admin", variant: "purple" },
   STAFF: { label: "Staff", variant: "blue" },
   STUDENT: { label: "Student", variant: "gray" },
+  COLLABORATOR: { label: "Collaborator", variant: "blue" },
 };
 
 function statusFor(item: AllowedEmail, now: Date): OnboardingStatus {
@@ -151,13 +161,14 @@ export default function OnboardingStatusPage() {
     }] : []),
   ];
 
-  function registrationPath(email: string) {
-    return `/register?email=${encodeURIComponent(email)}`;
+  function registrationPath(row: AllowedEmail) {
+    const params = new URLSearchParams({ email: row.email });
+    return `/register?${params.toString()}`;
   }
 
   async function copyRegistrationLink(row: AllowedEmail) {
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}${registrationPath(row.email)}`);
+      await navigator.clipboard.writeText(`${window.location.origin}${registrationPath(row)}`);
       toast.success("Registration link copied");
     } catch {
       toast.error("Could not copy the link. Use Open registration and copy the address instead.");
@@ -300,7 +311,7 @@ export default function OnboardingStatusPage() {
                     <div className="min-w-0">
                       <div className="truncate font-medium">{row.email}</div>
                       <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <Badge variant={ROLE_META[row.role].variant} size="sm">{ROLE_META[row.role].label}</Badge>
+                        <Badge variant={ROLE_META[row.role].variant} size="sm">{row.collaboratorPolicy?.affiliation.badgeLabel ?? ROLE_META[row.role].label}</Badge>
                         {statusBadge(row.onboardingStatus)}
                       </div>
                     </div>
@@ -308,7 +319,7 @@ export default function OnboardingStatusPage() {
                       {!row.claimedAt ? (
                         <>
                           <DropdownMenuItem onClick={() => copyRegistrationLink(row)}><Copy />Copy registration link</DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href={registrationPath(row.email)} target="_blank" rel="noreferrer"><ExternalLink />Open registration</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href={registrationPath(row)} target="_blank" rel="noreferrer"><ExternalLink />Open registration</Link></DropdownMenuItem>
                           <DropdownMenuItem variant="destructive" onClick={() => removeInvite(row)} disabled={deletingId === row.id}><Trash2 />{deletingId === row.id ? "Removing" : "Remove pending invite"}</DropdownMenuItem>
                         </>
                       ) : (
@@ -342,7 +353,7 @@ export default function OnboardingStatusPage() {
                   <TableCell className="font-medium">{row.email}</TableCell>
                   <TableCell>
                     <Badge variant={ROLE_META[row.role].variant} size="sm">
-                      {ROLE_META[row.role].label}
+                      {row.collaboratorPolicy?.affiliation.badgeLabel ?? ROLE_META[row.role].label}
                     </Badge>
                   </TableCell>
                   <TableCell>{statusBadge(row.onboardingStatus)}</TableCell>
@@ -370,7 +381,7 @@ export default function OnboardingStatusPage() {
                             Copy registration link
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
-                            <Link href={registrationPath(row.email)} target="_blank" rel="noreferrer">
+                            <Link href={registrationPath(row)} target="_blank" rel="noreferrer">
                               <ExternalLink className="size-4" />
                               Open registration
                             </Link>

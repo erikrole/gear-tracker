@@ -6,6 +6,15 @@ import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { HttpError } from "@/lib/http";
 import { randomHex } from "@/lib/crypto";
+import {
+  capabilitiesForActor,
+  collaboratorPolicyMetadataForActor,
+  compatibilityCollaboratorProfile,
+  requireActiveCollaboratorPolicy,
+  type CollaboratorCapability,
+  type CollaboratorPolicyMetadata,
+} from "@/lib/collaborator-access";
+import { collaboratorPolicyActorSelect } from "@/lib/services/collaborator-policies";
 
 export { randomHex };
 
@@ -14,6 +23,10 @@ export type AuthUser = {
   email: string;
   name: string;
   role: Role;
+  affiliation?: string | null;
+  collaboratorProfile?: string | null;
+  collaboratorPolicy?: CollaboratorPolicyMetadata | null;
+  capabilities?: CollaboratorCapability[];
   staffingType?: ShiftWorkerType;
   avatarUrl: string | null;
   forcePasswordChange?: boolean;
@@ -133,7 +146,13 @@ export async function requireAuth(): Promise<AuthUser> {
   const hashed = await tokenHash(token);
   const session = await db.session.findUnique({
     where: { tokenHash: hashed },
-    include: { user: true }
+    include: {
+      user: {
+        include: {
+          collaboratorPolicy: { select: collaboratorPolicyActorSelect },
+        },
+      },
+    },
   });
 
   if (!session || session.expiresAt < new Date()) {
@@ -144,13 +163,20 @@ export async function requireAuth(): Promise<AuthUser> {
     throw new HttpError(401, "Account deactivated");
   }
 
+  requireActiveCollaboratorPolicy(session.user);
+
   await refreshUserLastActive(session.user.id, session.user.lastActiveAt);
 
+  const collaboratorPolicy = collaboratorPolicyMetadataForActor(session.user);
   return {
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
     role: session.user.role,
+    affiliation: collaboratorPolicy?.affiliationKey ?? session.user.affiliation,
+    collaboratorProfile: compatibilityCollaboratorProfile(collaboratorPolicy, session.user.collaboratorProfile),
+    collaboratorPolicy,
+    capabilities: capabilitiesForActor(session.user),
     staffingType: session.user.staffingType,
     avatarUrl: session.user.avatarUrl ?? null,
     forcePasswordChange: session.user.forcePasswordChange,

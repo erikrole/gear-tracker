@@ -133,4 +133,5 @@ export const GUIDE_ROLE_LABELS = {
   STUDENT: "Students",
   STAFF: "Staff",
   ADMIN: "Admins",
+  COLLABORATOR: "Collaborators",
 } as const;

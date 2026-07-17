@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
-import { requirePermission } from "@/lib/rbac";
+import { requirePermission, requirePermissionOrCollaboratorCapability } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 
@@ -12,7 +12,8 @@ const createSchema = z.object({
   parentId: z.string().cuid().nullable().optional(),
 });
 
-export const GET = withAuth(async () => {
+export const GET = withAuth(async (_req, { user }) => {
+  requirePermissionOrCollaboratorCapability(user, "category", "view", "GEAR_CATALOG_VIEW");
   const [categories, assetCounts, bulkCounts] = await Promise.all([
     db.category.findMany({
       orderBy: { name: "asc" },
@@ -49,7 +50,11 @@ export const GET = withAuth(async () => {
 
   // Admin-mutated taxonomy: do not HTTP-cache, or a rename/delete reload can
   // serve a stale list from the browser cache for up to the max-age window.
-  return ok({ data });
+  return ok({
+    data: user.role === "COLLABORATOR"
+      ? data.map(({ id, name, parentId }) => ({ id, name, parentId }))
+      : data,
+  });
 });
 
 export const POST = withAuth(async (req, { user }) => {

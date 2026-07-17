@@ -111,7 +111,49 @@ async function fetchAssets(url: string, signal?: AbortSignal): Promise<AssetsRes
   }
   return {
     ...json,
-    bulkItems: Array.isArray(json.bulkItems) ? json.bulkItems : [],
+    data: json.data.map((asset) => ({
+      ...asset,
+      type: asset.type ?? asset.category?.name ?? "",
+      brand: asset.brand ?? "",
+      model: asset.model ?? "",
+      serialNumber: asset.serialNumber ?? "",
+      status: asset.status ?? asset.computedStatus,
+      createdAt: asset.createdAt ?? "",
+      department: asset.department ?? null,
+      activeBooking: asset.activeBooking ?? null,
+      isFavorited: asset.isFavorited ?? false,
+    })),
+    bulkItems: Array.isArray(json.bulkItems) ? json.bulkItems.map((item) => {
+      const raw = item as unknown as Record<string, unknown>;
+      const location = raw.location && typeof raw.location === "object"
+        ? raw.location as Record<string, unknown>
+        : null;
+      const category = raw.category && typeof raw.category === "object"
+        ? raw.category as Record<string, unknown>
+        : null;
+      const availableQuantity = typeof raw.availableQuantity === "number" ? raw.availableQuantity : 0;
+      return {
+        id: String(raw.id ?? ""),
+        kind: "bulk" as const,
+        name: String(raw.name ?? ""),
+        category: typeof raw.category === "string" ? raw.category : String(category?.name ?? "Items"),
+        unit: typeof raw.unit === "string" ? raw.unit : "item",
+        trackByNumber: raw.trackByNumber === true,
+        onHandQuantity: typeof raw.onHandQuantity === "number" ? raw.onHandQuantity : availableQuantity,
+        availableQuantity,
+        checkedOutQuantity: typeof raw.checkedOutQuantity === "number" ? raw.checkedOutQuantity : 0,
+        lostQuantity: typeof raw.lostQuantity === "number" ? raw.lostQuantity : 0,
+        retiredQuantity: typeof raw.retiredQuantity === "number" ? raw.retiredQuantity : 0,
+        imageUrl: typeof raw.imageUrl === "string" ? raw.imageUrl : null,
+        locationName: typeof raw.locationName === "string" ? raw.locationName : String(location?.name ?? ""),
+        locationId: typeof raw.locationId === "string" ? raw.locationId : String(location?.id ?? ""),
+        categoryId: typeof raw.categoryId === "string" ? raw.categoryId : typeof category?.id === "string" ? category.id : null,
+        departmentId: typeof raw.departmentId === "string" ? raw.departmentId : null,
+        departmentName: typeof raw.departmentName === "string" ? raw.departmentName : null,
+        binQrCodeValue: typeof raw.binQrCodeValue === "string" ? raw.binQrCodeValue : "",
+        isFavorited: raw.isFavorited === true,
+      };
+    }) : [],
     itemOrder: Array.isArray(json.itemOrder) ? json.itemOrder.filter((id): id is string => typeof id === "string") : [],
   };
 }

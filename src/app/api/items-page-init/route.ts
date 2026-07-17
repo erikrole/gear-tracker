@@ -20,6 +20,7 @@ function settledValue<T>(
  * in a single round-trip instead of 4 separate fetches.
  */
 export const GET = withAuth(async (_req, { user }) => {
+  const isCollaborator = user.role === "COLLABORATOR";
   const [
     locationsResult,
     departmentsResult,
@@ -32,7 +33,7 @@ export const GET = withAuth(async (_req, { user }) => {
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
-    db.department.findMany({
+    isCollaborator ? Promise.resolve([]) : db.department.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
@@ -41,12 +42,12 @@ export const GET = withAuth(async (_req, { user }) => {
       orderBy: { name: "asc" },
       select: { id: true, name: true, parentId: true },
     }),
-    db.asset.groupBy({
+    isCollaborator ? Promise.resolve([]) : db.asset.groupBy({
       by: ["brand"],
       where: { brand: { not: "" } },
       orderBy: { brand: "asc" },
     }),
-    db.kit.findMany({
+    isCollaborator ? Promise.resolve([]) : db.kit.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),

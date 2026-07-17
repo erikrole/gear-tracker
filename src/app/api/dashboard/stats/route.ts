@@ -37,6 +37,7 @@ export const GET = withAuth(async (_req, { user }) => {
   // Institution-timezone day bounds (not the server's UTC).
   const startOfToday = startOfDayInAppTz(now, 0);
   const startOfTomorrow = startOfDayInAppTz(now, 1);
+  const isCollaborator = user.role === "COLLABORATOR";
 
   const [countsResult, myShiftsCountResult, myShiftsTodayCountResult] = await Promise.allSettled([
     readDashboardCounts({
@@ -47,7 +48,7 @@ export const GET = withAuth(async (_req, { user }) => {
       startOfTomorrow,
     }),
     // Kept for iOS/Profile: upcoming/on-deck shift count without loading the full dashboard.
-    db.shiftAssignment.count({
+    isCollaborator ? Promise.resolve(0) : db.shiftAssignment.count({
       where: {
         userId: user.id,
         status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
@@ -55,7 +56,7 @@ export const GET = withAuth(async (_req, { user }) => {
       },
     }),
     // Drives the iOS Schedule tab badge only when the user has work today.
-    db.shiftAssignment.count({
+    isCollaborator ? Promise.resolve(0) : db.shiftAssignment.count({
       where: {
         userId: user.id,
         status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
@@ -81,20 +82,24 @@ export const GET = withAuth(async (_req, { user }) => {
     data: {
       role: user.role,
       stats: {
-        checkedOut: c.totalCheckedOut,
-        overdue: c.totalOverdue,
-        reserved: c.totalReserved,
-        dueToday: c.dueToday,
+        checkedOut: isCollaborator ? c.myCheckoutsTotal : c.totalCheckedOut,
+        overdue: isCollaborator ? c.myOverdue : c.totalOverdue,
+        reserved: isCollaborator ? Math.max(0, c.totalReserved - c.teamReservationsTotal) : c.totalReserved,
+        dueToday: isCollaborator ? c.myDueToday : c.dueToday,
       },
-      overdueCount: c.totalOverdue,
+      overdueCount: isCollaborator ? c.myOverdue : c.totalOverdue,
       myCheckoutsTotal: c.myCheckoutsTotal,
       myOverdueCount: c.myOverdue,
       myDueTodayCount: c.myDueToday,
-      teamCheckoutsTotal: c.teamCheckoutsTotal,
-      teamCheckoutsOverdue: c.teamCheckoutsOverdue,
-      teamReservationsTotal: c.teamReservationsTotal,
-      pendingPickupTotal: c.pendingPickupTotal,
-      staleReservationTotal: c.staleReservationTotal,
+      teamCheckoutsTotal: isCollaborator ? 0 : c.teamCheckoutsTotal,
+      teamCheckoutsOverdue: isCollaborator ? 0 : c.teamCheckoutsOverdue,
+      teamReservationsTotal: isCollaborator ? 0 : c.teamReservationsTotal,
+      ...(isCollaborator
+        ? { pendingPickupTotal: 0, staleReservationTotal: 0 }
+        : {
+            pendingPickupTotal: c.pendingPickupTotal,
+            staleReservationTotal: c.staleReservationTotal,
+          }),
       myShiftsCount,
       myShiftsTodayCount,
     },

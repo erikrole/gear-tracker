@@ -37,8 +37,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { classifyError, handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 
-type Role = "ADMIN" | "STAFF" | "STUDENT";
-type InviteRole = "STAFF" | "STUDENT";
+type Role = "ADMIN" | "STAFF" | "STUDENT" | "COLLABORATOR";
+type InviteRole = "STAFF" | "STUDENT" | "COLLABORATOR";
 type InviteMode = "bulk" | "single";
 type InvitePreviewStatus = "ready" | "duplicate" | "invalid-email" | "invalid-role" | "role-blocked";
 type ServerPreviewStatus = "ready" | "duplicate" | "existing_user" | "pending_invite" | "claimed_invite";
@@ -72,6 +72,16 @@ type ServerPreviewRow = {
 type ServerPreviewResponse = {
   rows: ServerPreviewRow[];
   summary: Record<ServerPreviewStatus, number>;
+};
+
+type ActiveCollaboratorPolicy = {
+  id: string;
+  status: "ACTIVE" | "SUSPENDED";
+  capabilities: string[];
+  affiliation: {
+    displayName: string;
+    badgeLabel: string;
+  };
 };
 
 type OnboardingDialogProps = {
@@ -115,6 +125,7 @@ function normalizeInviteRole(rawRole: string, fallback: InviteRole): InviteRole 
   if (!normalized) return fallback;
   if (["STAFF", "EMPLOYEE", "COACH"].includes(normalized)) return "STAFF";
   if (["STUDENT", "STU", "ATHLETE"].includes(normalized)) return "STUDENT";
+  if (["COLLABORATOR", "BTN", "BIG TEN NETWORK"].includes(normalized)) return "COLLABORATOR";
   return null;
 }
 
@@ -167,7 +178,7 @@ function previewInviteRows(raw: string, fallbackRole: InviteRole, allowedRoles: 
           email,
           role: fallbackRole,
           status: "invalid-role",
-          reason: "Role must be Staff or Student",
+          reason: "Role must be Staff, Student, or Collaborator",
         });
         continue;
       }
@@ -211,9 +222,18 @@ function previewInviteRows(raw: string, fallbackRole: InviteRole, allowedRoles: 
 function inviteRoleOptionsFor(currentUserRole: Role | null): Array<{ value: InviteRole; label: string }> {
   const options: Array<{ value: InviteRole; label: string }> = [{ value: "STUDENT", label: "Student" }];
   if (currentUserRole === "ADMIN") {
-    options.unshift({ value: "STAFF", label: "Staff" });
+    options.unshift(
+      { value: "STAFF", label: "Staff" },
+      { value: "COLLABORATOR", label: "Collaborator" },
+    );
   }
   return options;
+}
+
+function inviteProfileFields(role: InviteRole, collaboratorPolicyId: string) {
+  return role === "COLLABORATOR"
+    ? { collaboratorPolicyId }
+    : {};
 }
 
 function serverPreviewLabel(status: ServerPreviewStatus): string {
@@ -285,6 +305,9 @@ export default function OnboardingDialog({
   const [previewing, setPreviewing] = useState(false);
   const [previewError, setPreviewError] = useState("");
   const [completion, setCompletion] = useState<CompletionResult | null>(null);
+  const [collaboratorPolicies, setCollaboratorPolicies] = useState<ActiveCollaboratorPolicy[]>([]);
+  const [selectedPolicyId, setSelectedPolicyId] = useState("");
+  const [policiesLoading, setPoliciesLoading] = useState(false);
 
   const inviteRoleOptions = useMemo(() => inviteRoleOptionsFor(currentUserRole), [currentUserRole]);
   const allowedInviteRoles = useMemo(() => inviteRoleOptions.map((option) => option.value), [inviteRoleOptions]);
@@ -299,9 +322,13 @@ export default function OnboardingDialog({
   // Identifies the exact ready set a server preview was computed for, so a
   // stale preview can never gate a commit for different rows.
   const readySignature = useMemo(
-    () => readyPreviewRows.map((row) => `${row.email} ${row.role}`).join("\n"),
-    [readyPreviewRows],
+    () => `${selectedPolicyId}\n${readyPreviewRows.map((row) => `${row.email}:${row.role}`).join("\n")}`,
+    [readyPreviewRows, selectedPolicyId],
   );
+  const needsCollaboratorPolicy = inviteMode === "single"
+    ? inviteRole === "COLLABORATOR"
+    : readyPreviewRows.some((row) => row.role === "COLLABORATOR");
+  const selectedPolicy = collaboratorPolicies.find((policy) => policy.id === selectedPolicyId) ?? null;
   const previewCounts = useMemo(() => {
     const counts: Record<InvitePreviewStatus, number> = {
       ready: 0,
@@ -358,12 +385,34 @@ export default function OnboardingDialog({
   }, [currentUserRole, open]);
 
   useEffect(() => {
+    if (!open || currentUserRole !== "ADMIN") return;
+    const controller = new AbortController();
+    setPoliciesLoading(true);
+    void fetch("/api/collaborator-affiliations", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(await parseErrorMessage(response, "Failed to load affiliations"));
+        const result = await parseJsonSafely<{ data: ActiveCollaboratorPolicy[] }>(response);
+        const active = (result?.data ?? []).filter((policy) => policy.status === "ACTIVE");
+        setCollaboratorPolicies(active);
+        setSelectedPolicyId((current) => active.some((policy) => policy.id === current) ? current : active[0]?.id ?? "");
+      })
+      .catch((error) => {
+        if (!isAbortError(error)) setInviteError(error instanceof Error ? error.message : "Failed to load affiliations");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setPoliciesLoading(false);
+      });
+    return () => controller.abort();
+  }, [currentUserRole, open]);
+
+  useEffect(() => {
     if (
       !open ||
       inviteMode !== "bulk" ||
       readyPreviewRows.length === 0 ||
       blockingPreviewCount > 0 ||
       overBulkLimit
+      || (needsCollaboratorPolicy && !selectedPolicyId)
     ) {
       setServerPreview(null);
       setPreviewing(false);
@@ -386,7 +435,11 @@ export default function OnboardingDialog({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            emails: readyPreviewRows.map((row) => ({ email: row.email, role: row.role })),
+            emails: readyPreviewRows.map((row) => ({
+              email: row.email,
+              role: row.role,
+              ...inviteProfileFields(row.role, selectedPolicyId),
+            })),
           }),
           signal: controller.signal,
         });
@@ -424,7 +477,7 @@ export default function OnboardingDialog({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [blockingPreviewCount, inviteMode, open, overBulkLimit, readyPreviewRows, readySignature, serverPreview]);
+  }, [blockingPreviewCount, inviteMode, needsCollaboratorPolicy, open, overBulkLimit, readyPreviewRows, readySignature, selectedPolicyId, serverPreview]);
 
   function resetForAnother() {
     setCompletion(null);
@@ -442,6 +495,12 @@ export default function OnboardingDialog({
     const emails = inviteMode === "single" ? [singleEmail.trim().toLowerCase()].filter(Boolean) : finalReadyPreviewRows.map((row) => row.email);
     if (emails.length === 0) {
       const message = inviteMode === "single" ? "Email address is required." : "Paste at least one email.";
+      setInviteError(message);
+      toast.error(message);
+      return;
+    }
+    if (needsCollaboratorPolicy && !selectedPolicyId) {
+      const message = "Select an active collaborator affiliation before saving.";
       setInviteError(message);
       toast.error(message);
       return;
@@ -476,8 +535,14 @@ export default function OnboardingDialog({
     setInviting(true);
     try {
       const body = inviteMode === "single"
-        ? { email: emails[0], role: inviteRole }
-        : { emails: finalReadyPreviewRows.map((row) => ({ email: row.email, role: row.role })) };
+        ? { email: emails[0], role: inviteRole, ...inviteProfileFields(inviteRole, selectedPolicyId) }
+        : {
+            emails: finalReadyPreviewRows.map((row) => ({
+              email: row.email,
+              role: row.role,
+              ...inviteProfileFields(row.role, selectedPolicyId),
+            })),
+          };
       const response = await fetch("/api/allowed-emails", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -621,13 +686,13 @@ export default function OnboardingDialog({
                       name="bulkInvitationRows"
                       value={bulkEmails}
                       onChange={(event) => { setBulkEmails(event.target.value); setInviteError(""); }}
-                      placeholder={"email, role\nalice@school.edu, student\ncoach@school.edu, staff\ncharlie@school.edu"}
+                      placeholder={"email, role\nalice@school.edu, student\ncoach@school.edu, staff\ntrey@example.com, collaborator"}
                       rows={7}
                       disabled={inviting}
                       className="w-full font-mono text-sm"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Paste plain emails or CSV rows with `email, role`. Blank roles use the selected default. Max 50 ready rows per batch.
+                      Paste plain emails or CSV rows with `email, role`. Admins may use `collaborator`; those rows use the affiliation selected below. Blank roles use the selected default. Max 50 ready rows per batch.
                     </p>
                   </div>
                   {previewRows.length > 0 && (
@@ -750,6 +815,33 @@ export default function OnboardingDialog({
                 </TabsContent>
               </Tabs>
 
+              {needsCollaboratorPolicy && (
+                <div className="grid gap-2 rounded-lg border p-3">
+                  <Label htmlFor="onboard-collaborator-policy">Affiliation policy</Label>
+                  <Select value={selectedPolicyId} onValueChange={setSelectedPolicyId} disabled={inviting || policiesLoading}>
+                    <SelectTrigger id="onboard-collaborator-policy" className="h-10">
+                      <SelectValue placeholder={policiesLoading ? "Loading affiliations…" : "Select an active affiliation"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {collaboratorPolicies.map((policy) => (
+                          <SelectItem key={policy.id} value={policy.id}>
+                            {policy.affiliation.displayName} ({policy.affiliation.badgeLabel})
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  {selectedPolicy ? (
+                    <p className="text-xs text-muted-foreground">
+                      {selectedPolicy.capabilities.length} effective access control{selectedPolicy.capabilities.length === 1 ? "" : "s"}. Review details in Collaborator Access settings.
+                    </p>
+                  ) : !policiesLoading ? (
+                    <p className="text-xs text-destructive">No active affiliation is available. Configure and activate one in Collaborator Access settings.</p>
+                  ) : null}
+                </div>
+              )}
+
               {inviteError && (
                 <Alert variant="destructive">
                   <AlertCircle className="size-4" />
@@ -767,6 +859,7 @@ export default function OnboardingDialog({
                 className="h-10"
                 disabled={
                   inviting ||
+                  (needsCollaboratorPolicy && !selectedPolicyId) ||
                   (inviteMode === "bulk"
                     ? finalReadyPreviewRows.length === 0 ||
                       blockingPreviewCount > 0 ||

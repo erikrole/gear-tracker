@@ -7,12 +7,14 @@
  */
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { ok, parsePagination } from "@/lib/http";
+import { HttpError, ok, parsePagination } from "@/lib/http";
 import { Prisma } from "@prisma/client";
 import { buildDerivedStatusWhere, enrichAssetsWithStatusFromLoaded } from "@/lib/services/status";
 import { sectionWhere, ALL_SECTION_KEYS } from "@/lib/equipment-section-filters";
 import type { EquipmentSectionKey } from "@/lib/equipment-sections";
 import { compareItemAssetTags, getAssetTagSearchAliases } from "@/lib/item-asset-tag-sort";
+import { requirePermissionOrCollaboratorCapability } from "@/lib/rbac";
+import { sanitizeCollaboratorPickerAsset } from "@/lib/collaborator-gear";
 
 const VALID_SECTIONS = new Set<string>(ALL_SECTION_KEYS);
 const MAX_PICKER_LIMIT = 100;
@@ -35,10 +37,14 @@ const pickerSelect = {
 } satisfies Prisma.AssetSelect;
 
 export const GET = withAuth(async (req, { user }) => {
+  requirePermissionOrCollaboratorCapability(user, "asset", "view", "GEAR_CATALOG_VIEW");
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim() || undefined;
   const searchAliases = q ? getAssetTagSearchAliases(q) : [];
   const qr = searchParams.get("qr")?.trim() || undefined;
+  if (user.role === "COLLABORATOR" && qr) {
+    throw new HttpError(403, "Custody scanning is available at a kiosk");
+  }
   const sectionParam = searchParams.get("section")?.trim();
   const onlyAvailable = searchParams.get("only_available") === "true";
   const idsParam = searchParams.get("ids")?.trim();
@@ -107,7 +113,9 @@ export const GET = withAuth(async (req, { user }) => {
           { name: { contains: term, mode: "insensitive" as const } },
         ]),
         { brand: { contains: q, mode: "insensitive" } },
-        { serialNumber: { contains: q, mode: "insensitive" } },
+        ...(user.role === "COLLABORATOR"
+          ? []
+          : [{ serialNumber: { contains: q, mode: "insensitive" as const } }]),
         { type: { contains: q, mode: "insensitive" } },
         { category: { name: { contains: q, mode: "insensitive" } } },
       ],
@@ -222,7 +230,9 @@ export const GET = withAuth(async (req, { user }) => {
 
   return ok({
     data: {
-      assets: assetsWithCategory,
+      assets: user.role === "COLLABORATOR"
+        ? assetsWithCategory.map(sanitizeCollaboratorPickerAsset)
+        : assetsWithCategory,
       total,
       sectionCounts: sectionCounts ?? null,
     },

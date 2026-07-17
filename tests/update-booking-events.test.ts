@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { BookingKind, BookingStatus, Role } from "@prisma/client";
+import { BookingKind, BookingStatus, CollaboratorProfile, Prisma, Role } from "@prisma/client";
 import { expectSerializableIsolation } from "./_helpers/assert-transaction";
 
 type MockFn = ReturnType<typeof vi.fn>;
@@ -58,7 +58,7 @@ beforeEach(() => {
   mockTx.bookingEvent.deleteMany.mockResolvedValue({});
   mockTx.bookingEvent.createMany.mockResolvedValue({});
   mockTx.auditLog.create.mockResolvedValue({});
-  mockTx.user.findUnique.mockResolvedValue({ role: Role.STUDENT });
+  mockTx.user.findUnique.mockResolvedValue({ role: Role.STUDENT, collaboratorProfile: null });
   mockTx.calendarEvent.findMany.mockResolvedValue([
     { id: "event-late", startsAt: new Date("2026-07-11T20:00:00Z") },
     { id: "event-early", startsAt: new Date("2026-07-10T20:00:00Z") },
@@ -136,6 +136,31 @@ describe("updateBookingEvents", () => {
     ).rejects.toThrow("One or more eventIds do not exist");
     expect(mockTx.booking.update).not.toHaveBeenCalled();
     expect(mockTx.bookingEvent.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("limits collaborator relinking to published visible schedule events", async () => {
+    mockTx.user.findUnique.mockResolvedValue({
+      role: Role.COLLABORATOR,
+      collaboratorProfile: CollaboratorProfile.BTN_STANDARD,
+    });
+
+    await updateBookingEvents("reservation-1", "collaborator-1", ["event-late", "event-early"]);
+
+    expect(mockTx.calendarEvent.findMany).toHaveBeenCalledWith({
+      where: {
+        id: { in: ["event-late", "event-early"] },
+        isHidden: false,
+        archivedAt: null,
+        shiftGroup: {
+          is: {
+            publishedAt: { not: null },
+            archivedAt: null,
+            lastPublishedSnapshot: { not: Prisma.JsonNull },
+          },
+        },
+      },
+      select: { id: true, startsAt: true },
+    });
   });
 
   it("allows active checkout bookings", async () => {

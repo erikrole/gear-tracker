@@ -49,6 +49,15 @@ export const GET = withAuth(async (req, { user }) => {
       include: {
         createdBy: { select: { id: true, name: true } },
         claimedBy: { select: { id: true, name: true } },
+        collaboratorPolicy: {
+          select: {
+            id: true,
+            status: true,
+            version: true,
+            affiliation: { select: { key: true, displayName: true, badgeLabel: true } },
+            grants: { select: { capabilityKey: true } },
+          },
+        },
       },
     }),
     db.allowedEmail.count({ where }),
@@ -77,10 +86,11 @@ export const POST = withAuth(async (req, { user }) => {
   }
 
   // Single add
-  const { email: rawEmail, role } = createAllowedEmailSchema.parse(body);
+  const invite = createAllowedEmailSchema.parse(body);
+  const { email: rawEmail } = invite;
   const email = rawEmail.toLowerCase();
 
-  const result = await createAllowedEmailInvite({ actor: user, email, role });
+  const result = await createAllowedEmailInvite({ actor: user, ...invite, email });
   if (result.skipped) return ok(result, 201);
 
   return ok(result.entry, 201);

@@ -31,6 +31,7 @@ import { PROFILE_COMPLETION_QUERY_KEY } from "@/hooks/use-profile-completion";
 import { SettingsPageShell } from "../SettingsPageShell";
 import { formatPhoneInput } from "@/lib/profile-phone";
 import { syncCachedUserLists } from "@/lib/user-list-cache";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 type Profile = {
   id: string;
@@ -69,6 +70,8 @@ function isDirty(local: FormState, base: FormState): boolean {
 
 export default function ProfileSettingsPage() {
   const queryClient = useQueryClient();
+  const { data: currentUser } = useCurrentUser();
+  const isCollaborator = currentUser?.role === "COLLABORATOR";
   const { data: fetched, loading, error, reload } = useFetch<Profile>({
     url: "/api/me/profile",
     returnTo: "/settings/profile",
@@ -332,6 +335,7 @@ export default function ProfileSettingsPage() {
               {nameError && <p className="text-xs text-destructive">{nameError}</p>}
             </div>
 
+            {!isCollaborator && <>
             {/* Phone numbers */}
             <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
               <div className="flex flex-col gap-1.5">
@@ -434,6 +438,7 @@ export default function ProfileSettingsPage() {
                 Your UW Athletics email -- separate from your login email.
               </p>
             </div>
+            </>}
 
             {/* Save */}
             <div className="flex justify-end pt-1">

@@ -14,6 +14,8 @@ const FIELD_LABELS: Record<ProfileCompletionField, string> = {
   personalPhone: "Personal phone",
   workPhone: "Work phone",
   wiscard: "Wiscard",
+  studentYear: "Year",
+  anticipatedGraduation: "Anticipated graduation",
   clothingSize: "Clothing size",
   shoeSize: "Shoe size",
 };
@@ -30,7 +32,7 @@ export function ProfileCompletionNotice() {
       <AlertTitle>Complete your profile</AlertTitle>
       <AlertDescription className="flex flex-col gap-3">
         <p>
-          {data.completion.completedCount} of {data.completion.totalCount} details are complete. Add the remaining information so contact, Wiscard, and apparel records stay useful.
+          {data.completion.completedCount} of {data.completion.totalCount} details are complete. Add the remaining information so contact, student, Wiscard, and apparel records stay useful.
         </p>
         <div className="flex flex-wrap gap-2" aria-label="Missing profile details">
           {data.completion.missingFields.map((field) => (

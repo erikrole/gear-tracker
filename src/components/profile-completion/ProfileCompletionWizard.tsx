@@ -36,6 +36,13 @@ import { PROFILE_COMPLETION_STEPS, type ProfileCompletionStep } from "@/lib/prof
 import { formatPhoneInput } from "@/lib/profile-phone";
 import { MENS_SHOE_SIZE_OPTIONS, TOP_SIZE_OPTIONS, WOMENS_SHOE_SIZE_OPTIONS } from "@/lib/profile-sizing";
 import {
+  anticipatedGraduationOptions,
+  anticipatedGraduationValue,
+  parseAnticipatedGraduation,
+  STUDENT_YEAR_OPTIONS,
+  type StudentYearValue,
+} from "@/lib/student-profile";
+import {
   PROFILE_COMPLETION_QUERY_KEY,
   type ProfileCompletionResponse,
   useProfileCompletion,
@@ -54,6 +61,10 @@ const STEP_COPY: Record<ProfileCompletionStep, { title: string; description: str
     title: "Link your Wiscard",
     description: "Type the card number and issue code printed for your card. This is used for kiosk identification.",
   },
+  STUDENT: {
+    title: "Add your student details",
+    description: "Tell us your current year and when you expect to graduate.",
+  },
   APPAREL: {
     title: "Add your apparel sizes",
     description: "Choose the sizing systems that make clothing and shoe orders unambiguous.",
@@ -62,6 +73,7 @@ const STEP_COPY: Record<ProfileCompletionStep, { title: string; description: str
 
 type LegacyPhoneType = "PERSONAL" | "WORK" | "";
 type ApiEnvelope = { data?: ProfileCompletionResponse };
+const GRADUATION_OPTIONS = anticipatedGraduationOptions();
 
 function isKnownOption(value: string | null, options: string[]) {
   return Boolean(value && options.includes(value));
@@ -86,6 +98,8 @@ export function ProfileCompletionWizard() {
   const [noWorkPhone, setNoWorkPhone] = useState(false);
   const [wiscardCardNumber, setWiscardCardNumber] = useState("");
   const [wiscardIssueCode, setWiscardIssueCode] = useState("");
+  const [studentYear, setStudentYear] = useState<StudentYearValue | "">("");
+  const [anticipatedGraduation, setAnticipatedGraduation] = useState("");
   const [topSizeFit, setTopSizeFit] = useState<"UNISEX" | "WOMENS" | "MENS" | "">("");
   const [topSizeChoice, setTopSizeChoice] = useState("");
   const [topSizeOther, setTopSizeOther] = useState("");
@@ -105,7 +119,7 @@ export function ProfileCompletionWizard() {
     if (!data) return;
     const profile = data.profile;
     setAthleticsEmail(profile.athleticsEmail ?? "");
-    setPersonalPhone(profile.personalPhone ?? "");
+    setPersonalPhone(profile.personalPhone ?? (profile.role === "STUDENT" ? profile.phone : null) ?? "");
     setWorkPhone(profile.workPhone ?? "");
     setNoWorkPhone(profile.workPhoneNotApplicable);
     setLegacyPhoneType(
@@ -117,6 +131,8 @@ export function ProfileCompletionWizard() {
     );
     setWiscardCardNumber(profile.wiscardCardNumber ?? "");
     setWiscardIssueCode(profile.wiscardIssueCode ?? "");
+    setStudentYear(profile.studentYearOverride ?? "");
+    setAnticipatedGraduation(anticipatedGraduationValue(profile.graduationTerm, profile.gradYear));
     setTopSizeFit(profile.topSizeFit ?? "");
     if (isKnownOption(profile.topSize, [...TOP_SIZE_OPTIONS])) {
       setTopSizeChoice(profile.topSize ?? "");
@@ -156,12 +172,22 @@ export function ProfileCompletionWizard() {
     return () => window.removeEventListener(OPEN_PROFILE_COMPLETION_EVENT, openWizard);
   }, [data, isDesktop]);
 
-  const stepIndex = PROFILE_COMPLETION_STEPS.indexOf(step);
+  const visibleSteps = useMemo(
+    () => data?.profile.role === "STUDENT"
+      ? [...PROFILE_COMPLETION_STEPS]
+      : PROFILE_COMPLETION_STEPS.filter((candidate) => candidate !== "STUDENT"),
+    [data?.profile.role],
+  );
+  const stepIndex = visibleSteps.indexOf(step);
+  const isLastStep = stepIndex === visibleSteps.length - 1;
   const shoeOptions = shoeSizeSystem === "US_MENS" ? MENS_SHOE_SIZE_OPTIONS : WOMENS_SHOE_SIZE_OPTIONS;
-  const copy = STEP_COPY[step];
   const legacyPhone = data?.profile.phone?.trim() ?? "";
+  const isStudent = data?.profile.role === "STUDENT";
+  const copy = step === "PHONES" && isStudent
+    ? { title: "Add your phone number", description: "Add the personal phone number we should use to reach you." }
+    : STEP_COPY[step];
   const needsLegacyClassification = Boolean(
-    legacyPhone && !data?.profile.personalPhone && !data?.profile.workPhone,
+    !isStudent && legacyPhone && !data?.profile.personalPhone && !data?.profile.workPhone,
   );
 
   const canContinue = useMemo(() => {
@@ -171,12 +197,17 @@ export function ProfileCompletionWizard() {
         && athleticsEmail.trim().toLowerCase().endsWith("@athletics.wisc.edu");
     }
     if (step === "PHONES") {
+      const personalPhoneIsComplete = personalPhone.replace(/\D/g, "").length === 10;
+      if (isStudent) return personalPhoneIsComplete;
       return (!needsLegacyClassification || Boolean(legacyPhoneType))
-        && personalPhone.replace(/\D/g, "").length === 10
+        && personalPhoneIsComplete
         && (noWorkPhone || workPhone.replace(/\D/g, "").length === 10);
     }
     if (step === "WISCARD") {
       return /^\d{4,32}$/.test(wiscardCardNumber.trim()) && /^\d{1,8}$/.test(wiscardIssueCode.trim());
+    }
+    if (step === "STUDENT") {
+      return Boolean(studentYear && parseAnticipatedGraduation(anticipatedGraduation));
     }
     const topSize = topSizeChoice === "OTHER" ? topSizeOther.trim() : topSizeChoice;
     const shoeSize = shoeSizeChoice === "OTHER" ? shoeSizeOther.trim() : shoeSizeChoice;
@@ -184,6 +215,7 @@ export function ProfileCompletionWizard() {
   }, [
     athleticsEmail,
     data,
+    isStudent,
     legacyPhoneType,
     needsLegacyClassification,
     noWorkPhone,
@@ -192,6 +224,8 @@ export function ProfileCompletionWizard() {
     shoeSizeOther,
     shoeSizeSystem,
     step,
+    studentYear,
+    anticipatedGraduation,
     topSizeChoice,
     topSizeFit,
     topSizeOther,
@@ -219,14 +253,17 @@ export function ProfileCompletionWizard() {
     setSaving(true);
     setError("");
     try {
+      const graduation = parseAnticipatedGraduation(anticipatedGraduation);
       const body = step === "EMAIL"
         ? { step, athleticsEmail: athleticsEmail.trim() }
         : step === "PHONES"
           ? {
               step,
               personalPhone: personalPhone.trim(),
-              workPhone: noWorkPhone ? null : workPhone.trim(),
-              workPhoneNotApplicable: noWorkPhone,
+              ...(isStudent ? {} : {
+                workPhone: noWorkPhone ? null : workPhone.trim(),
+                workPhoneNotApplicable: noWorkPhone,
+              }),
             }
           : step === "WISCARD"
             ? {
@@ -234,16 +271,23 @@ export function ProfileCompletionWizard() {
                 wiscardCardNumber: wiscardCardNumber.trim(),
                 wiscardIssueCode: wiscardIssueCode.trim(),
               }
-            : {
-                step,
-                topSizeFit,
-                topSize: topSizeChoice === "OTHER" ? topSizeOther.trim() : topSizeChoice,
-                shoeSizeSystem,
-                shoeSize: shoeSizeChoice === "OTHER" ? shoeSizeOther.trim() : shoeSizeChoice,
-              };
+            : step === "STUDENT" && graduation && studentYear
+              ? {
+                  step,
+                  studentYearOverride: studentYear,
+                  graduationTerm: graduation.term,
+                  gradYear: graduation.year,
+                }
+              : {
+                  step,
+                  topSizeFit,
+                  topSize: topSizeChoice === "OTHER" ? topSizeOther.trim() : topSizeChoice,
+                  shoeSizeSystem,
+                  shoeSize: shoeSizeChoice === "OTHER" ? shoeSizeOther.trim() : shoeSizeChoice,
+                };
       const updated = await patchCompletion(body);
       if (!updated) return;
-      if (updated.completion.isComplete && (!manualReviewRef.current || step === "APPAREL")) {
+      if (updated.completion.isComplete && (!manualReviewRef.current || isLastStep)) {
         closeWithoutSnoozeRef.current = true;
         manualReviewRef.current = false;
         setOpen(false);
@@ -252,8 +296,8 @@ export function ProfileCompletionWizard() {
       }
       setStep(
         manualReviewRef.current
-          ? PROFILE_COMPLETION_STEPS[Math.min(stepIndex + 1, 3)]!
-          : updated.completion.firstIncompleteStep ?? PROFILE_COMPLETION_STEPS[Math.min(stepIndex + 1, 3)]!,
+          ? visibleSteps[Math.min(stepIndex + 1, visibleSteps.length - 1)]!
+          : updated.completion.firstIncompleteStep ?? visibleSteps[Math.min(stepIndex + 1, visibleSteps.length - 1)]!,
       );
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Profile details were not saved.");
@@ -312,12 +356,12 @@ export function ProfileCompletionWizard() {
       <DialogContent className="max-w-2xl overflow-hidden">
         <DialogHeader className="flex-col items-start gap-3 pr-14">
           <div className="flex w-full items-center justify-between gap-4">
-            <Badge variant="orange" size="sm">Step {stepIndex + 1} of 4</Badge>
+            <Badge variant="orange" size="sm">Step {stepIndex + 1} of {visibleSteps.length}</Badge>
             <span className="text-xs text-muted-foreground">
               {data.completion.completedCount} of {data.completion.totalCount} details complete
             </span>
           </div>
-          <Progress value={(stepIndex + 1) * 25} aria-label={`Step ${stepIndex + 1} of 4`} />
+          <Progress value={((stepIndex + 1) / visibleSteps.length) * 100} aria-label={`Step ${stepIndex + 1} of ${visibleSteps.length}`} />
           <div className="flex flex-col gap-1">
             <DialogTitle>{copy.title}</DialogTitle>
             <DialogDescription>{copy.description}</DialogDescription>
@@ -373,7 +417,7 @@ export function ProfileCompletionWizard() {
                   </ToggleGroup>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-4">
+              <div className={isStudent ? "grid grid-cols-1 gap-4" : "grid grid-cols-2 gap-4"}>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="profile-completion-personal-phone">Personal phone</Label>
                   <Input
@@ -387,29 +431,33 @@ export function ProfileCompletionWizard() {
                     disabled={saving}
                   />
                 </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="profile-completion-work-phone">Work phone</Label>
-                  <Input
-                    id="profile-completion-work-phone"
-                    name="workPhone"
-                    type="tel"
-                    autoComplete="work tel"
-                    value={workPhone}
-                    onChange={(event) => { setWorkPhone(formatPhoneInput(event.target.value)); setNoWorkPhone(false); setError(""); }}
-                    placeholder="(XXX) XXX-XXXX"
-                    disabled={saving || noWorkPhone}
+                {!isStudent && (
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="profile-completion-work-phone">Work phone</Label>
+                    <Input
+                      id="profile-completion-work-phone"
+                      name="workPhone"
+                      type="tel"
+                      autoComplete="work tel"
+                      value={workPhone}
+                      onChange={(event) => { setWorkPhone(formatPhoneInput(event.target.value)); setNoWorkPhone(false); setError(""); }}
+                      placeholder="(XXX) XXX-XXXX"
+                      disabled={saving || noWorkPhone}
+                    />
+                  </div>
+                )}
+              </div>
+              {!isStudent && (
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="profile-completion-no-work-phone"
+                    checked={noWorkPhone}
+                    onCheckedChange={(checked) => { setNoWorkPhone(checked === true); if (checked) setWorkPhone(""); }}
+                    disabled={saving}
                   />
+                  <Label htmlFor="profile-completion-no-work-phone" className="font-normal">I don’t have a work phone</Label>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="profile-completion-no-work-phone"
-                  checked={noWorkPhone}
-                  onCheckedChange={(checked) => { setNoWorkPhone(checked === true); if (checked) setWorkPhone(""); }}
-                  disabled={saving}
-                />
-                <Label htmlFor="profile-completion-no-work-phone" className="font-normal">I don’t have a work phone</Label>
-              </div>
+              )}
             </div>
           )}
 
@@ -444,6 +492,33 @@ export function ProfileCompletionWizard() {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">Issue code can be found in the bottom right of your Wiscard. Gear Tracker combines both values into the exact kiosk lookup value.</p>
+            </div>
+          )}
+
+          {step === "STUDENT" && (
+            <div className="flex flex-col gap-5">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="profile-completion-student-year">Year</Label>
+                <Select value={studentYear} onValueChange={(value) => setStudentYear(value as StudentYearValue)} disabled={saving}>
+                  <SelectTrigger id="profile-completion-student-year"><SelectValue placeholder="Select year" /></SelectTrigger>
+                  <SelectContent><SelectGroup>
+                    {STUDENT_YEAR_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    ))}
+                  </SelectGroup></SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="profile-completion-graduation">Anticipated graduation</Label>
+                <Select value={anticipatedGraduation} onValueChange={setAnticipatedGraduation} disabled={saving}>
+                  <SelectTrigger id="profile-completion-graduation"><SelectValue placeholder="Select term and year" /></SelectTrigger>
+                  <SelectContent><SelectGroup>
+                    {GRADUATION_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    ))}
+                  </SelectGroup></SelectContent>
+                </Select>
+              </div>
             </div>
           )}
 
@@ -526,15 +601,15 @@ export function ProfileCompletionWizard() {
             Remind me tomorrow
           </Button>
           {stepIndex > 0 && (
-            <Button type="button" variant="outline" onClick={() => { setStep(PROFILE_COMPLETION_STEPS[stepIndex - 1]!); setError(""); }} disabled={saving}>
+            <Button type="button" variant="outline" onClick={() => { setStep(visibleSteps[stepIndex - 1]!); setError(""); }} disabled={saving}>
               <ArrowLeftIcon data-icon="inline-start" />
               Back
             </Button>
           )}
           <Button type="button" onClick={saveCurrentStep} disabled={saving || !canContinue}>
-            {saving ? <Spinner data-icon="inline-start" /> : step === "APPAREL" ? <CheckIcon data-icon="inline-start" /> : null}
-            {step === "APPAREL" ? "Finish" : "Continue"}
-            {!saving && step !== "APPAREL" && <ArrowRightIcon data-icon="inline-end" />}
+            {saving ? <Spinner data-icon="inline-start" /> : isLastStep ? <CheckIcon data-icon="inline-start" /> : null}
+            {isLastStep ? "Finish" : "Continue"}
+            {!saving && !isLastStep && <ArrowRightIcon data-icon="inline-end" />}
           </Button>
         </DialogFooter>
       </DialogContent>

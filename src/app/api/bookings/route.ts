@@ -2,9 +2,10 @@ import { BookingStatus, Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok, parsePagination } from "@/lib/http";
-import { requirePermission } from "@/lib/rbac";
 import { BOOKING_SORT_MAP } from "@/lib/services/bookings-queries";
 import { optionalSportCodeSchema } from "@/lib/validation";
+import { requirePermissionOrCollaboratorCapability } from "@/lib/rbac";
+import { sanitizeCollaboratorBooking } from "@/lib/collaborator-gear";
 
 /* ── Combined bookings list (both CHECKOUT and RESERVATION) ── */
 
@@ -48,7 +49,7 @@ const bookingListInclude = {
 
 
 export const GET = withAuth(async (req, { user }) => {
-  requirePermission(user.role, "booking", "view");
+  requirePermissionOrCollaboratorCapability(user, "booking", "view", "MY_GEAR_VIEW");
   const { searchParams } = new URL(req.url);
 
   const q = searchParams.get("q")?.trim();
@@ -83,7 +84,7 @@ export const GET = withAuth(async (req, { user }) => {
     ...(sportCode ? { sportCode } : {}),
     // Students may only see their own bookings — ignore any requester_id
     // override they pass and pin to their own user id.
-    ...(user.role === "STUDENT"
+    ...(user.role === "STUDENT" || user.role === "COLLABORATOR"
       ? { requesterUserId: user.id }
       : requesterId
         ? { requesterUserId: requesterId }
@@ -108,5 +109,10 @@ export const GET = withAuth(async (req, { user }) => {
     db.booking.count({ where }),
   ]);
 
-  return ok({ data, total, limit, offset });
+  return ok({
+    data: user.role === "COLLABORATOR" ? data.map(sanitizeCollaboratorBooking) : data,
+    total,
+    limit,
+    offset,
+  });
 });

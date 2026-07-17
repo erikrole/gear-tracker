@@ -34,6 +34,7 @@ const actor = {
 
 function storedProfile(overrides: Record<string, unknown> = {}) {
   return {
+    role: "STUDENT",
     email: "person@wisc.edu",
     athleticsEmail: null,
     phone: "608-555-0100",
@@ -42,6 +43,9 @@ function storedProfile(overrides: Record<string, unknown> = {}) {
     workPhoneNotApplicable: false,
     wiscardCardNumber: null,
     wiscardIssueCode: null,
+    studentYearOverride: null,
+    gradYear: null,
+    graduationTerm: null,
     topSizeFit: null,
     topSize: null,
     shoeSizeSystem: null,
@@ -90,6 +94,9 @@ describe("/api/me/profile-completion", () => {
   });
 
   it("classifies phone data while keeping the legacy phone as the personal compatibility value", async () => {
+    vi.mocked(requireAuth).mockResolvedValue({ ...actor, role: "STAFF" });
+    dbMock.user.findUnique.mockResolvedValue(storedProfile({ role: "STAFF" }));
+
     const response = await PATCH(patchRequest({
       step: "PHONES",
       personalPhone: "608-555-1111",
@@ -123,6 +130,27 @@ describe("/api/me/profile-completion", () => {
     expect(JSON.stringify(vi.mocked(createAuditEntryTx).mock.calls[0])).not.toContain("608-555");
   });
 
+  it("saves only a personal phone for students and preserves any stored work-phone state", async () => {
+    const response = await PATCH(patchRequest({
+      step: "PHONES",
+      personalPhone: "608-555-1111",
+    }), noParams);
+
+    expect(response.status).toBe(200);
+    expect(dbMock.user.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: {
+        phone: "608-555-1111",
+        personalPhone: "608-555-1111",
+        profilePromptSnoozedUntil: null,
+      },
+    }));
+    expect(createAuditEntryTx).toHaveBeenCalledWith(dbMock, expect.objectContaining({
+      after: expect.objectContaining({
+        fieldsChanged: ["personalPhone", "phone"],
+      }),
+    }));
+  });
+
   it("combines typed Wiscard number and issue code for existing kiosk lookup", async () => {
     const response = await PATCH(patchRequest({
       step: "WISCARD",
@@ -139,6 +167,52 @@ describe("/api/me/profile-completion", () => {
       }),
     }));
     expect(JSON.stringify(vi.mocked(createAuditEntryTx).mock.calls[0])).not.toContain("907032481");
+  });
+
+  it("saves student year and anticipated graduation without auditing the values", async () => {
+    const response = await PATCH(patchRequest({
+      step: "STUDENT",
+      studentYearOverride: "JUNIOR",
+      graduationTerm: "SPRING",
+      gradYear: 2027,
+    }), noParams);
+
+    expect(response.status).toBe(200);
+    expect(dbMock.user.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        studentYearOverride: "JUNIOR",
+        graduationTerm: "SPRING",
+        gradYear: 2027,
+      }),
+    }));
+    expect(createAuditEntryTx).toHaveBeenCalledWith(dbMock, expect.objectContaining({
+      before: {
+        step: "STUDENT",
+        studentYearSet: false,
+        anticipatedGraduationSet: false,
+      },
+      after: expect.objectContaining({
+        step: "STUDENT",
+        studentYearSet: true,
+        anticipatedGraduationSet: true,
+      }),
+    }));
+    expect(JSON.stringify(vi.mocked(createAuditEntryTx).mock.calls[0])).not.toContain("2027");
+    expect(JSON.stringify(vi.mocked(createAuditEntryTx).mock.calls[0])).not.toContain("JUNIOR");
+  });
+
+  it("rejects student details for a non-student profile", async () => {
+    dbMock.user.findUnique.mockResolvedValue(storedProfile({ role: "STAFF" }));
+
+    const response = await PATCH(patchRequest({
+      step: "STUDENT",
+      studentYearOverride: "JUNIOR",
+      graduationTerm: "SPRING",
+      gradYear: 2027,
+    }), noParams);
+
+    expect(response.status).toBe(400);
+    expect(dbMock.user.update).not.toHaveBeenCalled();
   });
 
   it("snoozes the prompt for one day without marking missing data complete", async () => {
@@ -164,6 +238,18 @@ describe("/api/me/profile-completion", () => {
       personalPhone: "call-me-now",
       workPhone: null,
       workPhoneNotApplicable: true,
+    }), noParams);
+
+    expect(response.status).toBe(400);
+    expect(dbMock.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("still requires a work-phone answer from non-students", async () => {
+    vi.mocked(requireAuth).mockResolvedValue({ ...actor, role: "STAFF" });
+
+    const response = await PATCH(patchRequest({
+      step: "PHONES",
+      personalPhone: "608-555-1111",
     }), noParams);
 
     expect(response.status).toBe(400);

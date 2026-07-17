@@ -2,15 +2,16 @@ import { BookingKind, BookingStatus, Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
-import { requirePermission } from "@/lib/rbac";
+import { requirePermissionOrCollaboratorCapability } from "@/lib/rbac";
 import { createBooking, listBookings } from "@/lib/services/bookings";
 import { parseDateRange } from "@/lib/time";
 import { createReservationSchema, sanitizeBookingFields } from "@/lib/validation";
 import { createReservationLifecycleNotification } from "@/lib/services/notifications";
 import { loadReservationRules } from "@/lib/services/reservation-rules";
+import { sanitizeCollaboratorBooking } from "@/lib/collaborator-gear";
 
 export const GET = withAuth(async (req, { user }) => {
-  requirePermission(user.role, "booking", "view");
+  requirePermissionOrCollaboratorCapability(user, "booking", "view", "MY_GEAR_VIEW");
   const { searchParams } = new URL(req.url);
   const filterParam = searchParams.get("filter");
   const now = new Date();
@@ -23,13 +24,18 @@ export const GET = withAuth(async (req, { user }) => {
         ? { status: BookingStatus.BOOKED, endsAt: { gte: todayStart, lt: todayEnd } }
         : undefined;
 
-  const restrictTo = user.role === "STUDENT" ? user.id : undefined;
+  const restrictTo = user.role === "STUDENT" || user.role === "COLLABORATOR" ? user.id : undefined;
   const result = await listBookings(BookingKind.RESERVATION, searchParams, extraWhere, restrictTo);
-  return ok(result);
+  return ok({
+    ...result,
+    data: user.role === "COLLABORATOR"
+      ? result.data.map(sanitizeCollaboratorBooking)
+      : result.data,
+  });
 });
 
 export const POST = withAuth(async (req, { user }) => {
-  requirePermission(user.role, "booking", "create");
+  requirePermissionOrCollaboratorCapability(user, "booking", "create", "RESERVATION_CREATE");
   let rawBody: unknown;
   try {
     rawBody = await req.json();
@@ -38,7 +44,7 @@ export const POST = withAuth(async (req, { user }) => {
   }
   const body = sanitizeBookingFields(createReservationSchema.parse(rawBody));
   // Students may only create reservations for themselves.
-  if (user.role === "STUDENT") {
+  if (user.role === "STUDENT" || user.role === "COLLABORATOR") {
     body.requesterUserId = user.id;
   }
   const { start, end } = parseDateRange(body.startsAt, body.endsAt, { requireFutureStart: true });
@@ -101,5 +107,9 @@ export const POST = withAuth(async (req, { user }) => {
     event: "booked",
   });
 
-  return ok({ data: reservation }, 201);
+  return ok({
+    data: user.role === "COLLABORATOR"
+      ? sanitizeCollaboratorBooking(reservation)
+      : reservation,
+  }, 201);
 });

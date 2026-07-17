@@ -31,6 +31,11 @@ import {
 } from "./live-activities";
 import { scheduleCheckoutReturnLiveActivity } from "@/lib/live-activity-workflow";
 import { normalizeBookingTitle } from "@/lib/title-normalization";
+import {
+  hasCollaboratorCapability,
+  type CollaboratorActor,
+} from "@/lib/collaborator-access";
+import { collaboratorPolicyActorSelect } from "@/lib/services/collaborator-policies";
 
 type CreateBookingInput = {
   kind: BookingKind;
@@ -202,6 +207,29 @@ function handleBookingMutationRace(error: unknown): never {
   throw error;
 }
 
+function eventLinkWhereForActor(
+  eventIds: string[],
+  actor: CollaboratorActor,
+): Prisma.CalendarEventWhereInput {
+  const where: Prisma.CalendarEventWhereInput = { id: { in: eventIds } };
+  if (actor.role !== Role.COLLABORATOR) return where;
+  if (!hasCollaboratorCapability(actor, "PUBLISHED_SCHEDULE_VIEW")) {
+    throw new HttpError(403, "Forbidden");
+  }
+  return {
+    ...where,
+    isHidden: false,
+    archivedAt: null,
+    shiftGroup: {
+      is: {
+        publishedAt: { not: null },
+        archivedAt: null,
+        lastPublishedSnapshot: { not: Prisma.JsonNull },
+      },
+    },
+  };
+}
+
 export async function createBooking(input: CreateBookingInput) {
   assertValidBookingWindow(input.startsAt, input.endsAt);
   assertValidCreateEventLinks(input);
@@ -217,7 +245,12 @@ export async function createBooking(input: CreateBookingInput) {
       // one would silently hold gear they can no longer account for.
       const requester = await tx.user.findUnique({
         where: { id: input.requesterUserId },
-        select: { active: true },
+        select: {
+          active: true,
+          role: true,
+          collaboratorProfile: true,
+          collaboratorPolicy: { select: collaboratorPolicyActorSelect },
+        },
       });
       if (!requester) throw new HttpError(400, "Requester not found");
       if (!requester.active) throw new HttpError(400, "Cannot create a booking for an inactive user");
@@ -286,7 +319,7 @@ export async function createBooking(input: CreateBookingInput) {
       let sortedEventIds: string[] = [];
       if (requestedEventIds.length > 0) {
         const events = await tx.calendarEvent.findMany({
-          where: { id: { in: requestedEventIds } },
+          where: eventLinkWhereForActor(requestedEventIds, requester),
           select: { id: true, startsAt: true },
         });
         if (events.length !== requestedEventIds.length) {
@@ -331,6 +364,19 @@ export async function createBooking(input: CreateBookingInput) {
             ordinal,
           })),
         });
+        if (
+          input.kind === BookingKind.RESERVATION &&
+          hasCollaboratorCapability(requester, "SCHEDULE_FOLLOW")
+        ) {
+          await tx.scheduleEventFollow.createMany({
+            data: sortedEventIds.map((eventId) => ({
+              userId: input.requesterUserId,
+              eventId,
+              source: "BOOKING" as const,
+            })),
+            skipDuplicates: true,
+          });
+        }
       }
 
       if (resolvedSerializedAssetIds.length > 0) {
@@ -734,6 +780,18 @@ export async function updateBookingEvents(
   try {
     return await db.$transaction(
       async (tx) => {
+        const actor = await tx.user.findUnique({
+          where: { id: actorUserId },
+          select: {
+            role: true,
+            collaboratorProfile: true,
+            collaboratorPolicy: { select: collaboratorPolicyActorSelect },
+          },
+        });
+        if (!actor) {
+          throw new HttpError(403, "Forbidden");
+        }
+
         const existing = await tx.booking.findUnique({
           where: { id: bookingId },
           select: {
@@ -759,7 +817,7 @@ export async function updateBookingEvents(
         let sortedEventIds: string[] = [];
         if (eventIds.length > 0) {
           const events = await tx.calendarEvent.findMany({
-            where: { id: { in: eventIds } },
+            where: eventLinkWhereForActor(eventIds, actor),
             select: { id: true, startsAt: true },
           });
           if (events.length !== eventIds.length) {
@@ -797,10 +855,9 @@ export async function updateBookingEvents(
             });
           }
 
-          const actorRole = await lookupActorRole(tx, actorUserId);
           await createAuditEntryTx(tx, {
             actorId: actorUserId,
-            actorRole,
+            actorRole: actor.role,
             entityType: "booking",
             entityId: bookingId,
             action: "events_updated",

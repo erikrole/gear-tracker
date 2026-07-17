@@ -8,6 +8,17 @@ export type CurrentUser = {
   name: string;
   email: string;
   role: string;
+  affiliation?: string | null;
+  collaboratorProfile?: string | null;
+  collaboratorPolicy?: {
+    id: string;
+    affiliationKey: string;
+    displayName: string;
+    badgeLabel: string;
+    status: "ACTIVE" | "SUSPENDED";
+    version: number;
+  } | null;
+  capabilities?: string[];
   avatarUrl?: string | null;
   forcePasswordChange?: boolean;
 };

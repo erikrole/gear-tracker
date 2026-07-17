@@ -1,5 +1,5 @@
 import { withAuth } from "@/lib/api";
-import { Prisma, ShiftArea, ShiftWorkerType, StudentYear } from "@prisma/client";
+import { GraduationTerm, Prisma, ShiftArea, ShiftWorkerType, StudentYear } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
@@ -30,6 +30,7 @@ const updateUserSchema = z.object({
   athleticsEmail: z.string().email().max(255).nullable().optional(),
   startDate: z.string().datetime().nullable().optional(),
   gradYear: z.number().int().min(1900).max(2100).nullable().optional(),
+  graduationTerm: z.nativeEnum(GraduationTerm).nullable().optional(),
   studentYearOverride: z.nativeEnum(StudentYear).nullable().optional(),
   topSize: z.string().max(40).nullable().optional(),
   topSizeFit: z.enum(["UNISEX", "WOMENS", "MENS"]).nullable().optional(),
@@ -89,13 +90,8 @@ async function assertDirectReportAssignment(targetUserId: string, directReportId
 }
 
 export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
-  requireRole(user.role, ["ADMIN", "STAFF", "STUDENT"]);
+  requireRole(user.role, ["ADMIN", "STAFF", "STUDENT", "COLLABORATOR"]);
   const { id } = params;
-
-  // Students can only view themselves
-  if (user.role === "STUDENT" && user.id !== id) {
-    throw new HttpError(403, "Forbidden");
-  }
 
   const target = await db.user.findUnique({
     where: { id },
@@ -104,12 +100,46 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
       sportAssignments: true,
       areaAssignments: true,
       directReport: { select: { id: true, name: true } },
+      collaboratorPolicy: {
+        select: {
+          id: true,
+          status: true,
+          version: true,
+          affiliation: { select: { key: true, displayName: true, badgeLabel: true } },
+          grants: { select: { capabilityKey: true } },
+        },
+      },
     },
   });
   if (!target) throw new HttpError(404, "User not found");
   if (!canReadUserProfile(user, target)) throw new HttpError(404, "User not found");
 
+  const targetIsCollaborator = target.role === "COLLABORATOR";
+  if ((user.role === "STUDENT" || user.role === "COLLABORATOR") && user.id !== id && !targetIsCollaborator) {
+    throw new HttpError(403, "Forbidden");
+  }
+
   const isSelfOrAdmin = user.id === id || user.role === "ADMIN";
+  if (targetIsCollaborator && !isSelfOrAdmin) {
+    return ok({
+      data: {
+        id: target.id,
+        name: target.name,
+        avatarUrl: target.avatarUrl ?? null,
+        title: target.title ?? null,
+        role: target.role,
+        affiliation: target.affiliation,
+        collaboratorProfile: target.collaboratorProfile,
+        collaboratorPolicy: target.collaboratorPolicy ? {
+          id: target.collaboratorPolicy.id,
+          status: target.collaboratorPolicy.status,
+          version: target.collaboratorPolicy.version,
+          capabilities: target.collaboratorPolicy.grants.map((grant) => grant.capabilityKey),
+          affiliation: target.collaboratorPolicy.affiliation,
+        } : null,
+      },
+    });
+  }
 
   return ok({
     data: {
@@ -117,6 +147,15 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
       name: target.name,
       email: target.email,
       role: target.role,
+      affiliation: target.affiliation,
+      collaboratorProfile: target.collaboratorProfile,
+      collaboratorPolicy: target.collaboratorPolicy ? {
+        id: target.collaboratorPolicy.id,
+        status: target.collaboratorPolicy.status,
+        version: target.collaboratorPolicy.version,
+        capabilities: target.collaboratorPolicy.grants.map((grant) => grant.capabilityKey),
+        affiliation: target.collaboratorPolicy.affiliation,
+      } : null,
       staffingType: target.staffingType,
       locationId: target.locationId,
       location: target.location?.name ?? null,
@@ -146,6 +185,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
         ? { id: target.directReport.id, name: target.directReport.name }
         : null,
       gradYear: target.gradYear ?? null,
+      graduationTerm: target.graduationTerm ?? null,
       studentYearOverride: target.studentYearOverride ?? null,
       topSize: target.topSize ?? null,
       topSizeFit: target.topSizeFit ?? null,
@@ -265,6 +305,9 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   if (Object.prototype.hasOwnProperty.call(body, "gradYear")) {
     updateData.gradYear = body.gradYear ?? null;
   }
+  if (Object.prototype.hasOwnProperty.call(body, "graduationTerm")) {
+    updateData.graduationTerm = body.graduationTerm ?? null;
+  }
   if (Object.prototype.hasOwnProperty.call(body, "studentYearOverride")) {
     updateData.studentYearOverride = body.studentYearOverride ?? null;
   }
@@ -358,6 +401,8 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       name: updated.name,
       email: updated.email,
       role: updated.role,
+      affiliation: updated.affiliation,
+      collaboratorProfile: updated.collaboratorProfile,
       staffingType: updated.staffingType,
       locationId: updated.locationId,
       location: updated.location?.name ?? null,

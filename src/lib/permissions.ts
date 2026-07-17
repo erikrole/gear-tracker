@@ -139,6 +139,10 @@ export const PERMISSIONS: Record<string, Record<string, Role[]>> = {
     edit: ["ADMIN"],
     delete: ["ADMIN"],
   },
+  collaborator_policy: {
+    view: ["ADMIN"],
+    manage: ["ADMIN"],
+  },
   resource: {
     view: ["ADMIN", "STAFF", "STUDENT"],
     create: ["ADMIN", "STAFF"],

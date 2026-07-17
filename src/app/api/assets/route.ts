@@ -4,7 +4,7 @@ import { withAuth } from "@/lib/api";
 import { createAuditEntry } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { HttpError, ok, parsePagination } from "@/lib/http";
-import { requirePermission } from "@/lib/rbac";
+import { requirePermission, requirePermissionOrCollaboratorCapability } from "@/lib/rbac";
 import { buildDerivedStatusWhere, enrichAssetsWithStatusFromLoaded } from "@/lib/services/status";
 import { buildActiveBulkUnitAllocationMap } from "@/lib/bulk-unit-status";
 import { summarizeItemFamilyState } from "@/lib/item-family-state";
@@ -12,6 +12,10 @@ import { parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
 import { compareItemAssetTags, getAssetTagSearchAliases } from "@/lib/item-asset-tag-sort";
 import { databaseIdSchema, moneyDecimalSchema, nullableHttpUrlSchema } from "@/lib/validation";
 import { AssetStatus, BookingKind, BookingStatus, Prisma } from "@prisma/client";
+import {
+  sanitizeCollaboratorBulkItem,
+  sanitizeCollaboratorPickerAsset,
+} from "@/lib/collaborator-gear";
 
 const GAP_SUGGESTION_SOURCE_LIMIT = 5000;
 
@@ -365,6 +369,7 @@ const SORT_MAP: Record<
 };
 
 export const GET = withAuth(async (req, { user }) => {
+  requirePermissionOrCollaboratorCapability(user, "asset", "view", "GEAR_CATALOG_VIEW");
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim();
   const qr = searchParams.get("qr")?.trim(); // exact QR code value for scan lookup
@@ -375,6 +380,13 @@ export const GET = withAuth(async (req, { user }) => {
   const itemKind = readItemKindFilter(searchParams.get("item_type") ?? searchParams.get("type"));
   const includeSerializedRows = itemKind === "all" || itemKind === "serialized";
   const includeBulkRows = itemKind === "all" || itemKind === "unit-tracked" || itemKind === "quantity-tracked";
+
+  if (
+    user.role === "COLLABORATOR" &&
+    (qr || showAccessories || includeAccessories || searchParams.has("missing") || searchParams.get("ids_only") === "true")
+  ) {
+    throw new HttpError(403, "This inventory operation is not available to collaborators");
+  }
 
   // Support multi-value filters: ?status=A&status=B or single ?status=A
   const statusParams = searchParams.getAll("status").filter(Boolean);
@@ -410,6 +422,7 @@ export const GET = withAuth(async (req, { user }) => {
   const baseWhere: Prisma.AssetWhereInput = {
     ...(qr || includeAccessories ? {} : showAccessories ? { parentAssetId: { not: null } } : { parentAssetId: null }),
     ...(favoritesOnly ? { favoritedBy: { some: { userId: user.id } } } : {}),
+    ...(user.role === "COLLABORATOR" ? { availableForReservation: true } : {}),
     ...(locationIds.length === 1 ? { locationId: locationIds[0] } : {}),
     ...(locationIds.length > 1 ? { locationId: { in: locationIds } } : {}),
     ...(missingField === "category" ? { categoryId: null } : categoryIds.length === 1 ? { categoryId: categoryIds[0] } : categoryIds.length > 1 ? { categoryId: { in: categoryIds } } : {}),
@@ -436,11 +449,17 @@ export const GET = withAuth(async (req, { user }) => {
                 { name: { contains: term, mode: "insensitive" as const } },
               ]),
               { brand: { contains: q, mode: "insensitive" as const } },
-              { serialNumber: { contains: q, mode: "insensitive" as const } },
-              { notes: { contains: q, mode: "insensitive" as const } },
+              ...(user.role === "COLLABORATOR"
+                ? []
+                : [
+                    { serialNumber: { contains: q, mode: "insensitive" as const } },
+                    { notes: { contains: q, mode: "insensitive" as const } },
+                  ]),
               { category: { name: { contains: q, mode: "insensitive" as const } } },
               { location: { name: { contains: q, mode: "insensitive" as const } } },
-              { department: { name: { contains: q, mode: "insensitive" as const } } },
+              ...(user.role === "COLLABORATOR"
+                ? []
+                : [{ department: { name: { contains: q, mode: "insensitive" as const } } }]),
             ] : []),
           ]
         }
@@ -848,7 +867,9 @@ export const GET = withAuth(async (req, { user }) => {
   const data = await enrichAssetsWithStatusFromLoaded(rawData);
 
   const [enrichedWithBookings, favoriteItems, favoriteItemFamilies] = await Promise.all([
-    attachActiveBookings(data),
+    user.role === "COLLABORATOR"
+      ? Promise.resolve(data.map((asset) => ({ ...asset, activeBooking: null })))
+      : attachActiveBookings(data),
     db.favoriteItem.findMany({
       where: { userId: user.id, assetId: { in: data.map((a) => a.id) } },
       select: { assetId: true },
@@ -885,6 +906,25 @@ export const GET = withAuth(async (req, { user }) => {
     assetBreakdownCounts[0] + matchingBulkTotal,
     ...assetBreakdownCounts.slice(1),
   ];
+
+  if (user.role === "COLLABORATOR") {
+    const collaboratorAssets = enrichedWithFavorites.map(sanitizeCollaboratorPickerAsset);
+    const collaboratorBulkItems = bulkItems.map(sanitizeCollaboratorBulkItem);
+    const available = collaboratorAssets.filter((asset) => asset.availability === "AVAILABLE").length
+      + collaboratorBulkItems.filter((item) => item.availability === "AVAILABLE").length;
+    return ok({
+      data: collaboratorAssets,
+      bulkItems: collaboratorBulkItems,
+      itemOrder,
+      total,
+      limit,
+      offset,
+      availabilityBreakdown: {
+        available,
+        unavailable: Math.max(0, collaboratorAssets.length + collaboratorBulkItems.length - available),
+      },
+    });
+  }
 
   return ok({
     data: enrichedWithFavorites,

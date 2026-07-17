@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { sportLabel } from "@/lib/sports";
 import { SPORT_CODES } from "@/lib/sports";
 import type { UserDetail, Location, Role, StudentYear } from "../types";
-import { AREA_LABELS, AREA_OPTIONS, ROLE_OPTIONS, STAFFING_TYPE_OPTIONS, STUDENT_YEAR_OPTIONS, deriveStudentYear } from "../types";
+import { AREA_LABELS, AREA_OPTIONS, ROLE_OPTIONS, STAFFING_TYPE_OPTIONS, STUDENT_YEAR_OPTIONS } from "../types";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,12 +45,32 @@ import { PROFILE_COMPLETION_QUERY_KEY } from "@/hooks/use-profile-completion";
 import { syncCachedUserLists } from "@/lib/user-list-cache";
 import { formatPhoneInput } from "@/lib/profile-phone";
 import { APPAREL_FIT_OPTIONS, MENS_SHOE_SIZE_OPTIONS, SHOE_SYSTEM_OPTIONS, TOP_SIZE_OPTIONS, WOMENS_SHOE_SIZE_OPTIONS } from "@/lib/profile-sizing";
+import {
+  anticipatedGraduationOptions,
+  anticipatedGraduationValue,
+  parseAnticipatedGraduation,
+} from "@/lib/student-profile";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 type ApiEnvelope<T = unknown> = {
   data?: T;
   error?: string;
 };
+
+type CollaboratorPolicyOption = {
+  id: string;
+  status: "ACTIVE" | "SUSPENDED";
+  capabilities: string[];
+  affiliation: { displayName: string; badgeLabel: string };
+};
+
+async function fetchActiveCollaboratorPolicies(): Promise<CollaboratorPolicyOption[]> {
+  const response = await fetch("/api/collaborator-affiliations");
+  if (handleAuthRedirect(response)) return [];
+  if (!response.ok) throw new Error(await parseErrorMessage(response, "Failed to load affiliations"));
+  const result = await parseJsonSafely<ApiEnvelope<CollaboratorPolicyOption[]>>(response);
+  return (result?.data ?? []).filter((policy) => policy.status === "ACTIVE");
+}
 
 /* ── Text Input Field ─────────────────────────────────── */
 
@@ -197,63 +217,6 @@ function DateInputField({
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
-        disabled={!canEdit}
-        className="h-8 text-sm"
-      />
-    </SaveableField>
-  );
-}
-
-/* ── Number Input Field ───────────────────────────────── */
-
-function NumberInputField({
-  label,
-  value,
-  canEdit,
-  onSave,
-  placeholder,
-}: {
-  label: string;
-  value: number | null;
-  canEdit: boolean;
-  onSave: (n: number | null) => Promise<void>;
-  placeholder?: string;
-}) {
-  const [draft, setDraft] = useState(value == null ? "" : String(value));
-  const { status, save } = useSaveField<number | null>(onSave);
-  const id = useId();
-
-  useEffect(() => {
-    setDraft(value == null ? "" : String(value));
-  }, [value]);
-
-  const commit = useCallback(() => {
-    const trimmed = draft.trim();
-    if (trimmed === (value == null ? "" : String(value))) return;
-    if (!trimmed) {
-      save(null);
-      return;
-    }
-    const n = Number(trimmed);
-    if (!Number.isFinite(n) || !Number.isInteger(n)) {
-      toast.error(`${label} must be a whole number`);
-      setDraft(value == null ? "" : String(value));
-      return;
-    }
-    save(n);
-  }, [draft, value, save, label]);
-
-  return (
-    <SaveableField label={label} status={status} htmlFor={id}>
-      <Input
-        id={id}
-        type="number"
-        inputMode="numeric"
-        value={draft}
-        placeholder={placeholder}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
         disabled={!canEdit}
         className="h-8 text-sm"
       />
@@ -674,6 +637,8 @@ const SPORT_OPTIONS = SPORT_CODES.map((s) => ({
   label: s.label,
 }));
 
+const ANTICIPATED_GRADUATION_OPTIONS = anticipatedGraduationOptions();
+
 /* ── User Info Tab ─────────────────────────────────────── */
 
 export default function UserInfoTab({
@@ -698,6 +663,7 @@ export default function UserInfoTab({
   const queryClient = useQueryClient();
   const [addingSport, setAddingSport] = useState(false);
   const [addingArea, setAddingArea] = useState(false);
+  const [selectedCollaboratorPolicyId, setSelectedCollaboratorPolicyId] = useState(user.collaboratorPolicy?.id ?? "");
   const sportBusyRef = useRef(false);
   const areaBusyRef = useRef(false);
 
@@ -715,12 +681,22 @@ export default function UserInfoTab({
   const canEditStaffingClass = canEditProfile;
   // Assignments: admin/staff can edit for self + students
   const canEditAssignments = isAdmin || (isStaff && (isSelf || targetIsStudent));
+  const { data: activeCollaboratorPolicies = [] } = useQuery({
+    queryKey: ["collaborator-affiliations", "active"],
+    queryFn: fetchActiveCollaboratorPolicies,
+    enabled: isAdmin,
+    staleTime: 60_000,
+  });
+
+  useEffect(() => {
+    setSelectedCollaboratorPolicyId(user.collaboratorPolicy?.id ?? "");
+  }, [user.collaboratorPolicy?.id]);
 
   // Fields a user can edit on their own profile (mirrors updateProfileSchema).
   const SELF_EDITABLE_FIELDS = new Set([
     "name", "locationId", "phone", "personalPhone", "workPhone", "slackHandle", "slackProfileUrl",
     "wiscardNumber", "wiscardCardNumber", "wiscardIssueCode",
-    "title", "athleticsEmail", "startDate", "gradYear", "studentYearOverride",
+    "title", "athleticsEmail", "startDate", "gradYear", "graduationTerm", "studentYearOverride",
     "topSizeFit", "topSize", "bottomSize", "shoeSizeSystem", "shoeSize",
     "birthdayMonth", "birthdayDay", "birthYear",
   ]);
@@ -754,10 +730,18 @@ export default function UserInfoTab({
   }
 
   async function changeRole(newRole: string) {
+    if (newRole === "COLLABORATOR" && !selectedCollaboratorPolicyId) {
+      const message = "Select an active affiliation before assigning the Collaborator role.";
+      toast.error(message);
+      throw new Error(message);
+    }
     const res = await fetch(`/api/users/${user.id}/role`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: newRole }),
+      body: JSON.stringify({
+        role: newRole,
+        ...(newRole === "COLLABORATOR" ? { collaboratorPolicyId: selectedCollaboratorPolicyId } : {}),
+      }),
     });
     if (handleAuthRedirect(res)) return;
     if (!res.ok) {
@@ -955,6 +939,32 @@ export default function UserInfoTab({
             canEdit={canEditRole}
             onSave={changeRole}
           />
+          {isAdmin && (
+            <SelectInputField
+              label="Collaborator affiliation"
+              value={selectedCollaboratorPolicyId}
+              options={activeCollaboratorPolicies.map((policy) => ({
+                value: policy.id,
+                label: `${policy.affiliation.displayName} (${policy.affiliation.badgeLabel}) · ${policy.capabilities.length} controls`,
+              }))}
+              canEdit={canEditRole}
+              onSave={async (policyId) => {
+                setSelectedCollaboratorPolicyId(policyId);
+                if (user.role === "COLLABORATOR") {
+                  const response = await fetch(`/api/users/${user.id}/role`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ role: "COLLABORATOR", collaboratorPolicyId: policyId }),
+                  });
+                  if (handleAuthRedirect(response)) return;
+                  if (!response.ok) throw new Error(await parseErrorMessage(response, "Failed to change affiliation"));
+                  onUpdated();
+                }
+              }}
+              allowEmpty={user.role !== "COLLABORATOR"}
+              emptyLabel="Select before assigning"
+            />
+          )}
           <SelectInputField
             label="Scheduling class"
             value={user.staffingType}
@@ -1034,25 +1044,28 @@ export default function UserInfoTab({
           />
           {targetIsStudent && (
             <>
-              <NumberInputField
-                label="Grad Year"
-                value={user.gradYear}
-                placeholder="e.g. 2027"
-                canEdit={canEditProfile || canEditSelf}
-                onSave={(n) => patchUser({ gradYear: n })}
-              />
               <SelectInputField
-                label="Year (override)"
+                label="Year"
                 value={user.studentYearOverride || ""}
                 options={STUDENT_YEAR_OPTIONS as { value: string; label: string }[]}
                 canEdit={canEditProfile || canEditSelf}
                 onSave={(v) => patchUser({ studentYearOverride: (v || null) as StudentYear | null })}
-                allowEmpty
-                emptyLabel={
-                  user.gradYear
-                    ? `Auto: ${(deriveStudentYear(user.gradYear, null) ?? "—")}`
-                    : "Auto"
-                }
+                emptyLabel="Select year"
+              />
+              <SelectInputField
+                label="Anticipated Graduation"
+                value={anticipatedGraduationValue(user.graduationTerm, user.gradYear)}
+                options={ANTICIPATED_GRADUATION_OPTIONS}
+                canEdit={canEditProfile || canEditSelf}
+                onSave={async (value) => {
+                  const graduation = parseAnticipatedGraduation(value);
+                  if (!graduation) throw new Error("Select an anticipated graduation term");
+                  await patchUser({
+                    graduationTerm: graduation.term,
+                    gradYear: graduation.year,
+                  });
+                }}
+                emptyLabel="Select term and year"
               />
             </>
           )}

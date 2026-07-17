@@ -7,6 +7,8 @@ import { shiftWorkerTypeForRole } from "@/lib/shift-display";
 import { withHandler } from "@/lib/api";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { createAuditEntry } from "@/lib/audit";
+import { capabilitiesForActor, collaboratorPolicyMetadataForActor, compatibilityCollaboratorProfile } from "@/lib/collaborator-access";
+import { collaboratorPolicyActorSelect } from "@/lib/services/collaborator-policies";
 
 // Registration is invitation-gated (allowlist), so the IP ceiling is sized for
 // an onboarding wave from a shared network rather than for abuse defense.
@@ -29,6 +31,7 @@ export const POST = withHandler(async (req) => {
   // ── Allowlist gate ──────────────────────────────────────
   const allowedEntry = await db.allowedEmail.findUnique({
     where: { email },
+    include: { collaboratorPolicy: { select: collaboratorPolicyActorSelect } },
   });
 
   if (!allowedEntry) {
@@ -36,6 +39,9 @@ export const POST = withHandler(async (req) => {
   }
 
   if (allowedEntry.claimedAt) {
+    throw new HttpError(403, INVITE_GATE_MESSAGE);
+  }
+  if (allowedEntry.role === "COLLABORATOR" && allowedEntry.collaboratorPolicy?.status !== "ACTIVE") {
     throw new HttpError(403, INVITE_GATE_MESSAGE);
   }
   // ────────────────────────────────────────────────────────
@@ -46,7 +52,9 @@ export const POST = withHandler(async (req) => {
   }
 
   const passwordHash = await hashPassword(body.password);
-  const wiscardNumber = normalizeWiscardNumber(body.wiscardNumber);
+  const wiscardNumber = allowedEntry.role === "COLLABORATOR"
+    ? null
+    : normalizeWiscardNumber(body.wiscardNumber);
 
   // Atomic: create user + claim invitation in one transaction
   let user;
@@ -59,8 +67,12 @@ export const POST = withHandler(async (req) => {
           wiscardNumber,
           passwordHash,
           role: allowedEntry.role, // Use role from allowlist (not hardcoded STUDENT)
+          affiliation: allowedEntry.affiliation,
+          collaboratorProfile: allowedEntry.collaboratorProfile,
+          collaboratorPolicyId: allowedEntry.collaboratorPolicyId,
           staffingType: shiftWorkerTypeForRole(allowedEntry.role),
         },
+        include: { collaboratorPolicy: { select: collaboratorPolicyActorSelect } },
       });
 
       await tx.allowedEmail.update({
@@ -83,6 +95,7 @@ export const POST = withHandler(async (req) => {
   }
 
   await createSession(user.id);
+  const collaboratorPolicy = collaboratorPolicyMetadataForActor(user);
 
   await createAuditEntry({
     actorId: user.id,
@@ -90,7 +103,16 @@ export const POST = withHandler(async (req) => {
     entityType: "user",
     entityId: user.id,
     action: "registered",
-    after: { name: user.name, email: user.email, role: user.role, staffingType: user.staffingType, wiscardLinked: Boolean(user.wiscardNumber) },
+    after: {
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      affiliation: collaboratorPolicy?.affiliationKey ?? user.affiliation,
+      collaboratorProfile: compatibilityCollaboratorProfile(collaboratorPolicy, user.collaboratorProfile),
+      collaboratorPolicyId: user.collaboratorPolicyId,
+      staffingType: user.staffingType,
+      wiscardLinked: Boolean(user.wiscardNumber),
+    },
   });
 
   return ok(
@@ -100,6 +122,10 @@ export const POST = withHandler(async (req) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        affiliation: collaboratorPolicy?.affiliationKey ?? user.affiliation,
+        collaboratorProfile: compatibilityCollaboratorProfile(collaboratorPolicy, user.collaboratorProfile),
+        collaboratorPolicy,
+        capabilities: capabilitiesForActor(user),
       },
     },
     201

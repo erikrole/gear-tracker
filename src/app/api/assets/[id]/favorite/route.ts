@@ -2,11 +2,11 @@ import { Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
-import { requirePermission } from "@/lib/rbac";
+import { requirePermissionOrCollaboratorCapability } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 
 export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
-  requirePermission(user.role, "asset", "favorite");
+  requirePermissionOrCollaboratorCapability(user, "asset", "favorite", "GEAR_CATALOG_VIEW");
 
   const { id } = params;
   const asset = await db.asset.findUnique({

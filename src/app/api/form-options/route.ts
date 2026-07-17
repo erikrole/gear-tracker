@@ -6,6 +6,15 @@ import { buildActiveBulkUnitAllocationMap } from "@/lib/bulk-unit-status";
 import { summarizeItemFamilyState } from "@/lib/item-family-state";
 
 export const GET = withAuth(async (_req, { user }) => {
+  if (user.role === "COLLABORATOR") {
+    const locations = await db.location.findMany({
+      where: { active: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    });
+    return ok({ data: { locations, departments: [], users: [], bulkSkus: [] } });
+  }
+
   const [locations, departments, users, bulkSkus] = await Promise.all([
     db.location.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.department.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),

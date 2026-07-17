@@ -3,6 +3,7 @@ import { getProfileCompletion } from "@/lib/profile-completion";
 
 function profile(overrides: Record<string, unknown> = {}) {
   return {
+    role: "STAFF",
     email: "person@wisc.edu",
     athleticsEmail: null,
     phone: null,
@@ -11,6 +12,9 @@ function profile(overrides: Record<string, unknown> = {}) {
     workPhoneNotApplicable: false,
     wiscardCardNumber: null,
     wiscardIssueCode: null,
+    studentYearOverride: null,
+    gradYear: null,
+    graduationTerm: null,
     topSizeFit: null,
     topSize: null,
     shoeSizeSystem: null,
@@ -61,6 +65,36 @@ describe("profile completion", () => {
 
     expect(result.isComplete).toBe(true);
     expect(result.missingFields).toEqual([]);
+  });
+
+  it("requires year and anticipated graduation for students", () => {
+    const result = getProfileCompletion(profile({ role: "STUDENT" }));
+
+    expect(result.totalCount).toBe(8);
+    expect(result.missingFields).not.toContain("workPhone");
+    expect(result.missingFields).toContain("studentYear");
+    expect(result.missingFields).toContain("anticipatedGraduation");
+  });
+
+  it("accepts complete student academic details", () => {
+    const result = getProfileCompletion(profile({
+      role: "STUDENT",
+      athleticsEmail: "person@athletics.wisc.edu",
+      personalPhone: "608-555-0100",
+      workPhoneNotApplicable: true,
+      wiscardCardNumber: "907032481",
+      wiscardIssueCode: "02",
+      studentYearOverride: "JUNIOR",
+      gradYear: 2027,
+      graduationTerm: "SPRING",
+      topSizeFit: "UNISEX",
+      topSize: "M",
+      shoeSizeSystem: "US_MENS",
+      shoeSize: "10",
+    }));
+
+    expect(result.isComplete).toBe(true);
+    expect(result.completedCount).toBe(8);
   });
 
   it("suppresses the automatic prompt only until the 24-hour snooze expires", () => {

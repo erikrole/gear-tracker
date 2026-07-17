@@ -152,6 +152,8 @@ export async function publishShiftGroup(shiftGroupId: string, actorId: string) {
     const group = await findGroupForPublication(shiftGroupId, tx);
     const before = getSchedulePublicationState(group);
     const snapshot = buildSchedulePublicationSnapshot(group);
+    const previousSnapshot = normalizeStoredSnapshot(group.lastPublishedSnapshot);
+    const publishedSnapshotChanged = !previousSnapshot || stableJson(previousSnapshot) !== stableJson(snapshot);
     const publishedAt = new Date();
     const updated = await tx.shiftGroup.update({
       where: { id: shiftGroupId },
@@ -193,6 +195,7 @@ export async function publishShiftGroup(shiftGroupId: string, actorId: string) {
 
     return {
       shiftGroupId,
+      publishedSnapshotChanged,
       before,
       after: getSchedulePublicationState(updated),
     };

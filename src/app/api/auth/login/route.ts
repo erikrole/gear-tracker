@@ -5,6 +5,13 @@ import { loginSchema } from "@/lib/validation";
 import { withHandler } from "@/lib/api";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { createAuditEntry } from "@/lib/audit";
+import {
+  capabilitiesForActor,
+  collaboratorPolicyMetadataForActor,
+  compatibilityCollaboratorProfile,
+  requireActiveCollaboratorPolicy,
+} from "@/lib/collaborator-access";
+import { collaboratorPolicyActorSelect } from "@/lib/services/collaborator-policies";
 
 // Per-account limit is the real brute-force defense; the per-IP ceiling is a
 // generous backstop sized so a shared office/campus NAT (many users behind one
@@ -25,7 +32,10 @@ export const POST = withHandler(async (req) => {
     throw new HttpError(429, "Too many login attempts. Please try again later.");
   }
 
-  const user = await db.user.findUnique({ where: { email } });
+  const user = await db.user.findUnique({
+    where: { email },
+    include: { collaboratorPolicy: { select: collaboratorPolicyActorSelect } },
+  });
 
   if (!user) {
     throw new HttpError(401, "Invalid credentials");
@@ -42,6 +52,10 @@ export const POST = withHandler(async (req) => {
   if (!user.active) {
     throw new HttpError(403, "Your account has been deactivated. Contact an administrator.");
   }
+
+  requireActiveCollaboratorPolicy(user);
+
+  const collaboratorPolicy = collaboratorPolicyMetadataForActor(user);
 
   await createSession(user.id, body.rememberMe ?? false);
 
@@ -60,6 +74,10 @@ export const POST = withHandler(async (req) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      affiliation: collaboratorPolicy?.affiliationKey ?? user.affiliation,
+      collaboratorProfile: compatibilityCollaboratorProfile(collaboratorPolicy, user.collaboratorProfile),
+      collaboratorPolicy,
+      capabilities: capabilitiesForActor(user),
       staffingType: user.staffingType,
       forcePasswordChange: user.forcePasswordChange,
     }

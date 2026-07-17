@@ -1,4 +1,4 @@
-import { BookingKind, Prisma } from "@prisma/client";
+import { BookingKind, Prisma, type Role } from "@prisma/client";
 import { db } from "@/lib/db";
 import { withKiosk } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
@@ -17,7 +17,7 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
   let openedBookingId = params.id;
   let openedSourceKey = params.id;
   let openedUserId = actorId;
-  let actorRole: "ADMIN" | "STAFF" | "STUDENT" = "STUDENT";
+  let actorRole: Role = "STUDENT";
 
   await db.$transaction(
     async (tx) => {

@@ -25,6 +25,24 @@ export const GET = withAuth(async (_req, { user }) => {
     }
   });
 
+  if (user.role === "COLLABORATOR") {
+    return ok({
+      data: {
+        user: {
+          id: profile.id,
+          name: profile.name,
+          email: profile.email,
+          role: profile.role,
+          affiliation: profile.affiliation,
+          collaboratorProfile: profile.collaboratorProfile,
+          avatarUrl: profile.avatarUrl ?? null,
+          title: profile.title ?? null,
+        },
+        locations: [],
+      },
+    });
+  }
+
   const locations = await db.location.findMany({
     where: { active: true },
     orderBy: { name: "asc" },
@@ -98,6 +116,12 @@ export const PATCH = withAuth(async (req, { user }) => {
   }
 
   const payload = body as z.infer<typeof updateProfileSchema>;
+  if (user.role === "COLLABORATOR") {
+    const disallowedFields = Object.keys(payload).filter((key) => key !== "name");
+    if (disallowedFields.length > 0) {
+      throw new HttpError(403, "This profile field is managed by an administrator");
+    }
+  }
 
   const current = await db.user.findUniqueOrThrow({
     where: { id: user.id },
@@ -107,7 +131,7 @@ export const PATCH = withAuth(async (req, { user }) => {
       wiscardCardNumber: true, wiscardIssueCode: true,
       slackHandle: true, slackProfileUrl: true,
       title: true, athleticsEmail: true, startDate: true,
-      gradYear: true, studentYearOverride: true,
+      gradYear: true, graduationTerm: true, studentYearOverride: true,
       topSizeFit: true, topSize: true, bottomSize: true, shoeSizeSystem: true, shoeSize: true,
       birthdayMonth: true, birthdayDay: true, birthYear: true,
     },
@@ -151,6 +175,7 @@ export const PATCH = withAuth(async (req, { user }) => {
     data.startDate = payload.startDate ? new Date(payload.startDate) : null;
   }
   if (Object.prototype.hasOwnProperty.call(payload, "gradYear")) data.gradYear = payload.gradYear ?? null;
+  if (Object.prototype.hasOwnProperty.call(payload, "graduationTerm")) data.graduationTerm = payload.graduationTerm ?? null;
   if (Object.prototype.hasOwnProperty.call(payload, "studentYearOverride")) data.studentYearOverride = payload.studentYearOverride ?? null;
   if (Object.prototype.hasOwnProperty.call(payload, "topSize")) data.topSize = payload.topSize ?? null;
   if (Object.prototype.hasOwnProperty.call(payload, "topSizeFit")) data.topSizeFit = payload.topSizeFit ?? null;
@@ -221,6 +246,13 @@ export const PATCH = withAuth(async (req, { user }) => {
       name: updated.name,
       email: updated.email,
       role: updated.role,
+      affiliation: updated.affiliation,
+      collaboratorProfile: updated.collaboratorProfile,
+      title: updated.title ?? null,
+      avatarUrl: updated.avatarUrl ?? null,
+      ...(user.role === "COLLABORATOR"
+        ? {}
+        : {
       personalPhone: updated.personalPhone ?? null,
       workPhone: updated.workPhone ?? null,
       workPhoneNotApplicable: updated.workPhoneNotApplicable,
@@ -229,8 +261,8 @@ export const PATCH = withAuth(async (req, { user }) => {
       wiscardIssueCode: updated.wiscardIssueCode ?? null,
       slackHandle: updated.slackHandle ?? null,
       slackProfileUrl: updated.slackProfileUrl ?? null,
-      avatarUrl: updated.avatarUrl ?? null,
       location: updated.location
+        }),
     }
   });
 });

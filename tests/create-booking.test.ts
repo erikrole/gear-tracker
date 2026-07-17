@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { BookingKind, Prisma } from "@prisma/client";
+import { BookingKind, CollaboratorProfile, Prisma, Role } from "@prisma/client";
 import { expectSerializableIsolation } from "./_helpers/assert-transaction";
 
 type MockFn = ReturnType<typeof vi.fn>;
@@ -7,6 +7,7 @@ type CreateBookingTx = {
   booking: Record<"findUnique" | "findUniqueOrThrow" | "create" | "update", MockFn>;
   calendarEvent: Record<"findMany", MockFn>;
   bookingEvent: Record<"createMany", MockFn>;
+  scheduleEventFollow: Record<"createMany", MockFn>;
   bookingSerializedItem: Record<"createMany", MockFn>;
   bookingBulkItem: Record<"createMany", MockFn>;
   assetAllocation: Record<"createMany" | "updateMany", MockFn>;
@@ -32,6 +33,7 @@ vi.mock("@/lib/db", () => {
     },
     calendarEvent: { findMany: vi.fn() },
     bookingEvent: { createMany: vi.fn() },
+    scheduleEventFollow: { createMany: vi.fn() },
     bookingSerializedItem: { createMany: vi.fn() },
     bookingBulkItem: { createMany: vi.fn() },
     assetAllocation: { createMany: vi.fn(), updateMany: vi.fn() },
@@ -95,6 +97,7 @@ beforeEach(() => {
   mockTx.booking.findUniqueOrThrow.mockResolvedValue({ id: "b-new", refNumber: "CO-0001" });
   mockTx.calendarEvent.findMany.mockResolvedValue([]);
   mockTx.bookingEvent.createMany.mockResolvedValue({});
+  mockTx.scheduleEventFollow.createMany.mockResolvedValue({});
   mockTx.bookingSerializedItem.createMany.mockResolvedValue({});
   mockTx.assetAllocation.createMany.mockResolvedValue({});
   mockTx.bookingBulkItem.createMany.mockResolvedValue({});
@@ -102,6 +105,11 @@ beforeEach(() => {
   mockTx.bulkStockBalance.upsert.mockResolvedValue({});
   mockTx.bulkStockMovement.createMany.mockResolvedValue({});
   mockTx.auditLog.create.mockResolvedValue({});
+  mockTx.user.findUnique.mockResolvedValue({
+    active: true,
+    role: Role.ADMIN,
+    collaboratorProfile: null,
+  });
   vi.mocked(checkAvailability).mockResolvedValue({
     conflicts: [],
     shortages: [],
@@ -301,6 +309,56 @@ describe("createBooking", () => {
         { bookingId: "b-new", eventId: "event-early", ordinal: 0 },
         { bookingId: "b-new", eventId: "event-late", ordinal: 1 },
       ],
+    });
+  });
+
+  it("limits collaborator event links to published visible schedule events", async () => {
+    mockTx.user.findUnique.mockResolvedValue({
+      active: true,
+      role: Role.COLLABORATOR,
+      collaboratorProfile: CollaboratorProfile.BTN_STANDARD,
+    });
+    mockTx.calendarEvent.findMany.mockResolvedValue([
+      { id: "event-published", startsAt: new Date("2026-04-01T20:00:00Z") },
+    ]);
+
+    await createBooking(baseInput({
+      kind: BookingKind.RESERVATION,
+      custodySource: undefined,
+      eventIds: ["event-published"],
+    }));
+
+    expect(mockTx.calendarEvent.findMany).toHaveBeenCalledWith({
+      where: {
+        id: { in: ["event-published"] },
+        isHidden: false,
+        archivedAt: null,
+        shiftGroup: {
+          is: {
+            publishedAt: { not: null },
+            archivedAt: null,
+            lastPublishedSnapshot: { not: Prisma.JsonNull },
+          },
+        },
+      },
+      select: { id: true, startsAt: true },
+    });
+  });
+
+  it("does not reveal whether an inaccessible collaborator event ID exists", async () => {
+    mockTx.user.findUnique.mockResolvedValue({
+      active: true,
+      role: Role.COLLABORATOR,
+      collaboratorProfile: CollaboratorProfile.BTN_STANDARD,
+    });
+
+    await expect(createBooking(baseInput({
+      kind: BookingKind.RESERVATION,
+      custodySource: undefined,
+      eventIds: ["event-hidden-or-missing"],
+    }))).rejects.toMatchObject({
+      status: 400,
+      message: "One or more eventIds do not exist",
     });
   });
 

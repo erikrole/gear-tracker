@@ -17,13 +17,16 @@ describe("profile completion web wiring", () => {
     expect(wizard).not.toContain("Sheet");
   });
 
-  it("keeps the requested four-step field semantics", () => {
+  it("keeps the requested role-aware field semantics", () => {
     expect(wizard).toContain('title: "Confirm your email addresses"');
     expect(wizard).toContain('title: "Add your phone numbers"');
     expect(wizard).toContain('title: "Link your Wiscard"');
+    expect(wizard).toContain('title: "Add your student details"');
     expect(wizard).toContain('title: "Add your apparel sizes"');
     expect(wizard).toContain("Which number is it?");
     expect(wizard).toContain("I don’t have a work phone");
+    expect(wizard).toContain('!isStudent && (');
+    expect(wizard).toContain('title: "Add your phone number"');
     expect(wizard).toContain("Wiscard number");
     expect(wizard).toContain("Issue code");
     expect(wizard).not.toContain("scan or type");
@@ -33,6 +36,9 @@ describe("profile completion web wiring", () => {
     expect(wizard).not.toContain("US Men’s");
     expect(wizard).toContain("Issue code can be found in the bottom right of your Wiscard");
     expect(wizard).toContain("formatPhoneInput(event.target.value)");
+    expect(wizard).toContain("Anticipated graduation");
+    expect(wizard).toContain("STUDENT_YEAR_OPTIONS");
+    expect(wizard).toContain('profile.role === "STUDENT"');
   });
 
   it("keeps missing details visible on the signed-in user's web profile", () => {

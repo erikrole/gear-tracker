@@ -3,7 +3,7 @@
 ## Document Control
 
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-15
+- Last Updated: 2026-07-16
 - Status: Active registry
 - Purpose: Track only open gaps, pending decisions, active risks, and intentionally deferred scope.
 - Historical record: [GAPS_AND_RISKS_HISTORY.md](archive/GAPS_AND_RISKS_HISTORY.md)
@@ -44,7 +44,11 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 | Equipment guidance stagnation | The three production guidance rules no longer cover recurring operator mistakes | Run a periodic rule audit with operator input before adding generic configurability | Product |
 | Audit log growth | Retention deletes continue while export-before-delete evidence is still unavailable | Keep bounded retention observable and plan export-before-delete before the dataset reaches the agreed scale threshold | Engineering |
 | Decision or migration provenance drift | A decision references a migration or constraint that is not present in the local migration chain | Reconcile the decision, schema, live migration health, and runbook before schema work; never recreate history by hand | Engineering |
+| Collaborator rollout skew | A collaborator-aware client or invitation reaches production before server/client smoke proves dynamic policy enforcement | Migrations `0095`-`0098` are applied; deploy dual-read server/web before native clients, keep Learfield suspended, and complete temporary BTN policy/editor smoke before inviting Trey | Engineering |
 
 ## Change Log
 
+- 2026-07-16: Replaced the deferred BTN collaborator design with D-041 and `AREA_COLLABORATORS.md`. Production migration/client ordering and authenticated smoke remain an active rollout risk until completed.
+- 2026-07-16: Closed collaborator stale-response, audit-history, and hidden/draft event-link leak paths; centralized fixed profile policy; and added representative route-level denial coverage. Production rollout ordering and smoke remain open.
+- 2026-07-16: Applied the affiliation-policy migration through `0098`, preserved BTN parity, seeded Learfield suspended, and moved the remaining collaborator risk to authenticated production editor/client smoke.
 - 2026-07-11: Split the active registry from the full historical ledger. Resolved gap rows, decisions, and dated reconciliation notes remain in [GAPS_AND_RISKS_HISTORY.md](archive/GAPS_AND_RISKS_HISTORY.md); this file now contains only active follow-up and deliberate deferral.

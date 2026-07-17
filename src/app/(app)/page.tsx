@@ -29,8 +29,17 @@ import { MyGearColumn } from "./dashboard/my-gear-column";
 import { TeamActivityColumn } from "./dashboard/team-activity-column";
 import { PageTransition } from "@/components/ui/motion";
 import type { CreateBookingContext } from "./dashboard-types";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { CollaboratorHome } from "./dashboard/collaborator-home";
 
 export default function DashboardPage() {
+  const { data: user, isLoading } = useCurrentUser();
+  if (isLoading) return <DashboardSkeleton />;
+  if (user?.role === "COLLABORATOR") return <CollaboratorHome name={user.name} capabilities={user.capabilities ?? []} />;
+  return <InternalDashboardPage />;
+}
+
+function InternalDashboardPage() {
   const {
     data,
     fastStats,

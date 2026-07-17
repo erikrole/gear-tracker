@@ -76,6 +76,14 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
     keywords: ["allowlist", "registration", "invite", "users", "students", "staff"],
   },
   {
+    href: "/settings/collaborator-access",
+    label: "Collaborator access",
+    requiredRole: "ADMIN",
+    group: "People",
+    description: "Manage affiliation policies, capabilities, suspension, and history.",
+    keywords: ["affiliation", "partner", "BTN", "Learfield", "permissions", "policy"],
+  },
+  {
     href: "/settings/sports",
     label: "Sports",
     requiredRole: "STAFF",

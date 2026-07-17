@@ -3,6 +3,21 @@
 Last updated: 2026-07-16
 
 ---
+## Completed: Student year and anticipated graduation profiles (2026-07-16)
+
+- [x] Ask Student accounts for an explicit academic year in profile completion.
+- [x] Ask Student accounts for a personal phone only, without work-phone prompts or classification.
+- [x] Capture anticipated graduation as one term/year choice.
+- [x] Expose the same fields to authorized profile editors and profile summaries.
+- [x] Preserve non-student completion behavior and existing student year data.
+- [ ] Apply migration `0097_student_graduation_term` after reviewing the pending `0095` and `0096` collaborator migrations.
+
+### Review
+
+- **Shipped in source:** Student profiles use `Freshman`, `Sophomore`, `Junior`, `Senior`, or `Grad`, plus choices such as `Spring 2027` and `Winter 2027`.
+- **Boundary:** This is profile metadata, not automatic role or offboarding logic.
+- **Deployment:** Held until the shared pending migration chain can be applied together intentionally.
+
 ## Completed: Users roster labels and Add users polish (2026-07-16)
 
 - [x] Derive Student roster titles from primary area and Student status.
@@ -221,13 +236,20 @@ Plan:
 
 ---
 
-## Deferred: collaborator access profiles and affiliation badges (2026-07-10)
+## Active rollout: Big Ten Network collaborator access (2026-07-16)
 
-- Direction accepted, implementation explicitly deferred: introduce affiliation badges for Athletics, Brand Communications, Learfield, and Big Ten Network, separate from authorization.
-- Proposed access composition: Athletics gets gear borrowing only; Learfield and Big Ten Network get gear borrowing plus read-only published Schedule; Brand Communications staff get scoped Schedule management for their staff/students; Brand Communications students get read-only published Schedule.
-- Preserve the kiosk custody contract: borrowers reserve through the app and complete physical pickup through kiosk scan or a gear operator. Do not expose a normal web/app custody-start action.
-- When resumed, plan a default-deny collaborator account type with auditable, expiring capability grants (`GEAR_BORROWER`, `SCHEDULE_VIEWER`, `SCHEDULE_MANAGER`), affiliation-aware badges/filters, strict own-booking read scope, and a narrow schedule people picker. Do not use affiliation as the permission mechanism or grant `STAFF` merely for schedule management.
-- Open product decision for the first implementation slice: scope Brand Communications managers to `COMMS` shifts and Brand Communications assignees by default, unless global Schedule management is explicitly intended.
+- [x] Ship a fixed default-deny `COLLABORATOR` role with presentational BTN affiliation and server-owned `BTN_STANDARD` profile.
+- [x] Limit BTN authorization to gear borrowing and read-only published Schedule with no per-user exceptions.
+- [x] Carry BTN metadata through admin invite, registration, login, `/api/me`, web, native iOS, and kiosk.
+- [x] Enforce sanitized catalog, own-reservation mutations, own-booking reads, profile privacy, global kiosk roster, published snapshots, persistent unfollow, and changed-republish notifications.
+- [x] Add reduced web/iOS surfaces and focused authorization/onboarding/privacy/Schedule/kiosk tests.
+- [x] Replace the fixed registry with database-backed affiliation policies, nine validated capabilities, revisions, risky-change previews, and the admin Collaborator Access editor.
+- [x] Apply migrations `0095` through `0098`; migration health is 100/100 with no pending, failed, or database-only rows.
+- [x] Preserve BTN access and seed Learfield suspended with no grants.
+- [ ] Deploy the dual-read server/web and native clients in that order.
+- [ ] Smoke-test a temporary external BTN account across every approved and denied surface, then deactivate it and verify session revocation.
+- [ ] Invite Trey only after production authorization checks pass.
+- Learfield invitations remain blocked until an admin configures, reviews, and activates its policy. Brand Communications Schedule management remains deferred. Do not authorize from affiliation or grant an internal role as a shortcut.
 
 ---
 

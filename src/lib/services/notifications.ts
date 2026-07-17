@@ -630,6 +630,81 @@ export async function createPublishedShiftGroupNotifications(shiftGroupId: strin
   );
 }
 
+export async function notifyPublishedScheduleFollowers(shiftGroupId: string): Promise<void> {
+  const group = await db.shiftGroup.findUnique({
+    where: { id: shiftGroupId },
+    select: {
+      publishedAt: true,
+      event: {
+        select: {
+          id: true,
+          summary: true,
+          startsAt: true,
+          follows: {
+            where: {
+              mutedAt: null,
+              user: {
+                active: true,
+                role: "COLLABORATOR",
+                collaboratorPolicy: {
+                  is: {
+                    status: "ACTIVE",
+                    grants: { some: { capabilityKey: "PUBLISHED_SCHEDULE_VIEW" } },
+                  },
+                },
+              },
+            },
+            select: {
+              user: { select: { id: true, email: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!group?.publishedAt || group.event.follows.length === 0) return;
+
+  const title = "Published schedule updated";
+  const body = `${group.event.summary} has an updated published crew schedule.`;
+  const publishedAtKey = group.publishedAt.toISOString();
+  const payload = { eventId: group.event.id };
+
+  await Promise.allSettled(group.event.follows.map(async ({ user }) => {
+    const dedupeKey = `published_schedule:${group.event.id}:${publishedAtKey}:${user.id}`;
+    try {
+      await db.notification.create({
+        data: {
+          userId: user.id,
+          type: "published_schedule_updated",
+          title,
+          body,
+          payload,
+          channel: "IN_APP",
+          sentAt: new Date(),
+          dedupeKey,
+        },
+      });
+    } catch (error) {
+      if (error && typeof error === "object" && "code" in error && error.code === "P2002") return;
+      throw error;
+    }
+
+    deferPush(sendPushToUser(user.id, { title, body, payload, category: "schedule" }));
+    if (user.email) {
+      await sendEmailToUser(user.id, {
+        to: user.email,
+        subject: title,
+        html: buildNotificationEmail({
+          title,
+          body,
+          bookingTitle: group.event.summary,
+          dueAt: group.event.startsAt.toISOString(),
+        }),
+      }, "schedule");
+    }
+  }));
+}
+
 type ReservationLifecycleEvent = "booked" | "pickup_ready" | "cancelled";
 
 /**

@@ -3,11 +3,27 @@
 
 ## Enum `Role`
 
-Values: `ADMIN`, `STAFF`, `STUDENT`
+Values: `ADMIN`, `STAFF`, `STUDENT`, `COLLABORATOR`
+
+## Enum `Affiliation`
+
+Values: `BIG_TEN_NETWORK`
+
+## Enum `CollaboratorProfile`
+
+Values: `BTN_STANDARD`
+
+## Enum `CollaboratorPolicyStatus`
+
+Values: `ACTIVE`, `SUSPENDED`
 
 ## Enum `StudentYear`
 
 Values: `FRESHMAN`, `SOPHOMORE`, `JUNIOR`, `SENIOR`, `GRAD`
+
+## Enum `GraduationTerm`
+
+Values: `WINTER`, `SPRING`, `SUMMER`, `FALL`
 
 ## Enum `ApparelFit`
 
@@ -83,75 +99,81 @@ Values: `ACTIVE`, `MAINTENANCE`, `UNKNOWN`
 
 ## Model `User`
 
-Fields: 84
+Fields: 91
 
-- `id                        String                     @id @default(cuid())`
-- `name                      String`
-- `email                     String                     @unique`
-- `passwordHash              String                     @map("password_hash")`
-- `forcePasswordChange       Boolean                    @default(false) @map("force_password_change")`
-- `role                      Role`
-- `staffingType              ShiftWorkerType            @default(ST) @map("staffing_type")`
-- `active                    Boolean                    @default(true)`
-- `hiddenFromRoster          Boolean                    @default(false) @map("hidden_from_roster")`
-- `phone                     String?`
-- `personalPhone             String?                    @map("personal_phone")`
-- `workPhone                 String?                    @map("work_phone")`
-- `workPhoneNotApplicable    Boolean                    @default(false) @map("work_phone_not_applicable")`
-- `wiscardNumber             String?                    @unique @map("wiscard_number")`
-- `wiscardCardNumber         String?                    @unique @map("wiscard_card_number")`
-- `wiscardIssueCode          String?                    @map("wiscard_issue_code")`
-- `profilePromptSnoozedUntil DateTime?                  @map("profile_prompt_snoozed_until")`
-- `slackHandle               String?                    @map("slack_handle")`
-- `slackProfileUrl           String?                    @map("slack_profile_url")`
-- `avatarUrl                 String?                    @map("avatar_url")`
-- `primaryArea               ShiftArea?                 @map("primary_area")`
-- `locationId                String?                    @map("location_id")`
-- `createdAt                 DateTime                   @default(now()) @map("created_at")`
-- `updatedAt                 DateTime                   @updatedAt @map("updated_at")`
-- `lastActiveAt              DateTime?                  @map("last_active_at")`
-- `location                  Location?                  @relation(fields: [locationId], references: [id], onDelete: SetNull)`
-- `sessions                  Session[]`
-- `requested                 Booking[]                  @relation("BookingRequester")`
-- `createdBookings           Booking[]                  @relation("BookingCreator")`
-- `scanEvents                ScanEvent[]`
-- `scanSessions              ScanSession[]`
-- `overrides                 OverrideEvent[]`
-- `bulkMovements             BulkStockMovement[]`
-- `audits                    AuditLog[]                 @relation("AuditActor")`
-- `shiftAssignments          ShiftAssignment[]          @relation("ShiftAssignee")`
-- `shiftAssignedBy           ShiftAssignment[]          @relation("ShiftAssigner")`
-- `shiftGroupsPublished      ShiftGroup[]               @relation("ShiftGroupPublisher")`
-- `shiftAcknowledged         ShiftAssignment[]          @relation("ShiftAssignmentAcknowledgedBy")`
-- `sportAssignments          StudentSportAssignment[]`
-- `areaAssignments           StudentAreaAssignment[]`
-- `tradesPosted              ShiftTrade[]               @relation("TradePostedBy")`
-- `tradesClaimed             ShiftTrade[]               @relation("TradeClaimedBy")`
-- `favorites                 FavoriteItem[]`
-- `familyFavorites           FavoriteItemFamily[]`
-- `passwordResetTokens       PasswordResetToken[]`
-- `notifications             Notification[]`
-- `deviceTokens              DeviceToken[]`
-- `liveActivityTokens        LiveActivityToken[]`
-- `liveActivityStartTokens   LiveActivityStartToken[]`
-- `liveActivityStarts        LiveActivityStart[]`
-- `bookingPhotos             BookingPhoto[]             @relation("BookingPhotoActor")`
-- `checkinReports            CheckinItemReport[]        @relation("CheckinReports")`
-- `allowedEmailsCreated      AllowedEmail[]             @relation("AllowedEmailCreator")`
-- `allowedEmailsClaimed      AllowedEmail[]             @relation("AllowedEmailClaimer")`
-- `licenseCodesHeld          LicenseCode[]              @relation("LicenseClaimedBy")`
-- `licenseCodesCreated       LicenseCode[]              @relation("LicenseCreatedBy")`
-- `licenseClaims             LicenseCodeClaim[]`
-- `resources                 Resource[]`
-- `resourcesVerified         Resource[]                 @relation("ResourceLastVerifiedBy")`
-- `availabilityBlocks        StudentAvailabilityBlock[]`
-- `availabilityReviewed      StudentAvailabilityBlock[] @relation("AvailabilityReviewer")`
-- `travelMemberships         EventTravelMember[]        @relation("TravelMembers")`
-- `badges                    StudentBadge[]`
-- `badgesAwardedByMe         StudentBadge[]             @relation("BadgeAwardedBy")`
-- `badgeStreaks              BadgeStreak[]`
-- `notificationPrefs         Json?                      @map("notification_prefs")`
-- `icsToken                  String?                    @unique @map("ics_token")`
+- `id                          String                       @id @default(cuid())`
+- `name                        String`
+- `email                       String                       @unique`
+- `passwordHash                String                       @map("password_hash")`
+- `forcePasswordChange         Boolean                      @default(false) @map("force_password_change")`
+- `role                        Role`
+- `affiliation                 Affiliation?`
+- `collaboratorProfile         CollaboratorProfile?         @map("collaborator_profile")`
+- `collaboratorPolicyId        String?                      @map("collaborator_policy_id")`
+- `staffingType                ShiftWorkerType              @default(ST) @map("staffing_type")`
+- `active                      Boolean                      @default(true)`
+- `hiddenFromRoster            Boolean                      @default(false) @map("hidden_from_roster")`
+- `phone                       String?`
+- `personalPhone               String?                      @map("personal_phone")`
+- `workPhone                   String?                      @map("work_phone")`
+- `workPhoneNotApplicable      Boolean                      @default(false) @map("work_phone_not_applicable")`
+- `wiscardNumber               String?                      @unique @map("wiscard_number")`
+- `wiscardCardNumber           String?                      @unique @map("wiscard_card_number")`
+- `wiscardIssueCode            String?                      @map("wiscard_issue_code")`
+- `profilePromptSnoozedUntil   DateTime?                    @map("profile_prompt_snoozed_until")`
+- `slackHandle                 String?                      @map("slack_handle")`
+- `slackProfileUrl             String?                      @map("slack_profile_url")`
+- `avatarUrl                   String?                      @map("avatar_url")`
+- `primaryArea                 ShiftArea?                   @map("primary_area")`
+- `locationId                  String?                      @map("location_id")`
+- `createdAt                   DateTime                     @default(now()) @map("created_at")`
+- `updatedAt                   DateTime                     @updatedAt @map("updated_at")`
+- `lastActiveAt                DateTime?                    @map("last_active_at")`
+- `location                    Location?                    @relation(fields: [locationId], references: [id], onDelete: SetNull)`
+- `sessions                    Session[]`
+- `requested                   Booking[]                    @relation("BookingRequester")`
+- `createdBookings             Booking[]                    @relation("BookingCreator")`
+- `scanEvents                  ScanEvent[]`
+- `scanSessions                ScanSession[]`
+- `overrides                   OverrideEvent[]`
+- `bulkMovements               BulkStockMovement[]`
+- `audits                      AuditLog[]                   @relation("AuditActor")`
+- `shiftAssignments            ShiftAssignment[]            @relation("ShiftAssignee")`
+- `shiftAssignedBy             ShiftAssignment[]            @relation("ShiftAssigner")`
+- `shiftGroupsPublished        ShiftGroup[]                 @relation("ShiftGroupPublisher")`
+- `shiftAcknowledged           ShiftAssignment[]            @relation("ShiftAssignmentAcknowledgedBy")`
+- `sportAssignments            StudentSportAssignment[]`
+- `areaAssignments             StudentAreaAssignment[]`
+- `tradesPosted                ShiftTrade[]                 @relation("TradePostedBy")`
+- `tradesClaimed               ShiftTrade[]                 @relation("TradeClaimedBy")`
+- `favorites                   FavoriteItem[]`
+- `familyFavorites             FavoriteItemFamily[]`
+- `passwordResetTokens         PasswordResetToken[]`
+- `notifications               Notification[]`
+- `deviceTokens                DeviceToken[]`
+- `liveActivityTokens          LiveActivityToken[]`
+- `liveActivityStartTokens     LiveActivityStartToken[]`
+- `liveActivityStarts          LiveActivityStart[]`
+- `bookingPhotos               BookingPhoto[]               @relation("BookingPhotoActor")`
+- `checkinReports              CheckinItemReport[]          @relation("CheckinReports")`
+- `allowedEmailsCreated        AllowedEmail[]               @relation("AllowedEmailCreator")`
+- `allowedEmailsClaimed        AllowedEmail[]               @relation("AllowedEmailClaimer")`
+- `licenseCodesHeld            LicenseCode[]                @relation("LicenseClaimedBy")`
+- `licenseCodesCreated         LicenseCode[]                @relation("LicenseCreatedBy")`
+- `licenseClaims               LicenseCodeClaim[]`
+- `resources                   Resource[]`
+- `resourcesVerified           Resource[]                   @relation("ResourceLastVerifiedBy")`
+- `availabilityBlocks          StudentAvailabilityBlock[]`
+- `availabilityReviewed        StudentAvailabilityBlock[]   @relation("AvailabilityReviewer")`
+- `travelMemberships           EventTravelMember[]          @relation("TravelMembers")`
+- `badges                      StudentBadge[]`
+- `badgesAwardedByMe           StudentBadge[]               @relation("BadgeAwardedBy")`
+- `badgeStreaks                BadgeStreak[]`
+- `notificationPrefs           Json?                        @map("notification_prefs")`
+- `icsToken                    String?                      @unique @map("ics_token")`
+- `scheduleEventFollows        ScheduleEventFollow[]`
+- `collaboratorPolicy          CollaboratorPolicy?          @relation(fields: [collaboratorPolicyId], references: [id], onDelete: Restrict)`
+- `collaboratorPolicyRevisions CollaboratorPolicyRevision[] @relation("CollaboratorPolicyRevisionActor")`
 - `title               String?`
 - `athleticsEmail      String?         @unique @map("athletics_email")`
 - `startDate           DateTime?       @map("start_date") @db.Date`
@@ -160,6 +182,7 @@ Fields: 84
 - `reports             User[]          @relation("DirectReports")`
 - `directReportName    String?         @map("direct_report_name")`
 - `gradYear            Int?            @map("grad_year")`
+- `graduationTerm      GraduationTerm? @map("graduation_term")`
 - `studentYearOverride StudentYear?    @map("student_year_override")`
 - `topSizeFit          ApparelFit?     @map("top_size_fit")`
 - `topSize             String?         @map("top_size")`
@@ -173,6 +196,8 @@ Fields: 84
 Indexes and constraints:
 
 - `@@index([active, hiddenFromRoster])`
+- `@@index([role, affiliation])`
+- `@@index([collaboratorPolicyId])`
 - `@@index([directReportId])`
 - `@@map("users")`
 
@@ -806,38 +831,39 @@ Indexes and constraints:
 
 ## Model `CalendarEvent`
 
-Fields: 30
+Fields: 31
 
-- `id              String              @id @default(cuid())`
-- `sourceId        String?             @map("source_id")`
-- `externalId      String              @map("external_id")`
+- `id              String                @id @default(cuid())`
+- `sourceId        String?               @map("source_id")`
+- `externalId      String                @map("external_id")`
 - `summary         String`
 - `description     String?`
-- `rawSummary      String?             @map("raw_summary")`
-- `rawLocationText String?             @map("raw_location_text")`
-- `rawDescription  String?             @map("raw_description")`
-- `startsAt        DateTime            @map("starts_at")`
-- `endsAt          DateTime            @map("ends_at")`
-- `allDay          Boolean             @default(false) @map("all_day")`
-- `status          CalendarEventStatus @default(CONFIRMED)`
-- `locationId      String?             @map("location_id")`
-- `sportCode       String?             @map("sport_code")`
-- `isHome          Boolean?            @map("is_home")`
-- `isHidden        Boolean             @default(false) @map("is_hidden")`
-- `summaryLocked   Boolean             @default(false) @map("summary_locked")`
-- `isHomeLocked    Boolean             @default(false) @map("is_home_locked")`
-- `locationLocked  Boolean             @default(false) @map("location_locked")`
-- `archivedAt      DateTime?           @map("archived_at")`
+- `rawSummary      String?               @map("raw_summary")`
+- `rawLocationText String?               @map("raw_location_text")`
+- `rawDescription  String?               @map("raw_description")`
+- `startsAt        DateTime              @map("starts_at")`
+- `endsAt          DateTime              @map("ends_at")`
+- `allDay          Boolean               @default(false) @map("all_day")`
+- `status          CalendarEventStatus   @default(CONFIRMED)`
+- `locationId      String?               @map("location_id")`
+- `sportCode       String?               @map("sport_code")`
+- `isHome          Boolean?              @map("is_home")`
+- `isHidden        Boolean               @default(false) @map("is_hidden")`
+- `summaryLocked   Boolean               @default(false) @map("summary_locked")`
+- `isHomeLocked    Boolean               @default(false) @map("is_home_locked")`
+- `locationLocked  Boolean               @default(false) @map("location_locked")`
+- `archivedAt      DateTime?             @map("archived_at")`
 - `subtitle        String?`
 - `opponent        String?`
-- `createdAt       DateTime            @default(now()) @map("created_at")`
-- `updatedAt       DateTime            @updatedAt @map("updated_at")`
-- `source          CalendarSource?     @relation(fields: [sourceId], references: [id], onDelete: Cascade)`
-- `location        Location?           @relation(fields: [locationId], references: [id], onDelete: SetNull)`
+- `createdAt       DateTime              @default(now()) @map("created_at")`
+- `updatedAt       DateTime              @updatedAt @map("updated_at")`
+- `source          CalendarSource?       @relation(fields: [sourceId], references: [id], onDelete: Cascade)`
+- `location        Location?             @relation(fields: [locationId], references: [id], onDelete: SetNull)`
 - `bookings        Booking[]`
 - `bookingLinks    BookingEvent[]`
 - `shiftGroup      ShiftGroup?`
 - `travelMembers   EventTravelMember[]`
+- `follows         ScheduleEventFollow[]`
 
 Indexes and constraints:
 
@@ -847,6 +873,30 @@ Indexes and constraints:
 - `@@index([sportCode])`
 - `@@index([archivedAt])`
 - `@@map("calendar_events")`
+
+## Enum `ScheduleFollowSource`
+
+Values: `MANUAL`, `BOOKING`
+
+## Model `ScheduleEventFollow`
+
+Fields: 9
+
+- `id        String               @id @default(cuid())`
+- `userId    String               @map("user_id")`
+- `eventId   String               @map("event_id")`
+- `source    ScheduleFollowSource @default(MANUAL)`
+- `mutedAt   DateTime?            @map("muted_at")`
+- `createdAt DateTime             @default(now()) @map("created_at")`
+- `updatedAt DateTime             @updatedAt @map("updated_at")`
+- `user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)`
+- `event     CalendarEvent        @relation(fields: [eventId], references: [id], onDelete: Cascade)`
+
+Indexes and constraints:
+
+- `@@unique([userId, eventId])`
+- `@@index([eventId, mutedAt])`
+- `@@map("schedule_event_follows")`
 
 ## Model `BookingEvent`
 
@@ -1050,22 +1100,103 @@ Indexes and constraints:
 
 ## Model `AllowedEmail`
 
-Fields: 9
+Fields: 13
 
-- `id          String    @id @default(cuid())`
-- `email       String    @unique`
-- `role        Role      @default(STUDENT)`
-- `createdById String    @map("created_by_id")`
-- `claimedAt   DateTime? @map("claimed_at")`
-- `claimedById String?   @map("claimed_by_id")`
-- `createdAt   DateTime  @default(now()) @map("created_at")`
-- `createdBy   User      @relation("AllowedEmailCreator", fields: [createdById], references: [id], onDelete: Restrict)`
-- `claimedBy   User?     @relation("AllowedEmailClaimer", fields: [claimedById], references: [id], onDelete: SetNull)`
+- `id                   String               @id @default(cuid())`
+- `email                String               @unique`
+- `role                 Role                 @default(STUDENT)`
+- `affiliation          Affiliation?`
+- `collaboratorProfile  CollaboratorProfile? @map("collaborator_profile")`
+- `collaboratorPolicyId String?              @map("collaborator_policy_id")`
+- `createdById          String               @map("created_by_id")`
+- `claimedAt            DateTime?            @map("claimed_at")`
+- `claimedById          String?              @map("claimed_by_id")`
+- `createdAt            DateTime             @default(now()) @map("created_at")`
+- `createdBy            User                 @relation("AllowedEmailCreator", fields: [createdById], references: [id], onDelete: Restrict)`
+- `claimedBy            User?                @relation("AllowedEmailClaimer", fields: [claimedById], references: [id], onDelete: SetNull)`
+- `collaboratorPolicy   CollaboratorPolicy?  @relation(fields: [collaboratorPolicyId], references: [id], onDelete: Restrict)`
 
 Indexes and constraints:
 
 - `@@index([createdById])`
+- `@@index([role, affiliation])`
+- `@@index([collaboratorPolicyId])`
 - `@@map("allowed_emails")`
+
+## Model `CollaboratorAffiliation`
+
+Fields: 8
+
+- `id          String              @id @default(cuid())`
+- `key         String              @unique`
+- `displayName String              @map("display_name")`
+- `badgeLabel  String              @map("badge_label")`
+- `archivedAt  DateTime?           @map("archived_at")`
+- `createdAt   DateTime            @default(now()) @map("created_at")`
+- `updatedAt   DateTime            @updatedAt @map("updated_at")`
+- `policy      CollaboratorPolicy?`
+
+Indexes and constraints:
+
+- `@@index([archivedAt])`
+- `@@map("collaborator_affiliations")`
+
+## Model `CollaboratorPolicy`
+
+Fields: 11
+
+- `id            String                       @id @default(cuid())`
+- `affiliationId String                       @unique @map("affiliation_id")`
+- `status        CollaboratorPolicyStatus     @default(SUSPENDED)`
+- `version       Int                          @default(1)`
+- `createdAt     DateTime                     @default(now()) @map("created_at")`
+- `updatedAt     DateTime                     @updatedAt @map("updated_at")`
+- `affiliation   CollaboratorAffiliation      @relation(fields: [affiliationId], references: [id], onDelete: Restrict)`
+- `grants        CollaboratorPolicyGrant[]`
+- `revisions     CollaboratorPolicyRevision[]`
+- `users         User[]`
+- `allowedEmails AllowedEmail[]`
+
+Indexes and constraints:
+
+- `@@index([status])`
+- `@@map("collaborator_policies")`
+
+## Model `CollaboratorPolicyGrant`
+
+Fields: 5
+
+- `id            String             @id @default(cuid())`
+- `policyId      String             @map("policy_id")`
+- `capabilityKey String             @map("capability_key")`
+- `createdAt     DateTime           @default(now()) @map("created_at")`
+- `policy        CollaboratorPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)`
+
+Indexes and constraints:
+
+- `@@unique([policyId, capabilityKey])`
+- `@@index([capabilityKey, policyId])`
+- `@@map("collaborator_policy_grants")`
+
+## Model `CollaboratorPolicyRevision`
+
+Fields: 9
+
+- `id           String                   @id @default(cuid())`
+- `policyId     String                   @map("policy_id")`
+- `version      Int`
+- `status       CollaboratorPolicyStatus`
+- `capabilities Json`
+- `actorUserId  String?                  @map("actor_user_id")`
+- `createdAt    DateTime                 @default(now()) @map("created_at")`
+- `policy       CollaboratorPolicy       @relation(fields: [policyId], references: [id], onDelete: Cascade)`
+- `actor        User?                    @relation("CollaboratorPolicyRevisionActor", fields: [actorUserId], references: [id], onDelete: SetNull)`
+
+Indexes and constraints:
+
+- `@@unique([policyId, version])`
+- `@@index([actorUserId, createdAt])`
+- `@@map("collaborator_policy_revisions")`
 
 ## Model `SystemConfig`
 

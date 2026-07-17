@@ -189,12 +189,16 @@ export const UserTableRow = memo(function UserTableRow({ user }: { user: UserRow
               className="text-[13px] leading-tight"
               style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}
             />
-            <span
-              className="text-[11px] text-muted-foreground leading-tight truncate"
-              style={{ fontFamily: "var(--font-mono)" }}
-            >
-              {user.email}
-            </span>
+            {user.email ? (
+              <span
+                className="text-[11px] text-muted-foreground leading-tight truncate"
+                style={{ fontFamily: "var(--font-mono)" }}
+              >
+                {user.email}
+              </span>
+            ) : user.collaboratorPolicy ? (
+              <span className="text-[11px] text-muted-foreground leading-tight">{user.collaboratorPolicy.affiliation.displayName}</span>
+            ) : null}
           </div>
         </div>
       </TableCell>

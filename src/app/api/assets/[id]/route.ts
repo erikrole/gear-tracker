@@ -2,12 +2,13 @@ import { z } from "zod";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
-import { requirePermission } from "@/lib/rbac";
+import { requirePermission, requirePermissionOrCollaboratorCapability } from "@/lib/rbac";
 import { BookingStatus, Prisma } from "@prisma/client";
 import { deriveAssetStatus } from "@/lib/services/status";
 import { createAuditEntry } from "@/lib/audit";
 import { canonicalFirmwareIdentity } from "@/lib/firmware-watch-targets";
 import { databaseIdSchema, moneyDecimalSchema, nullableHttpUrlSchema } from "@/lib/validation";
+import { sanitizeCollaboratorPickerAsset } from "@/lib/collaborator-gear";
 
 const nullableTrimmedString = (max = 500) =>
   z.preprocess(
@@ -99,6 +100,39 @@ async function findFirmwareWatchTargetForAsset(brandValue: string, modelValue: s
 }
 
 export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
+  requirePermissionOrCollaboratorCapability(user, "asset", "view", "GEAR_CATALOG_VIEW");
+
+  if (user.role === "COLLABORATOR") {
+    const [asset, computedStatus] = await Promise.all([
+      db.asset.findFirst({
+        where: {
+          id: params.id,
+          parentAssetId: null,
+          availableForReservation: true,
+          status: { not: "RETIRED" },
+        },
+        select: {
+          id: true,
+          assetTag: true,
+          name: true,
+          brand: true,
+          model: true,
+          imageUrl: true,
+          location: { select: { id: true, name: true } },
+          category: { select: { id: true, name: true } },
+        },
+      }),
+      deriveAssetStatus(params.id).catch(() => null),
+    ]);
+    if (!asset) throw new HttpError(404, "Asset not found");
+    return ok({
+      data: sanitizeCollaboratorPickerAsset({
+        ...asset,
+        computedStatus: computedStatus ?? "UNAVAILABLE",
+      }),
+    });
+  }
+
   const [asset, derivedStatus, bookingHistory, activeAllocs, upcomingReservations, accessories, favoriteRow] = await Promise.all([
     db.asset.findUnique({
       where: { id: params.id },

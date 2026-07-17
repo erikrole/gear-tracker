@@ -128,6 +128,8 @@ export const GET = withAuth(async (req, { user }) => {
 
   const scope = new URL(req.url).searchParams.get("scope");
   const isIosHomeScope = scope === "ios-home";
+  const isCollaborator = user.role === "COLLABORATOR";
+  const isPersonalOnly = isIosHomeScope || isCollaborator;
   const now = new Date();
   const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
@@ -198,7 +200,7 @@ export const GET = withAuth(async (req, { user }) => {
   ] = await Promise.allSettled([
     countsPromise,
     // Team checkouts (excl. me)
-    isIosHomeScope
+    isPersonalOnly
       ? Promise.resolve([])
       : db.booking.findMany({
           where: { kind: "CHECKOUT", status: "OPEN", requesterUserId: { not: user.id } },
@@ -207,7 +209,7 @@ export const GET = withAuth(async (req, { user }) => {
           include: bookingInclude,
         }),
     // Team reservations (excl. me) — next 7 days only (AC-4)
-    isIosHomeScope
+    isPersonalOnly
       ? Promise.resolve([])
       : db.booking.findMany({
           where: { kind: "RESERVATION", status: "BOOKED", requesterUserId: { not: user.id }, startsAt: { gte: now, lte: sevenDaysFromNow } },
@@ -216,7 +218,7 @@ export const GET = withAuth(async (req, { user }) => {
           include: bookingInclude,
         }),
     // Stale reservations — planning cleanup, not checkout custody overdue
-    isIosHomeScope
+    isPersonalOnly
       ? Promise.resolve([])
       : db.booking.findMany({
           where: { kind: "RESERVATION", status: "BOOKED", endsAt: { lt: now } },
@@ -235,7 +237,7 @@ export const GET = withAuth(async (req, { user }) => {
     // today visible until local midnight (endsAt > start of today), so an
     // all-day event doesn't vanish at 12:00am and a 7pm game isn't hidden the
     // moment it ends. Encoding-independent for all-day events.
-    isIosHomeScope
+    isPersonalOnly
       ? Promise.resolve([])
       : db.calendarEvent.findMany({
           where: {
@@ -278,7 +280,7 @@ export const GET = withAuth(async (req, { user }) => {
       include: bookingInclude,
     }),
     // Top overdue for banner — all roles see all overdue
-    isIosHomeScope
+    isPersonalOnly
       ? Promise.resolve([])
       : db.booking.findMany({
           where: {
@@ -300,7 +302,7 @@ export const GET = withAuth(async (req, { user }) => {
           },
         }),
     // Drafts: current user's in-progress work
-    isIosHomeScope && user.role === "STUDENT"
+    isPersonalOnly && (user.role === "STUDENT" || isCollaborator)
       ? Promise.resolve([])
       : db.booking.findMany({
           where: { status: "DRAFT", createdBy: user.id },
@@ -314,13 +316,16 @@ export const GET = withAuth(async (req, { user }) => {
     // Order: pickups whose start time has passed first (most urgent),
     // then by earliest start time. Cap at 5 for the dashboard preview.
     db.booking.findMany({
-      where: { status: "PENDING_PICKUP" },
+      where: {
+        status: "PENDING_PICKUP",
+        ...(isCollaborator ? { requesterUserId: user.id } : {}),
+      },
       orderBy: { startsAt: "asc" },
       take: 5,
       include: bookingInclude,
     }),
     // My upcoming shift assignments
-    db.shiftAssignment.findMany({
+    isCollaborator ? Promise.resolve([]) : db.shiftAssignment.findMany({
       where: {
         userId: user.id,
         status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
@@ -361,7 +366,7 @@ export const GET = withAuth(async (req, { user }) => {
       },
     }),
     // Recent damage/lost reports (last 30 days, staff/admin only)
-    user.role !== "STUDENT"
+    user.role === "ADMIN" || user.role === "STAFF"
       ? db.checkinItemReport.findMany({
           where: { createdAt: { gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) } },
           orderBy: { createdAt: "desc" },
@@ -374,7 +379,7 @@ export const GET = withAuth(async (req, { user }) => {
         })
       : Promise.resolve([]),
     // Assets currently in maintenance
-    user.role !== "STUDENT"
+    user.role === "ADMIN" || user.role === "STAFF"
       ? db.asset.findMany({
           where: { status: "MAINTENANCE" },
           orderBy: { updatedAt: "desc" },
@@ -544,17 +549,17 @@ export const GET = withAuth(async (req, { user }) => {
     }));
   }
 
-  const teamCheckoutsTotalCount = counts.teamCheckoutsTotal;
-  const teamCheckoutsOverdueCount = counts.teamCheckoutsOverdue;
-  const teamReservationsTotalCount = counts.teamReservationsTotal;
+  const teamCheckoutsTotalCount = isCollaborator ? 0 : counts.teamCheckoutsTotal;
+  const teamCheckoutsOverdueCount = isCollaborator ? 0 : counts.teamCheckoutsOverdue;
+  const teamReservationsTotalCount = isCollaborator ? 0 : counts.teamReservationsTotal;
   const myCheckoutsTotalCount = counts.myCheckoutsTotal;
   const myOverdueCount = counts.myOverdue;
-  const totalCheckedOut = counts.totalCheckedOut;
-  const totalOverdue = counts.totalOverdue;
-  const totalReserved = counts.totalReserved;
-  const dueTodayCount = counts.dueToday;
-  const pendingPickupTotalCount = counts.pendingPickupTotal;
-  const staleReservationTotalCount = counts.staleReservationTotal;
+  const totalCheckedOut = isCollaborator ? counts.myCheckoutsTotal : counts.totalCheckedOut;
+  const totalOverdue = isCollaborator ? counts.myOverdue : counts.totalOverdue;
+  const totalReserved = isCollaborator ? myReservations.length : counts.totalReserved;
+  const dueTodayCount = isCollaborator ? counts.myDueToday : counts.dueToday;
+  const pendingPickupTotalCount = isCollaborator ? pendingPickupsRaw.length : counts.pendingPickupTotal;
+  const staleReservationTotalCount = isCollaborator ? 0 : counts.staleReservationTotal;
 
   const teamCheckouts = teamCheckoutsRaw.map((c) => toBookingSummary(c, now, true));
   teamCheckouts.sort(sortOverdueFirst);

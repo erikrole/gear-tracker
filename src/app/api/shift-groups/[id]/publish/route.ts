@@ -2,7 +2,10 @@ import { withAuth } from "@/lib/api";
 import { createAuditEntry } from "@/lib/audit";
 import { ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
-import { createPublishedShiftGroupNotifications } from "@/lib/services/notifications";
+import {
+  createPublishedShiftGroupNotifications,
+  notifyPublishedScheduleFollowers,
+} from "@/lib/services/notifications";
 import { publishShiftGroup } from "@/lib/services/schedule-publication";
 
 export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
@@ -22,6 +25,10 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
 
   if (!result.before.publishedAt) {
     createPublishedShiftGroupNotifications(params.id).catch(() => {});
+  } else if (result.publishedSnapshotChanged) {
+    await notifyPublishedScheduleFollowers(params.id).catch((error) => {
+      console.error("[schedule-publish] follower notifications failed", error);
+    });
   }
 
   return ok({ data: result.after });

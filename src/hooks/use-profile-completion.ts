@@ -3,9 +3,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 import type { ProfileCompletionField, ProfileCompletionStep } from "@/lib/profile-completion";
+import type { GraduationTermValue, StudentYearValue } from "@/lib/student-profile";
 
 export type ProfileCompletionResponse = {
   profile: {
+    role: "ADMIN" | "STAFF" | "STUDENT" | "COLLABORATOR";
     email: string;
     athleticsEmail: string | null;
     phone: string | null;
@@ -14,6 +16,9 @@ export type ProfileCompletionResponse = {
     workPhoneNotApplicable: boolean;
     wiscardCardNumber: string | null;
     wiscardIssueCode: string | null;
+    studentYearOverride: StudentYearValue | null;
+    gradYear: number | null;
+    graduationTerm: GraduationTermValue | null;
     topSizeFit: "UNISEX" | "WOMENS" | "MENS" | null;
     topSize: string | null;
     shoeSizeSystem: "US_WOMENS" | "US_MENS" | null;

@@ -12,6 +12,10 @@ const PAGE_SIZE = 50;
 export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
   const { id } = params;
 
+  if (user.role === "COLLABORATOR") {
+    throw new HttpError(403, "Booking audit history is not available to collaborators");
+  }
+
   // Verify user has view access to this booking (students can only see own bookings)
   await requireBookingAction(id, user, "view");
   const url = new URL(req.url);

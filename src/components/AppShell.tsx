@@ -102,13 +102,49 @@ const SEARCH_RESULT_SOURCES = {
   users: "Users",
 } as const;
 
-const bottomNavItems = [
+type BottomNavItem = {
+  label: string;
+  href: string;
+  icon: React.ElementType;
+  badge?: "overdue";
+  primary?: boolean;
+};
+
+const bottomNavItems: BottomNavItem[] = [
   { label: "Home", href: "/", icon: LayoutGridIcon },
   { label: "Schedule", href: "/schedule", icon: CalendarCheckIcon },
   { label: "Bookings", href: "/bookings", icon: BookOpenIcon, badge: "overdue" as const },
   { label: "Items", href: "/items", icon: LayersIcon },
   { label: "Lookup", href: "/scan", icon: ScanIcon, primary: true },
 ];
+
+const collaboratorBottomNavItems: BottomNavItem[] = [
+  { label: "Home", href: "/", icon: LayoutGridIcon },
+  { label: "Schedule", href: "/schedule", icon: CalendarCheckIcon },
+  { label: "My Gear", href: "/bookings", icon: BookOpenIcon, badge: "overdue" as const },
+  { label: "Items", href: "/items", icon: LayersIcon },
+  { label: "Notifications", href: "/notifications", icon: BellIcon },
+];
+
+const COLLABORATOR_ROUTE_CAPABILITY: Array<{ matches: (pathname: string) => boolean; capability: string }> = [
+  { matches: (value) => value === "/schedule" || value.startsWith("/schedule/"), capability: "PUBLISHED_SCHEDULE_VIEW" },
+  { matches: (value) => value === "/items" || (value.startsWith("/items/") && value !== "/items/new"), capability: "GEAR_CATALOG_VIEW" },
+  { matches: (value) => value === "/bookings" || value.startsWith("/bookings/"), capability: "MY_GEAR_VIEW" },
+];
+
+function collaboratorCanVisit(pathname: string, user: CurrentUser): boolean {
+  const alwaysAllowed = pathname === "/"
+    || pathname === "/profile"
+    || pathname === "/settings/profile"
+    || pathname === "/settings/security"
+    || pathname === "/settings/notifications"
+    || pathname === `/users/${user.id}`
+    || pathname === "/notifications"
+    || pathname.startsWith("/notifications/");
+  if (alwaysAllowed) return true;
+  const route = COLLABORATOR_ROUTE_CAPABILITY.find((entry) => entry.matches(pathname));
+  return Boolean(route && user.capabilities?.includes(route.capability));
+}
 
 export default function AppShell({
   children,
@@ -123,6 +159,13 @@ export default function AppShell({
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const { data: user, isLoading } = useCurrentUser(initialUser);
+  const isCollaborator = user?.role === "COLLABORATOR";
+  const visibleBottomNavItems = isCollaborator
+    ? collaboratorBottomNavItems.filter((item) => {
+        const route = COLLABORATOR_ROUTE_CAPABILITY.find((entry) => entry.matches(item.href));
+        return !route || user?.capabilities?.includes(route.capability);
+      })
+    : bottomNavItems;
   const [loggingOut, setLoggingOut] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [overdueBadgeCount, setOverdueBadgeCount] = useState(0);
@@ -131,6 +174,12 @@ export default function AppShell({
   useEffect(() => {
     if (!isLoading && !user) router.replace("/login");
   }, [isLoading, router, user]);
+
+  useEffect(() => {
+    if (!isCollaborator || !user) return;
+    const allowed = collaboratorCanVisit(pathname, user);
+    if (!allowed) router.replace("/");
+  }, [isCollaborator, pathname, router, user]);
 
   // Badge counts — refresh on navigation so counts stay fresh after user actions
   useEffect(() => {
@@ -223,6 +272,7 @@ export default function AppShell({
   const cmdAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    if (isCollaborator) return;
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
@@ -231,10 +281,17 @@ export default function AppShell({
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [isCollaborator]);
 
   // Live search when query changes
   useEffect(() => {
+    if (isCollaborator) {
+      setCmdResults([]);
+      setCmdLoading(false);
+      setCmdError(null);
+      setCmdPartialFailures([]);
+      return;
+    }
     const q = cmdQuery.trim();
     if (!q) { setCmdResults([]); setCmdLoading(false); setCmdError(null); setCmdPartialFailures([]); return; }
 
@@ -328,7 +385,7 @@ export default function AppShell({
     }, 200);
 
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [cmdQuery, pathname, user?.role]);
+  }, [cmdQuery, isCollaborator, pathname, user?.role]);
 
   // Recent searches (localStorage)
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -402,9 +459,9 @@ export default function AppShell({
       <a href="#main-content" className="absolute -top-[100px] left-4 z-[var(--z-sidebar)] px-4 py-2 bg-[var(--btn-primary-bg)] text-[var(--btn-primary-text)] rounded-[var(--radius)] font-[var(--weight-semibold)] text-[var(--text-base)] no-underline transition-[top] duration-200 focus:top-4">Skip to content</a>
 
       {/* Command palette */}
-      <ProfileCompletionWizard />
+      {!isCollaborator && <ProfileCompletionWizard />}
 
-      <CommandDialog open={cmdOpen} onOpenChange={(open) => { setCmdOpen(open); if (!open) { setCmdQuery(""); setCmdResults([]); setCmdError(null); setCmdPartialFailures([]); } }}>
+      {!isCollaborator && <CommandDialog open={cmdOpen} onOpenChange={(open) => { setCmdOpen(open); if (!open) { setCmdQuery(""); setCmdResults([]); setCmdError(null); setCmdPartialFailures([]); } }}>
         <CommandInput placeholder="Search tag, borrower, page, setting, report..." value={cmdQuery} onValueChange={setCmdQuery} />
         <CommandList>
           {!cmdQuery.trim() && recentSearches.length > 0 && (
@@ -558,7 +615,7 @@ export default function AppShell({
             </>
           )}
         </CommandList>
-      </CommandDialog>
+      </CommandDialog>}
 
       <AppSidebar
         user={user}
@@ -579,7 +636,7 @@ export default function AppShell({
         <header className="h-12 bg-card border-b border-black/[0.06] flex items-center px-6 gap-3 sticky top-0 z-10 max-md:px-3 max-md:gap-2 print:hidden">
           <SidebarTrigger className="shrink-0 text-foreground hover:bg-card hover:text-foreground" />
           {/* Search trigger (desktop + mobile) */}
-          <button
+          {!isCollaborator && <button
             className="flex-1 max-w-[400px] flex items-center gap-2 w-full py-2 px-3 border border-border rounded-lg bg-background cursor-pointer transition-colors text-[13px] text-muted-foreground hover:border-primary max-md:hidden [&_svg]:shrink-0 [&_svg]:text-muted-foreground"
             onClick={() => setCmdOpen(true)}
             type="button"
@@ -587,8 +644,8 @@ export default function AppShell({
           >
             <SearchIcon className="size-4" />
             <span>Search... (⌘K)</span>
-          </button>
-          <Tooltip>
+          </button>}
+          {!isCollaborator && <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
@@ -601,7 +658,7 @@ export default function AppShell({
               </Button>
             </TooltipTrigger>
             <TooltipContent>Search (⌘K)</TooltipContent>
-          </Tooltip>
+          </Tooltip>}
           <div className="flex items-center gap-1 ml-auto">
             <Tooltip>
               <TooltipTrigger asChild>
@@ -628,8 +685,8 @@ export default function AppShell({
 
       {/* Mobile bottom nav */}
       <nav aria-label="Mobile navigation" className="hidden max-md:block fixed inset-x-0 bottom-0 z-[var(--z-overlay)] border-t border-border/70 bg-card/95 px-2 pb-[calc(6px+env(safe-area-inset-bottom,0px))] pt-2 shadow-[0_-10px_28px_rgba(15,23,42,0.10)] backdrop-blur supports-[backdrop-filter]:bg-card/90 print:hidden">
-        <div className="mx-auto grid max-w-[460px] grid-cols-5 gap-1">
-          {bottomNavItems.map((item) => {
+        <div className="mx-auto grid max-w-[460px] gap-1" style={{ gridTemplateColumns: `repeat(${visibleBottomNavItems.length}, minmax(0, 1fr))` }}>
+          {visibleBottomNavItems.map((item) => {
             const isActive =
               item.href === "/"
                 ? pathname === "/"

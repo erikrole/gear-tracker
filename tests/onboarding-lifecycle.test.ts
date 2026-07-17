@@ -24,6 +24,10 @@ vi.mock("@/lib/db", () => ({
       create: vi.fn(),
       createMany: vi.fn(),
     },
+    collaboratorPolicy: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+    },
   },
 }));
 
@@ -201,6 +205,84 @@ describe("onboarding lifecycle service", () => {
       status: 403,
       message: "Only admins can pre-approve staff accounts",
     });
+  });
+
+  it("allows only admins to invite an active collaborator policy", async () => {
+    await expect(
+      createAllowedEmailInvite({
+        actor: staff,
+        email: "trey@example.com",
+        role: "COLLABORATOR",
+        affiliation: "BIG_TEN_NETWORK",
+        collaboratorProfile: "BTN_STANDARD",
+      }),
+    ).rejects.toMatchObject({
+      status: 403,
+      message: "Only admins can pre-approve collaborator accounts",
+    });
+
+    await expect(
+      createAllowedEmailInvite({
+        actor: admin,
+        email: "trey@example.com",
+        role: "COLLABORATOR",
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "Choose a recognized collaborator affiliation",
+    });
+  });
+
+  it("persists policy metadata for an individually approved external email", async () => {
+    vi.mocked(db.collaboratorPolicy.findUnique).mockResolvedValue({
+      id: "policy-btn",
+      status: "ACTIVE",
+      affiliation: {
+        id: "affiliation-btn",
+        key: "BIG_TEN_NETWORK",
+        displayName: "Big Ten Network",
+        badgeLabel: "BTN",
+        archivedAt: null,
+      },
+    } as never);
+    vi.mocked(db.user.findUnique).mockResolvedValue(null);
+    vi.mocked(db.allowedEmail.create).mockResolvedValue(allowedEmailRow({
+      id: "allowed-btn",
+      email: "trey@example.com",
+      role: "COLLABORATOR",
+      affiliation: "BIG_TEN_NETWORK",
+      collaboratorProfile: "BTN_STANDARD",
+      collaboratorPolicyId: "policy-btn",
+      claimedAt: null,
+      claimedById: null,
+    }));
+
+    const result = await createAllowedEmailInvite({
+      actor: admin,
+      email: "Trey@Example.com",
+      role: "COLLABORATOR",
+      collaboratorPolicyId: "policy-btn",
+    });
+
+    expect(result.skipped).toBe(false);
+    expect(db.allowedEmail.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        email: "trey@example.com",
+        role: "COLLABORATOR",
+        affiliation: "BIG_TEN_NETWORK",
+        collaboratorProfile: "BTN_STANDARD",
+        collaboratorPolicyId: "policy-btn",
+        createdById: "admin-1",
+      }),
+    }));
+    expect(createAuditEntry).toHaveBeenCalledWith(expect.objectContaining({
+      entityType: "allowed_email",
+      after: expect.objectContaining({
+        affiliation: "BIG_TEN_NETWORK",
+        collaboratorProfile: "BTN_STANDARD",
+        collaboratorPolicyId: "policy-btn",
+      }),
+    }));
   });
 
   it("backfills a claimed allowlist row for an existing registered user", async () => {

@@ -3,6 +3,8 @@ import { HttpError, ok } from "@/lib/http";
 import { getAllowedBookingActions, requireBookingAction } from "@/lib/services/booking-rules";
 import { getBookingDetail, updateBookingEvents } from "@/lib/services/bookings";
 import { updateBookingEventsSchema } from "@/lib/validation";
+import { requireCollaboratorCapability } from "@/lib/collaborator-access";
+import { collaboratorBookingResponse } from "@/lib/collaborator-gear";
 
 function sortedStrings(values: string[]) {
   return [...values].sort((a, b) => a.localeCompare(b));
@@ -20,6 +22,9 @@ function sameEventSet(requested: string[], detail: Awaited<ReturnType<typeof get
 }
 
 export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
+  if (user.role === "COLLABORATOR") {
+    requireCollaboratorCapability(user, "RESERVATION_EDIT_OWN");
+  }
   const { id } = params;
   const body = updateBookingEventsSchema.parse(await req.json());
 
@@ -38,7 +43,11 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     if (sameEventSet(body.eventIds, current)) {
       await requireBookingAction(id, user, "edit");
       const allowedActions = getAllowedBookingActions(user, current);
-      return ok({ data: { ...current, allowedActions } });
+      return ok({
+        data: user.role === "COLLABORATOR"
+          ? collaboratorBookingResponse(current, allowedActions)
+          : { ...current, allowedActions },
+      });
     }
     throw new HttpError(409, "This booking was modified by someone else. Please refresh and try again.");
   }
@@ -48,5 +57,9 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   const refreshed = await getBookingDetail(id);
   const allowedActions = getAllowedBookingActions(user, refreshed);
-  return ok({ data: { ...refreshed, allowedActions } });
+  return ok({
+    data: user.role === "COLLABORATOR"
+      ? collaboratorBookingResponse(refreshed, allowedActions)
+      : { ...refreshed, allowedActions },
+  });
 });

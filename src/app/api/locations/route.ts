@@ -2,7 +2,7 @@ import { z } from "zod";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
-import { requirePermission } from "@/lib/rbac";
+import { requirePermission, requirePermissionOrCollaboratorCapability } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 
@@ -12,6 +12,7 @@ import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
  * to also return deactivated entries — used by the settings catalog UI.
  */
 export const GET = withAuth(async (req, { user }) => {
+  requirePermissionOrCollaboratorCapability(user, "location", "view", "GEAR_CATALOG_VIEW");
   const includeInactive = new URL(req.url).searchParams.get("includeInactive") === "1";
   const where = includeInactive && user.role === "ADMIN" ? {} : { active: true };
 
@@ -32,7 +33,11 @@ export const GET = withAuth(async (req, { user }) => {
         }
       : undefined,
   });
-  return ok({ data: locations });
+  return ok({
+    data: user.role === "COLLABORATOR"
+      ? locations.map(({ id, name }) => ({ id, name }))
+      : locations,
+  });
 });
 
 const createLocationSchema = z.object({

@@ -19,7 +19,9 @@ describe("onboarding status page source wiring", () => {
     expect(source).toContain("claimedBy.name");
     expect(source).toContain("Copy registration link");
     expect(source).toContain("Remove pending invite");
-    expect(source).toContain("navigator.clipboard.writeText(`${window.location.origin}${registrationPath(row.email)}`)");
+    expect(source).toContain("navigator.clipboard.writeText(`${window.location.origin}${registrationPath(row)}`)");
+    expect(source).toContain("row.collaboratorPolicy?.affiliation.badgeLabel");
+    expect(source).not.toContain('params.set("profile", "btn")');
     expect(source).toContain("fetch(`/api/allowed-emails/${row.id}`, { method: \"DELETE\" })");
   });
 

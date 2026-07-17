@@ -30,7 +30,7 @@ import { OperationalMetricCard } from "@/components/OperationalFeedback";
 import { OperationalStatusRail, type OperationalStatusRailItem } from "@/components/OperationalStatusRail";
 
 const LIMIT = 50;
-const ROLE_VALUES = new Set<string>(["ADMIN", "STAFF", "STUDENT"]);
+const ROLE_VALUES = new Set<string>(["ADMIN", "STAFF", "STUDENT", "COLLABORATOR"]);
 const SORT_VALUES = new Set([
   "",
   "name",
@@ -183,11 +183,12 @@ function RosterSummary({
       allClearLabel={items.length === 0 ? "Roster profiles are complete" : undefined}
       detailsLabel="Roster breakdown"
       details={(
-        <div className="grid gap-2 sm:grid-cols-4">
+        <div className="grid gap-2 sm:grid-cols-5">
           <OperationalMetricCard label="All matching" value={stats.total} />
           <OperationalMetricCard label="Students" value={stats.byRole.STUDENT} onClick={() => onRoleChange("STUDENT")} />
           <OperationalMetricCard label="Staff" value={stats.byRole.STAFF} onClick={() => onRoleChange("STAFF")} />
           <OperationalMetricCard label="Admins" value={stats.byRole.ADMIN} onClick={() => onRoleChange("ADMIN")} />
+          <OperationalMetricCard label="BTN collaborators" value={stats.byRole.COLLABORATOR} onClick={() => onRoleChange("COLLABORATOR")} />
         </div>
       )}
     />

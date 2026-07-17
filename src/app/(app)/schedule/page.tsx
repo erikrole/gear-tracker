@@ -34,6 +34,8 @@ import { classifyError, handleAuthRedirect, isAbortError, parseErrorMessage } fr
 import { ListView } from "./_components/ListView";
 import { NewEventSheet } from "./_components/NewEventSheet";
 import { ScheduleReadiness } from "./_components/ScheduleReadiness";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { CollaboratorSchedule } from "./_components/CollaboratorSchedule";
 
 const ShiftDetailPanel = dynamic(
   () => import("@/components/ShiftDetailPanel"),
@@ -53,6 +55,17 @@ const SCHEDULE_EXPORTS = [
 ] as const;
 
 export default function SchedulePage() {
+  const { data: user, isLoading } = useCurrentUser();
+  if (isLoading) {
+    return null;
+  }
+  if (user?.role === "COLLABORATOR") {
+    return <CollaboratorSchedule />;
+  }
+  return <InternalSchedulePage />;
+}
+
+function InternalSchedulePage() {
   const data = useScheduleData();
   const isStaff = data.currentUserRole === "STAFF" || data.currentUserRole === "ADMIN";
   const { loadData, setTradeSheetOpen } = data;

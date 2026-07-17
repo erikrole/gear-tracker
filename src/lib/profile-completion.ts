@@ -1,4 +1,6 @@
-export const PROFILE_COMPLETION_STEPS = ["EMAIL", "PHONES", "WISCARD", "APPAREL"] as const;
+import type { GraduationTermValue, StudentYearValue } from "@/lib/student-profile";
+
+export const PROFILE_COMPLETION_STEPS = ["EMAIL", "PHONES", "WISCARD", "STUDENT", "APPAREL"] as const;
 
 export type ProfileCompletionStep = (typeof PROFILE_COMPLETION_STEPS)[number];
 export type ProfileCompletionField =
@@ -7,10 +9,13 @@ export type ProfileCompletionField =
   | "personalPhone"
   | "workPhone"
   | "wiscard"
+  | "studentYear"
+  | "anticipatedGraduation"
   | "clothingSize"
   | "shoeSize";
 
 export type ProfileCompletionProfile = {
+  role: "ADMIN" | "STAFF" | "STUDENT" | "COLLABORATOR";
   email: string;
   athleticsEmail: string | null;
   phone: string | null;
@@ -19,6 +24,9 @@ export type ProfileCompletionProfile = {
   workPhoneNotApplicable: boolean;
   wiscardCardNumber: string | null;
   wiscardIssueCode: string | null;
+  studentYearOverride: StudentYearValue | null;
+  gradYear: number | null;
+  graduationTerm: GraduationTermValue | null;
   topSizeFit: "UNISEX" | "WOMENS" | "MENS" | null;
   topSize: string | null;
   shoeSizeSystem: "US_WOMENS" | "US_MENS" | null;
@@ -32,6 +40,8 @@ const FIELD_STEP: Record<ProfileCompletionField, ProfileCompletionStep> = {
   personalPhone: "PHONES",
   workPhone: "PHONES",
   wiscard: "WISCARD",
+  studentYear: "STUDENT",
+  anticipatedGraduation: "STUDENT",
   clothingSize: "APPAREL",
   shoeSize: "APPAREL",
 };
@@ -55,12 +65,18 @@ export function getProfileCompletion(profile: ProfileCompletionProfile, now = ne
     personalPhone: hasText(profile.personalPhone),
     workPhone: hasText(profile.workPhone) || profile.workPhoneNotApplicable,
     wiscard: hasText(profile.wiscardCardNumber) && hasText(profile.wiscardIssueCode),
+    studentYear: profile.role !== "STUDENT" || Boolean(profile.studentYearOverride),
+    anticipatedGraduation: profile.role !== "STUDENT" || Boolean(profile.gradYear && profile.graduationTerm),
     clothingSize: Boolean(profile.topSizeFit) && hasText(profile.topSize),
     shoeSize: Boolean(profile.shoeSizeSystem) && hasText(profile.shoeSize),
   };
-  const missingFields = (Object.keys(completeByField) as ProfileCompletionField[])
+  const applicableFields = (Object.keys(completeByField) as ProfileCompletionField[])
+    .filter((field) => profile.role === "STUDENT"
+      ? field !== "workPhone"
+      : field !== "studentYear" && field !== "anticipatedGraduation");
+  const missingFields = applicableFields
     .filter((field) => !completeByField[field]);
-  const completedCount = Object.values(completeByField).filter(Boolean).length;
+  const completedCount = applicableFields.filter((field) => completeByField[field]).length;
   const snoozedUntil = profile.profilePromptSnoozedUntil
     ? new Date(profile.profilePromptSnoozedUntil)
     : null;
@@ -75,7 +91,7 @@ export function getProfileCompletion(profile: ProfileCompletionProfile, now = ne
     shouldPrompt: missingFields.length > 0 && !isSnoozed,
     snoozedUntil: snoozedUntil?.toISOString() ?? null,
     completedCount,
-    totalCount: Object.keys(completeByField).length,
+    totalCount: applicableFields.length,
     missingFields,
     firstIncompleteStep,
     completeByField,

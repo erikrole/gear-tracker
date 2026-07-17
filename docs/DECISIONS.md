@@ -48,6 +48,7 @@
 - D-038: Firmware watch uses official source adapters and silent baselines
 - D-039: Kiosk sessions slide on activity and survive reinstalls via Keychain
 - D-040: Kiosk-only custody, reservation-first app/web
+- D-041: External collaborators use fixed default-deny profiles
 
 ---
 
@@ -827,6 +828,37 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Preserve `sourceReservationId` and audit entries when a reservation is fulfilled into checkout custody.
   - Do not reintroduce app/web scan completion paths outside kiosk APIs.
 
+## D-041: External Collaborators Use Default-Deny Affiliation Policies
+- Date: 2026-07-16
+- Status: Accepted; production rollout pending
+- Context:
+  - Giving an external partner `STUDENT` or `STAFF` would inherit unrelated internal access.
+  - Affiliation labels describe identity but are not a safe authorization mechanism.
+- Decision:
+  - External users use `Role.COLLABORATOR`, which remains absent from the central role permission map.
+  - Authorization comes from a directly assigned, database-backed policy. Affiliation remains presentational.
+  - Policies grant only the nine implemented capability keys listed in `AREA_COLLABORATORS.md`; unknown keys fail closed and dependencies normalize server-side.
+  - BTN is backfilled active with behavior equivalent to its fixed profile. Learfield is seeded suspended with no grants.
+  - BTN gear access is sanitized and own-reservation scoped. Checkout custody remains kiosk-owned under D-040.
+  - BTN Schedule access is read-only and rendered from `ShiftGroup.lastPublishedSnapshot`, never live draft state.
+  - Only admins may invite, deactivate, or change collaborator accounts.
+- Consequences:
+  - New partners require an explicit reviewed and activated policy rather than an affiliation shortcut or internal role grant.
+  - Web, API, iOS, and kiosk clients must tolerate additive affiliation/profile/capability metadata.
+  - Production rollout must deploy schema/server before collaborator-aware clients and invitations.
+- Guardrails:
+  - Do not add `COLLABORATOR` to inherited role permissions.
+  - Do not authorize from affiliation.
+  - Do not add per-user capability grants in V1.
+  - Keep sensitive profile data, notes, serials, borrower identity, audit history, internal metadata, cross-user access, staffing controls, and custody mutations permanently non-configurable.
+  - Route every collaborator booking response branch through the collaborator sanitizer and deny direct audit-history reads.
+  - Restrict collaborator-created reservation event links to the published, non-hidden Schedule surface and keep inaccessible IDs indistinguishable from missing IDs.
+  - Keep linked event objects out of collaborator booking responses; published event identity and crew detail belong to the collaborator Schedule contract.
+  - Require full capability replacement, optimistic version checks, `SERIALIZABLE` mutation transactions, immutable revisions, and atomic audit records for policy changes.
+  - Load the current policy on every authenticated request so suspension and reductions apply without session deletion.
+  - Do not invite a production collaborator until the migrations, server, clients, kiosk roster, and negative authorization smoke are verified.
+- Reference: `docs/AREA_COLLABORATORS.md`.
+
 ---
 
 ## Pending Decisions
@@ -836,6 +868,9 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 4. ~~Student mobile KPI definitions~~ — resolved (PD-5): taps-to-checkout ≤3, scan success ≥95%, task completion <30s. Telemetry deferred to Phase B.
 
 ## Change Log
+- 2026-07-16: Added D-041 for fixed default-deny external collaborator profiles and the BTN_STANDARD gear plus published-Schedule contract.
+- 2026-07-16: Hardened D-041 with a single profile registry, mandatory collaborator response sanitization across idempotent branches, direct audit-history denial, published-only collaborator event linking, and route-level negative tests.
+- 2026-07-16: Amended D-041 from fixed BTN profiles to database-backed affiliation policies with nine validated grants, immutable revisions, immediate suspension, BTN parity, and Learfield suspended by default.
 - 2026-07-15: Applied D-022 to the live battery catalog by consolidating active batteries into the four canonical unit-tracked Monitor, Sony, Gold Mount, and FX6 families while preserving history-bearing legacy rows outside active discovery.
 - 2026-07-15: Extended D-022 so one numbered item family can contain multiple branded products while preserving one booking line, one base QR sequence, permanent unit numbers, and exact-unit custody.
 - 2026-07-11: Reconciled the decision index and document-control date, formalized the historical D-032 and D-033 decisions, and added their current implementation references and provenance warning.

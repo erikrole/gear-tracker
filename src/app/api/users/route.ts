@@ -34,7 +34,7 @@ export const GET = withAuth(async (req, { user }) => {
     });
   }
 
-  if (roleParam && ["ADMIN", "STAFF", "STUDENT"].includes(roleParam)) {
+  if (roleParam && ["ADMIN", "STAFF", "STUDENT", "COLLABORATOR"].includes(roleParam)) {
     conditions.push({ role: roleParam as Prisma.EnumRoleFilter });
   }
 
@@ -128,6 +128,15 @@ export const GET = withAuth(async (req, { user }) => {
       skip: offset,
       include: {
         location: { select: { id: true, name: true } },
+        collaboratorPolicy: {
+          select: {
+            id: true,
+            status: true,
+            version: true,
+            affiliation: { select: { key: true, displayName: true, badgeLabel: true } },
+            grants: { select: { capabilityKey: true } },
+          },
+        },
         sportAssignments: {
           select: {
             sportCode: true,
@@ -151,36 +160,49 @@ export const GET = withAuth(async (req, { user }) => {
     ADMIN: 0,
     STAFF: 0,
     STUDENT: 0,
+    COLLABORATOR: 0,
   };
   for (const group of roleGroups) {
     byRole[group.role] = group._count._all;
   }
 
   return ok({
-    data: data.map((u) => ({
+    data: data.map((u) => {
+      const collaboratorBasicOnly = u.role === "COLLABORATOR" && user.role !== "ADMIN" && user.id !== u.id;
+      return {
       id: u.id,
       name: u.name,
-      email: u.email,
+      email: collaboratorBasicOnly ? "" : u.email,
       role: u.role,
+      affiliation: u.affiliation,
+      collaboratorProfile: u.collaboratorProfile,
+      collaboratorPolicy: u.collaboratorPolicy ? {
+        id: u.collaboratorPolicy.id,
+        status: u.collaboratorPolicy.status,
+        version: u.collaboratorPolicy.version,
+        capabilities: u.collaboratorPolicy.grants.map((grant) => grant.capabilityKey),
+        affiliation: u.collaboratorPolicy.affiliation,
+      } : null,
       staffingType: u.staffingType,
-      phone: u.phone,
-      slackHandle: u.slackHandle ?? null,
-      slackProfileUrl: u.slackProfileUrl ?? null,
-      primaryArea: u.primaryArea,
-      locationId: u.locationId,
-      location: u.location?.name ?? null,
+      phone: collaboratorBasicOnly ? null : u.phone,
+      slackHandle: collaboratorBasicOnly ? null : u.slackHandle ?? null,
+      slackProfileUrl: collaboratorBasicOnly ? null : u.slackProfileUrl ?? null,
+      primaryArea: collaboratorBasicOnly ? null : u.primaryArea,
+      locationId: collaboratorBasicOnly ? null : u.locationId,
+      location: collaboratorBasicOnly ? null : u.location?.name ?? null,
       avatarUrl: u.avatarUrl ?? null,
       active: u.active,
       hiddenFromRoster: u.hiddenFromRoster,
-      sportAssignments: u.sportAssignments.map((assignment) => ({
+      sportAssignments: collaboratorBasicOnly ? [] : u.sportAssignments.map((assignment) => ({
         sportCode: assignment.sportCode,
         defaultTraveler: assignment.defaultTraveler,
       })),
       title: u.title ?? null,
-      gradYear: u.gradYear ?? null,
-      studentYearOverride: u.studentYearOverride ?? null,
-      lastActiveAt: u.lastActiveAt?.toISOString() ?? null,
-    })),
+      gradYear: collaboratorBasicOnly ? null : u.gradYear ?? null,
+      studentYearOverride: collaboratorBasicOnly ? null : u.studentYearOverride ?? null,
+      lastActiveAt: collaboratorBasicOnly ? null : u.lastActiveAt?.toISOString() ?? null,
+    };
+    }),
     total,
     limit,
     offset,

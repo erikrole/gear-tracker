@@ -37,6 +37,27 @@ function auditProfileData(data: Record<string, unknown>): Record<string, unknown
 
 /** GET /api/me/profile — returns the caller's editable profile fields. */
 export const GET = withAuth(async (_req, { user }) => {
+  if (user.role === "COLLABORATOR") {
+    const profile = await db.user.findUnique({
+      where: { id: user.id },
+      select: { id: true, name: true, avatarUrl: true },
+    });
+    if (!profile) throw new HttpError(404, "User not found");
+    return ok({
+      data: {
+        ...profile,
+        personalPhone: null,
+        workPhone: null,
+        workPhoneNotApplicable: true,
+        wiscardNumber: null,
+        primaryArea: null,
+        title: null,
+        athleticsEmail: null,
+        slackHandle: null,
+      },
+    });
+  }
+
   const profile = await db.user.findUnique({
     where: { id: user.id },
     select: {
@@ -62,6 +83,27 @@ export const GET = withAuth(async (_req, { user }) => {
 /** PUT /api/me/profile — update editable identity fields (not email or role). */
 export const PUT = withAuth(async (req, { user }) => {
   await enforceRateLimit(`profile:${user.id}`, SETTINGS_MUTATION_LIMIT);
+
+  if (user.role === "COLLABORATOR") {
+    const body = z.object({ name: z.string().min(1).max(100).transform((value) => value.trim()) })
+      .parse(await req.json());
+    const before = await db.user.findUnique({ where: { id: user.id }, select: { name: true } });
+    const updated = await db.user.update({
+      where: { id: user.id },
+      data: { name: body.name },
+      select: { id: true, name: true, avatarUrl: true },
+    });
+    await createAuditEntry({
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "user",
+      entityId: user.id,
+      action: "profile_updated",
+      before: { name: before?.name ?? null },
+      after: { name: updated.name },
+    });
+    return ok({ data: updated });
+  }
 
   let body: z.infer<typeof putSchema>;
   try {
