@@ -210,11 +210,11 @@ describe("student field mobile contracts", () => {
     const userPage = source("src/app/(app)/users/[id]/page.tsx");
     const availabilityRoute = source("src/app/api/users/[id]/availability/route.ts");
 
-    expect(notifications).toContain("Text(\"Pause Alerts\")");
-    expect(notifications).toContain(".accessibilityLabel(\"Pause alerts for \\(label)\")");
-    expect(notifications).toContain("title: \"Email alerts\"");
     expect(notifications).toContain("title: \"Push alerts\"");
     expect(notifications).toContain("title: \"Delivery status\"");
+    expect(notifications).toContain("Send Test Notification");
+    expect(notifications).not.toContain("Pause Alerts");
+    expect(notifications).not.toContain("Email alerts");
     expect(settings).toContain("title: \"Theme\"");
     expect(profile).toContain("title: \"My Availability\"");
     expect(profile).toContain("private var isStudentWorker: Bool");

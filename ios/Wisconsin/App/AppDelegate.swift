@@ -1,6 +1,10 @@
 import UIKit
 import UserNotifications
 
+enum PushTokenStorage {
+    static let currentTokenKey = "WisconsinCurrentAPNsToken"
+}
+
 @MainActor
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(
@@ -17,6 +21,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         let hex = deviceToken.map { String(format: "%02x", $0) }.joined()
+        UserDefaults.standard.set(hex, forKey: PushTokenStorage.currentTokenKey)
         Task { @MainActor in
             do {
                 try await APIClient.shared.registerDeviceToken(hex)

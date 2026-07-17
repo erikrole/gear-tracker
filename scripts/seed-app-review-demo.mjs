@@ -23,6 +23,8 @@ if (confirmation !== "confirm") {
 const mode = process.env.APP_REVIEW_DEMO_MODE === "cleanup" ? "cleanup" : "seed";
 const connectionString = process.env.DATABASE_URL ?? "";
 const password = process.env.APP_REVIEW_DEMO_PASSWORD;
+const REVIEW_WINDOW_DAYS = 30;
+const UPCOMING_RESERVATION_DAYS = 21;
 
 if (mode === "seed") {
   if (!password || password.length < 16) {
@@ -386,8 +388,8 @@ async function main() {
           externalId: "demo-football-preview",
           summary: "[DEMO] Football Preview Shoot",
           rawSummary: "[DEMO] Football Preview Shoot",
-          startsAt: daysFromNow(3, 13),
-          endsAt: daysFromNow(3, 17),
+          startsAt: daysFromNow(REVIEW_WINDOW_DAYS, 13),
+          endsAt: daysFromNow(REVIEW_WINDOW_DAYS, 17),
           locationId: ids.location,
           sportCode: "FB",
           isHome: true,
@@ -481,8 +483,8 @@ async function main() {
           title: "[DEMO] Upcoming Studio Reservation",
           requesterUserId: ids.reviewer,
           locationId: ids.location,
-          startsAt: daysFromNow(2, 10),
-          endsAt: daysFromNow(2, 14),
+          startsAt: daysFromNow(UPCOMING_RESERVATION_DAYS, 10),
+          endsAt: daysFromNow(UPCOMING_RESERVATION_DAYS, 14),
           status: BookingStatus.BOOKED,
           createdBy: ids.reviewer,
           notes: "Upcoming demo reservation for App Review.",
@@ -542,8 +544,8 @@ async function main() {
         {
           assetId: ids.tripod,
           bookingId: ids.upcomingReservation,
-          startsAt: daysFromNow(2, 10),
-          endsAt: daysFromNow(2, 14),
+          startsAt: daysFromNow(UPCOMING_RESERVATION_DAYS, 10),
+          endsAt: daysFromNow(UPCOMING_RESERVATION_DAYS, 14),
           active: true,
           kind: AllocationKind.RESERVATION,
         },

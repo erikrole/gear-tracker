@@ -12,6 +12,8 @@ enum WelcomeFocusField: Hashable {
 }
 
 struct WelcomeHeaderView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     let name: String
     let stepIndex: Int
     let stepCount: Int
@@ -20,18 +22,34 @@ struct WelcomeHeaderView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
+            if dynamicTypeSize.isAccessibilitySize {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Welcome, \(firstName)")
                         .font(.headline)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text("Step \(stepIndex + 1) of \(stepCount)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("\(completedCount) of \(totalCount) complete")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                Spacer()
-                Text("\(completedCount) of \(totalCount) complete")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+            } else {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Welcome, \(firstName)")
+                            .font(.headline)
+                        Text("Step \(stepIndex + 1) of \(stepCount)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Text("\(completedCount) of \(totalCount) complete")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
             }
             ProgressView(value: Double(stepIndex + 1), total: Double(max(stepCount, 1)))
                 .tint(.brandPrimary)
@@ -138,18 +156,34 @@ struct WelcomeFormCard<Content: View>: View {
 }
 
 struct WelcomeFieldLabel: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     let title: String
     var detail: String?
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-            Spacer()
-            if let detail {
-                Text(detail)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                    if let detail {
+                        Text(detail)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } else {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                    Spacer()
+                    if let detail {
+                        Text(detail)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
         }
     }
@@ -344,6 +378,8 @@ struct WelcomeWiscardStepView: View {
 }
 
 struct WelcomeStudentStepView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     @Bindable var draft: ProfileCompletionDraft
 
     var body: some View {
@@ -357,23 +393,34 @@ struct WelcomeStudentStepView: View {
                 )
                 VStack(alignment: .leading, spacing: 8) {
                     WelcomeFieldLabel(title: "Anticipated graduation")
-                    HStack(spacing: 12) {
-                        WelcomeSelectionField(
-                            title: "Graduation term",
-                            prompt: "Term",
-                            selection: $draft.graduationTerm,
-                            options: ProfileSizingOptions.graduationTerms
-                        )
-                        WelcomeSelectionField(
-                            title: "Graduation year",
-                            prompt: "Year",
-                            selection: $draft.graduationYear,
-                            options: draft.graduationYears.map { ($0, String($0)) }
-                        )
+                    if dynamicTypeSize.isAccessibilitySize {
+                        VStack(spacing: 12) {
+                            graduationFields
+                        }
+                    } else {
+                        HStack(spacing: 12) {
+                            graduationFields
+                        }
                     }
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private var graduationFields: some View {
+        WelcomeSelectionField(
+            title: "Graduation term",
+            prompt: "Term",
+            selection: $draft.graduationTerm,
+            options: ProfileSizingOptions.graduationTerms
+        )
+        WelcomeSelectionField(
+            title: "Graduation year",
+            prompt: "Year",
+            selection: $draft.graduationYear,
+            options: draft.graduationYears.map { ($0, String($0)) }
+        )
     }
 }
 

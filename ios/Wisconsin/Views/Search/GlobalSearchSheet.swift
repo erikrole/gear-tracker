@@ -28,20 +28,26 @@ struct GlobalSearchSheet: View {
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
-            Group {
-                if query.isEmpty {
-                    recentsView
-                } else if isSearching && results.isEmpty {
-                    searchingView
-                } else if !results.isEmpty {
-                    resultsList
-                } else if let searchError, !isSearching {
-                    errorView(message: searchError)
-                } else if !isSearching {
-                    noResultsView
+            VStack(spacing: 0) {
+                Group {
+                    if trimmedQuery.isEmpty {
+                        if isCollaborator {
+                            recentsView
+                        } else {
+                            scannerEmptyState
+                        }
+                    } else if isSearching && results.isEmpty {
+                        searchingView
+                    } else if !results.isEmpty {
+                        resultsList
+                    } else if let searchError, !isSearching {
+                        errorView(message: searchError)
+                    } else if !isSearching {
+                        noResultsView
+                    }
                 }
             }
-            .frame(maxHeight: .infinity, alignment: .top)
+            .frame(maxHeight: .infinity)
             .navigationTitle("Search")
             .navigationBarTitleDisplayMode(.inline)
             .searchable(
@@ -60,13 +66,13 @@ struct GlobalSearchSheet: View {
                     }
                 }
                 if !isCollaborator {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showScanner = true
-                    } label: {
-                        Label("Scan QR code", systemImage: "qrcode.viewfinder")
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            presentScanner()
+                        } label: {
+                            Label("Scan QR code", systemImage: "qrcode.viewfinder")
+                        }
                     }
-                }
                 }
             }
             .navigationDestination(for: SearchDestination.self) { destination in
@@ -121,7 +127,27 @@ struct GlobalSearchSheet: View {
         }
     }
 
+    private func presentScanner() {
+        isSearchPresented = false
+        showScanner = true
+    }
+
     // MARK: - States
+
+    private var scannerEmptyState: some View {
+        Button {
+            presentScanner()
+        } label: {
+            Label("Scan a code", systemImage: "qrcode.viewfinder")
+                .fontWeight(.semibold)
+                .frame(minWidth: 180)
+        }
+        .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.capsule)
+        .controlSize(.large)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityHint("Opens the camera scanner.")
+    }
 
     private var recentsView: some View {
         Group {
@@ -341,6 +367,10 @@ struct GlobalSearchSheet: View {
 
     private var isCollaborator: Bool {
         session.currentUser?.role == "COLLABORATOR"
+    }
+
+    private var trimmedQuery: String {
+        query.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func addToRecents(_ term: String) {

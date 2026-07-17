@@ -437,7 +437,11 @@ struct ItemsView: View {
 
 
 struct AssetRow: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     let asset: Asset
+
+    private var tone: StatusTone { assetStatusTone(asset) }
 
     private var metadataLine: String {
         asset.location.name
@@ -448,52 +452,77 @@ struct AssetRow: View {
     }
 
     var body: some View {
-        let tone = assetStatusTone(asset)
-
-        HStack(spacing: 12) {
-            // Shared rail atom — same leading accent the Bookings and dashboard
-            // rows use, tinted by the item's status (overdue red, etc.).
-            StatusRail(tone: tone)
-
-            AssetThumbnail(imageUrl: asset.imageUrl, size: 44)
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(asset.itemListPrimaryTitle)
-                    .font(.gothamBold(size: 17))
-                    .lineLimit(1)
-                // Web parity: when the tag is the primary, brand/model
-                // (or a custom name) reads as the subtitle — but only when
-                // it's not just a duplicate of the tag.
-                if let subtitle = asset.itemListSecondaryTitle {
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                if shouldShowLocation {
-                    Text(metadataLine)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .truncationMode(.tail)
-                        .lineLimit(1)
-                }
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                accessibilityRow
+            } else {
+                compactRow
             }
-            .layoutPriority(1)
-
-            Spacer()
-
-            AssetListBadge(asset: asset, tone: tone)
-
-            Image(systemName: "chevron.right")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.tertiary)
-                .accessibilityHidden(true)
         }
         .brandCard(padding: Brand.Space.md, radius: Brand.Radius.card)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(rowAccessibilityLabel)
         .accessibilityHint("Double-tap to view item details")
+    }
+
+    private var compactRow: some View {
+        HStack(spacing: 12) {
+            StatusRail(tone: tone)
+            AssetThumbnail(imageUrl: asset.imageUrl, size: 44)
+                .accessibilityHidden(true)
+            assetCopy(lineLimit: 1)
+                .layoutPriority(1)
+            Spacer()
+            AssetListBadge(asset: asset, tone: tone)
+            disclosureIndicator
+        }
+    }
+
+    private var accessibilityRow: some View {
+        HStack(alignment: .top, spacing: 12) {
+            StatusRail(tone: tone)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top, spacing: 10) {
+                    AssetThumbnail(imageUrl: asset.imageUrl, size: 44)
+                        .accessibilityHidden(true)
+                    assetCopy(lineLimit: nil)
+                    Spacer(minLength: 4)
+                    disclosureIndicator
+                }
+                AssetListBadge(asset: asset, tone: tone)
+            }
+        }
+    }
+
+    private func assetCopy(lineLimit: Int?) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(asset.itemListPrimaryTitle)
+                .font(.gothamBold(size: 17))
+                .lineLimit(lineLimit)
+                .fixedSize(horizontal: false, vertical: true)
+            if let subtitle = asset.itemListSecondaryTitle {
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(lineLimit)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if shouldShowLocation {
+                Text(metadataLine)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .truncationMode(.tail)
+                    .lineLimit(lineLimit)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var disclosureIndicator: some View {
+        Image(systemName: "chevron.right")
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.tertiary)
+            .accessibilityHidden(true)
     }
 
     /// Single combined VoiceOver readout. Surfaces overdue state first when
@@ -538,6 +567,8 @@ struct AssetRow: View {
 }
 
 struct ItemFamilyListRow: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     let family: AssetFamilySearchResult
 
     private var metadataLine: String {
@@ -551,45 +582,65 @@ struct ItemFamilyListRow: View {
     var body: some View {
         let tone: StatusTone = .green
 
-        HStack(spacing: 12) {
-            StatusRail(tone: tone)
-
-            SearchBulkThumbnail(imageUrl: family.imageUrl, size: 44)
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(family.name)
-                    .font(.gothamBold(size: 17))
-                    .lineLimit(1)
-                if shouldShowLocation {
-                    Text(metadataLine)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .truncationMode(.tail)
-                        .lineLimit(1)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                HStack(alignment: .top, spacing: 12) {
+                    StatusRail(tone: tone)
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(alignment: .top, spacing: 10) {
+                            SearchBulkThumbnail(imageUrl: family.imageUrl, size: 44)
+                                .accessibilityHidden(true)
+                            familyCopy(lineLimit: nil)
+                        }
+                        availabilityBadge(tone: tone, expands: true)
+                    }
+                }
+            } else {
+                HStack(spacing: 12) {
+                    StatusRail(tone: tone)
+                    SearchBulkThumbnail(imageUrl: family.imageUrl, size: 44)
+                        .accessibilityHidden(true)
+                    familyCopy(lineLimit: 1)
+                        .layoutPriority(1)
+                    Spacer()
+                    availabilityBadge(tone: tone, expands: false)
                 }
             }
-            .layoutPriority(1)
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(family.listAvailabilityLabel)
-                    .font(.caption2.weight(.semibold))
-                    .lineLimit(1)
-                    .fixedSize()
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.statusBackground(tone), in: Capsule())
-                    .foregroundStyle(Color.statusText(tone))
-            }
-            .frame(maxWidth: 140, alignment: .trailing)
-            .accessibilityHidden(true)
         }
         .brandCard(padding: Brand.Space.md, radius: Brand.Radius.card)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(rowAccessibilityLabel)
         .accessibilityHint("Swipe or open the context menu to reserve")
+    }
+
+    private func familyCopy(lineLimit: Int?) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(family.name)
+                .font(.gothamBold(size: 17))
+                .lineLimit(lineLimit)
+                .fixedSize(horizontal: false, vertical: true)
+            if shouldShowLocation {
+                Text(metadataLine)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .truncationMode(.tail)
+                    .lineLimit(lineLimit)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func availabilityBadge(tone: StatusTone, expands: Bool) -> some View {
+        Text(family.listAvailabilityLabel)
+            .font(.caption2.weight(.semibold))
+            .lineLimit(expands ? nil : 1)
+            .fixedSize(horizontal: !expands, vertical: true)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color.statusBackground(tone), in: Capsule())
+            .foregroundStyle(Color.statusText(tone))
+            .frame(maxWidth: expands ? .infinity : 140, alignment: expands ? .leading : .trailing)
+            .accessibilityHidden(true)
     }
 
     private var rowAccessibilityLabel: String {
@@ -621,6 +672,8 @@ func assetStatusTone(_ asset: Asset) -> StatusTone {
 }
 
 private struct AssetListBadge: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     let asset: Asset
     let tone: StatusTone
 
@@ -650,14 +703,17 @@ private struct AssetListBadge: View {
             }
             Text(badgeText)
                 .font(.caption2.weight(.semibold))
-                .lineLimit(1)
-                .fixedSize()
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
+                .fixedSize(horizontal: !dynamicTypeSize.isAccessibilitySize, vertical: true)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 2)
         .background(Color.statusBackground(tone), in: Capsule())
         .foregroundStyle(Color.statusText(tone))
-        .frame(maxWidth: 140, alignment: .trailing)
+        .frame(
+            maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : 140,
+            alignment: dynamicTypeSize.isAccessibilitySize ? .leading : .trailing
+        )
         .accessibilityHidden(true)  // Status surfaced via the combined row label in AssetRow.
     }
 }

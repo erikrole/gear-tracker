@@ -2,15 +2,21 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
 import { sendPush } from "@/lib/push/apns";
+import { z } from "zod";
+
+const testPushSchema = z.object({
+  token: z.string().min(1).max(512),
+});
 
 /**
- * Sends a real test push to the caller's active devices and reports the
+ * Sends a real test push to the caller's current app installation and reports the
  * outcome, so "are my notifications working?" is answerable from the phone
  * in one tap instead of by reading serverless logs.
  */
-export const POST = withAuth(async (_req, { user }) => {
+export const POST = withAuth(async (req, { user }) => {
+  const body = testPushSchema.parse(await req.json());
   const tokens = await db.deviceToken.findMany({
-    where: { userId: user.id, revokedAt: null },
+    where: { userId: user.id, token: body.token, revokedAt: null },
     select: { token: true },
   });
 

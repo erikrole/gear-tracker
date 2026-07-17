@@ -5,11 +5,13 @@ struct NotificationSettingsView: View {
     @Environment(AppState.self) private var appState
     let prefsVM: NotificationPrefsViewModel
     @Binding var pushAuth: UNAuthorizationStatus
-    let currentEmail: String
     let iosSettingsURL: URL
     let showPushPrompt: () -> Void
 
-    @ScaledMetric(relativeTo: .subheadline) private var iconWidth: CGFloat = 22
+    @AppStorage(PushTokenStorage.currentTokenKey) private var currentPushToken = ""
+    @State private var isSendingTestPush = false
+    @State private var testPushMessage: String?
+    @State private var testPushSucceeded = false
 
     var body: some View {
         List {
@@ -56,96 +58,97 @@ struct NotificationSettingsView: View {
                 Text("In-app notifications always show in your inbox, regardless of these settings.")
             }
 
-            if prefsVM.prefs != nil {
-                Section {
-                    if let until = prefsVM.pausedUntilDate {
-                        pausedRow(until: until)
-                    } else {
-                        pauseChipsRow
-                    }
-                } header: {
-                    Text("Pause Alerts")
-                } footer: {
-                    if prefsVM.pausedUntilDate == nil {
-                        Text("Temporarily silence email and push alerts. In-app notifications keep arriving.")
-                    }
-                }
-            }
-
             if let prefs = prefsVM.prefs {
                 Section {
                     channelToggle(
-                        title: "Email alerts",
-                        icon: "envelope",
-                        description: "Send notifications to \(currentEmail).",
-                        isOn: prefs.channels.email,
-                        onChange: { v in Task { await prefsVM.setChannel(.email, value: v) } }
-                    )
-
-                    channelToggle(
                         title: "Push alerts",
-                        icon: "iphone.radiowaves.left.and.right",
                         description: "Send push notifications to this device.",
                         isOn: prefs.channels.push,
                         onChange: { v in Task { await prefsVM.setChannel(.push, value: v) } }
                     )
+
+                    if pushAllowed && !currentPushToken.isEmpty {
+                        Button {
+                            Task { await sendTestPush() }
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "paperplane.fill")
+                                    .foregroundStyle(Color.statusText(.blue))
+                                    .frame(width: 22)
+                                Text("Send Test Notification")
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                if isSendingTestPush {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                }
+                            }
+                        }
+                        .disabled(isSendingTestPush)
+                        .accessibilityHint("Sends a real push notification to this device.")
+                    }
+
+                    if let testPushMessage {
+                        Label(
+                            testPushMessage,
+                            systemImage: testPushSucceeded ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(testPushSucceeded ? Color.statusText(.green) : Color.statusText(.orange))
+                        .fixedSize(horizontal: false, vertical: true)
+                    }
                 } header: {
                     Text("Delivery")
+                } footer: {
+                    Text("Push alerts go to devices signed in to this account. The test checks this device only.")
                 }
 
                 Section {
                     categoryToggle(
                         title: "Checkout due reminders",
-                        icon: "clock.badge.exclamationmark",
                         description: "Notified before gear is due back.",
                         category: .checkoutDue
                     )
 
                     categoryToggle(
                         title: "Checkout overdue alerts",
-                        icon: "exclamationmark.triangle",
                         description: "Notified when gear is past due.",
                         category: .checkoutOverdue
                     )
 
                     categoryToggle(
                         title: "Reservation updates",
-                        icon: "calendar.badge.checkmark",
                         description: "Confirmation, pickup-ready, and cancellation notices.",
                         category: .reservation
                     )
 
                     categoryToggle(
                         title: "License expiry reminders",
-                        icon: "person.text.rectangle",
                         description: "Notified when one of your licenses is approaching expiry.",
                         category: .licenseExpiry
                     )
 
                     categoryToggle(
                         title: "Schedule updates",
-                        icon: "calendar.badge.clock",
                         description: "Published shift assignments, removals, and call-time changes.",
                         category: .schedule
                     )
 
                     categoryToggle(
                         title: "Trade updates",
-                        icon: "arrow.triangle.2.circlepath",
                         description: "Claimed, approved, declined, completed, and expired shift trades.",
                         category: .trade
                     )
 
                     categoryToggle(
                         title: "Gear prep nudges",
-                        icon: "bag.badge.plus",
                         description: "Staff-triggered reminders to reserve or prepare gear.",
                         category: .gearPrep
                     )
                 } header: {
                     Text("Notification Types")
                 } footer: {
-                    Text("Choose which email and push alerts can reach you.")
+                    Text("Choose which push alerts can reach you.")
                 }
             }
         }
@@ -157,6 +160,11 @@ struct NotificationSettingsView: View {
                 await prefsVM.load()
             }
             await refreshPushAuth()
+        }
+        .onChange(of: testPushMessage) { _, message in
+            if let message {
+                AccessibilityNotification.Announcement(message).post()
+            }
         }
     }
 
@@ -214,7 +222,7 @@ struct NotificationSettingsView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "bell.slash.fill")
                         .foregroundStyle(Color.statusText(.orange))
-                        .frame(width: iconWidth)
+                        .frame(width: 22)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Push disabled in iOS Settings")
                             .font(.subheadline.weight(.medium))
@@ -236,7 +244,7 @@ struct NotificationSettingsView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "bell.badge")
                         .foregroundStyle(Color.statusText(.blue))
-                        .frame(width: iconWidth)
+                        .frame(width: 22)
                     Text("Turn on notifications")
                         .font(.subheadline.weight(.medium))
                     Spacer()
@@ -248,63 +256,8 @@ struct NotificationSettingsView: View {
     }
 
     @ViewBuilder
-    private var pauseChipsRow: some View {
-        HStack(spacing: 8) {
-            pauseChip(label: "1 Hour",  seconds: 3600)
-            pauseChip(label: "1 Day",   seconds: 86_400)
-            pauseChip(label: "1 Week",  seconds: 604_800)
-        }
-        .padding(.vertical, 2)
-    }
-
-    private func pauseChip(label: String, seconds: TimeInterval) -> some View {
-        Button {
-            Task {
-                await prefsVM.pause(for: seconds)
-            }
-        } label: {
-            Text(label)
-                .font(.footnote.weight(.medium))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 6)
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
-        .disabled(prefsVM.saving)
-        .accessibilityLabel("Pause alerts for \(label)")
-    }
-
-    @ViewBuilder
-    private func pausedRow(until: Date) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: "moon.zzz.fill")
-                    .foregroundStyle(Color.statusText(.purple))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Paused")
-                        .font(.subheadline.weight(.semibold))
-                    Text("Until \(until.formatted(date: .abbreviated, time: .shortened))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
-                Spacer()
-                Button("Resume") {
-                    Task { await prefsVM.resume() }
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(prefsVM.saving)
-            }
-        }
-        .padding(.vertical, 2)
-        .accessibilityElement(children: .contain)
-    }
-
-    @ViewBuilder
     private func channelToggle(
         title: String,
-        icon: String,
         description: String,
         isOn: Bool,
         onChange: @escaping (Bool) -> Void
@@ -314,27 +267,17 @@ struct NotificationSettingsView: View {
             set: { onChange($0) }
         )
         Toggle(isOn: binding) {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .foregroundStyle(.secondary)
-                    .frame(width: iconWidth)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.subheadline.weight(.medium))
-                    Text(description)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-            }
+            Text(title)
+                .font(.subheadline.weight(.medium))
         }
-        .disabled(prefsVM.isPaused)
+        .tint(Color.statusText(.green))
+        .disabled(prefsVM.saving)
+        .accessibilityHint(description)
     }
 
     @ViewBuilder
     private func categoryToggle(
         title: String,
-        icon: String,
         description: String,
         category: NotificationPrefsViewModel.Category
     ) -> some View {
@@ -343,28 +286,17 @@ struct NotificationSettingsView: View {
             set: { value in Task { await prefsVM.setCategory(category, value: value) } }
         )
         Toggle(isOn: binding) {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .foregroundStyle(.secondary)
-                    .frame(width: iconWidth)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.subheadline.weight(.medium))
-                    Text(description)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-            }
+            Text(title)
+                .font(.subheadline.weight(.medium))
         }
+        .tint(Color.statusText(.green))
+        .disabled(prefsVM.saving)
+        .accessibilityHint(description)
     }
 
     private var notificationSummaryText: String {
         if prefsVM.loading && prefsVM.prefs == nil {
-            return "Loading email, push, and notification type preferences."
-        }
-        if let until = prefsVM.pausedUntilDate {
-            return "Paused until \(until.formatted(date: .abbreviated, time: .shortened)). In-app notifications still appear."
+            return "Loading push and notification type preferences."
         }
         if prefsVM.error != nil && prefsVM.prefs == nil {
             return "Preferences could not load. Retry below before changing alert behavior."
@@ -372,24 +304,17 @@ struct NotificationSettingsView: View {
         guard let prefs = prefsVM.prefs else {
             return "In-app notifications are always available."
         }
-        let channels = [
-            prefs.channels.email ? "email" : nil,
-            prefs.channels.push ? "push" : nil,
-        ].compactMap { $0 }
-        if channels.isEmpty {
-            return "Only the in-app inbox is enabled."
-        }
-        return "\(channels.joined(separator: " and ").capitalized) alerts are enabled."
+        return prefs.channels.push
+            ? "Push alerts are enabled."
+            : "Only the in-app inbox is enabled."
     }
 
     private var notificationSummaryIcon: String {
-        if prefsVM.pausedUntilDate != nil { return "moon.zzz.fill" }
         if prefsVM.error != nil && prefsVM.prefs == nil { return "exclamationmark.triangle.fill" }
         return "bell.badge"
     }
 
     private var notificationSummaryTint: Color {
-        if prefsVM.pausedUntilDate != nil { return Color.statusText(.purple) }
         if prefsVM.error != nil && prefsVM.prefs == nil { return Color.statusText(.orange) }
         return Color.statusText(.blue)
     }
@@ -417,6 +342,39 @@ struct NotificationSettingsView: View {
             .secondary
         @unknown default:
             .secondary
+        }
+    }
+
+    private var pushAllowed: Bool {
+        pushAuth == .authorized || pushAuth == .provisional || pushAuth == .ephemeral
+    }
+
+    @MainActor
+    private func sendTestPush() async {
+        guard !isSendingTestPush else { return }
+        isSendingTestPush = true
+        testPushMessage = nil
+        defer { isSendingTestPush = false }
+
+        do {
+            let result = try await APIClient.shared.sendTestPush(deviceToken: currentPushToken)
+            if result.delivered > 0 {
+                testPushSucceeded = true
+                testPushMessage = "Test notification sent to this device."
+                Haptics.success()
+            } else if result.devices == 0 {
+                testPushSucceeded = false
+                testPushMessage = "No registered device was found. Retry push registration above."
+                Haptics.warning()
+            } else {
+                testPushSucceeded = false
+                testPushMessage = "The test notification was not delivered. Retry registration and try again."
+                Haptics.warning()
+            }
+        } catch {
+            testPushSucceeded = false
+            testPushMessage = error.localizedDescription
+            Haptics.warning()
         }
     }
 

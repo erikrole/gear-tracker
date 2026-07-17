@@ -1,6 +1,6 @@
 # Tasks Index
 
-Last updated: 2026-07-16
+Last updated: 2026-07-17
 
 ## Start Here
 
@@ -58,13 +58,16 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Recently Archived
 
+- `ios-booking-surface-alignment-plan.md` - aligned native Bookings rows with Item Detail's title, timing, requester, context, and restrained status hierarchy.
+- `ios-item-detail-hierarchy-plan.md` - refreshed native Item Detail around compact Gotham identity, title-first custody, persistent upcoming-reservation state, neutral previous-booking history, grouped metadata, quiet attachments, and production-backed simulator proof.
+- `ios-app-store-toggle-row-polish-plan.md` - refined dark-mode Settings and notification controls and replaced inactive Home metric cards with active-only disclosure rows.
 - `ios-xcode-26-6-recommended-settings-followup.md` - encoded Xcode's selected sandboxing, team-inheritance, and String Catalog recommendations in XcodeGen.
 - `ios-swift-6-xcode-26-6-fixes-plan.md` - moved Wisconsin to Xcode 26.6 project metadata and Swift 6, resolving SwiftData and ActivityKit concurrency diagnostics.
 - `items-ui-conformance-ownership-pass.md` - aligned `/items` toolbar targets, creation language, and desktop table-header casing with the accepted design contracts.
 - `operational-polling-activity-plan.md` - completed shared two-minute activity governor for booking, item, and audit polling so unattended tabs allow Neon compute to autosuspend.
 - 46 completed plans from the root task folder - moved to `tasks/archive/completed-2026-07/` on 2026-07-11.
 - `booking-title-normalization-ownership-pass.md` - standardized stored booking titles while preserving canonical UW sport codes across web, drafts, and kiosk writes.
-- `schedule-title-normalization-ownership-pass.md` - extended the same title rule to manual and synced scheduled events while preserving raw source evidence and sync locks.
+- `schedule-title-normalization-ownership-pass.md` - standardized manual event titles; the 2026-07-17 correction restored source casing for synced and calendar-restored titles.
 
 - `operational-status-rail-page-migrations-plan.md` - completed migration of eight page-level operational summaries to the shared rail with deliberate analytics exclusions.
 - `items-status-rail-plan.md` - completed Items adoption of the shared operational status rail with pressed status facets under Details.

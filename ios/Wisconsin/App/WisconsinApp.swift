@@ -141,7 +141,7 @@ struct RootView: View {
         }
         .sheet(isPresented: $showPushPrePrompt) {
             PushPrePromptView()
-                .presentationDetents([.medium])
+                .presentationDetents([.fraction(0.62), .large])
                 .presentationDragIndicator(.visible)
         }
     }

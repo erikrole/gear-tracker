@@ -320,6 +320,35 @@ struct UpcomingReservation: Codable, Identifiable {
     var id: String { bookingId }
 }
 
+/// One booking-history record already returned by `/api/assets/[id]`.
+/// The API can contain more than one serialized-item row for a booking, so
+/// Item Detail de-duplicates these by `booking.id` before presentation.
+struct AssetBookingHistoryEntry: Codable, Identifiable {
+    let id: String
+    let createdAt: Date
+    let booking: AssetBookingHistoryBooking
+}
+
+struct AssetBookingHistoryBooking: Codable {
+    let id: String
+    let kind: BookingKind
+    let status: BookingStatus
+    let title: String
+    let startsAt: Date
+    let endsAt: Date
+    let requester: AssetBookingHistoryRequester?
+    let location: AssetBookingHistoryLocation?
+}
+
+struct AssetBookingHistoryRequester: Codable {
+    let name: String
+    let avatarUrl: String?
+}
+
+struct AssetBookingHistoryLocation: Codable {
+    let name: String
+}
+
 /// Compact link to a parent asset — the gear this accessory is attached to
 /// (e.g., the camera body that owns this charger). Mirrors the `parentAsset`
 /// field on `/api/assets/[id]`.
@@ -384,6 +413,7 @@ struct AssetDetail: Codable, Identifiable, Hashable {
     let department: AssetDepartment?
     let activeBooking: AssetActiveBooking?
     let upcomingReservations: [UpcomingReservation]
+    let history: [AssetBookingHistoryEntry]
     let parentAsset: AssetParentLink?
     let accessories: [AssetAccessory]?
     let metadata: AssetMetadata?
@@ -426,7 +456,7 @@ struct AssetDetail: Codable, Identifiable, Hashable {
 extension AssetDetail {
     private enum SafeCodingKeys: String, CodingKey {
         case id, assetTag, name, brand, model, serialNumber, imageUrl, qrCodeValue, linkUrl
-        case computedStatus, location, category, department, activeBooking, upcomingReservations
+        case computedStatus, location, category, department, activeBooking, upcomingReservations, history
         case parentAsset, accessories, metadata, purchaseDate, purchasePrice, residualValue, notes, isFavorited
     }
 
@@ -448,6 +478,7 @@ extension AssetDetail {
         department = try c.decodeIfPresent(AssetDepartment.self, forKey: .department)
         activeBooking = try c.decodeIfPresent(AssetActiveBooking.self, forKey: .activeBooking)
         upcomingReservations = try c.decodeIfPresent([UpcomingReservation].self, forKey: .upcomingReservations) ?? []
+        history = try c.decodeIfPresent([AssetBookingHistoryEntry].self, forKey: .history) ?? []
         parentAsset = try c.decodeIfPresent(AssetParentLink.self, forKey: .parentAsset)
         accessories = try c.decodeIfPresent([AssetAccessory].self, forKey: .accessories)
         metadata = try c.decodeIfPresent(AssetMetadata.self, forKey: .metadata)

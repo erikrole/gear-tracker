@@ -132,6 +132,7 @@ beforeEach(() => {
   vi.mocked(createAuditEntryTx).mockResolvedValue(undefined);
   vi.mocked(db.calendarEvent.findUnique).mockResolvedValue({
     id: "cmevent000000000000000001",
+    sourceId: null,
     summary: "Football vs Notre Dame",
     subtitle: null,
     sportCode: "FB",
@@ -559,6 +560,40 @@ describe("PATCH /api/calendar-events/[id]", () => {
       expect.anything(),
       expect.objectContaining({
         after: expect.objectContaining({ summary: "MBB Practice" }),
+      }),
+    );
+  });
+
+  it("preserves acronym casing when staff edits an imported event title", async () => {
+    vi.mocked(db.calendarEvent.findUnique).mockResolvedValueOnce({
+      id: "cmevent000000000000000001",
+      sourceId: "calendar-source-1",
+      summary: "MBB vs USC",
+      subtitle: null,
+      sportCode: "MBB",
+      isHome: true,
+      locationId: null,
+      rawSummary: "MBB vs USC",
+      rawLocationText: null,
+      opponent: "USC",
+      summaryLocked: false,
+      isHomeLocked: false,
+      locationLocked: false,
+      location: null,
+    } as unknown as Awaited<ReturnType<typeof db.calendarEvent.findUnique>>);
+
+    const res = await PATCH(
+      patch({ summary: "MBB vs USC / UCLA / TCU" }),
+      { params: Promise.resolve({ id: "cmevent000000000000000001" }) },
+    );
+
+    expect(res.status).toBe(200);
+    expect(db.calendarEvent.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          summary: "MBB vs USC / UCLA / TCU",
+          summaryLocked: true,
+        }),
       }),
     );
   });

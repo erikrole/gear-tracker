@@ -37,7 +37,9 @@ describe("iOS main app and kiosk target split", () => {
     expect(settings).not.toContain("KioskStore");
     expect(settings).not.toContain("Kiosk Mode");
     expect(settings).not.toContain("enterKiosk");
-    expect(settings).toContain("Scanner Debugger");
+    expect(settings).not.toContain("Scanner Debugger");
+    expect(settings).not.toContain("Link Sticker Codes");
+    expect(settings).not.toContain("Staff Tools");
 
     expect(delegate).not.toContain("sharedKioskStore");
     expect(delegate).toContain("return .all");

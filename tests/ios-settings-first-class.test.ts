@@ -27,18 +27,20 @@ describe("iOS Settings hub", () => {
     }
 
     expect(settings).toContain("SettingsRow(");
-    expect(settings).toContain("if isStaffOrAdmin");
+    expect(settings).not.toContain("Staff Tools");
     expect(settings).not.toContain("AppIconSettingsView");
     expect(settings).not.toContain('SettingsRow(title: "App Icon"');
   });
 
-  it("keeps role-gated settings menus reachable without exposing staff tools to students", () => {
+  it("keeps retired staff utilities out of the launch Settings surface", () => {
     const settings = source("ios/Wisconsin/Views/SettingsView.swift");
 
-    expect(settings).toContain("if isStaffOrAdmin");
-    expect(settings).toContain("SettingsRow(title: \"Link Sticker Codes\"");
-    expect(settings).toContain("SettingsRow(title: \"Scanner Debugger\"");
-    expect(settings).toContain("Section(\"Staff Tools\")");
+    expect(settings).not.toContain("isStaffOrAdmin");
+    expect(settings).not.toContain("Link Sticker Codes");
+    expect(settings).not.toContain("Scanner Debugger");
+    expect(settings).not.toContain("Staff Tools");
+    expect(settings).not.toContain("LinkStickerWizard");
+    expect(settings).not.toContain("ScannerDebuggerView");
   });
 
   it("keeps Settings Directory as a fallback for Browse destinations", () => {
@@ -66,6 +68,9 @@ describe("iOS Settings hub", () => {
     expect(notifications).toContain("Text(\"In-app notifications always show in your inbox, regardless of these settings.\")");
 
     expect(settings).toContain("SettingsRow(title: \"Theme\"");
+    expect(settings).toContain("Text(choice.label)");
+    expect(settings).not.toContain("Label(choice.label, systemImage:");
+    expect(settings).toContain(".preferredColorScheme(themeChoice.colorScheme)");
     expect(settings).toContain("SettingsRow(title: \"Open iOS Settings\"");
     expect(settings).toContain("Button(\"Sign Out\", role: .destructive)");
   });

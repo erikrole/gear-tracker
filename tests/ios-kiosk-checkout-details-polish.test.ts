@@ -24,7 +24,8 @@ describe("iOS kiosk checkout details polish", () => {
     const checkout = source("ios/Wisconsin/Kiosk/KioskCheckoutView.swift");
 
     expect(checkout).toContain("private var checkoutLayout: some View");
-    expect(checkout).toContain("if checkoutContextReady {");
+    expect(checkout).toContain("activeScanZone");
+    expect(checkout).toContain("KioskCheckoutContextSummary(");
     expect(checkout).toContain("KioskAdaptiveSplit { _ in");
     expect(checkout).toContain("KioskSideRail(isCompact: isCompact)");
     expect(checkout).toContain("checkoutContextSetupZone");

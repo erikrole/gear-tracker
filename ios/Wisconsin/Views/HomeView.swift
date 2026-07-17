@@ -380,7 +380,6 @@ private struct DashboardHero: View {
 // MARK: - Stat Strip
 
 private struct StatStrip: View {
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let stats: DashboardStats
     let pendingPickupCount: Int
     let shiftCount: Int
@@ -389,22 +388,26 @@ private struct StatStrip: View {
     let openAttention: () -> Void
     let openSchedule: () -> Void
 
-    private var columns: [GridItem] {
-        dynamicTypeSize.isAccessibilitySize
-            ? [GridItem(.flexible())]
-            : [GridItem(.flexible(), spacing: Brand.Space.sm), GridItem(.flexible(), spacing: Brand.Space.sm)]
-    }
-
-    /// With nothing to triage, four 30pt zeros don't earn the top of the
-    /// screen — collapse to one quiet all-clear line (AREA_MOBILE: "compact
-    /// triage strip only when it helps decide what to do next").
-    private var allZero: Bool {
-        stats.overdue == 0 && stats.dueToday == 0 && pendingPickupCount == 0 && shiftCount == 0
+    private var activeItems: [StatItem] {
+        var items: [StatItem] = []
+        if stats.overdue > 0 {
+            items.append(StatItem(id: "overdue", value: stats.overdue, label: "Overdue", systemImage: "exclamationmark.triangle.fill", tone: .red, action: openAttention))
+        }
+        if stats.dueToday > 0 {
+            items.append(StatItem(id: "due-today", value: stats.dueToday, label: "Due Today", systemImage: "clock.fill", tone: .orange, action: openAttention))
+        }
+        if pendingPickupCount > 0 {
+            items.append(StatItem(id: "pickups", value: pendingPickupCount, label: pendingPickupCount == 1 ? "Pickup" : "Pickups", systemImage: "shippingbox.fill", tone: .green, action: openBookings))
+        }
+        if shiftCount > 0 {
+            items.append(StatItem(id: "shifts", value: shiftCount, label: shiftCount == 1 ? "Shift" : "Shifts", systemImage: "calendar", tone: .blue, action: openSchedule))
+        }
+        return items
     }
 
     var body: some View {
         VStack(alignment: .trailing, spacing: Brand.Space.sm) {
-            if allZero {
+            if activeItems.isEmpty {
                 HStack(spacing: 6) {
                     Image(systemName: "checkmark.circle")
                         .font(.caption.weight(.semibold))
@@ -417,16 +420,18 @@ private struct StatStrip: View {
                 .foregroundStyle(.secondary)
                 .accessibilityElement(children: .combine)
             } else {
-                LazyVGrid(columns: columns, spacing: Brand.Space.sm) {
-                    // Overdue / Due Today are urgency numbers — land on Attention.
-                    StatCard(value: stats.overdue, label: "Overdue", systemImage: "exclamationmark.triangle.fill",
-                             tone: .red, onTap: openAttention)
-                    StatCard(value: stats.dueToday, label: "Due Today", systemImage: "clock.fill",
-                             tone: .orange, onTap: openAttention)
-                    StatCard(value: pendingPickupCount, label: pendingPickupCount == 1 ? "Pickup" : "Pickups", systemImage: "shippingbox.fill",
-                             tone: .green, onTap: openBookings)
-                    StatCard(value: shiftCount, label: shiftCount == 1 ? "Shift" : "Shifts", systemImage: "calendar",
-                             tone: .blue, onTap: openSchedule)
+                VStack(spacing: 0) {
+                    ForEach(activeItems) { item in
+                        StatRow(item: item)
+                        if item.id != activeItems.last?.id {
+                            Divider().padding(.leading, 58)
+                        }
+                    }
+                }
+                .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                        .strokeBorder(Color.hairline, lineWidth: 0.5)
                 }
                 if let lastLoadedAt { syncedStamp(lastLoadedAt) }
             }
@@ -447,80 +452,78 @@ private struct StatStrip: View {
     }
 }
 
-private struct StatCard: View {
+private struct StatItem: Identifiable {
+    let id: String
     let value: Int
     let label: String
     let systemImage: String
     let tone: StatusTone
-    let onTap: () -> Void
-    @State private var hapticTrigger = false
+    let action: () -> Void
+}
 
-    private var active: Bool { value > 0 }
+private struct StatRow: View {
+    let item: StatItem
+    @State private var hapticTrigger = false
 
     var body: some View {
         Button(action: {
             hapticTrigger.toggle()
-            onTap()
+            item.action()
         }) {
             HStack(spacing: Brand.Space.sm) {
                 ZStack {
                     RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous)
-                        .fill(active ? Color.statusIconBackground(tone) : Color.secondary.opacity(0.12))
-                    Image(systemName: systemImage)
-                        .font(.headline)
-                        .foregroundStyle(active ? Color.statusText(tone) : Color.secondary)
+                        .fill(Color.statusIconBackground(item.tone))
+                    Image(systemName: item.systemImage)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.statusText(item.tone))
                 }
-                .frame(width: 46, height: 46)
+                .frame(width: 36, height: 36)
 
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("\(value)")
-                        .font(.title.bold())
-                        .monospacedDigit()
-                        .foregroundStyle(active ? Color.statusText(tone) : Color.primary)
-                        .contentTransition(.numericText())
-                    Text(label)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
+                Text(item.label)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.primary)
+                Spacer(minLength: 8)
+                Text("\(item.value)")
+                    .font(.headline.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(Color.statusText(item.tone))
+                    .contentTransition(.numericText())
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
-            .padding(Brand.Space.md)
+            .padding(.horizontal, Brand.Space.md)
+            .padding(.vertical, Brand.Space.sm)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.cardSurfaceRaised, in: RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous)
-                    .strokeBorder(active ? Color.statusText(tone).opacity(0.25) : Color.hairline, lineWidth: active ? 1 : 0.5)
-            )
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .sensoryFeedback(.selection, trigger: hapticTrigger)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(label): \(value)")
+        .accessibilityLabel("\(item.label): \(item.value)")
+        .accessibilityHint("Opens related work")
     }
 }
 
 private struct StatStripSkeleton: View {
-    private let columns = [
-        GridItem(.flexible(), spacing: Brand.Space.sm),
-        GridItem(.flexible(), spacing: Brand.Space.sm),
-    ]
-
     var body: some View {
-        LazyVGrid(columns: columns, spacing: Brand.Space.sm) {
-            ForEach(0..<4, id: \.self) { _ in
+        VStack(spacing: 0) {
+            ForEach(0..<2, id: \.self) { index in
                 HStack(spacing: Brand.Space.sm) {
-                    Skeleton(cornerRadius: Brand.Radius.sm).frame(width: 46, height: 46)
-                    VStack(alignment: .leading, spacing: 6) {
-                        Skeleton().frame(width: 44, height: 26)
-                        Skeleton().frame(width: 60, height: 10)
-                    }
-                    Spacer(minLength: 0)
+                    Skeleton(cornerRadius: Brand.Radius.sm).frame(width: 36, height: 36)
+                    Skeleton().frame(width: 88, height: 14)
+                    Spacer(minLength: 8)
+                    Skeleton().frame(width: 24, height: 18)
                 }
-                .padding(Brand.Space.md)
+                .padding(.horizontal, Brand.Space.md)
+                .padding(.vertical, Brand.Space.sm)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous))
+                if index == 0 { Divider().padding(.leading, 58) }
             }
         }
+        .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
         .accessibilityHidden(true)  // Don't pollute VO with placeholder shapes during initial load.
     }
 }

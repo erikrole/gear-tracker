@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-16
+- Last Updated: 2026-07-17
 - Status: Active
 - Version: V1
 
@@ -433,6 +433,7 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 
 ## Change Log
 
+- 2026-07-17: **Native Item Detail hierarchy refresh.** The iOS detail surface now leads with a compact adaptive static-image-and-Gotham-Black identity hero, without duplicate navigation/status chrome. The product subtitle is a quiet caption and the location beneath it has stronger contrast. A linked active-custody card reads booking title, natural live due copy such as `Due in 2 hours, 40 minutes`, then requester; otherwise a quiet card says `Available` or `Available until [next reservation]`. Reservation actions use the semantic purple reservation tone. Upcoming Reservations remains visible on the main page even when empty; populated rows stay chronological and open Booking Detail. A neutral one-line Previous Bookings row opens newest-first history already returned by `/api/assets/[id]`; previous records reveal in 10-row scroll batches and open Booking Detail. Details and Previous Bookings share the same compact single-row card anatomy while category, department, serial, procurement, product-link metadata, and a collapsed Attachments disclosure live under Details. The tappable QR chip drops its redundant copy icon, and Edit/QR/product-link commands use the native overflow menu. No server query, API shape, data, status, reservation, or custody behavior changed. Regression guard: `tests/ios-item-detail-hierarchy.test.ts`.
 - 2026-07-16: **Items list interaction-detail conformance.** Header commands, retry actions, item-type controls, advanced-filter triggers, selection controls, favorites, and desktop sort headers now meet the 40px operational target baseline. Creation entry points consistently say `Add item`; desktop table headers preserve sentence case and use keyboard-operable buttons with accessible sort state and contextual icon motion that skips initial render. Favorite state transitions use the same controlled icon treatment, mobile rows gain precise 0.96 press feedback, Hidden attachments uses its full labeled container, requester photos use neutral black/white outlines, and the faceted-filter plus icon is optically spaced through the button's existing gap. Item identity, image rendering, filter/sort behavior, selection semantics, freshness, creation, and row actions are unchanged.
 - 2026-07-16: Collaborator catalog visibility now derives from the active affiliation policy's `GEAR_CATALOG_VIEW` capability while retaining the permanent sanitized response boundary.
 - 2026-07-16: **Activity-aware item freshness.** Items and item-family detail keep the existing 60-second change-signal cadence while the user is active. The shared poller stops requests for hidden, offline, or two-minute-idle sessions and checks immediately when the user returns, allowing Neon compute to autosuspend overnight while preserving active-session freshness.

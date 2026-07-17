@@ -18,48 +18,51 @@ struct ScanPrePromptView: View {
     @State private var isRequesting = false
 
     var body: some View {
-        VStack(spacing: 28) {
-            VStack(spacing: 14) {
-                Image(systemName: "barcode.viewfinder")
-                    .font(.system(size: 56))
-                    .foregroundStyle(Color.accentColor)
-                    .symbolEffect(.bounce, options: .nonRepeating, isActive: !reduceMotion)
-                    .accessibilityHidden(true)
+        ScrollView {
+            VStack(spacing: 22) {
+                VStack(spacing: 10) {
+                    Image(systemName: "barcode.viewfinder")
+                        .font(.system(size: 52))
+                        .foregroundStyle(Color.accentColor)
+                        .symbolEffect(.bounce, options: .nonRepeating, isActive: !reduceMotion)
+                        .accessibilityHidden(true)
 
-                Text("Scan to find gear fast")
-                    .font(.title2.weight(.bold))
+                    Text("Scan to find gear fast")
+                        .font(.title2.weight(.bold))
 
-                Text("Point your camera at a barcode or QR code on a piece of gear and we'll jump straight to its record — checked-out, reserved, or available.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 12)
-            }
-
-            VStack(spacing: 10) {
-                bullet("archivebox", "Look up gear by sticker code")
-                bullet("calendar.badge.checkmark", "Open the booking it's checked out on")
-                bullet("person.fill", "Find the person who has it")
-            }
-            .padding(.horizontal, 24)
-
-            VStack(spacing: 10) {
-                Button {
-                    Task { await requestSystemPermission() }
-                } label: {
-                    Text("Turn on camera")
-                        .frame(maxWidth: .infinity)
+                    Text("Point your camera at a barcode or QR code on a piece of gear and we'll jump straight to its record — checked-out, reserved, or available.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 12)
                 }
-                .buttonStyle(.glassProminent)
-                .controlSize(.large)
-                .disabled(isRequesting)
-            }
-            .padding(.horizontal, 24)
 
-            Spacer(minLength: 0)
+                VStack(spacing: 10) {
+                    bullet("archivebox", "Look up gear by sticker code")
+                    bullet("calendar.badge.checkmark", "Open the booking it's checked out on")
+                    bullet("person.fill", "Find the person who has it")
+                }
+                .padding(.horizontal, 24)
+
+                VStack(spacing: 10) {
+                    Button {
+                        Task { await requestSystemPermission() }
+                    } label: {
+                        Text("Turn on camera")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.glassProminent)
+                    .controlSize(.large)
+                    .disabled(isRequesting)
+                }
+                .padding(.horizontal, 24)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 36)
+            .padding(.bottom, 16)
         }
-        .padding(.top, 36)
-        .padding(.bottom, 16)
+        .scrollBounceBehavior(.basedOnSize)
     }
 
     private func bullet(_ icon: String, _ text: String) -> some View {
@@ -72,6 +75,7 @@ struct ScanPrePromptView: View {
             Text(text)
                 .font(.subheadline)
                 .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
             Spacer()
         }
     }
@@ -88,18 +92,31 @@ struct ScanPrePromptView: View {
 /// Recovery view shown when the user previously denied camera access.
 /// Provides a clear path to Settings since iOS won't re-prompt.
 struct ScanDeniedView: View {
+    let onTypeCode: () -> Void
+
     var body: some View {
         ContentUnavailableView {
             Label("Camera Access Off", systemImage: "camera.slash")
         } description: {
-            Text("Turn on Camera in Settings to scan gear barcodes and QR codes.")
+            Text("Turn on Camera in Settings to scan, or type the sticker code instead.")
         } actions: {
-            Button("Open Settings") {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
+            VStack(spacing: 12) {
+                Button {
+                    onTypeCode()
+                } label: {
+                    Label("Type code instead", systemImage: "keyboard")
                 }
+                .buttonStyle(.glassProminent)
+
+                Button {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                } label: {
+                    Label("Open Settings", systemImage: "gear")
+                }
+                .buttonStyle(.glass)
             }
-            .buttonStyle(.glassProminent)
             .controlSize(.large)
         }
     }

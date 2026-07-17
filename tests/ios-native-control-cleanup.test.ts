@@ -15,7 +15,7 @@ function sliceBetween(sourceText: string, start: string, end: string) {
 }
 
 describe("iOS native control cleanup", () => {
-  it("uses native SwiftUI search and toolbar scanner in global search", () => {
+  it("centers Scan in the empty Search state and replaces it when typing begins", () => {
     const search = source("ios/Wisconsin/Views/Search/GlobalSearchSheet.swift");
 
     expect(search).toContain(".searchable(");
@@ -23,11 +23,24 @@ describe("iOS native control cleanup", () => {
     expect(search).toContain("if showsCancelButton");
     expect(search).toContain("text: $query");
     expect(search).toContain("placement: .navigationBarDrawer(displayMode: .always)");
-    expect(search).toContain('prompt: Text("Search items, bookings, people")');
+    expect(search).toContain('prompt: Text(isCollaborator ? "Search reservable gear" : "Search items, bookings, people")');
+    expect(search).toContain("if !isCollaborator");
+    expect(search).toContain("SearchService.shared.search(query: query, gearOnly: isCollaborator)");
     expect(search).toContain(".onSubmit(of: .search) { commitSearch() }");
     expect(search).toContain('Label("Scan QR code", systemImage: "qrcode.viewfinder")');
+    expect(search).toContain("VStack(spacing: 0)");
+    expect(search).toContain("if trimmedQuery.isEmpty");
+    expect(search).toContain("private var scannerEmptyState: some View");
+    expect(search).toContain('Label("Scan a code", systemImage: "qrcode.viewfinder")');
+    expect(search).toContain(".frame(maxWidth: .infinity, maxHeight: .infinity)");
+    expect(search).toContain("query.trimmingCharacters(in: .whitespacesAndNewlines)");
+    expect(search).toContain(".buttonStyle(.borderedProminent)");
+    expect(search).toContain("private func presentScanner()");
+    expect(search).toContain("isSearchPresented = false");
     expect(search).not.toContain("@FocusState private var fieldFocused");
     expect(search).not.toContain("private var searchBar");
+    expect(search).not.toContain(".safeAreaInset(edge: .bottom");
+    expect(search).not.toContain("ToolbarItemGroup(placement: .keyboard)");
     expect(search).not.toContain('TextField("Search items, bookings, people');
   });
 

@@ -10,6 +10,7 @@ struct ProfileView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var showPushPrompt = false
     @State private var prefsVM = NotificationPrefsViewModel()
     @State private var pushAuth: UNAuthorizationStatus = .notDetermined
@@ -43,7 +44,7 @@ struct ProfileView: View {
             .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showPushPrompt) {
                 PushPrePromptView()
-                    .presentationDetents([.medium])
+                    .presentationDetents([.fraction(0.62), .large])
                     .presentationDragIndicator(.visible)
             }
             .toolbar {
@@ -81,44 +82,82 @@ struct ProfileView: View {
     private var headerSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 14) {
-                    AccountAvatar(size: 58)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(session.currentUser?.name ?? "Account")
-                            .font(.title3.weight(.semibold))
-                        Text(session.currentUser?.email ?? "")
-                            .font(.system(.subheadline, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.85)
-                    }
-                    Spacer(minLength: 12)
-                    StatusPill.role(session.currentUser?.role ?? "")
-                }
+                profileIdentity
 
                 Divider()
 
-                HStack(spacing: 12) {
-                    SettingsStatusMetric(
-                        value: "\(appState.myShiftCount)",
-                        label: "Shifts",
-                        tone: appState.myShiftCount > 0 ? .blue : .gray
-                    )
-                    SettingsStatusMetric(
-                        value: "\(appState.overdueCount)",
-                        label: "Overdue",
-                        tone: appState.overdueCount > 0 ? .red : .gray
-                    )
-                    SettingsStatusMetric(
-                        value: notificationMetricValue,
-                        label: "Alerts",
-                        tone: notificationMetricTone
-                    )
-                }
+                statusMetrics
             }
             .padding(.vertical, 6)
         }
         .listRowBackground(Color(.secondarySystemGroupedBackground))
+    }
+
+    @ViewBuilder
+    private var profileIdentity: some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .center, spacing: 12) {
+                    AccountAvatar(size: 58)
+                    StatusPill.role(session.currentUser?.role ?? "")
+                }
+                Text(session.currentUser?.name ?? "Account")
+                    .font(.title3.weight(.semibold))
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(session.currentUser?.email ?? "")
+                    .font(.system(.subheadline, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        } else {
+            HStack(spacing: 14) {
+                AccountAvatar(size: 58)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(session.currentUser?.name ?? "Account")
+                        .font(.title3.weight(.semibold))
+                    Text(session.currentUser?.email ?? "")
+                        .font(.system(.subheadline, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                }
+                Spacer(minLength: 12)
+                StatusPill.role(session.currentUser?.role ?? "")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var statusMetrics: some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(spacing: 10) {
+                statusMetricViews
+            }
+        } else {
+            HStack(spacing: 12) {
+                statusMetricViews
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var statusMetricViews: some View {
+        SettingsStatusMetric(
+            value: "\(appState.myShiftCount)",
+            label: "Shifts",
+            tone: appState.myShiftCount > 0 ? .blue : .gray
+        )
+        SettingsStatusMetric(
+            value: "\(appState.overdueCount)",
+            label: "Overdue",
+            tone: appState.overdueCount > 0 ? .red : .gray
+        )
+        SettingsStatusMetric(
+            value: notificationMetricValue,
+            label: "Alerts",
+            tone: notificationMetricTone
+        )
     }
 
     @ViewBuilder
@@ -200,14 +239,11 @@ struct ProfileView: View {
 
     private var notificationMetricValue: String {
         if prefsVM.loading && prefsVM.prefs == nil { return "…" }
-        if prefsVM.pausedUntilDate != nil { return "Paused" }
         guard let prefs = prefsVM.prefs else { return prefsVM.error == nil ? "On" : "Check" }
-        let enabled = [prefs.channels.email, prefs.channels.push].filter { $0 }.count
-        return enabled == 0 ? "Inbox" : "\(enabled)/2"
+        return prefs.channels.push ? "Push" : "Inbox"
     }
 
     private var notificationMetricTone: StatusTone {
-        if prefsVM.pausedUntilDate != nil { return .purple }
         if prefsVM.error != nil && prefsVM.prefs == nil { return .orange }
         return .blue
     }
@@ -236,7 +272,6 @@ struct ProfileView: View {
             NotificationSettingsView(
                 prefsVM: prefsVM,
                 pushAuth: $pushAuth,
-                currentEmail: session.currentUser?.email ?? "your email",
                 iosSettingsURL: Self.iosSettingsURL,
                 showPushPrompt: { showPushPrompt = true }
             )
@@ -247,6 +282,7 @@ struct ProfileView: View {
 }
 
 struct SettingsMenuRow<Trailing: View>: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let title: String
     let subtitle: String?
     let systemImage: String
@@ -268,25 +304,42 @@ struct SettingsMenuRow<Trailing: View>: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            SettingsRowIcon(systemImage: systemImage, tint: tint)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.primary)
-                if let subtitle, !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 10) {
+                    SettingsRowIcon(systemImage: systemImage, tint: tint)
+                    rowCopy
+                    trailing()
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+            } else {
+                HStack(spacing: 12) {
+                    SettingsRowIcon(systemImage: systemImage, tint: tint)
+                    rowCopy
+                    Spacer(minLength: 12)
+                    trailing()
                 }
             }
-            Spacer(minLength: 12)
-            trailing()
         }
         .padding(.vertical, 3)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+    }
+
+    private var rowCopy: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+            if let subtitle, !subtitle.isEmpty {
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 }
 
@@ -296,15 +349,17 @@ private struct SettingsRowIcon: View {
 
     @ScaledMetric(relativeTo: .subheadline) private var iconSize: CGFloat = 34
 
+    private var renderedSize: CGFloat { min(iconSize, 44) }
+
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: iconSize * 0.24, style: .continuous)
+            RoundedRectangle(cornerRadius: renderedSize * 0.24, style: .continuous)
                 .fill(tint.opacity(0.14))
             Image(systemName: systemImage)
-                .font(.subheadline.weight(.semibold))
+                .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(tint)
         }
-        .frame(width: iconSize, height: iconSize)
+        .frame(width: renderedSize, height: renderedSize)
         .accessibilityHidden(true)
     }
 }

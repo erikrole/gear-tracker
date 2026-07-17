@@ -37,6 +37,18 @@ describe("iOS APNs device token honesty", () => {
     expect(revoke).not.toContain("session.data(for: req)");
   });
 
+  it("persists the current installation token for device-specific self-test", () => {
+    const delegate = source("ios/Wisconsin/App/AppDelegate.swift");
+    const detail = source("ios/Wisconsin/Views/NotificationSettingsView.swift");
+    const route = source("src/app/api/devices/test/route.ts");
+
+    expect(delegate).toContain('static let currentTokenKey = "WisconsinCurrentAPNsToken"');
+    expect(delegate).toContain("UserDefaults.standard.set(hex, forKey: PushTokenStorage.currentTokenKey)");
+    expect(detail).toContain("@AppStorage(PushTokenStorage.currentTokenKey) private var currentPushToken");
+    expect(route).toContain("testPushSchema.parse(await req.json())");
+    expect(route).toContain("where: { userId: user.id, token: body.token, revokedAt: null }");
+  });
+
   it("shared perform remains the central 401 session-expiry path", () => {
     const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
     const perform = apiClient.slice(apiClient.indexOf("private func perform"));

@@ -61,15 +61,19 @@ describe("iOS Home header source contract", () => {
     expect(home).toContain('Label("Search or Scan", systemImage: "magnifyingglass")');
   });
 
-  it("uses a stronger due-today icon tile and restrained flat depth while preserving the orange text tone", () => {
+  it("shows only actionable metrics as compact disclosure rows", () => {
     const home = source("ios/Wisconsin/Views/HomeView.swift");
     const brand = source("ios/Wisconsin/Core/Brand.swift");
 
-    expect(home).toContain('StatCard(value: stats.dueToday, label: "Due Today"');
+    expect(home).toContain("private var activeItems: [StatItem]");
+    expect(home).toContain("if stats.dueToday > 0");
+    expect(home).toContain('StatItem(id: "due-today"');
+    expect(home).toContain("private struct StatRow: View");
     expect(home).toContain("tone: .orange");
-    expect(home).toContain("Color.statusIconBackground(tone)");
-    expect(home).toContain("Color.cardSurfaceRaised");
-    expect(home).not.toContain("active ? Color.statusText(tone).opacity(0.08) : Color.clear");
+    expect(home).toContain("Color.statusIconBackground(item.tone)");
+    expect(home).toContain("Color.cardSurface");
+    expect(home).toContain('Image(systemName: "chevron.right")');
+    expect(home).not.toContain("private struct StatCard");
     expect(home).toContain(".foregroundStyle(.secondary)");
     expect(brand).toContain("// #d97706");
     expect(brand).toContain("// #fff7ed");

@@ -25,4 +25,11 @@ describe("App Review demo seed safety", () => {
     expect(source).not.toContain("jordan.lee.demo@wisconsincreative.com");
     expect(source).not.toContain("alex.rivera.demo@wisconsincreative.com");
   });
+
+  it("keeps future review data available beyond a typical App Review delay", () => {
+    expect(source).toContain("const REVIEW_WINDOW_DAYS = 30;");
+    expect(source).toContain("const UPCOMING_RESERVATION_DAYS = 21;");
+    expect(source).toContain("daysFromNow(REVIEW_WINDOW_DAYS, 13)");
+    expect(source).toContain("daysFromNow(UPCOMING_RESERVATION_DAYS, 10)");
+  });
 });

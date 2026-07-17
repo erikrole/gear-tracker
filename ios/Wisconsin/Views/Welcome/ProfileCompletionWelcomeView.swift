@@ -102,9 +102,11 @@ struct ProfileCompletionWelcomeView: View {
                     VStack(alignment: .leading, spacing: 5) {
                         Text(stepTitle)
                             .font(.title2.weight(.bold))
+                            .fixedSize(horizontal: false, vertical: true)
                         Text(stepDescription)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .id("heading-\(currentStep.rawValue)")
                     .transition(stepTransition)

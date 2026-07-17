@@ -26,4 +26,4 @@ export function normalizeOperationalTitle(value: string): string {
 }
 
 export const normalizeBookingTitle = normalizeOperationalTitle;
-export const normalizeScheduledEventTitle = normalizeOperationalTitle;
+export const normalizeManualEventTitle = normalizeOperationalTitle;

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   normalizeBookingTitle,
-  normalizeScheduledEventTitle,
+  normalizeManualEventTitle,
 } from "@/lib/title-normalization";
 import { splitEventsForSync } from "@/lib/services/calendar-sync";
 
@@ -20,15 +20,15 @@ describe("operational title normalization", () => {
     expect(normalizeBookingTitle(input)).toBe(expected);
   });
 
-  it("uses the same rule for scheduled-event titles", () => {
-    expect(normalizeScheduledEventTitle("mbb PRACTICE")).toBe("MBB Practice");
+  it("uses the same rule for manually authored event titles", () => {
+    expect(normalizeManualEventTitle("mbb PRACTICE")).toBe("MBB Practice");
   });
 
-  it("normalizes imported event summaries before sync writes", () => {
+  it("preserves non-UW acronyms in imported event summaries", () => {
     const result = splitEventsForSync([
       {
         uid: "event-1",
-        summary: "MBB PRACTICE",
+        summary: "MBB vs USC / UCLA / TCU",
         description: "",
         location: "",
         dtstart: "20260716T150000Z",
@@ -37,16 +37,17 @@ describe("operational title normalization", () => {
       },
     ], [], []);
 
-    expect(result.toCreate[0]?.summary).toBe("MBB Practice");
-    expect(result.toCreate[0]?.rawSummary).toBe("MBB PRACTICE");
+    expect(result.toCreate[0]?.summary).toBe("MBB vs USC / UCLA / TCU");
+    expect(result.toCreate[0]?.rawSummary).toBe("MBB vs USC / UCLA / TCU");
   });
 
   it("wires the normalizer into manual create and edit writes", () => {
     const createRoute = readFileSync("src/app/api/calendar-events/route.ts", "utf8");
     const editRoute = readFileSync("src/app/api/calendar-events/[id]/route.ts", "utf8");
 
-    expect(createRoute).toContain("summary: normalizeScheduledEventTitle(body.summary)");
-    expect(editRoute).toContain("patch.summary = normalizeScheduledEventTitle(body.summary)");
-    expect(editRoute).toContain("patch.summary = normalizeScheduledEventTitle(derived)");
+    expect(createRoute).toContain("summary: normalizeManualEventTitle(body.summary)");
+    expect(editRoute).toContain("existing.sourceId === null");
+    expect(editRoute).toContain("? normalizeManualEventTitle(body.summary)");
+    expect(editRoute).toContain("patch.summary = derived");
   });
 });

@@ -5,9 +5,9 @@ import UserNotifications
 // MARK: - Settings
 
 /// Dedicated settings page pushed from the gear button on `ProfileView`.
-/// Follows the system Settings app conventions: plain body-text rows with
-/// solid-color icon squares, short trailing values instead of subtitles,
-/// and a centered destructive Sign Out row.
+/// Follows the system Settings app conventions: consistent destination rows,
+/// short trailing values, truthful accessories, and a centered destructive
+/// Sign Out row.
 struct SettingsView: View {
     @Environment(SessionStore.self) private var session
 
@@ -15,24 +15,19 @@ struct SettingsView: View {
     let pushAuth: UNAuthorizationStatus
 
     @State private var showSignOutConfirm = false
-    @State private var showLinkStickerWizard = false
-    @State private var showScannerDebugger = false
     @AppStorage("WisconsinThemeChoice") private var themeChoice: ThemeChoice = .system
 
     private static let iosSettingsURL = URL(string: UIApplication.openSettingsURLString)!
     private static let privacyURL = AppEnvironment.baseURL.appending(path: "privacy")
     private static let supportURL = URL(string: "mailto:erole@athletics.wisc.edu?subject=Wisconsin%20Creative%20Support")!
 
-    private var isStaffOrAdmin: Bool {
-        let role = session.currentUser?.role ?? ""
-        return role == "ADMIN" || role == "STAFF"
-    }
-
     var body: some View {
         List {
             Section {
                 NavigationLink(value: ProfileDestination.accountSecurity) {
-                    SettingsRow(title: "Account & Security", systemImage: "lock.fill", color: .blue)
+                    SettingsRow(title: "Account & Security", systemImage: "lock.fill", color: .blue) {
+                        EmptyView()
+                    }
                 }
                 NavigationLink(value: ProfileDestination.notifications) {
                     SettingsRow(title: "Notifications", systemImage: "bell.badge.fill", color: .red) {
@@ -45,45 +40,28 @@ struct SettingsView: View {
             Section {
                 Picker(selection: $themeChoice) {
                     ForEach(ThemeChoice.allCases) { choice in
-                        Label(choice.label, systemImage: choice.systemImage)
+                        Text(choice.label)
                             .tag(choice)
                     }
                 } label: {
-                    SettingsRow(title: "Theme", systemImage: "circle.lefthalf.filled", color: .indigo)
+                    SettingsRow(title: "Theme", systemImage: "circle.lefthalf.filled", color: .indigo) {
+                        EmptyView()
+                    }
                 }
                 .pickerStyle(.menu)
             } footer: {
                 Text("Your theme choice is saved on this device only.")
             }
 
-            if isStaffOrAdmin {
-                Section("Staff Tools") {
-                    Button {
-                        showLinkStickerWizard = true
-                    } label: {
-                        SettingsRow(title: "Link Sticker Codes", systemImage: "qrcode", color: .teal)
-                    }
-                    Button {
-                        showScannerDebugger = true
-                    } label: {
-                        SettingsRow(title: "Scanner Debugger", systemImage: "barcode.viewfinder", color: .green)
-                    }
-                }
-            }
-
             Section {
                 Link(destination: Self.privacyURL) {
                     SettingsRow(title: "Privacy Policy", systemImage: "hand.raised.fill", color: .blue) {
-                        Image(systemName: "arrow.up.forward")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.tertiary)
+                        externalLinkIndicator
                     }
                 }
                 Link(destination: Self.supportURL) {
                     SettingsRow(title: "Contact Support", systemImage: "envelope.fill", color: .green) {
-                        Image(systemName: "arrow.up.forward")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.tertiary)
+                        externalLinkIndicator
                     }
                 }
                 SettingsRow(title: "Version", systemImage: "app.badge", color: .gray) {
@@ -93,9 +71,7 @@ struct SettingsView: View {
                 }
                 Link(destination: Self.iosSettingsURL) {
                     SettingsRow(title: "Open iOS Settings", systemImage: "gear", color: .gray) {
-                        Image(systemName: "arrow.up.forward")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.tertiary)
+                        externalLinkIndicator
                     }
                 }
             } footer: {
@@ -112,14 +88,7 @@ struct SettingsView: View {
         .listStyle(.insetGrouped)
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showLinkStickerWizard) {
-            LinkStickerWizard()
-        }
-        .sheet(isPresented: $showScannerDebugger) {
-            ScannerDebuggerView()
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-        }
+        .preferredColorScheme(themeChoice.colorScheme)
         .confirmationDialog(
             "Sign out?",
             isPresented: $showSignOutConfirm,
@@ -141,12 +110,8 @@ struct SettingsView: View {
     }
 
     private var notificationStatusText: String {
-        if prefsVM.pausedUntilDate != nil { return "Paused" }
         guard let prefs = prefsVM.prefs else { return "" }
-        var channels: [String] = []
-        if prefs.channels.email { channels.append("Email") }
-        if prefs.channels.push && pushAllowed { channels.append("Push") }
-        return channels.isEmpty ? "In-app only" : channels.joined(separator: " & ")
+        return prefs.channels.push && pushAllowed ? "Push" : "In-app only"
     }
 
     private var appVersion: String {
@@ -154,45 +119,71 @@ struct SettingsView: View {
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
         return "\(version) (\(build))"
     }
+
+    private var externalLinkIndicator: some View {
+        Image(systemName: "arrow.up.right.square")
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.tertiary)
+            .accessibilityHidden(true)
+    }
 }
 
-// MARK: - Row
-
-/// System-Settings-style row: solid-color rounded square with a white
-/// glyph, body-text title, optional short trailing value.
+/// Compact root-settings row with an immediately recognizable color tile.
+/// Destination, value, and external-link accessories remain owned by callers.
 private struct SettingsRow<Trailing: View>: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     let title: String
     let systemImage: String
     let color: Color
-    let trailing: () -> Trailing
+    @ViewBuilder let trailing: () -> Trailing
 
-    @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 29
+    @ScaledMetric(relativeTo: .body) private var iconSize = 30
 
-    init(
-        title: String,
-        systemImage: String,
-        color: Color,
-        @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() }
-    ) {
-        self.title = title
-        self.systemImage = systemImage
-        self.color = color
-        self.trailing = trailing
-    }
+    private var renderedIconSize: CGFloat { min(iconSize, 40) }
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: systemImage)
-                .font(.system(size: iconSize * 0.52, weight: .medium))
-                .foregroundStyle(.white)
-                .frame(width: iconSize, height: iconSize)
-                .background(color.gradient, in: RoundedRectangle(cornerRadius: iconSize * 0.22, style: .continuous))
-                .accessibilityHidden(true)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 10) {
+                    rowIcon
+                    rowTitle
+                    trailing()
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+            } else {
+                HStack(spacing: 12) {
+                    rowIcon
+                    rowTitle
+                    Spacer(minLength: 8)
+                    trailing()
+                }
+            }
+        }
+        .padding(.vertical, 2)
+        .contentShape(Rectangle())
+    }
+
+    private var rowIcon: some View {
+        Image(systemName: systemImage)
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: renderedIconSize, height: renderedIconSize)
+            .background(color, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private var rowTitle: some View {
+        if dynamicTypeSize.isAccessibilitySize && !title.contains(" ") {
             Text(title)
                 .foregroundStyle(.primary)
-            Spacer(minLength: 8)
-            trailing()
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        } else {
+            Text(title)
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .accessibilityElement(children: .combine)
     }
 }

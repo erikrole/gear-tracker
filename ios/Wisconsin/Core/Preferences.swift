@@ -17,14 +17,6 @@ enum ThemeChoice: String, CaseIterable, Identifiable {
         }
     }
 
-    var systemImage: String {
-        switch self {
-        case .system: "circle.lefthalf.filled"
-        case .light:  "sun.max.fill"
-        case .dark:   "moon.fill"
-        }
-    }
-
     /// `nil` = follow the OS; non-nil = force the corresponding scheme.
     var colorScheme: ColorScheme? {
         switch self {

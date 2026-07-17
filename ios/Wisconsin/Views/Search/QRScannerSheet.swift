@@ -94,7 +94,9 @@ struct QRScannerSheet: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(.systemBackground))
         case .denied, .restricted:
-            ScanDeniedView()
+            ScanDeniedView {
+                showManualEntry = true
+            }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(.systemBackground))
         case .authorized:

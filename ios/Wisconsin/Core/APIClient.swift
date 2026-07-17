@@ -39,6 +39,12 @@ struct CheckoutReturnInsight {
     let hasUpcomingNeed: Bool
 }
 
+struct TestPushResult: Decodable {
+    let delivered: Int
+    let devices: Int
+    let revoked: Int
+}
+
 extension Notification.Name {
     /// Fired when any API call returns 401. SessionStore listens and clears
     /// `currentUser`, which lets RootView swap to LoginView automatically —
@@ -109,6 +115,13 @@ final class APIClient {
     func revokeAllDeviceTokens() async throws {
         let req = request(path: "/api/devices", method: "DELETE")
         let _: SuccessResponse = try await perform(req)
+    }
+
+    func sendTestPush(deviceToken: String) async throws -> TestPushResult {
+        struct Body: Encodable { let token: String }
+        var req = request(path: "/api/devices/test", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(token: deviceToken))
+        return try await perform(req)
     }
 
     func registerCheckoutReturnLiveActivity(bookingId: String, token: String) async throws {

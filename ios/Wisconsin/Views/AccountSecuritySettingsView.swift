@@ -3,6 +3,7 @@ import UIKit
 
 struct AccountSecuritySettingsView: View {
     @Environment(SessionStore.self) private var session
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let manageAccountURL: URL
 
     @State private var currentPassword = ""
@@ -25,20 +26,7 @@ struct AccountSecuritySettingsView: View {
     var body: some View {
         List {
             Section("Account") {
-                HStack(spacing: 14) {
-                    AccountAvatar(size: 48)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(session.currentUser?.name ?? "Account")
-                            .font(.headline)
-                        Text(session.currentUser?.email ?? "")
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                    }
-                    Spacer(minLength: 12)
-                    StatusPill.role(session.currentUser?.role ?? "")
-                }
+                accountIdentity
                 .padding(.vertical, 4)
 
                 Link(destination: manageAccountURL) {
@@ -100,6 +88,7 @@ struct AccountSecuritySettingsView: View {
                 .disabled(isSaving)
 
                 Toggle("Sign out other devices", isOn: $revokeOtherSessions)
+                    .tint(Color.statusText(.green))
                     .disabled(isSaving)
 
                 if let validationMessage {
@@ -133,6 +122,7 @@ struct AccountSecuritySettingsView: View {
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(Color.brandPrimary)
                 .disabled(!canSubmit)
             } header: {
                 Text("Password")
@@ -165,6 +155,41 @@ struct AccountSecuritySettingsView: View {
         .onChange(of: successMessage) { _, successMessage in
             if let successMessage {
                 AccessibilityNotification.Announcement(successMessage).post()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var accountIdentity: some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 12) {
+                    AccountAvatar(size: 48)
+                    StatusPill.role(session.currentUser?.role ?? "")
+                }
+                Text(session.currentUser?.name ?? "Account")
+                    .font(.headline)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(session.currentUser?.email ?? "")
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        } else {
+            HStack(spacing: 14) {
+                AccountAvatar(size: 48)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(session.currentUser?.name ?? "Account")
+                        .font(.headline)
+                    Text(session.currentUser?.email ?? "")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                Spacer(minLength: 12)
+                StatusPill.role(session.currentUser?.role ?? "")
             }
         }
     }

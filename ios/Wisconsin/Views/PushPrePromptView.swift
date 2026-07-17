@@ -11,54 +11,58 @@ struct PushPrePromptView: View {
     @State private var isRequesting = false
 
     var body: some View {
-        VStack(spacing: 28) {
-            VStack(spacing: 14) {
-                Image(systemName: "bell.badge.fill")
-                    .font(.system(size: 56))
-                    .foregroundStyle(Color.accentColor)
-                    .symbolEffect(.bounce, options: .nonRepeating, isActive: !reduceMotion)
-                    .accessibilityHidden(true)
+        ScrollView {
+            VStack(spacing: 22) {
+                VStack(spacing: 10) {
+                    Image(systemName: "bell.badge.fill")
+                        .font(.system(size: 52))
+                        .foregroundStyle(Color.accentColor)
+                        .symbolEffect(.bounce, options: .nonRepeating, isActive: !reduceMotion)
+                        .accessibilityHidden(true)
 
-                Text("Stay in the loop")
-                    .font(.title2.weight(.bold))
+                    Text("Stay in the loop")
+                        .font(.title2.weight(.bold))
 
-                Text("We'll only ping you for things you care about — gear that's due back, shifts coming up, and trades opening on the board.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 12)
-            }
+                    Text("We'll only ping you for things you care about — gear that's due back, shifts coming up, and trades opening on the board.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 12)
+                }
 
-            VStack(spacing: 10) {
-                bullet("calendar.badge.clock", "Reminders before your gear is due")
-                bullet("person.fill.checkmark", "Your shift is tomorrow")
-                bullet("arrow.triangle.2.circlepath", "Trade-board posts you can claim")
-            }
-            .padding(.horizontal, 24)
+                VStack(spacing: 10) {
+                    bullet("calendar.badge.clock", "Reminders before your gear is due")
+                    bullet("person.fill.checkmark", "Your shift is tomorrow")
+                    bullet("arrow.triangle.2.circlepath", "Trade-board posts you can claim")
+                }
+                .padding(.horizontal, 24)
 
-            VStack(spacing: 10) {
-                Button {
-                    Task { await requestSystemPermission() }
-                } label: {
+                VStack(spacing: 10) {
+                    Button {
+                        Task { await requestSystemPermission() }
+                    } label: {
                         Text("Turn on notifications")
                             .fontWeight(.semibold)
                             .frame(maxWidth: .infinity)
                             .frame(minHeight: 50)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(isRequesting)
-
-                Button("Not now") { dismiss() }
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color.brandPrimary)
                     .disabled(isRequesting)
-            }
-            .padding(.horizontal, 24)
 
-            Spacer(minLength: 0)
+                    Button("Not now") { dismiss() }
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .disabled(isRequesting)
+                }
+                .padding(.horizontal, 24)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 36)
+            .padding(.bottom, 16)
         }
-        .padding(.top, 36)
-        .padding(.bottom, 16)
+        .scrollBounceBehavior(.basedOnSize)
     }
 
     private func bullet(_ icon: String, _ text: String) -> some View {
@@ -71,6 +75,7 @@ struct PushPrePromptView: View {
             Text(text)
                 .font(.subheadline)
                 .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
             Spacer()
         }
     }

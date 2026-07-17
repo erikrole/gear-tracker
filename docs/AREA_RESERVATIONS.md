@@ -130,6 +130,7 @@ The reservation detail page (`/reservations/[id]`) uses the shared `BookingDetai
    - Primary tap opens details.
    - Secondary actions open in action sheet.
    - Overdue or urgent states remain visually prioritized.
+   - Native rows read as title, timing, then requester/location/item context, with explicit status pills reserved for lifecycle or urgency information not already carried by the section and leading rail.
 
 ### Pagination and Density
 1. Show total rows summary: `Showing X to Y of Z`.
@@ -245,6 +246,8 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - Mobile operations contract from `AREA_MOBILE.md`.
 
 ## Change Log
+
+- 2026-07-17: **Native booking hierarchy alignment.** Native Bookings rows now match the Item Detail custody hierarchy with title first, live timing second, and requester plus location/item context third. Normal open checkouts use the blue leading rail without a redundant `Checked Out` pill; reservations and exceptional checkout states retain explicit status labels. List controls, record ordering, payloads, actions, and kiosk-only custody behavior are unchanged.
 - 2026-07-16: **Shared Bookings list interaction-detail polish.** The unified `/bookings` surface now keeps Active/Past and card/list controls, reservation creation, filter recovery, sortable headers, and pagination on the 40px desktop target baseline. Sort headers are keyboard-operable buttons with accessible sort state and contextual icons that transition without replaying on initial render. Booking cards and mobile rows use precise 0.96 press feedback, cards gain restrained hover lift, and requester photos use neutral black/white image outlines. Reservation visibility, action permissions, creation, lifecycle policy, kiosk pickup, filters, and list data are unchanged.
 - 2026-07-16: **Reservation quick-view inline editing.** The shared sheet keeps due back as the stable schedule anchor, formats dates weekday-first, and replaces the broad Edit booking mode with explicit inline title, start, due-back, and notes saves. Reservation equipment planning remains editable on web, while numbered units display directly when already bound by a custody flow.
 - 2026-07-16: **Shared booking sheet hierarchy refresh.** Reservation sheets now lead with the reserved window and start timing, condense pickup and linked context, and keep equipment as the main working section. Full detail remains directly available; transfer, event relinking, and cancellation move into the named More actions menu without changing their permission or mutation contracts.

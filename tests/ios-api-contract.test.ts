@@ -99,7 +99,8 @@ describe("iOS guides reader polish", () => {
     const guidesView = source("ios/Wisconsin/Views/GuidesView.swift");
 
     expect(guidesView).toContain("case numbered(number: Int, text: String)");
-    expect(guidesView).toContain("Text(\"\\(number).\")");
+    expect(guidesView).toContain("Text(\"\\(number)\")");
+    expect(guidesView).toContain('.accessibilityLabel("Step \\(number). \\(text)")');
     expect(guidesView).toContain("var nextOrderedNumber: Int?");
     expect(guidesView).toContain("let number = nextOrderedNumber ?? numbered.number");
     expect(guidesView).toContain("blocks.append(MarkdownBlock(kind: .numbered(number: number, text: numbered.text)))");
@@ -209,7 +210,7 @@ describe("iOS API contracts — asset lookup item families", () => {
   it("iOS item detail uses attachment language for bundled child rows", () => {
     const itemDetail = source("ios/Wisconsin/Views/ItemDetailView.swift");
 
-    expect(itemDetail).toContain("Text(\"Attachments\")");
+    expect(itemDetail).toContain("Label(\"Attachments\", systemImage: \"shippingbox\")");
     expect(itemDetail).toContain(".accessibilityLabel(\"Attachment:");
     expect(itemDetail).not.toContain("Text(\"Accessories\")");
     expect(itemDetail).not.toContain(".accessibilityLabel(\"Accessory:");
@@ -320,7 +321,7 @@ describe("iOS API contracts — kiosk checkout context", () => {
     expect(checkoutView).toContain("KioskCheckoutReturnWindow");
     expect(checkoutView).toContain("KioskCheckoutAvailabilityBanner");
     expect(checkoutView).toContain("KioskCheckoutContextSummary");
-    expect(checkoutView).toContain("KioskScannerHealthBadge");
+    expect(checkoutView).toContain("KioskScannerReadinessBadge");
     expect(checkoutView).toContain("KioskCartGroupRow");
     expect(checkoutView).toContain("dueBackAt");
     expect(checkoutView).toContain("availabilityResult.hasBlockingIssue");

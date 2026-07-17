@@ -19,6 +19,12 @@ struct ItemDetailView: View {
         return role == "STAFF" || role == "ADMIN"
     }
 
+    private func hasMoreActions(for asset: AssetDetail) -> Bool {
+        canEditAsset
+            || asset.qrCodeValue?.isEmpty == false
+            || asset.linkUrl.flatMap(URL.init(string:)) != nil
+    }
+
     private func toggleFavorite() async {
         let previous = isFavorited
         isFavorited.toggle()
@@ -51,30 +57,34 @@ struct ItemDetailView: View {
                             ParentLinkCard(parent: parent)
                         }
                         ItemHeroCard(asset: asset, onCopyQR: copyQR)
+                        if let booking = asset.activeBooking {
+                            ActiveBookingCard(booking: booking)
+                        } else {
+                            ItemAvailabilityCard(
+                                status: asset.computedStatus,
+                                nextReservation: asset.upcomingReservations.min(by: { $0.startsAt < $1.startsAt })
+                            )
+                        }
                         if asset.computedStatus != .retired {
-                            ReserveButton {
+                            ReserveButton(title: asset.computedStatus == .available ? "Reserve Equipment" : "Reserve for Later") {
                                 reserveAsset = asset.asAsset
                             }
                         }
-                        ItemDetailsCard(asset: asset, canSeeProcurement: canEditAsset)
-                        if let booking = asset.activeBooking {
-                            ActiveBookingCard(booking: booking)
-                        }
                         UpcomingReservationsCard(reservations: asset.upcomingReservations)
-                        if let accessories = asset.accessories, !accessories.isEmpty {
-                            AccessoriesCard(accessories: accessories)
-                        }
+                        ItemDetailsCard(asset: asset, canSeeProcurement: canEditAsset)
+                        ItemBookingsLinkCard(history: asset.history)
                         if let notes = asset.notes, !notes.isEmpty {
                             NotesCard(notes: notes)
                         }
                     }
                     .padding(.horizontal, Brand.Space.md)
-                    .padding(.vertical, Brand.Space.sm)
+                    .padding(.top, Brand.Space.sm)
+                    .padding(.bottom, 88)
                 }
                 .background(Color(.systemGroupedBackground))
             }
         }
-        .navigationTitle(asset?.assetTag ?? asset?.displayName ?? "Item")
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if asset != nil {
@@ -89,13 +99,29 @@ struct ItemDetailView: View {
                     .accessibilityLabel(isFavorited ? "Unfavorite" : "Favorite")
                     .sensoryFeedback(.selection, trigger: favoriteToggleCount)
                 }
-                if canEditAsset {
+                if let asset, hasMoreActions(for: asset) {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button { showEdit = true } label: {
-                            Image(systemName: "pencil")
+                        Menu {
+                            if canEditAsset {
+                                Button { showEdit = true } label: {
+                                    Label("Edit Item", systemImage: "pencil")
+                                }
+                            }
+                            if let qr = asset.qrCodeValue, !qr.isEmpty {
+                                Button { copyQR(qr) } label: {
+                                    Label("Copy QR Code", systemImage: "qrcode")
+                                }
+                            }
+                            if let rawLink = asset.linkUrl, let link = URL(string: rawLink) {
+                                Link(destination: link) {
+                                    Label("Open Product Link", systemImage: "arrow.up.right.square")
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis")
                                 .frame(minWidth: 44, minHeight: 44)
                         }
-                        .accessibilityLabel("Edit Item")
+                        .accessibilityLabel("More item actions")
                     }
                 }
             }
@@ -156,21 +182,22 @@ struct ItemDetailView: View {
 // MARK: - Reserve button
 
 private struct ReserveButton: View {
+    let title: String
     let action: () -> Void
 
     var body: some View {
         // Matches the scan hero sheet's primary action: solid black
         // prominent button, so "reserve" reads the same everywhere.
         Button(action: action) {
-            Label("Reserve Equipment", systemImage: "calendar.badge.plus")
+            Label(title, systemImage: "calendar.badge.plus")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Color(.systemBackground))
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
-        .tint(Color(.label))
-        .accessibilityLabel("Reserve Equipment")
+        .tint(Color.statusText(.purple))
+        .accessibilityLabel(title)
     }
 }
 
@@ -318,7 +345,7 @@ struct EditAssetSheet: View {
 private struct ItemHeroCard: View {
     let asset: AssetDetail
     let onCopyQR: (String) -> Void
-    @State private var showZoom = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     // Primary identifier: assetTag if set, else brand+model
     private var heroTitle: String {
@@ -334,46 +361,38 @@ private struct ItemHeroCard: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            banner
-            infoBlock
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: Brand.Space.md) {
+                    banner
+                    infoBlock
+                }
+            } else {
+                HStack(alignment: .center, spacing: Brand.Space.md) {
+                    banner
+                    infoBlock
+                }
+            }
         }
+        .padding(Brand.Space.md)
         .background(Color.cardSurface)
         .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous)
                 .strokeBorder(Color.hairline, lineWidth: 0.5)
         )
-        .shadow(color: Color.black.opacity(0.07), radius: 12, x: 0, y: 5)
-        .fullScreenCover(isPresented: $showZoom) {
-            if let urlString = asset.imageUrl, let url = URL(string: urlString) {
-                ZoomableImageViewer(url: url)
-            }
-        }
     }
 
     // MARK: Banner
 
+    @ViewBuilder
     private var banner: some View {
-        ZStack(alignment: .topTrailing) {
-            if asset.imageUrl != nil {
-                Button {
-                    showZoom = true
-                } label: {
-                    bannerArtwork
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Open item photo")
-            } else {
-                bannerArtwork
-            }
-
-            // The badge carries its own tinted capsule; on the white hero
-            // that's contrast enough, so no extra material wrapper — just a
-            // soft shadow to lift it off the image.
-            AssetStatusBadge(status: asset.computedStatus)
-                .shadow(color: .black.opacity(0.12), radius: 4, y: 1)
-                .padding(12)
+        if asset.imageUrl != nil {
+            bannerArtwork
+                .accessibilityLabel("Item photo")
+        } else {
+            bannerArtwork
+                .accessibilityHidden(true)
         }
     }
 
@@ -389,9 +408,17 @@ private struct ItemHeroCard: View {
             }
         }
         .overlay { bannerImage }
-        .frame(maxWidth: .infinity)
-        .frame(height: 200)
+        .frame(
+            width: dynamicTypeSize.isAccessibilitySize ? nil : 124,
+            height: dynamicTypeSize.isAccessibilitySize ? 180 : 124
+        )
+        .frame(maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : nil)
         .clipped()
+        .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                .strokeBorder(Color.hairline, lineWidth: 0.5)
+        )
         .contentShape(Rectangle())
     }
 
@@ -402,7 +429,7 @@ private struct ItemHeroCard: View {
                 switch phase {
                 case .success(let image):
                     // Fit, not fill: catalog product shots get cropped by fill.
-                    image.resizable().scaledToFit().padding(16)
+                    image.resizable().scaledToFit().padding(10)
                 case .empty:
                     ZStack { bannerPlaceholder; ProgressView() }
                 default:
@@ -422,7 +449,7 @@ private struct ItemHeroCard: View {
                 endPoint: .bottomTrailing
             )
             Image(systemName: "shippingbox.fill")
-                .font(.system(size: 52))
+                .font(.system(size: 38))
                 .foregroundStyle(Color.brandPrimary.opacity(0.35))
         }
         .accessibilityHidden(true)
@@ -431,27 +458,23 @@ private struct ItemHeroCard: View {
     // MARK: Info
 
     private var infoBlock: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 7) {
             Text(heroTitle)
-                .font(.gothamBlack(size: 26))
-                .tracking(-0.3)
+                .font(.gothamBlack(size: 26, relativeTo: .title2))
+                .tracking(-0.2)
                 .lineLimit(2)
 
             if let sub = subtitle {
                 Text(sub)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
                     .lineLimit(2)
             }
 
-            // "Can I grab this right now?" — one-line availability answer.
-            if let snapshot = availabilitySnapshot(for: asset) {
-                Text(snapshot)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .padding(.top, 2)
-            }
+            Text(asset.location.name)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
 
             // QR sticker code — tap copies the value for the kiosk / relink form.
             if let qr = asset.qrCodeValue, !qr.isEmpty {
@@ -463,9 +486,6 @@ private struct ItemHeroCard: View {
                             .font(.caption2.weight(.semibold))
                         Text(qr)
                             .font(.system(.caption2, design: .monospaced))
-                        Image(systemName: "doc.on.doc")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
                     }
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8)
@@ -478,11 +498,10 @@ private struct ItemHeroCard: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
     }
 }
 
-// MARK: - Details card
+// MARK: - Location and details
 
 private struct ItemDetailsCard: View {
     let asset: AssetDetail
@@ -490,6 +509,8 @@ private struct ItemDetailsCard: View {
     /// students under the "Procurement" section. iOS mirrors that gate via
     /// canEditAsset, which is already STAFF+ADMIN-only.
     let canSeeProcurement: Bool
+    @State private var isExpanded = false
+    @State private var attachmentsExpanded = false
 
     private struct Row {
         let label: String
@@ -500,7 +521,6 @@ private struct ItemDetailsCard: View {
 
     private var rows: [Row] {
         var result: [Row] = []
-        result.append(Row(label: "Location", value: asset.location.name))
         if let cat = asset.category { result.append(Row(label: "Category", value: cat.name)) }
         if let dept = asset.department { result.append(Row(label: "Department", value: dept.name)) }
         if let serial = asset.serialNumber { result.append(Row(label: "Serial", value: serial, mono: true)) }
@@ -524,25 +544,72 @@ private struct ItemDetailsCard: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
-                VStack(spacing: 0) {
-                    if index > 0 {
-                        Divider().padding(.leading, 14)
+        DisclosureGroup(isExpanded: $isExpanded) {
+            VStack(spacing: 0) {
+                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                    VStack(spacing: 0) {
+                        Divider().padding(.leading, 36)
+                        rowContent(row)
+                            .padding(.leading, 36)
+                            .padding(.vertical, 11)
                     }
-                    rowContent(row)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 11)
+                }
+                if let accessories = asset.accessories, !accessories.isEmpty {
+                    Divider().padding(.leading, 36)
+                    DisclosureGroup(isExpanded: $attachmentsExpanded) {
+                        VStack(spacing: 0) {
+                            ForEach(Array(accessories.enumerated()), id: \.element.id) { index, accessory in
+                                if index > 0 { Divider().padding(.leading, 46) }
+                                NavigationLink(destination: ItemDetailView(assetId: accessory.id)) {
+                                    HStack(spacing: 10) {
+                                        AssetThumbnail(imageUrl: accessory.imageUrl, size: 36)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(accessory.assetTag)
+                                                .font(.system(.subheadline, design: .monospaced).weight(.medium))
+                                                .foregroundStyle(.primary)
+                                            Text(accessory.name ?? accessory.displayName)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                                .lineLimit(1)
+                                        }
+                                        Spacer()
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(.tertiary)
+                                            .accessibilityHidden(true)
+                                    }
+                                    .padding(.vertical, 6)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityElement(children: .combine)
+                                .accessibilityLabel("Attachment: \(accessory.assetTag), \(accessory.name ?? accessory.displayName)")
+                            }
+                        }
+                        .padding(.leading, 36)
+                    } label: {
+                        HStack {
+                            Label("Attachments", systemImage: "shippingbox")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Text("\(accessories.count)")
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .padding(.leading, 36)
+                    .padding(.vertical, 11)
+                    .tint(.secondary)
                 }
             }
+        } label: {
+            Label("Details", systemImage: "info.circle")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
         }
-        .background(Color.cardSurface)
-        .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous)
-                .strokeBorder(Color.hairline, lineWidth: 0.5)
-        )
-        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
+        .padding(Brand.Space.md)
+        .tint(.secondary)
+        .brandCard(padding: 0)
     }
 
     @ViewBuilder
@@ -582,30 +649,6 @@ private struct ItemDetailsCard: View {
     }
 }
 
-/// Builds the one-line "can I grab this?" snapshot shown on the hero card.
-/// Matches the vocabulary the item list already uses, with a relative time
-/// hint pulled from `Date.countdownLabel`.
-private func availabilitySnapshot(for asset: AssetDetail) -> String? {
-    if let booking = asset.activeBooking {
-        let countdown = Date.countdownLabel(for: booking.endsAt)
-        return "\(booking.requesterName) · \(countdown.lowercased())"
-    }
-    switch asset.computedStatus {
-    case .available:
-        if let next = asset.upcomingReservations.first {
-            let when = next.startsAt.formatted(date: .abbreviated, time: .shortened)
-            return "Available · next reserved \(when)"
-        }
-        // Bare "Available" is redundant with the corner status badge; the
-        // snapshot only earns its line when it adds custody/timing info.
-        return nil
-    case .maintenance: return "Out for maintenance"
-    case .retired:     return "Retired from service"
-    case .unknown, .checkedOut, .pendingPickup, .reserved:
-        return nil
-    }
-}
-
 // MARK: - Active booking card
 
 private struct ActiveBookingCard: View {
@@ -613,127 +656,266 @@ private struct ActiveBookingCard: View {
 
     private var isReservation: Bool { booking.kind == "RESERVATION" }
     private var isPendingPickup: Bool { booking.kind == "CHECKOUT" && booking.status == "PENDING_PICKUP" }
+    private var tone: StatusTone {
+        if booking.isOverdue { return .red }
+        return isReservation ? .purple : isPendingPickup ? .orange : .blue
+    }
 
     var body: some View {
-        let headerTone: StatusTone = isReservation ? .purple : isPendingPickup ? .orange : .blue
         let title = isReservation ? "Active Reservation" : isPendingPickup ? "Awaiting Pickup" : "Checked Out"
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: isReservation ? "calendar.badge.clock" : isPendingPickup ? "tray.and.arrow.down.fill" : "arrow.right.circle.fill")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Color.statusText(headerTone))
-                Text(title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                    .tracking(0.04)
-            }
-
-            NavigationLink(destination: BookingDetailView(bookingId: booking.id)) {
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(booking.title)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.primary)
-                        Text(booking.requesterName)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Label(
-                            "Due \(booking.endsAt.formatted(date: .abbreviated, time: .shortened))",
-                            systemImage: booking.isOverdue ? "exclamationmark.triangle.fill" : "clock"
-                        )
-                        .font(.caption2)
-                        .foregroundStyle(booking.isOverdue ? AnyShapeStyle(Color.statusText(.red)) : AnyShapeStyle(.tertiary))
-                        .accessibilityLabel(booking.isOverdue
-                            ? "Overdue. Due \(booking.endsAt.formatted(date: .abbreviated, time: .shortened))"
-                            : "Due \(booking.endsAt.formatted(date: .abbreviated, time: .shortened))")
+        return NavigationLink(destination: BookingDetailView(bookingId: booking.id)) {
+            HStack(spacing: 12) {
+                StatusRail(tone: tone)
+                UserAvatarView(
+                    name: booking.requesterName,
+                    avatarUrl: booking.requesterAvatarUrl,
+                    size: 40
+                )
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(booking.title)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    TimelineView(.periodic(from: .now, by: 60)) { context in
+                        Text(Date.itemDueLabel(for: booking.endsAt, now: context.date))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Color.statusText(tone))
+                            .contentTransition(.numericText())
                     }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                        .accessibilityHidden(true)
+                    Text(booking.requesterName)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
-                .padding(12)
-                .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
-            .buttonStyle(.plain)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("\(title): \(booking.title), \(booking.requesterName)")
+            .frame(minHeight: 54)
         }
-        .brandCard()
+        .buttonStyle(.plain)
+        .brandCard(padding: Brand.Space.md)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title): with \(booking.requesterName), \(booking.title), due \(booking.endsAt.formatted(date: .abbreviated, time: .shortened))")
+        .accessibilityHint("Opens booking details")
+    }
+
+}
+
+// MARK: - Availability card
+
+private struct ItemAvailabilityCard: View {
+    let status: AssetComputedStatus
+    let nextReservation: UpcomingReservation?
+
+    private var tone: StatusTone {
+        switch status {
+        case .available: return .green
+        case .checkedOut: return .blue
+        case .pendingPickup, .maintenance: return .orange
+        case .reserved: return .purple
+        case .retired, .unknown: return .gray
+        }
+    }
+
+    private var title: String {
+        guard status == .available else { return status.label }
+        guard let nextReservation else { return "Available" }
+        return "Available until \(nextReservation.startsAt.formatted(date: .abbreviated, time: .shortened))"
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            StatusRail(tone: tone)
+            Image(systemName: status == .available ? "checkmark.circle.fill" : "info.circle.fill")
+                .font(.title3)
+                .foregroundStyle(Color.statusText(tone))
+                .accessibilityHidden(true)
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(.primary)
+            Spacer(minLength: 0)
+        }
+        .frame(minHeight: 44)
+        .brandCard(padding: Brand.Space.md)
+        .accessibilityElement(children: .combine)
     }
 }
 
-// MARK: - Upcoming reservations card
+// MARK: - Item bookings
 
 private struct UpcomingReservationsCard: View {
     let reservations: [UpcomingReservation]
 
-    var body: some View {
-        // Empty is the common case; collapse to a single quiet line instead
-        // of a full header-plus-body card that eats vertical space.
-        if reservations.isEmpty {
-            HStack(spacing: 8) {
-                Image(systemName: "calendar")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-                Text("No upcoming reservations")
-                    .font(.subheadline)
-                    .foregroundStyle(.tertiary)
-                Spacer(minLength: 0)
-            }
-            .brandCard(padding: Brand.Space.sm)
-            .accessibilityElement(children: .combine)
-        } else {
-            populated
-        }
+    private var orderedReservations: [UpcomingReservation] {
+        reservations.sorted { $0.startsAt < $1.startsAt }
     }
 
-    private var populated: some View {
-        VStack(alignment: .leading, spacing: 10) {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                Image(systemName: "calendar")
+                Image(systemName: "calendar.badge.clock")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(Color.statusText(.purple))
+                    .accessibilityHidden(true)
                 Text("Upcoming Reservations")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                     .tracking(0.04)
+                Spacer()
+                Text("\(orderedReservations.count)")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.tertiary)
             }
 
-            VStack(spacing: 6) {
-                    ForEach(reservations) { res in
+            if orderedReservations.isEmpty {
+                Text("No upcoming reservations")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 6)
+            } else {
+                ForEach(Array(orderedReservations.enumerated()), id: \.element.id) { index, reservation in
+                    if index > 0 { Divider() }
+                    NavigationLink(destination: BookingDetailView(bookingId: reservation.bookingId)) {
                         HStack(spacing: 10) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(res.title)
-                                    .font(.subheadline.weight(.medium))
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(reservation.title)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.primary)
                                     .lineLimit(1)
-                                HStack(spacing: 4) {
-                                    Text(res.requesterName)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    Text("·")
-                                        .font(.caption)
-                                        .foregroundStyle(.tertiary)
-                                    Text(res.startsAt.relativeLabel)
-                                        .font(.system(.caption2, design: .monospaced))
-                                        .foregroundStyle(.tertiary)
-                                }
+                                Text("\(reservation.requesterName) · \(bookingDateRange(from: reservation.startsAt, to: reservation.endsAt))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(2)
                             }
-                            Spacer()
-                            StatusBadge(status: res.status, kind: .reservation)
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.right")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                                .accessibilityHidden(true)
                         }
-                        .padding(10)
-                        .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel("Upcoming reservation: \(res.title), \(res.requesterName), starts \(res.startsAt.relativeLabel)")
+                        .padding(.vertical, 6)
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Upcoming reservation: \(reservation.title), \(reservation.requesterName), \(bookingDateRange(from: reservation.startsAt, to: reservation.endsAt))")
                 }
+            }
         }
         .brandCard()
     }
+}
+
+private struct ItemBookingsLinkCard: View {
+    let history: [AssetBookingHistoryEntry]
+
+    private var previous: [AssetBookingHistoryEntry] {
+        previousBookings(from: history)
+    }
+
+    var body: some View {
+        NavigationLink {
+            ItemBookingsView(
+                previousBookings: previous
+            )
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "calendar")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 24)
+                    .accessibilityHidden(true)
+                Text("Previous Bookings")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
+            .padding(Brand.Space.md)
+            .contentShape(Rectangle())
+            .brandCard(padding: 0)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Previous Bookings, \(previous.count)")
+        .accessibilityHint("Shows previous bookings")
+    }
+}
+
+private struct ItemBookingsView: View {
+    let previousBookings: [AssetBookingHistoryEntry]
+    @State private var visiblePreviousCount = 10
+
+    private var visiblePreviousBookings: [AssetBookingHistoryEntry] {
+        Array(previousBookings.prefix(visiblePreviousCount))
+    }
+
+    var body: some View {
+        List {
+            Section("Previous Bookings") {
+                if previousBookings.isEmpty {
+                    Text("No previous bookings")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(visiblePreviousBookings) { entry in
+                        NavigationLink(destination: BookingDetailView(bookingId: entry.booking.id)) {
+                            HStack(spacing: 10) {
+                                UserAvatarView(
+                                    name: entry.booking.requester?.name ?? "Unknown",
+                                    avatarUrl: entry.booking.requester?.avatarUrl,
+                                    size: 36
+                                )
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(entry.booking.title)
+                                        .font(.subheadline.weight(.semibold))
+                                        .lineLimit(1)
+                                    Text("\(entry.booking.requester?.name ?? "Unknown") · \(bookingDateRange(from: entry.booking.startsAt, to: entry.booking.endsAt))")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(2)
+                                }
+                                Spacer(minLength: 8)
+                                StatusBadge(status: entry.booking.status, kind: entry.booking.kind)
+                            }
+                        }
+                        .accessibilityLabel("Previous booking: \(entry.booking.title), \(entry.booking.requester?.name ?? "Unknown"), \(bookingDateRange(from: entry.booking.startsAt, to: entry.booking.endsAt))")
+                        .onAppear {
+                            guard entry.id == visiblePreviousBookings.last?.id else { return }
+                            visiblePreviousCount = min(visiblePreviousCount + 10, previousBookings.count)
+                        }
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle("Previous Bookings")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private func previousBookings(
+    from history: [AssetBookingHistoryEntry],
+    now: Date = .now
+) -> [AssetBookingHistoryEntry] {
+    var seen = Set<String>()
+    return history
+        .filter { entry in
+            guard entry.booking.endsAt < now else { return false }
+            guard entry.booking.status != .cancelled, entry.booking.status != .draft else { return false }
+            return seen.insert(entry.booking.id).inserted
+        }
+        .sorted { $0.booking.endsAt > $1.booking.endsAt }
+}
+
+private func bookingDateRange(from start: Date, to end: Date) -> String {
+    if Calendar.current.isDate(start, inSameDayAs: end) {
+        return "\(start.formatted(date: .abbreviated, time: .shortened)) – \(end.formatted(date: .omitted, time: .shortened))"
+    }
+    return "\(start.formatted(date: .abbreviated, time: .omitted)) – \(end.formatted(date: .abbreviated, time: .omitted))"
 }
 
 // MARK: - Parent link card
@@ -786,65 +968,6 @@ private struct ParentLinkCard: View {
     }
 }
 
-// MARK: - Attachments card
-
-/// Renders child attachments on this asset's detail — answers "what comes
-/// with this kit?" on the floor. Each row is tappable and pushes the child's
-/// detail view, so users can drill into a specific cable or battery without
-/// going back to the items list.
-private struct AccessoriesCard: View {
-    let accessories: [AssetAccessory]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: "shippingbox")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Text("Attachments")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                    .tracking(0.04)
-                Spacer()
-                Text("\(accessories.count)")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.tertiary)
-            }
-
-            VStack(spacing: 6) {
-                ForEach(accessories) { acc in
-                    NavigationLink(destination: ItemDetailView(assetId: acc.id)) {
-                        HStack(spacing: 10) {
-                            AssetThumbnail(imageUrl: acc.imageUrl, size: 36)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(acc.assetTag)
-                                    .font(.system(.subheadline, design: .monospaced).weight(.medium))
-                                    .foregroundStyle(.primary)
-                                Text(acc.name ?? acc.displayName)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(.tertiary)
-                                .accessibilityHidden(true)
-                        }
-                        .padding(10)
-                        .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Attachment: \(acc.assetTag), \(acc.name ?? acc.displayName)")
-                }
-            }
-        }
-        .brandCard()
-    }
-}
-
 // MARK: - Notes card
 
 private struct NotesCard: View {
@@ -874,6 +997,29 @@ private struct NotesCard: View {
 // MARK: - Date helpers
 
 private extension Date {
+    /// Natural sentence-case due copy for Item Detail, with punctuation between
+    /// duration components: "Due in 2 hours, 40 minutes."
+    static func itemDueLabel(for endsAt: Date, now: Date = .now) -> String {
+        let interval = endsAt.timeIntervalSince(now)
+        let totalMinutes = max(1, Int(abs(interval) / 60))
+        let days = totalMinutes / (24 * 60)
+        let hours = (totalMinutes % (24 * 60)) / 60
+        let minutes = totalMinutes % 60
+        var components: [String] = []
+
+        if days > 0 {
+            components.append("\(days) \(days == 1 ? "day" : "days")")
+            if hours > 0 { components.append("\(hours) \(hours == 1 ? "hour" : "hours")") }
+        } else if hours > 0 {
+            components.append("\(hours) \(hours == 1 ? "hour" : "hours")")
+            if minutes > 0 { components.append("\(minutes) \(minutes == 1 ? "minute" : "minutes")") }
+        } else {
+            components.append("\(minutes) \(minutes == 1 ? "minute" : "minutes")")
+        }
+
+        return "\(interval < 0 ? "Overdue by" : "Due in") \(components.joined(separator: ", "))"
+    }
+
     /// "Today", "Tomorrow", "in N days" for near dates; abbreviated date beyond 7 days.
     var relativeLabel: String {
         let days = Calendar.current.dateComponents([.day], from: .now, to: self).day ?? 0

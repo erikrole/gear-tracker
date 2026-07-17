@@ -1,6 +1,6 @@
 # App Store Connect Submission Content — Wisconsin Creative
 
-Drafted: 2026-07-08. Paste-ready copy for the `Wisconsin` app's first Unlisted App Store submission. Kiosk (`WisconsinKiosk`) stays off the Store entirely — this content is for the main app only.
+Drafted: 2026-07-08. Updated: 2026-07-17 for Build 21. Paste-ready copy for the `Wisconsin` app's first Unlisted App Store submission. Kiosk (`WisconsinKiosk`) stays off the Store entirely; this content is for the main app only.
 
 Sources used: `docs/AREA_PUBLIC_SHOWROOM.md`, `src/lib/public-showroom.ts`, `tasks/app-privacy-data-inventory.md`, `ios/Wisconsin/Supporting/PrivacyInfo.xcprivacy`, `scripts/seed-app-review-demo.mjs`, `ios/project.yml`.
 
@@ -29,6 +29,11 @@ which is why the demo account above is required to sign in.
 When the demo account signs in, the iOS app routes that account to an isolated App Review
 environment at review.wisconsincreative.com. Normal invited users continue to use the
 production wisconsincreative.com environment.
+
+Build 21 adds a native Welcome flow for invited users with incomplete profiles. The demo
+account intentionally keeps fictional profile data incomplete, so Welcome may appear after
+sign-in. Tap "Remind tomorrow" on the first Welcome step to enter the app without supplying
+any personal information. This bypass is expected and does not change the demo dataset.
 
 What the demo account can see:
 - A staff-role home screen with sample reservations, checked-out gear, and shift context.
@@ -96,7 +101,7 @@ The operational records, internal guides, reservations, and equipment notes in t
 
 ## Screenshot Capture Set
 
-Capture these from Build 20 while signed into the isolated fictional reviewer account. Use portrait orientation, no alpha channel, no real people, and no production records.
+Capture these from Build 21 while signed into the isolated fictional reviewer account. Use portrait orientation, no alpha channel, no real people, and no production records. Recapture both complete sets even when a screen appears unchanged from Build 20 so every submitted image matches the selected binary.
 
 **Required device sets**
 - iPhone 6.9-inch: `1320 x 2868` pixels using iPhone 17 Pro Max or another accepted 6.9-inch simulator size.
@@ -118,6 +123,25 @@ The first three images communicate the app's daily operational utility. The rema
 No video is required for the initial submission. The written notes, fictional account, typed sample codes, and attached QR images cover the non-obvious review path. Record and attach a short walkthrough only if final device acceptance reveals a step that remains difficult to explain in text.
 
 ## Version Information
+
+**Build 21 release notes** (TestFlight/internal candidate):
+```
+Profile and access
+- Added a native, role-aware Welcome flow for completing contact, Wiscard, apparel, and
+  optional profile-photo details.
+- Added capability-aware access for external collaborators so navigation, reservations,
+  Schedule, and My Gear match each person's assigned policy.
+
+Resources and daily work
+- Improved native Guides with full article loading, clearer steps and callouts, retry, and
+  pull-to-refresh.
+- Improved Licenses with clearer availability, active-code, claim, and return states.
+- Refined Schedule, Bookings, Search, and login recovery behavior.
+
+Polish
+- Standardized Wisconsin Creative on the approved Block W app icon.
+- Improved accessibility layouts, loading states, error recovery, and session freshness.
+```
 
 **Promotional text** (170 char max, editable anytime without re-review):
 ```
@@ -165,7 +189,7 @@ gear,equipment,reservation,checkout,inventory,schedule,shift,scan,barcode,athlet
 
 ## Compliance and Legal Fields
 
-- **Export compliance:** No non-exempt encryption. The submitted target declares `ITSAppUsesNonExemptEncryption = false`. Confirm the processed Build 20 record shows the same answer.
+- **Export compliance:** No non-exempt encryption. The submitted target declares `ITSAppUsesNonExemptEncryption = false`. Confirm the processed Build 21 record shows the same answer.
 - **Content rights:** confirm Yes only after the Account Holder confirms rights to the Wisconsin branding, app icon, submitted screenshots, and fictional review assets.
 - **Digital Services Act:** use the organization-level trader status already established by the Account Holder. Do not infer or change this from repository content.
 - **Custom license agreement:** none is required by the app. Use Apple's standard EULA unless the Account Holder has an approved institutional agreement.
@@ -176,16 +200,19 @@ gear,equipment,reservation,checkout,inventory,schedule,shift,scan,barcode,athlet
 
 **What to Test** (this build, draft — edit per actual build contents):
 ```
-This build focuses on release hardening ahead of the first App Store submission:
-- Search tab: try typed search, then the QR scan button (top-right) — test a camera-denied
-  state if you can (deny camera access once, confirm you get a clear recovery path with a
-  "Type code instead" option).
-- Create a reservation: use the equipment picker, add a few items, then open the cart
-  (bottom bar) and remove one — confirm it removes cleanly.
-- Bookings tab: switch between Mine / All / Attention scopes and pull to refresh.
-- Schedule tab: check your shifts and try a shift trade if you have one available.
-- Report anything that feels slow, crashes, or where an error message isn't clear about
-  what went wrong or what to do next.
+Build 21 adds the native Welcome flow and includes the latest access, resource, and daily-work
+improvements:
+- Sign in with one of the isolated Welcome test accounts and complete or defer the role-aware
+  profile steps. Test keyboard dismissal, selection sheets, optional photo crop, Dynamic Type,
+  and reduced motion.
+- Confirm collaborator capabilities hide or show tabs, reservations, Schedule follow, and
+  My Gear scope correctly after foregrounding the app.
+- Open Guides and verify full article loading, numbered steps, callouts, retry, refresh, and
+  Dynamic Type. Open Licenses and verify active-code, availability, claim, and return states.
+- Use Search for typed and QR lookup, including camera-denied recovery and Type Code.
+- Create a reservation, review Bookings scopes, and check Schedule shifts and trades.
+- Report crashes, stale access, blocked navigation, unclear errors, or layouts that break at
+  accessibility text sizes.
 ```
 
 **Beta App Review Information:** same demo account and notes as App Review Information above — TestFlight external testing also goes through Apple review on first submission.

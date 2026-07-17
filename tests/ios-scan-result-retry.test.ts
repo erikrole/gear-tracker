@@ -15,6 +15,16 @@ function sliceBetween(sourceText: string, start: string, end: string) {
 }
 
 describe("iOS Scan result retry recovery", () => {
+  it("keeps the camera pre-prompt copy multiline at accessibility text sizes", () => {
+    const prompt = source("ios/Wisconsin/Views/ScanPrePromptView.swift");
+
+    expect(prompt).toContain('Text("Point your camera at a barcode or QR code');
+    expect(prompt.match(/\.fixedSize\(horizontal: false, vertical: true\)/g)).toHaveLength(2);
+    expect(prompt).toContain('Text("Turn on camera")');
+    expect(prompt).toContain("ScrollView {");
+    expect(prompt).toContain(".scrollBounceBehavior(.basedOnSize)");
+  });
+
   it("wires lookup failures to a recoverable banner instead of a dead end", () => {
     const scanner = source("ios/Wisconsin/Views/Search/QRScannerSheet.swift");
     const lookUp = sliceBetween(scanner, "private func lookUp(rawScan: String) async {", "// MARK: - DataScannerViewController wrapper");
@@ -43,5 +53,16 @@ describe("iOS Scan result retry recovery", () => {
 
     expect(typeCodeIndex).toBeGreaterThanOrEqual(0);
     expect(dismissIndex).toBeGreaterThan(typeCodeIndex);
+  });
+
+  it("keeps typed lookup available when camera permission is denied", () => {
+    const scanner = source("ios/Wisconsin/Views/Search/QRScannerSheet.swift");
+    const prompt = source("ios/Wisconsin/Views/ScanPrePromptView.swift");
+
+    expect(scanner).toContain("ScanDeniedView {");
+    expect(scanner).toContain("showManualEntry = true");
+    expect(prompt).toContain("let onTypeCode: () -> Void");
+    expect(prompt).toContain('Label("Type code instead", systemImage: "keyboard")');
+    expect(prompt).toContain('Label("Open Settings", systemImage: "gear")');
   });
 });

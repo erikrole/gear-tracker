@@ -18,7 +18,7 @@
 | `src/lib/services/bookings.ts` | 4 |
 | `src/lib/services/bulk-unit-scans.ts` | 608 |
 | `src/lib/services/calendar-sync-health.ts` | 165 |
-| `src/lib/services/calendar-sync.ts` | 765 |
+| `src/lib/services/calendar-sync.ts` | 764 |
 | `src/lib/services/candidate-scoring.ts` | 407 |
 | `src/lib/services/checkout-policies.ts` | 32 |
 | `src/lib/services/collaborator-policies.ts` | 400 |

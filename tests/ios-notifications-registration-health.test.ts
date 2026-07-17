@@ -30,4 +30,19 @@ describe("iOS push registration health contracts", () => {
     expect(prompt).toContain("appState.requestRemoteNotificationRegistration()");
     expect(app).not.toContain("if settings.authorizationStatus == .authorized");
   });
+
+  it("keeps the pre-permission primary action legible when Settings inherits a primary tint", () => {
+    const prompt = source("ios/Wisconsin/Views/PushPrePromptView.swift");
+    const profile = source("ios/Wisconsin/Views/ProfileView.swift");
+    const app = source("ios/Wisconsin/App/WisconsinApp.swift");
+
+    expect(prompt).toContain('Text("Turn on notifications")');
+    expect(prompt).toContain(".buttonStyle(.borderedProminent)");
+    expect(prompt).toContain(".tint(Color.brandPrimary)");
+    expect(prompt).toContain(".fixedSize(horizontal: false, vertical: true)");
+    expect(prompt).toContain("ScrollView {");
+    expect(prompt).toContain(".scrollBounceBehavior(.basedOnSize)");
+    expect(profile).toContain(".presentationDetents([.fraction(0.62), .large])");
+    expect(app).toContain(".presentationDetents([.fraction(0.62), .large])");
+  });
 });

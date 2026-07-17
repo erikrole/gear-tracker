@@ -319,3 +319,19 @@ Do not start a broad visual redesign. Fix the custody and actor-truth blockers f
 - Swift source files cited above and their dependent Core, Models, Kiosk, and Shared files
 - `tasks/audit-all-pages-ios.md` and current screen-level `tasks/audit-*-ios.md` records
 - `tasks/README.md`, `tasks/INDEX.md`, `tasks/todo.md`, and `tasks/lessons.md`
+
+## 2026-07-17 Accessibility-Size App Review Follow-up
+
+**Original verdict: NOT READY at maximum Dynamic Type. Remediation status: BOUNDED FIXES VERIFIED.**
+
+An iPhone 16 simulator pass in dark mode at `accessibility-extra-extra-extra-large` confirmed five P1 layout families in current source:
+
+1. Welcome's fixed header and footer leave too little usable height, fragment the progress summary, and obscure scroll content on the final photo step.
+2. The shared `SettingsMenuRow` composition fragments titles in Notifications and Browse because the icon, copy, trailing value, and disclosure accessory remain horizontal.
+3. Root Settings and Account & Security identity rows fragment account names and titles because their horizontal metadata layouts do not adapt.
+4. Notification pause choices render as three narrow vertical pills whose labels break into fragments.
+5. Booking cards force title, status, timing, avatar, metadata, and disclosure into one horizontal composition, clipping the operational identity and due state.
+
+Schedule's empty state and Search's primary empty state remained usable in the same matrix. The bounded remediation route is `tasks/ios-accessibility-layout-hardening-plan.md`.
+
+The bounded remediation now adapts the affected Welcome, shared menu, account identity, notification pause, booking, and item-row compositions. Maximum-size and normal-size iPhone runtime smoke passed, the 13-inch iPad simulator build and launch passed, and all 201 native source-contract tests passed. Exhaustive maximum Dynamic Type polish on every secondary surface is deferred by product direction; App Accessibility claims remain unset for the first submission.

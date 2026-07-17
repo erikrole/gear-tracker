@@ -21,7 +21,7 @@ describe("iOS Items retired reserve gating", () => {
     const itemDetailView = source("ios/Wisconsin/Views/ItemDetailView.swift");
 
     expect(itemDetailView).toContain("if asset.computedStatus != .retired");
-    expect(itemDetailView).toContain("ReserveButton {");
+    expect(itemDetailView).toContain("ReserveButton(title:");
     expect(itemDetailView).toContain("reserveAsset = asset.asAsset");
   });
 });

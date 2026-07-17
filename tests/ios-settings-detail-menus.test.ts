@@ -36,15 +36,13 @@ describe("iOS Settings detail menus", () => {
     expect(settings).not.toContain("pauseChip(");
   });
 
-  it("moves delivery, channel, pause, and category controls into the native Notifications detail", () => {
+  it("keeps the native Notifications detail push-only for launch", () => {
     const detail = source("ios/Wisconsin/Views/NotificationSettingsView.swift");
 
     expect(detail).toContain(".navigationTitle(\"Notifications\")");
     expect(detail).toContain("title: \"Delivery status\"");
     expect(detail).toContain("pushPermissionRow");
     expect(detail).toContain("Text(\"In-app notifications always show in your inbox, regardless of these settings.\")");
-    expect(detail).toContain("Text(\"Pause Alerts\")");
-    expect(detail).toContain("title: \"Email alerts\"");
     expect(detail).toContain("title: \"Push alerts\"");
     expect(detail).toContain("Text(\"Notification Types\")");
 
@@ -60,9 +58,31 @@ describe("iOS Settings detail menus", () => {
       expect(detail).toContain(`category: ${category}`);
     }
 
-    expect(detail).toContain("await prefsVM.setChannel(.email, value: v)");
     expect(detail).toContain("await prefsVM.setChannel(.push, value: v)");
     expect(detail).toContain("await prefsVM.setCategory(category, value: value)");
+    expect(detail).toContain(".tint(Color.statusText(.green))");
+    expect(detail).toContain(".accessibilityHint(description)");
+    expect(detail).toContain("Push alerts go to devices signed in to this account. The test checks this device only.");
+    expect(detail).toContain("Choose which push alerts can reach you.");
+    expect(detail).toContain("Text(\"Send Test Notification\")");
+    expect(detail).toContain("APIClient.shared.sendTestPush(deviceToken: currentPushToken)");
+    expect(detail).toContain("No registered device was found. Retry push registration above.");
+    expect(detail).not.toContain("Pause Alerts");
+    expect(detail).not.toContain("Email alerts");
+    expect(detail).not.toContain("currentEmail");
+    expect(detail).not.toContain("prefsVM.pause(");
+    expect(detail).not.toContain("notificationToggleLabel");
+  });
+
+  it("uses compact colored root rows with truthful destination accessories", () => {
+    const settings = source("ios/Wisconsin/Views/SettingsView.swift");
+
+    expect(settings).toContain("private struct SettingsRow<Trailing: View>: View");
+    expect(settings).toContain("@ScaledMetric(relativeTo: .body) private var iconSize = 30");
+    expect(settings).toContain(".background(color, in: RoundedRectangle");
+    expect(settings).toContain("NavigationLink(value: ProfileDestination.accountSecurity)");
+    expect(settings).toContain("NavigationLink(value: ProfileDestination.notifications)");
+    expect(settings).toContain('Image(systemName: "arrow.up.right.square")');
   });
 
   it("adds a native Account & Security password workflow backed by the existing API", () => {
@@ -76,6 +96,7 @@ describe("iOS Settings detail menus", () => {
     expect(accountDetail).toContain("New password");
     expect(accountDetail).toContain("Confirm new password");
     expect(accountDetail).toContain("Toggle(\"Sign out other devices\", isOn: $revokeOtherSessions)");
+    expect(accountDetail).toContain(".tint(Color.statusText(.green))");
     expect(accountDetail).toContain("showPasswords.toggle()");
     expect(accountDetail).toContain("newPassword.count >= 8");
     expect(accountDetail).toContain("currentPassword != newPassword");
@@ -89,6 +110,21 @@ describe("iOS Settings detail menus", () => {
     expect(route).toContain("newPassword: z.string().min(8");
     expect(route).toContain("revokeOtherSessions: z.boolean().default(false)");
     expect(route).toContain("New password must be different from the current password.");
+  });
+
+  it("uses the authenticated APNs self-test contract", () => {
+    const detail = source("ios/Wisconsin/Views/NotificationSettingsView.swift");
+    const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
+    const route = source("src/app/api/devices/test/route.ts");
+
+    expect(detail).toContain("await APIClient.shared.sendTestPush(deviceToken: currentPushToken)");
+    expect(apiClient).toContain("struct TestPushResult: Decodable");
+    expect(apiClient).toContain('request(path: "/api/devices/test", method: "POST")');
+    expect(apiClient).toContain("req.httpBody = try JSONEncoder().encode(Body(token: deviceToken))");
+    expect(route).toContain("export const POST = withAuth");
+    expect(route).toContain("token: body.token");
+    expect(route).toContain('title: "Test notification"');
+    expect(route).toContain("return ok({ delivered, devices: tokens.length, revoked: revoked.length })");
   });
 
   it("exposes App Review privacy, support, and self-service deletion controls", () => {

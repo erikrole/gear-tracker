@@ -9,7 +9,7 @@ import { buildScheduleEventWhere } from "@/lib/schedule-event-where";
 import { isHomeFromVenueTone, VENUE_TONE_VALUES } from "@/lib/venue-tone";
 import { nullableSportCodeSchema, optionalSportCodeSchema } from "@/lib/validation";
 import { z } from "zod";
-import { normalizeScheduledEventTitle } from "@/lib/title-normalization";
+import { normalizeManualEventTitle } from "@/lib/title-normalization";
 
 function canIncludeHiddenEvents(role: string) {
   return role === "ADMIN" || role === "STAFF";
@@ -166,7 +166,7 @@ export const POST = withAuth(async (req, { user }) => {
     data: {
       sourceId: null,
       externalId: crypto.randomUUID(),
-      summary: normalizeScheduledEventTitle(body.summary),
+      summary: normalizeManualEventTitle(body.summary),
       startsAt: start,
       endsAt: end,
       allDay: isAllDay,

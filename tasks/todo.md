@@ -3,6 +3,45 @@
 Last updated: 2026-07-17
 
 ---
+## Completed: Native booking surface alignment (2026-07-17)
+
+- [x] Use the accepted Item Detail custody card as the native booking-row hierarchy reference.
+- [x] Keep Bookings search, scope controls, sections, pagination, freshness, and navigation unchanged.
+- [x] Order each booking row as title, live timing, then requester and operational context.
+- [x] Remove timing glyph repetition and the redundant `Checked Out` pill from normal open checkouts.
+- [x] Preserve status rails and explicit pills for overdue, reserved, pickup, and other distinct lifecycle states.
+- [x] Add focused source-contract coverage and verify the production-backed Bookings screen in Simulator.
+
+### Review
+
+- **Shipped:** Bookings and Item Detail now present the same booking with a consistent reading order and calmer state treatment while retaining surface-specific controls.
+- **Verification:** All 214 iOS source-contract tests pass across 52 files, iOS drift is clean, the Wisconsin Simulator build and launch pass, and production-backed runtime proof confirms requester, location, and item context with no redundant active-checkout pill.
+- **Boundary:** No API shape, ordering, booking action, role policy, or kiosk custody behavior changed.
+
+---
+## Completed: Native Item Detail hierarchy refresh (2026-07-17)
+
+- [x] Compact the static image-and-identity hero, remove photo expansion, and preserve Dynamic Type stacking.
+- [x] Remove duplicate navigation/status chrome and render the asset name in Gotham Bold.
+- [x] Move holder, live due timing, and booking navigation directly beneath identity.
+- [x] Show `Available` or `Available until [next reservation]` beneath identity when custody is inactive.
+- [x] Use `Reserve for Later` when the item is unavailable and retain retired-item gating.
+- [x] Use Gotham Black for web-matched identity weight and the semantic purple reservation tone for both reservation CTA labels.
+- [x] Decode the existing item history payload and add a visible Bookings route with Upcoming Reservations and Previous Bookings.
+- [x] Place the plain location name under a quieter product subtitle, use natural comma-separated due copy, collapse secondary metadata, omit empty upcoming chrome, and nest Attachments under Details.
+- [x] Surface upcoming reservations on Item Detail and keep newest-first previous records behind Bookings with 10-row incremental reveal.
+- [x] Keep a visible Upcoming Reservations empty state, reduce history to a neutral one-line Previous Bookings route, and order active custody as title, due time, then requester.
+- [x] Keep the QR badge tappable to copy without showing a redundant copy glyph.
+- [x] Move Edit, QR copy, and product-link actions into the native overflow menu.
+- [x] Add focused source-contract coverage and verify the real production-backed FX3 1 screen in Simulator.
+
+### Review
+
+- **Shipped:** One first-screen operational story now answers what the item is, where it lives, the booking title, when it is due, who has it, what is reserved next, what the user can do, and where to inspect previous item bookings without changing server behavior or custody policy.
+- **Verification:** All 211 iOS source-contract tests pass across 51 files; iOS drift is clean; the XcodeBuildMCP simulator build and launch pass; and production-backed proof confirms title/due/requester order, a visible zero-reservation state, neutral Previous Bookings, stronger location contrast, a quieter product caption, and a non-actionable photo. The original audit covered 51/51 surfaces.
+- **Boundary:** The pre-existing Xcode project and generated architecture-codemap drift remain owned by unrelated work; this slice did not regenerate or rewrite either artifact.
+
+---
 ## Completed: Gear Tracker skill-system consolidation (2026-07-17)
 
 - [x] Make `gt-page`, `gt-audit-web`, and `gt-audit-ios` the canonical page and audit owners.
@@ -77,10 +116,11 @@ Last updated: 2026-07-17
 - [x] Keep title connectors lowercase and intentional camel-case names intact.
 - [x] Add focused utility, persistence, and audit regression coverage.
 - [x] Apply the same rule to manual, edited, restored, and ICS-synced scheduled events while retaining raw source summaries.
+- [x] Correct the event boundary: keep normalization for manual titles, but preserve source casing for ICS sync and calendar-title restore so external acronyms remain intact.
 
 ### Review
 
-- **Shipped:** New and edited booking titles plus manual and synced scheduled-event titles now store one normalized display value, so Schedule, booking autofill, lists, detail, notifications, search, exports, and audit history agree. Examples: `MBB practice` becomes `MBB Practice`; `MBB GOLF` becomes `MBB Golf`; `MBB vs IOWA` becomes `MBB vs Iowa`.
+- **Shipped:** New and edited booking titles plus titles on manual event records store one normalized display value. Imported events retain source casing through sync, staff title edits, and calendar-title restore, so acronyms such as `USC`, `UCLA`, and `TCU` remain uppercase. Examples for manual input: `MBB practice` becomes `MBB Practice`; `MBB GOLF` becomes `MBB Golf`; `MBB vs IOWA` becomes `MBB vs Iowa`.
 - **Boundary:** Existing stored bookings and events are not silently rewritten by a read. They normalize the next time their title is edited; synced events also normalize on their next source update. A separate reviewed backfill would be required to rewrite all historical records in bulk.
 
 ## Completed: Native iOS Guides repair, reader polish, and Licenses polish (2026-07-15)

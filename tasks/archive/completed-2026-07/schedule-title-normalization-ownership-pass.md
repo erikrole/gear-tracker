@@ -26,3 +26,10 @@
 - Codemap/docs verification: passed.
 - `git diff --check`: passed.
 - `npm run build:app`: passed.
+
+## Correction — 2026-07-17
+
+- Title normalization remains active for manual event records (`sourceId = null`) at creation and title edit.
+- Imported events preserve casing through ICS sync, staff title edits, and Restore calendar title after existing source-prefix cleanup.
+- This protects external acronyms such as `USC`, `UCLA`, and `TCU` from title-case corruption.
+- Correction verification: 206 focused tests, TypeScript, focused ESLint, migration-prefix check, docs/codemap verification, scoped whitespace check, and `npm run build:app` passed.

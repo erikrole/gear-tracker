@@ -595,6 +595,8 @@ private struct BookingFreshnessFooter: View {
 }
 
 struct BookingRow: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     let booking: Booking
 
     private var isOverdue: Bool {
@@ -603,6 +605,12 @@ struct BookingRow: View {
 
     private var itemCount: Int {
         booking.serializedItems.count + booking.bulkItems.count
+    }
+
+    /// The section and rail already communicate a normal active checkout.
+    /// Keep a pill only when it adds a distinct lifecycle or urgency signal.
+    private var showsStatusBadge: Bool {
+        isOverdue || booking.kind != .checkout || booking.status != .open
     }
 
     /// Accent tone for the leading bar — overdue shouts red, otherwise the
@@ -618,49 +626,12 @@ struct BookingRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Shared rail atom — inset top/bottom, matching the Next Up rows.
-            StatusRail(tone: accentTone)
-            UserAvatarView(name: booking.requester.name, avatarUrl: booking.requester.avatarUrl, size: 40)
-            VStack(alignment: .leading, spacing: 4) {
-                // Title anchors the row; the status pill shares its baseline
-                // so the top edge reads as one balanced line.
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(booking.title)
-                        .font(.gothamBold(size: 16))
-                        .lineLimit(1)
-                    Spacer(minLength: 8)
-                    StatusBadge(status: booking.status, kind: booking.kind, isOverdue: isOverdue)
-                }
-                TimelineView(.periodic(from: .now, by: 60)) { context in
-                    let info = timing(now: context.date)
-                    Label {
-                        Text(info.text)
-                            .font(.caption.weight(.semibold))
-                            .lineLimit(1)
-                    } icon: {
-                        Image(systemName: info.icon)
-                            .font(.caption2.weight(.semibold))
-                            .accessibilityHidden(true)
-                    }
-                    .foregroundStyle(info.urgent ? AnyShapeStyle(Color.statusText(.red)) : AnyShapeStyle(Color.statusText(accentTone)))
-                }
-                HStack(spacing: 4) {
-                    Text(booking.location.name)
-                    if itemCount > 0 {
-                        Text("·")
-                        Text("\(itemCount) item\(itemCount == 1 ? "" : "s")")
-                            .monospacedDigit()
-                    }
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                accessibilityRow
+            } else {
+                compactRow
             }
-            Image(systemName: "chevron.right")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.tertiary)
-                .accessibilityHidden(true)
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 14)
@@ -676,31 +647,114 @@ struct BookingRow: View {
         .accessibilityLabel(rowAccessibilityLabel)
     }
 
+    private var compactRow: some View {
+        HStack(spacing: 12) {
+            StatusRail(tone: accentTone)
+            UserAvatarView(name: booking.requester.name, avatarUrl: booking.requester.avatarUrl, size: 40)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    bookingTitle.lineLimit(1)
+                    Spacer(minLength: 8)
+                    if showsStatusBadge {
+                        statusBadge
+                    }
+                }
+                timingLine(lineLimit: 1)
+                metadataLine(lineLimit: 1)
+            }
+            disclosureIndicator
+        }
+    }
+
+    private var accessibilityRow: some View {
+        HStack(alignment: .top, spacing: 12) {
+            StatusRail(tone: accentTone)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top, spacing: 10) {
+                    UserAvatarView(name: booking.requester.name, avatarUrl: booking.requester.avatarUrl, size: 40)
+                    bookingTitle
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 4)
+                    disclosureIndicator
+                }
+                if showsStatusBadge {
+                    statusBadge
+                }
+                timingLine(lineLimit: nil)
+                metadataLine(lineLimit: nil)
+            }
+        }
+    }
+
+    private var bookingTitle: some View {
+        Text(booking.title)
+            .font(.gothamBold(size: 16))
+    }
+
+    private var statusBadge: some View {
+        StatusBadge(status: booking.status, kind: booking.kind, isOverdue: isOverdue)
+    }
+
+    private var disclosureIndicator: some View {
+        Image(systemName: "chevron.right")
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.tertiary)
+            .accessibilityHidden(true)
+    }
+
+    private func timingLine(lineLimit: Int?) -> some View {
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            let info = timing(now: context.date)
+            Text(info.text)
+                .font(.caption.weight(.semibold))
+                .lineLimit(lineLimit)
+                .fixedSize(horizontal: false, vertical: true)
+                .foregroundStyle(info.urgent ? AnyShapeStyle(Color.statusText(.red)) : AnyShapeStyle(Color.statusText(accentTone)))
+        }
+    }
+
+    private func metadataLine(lineLimit: Int?) -> some View {
+        HStack(spacing: 4) {
+            Text(booking.requester.name)
+            Text("·")
+            Text(booking.location.name)
+            if itemCount > 0 {
+                Text("·")
+                Text("\(itemCount) item\(itemCount == 1 ? "" : "s")")
+                    .monospacedDigit()
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .lineLimit(lineLimit)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
     /// Live timing line: a real clock time first ("Due today at 11:30 AM"),
     /// with the compact relative magnitude only where urgency needs it
     /// ("2h overdue · due 11:30 AM"). Checkouts speak to their return (OPEN)
     /// or pickup window; reservations to their start.
-    private func timing(now: Date) -> (text: String, icon: String, urgent: Bool) {
+    private func timing(now: Date) -> (text: String, urgent: Bool) {
         if booking.kind == .checkout {
             switch booking.status {
             case .open:
                 if booking.endsAt < now {
-                    return ("\(booking.endsAt.compactMagnitude(now: now)) overdue · due \(shortWhen(booking.endsAt, now: now))", "exclamationmark.circle.fill", true)
+                    return ("\(booking.endsAt.compactMagnitude(now: now)) overdue · due \(shortWhen(booking.endsAt, now: now))", true)
                 }
-                return ("Due \(dayAndTime(booking.endsAt, now: now))", "clock", false)
+                return ("Due \(dayAndTime(booking.endsAt, now: now))", false)
             case .pendingPickup, .booked:
                 if booking.startsAt < now {
-                    return ("Pickup late · was \(shortWhen(booking.startsAt, now: now))", "exclamationmark.circle.fill", true)
+                    return ("Pickup late · was \(shortWhen(booking.startsAt, now: now))", true)
                 }
-                return ("Pickup \(dayAndTime(booking.startsAt, now: now))", "clock", false)
+                return ("Pickup \(dayAndTime(booking.startsAt, now: now))", false)
             default:
-                return ("Due \(dayAndTime(booking.endsAt, now: now))", "clock", false)
+                return ("Due \(dayAndTime(booking.endsAt, now: now))", false)
             }
         }
         // Reservation: speak to its start, then read as underway.
         return booking.startsAt > now
-            ? ("Starts \(dayAndTime(booking.startsAt, now: now))", "calendar", false)
-            : ("Started \(dayPhrase(booking.startsAt, now: now))", "calendar", false)
+            ? ("Starts \(dayAndTime(booking.startsAt, now: now))", false)
+            : ("Started \(dayPhrase(booking.startsAt, now: now))", false)
     }
 
     /// "today", "tomorrow", "yesterday", a weekday within a week ("Friday"),
