@@ -15,10 +15,21 @@ struct BookingDetailView: View {
     @Environment(SessionStore.self) private var session
     @Environment(AppState.self) private var appState
 
+    private func hasCapability(_ capability: String) -> Bool {
+        guard let user = session.currentUser else { return false }
+        return user.role != "COLLABORATOR" || (user.capabilities ?? []).contains(capability)
+    }
+
     private var canEditBooking: Bool {
         guard let booking, let user = session.currentUser else { return false }
         let role = user.role
         if role == "STAFF" || role == "ADMIN" { return true }
+        if role == "COLLABORATOR" {
+            return hasCapability("RESERVATION_EDIT_OWN")
+                && booking.kind == .reservation
+                && booking.requester.id == user.id
+                && (booking.status == .draft || booking.status == .booked)
+        }
         // Students can edit their own bookings while still mutable.
         return booking.requester.id == user.id
             && (booking.status == .draft || booking.status == .booked)
@@ -34,6 +45,12 @@ struct BookingDetailView: View {
         guard let booking, let user = session.currentUser else { return false }
         let role = user.role
         if role == "STAFF" || role == "ADMIN" { return true }
+        if role == "COLLABORATOR" {
+            let canMutate = hasCapability("RESERVATION_EDIT_OWN")
+                || hasCapability("RESERVATION_CANCEL_OWN")
+                || hasCapability("RESERVATION_EXTEND_OWN")
+            return canMutate && booking.kind == .reservation && booking.requester.id == user.id
+        }
         return booking.requester.id == user.id
     }
 
@@ -80,6 +97,8 @@ struct BookingDetailView: View {
                                 booking: booking,
                                 returnInsight: returnInsight,
                                 isActioning: isActioning,
+                                allowsExtend: hasCapability("RESERVATION_EXTEND_OWN"),
+                                allowsCancel: hasCapability("RESERVATION_CANCEL_OWN"),
                                 onExtend: { showExtend = true },
                                 onCancel: { showCancelConfirm = true }
                             )
@@ -156,6 +175,10 @@ struct BookingDetailView: View {
     /// bookings, mirroring the web Equipment tab. Server enforcement at
     /// create/checkout remains authoritative; this is an at-a-glance hint.
     private func loadConflicts(for booking: Booking) async {
+        guard session.currentUser?.role != "COLLABORATOR" else {
+            conflicts = [:]
+            return
+        }
         let activeStatuses: Set<BookingStatus> = [.draft, .booked, .pendingPickup, .open]
         guard activeStatuses.contains(booking.status), !booking.serializedItems.isEmpty else {
             conflicts = [:]
@@ -171,6 +194,10 @@ struct BookingDetailView: View {
     }
 
     private func loadReturnInsight(for booking: Booking) async {
+        guard session.currentUser?.role != "COLLABORATOR" else {
+            returnInsight = CheckoutReturnInsight(nextNeedAt: nil, hasUpcomingNeed: false)
+            return
+        }
         guard booking.kind == .checkout, booking.status == .open else {
             returnInsight = CheckoutReturnInsight(nextNeedAt: nil, hasUpcomingNeed: false)
             return
@@ -191,7 +218,7 @@ struct BookingDetailView: View {
     private func openPendingExtendIfAllowed(for booking: Booking) {
         guard appState.pendingExtendBookingId == booking.id else { return }
         appState.pendingExtendBookingId = nil
-        guard canActOnBooking, booking.status == .open, !returnInsight.hasUpcomingNeed else { return }
+        guard canActOnBooking, hasCapability("RESERVATION_EXTEND_OWN"), booking.status == .open, !returnInsight.hasUpcomingNeed else { return }
         showExtend = true
     }
 
@@ -663,9 +690,11 @@ private struct BookingDetailsSection: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(booking.requester.name)
                             .font(.subheadline)
-                        Text(booking.requester.email)
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(.secondary)
+                        if let email = booking.requester.email {
+                            Text(email)
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
@@ -674,7 +703,11 @@ private struct BookingDetailsSection: View {
                 .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Requester, \(booking.requester.name), \(booking.requester.email)")
+        .accessibilityLabel(
+            ["Requester", booking.requester.name, booking.requester.email]
+                .compactMap { $0 }
+                .joined(separator: ", ")
+        )
     }
 
     private var notesRow: some View {
@@ -974,6 +1007,8 @@ private struct ActionsSection: View {
     let booking: Booking
     let returnInsight: CheckoutReturnInsight
     let isActioning: Bool
+    let allowsExtend: Bool
+    let allowsCancel: Bool
     let onExtend: () -> Void
     let onCancel: () -> Void
 
@@ -982,6 +1017,7 @@ private struct ActionsSection: View {
     /// PENDING_PICKUP: [edit, cancel], so an Awaiting-Pickup booking must not
     /// offer "Extend Return Date" (there is no return date to extend yet).
     private var canExtend: Bool {
+        guard allowsExtend else { return false }
         if booking.status == .open, returnInsight.hasUpcomingNeed { return false }
         return booking.status == .booked || booking.status == .open
     }
@@ -989,7 +1025,7 @@ private struct ActionsSection: View {
     /// Cancel is allowed before custody transfers (BOOKED, PENDING_PICKUP).
     /// Active (OPEN) checkouts are returned at a kiosk, not cancelled here.
     private var canCancel: Bool {
-        booking.status == .booked || booking.status == .pendingPickup
+        allowsCancel && (booking.status == .booked || booking.status == .pendingPickup)
     }
 
     var body: some View {

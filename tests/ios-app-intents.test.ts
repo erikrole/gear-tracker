@@ -47,12 +47,12 @@ describe("iOS App Intents", () => {
     expect(appState).toContain("func consumeAppIntentDestination(_ destination: GearTrackerAppIntentDestination) -> Bool");
     expect(appTab).toContain("GearTrackerAppIntentHandoff.shared.consumePendingDestination()");
     expect(appTab).toContain("case .scan:");
-    expect(appTab).toContain("if appState.selectedTab != 3 { appState.selectedTab = 3 }");
+    expect(appTab).toContain('if hasCapability("GEAR_CATALOG_VIEW"), appState.selectedTab != 3 { appState.selectedTab = 3 }');
     expect(appTab).toContain("case .createReservation:");
-    expect(appTab).toContain("if appState.selectedTab != 1 { appState.selectedTab = 1 }");
+    expect(appTab).toContain('if hasCapability("RESERVATION_CREATE"), appState.selectedTab != 1 { appState.selectedTab = 1 }');
     expect(search).toContain("if appState.consumeAppIntentDestination(.scan)");
     expect(search).toContain("showScanner = true");
     expect(bookings).toContain("if appState.consumeAppIntentDestination(.createReservation)");
-    expect(bookings).toContain("showCreate = true");
+    expect(bookings).toContain("if canCreate { showCreate = true }");
   });
 });

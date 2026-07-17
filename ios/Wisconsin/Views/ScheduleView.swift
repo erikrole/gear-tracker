@@ -125,6 +125,145 @@ enum HomeAwayFilter: String, CaseIterable {
 // MARK: - Main View
 
 struct ScheduleView: View {
+    @Environment(SessionStore.self) private var session
+
+    var body: some View {
+        if session.currentUser?.role == "COLLABORATOR" {
+            CollaboratorPublishedScheduleView()
+        } else {
+            InternalScheduleView()
+        }
+    }
+}
+
+private struct CollaboratorPublishedScheduleView: View {
+    @State private var events: [PublishedScheduleEvent] = []
+    @State private var isLoading = false
+    @State private var error: String?
+    @State private var pendingFollowId: String?
+    @Environment(SessionStore.self) private var session
+
+    private var canFollow: Bool {
+        (session.currentUser?.capabilities ?? []).contains("SCHEDULE_FOLLOW")
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if isLoading && events.isEmpty {
+                    ProgressView("Loading published schedule")
+                } else if let error, events.isEmpty {
+                    ContentUnavailableView {
+                        Label("Couldn't load schedule", systemImage: "wifi.exclamationmark")
+                    } description: {
+                        Text(error)
+                    } actions: {
+                        Button("Retry") { Task { await load() } }
+                            .buttonStyle(.borderedProminent)
+                    }
+                } else if events.isEmpty {
+                    ContentUnavailableView(
+                        "No published events",
+                        systemImage: "calendar",
+                        description: Text("Published crew assignments will appear here when they are ready.")
+                    )
+                } else {
+                    List(events) { item in
+                        Section {
+                            ForEach(item.crew) { member in
+                                HStack(spacing: 12) {
+                                    AsyncImage(url: member.person.avatarUrl.flatMap(URL.init(string:))) { image in
+                                        image.resizable().scaledToFill()
+                                    } placeholder: {
+                                        Circle().fill(Color.cardSurfaceRaised)
+                                            .overlay(Text(String(member.person.name.prefix(1))).font(.caption.weight(.semibold)))
+                                    }
+                                    .frame(width: 36, height: 36)
+                                    .clipShape(Circle())
+
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(member.person.name).font(.subheadline.weight(.semibold))
+                                        Text("\(member.area.shiftAreaLabel) · \(member.role.replacingOccurrences(of: "_", with: " ").capitalized)")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                        Text("Call \(member.callStartsAt.formatted(date: .omitted, time: .shortened))–\(member.callEndsAt.formatted(date: .omitted, time: .shortened))")
+                                            .font(.caption.monospacedDigit())
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        } header: {
+                            VStack(alignment: .leading, spacing: 5) {
+                                HStack(alignment: .firstTextBaseline) {
+                                    Text(item.event.summary)
+                                        .font(.headline)
+                                        .foregroundStyle(.primary)
+                                        .textCase(nil)
+                                    Spacer()
+                                    if canFollow {
+                                        Button {
+                                            Task { await setFollowing(item) }
+                                        } label: {
+                                            Image(systemName: item.isFollowing ? "bell.slash" : "bell")
+                                                .frame(width: 44, height: 44)
+                                        }
+                                        .disabled(pendingFollowId == item.id)
+                                        .accessibilityLabel(item.isFollowing ? "Mute event updates" : "Follow event")
+                                    }
+                                }
+                                Text(item.event.startsAt.formatted(date: .abbreviated, time: .shortened))
+                                    .font(.caption.monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                                if let venue = item.event.venue {
+                                    Label(venue.name, systemImage: "mappin.and.ellipse")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding(.top, 8)
+                        }
+                    }
+                    .listStyle(.insetGrouped)
+                    .refreshable { await load() }
+                }
+            }
+            .navigationTitle("Published Schedule")
+            .navigationBarTitleDisplayMode(.inline)
+            .task { await load() }
+        }
+    }
+
+    private func load() async {
+        guard !isLoading else { return }
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            events = try await APIClient.shared.publishedSchedule().data
+            error = nil
+        } catch APIError.unauthorized {
+            return
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    private func setFollowing(_ event: PublishedScheduleEvent) async {
+        pendingFollowId = event.id
+        defer { pendingFollowId = nil }
+        do {
+            let following = !event.isFollowing
+            try await APIClient.shared.setPublishedScheduleFollow(eventId: event.id, following: following)
+            if let index = events.firstIndex(where: { $0.id == event.id }) {
+                events[index].isFollowing = following
+            }
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+}
+
+private struct InternalScheduleView: View {
     @State private var vm = ScheduleViewModel()
     @State private var selectedEvent: ScheduleEvent?
     @State private var myShiftsOnly = false

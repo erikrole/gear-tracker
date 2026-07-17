@@ -318,6 +318,54 @@ struct ShiftGroupsResponse: Decodable {
     let total: Int
 }
 
+// MARK: - Collaborator published schedule
+
+struct PublishedScheduleResponse: Decodable {
+    let data: [PublishedScheduleEvent]
+    let total: Int
+    let limit: Int
+    let offset: Int
+}
+
+struct PublishedScheduleEvent: Codable, Identifiable {
+    let id: String
+    let event: PublishedEventSummary
+    let crew: [PublishedCrewMember]
+    var isFollowing: Bool
+}
+
+struct PublishedEventSummary: Codable {
+    let id: String
+    let summary: String
+    let subtitle: String?
+    let startsAt: Date
+    let endsAt: Date
+    let allDay: Bool
+    let sportCode: String?
+    let opponent: String?
+    let isHome: Bool?
+    let venue: EventLocation?
+}
+
+struct PublishedCrewMember: Codable, Identifiable {
+    var id: String { assignmentId }
+    let assignmentId: String
+    let shiftId: String
+    let person: PublishedCrewPerson
+    let area: String
+    let role: String
+    let startsAt: Date
+    let endsAt: Date
+    let callStartsAt: Date
+    let callEndsAt: Date
+}
+
+struct PublishedCrewPerson: Codable, Identifiable {
+    let id: String
+    let name: String
+    let avatarUrl: String?
+}
+
 // MARK: - Helpers
 
 let SPORT_LABELS: [String: String] = [

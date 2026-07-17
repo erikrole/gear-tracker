@@ -44,6 +44,7 @@ extension Notification.Name {
     /// `currentUser`, which lets RootView swap to LoginView automatically —
     /// no per-VM "Session expired" string needed.
     static let sessionDidExpire = Notification.Name("WisconsinSessionDidExpire")
+    static let collaboratorPolicyMayHaveChanged = Notification.Name("WisconsinCollaboratorPolicyMayHaveChanged")
 }
 
 @MainActor
@@ -749,6 +750,21 @@ final class APIClient {
         return resp.data
     }
 
+    func publishedSchedule(limit: Int = 100, offset: Int = 0) async throws -> PublishedScheduleResponse {
+        try await perform(request(path: "/api/schedule/published", queryItems: [
+            .init(name: "limit", value: "\(limit)"),
+            .init(name: "offset", value: "\(offset)"),
+        ]))
+    }
+
+    func setPublishedScheduleFollow(eventId: String, following: Bool) async throws {
+        struct Body: Encodable { let following: Bool }
+        var req = request(path: "/api/schedule/published/\(eventId)/follow", method: "PUT")
+        req.httpBody = try JSONEncoder().encode(Body(following: following))
+        struct FollowState: Decodable { let eventId: String; let isFollowing: Bool }
+        let _: DataWrapper<FollowState> = try await perform(req)
+    }
+
     // MARK: - Favorites
 
     @discardableResult
@@ -1034,6 +1050,13 @@ final class APIClient {
             throw APIError.unauthorized
         case 404:
             throw APIError.notFound
+        case 403:
+            if request.url?.path != "/api/me" {
+                NotificationCenter.default.post(name: .collaboratorPolicyMayHaveChanged, object: nil)
+            }
+            let message = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error
+                ?? "You do not have access to this feature."
+            throw APIError.serverError(message)
         case 409:
             if let body = try? decoder.decode(ConflictResponseBody.self, from: data),
                let d = body.data {

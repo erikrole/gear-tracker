@@ -45,7 +45,7 @@ describe("iOS notification tap-through contracts", () => {
     expect(schedule).toContain("category,");
   });
 
-  it("routes tapped event pushes and inbox shift rows into Schedule without consuming the event id in the tab shell", () => {
+  it("routes allowed event pushes into Schedule and drops inaccessible collaborator targets", () => {
     const appDelegate = source("ios/Wisconsin/App/AppDelegate.swift");
     const appTab = source("ios/Wisconsin/Views/AppTabView.swift").split("// MARK: - Profile")[0];
     const schedule = source("ios/Wisconsin/Views/ScheduleView.swift");
@@ -57,8 +57,9 @@ describe("iOS notification tap-through contracts", () => {
 
     expect(appTab).toContain(".onChange(of: appState.pendingPushEventId)");
     expect(appTab).toContain("private func routePendingEventPush()");
+    expect(appTab).toContain('guard hasCapability("PUBLISHED_SCHEDULE_VIEW") else {');
     expect(appTab).toContain("appState.selectedTab = 4");
-    expect(appTab).not.toContain("appState.pendingPushEventId = nil");
+    expect(appTab).toContain("appState.pendingPushEventId = nil");
 
     expect(schedule).toContain(".onChange(of: appState.pendingPushEventId)");
     expect(schedule).toContain("appState.pendingPushEventId = nil");

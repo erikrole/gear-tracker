@@ -70,7 +70,7 @@ final class BookingsViewModel {
         currentUserId = id
         currentUserRole = role ?? ""
         guard !didApplyUserDefault else { return }
-        scope = currentUserRole == "STUDENT" ? .mine : .all
+        scope = currentUserRole == "STUDENT" || currentUserRole == "COLLABORATOR" ? .mine : .all
         didApplyUserDefault = true
     }
 
@@ -252,7 +252,7 @@ final class BookingsViewModel {
         searchTask?.cancel()
         loadTask?.cancel()
         searchText = ""
-        scope = currentUserRole == "STUDENT" ? .mine : .all
+        scope = currentUserRole == "STUDENT" || currentUserRole == "COLLABORATOR" ? .mine : .all
         checkouts = []
         reservations = []
         checkoutOffset = 0
@@ -277,8 +277,12 @@ struct BookingsView: View {
     }
 
     private var canCreate: Bool {
-        // Students can create their own reservations; gate the picker, not the entry point.
-        session.currentUser != nil
+        guard let user = session.currentUser else { return false }
+        return user.role != "COLLABORATOR" || (user.capabilities ?? []).contains("RESERVATION_CREATE")
+    }
+
+    private var isCollaborator: Bool {
+        session.currentUser?.role == "COLLABORATOR"
     }
 
     private var showsEmptyCreateAction: Bool {
@@ -335,18 +339,20 @@ struct BookingsView: View {
         @Bindable var vm = vm
         return NavigationStack(path: $navigationPath) {
             VStack(spacing: 0) {
-                Picker("Booking scope", selection: $vm.scope) {
-                    ForEach(BookingScope.allCases) { scope in
-                        Text(scope.title).tag(scope)
+                if !isCollaborator {
+                    Picker("Booking scope", selection: $vm.scope) {
+                        ForEach(BookingScope.allCases) { scope in
+                            Text(scope.title).tag(scope)
+                        }
                     }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 6)
+                    .background(Color(.systemGroupedBackground))
+                    .accessibilityLabel("Booking scope")
+                    .accessibilityValue(vm.scope.accessibilityLabel)
                 }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .padding(.bottom, 6)
-                .background(Color(.systemGroupedBackground))
-                .accessibilityLabel("Booking scope")
-                .accessibilityValue(vm.scope.accessibilityLabel)
 
                 Group {
                     if let error = vm.error, vm.isEmpty {
@@ -431,7 +437,7 @@ struct BookingsView: View {
                 }
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("Bookings")
+            .navigationTitle(isCollaborator ? "My Gear" : "Bookings")
             .searchable(text: $vm.searchText, prompt: searchPrompt)
             .onChange(of: vm.searchText) { vm.onSearchChange() }
             .onChange(of: vm.scope) { _, _ in
@@ -518,7 +524,7 @@ struct BookingsView: View {
 
     private func consumePendingAppIntent() {
         if appState.consumeAppIntentDestination(.createReservation) {
-            showCreate = true
+            if canCreate { showCreate = true }
         } else if appState.consumeAppIntentDestination(.myGear) {
             navigationPath = NavigationPath()
         }

@@ -3,10 +3,23 @@ import Foundation
 // MARK: - Auth
 
 struct CurrentUser: Codable, Identifiable, Equatable {
+    struct CollaboratorPolicyMetadata: Codable, Equatable {
+        let id: String
+        let affiliationKey: String
+        let displayName: String
+        let badgeLabel: String
+        let status: String
+        let version: Int
+    }
+
     let id: String
     let name: String
     let email: String
     let role: String
+    let affiliation: String?
+    let collaboratorProfile: String?
+    let capabilities: [String]?
+    let collaboratorPolicy: CollaboratorPolicyMetadata?
     let staffingType: String?
     let avatarUrl: String?
     let forcePasswordChange: Bool
@@ -16,6 +29,10 @@ struct CurrentUser: Codable, Identifiable, Equatable {
         case name
         case email
         case role
+        case affiliation
+        case collaboratorProfile
+        case capabilities
+        case collaboratorPolicy
         case staffingType
         case avatarUrl
         case forcePasswordChange
@@ -26,6 +43,10 @@ struct CurrentUser: Codable, Identifiable, Equatable {
         name: String,
         email: String,
         role: String,
+        affiliation: String? = nil,
+        collaboratorProfile: String? = nil,
+        capabilities: [String]? = nil,
+        collaboratorPolicy: CollaboratorPolicyMetadata? = nil,
         staffingType: String? = nil,
         avatarUrl: String?,
         forcePasswordChange: Bool = false
@@ -34,6 +55,10 @@ struct CurrentUser: Codable, Identifiable, Equatable {
         self.name = name
         self.email = email
         self.role = role
+        self.affiliation = affiliation
+        self.collaboratorProfile = collaboratorProfile
+        self.capabilities = capabilities
+        self.collaboratorPolicy = collaboratorPolicy
         self.staffingType = staffingType
         self.avatarUrl = avatarUrl
         self.forcePasswordChange = forcePasswordChange
@@ -45,6 +70,10 @@ struct CurrentUser: Codable, Identifiable, Equatable {
         name = try container.decode(String.self, forKey: .name)
         email = try container.decode(String.self, forKey: .email)
         role = try container.decode(String.self, forKey: .role)
+        affiliation = try container.decodeIfPresent(String.self, forKey: .affiliation)
+        collaboratorProfile = try container.decodeIfPresent(String.self, forKey: .collaboratorProfile)
+        capabilities = try container.decodeIfPresent([String].self, forKey: .capabilities)
+        collaboratorPolicy = try container.decodeIfPresent(CollaboratorPolicyMetadata.self, forKey: .collaboratorPolicy)
         staffingType = try container.decodeIfPresent(String.self, forKey: .staffingType)
         avatarUrl = try container.decodeIfPresent(String.self, forKey: .avatarUrl)
         forcePasswordChange = try container.decodeIfPresent(Bool.self, forKey: .forcePasswordChange) ?? false
@@ -141,7 +170,7 @@ enum BookingKind: String, Codable {
 struct BookingUser: Codable, Identifiable {
     let id: String
     let name: String
-    let email: String
+    let email: String?
     let avatarUrl: String?
 }
 

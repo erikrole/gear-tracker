@@ -61,7 +61,7 @@ describe("student field mobile contracts", () => {
     expect(searchView).toContain("isSearchPresented = true");
     expect(homeView).toContain(".buttonStyle(.plain)");
     expect(homeView).not.toContain("Circle().strokeBorder(Color(.separator)");
-    expect(bookingsView).toContain("scope = currentUserRole == \"STUDENT\" ? .mine : .all");
+    expect(bookingsView).toContain('scope = currentUserRole == "STUDENT" || currentUserRole == "COLLABORATOR" ? .mine : .all');
     expect(bookingsView).toContain('BookingListSection(title: "Checkouts"');
     expect(bookingsView).toContain('BookingListSection(title: "Reservations"');
     expect(bookingsView).toContain('"Search bookings..."');

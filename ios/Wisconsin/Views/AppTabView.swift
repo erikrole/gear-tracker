@@ -6,6 +6,7 @@ struct AppTabView: View {
     @Environment(NetworkMonitor.self) private var network
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage("sidebarTabCustomization") private var tabCustomization: TabViewCustomization
 
     private var isStaffOrAdmin: Bool {
@@ -18,7 +19,15 @@ struct AppTabView: View {
     }
 
     private var showsSidebarDestinations: Bool {
-        horizontalSizeClass == .regular
+        horizontalSizeClass == .regular && !isCollaborator
+    }
+
+    private var isCollaborator: Bool {
+        session.currentUser?.role == "COLLABORATOR"
+    }
+
+    private func hasCapability(_ capability: String) -> Bool {
+        !isCollaborator || (session.currentUser?.capabilities ?? []).contains(capability)
     }
 
     private var selectedTabIsSidebarOnly: Bool {
@@ -34,26 +43,32 @@ struct AppTabView: View {
                 HomeView()
             }
 
-            Tab("Schedule", systemImage: "calendar", value: 4) {
-                ScheduleView()
-            }
-                .badge(appState.myShiftTodayCount)
-                .accessibilityLabel(appState.myShiftTodayCount > 0 ? "Schedule, \(appState.myShiftTodayCount) shifts today" : "Schedule")
-
-            Tab(gearTabLabel, systemImage: "calendar.badge.checkmark", value: 1) {
-                BookingsView()
-            }
-                .badge(appState.overdueCount)
-                .accessibilityLabel(appState.overdueCount > 0 ? "\(gearTabLabel), \(appState.overdueCount) overdue" : gearTabLabel)
-
-            Tab("Browse", systemImage: "square.grid.2x2", value: 2) {
-                BrowseView()
+            if hasCapability("PUBLISHED_SCHEDULE_VIEW") {
+                Tab("Schedule", systemImage: "calendar", value: 4) {
+                    ScheduleView()
+                }
+                    .badge(appState.myShiftTodayCount)
+                    .accessibilityLabel(appState.myShiftTodayCount > 0 ? "Schedule, \(appState.myShiftTodayCount) shifts today" : "Schedule")
             }
 
-            Tab("Search", systemImage: "magnifyingglass", value: 3, role: .search) {
-                GlobalSearchSheet(showsCancelButton: false)
+            if hasCapability("MY_GEAR_VIEW") {
+                Tab(gearTabLabel, systemImage: "calendar.badge.checkmark", value: 1) {
+                    BookingsView()
+                }
+                    .badge(appState.overdueCount)
+                    .accessibilityLabel(appState.overdueCount > 0 ? "\(gearTabLabel), \(appState.overdueCount) overdue" : gearTabLabel)
             }
-            .tabPlacement(.pinned)
+
+            if hasCapability("GEAR_CATALOG_VIEW") {
+                Tab("Browse", systemImage: "square.grid.2x2", value: 2) {
+                    BrowseView()
+                }
+
+                Tab("Search", systemImage: "magnifyingglass", value: 3, role: .search) {
+                    GlobalSearchSheet(showsCancelButton: false)
+                }
+                .tabPlacement(.pinned)
+            }
 
             if showsSidebarDestinations {
                 TabSection("Resources") {
@@ -102,6 +117,11 @@ struct AppTabView: View {
         .onChange(of: appState.pendingPushBookingId) { _, _ in
             routePendingBookingPush()
         }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                Task { await session.refreshCurrentUser() }
+            }
+        }
         .safeAreaInset(edge: .top, spacing: 0) {
             if !network.isConnected {
                 BannerView(
@@ -118,6 +138,10 @@ struct AppTabView: View {
 
     private func routePendingEventPush() {
         guard appState.pendingPushEventId != nil else { return }
+        guard hasCapability("PUBLISHED_SCHEDULE_VIEW") else {
+            appState.pendingPushEventId = nil
+            return
+        }
         if appState.selectedTab != 4 {
             appState.selectedTab = 4
         }
@@ -125,6 +149,10 @@ struct AppTabView: View {
 
     private func routePendingBookingPush() {
         guard appState.pendingPushBookingId != nil else { return }
+        guard hasCapability("MY_GEAR_VIEW") else {
+            appState.pendingPushBookingId = nil
+            return
+        }
         if appState.selectedTab != 0 {
             appState.selectedTab = 0
         }
@@ -143,14 +171,14 @@ struct AppTabView: View {
         guard let destination = appState.pendingAppIntentDestination else { return }
         switch destination {
         case .scan:
-            if appState.selectedTab != 3 { appState.selectedTab = 3 }
+            if hasCapability("GEAR_CATALOG_VIEW"), appState.selectedTab != 3 { appState.selectedTab = 3 }
         case .myGear:
-            if appState.selectedTab != 1 { appState.selectedTab = 1 }
+            if hasCapability("MY_GEAR_VIEW"), appState.selectedTab != 1 { appState.selectedTab = 1 }
         case .todaySchedule:
-            if appState.selectedTab != 4 { appState.selectedTab = 4 }
+            if hasCapability("PUBLISHED_SCHEDULE_VIEW"), appState.selectedTab != 4 { appState.selectedTab = 4 }
             appState.pendingAppIntentDestination = nil
         case .createReservation:
-            if appState.selectedTab != 1 { appState.selectedTab = 1 }
+            if hasCapability("RESERVATION_CREATE"), appState.selectedTab != 1 { appState.selectedTab = 1 }
         }
     }
 }

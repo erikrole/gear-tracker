@@ -74,6 +74,13 @@ final class SessionStore {
                 }
             }
         }
+        NotificationCenter.default.addObserver(
+            forName: .collaboratorPolicyMayHaveChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in await self?.refreshCurrentUser() }
+        }
     }
 
     func login(email: String, password: String) async {
@@ -127,6 +134,22 @@ final class SessionStore {
     /// Clear a stale auth error — call from views when the user starts typing again.
     func clearError() {
         if error != nil { error = nil }
+    }
+
+    func refreshCurrentUser() async {
+        guard currentUser != nil else { return }
+        do {
+            let user = try await APIClient.shared.me()
+            currentUser = user
+            SessionSnapshot.save(user)
+            isOffline = false
+            error = nil
+        } catch APIError.unauthorized {
+            SessionSnapshot.clear()
+            currentUser = nil
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
 
     private func restoreSession() async {
