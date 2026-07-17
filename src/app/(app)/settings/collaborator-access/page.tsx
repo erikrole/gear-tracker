@@ -96,11 +96,11 @@ function normalizeCapabilities(values: Capability[]) {
 }
 
 export default function CollaboratorAccessPage() {
-  const { data, loading, error, reload } = useFetch<{ data: Policy[] }>({
+  const { data, loading, error, reload } = useFetch<Policy[]>({
     url: "/api/collaborator-affiliations",
     returnTo: "/settings/collaborator-access",
   });
-  const policies = data?.data ?? [];
+  const policies = data ?? [];
 
   return (
     <SettingsPageShell
