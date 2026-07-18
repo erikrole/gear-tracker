@@ -53,7 +53,7 @@ describe("iOS Settings hub", () => {
     expect(appTab).toContain('Tab("Licenses", systemImage: "key", value: 7)');
     expect(browse).toContain("GuidesView(wrapsInNavigationStack: false)");
     expect(browse).toContain("LicensesView(wrapsInNavigationStack: false)");
-    expect(browse).toContain("UsersView()");
+    expect(browse).toContain("UsersView(wrapsInNavigationStack: false)");
   });
 
   it("keeps notification and app settings honest at the menu level", () => {

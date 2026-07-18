@@ -420,6 +420,8 @@ struct KioskStudentHubView: View {
                 return apiError.errorDescription ?? "Check the kiosk network and try again."
             case .decodingError:
                 return "The server response changed. Try again after the kiosk refreshes."
+            case .conflict(let message):
+                return message
             case .serverError(let message):
                 return message
             case .notFound:

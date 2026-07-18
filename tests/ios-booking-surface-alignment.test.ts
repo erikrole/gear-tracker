@@ -4,10 +4,7 @@ import { describe, expect, it } from "vitest";
 describe("iOS booking surface alignment", () => {
   const bookings = readFileSync("ios/Wisconsin/Views/BookingsView.swift", "utf8");
   const itemDetail = readFileSync("ios/Wisconsin/Views/ItemDetailView.swift", "utf8");
-  const bookingRow = bookings.slice(
-    bookings.indexOf("struct BookingRow: View"),
-    bookings.indexOf("private extension Booking"),
-  );
+  const bookingRow = bookings.slice(bookings.indexOf("struct BookingRow: View"));
 
   it("uses the same title, timing, and requester reading order as item detail", () => {
     expect(bookingRow.indexOf("bookingTitle.lineLimit(1)")).toBeLessThan(
@@ -30,12 +27,14 @@ describe("iOS booking surface alignment", () => {
     );
   });
 
-  it("lets the rail carry normal checkout state without hiding exceptional states", () => {
+  it("lets the rail and timing color carry active checkout urgency without a duplicate badge", () => {
     expect(bookingRow).toContain(
-      "isOverdue || booking.kind != .checkout || booking.status != .open",
+      "booking.kind != .checkout || booking.status != .open",
     );
     expect(bookingRow).toContain("if showsStatusBadge");
     expect(bookingRow).toContain("StatusRail(tone: accentTone)");
+    expect(bookingRow).toContain("capitalizesRelativeDay: false");
+    expect(bookingRow).not.toContain("compactMagnitude(now:");
   });
 
   it("keeps timing typographic instead of repeating status icons", () => {

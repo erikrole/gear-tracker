@@ -9,6 +9,9 @@ Native iOS Browse tab in `ios/Wisconsin/Views/BrowseView.swift`.
 - Browse links to Items, Guides, Licenses, and Users.
 - Users is visible to every authenticated role as a read directory; mutation controls remain governed by the existing Users page and server authorization.
 - Settings Directory remains a fallback path for Guides, Users, and Licenses.
+- Browse now owns one bound navigation path across every embedded destination; Items and Users opt out of their standalone stack wrappers when opened from Browse.
+- Item Detail and User Detail push on the Browse-owned hierarchy, and repeated selection of the active Browse tab resets that parent path to the menu.
+- Items and Users use the explicit always-visible navigation-bar search drawer, matching Guides and reserving search layout above loaded rows instead of overlaying the first result.
 
 ## Risks Checked
 - Compact tab count stays at five, so Search remains the pinned trailing search tab.
@@ -17,4 +20,5 @@ Native iOS Browse tab in `ios/Wisconsin/Views/BrowseView.swift`.
 - Guides and Licenses remain read/self-service native surfaces with web-owned admin workflows.
 
 ## Follow-Ups
-- Consider adding non-nested navigation wrappers for Items and Users if those screens need deeper Browse-specific stack behavior.
+- Resolved 2026-07-17: Items and Users now use non-nested wrappers inside Browse while preserving standalone stack behavior for regular-width/sidebar entry points.
+- Visual interaction proof remains to be repeated on an authenticated simulator or physical device; this pass had no booted simulator available after source, XCTest, simulator-build, and generic-device-build verification completed.

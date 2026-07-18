@@ -35,7 +35,7 @@ const bookingListInclude = {
   serializedItems: {
     select: {
       id: true, assetId: true, allocationStatus: true,
-      asset: { select: { id: true, assetTag: true, brand: true, model: true, serialNumber: true, imageUrl: true } },
+      asset: { select: { id: true, assetTag: true, name: true, brand: true, model: true, serialNumber: true, imageUrl: true } },
     },
   },
   bulkItems: {

@@ -68,9 +68,10 @@ describe("student field mobile contracts", () => {
     expect(bookingsView).toContain("APIClient.shared.checkouts(");
     expect(bookingsView).toContain("APIClient.shared.reservations(");
     expect(bookingsView.match(/activeOnly: true/g)?.length).toBeGreaterThanOrEqual(2);
-    expect(bookingsView).toContain("enum BookingScope: String, CaseIterable, Identifiable");
-    expect(bookingsView).toContain("Picker(\"Booking scope\", selection: $vm.scope)");
-    expect(bookingsView).toContain("case needsAttention");
+    expect(bookingsView).toContain("enum BookingScope: String");
+    expect(bookingsView).toContain('vm.mineOnly ? "person.crop.circle.fill" : "person.crop.circle"');
+    expect(bookingsView).not.toContain("Picker(\"Booking scope\", selection: $vm.scope)");
+    expect(bookingsView).not.toContain("case needsAttention");
     expect(bookingsView).toContain("Label(\"New Reservation\", systemImage: \"plus\")");
     expect(bookingsView).not.toContain("Picker(\"Booking type\"");
     expect(bookingsView).not.toContain("enum BookingTab");
@@ -82,12 +83,14 @@ describe("student field mobile contracts", () => {
 
     expect(bookingsView).toContain("load(reset: Bool = false, clearExistingRows: Bool = false)");
     expect(bookingsView).toContain("clearExistingRows");
-    expect(bookingsView).toContain("isRefreshingVisibleRows");
-    expect(bookingsView).toContain("BookingFreshnessFooter");
-    expect(bookingsView).toContain("Updated \\(lastLoadedAt.formatted(.relative(presentation: .named)))");
-    expect(bookingsView).toContain("filter: \"overdue\"");
-    expect(bookingsView).toContain("filter: \"due-today\"");
-    expect(bookingsView).toContain("needsBookingAttention(now:");
+    expect(bookingsView).toContain(".refreshable");
+    expect(bookingsView).toContain("BookingEmptyState(");
+    expect(bookingsView).toContain('Label("View All Bookings", systemImage: "person.2")');
+    expect(bookingsView).toContain("ReservationEmptyRow(canCreate: canCreate)");
+    expect(bookingsView).toContain("capitalizesRelativeDay: false");
+    expect(bookingsView).not.toContain("isRefreshingVisibleRows");
+    expect(bookingsView).not.toContain("BookingFreshnessFooter");
+    expect(bookingsView).not.toContain("needsBookingAttention(now:");
     expect(bookingsView).not.toContain("GearStore.shared.cachedBookings");
     expect(apiClient).toContain("filter: String? = nil");
     expect(apiClient).toContain(".init(name: \"filter\", value: filter)");
@@ -149,7 +152,9 @@ describe("student field mobile contracts", () => {
     const itemsView = source("ios/Wisconsin/Views/ItemsView.swift");
     const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
 
-    expect(itemsView).toContain(".searchable(text: $vm.searchText, prompt: \"Search tag, model, serial, location\")");
+    expect(itemsView).toContain(".searchable(");
+    expect(itemsView).toContain("text: $vm.searchText");
+    expect(itemsView).toContain('prompt: Text("Search tag, model, serial, location")');
     expect(itemsView).toContain("ToolbarItemGroup(placement: .topBarTrailing)");
     expect(itemsView).toContain("Label(\"Favorites\", systemImage: vm.favoritesOnly ? \"star.fill\" : \"star\")");
     expect(itemsView).toContain("AssetStatusFilterMenu(selected: $vm.selectedStatuses)");
@@ -168,30 +173,29 @@ describe("student field mobile contracts", () => {
     const detail = source("ios/Wisconsin/Views/BookingDetailView.swift");
     const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
     const extendSheet = source("ios/Wisconsin/Views/ExtendBookingSheet.swift");
+    const editor = detail.slice(
+      detail.indexOf("struct EditBookingSheet"),
+      detail.indexOf("struct TransferBookingOwnerSheet"),
+    );
 
     expect(detail).toContain("BookingDetailsSection(");
     expect(detail).toContain("Label(\"Edit Details\", systemImage: \"pencil\")");
     expect(detail).toContain(".accessibilityLabel(\"Edit booking details\")");
-    expect(detail).toContain(".navigationTitle(\"Edit Details\")");
-    expect(detail).toContain("Text(\"Equipment changes, pickup, and return stay in kiosk workflows. This sheet edits booking details only.\")");
-    expect(detail).toContain("booking.kind == .reservation");
-    expect(detail).toContain("OptionPickerView(");
-    expect(detail).toContain("title: \"Pickup Location\"");
-    expect(detail).toContain("locationId: canEditLocation && locationId != booking.location.id ? locationId : nil");
+    expect(editor).toContain(".navigationTitle(\"Edit Booking\")");
+    expect(editor).toContain("Gear and pickup details stay read-only on your phone.");
+    expect(editor).toContain('BrandSectionHeader("Booking Name")');
+    expect(editor).toContain('DatePicker(\n                                    "Return Time"');
+    expect(editor).toContain("APIClient.shared.bookingAvailability");
+    expect(editor).not.toContain("OptionPickerView(");
+    expect(editor).not.toContain("TextEditor(");
     expect(apiClient).toContain("locationId: String? = nil");
     expect(apiClient).toContain("let locationId: String?");
     expect(apiClient).toContain("locationId: locationId");
-    expect(detail).toContain("TextEditor(text: $notes)");
-    expect(detail).toContain("accessibilityLabel(\"Booking notes\")");
-    expect(detail).toContain("notes.trimmingCharacters(in: .whitespacesAndNewlines)");
-    expect(detail).not.toContain("notes.isEmpty ? nil : notes");
-    expect(detail).toContain("Equipment is read-only in this detail view. Kiosk pickup verifies the physical handoff.");
-    expect(detail).toContain("BookingEditLockedNotice");
-    expect(detail).toContain("Text(\"Editing locked\")");
-    expect(detail).toContain("Use Extend Return Date");
-    expect(detail).toContain("pickup and return stay at a kiosk");
-    expect(detail).toContain("if canActOnBooking && !canEditBooking");
-    expect(detail).toContain("if isSaving { return }");
+    expect(detail).toContain('BrandSectionHeader(title: "Gear")');
+    expect(detail).toContain("if canExtendBooking");
+    expect(detail).toContain("if canCancelBooking");
+    expect(detail).toContain("BookingExtendBar");
+    expect(editor).toContain("guard canSave else { return }");
     expect(detail).toContain("if isActioning { return }");
     expect(extendSheet).toContain("if isLoading { return }");
     expect(detail).not.toContain("Image(systemName: \"pencil\")");
@@ -260,9 +264,9 @@ describe("student field mobile contracts", () => {
     // Three-step flow mirroring web: Equipment requires a selection before
     // Review (the cart bar owns the Review action), and the Confirm step
     // owns the single primary action.
-    expect(createSheet).toContain("Text(\"Review\")");
-    expect(createSheet).toContain(".disabled(vm.selectedEquipmentCount == 0 || vm.isSubmitting)");
-    expect(createSheet).toContain("Text(\"Reserve for later\")");
+    expect(createSheet).toContain("attemptReview()");
+    expect(createSheet).toContain('(vm.conflictedAssetIds.isEmpty ? "Review" : "Review Conflicts")');
+    expect(createSheet).toContain(".disabled(!vm.canReviewEquipment)");
     expect(createSheet).toContain("Text(vm.title.isEmpty ? \"Review your reservation\" : vm.title)");
     expect(createSheet).not.toContain("Batteries & Counted Items");
     // Scan is a toolbar action with continuous scanning; keep it labeled

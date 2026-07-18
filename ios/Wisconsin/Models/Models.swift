@@ -182,6 +182,7 @@ struct BookingLocation: Codable, Identifiable {
 struct BookingAsset: Codable, Identifiable {
     let id: String
     let assetTag: String?
+    let name: String?
     let brand: String?
     let model: String?
     let serialNumber: String?
@@ -199,7 +200,7 @@ struct BookingAsset: Codable, Identifiable {
 
     var itemListSecondaryTitle: String? {
         guard let tag = assetTag.nonBlankText else { return nil }
-        let candidate = displayName.nonBlankText
+        let candidate = name.nonBlankText ?? displayName.nonBlankText
         return candidate?.isSameListText(as: tag) == true ? nil : candidate
     }
 }
@@ -298,6 +299,34 @@ struct BookingStub: Codable { let id: String }
 struct AssetConflict: Decodable {
     let assetId: String
     let conflictingBookingTitle: String?
+}
+
+struct BookingAvailabilityShortage: Decodable {
+    let bulkSkuId: String
+    let requested: Int
+    let available: Int
+}
+
+struct BookingUnavailableAsset: Decodable {
+    let assetId: String
+    let status: String
+}
+
+struct BookingAvailabilityResult: Decodable {
+    let conflicts: [AssetConflict]
+    let shortages: [BookingAvailabilityShortage]
+    let unavailableAssets: [BookingUnavailableAsset]
+
+    var isAvailable: Bool {
+        conflicts.isEmpty && shortages.isEmpty && unavailableAssets.isEmpty
+    }
+
+    var issueSummary: String {
+        let affectedCount = conflicts.count + shortages.count + unavailableAssets.count
+        return affectedCount == 1
+            ? "That return time conflicts with another booking."
+            : "That return time creates \(affectedCount) availability conflicts."
+    }
 }
 
 // MARK: - Users

@@ -6,11 +6,36 @@
 
 Scope: `BookingDetailView` + the `EditBookingSheet` declared in the same file at `ios/Wisconsin/Views/BookingDetailView.swift`. Excludes `ExtendBookingSheet` (separate file, covered by the prior bookings audit and by a recent quick-extend chips slice).
 
+## 2026-07-17 Item Detail alignment
+
+- [x] Follow-up polish uses comma-separated countdowns such as `Due in 2 days, 13 hours`.
+- [x] Pickup and return use neutral horizontal arrows; urgency color remains owned by the status rail and live timing.
+- [x] The persistent Extend action remains above the native tab bar but uses the quieter bordered system style on material chrome.
+
+- [x] Booking identity appears once as status rail, holder photo, title, requester name, and live natural-language timing; the routine status badge and internal reference are removed.
+- [x] Eligible Extend is persistent above the native tab bar; Cancel remains a secondary contextual action at the end of the scroll.
+- [x] The toolbar is the only Edit entry point; the duplicated in-card Edit Details button is removed.
+- [x] Schedule gives Pickup Time, Return Time, and Pickup Kiosk standard-sized rows. Dates prefer Today, Tomorrow, Yesterday, or a near-term weekday before abbreviated month/day, omit the redundant year, and do not repeat the header countdown. Pickup Location is removed, and requester photo/email are not repeated.
+- [x] Gear is a clean read-only list without routine Out, Reserved, or Pending pills. Fully returned rows use a green tint, checkmark, dimmed identity, and explicit accessibility copy.
+- [x] Serialized equipment reads asset tag first and product name second, with brand/model only as a rollout fallback.
+- [x] Upcoming demand still explains why extension is unavailable; pre-pickup bookings use an honest kiosk fallback until the handoff is recorded.
+- [x] Role gates, optimistic locking, conflict checks, pull-to-refresh, and kiosk-owned custody are unchanged.
+- [x] The full native source-contract suite, TypeScript check, and generic iOS Simulator build pass.
+- [x] Authenticated runtime proof passes on iPhone 17 Pro: the compact identity header, lighter three-row Schedule card, clean product-name gear list, and material-backed bottom Extend control render without tab-bar overlap.
+
+## 2026-07-17 focused mobile editor
+
+- [x] Edit Booking now changes only the booking name and return time; pickup remains visible as fixed context.
+- [x] Return changes debounce a complete serialized-and-bulk availability preflight, surface success or conflict state inline, and keep the optimistic-locked update route as final authority.
+- [x] Transfer Ownership is inline, uses the active form-options roster, preserves `If-Unmodified-Since`, and closes the stale editor after a successful transfer.
+- [x] Gear, pickup location, notes, custody, and physical return controls are absent from the phone editor.
+- [x] Authenticated iPhone 17 Pro runtime inspection confirms the compact identity, two editable controls, inline transfer row, and transfer sheet hierarchy.
+
 **Surrounding context:** booking detail is the primary floor surface for "what is the current state of my reservation/checkout, and what can I do about it?" Multiple recent slices have shipped on this screen (live countdown TimelineView, monospaced ref/email, status pill alignment, overdue banner, requester display rule, accessory/parent-item linkage on detail). The 2026-04-24 broad bookings audit covered architectural gaps; this pass is a focused follow-up on the per-screen polish since.
 
 ## P0 — blocks MVP
 
-_None._ Auth/role gating is enforced server-side. The Edit pencil is gated client-side. Pull-to-refresh works. Loading skeleton + error recovery surface ship per the prior audit. The countdown badge ticks on a 30-s `TimelineView` (per the earlier slice). The overdue banner uses `Color.statusText(.red)`.
+_None._ Auth/role gating is enforced server-side. The Edit pencil is gated client-side. Pull-to-refresh works. Loading skeleton and error recovery remain. Header timing updates on a 30-second `TimelineView`; overdue state is communicated by the red rail and explicit overdue timing copy without a duplicate banner.
 
 ## P1 — polish before ship
 
@@ -63,9 +88,9 @@ _None._ Auth/role gating is enforced server-side. The Edit pencil is gated clien
 
 Per `AREA_BOOKINGS.md` (and the prior 2026-04-24 audit):
 
-- [x] AC: detail surfaces title, ref, status, requester, items, dates, location, notes.
-- [x] AC: live countdown badge for OPEN status (per `Date.bookingUrgency` + `Date.countdownLabel`).
-- [x] AC: overdue red banner.
+- [x] AC: detail surfaces title, live status timing, requester, gear, dates, location, kiosk, and notes; the internal reference is intentionally omitted.
+- [x] AC: live natural-language timing for OPEN, BOOKED, and PENDING_PICKUP states.
+- [x] AC: overdue state remains explicit through the status rail and overdue timing copy.
 - [x] AC: Edit pencil gated by role + status.
 - [x] AC: Cancel only for `.booked` (terminal-state immutability).
 - [x] AC: Pull-to-refresh.

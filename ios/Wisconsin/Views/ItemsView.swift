@@ -179,16 +179,28 @@ final class ItemsViewModel {
 }
 
 struct ItemsView: View {
+    var wrapsInNavigationStack = true
+
     @State private var vm = ItemsViewModel()
     @State private var reserveAsset: Asset?
     @State private var reserveFamily: AssetFamilySearchResult?
     @State private var navigationPath = NavigationPath()
+    @State private var pushBooking: BookingRouteId?
     @State private var toast: Toast?
     @Environment(AppState.self) private var appState
 
     var body: some View {
-        NavigationStack(path: $navigationPath) {
-            Group {
+        if wrapsInNavigationStack {
+            NavigationStack(path: $navigationPath) {
+                configuredContent
+            }
+        } else {
+            configuredContent
+        }
+    }
+
+    private var configuredContent: some View {
+        Group {
                 if let error = vm.error, vm.rows.isEmpty {
                     ContentUnavailableView {
                         Label("Couldn't load items", systemImage: "exclamationmark.triangle")
@@ -264,10 +276,14 @@ struct ItemsView: View {
                     .contentMargins(.bottom, 96, for: .scrollContent)
                     .background(Color(.systemGroupedBackground))
                 }
-            }
+        }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Items")
-            .searchable(text: $vm.searchText, prompt: "Search tag, model, serial, location")
+            .searchable(
+                text: $vm.searchText,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: Text("Search tag, model, serial, location")
+            )
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
@@ -298,6 +314,7 @@ struct ItemsView: View {
                 reserveAsset = nil
                 reserveFamily = nil
                 navigationPath = NavigationPath()
+                pushBooking = nil
                 vm.resetDefaults()
                 Task { await vm.load(reset: true) }
             }
@@ -314,7 +331,7 @@ struct ItemsView: View {
                     return vm
                 }()) { newId in
                     reserveAsset = nil
-                    navigationPath.append(BookingRouteId(id: newId))
+                    pushBooking = BookingRouteId(id: newId)
                 }
             }
             .sheet(item: $reserveFamily) { family in
@@ -324,10 +341,12 @@ struct ItemsView: View {
                     return vm
                 }()) { newId in
                     reserveFamily = nil
-                    navigationPath.append(BookingRouteId(id: newId))
+                    pushBooking = BookingRouteId(id: newId)
                 }
             }
-        }
+            .navigationDestination(item: $pushBooking) { route in
+                BookingDetailView(bookingId: route.id)
+            }
     }
 
     @ViewBuilder

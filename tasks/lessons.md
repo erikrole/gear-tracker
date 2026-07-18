@@ -26,6 +26,10 @@
 - **Copy must name the operational object**: Status, holder, gear identity, event context, and recovery actions should be concrete and useful at a glance.
 - **Stop when the area is healthy**: Recommend the next bounded slice or explicitly stop. Do not invent churn to keep the work moving.
 
+## Shipping and deployment history
+
+- **Push titles are release artifacts**: Use a specific conventional commit title that names the user-facing outcome and the operational surface changed. Avoid generic labels such as `Improve Gear Tracker workflows`, `Refine product surfaces`, or `Harden workflows` when the title could instead identify the protected behavior. For a broad integrity slice, prefer a bounded title such as `fix: keep reservations and kiosk custody atomic under concurrent use`; split independently meaningful changes into separate commits when that improves reviewability. This rule is based on the 2026-07-17 deployment history review, where generic titles made production activity difficult to scan and distinguish.
+
 ## Security and authorization
 
 - **Private profile fields are response contracts**: Omit restricted values from unauthorized API responses and block unauthorized mutations. CSS or conditional rendering is not a privacy boundary.

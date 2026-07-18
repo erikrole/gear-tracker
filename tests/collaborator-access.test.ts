@@ -125,13 +125,14 @@ describe("BTN response minimization", () => {
         id: "line-1",
         assetId: "asset-1",
         allocationStatus: "active",
-        asset: { id: "asset-1", assetTag: "CAM-1", brand: "Brand", model: "Model", imageUrl: null },
+        asset: { id: "asset-1", assetTag: "CAM-1", name: "Cinema Camera", brand: "Brand", model: "Model", imageUrl: null },
       }],
       bulkItems: [],
       event: { id: "event-private", summary: "Unpublished production" },
       events: [{ id: "event-private", summary: "Unpublished production" }],
     });
     expect(result.requester).not.toHaveProperty("email");
+    expect(result.serializedItems[0]?.asset.name).toBe("Cinema Camera");
     expect(result.serializedItems[0]?.asset).not.toHaveProperty("serialNumber");
     expect(result).not.toHaveProperty("event");
     expect(result).not.toHaveProperty("events");

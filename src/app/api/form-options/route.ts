@@ -63,7 +63,7 @@ export const GET = withAuth(async (_req, { user }) => {
       imageUrl: s.imageUrl,
       minThreshold: s.minThreshold,
       categoryName: s.categoryRel?.name ?? null,
-      currentQuantity: state.balanceOnHandQuantity,
+      currentQuantity: state.onHandQuantity,
       availableQuantity: state.availableQuantity,
     };
   });

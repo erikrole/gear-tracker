@@ -39,7 +39,7 @@ final class AppState {
     var tabResetToken = 0
     /// Dashboard hint for landing Bookings on a specific scope (raw
     /// `BookingScope` value). Set by stat-tile taps (Overdue / Due Today land
-    /// on Attention); consumed and cleared by BookingsView.
+    /// on All); consumed and cleared by BookingsView.
     var pendingBookingsScope: String?
     private var isRefreshing = false
     private var lastRefreshAttemptAt: Date?

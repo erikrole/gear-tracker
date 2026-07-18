@@ -98,7 +98,7 @@ describe("form-options bulk count freshness", () => {
     expect(body.data.bulkSkus).toEqual([
       expect.objectContaining({
         id: "sku-units",
-        currentQuantity: 99,
+        currentQuantity: 3,
         availableQuantity: 1,
         trackByNumber: true,
         imageUrl: "https://blob.example/sony-battery.jpg",

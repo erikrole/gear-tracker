@@ -1,5 +1,12 @@
 import SwiftUI
 
+private enum ReservationSetupMode: String, CaseIterable, Identifiable {
+    case event = "Event Linked"
+    case manual = "Manual"
+
+    var id: String { rawValue }
+}
+
 struct CreateBookingSheet: View {
     let onCreated: (String) -> Void
 
@@ -16,22 +23,25 @@ struct CreateBookingSheet: View {
     @State private var capturedInitial = false
     @State private var showScanner = false
     @State private var showNotesField = false
+    @State private var setupMode: ReservationSetupMode
     @FocusState private var notesFocused: Bool
     @Environment(SessionStore.self) private var session
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(onCreated: @escaping (String) -> Void) {
         _vm = State(wrappedValue: CreateBookingViewModel())
+        _setupMode = State(wrappedValue: .event)
         self.onCreated = onCreated
     }
 
     init(vm: CreateBookingViewModel, onCreated: @escaping (String) -> Void) {
         _vm = State(wrappedValue: vm)
+        _setupMode = State(wrappedValue: vm.linkedEventCount > 0 ? .event : .manual)
         self.onCreated = onCreated
     }
 
-    private var canPickRequester: Bool {
-        let role = session.currentUser?.role ?? ""
-        return role == "STAFF" || role == "ADMIN"
+    private var canContinueToGear: Bool {
+        vm.isValid && (setupMode == .manual || vm.linkedEventCount > 0)
     }
 
     private var hasUnsavedInput: Bool {
@@ -40,9 +50,8 @@ struct CreateBookingSheet: View {
         if !vm.selectedAssetIds.isEmpty { return true }
         if vm.selectedBulkTotal > 0 { return true }
         if vm.selectedEventIds != initialEventIds { return true }
-        // Track requester / location / date deltas so a STAFF user who picks
-        // a requester + adjusts dates and then taps Cancel gets a discard
-        // prompt before losing the setup.
+        // Track auto-filled identity, location, and date deltas so Cancel can
+        // warn before losing meaningful setup work.
         guard capturedInitial else { return false }
         if vm.selectedUserId != initialUserId { return true }
         if vm.selectedLocationId != initialLocationId { return true }
@@ -62,18 +71,67 @@ struct CreateBookingSheet: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if step == 1 {
-                    detailsForm
-                } else if step == 2 {
-                    equipmentPicker
-                } else {
-                    reviewStep
+            VStack(spacing: 0) {
+                ReservationStepProgress(currentStep: step)
+                Group {
+                    if step == 1 {
+                        detailsForm
+                    } else if step == 2 {
+                        equipmentPicker
+                    } else {
+                        reviewStep
+                    }
                 }
             }
-            .navigationTitle(step == 1 ? "New Reservation" : step == 2 ? "Equipment" : "Confirm")
+            .navigationTitle(step == 1 ? "New Reservation" : step == 2 ? "Gear" : "Review")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbar }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if step == 1 {
+                    Button {
+                        step = 2
+                        Task { await vm.loadAvailableAssets(reset: true) }
+                        vm.scheduleConflictCheck()
+                    } label: {
+                        Label("Choose Gear", systemImage: "shippingbox")
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.large)
+                    .tint(Color.statusText(.purple))
+                    .disabled(!canContinueToGear || vm.isSubmitting)
+                    .padding(.horizontal, Brand.Space.md)
+                    .padding(.vertical, 10)
+                    .background(.bar)
+                    .overlay(alignment: .top) { Divider() }
+                } else if step == 3 {
+                    Button {
+                        Task { await create() }
+                    } label: {
+                        Group {
+                            if vm.isSubmitting {
+                                ProgressView()
+                                    .tint(.white)
+                            } else {
+                                Text("Create Reservation")
+                                    .fontWeight(.semibold)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.large)
+                    .tint(Color.statusText(.purple))
+                    .disabled(vm.isSubmitting)
+                    .padding(.horizontal, Brand.Space.md)
+                    .padding(.vertical, 10)
+                    .background(.bar)
+                    .overlay(alignment: .top) { Divider() }
+                }
+            }
             .confirmationDialog(
                 "Couldn't create reservation",
                 isPresented: Binding(
@@ -105,6 +163,8 @@ struct CreateBookingSheet: View {
                 async let optionsTask: Void = vm.loadOptions()
                 async let eventsTask: Void = vm.loadEvents()
                 _ = await (optionsTask, eventsTask)
+                applySelfAndLocationDefaults()
+                captureInitialIfNeeded()
             }
             .fullScreenCover(isPresented: $showScanner) {
                 // Continuous scanning: the scanner stays open after each hit
@@ -121,11 +181,7 @@ struct CreateBookingSheet: View {
                 })
             }
             .onChange(of: vm.options) {
-                if vm.selectedUserId.isEmpty, let current = session.currentUser {
-                    if vm.options?.users.contains(where: { $0.id == current.id }) == true {
-                        vm.selectedUserId = current.id
-                    }
-                }
+                applySelfAndLocationDefaults()
                 captureInitialIfNeeded()
             }
             .onAppear { captureInitialIfNeeded() }
@@ -150,6 +206,16 @@ struct CreateBookingSheet: View {
         capturedInitial = true
     }
 
+    private func applySelfAndLocationDefaults() {
+        if let current = session.currentUser,
+           vm.options?.users.contains(where: { $0.id == current.id }) == true {
+            vm.selectedUserId = current.id
+        }
+        if vm.selectedLocationId.isEmpty, let defaultLocation = vm.primaryPickupLocations.first {
+            vm.selectedLocationId = defaultLocation.id
+        }
+    }
+
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
@@ -162,15 +228,7 @@ struct CreateBookingSheet: View {
             }
         }
         ToolbarItem(placement: .confirmationAction) {
-            if step == 1 {
-                Button("Next") {
-                    step = 2
-                    Task { await vm.loadAvailableAssets(reset: true) }
-                    vm.scheduleConflictCheck()
-                }
-                .disabled(!vm.isValid || vm.isSubmitting)
-                .fontWeight(.semibold)
-            } else if step == 2 {
+            if step == 2 {
                 // Review lives on the cart bar in step 2; the toolbar slot
                 // hosts scan so it's always reachable above the keyboard.
                 Button {
@@ -178,11 +236,12 @@ struct CreateBookingSheet: View {
                 } label: {
                     Image(systemName: "barcode.viewfinder")
                 }
+                .tint(Color.statusText(.purple))
                 .accessibilityLabel("Scan equipment")
                 .disabled(vm.isSubmitting)
             }
-            // Step 3's primary action is the prominent inline button in
-            // reviewStep (Apple review-screen pattern, same as web Step 3).
+            // Step 3's primary action is anchored above the sheet edge so it
+            // remains available while the user checks the summary.
         }
     }
 
@@ -190,142 +249,64 @@ struct CreateBookingSheet: View {
     private var detailsForm: some View {
         ScrollView {
             VStack(spacing: 18) {
-                BookingStepHeader(
-                    icon: "calendar.badge.plus",
-                    eyebrow: "Reservation",
-                    title: vm.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Reservation details" : vm.title,
-                    subtitle: detailHeaderSubtitle
-                )
-
-                // Events first: linking one auto-fills the title and window,
-                // which is the fast path for most reservations.
-                EventLinkingCard(
-                    events: vm.events,
-                    selectedEvents: vm.selectedEvents,
-                    isLoading: vm.isLoadingEvents,
-                    error: vm.eventError,
-                    onRetry: { Task { await vm.loadEvents() } },
-                    onToggle: { vm.toggleEvent($0) },
-                    onRemove: { vm.removeSelectedEvent($0) }
-                )
-
                 FormCard {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Title")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .textCase(.uppercase)
-                        TextField(
-                            "Booking title",
-                            text: Binding(
-                                get: { vm.title },
-                                set: { vm.setTitleFromUser($0) }
-                            )
-                        )
-                        .font(.title3.weight(.semibold))
-                        .submitLabel(.next)
+                    BrandSectionHeader("Set Schedule From")
+                    Picker("Schedule source", selection: setupModeBinding) {
+                        ForEach(ReservationSetupMode.allCases) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
                     }
+                    .pickerStyle(.segmented)
+                }
+
+                if setupMode == .event {
+                    EventSelectionCard(
+                        events: vm.events,
+                        selectedEvents: vm.linkedEventsForSetup,
+                        isLoading: vm.isLoadingEvents,
+                        error: vm.eventError,
+                        onRetry: { Task { await vm.loadEvents() } },
+                        onToggle: { vm.toggleEvent($0) },
+                        onRemove: { vm.removeSelectedEvent($0) }
+                    )
+
+                    if vm.linkedEventCount > 0 {
+                        reservationTitleCard
+                            .transition(detailsTransition)
+                        scheduleWindowCard
+                            .transition(detailsTransition)
+                    }
+                } else {
+                    reservationTitleCard
+                        .transition(detailsTransition)
+                    scheduleWindowCard
+                        .transition(detailsTransition)
                 }
 
                 FormCard {
+                    BrandSectionHeader("Pickup Location")
                     if vm.isLoadingOptions {
-                        HStack {
-                            ProgressView()
-                            Text("Loading…").font(.subheadline).foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, 4)
+                        ProgressView()
+                            .frame(maxWidth: .infinity, minHeight: 32)
+                    } else if vm.primaryPickupLocations.isEmpty {
+                        Label("Pickup locations are unavailable", systemImage: "exclamationmark.triangle")
+                            .font(.subheadline)
+                            .foregroundStyle(Color.statusText(.orange))
                     } else {
-                        if canPickRequester {
-                            NavigationLink {
-                                RequesterPickerView(
-                                    users: vm.options?.users ?? [],
-                                    currentUserId: session.currentUser?.id,
-                                    selection: $vm.selectedUserId
-                                )
-                            } label: {
-                                FormPickerRow(
-                                    label: "For",
-                                    value: vm.selectedUser?.name ?? "Select person"
-                                ) {
-                                    if let selected = vm.selectedUser {
-                                        UserAvatarView(name: selected.name, avatarUrl: selected.avatarUrl, size: 26)
-                                    }
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        } else {
-                            // Student: locked to self.
-                            FormPickerRow(
-                                label: "For",
-                                value: session.currentUser?.name ?? "You"
-                            ) {
-                                if let current = session.currentUser {
-                                    UserAvatarView(name: current.name, avatarUrl: current.avatarUrl, size: 26)
-                                }
-                            }
-                            .opacity(0.85)
-                        }
-
-                        Divider().padding(.leading, 4)
-
-                        NavigationLink {
-                            OptionPickerView(
-                                title: "Pickup location",
-                                options: vm.options?.locations.map { ($0.id, $0.name) } ?? [],
-                                selection: Binding(
-                                    get: { vm.selectedLocationId },
-                                    set: { vm.setLocationFromUser($0) }
-                                )
+                        Picker(
+                            "Pickup location",
+                            selection: Binding(
+                                get: { vm.selectedLocationId },
+                                set: { vm.setLocationFromUser($0) }
                             )
-                        } label: {
-                            FormPickerRow(
-                                label: "Pickup",
-                                value: vm.selectedLocation?.name ?? "Select pickup"
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-
-                FormCard {
-                    DatePicker(
-                        "From",
-                        selection: Binding(
-                            get: { vm.startsAt },
-                            set: { vm.adjustStart(to: $0) }
-                        ),
-                        displayedComponents: [.date, .hourAndMinute]
-                    )
-                    .tint(.accentColor)
-                    Divider().padding(.leading, 4)
-                    DatePicker(
-                        "To",
-                        selection: Binding(
-                            get: { vm.endsAt },
-                            set: { vm.adjustEnd(to: $0) }
-                        ),
-                        in: vm.startsAt...,
-                        displayedComponents: [.date, .hourAndMinute]
-                    )
-                        .tint(.accentColor)
-                    Divider().padding(.leading, 4)
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(BookingDurationPreset.allCases) { preset in
-                                FilterChip(
-                                    label: preset.rawValue,
-                                    isOn: vm.activeDurationPreset == preset,
-                                    tone: .purple
-                                ) {
-                                    vm.applyDurationPreset(preset)
-                                    Haptics.selection()
-                                }
+                        ) {
+                            ForEach(vm.primaryPickupLocations) { location in
+                                Text(location.name)
+                                    .tag(location.id)
                             }
                         }
-                        .padding(.vertical, 2)
+                        .pickerStyle(.segmented)
                     }
-                    .accessibilityLabel("Quick duration presets")
                 }
 
                 if vm.notes.isEmpty && !showNotesField {
@@ -340,7 +321,7 @@ struct CreateBookingSheet: View {
                         FormCard {
                             Label("Add note", systemImage: "square.and.pencil")
                                 .font(.body)
-                                .foregroundStyle(Color.statusText(.blue))
+                                .foregroundStyle(Color.statusText(.purple))
                         }
                     }
                     .buttonStyle(.plain)
@@ -362,54 +343,82 @@ struct CreateBookingSheet: View {
                 }
             }
             .padding(20)
+            .animation(reduceMotion ? nil : .snappy(duration: 0.28), value: setupMode)
+            .animation(reduceMotion ? nil : .snappy(duration: 0.28), value: vm.linkedEventCount)
         }
         .background(Color(.systemGroupedBackground))
     }
 
-    private var detailHeaderSubtitle: String {
-        let window = detailWindowText
-        if let linked = vm.linkedEventLabel {
-            return "\(linked) · \(window)"
+    private var reservationTitleCard: some View {
+        FormCard {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Reservation Title")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                TextField(
+                    "Reservation name",
+                    text: Binding(
+                        get: { vm.title },
+                        set: { vm.setTitleFromUser($0) }
+                    )
+                )
+                .font(.title3.weight(.semibold))
+                .submitLabel(.next)
+            }
         }
-        return window
     }
 
-    private var detailWindowText: String {
-        if !vm.userEditedWindow, let allDayWindow = selectedAllDayWindowText {
-            return allDayWindow
+    private var scheduleWindowCard: some View {
+        FormCard {
+            BrandSectionHeader("When")
+            QuarterHourDatePickerRow(
+                label: "Pickup",
+                selection: Binding(
+                    get: { vm.startsAt },
+                    set: { vm.adjustStart(to: $0) }
+                )
+            )
+            Divider().padding(.leading, 4)
+            QuarterHourDatePickerRow(
+                label: "Return",
+                selection: Binding(
+                    get: { vm.endsAt },
+                    set: { vm.adjustEnd(to: $0) }
+                ),
+                minimumDate: vm.startsAt
+            )
+            if vm.endsAt <= vm.startsAt {
+                Label("Return must be after pickup", systemImage: "exclamationmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(Color.statusText(.red))
+                    .padding(.top, 6)
+            }
         }
-        return "\(vm.startsAt.formatted(date: .abbreviated, time: .shortened)) to \(vm.endsAt.formatted(date: .omitted, time: .shortened))"
     }
 
-    private var selectedAllDayWindowText: String? {
-        let selected = vm.selectedEvents
-        let events = selected.isEmpty ? vm.prefillEvent.map { [$0] } ?? [] : selected
-        guard !events.isEmpty, events.allSatisfy(\.displayAllDay) else { return nil }
-        let days = events.flatMap(\.spannedDays).sorted()
-        guard let start = days.first, let end = days.last else { return nil }
-        let calendar = Calendar.current
-        if calendar.isDate(start, inSameDayAs: end) {
-            return "\(start.formatted(date: .abbreviated, time: .omitted)), All day"
-        }
-        return "\(shortDate(start))-\(shortDate(end)), All day"
+    private var detailsTransition: AnyTransition {
+        reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top))
     }
 
-    private func shortDate(_ date: Date) -> String {
-        date.formatted(.dateTime.month(.abbreviated).day())
+    private var setupModeBinding: Binding<ReservationSetupMode> {
+        Binding(
+            get: { setupMode },
+            set: { mode in
+                setupMode = mode
+                if mode == .manual {
+                    vm.unlinkEvents()
+                }
+                Haptics.selection()
+            }
+        )
     }
 
     private var reviewPickupText: String {
-        if !vm.userEditedWindow, let allDayWindow = selectedAllDayWindowText {
-            return allDayWindow
-        }
-        return vm.startsAt.formatted(date: .abbreviated, time: .shortened)
+        return vm.startsAt.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute())
     }
 
-    private var reviewReturnText: String? {
-        if !vm.userEditedWindow, selectedAllDayWindowText != nil {
-            return "Return after event"
-        }
-        return "Return \(vm.endsAt.formatted(date: .abbreviated, time: .shortened))"
+    private var reviewReturnText: String {
+        return vm.endsAt.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute())
     }
 
     @ViewBuilder
@@ -419,112 +428,97 @@ struct CreateBookingSheet: View {
         }
     }
 
-    /// Apple-style review confirmation — the little brother of web Step 3:
-    /// kind icon, the window as the hero claim, requester/location, a narrow
-    /// facts table, the equipment list, and one primary action.
     @ViewBuilder
     private var reviewStep: some View {
         ScrollView {
-            VStack(spacing: 24) {
-                VStack(spacing: 0) {
-                    // Canonical reservation identity: calendar on purple.
-                    Image(systemName: vm.linkedEventCount > 0 ? "calendar.badge.checkmark" : "calendar")
-                        .font(.title2.weight(.semibold))
-                        .foregroundStyle(Color.statusText(.purple))
-                        .frame(width: 56, height: 56)
-                        .background(Color.statusBackground(.purple), in: RoundedRectangle(cornerRadius: 16))
-
-                    Text(vm.title.isEmpty ? "Review your reservation" : vm.title)
-                        .font(.title2.weight(.bold))
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                        .padding(.top, 18)
-
-                    Text("Pickup")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-                        .padding(.top, 20)
-                    Text(reviewPickupText)
-                        .font(.title2.weight(.semibold))
-                        .monospacedDigit()
-                        .padding(.top, 2)
-                    if let reviewReturnText {
-                        Text(reviewReturnText)
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.secondary)
-                            .padding(.top, 2)
-                    }
-
-                    VStack(spacing: 2) {
-                        Text("For \(vm.selectedUser?.name ?? session.currentUser?.name ?? "")")
-                        Text("Pickup \(vm.selectedLocation?.name ?? "")")
-                    }
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 14)
-
-                    VStack(spacing: 0) {
-                        reviewFactRow(label: "Status") {
-                            Text("Reserved")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(Color.statusText(.purple))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(Color.statusBackground(.purple), in: Capsule())
+            VStack(spacing: 16) {
+                FormCard {
+                    HStack(spacing: 12) {
+                        StatusRail(tone: .purple)
+                        UserAvatarView(
+                            name: vm.selectedUser?.name ?? session.currentUser?.name ?? "User",
+                            avatarUrl: vm.selectedUser?.avatarUrl ?? session.currentUser?.avatarUrl,
+                            size: 46
+                        )
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(vm.title.isEmpty ? "Review your reservation" : vm.title)
+                                .font(.title3.weight(.bold))
+                                .lineLimit(2)
+                            Text(vm.selectedUser?.name ?? session.currentUser?.name ?? "")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                         }
-                        Divider()
-                        reviewFactRow(label: "Equipment") {
-                            Text("\(vm.selectedEquipmentCount) item\(vm.selectedEquipmentCount == 1 ? "" : "s")")
-                                .font(.subheadline.weight(.medium))
-                                .monospacedDigit()
-                        }
-                        if let linked = vm.linkedEventLabel {
-                            Divider()
-                            reviewFactRow(label: vm.linkedEventCount > 1 ? "Events" : "Event") {
-                                Label(linked, systemImage: "calendar.badge.checkmark")
-                                    .font(.subheadline.weight(.medium))
-                                    .multilineTextAlignment(.trailing)
-                            }
-                        }
-                        if !vm.notes.isEmpty {
-                            Divider()
-                            reviewFactRow(label: "Notes") {
-                                Text(vm.notes)
-                                    .font(.subheadline)
-                                    .multilineTextAlignment(.trailing)
-                            }
-                        }
-                    }
-                    .padding(.top, 22)
-                    .overlay(Rectangle().frame(height: 0.5).foregroundStyle(Color(.separator)), alignment: .top)
-                    .overlay(Rectangle().frame(height: 0.5).foregroundStyle(Color(.separator)), alignment: .bottom)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.top, 28)
-                .padding(.horizontal, 20)
-
-                // Advisory only — server enforcement at submit is authoritative,
-                // same semantics as the web availability review.
-                if !vm.conflictedAssetIds.isEmpty {
-                    let count = vm.conflictedAssetIds.count
-                    HStack(spacing: 10) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(Color.statusText(.orange))
-                        Text("\(count) scheduling conflict\(count == 1 ? "" : "s") — availability is rechecked when you reserve.")
-                            .font(.footnote)
-                            .foregroundStyle(.primary)
                         Spacer(minLength: 0)
                     }
-                    .padding(12)
-                    .background(Color.statusBackground(.orange), in: RoundedRectangle(cornerRadius: 12))
-                    .padding(.horizontal, 20)
                 }
 
-                // Equipment list — concise, not the visual center.
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Equipment")
-                        .font(.subheadline.weight(.semibold))
+                FormCard {
+                    reviewSectionHeader(title: "Schedule", editStep: 1)
+                    reviewDetailRow(
+                        icon: "arrow.right",
+                        tone: .blue,
+                        label: "Pickup",
+                        value: reviewPickupText
+                    )
+                    Divider().padding(.leading, 50)
+                    reviewDetailRow(
+                        icon: "arrow.left",
+                        tone: .purple,
+                        label: "Return",
+                        value: reviewReturnText
+                    )
+                    Divider().padding(.leading, 50)
+                    reviewDetailRow(
+                        icon: "mappin.and.ellipse",
+                        tone: .gray,
+                        label: "Pickup Location",
+                        value: vm.selectedLocation?.name ?? ""
+                    )
+                    if let linked = vm.linkedEventLabel {
+                        Divider().padding(.leading, 50)
+                        reviewDetailRow(
+                            icon: "calendar.badge.checkmark",
+                            tone: .green,
+                            label: vm.linkedEventCount > 1 ? "Events" : "Event",
+                            value: linked
+                        )
+                    }
+                    if !vm.notes.isEmpty {
+                        Divider().padding(.leading, 50)
+                        reviewDetailRow(
+                            icon: "note.text",
+                            tone: .gray,
+                            label: "Note",
+                            value: vm.notes
+                        )
+                    }
+                }
+
+                if !vm.conflictedAssetIds.isEmpty {
+                    let count = vm.conflictedAssetIds.count
+                    FormCard {
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(Color.statusText(.orange))
+                                .padding(.top, 2)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Review \(count) gear conflict\(count == 1 ? "" : "s")")
+                                    .font(.subheadline.weight(.semibold))
+                                Text("Availability is checked again when you create the reservation.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 8)
+                            Button("Review Gear") { step = 2 }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .tint(Color.statusText(.orange))
+                        }
+                    }
+                }
+
+                FormCard {
+                    reviewSectionHeader(title: "Gear", count: vm.selectedEquipmentCount, editStep: 2)
                     VStack(spacing: 0) {
                         ForEach(Array(vm.selectedAssets.enumerated()), id: \.element.id) { index, asset in
                             if index > 0 { Divider().padding(.leading, 12) }
@@ -550,7 +544,7 @@ struct CreateBookingSheet: View {
                                 }
                             }
                             .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
+                            .padding(.vertical, 8)
                         }
                         if !vm.selectedAssets.isEmpty && !vm.selectedBulkSkus.isEmpty {
                             Divider().padding(.leading, 12)
@@ -563,9 +557,11 @@ struct CreateBookingSheet: View {
                                     Text(sku.name)
                                         .font(.gothamBold(size: 16))
                                         .lineLimit(1)
-                                    Text(bulkSubtitle(sku))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                    if showsBulkSubtitle(sku) {
+                                        Text(bulkSubtitle(sku))
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
                                 Spacer()
                                 Text("×\(vm.quantity(for: sku))")
@@ -574,52 +570,61 @@ struct CreateBookingSheet: View {
                                     .foregroundStyle(.secondary)
                             }
                             .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
+                            .padding(.vertical, 8)
                         }
                     }
-                    .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
-                            .strokeBorder(Color.hairline, lineWidth: 0.5)
-                    )
                 }
-                .padding(.horizontal, 20)
-
-                // One primary action, prominent and inline — like web Step 3.
-                Button {
-                    Task { await create() }
-                } label: {
-                    Group {
-                        if vm.isSubmitting {
-                            ProgressView().tint(.white)
-                        } else {
-                            Text("Reserve for later")
-                                .fontWeight(.semibold)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(vm.isSubmitting)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 24)
             }
+            .padding(20)
         }
         .background(Color(.systemGroupedBackground))
     }
 
     @ViewBuilder
-    private func reviewFactRow(label: String, @ViewBuilder value: () -> some View) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(label.uppercased())
-                .font(.caption2.weight(.bold))
-                .kerning(0.8)
-                .foregroundStyle(.secondary)
+    private func reviewSectionHeader(title: String, count: Int? = nil, editStep: Int) -> some View {
+        HStack {
+            Text(title)
+                .font(.headline)
+            if let count {
+                Text("\(count)")
+                    .font(.caption.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
             Spacer()
-            value()
+            Button("Edit") { step = editStep }
+                .font(.subheadline.weight(.semibold))
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.statusText(.purple))
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 12)
+        .padding(.bottom, 4)
+    }
+
+    @ViewBuilder
+    private func reviewDetailRow(
+        icon: String,
+        tone: StatusTone,
+        label: String,
+        value: String
+    ) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.statusText(tone))
+                .frame(width: 34, height: 34)
+                .background(Color.statusBackground(tone), in: Circle())
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.subheadline.weight(.medium))
+                    .monospacedDigit()
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 6)
     }
 
     private func create() async {
@@ -628,6 +633,10 @@ struct CreateBookingSheet: View {
             Haptics.success()
             onCreated(id)
             dismiss()
+        } catch APIError.conflict(_) {
+            step = 2
+            vm.scheduleConflictCheck()
+            Haptics.warning()
         } catch {
             submitError = error.localizedDescription
             Haptics.warning()
@@ -638,5 +647,126 @@ struct CreateBookingSheet: View {
         let unit = sku.unit?.isEmpty == false ? " \(sku.unit!)" : ""
         let pickup = sku.trackByNumber ? " · units scan at pickup" : ""
         return "\(sku.availableQuantity) available\(unit)\(pickup)"
+    }
+
+    private func showsBulkSubtitle(_ sku: FormBulkSku) -> Bool {
+        let productContext = [sku.categoryName, sku.category, sku.name]
+            .compactMap { $0 }
+            .joined(separator: " ")
+        return !productContext.localizedCaseInsensitiveContains("battery")
+    }
+}
+
+private struct QuarterHourDatePickerRow: View {
+    let label: String
+    @Binding var selection: Date
+    var minimumDate: Date? = nil
+
+    private let quarterHours = Array(0..<96)
+
+    private var dateBinding: Binding<Date> {
+        Binding(
+            get: { selection },
+            set: { newDate in
+                let calendar = Calendar.current
+                let day = calendar.dateComponents([.year, .month, .day], from: newDate)
+                let time = calendar.dateComponents([.hour, .minute], from: selection)
+                var merged = DateComponents()
+                merged.year = day.year
+                merged.month = day.month
+                merged.day = day.day
+                merged.hour = time.hour
+                merged.minute = time.minute
+                guard let value = calendar.date(from: merged) else { return }
+                selection = max(value, minimumDate ?? .distantPast)
+            }
+        )
+    }
+
+    private var quarterBinding: Binding<Int> {
+        Binding(
+            get: {
+                let components = Calendar.current.dateComponents([.hour, .minute], from: selection)
+                let minutes = (components.hour ?? 0) * 60 + (components.minute ?? 0)
+                return min(95, max(0, Int((Double(minutes) / 15).rounded())))
+            },
+            set: { quarter in
+                let calendar = Calendar.current
+                let day = calendar.dateComponents([.year, .month, .day], from: selection)
+                var merged = DateComponents()
+                merged.year = day.year
+                merged.month = day.month
+                merged.day = day.day
+                merged.hour = (quarter * 15) / 60
+                merged.minute = (quarter * 15) % 60
+                guard let value = calendar.date(from: merged) else { return }
+                selection = max(value, minimumDate ?? .distantPast)
+            }
+        )
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(label)
+                .font(.body)
+            Spacer()
+            DatePicker(
+                "\(label) date",
+                selection: dateBinding,
+                in: (minimumDate ?? .distantPast)...,
+                displayedComponents: .date
+            )
+            .labelsHidden()
+            .fixedSize()
+
+            Picker("\(label) time", selection: quarterBinding) {
+                ForEach(quarterHours, id: \.self) { quarter in
+                    Text(timeLabel(for: quarter)).tag(quarter)
+                }
+            }
+            .pickerStyle(.menu)
+            .fixedSize()
+        }
+        .frame(minHeight: 44)
+        .accessibilityElement(children: .contain)
+    }
+
+    private func timeLabel(for quarter: Int) -> String {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: .now)
+        let date = calendar.date(byAdding: .minute, value: quarter * 15, to: start) ?? start
+        return date.formatted(date: .omitted, time: .shortened)
+    }
+}
+
+private struct ReservationStepProgress: View {
+    let currentStep: Int
+
+    private let labels = ["Details", "Gear", "Review"]
+
+    var body: some View {
+        HStack(spacing: Brand.Space.sm) {
+            ForEach(Array(labels.enumerated()), id: \.offset) { index, label in
+                let step = index + 1
+                HStack(spacing: 6) {
+                    Image(systemName: step < currentStep ? "checkmark.circle.fill" : "\(step).circle.fill")
+                        .foregroundStyle(step <= currentStep ? Color.statusText(.purple) : Color.secondary)
+                    Text(label)
+                        .font(.caption.weight(step == currentStep ? .semibold : .regular))
+                        .foregroundStyle(step == currentStep ? .primary : .secondary)
+                }
+                if step < labels.count {
+                    Rectangle()
+                        .fill(step < currentStep ? Color.statusText(.purple).opacity(0.45) : Color.hairline)
+                        .frame(height: 1)
+                }
+            }
+        }
+        .padding(.horizontal, Brand.Space.md)
+        .padding(.vertical, 10)
+        .background(.bar)
+        .overlay(alignment: .bottom) { Divider() }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Step \(currentStep) of 3, \(labels[currentStep - 1])")
     }
 }

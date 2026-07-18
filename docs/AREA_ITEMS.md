@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-17
+- Last Updated: 2026-07-18
 - Status: Active
 - Version: V1
 
@@ -42,12 +42,13 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 ### Native iOS Items
 1. Items is the first destination inside the compact native Browse tab, not a standalone compact tab.
-2. Search stays in the native search bar.
-3. Favorites, Status, and Sort live in native toolbar buttons and menus so the list avoids custom pill chrome while keeping the current filter state discoverable.
-4. Row actions remain swipe and context-menu based: Favorite, Reserve, and Copy Asset Tag.
-5. The mobile Items list supports the web-backed `Asset tag` and `Most popular` sorts through a compact native menu.
-6. The mobile Items list renders serialized assets and item families in the server-provided mixed order; unit-tracked and quantity-tracked families keep the same naming as web rows.
-7. The mobile Items list intentionally avoids desktop-only bulk actions and advanced filter density.
+2. Browse owns the navigation stack for its embedded destinations. Opening an item pushes Item Detail on that same stack, and Back returns to the Items list without exposing an intermediate blank transition or dropping to the Browse menu.
+3. Search stays in the native search bar.
+4. Favorites, Status, and Sort live in native toolbar buttons and menus so the list avoids custom pill chrome while keeping the current filter state discoverable.
+5. Row actions remain swipe and context-menu based: Favorite, Reserve, and Copy Asset Tag.
+6. The mobile Items list supports the web-backed `Asset tag` and `Most popular` sorts through a compact native menu.
+7. The mobile Items list renders serialized assets and item families in the server-provided mixed order; unit-tracked and quantity-tracked families keep the same naming as web rows.
+8. The mobile Items list intentionally avoids desktop-only bulk actions and advanced filter density.
 
 ### Inventory Hygiene
 1. Staff/admin opens the "Keep data clean" lane on `/operations` (the old `/items/hygiene` route redirects there). `GET /api/inventory-hygiene` is unchanged.
@@ -433,6 +434,8 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 
 ## Change Log
 
+- 2026-07-18: **Native reservation item-family presentation now matches Items truth.** Reservation category tabs preserve the server-provided mixed popularity order for serialized assets and item families. Other means every reservable result outside Cameras, Lenses, and Batteries. Numbered-family rows show available over effective on-hand inventory, such as `42/46 available`, while planning quantities remain abstract until exact units bind at kiosk pickup. `/api/form-options` now uses the effective numbered-unit roster for that denominator instead of a potentially stale balance. No family identity, derived availability, unit status, reservation payload, or custody behavior changed.
+- 2026-07-17: **Native Browse-to-Item navigation repaired.** Browse now owns one navigation path across Items and Item Detail instead of embedding an Items-owned `NavigationStack`. Items uses the explicit always-visible native navigation-bar search drawer so SwiftUI reserves its row above loaded content instead of overlaying the first item during the push. Row-to-detail animation and Back navigation stay in one native hierarchy; Back returns to Items, while selecting the active Browse tab again returns to the Browse menu. The adjacent Users destination uses the same embedded-stack and search-drawer contracts, and completed reservation creation from Items still opens the new booking through destination state. No item API, filter, reservation, role, or custody contract changed.
 - 2026-07-17: **Item-family exhaustion and conversion bounds are explicit.** Unit numbers and generated counters stay within PostgreSQL `Int` range, duplicate logical unit identities are rejected, and numbered-family creation/conversion is capped at 500 units. Quantity-tracked families keep large count support. Converting a quantity family to numbered units now rejects any nonzero balance outside the chosen location before writing units, stock, or audit history, preventing hidden stock from being stranded or silently discarded.
 - 2026-07-17: **Asset-create validation and conflict reporting tightened.** Purchase and warranty values must be valid ISO dates before Prisma runs. Uniqueness conflicts now name the actual identity involved, including asset tag, serial number, QR code, or primary scan code, instead of always reporting an asset-tag collision.
 - 2026-07-17: **Native Item Detail hierarchy refresh.** The iOS detail surface now leads with a compact adaptive static-image-and-Gotham-Black identity hero, without duplicate navigation/status chrome. The product subtitle is a quiet caption and the location beneath it has stronger contrast. A linked active-custody card reads booking title, natural live due copy such as `Due in 2 hours, 40 minutes`, then requester; otherwise a quiet card says `Available` or `Available until [next reservation]`. Reservation actions use the semantic purple reservation tone. Upcoming Reservations remains visible on the main page even when empty; populated rows stay chronological and open Booking Detail. A neutral one-line Previous Bookings row opens newest-first history already returned by `/api/assets/[id]`; previous records reveal in 10-row scroll batches and open Booking Detail. Details and Previous Bookings share the same compact single-row card anatomy while category, department, serial, procurement, product-link metadata, and a collapsed Attachments disclosure live under Details. The tappable QR chip drops its redundant copy icon, and Edit/QR/product-link commands use the native overflow menu. No server query, API shape, data, status, reservation, or custody behavior changed. Regression guard: `tests/ios-item-detail-hierarchy.test.ts`.

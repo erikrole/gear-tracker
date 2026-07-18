@@ -1,6 +1,6 @@
 # Tasks Index
 
-Last updated: 2026-07-17
+Last updated: 2026-07-18
 
 ## Start Here
 
@@ -58,6 +58,18 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Recently Archived
 
+- `archive/completed-2026-07/ios-reservation-final-copy-polish-plan.md` - separated event date and venue context, quieted Review battery rows, and removed synthetic event-launched reservation title prefixes.
+- `archive/completed-2026-07/ios-reservation-power-picker-followup-plan.md` - completed exact event venue metadata, mixed popularity categories, grouped power guidance, honest availability fractions, Review recovery, and the updated app icon.
+- `archive/completed-2026-07/ios-reservation-flow-consistency-polish-plan.md` - matched event selection to Schedule, unified reservation accent semantics, kept power guidance useful, simplified selected gear, and made Review complete.
+- `archive/completed-2026-07/ios-reservation-schedule-editor-fix-plan.md` - repaired Manual scheduling, exposed editable linked-event windows, and added one-hour lead plus two-hour return defaults.
+- `archive/completed-2026-07/ios-reservation-setup-interaction-polish-plan.md` - made schedule source the first decision, added event scopes, restored real popularity order, exposed counted-item steppers, and anchored power guidance above Review.
+- `archive/completed-2026-07/ios-reservation-setup-final-polish-plan.md` - simplified native reservation Details into Event or Manual setup, made pickup location operational in Gear, added battery guidance, and strengthened Review identity.
+- `archive/completed-2026-07/ios-reservation-post-create-conflict-recovery-plan.md` - made event-launched reservations open their new detail and returned structured create-time availability conflicts to Gear without losing selections.
+- `archive/completed-2026-07/ios-reservation-gear-review-polish-plan.md` - made selected gear and conflicts visible in the native picker and rebuilt Review as compact editable Schedule and Gear summaries with an anchored create action.
+- `archive/completed-2026-07/ios-bookings-actions-edit-reservation-redesign-plan.md` - added lifecycle-aware booking row menus, adaptive search, focused availability-aware editing, ownership transfer, and a compact three-step reservation setup.
+- `archive/completed-2026-07/ios-bookings-empty-state-polish-plan.md` - replaced the oversized Mine-empty canvas with a compact adaptive all-clear card and quiet scope recovery.
+- `archive/completed-2026-07/ios-bookings-surface-polish-plan.md` - unified Booking list/detail relative dates, reduced duplicated urgency chrome, replaced segmented scope with a Mine toolbar toggle, and added inline reservation recovery.
+- `archive/completed-2026-07/ios-booking-detail-sheet-redesign-plan.md` - reorganized native Booking Detail around one identity header, one live operational summary, nearby role-gated actions, compact context, and a separate read-only equipment card.
 - `archive/completed-2026-07/adversarial-unit-test-sweep-plan.md` - completed adversarial integrity sweep with 2,464 clean tests, shuffled-order proof, measured server coverage floors, native XCTest, and full build verification.
 - `ios-booking-surface-alignment-plan.md` - aligned native Bookings rows with Item Detail's title, timing, requester, context, and restrained status hierarchy.
 - `ios-item-detail-hierarchy-plan.md` - refreshed native Item Detail around compact Gotham identity, title-first custody, persistent upcoming-reservation state, neutral previous-booking history, grouped metadata, quiet attachments, and production-backed simulator proof.

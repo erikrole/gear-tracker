@@ -71,4 +71,46 @@ extension ScheduleEvent {
         }
         return [when, venuePrefix, venue].compactMap { $0 }.joined(separator: " · ")
     }
+
+    var bookingEventScopeLabel: String {
+        let hasOpponent = opponent?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        guard hasOpponent else { return "Non-game" }
+        return switch isHome {
+        case true: "Home"
+        case false: "Away"
+        case nil: "Neutral"
+        }
+    }
+
+    var bookingEventPickerDate: String {
+        let month = startsAt.formatted(.dateTime.month(.abbreviated))
+        return startsAt
+            .formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute())
+            .replacingOccurrences(of: "\(month) ", with: "\(month). ")
+    }
+
+    var bookingEventPickerVenue: String? {
+        let source = location?.name ?? rawLocationText
+        guard var venue = source?
+            .split(separator: ",")
+            .last?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              !venue.isEmpty else { return nil }
+
+        venue = venue.replacingOccurrences(of: "Track/Soccer", with: "Soccer")
+        return venue
+    }
+
+    var bookingEventPickerDetail: String {
+        guard let venue = bookingEventPickerVenue else { return bookingEventPickerDate }
+        return "\(bookingEventPickerDate), \(venue)"
+    }
+
+    var bookingEventRailColor: Color {
+        switch isHome {
+        case true: Color.statusText(.green)
+        case false: Color.statusText(.orange)
+        case nil: Color(.systemGray4)
+        }
+    }
 }

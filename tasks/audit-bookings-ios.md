@@ -54,13 +54,13 @@ Scope: `BookingsView` list (Reservations / Checkouts tabs) + `BookingDetailView`
 
 - [x] [UI polish] `nextCleanHour` rewritten to take `addingHours:` with explicit semantics (0 = next `:00`).
 
-- [x] [HIG/recovery] Native booking empty states now include direct recovery actions. Search-empty states offer Clear search, Mine-only empty states offer Show all visible bookings, and empty Reservations can open New Reservation when creation is allowed.
+- [x] [HIG/recovery] Native booking empty states now include direct recovery actions. Search-empty states offer Clear search, Mine-only empty states offer Show all visible bookings, and an empty Reservations section offers a capability-gated Create action even while active checkout rows remain.
 
 - [ ] [Parity] **Deferred to follow-up slice.** Web Bookings list supports status scope filters (DRAFT / BOOKED / OPEN / OVERDUE / CANCELLED / COMPLETED) and column sorting; iOS list is `activeOnly: true` only. Needs new API params on `reservations`/`checkouts` clients + filter UI. Tracked.
 
 - [ ] [Parity] **Deferred to follow-up slice.** Web detail surfaces an Equipment conflict badge per AREA_RESERVATIONS AC-8; iOS `ItemsSection` shows allocation status only. Needs `/api/availability/check` API client + per-row badge wiring. Tracked.
 
-- [x] [UI polish] Toolbar Picker now uses `maxWidth: 260` + `fixedSize(horizontal: false)` so it shrinks on narrower devices instead of clipping.
+- [x] [UI polish] Mine/All is a role-aware top-right person toggle. The redundant Attention segment and its derived extra reads are removed; urgency remains visible in the complete list through the rail and timing color.
 
 - [x] [Flows] Trailing pagination switched to `.task(id: vm.bookings.count)` (addressed in P0 fix).
 
@@ -68,7 +68,7 @@ Scope: `BookingsView` list (Reservations / Checkouts tabs) + `BookingDetailView`
 
 AREA_MOBILE.md:
 - [x] AC-1 — Dashboard banner + tab/quick-create reach due/overdue in two taps (verified out-of-scope here; covered in dashboard audit).
-- [x] AC-2 — list supports search + scope (tab) + row→detail (`BookingsView.swift:122,153-158`).
+- [x] AC-2 — list supports search + Mine/All toolbar scope + row→detail.
 - [x] AC-3 — overdue red treatment present in row + detail header (`BookingsView.swift:195`, `BookingDetailView.swift:232-240`).
 - [x] AC-4 — Scan one-tap (covered by scan audit, not bookings).
 - [x] AC-5 — iOS now hides the `+` button when no session, locks the requester picker to self for STUDENT, and hides the EditBookingSheet pencil unless STAFF/ADMIN or the requester owns the booking in DRAFT/BOOKED state.
@@ -112,3 +112,6 @@ AREA_CHECKOUTS.md (iOS surface only):
 - Simulator build verification now complete: `xcodebuild -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build` returned `BUILD SUCCEEDED`.
 - Current expected booking-related iOS parity deferrals are GAP-34 and GAP-35 in `docs/GAPS_AND_RISKS.md`; neither blocks V1 student daily operations.
 - 2026-07-02 Snow Leopard follow-up: normal Bookings tab rendering no longer seeds from `GearStore.cachedBookings(kind:)`. The cache is still available as a store primitive, but native Bookings treats live API results as the normal source of truth so old rows cannot flash during tab entry, search, refresh, or scope changes.
+- 2026-07-17 surface polish: list and detail now share relative-date formatting; active checkout urgency uses the rail and timing color without a duplicate Overdue badge; Mine is a toolbar toggle; Attention and visible freshness chrome are removed; and the empty Reservations section has a capability-gated Create action. Authenticated iPhone 17 Pro runtime confirmed the compact header, `Due today`, `Due Monday`, and inline reservation recovery row.
+- 2026-07-17 empty-state follow-up: the oversized centered Mine state and prominent red reset were replaced by a compact card below search. Mine now communicates `You're all clear` with a green status cue and quiet blue View All action; search and global-empty states reuse the component with neutral and reservation-purple semantics. Existing scope, refresh, and capability gates are unchanged.
+- 2026-07-17 action and setup follow-up: booking rows now own state-specific long-press actions. Eligible checkouts expose Edit, Transfer Ownership, and Extend; reservations expose Edit, Transfer Ownership, and Cancel. Search stays absent while an unfiltered loaded list fits on screen and remains mounted for long, paginated, or active-search states. New Reservation uses a visible three-step progression, persistent Choose Gear action, grouped details, and one compact optional event-picker row. Source contracts, drift and gap audits, simulator build, and authenticated runtime inspection pass.

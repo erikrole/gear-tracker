@@ -61,8 +61,10 @@ struct EventDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var vm: EventDetailViewModel
+    @State private var navigationPath = NavigationPath()
     @State private var weatherData: EventWeatherData?
     @State private var prepGearOpen = false
+    @State private var createdGearBookingId: String?
     @State private var assignTarget: EventShift?
     @State private var claimTarget: EventShift?
     @State private var postTradeTarget: ShiftAssignmentRecord?
@@ -91,7 +93,7 @@ struct EventDetailSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             ScrollView {
                 VStack(alignment: .leading, spacing: Brand.Space.lg) {
                     eventHeader
@@ -129,7 +131,11 @@ struct EventDetailSheet: View {
             .task { await vm.load() }
             .task { weatherData = await EventWeatherService.shared.weather(for: event) }
             .sheet(isPresented: $prepGearOpen) {
-                CreateBookingSheet(vm: makePrepGearVM()) { _ in }
+                CreateBookingSheet(vm: makePrepGearVM()) { newId in
+                    prepGearOpen = false
+                    createdGearBookingId = newId
+                    navigationPath.append(BookingRouteId(id: newId))
+                }
             }
             .navigationDestination(for: BookingRouteId.self) { route in
                 BookingDetailView(bookingId: route.id)
@@ -401,7 +407,7 @@ struct EventDetailSheet: View {
         let bookingVM = CreateBookingViewModel()
         if let work = eventWork, let userId = session.currentUser?.id {
             bookingVM.prefill(
-                title: "Gear - \(event.summary)",
+                title: event.shortBookingEventTitle,
                 startsAt: work.shift.startsAt,
                 endsAt: event.endsAt,
                 userId: userId,
@@ -410,7 +416,7 @@ struct EventDetailSheet: View {
             )
         } else if let shift = myShift, let userId = session.currentUser?.id {
             bookingVM.prefill(
-                title: "Gear - \(event.summary)",
+                title: event.shortBookingEventTitle,
                 startsAt: shift.startsAt,
                 endsAt: event.endsAt,
                 userId: userId,
@@ -449,7 +455,18 @@ struct EventDetailSheet: View {
             EventDetailSectionHeader("Your Event", systemImage: "person.crop.circle.badge.checkmark")
 
             VStack(alignment: .leading, spacing: 10) {
-                if !reservedGearBookings.isEmpty {
+                if let createdGearBookingId {
+                    NavigationLink(value: BookingRouteId(id: createdGearBookingId)) {
+                        detailLine(
+                            icon: "checkmark.circle.fill",
+                            title: "Gear reserved",
+                            subtitle: "Open the new reservation.",
+                            tone: .green,
+                            showsChevron: true
+                        )
+                    }
+                    .buttonStyle(.plain)
+                } else if !reservedGearBookings.isEmpty {
                     // All linked gear bookings, not just the first — a second
                     // multi-event reservation was invisible here.
                     ForEach(reservedGearBookings) { gear in

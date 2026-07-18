@@ -1,44 +1,6 @@
 import SwiftUI
 
-struct BookingStepHeader: View {
-    let icon: String
-    let eyebrow: String
-    let title: String
-    let subtitle: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(Color.statusText(.purple))
-                    .frame(width: 42, height: 42)
-                    .background(Color.statusBackground(.purple), in: RoundedRectangle(cornerRadius: 12))
-                    .accessibilityHidden(true)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(eyebrow)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-                    Text(title)
-                        .font(.title2.weight(.bold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.85)
-                }
-            }
-
-            Text(subtitle)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-struct EventLinkingCard: View {
+struct EventSelectionCard: View {
     let events: [ScheduleEvent]
     let selectedEvents: [ScheduleEvent]
     let isLoading: Bool
@@ -47,42 +9,9 @@ struct EventLinkingCard: View {
     let onToggle: (ScheduleEvent) -> Void
     let onRemove: (ScheduleEvent) -> Void
 
-    /// Inline cap keeps the card compact; the rest live behind "All events".
-    private static let inlineLimit = 4
-
-    private var visibleEvents: [ScheduleEvent] {
-        Array(events.prefix(Self.inlineLimit))
-    }
-
     var body: some View {
         FormCard {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 10) {
-                    Image(systemName: "calendar")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color.statusText(.purple))
-                        .frame(width: 30, height: 30)
-                        .background(Color.statusBackground(.purple), in: RoundedRectangle(cornerRadius: 8))
-                        .accessibilityHidden(true)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Link events")
-                            .font(.headline)
-                        Text("Up to 3 upcoming events")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    if !selectedEvents.isEmpty {
-                        Text("\(selectedEvents.count)/3")
-                            .font(.caption.weight(.semibold).monospacedDigit())
-                            .foregroundStyle(Color.statusText(.purple))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.statusBackground(.purple), in: Capsule())
-                    }
-                }
-
+            VStack(alignment: .leading, spacing: Brand.Space.sm) {
                 if !selectedEvents.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
@@ -102,7 +31,7 @@ struct EventLinkingCard: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                 } else if let error {
                     HStack(spacing: 12) {
                         Image(systemName: "wifi.exclamationmark")
@@ -121,56 +50,50 @@ struct EventLinkingCard: View {
                             .buttonStyle(.bordered)
                             .controlSize(.small)
                     }
-                } else if visibleEvents.isEmpty {
+                } else if events.isEmpty {
                     Text("No upcoming events. You can still create an ad hoc reservation.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 } else {
-                    VStack(spacing: 0) {
-                        ForEach(Array(visibleEvents.enumerated()), id: \.element.id) { index, event in
-                            if index > 0 { Divider().padding(.leading, 42) }
-                            EventPickRow(
-                                event: event,
-                                isSelected: selectedEvents.contains(where: { $0.id == event.id }),
-                                isDisabled: selectedEvents.count >= 3 && !selectedEvents.contains(where: { $0.id == event.id })
-                            ) {
-                                onToggle(event)
-                            }
+                    NavigationLink {
+                        AllEventsPickerView(
+                            events: events,
+                            selectedEvents: selectedEvents,
+                            onToggle: onToggle
+                        )
+                    } label: {
+                        HStack(spacing: Brand.Space.sm) {
+                            Image(systemName: selectedEvents.isEmpty ? "calendar.badge.plus" : "calendar.badge.checkmark")
+                                .foregroundStyle(Color.statusText(.purple))
+                                .frame(width: 30, height: 30)
+                                .background(Color.statusBackground(.purple), in: Circle())
+                            Text(selectedEvents.isEmpty ? "Choose Event" : "Edit Linked Events")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.tertiary)
                         }
-                        if events.count > Self.inlineLimit {
-                            Divider().padding(.leading, 42)
-                            NavigationLink {
-                                AllEventsPickerView(
-                                    events: events,
-                                    selectedEvents: selectedEvents,
-                                    onToggle: onToggle
-                                )
-                            } label: {
-                                HStack {
-                                    Text("All events")
-                                        .font(.subheadline.weight(.medium))
-                                        .foregroundStyle(Color.statusText(.purple))
-                                    Spacer()
-                                    Text("\(events.count)")
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                        .monospacedDigit()
-                                    Image(systemName: "chevron.right")
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(.tertiary)
-                                }
-                                .frame(minHeight: 44)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("All events, \(events.count) upcoming")
-                        }
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                     }
-                    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(selectedEvents.isEmpty ? "Choose from \(events.count) upcoming events" : "Edit \(selectedEvents.count) linked events")
                 }
             }
         }
     }
+}
+
+private enum EventScopeFilter: String, CaseIterable, Identifiable {
+    case all = "All"
+    case home = "Home"
+    case away = "Away"
+    case neutral = "Neutral"
+    case nonGame = "Non-game"
+
+    var id: String { rawValue }
 }
 
 /// Full upcoming-events list behind the "All events" row: searchable, same
@@ -181,17 +104,42 @@ struct AllEventsPickerView: View {
     let onToggle: (ScheduleEvent) -> Void
 
     @State private var search = ""
+    @State private var scope: EventScopeFilter = .all
+    @Environment(\.dismiss) private var dismiss
 
     private var filtered: [ScheduleEvent] {
-        guard !search.trimmingCharacters(in: .whitespaces).isEmpty else { return events }
-        return events.filter { event in
-            event.shortBookingEventTitle.localizedCaseInsensitiveContains(search)
-                || event.bookingEventSubtitle.localizedCaseInsensitiveContains(search)
+        let scoped = events.filter(matchesScope)
+        let query = search.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return scoped }
+        return scoped.filter { event in
+            event.shortBookingEventTitle.localizedCaseInsensitiveContains(query)
+                || event.bookingEventSubtitle.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    private func matchesScope(_ event: ScheduleEvent) -> Bool {
+        let isGame = event.opponent?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        return switch scope {
+        case .all: true
+        case .home: isGame && event.isHome == true
+        case .away: isGame && event.isHome == false
+        case .neutral: isGame && event.isHome == nil
+        case .nonGame: !isGame
         }
     }
 
     var body: some View {
         List {
+            Section {
+                ViewThatFits(in: .horizontal) {
+                    eventFilterRow
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        eventFilterRow
+                    }
+                }
+                .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+            }
+
             ForEach(filtered) { event in
                 EventPickRow(
                     event: event,
@@ -201,14 +149,63 @@ struct AllEventsPickerView: View {
                     onToggle(event)
                 }
             }
-            if filtered.isEmpty && !search.isEmpty {
-                ContentUnavailableView.search(text: search)
+            if filtered.isEmpty {
+                if !search.isEmpty {
+                    ContentUnavailableView.search(text: search)
+                        .listRowBackground(Color.clear)
+                } else {
+                    ContentUnavailableView(
+                        "No \(scope.rawValue.lowercased()) events",
+                        systemImage: "calendar",
+                        description: Text("Try another event filter.")
+                    )
                     .listRowBackground(Color.clear)
+                }
             }
         }
         .searchable(text: $search, prompt: "Search events")
         .navigationTitle("Events")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "checkmark")
+                }
+                .fontWeight(.semibold)
+                .tint(Color.statusText(.purple))
+                .disabled(selectedEvents.isEmpty)
+                .accessibilityLabel("Confirm event selection")
+            }
+        }
+    }
+
+    private var eventFilterRow: some View {
+        HStack(spacing: 6) {
+            ForEach(EventScopeFilter.allCases) { filter in
+                Button {
+                    scope = filter
+                    Haptics.selection()
+                } label: {
+                    Text(filter.rawValue)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(scope == filter ? Color.statusText(.purple) : Color.secondary)
+                        .padding(.horizontal, 9)
+                        .frame(minHeight: 32)
+                        .background(
+                            scope == filter ? Color.statusBackground(.purple) : Color(.secondarySystemGroupedBackground),
+                            in: Capsule()
+                        )
+                        .overlay(
+                            Capsule().strokeBorder(scope == filter ? Color.statusText(.purple).opacity(0.35) : Color.hairline)
+                        )
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(scope == filter ? .isSelected : [])
+            }
+        }
     }
 }
 
@@ -220,31 +217,40 @@ struct EventPickRow: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
+                StatusRail(color: event.bookingEventRailColor)
+
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
                     .foregroundStyle(isSelected ? Color.statusText(.purple) : Color(.systemGray3))
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(event.shortBookingEventTitle)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    Text(event.bookingEventSubtitle)
+                    HStack(spacing: 8) {
+                        Text(event.shortBookingEventTitle)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        Spacer(minLength: 8)
+                        Text(event.bookingEventScopeLabel)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(event.bookingEventRailColor)
+                            .lineLimit(1)
+                    }
+                    Text(event.bookingEventPickerDate)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                    if let venue = event.bookingEventPickerVenue {
+                        Text(venue)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
-                Spacer()
-                if let label = sportLabel(event.sportCode) {
-                    Text(label)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(minHeight: 52)
+            .frame(minHeight: 68)
             .contentShape(Rectangle())
             .opacity(isDisabled ? 0.45 : 1)
         }
@@ -256,7 +262,7 @@ struct EventPickRow: View {
 
     private var accessibilityLabel: String {
         let selected = isSelected ? "Selected" : "Not selected"
-        return "\(event.shortBookingEventTitle), \(event.bookingEventSubtitle), \(selected)"
+        return "\(event.shortBookingEventTitle), \(event.bookingEventScopeLabel), \(event.bookingEventPickerDetail), \(selected)"
     }
 }
 

@@ -47,7 +47,9 @@ describe("iOS native control cleanup", () => {
   it("keeps Items search native and moves filters into toolbar menus", () => {
     const items = source("ios/Wisconsin/Views/ItemsView.swift");
 
-    expect(items).toContain(".searchable(text: $vm.searchText");
+    expect(items).toContain(".searchable(");
+    expect(items).toContain("text: $vm.searchText");
+    expect(items).toContain("placement: .navigationBarDrawer(displayMode: .always)");
     expect(items).toContain("ToolbarItemGroup(placement: .topBarTrailing)");
     expect(items).toContain('Label("Favorites", systemImage: vm.favoritesOnly ? "star.fill" : "star")');
     expect(items).toContain("AssetStatusFilterMenu(selected: $vm.selectedStatuses)");
@@ -64,7 +66,7 @@ describe("iOS native control cleanup", () => {
     expect(picker).toContain(".searchable(");
     expect(picker).toContain("text: $vm.assetSearch");
     expect(picker).toContain("placement: .navigationBarDrawer(displayMode: .always)");
-    expect(picker).toContain('prompt: Text("Search equipment")');
+    expect(picker).toContain('prompt: Text("Search all equipment")');
     // Scan is an icon-only toolbar action; keep it labeled for VoiceOver.
     expect(sheet).toContain('Image(systemName: "barcode.viewfinder")');
     expect(sheet).toContain('.accessibilityLabel("Scan equipment")');
@@ -76,11 +78,19 @@ describe("iOS native control cleanup", () => {
     const actions = sliceBetween(
       booking,
       "private struct ActionsSection",
-      "private struct SectionHeader",
+      "private struct BookingExtendBar",
+    );
+    const extendBar = sliceBetween(
+      booking,
+      "private struct BookingExtendBar",
+      "// MARK: - Shared",
     );
 
     expect(actions).not.toContain(".buttonStyle(.glass)");
-    expect(actions).toMatch(/Label\("Extend Return Date"[\s\S]*?\.buttonStyle\(\.borderedProminent\)[\s\S]*?\.buttonBorderShape\(\.capsule\)[\s\S]*?\.controlSize\(\.large\)/);
     expect(actions).toMatch(/Label\("Cancel Booking"[\s\S]*?\.buttonStyle\(\.bordered\)[\s\S]*?\.buttonBorderShape\(\.capsule\)[\s\S]*?\.controlSize\(\.large\)/);
+    expect(extendBar).not.toContain(".buttonStyle(.glass)");
+    expect(extendBar).toMatch(/Label\("Extend Return Date"[\s\S]*?\.buttonStyle\(\.bordered\)[\s\S]*?\.buttonBorderShape\(\.capsule\)[\s\S]*?\.controlSize\(\.large\)/);
+    expect(extendBar).toContain(".background(.ultraThinMaterial)");
+    expect(extendBar).not.toContain("Divider()");
   });
 });

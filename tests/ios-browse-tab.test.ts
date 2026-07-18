@@ -34,19 +34,40 @@ describe("iOS Browse tab", () => {
   it("renders Browse as a native SwiftUI list of directory links", () => {
     const browse = source("ios/Wisconsin/Views/BrowseView.swift");
 
-    expect(browse).toContain("NavigationStack {");
+    expect(browse).toContain("NavigationStack(path: $navigationPath) {");
     expect(browse).toContain("List {");
     expect(browse).toContain(".listStyle(.insetGrouped)");
     expect(browse).toContain('.navigationTitle("Browse")');
     expect(browse).not.toContain('Text("More")');
     expect(browse).not.toContain('Text("Browse")');
-    expect(browse).toContain("NavigationLink {");
+    expect(browse).toContain("NavigationLink(value: destination)");
     expect(browse).toContain("SettingsMenuRow(");
-    expect(browse).toContain("ItemsView()");
+    expect(browse).toContain("ItemsView(wrapsInNavigationStack: false)");
     expect(browse).toContain("GuidesView(wrapsInNavigationStack: false)");
     expect(browse).toContain("LicensesView(wrapsInNavigationStack: false)");
-    expect(browse).toContain("UsersView()");
+    expect(browse).toContain("UsersView(wrapsInNavigationStack: false)");
     expect(browse).not.toContain("SidebarWebDestinationView");
+  });
+
+  it("keeps Browse destination pushes in one parent navigation stack", () => {
+    const browse = source("ios/Wisconsin/Views/BrowseView.swift");
+    const items = source("ios/Wisconsin/Views/ItemsView.swift");
+    const users = source("ios/Wisconsin/Views/UsersView.swift");
+
+    expect(browse).toContain("@State private var navigationPath = NavigationPath()");
+    expect(browse).toContain(".navigationDestination(for: BrowseDestination.self)");
+    expect(browse).toContain("guard appState.resetTab == 2 else { return }");
+    expect(browse).toContain("navigationPath = NavigationPath()");
+
+    expect(items).toContain("var wrapsInNavigationStack = true");
+    expect(items).toContain("if wrapsInNavigationStack {");
+    expect(items).toContain("placement: .navigationBarDrawer(displayMode: .always)");
+    expect(items).toContain("pushBooking = BookingRouteId(id: newId)");
+    expect(items).toContain(".navigationDestination(item: $pushBooking)");
+
+    expect(users).toContain("var wrapsInNavigationStack = true");
+    expect(users).toContain("if wrapsInNavigationStack {");
+    expect(users).toContain("placement: .navigationBarDrawer(displayMode: .always)");
   });
 
   it("exposes Users to every authenticated role while preserving admin-only tools elsewhere", () => {
@@ -59,6 +80,6 @@ describe("iOS Browse tab", () => {
     expect(appTab).not.toMatch(/if isStaffOrAdmin \{[\s\S]*?Tab\("Users"/);
 
     expect(browse).toContain("case .users:");
-    expect(browse).toContain("UsersView()");
+    expect(browse).toContain("UsersView(wrapsInNavigationStack: false)");
   });
 });

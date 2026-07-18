@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct BrowseView: View {
+    @State private var navigationPath = NavigationPath()
+    @Environment(AppState.self) private var appState
+
     private let destinations: [BrowseDestination] = [
         .items,
         .guides,
@@ -9,13 +12,11 @@ struct BrowseView: View {
     ]
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             List {
                 Section {
                     ForEach(destinations) { destination in
-                        NavigationLink {
-                            destinationView(for: destination)
-                        } label: {
+                        NavigationLink(value: destination) {
                             SettingsMenuRow(
                                 title: destination.title,
                                 subtitle: destination.subtitle,
@@ -30,6 +31,13 @@ struct BrowseView: View {
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Browse")
+            .navigationDestination(for: BrowseDestination.self) { destination in
+                destinationView(for: destination)
+            }
+            .onChange(of: appState.tabResetToken) { _, _ in
+                guard appState.resetTab == 2 else { return }
+                navigationPath = NavigationPath()
+            }
         }
     }
 
@@ -37,18 +45,18 @@ struct BrowseView: View {
     private func destinationView(for destination: BrowseDestination) -> some View {
         switch destination {
         case .items:
-            ItemsView()
+            ItemsView(wrapsInNavigationStack: false)
         case .guides:
             GuidesView(wrapsInNavigationStack: false)
         case .licenses:
             LicensesView(wrapsInNavigationStack: false)
         case .users:
-            UsersView()
+            UsersView(wrapsInNavigationStack: false)
         }
     }
 }
 
-private enum BrowseDestination: String, CaseIterable, Identifiable {
+private enum BrowseDestination: String, CaseIterable, Hashable, Identifiable {
     case items
     case guides
     case licenses

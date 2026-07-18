@@ -13,6 +13,9 @@ struct ScheduleEvent: Codable, Identifiable {
     let opponent: String?
     let isHome: Bool?
     let location: EventLocation?
+    /// Original calendar venue text. Imported events can carry a useful venue
+    /// before that text has been mapped to a Gear Tracker location.
+    var rawLocationText: String?
     /// Crew coverage from `/api/calendar-events`. nil when the event has no
     /// (non-archived) shift group; lets the list show fill without drilling in.
     /// `var` (not `let = nil`) so it actually decodes — an immutable property with

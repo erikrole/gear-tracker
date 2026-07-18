@@ -3,6 +3,7 @@ import Foundation
 enum APIError: LocalizedError {
     case unauthorized
     case notFound
+    case conflict(String)
     case serverError(String)
     case decodingError(Error)
     case networkError(Error)
@@ -11,6 +12,7 @@ enum APIError: LocalizedError {
         switch self {
         case .unauthorized: "Your session has expired. Please sign in again."
         case .notFound: "The requested item could not be found."
+        case .conflict(let msg): msg
         case .serverError(let msg): msg
         case .decodingError: "Unexpected response from server."
         case .networkError(let err): Self.humanize(err)
@@ -286,6 +288,47 @@ final class APIClient {
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Update failed"
             throw APIError.serverError(msg)
         }
+    }
+
+    func transferBookingOwner(id: String, targetUserId: String, updatedAt: Date?) async throws -> Booking {
+        guard let updatedAt else {
+            throw APIError.serverError("Refresh this booking before transferring ownership.")
+        }
+        struct Body: Encodable {
+            let targetUserId: String
+        }
+        var req = request(path: "/api/bookings/\(id)/transfer-owner", method: "POST")
+        req.setValue(httpDateString(updatedAt), forHTTPHeaderField: "If-Unmodified-Since")
+        req.httpBody = try JSONEncoder().encode(Body(targetUserId: targetUserId))
+        let response: DataWrapper<Booking> = try await perform(req)
+        return response.data
+    }
+
+    func bookingAvailability(for booking: Booking, endsAt: Date) async throws -> BookingAvailabilityResult {
+        struct Body: Encodable {
+            let locationId: String
+            let startsAt: String
+            let endsAt: String
+            let serializedAssetIds: [String]
+            let bulkItems: [BulkReservationRequest]
+            let excludeBookingId: String
+            let kind: String
+        }
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        var req = request(path: "/api/availability/check", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(
+            locationId: booking.location.id,
+            startsAt: iso.string(from: booking.startsAt),
+            endsAt: iso.string(from: endsAt),
+            serializedAssetIds: booking.serializedItems.map(\.assetId),
+            bulkItems: booking.bulkItems.map {
+                BulkReservationRequest(bulkSkuId: $0.bulkSku.id, quantity: $0.plannedQuantity)
+            },
+            excludeBookingId: booking.id,
+            kind: booking.kind.rawValue
+        ))
+        return try await perform(req)
     }
 
     func extendBooking(id: String, endsAt: Date) async throws {
@@ -1131,11 +1174,14 @@ final class APIClient {
                     parts.append("only \(s.available) of \(s.requested) available")
                 }
                 if !parts.isEmpty {
-                    throw APIError.serverError("Some equipment is no longer available: \(parts.joined(separator: "; ")). Remove it and try again.")
+                    throw APIError.conflict("Some equipment is no longer available: \(parts.joined(separator: "; ")). Remove it and try again.")
                 }
             }
             let msg409 = (try? decoder.decode(ServerErrorBody.self, from: data))?.error
                 ?? "This equipment is no longer available — please try again."
+            // Only structured availability responses route reservation creation
+            // back to Gear. Other 409s include booking-window policy and
+            // concurrency limits, which need their normal submit error dialog.
             throw APIError.serverError(msg409)
         default:
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error

@@ -145,9 +145,8 @@ struct HomeView: View {
                     lastLoadedAt: vm.lastLoadedAt,
                     openBookings: { appState.selectedTab = 1 },
                     openAttention: {
-                        // Overdue / Due Today answer to the Attention scope,
-                        // not the default All list.
-                        appState.pendingBookingsScope = BookingScope.needsAttention.rawValue
+                        // Urgency tiles open the complete list; row color carries status.
+                        appState.pendingBookingsScope = BookingScope.all.rawValue
                         appState.selectedTab = 1
                     },
                     openSchedule: { appState.selectedTab = 4 }

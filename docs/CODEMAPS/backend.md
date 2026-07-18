@@ -90,7 +90,7 @@
 | `src/lib/candidate-scoring-types.ts` | 26 |
 | `src/lib/category-options.ts` | 34 |
 | `src/lib/collaborator-access.ts` | 177 |
-| `src/lib/collaborator-gear.ts` | 149 |
+| `src/lib/collaborator-gear.ts` | 151 |
 | `src/lib/cron.ts` | 35 |
 | `src/lib/crypto.ts` | 17 |
 | `src/lib/csv.ts` | 17 |

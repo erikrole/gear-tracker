@@ -5,9 +5,24 @@ describe("iOS bookings empty state recovery", () => {
   const source = readFileSync("ios/Wisconsin/Views/BookingsView.swift", "utf8");
 
   it("keeps no-result states actionable", () => {
-    expect(source).toContain('Label("Clear search", systemImage: "xmark.circle")');
-    expect(source).toContain('Label("Show all visible bookings", systemImage: "person.2")');
+    expect(source).toContain('Label("Clear Search", systemImage: "xmark.circle")');
+    expect(source).toContain('Label("View All Bookings", systemImage: "person.2")');
     expect(source).toContain('Label("New Reservation", systemImage: "plus")');
+    expect(source).toContain("ReservationEmptyRow(canCreate: canCreate)");
+    expect(source).toContain('Text("No active reservations")');
+    expect(source).toContain('Button("Create", action: onCreate)');
+  });
+
+  it("uses a compact scope-aware card instead of a full-screen unavailable state", () => {
+    expect(source).toContain("BookingEmptyState(");
+    expect(source).toContain('case .mine: return "You\'re all clear"');
+    expect(source).toContain('return vm.scope == .mine ? "checkmark.seal.fill" : "calendar.badge.plus"');
+    expect(source).toContain("return vm.scope == .mine ? .green : .purple");
+    expect(source).toContain("You don't have any active checkouts or reservations.");
+    expect(source).toContain(".brandCard(padding: Brand.Space.xl");
+    expect(source).toContain(".buttonStyle(.bordered)");
+    expect(source).toContain(".tint(Color.statusText(.blue))");
+    expect(source).not.toContain('Label("Show all visible bookings"');
   });
 
   it("reloads the booking list after recovery actions", () => {
@@ -23,8 +38,12 @@ describe("iOS bookings empty state recovery", () => {
     expect(source).toContain('BookingListSection(title: "Checkouts"');
     expect(source).toContain('BookingListSection(title: "Reservations"');
     expect(source).toContain('"Search bookings..."');
-    expect(source).toContain("Picker(\"Booking scope\"");
-    expect(source).toContain("case needsAttention");
+    expect(source).toContain('vm.mineOnly ? "person.crop.circle.fill" : "person.crop.circle"');
+    expect(source).toContain(".navigationBarTitleDisplayMode(.inline)");
+    expect(source).toContain(".refreshable");
+    expect(source).not.toContain("Picker(\"Booking scope\"");
+    expect(source).not.toContain("case needsAttention");
+    expect(source).not.toContain("BookingFreshnessFooter");
     expect(source).not.toContain("Picker(\"Booking type\"");
     expect(source).not.toContain("enum BookingTab");
   });

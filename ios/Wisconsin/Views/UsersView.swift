@@ -99,6 +99,8 @@ final class UsersViewModel {
 }
 
 struct UsersView: View {
+    var wrapsInNavigationStack = true
+
     @State private var vm = UsersViewModel()
     @State private var navigationPath = NavigationPath()
     @Environment(AppState.self) private var appState
@@ -108,10 +110,25 @@ struct UsersView: View {
         // shadow `vm` with a @Bindable wrapper for the duration of body so
         // the dynamic-member subscript resolves cleanly.
         @Bindable var vm = vm
-        return NavigationStack(path: $navigationPath) {
-            content
+        return Group {
+            if wrapsInNavigationStack {
+                NavigationStack(path: $navigationPath) {
+                    configuredContent
+                }
+            } else {
+                configuredContent
+            }
+        }
+    }
+
+    private var configuredContent: some View {
+        content
                 .navigationTitle("Users")
-                .searchable(text: $vm.searchText, prompt: "Search by name or email…")
+                .searchable(
+                    text: $vm.searchText,
+                    placement: .navigationBarDrawer(displayMode: .always),
+                    prompt: Text("Search by name or email…")
+                )
                 .onChange(of: vm.searchText) { vm.onSearchChange() }
                 .onChange(of: vm.selectedRole) { Task { await vm.load(reset: true) } }
                 .onChange(of: vm.includeInactive) { Task { await vm.load(reset: true) } }
@@ -135,7 +152,6 @@ struct UsersView: View {
                 .navigationDestination(for: UserRouteId.self) { route in
                     UserDetailView(userId: route.id)
                 }
-        }
     }
 
     @ViewBuilder

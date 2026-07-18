@@ -21,6 +21,7 @@ type BookingListItem = {
     asset: {
       id: string;
       assetTag: string;
+      name: string | null;
       brand: string | null;
       model: string | null;
       imageUrl: string | null;
@@ -67,6 +68,7 @@ export function sanitizeCollaboratorBooking<T extends BookingListItem>(booking: 
       asset: {
         id: item.asset.id,
         assetTag: item.asset.assetTag,
+        name: item.asset.name,
         brand: item.asset.brand,
         model: item.asset.model,
         imageUrl: item.asset.imageUrl,

@@ -54,7 +54,7 @@ describe("iOS create booking picker parity", () => {
     const review = sliceBetween(
       sheet,
       "private var reviewStep: some View",
-      "private func reviewFactRow",
+      "private func reviewSectionHeader",
     );
 
     expect(createSheet).toContain("var selectedBulkTotal: Int");
@@ -63,9 +63,10 @@ describe("iOS create booking picker parity", () => {
     expect(createSheet).not.toContain("Batteries & Counted Items");
     expect(createSheet).toContain("BulkQuantityRow(");
     expect(createSheet).toContain("BulkResultRow(");
-    expect(review).toContain("Text(\"\\(vm.selectedEquipmentCount) item\\(vm.selectedEquipmentCount == 1 ? \"\" : \"s\")\")");
+    expect(review).toContain('reviewSectionHeader(title: "Gear", count: vm.selectedEquipmentCount, editStep: 2)');
     expect(review).toContain("ForEach(Array(vm.selectedBulkSkus.enumerated()), id: \\.element.id)");
     expect(review).toContain("Text(\"×\\(vm.quantity(for: sku))\")");
+    expect(review).not.toContain("more selected");
   });
 
   it("submits selected bulk quantities through the shared API client", () => {
@@ -89,9 +90,14 @@ describe("iOS create booking picker parity", () => {
     expect(apiClient).toContain('items.append(.init(name: "sort", value: sort))');
     // Browse leads with popularity; explicit searches stay alphabetical.
     expect(createSheet).toContain('sort: capturedSearch.isEmpty ? "popular" : "name"');
+    expect(createSheet).toContain("let rankedAssets = availableAssets.filter(isReservablePickerAsset)");
+    expect(createSheet).toContain("popularItemOrder = resp.itemOrder");
+    expect(createSheet).toContain("var displayedCategoryResults: [ReservationPickerResult]?");
+    expect(createSheet).toContain("let rank = Dictionary(uniqueKeysWithValues: popularItemOrder.enumerated()");
+    expect(assetsRoute).toContain("if (shouldUsePopularitySort && a.popularity !== b.popularity) return b.popularity - a.popularity");
   });
 
-  it("groups native available equipment by category from a bounded location fetch", () => {
+  it("loads a bounded cross-location picker and makes pickup mismatches explicit", () => {
     const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
     const createSheet = createBookingSource();
     const picker = source("ios/Wisconsin/Views/CreateBooking/CreateBookingEquipmentPicker.swift");
@@ -104,7 +110,7 @@ describe("iOS create booking picker parity", () => {
     expect(apiClient).toContain("locationId: String? = nil");
     expect(apiClient).toContain('items.append(.init(name: "location_id", value: locationId))');
     expect(createSheet).toContain("private let assetPickerLimit = 300");
-    expect(loadAvailableAssets).toContain("locationId: selectedLocationId.isEmpty ? nil : selectedLocationId");
+    expect(loadAvailableAssets).toContain("locationId: nil");
     expect(loadAvailableAssets).toContain("limit: assetPickerLimit");
     expect(loadAvailableAssets).toContain("offset: 0");
     expect(loadAvailableAssets).toContain("availableAssets = resp.data");
@@ -119,6 +125,10 @@ describe("iOS create booking picker parity", () => {
     expect(picker).toContain("Section(group.title)");
     expect(picker).toContain("More equipment exists. Search to narrow results.");
     expect(picker).not.toContain("Task { await vm.loadAvailableAssets() }");
+    expect(createSheet).toContain("func isAtPickupLocation(_ asset: Asset) -> Bool");
+    expect(createSheet).toContain("selectedLocationMismatchCount");
+    expect(createSheet).toContain("Choose \\(asset.location.name) pickup to add");
+    expect(picker).toContain(".disabled(!vm.canReviewEquipment)");
   });
 
   it("keeps attachment categories out of native reservation equipment browsing", () => {
@@ -130,7 +140,7 @@ describe("iOS create booking picker parity", () => {
     expect(createSheet).toContain("normalized == \"accessories\"");
     expect(createSheet).toContain("normalized == \"camera accessories\"");
     expect(createSheet).toContain("normalized.hasSuffix(\"/accessories\")");
-    expect(createSheet).toContain("if !isHiddenAttachmentCategory(title) { titles.insert(title) }");
+    expect(createSheet).toContain('private static let reservationCategories = ["Cameras", "Lenses", "Batteries", "Other"]');
     expect(createSheet).toContain("let visibleSkus = availableBulkSkus.filter { !isHiddenAttachmentCategory(bulkCategoryTitle($0)) }");
   });
 
@@ -157,14 +167,15 @@ describe("iOS create booking picker parity", () => {
     const createSheet = createBookingSource();
     const sheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
     const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
+    const scheduleModels = source("ios/Wisconsin/Models/ScheduleModels.swift");
     const details = sliceBetween(
       sheet,
       "private var detailsForm: some View",
-      "private var detailHeaderSubtitle",
+      "private var setupModeBinding",
     );
     const eventCard = sliceBetween(
       createSheet,
-      "struct EventLinkingCard: View",
+      "struct EventSelectionCard: View",
       "struct EventPickRow: View",
     );
 
@@ -181,25 +192,139 @@ describe("iOS create booking picker parity", () => {
     expect(apiClient).toContain("eventIds: [String] = []");
     expect(apiClient).toContain("let eventIds: [String]?");
     expect(apiClient).toContain("eventIds: eventIds.isEmpty ? nil : eventIds");
-    expect(details).toContain("EventLinkingCard(");
-    expect(eventCard).toContain("Text(\"Link events\")");
-    expect(eventCard).toContain("Text(\"Up to 3 upcoming events\")");
+    expect(details).toContain("EventSelectionCard(");
+    expect(sheet).toContain('case event = "Event Linked"');
+    expect(sheet).toContain('case manual = "Manual"');
+    expect(sheet).toContain('_setupMode = State(wrappedValue: .event)');
+    expect(eventCard).not.toContain("Text(\"Link an Event\")");
     expect(eventCard).toContain("EventChip(event: event)");
+    expect(eventCard).toContain("AllEventsPickerView(");
+    expect(eventCard).toContain('Text(selectedEvents.isEmpty ? "Choose Event" : "Edit Linked Events")');
+    expect(eventCard).not.toContain('Text(selectedEvents.isEmpty ? "Choose from');
     expect(eventCard).toContain("EventPickRow(");
+    expect(eventCard).toContain('Image(systemName: "checkmark")');
+    expect(eventCard).toContain('.accessibilityLabel("Confirm event selection")');
+    expect(eventCard).toContain('case home = "Home"');
+    expect(eventCard).toContain('case away = "Away"');
+    expect(eventCard).toContain('case neutral = "Neutral"');
+    expect(eventCard).toContain('case nonGame = "Non-game"');
+    expect(eventCard).toContain("case .neutral: isGame && event.isHome == nil");
+    expect(eventCard).toContain("case .nonGame: !isGame");
+    expect(createSheet).toContain("StatusRail(color: event.bookingEventRailColor)");
+    expect(createSheet).toContain("Text(event.bookingEventScopeLabel)");
+    expect(createSheet).toContain("Text(event.bookingEventPickerDate)");
+    expect(createSheet).toContain("if let venue = event.bookingEventPickerVenue");
+    expect(createSheet).toContain("Text(venue)");
+    expect(createSheet).toContain(".weekday(.abbreviated).month(.abbreviated).day().hour().minute()");
+    expect(createSheet).toContain('return "\\(bookingEventPickerDate), \\(venue)"');
+    expect(createSheet).toContain("let source = location?.name ?? rawLocationText");
+    expect(createSheet).toContain('replacingOccurrences(of: "Track/Soccer", with: "Soccer")');
+    expect(scheduleModels).toContain("var rawLocationText: String?");
+    expect(createSheet).not.toContain("sportLabel(event.sportCode)");
   });
 
-  it("keeps all-day linked event reservation headers date-only", () => {
+  it("keeps reservation details compact and uses deliberate schedule controls", () => {
+    const sheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
+    const viewModel = source("ios/Wisconsin/Views/CreateBooking/CreateBookingViewModel.swift");
+    const details = sliceBetween(sheet, "private var detailsForm: some View", "private var setupModeBinding");
+
+    expect(details).toContain('Text("Reservation Title")');
+    expect(details).toContain('BrandSectionHeader("Set Schedule From")');
+    expect(details).toContain('BrandSectionHeader("Pickup Location")');
+    expect(details).toContain("vm.primaryPickupLocations");
+    expect(details).toContain("QuarterHourDatePickerRow(");
+    expect(sheet).toContain("private let quarterHours = Array(0..<96)");
+    expect(sheet).toContain('DatePicker(\n                "\\(label) date"');
+    expect(sheet).toContain('Picker("\\(label) time", selection: quarterBinding)');
+    expect(sheet).not.toContain("UIViewRepresentable");
+    expect(details).not.toContain("BookingStepHeader(");
+    expect(details).not.toContain('label: "For"');
+    expect(sheet).not.toContain("BookingDurationPreset");
+    expect(viewModel).toContain('private static let reservationCategories = ["Cameras", "Lenses", "Batteries", "Other"]');
+    expect(details.indexOf('BrandSectionHeader("Set Schedule From")')).toBeLessThan(
+      details.indexOf("reservationTitleCard"),
+    );
+    expect(details).toContain("if vm.linkedEventCount > 0");
+    expect(details).toContain("scheduleWindowCard");
+    expect(viewModel).toContain("private let eventPickupLeadTime: TimeInterval = 60 * 60");
+    expect(viewModel).toContain("private let eventReturnBuffer: TimeInterval = 2 * 60 * 60");
+    expect(viewModel).toContain("startsAt = first.startsAt.addingTimeInterval(-eventPickupLeadTime)");
+    expect(viewModel).toContain("endsAt = last.endsAt.addingTimeInterval(eventReturnBuffer)");
+    expect(viewModel).toContain("startsAt = newStart\n        scheduleConflictCheck()");
+    expect(viewModel).not.toContain("endsAt = newStart.addingTimeInterval");
+  });
+
+  it("suggests location-valid power for Sony cameras, FX6 bodies, and monitors", () => {
+    const createSheet = createBookingSource();
+    const picker = source("ios/Wisconsin/Views/CreateBooking/CreateBookingEquipmentPicker.swift");
+
+    expect(createSheet).toContain("var batteryRecommendations: [BatteryRecommendation]");
+    expect(createSheet).toContain("var batterySuggestions: [BatteryRecommendation]");
+    expect(createSheet).toContain("powerRecommendations(includeSatisfied: true)");
+    expect(createSheet).toContain('matching: ["sony", "battery"]');
+    expect(createSheet).toContain('matching: ["gold", "mount"]');
+    expect(createSheet).toContain('matching: ["monitor", "battery"]');
+    expect(createSheet).toContain("guard isAtPickupLocation(sku) else { return false }");
+    expect(createSheet).toContain("var reminderKey: String");
+    expect(picker).toContain("private struct BatteryRecommendationCard");
+    expect(picker).toContain("activeRecommendations");
+    expect(picker).toContain("vm.batterySuggestions.filter");
+    expect(picker).toContain("ForEach(activeRecommendations)");
+    expect(picker).toContain("activeRecommendations.map(\\.reminderKey)");
+    expect(picker).toContain("DragGesture(minimumDistance: 18)");
+    expect(picker).toContain('vm.browseCategoryFilter = "Batteries"');
+    expect(picker).toContain("guard !vm.hasSelectedPower, let recommendation = vm.batteryRecommendations.first else");
+    expect(picker).toContain("onReview()\n            return");
+    expect(createSheet).toContain("private var selectedAssetOrder: [String] = []");
+    expect(createSheet).toContain(".sorted { $0.0 < $1.0 }");
+    const recommendationCard = sliceBetween(
+      picker,
+      "private struct BatteryRecommendationCard",
+      "// MARK: - Cart drawer",
+    );
+    expect(recommendationCard).toContain('Text(recommendation.sku.name)');
+    expect(recommendationCard).not.toContain('Text("Add \\(recommendation.sku.name)")');
+    expect(recommendationCard).not.toContain("recommendation.reason");
+    expect(picker).not.toContain('Section("Don\'t forget power")');
+  });
+
+  it("keeps all gear categories visible and counted quantities explicit", () => {
+    const picker = source("ios/Wisconsin/Views/CreateBooking/CreateBookingEquipmentPicker.swift");
+    const bulkRow = sliceBetween(picker, "struct BulkResultRow: View", "private struct ReservationCategoryChip");
+
+    expect(picker).toContain("ViewThatFits(in: .horizontal)");
+    expect(picker).toContain('ReservationCategoryChip(label: "All"');
+    expect(picker).toContain("ForEach(vm.browseCategories");
+    expect(bulkRow).toContain("let onDecrement: () -> Void");
+    expect(bulkRow).toContain("let onIncrement: () -> Void");
+    expect(bulkRow).toContain('Image(systemName: "minus")');
+    expect(bulkRow).toContain('Image(systemName: "plus")');
+    expect(bulkRow).toContain('Text("\\(quantity)")');
+    expect(bulkRow.match(/Color\.statusBackground\(\.purple\)/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(bulkRow).toContain('"\\(sku.availableQuantity)/\\(sku.currentQuantity) available"');
+    const viewModel = source("ios/Wisconsin/Views/CreateBooking/CreateBookingViewModel.swift");
+    expect(viewModel).toContain('private static let reservationCategories = ["Cameras", "Lenses", "Batteries", "Other"]');
+    expect(viewModel).toContain('return "Other"');
+    expect(viewModel).toContain("reservationCategory(for: $0) == filter");
+    expect(picker).toContain("ForEach(categoryResults)");
+  });
+
+  it("promotes the user-updated Icon Composer scale into the active app icon", () => {
+    const activeIcon = source("ios/Wisconsin/AppIcons/AppIcon.icon/icon.json");
+    const candidateIcon = source("ios/IconSources/IconComposerCandidates/vintage-helmet/BlockW.icon/icon.json");
+
+    expect(activeIcon).toContain('"scale" : 1.75');
+    expect(activeIcon.trimEnd()).toBe(candidateIcon.trimEnd());
+  });
+
+  it("shows explicit linked-event pickup and return windows in review", () => {
     const sheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
 
-    expect(sheet).toContain("private var selectedAllDayWindowText: String?");
-    expect(sheet).toContain("let events = selected.isEmpty ? vm.prefillEvent.map { [$0] } ?? [] : selected");
-    expect(sheet).toContain("events.allSatisfy(\\.displayAllDay)");
-    expect(sheet).toContain("return \"\\(shortDate(start))-\\(shortDate(end)), All day\"");
-    expect(sheet).toContain("if !vm.userEditedWindow, let allDayWindow = selectedAllDayWindowText");
     expect(sheet).toContain("private var reviewPickupText: String");
-    expect(sheet).toContain("private var reviewReturnText: String?");
-    expect(sheet).toContain("return \"Return after event\"");
-    expect(sheet).toContain("Text(reviewPickupText)");
+    expect(sheet).toContain("private var reviewReturnText: String");
+    expect(sheet).not.toContain("selectedAllDayWindowText");
+    expect(sheet).toContain("value: reviewPickupText");
+    expect(sheet).toContain("value: reviewReturnText");
   });
 
   it("keeps the native review screen event-aware without a separate linked-event card", () => {
@@ -208,7 +333,7 @@ describe("iOS create booking picker parity", () => {
     const review = sliceBetween(
       sheet,
       "private var reviewStep: some View",
-      "private func reviewFactRow",
+      "private func reviewSectionHeader",
     );
 
     expect(createSheet).toContain("var linkedEventLabel: String?");
@@ -217,8 +342,8 @@ describe("iOS create booking picker parity", () => {
     expect(createSheet).toContain("var bookingEventSubtitle: String");
     expect(createSheet).not.toContain("struct ReviewEventRow: View");
     expect(review).toContain("calendar.badge.checkmark");
-    expect(review).toContain("reviewFactRow(label: vm.linkedEventCount > 1 ? \"Events\" : \"Event\")");
-    expect(review).toContain("Label(linked, systemImage: \"calendar.badge.checkmark\")");
+    expect(review).toContain('label: vm.linkedEventCount > 1 ? "Events" : "Event"');
+    expect(review).toContain("value: linked");
     expect(review).not.toContain("Linked Event");
     expect(review).not.toContain("ReviewEventRow(event: event)");
   });
@@ -229,10 +354,11 @@ describe("iOS create booking picker parity", () => {
     const viewModel = source("ios/Wisconsin/Views/CreateBooking/CreateBookingViewModel.swift");
     const formRows = source("ios/Wisconsin/Views/CreateBooking/CreateBookingFormRows.swift");
     const equipmentRows = source("ios/Wisconsin/Views/CreateBooking/CreateBookingEquipmentRows.swift");
+    const eventDetail = source("ios/Wisconsin/Views/EventDetailSheet.swift");
     const review = sliceBetween(
       sheet,
       "private var reviewStep: some View",
-      "private func reviewFactRow",
+      "private func reviewSectionHeader",
     );
 
     expect(formRows).toContain("return \"\\(code) \\(prefix) \\(opponent)\"");
@@ -241,18 +367,74 @@ describe("iOS create booking picker parity", () => {
     expect(formRows).not.toContain("(Neutral)");
     expect(viewModel).toContain("title = first.shortBookingEventTitle");
     expect(viewModel).not.toContain("title = \"Gear - \\(first.summary)\"");
+    expect(eventDetail).toContain("title: event.shortBookingEventTitle");
+    expect(eventDetail).not.toContain('title: "Gear - \\(event.summary)"');
     expect(viewModel).not.toContain("first.location?.id");
-    expect(sheet).toContain("title: \"Pickup location\"");
-    expect(sheet).toContain("label: \"Pickup\"");
-    expect(sheet).toContain("Select pickup");
-    expect(review).toContain("Text(\"Pickup\")");
-    expect(review).toContain("Text(reviewPickupText)");
-    expect(review).toContain("if let reviewReturnText");
-    expect(sheet).toContain("return \"Return \\(vm.endsAt.formatted(date: .abbreviated, time: .shortened))\"");
+    expect(sheet).toContain('BrandSectionHeader("Pickup Location")');
+    expect(sheet).toContain('Picker(\n                            "Pickup location"');
+    expect(sheet).toContain("vm.primaryPickupLocations");
+    expect(review).toContain('label: "Pickup"');
+    expect(review).toContain("value: reviewPickupText");
+    expect(review).toContain('label: "Return"');
+    expect(review).toContain("value: reviewReturnText");
+    expect(sheet).toContain("vm.endsAt.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute())");
     expect(review).toContain("BookingAssetThumbnail(imageUrl: asset.imageUrl, size: 40, cornerRadius: 8)");
     expect(review).toContain("BookingBulkThumbnail(imageUrl: sku.imageUrl, size: 40, cornerRadius: 8)");
+    expect(review).toContain("if showsBulkSubtitle(sku)");
+    expect(sheet).toContain('return !productContext.localizedCaseInsensitiveContains("battery")');
     expect(equipmentRows).toContain("struct BookingAssetThumbnail");
     expect(equipmentRows).toContain("struct BookingBulkThumbnail");
     expect(createSheet).not.toContain("Ends ");
+  });
+
+  it("keeps selection, conflict recovery, and edit routes visible across gear and review", () => {
+    const picker = source("ios/Wisconsin/Views/CreateBooking/CreateBookingEquipmentPicker.swift");
+    const sheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
+
+    expect(picker).toContain("private var selectedSummary: some View");
+    expect(picker).toContain('Text("Selected Gear")');
+    expect(picker).toContain('return "Ready to review"');
+    expect(picker).toContain('return "\\(count) conflict\\(count == 1 ? "" : "s") to review"');
+    expect(picker).toContain('(vm.conflictedAssetIds.isEmpty ? "Review" : "Review Conflicts")');
+    expect(picker).toContain('vm.selectedLocationMismatchCount > 0');
+    expect(sheet).toContain('reviewSectionHeader(title: "Schedule", editStep: 1)');
+    expect(sheet).toContain('reviewSectionHeader(title: "Gear", count: vm.selectedEquipmentCount, editStep: 2)');
+    expect(sheet).toContain('Button("Review Gear") { step = 2 }');
+    expect(sheet).toContain('} else if step == 3 {');
+    const cartSheet = picker.slice(picker.indexOf("struct EquipmentCartSheet"));
+    expect(cartSheet).not.toContain('Section("Equipment")');
+    expect(cartSheet).not.toContain('Section("Supplies")');
+  });
+
+  it("returns create-time conflicts to gear without dropping the selection", () => {
+    const api = source("ios/Wisconsin/Core/APIClient.swift");
+    const viewModel = source("ios/Wisconsin/Views/CreateBooking/CreateBookingViewModel.swift");
+    const picker = source("ios/Wisconsin/Views/CreateBooking/CreateBookingEquipmentPicker.swift");
+    const sheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
+
+    expect(api).toContain("case conflict(String)");
+    expect(api).toContain("case 409:");
+    expect(api).toContain('throw APIError.conflict("Some equipment is no longer available:');
+    expect(api).toContain("throw APIError.serverError(msg409)");
+    expect(viewModel).toContain("var submissionConflict: String?");
+    expect(viewModel).toContain("catch APIError.conflict(let message)");
+    expect(viewModel).toContain("submissionConflict = message");
+    expect(picker).toContain("if let submissionConflict = vm.submissionConflict");
+    expect(picker).toContain('Text("Gear changed since review")');
+    expect(sheet).toContain("catch APIError.conflict(_)");
+    expect(sheet).toContain("step = 2");
+    expect(sheet).toContain("vm.scheduleConflictCheck()");
+  });
+
+  it("opens an event-created reservation and replaces the stale reserve prompt", () => {
+    const eventDetail = source("ios/Wisconsin/Views/EventDetailSheet.swift");
+
+    expect(eventDetail).toContain("@State private var navigationPath = NavigationPath()");
+    expect(eventDetail).toContain("NavigationStack(path: $navigationPath)");
+    expect(eventDetail).toContain("CreateBookingSheet(vm: makePrepGearVM()) { newId in");
+    expect(eventDetail).toContain("createdGearBookingId = newId");
+    expect(eventDetail).toContain("navigationPath.append(BookingRouteId(id: newId))");
+    expect(eventDetail).toContain("if let createdGearBookingId");
+    expect(eventDetail).toContain('title: "Gear reserved"');
   });
 });

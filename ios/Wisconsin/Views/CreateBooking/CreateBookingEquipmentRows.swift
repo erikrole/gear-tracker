@@ -69,6 +69,7 @@ struct BookingBulkThumbnail: View {
 struct SelectedEquipmentRow: View {
     let asset: Asset
     let isConflicted: Bool
+    var isAtPickupLocation = true
     let onRemove: () -> Void
 
     var body: some View {
@@ -92,6 +93,11 @@ struct SelectedEquipmentRow: View {
                         .foregroundStyle(Color.statusText(.orange))
                         .accessibilityLabel("Scheduling conflict")
                 }
+                if !isAtPickupLocation {
+                    Label("At \(asset.location.name)", systemImage: "mappin.and.ellipse")
+                        .font(.caption2)
+                        .foregroundStyle(Color.statusText(.orange))
+                }
             }
             Spacer()
             Button(action: onRemove) {
@@ -111,6 +117,7 @@ struct SelectedEquipmentRow: View {
         var parts: [String] = ["Selected", asset.itemListPrimaryTitle]
         if let subtitle = asset.itemListSecondaryTitle { parts.append(subtitle) }
         if isConflicted { parts.append("Scheduling conflict") }
+        if !isAtPickupLocation { parts.append("At another pickup location") }
         parts.append("Remove button")
         return parts.joined(separator: ", ")
     }
@@ -119,16 +126,18 @@ struct SelectedEquipmentRow: View {
 struct BulkQuantityRow: View {
     let sku: FormBulkSku
     let quantity: Int
+    var locationName: String? = nil
+    var isAtPickupLocation = true
     let onDecrement: () -> Void
     let onIncrement: () -> Void
 
-    private var canIncrement: Bool { quantity < sku.availableQuantity }
+    private var canIncrement: Bool { isAtPickupLocation && quantity < sku.availableQuantity }
     private var unitLabel: String {
         sku.unit?.isEmpty == false ? " \(sku.unit!)" : ""
     }
     private var subtitle: String {
         let pickup = sku.trackByNumber ? " · units scan at pickup" : ""
-        return "\(sku.availableQuantity) available\(unitLabel)\(pickup)"
+        return "\(sku.availableQuantity)/\(sku.currentQuantity) available\(unitLabel)\(pickup)"
     }
 
     var body: some View {
@@ -143,6 +152,11 @@ struct BulkQuantityRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                if !isAtPickupLocation, let locationName {
+                    Label("At \(locationName)", systemImage: "mappin.and.ellipse")
+                        .font(.caption2)
+                        .foregroundStyle(Color.statusText(.orange))
+                }
             }
 
             Spacer()
@@ -150,10 +164,12 @@ struct BulkQuantityRow: View {
             HStack(spacing: 8) {
                 Button(action: onDecrement) {
                     Image(systemName: "minus")
-                        .font(.system(size: 14, weight: .semibold))
-                        .frame(width: 40, height: 40)
+                        .font(.caption.weight(.bold))
+                        .frame(width: 28, height: 28)
+                        .background(Color(.tertiarySystemFill), in: Circle())
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.plain)
+                .frame(width: 36, height: 36)
                 .disabled(quantity == 0)
                 .accessibilityLabel("Remove one \(sku.name)")
 
@@ -164,10 +180,13 @@ struct BulkQuantityRow: View {
 
                 Button(action: onIncrement) {
                     Image(systemName: "plus")
-                        .font(.system(size: 14, weight: .semibold))
-                        .frame(width: 40, height: 40)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 28, height: 28)
+                        .background(Color.statusText(.purple), in: Circle())
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.plain)
+                .frame(width: 36, height: 36)
                 .disabled(!canIncrement)
                 .accessibilityLabel("Add one \(sku.name)")
             }
@@ -182,6 +201,7 @@ struct AssetPickerRow: View {
     let asset: Asset
     let isSelected: Bool
     var isConflicted: Bool = false
+    var isAtPickupLocation = true
     let onTap: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -211,6 +231,11 @@ struct AssetPickerRow: View {
                             .foregroundStyle(Color.statusText(.orange))
                             .accessibilityLabel("Scheduling conflict")
                     }
+                    if !isAtPickupLocation {
+                        Text("Choose \(asset.location.name) pickup to add")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(Color.statusText(.orange))
+                    }
                 }
 
                 Spacer()
@@ -221,14 +246,16 @@ struct AssetPickerRow: View {
                     .font(.title3)
                     .foregroundStyle(
                         isConflicted ? Color.statusText(.orange)
-                            : (isSelected ? Color.statusText(.blue) : Color(.systemGray2))
+                            : (isSelected ? Color.statusText(.purple) : Color(.systemGray2))
                     )
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isSelected)
                     .accessibilityHidden(true)
             }
             .contentShape(Rectangle())
+            .opacity(!isAtPickupLocation && !isSelected ? 0.48 : 1)
         }
         .buttonStyle(ScalePressStyle())
+        .disabled(!isAtPickupLocation && !isSelected)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(rowAccessibilityLabel)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
@@ -239,6 +266,7 @@ struct AssetPickerRow: View {
         if let subtitle = asset.itemListSecondaryTitle { parts.append(subtitle) }
         parts.append(asset.location.name)
         if isConflicted { parts.append("Scheduling conflict") }
+        if !isAtPickupLocation { parts.append("At another pickup location") }
         parts.append(isSelected ? "Selected" : "Not selected")
         return parts.joined(separator: ", ")
     }

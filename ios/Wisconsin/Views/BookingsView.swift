@@ -1,25 +1,20 @@
 import SwiftUI
 
-enum BookingScope: String, CaseIterable, Identifiable {
+enum BookingScope: String {
     case mine
     case all
-    case needsAttention
+}
 
-    var id: String { rawValue }
+private enum BookingListAction: Identifiable {
+    case edit(Booking)
+    case transfer(Booking)
+    case extend(Booking)
 
-    var title: String {
+    var id: String {
         switch self {
-        case .mine: return "Mine"
-        case .all: return "All"
-        case .needsAttention: return "Attention"
-        }
-    }
-
-    var accessibilityLabel: String {
-        switch self {
-        case .mine: return "Mine"
-        case .all: return "All visible bookings"
-        case .needsAttention: return "Needs attention"
+        case .edit(let booking): "edit-\(booking.id)"
+        case .transfer(let booking): "transfer-\(booking.id)"
+        case .extend(let booking): "extend-\(booking.id)"
         }
     }
 }
@@ -32,12 +27,10 @@ final class BookingsViewModel {
     var isLoading = false
     var error: String?
     var pageError: String?
-    var lastLoadedAt: Date?
     var searchText = ""
     var hasMoreCheckouts = true
     var hasMoreReservations = true
-    /// Native list scope. Students default to Mine; staff/admin can quickly
-    /// switch between personal work, all visible work, and urgent work.
+    /// Native list scope. Students default to Mine; staff/admin default to All.
     var scope: BookingScope = .all
     var currentUserId: String?
     var currentUserRole = ""
@@ -57,7 +50,6 @@ final class BookingsViewModel {
 
     var isEmpty: Bool { checkouts.isEmpty && reservations.isEmpty }
     var hasMore: Bool { hasMoreCheckouts || hasMoreReservations }
-    var isRefreshingVisibleRows: Bool { isLoading && !isEmpty }
 
     var sortedCheckouts: [Booking] {
         checkouts.sorted(by: bookingSort)
@@ -115,17 +107,9 @@ final class BookingsViewModel {
         do {
             let search = searchText.isEmpty ? nil : searchText
             let requesterId = mineOnly ? currentUserId : nil
-            let checkoutResult: PaginatedResponse<Booking>
-            let reservationResult: PaginatedResponse<Booking>
-            if scope == .needsAttention {
-                let attention = try await fetchNeedsAttention(search: search, requesterId: requesterId)
-                checkoutResult = PaginatedResponse(data: attention.checkouts, total: attention.checkouts.count, limit: limit, offset: 0)
-                reservationResult = PaginatedResponse(data: attention.reservations, total: attention.reservations.count, limit: limit, offset: 0)
-            } else {
-                async let checkoutPage = fetchCheckouts(search: search, requesterId: requesterId)
-                async let reservationPage = fetchReservations(search: search, requesterId: requesterId)
-                (checkoutResult, reservationResult) = try await (checkoutPage, reservationPage)
-            }
+            async let checkoutPage = fetchCheckouts(search: search, requesterId: requesterId)
+            async let reservationPage = fetchReservations(search: search, requesterId: requesterId)
+            let (checkoutResult, reservationResult) = try await (checkoutPage, reservationPage)
             guard loadRequests.owns(requestToken), !Task.isCancelled else { return }
             if reset {
                 checkouts = checkoutResult.data
@@ -136,10 +120,9 @@ final class BookingsViewModel {
             }
             checkoutOffset += checkoutResult.data.count
             reservationOffset += reservationResult.data.count
-            hasMoreCheckouts = scope == .needsAttention ? false : checkoutOffset < checkoutResult.total
-            hasMoreReservations = scope == .needsAttention ? false : reservationOffset < reservationResult.total
+            hasMoreCheckouts = checkoutOffset < checkoutResult.total
+            hasMoreReservations = reservationOffset < reservationResult.total
             pageError = nil
-            lastLoadedAt = Date()
             if reset && searchText.isEmpty && scope == .all {
                 GearStore.shared.seedBookings(checkoutResult.data + reservationResult.data)
             }
@@ -188,57 +171,7 @@ final class BookingsViewModel {
         )
     }
 
-    private func fetchNeedsAttention(search: String?, requesterId: String?) async throws -> (checkouts: [Booking], reservations: [Booking]) {
-        async let overdueCheckouts = APIClient.shared.checkouts(activeOnly: true, search: search, requesterId: requesterId, filter: "overdue", limit: limit, offset: 0)
-        async let dueTodayCheckouts = APIClient.shared.checkouts(activeOnly: true, search: search, requesterId: requesterId, filter: "due-today", limit: limit, offset: 0)
-        async let activeCheckouts = APIClient.shared.checkouts(activeOnly: true, search: search, requesterId: requesterId, limit: limit, offset: 0)
-        async let overdueReservations = APIClient.shared.reservations(activeOnly: true, search: search, requesterId: requesterId, filter: "overdue", limit: limit, offset: 0)
-        async let dueTodayReservations = APIClient.shared.reservations(activeOnly: true, search: search, requesterId: requesterId, filter: "due-today", limit: limit, offset: 0)
-        async let activeReservations = APIClient.shared.reservations(activeOnly: true, search: search, requesterId: requesterId, limit: limit, offset: 0)
-
-        let (overdueCheckoutPage, dueTodayCheckoutPage, activeCheckoutPage, overdueReservationPage, dueTodayReservationPage, activeReservationPage) = try await (
-            overdueCheckouts,
-            dueTodayCheckouts,
-            activeCheckouts,
-            overdueReservations,
-            dueTodayReservations,
-            activeReservations
-        )
-        let now = Date()
-        return (
-            uniqueBookings([
-                overdueCheckoutPage.data,
-                dueTodayCheckoutPage.data,
-                activeCheckoutPage.data.filter { $0.needsBookingAttention(now: now) },
-            ]).sorted(by: bookingSort),
-            uniqueBookings([
-                overdueReservationPage.data,
-                dueTodayReservationPage.data,
-                activeReservationPage.data.filter { $0.needsBookingAttention(now: now) },
-            ]).filter { $0.needsBookingAttention(now: now) }.sorted(by: bookingSort)
-        )
-    }
-
-    private func uniqueBookings(_ groups: [[Booking]]) -> [Booking] {
-        var seen = Set<String>()
-        var result: [Booking] = []
-        for booking in groups.flatMap({ $0 }) where seen.insert(booking.id).inserted {
-            result.append(booking)
-        }
-        return result
-    }
-
     private func bookingSort(_ lhs: Booking, _ rhs: Booking) -> Bool {
-        if scope == .needsAttention {
-            let now = Date()
-            let leftPriority = lhs.attentionPriority(now: now)
-            let rightPriority = rhs.attentionPriority(now: now)
-            if leftPriority != rightPriority { return leftPriority < rightPriority }
-            let leftDate = lhs.attentionDate
-            let rightDate = rhs.attentionDate
-            if leftDate != rightDate { return leftDate < rightDate }
-            return lhs.id < rhs.id
-        }
         if lhs.startsAt != rhs.startsAt { return lhs.startsAt > rhs.startsAt }
         return lhs.id < rhs.id
     }
@@ -280,6 +213,8 @@ final class BookingsViewModel {
 struct BookingsView: View {
     @State private var vm = BookingsViewModel()
     @State private var showCreate = false
+    @State private var presentedAction: BookingListAction?
+    @State private var cancelTarget: Booking?
     @State private var navigationPath = NavigationPath()
     @Environment(SessionStore.self) private var session
     @Environment(AppState.self) private var appState
@@ -308,33 +243,32 @@ struct BookingsView: View {
     }
 
     private var emptyTitle: String {
-        guard vm.searchText.isEmpty else { return "No Results" }
+        guard vm.searchText.isEmpty else { return "No matches" }
         switch vm.scope {
-        case .mine: return "No Bookings"
-        case .all: return "No Active Bookings"
-        case .needsAttention: return "Nothing Needs Attention"
+        case .mine: return "You're all clear"
+        case .all: return "No active bookings"
         }
     }
 
-    /// An empty Attention queue is good news; don't give it an archive box.
     private var emptyIcon: String {
         guard vm.searchText.isEmpty else { return "magnifyingglass" }
-        return vm.scope == .needsAttention ? "checkmark.circle" : "archivebox"
+        return vm.scope == .mine ? "checkmark.seal.fill" : "calendar.badge.plus"
+    }
+
+    private var emptyTone: StatusTone {
+        guard vm.searchText.isEmpty else { return .gray }
+        return vm.scope == .mine ? .green : .purple
     }
 
     private var emptyDescription: String {
-        if !vm.searchText.isEmpty { return "No results for \"\(vm.searchText)\"." }
+        if !vm.searchText.isEmpty { return "No bookings match \"\(vm.searchText)\"." }
         if vm.scope == .mine {
-            return "Your active checkouts and reservations will appear here together."
+            return "You don't have any active checkouts or reservations."
         }
-        if vm.scope == .needsAttention {
-            return "Overdue, due-today, and pickup work will appear here when it needs action."
-        }
-        return "Active checkouts and reservations appear here in one chronological list."
+        return "Create a reservation when you need gear."
     }
 
-    /// Apply a dashboard scope hint (e.g. Overdue tile → Attention scope).
-    /// Setting `vm.scope` triggers the existing onChange reload.
+    /// Apply a dashboard scope hint. Urgency tiles deliberately land on All.
     private func consumePendingScope() {
         guard let hint = appState.pendingBookingsScope else { return }
         appState.pendingBookingsScope = nil
@@ -347,26 +281,17 @@ struct BookingsView: View {
         "Search bookings..."
     }
 
+    private var showsSearch: Bool {
+        if !vm.searchText.isEmpty { return true }
+        let visibleCount = vm.checkouts.count + vm.reservations.count
+        return !vm.isLoading && visibleCount > 0 && (visibleCount > 4 || vm.hasMore)
+    }
+
     var body: some View {
         // Apple's recommended pattern for binding to an @Observable model.
         @Bindable var vm = vm
         return NavigationStack(path: $navigationPath) {
             VStack(spacing: 0) {
-                if !isCollaborator {
-                    Picker("Booking scope", selection: $vm.scope) {
-                        ForEach(BookingScope.allCases) { scope in
-                            Text(scope.title).tag(scope)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    .padding(.bottom, 6)
-                    .background(Color(.systemGroupedBackground))
-                    .accessibilityLabel("Booking scope")
-                    .accessibilityValue(vm.scope.accessibilityLabel)
-                }
-
                 Group {
                     if let error = vm.error, vm.isEmpty {
                         ContentUnavailableView {
@@ -392,26 +317,39 @@ struct BookingsView: View {
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)  // Don't pollute VO with placeholder shapes.
                     } else if vm.isEmpty {
-                        ContentUnavailableView {
-                            Label(emptyTitle, systemImage: emptyIcon)
-                        } description: {
-                            Text(emptyDescription)
-                        } actions: {
-                            emptyStateActions
+                        ScrollView {
+                            BookingEmptyState(
+                                icon: emptyIcon,
+                                tone: emptyTone,
+                                title: emptyTitle,
+                                description: emptyDescription
+                            ) {
+                                emptyStateActions
+                            }
+                            .frame(maxWidth: 520)
+                            .padding(.horizontal, Brand.Space.md)
+                            .padding(.top, Brand.Space.lg)
+                            .frame(maxWidth: .infinity)
                         }
                     } else {
                         List {
                             if !vm.sortedCheckouts.isEmpty {
                                 BookingListSection(title: "Checkouts", count: vm.sortedCheckouts.count) {
                                     ForEach(vm.sortedCheckouts) { booking in
-                                        BookingRowLink(booking: booking)
+                                        bookingRowLink(booking)
                                     }
                                 }
                             }
                             if !vm.sortedReservations.isEmpty {
                                 BookingListSection(title: "Reservations", count: vm.sortedReservations.count) {
                                     ForEach(vm.sortedReservations) { booking in
-                                        BookingRowLink(booking: booking)
+                                        bookingRowLink(booking)
+                                    }
+                                }
+                            } else if vm.searchText.isEmpty {
+                                BookingListSection(title: "Reservations", count: 0) {
+                                    ReservationEmptyRow(canCreate: canCreate) {
+                                        showCreate = true
                                     }
                                 }
                             }
@@ -437,11 +375,6 @@ struct BookingsView: View {
                                         await vm.load()
                                     }
                             }
-                            if let lastLoadedAt = vm.lastLoadedAt {
-                                BookingFreshnessFooter(lastLoadedAt: lastLoadedAt, isRefreshing: vm.isRefreshingVisibleRows)
-                                    .listRowSeparator(.hidden)
-                                    .listRowBackground(Color.clear)
-                            }
                         }
                         .listStyle(.plain)
                         .scrollContentBackground(.hidden)
@@ -451,18 +384,28 @@ struct BookingsView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle(isCollaborator ? "My Gear" : "Bookings")
-            .searchable(text: $vm.searchText, prompt: searchPrompt)
+            .navigationBarTitleDisplayMode(.inline)
+            .modifier(BookingsSearchModifier(isVisible: showsSearch, text: $vm.searchText, prompt: searchPrompt))
             .onChange(of: vm.searchText) { vm.onSearchChange() }
             .onChange(of: vm.scope) { _, _ in
                 Haptics.selection()
                 Task { await vm.load(reset: true, clearExistingRows: true) }
             }
             .toolbar {
-                if canCreate && !showsEmptyCreateAction {
-                    ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    if !isCollaborator {
+                        Button {
+                            vm.scope = vm.mineOnly ? .all : .mine
+                        } label: {
+                            Image(systemName: vm.mineOnly ? "person.crop.circle.fill" : "person.crop.circle")
+                        }
+                        .tint(vm.mineOnly ? Color.brandPrimary : Color.primary)
+                        .accessibilityLabel(vm.mineOnly ? "Showing my bookings. Show all bookings" : "Show my bookings")
+                        .accessibilityValue(vm.mineOnly ? "Mine" : "All")
+                    }
+                    if canCreate && !showsEmptyCreateAction {
                         Button { showCreate = true } label: {
-                            Label("New Reservation", systemImage: "plus")
-                                .labelStyle(.titleAndIcon)
+                            Image(systemName: "plus")
                         }
                         .accessibilityLabel("New Reservation")
                     }
@@ -476,6 +419,39 @@ struct BookingsView: View {
                     }
                 }
             }
+            .sheet(item: $presentedAction) { action in
+                switch action {
+                case .edit(let booking):
+                    EditBookingSheet(booking: booking) {
+                        Task { await vm.load(reset: true) }
+                    }
+                case .transfer(let booking):
+                    TransferBookingOwnerSheet(booking: booking) { _ in
+                        Task { await vm.load(reset: true) }
+                    }
+                case .extend(let booking):
+                    ExtendBookingSheet(bookingId: booking.id, currentEndsAt: booking.endsAt) {
+                        Task { await vm.load(reset: true) }
+                    }
+                }
+            }
+            .confirmationDialog(
+                "Cancel Reservation",
+                isPresented: Binding(
+                    get: { cancelTarget != nil },
+                    set: { if !$0 { cancelTarget = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Cancel Reservation", role: .destructive) {
+                    guard let booking = cancelTarget else { return }
+                    cancelTarget = nil
+                    Task { await cancelReservation(booking) }
+                }
+                Button("Keep Reservation", role: .cancel) { cancelTarget = nil }
+            } message: {
+                Text("This removes the reservation and releases its gear.")
+            }
             .refreshable { await vm.load(reset: true) }
             .task {
                 vm.applyUserContext(id: session.currentUser?.id, role: session.currentUser?.role)
@@ -484,8 +460,6 @@ struct BookingsView: View {
                 await vm.load(reset: true)
             }
             .onChange(of: appState.pendingBookingsScope) { _, _ in
-                // A scope hint arrived while this tab was already alive (e.g.
-                // the dashboard "Overdue" tile tapped after the list loaded).
                 consumePendingScope()
             }
             .onChange(of: appState.pendingAppIntentDestination) { _, _ in
@@ -507,6 +481,68 @@ struct BookingsView: View {
         }
     }
 
+    private func hasCapability(_ capability: String) -> Bool {
+        guard let user = session.currentUser else { return false }
+        return user.role != "COLLABORATOR" || (user.capabilities ?? []).contains(capability)
+    }
+
+    private func ownsOrManages(_ booking: Booking) -> Bool {
+        guard let user = session.currentUser else { return false }
+        return user.role == "STAFF" || user.role == "ADMIN" || booking.requester.id == user.id
+    }
+
+    private func canEdit(_ booking: Booking) -> Bool {
+        guard ownsOrManages(booking) else { return false }
+        if isCollaborator {
+            return booking.kind == .reservation && hasCapability("RESERVATION_EDIT_OWN")
+                && [.draft, .booked].contains(booking.status)
+        }
+        return [.draft, .booked, .pendingPickup, .open].contains(booking.status)
+    }
+
+    private func canTransfer(_ booking: Booking) -> Bool {
+        !isCollaborator && ownsOrManages(booking)
+            && [.draft, .booked, .pendingPickup, .open].contains(booking.status)
+    }
+
+    private func canExtend(_ booking: Booking) -> Bool {
+        guard ownsOrManages(booking), [.booked, .open].contains(booking.status) else { return false }
+        if isCollaborator {
+            return booking.kind == .reservation && hasCapability("RESERVATION_EXTEND_OWN")
+        }
+        return true
+    }
+
+    private func canCancelReservation(_ booking: Booking) -> Bool {
+        guard booking.kind == .reservation, ownsOrManages(booking), [.draft, .booked].contains(booking.status) else { return false }
+        return !isCollaborator || hasCapability("RESERVATION_CANCEL_OWN")
+    }
+
+    private func bookingRowLink(_ booking: Booking) -> some View {
+        BookingRowLink(
+            booking: booking,
+            canEdit: canEdit(booking),
+            canTransfer: canTransfer(booking),
+            canExtend: booking.kind == .checkout && canExtend(booking),
+            canCancel: canCancelReservation(booking),
+            onEdit: { presentedAction = .edit(booking) },
+            onTransfer: { presentedAction = .transfer(booking) },
+            onExtend: { presentedAction = .extend(booking) },
+            onCancel: { cancelTarget = booking }
+        )
+    }
+
+    private func cancelReservation(_ booking: Booking) async {
+        do {
+            try await APIClient.shared.cancelBooking(id: booking.id)
+            Haptics.success()
+            await vm.load(reset: true, clearExistingRows: true)
+        } catch {
+            vm.error = error.localizedDescription
+            Haptics.warning()
+        }
+    }
+
     @ViewBuilder
     private var emptyStateActions: some View {
         if !vm.searchText.isEmpty {
@@ -514,24 +550,32 @@ struct BookingsView: View {
                 vm.searchText = ""
                 Task { await vm.load(reset: true, clearExistingRows: true) }
             } label: {
-                Label("Clear search", systemImage: "xmark.circle")
+                Label("Clear Search", systemImage: "xmark.circle")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.capsule)
+            .controlSize(.regular)
         } else if vm.scope != .all {
             Button {
                 vm.scope = .all
                 Task { await vm.load(reset: true, clearExistingRows: true) }
             } label: {
-                Label("Show all visible bookings", systemImage: "person.2")
+                Label("View All Bookings", systemImage: "person.2")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.capsule)
+            .controlSize(.regular)
+            .tint(Color.statusText(.blue))
         } else if canCreate {
             Button {
                 showCreate = true
             } label: {
                 Label("New Reservation", systemImage: "plus")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.capsule)
+            .controlSize(.regular)
+            .tint(Color.statusText(.purple))
         }
     }
 
@@ -541,6 +585,40 @@ struct BookingsView: View {
         } else if appState.consumeAppIntentDestination(.myGear) {
             navigationPath = NavigationPath()
         }
+    }
+}
+
+private struct BookingEmptyState<Actions: View>: View {
+    let icon: String
+    let tone: StatusTone
+    let title: String
+    let description: String
+    @ViewBuilder let actions: () -> Actions
+
+    var body: some View {
+        VStack(spacing: Brand.Space.md) {
+            Image(systemName: icon)
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(Color.statusText(tone))
+                .frame(width: 52, height: 52)
+                .background(Color.statusBackground(tone), in: Circle())
+                .accessibilityHidden(true)
+
+            VStack(spacing: Brand.Space.xs) {
+                Text(title)
+                    .font(.title3.weight(.bold))
+                    .multilineTextAlignment(.center)
+                Text(description)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            actions()
+        }
+        .brandCard(padding: Brand.Space.xl, radius: Brand.Radius.card, alignment: .center)
+        .accessibilityElement(children: .contain)
     }
 }
 
@@ -568,11 +646,42 @@ private struct BookingListSection<Content: View>: View {
 
 private struct BookingRowLink: View {
     let booking: Booking
+    let canEdit: Bool
+    let canTransfer: Bool
+    let canExtend: Bool
+    let canCancel: Bool
+    let onEdit: () -> Void
+    let onTransfer: () -> Void
+    let onExtend: () -> Void
+    let onCancel: () -> Void
 
     var body: some View {
         ZStack {
             NavigationLink(value: booking) { EmptyView() }.opacity(0)
             BookingRow(booking: booking)
+        }
+        .contextMenu {
+            if canEdit {
+                Button(action: onEdit) {
+                    Label("Edit Booking", systemImage: "pencil")
+                }
+            }
+            if canTransfer {
+                Button(action: onTransfer) {
+                    Label("Transfer Ownership", systemImage: "person.2")
+                }
+            }
+            if canExtend {
+                Button(action: onExtend) {
+                    Label("Extend Return", systemImage: "clock.arrow.circlepath")
+                }
+            }
+            if canCancel {
+                Divider()
+                Button(role: .destructive, action: onCancel) {
+                    Label("Cancel Reservation", systemImage: "xmark.circle")
+                }
+            }
         }
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)
@@ -580,30 +689,52 @@ private struct BookingRowLink: View {
     }
 }
 
-private struct BookingFreshnessFooter: View {
-    let lastLoadedAt: Date
-    let isRefreshing: Bool
+private struct BookingsSearchModifier: ViewModifier {
+    let isVisible: Bool
+    @Binding var text: String
+    let prompt: String
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if isVisible {
+            content.searchable(text: $text, prompt: prompt)
+        } else {
+            content
+        }
+    }
+}
+
+private struct ReservationEmptyRow: View {
+    let canCreate: Bool
+    let onCreate: () -> Void
 
     var body: some View {
-        HStack(spacing: 6) {
-            if isRefreshing {
-                ProgressView()
-                    .controlSize(.small)
-                    .accessibilityHidden(true)
-                Text("Refreshing")
-            } else {
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(.caption2.weight(.semibold))
-                    .accessibilityHidden(true)
-                Text("Updated \(lastLoadedAt.formatted(.relative(presentation: .named)))")
+        HStack(spacing: Brand.Space.sm) {
+            Image(systemName: "calendar.badge.plus")
+                .font(.body.weight(.medium))
+                .foregroundStyle(Color.statusText(.purple))
+                .frame(width: 36, height: 36)
+                .background(Color.statusBackground(.purple), in: Circle())
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("No active reservations")
+                    .font(.subheadline.weight(.semibold))
+                Text("Reserve gear for upcoming work.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: Brand.Space.sm)
+            if canCreate {
+                Button("Create", action: onCreate)
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
+                    .tint(Color.statusText(.purple))
             }
         }
-        .font(.caption2)
-        .monospacedDigit()
-        .foregroundStyle(.secondary)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .accessibilityLabel(isRefreshing ? "Refreshing bookings" : "Bookings updated \(lastLoadedAt.formatted(.relative(presentation: .named)))")
+        .padding(.vertical, Brand.Space.xs)
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
     }
 }
 
@@ -620,10 +751,9 @@ struct BookingRow: View {
         booking.serializedItems.count + booking.bulkItems.count
     }
 
-    /// The section and rail already communicate a normal active checkout.
-    /// Keep a pill only when it adds a distinct lifecycle or urgency signal.
+    /// The rail and timing color carry active-checkout urgency, including overdue.
     private var showsStatusBadge: Bool {
-        isOverdue || booking.kind != .checkout || booking.status != .open
+        booking.kind != .checkout || booking.status != .open
     }
 
     /// Accent tone for the leading bar — overdue shouts red, otherwise the
@@ -743,59 +873,22 @@ struct BookingRow: View {
         .fixedSize(horizontal: false, vertical: true)
     }
 
-    /// Live timing line: a real clock time first ("Due today at 11:30 AM"),
-    /// with the compact relative magnitude only where urgency needs it
-    /// ("2h overdue · due 11:30 AM"). Checkouts speak to their return (OPEN)
-    /// or pickup window; reservations to their start.
+    /// Shared relative-day wording. Urgency lives in the rail and text color,
+    /// not a repeated overdue badge or duration.
     private func timing(now: Date) -> (text: String, urgent: Bool) {
         if booking.kind == .checkout {
             switch booking.status {
             case .open:
-                if booking.endsAt < now {
-                    return ("\(booking.endsAt.compactMagnitude(now: now)) overdue · due \(shortWhen(booking.endsAt, now: now))", true)
-                }
-                return ("Due \(dayAndTime(booking.endsAt, now: now))", false)
+                return ("Due \(booking.endsAt.operationalDateTimeLabel(now: now, capitalizesRelativeDay: false))", booking.endsAt < now)
             case .pendingPickup, .booked:
-                if booking.startsAt < now {
-                    return ("Pickup late · was \(shortWhen(booking.startsAt, now: now))", true)
-                }
-                return ("Pickup \(dayAndTime(booking.startsAt, now: now))", false)
+                return ("Pickup \(booking.startsAt.operationalDateTimeLabel(now: now, capitalizesRelativeDay: false))", booking.startsAt < now)
             default:
-                return ("Due \(dayAndTime(booking.endsAt, now: now))", false)
+                return ("Due \(booking.endsAt.operationalDateTimeLabel(now: now, capitalizesRelativeDay: false))", false)
             }
         }
-        // Reservation: speak to its start, then read as underway.
         return booking.startsAt > now
-            ? ("Starts \(dayAndTime(booking.startsAt, now: now))", false)
-            : ("Started \(dayPhrase(booking.startsAt, now: now))", false)
-    }
-
-    /// "today", "tomorrow", "yesterday", a weekday within a week ("Friday"),
-    /// otherwise a short date ("Jul 12").
-    private func dayPhrase(_ date: Date, now: Date) -> String {
-        let cal = Calendar.current
-        if cal.isDate(date, inSameDayAs: now) { return "today" }
-        if let tomorrow = cal.date(byAdding: .day, value: 1, to: now), cal.isDate(date, inSameDayAs: tomorrow) { return "tomorrow" }
-        if let yesterday = cal.date(byAdding: .day, value: -1, to: now), cal.isDate(date, inSameDayAs: yesterday) { return "yesterday" }
-        let days = cal.dateComponents([.day], from: cal.startOfDay(for: now), to: cal.startOfDay(for: date)).day ?? 0
-        if days > 0 && days < 7 { return date.formatted(.dateTime.weekday(.wide)) }
-        return date.formatted(date: .abbreviated, time: .omitted)
-    }
-
-    /// "today at 11:30 AM" nearby, just "Jul 12" once the clock time stops
-    /// being the useful part.
-    private func dayAndTime(_ date: Date, now: Date) -> String {
-        let phrase = dayPhrase(date, now: now)
-        let days = abs(Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: now), to: Calendar.current.startOfDay(for: date)).day ?? 0)
-        guard days < 7 else { return phrase }
-        return "\(phrase) at \(date.formatted(date: .omitted, time: .shortened))"
-    }
-
-    /// For past references: the clock time when it was today, else the day.
-    private func shortWhen(_ date: Date, now: Date) -> String {
-        Calendar.current.isDate(date, inSameDayAs: now)
-            ? date.formatted(date: .omitted, time: .shortened)
-            : dayPhrase(date, now: now)
+            ? ("Starts \(booking.startsAt.operationalDateTimeLabel(now: now, capitalizesRelativeDay: false))", false)
+            : ("Started \(booking.startsAt.operationalDayLabel(now: now).lowercased())", false)
     }
 
     private var rowAccessibilityLabel: String {
@@ -805,55 +898,15 @@ struct BookingRow: View {
         parts.append(booking.requester.name)
         parts.append(booking.location.name)
         if itemCount > 0 { parts.append("\(itemCount) item\(itemCount == 1 ? "" : "s")") }
-        parts.append(StatusBadge.label(for: booking.status, kind: booking.kind, isOverdue: isOverdue))
+        if showsStatusBadge {
+            parts.append(StatusBadge.label(for: booking.status, kind: booking.kind, isOverdue: isOverdue))
+        }
         if booking.kind == .checkout {
-            parts.append("Due \(booking.endsAt.formatted(date: .abbreviated, time: .shortened))")
+            parts.append("Due \(booking.endsAt.operationalDateTimeLabel(now: .now, capitalizesRelativeDay: false))")
         } else {
-            parts.append("From \(booking.startsAt.formatted(date: .abbreviated, time: .omitted))")
+            parts.append("Starts \(booking.startsAt.operationalDateTimeLabel(now: .now, capitalizesRelativeDay: false))")
         }
         return parts.joined(separator: ", ")
-    }
-}
-
-private extension Booking {
-    func needsBookingAttention(now: Date) -> Bool {
-        let calendar = Calendar.current
-        let todayStart = calendar.startOfDay(for: now)
-        let todayEnd = calendar.date(byAdding: .day, value: 1, to: todayStart) ?? now
-
-        switch (kind, status) {
-        case (.checkout, .open):
-            return endsAt < todayEnd
-        case (.checkout, .pendingPickup), (.checkout, .booked):
-            return startsAt < todayEnd
-        case (.reservation, .booked):
-            return startsAt < todayEnd
-        default:
-            return false
-        }
-    }
-
-    func attentionPriority(now: Date) -> Int {
-        switch (kind, status) {
-        case (.checkout, .open) where endsAt < now:
-            return 0
-        case (.checkout, .pendingPickup) where startsAt < now:
-            return 1
-        case (.checkout, .open):
-            return 2
-        case (.checkout, .pendingPickup), (.checkout, .booked):
-            return 3
-        case (.reservation, .booked) where startsAt < now:
-            return 4
-        case (.reservation, .booked):
-            return 5
-        default:
-            return 9
-        }
-    }
-
-    var attentionDate: Date {
-        kind == .checkout && status == .open ? endsAt : startsAt
     }
 }
 

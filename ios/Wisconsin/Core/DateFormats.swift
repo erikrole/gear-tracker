@@ -22,6 +22,33 @@ extension Date {
         formatted(.dateTime.month(.abbreviated).day())
     }
 
+    /// Context-first day label shared by Booking list and detail.
+    /// Nearby dates prioritize recognition; farther dates stay compact and omit the year.
+    func operationalDayLabel(now: Date = .now) -> String {
+        let calendar = Calendar.current
+        if calendar.isDate(self, inSameDayAs: now) { return "Today" }
+        if calendar.isDateInTomorrow(self) { return "Tomorrow" }
+        if calendar.isDateInYesterday(self) { return "Yesterday" }
+
+        let dayDistance = calendar.dateComponents(
+            [.day],
+            from: calendar.startOfDay(for: now),
+            to: calendar.startOfDay(for: self)
+        ).day ?? 7
+        return abs(dayDistance) < 7
+            ? formatted(.dateTime.weekday(.wide))
+            : formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+    }
+
+    /// "Today at 3:00 PM", "Monday at 8:30 AM", or "Mon, Jul 27 at 8:30 AM".
+    func operationalDateTimeLabel(now: Date = .now, capitalizesRelativeDay: Bool = true) -> String {
+        let day = operationalDayLabel(now: now)
+        let displayDay = !capitalizesRelativeDay && ["Today", "Tomorrow", "Yesterday"].contains(day)
+            ? day.lowercased()
+            : day
+        return "\(displayDay) at \(gearTime)"
+    }
+
     /// "Updated 5m ago" / "Updated just now" — freshness labels.
     var freshnessLabel: String {
         let interval = Date().timeIntervalSince(self)
@@ -112,12 +139,12 @@ extension Date {
         if days > 0 {
             var parts = ["\(days) \(days == 1 ? "day" : "days")"]
             if hours > 0 { parts.append("\(hours) \(hours == 1 ? "hour" : "hours")") }
-            return parts.joined(separator: " ")
+            return parts.joined(separator: ", ")
         }
         if hours > 0 {
             var parts = ["\(hours) \(hours == 1 ? "hour" : "hours")"]
             if minutes > 0 { parts.append("\(minutes) \(minutes == 1 ? "minute" : "minutes")") }
-            return parts.joined(separator: " ")
+            return parts.joined(separator: ", ")
         }
         if minutes > 0 { return "\(minutes) \(minutes == 1 ? "minute" : "minutes")" }
         return "less than a minute"
