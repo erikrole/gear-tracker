@@ -1,6 +1,102 @@
 # Task Queue
 
-Last updated: 2026-07-17
+Last updated: 2026-07-18
+
+---
+## Completed: Native collaborator Published Schedule redesign (2026-07-18)
+
+- [x] Limit the bounded published first page to current and upcoming snapshot-backed events.
+- [x] Rebuild collaborator Schedule around date groups, classification rails, venue lines, crew previews, and resilient loading.
+- [x] Add full-screen read-only Published Event detail with operational area groups.
+- [x] Keep Follow capability-driven, server-authoritative, retryable, and safe against duplicate requests.
+- [x] Route event notifications through the sanitized published detail endpoint.
+- [x] Preserve every collaborator privacy boundary and add focused contracts.
+
+### Review
+
+- **Shipped:** Published Schedule now feels like part of the same native Schedule product while remaining a deliberately smaller, read-only collaborator surface.
+- **Boundary:** No draft Schedule state, notes, contact details, availability, trades, acknowledgements, candidate scores, gear, publication metadata, or staffing controls are exposed.
+- **Verification:** 37 focused collaborator/native contracts and all 262 native source contracts pass. TypeScript, Simulator and generic-device builds, iOS drift, and audit coverage pass. Authenticated collaborator runtime proof remains blocked by the reset Simulator session, and project consistency still reports the pre-existing checked-in XcodeGen drift.
+
+---
+## Completed: Native Schedule filters and Shift Calendar management (2026-07-18)
+
+- [x] Separate Neutral games from opponent-free Non-game events in List and Calendar.
+- [x] Rebuild Filters around scope, event type, sport, live results, Clear, and one purple Show Events action.
+- [x] Replace the one-shot Calendar handoff with an honest private-feed status and management sheet.
+- [x] Record only the locally observable Apple Calendar handoff, explain refresh authority, and keep failures retryable.
+- [x] Protect private-link rotation with a consequence warning while preserving server rate limits and audit history.
+- [x] Add focused contracts and sync Mobile, Shifts, gaps, audit, and task ledgers.
+
+### Review
+
+- **Shipped:** Schedule filtering is easier to scan, Neutral and Non-game scopes are correct, and Shift Calendar setup has visible status, recovery, and link-security controls.
+- **Boundary:** No schema, API envelope, assignment visibility, scheduling policy, token security, canonical-host, or collaborator Published Schedule behavior changed.
+- **Verification:** 28 focused and 256 full native source contracts pass. Simulator and unsigned generic-device builds pass, along with iOS drift, audit coverage, codemap/docs, and whitespace gates. Authenticated sheet proof remains blocked at Login in the reset Simulator session, and project consistency still reports the pre-existing checked-in XcodeGen drift.
+
+---
+## Completed: Native Schedule edit times and post trade redesign (2026-07-18)
+
+- [x] Rebuild Edit Call Window around event and crew-slot context with 15-minute Call and End choices.
+- [x] Keep current-year dates compact, validate ordering inline, retain failed input, and use one purple Save action.
+- [x] Replace Event detail's bare trade confirmation with the reusable Post to Trade Board sheet.
+- [x] Keep owner, shift, date, consequence, optional note, discard, retry, and VoiceOver selection context explicit.
+- [x] Preserve all existing posting permissions, assignment ownership, claim and approval policy, audit, and notification behavior.
+
+### Review
+
+- **Shipped:** Staff get a focused call-window editor, and students or staff posting a student shift now get one consistent Trade Board flow from either Schedule entry point.
+- **Boundary:** No schema, API route, permission, trade lifecycle, assignment, notification, or scheduling-policy behavior changed.
+- **Verification:** 25 focused and 252 full native source contracts pass. Simulator and unsigned generic-device builds pass, along with iOS drift and audit checks. The simulator launches to Login, but authenticated sheet inspection is blocked by the reset simulator session. Project consistency remains blocked by pre-existing checked-in XcodeGen drift.
+
+---
+## Completed: Native Schedule staff authoring redesign (2026-07-18)
+
+- [x] Rebuild Add Shift around event context, explicit area and worker class, inherited timing, and optional 15-minute custom timing.
+- [x] Bring the existing staff candidate recommendations into native Assign Person.
+- [x] Rank Best Fits first, disable hard conflicts, and confirm advisory overrides.
+- [x] Preserve search pagination, loading geometry, retry, duplicate-submit guards, accessibility, and server authority.
+- [x] Add focused contracts and sync Mobile, Shifts, gaps, audits, and task ledgers.
+
+### Review
+
+- **Shipped:** Staff can create a clear open slot and choose a candidate with the event, call window, fit, and risk context still visible.
+- **Boundary:** No schema, backend route, permission, assignment rule, approved-time-off policy, audit, or notification behavior changed.
+- **Verification:** 43 focused and 248 full native source contracts pass, along with Simulator build/run, generic-device build, iOS drift and audit checks, codemap/docs verification, and whitespace checks. Direct sheet inspection is deferred because simulator automation did not navigate despite successful element-ref actions; project consistency remains blocked by pre-existing checked-in XcodeGen drift.
+
+---
+## Completed: Native Schedule availability and Trade Board redesign (2026-07-18)
+
+- [x] Make the recurring availability week directly selectable and keep one-time exceptions separate.
+- [x] Add native availability editing through the existing PATCH route with 15-minute time choices.
+- [x] Expose My Availability from Schedule for Student scheduling-class workers while retaining Profile access.
+- [x] Rebuild Trade Board around claimable work, quiet My Posts scope, compact blocked/history context, and Schedule-style cards.
+- [x] Guard duplicate mutations and remove the accidental cancel action from available trade rows.
+- [x] Add focused native contracts and sync Mobile, Shifts, gaps, audit, and task ledgers.
+
+### Review
+
+- **Shipped:** Availability is now a weekly planning surface rather than a form list, and Trade Board now reads as an actionable Schedule queue rather than trade history.
+- **Boundary:** No schema, backend route, availability meaning, time-off approval, trade eligibility, or scheduling policy changed.
+- **Verification:** Focused and full native source contracts pass (244 tests), along with Simulator and generic-device builds, iOS drift and audit checks, codemap/docs verification, and whitespace checks. Project consistency remains blocked only by pre-existing checked-in XcodeGen drift; the full appearance and accessibility visual matrix remains recorded in the closeout plan.
+
+---
+## Completed: Native Schedule core redesign (2026-07-18)
+
+- [x] Keep List as the default all-events scope and give personal assignments a distinct blue treatment without changing event classification rails.
+- [x] Reuse one event-row hierarchy across List and selected-day Calendar results.
+- [x] Separate calendar classification dots from personal-assignment indicators.
+- [x] Replace sheet-based Event detail with parent-stack navigation from Schedule, Home, and event pushes.
+- [x] Add role-adaptive assignment, gear, open-shift, and staffing actions without a persistent bottom bar.
+- [x] Preserve crew management, trade, all-day, multi-day, permission, and API contracts.
+- [x] Add focused source contracts, sync area/audit/gap docs, and run native verification.
+
+### Review
+
+- **Shipped:** Schedule now reads as one consistent native operational flow from agenda or month selection into full-screen Event detail and back to the preserved Schedule state.
+- **Behavior:** Students see their call, area, gear readiness, linked bookings, and eligible open shifts before passive crew detail. Staff/admin retain coverage and Add Shift. The collaborator Published Schedule is unchanged.
+- **Boundary:** No API, schema, scheduling policy, permission, Trade Board, My Availability, or staff authoring-sheet redesign is included in this slice.
+- **Runtime proof:** Production-backed Event detail passed light, dark, and Accessibility Large inspection. List and Calendar screenshots remain tracked in `tasks/ios-schedule-core-redesign-plan.md` because the Mac locked before the final tab sweep.
 
 ---
 ## Completed: Native booking surface alignment (2026-07-17)

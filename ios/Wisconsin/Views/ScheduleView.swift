@@ -8,6 +8,10 @@ enum ScheduleViewMode: String, CaseIterable, Hashable {
     case calendar = "Calendar"
 }
 
+struct ScheduleEventRoute: Hashable {
+    let id: String
+}
+
 // MARK: - View Model
 
 enum MyShiftStatus: String {
@@ -120,6 +124,17 @@ enum HomeAwayFilter: String, CaseIterable {
     case home = "Home"
     case away = "Away"
     case neutral = "Neutral"
+    case nonGame = "Non-game"
+}
+
+private func scheduleEventMatches(_ event: ScheduleEvent, filter: HomeAwayFilter) -> Bool {
+    switch filter {
+    case .all: return true
+    case .home: return event.isHome == true
+    case .away: return event.isHome == false
+    case .neutral: return event.isHome == nil && event.opponent != nil
+    case .nonGame: return event.isHome == nil && event.opponent == nil
+    }
 }
 
 // MARK: - Main View
@@ -136,136 +151,682 @@ struct ScheduleView: View {
     }
 }
 
+private struct PublishedScheduleRoute: Hashable {
+    let id: String
+}
+
 private struct CollaboratorPublishedScheduleView: View {
+    private let pageSize = 50
+
     @State private var events: [PublishedScheduleEvent] = []
+    @State private var total = 0
     @State private var isLoading = false
+    @State private var isLoadingMore = false
     @State private var error: String?
+    @State private var refreshError: String?
     @State private var pendingFollowId: String?
+    @State private var routedEvents: [String: PublishedScheduleEvent] = [:]
+    @State private var isRoutingEvent = false
+    @State private var lastLoadedAt: Date?
+    @State private var navigationPath = NavigationPath()
+    @State private var toast: Toast?
     @Environment(SessionStore.self) private var session
+    @Environment(AppState.self) private var appState
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var canFollow: Bool {
         (session.currentUser?.capabilities ?? []).contains("SCHEDULE_FOLLOW")
     }
 
+    private var groupedEvents: [(date: Date, events: [PublishedScheduleEvent])] {
+        Dictionary(grouping: events) { publishedScheduleDay(for: $0.event) }
+            .sorted { $0.key < $1.key }
+            .map { date, events in
+                (date: date, events: events.sorted { $0.event.startsAt < $1.event.startsAt })
+            }
+    }
+
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             Group {
                 if isLoading && events.isEmpty {
-                    ProgressView("Loading published schedule")
-                } else if let error, events.isEmpty {
+                    publishedScheduleSkeleton
+                } else if events.isEmpty, let error {
                     ContentUnavailableView {
                         Label("Couldn't load schedule", systemImage: "wifi.exclamationmark")
                     } description: {
                         Text(error)
                     } actions: {
-                        Button("Retry") { Task { await load() } }
+                        Button("Retry") { Task { await load(forceRefresh: true) } }
                             .buttonStyle(.borderedProminent)
+                            .tint(Color.statusText(.purple))
                     }
                 } else if events.isEmpty {
                     ContentUnavailableView(
-                        "No published events",
+                        "No upcoming published events",
                         systemImage: "calendar",
-                        description: Text("Published crew assignments will appear here when they are ready.")
+                        description: Text("Published events will appear here when crew assignments are ready.")
                     )
                 } else {
-                    List(events) { item in
-                        Section {
-                            ForEach(item.crew) { member in
-                                HStack(spacing: 12) {
-                                    AsyncImage(url: member.person.avatarUrl.flatMap(URL.init(string:))) { image in
-                                        image.resizable().scaledToFill()
-                                    } placeholder: {
-                                        Circle().fill(Color.cardSurfaceRaised)
-                                            .overlay(Text(String(member.person.name.prefix(1))).font(.caption.weight(.semibold)))
-                                    }
-                                    .frame(width: 36, height: 36)
-                                    .clipShape(Circle())
-
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        Text(member.person.name).font(.subheadline.weight(.semibold))
-                                        Text("\(member.area.shiftAreaLabel) · \(member.role.replacingOccurrences(of: "_", with: " ").capitalized)")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                        Text("Call \(member.callStartsAt.formatted(date: .omitted, time: .shortened))–\(member.callEndsAt.formatted(date: .omitted, time: .shortened))")
-                                            .font(.caption.monospacedDigit())
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                                .padding(.vertical, 4)
-                            }
-                        } header: {
-                            VStack(alignment: .leading, spacing: 5) {
-                                HStack(alignment: .firstTextBaseline) {
-                                    Text(item.event.summary)
-                                        .font(.headline)
-                                        .foregroundStyle(.primary)
-                                        .textCase(nil)
-                                    Spacer()
-                                    if canFollow {
-                                        Button {
-                                            Task { await setFollowing(item) }
-                                        } label: {
-                                            Image(systemName: item.isFollowing ? "bell.slash" : "bell")
-                                                .frame(width: 44, height: 44)
-                                        }
-                                        .disabled(pendingFollowId == item.id)
-                                        .accessibilityLabel(item.isFollowing ? "Mute event updates" : "Follow event")
-                                    }
-                                }
-                                Text(item.event.startsAt.formatted(date: .abbreviated, time: .shortened))
-                                    .font(.caption.monospacedDigit())
-                                    .foregroundStyle(.secondary)
-                                if let venue = item.event.venue {
-                                    Label(venue.name, systemImage: "mappin.and.ellipse")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            .padding(.top, 8)
-                        }
-                    }
-                    .listStyle(.insetGrouped)
-                    .refreshable { await load() }
+                    publishedEventList
                 }
             }
+            .background(Color(.systemGroupedBackground))
+            .overlay(alignment: .top) {
+                if !events.isEmpty, let refreshError {
+                    publishedScheduleRefreshBanner(message: refreshError)
+                }
+            }
+            .toast($toast)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: refreshError)
             .navigationTitle("Published Schedule")
             .navigationBarTitleDisplayMode(.inline)
-            .task { await load() }
+            .navigationDestination(for: PublishedScheduleRoute.self) { route in
+                if let event = events.first(where: { $0.id == route.id }) ?? routedEvents[route.id] {
+                    PublishedEventDetailView(
+                        event: event,
+                        canFollow: canFollow,
+                        isUpdatingFollow: pendingFollowId == event.id,
+                        onToggleFollow: { Task { await setFollowing(event) } }
+                    )
+                } else {
+                    ContentUnavailableView(
+                        "Event unavailable",
+                        systemImage: "calendar.badge.exclamationmark",
+                        description: Text("Return to Published Schedule and refresh to try again.")
+                    )
+                }
+            }
+            .task {
+                await load()
+                await routePendingEventIfNeeded()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active {
+                    Task { await load() }
+                }
+            }
+            .onChange(of: appState.tabResetToken) { _, _ in
+                guard appState.resetTab == 4 else { return }
+                navigationPath = NavigationPath()
+            }
+            .onChange(of: appState.pendingPushEventId) { _, _ in
+                Task { await routePendingEventIfNeeded() }
+            }
         }
     }
 
-    private func load() async {
-        guard !isLoading else { return }
+    private var publishedScheduleSkeleton: some View {
+        List {
+            ForEach(0..<5, id: \.self) { _ in
+                PublishedEventRowSkeleton()
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private var publishedEventList: some View {
+        List {
+            ForEach(groupedEvents, id: \.date) { group in
+                Section {
+                    ForEach(group.events) { item in
+                        NavigationLink(value: PublishedScheduleRoute(id: item.id)) {
+                            PublishedEventRow(event: item)
+                        }
+                        .buttonStyle(ScalePressStyle())
+                        .contextMenu {
+                            if canFollow {
+                                Button {
+                                    Task { await setFollowing(item) }
+                                } label: {
+                                    Label(
+                                        item.isFollowing ? "Mute Event Updates" : "Follow Event",
+                                        systemImage: item.isFollowing ? "bell.slash" : "bell"
+                                    )
+                                }
+                                .disabled(pendingFollowId != nil)
+                            }
+                        }
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+                    }
+                } header: {
+                    ScheduleDateHeader(date: group.date, eventCount: group.events.count)
+                        .listRowInsets(EdgeInsets())
+                }
+                .listSectionSeparator(.hidden)
+            }
+
+            if events.count < total {
+                HStack {
+                    Spacer()
+                    ProgressView("Loading more events")
+                        .font(.caption)
+                        .task { await loadMore() }
+                    Spacer()
+                }
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
+        }
+        .listStyle(.plain)
+        .listSectionSpacing(.compact)
+        .scrollContentBackground(.hidden)
+        .contentMargins(.bottom, 96, for: .scrollContent)
+        .refreshable { await load(forceRefresh: true) }
+    }
+
+    private func publishedScheduleRefreshBanner(message: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "wifi.exclamationmark")
+                .accessibilityHidden(true)
+            Text(message)
+                .font(.footnote)
+                .lineLimit(2)
+            Spacer(minLength: 8)
+            Button("Retry") { Task { await load(forceRefresh: true) } }
+                .font(.footnote.weight(.semibold))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+        .padding(.horizontal, 12)
+        .padding(.top, 4)
+        .shadow(color: Color.primary.opacity(0.08), radius: 8, y: 2)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func load(forceRefresh: Bool = false) async {
+        guard !isLoading, !isLoadingMore else { return }
+        let isStale = lastLoadedAt.map { Date.now.timeIntervalSince($0) > scheduleStaleAfter } ?? true
+        guard forceRefresh || events.isEmpty || isStale else { return }
         isLoading = true
+        if events.isEmpty { error = nil }
+        refreshError = nil
         defer { isLoading = false }
         do {
-            events = try await APIClient.shared.publishedSchedule().data
+            let response = try await APIClient.shared.publishedSchedule(limit: pageSize)
+            events = response.data
+            total = response.total
+            lastLoadedAt = .now
             error = nil
         } catch APIError.unauthorized {
             return
         } catch {
-            self.error = error.localizedDescription
+            if events.isEmpty {
+                self.error = error.localizedDescription
+            } else {
+                refreshError = error.localizedDescription
+            }
+        }
+    }
+
+    private func loadMore() async {
+        guard !isLoading, !isLoadingMore, events.count < total else { return }
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+        do {
+            let response = try await APIClient.shared.publishedSchedule(limit: pageSize, offset: events.count)
+            let existingIds = Set(events.map(\.id))
+            events.append(contentsOf: response.data.filter { !existingIds.contains($0.id) })
+            total = response.total
+        } catch APIError.unauthorized {
+            return
+        } catch {
+            refreshError = error.localizedDescription
         }
     }
 
     private func setFollowing(_ event: PublishedScheduleEvent) async {
+        guard pendingFollowId == nil else { return }
         pendingFollowId = event.id
         defer { pendingFollowId = nil }
         do {
-            let following = !event.isFollowing
-            try await APIClient.shared.setPublishedScheduleFollow(eventId: event.id, following: following)
+            let requestedState = !event.isFollowing
+            let serverState = try await APIClient.shared.setPublishedScheduleFollow(
+                eventId: event.id,
+                following: requestedState
+            )
             if let index = events.firstIndex(where: { $0.id == event.id }) {
-                events[index].isFollowing = following
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
+                    events[index].isFollowing = serverState
+                }
             }
+            if routedEvents[event.id] != nil {
+                routedEvents[event.id]?.isFollowing = serverState
+            }
+            toast = Toast(
+                message: serverState ? "Following \(event.event.summary)" : "Muted updates for \(event.event.summary)",
+                icon: serverState ? "bell.fill" : "bell.slash.fill",
+                role: .success
+            )
         } catch {
-            self.error = error.localizedDescription
+            toast = Toast(
+                message: "Couldn't update notifications for \(event.event.summary). Try again.",
+                icon: "exclamationmark.triangle.fill",
+                role: .error
+            )
         }
+    }
+
+    private func routePendingEventIfNeeded() async {
+        guard !isRoutingEvent, let eventId = appState.pendingPushEventId else { return }
+        isRoutingEvent = true
+        defer { isRoutingEvent = false }
+
+        if events.contains(where: { $0.id == eventId }) {
+            appState.pendingPushEventId = nil
+            navigationPath.append(PublishedScheduleRoute(id: eventId))
+            return
+        }
+
+        do {
+            routedEvents[eventId] = try await APIClient.shared.publishedScheduleEvent(eventId: eventId)
+            appState.pendingPushEventId = nil
+            navigationPath.append(PublishedScheduleRoute(id: eventId))
+        } catch APIError.unauthorized {
+            return
+        } catch {
+            appState.pendingPushEventId = nil
+            toast = Toast(
+                message: "This published event is no longer available.",
+                icon: "calendar.badge.exclamationmark",
+                role: .error
+            )
+        }
+    }
+}
+
+private struct PublishedEventRow: View {
+    let event: PublishedScheduleEvent
+
+    var body: some View {
+        HStack(spacing: 12) {
+            StatusRail(color: publishedEventRailColor(event.event))
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(event.event.summary)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text("\(publishedEventType(event.event)) · \(publishedEventTime(event.event))")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+
+                if let venue = event.event.venue?.name {
+                    Label(venue, systemImage: "mappin.and.ellipse")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                HStack(spacing: 8) {
+                    PublishedCrewAvatarStack(crew: event.crew)
+                    Text(event.crew.isEmpty ? "No published crew" : publishedCrewCount(event.crew.count))
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if event.isFollowing {
+                Image(systemName: "bell.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.statusText(.purple))
+                    .frame(width: 30, height: 30)
+                    .background(Color.statusBackground(.purple), in: Circle())
+                    .accessibilityHidden(true)
+            }
+
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
+        .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                .strokeBorder(Color.hairline, lineWidth: 0.5)
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var accessibilityLabel: String {
+        var parts = [event.event.summary, publishedEventType(event.event), publishedEventTime(event.event)]
+        if let venue = event.event.venue?.name { parts.append(venue) }
+        parts.append(event.crew.isEmpty ? "No published crew" : publishedCrewCount(event.crew.count))
+        if event.isFollowing { parts.append("Following event updates") }
+        return parts.joined(separator: ", ")
+    }
+}
+
+private struct PublishedCrewAvatarStack: View {
+    let crew: [PublishedCrewMember]
+
+    var body: some View {
+        HStack(spacing: -7) {
+            ForEach(Array(crew.prefix(3))) { member in
+                PublishedCrewAvatar(person: member.person, size: 24)
+                    .overlay(Circle().strokeBorder(Color.cardSurface, lineWidth: 2))
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+private struct PublishedCrewAvatar: View {
+    let person: PublishedCrewPerson
+    let size: CGFloat
+
+    var body: some View {
+        AsyncImage(url: person.avatarUrl.flatMap(URL.init(string:))) { image in
+            image.resizable().scaledToFill()
+        } placeholder: {
+            Circle()
+                .fill(Color.cardSurfaceRaised)
+                .overlay(
+                    Text(String(person.name.prefix(1)))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                )
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+    }
+}
+
+private struct PublishedEventDetailView: View {
+    let event: PublishedScheduleEvent
+    let canFollow: Bool
+    let isUpdatingFollow: Bool
+    let onToggleFollow: () -> Void
+
+    private var crewByArea: [(area: String, crew: [PublishedCrewMember])] {
+        Dictionary(grouping: event.crew, by: \.area)
+            .sorted { publishedAreaOrder($0.key) < publishedAreaOrder($1.key) }
+            .map { (area: $0.key, crew: $0.value.sorted { $0.callStartsAt < $1.callStartsAt }) }
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                eventHero
+                if canFollow {
+                    followCard
+                }
+                crewCard
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        }
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle("Published Event")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var eventHero: some View {
+        HStack(alignment: .top, spacing: 14) {
+            StatusRail(color: publishedEventRailColor(event.event))
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(event.event.summary)
+                    .font(.title2.weight(.bold))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if let subtitle = event.event.subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Label(publishedEventDate(event.event), systemImage: "calendar")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+
+                Label(publishedEventTime(event.event), systemImage: "clock")
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(.secondary)
+
+                if let venue = event.event.venue?.name {
+                    Label(venue, systemImage: "mappin.and.ellipse")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Text(publishedEventContext(event.event))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(publishedEventRailColor(event.event))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(16)
+        .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.lg, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Brand.Radius.lg, style: .continuous)
+                .strokeBorder(Color.hairline, lineWidth: 0.5)
+        )
+        .accessibilityElement(children: .combine)
+    }
+
+    private var followCard: some View {
+        HStack(spacing: 12) {
+            Image(systemName: event.isFollowing ? "bell.fill" : "bell")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(Color.statusText(.purple))
+                .frame(width: 40, height: 40)
+                .background(Color.statusBackground(.purple), in: Circle())
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(event.isFollowing ? "Following event updates" : "Event updates are off")
+                    .font(.subheadline.weight(.semibold))
+                Text(event.isFollowing ? "Published crew changes will appear in Notifications." : "Follow this event to receive published crew changes.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Button(event.isFollowing ? "Mute" : "Follow") {
+                onToggleFollow()
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Color.statusText(.purple))
+            .disabled(isUpdatingFollow)
+        }
+        .padding(14)
+        .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.lg, style: .continuous))
+    }
+
+    private var crewCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Published Crew")
+                    .font(.title3.weight(.bold))
+                Spacer()
+                Text("\(event.crew.count)")
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+
+            if crewByArea.isEmpty {
+                ContentUnavailableView(
+                    "No published crew",
+                    systemImage: "person.2",
+                    description: Text("This event has no crew in its published snapshot.")
+                )
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+            } else {
+                ForEach(crewByArea, id: \.area) { group in
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(group.area.shiftAreaLabel)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+                            .padding(.bottom, 6)
+
+                        ForEach(group.crew) { member in
+                            if member.id != group.crew.first?.id { Divider().padding(.leading, 50) }
+                            PublishedCrewRow(member: member)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.lg, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Brand.Radius.lg, style: .continuous)
+                .strokeBorder(Color.hairline, lineWidth: 0.5)
+        )
+    }
+}
+
+private struct PublishedCrewRow: View {
+    let member: PublishedCrewMember
+
+    var body: some View {
+        HStack(spacing: 12) {
+            PublishedCrewAvatar(person: member.person, size: 38)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(member.person.name)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+
+                Text(publishedCrewRole(member.role))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Text("Call \(publishedCallWindow(member))")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(Color.statusText(.blue))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, 9)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(member.person.name), \(publishedCrewRole(member.role)), \(member.area.shiftAreaLabel), call \(publishedCallWindow(member))")
+    }
+}
+
+private struct PublishedEventRowSkeleton: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(Color.cardSurfaceRaised)
+                .frame(width: 4, height: 76)
+            VStack(alignment: .leading, spacing: 8) {
+                RoundedRectangle(cornerRadius: 5).fill(Color.cardSurfaceRaised).frame(width: 210, height: 18)
+                RoundedRectangle(cornerRadius: 5).fill(Color.cardSurfaceRaised).frame(width: 160, height: 13)
+                RoundedRectangle(cornerRadius: 5).fill(Color.cardSurfaceRaised).frame(width: 120, height: 13)
+            }
+            Spacer()
+        }
+        .padding(14)
+        .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+        .redacted(reason: .placeholder)
+    }
+}
+
+private func publishedScheduleDay(for event: PublishedEventSummary) -> Date {
+    if event.allDay {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(secondsFromGMT: 0) ?? .current
+        let components = utc.dateComponents([.year, .month, .day], from: event.startsAt)
+        return Calendar.current.date(from: components) ?? Calendar.current.startOfDay(for: event.startsAt)
+    }
+    return Calendar.current.startOfDay(for: event.startsAt)
+}
+
+private func publishedEventType(_ event: PublishedEventSummary) -> String {
+    switch event.isHome {
+    case true: "Home"
+    case false: "Away"
+    case nil: event.opponent == nil ? "Non-game" : "Neutral"
+    }
+}
+
+private func publishedEventContext(_ event: PublishedEventSummary) -> String {
+    let sport = event.sportCode.map(scheduleSportLabel)
+    return [sport, publishedEventType(event)].compactMap { $0 }.joined(separator: " · ")
+}
+
+private func publishedEventTime(_ event: PublishedEventSummary) -> String {
+    guard !event.allDay else { return "All day" }
+    let start = event.startsAt.formatted(date: .omitted, time: .shortened)
+    let end = event.endsAt.formatted(date: .omitted, time: .shortened)
+    return "\(start) – \(end)"
+}
+
+private func publishedEventDate(_ event: PublishedEventSummary) -> String {
+    let date = publishedScheduleDay(for: event)
+    let calendar = Calendar.current
+    if calendar.isDateInToday(date) { return "Today, \(date.formatted(.dateTime.month(.abbreviated).day()))" }
+    if calendar.isDateInTomorrow(date) { return "Tomorrow, \(date.formatted(.dateTime.month(.abbreviated).day()))" }
+    let year = calendar.component(.year, from: date)
+    let currentYear = calendar.component(.year, from: .now)
+    return year == currentYear
+        ? date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
+        : date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day().year())
+}
+
+private func publishedEventRailColor(_ event: PublishedEventSummary) -> Color {
+    switch event.isHome {
+    case true: Color.statusText(.green)
+    case false: Color.statusText(.orange)
+    case nil: Color(.systemGray4)
+    }
+}
+
+private func publishedCrewCount(_ count: Int) -> String {
+    count == 1 ? "1 crew member" : "\(count) crew members"
+}
+
+private func publishedCrewRole(_ role: String) -> String {
+    switch role {
+    case "FT", "STAFF": "Staff"
+    case "ST", "STUDENT": "Student"
+    default: role.replacingOccurrences(of: "_", with: " ").capitalized
+    }
+}
+
+private func publishedCallWindow(_ member: PublishedCrewMember) -> String {
+    let start = member.callStartsAt.formatted(date: .omitted, time: .shortened)
+    let end = member.callEndsAt.formatted(date: .omitted, time: .shortened)
+    return "\(start) – \(end)"
+}
+
+private func publishedAreaOrder(_ area: String) -> Int {
+    switch area {
+    case "VIDEO": 0
+    case "PHOTO": 1
+    case "GRAPHICS": 2
+    case "COMMS": 3
+    default: 4
     }
 }
 
 private struct InternalScheduleView: View {
     @State private var vm = ScheduleViewModel()
-    @State private var selectedEvent: ScheduleEvent?
+    @State private var navigationPath = NavigationPath()
     @State private var myShiftsOnly = false
     @State private var homeAwayFilter: HomeAwayFilter = .all
     /// nil = all sports. Cuts the all-team firehose down to the sport a student
@@ -275,9 +836,10 @@ private struct InternalScheduleView: View {
     @State private var viewMode: ScheduleViewMode = .list
     @State private var calendarSelectedDate: Date = .now
     @State private var showTradeBoard = false
+    @State private var showAvailability = false
     @State private var showFilters = false
+    @State private var showCalendarSetup = false
     @State private var toast: Toast?
-    @State private var isSubscribing = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(SessionStore.self) private var session
     @Environment(AppState.self) private var appState
@@ -288,16 +850,19 @@ private struct InternalScheduleView: View {
         return role == "STAFF" || role == "ADMIN"
     }
 
+    private var showsCrewCoverage: Bool {
+        canSeePastEvents
+    }
+
+    private var canManageAvailability: Bool {
+        session.currentUser?.staffingType == "ST"
+    }
+
     private var displayedGroups: [(date: Date, events: [ScheduleEvent])] {
         vm.groupedEvents.compactMap { group in
             var filtered = group.events
             if myShiftsOnly { filtered = filtered.filter { vm.shiftsByEventId[$0.id] != nil } }
-            switch homeAwayFilter {
-            case .home: filtered = filtered.filter { $0.isHome == true }
-            case .away: filtered = filtered.filter { $0.isHome == false }
-            case .neutral: filtered = filtered.filter { $0.isHome == nil }
-            case .all: break
-            }
+            filtered = filtered.filter { scheduleEventMatches($0, filter: homeAwayFilter) }
             if let sportFilter { filtered = filtered.filter { $0.sportCode == sportFilter } }
             return filtered.isEmpty ? nil : (date: group.date, events: filtered)
         }
@@ -328,8 +893,12 @@ private struct InternalScheduleView: View {
         return parts.isEmpty ? "All upcoming events" : parts.joined(separator: " · ")
     }
 
+    private var matchingEventCount: Int {
+        Set(displayedGroups.flatMap { $0.events.map(\.id) }).count
+    }
+
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             Group {
                 if vm.isLoading && vm.events.isEmpty {
                     List {
@@ -376,7 +945,8 @@ private struct InternalScheduleView: View {
                                 homeAwayFilter: homeAwayFilter,
                                 sportFilter: sportFilter,
                                 shiftsByEventId: vm.shiftsByEventId,
-                                onSelectEvent: { selectedEvent = $0 }
+                                showsCrewCoverage: showsCrewCoverage,
+                                onSelectEvent: { navigationPath.append(ScheduleEventRoute(id: $0.id)) }
                             )
                         }
                     }
@@ -384,23 +954,6 @@ private struct InternalScheduleView: View {
                 }
             }
             .overlay(alignment: .top) {
-                // Stale data indicator — shown when last load was > 5 min ago and no error.
-                if vm.isStale && !vm.events.isEmpty && !vm.isLoading && vm.refreshError == nil,
-                   let loadedAt = vm.lastLoadedAt {
-                    HStack(spacing: 6) {
-                        Image(systemName: "clock")
-                            .font(.caption2)
-                        Text("Updated \(loadedAt.formatted(.relative(presentation: .named)))")
-                            .font(.caption2)
-                    }
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(.regularMaterial, in: Capsule())
-                    .padding(.top, 4)
-                    .shadow(color: Color.primary.opacity(0.06), radius: 6, y: 2)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                }
                 // Non-blocking refresh-failed banner — lets the user keep using stale data.
                 if !vm.events.isEmpty, let refreshError = vm.refreshError {
                     HStack(spacing: 8) {
@@ -452,16 +1005,27 @@ private struct InternalScheduleView: View {
                         ? "Trade Board, \(appState.openTradeCount) open"
                         : "Trade Board")
 
-                    Button {
-                        Task { await subscribeToCalendar() }
+                    Menu {
+                        if canManageAvailability {
+                            Button {
+                                showAvailability = true
+                            } label: {
+                                Label("My Availability", systemImage: "calendar.badge.clock")
+                            }
+                        }
+
+                        Button {
+                            showCalendarSetup = true
+                        } label: {
+                            Label("Shift Calendar", systemImage: "calendar.badge.plus")
+                        }
                     } label: {
-                        Image(systemName: isSubscribing ? "calendar" : "calendar.badge.plus")
+                        Image(systemName: "ellipsis")
                             .font(.body.weight(.semibold))
                             .frame(width: 44, height: 44)
                             .foregroundStyle(Color.primary)
                     }
-                    .disabled(isSubscribing)
-                    .accessibilityLabel("Subscribe to shifts in Calendar")
+                    .accessibilityLabel("More Schedule actions")
                 }
             }
             .task {
@@ -479,7 +1043,7 @@ private struct InternalScheduleView: View {
             }
             .onChange(of: appState.tabResetToken) { _, _ in
                 guard appState.resetTab == 4 else { return }
-                selectedEvent = nil
+                navigationPath = NavigationPath()
                 myShiftsOnly = false
                 homeAwayFilter = .all
                 sportFilter = nil
@@ -487,6 +1051,8 @@ private struct InternalScheduleView: View {
                 calendarSelectedDate = .now
                 showFilters = false
                 showTradeBoard = false
+                showAvailability = false
+                showCalendarSetup = false
                 if vm.includePast {
                     vm.includePast = false
                     Task { await vm.load(forceRefresh: true) }
@@ -501,24 +1067,33 @@ private struct InternalScheduleView: View {
                 guard let eventId else { return }
                 appState.pendingPushEventId = nil
                 if let event = vm.events.first(where: { $0.id == eventId }) {
-                    selectedEvent = event
+                    navigationPath.append(ScheduleEventRoute(id: event.id))
                 } else {
                     // Events not loaded yet — force a load then open once ready.
                     Task {
                         await vm.load(forceRefresh: true)
                         if let event = vm.events.first(where: { $0.id == eventId }) {
-                            selectedEvent = event
+                            navigationPath.append(ScheduleEventRoute(id: event.id))
                         }
                     }
                 }
             }
-            .sheet(item: $selectedEvent) { event in
-                EventDetailSheet(
-                    event: event,
-                    myShift: vm.shiftsByEventId[event.id]
-                )
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
+            .navigationDestination(for: ScheduleEventRoute.self) { route in
+                if let event = vm.events.first(where: { $0.id == route.id }) {
+                    EventDetailView(
+                        event: event,
+                        myShift: vm.shiftsByEventId[event.id]
+                    )
+                } else {
+                    ContentUnavailableView(
+                        "Event unavailable",
+                        systemImage: "calendar.badge.exclamationmark",
+                        description: Text("Return to Schedule and refresh to try again.")
+                    )
+                }
+            }
+            .navigationDestination(isPresented: $showAvailability) {
+                AvailabilityView(userId: session.currentUser?.id ?? "")
             }
             .sheet(isPresented: $showFilters) {
                 ScheduleFilterSheet(
@@ -529,11 +1104,15 @@ private struct InternalScheduleView: View {
                     canSeePastEvents: canSeePastEvents,
                     availableSportCodes: availableSportCodes,
                     activeFilterCount: activeFilterCount,
+                    matchingEventCount: matchingEventCount,
                     onTogglePast: togglePastEvents,
                     onClear: clearScheduleFilters
                 )
-                .presentationDetents([.medium, .large])
+                .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showCalendarSetup) {
+                ScheduleCalendarSubscriptionSheet()
             }
             .sheet(isPresented: $showTradeBoard, onDismiss: {
                 Task { await appState.refresh(forceRefresh: true) }
@@ -624,28 +1203,6 @@ private struct InternalScheduleView: View {
         .sensoryFeedback(.selection, trigger: activeFilterCount)
     }
 
-    private func subscribeToCalendar() async {
-        isSubscribing = true
-        defer { isSubscribing = false }
-        do {
-            // Fetch existing token; generate one if the user doesn't have one yet.
-            let existing = try await APIClient.shared.icsToken()
-            let token: String
-            if let t = existing {
-                token = t
-            } else {
-                token = try await APIClient.shared.generateICSToken()
-            }
-            guard let url = AppEnvironment.webcalURL(path: "/api/shifts/ics/\(token)") else { return }
-            let opened = await UIApplication.shared.open(url)
-            if opened {
-                toast = Toast(message: "Opening Apple Calendar…", icon: "calendar.badge.checkmark", role: .info)
-            }
-        } catch {
-            toast = Toast(message: error.localizedDescription, icon: "exclamationmark.triangle", role: .error)
-        }
-    }
-
     @ViewBuilder
     private var eventList: some View {
         if displayedGroups.isEmpty {
@@ -664,13 +1221,12 @@ private struct InternalScheduleView: View {
                 ForEach(displayedGroups, id: \.date) { group in
                     Section {
                         ForEach(group.events) { event in
-                            Button {
-                                selectedEvent = event
-                            } label: {
+                            NavigationLink(value: ScheduleEventRoute(id: event.id)) {
                                 EventRow(
                                     event: event,
                                     myShift: vm.shiftsByEventId[event.id],
-                                    contextDay: group.date
+                                    contextDay: group.date,
+                                    showsCrewCoverage: showsCrewCoverage
                                 )
                             }
                             .buttonStyle(ScalePressStyle())
@@ -704,7 +1260,7 @@ private struct InternalScheduleView: View {
         if myShiftsOnly && activeFilterCount == 1 {
             return "Your schedule will show up here when staff confirm."
         }
-        return "Clear filters or try a broader sport or venue."
+        return "Clear filters or try a broader event type or sport."
     }
 }
 
@@ -719,6 +1275,7 @@ private struct ScheduleFilterSheet: View {
     let canSeePastEvents: Bool
     let availableSportCodes: [String]
     let activeFilterCount: Int
+    let matchingEventCount: Int
     let onTogglePast: () -> Void
     let onClear: () -> Void
 
@@ -734,52 +1291,389 @@ private struct ScheduleFilterSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Scope") {
-                    Toggle(isOn: $myShiftsOnly) {
-                        Label("My shifts", systemImage: myShiftsOnly ? "person.fill" : "person")
-                            .foregroundStyle(.primary)
-                    }
-
-                    if canSeePastEvents {
-                        Toggle(isOn: Binding(get: { includePast }, set: { _ in onTogglePast() })) {
-                            Label("Past events", systemImage: includePast ? "clock.arrow.circlepath" : "clock")
-                                .foregroundStyle(.primary)
-                        }
+            ScrollView {
+                VStack(spacing: 16) {
+                    resultCard
+                    scopeCard
+                    eventTypeCard
+                    if availableSportCodes.count > 1 {
+                        sportCard
                     }
                 }
-
-                Section("Venue") {
-                    Picker("Venue", selection: $homeAwayFilter) {
-                        ForEach(HomeAwayFilter.allCases, id: \.self) { filter in
-                            Text(filter.rawValue).tag(filter)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                }
-
-                if availableSportCodes.count > 1 {
-                    Section("Sport") {
-                        Picker("Sport", selection: sportSelection) {
-                            Text("All Sports").tag(Self.allSports)
-                            ForEach(availableSportCodes, id: \.self) { code in
-                                Text(scheduleSportLabel(code)).tag(code)
-                            }
-                        }
-                    }
-                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
             }
-            .navigationTitle("Filters")
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("Filter Schedule")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Clear") { onClear() }
                         .disabled(activeFilterCount == 0)
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+            }
+            .safeAreaInset(edge: .bottom) {
+                Button {
+                    dismiss()
+                } label: {
+                    Text(showResultsTitle)
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Color.statusText(.purple))
+                .controlSize(.large)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(.bar)
+            }
+        }
+    }
+
+    private var resultCard: some View {
+        HStack(spacing: 12) {
+            Image(systemName: activeFilterCount == 0 ? "calendar" : "line.3.horizontal.decrease.circle.fill")
+                .font(.title3)
+                .foregroundStyle(Color.statusText(.purple))
+                .frame(width: 40, height: 40)
+                .background(Color.statusBackground(.purple), in: Circle())
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(matchingEventCount == 1 ? "1 matching event" : "\(matchingEventCount) matching events")
+                    .font(.headline)
+                Text(activeFilterCount == 0 ? "All upcoming events" : "\(activeFilterCount) active filters")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(16)
+        .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.lg, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+
+    private var scopeCard: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Scope")
+                .font(.headline)
+                .padding(.bottom, 6)
+
+            Toggle(isOn: $myShiftsOnly) {
+                Label("Only my shifts", systemImage: myShiftsOnly ? "person.fill" : "person")
+                    .foregroundStyle(.primary)
+            }
+            .tint(Color.statusText(.purple))
+            .frame(minHeight: 44)
+
+            if canSeePastEvents {
+                Divider()
+                Toggle(isOn: Binding(get: { includePast }, set: { _ in onTogglePast() })) {
+                    Label("Include past events", systemImage: includePast ? "clock.arrow.circlepath" : "clock")
+                        .foregroundStyle(.primary)
+                }
+                .tint(Color.statusText(.purple))
+                .frame(minHeight: 44)
+            }
+        }
+        .padding(16)
+        .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.lg, style: .continuous))
+    }
+
+    private var eventTypeCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Event Type")
+                .font(.headline)
+
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 8)], spacing: 8) {
+                ForEach(HomeAwayFilter.allCases, id: \.self) { filter in
+                    Button {
+                        homeAwayFilter = filter
+                        Haptics.selection()
+                    } label: {
+                        Text(filter.rawValue)
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity, minHeight: 42)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(homeAwayFilter == filter ? Color.statusText(.purple) : .secondary)
+                    .background(
+                        homeAwayFilter == filter ? Color.statusBackground(.purple) : Color.clear,
+                        in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                    )
+                    .accessibilityAddTraits(homeAwayFilter == filter ? .isSelected : [])
                 }
             }
+        }
+        .padding(16)
+        .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.lg, style: .continuous))
+    }
+
+    private var sportCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Sport")
+                .font(.headline)
+
+            Picker("Sport", selection: sportSelection) {
+                Text("All Sports").tag(Self.allSports)
+                ForEach(availableSportCodes, id: \.self) { code in
+                    Text(scheduleSportLabel(code)).tag(code)
+                }
+            }
+            .pickerStyle(.menu)
+            .tint(Color.statusText(.purple))
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        }
+        .padding(16)
+        .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.lg, style: .continuous))
+    }
+
+    private var showResultsTitle: String {
+        matchingEventCount == 1 ? "Show 1 Event" : "Show \(matchingEventCount) Events"
+    }
+}
+
+// MARK: - Calendar Subscription
+
+private struct ScheduleCalendarSubscriptionSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @AppStorage("scheduleCalendarLastOpenedAt") private var lastOpenedAt = 0.0
+    @State private var token: String?
+    @State private var isLoading = true
+    @State private var isOpening = false
+    @State private var isResetting = false
+    @State private var error: String?
+    @State private var resetComplete = false
+    @State private var showResetConfirmation = false
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 16) {
+                    statusCard
+                    explanationCard
+                    if token != nil {
+                        securityCard
+                    }
+                    if let error {
+                        calendarErrorCard(message: error)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("Shift Calendar")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                        .disabled(isOpening || isResetting)
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                Button {
+                    Task { await openCalendar() }
+                } label: {
+                    HStack(spacing: 8) {
+                        if isOpening {
+                            ProgressView().tint(.white)
+                        } else {
+                            Image(systemName: token == nil ? "calendar.badge.plus" : "arrow.up.forward.app")
+                        }
+                        Text(token == nil ? "Set Up in Apple Calendar" : "Open Apple Calendar")
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Color.statusText(.purple))
+                .controlSize(.large)
+                .disabled(isLoading || isOpening || isResetting || error != nil)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(.bar)
+            }
+            .task { await loadStatus() }
+            .confirmationDialog(
+                "Reset private calendar link?",
+                isPresented: $showResetConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Reset Link", role: .destructive) {
+                    Task { await resetLink() }
+                }
+                Button("Keep Current Link", role: .cancel) {}
+            } message: {
+                Text("Existing calendar subscriptions will stop updating. You'll need to subscribe again with the new link.")
+            }
+            .interactiveDismissDisabled(isOpening || isResetting)
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var statusCard: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: token == nil ? "calendar.badge.plus" : "calendar.badge.checkmark")
+                .font(.title2)
+                .foregroundStyle(Color.statusText(token == nil ? .purple : .green))
+                .frame(width: 46, height: 46)
+                .background(Color.statusBackground(token == nil ? .purple : .green), in: Circle())
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 5) {
+                if isLoading {
+                    Text("Checking your calendar feed")
+                        .font(.headline)
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Text(token == nil ? "Ready to set up" : "Private feed ready")
+                        .font(.headline)
+                    Text(statusDetail)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    if resetComplete {
+                        Text("Link reset. Subscribe again to keep receiving updates.")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Color.statusText(.purple))
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.lg, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+
+    private var explanationCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("How it works", systemImage: "arrow.triangle.2.circlepath")
+                .font(.headline)
+                .foregroundStyle(.primary)
+
+            calendarExplanationRow("Gear Tracker updates the feed when your assignment or call time changes.")
+            calendarExplanationRow("Apple Calendar controls when subscribed calendars refresh.")
+            calendarExplanationRow("Editing a calendar event does not change your official Schedule assignment.")
+        }
+        .padding(16)
+        .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.lg, style: .continuous))
+    }
+
+    private var securityCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Private Feed Link")
+                .font(.headline)
+            Text("Treat this link like a password. Reset it if it was shared or if an old calendar should stop receiving updates.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Button("Reset Private Link", role: .destructive) {
+                showResetConfirmation = true
+            }
+            .disabled(isResetting || isOpening)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.lg, style: .continuous))
+    }
+
+    private func calendarExplanationRow(_ text: String) -> some View {
+        HStack(alignment: .top, spacing: 9) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(Color.statusText(.purple))
+                .accessibilityHidden(true)
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func calendarErrorCard(message: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(Color.statusText(.red))
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Couldn't update calendar")
+                    .font(.subheadline.weight(.semibold))
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Retry") { Task { await loadStatus() } }
+                .font(.caption.weight(.semibold))
+                .disabled(isLoading || isOpening || isResetting)
+        }
+        .padding(14)
+        .background(Color.statusBackground(.red), in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+    }
+
+    private var statusDetail: String {
+        guard lastOpenedAt > 0 else {
+            return token == nil ? "Create a private feed and hand it to Apple Calendar." : "Open Apple Calendar to subscribe with this feed."
+        }
+        let date = Date(timeIntervalSince1970: lastOpenedAt)
+        return "Apple Calendar last opened \(date.formatted(.relative(presentation: .named)))."
+    }
+
+    private func loadStatus() async {
+        guard !isOpening, !isResetting else { return }
+        isLoading = true
+        error = nil
+        defer { isLoading = false }
+        do {
+            token = try await APIClient.shared.icsToken()
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    private func openCalendar() async {
+        guard !isOpening, !isResetting else { return }
+        isOpening = true
+        error = nil
+        defer { isOpening = false }
+        do {
+            let activeToken: String
+            if let token {
+                activeToken = token
+            } else {
+                activeToken = try await APIClient.shared.generateICSToken()
+                token = activeToken
+            }
+            guard let url = AppEnvironment.webcalURL(path: "/api/shifts/ics/\(activeToken)") else {
+                error = "The calendar link couldn't be created."
+                return
+            }
+            guard await UIApplication.shared.open(url) else {
+                error = "Apple Calendar couldn't open. Try again from this screen."
+                return
+            }
+            lastOpenedAt = Date.now.timeIntervalSince1970
+            resetComplete = false
+            Haptics.success()
+        } catch {
+            self.error = error.localizedDescription
+            Haptics.warning()
+        }
+    }
+
+    private func resetLink() async {
+        guard !isResetting, !isOpening else { return }
+        isResetting = true
+        error = nil
+        defer { isResetting = false }
+        do {
+            token = try await APIClient.shared.generateICSToken()
+            lastOpenedAt = 0
+            resetComplete = true
+            Haptics.success()
+        } catch {
+            self.error = error.localizedDescription
+            Haptics.warning()
         }
     }
 }
@@ -793,6 +1687,7 @@ struct ScheduleCalendarView: View {
     let homeAwayFilter: HomeAwayFilter
     var sportFilter: String?
     let shiftsByEventId: [String: MyShift]
+    let showsCrewCoverage: Bool
     let onSelectEvent: (ScheduleEvent) -> Void
 
     @State private var displayedMonth: Date = {
@@ -812,12 +1707,7 @@ struct ScheduleCalendarView: View {
         let day = calendar.startOfDay(for: date)
         var all = eventsByDay[day] ?? []
         if myShiftsOnly { all = all.filter { shiftsByEventId[$0.id] != nil } }
-        switch homeAwayFilter {
-        case .home: all = all.filter { $0.isHome == true }
-        case .away: all = all.filter { $0.isHome == false }
-        case .neutral: all = all.filter { $0.isHome == nil }
-        case .all: break
-        }
+        all = all.filter { scheduleEventMatches($0, filter: homeAwayFilter) }
         if let sportFilter { all = all.filter { $0.sportCode == sportFilter } }
         return all
     }
@@ -894,7 +1784,7 @@ struct ScheduleCalendarView: View {
 
     private var dotLegend: some View {
         HStack(spacing: 12) {
-            LegendDot(color: Color.statusText(.blue), label: "My shift")
+            LegendAssignmentMark(label: "My shift")
             LegendDot(color: Color.statusText(.green), label: "Home")
             LegendDot(color: Color.statusText(.orange), label: "Away")
         }
@@ -992,7 +1882,8 @@ struct ScheduleCalendarView: View {
                         EventRow(
                             event: event,
                             myShift: shiftsByEventId[event.id],
-                            contextDay: calendar.startOfDay(for: selectedDate)
+                            contextDay: calendar.startOfDay(for: selectedDate),
+                            showsCrewCoverage: showsCrewCoverage
                         )
                     }
                     .buttonStyle(ScalePressStyle())
@@ -1020,22 +1911,17 @@ struct ScheduleCalendarView: View {
         return empties + days
     }
 
-    // Returns up to 3 dot descriptors for a given day.
-    // Dot color encodes home (green) / away (orange) / neutral (secondary).
-    // My-shift events get an accent-colored dot regardless of home/away.
+    // Venue and personal-work signals stay independent: each event keeps its
+    // home/away/neutral dot while the day cell adds one blue assignment mark.
     private func dotInfo(for date: Date) -> [DotInfo] {
         let visible = filteredEvents(on: date)
         return visible.prefix(3).map { event in
             let isShift = shiftsByEventId[event.id] != nil
             let color: Color
-            if isShift {
-                color = Color.statusText(.blue)
-            } else {
-                switch event.isHome {
-                case true:  color = Color.statusText(.green)
-                case false: color = Color.statusText(.orange)
-                default:    color = Color(.systemGray3)
-                }
+            switch event.isHome {
+            case true:  color = Color.statusText(.green)
+            case false: color = Color.statusText(.orange)
+            default:    color = Color(.systemGray3)
             }
             return DotInfo(color: color, isShift: isShift)
         }
@@ -1056,6 +1942,22 @@ private struct LegendDot: View {
             Circle()
                 .fill(color)
                 .frame(width: 6, height: 6)
+                .accessibilityHidden(true)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct LegendAssignmentMark: View {
+    let label: String
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Capsule()
+                .fill(Color.statusText(.blue))
+                .frame(width: 10, height: 2)
                 .accessibilityHidden(true)
             Text(label)
                 .font(.caption2)
@@ -1096,7 +1998,8 @@ private struct DayCell: View {
             }
             .frame(width: 34, height: 34)
 
-            // Dots row — always reserve space so grid rows stay even
+            // Venue dots retain classification color even when the day also
+            // contains personal work.
             HStack(spacing: 3) {
                 ForEach(dots.indices, id: \.self) { i in
                     Circle()
@@ -1105,8 +2008,13 @@ private struct DayCell: View {
                 }
             }
             .frame(height: 5)
+
+            Capsule()
+                .fill(dots.contains(where: \.isShift) ? Color.statusText(.blue) : Color.clear)
+                .frame(width: 10, height: 2)
+                .accessibilityHidden(true)
         }
-        .frame(minWidth: 44, minHeight: 52)
+        .frame(minWidth: 44, minHeight: 56)
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
@@ -1145,13 +2053,22 @@ private struct ScheduleDateHeader: View {
         return date.formatted(.dateTime.weekday(.wide))
     }
 
+    private var dateLabel: String {
+        let calendar = Calendar.current
+        let year = calendar.component(.year, from: date)
+        let currentYear = calendar.component(.year, from: .now)
+        return year == currentYear
+            ? date.formatted(.dateTime.month(.abbreviated).day())
+            : date.formatted(.dateTime.month(.abbreviated).day().year())
+    }
+
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(primaryLabel)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(isToday ? Color.brandPrimary : .primary)
-                Text(date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().year()))
+                Text(dateLabel)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -1204,6 +2121,7 @@ struct EventRow: View {
     /// The day this row is rendered under. For a multi-day event it drives the
     /// "Day n/m" marker and the segment-aware time line.
     var contextDay: Date? = nil
+    var showsCrewCoverage = true
 
     /// When this row represents one day of a multi-day event, its 1-based
     /// position and the total span length.
@@ -1232,25 +2150,32 @@ struct EventRow: View {
         HStack(spacing: 12) {
             StatusRail(color: barColor)
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 5) {
                 Text(eventDisplayTitle)
                     .font(.body.weight(.semibold))
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
 
-                // One calm secondary line carries the rest, so the title no
-                // longer competes with a cluster of pills.
                 metaLine
+
+                if let venueName {
+                    Label(venueName, systemImage: "mappin.and.ellipse")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                if let myShift {
+                    personalWorkLine(myShift)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
             // Crew fill is the one at-a-glance signal worth a trailing chip.
-            if let cov = event.coverage, cov.total > 0 {
+            if showsCrewCoverage, let cov = event.coverage, cov.total > 0 {
                 coverageChip(cov)
             }
 
-            // Disclosure chevron — the row opens the event detail sheet, so per
-            // the HIG it carries a disclosure indicator to read as navigable.
             Image(systemName: "chevron.right")
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(.tertiary)
@@ -1258,11 +2183,11 @@ struct EventRow: View {
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 14)
-        .background(Color.cardSurface)
+        .background(myShift == nil ? Color.cardSurface : Color.statusBackground(.blue).opacity(0.34))
         .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
-                .strokeBorder(Color.hairline, lineWidth: 0.5)
+                .strokeBorder(myShift == nil ? Color.hairline : Color.statusText(.blue).opacity(0.32), lineWidth: myShift == nil ? 0.5 : 1)
         )
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(rowAccessibilityLabel)
@@ -1272,11 +2197,9 @@ struct EventRow: View {
     /// replacing the old stack of pills that crowded the title.
     private var metaLine: some View {
         HStack(spacing: 5) {
-            if let isHome = event.isHome {
-                Text(isHome ? "Home" : "Away")
-                    .foregroundStyle(.secondary)
-                metaDot
-            }
+            Text(eventTypeLabel)
+                .foregroundStyle(.secondary)
+            metaDot
             Text(timeRowText)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
@@ -1284,11 +2207,6 @@ struct EventRow: View {
                 metaDot
                 Text("Day \(seg.index) of \(seg.total)")
                     .foregroundStyle(.secondary)
-            }
-            if myShift != nil {
-                metaDot
-                Text("My shift")
-                    .foregroundStyle(Color.statusText(.blue))
             }
         }
         .font(.subheadline)
@@ -1300,16 +2218,51 @@ struct EventRow: View {
         Text("·").foregroundStyle(.tertiary)
     }
 
+    private var eventTypeLabel: String {
+        switch event.isHome {
+        case true: return "Home"
+        case false: return "Away"
+        case nil: return event.opponent == nil ? "Non-game" : "Neutral"
+        }
+    }
+
+    private var venueName: String? {
+        if let name = event.location?.name, !name.isEmpty { return name }
+        if let raw = event.rawLocationText?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty { return raw }
+        return nil
+    }
+
+    private func personalWorkLine(_ shift: MyShift) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: "person.fill.checkmark")
+                .font(.caption2.weight(.semibold))
+                .accessibilityHidden(true)
+            Text(personalWorkText(shift))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(Color.statusText(.blue))
+    }
+
+    private func personalWorkText(_ shift: MyShift) -> String {
+        var parts: [String] = []
+        if !event.displayAllDay {
+            parts.append("Call \(shift.startsAt.formatted(date: .omitted, time: .shortened))")
+        }
+        parts.append(shift.area.shiftAreaLabel)
+        parts.append(shift.gear.gearLabel)
+        return parts.joined(separator: " · ")
+    }
+
     private var rowAccessibilityLabel: String {
         var parts: [String] = []
         if myShift != nil { parts.append("My shift") }
         parts.append(eventDisplayTitle)
-        if let cov = event.coverage, cov.total > 0 {
+        if showsCrewCoverage, let cov = event.coverage, cov.total > 0 {
             parts.append("Crew \(cov.filled) of \(cov.total)")
         }
-        if let isHome = event.isHome {
-            parts.append(isHome ? "Home" : "Away")
-        }
+        parts.append(eventTypeLabel)
         if event.displayAllDay {
             parts.append("All day")
         } else if let shift = myShift {
@@ -1321,14 +2274,16 @@ struct EventRow: View {
             } else {
                 parts.append("Call \(callTime), event \(eventTime), end \(endTime)")
             }
+            parts.append(shift.area.shiftAreaLabel)
+            parts.append(shift.gear.gearLabel)
         } else {
             parts.append(eventTimeLabel)
         }
         if let segment {
             parts.append("Day \(segment.index) of \(segment.total)")
         }
-        if let location = event.location {
-            parts.append(location.name)
+        if let venueName {
+            parts.append(venueName)
         }
         return parts.joined(separator: ", ")
     }

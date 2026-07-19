@@ -122,8 +122,8 @@ First slice:
 
 ## Slices
 - [ ] Slice 1: Define shared "my shift summary" contract for Home, widgets, calendar status, and Apple Calendar metadata.
-- [ ] Slice 2: Harden ICS feed metadata and subscription UX, with tests for token, active-user gating, UID stability, escaping, and custom metadata.
-- [ ] Slice 3: Add native Calendar status/management screen with subscribe/open, rotate token, and plain-language refresh expectations.
+- [x] Slice 2: Harden ICS feed metadata and subscription UX, with tests for token, active-user gating, UID stability, escaping, and custom metadata.
+- [x] Slice 3: Add native Calendar status/management screen with subscribe/open, rotate token, and plain-language refresh expectations.
 - [ ] Slice 4: Add iOS Home/AFM greeting summary helper and Gotham Black header.
 - [ ] Slice 5: Add App Group cached shift snapshot writer.
 - [ ] Slice 6: Add WidgetKit small/medium/Lock Screen widgets backed by cached shift snapshots.
@@ -149,6 +149,6 @@ First slice:
 - Stop if Gotham Ultra is referenced in native UI before the font file is actually bundled and licensed for the app target.
 
 ## Review
-- Shipped: Plan only. No implementation shipped in this intake.
-- Verified: Current source supports upcoming shift data, ICS token generation, Apple Calendar subscription launch, push tap-through, and bundled Gotham Black/Bold.
-- Deferred: WidgetKit target, App Group cache, hardened ICS metadata, native Calendar status screen, EventKit managed-calendar reconciliation, and Home/AFM greeting implementation.
+- Shipped: Calendar Trust V1 is complete. The ICS feed carries stable assignment identity, effective personal call windows, deep links, update metadata, matchup context, and trade state. Native Shift Calendar management reports private-feed readiness and the app's last Calendar handoff, opens Apple Calendar, rotates the private link with an invalidation warning, and explains that Gear Tracker remains authoritative while Apple controls refresh timing.
+- Verified: Server ICS and token contracts, focused native calendar-management contracts, shared-host routing, iOS audits, and Wisconsin simulator/device builds are recorded in the implementation ledgers.
+- Deferred: Shared shift summary, Home greeting, App Group snapshot writer, WidgetKit surfaces, and any EventKit-managed reconciliation mode remain future slices.

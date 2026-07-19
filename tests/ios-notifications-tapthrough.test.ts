@@ -63,7 +63,9 @@ describe("iOS notification tap-through contracts", () => {
 
     expect(schedule).toContain(".onChange(of: appState.pendingPushEventId)");
     expect(schedule).toContain("appState.pendingPushEventId = nil");
-    expect(schedule).toContain("selectedEvent = event");
+    expect(schedule).toContain("navigationPath.append(ScheduleEventRoute(id: event.id))");
+    expect(schedule).toContain("APIClient.shared.publishedScheduleEvent(eventId: eventId)");
+    expect(schedule).toContain("navigationPath.append(PublishedScheduleRoute(id: eventId))");
 
     expect(notificationModels).toContain("let eventId: String?");
     expect(notifications).toContain("if isShiftTargetedType(notif.type), let eventId = notif.payload?.eventId");

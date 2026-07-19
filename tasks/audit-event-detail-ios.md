@@ -6,6 +6,32 @@
 
 Scope: `EventDetailSheet` + `EventDetailViewModel` + `CoveragePill` + `AreaBlock` + `ShiftRow` + `EditShiftTimesSheet` in `ios/Wisconsin/Views/EventDetailSheet.swift`. Slice 8 (2026-05-07) shipped status-token migration on the embedded "Pending" pill + Approve/Decline mini buttons; this is the focused follow-up.
 
+## 2026-07-18 Full-screen Redesign Follow-up
+
+- [x] `EventDetailSheet` presentation was refactored into reusable `EventDetailView` and now uses the parent navigation stack with standard Back behavior.
+- [x] A compact classification hero leads into role-adaptive assignment, gear, open-shift, or staffing actions.
+- [x] `MyShift.gear.bookings` now drives direct booking rows without fetching the dashboard payload.
+- [x] Unassigned students get one explicit Open Shifts claim surface; duplicate Claim controls are suppressed in crew rows.
+- [x] Staff assignment, unassignment, approval, duplication, deletion, call-time editing, and trade controls remain in the existing row/context flows.
+- [x] Action failures use mutation-specific titles and Try Again while preserving the current detail state.
+
+## 2026-07-18 Staff Authoring Follow-up
+
+- [x] Add Shift receives event identity from Event detail and separates area, worker class, and inherited or custom call-window decisions.
+- [x] Custom shift timing uses 15-minute options, omits the current year, validates end after call, and keeps submission state visible.
+- [x] Assign Person receives event title, slot class, area, and call-window context from the selected open shift.
+- [x] Existing candidate scores now order Best Fits before review candidates and explain the strongest fit or warning signal.
+- [x] Hard conflicts are disabled; advisory availability conflicts retain staff override through an explicit Assign Anyway confirmation.
+- [x] Initial loading uses candidate-shaped skeletons and assignment failure keeps the candidate plus a Retry action.
+
+## 2026-07-18 Edit Times and Post Trade Follow-up
+
+- [x] Edit Shift Times now carries event, area, and worker-class context and shares Add Shift's 15-minute Call and End controls.
+- [x] Current-year dates stay compact, invalid windows explain themselves inline, and one purple Save action is guarded against duplicates.
+- [x] Failed saves keep the edited times visible with a named Retry action.
+- [x] Event detail replaces its bare trade confirmation with the shared Post to Trade Board sheet, including optional notes and explicit assignment consequences.
+- [x] Existing role gates, shift mutation, trade mutation, and crew-row context menus remain unchanged.
+
 **Surrounding context:** event detail is the schedule's primary touchpoint — students see "what's the event, what's the call time, can I request a slot," staff see "who's pending, approve/decline, add/remove shifts." Reachable from `ScheduleView` (with `myShift` populated) and `HomeView` (with `myShift` nil — prep gear button hidden). Action handlers all share a single `actionError` alert.
 
 ## P0 — blocks MVP
@@ -52,9 +78,9 @@ _None._ Auth/role gating is correct (`canManageShifts` for STAFF/ADMIN, `isStude
 
 ## P2 — post-MVP
 
-- [ ] [Polish] **Deferred.** Prep-gear flow swallows the new booking ID (`{ _ in }` callback) — after creating prep gear, the user has no way to navigate to the new booking. Requires multi-surface coordination (ScheduleView / HomeView pass a callback in via the sheet present site). Worth wiring once a "see what I just booked" UX gap is documented.
-- [ ] [Polish] **Deferred.** Action-error alert title is generic ("Couldn't update shift") for all action types (request, approve, decline, delete, etc.). Per-type titles would be more specific but also more code; the body of the alert carries the actual server message which is the actionable part.
-- [ ] [Polish] **Deferred.** Action-error alert is OK-only (no Retry path). Same shape of fix as create-booking shipped today, but the seven action handlers complicate which to retry. Skip until a documented friction point.
+- [x] [Polish] Prep-gear creation retains the new booking ID, opens Booking Detail, and leaves a persistent Gear reserved route on return.
+- [x] [Polish] Action-error alerts use mutation-specific titles.
+- [x] [Polish] Mutation failures offer Try Again and retain the current Event detail state.
 - [ ] [Polish] **Deferred.** Race-protection on rapid taps of Approve/Decline mini buttons. Server enforces idempotency; the second tap's API call returns 409 and surfaces. Acceptable.
 - [ ] [Polish] **Deferred.** "Replace…" assign-someone flow needs to surface the current assignee for context — today the picker just shows the roster; the staffer has to remember who they're replacing.
 

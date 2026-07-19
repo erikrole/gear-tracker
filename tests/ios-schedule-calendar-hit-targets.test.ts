@@ -12,7 +12,7 @@ describe("iOS schedule calendar hit targets", () => {
 
     expect(scheduleView).toContain("Button {\n                            withAnimation(.easeInOut(duration: 0.15))");
     expect(scheduleView).toContain("DayCell(");
-    expect(scheduleView).toContain(".frame(minWidth: 44, minHeight: 52)");
+    expect(scheduleView).toContain(".frame(minWidth: 44, minHeight: 56)");
     expect(scheduleView).toContain(".contentShape(Rectangle())");
     expect(scheduleView).toContain(".accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)");
   });

@@ -37,6 +37,12 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Active Follow-up Ledgers
 
+- `ios-collaborator-published-schedule-redesign-plan.md` - implementation and source/build verification are complete; authenticated temporary-collaborator runtime proof remains blocked by the reset Simulator session.
+- `ios-schedule-filters-calendar-management-redesign-plan.md` - result-oriented Schedule filters and recoverable Shift Calendar management plus verification.
+- `ios-schedule-edit-times-post-trade-redesign-plan.md` - Edit Call Window and unified Post to Trade Board redesign plus verification.
+- `ios-schedule-staff-authoring-redesign-plan.md` - Add Shift and Assign Person redesign plus verification.
+- `ios-schedule-availability-trade-redesign-plan.md` - interactive Availability and action-first Trade Board implementation and verification.
+- `ios-schedule-core-redesign-plan.md` - implementation is complete; List and Calendar appearance screenshots remain blocked only by the locked Mac.
 - `admin-helper-followups.md` - remaining admin helper and low-priority systemic follow-ups.
 - `bulk-battery-followups.md` - remaining battery-adjacent future slices.
 - `internal-public-beta-release-cut-followup.md` - release cut work that requires a clean worktree and explicit shipping approval.

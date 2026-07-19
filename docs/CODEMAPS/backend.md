@@ -23,7 +23,7 @@
 | `src/lib/services/category-mutations.ts` | 174 |
 | `src/lib/services/checkout-policies.ts` | 40 |
 | `src/lib/services/collaborator-policies.ts` | 400 |
-| `src/lib/services/collaborator-schedule.ts` | 212 |
+| `src/lib/services/collaborator-schedule.ts` | 213 |
 | `src/lib/services/dashboard-counts.ts` | 116 |
 | `src/lib/services/event-defaults.ts` | 69 |
 | `src/lib/services/firmware-watch.ts` | 299 |

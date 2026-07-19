@@ -51,23 +51,22 @@ final class EventDetailViewModel {
     }
 }
 
-// MARK: - Sheet
+// MARK: - Detail
 
-struct EventDetailSheet: View {
+struct EventDetailView: View {
     let event: ScheduleEvent
     let myShift: MyShift?
     let eventWork: DashboardEventWork?
     @Environment(SessionStore.self) private var session
-    @Environment(\.dismiss) private var dismiss
 
     @State private var vm: EventDetailViewModel
-    @State private var navigationPath = NavigationPath()
     @State private var weatherData: EventWeatherData?
     @State private var prepGearOpen = false
     @State private var createdGearBookingId: String?
+    @State private var pushBooking: BookingRouteId?
     @State private var assignTarget: EventShift?
     @State private var claimTarget: EventShift?
-    @State private var postTradeTarget: ShiftAssignmentRecord?
+    @State private var postTradeTarget: TradePostCandidate?
     @State private var cancelTradeTarget: ShiftAssignmentRecord?
     @State private var unassignTarget: ShiftAssignmentRecord?
     @State private var deleteTarget: EventShift?
@@ -75,6 +74,8 @@ struct EventDetailSheet: View {
     @State private var showAddShift = false
     @State private var isCreatingGroup = false
     @State private var actionError: String?
+    @State private var actionErrorTitle = "Couldn't update event"
+    @State private var actionRetry: (() -> Void)?
 
     init(event: ScheduleEvent, myShift: MyShift?, eventWork: DashboardEventWork? = nil) {
         self.event = event
@@ -93,180 +94,174 @@ struct EventDetailSheet: View {
     }
 
     var body: some View {
-        NavigationStack(path: $navigationPath) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: Brand.Space.lg) {
-                    eventHeader
-                    if showsYourEventSection {
-                        gearAndCallSection
-                    }
-                    crewSection
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: Brand.Space.md) {
+                eventHeader
+                if showsYourEventSection {
+                    assignmentSection
                 }
-                .padding(.horizontal, Brand.Space.md)
-                .padding(.vertical, Brand.Space.md)
+                if showsOpenShiftSection {
+                    openShiftSection
+                }
+                if canManageShifts {
+                    staffingActionSection
+                }
+                crewSection
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text("Event")
-                        .font(.headline)
-                        .lineLimit(1)
-                }
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
-                }
-                if canManageShifts && vm.shiftGroup != nil {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            showAddShift = true
-                        } label: {
-                            Label("Add shift", systemImage: "plus")
-                        }
-                        .labelStyle(.titleAndIcon)
-                    }
-                }
+            .padding(.horizontal, Brand.Space.md)
+            .padding(.top, Brand.Space.sm)
+            .padding(.bottom, Brand.Space.xl)
+        }
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("Event")
+                    .font(.headline)
+                    .lineLimit(1)
             }
-            .task { await vm.load() }
-            .task { weatherData = await EventWeatherService.shared.weather(for: event) }
-            .sheet(isPresented: $prepGearOpen) {
-                CreateBookingSheet(vm: makePrepGearVM()) { newId in
-                    prepGearOpen = false
-                    createdGearBookingId = newId
-                    navigationPath.append(BookingRouteId(id: newId))
-                }
+        }
+        .task { await vm.load() }
+        .task { weatherData = await EventWeatherService.shared.weather(for: event) }
+        .refreshable { await vm.load() }
+        .sheet(isPresented: $prepGearOpen) {
+            CreateBookingSheet(vm: makePrepGearVM()) { newId in
+                prepGearOpen = false
+                createdGearBookingId = newId
+                pushBooking = BookingRouteId(id: newId)
             }
-            .navigationDestination(for: BookingRouteId.self) { route in
-                BookingDetailView(bookingId: route.id)
-            }
-            .sheet(item: $assignTarget) { shift in
-                AssignStudentSheet(
-                    shiftId: shift.id,
-                    shiftArea: shift.area,
-                    sportCode: event.sportCode,
-                    onAssigned: { Task { await vm.load() } }
+        }
+        .navigationDestination(item: $pushBooking) { route in
+            BookingDetailView(bookingId: route.id)
+        }
+        .sheet(item: $assignTarget) { shift in
+            AssignStudentSheet(
+                shiftId: shift.id,
+                shiftArea: shift.area,
+                shiftWorkerType: shift.workerType,
+                shiftStartsAt: shift.startsAt,
+                shiftEndsAt: shift.endsAt,
+                eventTitle: scheduleEventDisplayTitle(event),
+                sportCode: event.sportCode,
+                onAssigned: { Task { await vm.load() } }
+            )
+        }
+        .sheet(isPresented: $showAddShift) {
+            if let group = vm.shiftGroup {
+                AddShiftSheet(
+                    shiftGroupId: group.id,
+                    eventTitle: scheduleEventDisplayTitle(event),
+                    defaultStart: event.startsAt,
+                    defaultEnd: event.endsAt,
+                    onAdded: { Task { await vm.load() } }
                 )
             }
-            .sheet(isPresented: $showAddShift) {
-                if let group = vm.shiftGroup {
-                    AddShiftSheet(
-                        shiftGroupId: group.id,
-                        defaultStart: event.startsAt,
-                        defaultEnd: event.endsAt,
-                        onAdded: { Task { await vm.load() } }
-                    )
-                }
+        }
+        .sheet(item: $editTimesTarget) { shift in
+            EditShiftTimesSheet(
+                shift: shift,
+                eventTitle: scheduleEventDisplayTitle(event)
+            ) { newStart, newEnd in
+                await updateShiftTimes(shift, startsAt: newStart, endsAt: newEnd)
             }
-            .sheet(item: $editTimesTarget) { shift in
-                EditShiftTimesSheet(shift: shift) { newStart, newEnd in
-                    await updateShiftTimes(shift, startsAt: newStart, endsAt: newEnd)
-                }
+        }
+        .sheet(item: $postTradeTarget) { candidate in
+            PostTradeSheet(candidate: candidate) { _ in
+                Task { await vm.load() }
             }
-            .confirmationDialog(
-                claimDialogTitle,
-                isPresented: Binding(
-                    get: { claimTarget != nil },
-                    set: { if !$0 { claimTarget = nil } }
-                ),
-                titleVisibility: .visible
-            ) {
-                Button("Claim shift") {
-                    guard let shift = claimTarget else { return }
-                    Task { await claimShift(shift) }
-                    claimTarget = nil
-                }
-                Button("Cancel", role: .cancel) { claimTarget = nil }
-            } message: {
-                Text("You will be assigned immediately.")
+        }
+        .confirmationDialog(
+            claimDialogTitle,
+            isPresented: Binding(
+                get: { claimTarget != nil },
+                set: { if !$0 { claimTarget = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Claim shift") {
+                guard let shift = claimTarget else { return }
+                Task { await claimShift(shift) }
+                claimTarget = nil
             }
-            .confirmationDialog(
-                postTradeDialogTitle,
-                isPresented: Binding(
-                    get: { postTradeTarget != nil },
-                    set: { if !$0 { postTradeTarget = nil } }
-                ),
-                titleVisibility: .visible
-            ) {
-                Button("Post to Trade Board") {
-                    guard let assignment = postTradeTarget else { return }
-                    Task { await postTradeToBoard(assignment) }
-                    postTradeTarget = nil
-                }
-                Button("Cancel", role: .cancel) { postTradeTarget = nil }
-            } message: {
-                if let assignment = postTradeTarget {
-                    let owner = assignment.user.id == session.currentUser?.id ? "You stay" : "\(assignment.user.name) stays"
-                    Text("Others in the same area can claim it. \(owner) scheduled until someone does.")
-                }
+            Button("Cancel", role: .cancel) { claimTarget = nil }
+        } message: {
+            Text("You will be assigned immediately.")
+        }
+        .confirmationDialog(
+            "Remove from Trade Board?",
+            isPresented: Binding(
+                get: { cancelTradeTarget != nil },
+                set: { if !$0 { cancelTradeTarget = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Remove from Trade Board") {
+                guard let assignment = cancelTradeTarget else { return }
+                Task { await removeTradeFromBoard(assignment) }
+                cancelTradeTarget = nil
             }
-            .confirmationDialog(
-                "Remove from Trade Board?",
-                isPresented: Binding(
-                    get: { cancelTradeTarget != nil },
-                    set: { if !$0 { cancelTradeTarget = nil } }
-                ),
-                titleVisibility: .visible
-            ) {
-                Button("Remove from Trade Board") {
-                    guard let assignment = cancelTradeTarget else { return }
-                    Task { await removeTradeFromBoard(assignment) }
-                    cancelTradeTarget = nil
-                }
-                Button("Keep it posted", role: .cancel) { cancelTradeTarget = nil }
-            } message: {
-                if let assignment = cancelTradeTarget {
-                    let owner = assignment.user.id == session.currentUser?.id ? "You stay" : "\(assignment.user.name) stays"
-                    Text("The post is withdrawn. \(owner) on the shift.")
-                }
+            Button("Keep it posted", role: .cancel) { cancelTradeTarget = nil }
+        } message: {
+            if let assignment = cancelTradeTarget {
+                let owner = assignment.user.id == session.currentUser?.id ? "You stay" : "\(assignment.user.name) stays"
+                Text("The post is withdrawn. \(owner) on the shift.")
             }
-            .confirmationDialog(
-                unassignDialogTitle,
-                isPresented: Binding(
-                    get: { unassignTarget != nil },
-                    set: { if !$0 { unassignTarget = nil } }
-                ),
-                titleVisibility: .visible
-            ) {
-                Button("Remove assignment", role: .destructive) {
-                    guard let assignment = unassignTarget else { return }
-                    Task { await unassign(assignment) }
-                    unassignTarget = nil
-                }
-                Button("Keep", role: .cancel) { unassignTarget = nil }
+        }
+        .confirmationDialog(
+            unassignDialogTitle,
+            isPresented: Binding(
+                get: { unassignTarget != nil },
+                set: { if !$0 { unassignTarget = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Remove assignment", role: .destructive) {
+                guard let assignment = unassignTarget else { return }
+                Task { await unassign(assignment) }
+                unassignTarget = nil
             }
-            .confirmationDialog(
-                deleteDialogTitle,
-                isPresented: Binding(
-                    get: { deleteTarget != nil },
-                    set: { if !$0 { deleteTarget = nil } }
-                ),
-                titleVisibility: .visible
-            ) {
-                Button("Delete shift", role: .destructive) {
-                    guard let shift = deleteTarget else { return }
-                    Task { await deleteShift(shift) }
-                    deleteTarget = nil
-                }
-                Button("Cancel", role: .cancel) { deleteTarget = nil }
-            } message: {
-                if let shift = deleteTarget, !shift.assignments.isEmpty {
-                    Text("This shift has someone assigned. They'll be removed too.")
-                } else {
-                    Text("This cannot be undone.")
-                }
+            Button("Keep", role: .cancel) { unassignTarget = nil }
+        }
+        .confirmationDialog(
+            deleteDialogTitle,
+            isPresented: Binding(
+                get: { deleteTarget != nil },
+                set: { if !$0 { deleteTarget = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Delete shift", role: .destructive) {
+                guard let shift = deleteTarget else { return }
+                Task { await deleteShift(shift) }
+                deleteTarget = nil
             }
-            .alert(
-                "Couldn't update shift",
-                isPresented: Binding(
-                    get: { actionError != nil },
-                    set: { if !$0 { actionError = nil } }
-                )
-            ) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(actionError ?? "")
+            Button("Cancel", role: .cancel) { deleteTarget = nil }
+        } message: {
+            if let shift = deleteTarget, !shift.assignments.isEmpty {
+                Text("This shift has someone assigned. They'll be removed too.")
+            } else {
+                Text("This cannot be undone.")
             }
+        }
+        .alert(
+            actionErrorTitle,
+            isPresented: Binding(
+                get: { actionError != nil },
+                set: {
+                    if !$0 {
+                        actionError = nil
+                        actionRetry = nil
+                    }
+                }
+            )
+        ) {
+            if let retry = actionRetry {
+                Button("Try Again") { retry() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(actionError ?? "")
         }
     }
 
@@ -282,22 +277,15 @@ struct EventDetailSheet: View {
         return "Remove \(assignment.user.name)?"
     }
 
-    private var postTradeDialogTitle: String {
-        guard let assignment = postTradeTarget else { return "Post to Trade Board?" }
-        return assignment.user.id == session.currentUser?.id
-            ? "Post your shift to the Trade Board?"
-            : "Post \(assignment.user.name)'s shift to the Trade Board?"
-    }
-
-    private func postTradeToBoard(_ assignment: ShiftAssignmentRecord) async {
-        do {
-            _ = try await APIClient.shared.postShiftTrade(assignmentId: assignment.id, notes: nil)
-            Haptics.success()
-            await vm.load()
-        } catch {
-            actionError = error.localizedDescription
-            Haptics.error()
-        }
+    private func presentActionError(
+        title: String,
+        error: Error,
+        retry: @escaping () async -> Void
+    ) {
+        actionErrorTitle = title
+        actionError = error.localizedDescription
+        actionRetry = { Task { await retry() } }
+        Haptics.error()
     }
 
     private func removeTradeFromBoard(_ assignment: ShiftAssignmentRecord) async {
@@ -307,8 +295,9 @@ struct EventDetailSheet: View {
             Haptics.success()
             await vm.load()
         } catch {
-            actionError = error.localizedDescription
-            Haptics.error()
+            presentActionError(title: "Couldn't remove trade post", error: error) {
+                await removeTradeFromBoard(assignment)
+            }
         }
     }
 
@@ -323,8 +312,9 @@ struct EventDetailSheet: View {
             Haptics.success()
             await vm.load()
         } catch {
-            actionError = error.localizedDescription
-            Haptics.error()
+            presentActionError(title: "Couldn't claim shift", error: error) {
+                await claimShift(shift)
+            }
         }
     }
 
@@ -334,8 +324,9 @@ struct EventDetailSheet: View {
             Haptics.success()
             await vm.load()
         } catch {
-            actionError = error.localizedDescription
-            Haptics.error()
+            presentActionError(title: "Couldn't remove assignment", error: error) {
+                await unassign(assignment)
+            }
         }
     }
 
@@ -345,8 +336,9 @@ struct EventDetailSheet: View {
             Haptics.success()
             await vm.load()
         } catch {
-            actionError = error.localizedDescription
-            Haptics.error()
+            presentActionError(title: "Couldn't approve request", error: error) {
+                await approveRequest(assignment)
+            }
         }
     }
 
@@ -356,8 +348,9 @@ struct EventDetailSheet: View {
             Haptics.success()
             await vm.load()
         } catch {
-            actionError = error.localizedDescription
-            Haptics.error()
+            presentActionError(title: "Couldn't decline request", error: error) {
+                await declineRequest(assignment)
+            }
         }
     }
 
@@ -368,8 +361,9 @@ struct EventDetailSheet: View {
             Haptics.success()
             await vm.load()
         } catch {
-            actionError = error.localizedDescription
-            Haptics.error()
+            presentActionError(title: "Couldn't delete shift", error: error) {
+                await deleteShift(shift)
+            }
         }
     }
 
@@ -398,8 +392,9 @@ struct EventDetailSheet: View {
             Haptics.success()
             await vm.load()
         } catch {
-            actionError = error.localizedDescription
-            Haptics.error()
+            presentActionError(title: "Couldn't duplicate shift", error: error) {
+                await duplicateShift(shift)
+            }
         }
     }
 
@@ -434,12 +429,27 @@ struct EventDetailSheet: View {
 
     private var eventHasEnded: Bool { event.endsAt < Date() }
 
-    /// After an event ends the only thing worth showing is gear that's still
-    /// out; a lone "Call time was..." card helps no one.
     private var showsYourEventSection: Bool {
         guard eventWork != nil || myShift != nil else { return false }
-        if eventHasEnded { return !reservedGearBookings.isEmpty }
+        if eventHasEnded { return hasKnownGearBookings }
         return true
+    }
+
+    private var claimableStudentShifts: [EventShift] {
+        guard isStudent, myShift == nil, !eventHasEnded else { return [] }
+        return vm.shiftGroup?.shifts.filter {
+            $0.workerType == "ST" && $0.isOpen && $0.startsAt > Date()
+        } ?? []
+    }
+
+    private var showsOpenShiftSection: Bool {
+        !claimableStudentShifts.isEmpty
+    }
+
+    private var hasKnownGearBookings: Bool {
+        createdGearBookingId != nil
+            || !reservedGearBookings.isEmpty
+            || !(myShift?.gear.bookings.isEmpty ?? true)
     }
 
     /// Gear bookings linked to my event work; empty when gear still needs
@@ -449,30 +459,51 @@ struct EventDetailSheet: View {
         return work.gearBookings
     }
 
-    @ViewBuilder
-    private var gearAndCallSection: some View {
+    private var assignmentSection: some View {
         VStack(alignment: .leading, spacing: Brand.Space.sm) {
-            EventDetailSectionHeader("Your Event", systemImage: "person.crop.circle.badge.checkmark")
+            EventDetailSectionHeader("Your Assignment", systemImage: "person.crop.circle.badge.checkmark")
 
-            VStack(alignment: .leading, spacing: 10) {
-                if let createdGearBookingId {
-                    NavigationLink(value: BookingRouteId(id: createdGearBookingId)) {
+            VStack(alignment: .leading, spacing: 12) {
+                if let callTime {
+                    TimelineView(.periodic(from: .now, by: 60)) { context in
                         detailLine(
-                            icon: "checkmark.circle.fill",
+                            icon: "clock.fill",
+                            title: callTimeTitle(callTime, now: context.date),
+                            subtitle: assignmentTimeSubtitle(now: context.date),
+                            tone: .blue
+                        )
+                    }
+                } else if let area = assignmentArea {
+                    detailLine(
+                        icon: "person.fill.checkmark",
+                        title: area,
+                        subtitle: "Assigned to this event",
+                        tone: .blue
+                    )
+                }
+
+                Divider()
+
+                if let createdGearBookingId {
+                    NavigationLink {
+                        BookingDetailView(bookingId: createdGearBookingId)
+                    } label: {
+                        detailLine(
+                            icon: "shippingbox.fill",
                             title: "Gear reserved",
-                            subtitle: "Open the new reservation.",
+                            subtitle: "Open reservation",
                             tone: .green,
                             showsChevron: true
                         )
                     }
                     .buttonStyle(.plain)
                 } else if !reservedGearBookings.isEmpty {
-                    // All linked gear bookings, not just the first — a second
-                    // multi-event reservation was invisible here.
                     ForEach(reservedGearBookings) { gear in
-                        NavigationLink(value: BookingRouteId(id: gear.id)) {
+                        NavigationLink {
+                            BookingDetailView(bookingId: gear.id)
+                        } label: {
                             detailLine(
-                                icon: "archivebox.fill",
+                                icon: "shippingbox.fill",
                                 title: gearInstruction(for: gear),
                                 subtitle: gearSubtitle(for: gear),
                                 tone: gear.status == .pendingPickup && gear.startsAt < Date() ? .orange : .green,
@@ -481,34 +512,106 @@ struct EventDetailSheet: View {
                         }
                         .buttonStyle(.plain)
                     }
+                } else if let shiftGear = myShift?.gear, !shiftGear.bookings.isEmpty {
+                    ForEach(shiftGear.bookings) { gear in
+                        NavigationLink {
+                            BookingDetailView(bookingId: gear.id)
+                        } label: {
+                            detailLine(
+                                icon: "shippingbox.fill",
+                                title: shiftGear.gearLabel,
+                                subtitle: gear.itemCount == 1 ? "1 item" : "\(gear.itemCount) items",
+                                tone: shiftGearTone(shiftGear),
+                                showsChevron: true
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
                 } else if !eventHasEnded {
-                    // No reserving gear for an event that's already over.
                     Button {
                         prepGearOpen = true
                     } label: {
-                        detailLine(
-                            icon: "archivebox",
-                            title: reserveGearTitle,
-                            subtitle: "Add the gear you need for this event.",
-                            tone: .blue,
-                            showsChevron: true
-                        )
+                        Label(reserveGearTitle, systemImage: "shippingbox.and.arrow.backward.fill")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color.statusText(.purple))
+                }
+            }
+            .brandCard()
+        }
+    }
+
+    private var openShiftSection: some View {
+        VStack(alignment: .leading, spacing: Brand.Space.sm) {
+            EventDetailSectionHeader("Open Shifts", systemImage: "person.badge.plus")
+            VStack(spacing: 0) {
+                ForEach(Array(claimableStudentShifts.enumerated()), id: \.element.id) { index, shift in
+                    Button {
+                        claimTarget = shift
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "hand.raised.fill")
+                                .foregroundStyle(Color.statusText(.purple))
+                                .frame(width: 24)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(shift.area.shiftAreaLabel)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.primary)
+                                if !event.displayAllDay {
+                                    Text("\(shift.startsAt.formatted(date: .omitted, time: .shortened)) to \(shift.endsAt.formatted(date: .omitted, time: .shortened))")
+                                        .font(.caption.monospacedDigit())
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer()
+                            Text("Claim")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Color.statusText(.purple))
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.vertical, 12)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                }
-
-                if let callTime {
-                    TimelineView(.periodic(from: .now, by: 60)) { context in
-                        detailLine(
-                            icon: "clock.fill",
-                            title: callTimeTitle(callTime, now: context.date),
-                            subtitle: callTimeSubtitle(callTime, now: context.date),
-                            tone: .blue
-                        )
+                    if index < claimableStudentShifts.count - 1 {
+                        Divider().padding(.leading, 36)
                     }
                 }
             }
             .brandCard()
+        }
+    }
+
+    @ViewBuilder
+    private var staffingActionSection: some View {
+        if let group = vm.shiftGroup {
+            VStack(alignment: .leading, spacing: Brand.Space.sm) {
+                EventDetailSectionHeader("Staffing", systemImage: "person.2.badge.gearshape.fill")
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("\(group.coverage.filled) of \(group.coverage.total) positions filled")
+                            .font(.subheadline.weight(.semibold))
+                        Text(group.coverage.percentage >= 100 ? "Crew is covered" : "Review open positions below")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button {
+                        showAddShift = true
+                    } label: {
+                        Label("Add Shift", systemImage: "plus")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(minHeight: 44)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(Color.statusText(.purple))
+                }
+                .brandCard()
+            }
         }
     }
 
@@ -528,11 +631,34 @@ struct EventDetailSheet: View {
         return "Call time \(callTime.formatted(.dateTime.weekday(.abbreviated))) at \(clock)"
     }
 
-    private func callTimeSubtitle(_ callTime: Date, now: Date) -> String {
-        let area = eventWork?.shift.area.shiftAreaLabel ?? myShift?.area.shiftAreaLabel ?? "Shift"
-        guard Calendar.current.isDate(callTime, inSameDayAs: now) else { return area }
-        // Same-day countdown in plain words: "in 2 hours" / "45 minutes ago".
-        return "\(area) · \(callTime.formatted(.relative(presentation: .named)))"
+    private var assignmentArea: String? {
+        let raw = eventWork?.shift.area ?? myShift?.area
+        return raw?.shiftAreaLabel
+    }
+
+    private var assignmentEndsAt: Date? {
+        eventWork?.shift.endsAt ?? myShift?.endsAt
+    }
+
+    private func assignmentTimeSubtitle(now: Date) -> String {
+        var parts: [String] = []
+        if let area = assignmentArea { parts.append(area) }
+        if let endsAt = assignmentEndsAt {
+            parts.append("Until \(endsAt.formatted(date: .omitted, time: .shortened))")
+        }
+        if let callTime, Calendar.current.isDate(callTime, inSameDayAs: now) {
+            parts.append(callTime.formatted(.relative(presentation: .named)))
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    private func shiftGearTone(_ gear: ShiftGear) -> StatusTone {
+        switch gear.status {
+        case "checked_out", "pickup_ready": return .orange
+        case "reserved": return .green
+        case "draft": return .purple
+        default: return .gray
+        }
     }
 
     /// "now" only when the event is actually today (or underway) — five days
@@ -582,21 +708,33 @@ struct EventDetailSheet: View {
 
     // MARK: - Event Header
 
-    /// Single day → "Saturday, June 14, 2026". Multi-day → "Sat, Jun 14 – Mon,
-    /// Jun 16, 2026" (drops the redundant start-year when both ends share one).
     private var eventDateText: String {
         guard event.isMultiDay else {
-            return event.startsAt.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
+            return detailDateLabel(event.startsAt, abbreviatedWeekday: false)
         }
-        let cal = Calendar.current
         let endRef = event.displayAllDay ? event.endsAt.addingTimeInterval(-1) : event.endsAt
-        let sameYear = cal.isDate(event.startsAt, equalTo: endRef, toGranularity: .year)
-        let start = event.startsAt.formatted(
-            sameYear ? .dateTime.weekday(.abbreviated).month(.abbreviated).day()
-                     : .dateTime.weekday(.abbreviated).month(.abbreviated).day().year()
-        )
-        let end = endRef.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().year())
+        let start = detailDateLabel(event.startsAt, abbreviatedWeekday: true)
+        let end = detailDateLabel(endRef, abbreviatedWeekday: true)
         return "\(start) – \(end)"
+    }
+
+    private func detailDateLabel(_ date: Date, abbreviatedWeekday: Bool) -> String {
+        let calendar = Calendar.current
+        let includesYear = calendar.component(.year, from: date) != calendar.component(.year, from: .now)
+        if calendar.isDateInToday(date) {
+            return "Today, \(date.formatted(.dateTime.month(abbreviatedWeekday ? .abbreviated : .wide).day()))"
+        }
+        if calendar.isDateInTomorrow(date) {
+            return "Tomorrow, \(date.formatted(.dateTime.month(abbreviatedWeekday ? .abbreviated : .wide).day()))"
+        }
+        if abbreviatedWeekday {
+            return includesYear
+                ? date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().year())
+                : date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+        }
+        return includesYear
+            ? date.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
+            : date.formatted(.dateTime.weekday(.wide).month(.wide).day())
     }
 
     /// Times read as a same-day range; for multi-day they're labeled so they
@@ -607,69 +745,86 @@ struct EventDetailSheet: View {
         return event.isMultiDay ? "Starts \(start) · ends \(end)" : "\(start) – \(end)"
     }
 
+    private var eventTypeLabel: String {
+        switch event.isHome {
+        case true: return "Home"
+        case false: return "Away"
+        case nil: return event.opponent == nil ? "Non-game" : "Neutral"
+        }
+    }
+
+    private var eventRailColor: Color {
+        switch event.isHome {
+        case true: return Color.statusText(.green)
+        case false: return Color.statusText(.orange)
+        case nil: return Color(.systemGray3)
+        }
+    }
+
+    private var eventVenueName: String? {
+        if let name = event.location?.name, !name.isEmpty { return name }
+        if let raw = event.rawLocationText?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty { return raw }
+        return nil
+    }
+
     private var eventHeader: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Sport + home/away
-            HStack(spacing: 8) {
-                if let sport = sportLabel(event.sportCode) {
-                    Text(sport)
+        HStack(alignment: .top, spacing: 14) {
+            StatusRail(color: eventRailColor)
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 6) {
+                    if let sport = sportLabel(event.sportCode) {
+                        Text(sport)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    if event.sportCode != nil {
+                        Text("·").foregroundStyle(.tertiary)
+                    }
+                    Text(eventTypeLabel)
                         .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Color.brandPrimary.opacity(0.12))
-                        .foregroundStyle(Color.brandPrimary)
-                        .clipShape(Capsule())
+                        .foregroundStyle(eventRailColor)
                 }
-                if let isHome = event.isHome {
-                    let locationText = event.location?.name ?? (isHome ? "Home" : "Away")
-                    Label(locationText, systemImage: isHome ? "house" : "airplane.departure")
+
+                Text(scheduleEventDisplayTitle(event))
+                    .font(.gothamBlack(size: 26))
+                    .foregroundStyle(.primary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Label(
+                        eventDateText,
+                        systemImage: event.isMultiDay ? "calendar.day.timeline.left" : "calendar"
+                    )
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.primary)
+
+                    Label(event.displayAllDay ? "All day" : eventTimeText, systemImage: "clock")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    if let eventVenueName {
+                        Label(eventVenueName, systemImage: "mappin.and.ellipse")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if let weather = weatherData {
+                        HStack(spacing: 5) {
+                            Image(systemName: weather.symbolName)
+                                .symbolRenderingMode(.multicolor)
+                            Text(weather.temperature)
+                            Link("Weather", destination: URL(string: "https://weatherkit.apple.com/legal-attribution.html")!)
+                                .foregroundStyle(.tertiary)
+                        }
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                }
-            }
-
-            // Title
-            Text(event.summary)
-                .font(.title3.weight(.semibold))
-                .lineLimit(3)
-
-            // Date + time
-            VStack(alignment: .leading, spacing: 4) {
-                Label(
-                    eventDateText,
-                    systemImage: event.isMultiDay ? "calendar.day.timeline.left" : "calendar"
-                )
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-                if !event.displayAllDay {
-                    Label(eventTimeText, systemImage: "clock")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-
-                if let location = event.location {
-                    Label(location.name, systemImage: "mappin.and.ellipse")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-
-                if let weather = weatherData {
-                    HStack(spacing: 6) {
-                        Image(systemName: weather.symbolName)
-                            .symbolRenderingMode(.multicolor)
-                            .font(.subheadline)
-                        Text(weather.temperature)
-                            .font(.subheadline)
-                        Spacer()
-                        Link("Apple Weather", destination: URL(string: "https://weatherkit.apple.com/legal-attribution.html")!)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .brandCard()
     }
 
@@ -678,7 +833,7 @@ struct EventDetailSheet: View {
     private var crewSection: some View {
         VStack(alignment: .leading, spacing: Brand.Space.sm) {
             EventDetailSectionHeader(title: "Crew", systemImage: "person.2.fill") {
-                if let coverage = vm.shiftGroup?.coverage {
+                if canManageShifts, let coverage = vm.shiftGroup?.coverage {
                     CoveragePill(coverage: coverage)
                 }
             }
@@ -727,15 +882,7 @@ struct EventDetailSheet: View {
                     .multilineTextAlignment(.center)
                 if canManageShifts {
                     Button {
-                        Task {
-                            isCreatingGroup = true
-                            do {
-                                vm.shiftGroup = try await APIClient.shared.createShiftGroup(eventId: event.id)
-                            } catch {
-                                actionError = error.localizedDescription
-                            }
-                            isCreatingGroup = false
-                        }
+                        Task { await createShiftGroup() }
                     } label: {
                         if isCreatingGroup {
                             ProgressView()
@@ -758,6 +905,19 @@ struct EventDetailSheet: View {
         }
     }
 
+    private func createShiftGroup() async {
+        isCreatingGroup = true
+        defer { isCreatingGroup = false }
+        do {
+            vm.shiftGroup = try await APIClient.shared.createShiftGroup(eventId: event.id)
+            Haptics.success()
+        } catch {
+            presentActionError(title: "Couldn't set up crew", error: error) {
+                await createShiftGroup()
+            }
+        }
+    }
+
     private var crewList: some View {
         VStack(alignment: .leading, spacing: Brand.Space.md) {
             // Per-area shift blocks (the "Crew" header lives in crewSection).
@@ -768,10 +928,20 @@ struct EventDetailSheet: View {
                     myShiftId: myShift?.id,
                     currentUserId: session.currentUser?.id,
                     canManageShifts: canManageShifts,
-                    isStudent: isStudent,
+                    // Unassigned students claim from the dedicated action card
+                    // above. Once assigned, the row menu remains available for
+                    // their own trade actions without duplicating Claim controls.
+                    isStudent: isStudent && !showsOpenShiftSection,
                     onAssign: { shift in assignTarget = shift },
                     onRequest: { shift in claimTarget = shift },
-                    onPostTrade: { assignment in postTradeTarget = assignment },
+                    onPostTrade: { shift, assignment in
+                        postTradeTarget = TradePostCandidate(
+                            assignment: assignment,
+                            shift: shift,
+                            eventTitle: scheduleEventDisplayTitle(event),
+                            currentUserId: session.currentUser?.id
+                        )
+                    },
                     onCancelTrade: { assignment in cancelTradeTarget = assignment },
                     onUnassign: { assignment in unassignTarget = assignment },
                     onApprove: { assignment in Task { await approveRequest(assignment) } },
@@ -857,7 +1027,7 @@ struct AreaBlock: View {
     var isStudent: Bool = false
     var onAssign: ((EventShift) -> Void)? = nil
     var onRequest: ((EventShift) -> Void)? = nil
-    var onPostTrade: ((ShiftAssignmentRecord) -> Void)? = nil
+    var onPostTrade: ((EventShift, ShiftAssignmentRecord) -> Void)? = nil
     var onCancelTrade: ((ShiftAssignmentRecord) -> Void)? = nil
     var onUnassign: ((ShiftAssignmentRecord) -> Void)? = nil
     var onApprove: ((ShiftAssignmentRecord) -> Void)? = nil
@@ -973,7 +1143,7 @@ struct ShiftRow: View {
     var showsWorkerType: Bool = true
     var onAssign: ((EventShift) -> Void)? = nil
     var onRequest: ((EventShift) -> Void)? = nil
-    var onPostTrade: ((ShiftAssignmentRecord) -> Void)? = nil
+    var onPostTrade: ((EventShift, ShiftAssignmentRecord) -> Void)? = nil
     var onCancelTrade: ((ShiftAssignmentRecord) -> Void)? = nil
     var onUnassign: ((ShiftAssignmentRecord) -> Void)? = nil
     var onApprove: ((ShiftAssignmentRecord) -> Void)? = nil
@@ -1096,7 +1266,7 @@ struct ShiftRow: View {
                             }
                         }
                     } else if isMine || (canManageShifts && assignment.user.isStudentSchedulingClass), let onPostTrade {
-                        Button { onPostTrade(assignment) } label: {
+                        Button { onPostTrade(shift, assignment) } label: {
                             Label(
                                 shift.assignments.count > 1
                                     ? "Post \(assignment.user.name) to Trade Board"
@@ -1289,6 +1459,7 @@ struct ShiftRow: View {
 
 struct EditShiftTimesSheet: View {
     let shift: EventShift
+    let eventTitle: String
     let onSave: (Date, Date) async -> String?
 
     @State private var startsAt: Date
@@ -1298,8 +1469,13 @@ struct EditShiftTimesSheet: View {
     @State private var showDiscardConfirm = false
     @Environment(\.dismiss) private var dismiss
 
-    init(shift: EventShift, onSave: @escaping (Date, Date) async -> String?) {
+    init(
+        shift: EventShift,
+        eventTitle: String,
+        onSave: @escaping (Date, Date) async -> String?
+    ) {
         self.shift = shift
+        self.eventTitle = eventTitle
         self.onSave = onSave
         _startsAt = State(initialValue: shift.startsAt)
         _endsAt = State(initialValue: shift.endsAt)
@@ -1309,22 +1485,26 @@ struct EditShiftTimesSheet: View {
         startsAt != shift.startsAt || endsAt != shift.endsAt
     }
 
+    private var hasValidWindow: Bool {
+        endsAt > startsAt
+    }
+
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    DatePicker("Call time", selection: $startsAt, displayedComponents: [.hourAndMinute])
-                        .disabled(isSaving)
-                    DatePicker("End time", selection: $endsAt, in: startsAt..., displayedComponents: [.hourAndMinute])
-                        .disabled(isSaving)
-                } header: {
-                    Text("\(shift.area.shiftAreaLabel) shift")
-                } footer: {
-                    Text("Times apply to this shift only.")
-                        .font(.caption)
+            ScrollView {
+                VStack(spacing: 16) {
+                    contextCard
+                    callWindowCard
+
+                    if let saveError {
+                        saveErrorCard(message: saveError)
+                    }
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
             }
-            .navigationTitle("Change call time")
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("Edit Call Window")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -1338,18 +1518,29 @@ struct EditShiftTimesSheet: View {
                     }
                     .disabled(isSaving)
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button {
-                        Task { await save() }
-                    } label: {
+            }
+            .safeAreaInset(edge: .bottom) {
+                Button {
+                    Task { await save() }
+                } label: {
+                    HStack(spacing: 8) {
                         if isSaving {
-                            ProgressView().controlSize(.small)
+                            ProgressView().tint(.white)
                         } else {
-                            Text("Save").fontWeight(.semibold)
+                            Image(systemName: "checkmark")
                         }
+                        Text("Save Call Window")
+                            .fontWeight(.semibold)
                     }
-                    .disabled(isSaving || !hasChanges)
+                    .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(.borderedProminent)
+                .tint(Color.statusText(.purple))
+                .controlSize(.large)
+                .disabled(isSaving || !hasChanges || !hasValidWindow)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(.bar)
             }
             .interactiveDismissDisabled(isSaving || hasChanges)
             .confirmationDialog(
@@ -1362,24 +1553,103 @@ struct EditShiftTimesSheet: View {
             } message: {
                 Text("Your changes will be lost.")
             }
-            .alert(
-                "Couldn't save changes",
-                isPresented: Binding(
-                    get: { saveError != nil },
-                    set: { if !$0 { saveError = nil } }
-                )
-            ) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(saveError ?? "")
-            }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.large])
         .presentationDragIndicator(.visible)
     }
 
+    private var contextCard: some View {
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(Color.statusText(.blue))
+                .frame(width: 4, height: 58)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(eventTitle)
+                    .font(.headline)
+                    .lineLimit(2)
+                Text("\(shift.area.shiftAreaLabel) · \(workerClassLabel)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(16)
+        .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.lg, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+
+    private var callWindowCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Call Window")
+                    .font(.headline)
+                Text("Applies only to this crew slot")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Divider()
+            ShiftDateTimeRow(label: "Call", systemImage: "arrow.right", date: $startsAt)
+                .disabled(isSaving)
+            Divider()
+            ShiftDateTimeRow(label: "End", systemImage: "arrow.left", date: $endsAt)
+                .disabled(isSaving)
+
+            if !hasValidWindow {
+                Label("End time must be after call time.", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(Color.statusText(.red))
+            } else {
+                Text(windowSummary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(16)
+        .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.lg, style: .continuous))
+    }
+
+    private func saveErrorCard(message: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(Color.statusText(.red))
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Couldn't save call window")
+                    .font(.subheadline.weight(.semibold))
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Retry") { Task { await save() } }
+                .font(.caption.weight(.semibold))
+                .disabled(isSaving || !hasValidWindow)
+        }
+        .padding(14)
+        .background(Color.statusBackground(.red), in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+    }
+
+    private var workerClassLabel: String {
+        shift.workerType == "ST" ? "Student shift" : "Staff shift"
+    }
+
+    private var windowSummary: String {
+        "\(shortDate(startsAt)) · \(startsAt.formatted(date: .omitted, time: .shortened)) to \(endsAt.formatted(date: .omitted, time: .shortened))"
+    }
+
+    private func shortDate(_ date: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.component(.year, from: date) == calendar.component(.year, from: .now) {
+            return date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+        }
+        return date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().year())
+    }
+
     private func save() async {
+        guard !isSaving, hasChanges, hasValidWindow else { return }
         isSaving = true
+        saveError = nil
         let error = await onSave(startsAt, endsAt)
         isSaving = false
         if let error {

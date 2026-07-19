@@ -39,13 +39,14 @@ function readSnapshot(value: Prisma.JsonValue | null): SchedulePublicationSnapsh
   return value as SchedulePublicationSnapshot;
 }
 
-function publishedScheduleWhere(eventId?: string): Prisma.ShiftGroupWhereInput {
+function publishedScheduleWhere(eventId?: string, upcomingOnly = false): Prisma.ShiftGroupWhereInput {
   return {
     publishedAt: { not: null },
     archivedAt: null,
     lastPublishedSnapshot: { not: Prisma.JsonNull },
     event: {
       id: eventId,
+      endsAt: upcomingOnly ? { gte: new Date() } : undefined,
       isHidden: false,
       archivedAt: null,
     },
@@ -113,7 +114,7 @@ async function hydratePublishedGroups(groups: PublishedGroup[]) {
 }
 
 export async function listPublishedSchedule(args: { userId: string; limit: number; offset: number }) {
-  const where = publishedScheduleWhere();
+  const where = publishedScheduleWhere(undefined, true);
   const select = {
     ...publishedScheduleSelect,
     event: {

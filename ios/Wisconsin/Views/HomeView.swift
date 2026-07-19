@@ -167,9 +167,6 @@ struct HomeView: View {
             }
             .padding(Brand.Space.md)
         }
-        .sheet(item: $selectedEventWork) { work in
-            EventDetailSheet(event: work.asScheduleEvent, myShift: nil, eventWork: work)
-        }
     }
 
     private func hasStaffFollowUp(_ dash: DashboardData) -> Bool {
@@ -271,6 +268,16 @@ struct HomeView: View {
             }
             .navigationDestination(for: UserRouteId.self) { route in
                 UserDetailView(userId: route.id)
+            }
+            .navigationDestination(
+                isPresented: Binding(
+                    get: { selectedEventWork != nil },
+                    set: { if !$0 { selectedEventWork = nil } }
+                )
+            ) {
+                if let work = selectedEventWork {
+                    EventDetailView(event: work.asScheduleEvent, myShift: nil, eventWork: work)
+                }
             }
             .sheet(isPresented: $showNotifications, onDismiss: {
                 Task { await appState.refresh(forceRefresh: true) }

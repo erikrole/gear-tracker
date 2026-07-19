@@ -187,6 +187,11 @@ describe("published collaborator schedule", () => {
     }]);
 
     const result = await listPublishedSchedule({ userId: "btn-1", limit: 20, offset: 0 });
+    expect(dbMock.shiftGroup.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        event: expect.objectContaining({ endsAt: { gte: expect.any(Date) } }),
+      }),
+    }));
     expect(result.data[0]?.isFollowing).toBe(true);
     expect(result.data[0]?.crew[0]).toEqual(expect.objectContaining({
       area: "VIDEO",

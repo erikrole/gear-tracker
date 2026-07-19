@@ -143,10 +143,10 @@ describe("iOS schedule sheet all-day polish", () => {
     expect(addShift).toContain("private var defaultsToAllDayWindow: Bool");
     expect(addShift).toContain("calendar.compare(defaultStart, to: calendar.startOfDay(for: defaultStart), toGranularity: .minute)");
     expect(addShift).toContain("calendar.compare(defaultEnd, to: calendar.startOfDay(for: defaultEnd), toGranularity: .minute)");
-    expect(addShift).toContain("LabeledContent(\"Window\")");
-    expect(addShift).toContain("Text(defaultAllDayRange)");
-    expect(addShift).toContain("\"Defaults to the event's all-day window.\"");
-    expect(addShift).toContain("return \"All day, \\(startText) to \\(endText)\"");
+    expect(addShift).toContain("Label(defaultWindowText, systemImage: defaultsToAllDayWindow ? \"calendar\" : \"clock\")");
+    expect(addShift).toContain("return \"All day · \\(shortDate(defaultStart))\"");
+    expect(addShift).toContain("return \"All day · \\(shortDate(defaultStart)) to \\(shortDate(inclusiveEnd))\"");
+    expect(addShift).toContain("if calendar.component(.year, from: date) == calendar.component(.year, from: .now)");
   });
 });
 

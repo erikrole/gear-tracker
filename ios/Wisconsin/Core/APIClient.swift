@@ -510,6 +510,14 @@ final class APIClient {
         return resp.data
     }
 
+    /// Staff-only candidate recommendations for the assignment picker. The
+    /// server remains authoritative for eligibility and the final mutation.
+    func shiftCandidateScores(shiftId: String) async throws -> [CandidateRecommendation] {
+        let req = request(path: "/api/shifts/\(shiftId)/candidate-scores")
+        let resp: DataWrapper<[CandidateRecommendation]> = try await perform(req)
+        return resp.data
+    }
+
     // MARK: - Availability blocks
 
     func availabilityBlocks(userId: String) async throws -> [AvailabilityBlock] {
@@ -538,6 +546,40 @@ final class APIClient {
             let label: String?
         }
         var req = request(path: "/api/users/\(userId)/availability", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(
+            kind: kind,
+            intent: intent,
+            dayOfWeek: kind == "WEEKLY" ? dayOfWeek : nil,
+            date: kind == "AD_HOC" ? date : nil,
+            startsAt: startsAt,
+            endsAt: endsAt,
+            label: label
+        ))
+        let resp: DataWrapper<AvailabilityBlock> = try await perform(req)
+        return resp.data
+    }
+
+    func updateAvailabilityBlock(
+        userId: String,
+        blockId: String,
+        kind: String,
+        intent: String,
+        dayOfWeek: Int,
+        date: String?,
+        startsAt: String,
+        endsAt: String,
+        label: String?
+    ) async throws -> AvailabilityBlock {
+        struct Body: Encodable {
+            let kind: String
+            let intent: String
+            let dayOfWeek: Int?
+            let date: String?
+            let startsAt: String
+            let endsAt: String
+            let label: String?
+        }
+        var req = request(path: "/api/users/\(userId)/availability/\(blockId)", method: "PATCH")
         req.httpBody = try JSONEncoder().encode(Body(
             kind: kind,
             intent: intent,
@@ -813,12 +855,20 @@ final class APIClient {
         ]))
     }
 
-    func setPublishedScheduleFollow(eventId: String, following: Bool) async throws {
+    func publishedScheduleEvent(eventId: String) async throws -> PublishedScheduleEvent {
+        let response: DataWrapper<PublishedScheduleEvent> = try await perform(
+            request(path: "/api/schedule/published/\(eventId)")
+        )
+        return response.data
+    }
+
+    func setPublishedScheduleFollow(eventId: String, following: Bool) async throws -> Bool {
         struct Body: Encodable { let following: Bool }
         var req = request(path: "/api/schedule/published/\(eventId)/follow", method: "PUT")
         req.httpBody = try JSONEncoder().encode(Body(following: following))
         struct FollowState: Decodable { let eventId: String; let isFollowing: Bool }
-        let _: DataWrapper<FollowState> = try await perform(req)
+        let response: DataWrapper<FollowState> = try await perform(req)
+        return response.data.isFollowing
     }
 
     // MARK: - Favorites

@@ -429,11 +429,11 @@ describe("iOS create booking picker parity", () => {
   it("opens an event-created reservation and replaces the stale reserve prompt", () => {
     const eventDetail = source("ios/Wisconsin/Views/EventDetailSheet.swift");
 
-    expect(eventDetail).toContain("@State private var navigationPath = NavigationPath()");
-    expect(eventDetail).toContain("NavigationStack(path: $navigationPath)");
+    expect(eventDetail).toContain("@State private var pushBooking: BookingRouteId?");
     expect(eventDetail).toContain("CreateBookingSheet(vm: makePrepGearVM()) { newId in");
     expect(eventDetail).toContain("createdGearBookingId = newId");
-    expect(eventDetail).toContain("navigationPath.append(BookingRouteId(id: newId))");
+    expect(eventDetail).toContain("pushBooking = BookingRouteId(id: newId)");
+    expect(eventDetail).toContain(".navigationDestination(item: $pushBooking)");
     expect(eventDetail).toContain("if let createdGearBookingId");
     expect(eventDetail).toContain('title: "Gear reserved"');
   });

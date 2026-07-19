@@ -4,7 +4,16 @@
 **Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class.
 **Audit type:** static source (no build/run/UI tests).
 
-Scope: `PostTradeSheet` + `ShiftPickerRow` in `ios/Wisconsin/Views/Schedule/PostTradeSheet.swift`. Reachable from `TradeBoardSheet`'s `+` toolbar (today's pass) — student picks one of their upcoming shifts to put on the trade board.
+Scope: `PostTradeSheet` + `TradeCandidateRow` in `ios/Wisconsin/Views/Schedule/PostTradeSheet.swift`. Reachable from the Trade Board's `+` toolbar and Event detail crew-row menus.
+
+## 2026-07-18 Schedule Redesign Follow-up
+
+- [x] Event detail and Trade Board now use one contextual posting sheet instead of separate confirmation and picker behaviors.
+- [x] Shift, area, owner, compact date, and call window remain visible through posting.
+- [x] The sheet explicitly states that the owner stays assigned until someone claims the post.
+- [x] Optional notes are trimmed and retained with selection after a failed request; Retry uses the same guarded action.
+- [x] One purple bottom action, a real empty state, discard confirmation, combined VoiceOver rows, and selected-state traits match the current native design language.
+- [x] Staff-on-behalf and owner posting permissions remain server-enforced and unchanged.
 
 **Surrounding context:** discard confirm + `interactiveDismissDisabled` already ship from prior work. The `eligibleShifts` filter correctly limits to future active shifts. The `shift.area.shiftAreaLabel` title-case shipped earlier today is already wired here. Error rendering uses `Color.statusText(.red)` ✓.
 
@@ -32,7 +41,7 @@ _None._ The flow works end-to-end. Cancel-with-unsaved confirms + dismiss-disabl
 
 ## P2 — post-MVP
 
-- [ ] [Polish] **Deferred.** `eligibleShifts` empty state could include a small CTA pointing at where to find shifts (the Schedule tab). Today it just says "No upcoming active shifts available to post." — fine for MVP.
+- [x] [Polish] The empty state now explains that only active, upcoming shifts are eligible and uses a dedicated unavailable-state layout.
 - [ ] [Polish] **Deferred.** Consume the returned `ShiftTrade` from `postShiftTrade(...)` and pass it to the `onPosted` callback (instead of the original `MyShift`). Caller (`TradeBoardSheet`) just reloads its own list, so the actual trade object isn't needed today.
 - [ ] [Polish] **Deferred.** Notes character counter / max length hint. Server enforces; no documented overflow issue.
 

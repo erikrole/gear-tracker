@@ -1,26 +1,25 @@
 import SwiftUI
 
-// MARK: - Availability editor
-
 private let availabilityDayNames = [
     "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
 ]
 
-/// Student scheduling-class self-service editor for the same availability,
-/// preference, dislike, and time-off signals used by web scheduling surfaces.
+private let availabilityShortDayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+
+/// Interactive editor for the weekly and one-time scheduling signals used by
+/// Schedule assignment, open-shift, and trade eligibility surfaces.
 struct AvailabilityView: View {
     let userId: String
 
     @State private var blocks: [AvailabilityBlock] = []
+    @State private var selectedWeekday = Calendar.current.component(.weekday, from: .now) - 1
     @State private var isLoading = true
     @State private var error: String?
-    @State private var showAdd = false
+    @State private var editorContext: AvailabilityEditorContext?
     @State private var blockPendingDelete: AvailabilityBlock?
 
-    private var weeklyGroups: [(day: Int, blocks: [AvailabilityBlock])] {
-        Dictionary(grouping: blocks.filter(\.isWeekly), by: { $0.dayOfWeek ?? 0 })
-            .sorted { $0.key < $1.key }
-            .map { (day: $0.key, blocks: $0.value.sorted(by: sortBlocks)) }
+    private var selectedDayBlocks: [AvailabilityBlock] {
+        blocks.filter { $0.isWeekly && $0.dayOfWeek == selectedWeekday }.sorted(by: sortBlocks)
     }
 
     private var datedBlocks: [AvailabilityBlock] {
@@ -28,95 +27,49 @@ struct AvailabilityView: View {
     }
 
     var body: some View {
-        Group {
+        ScrollView {
             if isLoading && blocks.isEmpty {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let error, blocks.isEmpty {
-                ContentUnavailableView {
-                    Label("Couldn't load availability", systemImage: "exclamationmark.triangle")
-                } description: {
-                    Text(error)
-                } actions: {
-                    Button("Retry") { Task { await load() } }
-                        .buttonStyle(.borderedProminent)
-                }
-            } else if blocks.isEmpty {
-                ContentUnavailableView {
-                    Label("No availability added", systemImage: "calendar.badge.clock")
-                } description: {
-                    Text("Add class conflicts, preferred work times, or time off so staff can schedule with better context.")
-                } actions: {
-                    Button { showAdd = true } label: {
-                        Label("Add availability block", systemImage: "plus")
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
+                AvailabilityLoadingState()
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
             } else {
-                List {
+                LazyVStack(spacing: 16) {
                     if let error {
-                        Section {
-                            Text(error)
-                                .font(.footnote)
-                                .foregroundStyle(Color.statusText(.red))
+                        AvailabilityErrorBanner(message: error) {
+                            Task { await load() }
+                        } onDismiss: {
+                            self.error = nil
                         }
                     }
 
-                    Section {
-                        Button { showAdd = true } label: {
-                            Label("Add availability block", systemImage: "plus")
-                        }
-                    } footer: {
-                        Text("Approved time off blocks pickup and trade actions. Other availability stays visible as scheduling guidance.")
-                    }
-
-                    Section("Impact") {
-                        AvailabilitySummaryRow(
-                            title: "Blocking time off",
-                            value: blocks.filter(\.isApprovedTimeOff).count,
-                            systemImage: "hand.raised.fill",
-                            tone: .red
-                        )
-                        AvailabilitySummaryRow(
-                            title: "Advisory signals",
-                            value: blocks.filter(\.isAdvisory).count,
-                            systemImage: "exclamationmark.triangle.fill",
-                            tone: .orange
-                        )
-                        AvailabilitySummaryRow(
-                            title: "Preferred windows",
-                            value: blocks.filter(\.isPreference).count,
-                            systemImage: "checkmark.circle.fill",
-                            tone: .green
-                        )
-                    }
-
-                    ForEach(weeklyGroups, id: \.day) { group in
-                        Section(availabilityDayNames[group.day]) {
-                            availabilityRows(group.blocks)
-                        }
-                    }
-
-                    if !datedBlocks.isEmpty {
-                        Section("One-time requests and exceptions") {
-                            availabilityRows(datedBlocks)
-                        }
-                    }
+                    availabilityOverview
+                    weeklyCanvas
+                    exceptionsCard
+                    guidanceCard
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
             }
         }
+        .background(Color(.systemGroupedBackground))
         .navigationTitle("My Availability")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { showAdd = true } label: {
+                Button {
+                    editorContext = .newWeekly(day: selectedWeekday)
+                } label: {
                     Label("Add block", systemImage: "plus")
                 }
-                .labelStyle(.titleAndIcon)
+                .accessibilityHint("Adds an availability signal for \(availabilityDayNames[selectedWeekday])")
             }
         }
         .task { await load() }
-        .sheet(isPresented: $showAdd) {
-            AddAvailabilitySheet(userId: userId) { Task { await load() } }
+        .refreshable { await load() }
+        .sheet(item: $editorContext) { context in
+            AvailabilityEditorSheet(userId: userId, context: context) { saved in
+                upsert(saved)
+            }
         }
         .confirmationDialog(
             "Delete availability block?",
@@ -131,24 +84,168 @@ struct AvailabilityView: View {
                 blockPendingDelete = nil
             }
         } message: { block in
-            Text("Staff will no longer see \(block.primaryLine) when reviewing your scheduling availability.")
+            Text("Staff will no longer see \(block.primaryLine) when reviewing your availability.")
         }
     }
 
+    private var availabilityOverview: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Your schedule signals")
+                        .font(.headline)
+                    Text("Tap a weekday to review or change its windows.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 12)
+                Image(systemName: "calendar.badge.clock")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Color.brandPrimary)
+                    .accessibilityHidden(true)
+            }
+
+            ViewThatFits {
+                HStack(spacing: 8) { availabilitySummaryItems }
+                VStack(spacing: 8) { availabilitySummaryItems }
+            }
+        }
+        .padding(16)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
+    }
+
     @ViewBuilder
-    private func availabilityRows(_ rows: [AvailabilityBlock]) -> some View {
-        ForEach(rows) { block in
-            AvailabilityBlockRow(block: block)
-                .swipeActions(edge: .trailing) {
-                    Button(role: .destructive) {
-                        blockPendingDelete = block
-                    } label: {
-                        Label("Delete", systemImage: "trash")
+    private var availabilitySummaryItems: some View {
+        AvailabilitySummaryPill(
+            title: "Time off",
+            value: blocks.filter(\.isApprovedTimeOff).count,
+            tone: .red
+        )
+        AvailabilitySummaryPill(
+            title: "Advisory",
+            value: blocks.filter(\.isAdvisory).count,
+            tone: .orange
+        )
+        AvailabilitySummaryPill(
+            title: "Preferred",
+            value: blocks.filter(\.isPreference).count,
+            tone: .green
+        )
+    }
+
+    private var weeklyCanvas: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("Typical week")
+                    .font(.headline)
+                Spacer()
+                Text("Repeats weekly")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            AvailabilityWeekStrip(
+                selectedDay: $selectedWeekday,
+                blocks: blocks.filter(\.isWeekly)
+            )
+
+            Divider()
+
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(availabilityDayNames[selectedWeekday])
+                        .font(.headline)
+                    Text(selectedDayBlocks.isEmpty ? "No scheduling signals" : "\(selectedDayBlocks.count) saved \(selectedDayBlocks.count == 1 ? "window" : "windows")")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button {
+                    editorContext = .newWeekly(day: selectedWeekday)
+                } label: {
+                    Label("Add", systemImage: "plus")
+                }
+                .buttonStyle(.bordered)
+                .tint(Color.brandPrimary)
+                .controlSize(.small)
+            }
+
+            if selectedDayBlocks.isEmpty {
+                AvailabilityOpenDayState(day: availabilityDayNames[selectedWeekday]) {
+                    editorContext = .newWeekly(day: selectedWeekday)
+                }
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(selectedDayBlocks) { block in
+                        AvailabilityBlockCard(
+                            block: block,
+                            onEdit: { editorContext = .edit(block) },
+                            onDelete: { blockPendingDelete = block }
+                        )
                     }
                 }
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel(block.accessibilityLabel)
+            }
         }
+        .padding(16)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
+    }
+
+    private var exceptionsCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("One-time exceptions")
+                        .font(.headline)
+                    Text("Trips, appointments, and date-specific changes")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 8)
+                Button {
+                    editorContext = .newException(date: .now)
+                } label: {
+                    Image(systemName: "plus")
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.circle)
+                .tint(Color.brandPrimary)
+                .accessibilityLabel("Add one-time exception")
+            }
+
+            if datedBlocks.isEmpty {
+                Text("No one-time exceptions added.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 8)
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(datedBlocks) { block in
+                        AvailabilityBlockCard(
+                            block: block,
+                            onEdit: { editorContext = .edit(block) },
+                            onDelete: { blockPendingDelete = block }
+                        )
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
+    }
+
+    private var guidanceCard: some View {
+        Label {
+            Text("Approved time off blocks shift pickup and trade actions. Other signals help staff schedule with better context.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        } icon: {
+            Image(systemName: "info.circle.fill")
+                .foregroundStyle(Color.statusText(.blue))
+        }
+        .padding(.horizontal, 4)
+        .padding(.bottom, 12)
     }
 
     private func sortBlocks(_ lhs: AvailabilityBlock, _ rhs: AvailabilityBlock) -> Bool {
@@ -170,6 +267,15 @@ struct AvailabilityView: View {
         isLoading = false
     }
 
+    private func upsert(_ block: AvailabilityBlock) {
+        if let index = blocks.firstIndex(where: { $0.id == block.id }) {
+            blocks[index] = block
+        } else {
+            blocks.append(block)
+        }
+        if let day = block.dayOfWeek { selectedWeekday = day }
+    }
+
     private func delete(_ block: AvailabilityBlock) async {
         do {
             try await APIClient.shared.deleteAvailabilityBlock(userId: userId, blockId: block.id)
@@ -186,95 +292,269 @@ struct AvailabilityView: View {
     private var deleteConfirmationBinding: Binding<Bool> {
         Binding(
             get: { blockPendingDelete != nil },
-            set: { isPresented in
-                if !isPresented { blockPendingDelete = nil }
-            }
+            set: { if !$0 { blockPendingDelete = nil } }
         )
     }
 }
 
-private struct AvailabilitySummaryRow: View {
+private struct AvailabilityLoadingState: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            ForEach([120, 260, 150], id: \.self) { height in
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(Color(.secondarySystemGroupedBackground))
+                    .frame(height: CGFloat(height))
+                    .overlay(alignment: .topLeading) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color(.tertiarySystemFill))
+                                .frame(width: 140, height: 18)
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color(.tertiarySystemFill))
+                                .frame(width: 220, height: 12)
+                        }
+                        .padding(16)
+                    }
+            }
+        }
+        .accessibilityElement()
+        .accessibilityLabel("Loading availability")
+    }
+}
+
+private struct AvailabilityWeekStrip: View {
+    @Binding var selectedDay: Int
+    let blocks: [AvailabilityBlock]
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(0..<7, id: \.self) { day in
+                let dayBlocks = blocks.filter { $0.dayOfWeek == day }
+                Button {
+                    selectedDay = day
+                    Haptics.selection()
+                } label: {
+                    VStack(spacing: 7) {
+                        Text(availabilityShortDayNames[day])
+                            .font(.caption2.weight(.semibold))
+                        ZStack {
+                            Circle()
+                                .fill(day == selectedDay ? Color.brandPrimary : Color(.tertiarySystemFill))
+                            Text("\(dayBlocks.count)")
+                                .font(.caption.weight(.bold).monospacedDigit())
+                                .foregroundStyle(day == selectedDay ? Color.white : Color.primary)
+                        }
+                        .frame(width: 30, height: 30)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 58)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(availabilityDayNames[day]), \(dayBlocks.count) availability \(dayBlocks.count == 1 ? "window" : "windows")")
+                .accessibilityAddTraits(day == selectedDay ? .isSelected : [])
+            }
+        }
+    }
+}
+
+private struct AvailabilitySummaryPill: View {
     let title: String
     let value: Int
-    let systemImage: String
     let tone: StatusTone
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: systemImage)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Color.statusText(tone))
-                .frame(width: 24)
+        HStack(spacing: 7) {
+            Circle()
+                .fill(Color.statusText(tone))
+                .frame(width: 7, height: 7)
                 .accessibilityHidden(true)
             Text(title)
-            Spacer()
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 4)
             Text("\(value)")
-                .font(.subheadline.weight(.semibold).monospacedDigit())
-                .foregroundStyle(Color.statusText(tone))
+                .font(.caption.weight(.bold).monospacedDigit())
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+        .background(Color.statusBackground(tone), in: Capsule())
     }
 }
 
-private struct AvailabilityBlockRow: View {
-    let block: AvailabilityBlock
+private struct AvailabilityOpenDayState: View {
+    let day: String
+    let onAdd: () -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: block.intentMetadata.systemImage)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Color.statusText(block.intentMetadata.tone))
-                .frame(width: 24)
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(block.primaryLine)
-                        .font(.body.weight(.medium))
-                    Spacer(minLength: 8)
-                    Text(block.intentMetadata.label)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Color.statusText(block.intentMetadata.tone))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Color.statusBackground(block.intentMetadata.tone), in: Capsule())
-                }
-
-                Text(block.secondaryLine)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                if let statusLine = block.statusLine {
-                    Text(statusLine)
+        Button(action: onAdd) {
+            HStack(spacing: 12) {
+                Image(systemName: "checkmark.circle")
+                    .font(.title3)
+                    .foregroundStyle(Color.statusText(.green))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("No limits saved")
+                        .font(.subheadline.weight(.semibold))
+                    Text("Add a preferred or unavailable window for \(day).")
                         .font(.caption)
-                        .foregroundStyle(Color.statusText(block.statusTone))
+                        .foregroundStyle(.secondary)
                 }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
             }
+            .padding(12)
+            .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
         }
-        .padding(.vertical, 3)
+        .buttonStyle(.plain)
     }
 }
 
-private struct AddAvailabilitySheet: View {
+private struct AvailabilityBlockCard: View {
+    let block: AvailabilityBlock
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button(action: onEdit) {
+                HStack(alignment: .top, spacing: 12) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.statusText(block.intentMetadata.tone))
+                        .frame(width: 4)
+                        .padding(.vertical, 2)
+                        .accessibilityHidden(true)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(block.primaryLine)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Spacer(minLength: 8)
+                            Text(block.intentMetadata.label)
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(Color.statusText(block.intentMetadata.tone))
+                        }
+                        Text(block.secondaryLine)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        if let statusLine = block.statusLine {
+                            Text(statusLine)
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(Color.statusText(block.statusTone))
+                        }
+                    }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Menu {
+                Button("Edit", systemImage: "pencil", action: onEdit)
+                Button("Delete", systemImage: "trash", role: .destructive, action: onDelete)
+            } label: {
+                Image(systemName: "ellipsis")
+                    .frame(width: 36, height: 44)
+            }
+            .accessibilityLabel("Actions for \(block.primaryLine)")
+        }
+        .padding(12)
+        .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+        .accessibilityElement(children: .contain)
+    }
+}
+
+private struct AvailabilityErrorBanner: View {
+    let message: String
+    let onRetry: () -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(Color.statusText(.red))
+            Text(message)
+                .font(.footnote)
+                .lineLimit(2)
+            Spacer(minLength: 8)
+            Button("Retry", action: onRetry)
+                .font(.footnote.weight(.semibold))
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .frame(width: 32, height: 32)
+            }
+            .accessibilityLabel("Dismiss availability error")
+        }
+        .padding(12)
+        .background(Color.statusBackground(.red), in: RoundedRectangle(cornerRadius: 14))
+    }
+}
+
+private struct AvailabilityEditorContext: Identifiable {
+    let id: String
+    let block: AvailabilityBlock?
+    let suggestedKind: AvailabilityEditorKind
+    let suggestedDay: Int
+    let suggestedDate: Date
+
+    static func newWeekly(day: Int) -> Self {
+        Self(id: UUID().uuidString, block: nil, suggestedKind: .weekly, suggestedDay: day, suggestedDate: .now)
+    }
+
+    static func newException(date: Date) -> Self {
+        Self(
+            id: UUID().uuidString,
+            block: nil,
+            suggestedKind: .adHoc,
+            suggestedDay: Calendar.current.component(.weekday, from: date) - 1,
+            suggestedDate: date
+        )
+    }
+
+    static func edit(_ block: AvailabilityBlock) -> Self {
+        Self(
+            id: block.id,
+            block: block,
+            suggestedKind: block.isDated ? .adHoc : .weekly,
+            suggestedDay: block.dayOfWeek ?? 1,
+            suggestedDate: block.parsedDate ?? .now
+        )
+    }
+}
+
+private struct AvailabilityEditorSheet: View {
     let userId: String
-    let onAdded: () -> Void
+    let context: AvailabilityEditorContext
+    let onSaved: (AvailabilityBlock) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var kind: AvailabilityEditorKind = .weekly
-    @State private var intent: AvailabilityEditorIntent = .cannotWork
-    @State private var dayOfWeek = 1
-    @State private var date = Date()
-    @State private var start: Date
-    @State private var end: Date
-    @State private var label = ""
+    @State private var kind: AvailabilityEditorKind
+    @State private var intent: AvailabilityEditorIntent
+    @State private var dayOfWeek: Int
+    @State private var date: Date
+    @State private var startMinutes: Int
+    @State private var endMinutes: Int
+    @State private var label: String
     @State private var isSaving = false
     @State private var error: String?
 
-    init(userId: String, onAdded: @escaping () -> Void) {
+    init(userId: String, context: AvailabilityEditorContext, onSaved: @escaping (AvailabilityBlock) -> Void) {
         self.userId = userId
-        self.onAdded = onAdded
-        let cal = Calendar.current
-        _start = State(initialValue: cal.date(bySettingHour: 9, minute: 0, second: 0, of: .now) ?? .now)
-        _end = State(initialValue: cal.date(bySettingHour: 10, minute: 0, second: 0, of: .now) ?? .now)
+        self.context = context
+        self.onSaved = onSaved
+        let block = context.block
+        _kind = State(initialValue: block?.editorKind ?? context.suggestedKind)
+        _intent = State(initialValue: block?.editorIntent ?? .cannotWork)
+        _dayOfWeek = State(initialValue: block?.dayOfWeek ?? context.suggestedDay)
+        _date = State(initialValue: block?.parsedDate ?? context.suggestedDate)
+        _startMinutes = State(initialValue: Self.minutes(block?.startsAt) ?? 9 * 60)
+        _endMinutes = State(initialValue: Self.minutes(block?.endsAt) ?? 10 * 60)
+        _label = State(initialValue: block?.label ?? "")
+    }
+
+    private var timeOptions: [Int] {
+        Array(Set(Array(stride(from: 0, through: 23 * 60 + 45, by: 15)) + [startMinutes, endMinutes])).sorted()
     }
 
     var body: some View {
@@ -309,25 +589,33 @@ private struct AddAvailabilitySheet: View {
                 }
 
                 Section("Time") {
-                    DatePicker("Starts", selection: $start, displayedComponents: .hourAndMinute)
-                    DatePicker("Ends", selection: $end, displayedComponents: .hourAndMinute)
+                    Picker("Starts", selection: $startMinutes) {
+                        ForEach(timeOptions, id: \.self) { minutes in
+                            Text(Self.timeLabel(minutes)).tag(minutes)
+                        }
+                    }
+                    Picker("Ends", selection: $endMinutes) {
+                        ForEach(timeOptions, id: \.self) { minutes in
+                            Text(Self.timeLabel(minutes)).tag(minutes)
+                        }
+                    }
                 }
 
                 Section {
                     TextField(intent.labelPlaceholder, text: $label)
                 } footer: {
-                    Text(kind == .weekly ? "Repeats weekly until you remove it." : "Applies only to the selected date.")
+                    Text(kind == .weekly ? "Repeats every \(availabilityDayNames[dayOfWeek]) until you remove it." : "Applies only to the selected date.")
                 }
 
                 if let error {
                     Section {
-                        Text(error)
+                        Label(error, systemImage: "exclamationmark.triangle.fill")
                             .font(.footnote)
                             .foregroundStyle(Color.statusText(.red))
                     }
                 }
             }
-            .navigationTitle("Add Availability")
+            .navigationTitle(context.block == nil ? "Add Availability" : "Edit Availability")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -341,20 +629,24 @@ private struct AddAvailabilitySheet: View {
                         if isSaving {
                             ProgressView().controlSize(.small)
                         } else {
-                            Text("Add").fontWeight(.semibold)
+                            Text(context.block == nil ? "Add" : "Save").fontWeight(.semibold)
                         }
                     }
+                    .tint(Color.brandPrimary)
                     .disabled(isSaving)
                 }
             }
             .interactiveDismissDisabled(isSaving)
+            .onChange(of: startMinutes) { _, newValue in
+                if endMinutes <= newValue {
+                    endMinutes = min(newValue + 60, 23 * 60 + 45)
+                }
+            }
         }
     }
 
     private func save() async {
-        let startStr = Self.hhmm(start)
-        let endStr = Self.hhmm(end)
-        guard startStr < endStr else {
+        guard startMinutes < endMinutes else {
             error = "Start time must be before end time"
             Haptics.warning()
             return
@@ -363,18 +655,33 @@ private struct AddAvailabilitySheet: View {
         error = nil
         let trimmed = label.trimmingCharacters(in: .whitespacesAndNewlines)
         do {
-            _ = try await APIClient.shared.createAvailabilityBlock(
-                userId: userId,
-                kind: kind.rawValue,
-                intent: intent.rawValue,
-                dayOfWeek: dayOfWeek,
-                date: kind == .adHoc ? Self.yyyyMMdd(date) : nil,
-                startsAt: startStr,
-                endsAt: endStr,
-                label: trimmed.isEmpty ? nil : trimmed
-            )
+            let saved: AvailabilityBlock
+            if let block = context.block {
+                saved = try await APIClient.shared.updateAvailabilityBlock(
+                    userId: userId,
+                    blockId: block.id,
+                    kind: kind.rawValue,
+                    intent: intent.rawValue,
+                    dayOfWeek: dayOfWeek,
+                    date: kind == .adHoc ? Self.yyyyMMdd(date) : nil,
+                    startsAt: Self.hhmm(startMinutes),
+                    endsAt: Self.hhmm(endMinutes),
+                    label: trimmed.isEmpty ? nil : trimmed
+                )
+            } else {
+                saved = try await APIClient.shared.createAvailabilityBlock(
+                    userId: userId,
+                    kind: kind.rawValue,
+                    intent: intent.rawValue,
+                    dayOfWeek: dayOfWeek,
+                    date: kind == .adHoc ? Self.yyyyMMdd(date) : nil,
+                    startsAt: Self.hhmm(startMinutes),
+                    endsAt: Self.hhmm(endMinutes),
+                    label: trimmed.isEmpty ? nil : trimmed
+                )
+            }
+            onSaved(saved)
             Haptics.success()
-            onAdded()
             dismiss()
         } catch {
             self.error = error.localizedDescription
@@ -383,11 +690,20 @@ private struct AddAvailabilitySheet: View {
         isSaving = false
     }
 
-    private static func hhmm(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "HH:mm"
-        return formatter.string(from: date)
+    private static func minutes(_ value: String?) -> Int? {
+        guard let value else { return nil }
+        let parts = value.split(separator: ":").compactMap { Int($0) }
+        guard parts.count == 2 else { return nil }
+        return parts[0] * 60 + parts[1]
+    }
+
+    private static func hhmm(_ minutes: Int) -> String {
+        String(format: "%02d:%02d", minutes / 60, minutes % 60)
+    }
+
+    private static func timeLabel(_ minutes: Int) -> String {
+        let date = Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: .now) ?? .now
+        return date.formatted(date: .omitted, time: .shortened)
     }
 
     private static func yyyyMMdd(_ date: Date) -> String {
@@ -403,13 +719,7 @@ private enum AvailabilityEditorKind: String, CaseIterable, Identifiable {
     case adHoc = "AD_HOC"
 
     var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .weekly: "Weekly"
-        case .adHoc: "One-time"
-        }
-    }
+    var label: String { self == .weekly ? "Weekly" : "One-time" }
 }
 
 private enum AvailabilityEditorIntent: String, CaseIterable, Identifiable {
@@ -433,7 +743,7 @@ private enum AvailabilityEditorIntent: String, CaseIterable, Identifiable {
         switch self {
         case .cannotWork: "Warns staff that you are unavailable during this window."
         case .prefer: "Helps staff spot shifts you would like to work."
-        case .dislike: "Warns staff this window is not ideal, without blocking assignment."
+        case .dislike: "Marks this window as less ideal without blocking assignment."
         case .timeOff: "Requests time off. Approved time off blocks pickup and trade actions."
         }
     }
@@ -441,7 +751,7 @@ private enum AvailabilityEditorIntent: String, CaseIterable, Identifiable {
     var labelPlaceholder: String {
         switch self {
         case .cannotWork: "Label (optional), e.g. CHEM 101"
-        case .prefer: "Label (optional), e.g. Like photo shifts"
+        case .prefer: "Label (optional), e.g. Prefer photo shifts"
         case .dislike: "Label (optional), e.g. Lab conflict"
         case .timeOff: "Reason (optional), e.g. Family trip"
         }
@@ -459,7 +769,6 @@ private enum AvailabilityEditorIntent: String, CaseIterable, Identifiable {
 
 private struct AvailabilityIntentMetadata {
     let label: String
-    let systemImage: String
     let tone: StatusTone
 }
 
@@ -467,44 +776,25 @@ private extension AvailabilityBlock {
     var normalizedKind: String { kind ?? "WEEKLY" }
     var normalizedIntent: String { intent ?? "CANNOT_WORK" }
     var normalizedStatus: String { status ?? "APPROVED" }
+    var editorKind: AvailabilityEditorKind { normalizedKind == "AD_HOC" ? .adHoc : .weekly }
+    var editorIntent: AvailabilityEditorIntent { AvailabilityEditorIntent(rawValue: normalizedIntent) ?? .cannotWork }
 
-    var isWeekly: Bool {
-        normalizedKind != "AD_HOC" && dayOfWeek != nil
-    }
-
-    var isDated: Bool {
-        normalizedKind == "AD_HOC" || dateValue != nil
-    }
-
-    var isApprovedTimeOff: Bool {
-        normalizedIntent == "TIME_OFF" && normalizedStatus == "APPROVED"
-    }
-
-    var isPreference: Bool {
-        normalizedIntent == "PREFER"
-    }
+    var isWeekly: Bool { normalizedKind != "AD_HOC" && dayOfWeek != nil }
+    var isDated: Bool { normalizedKind == "AD_HOC" || dateValue != nil }
+    var isApprovedTimeOff: Bool { normalizedIntent == "TIME_OFF" && normalizedStatus == "APPROVED" }
+    var isPreference: Bool { normalizedIntent == "PREFER" }
 
     var isAdvisory: Bool {
-        switch normalizedIntent {
-        case "CANNOT_WORK", "DISLIKE":
-            true
-        case "TIME_OFF":
-            normalizedStatus == "PENDING"
-        default:
-            false
-        }
+        normalizedIntent == "CANNOT_WORK" || normalizedIntent == "DISLIKE" ||
+            (normalizedIntent == "TIME_OFF" && normalizedStatus == "PENDING")
     }
 
     var intentMetadata: AvailabilityIntentMetadata {
         switch normalizedIntent {
-        case "PREFER":
-            AvailabilityIntentMetadata(label: "Prefer", systemImage: "checkmark.circle.fill", tone: .green)
-        case "DISLIKE":
-            AvailabilityIntentMetadata(label: "Avoid", systemImage: "exclamationmark.triangle.fill", tone: .orange)
-        case "TIME_OFF":
-            AvailabilityIntentMetadata(label: "Time off", systemImage: "hand.raised.fill", tone: statusTone)
-        default:
-            AvailabilityIntentMetadata(label: "Cannot work", systemImage: "calendar.badge.exclamationmark", tone: .orange)
+        case "PREFER": AvailabilityIntentMetadata(label: "Prefer", tone: .green)
+        case "DISLIKE": AvailabilityIntentMetadata(label: "Avoid", tone: .orange)
+        case "TIME_OFF": AvailabilityIntentMetadata(label: "Time off", tone: statusTone)
+        default: AvailabilityIntentMetadata(label: "Cannot work", tone: .orange)
         }
     }
 
@@ -512,7 +802,6 @@ private extension AvailabilityBlock {
         switch normalizedStatus {
         case "APPROVED": normalizedIntent == "TIME_OFF" ? .red : .green
         case "PENDING": .orange
-        case "DENIED": .gray
         default: .gray
         }
     }
@@ -524,14 +813,10 @@ private extension AvailabilityBlock {
 
     var secondaryLine: String {
         var parts: [String] = []
-        if let dateLine = displayDate {
-            parts.append(dateLine)
-        }
-        parts.append("\(startsAt)-\(endsAt)")
-        if let semesterLabel, !semesterLabel.isEmpty {
-            parts.append(semesterLabel)
-        }
-        return parts.joined(separator: " | ")
+        if let displayDate { parts.append(displayDate) }
+        parts.append("\(displayTime(startsAt)) to \(displayTime(endsAt))")
+        if let semesterLabel, !semesterLabel.isEmpty { parts.append(semesterLabel) }
+        return parts.joined(separator: " · ")
     }
 
     var statusLine: String? {
@@ -544,27 +829,32 @@ private extension AvailabilityBlock {
         }
     }
 
-    var accessibilityLabel: String {
-        [
-            primaryLine,
-            intentMetadata.label,
-            secondaryLine,
-            statusLine,
-        ].compactMap { $0 }.joined(separator: ", ")
-    }
-
     var dateValue: String? {
         guard let date, !date.isEmpty else { return nil }
-        if date.count >= 10 { return String(date.prefix(10)) }
-        return date
+        return date.count >= 10 ? String(date.prefix(10)) : date
+    }
+
+    var parsedDate: Date? {
+        guard let dateValue else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: dateValue)
     }
 
     var displayDate: String? {
-        guard let dateValue else { return nil }
-        let input = DateFormatter()
-        input.locale = Locale(identifier: "en_US_POSIX")
-        input.dateFormat = "yyyy-MM-dd"
-        guard let date = input.date(from: dateValue) else { return dateValue }
-        return date.formatted(date: .abbreviated, time: .omitted)
+        guard let parsedDate else { return dateValue }
+        if Calendar.current.component(.year, from: parsedDate) == Calendar.current.component(.year, from: .now) {
+            return parsedDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+        }
+        return parsedDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().year())
+    }
+
+    private func displayTime(_ value: String) -> String {
+        let parts = value.split(separator: ":").compactMap { Int($0) }
+        guard parts.count == 2,
+              let date = Calendar.current.date(bySettingHour: parts[0], minute: parts[1], second: 0, of: .now)
+        else { return value }
+        return date.formatted(date: .omitted, time: .shortened)
     }
 }

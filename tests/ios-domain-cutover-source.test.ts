@@ -75,7 +75,7 @@ describe("iOS production domain cutover", () => {
       'private static let webManagementURL = AppEnvironment.url(path: "/licenses")',
     );
     expect(source("ios/Wisconsin/Views/ScheduleView.swift")).toContain(
-      'AppEnvironment.webcalURL(path: "/api/shifts/ics/\\(token)")',
+      'AppEnvironment.webcalURL(path: "/api/shifts/ics/\\(activeToken)")',
     );
   });
 

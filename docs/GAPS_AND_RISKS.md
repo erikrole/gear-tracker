@@ -3,7 +3,7 @@
 ## Document Control
 
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-16
+- Last Updated: 2026-07-18
 - Status: Active registry
 - Purpose: Track only open gaps, pending decisions, active risks, and intentionally deferred scope.
 - Historical record: [GAPS_AND_RISKS_HISTORY.md](archive/GAPS_AND_RISKS_HISTORY.md)
@@ -48,6 +48,12 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 
 ## Change Log
 
+- 2026-07-18: Reconciled the collaborator Published Schedule redesign. Native discovery now excludes ended events from the bounded first page, while detail, follow, and push routing continue using only published-snapshot data and capability-driven controls. No private Schedule data, schema, permission, policy, or custody gap was introduced. Authenticated temporary-account smoke remains part of the existing collaborator rollout risk.
+- 2026-07-18: Reconciled native Schedule filtering and Shift Calendar management. Neutral and Non-game scopes are now distinct, while calendar status deliberately reports only private-feed readiness and the app's last successful handoff because Apple does not expose subscription completion or refresh state here. Existing token rotation, rate limiting, audit, assignment visibility, and scheduling authority contracts remain unchanged, so no new backend or correctness gap was introduced.
+- 2026-07-18: Reconciled the native Edit Call Window and Post to Trade Board redesign. Both surfaces continue using existing shift PATCH and trade POST contracts, permission gates, ownership semantics, audit behavior, and scheduling policy, so no new backend or correctness gap was introduced.
+- 2026-07-18: Reconciled the native Add Shift and Assign Person redesign. iOS now consumes the existing staff-only candidate-score read model and existing shift/assignment mutations without adding a schema, permission, policy, audit, notification, or scheduling-correctness gap.
+- 2026-07-18: Reconciled the native My Availability and Trade Board redesign. Existing availability PATCH and trade/open-shift contracts now power direct mobile editing and an action-first board without creating a new schema, policy, permission, or correctness gap.
+- 2026-07-18: Reconciled the native Schedule core redesign. Full-screen Event detail, role-adaptive assignment and gear actions, shared List/Calendar row semantics, and failure-only refresh feedback shipped without creating a new backend, schema, permission, or scheduling-policy gap. My Availability, Trade Board, and staff authoring sheets remain the already-planned next native design slices rather than active correctness gaps.
 - 2026-07-16: Replaced the deferred BTN collaborator design with D-041 and `AREA_COLLABORATORS.md`. Production migration/client ordering and authenticated smoke remain an active rollout risk until completed.
 - 2026-07-16: Closed collaborator stale-response, audit-history, and hidden/draft event-link leak paths; centralized fixed profile policy; and added representative route-level denial coverage. Production rollout ordering and smoke remain open.
 - 2026-07-16: Applied the affiliation-policy migration through `0098`, preserved BTN parity, seeded Learfield suspended, and moved the remaining collaborator risk to authenticated production editor/client smoke.

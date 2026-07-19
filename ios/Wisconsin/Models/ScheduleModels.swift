@@ -272,6 +272,63 @@ struct RosterUser: Codable, Identifiable {
     let primaryArea: String?
 }
 
+// MARK: - Assignment candidates
+
+/// Staff-only recommendation context from `/api/shifts/[id]/candidate-scores`.
+/// Defaults keep the picker usable if the server adds or temporarily omits
+/// nonessential scoring fields during rollout.
+struct CandidateRecommendation: Decodable, Identifiable {
+    var id: String { userId }
+    let userId: String
+    let bucket: String
+    let score: Int
+    let reasons: [CandidateScoreSignal]
+    let warnings: [CandidateScoreSignal]
+    let blockingConflict: Bool
+    let advisoryConflict: Bool
+    let advisoryConflictNote: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case userId, bucket, score, reasons, warnings
+        case blockingConflict, advisoryConflict, advisoryConflictNote
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        userId = try container.decode(String.self, forKey: .userId)
+        bucket = try container.decodeIfPresent(String.self, forKey: .bucket) ?? "good_fit"
+        score = try container.decodeIfPresent(Int.self, forKey: .score) ?? 0
+        reasons = try container.decodeIfPresent([CandidateScoreSignal].self, forKey: .reasons) ?? []
+        warnings = try container.decodeIfPresent([CandidateScoreSignal].self, forKey: .warnings) ?? []
+        blockingConflict = try container.decodeIfPresent(Bool.self, forKey: .blockingConflict) ?? false
+        advisoryConflict = try container.decodeIfPresent(Bool.self, forKey: .advisoryConflict) ?? false
+        advisoryConflictNote = try container.decodeIfPresent(String.self, forKey: .advisoryConflictNote)
+    }
+
+    var fitLabel: String {
+        switch bucket {
+        case "recommended": "Recommended"
+        case "good_fit": "Good fit"
+        case "overloaded": "Heavy workload"
+        default: "Review"
+        }
+    }
+
+    var primaryContext: String? {
+        reasons.first?.label ?? warnings.first?.label
+    }
+
+    var warningContext: String? {
+        advisoryConflictNote ?? warnings.first?.label
+    }
+}
+
+struct CandidateScoreSignal: Decodable {
+    let code: String
+    let label: String
+    let weight: Int?
+}
+
 struct ShiftCoverage: Codable {
     let total: Int
     let filled: Int

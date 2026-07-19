@@ -89,6 +89,7 @@ Collaborator gear responses remain sanitized and own-booking scoped. Published S
 
 ## Change Log
 
+- 2026-07-18: Native Published Schedule now matches the internal Schedule reading order without crossing the collaborator boundary. The list is limited to current and upcoming published snapshots, grouped by date, and rendered as classification-rail cards with time, venue, crew preview, and quiet follow state. Each event opens a full-screen read-only detail grouped by operational area. Follow and mute remain capability-gated and use server-returned state; notification taps fetch only the sanitized published-event endpoint. Drafts, unpublished edits, notes, contact details, Open Work, availability, trades, acknowledgements, candidate scores, gear, and internal staffing controls remain excluded.
 - 2026-07-16: V1.2 replaced the fixed BTN registry with admin-managed affiliation policies, nine validated capabilities, immutable revisions, immediate suspension, dynamic web/iOS/kiosk surfaces, and a suspended Learfield seed while preserving BTN behavior.
 - 2026-07-16: V1.1 hardened response sanitization, booking audit denial, published-only event links, negative route coverage, and atomic follow behavior.
 - 2026-07-16: V1 shipped the initial fixed BTN collaborator contract.

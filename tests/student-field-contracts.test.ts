@@ -105,13 +105,15 @@ describe("student field mobile contracts", () => {
     expect(scheduleView).toContain("activeFilterSummary");
     expect(scheduleView).toContain("private struct ScheduleFilterSheet");
     expect(scheduleView).toContain("\"My shifts\"");
-    expect(scheduleView).toContain("\"Past events\"");
-    expect(scheduleView).toContain("Picker(\"Venue\"");
+    expect(scheduleView).toContain("\"Include past events\"");
+    expect(scheduleView).toContain("Text(\"Event Type\")");
+    expect(scheduleView).toContain("ForEach(HomeAwayFilter.allCases");
     expect(scheduleView).toContain("Picker(\"Sport\"");
     expect(scheduleView).toContain("Image(systemName: \"arrow.left.arrow.right\")");
-    expect(scheduleView).toContain("Image(systemName: isSubscribing ? \"calendar\" : \"calendar.badge.plus\")");
+    expect(scheduleView).toContain("Label(\"My Availability\", systemImage: \"calendar.badge.clock\")");
+    expect(scheduleView).toContain("Label(\"Shift Calendar\", systemImage: \"calendar.badge.plus\")");
     expect(scheduleView).toContain("accessibilityLabel(activeFilterCount > 0 ? \"Filters, \\(activeFilterCount) active\" : \"Filters\")");
-    expect(scheduleView).toContain("accessibilityLabel(\"Subscribe to shifts in Calendar\")");
+    expect(scheduleView).toContain("accessibilityLabel(\"More Schedule actions\")");
     expect(scheduleView).not.toContain("Switch to calendar view");
     expect(scheduleView).not.toContain("Switch to list view");
   });
@@ -121,19 +123,19 @@ describe("student field mobile contracts", () => {
     const tradeBoard = source("ios/Wisconsin/Views/Schedule/TradeBoardSheet.swift");
     const postTrade = source("ios/Wisconsin/Views/Schedule/PostTradeSheet.swift");
 
-    expect(eventDetail).toContain("Label(\"Add shift\", systemImage: \"plus\")");
+    expect(eventDetail).toContain("Label(\"Add Shift\", systemImage: \"plus\")");
     expect(eventDetail).toContain("Label(\"Assign person\", systemImage: \"plus.circle.fill\")");
     expect(eventDetail).toContain("Label(\"Claim shift\", systemImage: \"hand.raised.fill\")");
     expect(eventDetail).toContain("Button(\"Approve \\(assignment.user.name)\")");
     expect(eventDetail).toContain("Button(\"Decline \\(assignment.user.name)\")");
     expect(eventDetail).toContain("Text(\"Event\")");
     // Time-aware reserve copy: "now" only when the event is today/underway.
-    expect(eventDetail).toContain("title: reserveGearTitle");
+    expect(eventDetail).toContain("Label(reserveGearTitle, systemImage: \"shippingbox.and.arrow.backward.fill\")");
     expect(eventDetail).toContain("return \"Reserve gear now\"");
     expect(eventDetail).toContain("return \"Reserve gear for \\(event.startsAt.formatted(.dateTime.month(.abbreviated).day()))\"");
     expect(eventDetail).not.toContain("ToolbarItem(placement: .bottomBar)");
     expect(eventDetail).not.toContain("Label(\"Prep gear\", systemImage: \"archivebox\")");
-    expect(tradeBoard).toContain("Label(\"Post trade\", systemImage: \"plus\")");
+    expect(tradeBoard).toContain(".accessibilityLabel(\"Post trade\")");
     expect(tradeBoard).toContain(".navigationTitle(\"Trade Board\")");
     expect(tradeBoard).toContain("APIClient.shared.scheduleOpenWork()");
     expect(tradeBoard).toContain("Available Now");
@@ -144,8 +146,8 @@ describe("student field mobile contracts", () => {
     expect(tradeBoard).toContain("Text(\"Cancel post\")");
     expect(tradeBoard).toContain("Canceling removes the post; the shift stays assigned to you.");
     expect(tradeBoard).toContain("You will be assigned immediately.");
-    expect(postTrade).toContain("Section(\"Choose Shift to Trade\")");
-    expect(postTrade).toContain("Text(\"Post Trade\").fontWeight(.semibold)");
+    expect(postTrade).toContain("Text(\"Choose a Shift\")");
+    expect(postTrade).toContain("Text(\"Post to Trade Board\")");
   });
 
   it("keeps iOS Items controls self-describing", () => {
@@ -238,19 +240,22 @@ describe("student field mobile contracts", () => {
     expect(availability).toContain("case timeOff = \"TIME_OFF\"");
     expect(availability).toContain("AvailabilityEditorKind");
     expect(availability).toContain("case adHoc = \"AD_HOC\"");
-    expect(availability).toContain("Blocking time off");
-    expect(availability).toContain("Advisory signals");
-    expect(availability).toContain("Preferred windows");
-    expect(availability).toContain("One-time requests and exceptions");
+    expect(availability).toContain("AvailabilityWeekStrip");
+    expect(availability).toContain("Your schedule signals");
+    expect(availability).toContain("Typical week");
+    expect(availability).toContain("One-time exceptions");
     expect(availability).toContain("Pending staff review");
-    expect(availability).toContain("Label(\"Add availability block\", systemImage: \"plus\")");
     expect(availability).toContain("Label(\"Add block\", systemImage: \"plus\")");
+    expect(availability).toContain("Edit Availability");
+    expect(availability).toContain("stride(from: 0, through: 23 * 60 + 45, by: 15)");
     expect(apiClient).toContain("kind: String = \"WEEKLY\"");
     expect(apiClient).toContain("intent: String = \"CANNOT_WORK\"");
     expect(apiClient).toContain("date: String? = nil");
     expect(apiClient).toContain("kind: kind");
     expect(apiClient).toContain("intent: intent");
     expect(apiClient).toContain("date: kind == \"AD_HOC\" ? date : nil");
+    expect(apiClient).toContain("func updateAvailabilityBlock(");
+    expect(apiClient).toContain("method: \"PATCH\"");
   });
 
   it("keeps iOS Create Booking actions and selected equipment recoverable", () => {

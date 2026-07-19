@@ -33,6 +33,7 @@ final class TradeBoardViewModel {
         + postedTrades.count
         + resolvedTrades.count
     }
+    var actionableCount: Int { availableOpenShifts.count + availableTrades.count }
 
     func load() async {
         guard !isLoading else { return }
@@ -85,6 +86,10 @@ struct TradeBoardSheet: View {
     @State private var tradeToConfirm: ShiftTrade?
     @State private var tradeToCancel: ShiftTrade?
     @State private var openShiftToPickup: OpenWorkShift?
+    @State private var mineOnly = false
+    @State private var showBlocked = false
+    @State private var showHistory = false
+    @State private var pendingActionId: String?
     @State private var actionError: String?
     @State private var actionErrorHaptic = 0
     @Environment(\.dismiss) private var dismiss
@@ -124,12 +129,25 @@ struct TradeBoardSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button {
+                        mineOnly.toggle()
+                        Haptics.selection()
+                    } label: {
+                        Image(systemName: mineOnly ? "person.crop.circle.fill" : "person.crop.circle")
+                            .frame(width: 36, height: 36)
+                    }
+                    .foregroundStyle(mineOnly ? Color.brandPrimary : Color.primary)
+                    .accessibilityLabel(mineOnly ? "Show available shifts" : "Show my trade posts")
+                    .accessibilityAddTraits(mineOnly ? .isSelected : [])
+
                     Button {
                         showPostSheet = true
                     } label: {
-                        Label("Post trade", systemImage: "plus")
+                        Image(systemName: "plus")
+                            .frame(width: 36, height: 36)
                     }
+                    .accessibilityLabel("Post trade")
                 }
             }
             .task {
@@ -192,91 +210,164 @@ struct TradeBoardSheet: View {
 
     private var tradeList: some View {
         List {
+            Section {
+                TradeBoardSummaryCard(
+                    actionableCount: vm.actionableCount,
+                    myPostCount: vm.myTrades.count,
+                    mineOnly: mineOnly,
+                    onToggleMine: {
+                        mineOnly.toggle()
+                        Haptics.selection()
+                    }
+                )
+            }
+            .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 8, trailing: 16))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+
+            if mineOnly {
+                myPostsContent
+            } else {
+                availableContent
+            }
+
             if vm.visibleCount == 0 {
                 Section {
                     ContentUnavailableView(
                         "No open shifts",
                         systemImage: "arrow.triangle.2.circlepath",
-                        description: Text("Open shifts and trade posts will show up here.")
+                        description: Text("Open shifts and trade posts will appear here when coverage changes.")
                     )
                 }
                 .listRowBackground(Color.clear)
             }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Color(.systemGroupedBackground))
+    }
 
+    @ViewBuilder
+    private var availableContent: some View {
             if !vm.availableOpenShifts.isEmpty || !vm.availableTrades.isEmpty {
                 Section {
                     ForEach(vm.availableOpenShifts) { item in
-                        OpenWorkShiftRow(item: item, context: .availableNow) {
+                        OpenWorkShiftRow(
+                            item: item,
+                            context: .availableNow,
+                            isActioning: pendingActionId == item.id
+                        ) {
                             openShiftToPickup = item
                         }
+                        .tradeBoardCardRow()
                     }
                     ForEach(vm.availableTrades) { trade in
-                        TradeRow(trade: trade, context: .availableNow) {
-                            tradeToConfirm = trade
-                        } cancelAction: {}
+                        TradeRow(
+                            trade: trade,
+                            context: .availableNow,
+                            isActioning: pendingActionId == trade.id,
+                            action: { tradeToConfirm = trade },
+                            cancelAction: nil
+                        )
+                        .tradeBoardCardRow()
                     }
                 } header: {
-                    TradeSectionHeader(title: "Available Now", subtitle: "These shifts can be picked up without staff approval.")
-                }
-            }
-
-            if !vm.myTrades.isEmpty {
-                Section {
-                    ForEach(vm.myTrades) { trade in
-                        TradeRow(trade: trade, context: .myPost) {
-                        } cancelAction: {
-                            tradeToCancel = trade
-                        }
-                        .swipeActions(edge: .trailing) {
-                            Button(role: .destructive) {
-                                tradeToCancel = trade
-                            } label: {
-                                Label("Cancel Trade", systemImage: "xmark")
-                            }
-                            .accessibilityLabel("Cancel trade")
-                        }
-                    }
-                } header: {
-                    TradeSectionHeader(title: "My Posts", subtitle: "Canceling a post keeps the shift assigned to you.")
+                    TradeSectionHeader(title: "Available Now", subtitle: "Claiming assigns the shift immediately.")
                 }
             }
 
             if !vm.waitingOpenShifts.isEmpty {
                 Section {
-                    ForEach(vm.waitingOpenShifts) { item in
-                        OpenWorkShiftRow(item: item, context: .waiting, action: nil)
+                    DisclosureGroup(isExpanded: $showBlocked) {
+                        VStack(spacing: 10) {
+                            ForEach(vm.waitingOpenShifts) { item in
+                                OpenWorkShiftRow(item: item, context: .waiting, isActioning: false, action: nil)
+                            }
+                        }
+                        .padding(.top, 10)
+                    } label: {
+                        Label("Waiting or Blocked", systemImage: "clock.badge.exclamationmark")
+                            .font(.subheadline.weight(.semibold))
                     }
-                } header: {
-                    TradeSectionHeader(title: "Waiting or Blocked", subtitle: "Visible for context, but not available from your current state.")
                 }
+                .tradeBoardCardRow()
             }
 
-            if !vm.postedTrades.isEmpty {
+            if vm.isStaff, !vm.postedTrades.isEmpty {
                 Section {
                     ForEach(vm.postedTrades) { trade in
-                        TradeRow(trade: trade, context: .posted, action: nil, cancelAction: nil)
+                        TradeRow(trade: trade, context: .posted, isActioning: false, action: nil, cancelAction: nil)
+                            .tradeBoardCardRow()
                     }
                 } header: {
-                    TradeSectionHeader(title: "Posted Trades", subtitle: "Trade posts visible for coverage context.")
+                    TradeSectionHeader(title: "Posted Trades", subtitle: "Coverage context across the team.")
                 }
             }
 
             if !vm.resolvedTrades.isEmpty {
                 Section {
-                    ForEach(vm.resolvedTrades) { trade in
-                        TradeRow(trade: trade, context: .resolved, action: nil, cancelAction: nil)
+                    DisclosureGroup(isExpanded: $showHistory) {
+                        VStack(spacing: 10) {
+                            ForEach(vm.resolvedTrades) { trade in
+                                TradeRow(trade: trade, context: .resolved, isActioning: false, action: nil, cancelAction: nil)
+                            }
+                        }
+                        .padding(.top, 10)
+                    } label: {
+                        Label("Resolved", systemImage: "clock.arrow.circlepath")
+                            .font(.subheadline.weight(.semibold))
                     }
-                } header: {
-                    TradeSectionHeader(title: "Resolved", subtitle: "Completed or cancelled trade history.")
+                }
+                .tradeBoardCardRow()
+            }
+    }
+
+    @ViewBuilder
+    private var myPostsContent: some View {
+        if vm.myTrades.isEmpty {
+            Section {
+                ContentUnavailableView {
+                    Label("No shifts posted", systemImage: "person.crop.circle.badge.checkmark")
+                } description: {
+                    Text("Post one of your upcoming shifts when you need someone else to cover it.")
+                } actions: {
+                    Button("Post a Shift") { showPostSheet = true }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Color.brandPrimary)
                 }
             }
+            .listRowBackground(Color.clear)
+        } else {
+            Section {
+                ForEach(vm.myTrades) { trade in
+                    TradeRow(
+                        trade: trade,
+                        context: .myPost,
+                        isActioning: pendingActionId == trade.id,
+                        action: nil,
+                        cancelAction: { tradeToCancel = trade }
+                    )
+                    .tradeBoardCardRow()
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive) {
+                            tradeToCancel = trade
+                        } label: {
+                            Label("Cancel Trade", systemImage: "xmark")
+                        }
+                        .accessibilityLabel("Cancel trade")
+                    }
+                }
+            } header: {
+                TradeSectionHeader(title: "My Posts", subtitle: "Canceling a post keeps the shift assigned to you.")
+            }
         }
-        .listStyle(.insetGrouped)
     }
 
     private func pickupConfirmedOpenShift() {
         guard let item = openShiftToPickup else { return }
+        pendingActionId = item.id
         Task {
+            defer { pendingActionId = nil }
             do {
                 try await vm.pickup(id: item.id)
                 Haptics.success()
@@ -293,7 +384,9 @@ struct TradeBoardSheet: View {
 
     private func claimConfirmedTrade() {
         guard let trade = tradeToConfirm else { return }
+        pendingActionId = trade.id
         Task {
+            defer { pendingActionId = nil }
             do {
                 try await vm.claim(id: trade.id)
                 Haptics.success()
@@ -311,7 +404,9 @@ struct TradeBoardSheet: View {
 
     private func cancelConfirmedTrade() {
         guard let trade = tradeToCancel else { return }
+        pendingActionId = trade.id
         Task {
+            defer { pendingActionId = nil }
             do {
                 try await vm.cancel(id: trade.id)
                 Haptics.success()
@@ -342,7 +437,49 @@ private struct TradeSectionHeader: View {
     }
 }
 
-private enum OpenWorkRowContext {
+private struct TradeBoardSummaryCard: View {
+    let actionableCount: Int
+    let myPostCount: Int
+    let mineOnly: Bool
+    let onToggleMine: () -> Void
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 13)
+                    .fill(Color.statusBackground(actionableCount > 0 ? .purple : .green))
+                Image(systemName: actionableCount > 0 ? "arrow.left.arrow.right" : "checkmark")
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(Color.statusText(actionableCount > 0 ? .purple : .green))
+            }
+            .frame(width: 46, height: 46)
+            .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(mineOnly ? "Your trade posts" : actionableCount == 0 ? "Coverage is clear" : "\(actionableCount) \(actionableCount == 1 ? "shift" : "shifts") available")
+                    .font(.headline)
+                Text(mineOnly ? "\(myPostCount) active \(myPostCount == 1 ? "post" : "posts")" : "Open shifts and trades you can claim now")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 8)
+
+            Button(action: onToggleMine) {
+                Image(systemName: mineOnly ? "arrow.left.arrow.right" : "person.crop.circle")
+                    .frame(width: 38, height: 38)
+            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.circle)
+            .tint(mineOnly ? Color.brandPrimary : Color.primary)
+            .accessibilityLabel(mineOnly ? "Show available shifts" : "Show my trade posts")
+        }
+        .padding(16)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
+    }
+}
+
+private enum OpenWorkRowContext: Equatable {
     case availableNow
     case waiting
 
@@ -366,6 +503,7 @@ private enum OpenWorkRowContext {
 private struct OpenWorkShiftRow: View {
     let item: OpenWorkShift
     let context: OpenWorkRowContext
+    let isActioning: Bool
     var action: (() -> Void)?
 
     private var shift: ShiftTradeShift { item.shift }
@@ -378,35 +516,57 @@ private struct OpenWorkShiftRow: View {
     private var warning: String? { item.advisoryConflictNote ?? item.warnings.first?.label }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            rowHeader(title: shift.displayTitle, badge: context.badge, tone: context.tone)
-            metadataRows([
-                shift.timeRange,
-                shift.area.shiftAreaLabel,
-                consequence,
-                item.score.map { "Fit score \($0)" },
-            ])
+        HStack(alignment: .top, spacing: 12) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(shift.classificationColor)
+                .frame(width: 4, height: 76)
+                .accessibilityHidden(true)
 
-            if let warning {
-                Label(warning, systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(Color.statusText(.orange))
-            }
+            VStack(alignment: .leading, spacing: 7) {
+                rowHeader(title: shift.displayTitle, badge: context.badge, tone: context.tone)
 
-            if let action {
-                Button(action: action) {
-                    Text("Claim shift")
-                        .font(.subheadline.weight(.medium))
-                        .frame(maxWidth: .infinity)
+                Text(shift.dateTimeLine)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Color.statusText(.blue))
+
+                HStack(spacing: 6) {
+                    Text(shift.area.shiftAreaLabel)
+                    Text("·")
+                    Text(shift.classificationLabel)
                 }
-                .buttonStyle(.bordered)
-                .tint(Color.brandPrimary)
-                .controlSize(.small)
-                .frame(minHeight: 44)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                if let warning {
+                    Label(warning, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(Color.statusText(.orange))
+                } else if context == .waiting {
+                    Text(consequence)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if let action {
+                    Button(action: action) {
+                        HStack(spacing: 7) {
+                            if isActioning { ProgressView().controlSize(.small) }
+                            Text("Claim shift")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color.brandPrimary)
+                    .controlSize(.small)
+                    .frame(minHeight: 44)
+                    .disabled(isActioning)
+                }
             }
         }
-        .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
+        .padding(14)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
+        .accessibilityElement(children: .contain)
     }
 }
 
@@ -433,62 +593,77 @@ private enum TradeRowContext: Equatable {
 private struct TradeRow: View {
     let trade: ShiftTrade
     let context: TradeRowContext
+    let isActioning: Bool
     var action: (() -> Void)?
     var cancelAction: (() -> Void)?
 
     private var shift: ShiftTradeShift { trade.shiftAssignment.shift }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            rowHeader(title: shift.displayTitle, badge: trade.status.label, tone: trade.status.tone)
-            metadataRows([
-                shift.timeRange,
-                shift.area.shiftAreaLabel,
-                context.consequence(for: trade),
-                "Posted by \(trade.postedBy.name)",
-            ])
+        HStack(alignment: .top, spacing: 12) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(shift.classificationColor)
+                .frame(width: 4, height: 76)
+                .accessibilityHidden(true)
 
-            if let claimedBy = trade.claimedBy {
-                Text("Claimed by \(claimedBy.name)")
+            VStack(alignment: .leading, spacing: 7) {
+                rowHeader(title: shift.displayTitle, badge: trade.status.label, tone: trade.status.tone)
+
+                Text(shift.dateTimeLine)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Color.statusText(.blue))
+
+                Text("\(shift.area.shiftAreaLabel) · \(shift.classificationLabel) · Posted by \(trade.postedBy.name)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-            }
 
-            if let notes = trade.notes, !notes.isEmpty {
-                Text("\"\(notes)\"")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .italic()
-            }
-
-            HStack(spacing: 8) {
-                if let action {
-                    Button(action: action) {
-                        Text("Claim this shift")
-                            .font(.subheadline.weight(.medium))
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(Color.brandPrimary)
-                    .controlSize(.small)
-                    .frame(minHeight: 44)
+                if let claimedBy = trade.claimedBy {
+                    Text("Claimed by \(claimedBy.name)")
+                        .font(.caption)
+                        .foregroundStyle(Color.statusText(.orange))
                 }
 
-                if let cancelAction {
-                    Button(role: .destructive, action: cancelAction) {
-                        Text("Cancel post")
-                            .font(.subheadline.weight(.medium))
+                if let notes = trade.notes, !notes.isEmpty {
+                    Text(notes)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+
+                HStack(spacing: 8) {
+                    if let action {
+                        Button(action: action) {
+                            HStack(spacing: 7) {
+                                if isActioning { ProgressView().controlSize(.small) }
+                                Text("Claim this shift")
+                                    .font(.subheadline.weight(.semibold))
+                            }
                             .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Color.brandPrimary)
+                        .controlSize(.small)
+                        .frame(minHeight: 44)
+                        .disabled(isActioning)
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .frame(minHeight: 44)
+
+                    if let cancelAction {
+                        Button(role: .destructive, action: cancelAction) {
+                            Text("Cancel post")
+                                .font(.subheadline.weight(.medium))
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .frame(minHeight: 44)
+                        .disabled(isActioning)
+                    }
                 }
             }
         }
-        .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
+        .padding(14)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
+        .accessibilityElement(children: .contain)
     }
 }
 
@@ -504,17 +679,6 @@ private func rowHeader(title: String, badge: String, tone: StatusTone) -> some V
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(Color.statusBackground(tone), in: Capsule())
-    }
-}
-
-private func metadataRows(_ values: [String?]) -> some View {
-    VStack(alignment: .leading, spacing: 4) {
-        ForEach(values.compactMap { $0 }.filter { !$0.isEmpty }, id: \.self) { value in
-            Text(value)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-        }
     }
 }
 
@@ -562,8 +726,35 @@ private extension ShiftTradeShift {
         "\(effectiveStartsAt.formatted(date: .abbreviated, time: .shortened)) - \(effectiveEndsAt.formatted(date: .omitted, time: .shortened))"
     }
     var displayTitle: String {
-        let eventTitle = shiftGroup?.event?.compactTitle ?? "Shift"
-        return "\(area.shiftAreaLabel): \(eventTitle)"
+        shiftGroup?.event?.compactTitle ?? "Open Shift"
+    }
+    var dateTimeLine: String {
+        let day = effectiveStartsAt.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+        let start = effectiveStartsAt.formatted(date: .omitted, time: .shortened)
+        let end = effectiveEndsAt.formatted(date: .omitted, time: .shortened)
+        return "\(day) · \(start) to \(end)"
+    }
+    var classificationLabel: String {
+        switch shiftGroup?.event?.isHome {
+        case true: "Home"
+        case false: "Away"
+        case nil: "Neutral or non-game"
+        }
+    }
+    var classificationColor: Color {
+        switch shiftGroup?.event?.isHome {
+        case true: Color.statusText(.green)
+        case false: Color.statusText(.orange)
+        case nil: Color.statusText(.gray)
+        }
+    }
+}
+
+private extension View {
+    func tradeBoardCardRow() -> some View {
+        listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
     }
 }
 

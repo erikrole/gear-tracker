@@ -6,6 +6,51 @@
 
 Scope (Pass 2 additions): `EventDetailSheet` crew section + `AssignStudentSheet` + `AddShiftSheet` + `AppDelegate` push routing. Adds findings not covered in 2026-04-24 pass. Reconciled against source on 2026-05-11.
 
+## 2026-07-18 Collaborator Published Schedule Follow-up
+
+- [x] Published discovery is limited to current and upcoming events without weakening snapshot, hidden-event, or archive gates.
+- [x] The collaborator list uses date groups and compact event cards with classification, time, venue, crew preview, and follow state.
+- [x] Event selection opens a full-screen read-only published detail with crew grouped by area and no internal contact, gear, trade, availability, note, or staffing data.
+- [x] Follow and mute remain hidden without `SCHEDULE_FOLLOW`, guard duplicate work, and update from server-returned truth only after success.
+- [x] Event push routing uses the sanitized published-event detail API when the target is outside the loaded page.
+- [x] Skeleton loading, pagination, pull-to-refresh, visible-data recovery, VoiceOver summaries, and reduced-motion handling are source-covered.
+
+## 2026-07-18 Filters and Shift Calendar Follow-up
+
+- [x] Filters expose a live unique-event result count and separate personal/past scope from Event Type and Sport.
+- [x] Neutral games require an opponent while opponent-free Non-game events have a distinct scope in both List and Calendar.
+- [x] Active filter context remains quiet in the first viewport and the sheet owns Clear plus one purple Show Events action.
+- [x] Shift Calendar reports private-feed readiness and the app's last Calendar handoff without claiming Apple subscription completion.
+- [x] Calendar status failures retain Retry, actions guard duplicate work, and private-link reset warns that existing subscriptions will stop updating.
+- [x] Shared host routing, token rate limits, token-rotation audit history, assignment scoping, and Gear Tracker schedule authority remain unchanged.
+
+## 2026-07-18 Core Redesign Follow-up
+
+- [x] List remains the default all-events scope, with assigned events carrying a separate blue personal-work treatment and venue classification retained in the leading rail.
+- [x] List and selected-day Calendar results share `EventRow`, including dedicated venue and assignment context lines.
+- [x] Month cells retain venue-tone dots and add one independent blue personal-assignment marker.
+- [x] Passive freshness chrome is removed; pull-to-refresh and non-blocking refresh-failure recovery remain.
+- [x] Schedule, Home, and event push routes navigate to full-screen `EventDetailView`; Back preserves Schedule filters, selected day, and mode.
+- [x] Student rows suppress passive crew coverage while staff/admin retain staffing context.
+- [x] Focused native source contracts pass and the Wisconsin Simulator target builds successfully. Event detail runtime appearance and accessibility-size proof is recorded in the active closeout plan; List and Calendar screenshots remain lock-blocked.
+
+## 2026-07-18 Availability and Trade Board Follow-up
+
+- [x] My Availability uses a tappable weekday canvas with recurring-window counts and keeps dated exceptions separate.
+- [x] Existing blocks open in an edit sheet backed by the shipped availability PATCH route; new and edited times use 15-minute choices.
+- [x] Schedule exposes My Availability only for Student scheduling-class workers while preserving the Profile entry point.
+- [x] Trade Board prioritizes immediately claimable work, keeps My Posts behind a quiet personal-scope control, and collapses blocked/history context.
+- [x] Trade rows use Schedule classification rails and date-aware hierarchy; constructive Claim actions use purple while cancellation stays destructive.
+- [x] Available trade rows no longer receive a cancel callback, and action buttons disable while their mutation is running.
+
+## 2026-07-18 Staff Authoring Follow-up
+
+- [x] Add Shift matches the redesigned Event detail hierarchy and uses one purple constructive action instead of a dense Form toolbar.
+- [x] Area and worker class are explicit, event timing stays visible, and custom dates use 15-minute time options with inline ordering validation.
+- [x] Assign Person consumes the existing staff-only candidate-score endpoint while retaining paginated server search and conflict fallback.
+- [x] Candidate rows distinguish Best Fits, advisory review, heavy workload, and unavailable people without exposing raw enum or score values.
+- [x] Assignment and creation controls guard duplicate submission, preserve state on failure, and expose action-specific recovery.
+
 ## 2026-07-03 Runtime Follow-up
 
 - [x] [UI polish] **Add Shift showed all-day event defaults as `12:00 AM` call/end rows.** Runtime verification on Football Media Day reproduced the same all-day leak the release is removing elsewhere. The sheet now detects midnight-to-midnight default event windows and renders a single date-only `Window: All day, <range>` row unless staff intentionally enables custom timing.
