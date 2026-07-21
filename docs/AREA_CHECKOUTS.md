@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-16
+- Last Updated: 2026-07-21
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -208,6 +208,8 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - **Old route**: `GET /api/checkouts/[id]` redirects (308) to `/api/bookings/[id]`
 
 ### Checkout-Specific Behavior
+- The shared header follows the native booking hierarchy: lifecycle state and live due/pickup timing lead, the requester is named beside the booking identity, and a compact operational summary keeps the handoff time, pickup location, physical gear count, and linked event context visible before the denser web detail columns.
+- Web-only operator breadth remains below and beside that summary: inline editing, equipment custody context, nudge/extend/transfer/admin-repair actions, sync health, and complete activity history.
 - Status badge shows display labels through the shared booking status display helper: `PENDING_PICKUP` -> "Awaiting Pickup", `OPEN` -> "Checked out".
 - "Due back" countdown rendered as urgency-colored Badge (red/orange/yellow/neutral)
 - Action buttons: `[Actions ▼] [Edit] [Extend]` for app-owned actions. Custody pickup/return scans happen at the kiosk.
@@ -304,6 +306,9 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 5. Add regression coverage for race conditions, partial returns, non-kiosk custody attempts, and permission bypass attempts.
 
 ## Change Log
+
+- 2026-07-21: **Shared web booking detail now uses the native hierarchy without losing control-room depth.** Checkout detail names the requester beside booking identity and surfaces live due or pickup time, pickup location, physical gear count, and linked event context in one compact summary. Inline editing, equipment custody context, operator actions, sync health, and activity history remain web-owned; API payloads, permissions, checkout lifecycle, and kiosk-only custody are unchanged.
+- 2026-07-21: The staff/admin `Nudge borrower` action on an overdue `OPEN` checkout now creates its durable inbox reminder and attempts an iOS push through the requester's checkout-overdue preference. The push opens the booking through the existing `bookingId` route and does not change checkout status, due time, allocations, or kiosk return ownership.
 - 2026-07-16: **Shared Bookings list interaction-detail polish.** The unified `/bookings` surface now keeps Active/Past and card/list controls, reservation creation, filter recovery, sortable headers, and pagination on the 40px desktop target baseline. Sort headers are keyboard-operable buttons with accessible sort state and contextual icons that transition without replaying on initial render. Booking cards and mobile rows use precise 0.96 press feedback, cards gain restrained hover lift, and requester photos use neutral black/white image outlines. Checkout visibility, action permissions, lifecycle policy, kiosk custody, filters, and list data are unchanged.
 - 2026-07-16: **Quick-view equipment identity cleanup.** Serialized equipment rows now pair the Gotham asset tag with the product name as supporting context. Brand/model remains a fallback when a product name is absent, while the serial number is no longer repeated in the quick-view row. Numbered family units remain directly visible, and custody behavior is unchanged.
 - 2026-07-16: **Checkout quick-view custody alignment.** The shared sheet now uses urgency-aligned status color, weekday-first schedule formatting, explicit inline title/date/notes saves, and direct numbered-unit labels. It removes broad Edit booking and active-checkout Edit equipment controls; kiosk remains the only normal surface for changing checkout contents, while Open full booking and permission-gated secondary actions remain available.

@@ -11,7 +11,7 @@
 | `src/lib/services/availability.ts` | 554 |
 | `src/lib/services/booking-ref.ts` | 26 |
 | `src/lib/services/booking-rules.ts` | 107 |
-| `src/lib/services/bookings-checkin.ts` | 802 |
+| `src/lib/services/bookings-checkin.ts` | 846 |
 | `src/lib/services/bookings-helpers.ts` | 251 |
 | `src/lib/services/bookings-lifecycle.ts` | 1614 |
 | `src/lib/services/bookings-queries.ts` | 235 |
@@ -126,7 +126,7 @@
 | `src/lib/ops-checks.ts` | 176 |
 | `src/lib/permissions.ts` | 171 |
 | `src/lib/profile-completion-events.ts` | 6 |
-| `src/lib/profile-completion.ts` | 155 |
+| `src/lib/profile-completion.ts` | 157 |
 | `src/lib/profile-phone.ts` | 44 |
 | `src/lib/profile-sizing.ts` | 24 |
 | `src/lib/public-showroom.ts` | 444 |

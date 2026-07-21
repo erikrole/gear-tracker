@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-18
+- Last Updated: 2026-07-21
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -74,6 +74,8 @@ The reservation detail page (`/reservations/[id]`) uses the shared `BookingDetai
 - **Old routes**: `GET/PATCH /api/reservations/[id]` redirect (308) to `/api/bookings/[id]`
 
 ### Reservation-Specific Behavior
+- The shared header follows the native booking hierarchy: lifecycle state and live timing lead, the requester is named beside the booking identity, and a compact operational summary keeps pickup time, pickup location, physical gear count, and linked event context visible before the denser web detail columns.
+- Web-only operator breadth remains below and beside that summary: inline editing, equipment planning, linked-event management, transfer/cancel/duplicate actions, sync health, and complete activity history.
 - Status badge shows "Confirmed" (not "BOOKED") through the shared booking status display helper.
 - Primary custody guidance points to kiosk pickup when the reservation is due; app/web does not expose `Start checkout` as a normal action.
 - Action buttons: `[Actions ▼] [Edit] [Extend]` for app-owned actions.
@@ -250,6 +252,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 
 ## Change Log
 
+- 2026-07-21: **Shared web booking detail now uses the native hierarchy without losing control-room depth.** Reservation detail names the requester beside booking identity and surfaces pickup time, pickup location, physical gear count, and linked event context in one compact summary. Inline editing, equipment planning, operator actions, sync health, and activity history remain web-owned; API payloads, permissions, reservation lifecycle, and kiosk pickup are unchanged.
 - 2026-07-18: **Native reservation creation is visually and operationally consistent end to end.** Event selection reuses Schedule's rail colors, keeps scope beside the title, and gives abbreviated weekday/date/time and the full venue separate supporting lines, including a cleaned raw-calendar fallback for events awaiting venue mapping. Category tabs preserve the API's mixed serialized and item-family popularity order, with Other defined as every reservable result outside Cameras, Lenses, and Batteries. Reservation actions remain purple while destructive and urgent actions keep their status colors. Power guidance now stacks every applicable recommendation in triggering-gear order, animates later recommendations in from below, remains useful after quantity changes, and supports independent swipe or close dismissal. Battery rows show available over effective on-hand counts and matching purple quantity controls. Review catches zero selected power once, then advances after the user has acted instead of repeatedly returning to Batteries. Selected Gear remains one list, Review shows every selected product while omitting the routine secondary line from batteries, and event-launched reservations use the event title without a synthetic `Gear -` prefix. The active Icon Composer package uses the user's updated Block W scale. Multi-event limits, server availability authority, permissions, and kiosk custody are unchanged.
 - 2026-07-17: **Native pickup and return editing works the same for Manual and Event Linked setup.** The reservation Details step now uses separate native date controls and fixed 15-minute time choices instead of the combined UIKit bridge. Pickup no longer silently moves return, invalid ordering is visible before Gear, and schedule edits refresh conflict guidance. Once an event is selected, the same editor appears with defaults of one hour before the first event and two hours after the last event; event-prefilled reservations receive those defaults after event data loads, and later user edits are preserved. Review shows the exact submitted window, including event-linked and all-day reservations. API payloads, multi-event constraints, availability enforcement, permissions, and kiosk custody are unchanged.
 - 2026-07-17: **Native reservation decisions and gear guidance are explicit.** Details now asks Event Linked or Manual first. Event Linked hides the title until selection, uses a single-line Choose Event row, and filters upcoming events by All, Home, Away, Neutral, or Non-game before explicit confirmation. Gear preserves the API's usage-based popularity order, fits All, Cameras, Lenses, Batteries, and Other at normal text sizes, and gives counted items visible minus/quantity/plus controls. Power guidance moved from a list section to a dismissible bottom card with its own stepper; Review intercepts an unacknowledged recommendation, switches to Batteries, and keeps the user in Gear. Multi-event limits, payloads, server availability authority, permissions, and kiosk custody are unchanged.

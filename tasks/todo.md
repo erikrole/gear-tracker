@@ -1,6 +1,21 @@
 # Task Queue
 
-Last updated: 2026-07-18
+Last updated: 2026-07-21
+
+---
+## Completed: Web booking detail iOS hierarchy alignment (2026-07-21)
+
+- [x] Carry the native title, timing, requester, location, gear, and event hierarchy into the shared web booking header.
+- [x] Preserve the web's inline editing, staff actions, equipment manifest, sync health, and activity history.
+- [x] Keep checkout and reservation detail shared without changing API, lifecycle, permission, or kiosk custody contracts.
+- [x] Add focused source contracts and sync Reservations and Checkouts documentation.
+- [x] Verify authenticated checkout and reservation details at desktop and tablet widths.
+
+### Review
+
+- **Shipped:** Shared checkout and reservation detail now names the requester beside booking identity and exposes the live handoff time, pickup location, physical gear count, and linked event context as one compact summary.
+- **Boundary:** No API, schema, permission, action policy, booking lifecycle, equipment mutation, or custody behavior changed.
+- **Verification:** 22 focused booking detail/status/freshness tests, focused ESLint, TypeScript, docs/codemap verification, whitespace checks, and `npm run build:app` passed. Authenticated local browser proof passed on an open checkout and a multi-event reservation at desktop and 900px tablet widths with no console warnings or errors.
 
 ---
 ## Completed: Native collaborator Published Schedule redesign (2026-07-18)
