@@ -4,7 +4,8 @@
   "private": true,
   "overrides": {
     "postcss": "$postcss",
-    "undici": "7.28.0"
+    "undici": "7.28.0",
+    "js-yaml": "^4.3.0"
   },
   "scripts": {
     "dev": "next dev",
