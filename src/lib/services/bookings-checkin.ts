@@ -496,14 +496,25 @@ export async function checkinItems(
  * item returned → deactivate allocation) but is scoped to a single asset
  * and emits no per-scan audit (kiosk audits at complete, not per-scan).
  *
+ * Auto-completes the booking via `maybeAutoComplete` when this scan returns
+ * the last outstanding item — otherwise a dropped kiosk session between the
+ * last scan and the explicit "Complete Return" tap leaves the booking stuck
+ * OPEN even though every item shows returned.
+ *
  * Caller is responsible for the SERIALIZABLE transaction boundary so
  * `update` + `updateMany` are atomic against concurrent scans.
  */
 export async function kioskCheckinAsset(
   tx: Prisma.TransactionClient,
-  args: { bookingId: string; assetId: string; kioskLocationId?: string },
+  args: { bookingId: string; assetId: string; kioskLocationId?: string; actorUserId: string },
 ): Promise<
-  | { ok: true; alreadyReturned: false; locationEvidence?: KioskLocationEvidence }
+  | {
+      ok: true;
+      alreadyReturned: false;
+      locationEvidence?: KioskLocationEvidence;
+      completed: boolean;
+      badgeEvent: { userId: string; bookingId: string; completedAt: Date; wasOnTime: boolean; sourceKey: string } | null;
+    }
   | { ok: false; reason: "not_in_booking" | "already_returned" }
 > {
   const item = await tx.bookingSerializedItem.findUnique({
@@ -521,7 +532,7 @@ export async function kioskCheckinAsset(
 
   const booking = await tx.booking.findUnique({
     where: { id: args.bookingId },
-    select: { locationId: true },
+    select: { locationId: true, requesterUserId: true, endsAt: true },
   });
 
   const locationEvidence = args.kioskLocationId && booking
@@ -555,7 +566,28 @@ export async function kioskCheckinAsset(
     locationEvidence.message = locationEvidence.message ?? "Location mismatch: returned at a different kiosk than expected. Updated to this kiosk.";
   }
 
-  return { ok: true, alreadyReturned: false, locationEvidence };
+  const completedAt = booking
+    ? await maybeAutoComplete(tx, args.bookingId, booking.locationId, args.actorUserId, {
+        auditAction: "auto_completed_by_kiosk_checkin",
+      })
+    : null;
+
+  return {
+    ok: true,
+    alreadyReturned: false,
+    locationEvidence,
+    completed: completedAt !== null,
+    badgeEvent:
+      completedAt && booking
+        ? {
+            userId: booking.requesterUserId,
+            bookingId: args.bookingId,
+            completedAt,
+            wasOnTime: wasReturnedOnTime(booking.endsAt, completedAt),
+            sourceKey: args.bookingId,
+          }
+        : null,
+  };
 }
 
 /**
@@ -567,6 +599,12 @@ export async function kioskCheckinAsset(
  * + bulk balance restore" logic to `maybeAutoComplete`. (LOST handling
  * lives in `markCheckoutCompleted` only — kiosk completion never marks
  * units LOST because it completes only when everything is returned.)
+ *
+ * `kioskCheckinAsset` also auto-completes on the scan that returns the
+ * last item, so by the time the student taps "Complete Return" the
+ * booking is very often already COMPLETED. Treat that as success rather
+ * than a 404 — otherwise the explicit tap that follows a normal, final
+ * scan would surface an error even though the return already succeeded.
  *
  * Returns `before/after` counts so the route can stamp the kiosk audit
  * entry with the same shape it always has.
@@ -602,10 +640,11 @@ export async function kioskCompleteCheckin(args: {
       if (
         !booking ||
         booking.kind !== BookingKind.CHECKOUT ||
-        booking.status !== BookingStatus.OPEN
+        (booking.status !== BookingStatus.OPEN && booking.status !== BookingStatus.COMPLETED)
       ) {
         throw new HttpError(404, "Active checkout not found");
       }
+      const alreadyCompleted = booking.status === BookingStatus.COMPLETED;
 
       // Count serialized assets AND bulk units so battery-only (or mixed)
       // returns report a truthful "N of M" instead of 0. Numbered batteries
@@ -655,22 +694,27 @@ export async function kioskCompleteCheckin(args: {
         }),
       ];
 
-      const completedAt = await maybeAutoComplete(
-        tx,
-        booking.id,
-        booking.locationId,
-        args.actorUserId,
-        {
-          auditAction: "auto_completed_by_kiosk_checkin",
-        },
-      );
+      // Already completed by the last scan's auto-complete — don't re-run
+      // maybeAutoComplete (it would double-settle the bulk ledger and
+      // duplicate the completion audit entry).
+      const completedAt = alreadyCompleted
+        ? null
+        : await maybeAutoComplete(
+            tx,
+            booking.id,
+            booking.locationId,
+            args.actorUserId,
+            {
+              auditAction: "auto_completed_by_kiosk_checkin",
+            },
+          );
 
       return {
         refNumber: booking.refNumber,
         totalItems,
         returnedItems,
         returnedItemNames,
-        completed: completedAt !== null,
+        completed: alreadyCompleted || completedAt !== null,
         badgeEvent: completedAt
           ? {
               userId: booking.requesterUserId,

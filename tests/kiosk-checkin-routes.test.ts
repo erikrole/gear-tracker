@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   scanKioskCheckinBulkUnit: vi.fn(),
   badgeOnCheckoutReturned: vi.fn(),
   badgeOnScanResult: vi.fn(),
+  endCheckoutReturnLiveActivities: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -75,6 +76,10 @@ vi.mock("@/lib/services/kiosk-location", () => ({
   locationEvidencePayload: vi.fn(() => ({})),
 }));
 
+vi.mock("@/lib/services/live-activities", () => ({
+  endCheckoutReturnLiveActivities: mocks.endCheckoutReturnLiveActivities,
+}));
+
 vi.mock("@/lib/services/bookings-checkin", async () => {
   const actual = await vi.importActual<typeof import("@/lib/services/bookings-checkin")>(
     "@/lib/services/bookings-checkin",
@@ -113,6 +118,7 @@ beforeEach(() => {
   mocks.scanKioskCheckinBulkUnit.mockResolvedValue({ handled: false });
   mocks.badgeOnScanResult.mockResolvedValue(undefined);
   mocks.badgeOnCheckoutReturned.mockResolvedValue(undefined);
+  mocks.endCheckoutReturnLiveActivities.mockResolvedValue(undefined);
 });
 
 describe("kioskCompleteCheckin counts", () => {
@@ -162,6 +168,40 @@ describe("kioskCompleteCheckin counts", () => {
     expect(result.totalItems).toBe(2);
     expect(result.returnedItems).toBe(1);
     expect(result.returnedItemNames).toEqual(["Sony Battery #7"]);
+    expect(mocks.badgeOnCheckoutReturned).not.toHaveBeenCalled();
+  });
+
+  it("succeeds idempotently when a prior scan already auto-completed the booking", async () => {
+    // Regression: kioskCheckinAsset now auto-completes on the scan that
+    // returns the last item, so the booking is frequently already
+    // COMPLETED by the time "Complete Return" is tapped. This must not
+    // 404 — the explicit tap follows a normal, successful return.
+    mocks.bookingFindUnique.mockResolvedValue({
+      id: "booking-1",
+      kind: "CHECKOUT",
+      status: "COMPLETED",
+      refNumber: "CO-1001",
+      locationId: "loc-1",
+      requesterUserId: "user-1",
+      endsAt: new Date("2026-05-06T12:00:00.000Z"),
+      serializedItems: [
+        {
+          allocationStatus: "returned",
+          asset: { name: "FX3 Camera", assetTag: "FX3 1" },
+        },
+      ],
+      bulkItems: [],
+    });
+
+    const result = await kioskCompleteCheckin({
+      bookingId: "booking-1",
+      actorUserId: "user-1",
+    });
+
+    expect(result.completed).toBe(true);
+    expect(result.totalItems).toBe(1);
+    expect(result.returnedItems).toBe(1);
+    // maybeAutoComplete must not re-run: no second badge/ledger settlement.
     expect(mocks.badgeOnCheckoutReturned).not.toHaveBeenCalled();
   });
 });
@@ -302,6 +342,79 @@ describe("kiosk check-in scan route", () => {
       ok: false,
       errorCode: "not_found",
     }));
+  });
+
+  it("fires the return badge and ends live activities when the scan auto-completes the checkout", async () => {
+    mocks.bookingFindUnique.mockResolvedValue({
+      id: "booking-1",
+      status: "OPEN",
+      kind: "CHECKOUT",
+      requesterUserId: "user-1",
+      locationId: "loc-1",
+    });
+    mocks.findAssetByScanValue.mockResolvedValue({
+      id: "asset-1",
+      assetTag: "FX3 1",
+      name: "FX3 Camera",
+    });
+    const completedAt = new Date("2026-05-06T10:00:00.000Z");
+    mocks.kioskCheckinAsset.mockResolvedValue({
+      ok: true,
+      completed: true,
+      badgeEvent: {
+        userId: "user-1",
+        bookingId: "booking-1",
+        completedAt,
+        wasOnTime: true,
+        sourceKey: "booking-1",
+      },
+    });
+
+    const res = await scanKioskCheckin(
+      new Request("http://test", {
+        method: "POST",
+        body: JSON.stringify({ scanValue: "FX3-1" }),
+      }),
+      routeCtx("booking-1"),
+    );
+    const json = await res.json();
+
+    expect(json).toEqual({
+      success: true,
+      item: { id: "asset-1", name: "FX3 Camera", tagName: "FX3 1" },
+    });
+    expect(mocks.badgeOnCheckoutReturned).toHaveBeenCalledWith(expect.objectContaining({
+      userId: "user-1",
+      bookingId: "booking-1",
+    }));
+    expect(mocks.endCheckoutReturnLiveActivities).toHaveBeenCalledWith("booking-1");
+  });
+
+  it("does not fire the return badge when the scan leaves items outstanding", async () => {
+    mocks.bookingFindUnique.mockResolvedValue({
+      id: "booking-1",
+      status: "OPEN",
+      kind: "CHECKOUT",
+      requesterUserId: "user-1",
+      locationId: "loc-1",
+    });
+    mocks.findAssetByScanValue.mockResolvedValue({
+      id: "asset-1",
+      assetTag: "FX3 1",
+      name: "FX3 Camera",
+    });
+    mocks.kioskCheckinAsset.mockResolvedValue({ ok: true, completed: false, badgeEvent: null });
+
+    await scanKioskCheckin(
+      new Request("http://test", {
+        method: "POST",
+        body: JSON.stringify({ scanValue: "FX3-1" }),
+      }),
+      routeCtx("booking-1"),
+    );
+
+    expect(mocks.badgeOnCheckoutReturned).not.toHaveBeenCalled();
+    expect(mocks.endCheckoutReturnLiveActivities).not.toHaveBeenCalled();
   });
 
   it("rejects return scans for a booking that is not open", async () => {

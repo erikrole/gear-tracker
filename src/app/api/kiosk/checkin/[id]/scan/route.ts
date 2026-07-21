@@ -10,6 +10,7 @@ import { checkinScanBody } from "@/lib/schemas/kiosk";
 import { badges } from "@/lib/badges";
 import { badgeScanSourceKey } from "@/lib/badges/scan";
 import type { BadgeScanErrorCode } from "@/lib/badges/types";
+import { endCheckoutReturnLiveActivities } from "@/lib/services/live-activities";
 
 /**
  * Scan an item for kiosk check-in (return).
@@ -75,6 +76,7 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
       bookingId: params.id,
       assetId: asset.id,
       kioskLocationId: kiosk.locationId,
+      actorUserId: activeBooking.requesterUserId,
     });
     if (outcome.ok) {
       await tx.scanEvent.create({
@@ -110,6 +112,11 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
   }
 
   await emitScanResult({ ok: true });
+
+  if (result.completed && result.badgeEvent) {
+    await badges.onCheckoutReturned(result.badgeEvent);
+    await endCheckoutReturnLiveActivities(params.id);
+  }
 
   return ok({
     success: true,
