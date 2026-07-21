@@ -104,7 +104,7 @@
 | `src/components/EquipmentPicker.tsx` | 1001 |
 | `src/components/onboarding/OnboardingDialog.tsx` | 884 |
 | `src/components/ShiftDetailPanel.tsx` | 813 |
-| `src/components/profile-completion/ProfileCompletionWizard.tsx` | 768 |
+| `src/components/profile-completion/ProfileCompletionWizard.tsx` | 785 |
 | `src/components/AppShell.tsx` | 740 |
 | `src/components/ChooseImageModal.tsx` | 716 |
 | `src/components/booking-wizard/BookingWizard.tsx` | 710 |

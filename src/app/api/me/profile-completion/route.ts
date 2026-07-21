@@ -18,6 +18,7 @@ const patchSchema = z.discriminatedUnion("step", [
       (value) => value.toLowerCase().endsWith("@athletics.wisc.edu"),
       "Use your @athletics.wisc.edu email",
     ),
+    campusEmail: z.string().trim().email().max(255).optional(),
   }),
   z.object({
     step: z.literal("PHONES"),
@@ -87,7 +88,7 @@ function loadProfile(client: ProfileClient, userId: string) {
 }
 
 function changedFields(step: PatchBody["step"], role: Profile["role"]): string[] {
-  if (step === "EMAIL") return ["athleticsEmail"];
+  if (step === "EMAIL") return ["athleticsEmail", "email"];
   if (step === "PHONES") {
     return role === "STUDENT"
       ? ["personalPhone", "phone"]
@@ -101,7 +102,7 @@ function changedFields(step: PatchBody["step"], role: Profile["role"]): string[]
 
 function auditState(profile: Profile, step: PatchBody["step"]): Record<string, unknown> {
   if (step === "EMAIL") {
-    return { athleticsEmailSet: Boolean(profile.athleticsEmail) };
+    return { athleticsEmailSet: Boolean(profile.athleticsEmail), campusLoginValid: isCampusLoginEmail(profile.email) };
   }
   if (step === "PHONES") {
     return {
@@ -160,7 +161,7 @@ export const PATCH = withAuth(async (req, { user }) => {
     throw new HttpError(400, "Collaborator setup only includes a phone number and a profile photo.");
   }
 
-  const data = body.step === "EMAIL"
+  const data: Record<string, unknown> = body.step === "EMAIL"
     ? { athleticsEmail: body.athleticsEmail.toLowerCase(), profilePromptSnoozedUntil: null }
     : body.step === "PHONES"
       ? user.role === "STUDENT" || user.role === "COLLABORATOR"
@@ -206,7 +207,14 @@ export const PATCH = withAuth(async (req, { user }) => {
       const before = await loadProfile(tx, user.id);
       if (!before) throw new HttpError(404, "User not found");
       if (body.step === "EMAIL" && !isCampusLoginEmail(before.email)) {
-        throw new HttpError(409, "Your site login must be a @wisc.edu email. Ask an administrator to update it before completing your profile.");
+        if (!body.campusEmail) {
+          throw new HttpError(409, "Your site login must be a @wisc.edu email. Enter your @wisc.edu address to fix it before completing your profile.");
+        }
+        const nextEmail = body.campusEmail.trim().toLowerCase();
+        if (!isCampusLoginEmail(nextEmail)) {
+          throw new HttpError(400, "Use your @wisc.edu email");
+        }
+        data.email = nextEmail;
       }
       if (body.step === "STUDENT" && before.role !== "STUDENT") {
         throw new HttpError(400, "Student details can only be saved for a student profile.");
@@ -244,6 +252,9 @@ export const PATCH = withAuth(async (req, { user }) => {
     }
     if (prismaError.code === "P2002" && (target.includes("wiscard_number") || target.includes("wiscard_card_number"))) {
       throw new HttpError(409, "That Wiscard is already linked to another account.");
+    }
+    if (prismaError.code === "P2002" && target.includes("email")) {
+      throw new HttpError(409, "That email is already linked to another account.");
     }
     throw error;
   }

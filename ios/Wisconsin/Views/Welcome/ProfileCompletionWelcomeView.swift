@@ -328,8 +328,9 @@ struct ProfileCompletionWelcomeView: View {
 
     private func scheduleInitialFocus() {
         let step = currentStep
+        let loginValid = profile?.email.lowercased().hasSuffix("@wisc.edu") ?? true
         let field: WelcomeFocusField? = switch step {
-        case .email: .athleticsEmail
+        case .email: loginValid ? .athleticsEmail : .campusEmail
         case .phones: .personalPhone
         case .wiscard: .wiscardNumber
         case .apparel where draft.topSizeChoice == "OTHER": .topSizeOther
