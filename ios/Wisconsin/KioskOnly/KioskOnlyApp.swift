@@ -24,6 +24,7 @@ struct WisconsinKioskApp: App {
 enum APIError: LocalizedError {
     case unauthorized
     case notFound
+    case conflict(String)
     case serverError(String)
     case decodingError(Error)
     case networkError(Error)
@@ -34,6 +35,8 @@ enum APIError: LocalizedError {
             return "This kiosk session expired. Enter a fresh activation code."
         case .notFound:
             return "The requested item could not be found."
+        case .conflict(let message):
+            return message
         case .serverError(let message):
             return message
         case .decodingError:

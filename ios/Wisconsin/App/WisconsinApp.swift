@@ -43,6 +43,9 @@ struct WisconsinApp: App {
                     }
                 }
                 .onChange(of: scenePhase) { _, phase in
+                    if phase == .active {
+                        Task { await AppDelegate.pruneStaleDeliveredNotifications() }
+                    }
                     if phase == .active && session.currentUser?.forcePasswordChange == false {
                         // Refresh tab badge state regardless of which tab the user is on.
                         Task {

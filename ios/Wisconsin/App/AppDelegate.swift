@@ -37,6 +37,23 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         sharedAppState?.pushRegistrationState = .failed
         print("[APNS] Registration failed: \(error.localizedDescription)")
     }
+
+    /// Delivered banners sit in the system Notification Center forever unless
+    /// something removes them — APNs has no built-in expiry for already-shown
+    /// notifications. Called on every foreground so stale booking/trade
+    /// alerts don't pile up indefinitely once their content is no longer
+    /// relevant.
+    static let staleDeliveredNotificationAge: TimeInterval = 24 * 60 * 60
+
+    static func pruneStaleDeliveredNotifications() async {
+        let center = UNUserNotificationCenter.current()
+        let delivered = await center.deliveredNotifications()
+        let staleIds = delivered
+            .filter { Date().timeIntervalSince($0.date) > staleDeliveredNotificationAge }
+            .map(\.request.identifier)
+        guard !staleIds.isEmpty else { return }
+        center.removeDeliveredNotifications(withIdentifiers: staleIds)
+    }
 }
 
 // UNUserNotificationCenterDelegate's methods aren't @MainActor in their
