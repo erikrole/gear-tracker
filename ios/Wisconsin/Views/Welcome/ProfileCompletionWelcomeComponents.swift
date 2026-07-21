@@ -254,7 +254,7 @@ struct WelcomePhonesStepView: View {
     let focus: FocusState<WelcomeFocusField?>.Binding
     let onChange: () -> Void
 
-    private var isStudent: Bool { profile.role == "STUDENT" }
+    private var hasSimplePhoneStep: Bool { ProfileCompletionDraft.hasSimplePhoneStep(for: profile.role) }
 
     var body: some View {
         WelcomeFormCard {
@@ -284,7 +284,7 @@ struct WelcomePhonesStepView: View {
                         .onChange(of: draft.personalPhone) { _, value in
                             let formatted = ProfileCompletionDraft.formatPhone(value)
                             if formatted != value { draft.personalPhone = formatted }
-                            if !isStudent,
+                            if !hasSimplePhoneStep,
                                ProfileCompletionDraft.digits(formatted).count == 10,
                                focus.wrappedValue == .personalPhone {
                                 focus.wrappedValue = .workPhone
@@ -293,7 +293,7 @@ struct WelcomePhonesStepView: View {
                         }
                 }
 
-                if !isStudent {
+                if !hasSimplePhoneStep {
                     VStack(alignment: .leading, spacing: 8) {
                         WelcomeFieldLabel(title: "Work phone")
                         TextField("(XXX) XXX-XXXX", text: $draft.workPhone)

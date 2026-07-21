@@ -29,15 +29,15 @@ describe("native iOS Welcome flow", () => {
     expect(hint).not.toMatch(/athleticsEmail|personalPhone|workPhone|wiscardCardNumber|topSize|shoeSize|avatarUrl/);
   });
 
-  it("mirrors the role-aware server steps and omits work phone for students", () => {
+  it("mirrors the role-aware server steps and omits work phone for students and collaborators", () => {
     const models = source("ios/Wisconsin/Models/ProfileCompletionModels.swift");
     const welcome = source("ios/Wisconsin/Views/Welcome/ProfileCompletionWelcomeView.swift");
     const components = source("ios/Wisconsin/Views/Welcome/ProfileCompletionWelcomeComponents.swift");
 
-    expect(models).toContain('case "COLLABORATOR": [.photo]');
-    expect(models).toContain('case "STUDENT": [.email, .phones, .wiscard, .student, .apparel, .photo]');
+    expect(models).toContain('case "COLLABORATOR": [.phones, .photo]');
+    expect(models).toContain('case "STUDENT": [.phones, .wiscard, .student, .apparel, .photo]');
     expect(models).toContain("default: [.email, .phones, .wiscard, .apparel, .photo]");
-    expect(components).toContain("if !isStudent");
+    expect(components).toContain("if !hasSimplePhoneStep");
     expect(components).toContain("I don’t have a work phone");
     expect(welcome).toContain("currentStep == .photo");
     expect(welcome).toContain("snooze()");

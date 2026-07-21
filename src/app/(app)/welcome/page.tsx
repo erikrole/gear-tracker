@@ -34,7 +34,7 @@ export default function WelcomePage() {
             <CardTitle className="text-3xl">Let’s set up your account, {data.profile.name.split(" ")[0]}</CardTitle>
             <CardDescription className="max-w-2xl text-base">
               {collaborator
-                ? "Add a profile photo so the Wisconsin Creative team can recognize you."
+                ? "Add a phone number and a profile photo so the Wisconsin Creative team can reach and recognize you."
                 : "Add the contact and identification details the team needs for daily work. Apparel and a photo can be finished now or later."}
             </CardDescription>
           </div>
@@ -44,8 +44,8 @@ export default function WelcomePage() {
           </div>
         </CardHeader>
         <CardContent className="grid gap-4 border-t p-7 sm:grid-cols-2 sm:p-9">
-          <div className="flex gap-3"><ClipboardCheck className="mt-0.5 size-5 text-[var(--wi-red)]" /><div><p className="font-medium">Operationally ready</p><p className="text-sm text-muted-foreground">{data.completion.operationalReady ? "You have supplied the essentials needed for access." : collaborator ? "Your account is ready to use." : "Complete contact, Wiscard, and student details where applicable."}</p></div></div>
-          <div className="flex gap-3"><UserRound className="mt-0.5 size-5 text-[var(--wi-red)]" /><div><p className="font-medium">Profile complete</p><p className="text-sm text-muted-foreground">{data.completion.profileComplete ? "Your full profile is complete." : "Add apparel, shoe sizing, and a photo for a complete profile."}</p></div></div>
+          <div className="flex gap-3"><ClipboardCheck className="mt-0.5 size-5 text-[var(--wi-red)]" /><div><p className="font-medium">Operationally ready</p><p className="text-sm text-muted-foreground">{data.completion.operationalReady ? "You have supplied the essentials needed for access." : collaborator ? "Add a phone number so the team can reach you." : "Complete contact, Wiscard, and student details where applicable."}</p></div></div>
+          <div className="flex gap-3"><UserRound className="mt-0.5 size-5 text-[var(--wi-red)]" /><div><p className="font-medium">Profile complete</p><p className="text-sm text-muted-foreground">{data.completion.profileComplete ? "Your full profile is complete." : collaborator ? "Add a phone number and a photo for a complete profile." : "Add apparel, shoe sizing, and a photo for a complete profile."}</p></div></div>
         </CardContent>
       </Card>
 

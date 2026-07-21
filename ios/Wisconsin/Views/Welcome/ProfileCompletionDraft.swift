@@ -68,8 +68,14 @@ final class ProfileCompletionDraft {
         }
     }
 
+    /// Students and collaborators get a single personal-phone field — no work
+    /// phone, no legacy-number classification.
+    static func hasSimplePhoneStep(for role: String) -> Bool {
+        role == "STUDENT" || role == "COLLABORATOR"
+    }
+
     func needsLegacyClassification(for profile: ProfileCompletionProfile) -> Bool {
-        profile.role != "STUDENT"
+        !Self.hasSimplePhoneStep(for: profile.role)
             && !legacyPhone(for: profile).isEmpty
             && profile.personalPhone == nil
             && profile.workPhone == nil
@@ -77,13 +83,14 @@ final class ProfileCompletionDraft {
 
     func canContinue(_ step: ProfileCompletionStep, profile: ProfileCompletionProfile) -> Bool {
         let isStudent = profile.role == "STUDENT"
+        let hasSimplePhoneStep = Self.hasSimplePhoneStep(for: profile.role)
         switch step {
         case .email:
             return Self.isEmail(profile.email, inDomain: "wisc.edu")
-                && Self.isEmail(athleticsEmail, inDomain: "athletics.wisc.edu")
+                && (isStudent || Self.isEmail(athleticsEmail, inDomain: "athletics.wisc.edu"))
         case .phones:
             return Self.digits(personalPhone).count == 10
-                && (isStudent || ((!needsLegacyClassification(for: profile) || !legacyPhoneType.isEmpty)
+                && (hasSimplePhoneStep || ((!needsLegacyClassification(for: profile) || !legacyPhoneType.isEmpty)
                     && (noWorkPhone || Self.digits(workPhone).count == 10)))
         case .wiscard:
             return Self.digits(wiscardCardNumber).count == 10
@@ -107,11 +114,11 @@ final class ProfileCompletionDraft {
         case .email:
             return .email(athleticsEmail: athleticsEmail.trimmingCharacters(in: .whitespacesAndNewlines))
         case .phones:
-            let isStudent = profile.role == "STUDENT"
+            let hasSimplePhoneStep = Self.hasSimplePhoneStep(for: profile.role)
             return .phones(
                 personalPhone: personalPhone,
-                workPhone: isStudent || noWorkPhone ? nil : workPhone,
-                workPhoneNotApplicable: isStudent ? nil : noWorkPhone
+                workPhone: hasSimplePhoneStep || noWorkPhone ? nil : workPhone,
+                workPhoneNotApplicable: hasSimplePhoneStep ? nil : noWorkPhone
             )
         case .wiscard:
             return .wiscard(

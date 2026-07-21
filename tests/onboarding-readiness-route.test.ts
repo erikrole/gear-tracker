@@ -72,7 +72,7 @@ describe("GET /api/users/onboarding-readiness", () => {
     }));
   });
 
-  it("treats collaborator registration as operational and photo as profile completion", async () => {
+  it("treats a missing collaborator phone number as not operationally ready", async () => {
     dbMock.user.findMany.mockResolvedValue([account({
       id: "collab-1",
       name: "Guest",
@@ -80,6 +80,31 @@ describe("GET /api/users/onboarding-readiness", () => {
       email: "guest@example.com",
       athleticsEmail: null,
       personalPhone: null,
+      wiscardCardNumber: null,
+      wiscardIssueCode: null,
+      studentYearOverride: null,
+      gradYear: null,
+      graduationTerm: null,
+    })]);
+
+    const response = await GET(new Request("https://app.example.com/api/users/onboarding-readiness"), noParams);
+    const body = await response.json();
+
+    expect(body.data.accounts[0]).toEqual(expect.objectContaining({
+      operationalReady: false,
+      profileComplete: false,
+      missingFields: ["personalPhone", "photo"],
+    }));
+  });
+
+  it("treats a collaborator with a phone on file as operational, with only photo left for profile completion", async () => {
+    dbMock.user.findMany.mockResolvedValue([account({
+      id: "collab-2",
+      name: "Guest",
+      role: "COLLABORATOR",
+      email: "guest2@example.com",
+      athleticsEmail: null,
+      personalPhone: "(608) 555-0199",
       wiscardCardNumber: null,
       wiscardIssueCode: null,
       studentYearOverride: null,

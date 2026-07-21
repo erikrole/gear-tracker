@@ -27,7 +27,7 @@ describe("profile completion web wiring", () => {
     expect(wizard).toContain("Skip for now");
     expect(wizard).toContain("Which number is it?");
     expect(wizard).toContain("I don’t have a work phone");
-    expect(wizard).toContain('!isStudent && (');
+    expect(wizard).toContain('!hasSimplePhoneStep && (');
     expect(wizard).toContain('title: "Add your phone number"');
     expect(wizard).toContain("Wiscard number");
     expect(wizard).toContain("Issue code");

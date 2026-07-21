@@ -51,12 +51,22 @@ describe("BTN collaborator authorization", () => {
     })).toBe(true);
   });
 
-  it("keeps COLLABORATOR default-denied in every role permission entry", () => {
+  it("keeps COLLABORATOR default-denied in every role permission entry except narrow self-service", () => {
+    // user.edit_self only ever gates PATCH /api/me/profile-completion, which
+    // is hard-scoped to the authenticated session's own id and, for
+    // COLLABORATOR, further restricted to the SNOOZE and PHONES steps — it
+    // can't reach any other resource or another user's record. Broader BTN
+    // access still goes exclusively through capabilitiesForActor.
+    const selfServiceExceptions: Partial<Record<string, string[]>> = {
+      user: ["edit_self"],
+    };
     for (const [resource, actions] of Object.entries(PERMISSIONS)) {
       for (const [action, roles] of Object.entries(actions)) {
+        if (selfServiceExceptions[resource]?.includes(action)) continue;
         expect(roles, `${resource}.${action}`).not.toContain(Role.COLLABORATOR);
       }
     }
+    expect(PERMISSIONS.user?.edit_self).toContain(Role.COLLABORATOR);
   });
 
   it("allows only owned reservation mutations and owned booking reads", () => {

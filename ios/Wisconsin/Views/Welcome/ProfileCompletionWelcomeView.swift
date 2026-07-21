@@ -31,6 +31,7 @@ struct ProfileCompletionWelcomeView: View {
     }
     private var stepIndex: Int { max(0, visibleSteps.firstIndex(of: currentStep) ?? 0) }
     private var isStudent: Bool { profile?.role == "STUDENT" }
+    private var hasSimplePhoneStep: Bool { ProfileCompletionDraft.hasSimplePhoneStep(for: profile?.role ?? "") }
     private var isLastStep: Bool { stepIndex == visibleSteps.count - 1 }
 
     var body: some View {
@@ -201,14 +202,14 @@ struct ProfileCompletionWelcomeView: View {
     }
 
     private var stepTitle: String {
-        if currentStep == .phones && isStudent { return "Add your phone number" }
+        if currentStep == .phones && hasSimplePhoneStep { return "Add your phone number" }
         return currentStep.title
     }
 
     private var stepDescription: String {
         switch currentStep {
         case .email: "Your campus email is your site login. Add your required Athletics email."
-        case .phones where isStudent: "Add the personal phone number we should use to reach you."
+        case .phones where hasSimplePhoneStep: "Add the personal phone number we should use to reach you."
         case .phones: "Identify any number already on your account, then add the other contact number."
         case .wiscard: "Type the card number and issue code printed on your card. This is used for kiosk identification."
         case .student: "Tell us your current year and when you expect to graduate."

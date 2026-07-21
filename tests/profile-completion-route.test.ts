@@ -154,19 +154,19 @@ describe("/api/me/profile-completion", () => {
   it("combines typed Wiscard number and issue code for existing kiosk lookup", async () => {
     const response = await PATCH(patchRequest({
       step: "WISCARD",
-      wiscardCardNumber: "907032481",
-      wiscardIssueCode: "02",
+      wiscardCardNumber: "9070324812",
+      wiscardIssueCode: "5",
     }), noParams);
 
     expect(response.status).toBe(200);
     expect(dbMock.user.update).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
-        wiscardCardNumber: "907032481",
-        wiscardIssueCode: "02",
-        wiscardNumber: "90703248102",
+        wiscardCardNumber: "9070324812",
+        wiscardIssueCode: "5",
+        wiscardNumber: "90703248125",
       }),
     }));
-    expect(JSON.stringify(vi.mocked(createAuditEntryTx).mock.calls[0])).not.toContain("907032481");
+    expect(JSON.stringify(vi.mocked(createAuditEntryTx).mock.calls[0])).not.toContain("9070324812");
   });
 
   it("saves student year and anticipated graduation without auditing the values", async () => {
@@ -264,8 +264,8 @@ describe("/api/me/profile-completion", () => {
 
     const response = await PATCH(patchRequest({
       step: "WISCARD",
-      wiscardCardNumber: "907032481",
-      wiscardIssueCode: "02",
+      wiscardCardNumber: "9070324812",
+      wiscardIssueCode: "5",
     }), noParams);
 
     expect(response.status).toBe(409);

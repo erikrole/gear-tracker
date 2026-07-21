@@ -9,7 +9,6 @@ import { profilePhoneSchema } from "@/lib/profile-phone";
 import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 import { requirePermission } from "@/lib/rbac";
 
-const digitsSchema = z.string().trim().regex(/^\d+$/, "Use numbers only");
 const currentYear = new Date().getFullYear();
 
 const patchSchema = z.discriminatedUnion("step", [
@@ -28,8 +27,12 @@ const patchSchema = z.discriminatedUnion("step", [
   }),
   z.object({
     step: z.literal("WISCARD"),
-    wiscardCardNumber: digitsSchema.min(4).max(32),
-    wiscardIssueCode: digitsSchema.min(1).max(8),
+    // Must match the canonical 10-digit card / 1-digit issue code format
+    // (src/lib/validation.ts's wiscardCardNumberSchema/wiscardIssueCodeSchema)
+    // — a looser format here would let someone "complete" this step with a
+    // value that can never match a real Wiscard scan at the kiosk.
+    wiscardCardNumber: z.string().trim().regex(/^\d{10}$/, "Wiscard card number must be 10 digits"),
+    wiscardIssueCode: z.string().trim().regex(/^\d$/, "Wiscard issue code must be 1 digit"),
   }),
   z.object({
     step: z.literal("STUDENT"),
@@ -153,14 +156,14 @@ export const PATCH = withAuth(async (req, { user }) => {
     throw new HttpError(400, "Enter a work phone or choose that you do not have one");
   }
 
-  if (user.role === "COLLABORATOR" && body.step !== "SNOOZE") {
-    throw new HttpError(400, "Collaborator setup only includes a profile photo.");
+  if (user.role === "COLLABORATOR" && body.step !== "SNOOZE" && body.step !== "PHONES") {
+    throw new HttpError(400, "Collaborator setup only includes a phone number and a profile photo.");
   }
 
   const data = body.step === "EMAIL"
     ? { athleticsEmail: body.athleticsEmail.toLowerCase(), profilePromptSnoozedUntil: null }
     : body.step === "PHONES"
-      ? user.role === "STUDENT"
+      ? user.role === "STUDENT" || user.role === "COLLABORATOR"
         ? {
             personalPhone: body.personalPhone,
             phone: body.personalPhone,

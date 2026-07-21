@@ -192,7 +192,7 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
   useEffect(() => {
     if (!isDesktop || !data?.completion.shouldPrompt || autoOpenedRef.current) return;
     autoOpenedRef.current = true;
-    setStep(data.completion.firstIncompleteStep ?? "EMAIL");
+    setStep(data.completion.firstIncompleteStep ?? (data.profile.role === "STUDENT" || data.profile.role === "COLLABORATOR" ? "PHONES" : "EMAIL"));
     setOpen(true);
   }, [data, isDesktop]);
 
@@ -202,7 +202,7 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
       closeWithoutSnoozeRef.current = false;
       manualReviewRef.current = data.completion.isComplete;
       setError("");
-      setStep(data.completion.firstIncompleteStep ?? "EMAIL");
+      setStep(data.completion.firstIncompleteStep ?? (data.profile.role === "STUDENT" || data.profile.role === "COLLABORATOR" ? "PHONES" : "EMAIL"));
       setOpen(true);
     };
     window.addEventListener(OPEN_PROFILE_COMPLETION_EVENT, openWizard);
@@ -215,12 +215,16 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
   const shoeOptions = shoeSizeSystem === "US_MENS" ? MENS_SHOE_SIZE_OPTIONS : WOMENS_SHOE_SIZE_OPTIONS;
   const legacyPhone = data?.profile.phone?.trim() ?? "";
   const isStudent = data?.profile.role === "STUDENT";
-  const copy = step === "PHONES" && isStudent
+  const isCollaborator = data?.profile.role === "COLLABORATOR";
+  // Students and collaborators get a single personal-phone field — no work
+  // phone, no legacy-number classification.
+  const hasSimplePhoneStep = isStudent || isCollaborator;
+  const copy = step === "PHONES" && hasSimplePhoneStep
     ? { title: "Add your phone number", description: "Add the personal phone number we should use to reach you." }
     : STEP_COPY[step];
   const stepMotionContext = { direction: stepDirection, reduceMotion };
   const needsLegacyClassification = Boolean(
-    !isStudent && legacyPhone && !data?.profile.personalPhone && !data?.profile.workPhone,
+    !hasSimplePhoneStep && legacyPhone && !data?.profile.personalPhone && !data?.profile.workPhone,
   );
 
   const canContinue = useMemo(() => {
@@ -231,7 +235,7 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
     }
     if (step === "PHONES") {
       const personalPhoneIsComplete = personalPhone.replace(/\D/g, "").length === 10;
-      if (isStudent) return personalPhoneIsComplete;
+      if (hasSimplePhoneStep) return personalPhoneIsComplete;
       return (!needsLegacyClassification || Boolean(legacyPhoneType))
         && personalPhoneIsComplete
         && (noWorkPhone || workPhone.replace(/\D/g, "").length === 10);
@@ -249,7 +253,7 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
   }, [
     athleticsEmail,
     data,
-    isStudent,
+    hasSimplePhoneStep,
     legacyPhoneType,
     needsLegacyClassification,
     noWorkPhone,
@@ -300,7 +304,7 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
           ? {
               step,
               personalPhone: personalPhone.trim(),
-              ...(isStudent ? {} : {
+              ...(hasSimplePhoneStep ? {} : {
                 workPhone: noWorkPhone ? null : workPhone.trim(),
                 workPhoneNotApplicable: noWorkPhone,
               }),
@@ -522,7 +526,7 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
                   </ToggleGroup>
                 </div>
               )}
-              <div className={isStudent ? "grid grid-cols-1 gap-4" : "grid grid-cols-2 gap-4"}>
+              <div className={hasSimplePhoneStep ? "grid grid-cols-1 gap-4" : "grid grid-cols-2 gap-4"}>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="profile-completion-personal-phone">Personal phone</Label>
                   <Input
@@ -536,7 +540,7 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
                     disabled={saving}
                   />
                 </div>
-                {!isStudent && (
+                {!hasSimplePhoneStep && (
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="profile-completion-work-phone">Work phone</Label>
                     <Input
@@ -552,7 +556,7 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
                   </div>
                 )}
               </div>
-              {!isStudent && (
+              {!hasSimplePhoneStep && (
                 <div className="flex items-center gap-2">
                   <Checkbox
                     id="profile-completion-no-work-phone"

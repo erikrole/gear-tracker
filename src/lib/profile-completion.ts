@@ -60,7 +60,7 @@ const INTERNAL_OPERATIONAL_FIELDS: ProfileCompletionField[] = [
 ];
 
 export function applicableProfileFields(role: ProfileCompletionProfile["role"]): ProfileCompletionField[] {
-  if (role === "COLLABORATOR") return ["photo"];
+  if (role === "COLLABORATOR") return ["personalPhone", "photo"];
   const fields: ProfileCompletionField[] = [
     "campusEmail",
     "athleticsEmail",
@@ -74,7 +74,6 @@ export function applicableProfileFields(role: ProfileCompletionProfile["role"]):
   if (role === "STUDENT") {
     return [
       "campusEmail",
-      "athleticsEmail",
       "personalPhone",
       "wiscard",
       "studentYear",
@@ -88,9 +87,12 @@ export function applicableProfileFields(role: ProfileCompletionProfile["role"]):
 }
 
 export function visibleProfileSteps(role: ProfileCompletionProfile["role"]): ProfileCompletionStep[] {
-  if (role === "COLLABORATOR") return ["PHOTO"];
+  if (role === "COLLABORATOR") return ["PHONES", "PHOTO"];
+  // Students aren't asked for an athletics email or work phone — the EMAIL
+  // step has nothing left for them to fill in once athletics email drops off,
+  // and PHONES already skips straight to a single personal-phone field below.
   return role === "STUDENT"
-    ? [...PROFILE_COMPLETION_STEPS]
+    ? PROFILE_COMPLETION_STEPS.filter((step) => step !== "EMAIL")
     : PROFILE_COMPLETION_STEPS.filter((step) => step !== "STUDENT");
 }
 
@@ -121,9 +123,9 @@ export function getProfileCompletion(profile: ProfileCompletionProfile, now = ne
   };
   const applicableFields = applicableProfileFields(profile.role);
   const operationalFields = profile.role === "COLLABORATOR"
-    ? []
+    ? ["personalPhone"] as ProfileCompletionField[]
     : profile.role === "STUDENT"
-      ? INTERNAL_OPERATIONAL_FIELDS.filter((field) => field !== "workPhone").concat("studentYear", "anticipatedGraduation")
+      ? INTERNAL_OPERATIONAL_FIELDS.filter((field) => field !== "workPhone" && field !== "athleticsEmail").concat("studentYear", "anticipatedGraduation")
       : INTERNAL_OPERATIONAL_FIELDS;
   const missingFields = applicableFields
     .filter((field) => !completeByField[field]);

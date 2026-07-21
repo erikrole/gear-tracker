@@ -75,8 +75,9 @@ describe("profile completion", () => {
   it("requires year and anticipated graduation for students", () => {
     const result = getProfileCompletion(profile({ role: "STUDENT" }));
 
-    expect(result.totalCount).toBe(9);
+    expect(result.totalCount).toBe(8);
     expect(result.missingFields).not.toContain("workPhone");
+    expect(result.missingFields).not.toContain("athleticsEmail");
     expect(result.missingFields).toContain("studentYear");
     expect(result.missingFields).toContain("anticipatedGraduation");
   });
@@ -100,7 +101,7 @@ describe("profile completion", () => {
     }));
 
     expect(result.isComplete).toBe(true);
-    expect(result.completedCount).toBe(9);
+    expect(result.completedCount).toBe(8);
   });
 
   it("separates operational readiness from profile completion", () => {
@@ -117,13 +118,26 @@ describe("profile completion", () => {
     expect(result.missingFields).toEqual(["clothingSize", "shoeSize", "photo"]);
   });
 
-  it("keeps collaborator setup limited to an optional profile photo", () => {
+  it("requires a phone number and treats photo as optional for collaborator completion", () => {
     const incomplete = getProfileCompletion(profile({ role: "COLLABORATOR", email: "guest@example.com" }));
-    const complete = getProfileCompletion(profile({ role: "COLLABORATOR", email: "guest@example.com", avatarUrl: "https://example.com/avatar.webp" }));
+    const operational = getProfileCompletion(profile({
+      role: "COLLABORATOR",
+      email: "guest@example.com",
+      personalPhone: "608-555-0100",
+    }));
+    const complete = getProfileCompletion(profile({
+      role: "COLLABORATOR",
+      email: "guest@example.com",
+      personalPhone: "608-555-0100",
+      avatarUrl: "https://example.com/avatar.webp",
+    }));
 
-    expect(incomplete.operationalReady).toBe(true);
-    expect(incomplete.missingFields).toEqual(["photo"]);
-    expect(incomplete.firstIncompleteStep).toBe("PHOTO");
+    expect(incomplete.operationalReady).toBe(false);
+    expect(incomplete.missingFields).toEqual(["personalPhone", "photo"]);
+    expect(incomplete.firstIncompleteStep).toBe("PHONES");
+    expect(operational.operationalReady).toBe(true);
+    expect(operational.missingFields).toEqual(["photo"]);
+    expect(operational.firstIncompleteStep).toBe("PHOTO");
     expect(complete.profileComplete).toBe(true);
   });
 

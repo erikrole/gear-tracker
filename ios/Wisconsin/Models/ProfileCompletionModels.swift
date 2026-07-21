@@ -18,8 +18,11 @@ enum ProfileCompletionStep: String, Codable, CaseIterable, Identifiable {
 
     static func visibleSteps(for role: String) -> [ProfileCompletionStep] {
         switch role {
-        case "COLLABORATOR": [.photo]
-        case "STUDENT": [.email, .phones, .wiscard, .student, .apparel, .photo]
+        case "COLLABORATOR": [.phones, .photo]
+        // Students aren't asked for an athletics email or work phone — the
+        // email step has nothing left to fill in once athletics email drops
+        // off, and phones already skips straight to a single personal number.
+        case "STUDENT": [.phones, .wiscard, .student, .apparel, .photo]
         default: [.email, .phones, .wiscard, .apparel, .photo]
         }
     }
