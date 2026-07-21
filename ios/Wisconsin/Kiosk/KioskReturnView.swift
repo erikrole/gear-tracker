@@ -10,6 +10,7 @@ struct KioskReturnView: View {
     @State private var detail: KioskCheckoutDetail?
     @State private var returnedIds: Set<String> = []
     @State private var lastResult: ScanFeedback?
+    @State private var feedbackDismissTask: Task<Void, Never>?
     @State private var isLoading = true
     @State private var isCompleting = false
     @State private var loadError: String?
@@ -291,8 +292,13 @@ struct KioskReturnView: View {
         case .error:          Haptics.error()
         }
         UIAccessibility.post(notification: .announcement, argument: feedback.message)
-        Task {
+        // Cancel any prior dismiss timer — otherwise two scans within 3s race:
+        // the first scan's timer fires after the second message is already
+        // showing and wipes it early.
+        feedbackDismissTask?.cancel()
+        feedbackDismissTask = Task {
             try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard !Task.isCancelled else { return }
             withAnimation { lastResult = nil }
         }
     }

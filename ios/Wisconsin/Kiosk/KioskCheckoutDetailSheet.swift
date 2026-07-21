@@ -456,11 +456,26 @@ struct KioskCheckoutDetailSheet: View {
         isLoading = false
     }
 
+    /// Mirrors the auto-dismissing feedback banner used by the sibling
+    /// pickup/return flows — without this the banner used to sit in the
+    /// drawer forever after a save/add/remove, stale the next time staff
+    /// glanced at it.
+    private func showMutationMessage(tone: KioskBannerTone, text: String) {
+        let message = KioskMutationMessage(tone: tone, text: text)
+        withAnimation { mutationMessage = message }
+        Task {
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            if mutationMessage?.text == message.text, mutationMessage?.tone == message.tone {
+                withAnimation { mutationMessage = nil }
+            }
+        }
+    }
+
     private func saveDetails() async {
         guard let actorId else { return }
         let title = editTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else {
-            mutationMessage = KioskMutationMessage(tone: .warning, text: "Title is required")
+            showMutationMessage(tone: .warning, text: "Title is required")
             return
         }
         activeMutation = .savingDetails
@@ -471,11 +486,11 @@ struct KioskCheckoutDetailSheet: View {
                 title: title,
                 endsAt: editEndsAt
             )
-            mutationMessage = KioskMutationMessage(tone: result.success ? .success : .warning, text: result.message ?? result.error ?? "Checkout updated")
+            showMutationMessage(tone: result.success ? .success : .warning, text: result.message ?? result.error ?? "Checkout updated")
             await load()
             onChanged()
         } catch {
-            mutationMessage = KioskMutationMessage(tone: .error, text: (error as? APIError)?.errorDescription ?? "Could not update checkout")
+            showMutationMessage(tone: .error, text: (error as? APIError)?.errorDescription ?? "Could not update checkout")
         }
         activeMutation = nil
     }
@@ -488,13 +503,13 @@ struct KioskCheckoutDetailSheet: View {
         activeMutation = .addingItem
         do {
             let result = try await KioskAPI.shared.kioskAddActiveCheckoutItem(id: context.checkoutId, actorId: actorId, scanValue: value)
-            mutationMessage = KioskMutationMessage(tone: result.success ? .success : .warning, text: result.message ?? result.error ?? "Scan handled")
+            showMutationMessage(tone: result.success ? .success : .warning, text: result.message ?? result.error ?? "Scan handled")
             if result.success {
                 await load()
                 onChanged()
             }
         } catch {
-            mutationMessage = KioskMutationMessage(tone: .error, text: (error as? APIError)?.errorDescription ?? "Could not add item")
+            showMutationMessage(tone: .error, text: (error as? APIError)?.errorDescription ?? "Could not add item")
         }
         activeMutation = nil
     }
@@ -504,13 +519,13 @@ struct KioskCheckoutDetailSheet: View {
         activeMutation = .removingItem
         do {
             let result = try await KioskAPI.shared.kioskRemoveActiveCheckoutItem(id: context.checkoutId, actorId: actorId, item: item)
-            mutationMessage = KioskMutationMessage(tone: result.success ? .success : .warning, text: result.message ?? result.error ?? "Remove handled")
+            showMutationMessage(tone: result.success ? .success : .warning, text: result.message ?? result.error ?? "Remove handled")
             if result.success {
                 await load()
                 onChanged()
             }
         } catch {
-            mutationMessage = KioskMutationMessage(tone: .error, text: (error as? APIError)?.errorDescription ?? "Could not remove item")
+            showMutationMessage(tone: .error, text: (error as? APIError)?.errorDescription ?? "Could not remove item")
         }
         activeMutation = nil
     }

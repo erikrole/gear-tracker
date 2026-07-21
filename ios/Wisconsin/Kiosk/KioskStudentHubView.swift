@@ -7,7 +7,26 @@ struct KioskStudentHubView: View {
     @State private var isLoading = true
     @State private var error: String?
     @State private var selectedCheckout: KioskCheckoutDrawerContext?
-    @State private var scanMessage: String?
+    @State private var scanFeedback: ScanRouteFeedback?
+    @State private var scanFeedbackDismissTask: Task<Void, Never>?
+
+    private enum ScanRouteFeedback: Equatable {
+        case warning(String)
+        case error(String)
+
+        var message: String {
+            switch self {
+            case .warning(let s), .error(let s): return s
+            }
+        }
+
+        var tone: KioskBannerTone {
+            switch self {
+            case .warning: .warning
+            case .error: .error
+            }
+        }
+    }
 
     private let refreshInterval: TimeInterval = 30
 
@@ -22,6 +41,13 @@ struct KioskStudentHubView: View {
                     store.screen = .idle
                 }
             )
+
+            if let scanFeedback {
+                KioskFeedbackBanner(tone: scanFeedback.tone, message: scanFeedback.message)
+                    .padding(.horizontal, KioskSpacing.lg)
+                    .padding(.top, KioskSpacing.sm)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
 
             if isLoading && context == nil {
                 loadingSkeleton
@@ -363,8 +389,7 @@ struct KioskStudentHubView: View {
             do {
                 let result = try await KioskAPI.shared.kioskResolveScan(scanValue: scan, userId: user.id)
                 guard result.kind == "action", let action = result.action else {
-                    scanMessage = result.message ?? "That item cannot start a flow for \(user.name)."
-                    Haptics.warning()
+                    showScanFeedback(.warning(result.message ?? "That item cannot start a flow for \(user.name)."))
                     return
                 }
                 let intent = KioskFlowIntent(
@@ -388,9 +413,25 @@ struct KioskStudentHubView: View {
                 case .manage: break
                 }
             } catch {
-                scanMessage = (error as? APIError)?.errorDescription ?? "Could not route that scan."
-                Haptics.error()
+                showScanFeedback(.error((error as? APIError)?.errorDescription ?? "Could not route that scan."))
             }
+        }
+    }
+
+    /// Cancels any prior dismiss timer before starting a new one — without
+    /// this, two scans within 3 seconds race: the first scan's timer fires
+    /// after the second message is already showing and wipes it early.
+    private func showScanFeedback(_ feedback: ScanRouteFeedback) {
+        switch feedback {
+        case .warning: Haptics.warning()
+        case .error: Haptics.error()
+        }
+        scanFeedbackDismissTask?.cancel()
+        withAnimation { scanFeedback = feedback }
+        scanFeedbackDismissTask = Task {
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation { scanFeedback = nil }
         }
     }
 
