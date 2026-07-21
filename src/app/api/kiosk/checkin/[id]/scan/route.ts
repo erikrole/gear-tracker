@@ -49,7 +49,12 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
   }
 
   const bulkResult = await db.$transaction(
-    (tx) => scanKioskCheckinBulkUnit(tx, { bookingId: params.id, scanValue }),
+    (tx) =>
+      scanKioskCheckinBulkUnit(tx, {
+        bookingId: params.id,
+        scanValue,
+        actorUserId: activeBooking.requesterUserId,
+      }),
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
   if (bulkResult.handled) {
@@ -57,7 +62,16 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
       ok: bulkResult.success,
       errorCode: bulkResult.success ? undefined : bulkResult.errorCode,
     });
-    return ok(bulkResult);
+
+    if (bulkResult.success && bulkResult.completed && bulkResult.badgeEvent) {
+      await badges.onCheckoutReturned(bulkResult.badgeEvent);
+      await endCheckoutReturnLiveActivities(params.id);
+    }
+
+    if (bulkResult.success) {
+      return ok({ success: true, item: bulkResult.item });
+    }
+    return ok({ success: false, error: bulkResult.error });
   }
 
   const asset = await findAssetByScanValue(scanValue, {

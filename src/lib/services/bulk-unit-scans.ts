@@ -5,6 +5,7 @@ import { effectiveBulkUnitStatus } from "@/lib/bulk-unit-status";
 import { parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
 import { HttpError } from "@/lib/http";
 import type { BadgeScanErrorCode } from "@/lib/badges/types";
+import { maybeAutoComplete, wasReturnedOnTime } from "@/lib/services/bookings-checkin";
 
 type TxClient = Prisma.TransactionClient;
 
@@ -34,9 +35,17 @@ type BulkUnitScanItem = {
   bulkSkuId: string;
 };
 
-type KioskUnitScanResult =
+type CheckoutReturnedBadgeEvent = {
+  userId: string;
+  bookingId: string;
+  completedAt: Date;
+  wasOnTime: boolean;
+  sourceKey: string;
+};
+
+type KioskUnitScanResult<TExtra extends object = object> =
   | { handled: false }
-  | { handled: true; success: true; item: BulkUnitScanItem }
+  | ({ handled: true; success: true; item: BulkUnitScanItem } & TExtra)
   | { handled: true; success: false; error: string; errorCode: BadgeScanErrorCode };
 
 function unitDisplayName(skuName: string, unitNumber: number) {
@@ -389,10 +398,19 @@ export async function stageKioskReservationPickupBulkUnit(
   };
 }
 
+/**
+ * Auto-completes the booking via `maybeAutoComplete` when this scan returns
+ * the last outstanding item — otherwise a dropped kiosk session between the
+ * last battery scan and the explicit "Complete Return" tap leaves the
+ * booking stuck OPEN even though every item shows returned. Mirrors
+ * `kioskCheckinAsset` in bookings-checkin.ts.
+ *
+ * Caller is responsible for the SERIALIZABLE transaction boundary.
+ */
 export async function scanKioskCheckinBulkUnit(
   tx: TxClient,
-  args: { bookingId: string; scanValue: string },
-): Promise<KioskUnitScanResult> {
+  args: { bookingId: string; scanValue: string; actorUserId: string },
+): Promise<KioskUnitScanResult<{ completed: boolean; badgeEvent: CheckoutReturnedBadgeEvent | null }>> {
   const booking = await tx.booking.findUnique({
     where: { id: args.bookingId },
     include: {
@@ -522,6 +540,10 @@ export async function scanKioskCheckinBulkUnit(
     items: [{ bulkSkuId: bulkItem.bulkSkuId, quantity: 1 }],
   });
 
+  const completedAt = await maybeAutoComplete(tx, booking.id, booking.locationId, args.actorUserId, {
+    auditAction: "auto_completed_by_kiosk_checkin",
+  });
+
   return {
     handled: true,
     success: true,
@@ -533,6 +555,16 @@ export async function scanKioskCheckinBulkUnit(
       unitNumber: unit.unitNumber,
       bulkSkuId: bulkItem.bulkSkuId,
     },
+    completed: completedAt !== null,
+    badgeEvent: completedAt
+      ? {
+          userId: booking.requesterUserId,
+          bookingId: booking.id,
+          completedAt,
+          wasOnTime: wasReturnedOnTime(booking.endsAt, completedAt),
+          sourceKey: booking.id,
+        }
+      : null,
   };
 }
 
