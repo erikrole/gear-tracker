@@ -337,7 +337,14 @@ export default function KioskDevicesPage() {
       if (handleAuthRedirect(res, "/settings/kiosk-devices")) return;
       if (res.ok) {
         toast.success("Pickup cancelled");
-        setPickupDialog(null);
+        // Stay open so staff can clear several stuck pickups in one pass —
+        // closing after every single cancel forced reopening the dialog
+        // over and over. The dialog's own empty state covers the last one.
+        setPickupDialog((current) => current && ({
+          ...current,
+          pendingPickupCount: Math.max(0, current.pendingPickupCount - 1),
+          pendingPickups: current.pendingPickups.filter((p) => p.id !== booking.id),
+        }));
         load();
       } else {
         const msg = await parseErrorMessage(res, "Failed to cancel pickup");
