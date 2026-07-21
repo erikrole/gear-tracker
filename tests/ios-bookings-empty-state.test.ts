@@ -34,7 +34,9 @@ describe("iOS bookings empty state recovery", () => {
   it("renders one grouped chronological list instead of separated top tabs", () => {
     expect(source).toContain("var sortedCheckouts: [Booking]");
     expect(source).toContain("var sortedReservations: [Booking]");
-    expect(source).toContain("lhs.startsAt > rhs.startsAt");
+    // Checkouts sort by soonest due back; reservations sort by soonest start.
+    expect(source).toContain("lhs.endsAt != rhs.endsAt");
+    expect(source).toContain("lhs.startsAt != rhs.startsAt { return lhs.startsAt < rhs.startsAt }");
     expect(source).toContain('BookingListSection(title: "Checkouts"');
     expect(source).toContain('BookingListSection(title: "Reservations"');
     expect(source).toContain('"Search bookings..."');

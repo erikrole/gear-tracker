@@ -52,11 +52,11 @@ final class BookingsViewModel {
     var hasMore: Bool { hasMoreCheckouts || hasMoreReservations }
 
     var sortedCheckouts: [Booking] {
-        checkouts.sorted(by: bookingSort)
+        checkouts.sorted(by: dueSoonestSort)
     }
 
     var sortedReservations: [Booking] {
-        reservations.sorted(by: bookingSort)
+        reservations.sorted(by: startsSoonestSort)
     }
 
     func applyUserContext(id: String?, role: String?) {
@@ -171,8 +171,16 @@ final class BookingsViewModel {
         )
     }
 
-    private func bookingSort(_ lhs: Booking, _ rhs: Booking) -> Bool {
-        if lhs.startsAt != rhs.startsAt { return lhs.startsAt > rhs.startsAt }
+    /// Active checkouts sort by due date/time — soonest due back (most urgent)
+    /// first, matching what a student actually needs to act on.
+    private func dueSoonestSort(_ lhs: Booking, _ rhs: Booking) -> Bool {
+        if lhs.endsAt != rhs.endsAt { return lhs.endsAt < rhs.endsAt }
+        return lhs.id < rhs.id
+    }
+
+    /// Reservations sort by start date/time — soonest upcoming first.
+    private func startsSoonestSort(_ lhs: Booking, _ rhs: Booking) -> Bool {
+        if lhs.startsAt != rhs.startsAt { return lhs.startsAt < rhs.startsAt }
         return lhs.id < rhs.id
     }
 
