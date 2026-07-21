@@ -90,7 +90,15 @@ struct KioskIdleView: View {
         .task(id: "refresh") {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: UInt64(refreshInterval * 1_000_000_000))
+                guard !store.isDeviceIdle else { continue }
                 await loadAll()
+            }
+        }
+        .onChange(of: store.isDeviceIdle) { wasIdle, isIdle in
+            // Woke from device idle — refetch right away instead of waiting
+            // out the rest of the 5-minute cadence.
+            if wasIdle, !isIdle {
+                Task { await loadAll() }
             }
         }
         .sheet(item: $selectedEvent) { event in

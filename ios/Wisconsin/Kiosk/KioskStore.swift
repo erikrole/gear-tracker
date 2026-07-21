@@ -115,11 +115,20 @@ final class KioskStore {
     private var heartbeatTask: Task<Void, Never>?
     @ObservationIgnored private var unauthorizedObserver: NSObjectProtocol?
 
+    /// True once no touch has landed anywhere in the kiosk app for 15 minutes.
+    /// The idle screen uses this to stop its periodic dashboard/roster poll so
+    /// Neon can scale fully down overnight instead of getting woken every 5
+    /// minutes for nothing; any touch clears it and triggers an immediate
+    /// refetch so the screen never shows stale data to a returning student.
+    private(set) var isDeviceIdle: Bool = false
+    private var deviceIdleTask: Task<Void, Never>?
+
     private static let infoKey = "kiosk_info_v1"
     private static let inactivityTotal: UInt64 = 300_000_000_000        // 5 min
     private static let inactivityWarning: UInt64 = 270_000_000_000      // 4:30
     private static let sleepDismissalDuration: TimeInterval = 10 * 60
     private static let heartbeatInterval: UInt64 = 300_000_000_000      // 5 min
+    private static let deviceIdleThreshold: UInt64 = 900_000_000_000     // 15 min
 
     init() {
         if let data = UserDefaults.standard.data(forKey: Self.infoKey),
@@ -298,6 +307,14 @@ final class KioskStore {
     /// hard reset at 5:00. Any user touch (handled by KioskShellView's
     /// non-cancelling UIKit activity monitor) calls this.
     func resetInactivity() {
+        isDeviceIdle = false
+        deviceIdleTask?.cancel()
+        deviceIdleTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: Self.deviceIdleThreshold)
+            guard let self, !Task.isCancelled else { return }
+            self.isDeviceIdle = true
+        }
+
         inactivityTask?.cancel()
         inactivityWarningVisible = false
         inactivityTask = Task { [weak self] in
@@ -385,6 +402,7 @@ final class KioskStore {
         UserDefaults.standard.removeObject(forKey: Self.infoKey)
         inactivityTask?.cancel()
         heartbeatTask?.cancel()
+        deviceIdleTask?.cancel()
     }
 
     private func startHeartbeat() {
