@@ -1716,7 +1716,7 @@ struct ScheduleCalendarView: View {
         VStack(spacing: 0) {
             monthHeader
                 .padding(.horizontal)
-                .padding(.vertical, 10)
+                .padding(.vertical, 6)
 
             HStack(spacing: 0) {
                 // Use a single weekday letter but disambiguated by position via accessibility.
@@ -1729,7 +1729,7 @@ struct ScheduleCalendarView: View {
                 }
             }
             .padding(.horizontal, 4)
-            .padding(.bottom, 4)
+            .padding(.bottom, 2)
 
             LazyVGrid(columns: columns, spacing: 2) {
                 ForEach(Array(daysInMonth().enumerated()), id: \.offset) { _, day in
@@ -1758,7 +1758,7 @@ struct ScheduleCalendarView: View {
                 }
             }
             .padding(.horizontal, 4)
-            .padding(.bottom, 8)
+            .padding(.bottom, 4)
             .gesture(
                 DragGesture(minimumDistance: 24)
                     .onEnded { value in
@@ -1770,7 +1770,7 @@ struct ScheduleCalendarView: View {
 
             dotLegend
                 .padding(.horizontal, 16)
-                .padding(.bottom, 6)
+                .padding(.bottom, 4)
 
             Divider()
 
