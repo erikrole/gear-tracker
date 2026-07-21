@@ -135,7 +135,7 @@ struct ProfileCompletionResponse: Decodable, Equatable {
 }
 
 enum ProfileCompletionUpdate: Encodable {
-    case email(athleticsEmail: String)
+    case email(athleticsEmail: String, campusEmail: String? = nil)
     case phones(personalPhone: String, workPhone: String?, workPhoneNotApplicable: Bool?)
     case wiscard(cardNumber: String, issueCode: String)
     case student(year: String, graduationTerm: String, gradYear: Int)
@@ -143,7 +143,7 @@ enum ProfileCompletionUpdate: Encodable {
     case snooze
 
     private enum CodingKeys: String, CodingKey {
-        case step, athleticsEmail, personalPhone, workPhone, workPhoneNotApplicable
+        case step, athleticsEmail, campusEmail, personalPhone, workPhone, workPhoneNotApplicable
         case wiscardCardNumber, wiscardIssueCode, studentYearOverride
         case graduationTerm, gradYear, topSizeFit, topSize, shoeSizeSystem, shoeSize
     }
@@ -151,9 +151,10 @@ enum ProfileCompletionUpdate: Encodable {
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
-        case .email(let athleticsEmail):
+        case .email(let athleticsEmail, let campusEmail):
             try container.encode("EMAIL", forKey: .step)
             try container.encode(athleticsEmail, forKey: .athleticsEmail)
+            try container.encodeIfPresent(campusEmail, forKey: .campusEmail)
         case .phones(let personalPhone, let workPhone, let workPhoneNotApplicable):
             try container.encode("PHONES", forKey: .step)
             try container.encode(personalPhone, forKey: .personalPhone)

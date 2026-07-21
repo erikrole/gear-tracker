@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-17
+- Last Updated: 2026-07-21
 - Status: Active
 - Version: V1.2
 
@@ -119,6 +119,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 ## Change Log
 
+- 2026-07-21: **Self-service campus-login fix on the EMAIL step.** The Welcome/profile-completion EMAIL step now lets a user correct their own campus login inline when the stored value is not a valid `@wisc.edu` address, instead of requiring an administrator. The field stays read-only once the login is already valid. The server only accepts and applies a replacement login while the stored login is invalid, still requires the `@wisc.edu` domain and address uniqueness, and audits the change as a completion-state boolean rather than the raw address, matching the existing phone/Wiscard/student audit convention. Web and native iOS both ship the fix.
 - 2026-07-17: **Native profile completion parity.** Authenticated users can now complete the same canonical role-aware profile setup in the main iOS app. Native setup preserves the web field rules, one-day server snooze, student work-phone exclusion, collaborator photo-only scope, typed Wiscard parts, student academic details, apparel systems, and crop-enabled avatar upload. The Profile screen exposes a manual Complete profile entry while required details remain missing. No schema or server behavior changed.
 - 2026-07-17: **Native profile completion input hardening.** The iOS Welcome flow now enforces the ten-digit Wiscard and one-digit issue-code contract at entry, gives form fields explicit keyboard focus and dismissal behavior, reports unreadable photo selections inline, and treats final photo omission as a current-session bypass. Explicit Remind tomorrow remains the only action that writes the canonical one-day server snooze. Native Student and Staff preview fixtures keep role-specific field visibility testable without production identities.
 - 2026-07-16: **Users directory interaction-detail polish.** Header commands, sortable table headers, location-filter recovery, and pagination now meet the 40px desktop target baseline and use the shared 0.96 press treatment. Sort-state icons cross-fade without animating initial render, inactive/hidden roster filters use their full labeled container as the target, mobile roster cards gain tactile and keyboard-focus feedback, and roster avatars use neutral black/white image outlines instead of a tinted border ring. User visibility, filtering, sorting, onboarding, role policy, roster data, and profile behavior are unchanged.

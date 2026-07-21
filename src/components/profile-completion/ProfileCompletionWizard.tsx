@@ -127,6 +127,7 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
   const closeWithoutSnoozeRef = useRef(false);
   const manualReviewRef = useRef(false);
 
+  const [campusEmail, setCampusEmail] = useState("");
   const [athleticsEmail, setAthleticsEmail] = useState("");
   const [legacyPhoneType, setLegacyPhoneType] = useState<LegacyPhoneType>("");
   const [personalPhone, setPersonalPhone] = useState("");
@@ -155,6 +156,7 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
   useEffect(() => {
     if (!data) return;
     const profile = data.profile;
+    setCampusEmail(profile.email);
     setAthleticsEmail(profile.athleticsEmail ?? "");
     setPersonalPhone(profile.personalPhone ?? (profile.role === "STUDENT" ? profile.phone : null) ?? "");
     setWorkPhone(profile.workPhone ?? "");
@@ -219,6 +221,7 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
   // Students and collaborators get a single personal-phone field — no work
   // phone, no legacy-number classification.
   const hasSimplePhoneStep = isStudent || isCollaborator;
+  const campusLoginValid = Boolean(data?.profile.email.toLowerCase().endsWith("@wisc.edu"));
   const copy = step === "PHONES" && hasSimplePhoneStep
     ? { title: "Add your phone number", description: "Add the personal phone number we should use to reach you." }
     : STEP_COPY[step];
@@ -230,7 +233,8 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
   const canContinue = useMemo(() => {
     if (!data) return false;
     if (step === "EMAIL") {
-      return data.profile.email.toLowerCase().endsWith("@wisc.edu")
+      const nextLoginEmail = campusLoginValid ? data.profile.email : campusEmail.trim();
+      return nextLoginEmail.toLowerCase().endsWith("@wisc.edu")
         && athleticsEmail.trim().toLowerCase().endsWith("@athletics.wisc.edu");
     }
     if (step === "PHONES") {
@@ -252,6 +256,8 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
     return Boolean(topSizeFit && topSize && shoeSizeSystem && shoeSize);
   }, [
     athleticsEmail,
+    campusEmail,
+    campusLoginValid,
     data,
     hasSimplePhoneStep,
     legacyPhoneType,
@@ -299,7 +305,11 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
     try {
       const graduation = parseAnticipatedGraduation(anticipatedGraduation);
       const body = step === "EMAIL"
-        ? { step, athleticsEmail: athleticsEmail.trim() }
+        ? {
+            step,
+            athleticsEmail: athleticsEmail.trim(),
+            ...(campusLoginValid ? {} : { campusEmail: campusEmail.trim() }),
+          }
         : step === "PHONES"
           ? {
               step,
@@ -482,7 +492,14 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
             <div className="flex flex-col gap-5">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="profile-completion-campus-email">Campus email and site login</Label>
-                <Input id="profile-completion-campus-email" type="email" value={data.profile.email} disabled />
+                <Input
+                  id="profile-completion-campus-email"
+                  type="email"
+                  value={campusLoginValid ? data.profile.email : campusEmail}
+                  onChange={campusLoginValid ? undefined : (event) => { setCampusEmail(event.target.value); setError(""); }}
+                  disabled={campusLoginValid || saving}
+                  aria-invalid={!campusLoginValid && Boolean(campusEmail) && !campusEmail.toLowerCase().endsWith("@wisc.edu")}
+                />
                 <p className="text-xs text-muted-foreground">Your site login must use your @wisc.edu address.</p>
               </div>
               <div className="flex flex-col gap-2">
@@ -500,10 +517,10 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
                 />
                 <p className="text-xs text-muted-foreground">Everyone should enter their @athletics.wisc.edu address.</p>
               </div>
-              {!data.profile.email.toLowerCase().endsWith("@wisc.edu") && (
+              {!campusLoginValid && (
                 <Alert variant="destructive">
                   <AlertCircleIcon />
-                  <AlertDescription>Your current login is not a @wisc.edu address. Ask an administrator to correct it before completing this step.</AlertDescription>
+                  <AlertDescription>Your current login is not a @wisc.edu address. Enter your correct @wisc.edu email above to fix it.</AlertDescription>
                 </Alert>
               )}
             </div>

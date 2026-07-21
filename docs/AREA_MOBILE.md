@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Mobile Operations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-18
+- Last Updated: 2026-07-21
 - Status: Active
 - Version: V1
 
@@ -133,6 +133,7 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 
 ## Change Log
 
+- 2026-07-21: **Native campus-login self-fix.** The Welcome Email step now lets the user edit their campus/site-login address inline when it isn't a valid `@wisc.edu` address, instead of only directing them to an administrator. The field returns to its compact read-only display once the login is valid, and initial focus lands on the login field rather than Athletics email while a fix is still required. The API contract change is documented in `docs/AREA_USERS.md`.
 - 2026-07-18: **Collaborator Published Schedule is now a first-class native flow.** Its first page is limited to upcoming published events and uses date sections, Schedule-style classification rails, dedicated venue lines, crew previews, and quiet follow state. Event rows navigate to a full-screen read-only detail whose crew is grouped by Video, Photo, Graphics, and Comms with avatar, role, and call-window context. Follow and mute appear only with `SCHEDULE_FOLLOW`, wait for server truth, prevent duplicate requests, and retain the old state after failure. Push taps use the sanitized published-event detail route even when the event is outside the loaded page. Skeleton-first loading, pagination, pull-to-refresh, refresh-failure recovery, VoiceOver summaries, and reduced-motion handling remain in the native surface.
 - 2026-07-18: **Native Schedule filtering and calendar setup are now explicit and recoverable.** Filters show a live result count, separate Only my shifts and Include past events from Event Type and Sport, keep active scope quiet in the Schedule viewport, and finish with one purple Show Events action. Neutral games and Non-game events no longer collapse into the same `isHome == nil` filter. The Schedule overflow now opens Shift Calendar management instead of immediately leaving the app: iOS reports private-feed readiness and its own last successful Calendar handoff without claiming Apple completed a subscription, explains refresh authority, retries failed status reads, and requires a consequence warning before rotating the private link. Existing Schedule navigation state, role gates, Dynamic Type, VoiceOver, reduced motion, token security, and canonical-host routing remain intact.
 - 2026-07-18: **Native call-window editing and trade posting now match the redesigned Schedule flow.** Edit Call Window uses the same event card, side-to-side Call and End language, 15-minute choices, compact current-year dates, inline validation, retry, and purple constructive action as Add Shift. Post to Trade Board is now one reusable sheet from Event detail and the Trade Board instead of a detailed picker in one place and a bare confirmation in another. It keeps owner and shift context visible, makes the still-assigned consequence explicit, accepts an optional note, preserves entered state after failure, and combines VoiceOver selection state into each row. Existing eligibility and trade policy remain server-owned.

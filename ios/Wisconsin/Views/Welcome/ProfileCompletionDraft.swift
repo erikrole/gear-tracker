@@ -4,6 +4,7 @@ import Observation
 @MainActor
 @Observable
 final class ProfileCompletionDraft {
+    var campusEmail = ""
     var athleticsEmail = ""
     var legacyPhoneType = ""
     var personalPhone = ""
@@ -39,6 +40,7 @@ final class ProfileCompletionDraft {
     }
 
     func hydrate(from profile: ProfileCompletionProfile) {
+        campusEmail = profile.email
         athleticsEmail = profile.athleticsEmail ?? ""
         personalPhone = profile.personalPhone ?? (profile.role == "STUDENT" ? profile.phone : nil) ?? ""
         workPhone = profile.workPhone ?? ""
@@ -86,7 +88,9 @@ final class ProfileCompletionDraft {
         let hasSimplePhoneStep = Self.hasSimplePhoneStep(for: profile.role)
         switch step {
         case .email:
-            return Self.isEmail(profile.email, inDomain: "wisc.edu")
+            let loginValid = Self.isEmail(profile.email, inDomain: "wisc.edu")
+            let nextLogin = loginValid ? profile.email : campusEmail
+            return Self.isEmail(nextLogin, inDomain: "wisc.edu")
                 && (isStudent || Self.isEmail(athleticsEmail, inDomain: "athletics.wisc.edu"))
         case .phones:
             return Self.digits(personalPhone).count == 10
@@ -112,7 +116,11 @@ final class ProfileCompletionDraft {
     func update(for step: ProfileCompletionStep, profile: ProfileCompletionProfile) -> ProfileCompletionUpdate? {
         switch step {
         case .email:
-            return .email(athleticsEmail: athleticsEmail.trimmingCharacters(in: .whitespacesAndNewlines))
+            let loginValid = Self.isEmail(profile.email, inDomain: "wisc.edu")
+            return .email(
+                athleticsEmail: athleticsEmail.trimmingCharacters(in: .whitespacesAndNewlines),
+                campusEmail: loginValid ? nil : campusEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
         case .phones:
             let hasSimplePhoneStep = Self.hasSimplePhoneStep(for: profile.role)
             return .phones(

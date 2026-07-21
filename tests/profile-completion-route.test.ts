@@ -232,6 +232,83 @@ describe("/api/me/profile-completion", () => {
     expect(dbMock.user.update).not.toHaveBeenCalled();
   });
 
+  it("lets a user fix an invalid campus login from the EMAIL step", async () => {
+    dbMock.user.findUnique.mockResolvedValue(storedProfile({ email: "person@gmail.com" }));
+
+    const response = await PATCH(patchRequest({
+      step: "EMAIL",
+      athleticsEmail: "person@athletics.wisc.edu",
+      campusEmail: "Person@Wisc.edu",
+    }), noParams);
+
+    expect(response.status).toBe(200);
+    expect(dbMock.user.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        athleticsEmail: "person@athletics.wisc.edu",
+        email: "person@wisc.edu",
+      }),
+    }));
+    expect(createAuditEntryTx).toHaveBeenCalledWith(dbMock, expect.objectContaining({
+      before: expect.objectContaining({ campusLoginValid: false }),
+      after: expect.objectContaining({ campusLoginValid: true, fieldsChanged: ["athleticsEmail", "email"] }),
+    }));
+  });
+
+  it("requires a replacement address when the current campus login is invalid", async () => {
+    dbMock.user.findUnique.mockResolvedValue(storedProfile({ email: "person@gmail.com" }));
+
+    const response = await PATCH(patchRequest({
+      step: "EMAIL",
+      athleticsEmail: "person@athletics.wisc.edu",
+    }), noParams);
+
+    expect(response.status).toBe(409);
+    expect(dbMock.user.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects a replacement login outside the wisc.edu domain", async () => {
+    dbMock.user.findUnique.mockResolvedValue(storedProfile({ email: "person@gmail.com" }));
+
+    const response = await PATCH(patchRequest({
+      step: "EMAIL",
+      athleticsEmail: "person@athletics.wisc.edu",
+      campusEmail: "person@outlook.com",
+    }), noParams);
+
+    expect(response.status).toBe(400);
+    expect(dbMock.user.update).not.toHaveBeenCalled();
+  });
+
+  it("ignores a submitted campus email once the current login is already valid", async () => {
+    const response = await PATCH(patchRequest({
+      step: "EMAIL",
+      athleticsEmail: "person@athletics.wisc.edu",
+      campusEmail: "someoneelse@wisc.edu",
+    }), noParams);
+
+    expect(response.status).toBe(200);
+    const call = dbMock.user.update.mock.calls[0]?.[0] as { data: Record<string, unknown> };
+    expect(call.data.email).toBeUndefined();
+  });
+
+  it("returns a conflict for a duplicate campus email", async () => {
+    dbMock.user.findUnique.mockResolvedValue(storedProfile({ email: "person@gmail.com" }));
+    dbMock.user.update.mockRejectedValueOnce({
+      code: "P2002",
+      meta: { target: ["email"] },
+    });
+
+    const response = await PATCH(patchRequest({
+      step: "EMAIL",
+      athleticsEmail: "person@athletics.wisc.edu",
+      campusEmail: "taken@wisc.edu",
+    }), noParams);
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({ error: "That email is already linked to another account." });
+    expect(createAuditEntryTx).not.toHaveBeenCalled();
+  });
+
   it("rejects phone values without at least seven digits", async () => {
     const response = await PATCH(patchRequest({
       step: "PHONES",

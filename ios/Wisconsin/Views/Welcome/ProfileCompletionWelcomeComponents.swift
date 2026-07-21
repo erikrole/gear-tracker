@@ -2,6 +2,7 @@ import PhotosUI
 import SwiftUI
 
 enum WelcomeFocusField: Hashable {
+    case campusEmail
     case athleticsEmail
     case personalPhone
     case workPhone
@@ -196,24 +197,39 @@ struct WelcomeEmailStepView: View {
     let onChange: () -> Void
     let onSubmit: () -> Void
 
+    private var loginValid: Bool { profile.email.lowercased().hasSuffix("@wisc.edu") }
+
     var body: some View {
         WelcomeFormCard {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 8) {
                     WelcomeFieldLabel(title: "Campus email", detail: "Site login")
-                    Text(profile.email)
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.82)
-                        .allowsTightening(true)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(12)
-                        .background(
-                            Color(.secondarySystemFill),
-                            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        )
+                    if loginValid {
+                        Text(profile.email)
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.82)
+                            .allowsTightening(true)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(12)
+                            .background(
+                                Color(.secondarySystemFill),
+                                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            )
+                    } else {
+                        TextField("name@wisc.edu", text: $draft.campusEmail)
+                            .textInputAutocapitalization(.never)
+                            .keyboardType(.emailAddress)
+                            .textContentType(.emailAddress)
+                            .autocorrectionDisabled()
+                            .textFieldStyle(.roundedBorder)
+                            .focused(focus, equals: .campusEmail)
+                            .submitLabel(.next)
+                            .onSubmit { focus.wrappedValue = .athleticsEmail }
+                            .onChange(of: draft.campusEmail) { _, _ in onChange() }
+                    }
                 }
 
                 Divider()
@@ -235,9 +251,9 @@ struct WelcomeEmailStepView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                if !profile.email.lowercased().hasSuffix("@wisc.edu") {
+                if !loginValid {
                     Label(
-                        "Your login is not a @wisc.edu address. Ask an administrator to correct it before continuing.",
+                        "Your login is not a @wisc.edu address. Enter your correct @wisc.edu email above to fix it.",
                         systemImage: "exclamationmark.triangle.fill"
                     )
                     .font(.footnote)

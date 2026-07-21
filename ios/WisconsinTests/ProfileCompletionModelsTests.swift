@@ -82,6 +82,44 @@ final class ProfileCompletionModelsTests: XCTestCase {
         XCTAssertTrue(draft.canContinue(.email, profile: profile))
     }
 
+    func testEmailUpdateOmitsCampusEmailWhenLoginAlreadyValid() throws {
+        let data = try JSONEncoder().encode(ProfileCompletionUpdate.email(athleticsEmail: "bucky@athletics.wisc.edu"))
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        XCTAssertEqual(object["step"] as? String, "EMAIL")
+        XCTAssertEqual(object["athleticsEmail"] as? String, "bucky@athletics.wisc.edu")
+        XCTAssertNil(object["campusEmail"])
+    }
+
+    func testEmailUpdateIncludesCampusEmailWhenProvided() throws {
+        let data = try JSONEncoder().encode(
+            ProfileCompletionUpdate.email(athleticsEmail: "bucky@athletics.wisc.edu", campusEmail: "bucky@wisc.edu")
+        )
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        XCTAssertEqual(object["campusEmail"] as? String, "bucky@wisc.edu")
+    }
+
+    func testCampusEmailDraftFixesAnInvalidLogin() throws {
+        let json = """
+        {"id":"user-1","name":"Bucky Badger","role":"STAFF","email":"bucky@gmail.com"}
+        """.data(using: .utf8)!
+        let profile = try JSONDecoder().decode(ProfileCompletionProfile.self, from: json)
+        let draft = ProfileCompletionDraft(profile: profile)
+        draft.athleticsEmail = "bucky@athletics.wisc.edu"
+
+        XCTAssertFalse(draft.canContinue(.email, profile: profile))
+
+        draft.campusEmail = "bucky@wisc.edu"
+        XCTAssertTrue(draft.canContinue(.email, profile: profile))
+
+        guard case let .email(athleticsEmail, campusEmail)? = draft.update(for: .email, profile: profile) else {
+            return XCTFail("Expected an email update")
+        }
+        XCTAssertEqual(athleticsEmail, "bucky@athletics.wisc.edu")
+        XCTAssertEqual(campusEmail, "bucky@wisc.edu")
+    }
+
     private func profile(role: String) throws -> ProfileCompletionProfile {
         let json = """
         {"id":"user-1","name":"Bucky Badger","role":"\(role)","email":"bucky@wisc.edu"}
