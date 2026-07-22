@@ -740,11 +740,7 @@ struct BookingRow: View {
                         statusBadge
                     }
                 }
-                // Overdue rows carry a second clause ("· 18h overdue") that
-                // truncates away at larger type sizes, so let them wrap. Text
-                // only takes the second line when it needs it, so every other
-                // row keeps its current height.
-                timingLine(lineLimit: isOverdue ? 2 : 1)
+                timingLine(lineLimit: 1)
                 metadataLine(lineLimit: 1)
             }
             disclosureIndicator
@@ -821,11 +817,7 @@ struct BookingRow: View {
         if booking.kind == .checkout {
             switch booking.status {
             case .open:
-                let due = "Due \(booking.endsAt.operationalDateTimeLabel(now: now, capitalizesRelativeDay: false))"
-                guard booking.endsAt < now else { return (due, false) }
-                // How late, not just when it was due — the reader shouldn't
-                // have to subtract.
-                return ("\(due) · \(booking.endsAt.overdueLabel)", true)
+                return ("Due \(booking.endsAt.operationalDateTimeLabel(now: now, capitalizesRelativeDay: false))", booking.endsAt < now)
             case .pendingPickup, .booked:
                 return ("Pickup \(booking.startsAt.operationalDateTimeLabel(now: now, capitalizesRelativeDay: false))", booking.startsAt < now)
             default:

@@ -1223,5 +1223,5 @@ private struct DraftRow: View {
 
 // MARK: - Helpers
 
-// `overdueLabel` / `lateLabel` moved to DateFormats.swift — the Bookings list
-// needs them too.
+// `overdueLabel` / `lateLabel` live in DateFormats.swift with the other Date
+// display helpers.

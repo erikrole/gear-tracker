@@ -152,9 +152,9 @@ extension Date {
 }
 
 extension Date {
-    /// Elapsed-time phrasing for a deadline already passed. Rows pair this with
-    /// the absolute due time so "yesterday at 3:00 PM" doesn't leave the reader
-    /// doing the subtraction.
+    /// Elapsed-time phrasing for a deadline already passed, for the compact
+    /// dashboard queue rows. Full booking rows state the absolute due time
+    /// instead, matching how every other row reads.
     var overdueLabel: String {
         let hours = Int(-self.timeIntervalSinceNow / 3600)
         if hours < 24 { return "\(hours)h overdue" }
