@@ -103,9 +103,6 @@ struct EventDetailView: View {
                 if showsOpenShiftSection {
                     openShiftSection
                 }
-                if canManageShifts {
-                    staffingActionSection
-                }
                 crewSection
             }
             .padding(.horizontal, Brand.Space.md)
@@ -586,32 +583,22 @@ struct EventDetailView: View {
         }
     }
 
+    /// Add Shift lives in the Crew header rather than its own "Staffing" card.
+    /// That card restated the same coverage the Crew pill already shows, under a
+    /// near-identical people icon, so managers read the number twice.
     @ViewBuilder
-    private var staffingActionSection: some View {
-        if let group = vm.shiftGroup {
-            VStack(alignment: .leading, spacing: Brand.Space.sm) {
-                EventDetailSectionHeader("Staffing", systemImage: "person.2.badge.gearshape.fill")
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("\(group.coverage.filled) of \(group.coverage.total) positions filled")
-                            .font(.subheadline.weight(.semibold))
-                        Text(group.coverage.percentage >= 100 ? "Crew is covered" : "Review open positions below")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Button {
-                        showAddShift = true
-                    } label: {
-                        Label("Add Shift", systemImage: "plus")
-                            .font(.subheadline.weight(.semibold))
-                            .frame(minHeight: 44)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(Color.statusText(.purple))
-                }
-                .brandCard()
+    private var addShiftButton: some View {
+        if canManageShifts, vm.shiftGroup != nil {
+            Button {
+                showAddShift = true
+            } label: {
+                Label("Add Shift", systemImage: "plus")
+                    .font(.subheadline.weight(.semibold))
             }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .frame(minHeight: 44)
+            .tint(Color.statusText(.purple))
         }
     }
 
@@ -833,8 +820,11 @@ struct EventDetailView: View {
     private var crewSection: some View {
         VStack(alignment: .leading, spacing: Brand.Space.sm) {
             EventDetailSectionHeader(title: "Crew", systemImage: "person.2.fill") {
-                if canManageShifts, let coverage = vm.shiftGroup?.coverage {
-                    CoveragePill(coverage: coverage)
+                HStack(spacing: Brand.Space.sm) {
+                    if canManageShifts, let coverage = vm.shiftGroup?.coverage {
+                        CoveragePill(coverage: coverage)
+                    }
+                    addShiftButton
                 }
             }
             crewBody
@@ -1037,44 +1027,16 @@ struct AreaBlock: View {
     var onDelete: ((EventShift) -> Void)? = nil
     var hidesShiftTimes = false
 
-    /// True when this area mixes Student and Staff slots. When false, the single
-    /// worker type is shown once on the header instead of on every row.
-    private var mixesWorkerTypes: Bool {
-        Set(shifts.map(\.workerType)).count > 1
-    }
-
-    private var uniformWorkerTypeLabel: String? {
-        guard !mixesWorkerTypes, let type = shifts.first?.workerType else { return nil }
-        switch type {
-        case "ST": return "Student"
-        case "FT": return "Staff"
-        default:   return type
-        }
-    }
-
-    private var uniformWorkerTypeColor: Color {
-        shifts.first?.workerType == "FT" ? .secondary : Color.statusText(.blue)
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Area header — title-cased ("Video" / "Photo") so the row's
-            // ALL-CAPS server token doesn't shout, with the area's icon. When the
-            // block is a single worker type, it's labeled here once.
-            HStack(spacing: 8) {
-                Label(area.shiftAreaLabel, systemImage: areaIcon)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                if let uniformWorkerTypeLabel {
-                    Text(uniformWorkerTypeLabel)
-                        .font(.caption2.weight(.medium))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(uniformWorkerTypeColor.opacity(0.12))
-                        .foregroundStyle(uniformWorkerTypeColor)
-                        .clipShape(Capsule())
-                }
-            }
+            // ALL-CAPS server token doesn't shout, with the area's icon. The
+            // worker-type chip stays on the rows, never here: hoisting it for
+            // uniform areas made adjacent blocks structurally different and
+            // knocked the name column out of alignment between them.
+            Label(area.shiftAreaLabel, systemImage: areaIcon)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
 
             VStack(spacing: 0) {
                 ForEach(Array(shifts.enumerated()), id: \.element.id) { idx, shift in
@@ -1085,7 +1047,7 @@ struct AreaBlock: View {
                         canManageShifts: canManageShifts,
                         isStudent: isStudent,
                         hidesShiftTimes: hidesShiftTimes,
-                        showsWorkerType: mixesWorkerTypes,
+                        showsWorkerType: true,
                         onAssign: onAssign,
                         onRequest: onRequest,
                         onPostTrade: onPostTrade,
@@ -1180,6 +1142,10 @@ struct ShiftRow: View {
                     .foregroundStyle(workerTypeColor)
                     .clipShape(Capsule())
                     .fixedSize()
+                    // A fixed column so the avatar and name start at the same x
+                    // on every row. "Student" is wider than "Staff", which
+                    // otherwise ragged the name edge between rows.
+                    .frame(width: 62, alignment: .leading)
             }
 
             // Assigned person (or open slot)
@@ -1422,7 +1388,9 @@ struct ShiftRow: View {
             .buttonStyle(.bordered)
             .controlSize(.small)
             .frame(minHeight: 44)
-            .tint(Color.brandPrimary)
+            // Purple, matching Add Shift. Brand red on an additive action read
+            // as destructive next to the other add controls.
+            .tint(Color.statusText(.purple))
             .accessibilityLabel("Assign \(shift.area.shiftAreaLabel) shift")
         } else if isStudent && isStudentSlot, let onRequest {
             Button { onRequest(shift) } label: {
@@ -1432,7 +1400,7 @@ struct ShiftRow: View {
             .buttonStyle(.bordered)
             .controlSize(.small)
             .frame(minHeight: 44)
-            .tint(Color.brandPrimary)
+            .tint(Color.statusText(.purple))
             .accessibilityLabel("Claim \(shift.area.shiftAreaLabel) shift")
         } else {
             Text("Open")

@@ -468,7 +468,10 @@ func scheduleEventDisplayTitle(_ event: ScheduleEvent) -> String {
         switch event.isHome {
         case true:  parts.append("vs \(opponent)")
         case false: parts.append("at \(opponent)")
-        case nil:   parts.append("- \(opponent)")
+        // Neutral-site games still read as "vs" -- a bare dash scanned as a
+        // subtitle rather than an opponent. The neutral site itself stays
+        // visible via the row's "Neutral" meta label.
+        case nil:   parts.append("vs \(opponent)")
         }
         return parts.joined(separator: " ")
     }

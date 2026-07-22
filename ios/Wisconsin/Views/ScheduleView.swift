@@ -1149,23 +1149,18 @@ private struct InternalScheduleView: View {
     }
 
     private var scheduleControlStrip: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             // The segmented control is self-explanatory (List / Calendar), so it
-            // stands on its own — no "View" label, matching Apple's own switchers.
-            Picker("Schedule view", selection: $viewMode) {
-                ForEach(ScheduleViewMode.allCases, id: \.self) { mode in
-                    Text(mode.rawValue).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-            .accessibilityLabel("Schedule view")
-
+            // carries no "View" label, matching Apple's own switchers. Filters
+            // rides the same row so the strip costs one row instead of two.
             HStack(spacing: 12) {
-                Text(activeFilterSummary)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                Picker("Schedule view", selection: $viewMode) {
+                    ForEach(ScheduleViewMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityLabel("Schedule view")
 
                 Button {
                     showFilters = true
@@ -1194,6 +1189,15 @@ private struct InternalScheduleView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(activeFilterCount > 0 ? "Filters, \(activeFilterCount) active" : "Filters")
             }
+
+            // The summary only earns a row once something is actually filtered.
+            // In the default state it restated "everything" and cost a full row.
+            if activeFilterCount > 0 {
+                Text(activeFilterSummary)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
         .padding(.horizontal, Brand.Space.md)
         .padding(.top, Brand.Space.sm)
@@ -1221,7 +1225,13 @@ private struct InternalScheduleView: View {
                 ForEach(displayedGroups, id: \.date) { group in
                     Section {
                         ForEach(group.events) { event in
-                            NavigationLink(value: ScheduleEventRoute(id: event.id)) {
+                            // A Button (not NavigationLink) so the row keeps its own
+                            // in-card chevron instead of also getting List's system
+                            // disclosure indicator outside the card. Matches the
+                            // calendar-mode day list below.
+                            Button {
+                                navigationPath.append(ScheduleEventRoute(id: event.id))
+                            } label: {
                                 EventRow(
                                     event: event,
                                     myShift: vm.shiftsByEventId[event.id],
@@ -1244,6 +1254,7 @@ private struct InternalScheduleView: View {
             .listStyle(.plain)
             .listSectionSpacing(.compact)
             .scrollContentBackground(.hidden)
+            .contentMargins(.top, 0, for: .scrollContent)
             .contentMargins(.bottom, 96, for: .scrollContent)
             .background(Color(.systemGroupedBackground))
         }
@@ -1308,8 +1319,12 @@ private struct ScheduleFilterSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Clear") { onClear() }
-                        .disabled(activeFilterCount == 0)
+                    // Shown only when there is something to clear. As a
+                    // permanently-present disabled control it read as a broken
+                    // button crowding the sheet's top-left corner.
+                    if activeFilterCount > 0 {
+                        Button("Clear") { onClear() }
+                    }
                 }
             }
             .safeAreaInset(edge: .bottom) {
@@ -1342,7 +1357,7 @@ private struct ScheduleFilterSheet: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(matchingEventCount == 1 ? "1 matching event" : "\(matchingEventCount) matching events")
                     .font(.headline)
-                Text(activeFilterCount == 0 ? "All upcoming events" : "\(activeFilterCount) active filters")
+                Text(activeFilterSummaryLine)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -1385,28 +1400,44 @@ private struct ScheduleFilterSheet: View {
             Text("Event Type")
                 .font(.headline)
 
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 8)], spacing: 8) {
-                ForEach(HomeAwayFilter.allCases, id: \.self) { filter in
-                    Button {
-                        homeAwayFilter = filter
-                        Haptics.selection()
-                    } label: {
-                        Text(filter.rawValue)
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity, minHeight: 42)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(homeAwayFilter == filter ? Color.statusText(.purple) : .secondary)
-                    .background(
-                        homeAwayFilter == filter ? Color.statusBackground(.purple) : Color.clear,
-                        in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
-                    )
-                    .accessibilityAddTraits(homeAwayFilter == filter ? .isSelected : [])
+            // "All" is the reset, so it spans the row and the four real venue
+            // types sit in a balanced 2x2 below. A single 5-item adaptive grid
+            // left a ragged half-empty last row.
+            eventTypeButton(.all)
+
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
+                ForEach(HomeAwayFilter.allCases.filter { $0 != .all }, id: \.self) { filter in
+                    eventTypeButton(filter)
                 }
             }
         }
         .padding(16)
         .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.lg, style: .continuous))
+    }
+
+    /// One shape, drawn once. The previous version stacked `.bordered`'s own
+    /// capsule under a second `.background` at a different corner radius, which
+    /// is what made the borders read as misaligned. Unselected keeps a defined
+    /// surface and hairline so it reads tappable instead of disabled.
+    private func eventTypeButton(_ filter: HomeAwayFilter) -> some View {
+        let isOn = homeAwayFilter == filter
+        let shape = RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+        return Button {
+            homeAwayFilter = filter
+            Haptics.selection()
+        } label: {
+            Text(filter.rawValue)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(isOn ? Color.statusText(.purple) : Color.primary)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background(shape.fill(isOn ? Color.statusBackground(.purple) : Color(.secondarySystemBackground)))
+                .overlay(shape.strokeBorder(
+                    isOn ? Color.statusText(.purple).opacity(0.35) : Color.primary.opacity(0.12),
+                    lineWidth: 1
+                ))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
     }
 
     private var sportCard: some View {
@@ -1430,6 +1461,14 @@ private struct ScheduleFilterSheet: View {
 
     private var showResultsTitle: String {
         matchingEventCount == 1 ? "Show 1 Event" : "Show \(matchingEventCount) Events"
+    }
+
+    private var activeFilterSummaryLine: String {
+        switch activeFilterCount {
+        case 0:  return "All upcoming events"
+        case 1:  return "1 active filter"
+        default: return "\(activeFilterCount) active filters"
+        }
     }
 }
 
@@ -1716,7 +1755,7 @@ struct ScheduleCalendarView: View {
         VStack(spacing: 0) {
             monthHeader
                 .padding(.horizontal)
-                .padding(.vertical, 6)
+                .padding(.vertical, 2)
 
             HStack(spacing: 0) {
                 // Use a single weekday letter but disambiguated by position via accessibility.
@@ -1731,7 +1770,7 @@ struct ScheduleCalendarView: View {
             .padding(.horizontal, 4)
             .padding(.bottom, 2)
 
-            LazyVGrid(columns: columns, spacing: 2) {
+            LazyVGrid(columns: columns, spacing: 1) {
                 ForEach(Array(daysInMonth().enumerated()), id: \.offset) { _, day in
                     if let day {
                         let visibleEvents = filteredEvents(on: day)
@@ -1753,7 +1792,7 @@ struct ScheduleCalendarView: View {
                         }
                         .buttonStyle(.plain)
                     } else {
-                        Color.clear.frame(height: 48)
+                        Color.clear.frame(height: 36)
                     }
                 }
             }
@@ -1826,9 +1865,8 @@ struct ScheduleCalendarView: View {
             Button { changeMonth(by: -1) } label: {
                 Image(systemName: "chevron.left")
                     .font(.body.weight(.semibold))
-                    .frame(width: 44, height: 44)
-                    .background(Color.cardSurfaceRaised, in: Circle())
-                    .overlay(Circle().strokeBorder(Color.hairline, lineWidth: 0.5))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 36, height: 36)
                     .contentShape(Circle())
             }
             .buttonStyle(ScalePressStyle())
@@ -1852,9 +1890,8 @@ struct ScheduleCalendarView: View {
             Button { changeMonth(by: 1) } label: {
                 Image(systemName: "chevron.right")
                     .font(.body.weight(.semibold))
-                    .frame(width: 44, height: 44)
-                    .background(Color.cardSurfaceRaised, in: Circle())
-                    .overlay(Circle().strokeBorder(Color.hairline, lineWidth: 0.5))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 36, height: 36)
                     .contentShape(Circle())
             }
             .buttonStyle(ScalePressStyle())
@@ -1976,16 +2013,16 @@ private struct DayCell: View {
     let eventCount: Int
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 2) {
             ZStack {
                 if isSelected {
                     Circle()
                         .fill(isToday ? Color.brandPrimary : Color.brandPrimary.opacity(0.18))
-                        .frame(width: 34, height: 34)
+                        .frame(width: 28, height: 28)
                 } else if isToday {
                     Circle()
                         .strokeBorder(Color.brandPrimary, lineWidth: 1.5)
-                        .frame(width: 34, height: 34)
+                        .frame(width: 28, height: 28)
                 }
                 Text(date.formatted(.dateTime.day()))
                     .font(.subheadline)
@@ -1996,25 +2033,28 @@ private struct DayCell: View {
                         isToday ? Color.brandPrimary : .primary
                     )
             }
-            .frame(width: 34, height: 34)
+            .frame(width: 28, height: 28)
 
             // Venue dots retain classification color even when the day also
             // contains personal work.
-            HStack(spacing: 3) {
+            HStack(spacing: 2) {
                 ForEach(dots.indices, id: \.self) { i in
                     Circle()
                         .fill(dots[i].color)
-                        .frame(width: 5, height: 5)
+                        .frame(width: 4, height: 4)
                 }
             }
-            .frame(height: 5)
+            .frame(height: 4)
 
             Capsule()
                 .fill(dots.contains(where: \.isShift) ? Color.statusText(.blue) : Color.clear)
-                .frame(width: 10, height: 2)
+                .frame(width: 9, height: 2)
                 .accessibilityHidden(true)
         }
-        .frame(minWidth: 44, minHeight: 56)
+        // Deliberately below Apple's 44pt guidance: a six-row month at 44pt ate
+        // over half the screen and starved the agenda beneath it. Cell content
+        // measures ~36pt and the whole cell stays tappable via contentShape.
+        .frame(minWidth: 32, minHeight: 32)
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
@@ -2074,16 +2114,6 @@ private struct ScheduleDateHeader: View {
             }
 
             Spacer()
-
-            if eventCount > 1 {
-                Label("\(eventCount)", systemImage: "calendar")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.cardSurfaceRaised, in: Capsule())
-                    .accessibilityHidden(true)
-            }
         }
         .padding(.horizontal, 16)
         .padding(.top, Brand.Space.md)
@@ -2147,8 +2177,9 @@ struct EventRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
             StatusRail(color: barColor)
+                .frame(maxHeight: .infinity)
 
             VStack(alignment: .leading, spacing: 5) {
                 Text(eventDisplayTitle)
@@ -2172,14 +2203,18 @@ struct EventRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             // Crew fill is the one at-a-glance signal worth a trailing chip.
-            if showsCrewCoverage, let cov = event.coverage, cov.total > 0 {
-                coverageChip(cov)
-            }
+            // Both ride the title's first line so the trailing edge keeps a
+            // steady rhythm when a title wraps to two lines.
+            HStack(spacing: 12) {
+                if showsCrewCoverage, let cov = event.coverage, cov.total > 0 {
+                    coverageChip(cov)
+                }
 
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.tertiary)
-                .accessibilityHidden(true)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 14)
@@ -2197,9 +2232,11 @@ struct EventRow: View {
     /// replacing the old stack of pills that crowded the title.
     private var metaLine: some View {
         HStack(spacing: 5) {
-            Text(eventTypeLabel)
-                .foregroundStyle(.secondary)
-            metaDot
+            if let eventTypeLabel {
+                Text(eventTypeLabel)
+                    .foregroundStyle(.secondary)
+                metaDot
+            }
             Text(timeRowText)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
@@ -2218,7 +2255,17 @@ struct EventRow: View {
         Text("·").foregroundStyle(.tertiary)
     }
 
-    private var eventTypeLabel: String {
+    /// Home is already carried by the green status rail, so only the exceptions
+    /// spend a word on the meta line. VoiceOver still gets the full label below.
+    private var eventTypeLabel: String? {
+        switch event.isHome {
+        case true: return nil
+        case false: return "Away"
+        case nil: return event.opponent == nil ? "Non-game" : "Neutral"
+        }
+    }
+
+    private var accessibilityTypeLabel: String {
         switch event.isHome {
         case true: return "Home"
         case false: return "Away"
@@ -2228,8 +2275,29 @@ struct EventRow: View {
 
     private var venueName: String? {
         if let name = event.location?.name, !name.isEmpty { return name }
-        if let raw = event.rawLocationText?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty { return raw }
-        return nil
+        guard let raw = event.rawLocationText?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !raw.isEmpty else { return nil }
+        return Self.strippingCityPrefix(raw)
+    }
+
+    /// Imported events carry a full "City, ST, Venue Name" string in
+    /// `rawLocationText`. Only the venue reads usefully in a dense row, and the
+    /// city prefix is what pushes the real name into truncation. Strip it only
+    /// when the second component is unambiguously a state token, so a string
+    /// already in "Venue, City, ST" order is left alone.
+    private static func strippingCityPrefix(_ raw: String) -> String {
+        let parts = raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        guard parts.count >= 3, isStateToken(parts[1]) else { return raw }
+        return parts.dropFirst(2).joined(separator: ", ")
+    }
+
+    /// Matches both postal codes ("WI") and the AP-style abbreviations the
+    /// imported feed uses ("Wis.", "Minn.", "Calif.").
+    private static func isStateToken(_ token: String) -> Bool {
+        if token.count == 2, token.allSatisfy({ $0.isUppercase && $0.isLetter }) { return true }
+        return token.hasSuffix(".")
+            && token.count <= 7
+            && token.dropLast().allSatisfy(\.isLetter)
     }
 
     private func personalWorkLine(_ shift: MyShift) -> some View {
@@ -2262,7 +2330,7 @@ struct EventRow: View {
         if showsCrewCoverage, let cov = event.coverage, cov.total > 0 {
             parts.append("Crew \(cov.filled) of \(cov.total)")
         }
-        parts.append(eventTypeLabel)
+        parts.append(accessibilityTypeLabel)
         if event.displayAllDay {
             parts.append("All day")
         } else if let shift = myShift {

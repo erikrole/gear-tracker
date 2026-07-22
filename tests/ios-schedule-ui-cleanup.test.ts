@@ -81,7 +81,11 @@ describe("iOS Schedule UI cleanup", () => {
     expect(scheduleView).toContain("dots.contains(where: \\.isShift)");
     expect(scheduleView).toContain("color = Color.statusText(.green)");
     expect(scheduleView).toContain("color = Color.statusText(.orange)");
-    expect(scheduleView).toContain(".background(Color.cardSurfaceRaised, in: Circle())");
+    // Month arrows are deliberately unfilled (no raised circle) and compact so
+    // the header reads lighter above a dense grid. Asserting their exact frame
+    // would be a false positive -- the toolbar buttons share that string.
+    expect(scheduleView).toContain('.accessibilityLabel("Previous month")');
+    expect(scheduleView).toContain('.accessibilityLabel("Next month")');
     expect(scheduleView).toContain(".listRowBackground(Color.clear)");
     expect(scheduleView).toContain("LegendAssignmentMark(label: \"My shift\")");
   });
@@ -115,7 +119,10 @@ describe("iOS Schedule UI cleanup", () => {
     expect(eventDetailView).not.toContain("@Environment(\\.dismiss)");
     expect(eventDetail).toContain("assignmentSection");
     expect(eventDetail).toContain("openShiftSection");
-    expect(eventDetail).toContain("staffingActionSection");
+    // Add Shift lives in the Crew section header. The separate "Staffing" card
+    // was removed: it restated the coverage the Crew pill already shows.
+    expect(eventDetail).not.toContain("staffingActionSection");
+    expect(eventDetail).toContain("addShiftButton");
     expect(eventDetail).toContain("Label(\"Add Shift\", systemImage: \"plus\")");
     expect(eventDetail).toContain("Button(\"Try Again\")");
     expect(eventDetail).toContain('return "Today, \\(date.formatted');
@@ -139,7 +146,10 @@ describe("iOS Schedule UI cleanup", () => {
     const homeView = source("ios/Wisconsin/Views/HomeView.swift");
 
     expect(scheduleView).toContain("NavigationStack(path: $navigationPath)");
-    expect(scheduleView).toContain("NavigationLink(value: ScheduleEventRoute(id: event.id))");
+    // The list row pushes by appending to the path rather than using a
+    // NavigationLink: inside a List, NavigationLink also renders a system
+    // disclosure indicator outside the card, on top of EventRow's own chevron.
+    expect(scheduleView).toContain("navigationPath.append(ScheduleEventRoute(id: event.id))");
     expect(scheduleView).toContain(".navigationDestination(for: ScheduleEventRoute.self)");
     expect(scheduleView).not.toContain(".sheet(item: $selectedEvent)");
     expect(homeView).toContain("EventDetailView(event: work.asScheduleEvent");
