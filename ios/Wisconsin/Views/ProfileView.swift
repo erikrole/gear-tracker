@@ -14,6 +14,12 @@ struct ProfileView: View {
     @State private var showPushPrompt = false
     @State private var prefsVM = NotificationPrefsViewModel()
     @State private var pushAuth: UNAuthorizationStatus = .notDetermined
+    @State private var ownDetail: AppUserDetail?
+    @State private var ownBadges: BadgeProfile?
+    @State private var ownCheckouts: [Booking] = []
+    @State private var ownReservations: [Booking] = []
+    @State private var showBadgeGallery = false
+    @State private var selectedBadge: UserBadge?
 
     private static let manageAccountURL = AppEnvironment.baseURL
     private static let iosSettingsURL = URL(string: UIApplication.openSettingsURLString)!
@@ -36,6 +42,7 @@ struct ProfileView: View {
         NavigationStack {
             List {
                 headerSection
+                badgeSection
                 profileCompletionSection
                 scheduleSection
             }
@@ -69,6 +76,19 @@ struct ProfileView: View {
         .tint(.primary)
         .task { await prefsVM.load() }
         .task { await refreshPushAuth() }
+        .task { await loadOwnProfile() }
+        .sheet(isPresented: $showBadgeGallery) {
+            if let ownBadges {
+                BadgeGallerySheet(profile: ownBadges)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+            }
+        }
+        .sheet(item: $selectedBadge) { badge in
+            BadgeDetailSheet(badge: badge)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task { await refreshPushAuth() }
@@ -104,11 +124,12 @@ struct ProfileView: View {
                 Text(session.currentUser?.name ?? "Account")
                     .font(.title3.weight(.semibold))
                     .fixedSize(horizontal: false, vertical: true)
-                Text(session.currentUser?.email ?? "")
-                    .font(.system(.subheadline, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
+                if let standing = ownStanding {
+                    Text(standing)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         } else {
             HStack(spacing: 14) {
@@ -116,11 +137,15 @@ struct ProfileView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(session.currentUser?.name ?? "Account")
                         .font(.title3.weight(.semibold))
-                    Text(session.currentUser?.email ?? "")
-                        .font(.system(.subheadline, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
+                    // Your own standing, the same line everyone else's profile
+                    // leads with. This card used to put your email address here
+                    // in monospace -- the one fact you already know.
+                    if let standing = ownStanding {
+                        Text(standing)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
                 }
                 Spacer(minLength: 12)
                 StatusPill.role(session.currentUser?.role ?? "")
@@ -128,36 +153,75 @@ struct ProfileView: View {
         }
     }
 
+    private var ownStanding: String? {
+        guard let detail = ownDetail else { return nil }
+        return UserIdentity.line(
+            role: detail.role,
+            title: detail.title,
+            gradYear: detail.gradYear,
+            studentYearOverride: detail.studentYearOverride,
+            primaryArea: detail.primaryArea
+        )
+    }
+
+    /// The same custody strip a teammate's profile shows, counted from your own
+    /// bookings. You could read anyone else's out-and-overdue at a glance and
+    /// not your own.
+    ///
+    /// The row this replaces mixed two counts with a settings state: "Shifts",
+    /// "Overdue", and "Push" sat in one three-up rank as though "Push" were a
+    /// quantity of something. Notification delivery is a preference, and it
+    /// lives with the other preferences now.
     @ViewBuilder
     private var statusMetrics: some View {
-        if dynamicTypeSize.isAccessibilitySize {
-            VStack(spacing: 10) {
-                statusMetricViews
-            }
+        if ownCustody.hasAny {
+            UserCustodyStrip(custody: ownCustody, showsCard: false)
         } else {
-            HStack(spacing: 12) {
-                statusMetricViews
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                Text("Nothing out, nothing reserved")
+                    .font(.subheadline)
+                    .foregroundStyle(.tertiary)
+                Spacer(minLength: 0)
+            }
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    private var ownCustody: UserCustody {
+        UserCustody(checkouts: ownCheckouts, reservations: ownReservations)
+    }
+
+    /// Your own trophy shelf. Recognition was visible on every profile except
+    /// the one belonging to the person who earned it.
+    @ViewBuilder
+    private var badgeSection: some View {
+        if let ownBadges, ownBadges.disabled != true {
+            Section {
+                BadgeShelfCard(
+                    profile: ownBadges,
+                    openGallery: { showBadgeGallery = true },
+                    openBadge: { selectedBadge = $0 }
+                )
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
             }
         }
     }
 
-    @ViewBuilder
-    private var statusMetricViews: some View {
-        SettingsStatusMetric(
-            value: "\(appState.myShiftCount)",
-            label: "Shifts",
-            tone: appState.myShiftCount > 0 ? .blue : .gray
-        )
-        SettingsStatusMetric(
-            value: "\(appState.overdueCount)",
-            label: "Overdue",
-            tone: appState.overdueCount > 0 ? .red : .gray
-        )
-        SettingsStatusMetric(
-            value: notificationMetricValue,
-            label: "Alerts",
-            tone: notificationMetricTone
-        )
+    private func loadOwnProfile() async {
+        guard let id = session.currentUser?.id else { return }
+        async let detailTask = try? await APIClient.shared.user(id: id)
+        async let badgeTask = try? await APIClient.shared.userBadgeProfile(userId: id)
+        async let checkoutsTask = try? await APIClient.shared.checkoutsByUser(userId: id, activeOnly: true, limit: 5)
+        async let reservationsTask = try? await APIClient.shared.reservationsByUser(userId: id, activeOnly: true, limit: 5)
+        let (detail, badges, checkouts, reservations) = await (detailTask, badgeTask, checkoutsTask, reservationsTask)
+        ownDetail = detail
+        ownBadges = badges
+        ownCheckouts = checkouts?.data ?? []
+        ownReservations = reservations?.data ?? []
     }
 
     @ViewBuilder
@@ -235,17 +299,6 @@ struct ProfileView: View {
                 Text("Availability blocks are advisory. Staff can still override after confirming.")
             }
         }
-    }
-
-    private var notificationMetricValue: String {
-        if prefsVM.loading && prefsVM.prefs == nil { return "…" }
-        guard let prefs = prefsVM.prefs else { return prefsVM.error == nil ? "On" : "Check" }
-        return prefs.channels.push ? "Push" : "Inbox"
-    }
-
-    private var notificationMetricTone: StatusTone {
-        if prefsVM.error != nil && prefsVM.prefs == nil { return .orange }
-        return .blue
     }
 
     private func refreshPushAuth() async {
@@ -376,30 +429,6 @@ private struct SettingsCountBadge: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(Color.statusBackground(tone), in: Capsule())
-    }
-}
-
-private struct SettingsStatusMetric: View {
-    let value: String
-    let label: String
-    let tone: StatusTone
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(value)
-                .font(.headline.weight(.semibold))
-                .foregroundStyle(Color.statusText(tone))
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-            Text(label)
-                .font(.caption2.weight(.medium))
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(Color.statusBackground(tone), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .accessibilityElement(children: .combine)
     }
 }
 

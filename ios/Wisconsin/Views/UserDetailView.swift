@@ -104,67 +104,12 @@ struct UserDetailView: View {
 
     @ViewBuilder
     private var badgesSection: some View {
-        if let badgeProfile, badgeProfile.disabled != true {
-            FormCard {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(alignment: .center) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "trophy")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(Color.statusText(.orange))
-                                    .accessibilityHidden(true)
-                                Text("Badges")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.secondary)
-                                    .textCase(.uppercase)
-                                    .tracking(0.04)
-                            }
-                            Text("\(badgeProfile.earnedCount) earned")
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                        }
-                        Spacer()
-                        Button {
-                            showBadgeGallery = true
-                        } label: {
-                            Label("See all", systemImage: "square.grid.2x2")
-                                .font(.caption.weight(.semibold))
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        // Neutral, not brand red: opening a gallery is not
-                        // urgent and not destructive.
-                        .tint(Color.primary)
-                        .accessibilityLabel("See all badges")
-                    }
-
-                    if badgeProfile.earnedBadges.isEmpty {
-                        Text("No badges yet")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    } else {
-                        // Trophy-shelf treatment: earned medallions scroll
-                        // horizontally so the profile stays short. Full tiles,
-                        // locked badges, and progress live in the gallery sheet.
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(alignment: .top, spacing: 2) {
-                                ForEach(badgeProfile.earnedBadges.prefix(16)) { badge in
-                                    Button {
-                                        badgeTapFeedback.toggle()
-                                        selectedBadge = badge
-                                    } label: {
-                                        BadgeShelfItem(badge: badge)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                        }
-                        .sensoryFeedback(.selection, trigger: badgeTapFeedback)
-                    }
-                }
-            }
+        if let badgeProfile {
+            BadgeShelfCard(
+                profile: badgeProfile,
+                openGallery: { showBadgeGallery = true },
+                openBadge: { selectedBadge = $0 }
+            )
         }
     }
 
@@ -326,8 +271,12 @@ struct UserCustody {
 /// so "3 out, 1 overdue" means the same thing about someone else as it does
 /// about you. Zero-value lanes stay off -- an explicit "0 overdue" reads as a
 /// finding rather than the absence of one.
-private struct UserCustodyStrip: View {
+struct UserCustodyStrip: View {
     let custody: UserCustody
+    /// Off when the strip is already inside a card -- the settings-style
+    /// Profile list draws its own row surface, so a second one nests a bordered
+    /// white box inside a bordered white box.
+    var showsCard = true
 
     private var lanes: [(id: String, label: String, value: Int, tone: StatusTone)] {
         var lanes: [(String, String, Int, StatusTone)] = []
@@ -357,7 +306,94 @@ private struct UserCustodyStrip: View {
                 .accessibilityLabel("\(lane.value) \(lane.label)")
             }
         }
-        .brandCard(padding: Brand.Space.md, alignment: .center)
+        .modifier(OptionalCard(enabled: showsCard))
+    }
+}
+
+/// Applies the standard card chrome only when the caller is not already inside
+/// one.
+private struct OptionalCard: ViewModifier {
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content.brandCard(padding: Brand.Space.md, alignment: .center)
+        } else {
+            content
+        }
+    }
+}
+
+// MARK: - Badge shelf
+
+/// The trophy shelf, shared by the profile you open for someone else and the
+/// one you open for yourself. Earned medallions scroll horizontally so the
+/// profile stays short; locked badges and progress live in the gallery sheet.
+struct BadgeShelfCard: View {
+    let profile: BadgeProfile
+    let openGallery: () -> Void
+    let openBadge: (UserBadge) -> Void
+
+    @State private var tapFeedback = false
+
+    var body: some View {
+        if profile.disabled != true {
+            FormCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .center) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "trophy")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(Color.statusText(.orange))
+                                    .accessibilityHidden(true)
+                                Text("Badges")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                    .textCase(.uppercase)
+                                    .tracking(0.04)
+                            }
+                            Text("\(profile.earnedCount) earned")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                        Spacer()
+                        Button(action: openGallery) {
+                            Label("See all", systemImage: "square.grid.2x2")
+                                .font(.caption.weight(.semibold))
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        // Neutral, not brand red: opening a gallery is not
+                        // urgent and not destructive.
+                        .tint(Color.primary)
+                        .accessibilityLabel("See all badges")
+                    }
+
+                    if profile.earnedBadges.isEmpty {
+                        Text("No badges yet")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(alignment: .top, spacing: 2) {
+                                ForEach(profile.earnedBadges.prefix(16)) { badge in
+                                    Button {
+                                        tapFeedback.toggle()
+                                        openBadge(badge)
+                                    } label: {
+                                        BadgeShelfItem(badge: badge)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                        .sensoryFeedback(.selection, trigger: tapFeedback)
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -576,7 +612,7 @@ private struct BadgeTile: View {
 }
 
 /// Horizontal-shelf item for the profile card: medallion over a two-line name.
-private struct BadgeShelfItem: View {
+struct BadgeShelfItem: View {
     let badge: UserBadge
 
     var body: some View {
@@ -595,7 +631,7 @@ private struct BadgeShelfItem: View {
     }
 }
 
-private struct BadgeGallerySheet: View {
+struct BadgeGallerySheet: View {
     let profile: BadgeProfile
     @Environment(\.dismiss) private var dismiss
     @State private var filter: BadgeGalleryFilter = .all
@@ -738,7 +774,7 @@ private struct BadgeGallerySheet: View {
     }
 }
 
-private struct BadgeDetailSheet: View {
+struct BadgeDetailSheet: View {
     let badge: UserBadge
     @Environment(\.dismiss) private var dismiss
 
