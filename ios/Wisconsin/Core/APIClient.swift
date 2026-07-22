@@ -183,11 +183,16 @@ final class APIClient {
 
     // MARK: - Bookings
 
-    func reservations(activeOnly: Bool = true, search: String? = nil, requesterId: String? = nil, filter: String? = nil, limit: Int = 30, offset: Int = 0) async throws -> PaginatedResponse<Booking> {
-        try await perform(bookingListRequest(path: "/api/reservations", active: activeOnly, status: nil, statusList: nil, search: search, requesterId: requesterId, filter: filter, limit: limit, offset: offset))
+    /// Soonest-starting first. The server default is `startsAt desc`, which
+    /// would put the next reservation to pick up on the *last* page.
+    func reservations(activeOnly: Bool = true, search: String? = nil, requesterId: String? = nil, filter: String? = nil, sort: String? = "oldest", limit: Int = 30, offset: Int = 0) async throws -> PaginatedResponse<Booking> {
+        try await perform(bookingListRequest(path: "/api/reservations", active: activeOnly, status: nil, statusList: nil, search: search, requesterId: requesterId, filter: filter, sort: sort, limit: limit, offset: offset))
     }
 
-    func checkouts(activeOnly: Bool = true, search: String? = nil, requesterId: String? = nil, filter: String? = nil, limit: Int = 30, offset: Int = 0) async throws -> PaginatedResponse<Booking> {
+    /// Soonest-due first, so page 1 is the most urgent gear rather than the
+    /// most recently started. Callers that take a small window off the top
+    /// (Live Activities) depend on this too.
+    func checkouts(activeOnly: Bool = true, search: String? = nil, requesterId: String? = nil, filter: String? = nil, sort: String? = "endsAt", limit: Int = 30, offset: Int = 0) async throws -> PaginatedResponse<Booking> {
         try await perform(bookingListRequest(
             path: "/api/checkouts",
             active: false,
@@ -196,12 +201,13 @@ final class APIClient {
             search: search,
             requesterId: requesterId,
             filter: filter,
+            sort: sort,
             limit: limit,
             offset: offset
         ))
     }
 
-    private func bookingListRequest(path: String, active: Bool, status: BookingStatus?, statusList: [BookingStatus]?, search: String?, requesterId: String?, filter: String?, limit: Int, offset: Int) -> URLRequest {
+    private func bookingListRequest(path: String, active: Bool, status: BookingStatus?, statusList: [BookingStatus]?, search: String?, requesterId: String?, filter: String?, sort: String?, limit: Int, offset: Int) -> URLRequest {
         var items: [URLQueryItem] = [
             .init(name: "limit", value: "\(limit)"),
             .init(name: "offset", value: "\(offset)"),
@@ -214,6 +220,7 @@ final class APIClient {
         if let search, !search.isEmpty { items.append(.init(name: "q", value: search)) }
         if let requesterId, !requesterId.isEmpty { items.append(.init(name: "requester_id", value: requesterId)) }
         if let filter, !filter.isEmpty { items.append(.init(name: "filter", value: filter)) }
+        if let sort, !sort.isEmpty { items.append(.init(name: "sort", value: sort)) }
         return request(path: path, queryItems: items)
     }
 

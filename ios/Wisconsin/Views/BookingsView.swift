@@ -173,12 +173,18 @@ final class BookingsViewModel {
 
     /// Active checkouts sort by due date/time — soonest due back (most urgent)
     /// first, matching what a student actually needs to act on.
+    ///
+    /// This must mirror the `sort=endsAt` order the request asks for. Sorting
+    /// only what a page returned is what hid the original bug: under 30 rows
+    /// everything fits on page 1 and looks right, while past that the most
+    /// urgent booking sat on the last page.
     private func dueSoonestSort(_ lhs: Booking, _ rhs: Booking) -> Bool {
         if lhs.endsAt != rhs.endsAt { return lhs.endsAt < rhs.endsAt }
         return lhs.id < rhs.id
     }
 
-    /// Reservations sort by start date/time — soonest upcoming first.
+    /// Reservations sort by start date/time — soonest upcoming first. Mirrors
+    /// the requested `sort=oldest` order, per the note on `dueSoonestSort`.
     private func startsSoonestSort(_ lhs: Booking, _ rhs: Booking) -> Bool {
         if lhs.startsAt != rhs.startsAt { return lhs.startsAt < rhs.startsAt }
         return lhs.id < rhs.id
