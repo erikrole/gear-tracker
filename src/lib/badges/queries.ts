@@ -4,6 +4,7 @@ import type { AuthUser } from "@/lib/auth";
 import { HttpError } from "@/lib/http";
 import { normalizePrefs } from "@/lib/services/notification-prefs";
 import { ON_TIME_GRACE_MS } from "./types";
+import { getBadgeRarity } from "./display";
 
 type CustomBadgeDefinitionInput = {
   name: string;
@@ -260,7 +261,19 @@ export async function getUserBadgeProfile(viewer: AuthUser, userId: string) {
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
 
-  const progressByKey = await getProgressByBadgeKey(userId, definitions);
+  // Rarity is now a fact about how many people hold a badge, so it needs the
+  // holder counts and the eligible population alongside the definitions. Both
+  // are cheap aggregates and neither depends on the viewer.
+  const [progressByKey, holderCounts, eligibleUsers, streakRows] = await Promise.all([
+    getProgressByBadgeKey(userId, definitions),
+    db.studentBadge.groupBy({ by: ["definitionId"], _count: { userId: true } }),
+    db.user.count({ where: { active: true } }),
+    db.badgeStreak.findMany({
+      where: { userId },
+      select: { streakType: true, current: true, longest: true, lastEventAt: true },
+    }),
+  ]);
+  const holdersByDefinition = new Map(holderCounts.map((row) => [row.definitionId, row._count.userId]));
 
   const badges = definitions.map((definition) => {
     const award = definition.awards[0] ?? null;
@@ -285,6 +298,19 @@ export async function getUserBadgeProfile(viewer: AuthUser, userId: string) {
       awardedByName: award?.awardedBy?.name ?? null,
       progressCurrent: progress?.current ?? null,
       progressTarget: progress?.target ?? null,
+      // Served, not derived on each client. Web and iOS had their own copies of
+      // a hardcoded rarity table, which is how they were free to disagree.
+      holders: holdersByDefinition.get(definition.id) ?? 0,
+      rarity: getBadgeRarity({
+        key: definition.key,
+        category: definition.category,
+        kind: definition.kind,
+        trigger: definition.trigger,
+        threshold: definition.threshold,
+        holders: holdersByDefinition.get(definition.id) ?? 0,
+        eligible: eligibleUsers,
+        createdAt: definition.createdAt,
+      }),
     };
   });
 
@@ -294,6 +320,17 @@ export async function getUserBadgeProfile(viewer: AuthUser, userId: string) {
     earnedCount: badges.filter((badge) => badge.earned).length,
     totalCount: badges.filter((badge) => badge.active).length,
     badges,
+    // The most engaging thing in the system was already being tracked and shown
+    // to nobody: `BadgeStreak` has held current and longest per user since the
+    // beginning, read only to fill a progress bar.
+    streaks: streakRows
+      .filter((row) => row.streakType !== "SCAN_SUCCESS_COUNT")
+      .map((row) => ({
+        type: row.streakType,
+        current: row.current,
+        longest: row.longest,
+        lastEventAt: row.lastEventAt?.toISOString() ?? null,
+      })),
   };
 }
 

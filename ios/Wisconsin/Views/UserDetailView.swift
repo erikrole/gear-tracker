@@ -289,6 +289,16 @@ struct BadgeShelfCard: View {
                         .sensoryFeedback(.selection, trigger: tapFeedback)
                     }
 
+                    if !liveStreaks.isEmpty {
+                        Divider()
+                        // A run in force is the most motivating thing this
+                        // system knows, and it has been tracked since the
+                        // beginning while being shown to nobody.
+                        ForEach(liveStreaks) { streak in
+                            BadgeStreakRow(streak: streak)
+                        }
+                    }
+
                     if let next = closestToEarned {
                         Divider()
                         BadgeProgressRow(badge: next) {
@@ -309,6 +319,49 @@ struct BadgeShelfCard: View {
         profile.badges
             .filter(\.hasProgress)
             .max { $0.progressFraction < $1.progressFraction }
+    }
+
+    private var liveStreaks: [BadgeStreakSummary] {
+        (profile.streaks ?? []).filter(\.isWorthShowing)
+    }
+}
+
+/// "4 on-time returns in a row · best 7". Current is the number that moves, so
+/// it leads; the best is context, not the headline.
+private struct BadgeStreakRow: View {
+    let streak: BadgeStreakSummary
+
+    private var tone: StatusTone {
+        streak.type == "SCAN_CLEAN" ? .green : .blue
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: streak.systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Color.statusText(tone))
+                .frame(width: 18)
+                .accessibilityHidden(true)
+            // A broken streak still says something worth knowing: what it was.
+            Text(streak.current > 0 ? streak.label : "Streak reset")
+                .font(.subheadline)
+                .foregroundStyle(streak.current > 0 ? .primary : .secondary)
+                .lineLimit(1)
+            Spacer(minLength: 8)
+            if streak.longest > streak.current {
+                Text("best \(streak.longest)")
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .frame(minHeight: 28)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            streak.current > 0
+                ? "\(streak.label), best \(streak.longest)"
+                : "Streak reset, best \(streak.longest)"
+        )
     }
 }
 
@@ -921,6 +974,13 @@ private enum BadgeGalleryFilter: String, CaseIterable, Identifiable {
 private enum BadgeRarity: String {
     case common, uncommon, rare, legendary
 
+    /// The server sends title case ("Legendary"); an unrecognised value means a
+    /// newer server vocabulary, so fall through to the local rating rather than
+    /// guessing.
+    init?(serverValue: String) {
+        self.init(rawValue: serverValue.lowercased())
+    }
+
     var title: String {
         switch self {
         case .common: "Common"
@@ -1015,7 +1075,12 @@ private extension UserBadge {
         return trigger == "manual" ? "Staff recognition" : "Locked"
     }
 
+    /// The server computes rarity from how many people actually hold a badge,
+    /// so prefer its answer. The local key lists below are the same
+    /// difficulty-based guess the server falls back to for a badge nobody has
+    /// earned yet, kept only so an older payload still renders.
     var rarity: BadgeRarity {
+        if let served = servedRarity.flatMap(BadgeRarity.init(serverValue:)) { return served }
         if legendaryBadgeKeys.contains(key) { return .legendary }
         if rareBadgeKeys.contains(key) || (threshold ?? 0) >= 50 { return .rare }
         if key.hasPrefix("custom_") { return .uncommon }

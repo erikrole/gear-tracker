@@ -79,6 +79,10 @@ type UserBadge = {
   awardedByName: string | null;
   progressCurrent: number | null;
   progressTarget: number | null;
+  /** Served by the API from real holder counts. Optional so an older payload
+   *  still renders, falling back to the difficulty-based rating. */
+  rarity?: BadgeRarity;
+  holders?: number;
 };
 
 type UserBadgesResponse = {
@@ -397,7 +401,7 @@ function BadgeTile({
   onSelect: (badge: UserBadge) => void;
 }) {
   const Icon = iconMap[badge.icon] ?? Trophy;
-  const rarity = getBadgeRarity(badge);
+  const rarity = badge.rarity ?? getBadgeRarity(badge);
   const recentlyEarned = badge.earned && isRecentlyEarned(badge.awardedAt);
 
   return (
@@ -519,7 +523,7 @@ function BadgeDetailDialog({
 }) {
   const [revokeBusy, setRevokeBusy] = useState(false);
   const Icon = badge ? iconMap[badge.icon] ?? Trophy : Trophy;
-  const rarity = badge ? getBadgeRarity(badge) : "Common";
+  const rarity = badge ? (badge.rarity ?? getBadgeRarity(badge)) : "Common";
   const progressValue = badge ? progressPercent(badge) : 0;
   const recentlyEarned = badge ? badge.earned && isRecentlyEarned(badge.awardedAt) : false;
 
@@ -698,7 +702,7 @@ function filterBadges(badges: UserBadge[], filter: BadgeFilter) {
   if (filter === "manual") return badges.filter((badge) => badge.source === "MANUAL" || (badge.kind === "RULE" && badge.trigger === "manual"));
   if (filter === "rare") {
     return badges.filter((badge) => {
-      const rarity = getBadgeRarity(badge);
+      const rarity = badge.rarity ?? getBadgeRarity(badge);
       return rarity === "Rare" || rarity === "Legendary";
     });
   }

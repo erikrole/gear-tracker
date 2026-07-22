@@ -19,11 +19,15 @@ vi.mock("@/lib/db", () => ({
     shiftTrade: {
       count: vi.fn(),
     },
+    studentBadge: {
+      groupBy: vi.fn(),
+    },
     systemConfig: {
       findUnique: vi.fn(),
     },
     user: {
       findUnique: vi.fn(),
+      count: vi.fn(),
     },
   },
 }));
@@ -79,6 +83,10 @@ beforeEach(() => {
   vi.mocked(db.booking.findMany).mockResolvedValue([]);
   vi.mocked(db.shiftTrade.count).mockResolvedValue(0);
   vi.mocked(db.badgeStreak.findMany).mockResolvedValue([]);
+  // Rarity is served from real holder counts now, so the profile query reads
+  // award totals and the eligible population alongside the definitions.
+  vi.mocked(db.studentBadge.groupBy).mockResolvedValue([] as never);
+  vi.mocked(db.user.count).mockResolvedValue(0);
 });
 
 describe("GET /api/badges", () => {
@@ -286,6 +294,81 @@ describe("GET /api/badges/user/[userId]", () => {
       progressCurrent: null,
       progressTarget: null,
     }));
+  });
+
+  it("serves rarity from real holder counts and surfaces streaks", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(studentUser);
+    vi.mocked(db.user.findUnique).mockResolvedValue(userRow({ id: "student-1", role: "STUDENT", active: true }));
+    vi.mocked(db.systemConfig.findUnique).mockResolvedValue(null);
+    vi.mocked(db.badgeDefinition.findMany).mockResolvedValue(badgeDefinitionRows([
+      {
+        id: "definition-common",
+        key: "zero_errors",
+        name: "Zero Errors",
+        description: "Ten clean scans in a row.",
+        icon: "ShieldCheck",
+        category: "SCAN",
+        kind: "RULE",
+        trigger: "scan:rule",
+        threshold: 10,
+        ruleKey: "zero_errors",
+        active: true,
+        sortOrder: 240,
+        createdAt: new Date("2026-05-09T12:00:00.000Z"),
+        awards: [],
+      },
+      {
+        id: "definition-unearned",
+        key: "checkout_25",
+        name: "Gear Veteran",
+        description: "Opened 25 gear checkouts.",
+        icon: "Boxes",
+        category: "CHECKOUT",
+        kind: "COUNT",
+        trigger: "checkout:opened",
+        threshold: 25,
+        ruleKey: null,
+        active: true,
+        sortOrder: 30,
+        createdAt: new Date("2026-05-09T12:00:00.000Z"),
+        awards: [],
+      },
+    ]));
+    // Ten of fourteen people hold zero_errors; nobody holds checkout_25.
+    vi.mocked(db.studentBadge.groupBy).mockResolvedValue([
+      { definitionId: "definition-common", _count: { userId: 10 } },
+    ] as never);
+    vi.mocked(db.user.count).mockResolvedValue(14);
+    vi.mocked(db.badgeStreak.findMany).mockResolvedValue([
+      { streakType: "ON_TIME_RETURN", current: 4, longest: 7, lastEventAt: new Date("2026-07-20T12:00:00.000Z") },
+      // Never surfaced: this one is a durable counter, not a run.
+      { streakType: "SCAN_SUCCESS_COUNT", current: 31, longest: 31, lastEventAt: null },
+    ] as never);
+
+    const res = await getUserBadges(makeGetRequest("https://app.example.com/api/badges/user/student-1"), {
+      params: Promise.resolve({ userId: "student-1" }),
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    // The hardcoded table called this one Uncommon while it was among the most
+    // widely held badges in the system.
+    expect(body.data.badges[0]).toEqual(expect.objectContaining({
+      key: "zero_errors",
+      holders: 10,
+      rarity: "Common",
+    }));
+    // And this one Common, with nobody holding it. Unearned is unproven, so it
+    // is rated by difficulty rather than crowned the rarest thing in the app.
+    expect(body.data.badges[1]).toEqual(expect.objectContaining({
+      key: "checkout_25",
+      holders: 0,
+      rarity: "Uncommon",
+    }));
+
+    expect(body.data.streaks).toEqual([
+      { type: "ON_TIME_RETURN", current: 4, longest: 7, lastEventAt: "2026-07-20T12:00:00.000Z" },
+    ]);
   });
 
   it("blocks peer students when badge peer visibility is disabled", async () => {

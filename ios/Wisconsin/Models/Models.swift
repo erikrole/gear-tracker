@@ -421,6 +421,36 @@ enum UserIdentity {
     }
 }
 
+/// A streak the server is already keeping. `current` is the run in force now,
+/// `longest` the best it has ever been.
+struct BadgeStreakSummary: Codable, Identifiable {
+    let type: String
+    let current: Int
+    let longest: Int
+    let lastEventAt: String?
+
+    var id: String { type }
+
+    /// A streak nobody has started is not a fact worth a row.
+    var isWorthShowing: Bool { current > 0 || longest > 0 }
+
+    var label: String {
+        switch type {
+        case "ON_TIME_RETURN": current == 1 ? "1 on-time return in a row" : "\(current) on-time returns in a row"
+        case "SCAN_CLEAN": current == 1 ? "1 clean scan in a row" : "\(current) clean scans in a row"
+        default: "\(current) in a row"
+        }
+    }
+
+    var systemImage: String {
+        switch type {
+        case "ON_TIME_RETURN": "clock.badge.checkmark.fill"
+        case "SCAN_CLEAN": "barcode.viewfinder"
+        default: "flame.fill"
+        }
+    }
+}
+
 struct BadgeProfile: Codable {
     let userId: String
     let peerVisible: Bool
@@ -428,6 +458,7 @@ struct BadgeProfile: Codable {
     let totalCount: Int
     let badges: [UserBadge]
     let disabled: Bool?
+    let streaks: [BadgeStreakSummary]?
 
     var earnedBadges: [UserBadge] {
         badges.filter(\.earned)
@@ -453,6 +484,19 @@ struct UserBadge: Codable, Identifiable {
     let note: String?
     let progressCurrent: Int?
     let progressTarget: Int?
+    /// Served rarity, computed from how many people actually hold the badge.
+    /// Optional so an older payload still decodes; the `rarity` accessor falls
+    /// back to a local difficulty rating when it is absent. Stored under a
+    /// different name because `rarity` itself is that accessor.
+    let servedRarity: String?
+    let holders: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case id, key, name, description, icon, category, kind, trigger
+        case threshold, ruleKey, active, sortOrder, earned, awardedAt
+        case source, note, progressCurrent, progressTarget, holders
+        case servedRarity = "rarity"
+    }
 }
 
 // MARK: - Licenses

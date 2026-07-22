@@ -85,7 +85,15 @@ export function formatBadgeSourceLabel(source: string): string {
   return formatBadgeCategoryLabel(source);
 }
 
-export function getBadgeRarity(badge: BadgeDisplayInput): BadgeRarity {
+/** Definitions younger than this are rated by difficulty, not by scarcity. */
+export const RARITY_PROVING_PERIOD_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * Rarity from how hard a badge looks, used when scarcity cannot speak yet.
+ * This is the old hardcoded behaviour, kept only as the fallback it should
+ * always have been.
+ */
+function difficultyRarity(badge: BadgeDisplayInput): BadgeRarity {
   if (LEGENDARY_BADGE_KEYS.has(badge.key)) return "Legendary";
   if (RARE_BADGE_KEYS.has(badge.key) || (badge.threshold ?? 0) >= 50) return "Rare";
   if (isCustomBadgeKey(badge.key)) return "Uncommon";
@@ -97,6 +105,49 @@ export function getBadgeRarity(badge: BadgeDisplayInput): BadgeRarity {
     return "Uncommon";
   }
   return "Common";
+}
+
+export type BadgeRarityInput = BadgeDisplayInput & {
+  /** How many people hold this badge. */
+  holders?: number;
+  /** How many people could hold it -- active users. */
+  eligible?: number;
+  /** When the definition was created, for the proving period. */
+  createdAt?: Date | string | null;
+};
+
+/**
+ * Rarity from how many people actually hold a badge.
+ *
+ * This used to be four hardcoded key lists, and they had drifted into saying
+ * the opposite of the truth: `zero_errors` was labelled Uncommon while being
+ * among the most-held badges in the system, and `checkout_25` was Common with
+ * nobody holding it at all. Scarcity is a fact the database already knows.
+ *
+ * Two guards keep the fact from lying in the other direction. A badge nobody
+ * has earned is not Legendary, it is unproven -- otherwise every badge added to
+ * the catalog would launch as the rarest thing in it. Same for a badge that has
+ * not been available long enough for anyone to reach. Both fall back to rating
+ * by difficulty.
+ */
+export function getBadgeRarity(badge: BadgeRarityInput, now: Date = new Date()): BadgeRarity {
+  const holders = badge.holders ?? 0;
+  const eligible = badge.eligible ?? 0;
+
+  if (holders === 0 || eligible <= 0) return difficultyRarity(badge);
+
+  if (badge.createdAt) {
+    const created = badge.createdAt instanceof Date ? badge.createdAt : new Date(badge.createdAt);
+    if (now.getTime() - created.getTime() < RARITY_PROVING_PERIOD_MS) {
+      return difficultyRarity(badge);
+    }
+  }
+
+  const share = holders / eligible;
+  if (share >= 0.5) return "Common";
+  if (share >= 0.2) return "Uncommon";
+  if (share >= 0.05) return "Rare";
+  return "Legendary";
 }
 
 export function badgeRarityVariant(rarity: BadgeRarity): BadgeProps["variant"] {
