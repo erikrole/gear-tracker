@@ -621,6 +621,86 @@ private struct HomeActionQueue: View {
         return lines
     }
 
+    /// Everything that isn't overdue, interleaved by the time it actually
+    /// happens. Grouping by category instead put a Sunday shift above a
+    /// checkout due Thursday, which reads as an ordering bug on a list whose
+    /// whole job is "what's next". Overdue stays pinned above this.
+    private var chronologicalEntries: [QueueEntry] {
+        var entries: [QueueEntry] = []
+        entries += dueTodayBookings.prefix(3).map {
+            QueueEntry(id: "due-today-\($0.id)", sortsAt: $0.endsAt, kind: .dueToday($0))
+        }
+        entries += standalonePendingPickups.prefix(3).map {
+            QueueEntry(id: "pickup-\($0.id)", sortsAt: $0.startsAt, kind: .pendingPickup($0))
+        }
+        entries += standaloneReservations.prefix(3).map {
+            QueueEntry(id: "reservation-\($0.id)", sortsAt: $0.startsAt, kind: .reservation($0))
+        }
+        entries += dash.myEventWork.prefix(3).map {
+            QueueEntry(id: "event-\($0.id)", sortsAt: eventWorkSortDate(for: $0), kind: .eventWork($0))
+        }
+        entries += upcomingCheckouts.prefix(3).map {
+            QueueEntry(id: "checkout-\($0.id)", sortsAt: $0.endsAt, kind: .upcomingCheckout($0))
+        }
+        return entries.sorted {
+            $0.sortsAt == $1.sortsAt ? $0.id < $1.id : $0.sortsAt < $1.sortsAt
+        }
+    }
+
+    /// Mirrors `EventActionQueueRow.firstTime` so a row sorts on the same
+    /// moment it displays.
+    private func eventWorkSortDate(for work: DashboardEventWork) -> Date {
+        min(work.primaryGear?.startsAt ?? work.shift.startsAt, work.shift.startsAt)
+    }
+
+    @ViewBuilder
+    private func row(for entry: QueueEntry) -> some View {
+        switch entry.kind {
+        case .dueToday(let summary):
+            ActionQueueRow(
+                tone: .orange,
+                title: summary.title,
+                subtitle: personalContext(for: summary),
+                meta: "Due \(summary.endsAt.formatted(date: .omitted, time: .shortened))",
+                primaryLabel: "Return today",
+                action: { openBookingSummary(summary) }
+            )
+        case .pendingPickup(let summary):
+            ActionQueueRow(
+                tone: summary.startsAt < Date() ? .orange : .green,
+                title: summary.title,
+                subtitle: summary.linkedEventId == nil ? personalContext(for: summary) : nil,
+                meta: summary.startsAt < Date()
+                    ? "Pickup \(summary.startsAt.lateLabel)"
+                    : "Pickup \(summary.startsAt.formatted(date: .omitted, time: .shortened))",
+                primaryLabel: "Pick up",
+                detailLines: summary.linkedEventId == nil ? [] : eventDetailLines(for: summary),
+                action: { openBookingSummary(summary) }
+            )
+        case .reservation(let summary):
+            ActionQueueRow(
+                tone: .purple,
+                title: summary.title,
+                subtitle: summary.linkedEventId == nil ? personalContext(for: summary) : nil,
+                meta: summary.startsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()),
+                primaryLabel: "Open reservation",
+                detailLines: summary.linkedEventId == nil ? [] : eventDetailLines(for: summary),
+                action: { openBookingSummary(summary) }
+            )
+        case .eventWork(let work):
+            EventActionQueueRow(work: work, openEventWork: openEventWork)
+        case .upcomingCheckout(let summary):
+            ActionQueueRow(
+                tone: .blue,
+                title: summary.title,
+                subtitle: personalContext(for: summary),
+                meta: "Due \(summary.endsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()))",
+                primaryLabel: "Open checkout",
+                action: { openBookingSummary(summary) }
+            )
+        }
+    }
+
     static func hasActions(in dash: DashboardData, currentUserId: String?) -> Bool {
         let hasMyPendingPickup = currentUserId.map { id in
             dash.pendingPickups.items.contains { $0.requesterUserId == id }
@@ -649,57 +729,8 @@ private struct HomeActionQueue: View {
                 }
             }
 
-            ForEach(dueTodayBookings.prefix(3)) { summary in
-                ActionQueueRow(
-                    tone: .orange,
-                    title: summary.title,
-                    subtitle: personalContext(for: summary),
-                    meta: "Due \(summary.endsAt.formatted(date: .omitted, time: .shortened))",
-                    primaryLabel: "Return today",
-                    action: { openBookingSummary(summary) }
-                )
-            }
-
-            ForEach(standalonePendingPickups.prefix(3)) { summary in
-                ActionQueueRow(
-                    tone: summary.startsAt < Date() ? .orange : .green,
-                    title: summary.title,
-                    subtitle: summary.linkedEventId == nil ? personalContext(for: summary) : nil,
-                    meta: summary.startsAt < Date()
-                        ? "Pickup \(summary.startsAt.lateLabel)"
-                        : "Pickup \(summary.startsAt.formatted(date: .omitted, time: .shortened))",
-                    primaryLabel: "Pick up",
-                    detailLines: summary.linkedEventId == nil ? [] : eventDetailLines(for: summary),
-                    action: { openBookingSummary(summary) }
-                )
-            }
-
-            ForEach(standaloneReservations.prefix(3)) { summary in
-                ActionQueueRow(
-                    tone: .purple,
-                    title: summary.title,
-                    subtitle: summary.linkedEventId == nil ? personalContext(for: summary) : nil,
-                    meta: summary.startsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()),
-                    primaryLabel: "Open reservation",
-                    detailLines: summary.linkedEventId == nil ? [] : eventDetailLines(for: summary),
-                    action: { openBookingSummary(summary) }
-                )
-            }
-
-            ForEach(dash.myEventWork.prefix(3)) { work in
-                EventActionQueueRow(work: work, openEventWork: openEventWork)
-            }
-
-            // Lowest urgency: gear out with time still on the clock.
-            ForEach(upcomingCheckouts.prefix(3)) { summary in
-                ActionQueueRow(
-                    tone: .blue,
-                    title: summary.title,
-                    subtitle: personalContext(for: summary),
-                    meta: "Due \(summary.endsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()))",
-                    primaryLabel: "Open checkout",
-                    action: { openBookingSummary(summary) }
-                )
+            ForEach(chronologicalEntries) { entry in
+                row(for: entry)
             }
         }
         .brandCard(padding: Brand.Space.md, radius: Brand.Radius.card)
@@ -716,6 +747,22 @@ private struct HomeActionQueue: View {
 private struct QueueDetailLine {
     let text: String
     let tone: StatusTone
+}
+
+/// A Next Up row plus the moment it sorts on, so rows of different kinds can
+/// share one chronological list.
+private struct QueueEntry: Identifiable {
+    enum Kind {
+        case dueToday(BookingSummary)
+        case pendingPickup(BookingSummary)
+        case reservation(BookingSummary)
+        case eventWork(DashboardEventWork)
+        case upcomingCheckout(BookingSummary)
+    }
+
+    let id: String
+    let sortsAt: Date
+    let kind: Kind
 }
 
 private struct EventActionQueueRow: View {
