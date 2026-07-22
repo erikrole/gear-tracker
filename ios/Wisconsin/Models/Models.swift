@@ -357,6 +357,68 @@ struct AppUserDetail: Codable, Identifiable {
     let avatarUrl: String?
     let active: Bool
     let createdAt: String?
+    // The list row leads with title (or student year) and area. The detail
+    // endpoint has always returned these; the model just never decoded them, so
+    // a profile could say less about a person than the row you tapped to reach
+    // it. Optional-decoded because older payloads predate them.
+    let title: String?
+    let gradYear: Int?
+    let studentYearOverride: String?
+}
+
+/// How a person is described in one line. One owner so the Users list row and
+/// the profile it opens can never introduce the same person two different ways.
+enum UserIdentity {
+    /// Staff lead with their job title; students with the academic year their
+    /// graduation date implies, since a student's title is almost always blank.
+    static func standing(role: String, title: String?, gradYear: Int?, studentYearOverride: String?) -> String? {
+        if role == "STUDENT" {
+            return studentYear(gradYear: gradYear, override: studentYearOverride)
+        }
+        guard let title, !title.isEmpty else { return nil }
+        return title
+    }
+
+    static func studentYear(gradYear: Int?, override: String?) -> String? {
+        if let override, let label = yearLabel(override) { return label }
+        guard let gradYear else { return nil }
+        let calendar = Calendar.current
+        let now = Date()
+        // The academic year rolls in August, so a May graduate is still a
+        // senior in April and a grad the following September.
+        let academicYearEnd = calendar.component(.month, from: now) >= 8
+            ? calendar.component(.year, from: now) + 1
+            : calendar.component(.year, from: now)
+        switch gradYear - academicYearEnd {
+        case ...(-1): return "Grad"
+        case 0: return "Senior"
+        case 1: return "Junior"
+        case 2: return "Sophomore"
+        case 3...: return "Freshman"
+        default: return nil
+        }
+    }
+
+    /// Standing plus area: "Senior · Video", "Digital Producer · Video".
+    static func line(role: String, title: String?, gradYear: Int?, studentYearOverride: String?, primaryArea: String?) -> String? {
+        var parts: [String] = []
+        if let standing = standing(role: role, title: title, gradYear: gradYear, studentYearOverride: studentYearOverride) {
+            parts.append(standing)
+        }
+        if let primaryArea, !primaryArea.isEmpty { parts.append(primaryArea.shiftAreaLabel) }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    private static func yearLabel(_ year: String) -> String? {
+        switch year {
+        case "FRESHMAN": "Freshman"
+        case "SOPHOMORE": "Sophomore"
+        case "JUNIOR": "Junior"
+        case "SENIOR": "Senior"
+        case "GRAD": "Grad"
+        default: nil
+        }
+    }
 }
 
 struct BadgeProfile: Codable {

@@ -30,20 +30,27 @@ struct UserDetailView: View {
                 ScrollView {
                     VStack(spacing: Brand.Space.sm) {
                         profileHeader(detail)
-                        badgesSection
+
+                        // Custody before recognition. The question this screen
+                        // is opened to answer is "what does this person have of
+                        // ours, and are they late with it" -- badges are what
+                        // you read once that is settled.
+                        if custody.hasAny {
+                            UserCustodyStrip(custody: custody)
+                        }
 
                         if !checkouts.isEmpty {
                             UserBookingsCard(
-                                title: "Active Checkouts",
+                                title: "Out Now",
                                 systemImage: "arrow.up.circle",
-                                tone: .blue,
+                                tone: custody.overdue > 0 ? .red : .blue,
                                 bookings: checkouts
                             )
                         }
 
                         if !reservations.isEmpty {
                             UserBookingsCard(
-                                title: "Recent Reservations",
+                                title: "Upcoming Reservations",
                                 systemImage: "calendar",
                                 tone: .purple,
                                 bookings: reservations
@@ -54,10 +61,10 @@ struct UserDetailView: View {
                             // Empty is common for students; collapse to one quiet
                             // line instead of a full empty-state card.
                             HStack(spacing: 8) {
-                                Image(systemName: "shippingbox")
+                                Image(systemName: "checkmark.circle")
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(.tertiary)
-                                Text("No recent bookings")
+                                Text("Nothing out, nothing reserved")
                                     .font(.subheadline)
                                     .foregroundStyle(.tertiary)
                                 Spacer(minLength: 0)
@@ -65,6 +72,8 @@ struct UserDetailView: View {
                             .brandCard(padding: Brand.Space.sm)
                             .accessibilityElement(children: .combine)
                         }
+
+                        badgesSection
                     }
                     .padding(.horizontal, Brand.Space.md)
                     .padding(.vertical, Brand.Space.sm)
@@ -124,6 +133,9 @@ struct UserDetailView: View {
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
+                        // Neutral, not brand red: opening a gallery is not
+                        // urgent and not destructive.
+                        .tint(Color.primary)
                         .accessibilityLabel("See all badges")
                     }
 
@@ -178,31 +190,21 @@ struct UserDetailView: View {
                         .font(.gothamBlack(size: 22))
                         .lineLimit(2)
                         .minimumScaleFactor(0.8)
-                    Text(detail.email)
-                        .font(.system(.subheadline, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .textSelection(.enabled)
-                    if let phone = detail.phone, !phone.isEmpty {
-                        // Tap to call — `tel:` dispatches to the system dialer.
-                        // Sanitized to digits + leading + only.
-                        let sanitized = phone.filter { $0.isNumber || $0 == "+" }
-                        if let url = URL(string: "tel:\(sanitized)") {
-                            Link(destination: url) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "phone.fill")
-                                        .font(.caption2)
-                                        .accessibilityHidden(true)
-                                    Text(phone)
-                                        .font(.system(.caption, design: .monospaced))
-                                }
-                                .foregroundStyle(Color.statusText(.blue))
-                            }
-                            .accessibilityLabel("Call \(detail.name)")
-                        } else {
-                            Text(phone)
-                                .font(.system(.caption, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                        }
+                    // The standing the Users list leads with. A profile that
+                    // skipped it said less about the person than the row you
+                    // tapped to reach it. Area is not joined onto this line --
+                    // a long job title wraps, and " · Video" starting a line of
+                    // its own reads as a rendering fault.
+                    if let standing = UserIdentity.standing(
+                        role: detail.role,
+                        title: detail.title,
+                        gradYear: detail.gradYear,
+                        studentYearOverride: detail.studentYearOverride
+                    ) {
+                        Text(standing)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
                     }
                     HStack(spacing: 6) {
                         StatusPill.role(detail.role)
@@ -210,8 +212,8 @@ struct UserDetailView: View {
                             StatusPill(label: "Inactive", tone: .gray)
                         }
                     }
-                    if let joined = joinedLabel(detail.createdAt) {
-                        Text(joined)
+                    if let meta = metaLine(detail) {
+                        Text(meta)
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
@@ -220,11 +222,40 @@ struct UserDetailView: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel(profileAccessibilityLabel(detail))
+
+            // Contact as things you do, not addresses to read. The raw email sat
+            // in monospace as the loudest line on the card, and the phone number
+            // was tinted blue -- the colour this app spends on active custody.
+            ContactActions(detail: detail)
         }
     }
 
+    /// The two quiet facts, together on one line: which area they work in and
+    /// how long they have been here.
+    private func metaLine(_ detail: AppUserDetail) -> String? {
+        var parts: [String] = []
+        if let area = detail.primaryArea, !area.isEmpty { parts.append(area.shiftAreaLabel) }
+        if let joined = joinedLabel(detail.createdAt) { parts.append(joined) }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// What this person is holding right now, counted from the checkouts the
+    /// card below lists so the summary and the rows can never disagree.
+    private var custody: UserCustody {
+        UserCustody(checkouts: checkouts, reservations: reservations)
+    }
+
     private func profileAccessibilityLabel(_ detail: AppUserDetail) -> String {
-        var parts: [String] = [detail.name, detail.role.capitalized]
+        var parts: [String] = [detail.name]
+        if let standing = UserIdentity.standing(
+            role: detail.role,
+            title: detail.title,
+            gradYear: detail.gradYear,
+            studentYearOverride: detail.studentYearOverride
+        ) {
+            parts.append(standing)
+        }
+        parts.append(detail.role.capitalized)
         if !detail.active { parts.append("Inactive") }
         if let joined = joinedLabel(detail.createdAt) { parts.append(joined) }
         return parts.joined(separator: ", ")
@@ -245,8 +276,12 @@ struct UserDetailView: View {
         do {
             async let detailTask = APIClient.shared.user(id: userId)
             async let badgeTask = loadBadgeProfileSafely()
-            async let checkoutsTask = APIClient.shared.checkoutsByUser(userId: userId, limit: 5)
-            async let reservationsTask = APIClient.shared.reservationsByUser(userId: userId, limit: 5)
+            // Active only. The card said "Active Checkouts" while the request
+            // asked for every checkout this person had ever made, so a profile
+            // routinely listed four rows stamped "Completed" under a heading
+            // promising the opposite.
+            async let checkoutsTask = APIClient.shared.checkoutsByUser(userId: userId, activeOnly: true, limit: 5)
+            async let reservationsTask = APIClient.shared.reservationsByUser(userId: userId, activeOnly: true, limit: 5)
             let (d, b, c, r) = try await (detailTask, badgeTask, checkoutsTask, reservationsTask)
             detail = d
             badgeProfile = b
@@ -263,6 +298,117 @@ struct UserDetailView: View {
         } catch {
             return nil
         }
+    }
+}
+
+// MARK: - Custody
+
+/// The operational answer this screen exists to give: what does this person
+/// have of ours, and are they late with any of it.
+struct UserCustody {
+    let out: Int
+    let overdue: Int
+    let awaitingPickup: Int
+    let reserved: Int
+
+    init(checkouts: [Booking], reservations: [Booking]) {
+        let now = Date()
+        out = checkouts.filter { $0.status == .open }.count
+        overdue = checkouts.filter { $0.status == .open && $0.endsAt < now }.count
+        awaitingPickup = checkouts.filter { $0.status == .pendingPickup }.count
+        reserved = reservations.count
+    }
+
+    var hasAny: Bool { out > 0 || awaitingPickup > 0 || reserved > 0 }
+}
+
+/// Reads like Home's stat strip on purpose: same lane vocabulary, same colours,
+/// so "3 out, 1 overdue" means the same thing about someone else as it does
+/// about you. Zero-value lanes stay off -- an explicit "0 overdue" reads as a
+/// finding rather than the absence of one.
+private struct UserCustodyStrip: View {
+    let custody: UserCustody
+
+    private var lanes: [(id: String, label: String, value: Int, tone: StatusTone)] {
+        var lanes: [(String, String, Int, StatusTone)] = []
+        if custody.overdue > 0 { lanes.append(("overdue", "Overdue", custody.overdue, .red)) }
+        if custody.out > 0 { lanes.append(("out", "Out", custody.out, .blue)) }
+        if custody.awaitingPickup > 0 { lanes.append(("pickup", "Awaiting Pickup", custody.awaitingPickup, .orange)) }
+        if custody.reserved > 0 { lanes.append(("reserved", "Reserved", custody.reserved, .purple)) }
+        return lanes
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(lanes, id: \.id) { lane in
+                VStack(spacing: 2) {
+                    Text("\(lane.value)")
+                        .font(.gothamBold(size: 20))
+                        .monospacedDigit()
+                        .foregroundStyle(Color.statusText(lane.tone))
+                    Text(lane.label)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                .frame(maxWidth: .infinity)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(lane.value) \(lane.label)")
+            }
+        }
+        .brandCard(padding: Brand.Space.md, alignment: .center)
+    }
+}
+
+// MARK: - Contact
+
+/// Email and phone as two equal actions. Neutral-tinted: reaching someone is
+/// not a custody state, and blue here collided with the checked-out blue used
+/// three rows down.
+private struct ContactActions: View {
+    let detail: AppUserDetail
+
+    private var phoneURL: URL? {
+        guard let phone = detail.phone, !phone.isEmpty else { return nil }
+        return URL(string: "tel:\(phone.filter { $0.isNumber || $0 == "+" })")
+    }
+
+    var body: some View {
+        HStack(spacing: Brand.Space.sm) {
+            if let url = URL(string: "mailto:\(detail.email)") {
+                Link(destination: url) {
+                    ContactActionLabel(systemImage: "envelope.fill", title: "Email")
+                }
+                .accessibilityLabel("Email \(detail.name) at \(detail.email)")
+            }
+            if let phoneURL {
+                Link(destination: phoneURL) {
+                    ContactActionLabel(systemImage: "phone.fill", title: "Call")
+                }
+                .accessibilityLabel("Call \(detail.name)")
+            }
+        }
+        .padding(.top, 2)
+    }
+}
+
+private struct ContactActionLabel: View {
+    let systemImage: String
+    let title: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .accessibilityHidden(true)
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+        }
+        .foregroundStyle(Color.primary)
+        .frame(maxWidth: .infinity, minHeight: 40)
+        .background(Color.cardSurfaceRaised, in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.hairline, lineWidth: 0.5))
     }
 }
 
@@ -295,7 +441,7 @@ private struct UserBookingsCard: View {
                 ForEach(bookings) { booking in
                     NavigationLink(value: booking.id) {
                         HStack(spacing: 10) {
-                            BookingResultRow(booking: booking)
+                            BookingResultRow(booking: booking, subtitle: Self.timing(for: booking))
                             Image(systemName: "chevron.right")
                                 .font(.caption2.weight(.semibold))
                                 .foregroundStyle(.tertiary)
@@ -312,6 +458,21 @@ private struct UserBookingsCard: View {
             }
         }
         .brandCard()
+    }
+
+    /// What the row's date actually means for its kind: a checkout is defined by
+    /// when it comes back, a reservation by when it starts.
+    private static func timing(for booking: Booking) -> String {
+        if booking.kind == .checkout {
+            if booking.status == .pendingPickup {
+                return "Pickup \(booking.startsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()))"
+            }
+            if booking.status == .open && booking.endsAt < Date() {
+                return booking.endsAt.overdueLabel
+            }
+            return "Due \(booking.endsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()))"
+        }
+        return "Starts \(booking.startsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()))"
     }
 }
 

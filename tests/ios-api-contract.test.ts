@@ -83,14 +83,44 @@ describe("iOS API contracts — booking list avatars", () => {
 describe("iOS user directory polish", () => {
   it("keeps native user profile rows free of routine location sublines", () => {
     const usersView = source("ios/Wisconsin/Views/UsersView.swift");
-    const secondaryLine = usersView.slice(
-      usersView.indexOf("private var secondaryLine: String?"),
-      usersView.indexOf("private var titleOrYear: String?"),
-    );
+    const models = source("ios/Wisconsin/Models/Models.swift");
 
-    expect(secondaryLine).toContain("titleOrYear");
-    expect(secondaryLine).toContain("primaryArea");
+    // The row describes a person by standing and area, never by the location
+    // they happen to be assigned to -- everyone shares a handful of those, so
+    // it distinguishes nobody.
+    const secondaryLine = usersView.slice(usersView.indexOf("private var secondaryLine: String?"));
+    expect(secondaryLine).toContain("UserIdentity.line(");
+    expect(secondaryLine).toContain("primaryArea: user.primaryArea");
     expect(secondaryLine).not.toContain("user.location");
+
+    // One owner for that description, so the list row and the profile it opens
+    // can never introduce the same person two different ways.
+    expect(models).toContain("enum UserIdentity");
+    expect(models).toContain("static func standing(role: String, title: String?, gradYear: Int?, studentYearOverride: String?) -> String?");
+    expect(models).toContain("static func line(role: String, title: String?, gradYear: Int?, studentYearOverride: String?, primaryArea: String?) -> String?");
+    expect(usersView).not.toContain("private var titleOrYear");
+    expect(usersView).not.toContain("private static func labelFor");
+  });
+
+  it("keeps the user profile's custody sections to work that is actually live", () => {
+    const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
+    const detail = source("ios/Wisconsin/Views/UserDetailView.swift");
+
+    // A card headed "Out Now" must not be fed every checkout the person ever
+    // made, or it lists rows stamped Completed under a heading promising the
+    // opposite. Same for reservations and Cancelled.
+    expect(apiClient).toContain("func checkoutsByUser(userId: String, activeOnly: Bool = false, limit: Int = 10)");
+    expect(apiClient).toContain("func reservationsByUser(userId: String, activeOnly: Bool = false, limit: Int = 10)");
+    expect(apiClient).toContain("[BookingStatus.open, .pendingPickup].map(\\.rawValue).joined(separator: \",\")");
+    expect(detail).toContain("checkoutsByUser(userId: userId, activeOnly: true");
+    expect(detail).toContain("reservationsByUser(userId: userId, activeOnly: true");
+    expect(detail).toContain('title: "Out Now"');
+    expect(detail).toContain('title: "Upcoming Reservations"');
+    expect(detail).not.toContain('title: "Active Checkouts"');
+
+    // The summary counts the same rows the cards list, so the two cannot drift.
+    expect(detail).toContain("struct UserCustody");
+    expect(detail).toContain("UserCustody(checkouts: checkouts, reservations: reservations)");
   });
 });
 

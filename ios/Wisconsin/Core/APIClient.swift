@@ -821,20 +821,35 @@ final class APIClient {
         return resp.data
     }
 
-    func reservationsByUser(userId: String, limit: Int = 10) async throws -> PaginatedResponse<Booking> {
-        try await perform(request(path: "/api/reservations", queryItems: [
+    /// `activeOnly` keeps this to reservations that still stand. The route
+    /// otherwise returns cancelled and completed ones too, so a profile listed
+    /// rows stamped "Cancelled" under a heading promising upcoming work.
+    func reservationsByUser(userId: String, activeOnly: Bool = false, limit: Int = 10) async throws -> PaginatedResponse<Booking> {
+        var items: [URLQueryItem] = [
             .init(name: "requester_id", value: userId),
             .init(name: "limit", value: "\(limit)"),
             .init(name: "offset", value: "0"),
-        ]))
+        ]
+        if activeOnly {
+            items.append(.init(name: "status_in", value: BookingStatus.booked.rawValue))
+        }
+        return try await perform(request(path: "/api/reservations", queryItems: items))
     }
 
-    func checkoutsByUser(userId: String, limit: Int = 10) async throws -> PaginatedResponse<Booking> {
-        try await perform(request(path: "/api/checkouts", queryItems: [
+    /// `activeOnly` narrows to gear actually in this person's hands -- open
+    /// checkouts and pickups still waiting at the kiosk. Without it the route
+    /// returns completed and cancelled history too, which is right for an
+    /// activity log and wrong for anything claiming to show current custody.
+    func checkoutsByUser(userId: String, activeOnly: Bool = false, limit: Int = 10) async throws -> PaginatedResponse<Booking> {
+        var items: [URLQueryItem] = [
             .init(name: "requester_id", value: userId),
             .init(name: "limit", value: "\(limit)"),
             .init(name: "offset", value: "0"),
-        ]))
+        ]
+        if activeOnly {
+            items.append(.init(name: "status_in", value: [BookingStatus.open, .pendingPickup].map(\.rawValue).joined(separator: ",")))
+        }
+        return try await perform(request(path: "/api/checkouts", queryItems: items))
     }
 
     // MARK: - Schedule

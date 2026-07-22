@@ -343,49 +343,15 @@ private struct UserListRow: View {
     }
 
     private var secondaryLine: String? {
-        var parts: [String] = []
-        if let title = titleOrYear { parts.append(title) }
-        if let area = user.primaryArea, !area.isEmpty { parts.append(area.shiftAreaLabel) }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+        UserIdentity.line(
+            role: user.role,
+            title: user.title,
+            gradYear: user.gradYear,
+            studentYearOverride: user.studentYearOverride,
+            primaryArea: user.primaryArea
+        )
     }
 
-    private var titleOrYear: String? {
-        if user.role == "STUDENT" {
-            return Self.studentYearLabel(gradYear: user.gradYear, override: user.studentYearOverride)
-        }
-        if let t = user.title, !t.isEmpty { return t }
-        return nil
-    }
-
-    static func studentYearLabel(gradYear: Int?, override: String?) -> String? {
-        if let override, let label = labelFor(year: override) { return label }
-        guard let gradYear else { return nil }
-        let now = Date()
-        let cal = Calendar.current
-        let month = cal.component(.month, from: now)
-        let year = cal.component(.year, from: now)
-        let acadYearEnd = month >= 8 ? year + 1 : year
-        let yearsRemaining = gradYear - acadYearEnd
-        switch yearsRemaining {
-        case ...(-1): return "Grad"
-        case 0: return "Senior"
-        case 1: return "Junior"
-        case 2: return "Sophomore"
-        case 3...: return "Freshman"
-        default: return nil
-        }
-    }
-
-    private static func labelFor(year: String) -> String? {
-        switch year {
-        case "FRESHMAN": return "Freshman"
-        case "SOPHOMORE": return "Sophomore"
-        case "JUNIOR": return "Junior"
-        case "SENIOR": return "Senior"
-        case "GRAD": return "Grad"
-        default: return nil
-        }
-    }
 }
 
 private struct UserRowSkeleton: View {

@@ -133,6 +133,12 @@ struct SearchBulkThumbnail: View {
 
 struct BookingResultRow: View {
     let booking: Booking
+    /// Defaults to the requester's name, which is what a search result needs.
+    /// A profile passes the booking's timing instead -- on someone's own page
+    /// every row would otherwise repeat the name in the title bar above it.
+    var subtitle: String?
+
+    private var subtitleText: String { subtitle ?? booking.requester.name }
 
     var body: some View {
         // Booking kind → status taxonomy: checkout = blue (active), reservation = purple (planned).
@@ -150,7 +156,7 @@ struct BookingResultRow: View {
                 Text(booking.title)
                     .font(.subheadline.weight(.medium))
                     .lineLimit(1)
-                Text(booking.requester.name)
+                Text(subtitleText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -160,7 +166,7 @@ struct BookingResultRow: View {
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(booking.title), \(booking.requester.name), \(booking.kind == .checkout ? "Checkout" : "Reservation"), \(booking.status.label)")
+        .accessibilityLabel("\(booking.title), \(subtitleText), \(booking.kind == .checkout ? "Checkout" : "Reservation"), \(booking.status.label)")
         .accessibilityHint("Opens booking details")
     }
 }
