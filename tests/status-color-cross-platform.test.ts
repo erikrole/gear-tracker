@@ -22,14 +22,29 @@ function source(relativeFile: string) {
 function swiftToneMap(swift: string, functionSignature: string): Record<string, string> {
   const start = swift.indexOf(functionSignature);
   if (start === -1) throw new Error(`Not found in Swift source: ${functionSignature}`);
-  // Stop at the closing of the declaration's body: the next line that is a
-  // single closing brace at the declaration's own indent level.
-  const body = swift.slice(start, swift.indexOf("\n    }", start));
+  // Walk braces to the declaration's real end. Indentation heuristics break on
+  // bodies that open a nested block first -- `assetStatusTone` guards overdue
+  // in an `if` before its switch, and a "first lone closing brace" rule stops
+  // there, silently reading an empty mapping.
+  const open = swift.indexOf("{", start);
+  let depth = 0;
+  let end = -1;
+  for (let i = open; i < swift.length; i += 1) {
+    if (swift[i] === "{") depth += 1;
+    else if (swift[i] === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        end = i;
+        break;
+      }
+    }
+  }
+  if (end === -1) throw new Error(`Unterminated Swift body: ${functionSignature}`);
+  const body = swift.slice(start, end);
   const map: Record<string, string> = {};
-  for (const [, swiftCase, tone] of body.matchAll(
-    /case \.([a-zA-Z]+):\s*(?:return )?\.([a-zA-Z]+)/g,
-  )) {
-    map[swiftCase] = tone;
+  for (const match of body.matchAll(/case \.([a-zA-Z]+):\s*(?:return )?\.([a-zA-Z]+)/g)) {
+    const [, swiftCase, tone] = match;
+    if (swiftCase && tone) map[swiftCase] = tone;
   }
   return map;
 }
