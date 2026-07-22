@@ -25,6 +25,14 @@ enum AssetComputedStatus: String, Codable {
         case .unknown: "Unknown"
         }
     }
+
+    /// The order these statuses are offered as filters, and read back in a
+    /// filter summary. One owner so the menu and the summary line can never
+    /// list the same selection in two different orders. `unknown` is a decoding
+    /// fallback, not a thing anyone filters for, so it is absent.
+    static let filterOrder: [AssetComputedStatus] = [
+        .available, .checkedOut, .pendingPickup, .reserved, .maintenance, .retired,
+    ]
 }
 
 struct AssetCategory: Codable, Identifiable {

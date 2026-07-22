@@ -258,6 +258,19 @@ extension View {
     ) -> some View {
         modifier(BrandCardModifier(padding: padding, radius: radius, fill: fill, stroke: stroke, alignment: alignment))
     }
+
+    /// Tint for a list-screen toolbar control (favorites, status filter, sort).
+    ///
+    /// These controls sit directly above rows where green, orange, blue, and red
+    /// mean something exact about custody, so a control painted from the status
+    /// palette claims a meaning it does not have -- an orange star is not
+    /// awaiting pickup. Colour here answers one question only: is this control
+    /// doing something right now? Off is `.secondary`, on is `.primary`, the
+    /// same neutral control accent `docs/COLOR_SYSTEM.md` gives the
+    /// Profile/Settings stack and the web's `--accent`.
+    func listControlTint(isActive: Bool) -> some View {
+        tint(isActive ? Color.primary : Color.secondary)
+    }
 }
 
 // MARK: - Section header

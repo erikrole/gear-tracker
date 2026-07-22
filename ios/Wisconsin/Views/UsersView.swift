@@ -264,7 +264,10 @@ struct UsersView: View {
             Image(systemName: hasFilter ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
                 .frame(minWidth: 44, minHeight: 44)
         }
-        .accessibilityLabel("Filter users")
+        // Inherited the app accent before, which put brand red -- the urgent and
+        // destructive colour -- on a control that only narrows a list.
+        .listControlTint(isActive: hasFilter)
+        .accessibilityLabel(hasFilter ? "Filter users, active" : "Filter users")
     }
 }
 
@@ -294,18 +297,19 @@ private struct UserListRow: View {
             .accessibilityHidden(true)
             .opacity(user.active == false ? 0.6 : 1)
 
+            // No email here. A monospaced address is the widest, least scannable
+            // thing a row can carry, and it pushed the line that actually
+            // distinguishes two people -- their year and area -- down to
+            // tertiary. Email is a detail you go to a profile for; this list is
+            // for finding a person.
             VStack(alignment: .leading, spacing: 3) {
                 Text(user.name)
                     .font(.gothamBold(size: 16))
                     .lineLimit(1)
-                Text(user.email)
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
                 if let secondary = secondaryLine {
                     Text(secondary)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
             }

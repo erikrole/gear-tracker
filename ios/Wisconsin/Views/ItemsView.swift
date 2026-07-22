@@ -41,6 +41,30 @@ final class ItemsViewModel {
     var sortOption: SortOption = .assetTag
     var hasMore = true
 
+    /// How many toolbar controls are away from their resting state. Drives the
+    /// badge on the toolbar and whether the list owes the user a summary line.
+    var activeControlCount: Int {
+        (favoritesOnly ? 1 : 0)
+            + (selectedStatuses.isEmpty ? 0 : 1)
+            + (sortOption == .assetTag ? 0 : 1)
+    }
+
+    /// Names what the list is actually showing, in the order the toolbar reads.
+    /// Sort only appears once it is off the default, because "Asset tag" is what
+    /// an unqualified list of gear already looks like.
+    var activeControlSummary: String {
+        var parts: [String] = []
+        if favoritesOnly { parts.append("Favorites") }
+        if !selectedStatuses.isEmpty {
+            let ordered = AssetComputedStatus.filterOrder.filter(selectedStatuses.contains)
+            parts.append(ordered.count <= 2
+                ? ordered.map(\.label).joined(separator: ", ")
+                : "\(ordered.count) statuses")
+        }
+        if sortOption != .assetTag { parts.append(sortOption.label) }
+        return parts.joined(separator: " · ")
+    }
+
     private var offset = 0
     private let limit = 30
     private var searchTask: Task<Void, Never>?
@@ -115,6 +139,16 @@ final class ItemsViewModel {
             guard !Task.isCancelled else { return }
             await load(reset: true)
         }
+    }
+
+    /// Returns the three toolbar controls to their defaults, leaving the search
+    /// text alone -- the summary bar this backs sits below the search field and
+    /// only ever describes the controls, so clearing a typed query too would
+    /// undo something the bar never claimed to own.
+    func resetFilters() {
+        selectedStatuses = []
+        favoritesOnly = false
+        sortOption = .assetTag
     }
 
     func resetDefaults() {
@@ -200,83 +234,7 @@ struct ItemsView: View {
     }
 
     private var configuredContent: some View {
-        Group {
-                if let error = vm.error, vm.rows.isEmpty {
-                    ContentUnavailableView {
-                        Label("Couldn't load items", systemImage: "exclamationmark.triangle")
-                    } description: {
-                        Text(error)
-                    } actions: {
-                        Button("Retry") { Task { await vm.load(reset: true) } }
-                            .buttonStyle(.borderedProminent)
-                    }
-                } else if vm.rows.isEmpty && vm.isLoading {
-                    List {
-                        ForEach(0..<10, id: \.self) { _ in
-                            ItemRowSkeleton()
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(Color.clear)
-                                .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
-                        }
-                    }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
-                    .background(Color(.systemGroupedBackground))
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)  // Don't pollute VO with placeholder shapes during initial load.
-                } else if vm.rows.isEmpty {
-                    ContentUnavailableView {
-                        Label(
-                            vm.favoritesOnly ? "No Favorites" : "No Items",
-                            systemImage: vm.favoritesOnly ? "star" : "archivebox"
-                        )
-                    } description: {
-                        Text(vm.searchText.isEmpty
-                            ? (vm.favoritesOnly ? "Star items to add them here." : "No gear found.")
-                            : "No results for \"\(vm.searchText)\".")
-                    } actions: {
-                        emptyStateActions
-                    }
-                } else {
-                    List {
-                        ForEach(vm.rows) { row in
-                            itemRow(row)
-                        }
-                        if let pageError = vm.pageError {
-                            VStack(spacing: 8) {
-                                Text(pageError)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                    .multilineTextAlignment(.center)
-                                Button("Retry") { Task { await vm.retryPage() } }
-                                    .buttonStyle(.bordered)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                        } else if vm.hasMore {
-                            ProgressView()
-                                .frame(maxWidth: .infinity)
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(Color.clear)
-                                .task(id: vm.rows.count) { await vm.load() }
-                        } else if vm.rows.count > 10 {
-                            Text("End of list")
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                                .padding(.vertical, 12)
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(Color.clear)
-                        }
-                    }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
-                    .contentMargins(.bottom, 96, for: .scrollContent)
-                    .background(Color(.systemGroupedBackground))
-                }
-        }
+        contentBody
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Items")
             .searchable(
@@ -292,7 +250,7 @@ struct ItemsView: View {
                     } label: {
                         Label("Favorites", systemImage: vm.favoritesOnly ? "star.fill" : "star")
                     }
-                    .tint(Color.statusText(.orange))
+                    .listControlTint(isActive: vm.favoritesOnly)
                     .accessibilityLabel(vm.favoritesOnly ? "Favorites on" : "Favorites off")
                     .sensoryFeedback(.selection, trigger: vm.favoritesOnly)
 
@@ -347,6 +305,100 @@ struct ItemsView: View {
             .navigationDestination(item: $pushBooking) { route in
                 BookingDetailView(bookingId: route.id)
             }
+    }
+
+    private var contentBody: some View {
+        Group {
+                if let error = vm.error, vm.rows.isEmpty {
+                    ContentUnavailableView {
+                        Label("Couldn't load items", systemImage: "exclamationmark.triangle")
+                    } description: {
+                        Text(error)
+                    } actions: {
+                        Button("Retry") { Task { await vm.load(reset: true) } }
+                            .buttonStyle(.borderedProminent)
+                    }
+                } else if vm.rows.isEmpty && vm.isLoading {
+                    List {
+                        ForEach(0..<10, id: \.self) { _ in
+                            ItemRowSkeleton()
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+                        }
+                    }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .background(Color(.systemGroupedBackground))
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)  // Don't pollute VO with placeholder shapes during initial load.
+                } else if vm.rows.isEmpty {
+                    ContentUnavailableView {
+                        Label(
+                            vm.favoritesOnly ? "No Favorites" : "No Items",
+                            systemImage: vm.favoritesOnly ? "star" : "archivebox"
+                        )
+                    } description: {
+                        Text(vm.searchText.isEmpty
+                            ? (vm.favoritesOnly ? "Star items to add them here." : "No gear found.")
+                            : "No results for \"\(vm.searchText)\".")
+                    } actions: {
+                        emptyStateActions
+                    }
+                } else {
+                    List {
+                        // Rides in the list rather than a top safe-area inset:
+                        // an inset that appears and disappears makes the
+                        // navigation bar drop the large "Items" title, and
+                        // Schedule already states its active filters in content
+                        // for the same reason.
+                        if vm.activeControlCount > 0 {
+                            ActiveControlBar(summary: vm.activeControlSummary) {
+                                vm.resetFilters()
+                                Task { await vm.load(reset: true) }
+                            }
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 4, trailing: 16))
+                        }
+                        ForEach(vm.rows) { row in
+                            itemRow(row)
+                        }
+                        if let pageError = vm.pageError {
+                            VStack(spacing: 8) {
+                                Text(pageError)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                                Button("Retry") { Task { await vm.retryPage() } }
+                                    .buttonStyle(.bordered)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                        } else if vm.hasMore {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                                .task(id: vm.rows.count) { await vm.load() }
+                        } else if vm.rows.count > 10 {
+                            Text("End of list")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.vertical, 12)
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                        }
+                    }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .contentMargins(.bottom, 96, for: .scrollContent)
+                    .background(Color(.systemGroupedBackground))
+                }
+        }
     }
 
     @ViewBuilder
@@ -802,11 +854,39 @@ struct AssetStatusBadge: View {
     }
 }
 
+/// Names what the toolbar has done to the list, with the one control that undoes
+/// it. Three glyph-only toolbar buttons can say *that* they are engaged, but not
+/// *what* they did -- the sort control in particular changed the list's order
+/// with nothing on screen to show for it.
+private struct ActiveControlBar: View {
+    let summary: String
+    let clear: () -> Void
+
+    var body: some View {
+        HStack(spacing: Brand.Space.sm) {
+            Text(summary)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Spacer(minLength: 8)
+            Button("Clear") {
+                Haptics.tap()
+                clear()
+            }
+            .font(.footnote.weight(.semibold))
+            .tint(Color.primary)
+        }
+        .frame(minHeight: 36)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Showing \(summary)")
+    }
+}
+
 struct AssetStatusFilterMenu: View {
     @Binding var selected: Set<AssetComputedStatus>
     let onSelect: () -> Void
 
-    private let statuses: [AssetComputedStatus] = [.available, .checkedOut, .pendingPickup, .reserved, .maintenance, .retired]
+    private var statuses: [AssetComputedStatus] { AssetComputedStatus.filterOrder }
 
     var body: some View {
         Menu {
@@ -843,7 +923,7 @@ struct AssetStatusFilterMenu: View {
                 systemImage: "line.3.horizontal.decrease.circle\(selected.isEmpty ? "" : ".fill")"
             )
         }
-        .tint(Color.statusText(.blue))
+        .listControlTint(isActive: !selected.isEmpty)
         .accessibilityLabel(selected.isEmpty ? "Filter by status" : "Filtering by \(selected.count) statuses")
     }
 
@@ -871,9 +951,17 @@ struct ItemSortMenu: View {
                 }
             }
         } label: {
-            Label(selected.label, systemImage: "arrow.up.arrow.down")
+            // The filled circle is the only thing that ever said this control
+            // had been touched -- a bare up/down arrow looks identical whether
+            // the list is in its default order or not.
+            Label(
+                selected.label,
+                systemImage: isDefault ? "arrow.up.arrow.down" : "arrow.up.arrow.down.circle.fill"
+            )
         }
-        .tint(Color.statusText(.blue))
+        .listControlTint(isActive: !isDefault)
         .accessibilityLabel("Sort items by \(selected.label)")
     }
+
+    private var isDefault: Bool { selected == .assetTag }
 }
