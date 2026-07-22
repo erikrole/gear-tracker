@@ -22,14 +22,12 @@ private enum BookingListAction: Identifiable {
 @MainActor
 @Observable
 final class BookingsViewModel {
-    var checkouts: [Booking] = []
-    var reservations: [Booking] = []
+    var bookings: [Booking] = []
     var isLoading = false
     var error: String?
     var pageError: String?
     var searchText = ""
-    var hasMoreCheckouts = true
-    var hasMoreReservations = true
+    var hasMore = true
     /// Native list scope. Students default to Mine; staff/admin default to All.
     var scope: BookingScope = .all
     var currentUserId: String?
@@ -40,23 +38,17 @@ final class BookingsViewModel {
         set { scope = newValue ? .mine : .all }
     }
 
-    private var checkoutOffset = 0
-    private var reservationOffset = 0
+    private var offset = 0
     private let limit = 30
     private var searchTask: Task<Void, Never>?
     private var loadTask: Task<Void, Never>?
     private var loadRequests = LatestRequestGeneration()
     private var didApplyUserDefault = false
 
-    var isEmpty: Bool { checkouts.isEmpty && reservations.isEmpty }
-    var hasMore: Bool { hasMoreCheckouts || hasMoreReservations }
+    var isEmpty: Bool { bookings.isEmpty }
 
-    var sortedCheckouts: [Booking] {
-        checkouts.sorted(by: dueSoonestSort)
-    }
-
-    var sortedReservations: [Booking] {
-        reservations.sorted(by: startsSoonestSort)
+    var sortedBookings: [Booking] {
+        bookings.sorted(by: dueSoonestSort)
     }
 
     func applyUserContext(id: String?, role: String?) {
@@ -89,14 +81,11 @@ final class BookingsViewModel {
 
     private func performLoad(reset: Bool, clearExistingRows: Bool, requestToken: UUID) async {
         if reset {
-            checkoutOffset = 0
-            reservationOffset = 0
-            hasMoreCheckouts = true
-            hasMoreReservations = true
+            offset = 0
+            hasMore = true
             pageError = nil
             if clearExistingRows {
-                checkouts = []
-                reservations = []
+                bookings = []
             }
         }
         isLoading = true
@@ -107,24 +96,18 @@ final class BookingsViewModel {
         do {
             let search = searchText.isEmpty ? nil : searchText
             let requesterId = mineOnly ? currentUserId : nil
-            async let checkoutPage = fetchCheckouts(search: search, requesterId: requesterId)
-            async let reservationPage = fetchReservations(search: search, requesterId: requesterId)
-            let (checkoutResult, reservationResult) = try await (checkoutPage, reservationPage)
+            let result = try await fetchBookings(search: search, requesterId: requesterId)
             guard loadRequests.owns(requestToken), !Task.isCancelled else { return }
             if reset {
-                checkouts = checkoutResult.data
-                reservations = reservationResult.data
+                bookings = result.data
             } else {
-                checkouts += checkoutResult.data
-                reservations += reservationResult.data
+                bookings += result.data
             }
-            checkoutOffset += checkoutResult.data.count
-            reservationOffset += reservationResult.data.count
-            hasMoreCheckouts = checkoutOffset < checkoutResult.total
-            hasMoreReservations = reservationOffset < reservationResult.total
+            offset += result.data.count
+            hasMore = offset < result.total
             pageError = nil
             if reset && searchText.isEmpty && scope == .all {
-                GearStore.shared.seedBookings(checkoutResult.data + reservationResult.data)
+                GearStore.shared.seedBookings(result.data)
             }
             await CheckoutReturnLiveActivityManager.shared.reconcileCurrentUserCheckouts(
                 requesterId: currentUserId
@@ -137,42 +120,28 @@ final class BookingsViewModel {
                 self.error = error.localizedDescription
             } else {
                 self.pageError = error.localizedDescription
-                hasMoreCheckouts = false
-                hasMoreReservations = false
+                hasMore = false
             }
         }
     }
 
-    private func fetchCheckouts(search: String?, requesterId: String?, filter: String? = nil) async throws -> PaginatedResponse<Booking> {
-        guard hasMoreCheckouts else {
-            return PaginatedResponse(data: [], total: checkoutOffset, limit: limit, offset: checkoutOffset)
+    private func fetchBookings(search: String?, requesterId: String?, filter: String? = nil) async throws -> PaginatedResponse<Booking> {
+        guard hasMore else {
+            return PaginatedResponse(data: [], total: offset, limit: limit, offset: offset)
         }
-        return try await APIClient.shared.checkouts(
+        return try await APIClient.shared.bookings(
             activeOnly: true,
             search: search,
             requesterId: requesterId,
             filter: filter,
             limit: limit,
-            offset: checkoutOffset
+            offset: offset
         )
     }
 
-    private func fetchReservations(search: String?, requesterId: String?, filter: String? = nil) async throws -> PaginatedResponse<Booking> {
-        guard hasMoreReservations else {
-            return PaginatedResponse(data: [], total: reservationOffset, limit: limit, offset: reservationOffset)
-        }
-        return try await APIClient.shared.reservations(
-            activeOnly: true,
-            search: search,
-            requesterId: requesterId,
-            filter: filter,
-            limit: limit,
-            offset: reservationOffset
-        )
-    }
-
-    /// Active checkouts sort by due date/time — soonest due back (most urgent)
-    /// first, matching what a student actually needs to act on.
+    /// Checkouts and reservations share one list ordered by when each booking
+    /// comes off the requester's plate — due date for gear that's out, end of
+    /// the hold for gear that isn't yet.
     ///
     /// This must mirror the `sort=endsAt` order the request asks for. Sorting
     /// only what a page returned is what hid the original bug: under 30 rows
@@ -183,17 +152,9 @@ final class BookingsViewModel {
         return lhs.id < rhs.id
     }
 
-    /// Reservations sort by start date/time — soonest upcoming first. Mirrors
-    /// the requested `sort=oldest` order, per the note on `dueSoonestSort`.
-    private func startsSoonestSort(_ lhs: Booking, _ rhs: Booking) -> Bool {
-        if lhs.startsAt != rhs.startsAt { return lhs.startsAt < rhs.startsAt }
-        return lhs.id < rhs.id
-    }
-
     func retryPage() async {
         pageError = nil
-        hasMoreCheckouts = true
-        hasMoreReservations = true
+        hasMore = true
         await load()
     }
 
@@ -212,12 +173,9 @@ final class BookingsViewModel {
         loadRequests.invalidate()
         searchText = ""
         scope = currentUserRole == "STUDENT" || currentUserRole == "COLLABORATOR" ? .mine : .all
-        checkouts = []
-        reservations = []
-        checkoutOffset = 0
-        reservationOffset = 0
-        hasMoreCheckouts = true
-        hasMoreReservations = true
+        bookings = []
+        offset = 0
+        hasMore = true
         error = nil
         pageError = nil
         isLoading = false
@@ -297,7 +255,7 @@ struct BookingsView: View {
 
     private var showsSearch: Bool {
         if !vm.searchText.isEmpty { return true }
-        let visibleCount = vm.checkouts.count + vm.reservations.count
+        let visibleCount = vm.bookings.count
         return !vm.isLoading && visibleCount > 0 && (visibleCount > 4 || vm.hasMore)
     }
 
@@ -347,24 +305,9 @@ struct BookingsView: View {
                         }
                     } else {
                         List {
-                            if !vm.sortedCheckouts.isEmpty {
-                                BookingListSection(title: "Checkouts", count: vm.sortedCheckouts.count) {
-                                    ForEach(vm.sortedCheckouts) { booking in
-                                        bookingRowLink(booking)
-                                    }
-                                }
-                            }
-                            if !vm.sortedReservations.isEmpty {
-                                BookingListSection(title: "Reservations", count: vm.sortedReservations.count) {
-                                    ForEach(vm.sortedReservations) { booking in
-                                        bookingRowLink(booking)
-                                    }
-                                }
-                            } else if vm.searchText.isEmpty {
-                                BookingListSection(title: "Reservations", count: 0) {
-                                    ReservationEmptyRow(canCreate: canCreate) {
-                                        showCreate = true
-                                    }
+                            BookingListSection(title: "Active", count: vm.sortedBookings.count) {
+                                ForEach(vm.sortedBookings) { booking in
+                                    bookingRowLink(booking)
                                 }
                             }
                             if let pageError = vm.pageError {
@@ -385,7 +328,7 @@ struct BookingsView: View {
                                     .frame(maxWidth: .infinity)
                                     .listRowSeparator(.hidden)
                                     .listRowBackground(Color.clear)
-                                    .task(id: "\(vm.scope.rawValue)-\(vm.checkouts.count)-\(vm.reservations.count)") {
+                                    .task(id: "\(vm.scope.rawValue)-\(vm.bookings.count)") {
                                         await vm.load()
                                     }
                             }
@@ -715,40 +658,6 @@ private struct BookingsSearchModifier: ViewModifier {
         } else {
             content
         }
-    }
-}
-
-private struct ReservationEmptyRow: View {
-    let canCreate: Bool
-    let onCreate: () -> Void
-
-    var body: some View {
-        HStack(spacing: Brand.Space.sm) {
-            Image(systemName: "calendar.badge.plus")
-                .font(.body.weight(.medium))
-                .foregroundStyle(Color.statusText(.purple))
-                .frame(width: 36, height: 36)
-                .background(Color.statusBackground(.purple), in: Circle())
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("No active reservations")
-                    .font(.subheadline.weight(.semibold))
-                Text("Reserve gear for upcoming work.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: Brand.Space.sm)
-            if canCreate {
-                Button("Create", action: onCreate)
-                    .buttonStyle(.bordered)
-                    .buttonBorderShape(.capsule)
-                    .tint(Color.statusText(.purple))
-            }
-        }
-        .padding(.vertical, Brand.Space.xs)
-        .listRowSeparator(.hidden)
-        .listRowBackground(Color.clear)
-        .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
     }
 }
 

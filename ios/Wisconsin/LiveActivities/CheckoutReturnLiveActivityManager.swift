@@ -31,7 +31,9 @@ final class CheckoutReturnLiveActivityManager {
         defer { isReconciling = false }
 
         do {
-            let result = try await APIClient.shared.checkouts(activeOnly: true, requesterId: requesterId, limit: 5, offset: 0)
+            // `sort: endsAt` so this 5-row window is the soonest due rather than
+            // the most recently started — the activity counts down to a return.
+            let result = try await APIClient.shared.checkouts(activeOnly: true, requesterId: requesterId, sort: "endsAt", limit: 5, offset: 0)
             let openCheckouts = result.data.filter { $0.kind == .checkout && $0.status == .open }
             guard !openCheckouts.isEmpty else {
                 await endAllAsReturned()

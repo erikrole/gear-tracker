@@ -183,16 +183,36 @@ final class APIClient {
 
     // MARK: - Bookings
 
-    /// Soonest-starting first. The server default is `startsAt desc`, which
-    /// would put the next reservation to pick up on the *last* page.
-    func reservations(activeOnly: Bool = true, search: String? = nil, requesterId: String? = nil, filter: String? = nil, sort: String? = "oldest", limit: Int = 30, offset: Int = 0) async throws -> PaginatedResponse<Booking> {
+    /// Checkouts and reservations in one stream, soonest-finishing first.
+    ///
+    /// `/api/bookings` applies no `kind` filter, so one paginated, server-sorted
+    /// request backs the merged Bookings list. Merging two independently paged
+    /// calls client-side would let a later page insert rows above ones already
+    /// on screen.
+    func bookings(activeOnly: Bool = true, search: String? = nil, requesterId: String? = nil, filter: String? = nil, sort: String? = "endsAt", limit: Int = 30, offset: Int = 0) async throws -> PaginatedResponse<Booking> {
+        try await perform(bookingListRequest(
+            path: "/api/bookings",
+            active: activeOnly,
+            status: nil,
+            statusList: nil,
+            search: search,
+            requesterId: requesterId,
+            filter: filter,
+            sort: sort,
+            limit: limit,
+            offset: offset
+        ))
+    }
+
+    /// Single-kind lists, used where checkouts and reservations stay separate
+    /// result groups (global search). `sort` defaults to nil so these keep the
+    /// server's `startsAt desc` recency order, which is what search wants;
+    /// callers that page through operational work pass an explicit key.
+    func reservations(activeOnly: Bool = true, search: String? = nil, requesterId: String? = nil, filter: String? = nil, sort: String? = nil, limit: Int = 30, offset: Int = 0) async throws -> PaginatedResponse<Booking> {
         try await perform(bookingListRequest(path: "/api/reservations", active: activeOnly, status: nil, statusList: nil, search: search, requesterId: requesterId, filter: filter, sort: sort, limit: limit, offset: offset))
     }
 
-    /// Soonest-due first, so page 1 is the most urgent gear rather than the
-    /// most recently started. Callers that take a small window off the top
-    /// (Live Activities) depend on this too.
-    func checkouts(activeOnly: Bool = true, search: String? = nil, requesterId: String? = nil, filter: String? = nil, sort: String? = "endsAt", limit: Int = 30, offset: Int = 0) async throws -> PaginatedResponse<Booking> {
+    func checkouts(activeOnly: Bool = true, search: String? = nil, requesterId: String? = nil, filter: String? = nil, sort: String? = nil, limit: Int = 30, offset: Int = 0) async throws -> PaginatedResponse<Booking> {
         try await perform(bookingListRequest(
             path: "/api/checkouts",
             active: false,

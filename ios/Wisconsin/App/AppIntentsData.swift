@@ -33,8 +33,11 @@ struct MyCheckedOutGearIntent: AppIntent {
         let checkouts: [Booking]
         do {
             let me = try await APIClient.shared.me()
+            // `sort: endsAt` so a user with more than `limit` checkouts gets the
+            // soonest due — otherwise the overdue count below silently misses
+            // the oldest ones, which are exactly the overdue ones.
             checkouts = try await APIClient.shared
-                .checkouts(activeOnly: true, requesterId: me.id, limit: 10)
+                .checkouts(activeOnly: true, requesterId: me.id, sort: "endsAt", limit: 10)
                 .data
         } catch {
             throw mapIntentError(error)

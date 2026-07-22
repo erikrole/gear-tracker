@@ -42,23 +42,17 @@ struct BookingEntityQuery: EntityStringQuery {
         return results
     }
 
+    // `bookings` spans both kinds already sorted by due date, so these no
+    // longer fan out to one call per kind and re-merge on the client.
     func entities(matching string: String) async throws -> [BookingEntity] {
-        async let reservations = APIClient.shared
-            .reservations(activeOnly: true, search: string, limit: 10)
-        async let checkouts = APIClient.shared
-            .checkouts(activeOnly: true, search: string, limit: 10)
-        let (reserved, out) = try await (reservations.data, checkouts.data)
-        return dedupedEntities(from: out + reserved)
+        let result = try await APIClient.shared.bookings(activeOnly: true, search: string, limit: 20)
+        return dedupedEntities(from: result.data)
     }
 
     func suggestedEntities() async throws -> [BookingEntity] {
         let me = try await APIClient.shared.me()
-        async let reservations = APIClient.shared
-            .reservations(activeOnly: true, requesterId: me.id, limit: 5)
-        async let checkouts = APIClient.shared
-            .checkouts(activeOnly: true, requesterId: me.id, limit: 5)
-        let (reserved, out) = try await (reservations.data, checkouts.data)
-        return dedupedEntities(from: out + reserved)
+        let result = try await APIClient.shared.bookings(activeOnly: true, requesterId: me.id, limit: 10)
+        return dedupedEntities(from: result.data)
     }
 
     private func dedupedEntities(from bookings: [Booking]) -> [BookingEntity] {

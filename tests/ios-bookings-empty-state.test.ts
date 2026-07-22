@@ -8,9 +8,10 @@ describe("iOS bookings empty state recovery", () => {
     expect(source).toContain('Label("Clear Search", systemImage: "xmark.circle")');
     expect(source).toContain('Label("View All Bookings", systemImage: "person.2")');
     expect(source).toContain('Label("New Reservation", systemImage: "plus")');
-    expect(source).toContain("ReservationEmptyRow(canCreate: canCreate)");
-    expect(source).toContain('Text("No active reservations")');
-    expect(source).toContain('Button("Create", action: onCreate)');
+    // The per-section "No active reservations" nudge went away with the
+    // Checkouts/Reservations split; creation now lives in the toolbar and the
+    // whole-list empty state.
+    expect(source).not.toContain("ReservationEmptyRow");
   });
 
   it("uses a compact scope-aware card instead of a full-screen unavailable state", () => {
@@ -31,14 +32,14 @@ describe("iOS bookings empty state recovery", () => {
     expect(source.match(/Task \{ await vm\.load\(reset: true, clearExistingRows: true\) \}/g)?.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("renders one grouped chronological list instead of separated top tabs", () => {
-    expect(source).toContain("var sortedCheckouts: [Booking]");
-    expect(source).toContain("var sortedReservations: [Booking]");
-    // Checkouts sort by soonest due back; reservations sort by soonest start.
+  it("renders one chronological list instead of separated sections or top tabs", () => {
+    expect(source).toContain("var sortedBookings: [Booking]");
+    // Checkouts and reservations interleave on one key: when the booking is
+    // finished. No per-kind section survives.
     expect(source).toContain("lhs.endsAt != rhs.endsAt");
-    expect(source).toContain("lhs.startsAt != rhs.startsAt { return lhs.startsAt < rhs.startsAt }");
-    expect(source).toContain('BookingListSection(title: "Checkouts"');
-    expect(source).toContain('BookingListSection(title: "Reservations"');
+    expect(source).toContain('BookingListSection(title: "Active"');
+    expect(source).not.toContain('BookingListSection(title: "Checkouts"');
+    expect(source).not.toContain('BookingListSection(title: "Reservations"');
     expect(source).toContain('"Search bookings..."');
     expect(source).toContain('vm.mineOnly ? "person.crop.circle.fill" : "person.crop.circle"');
     expect(source).toContain(".navigationBarTitleDisplayMode(.inline)");
