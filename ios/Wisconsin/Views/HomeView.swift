@@ -656,46 +656,59 @@ private struct HomeActionQueue: View {
     @ViewBuilder
     private func row(for entry: QueueEntry) -> some View {
         switch entry.kind {
+        case .overdue(let summary):
+            ActionQueueRow(
+                tone: .red,
+                systemImage: entry.systemImage,
+                title: summary.title,
+                subtitle: personalContext(for: summary),
+                meta: summary.endsAt.overdueLabel,
+                action: { openBookingSummary(summary) }
+            )
         case .dueToday(let summary):
             ActionQueueRow(
                 tone: .orange,
+                systemImage: entry.systemImage,
                 title: summary.title,
                 subtitle: personalContext(for: summary),
                 meta: "Due \(summary.endsAt.formatted(date: .omitted, time: .shortened))",
-                primaryLabel: "Return today",
                 action: { openBookingSummary(summary) }
             )
         case .pendingPickup(let summary):
             ActionQueueRow(
                 tone: summary.startsAt < Date() ? .orange : .green,
+                systemImage: entry.systemImage,
                 title: summary.title,
                 subtitle: summary.linkedEventId == nil ? personalContext(for: summary) : nil,
                 meta: summary.startsAt < Date()
                     ? "Pickup \(summary.startsAt.lateLabel)"
                     : "Pickup \(summary.startsAt.formatted(date: .omitted, time: .shortened))",
-                primaryLabel: "Pick up",
                 detailLines: summary.linkedEventId == nil ? [] : eventDetailLines(for: summary),
                 action: { openBookingSummary(summary) }
             )
         case .reservation(let summary):
             ActionQueueRow(
                 tone: .purple,
+                systemImage: entry.systemImage,
                 title: summary.title,
                 subtitle: summary.linkedEventId == nil ? personalContext(for: summary) : nil,
                 meta: summary.startsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()),
-                primaryLabel: "Open reservation",
                 detailLines: summary.linkedEventId == nil ? [] : eventDetailLines(for: summary),
                 action: { openBookingSummary(summary) }
             )
         case .eventWork(let work):
-            EventActionQueueRow(work: work, openEventWork: openEventWork)
+            EventActionQueueRow(
+                work: work,
+                systemImage: entry.systemImage,
+                openEventWork: openEventWork
+            )
         case .upcomingCheckout(let summary):
             ActionQueueRow(
                 tone: .blue,
+                systemImage: entry.systemImage,
                 title: summary.title,
                 subtitle: personalContext(for: summary),
                 meta: "Due \(summary.endsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()))",
-                primaryLabel: "Open checkout",
                 action: { openBookingSummary(summary) }
             )
         }
@@ -712,25 +725,28 @@ private struct HomeActionQueue: View {
             || !dash.myCheckouts.items.isEmpty
     }
 
+    /// Overdue stays pinned above the chronological list, but both render
+    /// through one loop so the dividers between rows are uniform.
+    private var displayedEntries: [QueueEntry] {
+        let overdue = myOverdueBookings.prefix(3).map {
+            QueueEntry(id: "overdue-\($0.id)", sortsAt: $0.endsAt, kind: .overdue($0))
+        }
+        return overdue + chronologicalEntries
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
 
-            if !myOverdueBookings.isEmpty {
-                ForEach(myOverdueBookings.prefix(3)) { summary in
-                    ActionQueueRow(
-                        tone: .red,
-                        title: summary.title,
-                        subtitle: personalContext(for: summary),
-                        meta: summary.endsAt.overdueLabel,
-                        primaryLabel: "Review overdue",
-                        action: { openBookingSummary(summary) }
-                    )
+            VStack(spacing: 0) {
+                ForEach(displayedEntries) { entry in
+                    row(for: entry)
+                    if entry.id != displayedEntries.last?.id {
+                        // Inset to the title, so the rail and glyph column
+                        // reads as one stack of kinds down the left edge.
+                        Divider().padding(.leading, 46)
+                    }
                 }
-            }
-
-            ForEach(chronologicalEntries) { entry in
-                row(for: entry)
             }
         }
         .brandCard(padding: Brand.Space.md, radius: Brand.Radius.card)
@@ -753,6 +769,7 @@ private struct QueueDetailLine {
 /// share one chronological list.
 private struct QueueEntry: Identifiable {
     enum Kind {
+        case overdue(BookingSummary)
         case dueToday(BookingSummary)
         case pendingPickup(BookingSummary)
         case reservation(BookingSummary)
@@ -763,10 +780,21 @@ private struct QueueEntry: Identifiable {
     let id: String
     let sortsAt: Date
     let kind: Kind
+
+    /// Gear rows and shift rows sit interleaved in one chronological list, so
+    /// each carries the glyph its kind uses in the stat strip above: a box for
+    /// anything about gear, a calendar for event work.
+    var systemImage: String {
+        switch kind {
+        case .eventWork: "calendar"
+        default: "shippingbox.fill"
+        }
+    }
 }
 
 private struct EventActionQueueRow: View {
     let work: DashboardEventWork
+    let systemImage: String
     let openEventWork: (DashboardEventWork) -> Void
     @State private var hapticTrigger = false
 
@@ -774,7 +802,6 @@ private struct EventActionQueueRow: View {
     private var scheduleEvent: ScheduleEvent { work.asScheduleEvent }
     private var isAllDayEvent: Bool { scheduleEvent.displayAllDay }
     private var firstTime: Date { min(work.primaryGear?.startsAt ?? work.shift.startsAt, work.shift.startsAt) }
-    private var primaryLabel: String { work.needsGear ? "Reserve gear" : "Prep shift" }
     private var timeMeta: String {
         guard isAllDayEvent else {
             return firstTime.formatted(.dateTime.weekday(.abbreviated).hour().minute())
@@ -795,14 +822,20 @@ private struct EventActionQueueRow: View {
         return "\(day), All day"
     }
 
-    /// States when gear is needed instead of shouting "now" for an event days
-    /// away; the trailing action chip already carries the "Reserve gear" verb.
-    private var gearNeededLine: String {
-        if work.event.startsAt < Date() || Calendar.current.isDateInToday(work.event.startsAt) {
-            return "Gear needed today"
-        }
-        return "Gear needed for \(work.event.startsAt.formatted(.dateTime.month(.abbreviated).day()))"
+    /// Only shown once gear is actually booked. An unbooked event used to
+    /// announce the date its gear was wanted, which restated the date already
+    /// in the meta column and read as a to-do the row can't complete inline.
+    private var gearLine: String? {
+        guard let gear = work.primaryGear, !work.needsGear else { return nil }
+        return gearInstruction(for: gear)
     }
+
+    private var callTimeLine: String? {
+        guard !isAllDayEvent else { return nil }
+        return "Call time at \(work.shift.startsAt.formatted(date: .omitted, time: .shortened))"
+    }
+
+    private var hasDetailLines: Bool { gearLine != nil || callTimeLine != nil }
 
     var body: some View {
         Button {
@@ -811,69 +844,53 @@ private struct EventActionQueueRow: View {
         } label: {
             HStack(spacing: 12) {
                 StatusRail(tone: tone)
+                QueueKindGlyph(systemImage: systemImage, tone: tone)
 
-                VStack(alignment: .leading, spacing: 7) {
+                // Same title-to-detail rhythm as the gear rows it sits between.
+                VStack(alignment: .leading, spacing: hasDetailLines ? 3 : 0) {
                     Text(work.event.summary)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(2)
                     VStack(alignment: .leading, spacing: 3) {
-                        if let gear = work.primaryGear, !work.needsGear {
-                            queueTextLine(gearInstruction(for: gear), tone: gearTone(for: gear))
-                        } else {
-                            queueTextLine(gearNeededLine, tone: .blue)
-                        }
-                        if !isAllDayEvent {
-                            queueTextLine(
-                                "Call time at \(work.shift.startsAt.formatted(date: .omitted, time: .shortened))",
-                                tone: .blue
+                        if let gear = work.primaryGear, let gearLine {
+                            QueueDetailText(
+                                text: gearLine,
+                                tone: gearTone(for: gear),
+                                showsBullet: callTimeLine != nil
                             )
+                        }
+                        if let callTimeLine {
+                            QueueDetailText(text: callTimeLine, tone: .blue, showsBullet: gearLine != nil)
                         }
                     }
                 }
 
                 Spacer(minLength: 8)
 
-                VStack(alignment: .trailing, spacing: 5) {
-                    Text(timeMeta)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(Color.statusText(tone))
-                        .multilineTextAlignment(.trailing)
-                        .lineLimit(2)
-                    // Chip-styled so the action reads as "tap me", distinct
-                    // from the informational date above it.
-                    Text(primaryLabel)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(Color.statusText(tone))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Color.statusBackground(tone), in: Capsule())
-                }
+                Text(timeMeta)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(Color.statusText(tone))
+                    .multilineTextAlignment(.trailing)
+                    .lineLimit(2)
+                QueueDisclosureChevron()
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .frame(minHeight: 68)
-        .padding(.vertical, 4)
+        // A title plus one supporting line is the same height whatever the row
+        // is about, so gear and shift rows keep a shared rhythm down the card.
+        .frame(minHeight: gearLine != nil && callTimeLine != nil ? 64 : 44)
+        .padding(.vertical, 8)
         .sensoryFeedback(.selection, trigger: hapticTrigger)
         .accessibilityLabel(accessibilityLabel)
     }
 
     private var accessibilityLabel: String {
         var parts = [work.event.summary]
-        if let gear = work.primaryGear, !work.needsGear {
-            parts.append(gearInstruction(for: gear))
-        } else {
-            parts.append(gearNeededLine)
-        }
-        if isAllDayEvent {
-            parts.append("All day event")
-        } else {
-            parts.append("Call time at \(work.shift.startsAt.formatted(date: .omitted, time: .shortened))")
-        }
-        parts.append(primaryLabel)
+        if let gearLine { parts.append(gearLine) }
+        if let callTimeLine { parts.append(callTimeLine) }
+        parts.append(timeMeta)
         return parts.joined(separator: ", ")
     }
 
@@ -891,16 +908,29 @@ private struct EventActionQueueRow: View {
     private func gearTone(for gear: BookingSummary) -> StatusTone {
         gear.status == .pendingPickup && gear.startsAt < Date() ? .orange : .green
     }
+}
 
-    private func queueTextLine(_ text: String, tone: StatusTone) -> some View {
+/// A supporting line under a Next Up title. The bullet only earns its place
+/// when there are two lines to tell apart; alone it reads as decoration. A
+/// late line keeps its tone in the text so urgency survives losing the dot.
+private struct QueueDetailText: View {
+    let text: String
+    let tone: StatusTone
+    let showsBullet: Bool
+
+    private var isUrgent: Bool { tone == .orange || tone == .red }
+
+    var body: some View {
         HStack(spacing: 5) {
-            Circle()
-                .fill(Color.statusText(tone))
-                .frame(width: 5, height: 5)
-                .accessibilityHidden(true)
+            if showsBullet {
+                Circle()
+                    .fill(Color.statusText(tone))
+                    .frame(width: 5, height: 5)
+                    .accessibilityHidden(true)
+            }
             Text(text)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(isUrgent ? AnyShapeStyle(Color.statusText(tone)) : AnyShapeStyle(.secondary))
                 .lineLimit(1)
         }
     }
@@ -908,101 +938,94 @@ private struct EventActionQueueRow: View {
 
 private struct ActionQueueRow: View {
     let tone: StatusTone
+    let systemImage: String
     let title: String
     let subtitle: String?
     let meta: String
-    let primaryLabel: String
     var detailLines: [QueueDetailLine] = []
     let action: () -> Void
-    var secondaryLabel: String? = nil
-    var secondarySystemImage: String? = nil
-    var secondaryAction: (() -> Void)? = nil
     @State private var hapticTrigger = false
-    @State private var secondaryHapticTrigger = false
 
     var body: some View {
-        HStack(spacing: 10) {
-            Button {
-                hapticTrigger.toggle()
-                action()
-            } label: {
-                HStack(spacing: 12) {
-                    StatusRail(tone: tone)
+        Button {
+            hapticTrigger.toggle()
+            action()
+        } label: {
+            HStack(spacing: 12) {
+                StatusRail(tone: tone)
+                QueueKindGlyph(systemImage: systemImage, tone: tone)
 
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(title)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .lineLimit(2)
-                        if detailLines.isEmpty, let subtitle {
-                            Text(subtitle)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        } else {
-                            VStack(alignment: .leading, spacing: 3) {
-                                ForEach(detailLines, id: \.text) { line in
-                                    HStack(spacing: 5) {
-                                        Circle()
-                                            .fill(Color.statusText(line.tone))
-                                            .frame(width: 5, height: 5)
-                                            .accessibilityHidden(true)
-                                        Text(line.text)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                            .lineLimit(1)
-                                    }
-                                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                    if detailLines.isEmpty, let subtitle {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    } else {
+                        VStack(alignment: .leading, spacing: 3) {
+                            ForEach(detailLines, id: \.text) { line in
+                                QueueDetailText(
+                                    text: line.text,
+                                    tone: line.tone,
+                                    showsBullet: detailLines.count > 1
+                                )
                             }
                         }
                     }
-
-                    Spacer(minLength: 8)
-
-                    VStack(alignment: .trailing, spacing: 5) {
-                        Text(meta)
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(Color.statusText(tone))
-                            .multilineTextAlignment(.trailing)
-                            .lineLimit(2)
-                        Text(primaryLabel)
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(Color.statusText(tone))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color.statusBackground(tone), in: Capsule())
-                    }
                 }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .frame(minHeight: detailLines.isEmpty ? 48 : 68)
-            .sensoryFeedback(.selection, trigger: hapticTrigger)
-            .accessibilityLabel(accessibilityLabel)
 
-            if let secondaryLabel, let secondarySystemImage, let secondaryAction {
-                Button {
-                    secondaryHapticTrigger.toggle()
-                    secondaryAction()
-                } label: {
-                    Image(systemName: secondarySystemImage)
-                        .font(.subheadline.weight(.semibold))
-                        .frame(width: 38, height: 38)
-                }
-                .buttonStyle(.glass)
-                .tint(Color.statusText(tone))
-                .accessibilityLabel(secondaryLabel)
-                .sensoryFeedback(.selection, trigger: secondaryHapticTrigger)
+                Spacer(minLength: 8)
+
+                Text(meta)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(Color.statusText(tone))
+                    .multilineTextAlignment(.trailing)
+                    .lineLimit(2)
+                QueueDisclosureChevron()
             }
+            .contentShape(Rectangle())
         }
-        .padding(.vertical, 4)
+        .buttonStyle(.plain)
+        .frame(minHeight: detailLines.count > 1 ? 64 : 44)
+        .padding(.vertical, 8)
+        .sensoryFeedback(.selection, trigger: hapticTrigger)
+        .accessibilityLabel(accessibilityLabel)
     }
 
     private var accessibilityLabel: String {
         let detail = detailLines.isEmpty ? (subtitle ?? "") : detailLines.map(\.text).joined(separator: ", ")
-        return "\(title), \(detail), \(meta). \(primaryLabel)."
+        return "\(title), \(detail), \(meta)."
+    }
+}
+
+/// Kind marker for a Next Up row: a box for gear, a calendar for event work,
+/// reusing the stat strip's glyph vocabulary so the two blocks of the home
+/// screen name the same things the same way.
+private struct QueueKindGlyph: View {
+    let systemImage: String
+    let tone: StatusTone
+
+    var body: some View {
+        Image(systemName: systemImage)
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(Color.statusText(tone))
+            .frame(width: 18)
+            .accessibilityHidden(true)
+    }
+}
+
+/// These rows are informational, but they still open their booking or event.
+/// A chevron says "tappable" without putting a verb on every line.
+private struct QueueDisclosureChevron: View {
+    var body: some View {
+        Image(systemName: "chevron.right")
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.tertiary)
+            .accessibilityHidden(true)
     }
 }
 

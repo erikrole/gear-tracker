@@ -88,9 +88,33 @@ describe("iOS Home header source contract", () => {
     expect(home).toContain("private var timeMeta: String");
     expect(home).toContain("scheduleEvent.spannedDays");
     expect(home).toContain('return "\\(day), All day"');
-    expect(home).toContain("if !isAllDayEvent {");
-    expect(home).toContain('parts.append("All day event")');
+    // An all-day row has no call time to state, so the line drops out entirely
+    // and the "All day" meta is what the accessibility label reads back.
+    expect(home).toContain("private var callTimeLine: String?");
+    expect(home).toContain("guard !isAllDayEvent else { return nil }");
+    expect(home).toContain("parts.append(timeMeta)");
     expect(home).toContain('return "Pickup gear for event"');
     expect(home).not.toContain("Text(firstTime.formatted(.dateTime.weekday(.abbreviated).hour().minute()))");
+  });
+
+  it("keeps Next Up rows informational, with kind glyphs instead of action chips", () => {
+    const home = source("ios/Wisconsin/Views/HomeView.swift");
+
+    // Next Up states what is coming; the work itself happens in the detail
+    // sheet these rows open, so no row carries an action verb.
+    expect(home).not.toContain("primaryLabel");
+    expect(home).not.toContain('"Reserve gear"');
+    expect(home).not.toContain('"Open checkout"');
+    expect(home).not.toContain('"Review overdue"');
+    expect(home).not.toContain("Gear needed");
+    // Gear rows and shift rows sit interleaved, so each names its kind with
+    // the same glyph the stat strip uses, and rows are divided.
+    expect(home).toContain("private struct QueueKindGlyph: View");
+    expect(home).toContain('case .eventWork: "calendar"');
+    expect(home).toContain('default: "shippingbox.fill"');
+    expect(home).toContain("private struct QueueDisclosureChevron: View");
+    expect(home).toContain("Divider().padding(.leading, 46)");
+    // The bullet only separates two detail lines; a lone line goes without.
+    expect(home).toContain("showsBullet: detailLines.count > 1");
   });
 });
