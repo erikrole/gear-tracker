@@ -130,7 +130,10 @@ extension ScheduleEvent {
 
 // MARK: - My Shifts
 
-struct MyShift: Codable, Identifiable {
+struct MyShift: Codable, Identifiable, Hashable {
+    static func == (lhs: MyShift, rhs: MyShift) -> Bool { lhs.id == rhs.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
+
     let id: String
     let area: String
     let workerType: String
@@ -165,6 +168,25 @@ struct ShiftGear: Codable {
         case "draft":       return "Gear draft"
         default:            return "No gear"
         }
+    }
+}
+
+extension MyShift {
+    /// Lets a shift be titled and routed with the same helpers the Schedule tab
+    /// uses, so "Football vs Notre Dame" is constructed once.
+    var asScheduleEvent: ScheduleEvent {
+        ScheduleEvent(
+            id: event.id,
+            summary: event.summary,
+            startsAt: event.startsAt,
+            endsAt: event.endsAt,
+            allDay: false,
+            status: "CONFIRMED",
+            sportCode: event.sportCode,
+            opponent: event.opponent,
+            isHome: event.isHome,
+            location: nil
+        )
     }
 }
 
@@ -344,6 +366,9 @@ struct ScheduleEventsResponse: Decodable {
 
 struct MyShiftsResponse: Decodable {
     let data: [MyShift]
+    /// Whose shifts the server actually answered for. Absent on servers that
+    /// predate the `userId` filter, which is the case this exists to catch.
+    let userId: String?
 }
 
 // MARK: - Availability blocks

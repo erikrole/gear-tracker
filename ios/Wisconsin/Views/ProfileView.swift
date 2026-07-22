@@ -18,8 +18,11 @@ struct ProfileView: View {
     @State private var ownBadges: BadgeProfile?
     @State private var ownCheckouts: [Booking] = []
     @State private var ownReservations: [Booking] = []
+    @State private var ownShifts: [MyShift] = []
     @State private var showBadgeGallery = false
     @State private var selectedBadge: UserBadge?
+    @State private var pushedBookingId: String?
+    @State private var selectedShift: MyShift?
 
     private static let manageAccountURL = AppEnvironment.baseURL
     private static let iosSettingsURL = URL(string: UIApplication.openSettingsURLString)!
@@ -42,6 +45,7 @@ struct ProfileView: View {
         NavigationStack {
             List {
                 headerSection
+                nextUpSection
                 badgeSection
                 profileCompletionSection
                 scheduleSection
@@ -67,6 +71,12 @@ struct ProfileView: View {
             }
             .navigationDestination(for: ProfileDestination.self) { dest in
                 destinationView(for: dest)
+            }
+            .navigationDestination(item: $pushedBookingId) { bookingId in
+                BookingDetailView(bookingId: bookingId)
+            }
+            .navigationDestination(item: $selectedShift) { shift in
+                EventDetailView(event: shift.asScheduleEvent, myShift: shift, eventWork: nil)
             }
         }
         // Settings surfaces use a neutral control tint (matching the web's
@@ -101,14 +111,8 @@ struct ProfileView: View {
     @ViewBuilder
     private var headerSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: 14) {
-                profileIdentity
-
-                Divider()
-
-                statusMetrics
-            }
-            .padding(.vertical, 6)
+            profileIdentity
+                .padding(.vertical, 6)
         }
         .listRowBackground(Color(.secondarySystemGroupedBackground))
     }
@@ -164,34 +168,22 @@ struct ProfileView: View {
         )
     }
 
-    /// The same custody strip a teammate's profile shows, counted from your own
-    /// bookings. You could read anyone else's out-and-overdue at a glance and
-    /// not your own.
-    ///
-    /// The row this replaces mixed two counts with a settings state: "Shifts",
-    /// "Overdue", and "Push" sat in one three-up rank as though "Push" were a
-    /// quantity of something. Notification delivery is a preference, and it
-    /// lives with the other preferences now.
+    /// The same Next Up a teammate's profile shows, built from your own work.
+    /// Your profile and theirs are the same three blocks in the same order --
+    /// who they are, what is coming, what they have earned.
     @ViewBuilder
-    private var statusMetrics: some View {
-        if ownCustody.hasAny {
-            UserCustodyStrip(custody: ownCustody, showsCard: false)
-        } else {
-            HStack(spacing: 8) {
-                Image(systemName: "checkmark.circle")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-                Text("Nothing out, nothing reserved")
-                    .font(.subheadline)
-                    .foregroundStyle(.tertiary)
-                Spacer(minLength: 0)
-            }
-            .accessibilityElement(children: .combine)
+    private var nextUpSection: some View {
+        Section {
+            ProfileNextUpCard(
+                checkouts: ownCheckouts,
+                reservations: ownReservations,
+                shifts: ownShifts,
+                openBooking: { pushedBookingId = $0 },
+                openShift: { selectedShift = $0 }
+            )
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
         }
-    }
-
-    private var ownCustody: UserCustody {
-        UserCustody(checkouts: ownCheckouts, reservations: ownReservations)
     }
 
     /// Your own trophy shelf. Recognition was visible on every profile except
@@ -217,11 +209,13 @@ struct ProfileView: View {
         async let badgeTask = try? await APIClient.shared.userBadgeProfile(userId: id)
         async let checkoutsTask = try? await APIClient.shared.checkoutsByUser(userId: id, activeOnly: true, limit: 5)
         async let reservationsTask = try? await APIClient.shared.reservationsByUser(userId: id, activeOnly: true, limit: 5)
-        let (detail, badges, checkouts, reservations) = await (detailTask, badgeTask, checkoutsTask, reservationsTask)
+        async let shiftsTask = try? await APIClient.shared.myShifts(limit: 5)
+        let (detail, badges, checkouts, reservations, shifts) = await (detailTask, badgeTask, checkoutsTask, reservationsTask, shiftsTask)
         ownDetail = detail
         ownBadges = badges
         ownCheckouts = checkouts?.data ?? []
         ownReservations = reservations?.data ?? []
+        ownShifts = shifts ?? []
     }
 
     @ViewBuilder

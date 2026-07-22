@@ -33,6 +33,7 @@ function gearStatusPriority(status: string) {
  *
  * Query params:
  *   - eventId: (optional) filter to a specific event
+ *   - userId:  (optional, defaults to the caller) whose shifts to return
  *   - limit:   (optional, default 5) max results
  */
 export const GET = withAuth(async (req, { user }) => {
@@ -40,12 +41,17 @@ export const GET = withAuth(async (req, { user }) => {
   const eventId = url.searchParams.get("eventId");
   const rawLimit = Number(url.searchParams.get("limit") || "5");
   const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(Math.trunc(rawLimit), 1), 20) : 5;
+  // Whose shifts. Defaults to the caller, so every existing request is
+  // unchanged. Another person's assignments are not private here -- the
+  // Schedule tab already shows who is covering what to everyone -- and a
+  // teammate's profile needs them to answer "what is this person up to".
+  const targetUserId = url.searchParams.get("userId") || user.id;
 
   const now = new Date();
 
   // Build where clause for active assignments
   const where: Record<string, unknown> = {
-    userId: user.id,
+    userId: targetUserId,
     status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
     shift: {
       shiftGroup: {
@@ -90,14 +96,16 @@ export const GET = withAuth(async (req, { user }) => {
     },
   });
 
-  // For each assignment, check if user has a gear checkout linked to the same event
+  // For each assignment, check if that same person has gear linked to the event.
+  // This must follow `targetUserId`, not the caller: pointed at somebody else's
+  // shifts it would otherwise attach the viewer's own bookings to their rows.
   const eventIds = [...new Set(assignments.map((a) => a.shift.shiftGroup.event.id))];
   const assignmentIds = assignments.map((a) => a.id);
 
   const gearBookings = eventIds.length > 0
     ? await db.booking.findMany({
         where: {
-          requesterUserId: user.id,
+          requesterUserId: targetUserId,
           status: { in: ["DRAFT", "BOOKED", "PENDING_PICKUP", "OPEN"] },
           OR: [
             { eventId: { in: eventIds } },
@@ -195,5 +203,9 @@ export const GET = withAuth(async (req, { user }) => {
     };
   });
 
-  return ok({ data });
+  // Echo whose shifts these are. A client asking for a teammate's shifts has no
+  // other way to tell a server that honoured `userId` from one that ignored it
+  // and returned the caller's own -- and silently attributing one person's
+  // shifts to another on their profile is worse than showing none.
+  return ok({ data, userId: targetUserId });
 });

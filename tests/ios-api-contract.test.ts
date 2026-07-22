@@ -102,25 +102,70 @@ describe("iOS user directory polish", () => {
     expect(usersView).not.toContain("private static func labelFor");
   });
 
-  it("keeps the user profile's custody sections to work that is actually live", () => {
+  it("refuses to attribute one person's shifts to another", () => {
+    const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
+    const route = source("src/app/api/my-shifts/route.ts");
+    const models = source("ios/Wisconsin/Models/ScheduleModels.swift");
+
+    // `/api/my-shifts` can answer for a teammate so their profile can show a
+    // Next Up card. The gear lookup has to follow the same person, or a
+    // teammate's shift rows get the viewer's own bookings attached.
+    expect(route).toContain('const targetUserId = url.searchParams.get("userId") || user.id');
+    expect(route).toContain("userId: targetUserId");
+    expect(route).toContain("requesterUserId: targetUserId");
+    expect(route).not.toContain("requesterUserId: user.id");
+
+    // A server that predates the filter ignores it and returns the caller's own
+    // shifts, which would print your shifts on somebody else's profile. The
+    // response says whose it is and the client drops what it cannot attribute.
+    expect(route).toContain("return ok({ data, userId: targetUserId })");
+    expect(models).toContain("let userId: String?");
+    expect(apiClient).toContain("if let userId, resp.userId != userId { return [] }");
+  });
+
+  it("keeps profile Next Up fed only by work that is actually live", () => {
     const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
     const detail = source("ios/Wisconsin/Views/UserDetailView.swift");
+    const profile = source("ios/Wisconsin/Views/ProfileView.swift");
 
-    // A card headed "Out Now" must not be fed every checkout the person ever
-    // made, or it lists rows stamped Completed under a heading promising the
-    // opposite. Same for reservations and Cancelled.
+    // Next Up must not be fed every checkout the person ever made, or it lists
+    // rows stamped Completed and Cancelled as though they were upcoming.
     expect(apiClient).toContain("func checkoutsByUser(userId: String, activeOnly: Bool = false, limit: Int = 10)");
     expect(apiClient).toContain("func reservationsByUser(userId: String, activeOnly: Bool = false, limit: Int = 10)");
     expect(apiClient).toContain("[BookingStatus.open, .pendingPickup].map(\\.rawValue).joined(separator: \",\")");
-    expect(detail).toContain("checkoutsByUser(userId: userId, activeOnly: true");
-    expect(detail).toContain("reservationsByUser(userId: userId, activeOnly: true");
-    expect(detail).toContain('title: "Out Now"');
-    expect(detail).toContain('title: "Upcoming Reservations"');
+    for (const view of [detail, profile]) {
+      expect(view).toContain("activeOnly: true");
+      expect(view).toContain("ProfileNextUpCard(");
+    }
     expect(detail).not.toContain('title: "Active Checkouts"');
+    expect(detail).not.toContain('title: "Out Now"');
+  });
 
-    // The summary counts the same rows the cards list, so the two cannot drift.
-    expect(detail).toContain("struct UserCustody");
-    expect(detail).toContain("UserCustody(checkouts: checkouts, reservations: reservations)");
+  it("builds both user profiles from the same three blocks in the same order", () => {
+    const detail = source("ios/Wisconsin/Views/UserDetailView.swift");
+    const profile = source("ios/Wisconsin/Views/ProfileView.swift");
+
+    // Header, then Next Up, then Badges -- on the profile you open for someone
+    // else and the one you open for yourself.
+    const detailOrder = ["profileHeader(detail)", "ProfileNextUpCard(", "badgesSection"]
+      .map((needle) => detail.indexOf(needle));
+    const profileOrder = ["headerSection", "nextUpSection", "badgeSection"]
+      .map((needle) => profile.indexOf(needle));
+    for (const order of [detailOrder, profileOrder]) {
+      expect(order.every((i) => i >= 0)).toBe(true);
+      expect([...order].sort((a, b) => a - b)).toEqual(order);
+    }
+
+    // The custody strip and its two booking cards are gone from both.
+    for (const view of [detail, profile]) {
+      expect(view).not.toContain("UserCustodyStrip");
+      expect(view).not.toContain("UserBookingsCard");
+    }
+
+    // Contact actions are for reaching other people. Mailing yourself is a dead
+    // end, and your own profile is the one place they were never useful.
+    expect(detail).toContain("if detail.id != session.currentUser?.id {");
+    expect(profile).not.toContain("ContactActions(");
   });
 });
 

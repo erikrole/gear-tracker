@@ -63,6 +63,7 @@
 		4F357F478EDC77FFABCE13B7 /* ProfileCompletionModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD21416289B346FEE851FB9 /* ProfileCompletionModelsTests.swift */; };
 		521817F1F579897074A3B1D4 /* CreateBookingEventViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88FF0CACAB4BD4886FD0219B /* CreateBookingEventViews.swift */; };
 		5222CCDEB1C3A451B2B7EDED /* PostTradeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C76AD0C31463DD95EE65E1E6 /* PostTradeSheet.swift */; };
+		53ED600858F0C9D58AD17CB0 /* ProfileNextUp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66242B4730F2C1AF5CF188FF /* ProfileNextUp.swift */; };
 		56A81DDDEF06AB1D40D13B33 /* AvailabilityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE250FADCDB66EDCBD5DF234 /* AvailabilityView.swift */; };
 		59A62659B5B66ECB9776D716 /* CheckoutReturnLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B440FC4AD4F07C1163F8856 /* CheckoutReturnLiveActivityWidget.swift */; };
 		5B9D51D7C22E4C6CC71E1594 /* LatestRequestGeneration.swift in Sources */ = {isa = PBXBuildFile; fileRef = D39486DE707928DB17EA4667 /* LatestRequestGeneration.swift */; };
@@ -232,6 +233,7 @@
 		649B6E0F68D9B5DB4D054656 /* KioskIdleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskIdleView.swift; sourceTree = "<group>"; };
 		64AD62D4B6264BA6FE15C183 /* ProfileCompletionDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileCompletionDraft.swift; sourceTree = "<group>"; };
 		64F14676788E6FA7CDD08D48 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		66242B4730F2C1AF5CF188FF /* ProfileNextUp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileNextUp.swift; sourceTree = "<group>"; };
 		663DC1D3F890A7577C4D89D5 /* AppIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIntents.swift; sourceTree = "<group>"; };
 		66DFAABBDCC4FC644E2F8E8B /* CreateBookingEquipmentPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateBookingEquipmentPicker.swift; sourceTree = "<group>"; };
 		687337C19E47FE94FE56F9BF /* KioskReturnView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskReturnView.swift; sourceTree = "<group>"; };
@@ -606,6 +608,7 @@
 				9E58906A0DD7BCF5024161BE /* NotificationsSheet.swift */,
 				1770023701735D8701DCAA5B /* OverdueReportView.swift */,
 				2DCFCD62823EAF922978F5E0 /* PasswordSetupView.swift */,
+				66242B4730F2C1AF5CF188FF /* ProfileNextUp.swift */,
 				B04517A8131BAA862DB3FF5E /* ProfileView.swift */,
 				6A2DFDC7A0C7BD6C018D43D2 /* PushPrePromptView.swift */,
 				93A02FB7D1B8ADC547189F1A /* ScanPrePromptView.swift */,
@@ -959,6 +962,7 @@
 				87F881684924F42EFF019EE6 /* ProfileCompletionStore.swift in Sources */,
 				A55A0918118E5570B32BF2E9 /* ProfileCompletionWelcomeComponents.swift in Sources */,
 				880C3E570298237A5D3A7EF0 /* ProfileCompletionWelcomeView.swift in Sources */,
+				53ED600858F0C9D58AD17CB0 /* ProfileNextUp.swift in Sources */,
 				2C79A800F537F80CF5C414B0 /* ProfilePhotoCropView.swift in Sources */,
 				021A7B27623C3C8544FE58BB /* ProfileView.swift in Sources */,
 				D24677599DC4E06E3E093A81 /* PushPrePromptView.swift in Sources */,

@@ -3,10 +3,15 @@ import SwiftUI
 struct UserDetailView: View {
     let userId: String
 
+    @Environment(SessionStore.self) private var session
+
     @State private var detail: AppUserDetail?
     @State private var badgeProfile: BadgeProfile?
     @State private var reservations: [Booking] = []
     @State private var checkouts: [Booking] = []
+    @State private var shifts: [MyShift] = []
+    @State private var pushedBookingId: String?
+    @State private var selectedShift: MyShift?
     @State private var isLoading = true
     @State private var error: String?
     @State private var showBadgeGallery = false
@@ -30,49 +35,13 @@ struct UserDetailView: View {
                 ScrollView {
                     VStack(spacing: Brand.Space.sm) {
                         profileHeader(detail)
-
-                        // Custody before recognition. The question this screen
-                        // is opened to answer is "what does this person have of
-                        // ours, and are they late with it" -- badges are what
-                        // you read once that is settled.
-                        if custody.hasAny {
-                            UserCustodyStrip(custody: custody)
-                        }
-
-                        if !checkouts.isEmpty {
-                            UserBookingsCard(
-                                title: "Out Now",
-                                systemImage: "arrow.up.circle",
-                                tone: custody.overdue > 0 ? .red : .blue,
-                                bookings: checkouts
-                            )
-                        }
-
-                        if !reservations.isEmpty {
-                            UserBookingsCard(
-                                title: "Upcoming Reservations",
-                                systemImage: "calendar",
-                                tone: .purple,
-                                bookings: reservations
-                            )
-                        }
-
-                        if checkouts.isEmpty && reservations.isEmpty && !isLoading {
-                            // Empty is common for students; collapse to one quiet
-                            // line instead of a full empty-state card.
-                            HStack(spacing: 8) {
-                                Image(systemName: "checkmark.circle")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.tertiary)
-                                Text("Nothing out, nothing reserved")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.tertiary)
-                                Spacer(minLength: 0)
-                            }
-                            .brandCard(padding: Brand.Space.sm)
-                            .accessibilityElement(children: .combine)
-                        }
-
+                        ProfileNextUpCard(
+                            checkouts: checkouts,
+                            reservations: reservations,
+                            shifts: shifts,
+                            openBooking: { pushedBookingId = $0 },
+                            openShift: { selectedShift = $0 }
+                        )
                         badgesSection
                     }
                     .padding(.horizontal, Brand.Space.md)
@@ -87,6 +56,12 @@ struct UserDetailView: View {
         .refreshable { await load() }
         .navigationDestination(for: String.self) { bookingId in
             BookingDetailView(bookingId: bookingId)
+        }
+        .navigationDestination(item: $pushedBookingId) { bookingId in
+            BookingDetailView(bookingId: bookingId)
+        }
+        .navigationDestination(item: $selectedShift) { shift in
+            EventDetailView(event: shift.asScheduleEvent, myShift: shift, eventWork: nil)
         }
         .sheet(isPresented: $showBadgeGallery) {
             if let badgeProfile {
@@ -168,10 +143,13 @@ struct UserDetailView: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel(profileAccessibilityLabel(detail))
 
-            // Contact as things you do, not addresses to read. The raw email sat
-            // in monospace as the loudest line on the card, and the phone number
-            // was tinted blue -- the colour this app spends on active custody.
-            ContactActions(detail: detail)
+            // Contact as things you do, not addresses to read -- and only for
+            // other people. Offering to email or call yourself is a dead end,
+            // and it was the one thing your own profile had that a teammate's
+            // needed.
+            if detail.id != session.currentUser?.id {
+                ContactActions(detail: detail)
+            }
         }
     }
 
@@ -184,11 +162,6 @@ struct UserDetailView: View {
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
-    /// What this person is holding right now, counted from the checkouts the
-    /// card below lists so the summary and the rows can never disagree.
-    private var custody: UserCustody {
-        UserCustody(checkouts: checkouts, reservations: reservations)
-    }
 
     private func profileAccessibilityLabel(_ detail: AppUserDetail) -> String {
         var parts: [String] = [detail.name]
@@ -227,11 +200,13 @@ struct UserDetailView: View {
             // promising the opposite.
             async let checkoutsTask = APIClient.shared.checkoutsByUser(userId: userId, activeOnly: true, limit: 5)
             async let reservationsTask = APIClient.shared.reservationsByUser(userId: userId, activeOnly: true, limit: 5)
-            let (d, b, c, r) = try await (detailTask, badgeTask, checkoutsTask, reservationsTask)
+            async let shiftsTask = try? await APIClient.shared.myShifts(userId: userId, limit: 5)
+            let (d, b, c, r, s) = try await (detailTask, badgeTask, checkoutsTask, reservationsTask, shiftsTask)
             detail = d
             badgeProfile = b
             checkouts = c.data
             reservations = r.data
+            shifts = s ?? []
         } catch {
             self.error = error.localizedDescription
         }
@@ -242,84 +217,6 @@ struct UserDetailView: View {
             return try await APIClient.shared.userBadgeProfile(userId: userId)
         } catch {
             return nil
-        }
-    }
-}
-
-// MARK: - Custody
-
-/// The operational answer this screen exists to give: what does this person
-/// have of ours, and are they late with any of it.
-struct UserCustody {
-    let out: Int
-    let overdue: Int
-    let awaitingPickup: Int
-    let reserved: Int
-
-    init(checkouts: [Booking], reservations: [Booking]) {
-        let now = Date()
-        out = checkouts.filter { $0.status == .open }.count
-        overdue = checkouts.filter { $0.status == .open && $0.endsAt < now }.count
-        awaitingPickup = checkouts.filter { $0.status == .pendingPickup }.count
-        reserved = reservations.count
-    }
-
-    var hasAny: Bool { out > 0 || awaitingPickup > 0 || reserved > 0 }
-}
-
-/// Reads like Home's stat strip on purpose: same lane vocabulary, same colours,
-/// so "3 out, 1 overdue" means the same thing about someone else as it does
-/// about you. Zero-value lanes stay off -- an explicit "0 overdue" reads as a
-/// finding rather than the absence of one.
-struct UserCustodyStrip: View {
-    let custody: UserCustody
-    /// Off when the strip is already inside a card -- the settings-style
-    /// Profile list draws its own row surface, so a second one nests a bordered
-    /// white box inside a bordered white box.
-    var showsCard = true
-
-    private var lanes: [(id: String, label: String, value: Int, tone: StatusTone)] {
-        var lanes: [(String, String, Int, StatusTone)] = []
-        if custody.overdue > 0 { lanes.append(("overdue", "Overdue", custody.overdue, .red)) }
-        if custody.out > 0 { lanes.append(("out", "Out", custody.out, .blue)) }
-        if custody.awaitingPickup > 0 { lanes.append(("pickup", "Awaiting Pickup", custody.awaitingPickup, .orange)) }
-        if custody.reserved > 0 { lanes.append(("reserved", "Reserved", custody.reserved, .purple)) }
-        return lanes
-    }
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(lanes, id: \.id) { lane in
-                VStack(spacing: 2) {
-                    Text("\(lane.value)")
-                        .font(.gothamBold(size: 20))
-                        .monospacedDigit()
-                        .foregroundStyle(Color.statusText(lane.tone))
-                    Text(lane.label)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                }
-                .frame(maxWidth: .infinity)
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("\(lane.value) \(lane.label)")
-            }
-        }
-        .modifier(OptionalCard(enabled: showsCard))
-    }
-}
-
-/// Applies the standard card chrome only when the caller is not already inside
-/// one.
-private struct OptionalCard: ViewModifier {
-    let enabled: Bool
-
-    func body(content: Content) -> some View {
-        if enabled {
-            content.brandCard(padding: Brand.Space.md, alignment: .center)
-        } else {
-            content
         }
     }
 }
@@ -445,70 +342,6 @@ private struct ContactActionLabel: View {
         .frame(maxWidth: .infinity, minHeight: 40)
         .background(Color.cardSurfaceRaised, in: Capsule())
         .overlay(Capsule().strokeBorder(Color.hairline, lineWidth: 0.5))
-    }
-}
-
-// MARK: - Bookings card
-
-/// Booking section card shared by Active Checkouts and Recent Reservations.
-/// Same anatomy as ItemDetail's booking cards: toned uppercase icon header,
-/// rows as nested tertiary tiles with a trailing chevron.
-private struct UserBookingsCard: View {
-    let title: String
-    let systemImage: String
-    let tone: StatusTone
-    let bookings: [Booking]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: systemImage)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Color.statusText(tone))
-                    .accessibilityHidden(true)
-                Text(title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                    .tracking(0.04)
-            }
-
-            VStack(spacing: 6) {
-                ForEach(bookings) { booking in
-                    NavigationLink(value: booking.id) {
-                        HStack(spacing: 10) {
-                            BookingResultRow(booking: booking, subtitle: Self.timing(for: booking))
-                            Image(systemName: "chevron.right")
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(.tertiary)
-                                .accessibilityHidden(true)
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityHint("Double-tap to view booking")
-                }
-            }
-        }
-        .brandCard()
-    }
-
-    /// What the row's date actually means for its kind: a checkout is defined by
-    /// when it comes back, a reservation by when it starts.
-    private static func timing(for booking: Booking) -> String {
-        if booking.kind == .checkout {
-            if booking.status == .pendingPickup {
-                return "Pickup \(booking.startsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()))"
-            }
-            if booking.status == .open && booking.endsAt < Date() {
-                return booking.endsAt.overdueLabel
-            }
-            return "Due \(booking.endsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()))"
-        }
-        return "Starts \(booking.startsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()))"
     }
 }
 
@@ -904,74 +737,25 @@ private struct BadgeDetailMetric: View {
 
 // MARK: - Shaped medallions (web BadgeMedallion parity)
 
-/// Category-driven artifact silhouettes shared with the web `BadgeMedallion`:
-/// scans are hexes, teamwork is a shield, gear flow / on-time are equipment
-/// stacks, staff picks are hexes, everything else is a coin.
-private enum BadgeMedallionShape {
-    case coin, hex, shield, stack
-}
-
-/// Draws the medallion outline in the same 100x100 coordinate space as the
-/// web component's SVG paths, scaled to the given rect.
-private struct BadgeMedallionSilhouette: Shape {
-    let shape: BadgeMedallionShape
-
-    func path(in rect: CGRect) -> Path {
-        let w = rect.width / 100
-        let h = rect.height / 100
-        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
-            CGPoint(x: rect.minX + x * w, y: rect.minY + y * h)
-        }
-        var path = Path()
-        switch shape {
-        case .coin:
-            path.addEllipse(in: rect.insetBy(dx: rect.width * 0.05, dy: rect.height * 0.05))
-        case .hex:
-            path.move(to: pt(50, 6))
-            path.addLine(to: pt(86, 26))
-            path.addLine(to: pt(86, 74))
-            path.addLine(to: pt(50, 94))
-            path.addLine(to: pt(14, 74))
-            path.addLine(to: pt(14, 26))
-            path.closeSubpath()
-        case .shield:
-            path.move(to: pt(50, 6))
-            path.addLine(to: pt(88, 18))
-            path.addLine(to: pt(88, 45))
-            path.addCurve(to: pt(50, 94), control1: pt(88, 69), control2: pt(74, 85))
-            path.addCurve(to: pt(12, 45), control1: pt(26, 85), control2: pt(12, 69))
-            path.addLine(to: pt(12, 18))
-            path.closeSubpath()
-        case .stack:
-            path.move(to: pt(18, 18))
-            path.addLine(to: pt(82, 18))
-            path.addLine(to: pt(82, 31))
-            path.addLine(to: pt(92, 31))
-            path.addLine(to: pt(92, 82))
-            path.addLine(to: pt(28, 82))
-            path.addLine(to: pt(28, 69))
-            path.addLine(to: pt(18, 69))
-            path.closeSubpath()
-        }
-        return path
-    }
-}
-
 private struct BadgeMedallionView: View {
     let badge: UserBadge
     let size: CGFloat
 
     var body: some View {
-        // Locked medallions drop to gray regardless of rarity — the web
-        // component's grayscale treatment.
+        // One medallion shape for every badge. The per-badge silhouettes this
+        // replaces -- coin, hex, shield, stack -- were drawn from hand-plotted
+        // paths, and `stack` in particular rendered as a notched square behind
+        // an offset second square, which read as a clipping fault rather than a
+        // medal. A single ringed disc says "award" without any badge looking
+        // broken, and rarity still speaks through colour.
         let tone: StatusTone = badge.earned ? badge.rarity.tone : .gray
         ZStack {
-            BadgeMedallionSilhouette(shape: badge.medallionShape)
+            Circle()
                 .fill(Color.statusBackground(tone))
-            BadgeMedallionSilhouette(shape: badge.medallionShape)
-                .stroke(Color.statusText(tone).opacity(badge.earned ? 0.45 : 0.3), lineWidth: max(1, size * 0.028))
+            Circle()
+                .strokeBorder(Color.statusText(tone).opacity(badge.earned ? 0.35 : 0.2), lineWidth: max(1, size * 0.05))
             Image(systemName: badge.earned ? badge.icon.sfSymbolName : "lock.fill")
-                .font(.system(size: size * 0.36, weight: .semibold))
+                .font(.system(size: size * 0.42, weight: .semibold))
                 .foregroundStyle(Color.statusText(tone))
                 .symbolEffect(.bounce, value: badge.recentlyEarned)
         }
@@ -1160,16 +944,6 @@ private extension UserBadge {
         }
         if key.contains("streak") || key.contains("reliable") || key.contains("zero_errors") { return .reliability }
         return .gearFlow
-    }
-
-    /// Mirrors the web tab's `badgeShape` category mapping.
-    var medallionShape: BadgeMedallionShape {
-        switch category {
-        case "SCAN": return .hex
-        case "TRADE", "SHIFT": return .shield
-        case "CHECKOUT", "ON_TIME": return .stack
-        default: return isManualRecognition ? .hex : .coin
-        }
     }
 
     /// One quiet line under the tile name: earned date, progress, requirement,

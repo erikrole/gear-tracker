@@ -31,14 +31,20 @@ describe("iOS accessibility-size layout hardening", () => {
     expect(settings).toContain("private var rowTitle: some View");
   });
 
-  it("stacks profile identity, account identity, and status metrics at accessibility sizes", () => {
+  it("stacks profile identity and account identity at accessibility sizes", () => {
     const profile = source("ios/Wisconsin/Views/ProfileView.swift");
     const account = source("ios/Wisconsin/Views/AccountSecuritySettingsView.swift");
 
     expect(profile).toContain("private var profileIdentity: some View");
-    expect(profile).toContain("private var statusMetrics: some View");
+    expect(profile).toContain("dynamicTypeSize.isAccessibilitySize");
     expect(account).toContain("private var accountIdentity: some View");
     expect(account).toContain(".tint(Color.brandPrimary)");
+
+    // The three-up metric rank this used to guard is gone -- it ranked "Push",
+    // a preference, alongside two counts. Next Up replaced it, and its rows are
+    // a single column that reflows without a size branch.
+    expect(profile).not.toContain("private var statusMetrics");
+    expect(profile).not.toContain("SettingsStatusMetric");
   });
 
   it("keeps launch notification controls native and free of retired pause layouts", () => {

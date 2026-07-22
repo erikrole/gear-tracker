@@ -886,9 +886,19 @@ final class APIClient {
         return resp.data
     }
 
-    func myShifts(limit: Int = 20) async throws -> [MyShift] {
-        let req = request(path: "/api/my-shifts", queryItems: [.init(name: "limit", value: "\(limit)")])
+    /// `userId` defaults to the caller. Pass one to read a teammate's upcoming
+    /// shifts for their profile.
+    ///
+    /// When asking about somebody else, the response has to say whose shifts it
+    /// contains. A server without the `userId` filter ignores the parameter and
+    /// returns the caller's own, which would silently print your shifts on a
+    /// teammate's profile; if the answer cannot be attributed, return nothing.
+    func myShifts(userId: String? = nil, limit: Int = 20) async throws -> [MyShift] {
+        var items: [URLQueryItem] = [.init(name: "limit", value: "\(limit)")]
+        if let userId { items.append(.init(name: "userId", value: userId)) }
+        let req = request(path: "/api/my-shifts", queryItems: items)
         let resp: MyShiftsResponse = try await perform(req)
+        if let userId, resp.userId != userId { return [] }
         return resp.data
     }
 
