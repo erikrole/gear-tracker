@@ -34,6 +34,30 @@ describe("student field mobile contracts", () => {
     expect(route).toContain("db.calendarEvent.findMany");
   });
 
+  it("keeps a personal-scope dashboard reporting only the caller's own work", () => {
+    const route = source("src/app/api/dashboard/route.ts");
+    const statsRoute = source("src/app/api/dashboard/stats/route.ts");
+    const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
+
+    // The row queries are already filtered to this user, so the counts beside
+    // them must be too -- an org-wide "12 overdue" over an empty list reads as
+    // missing data, not as somebody else's problem.
+    expect(route).toContain("const totalOverdue = isPersonalOnly ? counts.myOverdue : counts.totalOverdue");
+    expect(route).toContain("const dueTodayCount = isPersonalOnly ? counts.myDueToday : counts.dueToday");
+    expect(route).toContain("const totalCheckedOut = isPersonalOnly ? counts.myCheckoutsTotal : counts.totalCheckedOut");
+    expect(route).toContain("const pendingPickupTotalCount = isPersonalOnly ? pendingPickupsRaw.length : counts.pendingPickupTotal");
+    expect(route).toContain("...(isPersonalOnly ? { requesterUserId: user.id } : {})");
+    // No stat lane may still read a team total on a personal dashboard.
+    expect(route).not.toMatch(/const (total|dueToday|pendingPickup|team|stale)\w* = isCollaborator \?/);
+
+    // The tab badge reads the lightweight endpoint, so it takes the same scope
+    // or it accuses a student of gear that was never theirs.
+    expect(apiClient).toMatch(/dashboardStats\(\)[\s\S]*?scope", value: "ios-home"/);
+    expect(statsRoute).toContain('searchParams.get("scope") === "ios-home" || isCollaborator');
+    expect(statsRoute).toContain("overdueCount: isPersonalOnly ? c.myOverdue : c.totalOverdue");
+    expect(statsRoute).not.toMatch(/: isCollaborator \? c\./);
+  });
+
   it("keeps iOS booking edits on the optimistic-lock contract", () => {
     const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
     const models = source("ios/Wisconsin/Models/Models.swift");

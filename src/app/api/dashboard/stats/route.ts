@@ -27,7 +27,7 @@ function settledValue<T>(
 // returns nothing else. Used by the dashboard to keep stat cards, the overdue
 // count, and the transient-lane totals (awaiting pickup, stale reservations)
 // fresh (60s TTL) without re-running the expensive full-payload row queries.
-export const GET = withAuth(async (_req, { user }) => {
+export const GET = withAuth(async (req, { user }) => {
   const { allowed } = await checkRateLimit(`dashboard:stats:${user.id}`, STATS_LIMIT);
   if (!allowed) throw new HttpError(429, "Too many requests. Please wait a moment.");
 
@@ -38,6 +38,10 @@ export const GET = withAuth(async (_req, { user }) => {
   const startOfToday = startOfDayInAppTz(now, 0);
   const startOfTomorrow = startOfDayInAppTz(now, 1);
   const isCollaborator = user.role === "COLLABORATOR";
+  // Same scope switch `/api/dashboard` reads. The iOS tab badge and the Home
+  // stat rows are the same number to a student, so they must be scoped
+  // identically or the badge accuses them of somebody else's overdue gear.
+  const isPersonalOnly = new URL(req.url).searchParams.get("scope") === "ios-home" || isCollaborator;
 
   const [countsResult, myShiftsCountResult, myShiftsTodayCountResult] = await Promise.allSettled([
     readDashboardCounts({
@@ -82,19 +86,19 @@ export const GET = withAuth(async (_req, { user }) => {
     data: {
       role: user.role,
       stats: {
-        checkedOut: isCollaborator ? c.myCheckoutsTotal : c.totalCheckedOut,
-        overdue: isCollaborator ? c.myOverdue : c.totalOverdue,
-        reserved: isCollaborator ? Math.max(0, c.totalReserved - c.teamReservationsTotal) : c.totalReserved,
-        dueToday: isCollaborator ? c.myDueToday : c.dueToday,
+        checkedOut: isPersonalOnly ? c.myCheckoutsTotal : c.totalCheckedOut,
+        overdue: isPersonalOnly ? c.myOverdue : c.totalOverdue,
+        reserved: isPersonalOnly ? Math.max(0, c.totalReserved - c.teamReservationsTotal) : c.totalReserved,
+        dueToday: isPersonalOnly ? c.myDueToday : c.dueToday,
       },
-      overdueCount: isCollaborator ? c.myOverdue : c.totalOverdue,
+      overdueCount: isPersonalOnly ? c.myOverdue : c.totalOverdue,
       myCheckoutsTotal: c.myCheckoutsTotal,
       myOverdueCount: c.myOverdue,
       myDueTodayCount: c.myDueToday,
-      teamCheckoutsTotal: isCollaborator ? 0 : c.teamCheckoutsTotal,
-      teamCheckoutsOverdue: isCollaborator ? 0 : c.teamCheckoutsOverdue,
-      teamReservationsTotal: isCollaborator ? 0 : c.teamReservationsTotal,
-      ...(isCollaborator
+      teamCheckoutsTotal: isPersonalOnly ? 0 : c.teamCheckoutsTotal,
+      teamCheckoutsOverdue: isPersonalOnly ? 0 : c.teamCheckoutsOverdue,
+      teamReservationsTotal: isPersonalOnly ? 0 : c.teamReservationsTotal,
+      ...(isPersonalOnly
         ? { pendingPickupTotal: 0, staleReservationTotal: 0 }
         : {
             pendingPickupTotal: c.pendingPickupTotal,

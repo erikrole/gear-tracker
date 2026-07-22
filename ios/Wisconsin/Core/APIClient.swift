@@ -645,9 +645,11 @@ final class APIClient {
     }
 
     /// Lightweight stats-only fetch for badge refresh. Avoids the heavy
-    /// `/api/dashboard` payload when only counters and role are needed.
+    /// `/api/dashboard` payload when only counters and role are needed. Carries
+    /// the same `ios-home` scope so a tab badge can never count work that
+    /// belongs to somebody else while Home shows only the caller's own.
     func dashboardStats() async throws -> DashboardStatsPayload {
-        let req = request(path: "/api/dashboard/stats")
+        let req = request(path: "/api/dashboard/stats", queryItems: [.init(name: "scope", value: "ios-home")])
         let resp: DataWrapper<DashboardStatsPayload> = try await perform(req)
         return resp.data
     }

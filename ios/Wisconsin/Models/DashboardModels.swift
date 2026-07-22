@@ -75,6 +75,8 @@ struct DashboardShiftEvent: Codable {
     let summary: String
     let startsAt: Date
     let sportCode: String?
+    let opponent: String?
+    let isHome: Bool?
     let locationName: String?
 }
 
@@ -273,8 +275,8 @@ extension DashboardShift {
             allDay: false,
             status: "CONFIRMED",
             sportCode: event.sportCode,
-            opponent: nil,
-            isHome: nil,
+            opponent: event.opponent,
+            isHome: event.isHome,
             location: nil
         )
     }

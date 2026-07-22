@@ -142,7 +142,6 @@ struct HomeView: View {
                     stats: dash.stats,
                     pendingPickupCount: dash.pendingPickups.total,
                     shiftCount: dash.myEventWork.count,
-                    lastLoadedAt: vm.lastLoadedAt,
                     openBookings: { appState.selectedTab = 1 },
                     openAttention: {
                         // Urgency tiles open the complete list; row color carries status.
@@ -389,7 +388,6 @@ private struct StatStrip: View {
     let stats: DashboardStats
     let pendingPickupCount: Int
     let shiftCount: Int
-    let lastLoadedAt: Date?
     let openBookings: () -> Void
     let openAttention: () -> Void
     let openSchedule: () -> Void
@@ -414,6 +412,10 @@ private struct StatStrip: View {
         return items
     }
 
+    /// No freshness stamp here. Pull-to-refresh is the freshness indicator: it
+    /// says when the data moved and who asked for it, where a "Synced 2 minutes
+    /// ago" line only ever invited a second look at a number that was already
+    /// current.
     var body: some View {
         VStack(alignment: .trailing, spacing: Brand.Space.sm) {
             if activeItems.isEmpty {
@@ -424,7 +426,6 @@ private struct StatStrip: View {
                     Text("Nothing overdue, due today, or waiting on you")
                         .font(.caption)
                     Spacer(minLength: 8)
-                    if let lastLoadedAt { syncedStamp(lastLoadedAt) }
                 }
                 .foregroundStyle(.secondary)
                 .accessibilityElement(children: .combine)
@@ -442,22 +443,8 @@ private struct StatStrip: View {
                     RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
                         .strokeBorder(Color.hairline, lineWidth: 0.5)
                 }
-                if let lastLoadedAt { syncedStamp(lastLoadedAt) }
             }
         }
-    }
-
-    private func syncedStamp(_ lastLoadedAt: Date) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: "arrow.triangle.2.circlepath")
-                .font(.caption2.weight(.semibold))
-                .accessibilityHidden(true)
-            Text("Synced \(lastLoadedAt.formatted(.relative(presentation: .named)))")
-                .font(.caption2)
-                .monospacedDigit()
-        }
-        .foregroundStyle(.secondary)
-        .accessibilityLabel("Dashboard synced \(lastLoadedAt.formatted(.relative(presentation: .named)))")
     }
 }
 
@@ -615,11 +602,8 @@ private struct HomeActionQueue: View {
 
     private func eventDetailLines(for summary: BookingSummary) -> [QueueDetailLine] {
         var lines = [QueueDetailLine(text: gearInstruction(for: summary), tone: queueGearTone(for: summary))]
-        if let shift = shiftLinked(to: summary) {
-            lines.append(QueueDetailLine(
-                text: "Call time at \(shift.startsAt.formatted(date: .omitted, time: .shortened))",
-                tone: .blue
-            ))
+        if let shift = shiftLinked(to: summary), let callTime = queueCallTime(isHome: shift.event.isHome, at: shift.startsAt) {
+            lines.append(QueueDetailLine(text: callTime, tone: .blue))
         }
         return lines
     }
@@ -790,6 +774,30 @@ private func queueVenueTone(for event: DashboardEventWorkEvent) -> StatusTone {
     venueTone(isHome: event.isHome)
 }
 
+/// "Call time 6:30 PM", and only for a home game. Away and neutral events have
+/// a shift start too, but nobody reports to a call time at Kinnick, so printing
+/// one there would be a time the row cannot vouch for.
+private func queueCallTime(isHome: Bool?, at start: Date) -> String? {
+    guard isHome == true else { return nil }
+    return "Call time \(start.formatted(date: .omitted, time: .shortened))"
+}
+
+/// Next Up titles are the Bookings list's titles: same Gotham face, same size.
+/// The two lists name the same work, so a row should not change typeface on the
+/// way from Home to Bookings.
+private struct QueueRowTitle: View {
+    let text: String
+
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text)
+            .font(.gothamBold(size: 16))
+            .foregroundStyle(.primary)
+            .lineLimit(1)
+    }
+}
+
 /// A Next Up row plus the moment it sorts on, so rows of different kinds can
 /// share one chronological list.
 private struct QueueEntry: Identifiable {
@@ -830,41 +838,41 @@ private struct EventActionQueueRow: View {
     private var tone: StatusTone { queueVenueTone(for: work.event) }
     private var scheduleEvent: ScheduleEvent { work.asScheduleEvent }
     private var isAllDayEvent: Bool { scheduleEvent.displayAllDay }
-    private var firstTime: Date { min(work.primaryGear?.startsAt ?? work.shift.startsAt, work.shift.startsAt) }
-    private var timeMeta: String {
-        guard isAllDayEvent else {
-            return firstTime.formatted(.dateTime.weekday(.abbreviated).hour().minute())
+
+    /// "Football vs Notre Dame", the same construction the Schedule tab uses,
+    /// rather than the raw calendar summary this row used to print.
+    private var title: String { scheduleEventDisplayTitle(scheduleEvent) }
+
+    /// "Sunday, September 6". The date owns a line of its own now, which is why
+    /// the meta column no longer repeats a weekday.
+    private var dateLine: String {
+        let days = scheduleEvent.spannedDays
+        guard scheduleEvent.isMultiDay, let first = days.first, let last = days.last else {
+            return (days.first ?? work.event.startsAt)
+                .formatted(.dateTime.weekday(.wide).month(.wide).day())
         }
-        if scheduleEvent.isMultiDay,
-           let firstDay = scheduleEvent.spannedDays.first,
-           let lastDay = scheduleEvent.spannedDays.last {
-            let start = firstDay.formatted(.dateTime.month(.abbreviated).day())
-            // Same month reads as "Jul 7-8", not "Jul 7-Jul 8".
-            let sameMonth = Calendar.current.isDate(firstDay, equalTo: lastDay, toGranularity: .month)
-            let end = sameMonth
-                ? lastDay.formatted(.dateTime.day())
-                : lastDay.formatted(.dateTime.month(.abbreviated).day())
-            return "\(start)-\(end), All day"
-        }
-        let day = (scheduleEvent.spannedDays.first ?? work.event.startsAt)
-            .formatted(.dateTime.weekday(.abbreviated))
-        return "\(day), All day"
+        let start = first.formatted(.dateTime.month(.wide).day())
+        // Same month reads as "September 6 - 7", not "September 6 - September 7".
+        let sameMonth = Calendar.current.isDate(first, equalTo: last, toGranularity: .month)
+        let end = sameMonth
+            ? last.formatted(.dateTime.day())
+            : last.formatted(.dateTime.month(.wide).day())
+        return "\(start) - \(end)"
     }
 
-    /// Only shown once gear is actually booked. An unbooked event used to
-    /// announce the date its gear was wanted, which restated the date already
-    /// in the meta column and read as a to-do the row can't complete inline.
-    private var gearLine: String? {
-        guard let gear = work.primaryGear, !work.needsGear else { return nil }
-        return gearInstruction(for: gear)
-    }
-
+    /// Home games only. Away and neutral crews travel with the team, so the
+    /// shift start there is not a call time anyone reports to.
     private var callTimeLine: String? {
         guard !isAllDayEvent else { return nil }
-        return "Call time at \(work.shift.startsAt.formatted(date: .omitted, time: .shortened))"
+        return queueCallTime(isHome: work.event.isHome, at: work.shift.startsAt)
     }
 
-    private var hasDetailLines: Bool { gearLine != nil || callTimeLine != nil }
+    /// When the event itself starts. The gear a shift needs is stated on its
+    /// own Next Up row and in the event detail sheet; restating it here made a
+    /// four-line row out of what is fundamentally "where to be, and when".
+    private var timeMeta: String {
+        isAllDayEvent ? "All day" : work.event.startsAt.formatted(date: .omitted, time: .shortened)
+    }
 
     var body: some View {
         Button {
@@ -876,24 +884,11 @@ private struct EventActionQueueRow: View {
                 QueueKindGlyph(systemImage: systemImage, tone: tone)
 
                 // Same title-to-detail rhythm as the gear rows it sits between.
-                VStack(alignment: .leading, spacing: hasDetailLines ? 3 : 0) {
-                    Text(work.event.summary)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
-                    VStack(alignment: .leading, spacing: 3) {
-                        if let gear = work.primaryGear, let gearLine {
-                            // The gear line speaks the gear vocabulary even
-                            // inside a shift row, since it describes a booking.
-                            QueueDetailText(
-                                text: gearLine,
-                                tone: queueGearTone(for: gear),
-                                showsBullet: callTimeLine != nil
-                            )
-                        }
-                        if let callTimeLine {
-                            QueueDetailText(text: callTimeLine, tone: .blue, showsBullet: gearLine != nil)
-                        }
+                VStack(alignment: .leading, spacing: 4) {
+                    QueueRowTitle(title)
+                    QueueDetailText(text: dateLine, tone: tone, showsBullet: false)
+                    if let callTimeLine {
+                        QueueDetailText(text: callTimeLine, tone: .blue, showsBullet: false)
                     }
                 }
 
@@ -911,31 +906,18 @@ private struct EventActionQueueRow: View {
         .buttonStyle(.plain)
         // A title plus one supporting line is the same height whatever the row
         // is about, so gear and shift rows keep a shared rhythm down the card.
-        .frame(minHeight: gearLine != nil && callTimeLine != nil ? 64 : 44)
+        .frame(minHeight: callTimeLine != nil ? 64 : 44)
         .padding(.vertical, 8)
         .sensoryFeedback(.selection, trigger: hapticTrigger)
         .accessibilityLabel(accessibilityLabel)
     }
 
     private var accessibilityLabel: String {
-        var parts = [work.event.summary]
-        if let gearLine { parts.append(gearLine) }
+        var parts = [title, dateLine]
         if let callTimeLine { parts.append(callTimeLine) }
         parts.append(timeMeta)
         return parts.joined(separator: ", ")
     }
-
-    private func gearInstruction(for gear: BookingSummary) -> String {
-        if gear.status == .pendingPickup && gear.startsAt < Date() {
-            return "Pickup gear now"
-        }
-        if isAllDayEvent {
-            return "Pickup gear for event"
-        }
-        let time = gear.startsAt.formatted(date: .omitted, time: .shortened)
-        return "Pickup gear at \(time)"
-    }
-
 }
 
 /// A supporting line under a Next Up title. The bullet only earns its place
@@ -984,18 +966,15 @@ private struct ActionQueueRow: View {
                 StatusRail(tone: tone)
                 QueueKindGlyph(systemImage: systemImage, tone: tone)
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
+                VStack(alignment: .leading, spacing: 4) {
+                    QueueRowTitle(title)
                     if detailLines.isEmpty, let subtitle {
                         Text(subtitle)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     } else {
-                        VStack(alignment: .leading, spacing: 3) {
+                        VStack(alignment: .leading, spacing: 4) {
                             ForEach(detailLines, id: \.text) { line in
                                 QueueDetailText(
                                     text: line.text,

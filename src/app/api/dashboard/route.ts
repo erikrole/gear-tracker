@@ -318,7 +318,7 @@ export const GET = withAuth(async (req, { user }) => {
     db.booking.findMany({
       where: {
         status: "PENDING_PICKUP",
-        ...(isCollaborator ? { requesterUserId: user.id } : {}),
+        ...(isPersonalOnly ? { requesterUserId: user.id } : {}),
       },
       orderBy: { startsAt: "asc" },
       take: 5,
@@ -549,17 +549,21 @@ export const GET = withAuth(async (req, { user }) => {
     }));
   }
 
-  const teamCheckoutsTotalCount = isCollaborator ? 0 : counts.teamCheckoutsTotal;
-  const teamCheckoutsOverdueCount = isCollaborator ? 0 : counts.teamCheckoutsOverdue;
-  const teamReservationsTotalCount = isCollaborator ? 0 : counts.teamReservationsTotal;
+  // A personal-scope dashboard reports only the caller's own work. Team totals
+  // would otherwise contradict the rows beside them: the row queries above are
+  // already filtered to this user, so an org-wide "12 overdue" over an empty
+  // list reads as missing data rather than as somebody else's problem.
+  const teamCheckoutsTotalCount = isPersonalOnly ? 0 : counts.teamCheckoutsTotal;
+  const teamCheckoutsOverdueCount = isPersonalOnly ? 0 : counts.teamCheckoutsOverdue;
+  const teamReservationsTotalCount = isPersonalOnly ? 0 : counts.teamReservationsTotal;
   const myCheckoutsTotalCount = counts.myCheckoutsTotal;
   const myOverdueCount = counts.myOverdue;
-  const totalCheckedOut = isCollaborator ? counts.myCheckoutsTotal : counts.totalCheckedOut;
-  const totalOverdue = isCollaborator ? counts.myOverdue : counts.totalOverdue;
-  const totalReserved = isCollaborator ? myReservations.length : counts.totalReserved;
-  const dueTodayCount = isCollaborator ? counts.myDueToday : counts.dueToday;
-  const pendingPickupTotalCount = isCollaborator ? pendingPickupsRaw.length : counts.pendingPickupTotal;
-  const staleReservationTotalCount = isCollaborator ? 0 : counts.staleReservationTotal;
+  const totalCheckedOut = isPersonalOnly ? counts.myCheckoutsTotal : counts.totalCheckedOut;
+  const totalOverdue = isPersonalOnly ? counts.myOverdue : counts.totalOverdue;
+  const totalReserved = isPersonalOnly ? myReservations.length : counts.totalReserved;
+  const dueTodayCount = isPersonalOnly ? counts.myDueToday : counts.dueToday;
+  const pendingPickupTotalCount = isPersonalOnly ? pendingPickupsRaw.length : counts.pendingPickupTotal;
+  const staleReservationTotalCount = isPersonalOnly ? 0 : counts.staleReservationTotal;
 
   const teamCheckouts = teamCheckoutsRaw.map((c) => toBookingSummary(c, now, true));
   teamCheckouts.sort(sortOverdueFirst);

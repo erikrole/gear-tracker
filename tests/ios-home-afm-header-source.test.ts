@@ -80,21 +80,70 @@ describe("iOS Home header source contract", () => {
     expect(brand).toContain("// #ffedd5");
   });
 
-  it("keeps all-day event work rows date-only on Home", () => {
+  it("states a shift as event, date, call time, and event start", () => {
     const home = source("ios/Wisconsin/Views/HomeView.swift");
 
     expect(home).toContain("private var scheduleEvent: ScheduleEvent { work.asScheduleEvent }");
     expect(home).toContain("private var isAllDayEvent: Bool { scheduleEvent.displayAllDay }");
-    expect(home).toContain("private var timeMeta: String");
+    // "Football vs Notre Dame" — the Schedule tab's construction, not the raw
+    // calendar summary, so an event is named the same on both screens.
+    expect(home).toContain("private var title: String { scheduleEventDisplayTitle(scheduleEvent) }");
+    expect(home).not.toContain("Text(work.event.summary)");
+    // "Sunday, September 6" on its own line, which is why the meta column below
+    // carries a bare time and no weekday.
+    expect(home).toContain("private var dateLine: String");
+    expect(home).toContain(".formatted(.dateTime.weekday(.wide).month(.wide).day())");
     expect(home).toContain("scheduleEvent.spannedDays");
-    expect(home).toContain('return "\\(day), All day"');
+    expect(home).toContain("private var timeMeta: String");
+    expect(home).toContain('isAllDayEvent ? "All day" : work.event.startsAt.formatted(date: .omitted, time: .shortened)');
+    expect(home).not.toContain("private var firstTime: Date");
     // An all-day row has no call time to state, so the line drops out entirely
     // and the "All day" meta is what the accessibility label reads back.
     expect(home).toContain("private var callTimeLine: String?");
     expect(home).toContain("guard !isAllDayEvent else { return nil }");
     expect(home).toContain("parts.append(timeMeta)");
-    expect(home).toContain('return "Pickup gear for event"');
-    expect(home).not.toContain("Text(firstTime.formatted(.dateTime.weekday(.abbreviated).hour().minute()))");
+    // Gear is stated on its own Next Up row and in the detail sheet. A shift row
+    // says where to be and when, and nothing else.
+    expect(home).not.toContain("private var gearLine: String?");
+    expect(home).not.toContain('return "Pickup gear for event"');
+  });
+
+  it("gives call times only to home games, on every kind of Next Up row", () => {
+    const home = source("ios/Wisconsin/Views/HomeView.swift");
+
+    // Away and neutral crews travel with the team, so a shift start there is
+    // not a call time anyone reports to. One helper so a gear row linked to an
+    // event and a shift row can never disagree about that.
+    expect(home).toContain("private func queueCallTime(isHome: Bool?, at start: Date) -> String?");
+    expect(home).toContain("guard isHome == true else { return nil }");
+    expect(home).toContain('return "Call time \\(start.formatted(date: .omitted, time: .shortened))"');
+    expect(home).toContain("queueCallTime(isHome: work.event.isHome, at: work.shift.startsAt)");
+    expect(home).toContain("queueCallTime(isHome: shift.event.isHome, at: shift.startsAt)");
+    expect(home).not.toContain('"Call time at \\(');
+  });
+
+  it("titles Next Up rows in the Bookings list's Gotham face", () => {
+    const home = source("ios/Wisconsin/Views/HomeView.swift");
+    const bookings = source("ios/Wisconsin/Views/BookingsView.swift");
+
+    // Home and Bookings name the same work, so a row must not change typeface
+    // between the two lists.
+    expect(bookings).toContain(".font(.gothamBold(size: 16))");
+    expect(home).toContain("private struct QueueRowTitle: View");
+    expect(home).toContain(".font(.gothamBold(size: 16))");
+    expect(home).toContain("QueueRowTitle(title)");
+    expect(home).not.toContain('Text(title)\n                        .font(.subheadline.weight(.semibold))');
+  });
+
+  it("leaves freshness to pull-to-refresh instead of a synced stamp", () => {
+    const home = source("ios/Wisconsin/Views/HomeView.swift");
+
+    expect(home).toContain(".refreshable {");
+    expect(home).not.toContain("syncedStamp");
+    expect(home).not.toContain('Text("Synced ');
+    expect(home).not.toContain("Dashboard synced");
+    // The strip no longer needs the load timestamp at all.
+    expect(home).not.toContain("lastLoadedAt: vm.lastLoadedAt");
   });
 
   it("keeps Next Up rows informational, with kind glyphs instead of action chips", () => {
