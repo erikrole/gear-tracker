@@ -714,7 +714,10 @@ struct BookingRow: View {
         .padding(.vertical, 12)
         .padding(.horizontal, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.cardSurface)
+        // Faint red wash so an overdue row reads as different at a glance,
+        // rather than only by the hue of its rail and timing text. Deliberately
+        // light: a bad week can put several of these on screen at once.
+        .background(isOverdue ? Color.statusBackground(.red) : Color.cardSurface)
         .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
@@ -737,7 +740,11 @@ struct BookingRow: View {
                         statusBadge
                     }
                 }
-                timingLine(lineLimit: 1)
+                // Overdue rows carry a second clause ("· 18h overdue") that
+                // truncates away at larger type sizes, so let them wrap. Text
+                // only takes the second line when it needs it, so every other
+                // row keeps its current height.
+                timingLine(lineLimit: isOverdue ? 2 : 1)
                 metadataLine(lineLimit: 1)
             }
             disclosureIndicator
@@ -814,7 +821,11 @@ struct BookingRow: View {
         if booking.kind == .checkout {
             switch booking.status {
             case .open:
-                return ("Due \(booking.endsAt.operationalDateTimeLabel(now: now, capitalizesRelativeDay: false))", booking.endsAt < now)
+                let due = "Due \(booking.endsAt.operationalDateTimeLabel(now: now, capitalizesRelativeDay: false))"
+                guard booking.endsAt < now else { return (due, false) }
+                // How late, not just when it was due — the reader shouldn't
+                // have to subtract.
+                return ("\(due) · \(booking.endsAt.overdueLabel)", true)
             case .pendingPickup, .booked:
                 return ("Pickup \(booking.startsAt.operationalDateTimeLabel(now: now, capitalizesRelativeDay: false))", booking.startsAt < now)
             default:

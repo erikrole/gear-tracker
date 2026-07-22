@@ -150,3 +150,24 @@ extension Date {
         return "less than a minute"
     }
 }
+
+extension Date {
+    /// Elapsed-time phrasing for a deadline already passed. Rows pair this with
+    /// the absolute due time so "yesterday at 3:00 PM" doesn't leave the reader
+    /// doing the subtraction.
+    var overdueLabel: String {
+        let hours = Int(-self.timeIntervalSinceNow / 3600)
+        if hours < 24 { return "\(hours)h overdue" }
+        let days = hours / 24
+        return "\(days)d overdue"
+    }
+
+    var lateLabel: String {
+        let minutes = Int(-self.timeIntervalSinceNow / 60)
+        if minutes < 60 { return "\(max(minutes, 1))m late" }
+        let hours = minutes / 60
+        if hours < 24 { return "\(hours)h late" }
+        let days = hours / 24
+        return "\(days)d late"
+    }
+}

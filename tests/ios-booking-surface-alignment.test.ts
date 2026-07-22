@@ -7,10 +7,11 @@ describe("iOS booking surface alignment", () => {
   const bookingRow = bookings.slice(bookings.indexOf("struct BookingRow: View"));
 
   it("uses the same title, timing, and requester reading order as item detail", () => {
+    // Overdue rows let the timing line wrap, so match the call not its limit.
     expect(bookingRow.indexOf("bookingTitle.lineLimit(1)")).toBeLessThan(
-      bookingRow.indexOf("timingLine(lineLimit: 1)"),
+      bookingRow.indexOf("timingLine(lineLimit:"),
     );
-    expect(bookingRow.indexOf("timingLine(lineLimit: 1)")).toBeLessThan(
+    expect(bookingRow.indexOf("timingLine(lineLimit:")).toBeLessThan(
       bookingRow.indexOf("metadataLine(lineLimit: 1)"),
     );
     expect(bookingRow).toContain("Text(booking.requester.name)");

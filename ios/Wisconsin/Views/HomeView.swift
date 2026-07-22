@@ -1223,20 +1223,5 @@ private struct DraftRow: View {
 
 // MARK: - Helpers
 
-private extension Date {
-    var overdueLabel: String {
-        let hours = Int(-self.timeIntervalSinceNow / 3600)
-        if hours < 24 { return "\(hours)h overdue" }
-        let days = hours / 24
-        return "\(days)d overdue"
-    }
-
-    var lateLabel: String {
-        let minutes = Int(-self.timeIntervalSinceNow / 60)
-        if minutes < 60 { return "\(max(minutes, 1))m late" }
-        let hours = minutes / 60
-        if hours < 24 { return "\(hours)h late" }
-        let days = hours / 24
-        return "\(days)d late"
-    }
-}
+// `overdueLabel` / `lateLabel` moved to DateFormats.swift — the Bookings list
+// needs them too.
