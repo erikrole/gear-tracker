@@ -30,6 +30,7 @@ export const badges: BadgeService = {
   onCheckoutReturned: safeCall(evaluator.onCheckoutReturned),
   onScanResult: safeCall(evaluator.onScanResult),
   onTradeCompleted: safeCall(evaluator.onTradeCompleted),
+  onShiftsWorked: safeCall(evaluator.onShiftsWorked),
 };
 
 export type {
@@ -40,5 +41,6 @@ export type {
   CheckoutOpenedBadgeEvent,
   CheckoutReturnedBadgeEvent,
   ScanResultBadgeEvent,
+  ShiftsWorkedBadgeEvent,
   TradeCompletedBadgeEvent,
 } from "./types";

@@ -12,6 +12,7 @@ import {
   type CheckoutOpenedBadgeEvent,
   type CheckoutReturnedBadgeEvent,
   type ScanResultBadgeEvent,
+  type ShiftsWorkedBadgeEvent,
   type TradeCompletedBadgeEvent,
 } from "./types";
 
@@ -168,6 +169,33 @@ export async function onCheckoutOpened(event: CheckoutOpenedBadgeEvent): Promise
       trigger: "checkout:opened",
       count: checkoutCount,
     });
+
+    // Breadth, not volume. `category_collector` was a manual badge nobody ever
+    // awarded, though the fact it recognises -- this person has worked with
+    // most of the inventory -- is sitting in the booking rows.
+    const categories = await tx.booking.findMany({
+      where: {
+        requesterUserId: event.userId,
+        kind: BookingKind.CHECKOUT,
+        status: { in: [BookingStatus.OPEN, BookingStatus.COMPLETED] },
+      },
+      select: { serializedItems: { select: { asset: { select: { categoryId: true } } } } },
+    });
+    const distinctCategories = new Set(
+      categories.flatMap((booking) =>
+        booking.serializedItems
+          .map((item) => item.asset.categoryId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+
+    await awardThresholdBadges(tx, {
+      userId: event.userId,
+      category: BadgeCategory.MILESTONE,
+      trigger: "checkout:opened",
+      count: distinctCategories.size,
+      ruleKey: "category_collector",
+    });
   });
 }
 
@@ -201,6 +229,27 @@ export async function onCheckoutReturned(event: CheckoutReturnedBadgeEvent): Pro
       trigger: "checkout:returned",
       count: onTimeCount,
       ruleKey: "on_time_return",
+    });
+
+    // Returned complete and undamaged, which is the thing `perfect_handoff`
+    // and `full_kit_no_misses` asked staff to notice by hand and nobody ever
+    // did. A check-in report is the durable record of something going wrong,
+    // so its absence is the record of everything going right.
+    const damageFreeCount = await tx.booking.count({
+      where: {
+        requesterUserId: event.userId,
+        kind: BookingKind.CHECKOUT,
+        status: BookingStatus.COMPLETED,
+        checkinReports: { none: {} },
+      },
+    });
+
+    await awardThresholdBadges(tx, {
+      userId: event.userId,
+      category: BadgeCategory.ON_TIME,
+      trigger: "checkout:returned",
+      count: damageFreeCount,
+      ruleKey: "damage_free_return",
     });
 
     const streakCount = await incrementStreak(tx, {
@@ -268,6 +317,51 @@ export async function onScanResult(event: ScanResultBadgeEvent): Promise<void> {
         ruleKey: "zero_errors",
       });
     }
+  });
+}
+
+/**
+ * Recognition for shift work, counted from assignments to events that have
+ * already happened.
+ *
+ * These badges were retired in 2026-05 because attendance is not tracked, and
+ * that reasoning conflated two things: nobody records whether a person showed
+ * up, but the schedule does durably record who was committed to be there. That
+ * commitment is what the crew is recognised for, and until now the entire
+ * Schedule half of the product earned nothing at all.
+ *
+ * Counting from the database rather than incrementing a streak is what makes
+ * this safe to re-run nightly: `awardThresholdBadges` writes with
+ * `skipDuplicates`, so a second pass over the same shifts changes nothing.
+ *
+ * Archived events still count. `morning-refresh` stamps `archivedAt` on events
+ * older than four months purely as list hygiene -- "nothing is deleted" -- so
+ * excluding them would make a person's worked-shift total fall over time and
+ * strand them below a threshold they had already passed.
+ */
+export async function onShiftsWorked(event: ShiftsWorkedBadgeEvent): Promise<void> {
+  await runBadgeTransaction(async (tx) => {
+    const workedCount = await tx.shiftAssignment.count({
+      where: {
+        userId: event.userId,
+        status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
+        shift: {
+          shiftGroup: {
+            event: {
+              endsAt: { lt: new Date() },
+              status: "CONFIRMED",
+            },
+          },
+        },
+      },
+    });
+
+    await awardThresholdBadges(tx, {
+      userId: event.userId,
+      category: BadgeCategory.SHIFT,
+      trigger: "shift:completed",
+      count: workedCount,
+    });
   });
 }
 

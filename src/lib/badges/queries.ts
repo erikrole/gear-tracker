@@ -133,6 +133,9 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
   const needsCheckoutOpened = thresholdDefinitions.some((definition) => definition.trigger === "checkout:opened");
   const needsOnTimeReturns = thresholdDefinitions.some((definition) => definition.ruleKey === "on_time_return");
   const needsTrades = thresholdDefinitions.some((definition) => definition.trigger === "trade:completed");
+  const needsCategories = thresholdDefinitions.some((definition) => definition.ruleKey === "category_collector");
+  const needsDamageFree = thresholdDefinitions.some((definition) => definition.ruleKey === "damage_free_return");
+  const needsShifts = thresholdDefinitions.some((definition) => definition.trigger === "shift:completed");
   const streakTypes = new Set<BadgeStreakType>();
 
   for (const definition of thresholdDefinitions) {
@@ -146,6 +149,9 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
     completedCheckouts,
     tradeCount,
     streaks,
+    categoryRows,
+    damageFreeCount,
+    shiftsWorkedCount,
   ] = await Promise.all([
     needsCheckoutOpened
       ? db.booking.count({
@@ -186,7 +192,44 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
           select: { streakType: true, current: true, longest: true },
         })
       : Promise.resolve([]),
+    needsCategories
+      ? db.booking.findMany({
+          where: {
+            requesterUserId: userId,
+            kind: BookingKind.CHECKOUT,
+            status: { in: [BookingStatus.OPEN, BookingStatus.COMPLETED] },
+          },
+          select: { serializedItems: { select: { asset: { select: { categoryId: true } } } } },
+        })
+      : Promise.resolve([]),
+    needsDamageFree
+      ? db.booking.count({
+          where: {
+            requesterUserId: userId,
+            kind: BookingKind.CHECKOUT,
+            status: BookingStatus.COMPLETED,
+            checkinReports: { none: {} },
+          },
+        })
+      : Promise.resolve(0),
+    needsShifts
+      ? db.shiftAssignment.count({
+          where: {
+            userId,
+            status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
+            shift: { shiftGroup: { event: { endsAt: { lt: new Date() }, status: "CONFIRMED" } } },
+          },
+        })
+      : Promise.resolve(0),
   ]);
+
+  const distinctCategoryCount = new Set(
+    categoryRows.flatMap((booking) =>
+      booking.serializedItems
+        .map((item) => item.asset.categoryId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ).size;
 
   const onTimeReturnCount = completedCheckouts.filter(
     (booking) => (booking.completedAt ?? booking.updatedAt).getTime() <= booking.endsAt.getTime() + ON_TIME_GRACE_MS,
@@ -197,9 +240,15 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
     const target = definition.threshold;
     if (target === null) continue;
 
+    // Rule key first. `category_collector` and the damage-free badges ride on
+    // triggers that already mean something else, so testing the trigger first
+    // would report a checkout total as category breadth.
     let current: number | null = null;
-    if (definition.trigger === "checkout:opened") current = checkoutOpenedCount;
+    if (definition.ruleKey === "category_collector") current = distinctCategoryCount;
+    else if (definition.ruleKey === "damage_free_return") current = damageFreeCount;
     else if (definition.ruleKey === "on_time_return") current = onTimeReturnCount;
+    else if (definition.trigger === "shift:completed") current = shiftsWorkedCount;
+    else if (definition.trigger === "checkout:opened") current = checkoutOpenedCount;
     else if (definition.trigger === "scan:success") current = streakMap.get(BadgeStreakType.SCAN_SUCCESS_COUNT)?.current ?? 0;
     else if (definition.ruleKey === "zero_errors") current = streakMap.get(BadgeStreakType.SCAN_CLEAN)?.current ?? 0;
     else if (definition.ruleKey === "on_time_return_streak") current = streakMap.get(BadgeStreakType.ON_TIME_RETURN)?.current ?? 0;

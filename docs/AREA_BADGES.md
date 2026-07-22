@@ -4,7 +4,7 @@
 - Area: Badges
 - Owner: Wisconsin Athletics Creative Product
 - Created: 2026-05-09
-- Last Updated: 2026-05-12
+- Last Updated: 2026-07-22
 - Status: Active, Badge Achievements MVP verified with feature flag off-safe behavior
 - Plan: `tasks/badge-achievements-plan.md`
 - Decision Refs: D-034
@@ -14,7 +14,7 @@ Badges are lightweight recognition for every active user inside the existing ops
 
 ## Core Rules
 1. `BADGES_ENABLED !== "true"` returns before any badge evaluator work, database query, or side effect.
-2. Badge events attach to service-level outcomes: kiosk checkout/pickup open, checkout return completion, kiosk scan result, and trade completion.
+2. Badge events attach to service-level outcomes: kiosk checkout/pickup open, checkout return completion, kiosk scan result, and trade completion. Badges are never awarded for time passing, a route visit, or a page view. **Narrowed 2026-07-22:** shift work has no request to attach to -- nothing calls the server when a game ends -- so `onShiftsWorked` is evaluated nightly from `morning-refresh`, which already identifies events that have ended. The cron is when the outcome is noticed, not the outcome itself; the shift genuinely happened. This is the only evaluator without a request-scoped trigger, and it is idempotent by construction rather than by `sourceKey`.
 3. Legacy app checkout scan stubs remain non-events. They stay kiosk-gated 403 routes and award nothing.
 4. Badge definitions are seeded by immutable `key`. Typos are fixed by retiring a definition with `active=false` and creating a new key.
 5. User awards are idempotent by `(userId, definitionId)`.
@@ -32,6 +32,7 @@ Badges are lightweight recognition for every active user inside the existing ops
 | `onCheckoutReturned` | `src/lib/services/bookings-checkin.ts:markCheckoutCompleted` and `maybeAutoComplete` only when status flips into `COMPLETED` | Complete |
 | `onScanResult` | `src/app/api/kiosk/checkout/scan`, `src/app/api/kiosk/pickup/[id]/scan`, `src/app/api/kiosk/checkin/[id]/scan` | Complete |
 | `onTradeCompleted` | `src/lib/services/shift-trades.ts:claimTrade` immediate-complete branch and `approveTrade`, through one transition helper | Complete |
+| `onShiftsWorked` | `src/app/api/cron/morning-refresh/route.ts`, nightly, for anyone whose assignment sat on an event that ended in the last two days | Complete |
 
 ## Data Model
 - `BadgeDefinition`: seeded catalog. Uses immutable `key`, display copy, icon name, category, kind, trigger, threshold, rule key, active flag, and sort order. The canonical launch catalog is seeded by migration `0064_seed_badge_definitions` so production deploys do not depend on `prisma/seed.mjs`.
@@ -48,8 +49,8 @@ Badges are lightweight recognition for every active user inside the existing ops
 - No badge count, chip row, or recognition chrome in the profile hero.
 - The badge tab uses shadcn primitives as a flat, medallion-first trophy shelf: one summary band (completion percent, progress bar, earned/remaining/hidden counts), then five always-visible shelf sections — no drill-in level. Each badge lives on exactly one shelf.
 - Shelves group badges into Gear Flow, Reliability, Scans, Teamwork, and Staff Picks (manual/milestone recognition wins over thematic key hints). Each shelf shows a compact header with icon, description, and earned/total tabular count over a responsive grid of tiles.
-- Badge tiles lead with the artifact medallion (locked = grayscale, rarity = rim tone) over the name and one quiet meta line (earned date, progress x/y, requirement, or unlock hint); status/rarity/manual chips live only in the detail dialog. Recent awards keep the one-week glow and a New chip.
-- iOS mirrors the same vocabulary: shaped SwiftUI medallions (coin/hex/shield/stack silhouettes matching the web SVG paths), the same five collection sections in the gallery sheet, compact medallion-first tiles, and a horizontal earned-badge shelf on the profile card.
+- Badge tiles lead with the artifact medallion (locked keeps its own icon dimmed rather than a padlock, rarity = rim tone) over the name and one quiet meta line (earned date, progress x/y, requirement, or unlock hint); status/rarity/manual chips live only in the detail dialog. Recent awards keep the one-week glow and a New chip.
+- iOS shares the vocabulary but not the medallion shapes: one ringed disc for every badge, tinted by rarity. The per-category coin/hex/shield/stack silhouettes were removed on 2026-07-22 -- `stack` rendered as a notched square behind an offset second square, which read as a clipping fault rather than a medal. The badge card is a horizontal earned shelf plus live streak rows and a closest-to-earned progress row; the gallery sheet keeps the same five collection sections.
 - A few surprise badges stay hidden from the locked grid until earned; the available section shows how many surprise badges remain hidden.
 - The badge profile API loads active definitions plus historical earned inactive definitions in one Prisma call that includes the user's award row.
 - The badge profile API adds progress only when it can derive it from real counters or streak state. Manual and unsupported rule badges remain rule-based with no fake progress bar.
@@ -59,6 +60,12 @@ Badges are lightweight recognition for every active user inside the existing ops
 - Manual award selection shows staff guidance for fun/manual badges so admins award them consistently. Admins can also create a custom badge from the same dialog, award it immediately, and reuse that custom definition from the existing badge selector for later users.
 - Award notifications are persistent inbox entries that link to `/users/{userId}?tab=badges`.
 - Manual awards are admin-only through the existing user admin actions menu. They can target any active user, persist `source=MANUAL`, `awardedById`, and an optional note, and create a persistent inbox notification unless `User.notificationPrefs.badges === false`.
+
+## Rarity
+Rarity is computed from how many people hold a badge, not from a hardcoded list. `getBadgeRarity` in `src/lib/badges/display.ts` buckets holder share among active users: >=50% Common, >=20% Uncommon, >=5% Rare, below that Legendary. Two guards keep scarcity honest -- a badge with zero holders, or a definition younger than 30 days, has not had a chance to be earned, so it falls back to the difficulty-based rating. The API serves `rarity` and `holders` on every badge row; web and iOS render the served value rather than keeping their own tables.
+
+## Streaks
+`BadgeStreak` has always stored `current` and `longest` per user. The badge profile payload now exposes `ON_TIME_RETURN` and `SCAN_CLEAN` as `streaks[]`, and native Home renders them on the badge card. `SCAN_SUCCESS_COUNT` stays out: it is a durable lifetime counter, not a run, and cannot be broken.
 
 ## Starting Badge Set
 - Checkout: `first_checkout`, `checkout_5`, `checkout_25`, `checkout_100`
@@ -95,6 +102,7 @@ Badges are lightweight recognition for every active user inside the existing ops
 ## Change Log
 | Date | Change |
 |---|---|
+| 2026-07-22 | Badge system rethought against live award data (33 definitions, 67 awards, 14 users). **Icons:** every badge on iOS rendered `seal.fill` -- `BadgeDefinition.icon` holds Lucide names and the iOS `sfSymbolName` map knew twelve unrelated ones, overlapping on `Trophy` alone, so 31 of 33 badges collapsed to one glyph. The map now covers the whole catalog, guarded by `tests/ios-badge-icon-coverage.test.ts`; locked badges show their own icon dimmed instead of `lock.fill`; the badge card gained the closest-to-earned progress row and the streak rows. **Rarity:** replaced four hardcoded key lists that had drifted into falsehood (`zero_errors` labelled Uncommon while held by 10 of 14 users; `checkout_25` labelled Common while held by nobody) with holder-share computation served from the API. **Catalog** (`0100_badge_catalog_rebalance`): added `checkout_10`, `on_time_25`, `scan_50`, `damage_free_10`, `damage_free_50`; converted `category_collector` from manual to automatic on distinct checked-out categories; revived `first_shift`/`shift_10`/`shift_50` from assignments to ended events; retired seven manual badges with zero awards since launch (`perfect_handoff`, `clean_loop`, `full_kit_no_misses`, `semester_streak`, `rookie_run`, `reliable_regular`, `clutch_cover`), keeping `above_and_beyond` and `event_hero` as catch-alls. Nothing deleted -- retirement is `active=false` and awarded rows still render. Core rule 2 narrowed to admit the nightly shift evaluation. |
 | 2026-07-02 | Badges awards and sections redesigned on web and iOS around a flat "trophy shelf" model. Web: the two-level collection-card → drill-in navigation was removed; the tab now shows one summary band (completion + progress bar + earned/remaining/hidden) and five always-visible shelf sections of compact medallion-first tiles (each badge on exactly one shelf; staff recognition wins over thematic hints). Tile chip rows were dropped — locked reads as grayscale medallion, rarity as rim tone, chips live in the unchanged detail dialog. iOS: web's coin/hex/shield/stack medallion silhouettes were ported as SwiftUI Shapes with rarity fill/stroke; the profile badge card became a horizontal earned-medallion shelf; the gallery sheet groups into the same five collections with compact tiles (descriptions moved to the detail sheet). Verified with mock-data scratch-route screenshots (light/dark, filters, dialog), `npm run build:app`, vitest, and Wisconsin simulator build. |
 | 2026-05-14 | Award badge dialog redesigned with a live preview header (rarity-aware gradient, centered hex medallion, badge name updates as you configure), custom icon grid picker replacing the Select dropdown, and a cleaner form layout with explicit note label + updated placeholder. No logic changes. |
 | 2026-05-13 | Product scope cleanup retired attendance-based shift badges. `first_shift`, `shift_10`, `shift_50`, `streak_shifts_5`, and `streak_shifts_10` are no longer active catalog goals because attendance tracking is not a planned badge source. Shift request approval remains a non-event for badge awards. |

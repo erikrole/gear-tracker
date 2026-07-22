@@ -158,7 +158,7 @@
 | `src/lib/shift-display.ts` | 71 |
 | `src/lib/shift-notification-workflow.ts` | 18 |
 | `src/lib/sports.ts` | 78 |
-| `src/lib/status-colors.ts` | 40 |
+| `src/lib/status-colors.ts` | 49 |
 | `src/lib/status-styles.ts` | 46 |
 | `src/lib/student-availability.ts` | 189 |
 | `src/lib/student-profile.ts` | 56 |
@@ -172,7 +172,7 @@
 | `src/lib/validation.ts` | 690 |
 | `src/lib/venue-mapping-audit.ts` | 56 |
 | `src/lib/venue-mapping-contract.ts` | 46 |
-| `src/lib/venue-tone.ts` | 92 |
+| `src/lib/venue-tone.ts` | 97 |
 
 ## API Route Groups
 

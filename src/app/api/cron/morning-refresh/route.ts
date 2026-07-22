@@ -9,6 +9,7 @@ import { expirePendingPickupCheckouts } from "@/lib/services/pending-pickup-expi
 import { pollFirmwareWatchTargets } from "@/lib/services/firmware-watch";
 import { DEFAULT_RESERVATION_RULES } from "@/lib/services/reservation-rules";
 import { getScheduleAutomationDigest } from "@/lib/services/schedule-automation";
+import { badges, badgesEnabled } from "@/lib/badges";
 
 function maintenanceValue<T>(
   result: PromiseSettledResult<T>,
@@ -22,6 +23,10 @@ function maintenanceValue<T>(
   return fallback;
 }
 
+/** How far back to look for shifts that just finished. The cron runs nightly;
+ *  two days is that cadence plus slack for a missed or delayed run. */
+const SHIFT_BADGE_LOOKBACK_MS = 2 * 24 * 60 * 60 * 1000;
+
 /** Events older than this many months are soft-archived (archivedAt stamped). */
 const EVENT_ARCHIVE_MONTHS = 4;
 
@@ -29,7 +34,8 @@ const EVENT_ARCHIVE_MONTHS = 4;
  * Nightly 3 AM Central refresh (08:00 UTC):
  *   1. Sync all enabled calendar sources (fetch ICS, upsert events)
  *   2. Generate shifts for any newly synced events
- *   3. Archive shift groups for events that have ended
+ *   3. Archive shift groups for events that have ended, and award shift badges
+ *      for the crew whose shifts just finished
  *   4. Archive calendar events older than EVENT_ARCHIVE_MONTHS
  *   5. Expire stale open trades and pending kiosk pickups
  *   6. Poll official firmware watch targets
@@ -120,6 +126,40 @@ export const GET = withCron(async () => {
     archived = result.count;
   }
 
+  // ── 2b. Recognise shift work that just finished ──────────────────────
+  // Nothing calls the server when a game ends, so this is the one badge family
+  // without a request to hang itself on. It is bounded to people whose shift
+  // ended in the last couple of days -- the nightly cadence plus slack -- and
+  // each evaluation recounts that person's full history, so a first qualifying
+  // shift awards every threshold they had already passed.
+  let shiftBadgeUsers = 0;
+  if (badgesEnabled()) {
+    try {
+      const recentlyEnded = await db.shiftAssignment.findMany({
+        where: {
+          status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
+          shift: {
+            shiftGroup: {
+              event: {
+                status: "CONFIRMED",
+                endsAt: { lt: now, gte: new Date(now.getTime() - SHIFT_BADGE_LOOKBACK_MS) },
+              },
+            },
+          },
+        },
+        select: { userId: true },
+        distinct: ["userId"],
+      });
+
+      for (const { userId } of recentlyEnded) {
+        await badges.onShiftsWorked({ userId });
+      }
+      shiftBadgeUsers = recentlyEnded.length;
+    } catch (err) {
+      console.error("morning-refresh: shift badge step failed", err);
+    }
+  }
+
   // ── 3. Archive old calendar events ───────────────────────────────────
   const archiveCutoff = new Date(now);
   archiveCutoff.setMonth(archiveCutoff.getMonth() - EVENT_ARCHIVE_MONTHS);
@@ -197,6 +237,7 @@ export const GET = withCron(async () => {
     sourcesProcessed: sources.length,
     syncResults,
     shiftGroupsArchived: archived,
+    shiftBadgeUsers,
     eventsArchived,
     tradesExpired,
     pendingPickups,

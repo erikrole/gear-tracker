@@ -20,6 +20,9 @@ const { mockTx } = vi.hoisted(() => ({
     shiftTrade: {
       count: vi.fn(),
     },
+    shiftAssignment: {
+      count: vi.fn(),
+    },
   },
 }));
 
@@ -31,7 +34,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 import { db } from "@/lib/db";
-import { onCheckoutOpened, onCheckoutReturned, onScanResult, onTradeCompleted } from "@/lib/badges/evaluator";
+import { onCheckoutOpened, onCheckoutReturned, onScanResult, onShiftsWorked, onTradeCompleted } from "@/lib/badges/evaluator";
 
 const dbMock = db as unknown as {
   $transaction: ReturnType<typeof vi.fn>;
@@ -41,6 +44,62 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockTx.studentBadge.createMany.mockResolvedValue({ count: 0 });
   mockTx.badgeStreak.upsert.mockResolvedValue({});
+  mockTx.booking.findMany.mockResolvedValue([]);
+});
+
+describe("badge evaluator shift work", () => {
+  it("awards shift badges from assignments to events that have ended", async () => {
+    mockTx.shiftAssignment.count.mockResolvedValue(10);
+    mockTx.badgeDefinition.findMany.mockResolvedValue([{ id: "first-shift" }, { id: "shift-10" }]);
+
+    await onShiftsWorked({ userId: "user-1" });
+
+    expect(mockTx.badgeDefinition.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          active: true,
+          category: "SHIFT",
+          trigger: "shift:completed",
+          threshold: { not: null, lte: 10 },
+        }),
+      }),
+    );
+    expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
+      data: [
+        { userId: "user-1", definitionId: "first-shift" },
+        { userId: "user-1", definitionId: "shift-10" },
+      ],
+      skipDuplicates: true,
+    });
+  });
+
+  it("counts archived events too", async () => {
+    // `morning-refresh` stamps archivedAt on events older than four months as
+    // list hygiene. Excluding them would make a worked-shift total fall over
+    // time and strand someone below a threshold they had already passed.
+    mockTx.shiftAssignment.count.mockResolvedValue(3);
+    mockTx.badgeDefinition.findMany.mockResolvedValue([]);
+
+    await onShiftsWorked({ userId: "user-1" });
+
+    const where = mockTx.shiftAssignment.count.mock.calls[0][0].where;
+    expect(JSON.stringify(where)).not.toContain("archivedAt");
+  });
+
+  it("is safe to re-run nightly forever", async () => {
+    // There is no sourceKey to dedupe on. Idempotency comes from counting the
+    // database and writing with skipDuplicates, so a second pass over the same
+    // shifts asks for exactly the same rows and changes nothing.
+    mockTx.shiftAssignment.count.mockResolvedValue(10);
+    mockTx.badgeDefinition.findMany.mockResolvedValue([{ id: "first-shift" }, { id: "shift-10" }]);
+
+    await onShiftsWorked({ userId: "user-1" });
+    await onShiftsWorked({ userId: "user-1" });
+
+    const [first, second] = mockTx.studentBadge.createMany.mock.calls;
+    expect(second).toEqual(first);
+    expect(first[0].skipDuplicates).toBe(true);
+  });
 });
 
 describe("badge evaluator checkout events", () => {
@@ -87,9 +146,15 @@ describe("badge evaluator checkout events", () => {
         completedAt: new Date("2026-05-08T18:20:00.000Z"),
       },
     ]);
-    mockTx.badgeDefinition.findMany
-      .mockResolvedValueOnce([{ id: "on-time-1" }])
-      .mockResolvedValueOnce([{ id: "streak-5" }]);
+    // Keyed off the query rather than call order: `onCheckoutReturned` now runs
+    // three award lanes -- on-time count, damage-free count, and the streak --
+    // and an ordered mock queue silently mis-assigns them.
+    mockTx.badgeDefinition.findMany.mockImplementation(async ({ where }: { where: Record<string, unknown> }) => {
+      if (where.ruleKey === "on_time_return") return [{ id: "on-time-1" }];
+      if (where.ruleKey === "on_time_return_streak") return [{ id: "streak-5" }];
+      return [];
+    });
+    mockTx.booking.count.mockResolvedValue(0);
     mockTx.badgeStreak.findUnique.mockResolvedValue({
       current: 4,
       longest: 4,
@@ -119,7 +184,11 @@ describe("badge evaluator checkout events", () => {
         }),
       }),
     );
-    expect(mockTx.studentBadge.createMany).toHaveBeenCalledTimes(2);
+    // The on-time badge and the streak badge, each written once.
+    const written = mockTx.studentBadge.createMany.mock.calls.flatMap(
+      (call: [{ data: Array<{ definitionId: string }> }]) => call[0].data.map((row) => row.definitionId),
+    );
+    expect(written).toEqual(["on-time-1", "streak-5"]);
   });
 
   it("does not increment the on-time streak twice for the same source key", async () => {
@@ -130,7 +199,10 @@ describe("badge evaluator checkout events", () => {
         completedAt: new Date("2026-05-09T18:01:00.000Z"),
       },
     ]);
-    mockTx.badgeDefinition.findMany.mockResolvedValueOnce([{ id: "on-time-1" }]);
+    mockTx.badgeDefinition.findMany.mockImplementation(async ({ where }: { where: Record<string, unknown> }) => (
+      where.ruleKey === "on_time_return" ? [{ id: "on-time-1" }] : []
+    ));
+    mockTx.booking.count.mockResolvedValue(0);
     mockTx.badgeStreak.findUnique.mockResolvedValue({
       current: 1,
       longest: 1,
@@ -146,7 +218,11 @@ describe("badge evaluator checkout events", () => {
     });
 
     expect(mockTx.badgeStreak.upsert).not.toHaveBeenCalled();
-    expect(mockTx.badgeDefinition.findMany).toHaveBeenCalledTimes(1);
+    // No streak lane ran, so no streak badge was ever looked up.
+    const ruleKeys = mockTx.badgeDefinition.findMany.mock.calls.map(
+      (call: [{ where: { ruleKey?: string } }]) => call[0].where.ruleKey,
+    );
+    expect(ruleKeys).not.toContain("on_time_return_streak");
   });
 
   it("counts on-time returns from completedAt even when later edits move updatedAt", async () => {

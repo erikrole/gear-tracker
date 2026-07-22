@@ -97,7 +97,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/settings/kiosk-devices`
 - APIs: `/api/kiosk-devices/[id]/regenerate-code`, `/api/kiosk-devices/[id]`, `/api/kiosk-devices`, `/api/kiosk/activate`, `/api/kiosk/checkin/[id]/complete`, `/api/kiosk/checkin/[id]/scan`, `/api/kiosk/checkout/[id]`, `/api/kiosk/checkout/availability`, `/api/kiosk/checkout/complete`, `/api/kiosk/checkout/scan`
 - Services: `src/lib/services/kiosk-checkout-complete.ts`, `src/lib/services/kiosk-location.ts`, `src/lib/services/kiosk-scan.ts`
-- Tests: `tests/bulk-unit-kiosk-scans.test.ts`, `tests/ios-accessibility-layout-hardening.test.ts`, `tests/ios-api-contract.test.ts`, `tests/ios-app-intents.test.ts`, `tests/ios-appstate-refresh.test.ts`, `tests/ios-async-request-ownership.test.ts`, `tests/ios-booking-actions-edit-reservation-setup.test.ts`, `tests/ios-booking-detail-redesign.test.ts`
+- Tests: `tests/bulk-unit-kiosk-scans.test.ts`, `tests/ios-accessibility-layout-hardening.test.ts`, `tests/ios-api-contract.test.ts`, `tests/ios-app-intents.test.ts`, `tests/ios-appstate-refresh.test.ts`, `tests/ios-async-request-ownership.test.ts`, `tests/ios-badge-icon-coverage.test.ts`, `tests/ios-booking-actions-edit-reservation-setup.test.ts`
 
 ## notifications
 

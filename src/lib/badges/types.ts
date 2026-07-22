@@ -47,9 +47,23 @@ export type TradeCompletedBadgeEvent = {
   sourceKey: string;
 };
 
+/**
+ * A shift someone was assigned to has finished.
+ *
+ * Unlike the other events there is no request to hang this on -- nothing calls
+ * the server when a game ends. It is evaluated nightly from events that have
+ * already ended, and carries no `sourceKey` because it needs none: the count is
+ * read from the database and awards are idempotent by `(userId, definitionId)`,
+ * so re-running it forever is a no-op.
+ */
+export type ShiftsWorkedBadgeEvent = {
+  userId: string;
+};
+
 export type BadgeService = {
   onCheckoutOpened(event: CheckoutOpenedBadgeEvent): Promise<void>;
   onCheckoutReturned(event: CheckoutReturnedBadgeEvent): Promise<void>;
   onScanResult(event: ScanResultBadgeEvent): Promise<void>;
   onTradeCompleted(event: TradeCompletedBadgeEvent): Promise<void>;
+  onShiftsWorked(event: ShiftsWorkedBadgeEvent): Promise<void>;
 };
