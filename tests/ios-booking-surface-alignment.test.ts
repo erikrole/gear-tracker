@@ -28,9 +28,10 @@ describe("iOS booking surface alignment", () => {
   });
 
   it("lets the rail and timing color carry active checkout urgency without a duplicate badge", () => {
-    expect(bookingRow).toContain(
-      "booking.kind != .checkout || booking.status != .open",
-    );
+    // Open checkouts (blue rail + "Due") and booked rows (purple rail +
+    // "Pickup") are already self-describing, so neither takes a badge.
+    expect(bookingRow).toContain("case .open: booking.kind != .checkout");
+    expect(bookingRow).toContain("case .booked: false");
     expect(bookingRow).toContain("if showsStatusBadge");
     expect(bookingRow).toContain("StatusRail(tone: accentTone)");
     expect(bookingRow).toContain("capitalizesRelativeDay: false");

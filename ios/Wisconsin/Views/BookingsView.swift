@@ -356,7 +356,10 @@ struct BookingsView: View {
                         } label: {
                             Image(systemName: vm.mineOnly ? "person.crop.circle.fill" : "person.crop.circle")
                         }
-                        .tint(vm.mineOnly ? Color.brandPrimary : Color.primary)
+                        // Blue for the active filter rather than brand red —
+                        // red is reserved for overdue, and this toggle sits
+                        // directly above rows that use it.
+                        .tint(vm.mineOnly ? Color.statusText(.blue) : Color.primary)
                         .accessibilityLabel(vm.mineOnly ? "Showing my bookings. Show all bookings" : "Show my bookings")
                         .accessibilityValue(vm.mineOnly ? "Mine" : "All")
                     }
@@ -364,6 +367,9 @@ struct BookingsView: View {
                         Button { showCreate = true } label: {
                             Image(systemName: "plus")
                         }
+                        // Purple: this creates a reservation, so it carries the
+                        // colour of what it produces.
+                        .tint(Color.statusText(.purple))
                         .accessibilityLabel("New Reservation")
                     }
                 }
@@ -674,9 +680,15 @@ struct BookingRow: View {
         booking.serializedItems.count + booking.bulkItems.count
     }
 
-    /// The rail and timing color carry active-checkout urgency, including overdue.
+    /// The rail and timing color carry the state on their own: blue rail plus
+    /// "Due" reads as out, purple rail plus "Pickup" reads as reserved. A
+    /// badge restating either is noise, so only the odder statuses get one.
     private var showsStatusBadge: Bool {
-        booking.kind != .checkout || booking.status != .open
+        switch booking.status {
+        case .open: booking.kind != .checkout
+        case .booked: false
+        default: true
+        }
     }
 
     /// Accent tone for the leading bar — overdue shouts red, otherwise the
@@ -809,9 +821,8 @@ struct BookingRow: View {
                 return ("Due \(booking.endsAt.operationalDateTimeLabel(now: now, capitalizesRelativeDay: false))", false)
             }
         }
-        return booking.startsAt > now
-            ? ("Starts \(booking.startsAt.operationalDateTimeLabel(now: now, capitalizesRelativeDay: false))", false)
-            : ("Started \(booking.startsAt.operationalDayLabel(now: now).lowercased())", false)
+        // "Pickup", not "Starts" — the row's job is to name the next action.
+        return ("Pickup \(booking.startsAt.operationalDateTimeLabel(now: now, capitalizesRelativeDay: false))", false)
     }
 
     private var rowAccessibilityLabel: String {
@@ -827,7 +838,7 @@ struct BookingRow: View {
         if booking.kind == .checkout {
             parts.append("Due \(booking.endsAt.operationalDateTimeLabel(now: .now, capitalizesRelativeDay: false))")
         } else {
-            parts.append("Starts \(booking.startsAt.operationalDateTimeLabel(now: .now, capitalizesRelativeDay: false))")
+            parts.append("Pickup \(booking.startsAt.operationalDateTimeLabel(now: .now, capitalizesRelativeDay: false))")
         }
         return parts.joined(separator: ", ")
     }
