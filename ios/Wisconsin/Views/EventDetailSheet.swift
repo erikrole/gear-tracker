@@ -741,11 +741,7 @@ struct EventDetailView: View {
     }
 
     private var eventRailColor: Color {
-        switch event.isHome {
-        case true: return Color.statusText(.green)
-        case false: return Color.statusText(.orange)
-        case nil: return Color(.systemGray3)
-        }
+        venueRailColor(isHome: event.isHome)
     }
 
     private var eventVenueName: String? {
@@ -999,11 +995,7 @@ struct CoveragePill: View {
             .accessibilityLabel("Crew coverage: \(coverage.filled) of \(coverage.total) filled")
     }
 
-    private var tone: StatusTone {
-        if coverage.percentage >= 100 { return .green }
-        if coverage.percentage > 0 { return .orange }
-        return .red
-    }
+    private var tone: StatusTone { coverageTone(coverage) }
 }
 
 // MARK: - Area Block

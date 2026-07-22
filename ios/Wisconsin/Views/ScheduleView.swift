@@ -789,11 +789,7 @@ private func publishedEventDate(_ event: PublishedEventSummary) -> String {
 }
 
 private func publishedEventRailColor(_ event: PublishedEventSummary) -> Color {
-    switch event.isHome {
-    case true: Color.statusText(.green)
-    case false: Color.statusText(.orange)
-    case nil: Color(.systemGray4)
-    }
+    venueRailColor(isHome: event.isHome)
 }
 
 private func publishedCrewCount(_ count: Int) -> String {
@@ -1954,13 +1950,7 @@ struct ScheduleCalendarView: View {
         let visible = filteredEvents(on: date)
         return visible.prefix(3).map { event in
             let isShift = shiftsByEventId[event.id] != nil
-            let color: Color
-            switch event.isHome {
-            case true:  color = Color.statusText(.green)
-            case false: color = Color.statusText(.orange)
-            default:    color = Color(.systemGray3)
-            }
-            return DotInfo(color: color, isShift: isShift)
+            return DotInfo(color: venueRailColor(isHome: event.isHome), isShift: isShift)
         }
     }
 }
@@ -2371,20 +2361,10 @@ struct EventRow: View {
         .accessibilityHidden(true) // surfaced via the combined row label
     }
 
-    private func coverageTone(_ cov: ShiftCoverage) -> StatusTone {
-        if cov.percentage >= 100 { return .green }
-        if cov.percentage > 0 { return .orange }
-        return .red
-    }
-
-    /// The left rail now always encodes the venue (home/away/neutral); "my shift"
+    /// The left rail always encodes the venue (home/away/neutral); "my shift"
     /// is signalled by the card's accent stroke instead, so the two don't fight.
     private var barColor: Color {
-        switch event.isHome {
-        case true:  return Color.statusText(.green)
-        case false: return Color.statusText(.orange)
-        default:    return Color(.systemGray4)
-        }
+        venueRailColor(isHome: event.isHome)
     }
 
     private var eventTimeLabel: String {

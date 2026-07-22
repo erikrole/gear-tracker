@@ -780,16 +780,11 @@ private func queueGearTone(for summary: BookingSummary) -> StatusTone {
     }
 }
 
-/// Shift rows inherit the scheduling domain's location colors instead: green
-/// home, orange away, gray for neutral sites and non-games, matching the rails
-/// on the Schedule tab. The two domains share one chronological list, so the
+/// Shift rows inherit the scheduling domain's location colors instead, via the
+/// shared `venueTone`. The two domains share one chronological list, so the
 /// row's glyph -- box or calendar -- is what says which vocabulary to read.
 private func queueVenueTone(for event: DashboardEventWorkEvent) -> StatusTone {
-    switch event.isHome {
-    case true: return .green
-    case false: return .orange
-    case nil: return .gray
-    }
+    venueTone(isHome: event.isHome)
 }
 
 /// A Next Up row plus the moment it sorts on, so rows of different kinds can

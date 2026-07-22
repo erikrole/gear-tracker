@@ -742,11 +742,7 @@ private extension ShiftTradeShift {
         }
     }
     var classificationColor: Color {
-        switch shiftGroup?.event?.isHome {
-        case true: Color.statusText(.green)
-        case false: Color.statusText(.orange)
-        case nil: Color.statusText(.gray)
-        }
+        venueRailColor(isHome: shiftGroup?.event?.isHome)
     }
 }
 

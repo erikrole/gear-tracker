@@ -44,13 +44,18 @@ export const VENUE_TONES: Record<VenueTone, VenueToneStyle> = {
     surfaceClass: "bg-muted/50 hover:bg-muted",
     activeTabClass: "bg-muted text-foreground",
   },
+  // Non-game keeps its own label and filter, but not its own color: it is the
+  // absence of a venue direction, same as neutral. It used to paint rails and
+  // surfaces with `--blue` while its badge stayed gray -- one concept wearing
+  // two colors in a single object -- and blue is what the gear domain uses for
+  // active custody, so it was borrowed from a vocabulary it has no part in.
   "non-game": {
     label: "Non-game",
     badgeVariant: "gray",
-    railClass: "border-l-[var(--blue)]",
-    solidClass: "bg-[var(--blue)]",
-    surfaceClass: "bg-[var(--blue)]/10 hover:bg-[var(--blue)]/18",
-    activeTabClass: "bg-[var(--blue)]/15 text-[var(--blue-text)]",
+    railClass: "border-l-muted-foreground/35",
+    solidClass: "bg-muted-foreground/55",
+    surfaceClass: "bg-muted/50 hover:bg-muted",
+    activeTabClass: "bg-muted text-foreground",
   },
 };
 

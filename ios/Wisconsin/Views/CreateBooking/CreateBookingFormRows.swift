@@ -107,10 +107,6 @@ extension ScheduleEvent {
     }
 
     var bookingEventRailColor: Color {
-        switch isHome {
-        case true: Color.statusText(.green)
-        case false: Color.statusText(.orange)
-        case nil: Color(.systemGray4)
-        }
+        venueRailColor(isHome: isHome)
     }
 }

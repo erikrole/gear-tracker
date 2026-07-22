@@ -65,6 +65,23 @@ These badges appear on event rows in the schedule and dashboard. They are **not*
 | Home | green | `green` | Familiar/default, no travel burden |
 | Away | orange | `orange` | Elevated logistics/travel effort required |
 | Neutral | gray | `gray` | Informational only, no directional meaning |
+| Non-game | gray | `gray` | Same as neutral: no venue direction to signal. Keeps its own label and filter, not its own color |
+
+> **Non-game is not a color.** It reads as a distinct category in labels and
+> filters, but it takes neutral's styling. It previously painted web rails and
+> surfaces with `--blue` while its badge stayed gray — one concept wearing two
+> colors — and blue belongs to active custody in the gear domain.
+
+### Crew coverage (staffing domain)
+
+How well a shift is staffed. A third semantic domain: red here is an unstaffed
+shift, not an overdue booking.
+
+| Coverage | Color | Meaning |
+|----------|-------|---------|
+| 100% or more | green | Fully staffed |
+| 1–99% | orange | Partially staffed, still needs people |
+| 0% | red | Nobody assigned |
 
 > **Note:** Green here does not mean "available" — it means "home game." Do not use red for Away — red is reserved for overdue/error states.
 
@@ -262,10 +279,19 @@ These are the only files that should define status→color mappings. New surface
 
 | File | Covers |
 |------|--------|
-| `src/components/booking-details/helpers.ts` → `statusBadgeVariant()` | Booking badges (kind-aware) |
+| `src/lib/booking-status-display.ts` | **The** booking status→color/label mapping. Everything below either delegates here or covers a different domain |
 | `src/lib/status-colors.ts` → `statusBadgeVariantEquipment()` | Item/asset badges |
-| `src/lib/status-colors.ts` → `statusBadgeVariant()` | Search/scan contexts (no kind available) |
-| `src/components/booking-list/types.ts` → `getStatusVisual()` | Booking list dot + label (kind-aware) |
+| `src/lib/status-colors.ts` → `statusBadgeVariant()` | Search/scan contexts, where a result may be an asset or a booking |
+| `src/lib/venue-tone.ts` | Event venue (home/away/neutral/non-game) badges, rails, surfaces, filter tabs |
+| `src/components/booking-details/helpers.ts` → `statusBadgeVariant()` | Thin re-export of `booking-status-display` |
+| `src/components/booking-list/types.ts` → `getStatusVisual()` | Thin re-export of `booking-status-display`, adds list dot + row classes |
+
+> **`kind` is vestigial.** `bookingStatusLabel` and `bookingStatusBadgeVariant`
+> both open with `void kind`. `BOOKED` is purple and reads "Reserved" for
+> checkouts and reservations alike, so nothing downstream varies by kind. Call
+> sites still pass it and the parameter is still accepted, but do not reach for
+> it to explain a color difference — and do not treat a missing `kind` as a
+> licence to diverge, which is exactly how search came to render `BOOKED` blue.
 
 ---
 
@@ -273,8 +299,24 @@ These are the only files that should define status→color mappings. New surface
 
 | File | Covers |
 |------|--------|
+| `ios/Wisconsin/Core/Brand.swift` → `StatusTone`, `Color.statusText/statusBackground` | What each tone *looks like* |
+| `ios/Wisconsin/Core/SemanticTones.swift` → `venueTone`, `venueRailColor`, `coverageTone` | Which tone venue and crew-coverage data *earn* |
 | `ios/Wisconsin/Views/BookingsView.swift` → `StatusBadge` | All booking badges |
-| `ios/Wisconsin/Views/ItemsView.swift` → `AssetStatusBadge` | All item/asset badges |
+| `ios/Wisconsin/Views/ItemsView.swift` → `AssetStatusBadge`, `assetStatusTone` | All item/asset badges |
+
+> Venue color lived in six views before it lived in one, and had quietly
+> acquired four different greys for "neutral" (`systemGray4`, `systemGray3`,
+> `statusText(.gray)`, `.gray`). Crew coverage lived in two. When a tone rule is
+> needed by a second screen, it belongs in `SemanticTones.swift` — not copied.
+
+## Enforcement
+
+| Test | Guards |
+|------|--------|
+| `tests/status-color-contrast.test.ts` | 4.5:1 minimum for every semantic badge pair, both themes |
+| `tests/status-color-cross-platform.test.ts` | Every booking and asset status resolves to the same color on web and iOS; no "in custody" status is ever green |
+| `tests/semantic-tone-sources.test.ts` | Venue and coverage tones stay in the shared modules; no iOS view re-derives them; non-game matches neutral |
+| `tests/color-token-syntax.test.ts` | No `hsl()`-wrapped complete tokens. **Note:** shells out to `rg`, so it silently errors where ripgrep is absent |
 
 ---
 

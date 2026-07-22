@@ -79,8 +79,14 @@ describe("iOS Schedule UI cleanup", () => {
     expect(scheduleView).toContain("showsCrewCoverage: showsCrewCoverage");
     expect(scheduleView).toContain("coverageChip(cov)");
     expect(scheduleView).toContain("dots.contains(where: \\.isShift)");
-    expect(scheduleView).toContain("color = Color.statusText(.green)");
-    expect(scheduleView).toContain("color = Color.statusText(.orange)");
+    // Calendar dots and agenda rails must speak the same venue vocabulary.
+    // They used to assert it by each spelling out green/orange/grey inline,
+    // which is what let the two drift onto different greys; both now read the
+    // shared `venueRailColor`, so alignment is structural rather than asserted.
+    expect(scheduleView).toContain("DotInfo(color: venueRailColor(isHome: event.isHome)");
+    expect(scheduleView).toMatch(
+      /private var barColor: Color \{\s*venueRailColor\(isHome: event\.isHome\)/,
+    );
     // Month arrows are deliberately unfilled (no raised circle) and compact so
     // the header reads lighter above a dense grid. Asserting their exact frame
     // would be a false positive -- the toolbar buttons share that string.
