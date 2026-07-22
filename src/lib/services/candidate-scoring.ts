@@ -11,7 +11,7 @@ import type {
   CandidateScoreSignal,
 } from "@/lib/candidate-scoring-types";
 
-type CandidateScoringShift = {
+export type CandidateScoringShift = {
   id: string;
   area: ShiftArea;
   workerType: ShiftWorkerType;
@@ -310,6 +310,13 @@ export async function getCandidateScoresForShift(shiftId: string, opts: { now?: 
   const shift = await loadShiftForScoring(shiftId);
   if (!shift) throw new HttpError(404, "Shift not found");
 
+  return getCandidateScoresForTarget(loadedShiftToInput(shift), opts);
+}
+
+export async function getCandidateScoresForTarget(
+  shift: CandidateScoringShift,
+  opts: { now?: Date } = {},
+) {
   const targetWindow = effectiveWindow(shift);
   const users = await db.user.findMany({
     where: visibleActiveUserWhere(),
@@ -397,7 +404,7 @@ export async function getCandidateScoresForShift(shiftId: string, opts: { now?: 
   }));
 
   return scoreCandidatesForShift({
-    shift: loadedShiftToInput(shift),
+    shift,
     candidates,
     now: opts.now,
   });

@@ -604,11 +604,16 @@ export async function createPublishedShiftGroupNotifications(shiftGroupId: strin
     where: { id: shiftGroupId },
     select: {
       publishedAt: true,
+      publishedVersion: true,
+      event: { select: { id: true, summary: true, startsAt: true } },
       shifts: {
         select: {
           assignments: {
             where: { status: { in: ["DIRECT_ASSIGNED", "APPROVED"] } },
-            select: { id: true, status: true },
+            select: {
+              userId: true,
+              user: { select: { email: true } },
+            },
           },
         },
       },
@@ -616,18 +621,136 @@ export async function createPublishedShiftGroupNotifications(shiftGroupId: strin
   });
 
   if (!group?.publishedAt) return;
-  const assignmentEvents = group.shifts.flatMap((shift) =>
-    shift.assignments.map((assignment) => ({
-      id: assignment.id,
-      event: (assignment.status === "APPROVED" ? "approved" : "assigned") as ShiftScheduleEvent,
-    })),
-  );
+  const assignmentsByUser = new Map<string, { count: number; email: string | null }>();
+  for (const assignment of group.shifts.flatMap((shift) => shift.assignments)) {
+    const current = assignmentsByUser.get(assignment.userId);
+    assignmentsByUser.set(assignment.userId, {
+      count: (current?.count ?? 0) + 1,
+      email: assignment.user.email,
+    });
+  }
+
+  const title = "Schedule published";
+  const payload = scheduleNotificationPayload({ eventId: group.event.id });
 
   await Promise.allSettled(
-    assignmentEvents.map((assignment) =>
-      dispatchScheduleAssignmentNotifications(assignment.id, assignment.event),
-    ),
+    [...assignmentsByUser.entries()].map(async ([userId, assignment]) => {
+      const shiftLabel = assignment.count === 1 ? "shift" : "shifts";
+      const body = `You're scheduled for ${assignment.count} ${shiftLabel} on ${group.event.summary}. Review your call time and gear details.`;
+      const dedupeKey = `shift_group_publish:${shiftGroupId}:v${group.publishedVersion}:${userId}`;
+      try {
+        await db.notification.create({
+          data: {
+            userId,
+            type: "shift_schedule_published",
+            title,
+            body,
+            payload,
+            channel: "IN_APP",
+            sentAt: new Date(),
+            dedupeKey,
+          },
+        });
+      } catch (error) {
+        if (error && typeof error === "object" && "code" in error && error.code === "P2002") return;
+        throw error;
+      }
+
+      deferPush(sendPushToUser(userId, { title, body, payload, category: "schedule" }));
+      if (assignment.email) {
+        await sendEmailToUser(userId, {
+          to: assignment.email,
+          subject: title,
+          html: buildNotificationEmail({
+            title,
+            body,
+            bookingTitle: group.event.summary,
+            dueAt: group.event.startsAt.toISOString(),
+          }),
+        }, "schedule");
+      }
+    }),
   );
+}
+
+export async function notifyPublishedShiftGroupWorkers(
+  shiftGroupId: string,
+  userIds: string[],
+): Promise<void> {
+  const uniqueUserIds = [...new Set(userIds)];
+  if (uniqueUserIds.length === 0) return;
+  const [group, users] = await Promise.all([
+    db.shiftGroup.findUnique({
+      where: { id: shiftGroupId },
+      select: {
+        publishedAt: true,
+        publishedVersion: true,
+        event: { select: { id: true, summary: true, startsAt: true } },
+        shifts: {
+          select: {
+            assignments: {
+              where: {
+                userId: { in: uniqueUserIds },
+                status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
+              },
+              select: { userId: true },
+            },
+          },
+        },
+      },
+    }),
+    db.user.findMany({
+      where: { id: { in: uniqueUserIds }, active: true },
+      select: { id: true, email: true },
+    }),
+  ]);
+  if (!group?.publishedAt) return;
+
+  const assignmentCounts = new Map<string, number>();
+  for (const assignment of group.shifts.flatMap((shift) => shift.assignments)) {
+    assignmentCounts.set(assignment.userId, (assignmentCounts.get(assignment.userId) ?? 0) + 1);
+  }
+  const title = "Schedule updated";
+  const payload = scheduleNotificationPayload({ eventId: group.event.id });
+
+  await Promise.allSettled(users.map(async (user) => {
+    const count = assignmentCounts.get(user.id) ?? 0;
+    const body = count === 0
+      ? `You are no longer scheduled for ${group.event.summary}.`
+      : `Your schedule changed for ${group.event.summary}. You now have ${count} ${count === 1 ? "shift" : "shifts"}. Review your call time and gear details.`;
+    const dedupeKey = `shift_group_update:${shiftGroupId}:v${group.publishedVersion}:${user.id}`;
+    try {
+      await db.notification.create({
+        data: {
+          userId: user.id,
+          type: "shift_schedule_updated",
+          title,
+          body,
+          payload,
+          channel: "IN_APP",
+          sentAt: new Date(),
+          dedupeKey,
+        },
+      });
+    } catch (error) {
+      if (error && typeof error === "object" && "code" in error && error.code === "P2002") return;
+      throw error;
+    }
+
+    deferPush(sendPushToUser(user.id, { title, body, payload, category: "schedule" }));
+    if (user.email) {
+      await sendEmailToUser(user.id, {
+        to: user.email,
+        subject: title,
+        html: buildNotificationEmail({
+          title,
+          body,
+          bookingTitle: group.event.summary,
+          dueAt: group.event.startsAt.toISOString(),
+        }),
+      }, "schedule");
+    }
+  }));
 }
 
 export async function notifyPublishedScheduleFollowers(shiftGroupId: string): Promise<void> {
@@ -635,6 +758,7 @@ export async function notifyPublishedScheduleFollowers(shiftGroupId: string): Pr
     where: { id: shiftGroupId },
     select: {
       publishedAt: true,
+      publishedVersion: true,
       event: {
         select: {
           id: true,
@@ -666,11 +790,10 @@ export async function notifyPublishedScheduleFollowers(shiftGroupId: string): Pr
 
   const title = "Published schedule updated";
   const body = `${group.event.summary} has an updated published crew schedule.`;
-  const publishedAtKey = group.publishedAt.toISOString();
   const payload = { eventId: group.event.id };
 
   await Promise.allSettled(group.event.follows.map(async ({ user }) => {
-    const dedupeKey = `published_schedule:${group.event.id}:${publishedAtKey}:${user.id}`;
+    const dedupeKey = `published_schedule:${group.event.id}:v${group.publishedVersion}:${user.id}`;
     try {
       await db.notification.create({
         data: {

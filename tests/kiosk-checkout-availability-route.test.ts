@@ -62,6 +62,7 @@ describe("POST /api/kiosk/checkout/availability", () => {
       serializedAssetIds: ["asset-1"],
       bulkItems: [{ bulkSkuId: "sku-sony", quantity: 2 }],
       bookingKind: "CHECKOUT",
+      includeBulkTurnaroundRisks: false,
     });
   });
 });

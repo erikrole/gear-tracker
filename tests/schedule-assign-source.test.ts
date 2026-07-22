@@ -57,10 +57,13 @@ describe("schedule assign source wiring", () => {
     const acknowledgeRoute = readFileSync("src/app/api/shift-assignments/[id]/acknowledge/route.ts", "utf8");
 
     expect(publishRoute).toContain('requirePermission(user.role, "shift", "manage")');
-    expect(publishRoute).toContain("publishShiftGroup(params.id, user.id)");
-    expect(publishRoute).toContain("createAuditEntry");
-    expect(publishRoute).toContain('"shift_group_republished"');
-    expect(publishRoute).toContain('"shift_group_published"');
+    expect(publishRoute).toContain("publishShiftGroup(params.id, user.id, body.expectedWorkingVersion, user.role)");
+    expect(publishRoute).toContain("expectedWorkingVersion");
+    expect(publishRoute).toContain("enforceRateLimit");
+    const publicationService = readFileSync("src/lib/services/schedule-publication.ts", "utf8");
+    expect(publicationService).toContain("createAuditEntryTx(tx");
+    expect(publicationService).toContain('"shift_group_republished"');
+    expect(publicationService).toContain('"shift_group_published"');
 
     expect(acknowledgeRoute).toContain("acknowledgeShiftAssignment(params.id");
     expect(acknowledgeRoute).toContain("createAuditEntry");
@@ -88,6 +91,7 @@ describe("schedule assign source wiring", () => {
     expect(conflictRefresh).toContain("acknowledged_by_id");
     expect(conflictRefresh).toContain("WHEN CAST(${resetAcknowledgements} AS BOOLEAN) THEN NULL");
     expect(publishRoute).toContain("createPublishedShiftGroupNotifications(params.id)");
+    expect(publishRoute).toContain("notifyPublishedShiftGroupWorkers(params.id, result.affectedUserIds)");
     expect(publishRoute).toContain("if (!result.before.publishedAt)");
   });
 });

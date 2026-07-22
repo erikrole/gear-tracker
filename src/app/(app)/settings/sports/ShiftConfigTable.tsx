@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { RotateCcwIcon, SaveIcon } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -36,6 +38,9 @@ export default function ShiftConfigTable({
   onToggleActive,
   onUpdateShift,
   onUpdateOffset,
+  dirtyCodes,
+  onSave,
+  onDiscard,
 }: {
   configs: SportConfig[];
   saving: string | null;
@@ -47,6 +52,9 @@ export default function ShiftConfigTable({
     value: number,
   ) => void;
   onUpdateOffset: (sportCode: string, field: "shiftStartOffset" | "shiftEndOffset", value: number) => void;
+  dirtyCodes: Set<string>;
+  onSave: (sportCode: string) => void;
+  onDiscard: (sportCode: string) => void;
 }) {
   function getConfig(sportCode: string) {
     return configs.find((c) => c.sportCode === sportCode);
@@ -85,6 +93,7 @@ export default function ShiftConfigTable({
         const primaryCode = group.codes[0]!; // every SPORT_GROUP has at least one code
         const config = getGroupConfig(group.codes);
         const active = isGroupActive(group.codes);
+        const dirty = group.codes.some((code) => dirtyCodes.has(code));
 
         return (
           <Card key={group.label}>
@@ -99,6 +108,32 @@ export default function ShiftConfigTable({
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
+                  {dirty && (
+                    <>
+                      <Badge variant="orange" size="sm">Unsaved</Badge>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 px-2 text-xs"
+                        disabled={Boolean(saving)}
+                        onClick={() => onDiscard(primaryCode)}
+                      >
+                        <RotateCcwIcon data-icon="inline-start" />
+                        Discard
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-9 px-3 text-xs"
+                        disabled={Boolean(saving)}
+                        onClick={() => onSave(primaryCode)}
+                      >
+                        <SaveIcon data-icon="inline-start" />
+                        {saving === `${primaryCode}-save` ? "Saving..." : "Save"}
+                      </Button>
+                    </>
+                  )}
                   <Badge variant={active ? "green" : "gray"} size="sm">
                     {active ? "Active" : "Off"}
                   </Badge>
@@ -122,35 +157,34 @@ export default function ShiftConfigTable({
                       Generated shifts create both Staff slots and Student slots from these counts.
                     </p>
                   </div>
-                  <table className="w-full border-collapse text-sm [&_th]:text-left [&_th]:px-4 [&_th]:py-2 [&_th]:text-xs [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-muted-foreground [&_th]:border-b [&_th]:border-border [&_th]:bg-muted/40 [&_td]:px-4 [&_td]:py-2.5 [&_td]:border-b [&_td]:border-border/40 [&_tr:last-child_td]:border-b-0">
+                  <table className="w-full border-collapse text-sm [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:text-muted-foreground [&_th]:border-b [&_th]:border-border [&_th]:bg-muted/40 [&_td]:px-3 [&_td]:py-2 [&_td]:border-b [&_td]:border-border/40 [&_tr:last-child_td]:border-b-0">
                     <thead>
                       <tr>
-                        <th className="w-24"></th>
-                        {AREAS.map((a) => (
-                          <th key={a} className="text-center" colSpan={2}>{AREA_LABELS[a]}</th>
-                        ))}
-                      </tr>
-                      <tr>
-                        <th></th>
-                        {AREAS.flatMap((a) => [
-                          <th key={`${a}-staff`} className="text-center normal-case">Staff slots</th>,
-                          <th key={`${a}-student`} className="text-center normal-case">Student slots</th>,
-                        ])}
+                        <th className="min-w-36">Area</th>
+                        <th className="text-center">Home Staff</th>
+                        <th className="text-center">Home Student</th>
+                        <th className="text-center">Home total</th>
+                        <th className="text-center">Away Staff</th>
+                        <th className="text-center">Away Student</th>
+                        <th className="text-center">Away total</th>
                       </tr>
                     </thead>
                     <tbody>
-                      <tr>
-                        <td>
-                          <Badge variant="green" size="sm">Home</Badge>
-                        </td>
-                        {AREAS.flatMap((area) => [
-                          <td key={`${area}-home-staff`} className="text-center">
-	                            <Input
-	                              id={coverageInputName(primaryCode, area, "homeStaffCount")}
-	                              name={coverageInputName(primaryCode, area, "homeStaffCount")}
-	                              type="number"
-	                              min={0}
-	                              max={20}
+                      {AREAS.map((area) => {
+                        const homeStaff = getShiftCount(primaryCode, area, "homeStaffCount");
+                        const homeStudent = getShiftCount(primaryCode, area, "homeStudentCount");
+                        const awayStaff = getShiftCount(primaryCode, area, "awayStaffCount");
+                        const awayStudent = getShiftCount(primaryCode, area, "awayStudentCount");
+                        return (
+                        <tr key={area}>
+                          <td className="font-medium">{AREA_LABELS[area]}</td>
+                          <td className="text-center">
+                            <Input
+                              id={coverageInputName(primaryCode, area, "homeStaffCount")}
+                              name={coverageInputName(primaryCode, area, "homeStaffCount")}
+                              type="number"
+                              min={0}
+                              max={20}
                               value={getShiftCount(primaryCode, area, "homeStaffCount")}
                               onChange={(e) =>
                                 onUpdateShift(primaryCode, area, "homeStaffCount", Math.max(0, parseInt(e.target.value) || 0))
@@ -159,14 +193,14 @@ export default function ShiftConfigTable({
                               disabled={saving?.startsWith(primaryCode) ?? false}
                               aria-label={`${group.label} ${AREA_LABELS[area]} home Staff count`}
                             />
-                          </td>,
-                          <td key={`${area}-home-student`} className="text-center">
-	                            <Input
-	                              id={coverageInputName(primaryCode, area, "homeStudentCount")}
-	                              name={coverageInputName(primaryCode, area, "homeStudentCount")}
-	                              type="number"
-	                              min={0}
-	                              max={20}
+                          </td>
+                          <td className="text-center">
+                            <Input
+                              id={coverageInputName(primaryCode, area, "homeStudentCount")}
+                              name={coverageInputName(primaryCode, area, "homeStudentCount")}
+                              type="number"
+                              min={0}
+                              max={20}
                               value={getShiftCount(primaryCode, area, "homeStudentCount")}
                               onChange={(e) =>
                                 onUpdateShift(primaryCode, area, "homeStudentCount", Math.max(0, parseInt(e.target.value) || 0))
@@ -175,21 +209,15 @@ export default function ShiftConfigTable({
                               disabled={saving?.startsWith(primaryCode) ?? false}
                               aria-label={`${group.label} ${AREA_LABELS[area]} home Student count`}
                             />
-                          </td>,
-                        ])}
-                      </tr>
-                      <tr>
-                        <td>
-                          <Badge variant="orange" size="sm">Away</Badge>
-                        </td>
-                        {AREAS.flatMap((area) => [
-                          <td key={`${area}-away-staff`} className="text-center">
-	                            <Input
-	                              id={coverageInputName(primaryCode, area, "awayStaffCount")}
-	                              name={coverageInputName(primaryCode, area, "awayStaffCount")}
-	                              type="number"
-	                              min={0}
-	                              max={20}
+                          </td>
+                          <td className="text-center text-sm font-semibold tabular-nums">{homeStaff + homeStudent}</td>
+                          <td className="text-center">
+                            <Input
+                              id={coverageInputName(primaryCode, area, "awayStaffCount")}
+                              name={coverageInputName(primaryCode, area, "awayStaffCount")}
+                              type="number"
+                              min={0}
+                              max={20}
                               value={getShiftCount(primaryCode, area, "awayStaffCount")}
                               onChange={(e) =>
                                 onUpdateShift(primaryCode, area, "awayStaffCount", Math.max(0, parseInt(e.target.value) || 0))
@@ -198,13 +226,13 @@ export default function ShiftConfigTable({
                               disabled={saving?.startsWith(primaryCode) ?? false}
                               aria-label={`${group.label} ${AREA_LABELS[area]} away Staff count`}
                             />
-                          </td>,
-                          <td key={`${area}-away-student`} className="text-center">
-	                            <Input
-	                              id={coverageInputName(primaryCode, area, "awayStudentCount")}
-	                              name={coverageInputName(primaryCode, area, "awayStudentCount")}
-	                              type="number"
-	                              min={0}
+                          </td>
+                          <td className="text-center">
+                            <Input
+                              id={coverageInputName(primaryCode, area, "awayStudentCount")}
+                              name={coverageInputName(primaryCode, area, "awayStudentCount")}
+                              type="number"
+                              min={0}
                               max={20}
                               value={getShiftCount(primaryCode, area, "awayStudentCount")}
                               onChange={(e) =>
@@ -214,9 +242,11 @@ export default function ShiftConfigTable({
                               disabled={saving?.startsWith(primaryCode) ?? false}
                               aria-label={`${group.label} ${AREA_LABELS[area]} away Student count`}
                             />
-                          </td>,
-                        ])}
-                      </tr>
+                          </td>
+                          <td className="text-center text-sm font-semibold tabular-nums">{awayStaff + awayStudent}</td>
+                        </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

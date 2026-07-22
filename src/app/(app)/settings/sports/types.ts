@@ -26,12 +26,12 @@ export type { Area };
 export function defaultShiftConfigs(): ShiftConfig[] {
   return AREAS.map((area) => ({
     area,
-    homeCount: 1,
-    awayCount: 1,
+    homeCount: 0,
+    awayCount: 0,
     homeStaffCount: 0,
-    homeStudentCount: 1,
+    homeStudentCount: 0,
     awayStaffCount: 0,
-    awayStudentCount: 1,
+    awayStudentCount: 0,
   }));
 }
 

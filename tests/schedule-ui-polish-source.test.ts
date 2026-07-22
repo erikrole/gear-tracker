@@ -33,6 +33,31 @@ describe("Schedule interaction-detail contracts", () => {
     expect(week).toContain("flex min-h-14 w-full items-center justify-between");
   });
 
+  it("keeps crew avatars beside coverage and moves open-slot assignment into row actions", () => {
+    const list = source("src/app/(app)/schedule/_components/ListView.tsx");
+
+    expect(list).toContain("<span>Coverage</span>");
+    expect(list).toContain('<span className="text-right">Crew</span>');
+    expect(list).toContain("<CrewSummary entry={entry} />");
+    expect(list).toContain("Assign {openCount} open {openCount === 1 ? \"slot\" : \"slots\"}");
+    expect(list).not.toContain("onSelectGroup();\n          }}\n        >\n          Assign {openCount}");
+  });
+
+  it("keeps expanded crew actions quiet and aligned", () => {
+    const editor = source("src/app/(app)/schedule/_components/WorkingCrewEditor.tsx");
+
+    expect(editor).toContain('const SLOT_ROW_GRID_CLASS = "grid-cols-[minmax(0,1fr)_5rem_5.5rem_2.5rem]"');
+    expect(editor).toContain('className="h-10 w-[5.5rem] justify-start gap-1.5 px-2 text-xs tabular-nums text-muted-foreground"');
+    expect(editor).toContain('className="h-10 w-20 px-3 text-xs"');
+    expect(editor).toContain("Add slot");
+    expect(editor).toContain("Unassign worker");
+    expect(editor).toContain("Remove slot");
+    expect(editor).toContain('className="divide-y divide-border/40 border-y border-border/40"');
+    expect(editor).not.toContain("Tooltip");
+    expect(editor).not.toContain('<Badge variant="green" size="sm">Published</Badge>');
+    expect(editor).not.toContain('size="icon-xs"');
+  });
+
   it("cross-fades collaborator follow-state icons without animating initial render", () => {
     const collaborator = source("src/app/(app)/schedule/_components/CollaboratorSchedule.tsx");
 

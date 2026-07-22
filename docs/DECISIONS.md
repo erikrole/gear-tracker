@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-07-17
+- Last Updated: 2026-07-21
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -49,6 +49,7 @@
 - D-039: Kiosk sessions slide on activity and survive reinstalls via Keychain
 - D-040: Kiosk-only custody, reservation-first app/web
 - D-041: External collaborators use fixed default-deny profiles
+- D-042: Schedule edits use a versioned working copy and deliberate publish
 
 ---
 
@@ -869,7 +870,36 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 3. ~~Metadata enrichment cache TTL target~~ — withdrawn with D-005.
 4. ~~Student mobile KPI definitions~~ — resolved (PD-5): taps-to-checkout ≤3, scan success ≥95%, task completion <30s. Telemetry deferred to Phase B.
 
+## D-042: Schedule Edits Use a Versioned Working Copy and Deliberate Publish
+- Date: 2026-07-21
+- Status: Accepted
+- Context:
+  - The expanded web Schedule list is the primary crew-management surface and needs rapid slot, assignment, removal, and worker-class actions.
+  - The current publication marker does not isolate later edits. Mutations change live relational shifts and assignments before republish, so worker-facing reads and notification policy can observe work in progress.
+  - Existing iOS clients and worker-facing integrations already depend on relational shifts and assignments, while collaborators correctly read `lastPublishedSnapshot` only.
+- Decision:
+  - A shift group may have one server-validated, versioned working copy owned by staff editing workflows.
+  - The relational `Shift` and `ShiftAssignment` rows remain the last published worker-facing source of truth. My Shifts, Dashboard, personal ICS, Open Work, Trade Board, collaborator Schedule, and existing iOS clients do not read the working copy.
+  - First publish and later publish operations reconcile the working copy into the relational schedule atomically, increment `publishedVersion`, refresh `lastPublishedSnapshot`, and remove the working copy.
+  - Working-copy mutations require optimistic version checks, `shift.manage`, `SERIALIZABLE` transactions, validation, rate limiting, and useful audit snapshots. They do not send assignment or schedule notifications.
+  - Publish must preview worker-visible changes. It resets acknowledgement only for affected assignments and sends no more than one version-deduped event summary per affected worker.
+  - Staff/Student conversion changes the slot's scheduling class, never `User.staffingType`. A class mismatch, active trade, or linked booking requires an explicit safe resolution instead of silent data loss.
+  - Existing response fields remain compatible. Publication and working-copy metadata is additive, and old native clients continue to receive published schedule data.
+  - Default staffing changes set the target for new events and conservatively rebase upcoming unpublished schedules. Generated, untouched, unassigned slots may be added, removed, or retimed; occupied and manually touched slots are protected and count toward the target. Published schedules and active working copies require explicit review.
+- Consequences:
+  - Staff can build and preview a schedule without exposing partial staffing or generating notification bursts.
+  - Web can become the dense editing control room while iOS keeps a bounded quick-action contract.
+  - Publish reconciliation is a correctness boundary and must preserve assignment, trade, booking, acknowledgement, and audit history deliberately.
+- Guardrails:
+  - Do not expose working-copy payloads from worker, collaborator, public, Open Work, Trade Board, Dashboard, or ICS routes.
+  - Do not treat a timestamp or diff badge as publication isolation.
+  - Do not hard-delete history-bearing rows during publish reconciliation.
+  - Do not allow stale working versions to overwrite newer staff edits.
+  - Do not send per-click worker notifications while a working copy exists.
+- Reference: `tasks/event-shift-working-schedule-plan.md` and `docs/AREA_SHIFTS.md`.
+
 ## Change Log
+- 2026-07-21: Added D-042 for versioned Schedule working copies, published-only worker reads, deliberate reconciliation, and bundled publish notification semantics.
 - 2026-07-17: Extended D-037 so authenticated profile completion is native on iOS while registration remains web-owned and the canonical server completion contract remains shared.
 - 2026-07-16: Added D-041 for fixed default-deny external collaborator profiles and the BTN_STANDARD gear plus published-Schedule contract.
 - 2026-07-16: Hardened D-041 with a single profile registry, mandatory collaborator response sanitization across idempotent branches, direct audit-history denial, published-only collaborator event linking, and route-level negative tests.

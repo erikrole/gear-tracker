@@ -4,7 +4,6 @@ import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangleIcon,
   CheckCircle2Icon,
-  ClockIcon,
   CloudAlertIcon,
   ListChecksIcon,
   PackageCheckIcon,
@@ -18,8 +17,6 @@ import {
   type OperationalStatusRailItem,
 } from "@/components/OperationalStatusRail";
 import EmptyState from "@/components/EmptyState";
-import { effectiveCallWindow, isInheritedFullDayCallWindow } from "@/lib/shift-call-windows";
-import { formatCalendarEventDateRange } from "@/lib/calendar-event-dates";
 import type { ScheduleHealthSnapshot } from "@/lib/schedule-health-types";
 import type { ScheduleSourceSignal } from "@/lib/calendar-source-freshness";
 import type { ScheduleQueue } from "@/lib/schedule-queues";
@@ -87,37 +84,6 @@ function userActiveShiftCount(entries: CalendarEntry[], userId: string) {
   }, 0);
 }
 
-function formatNextCall(entries: CalendarEntry[]) {
-  const now = Date.now();
-  const next = entries
-    .filter((entry) => new Date(entry.endsAt).getTime() >= now)
-    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())[0];
-
-  if (!next) return "No upcoming calls";
-
-  // The earliest *real* crew call window - i.e. one with an explicit call time,
-  // not an all-day event's inherited full-day window (which would otherwise
-  // render as a meaningless "12:00 AM").
-  const realCall = next.shifts
-    .map((shift) => effectiveCallWindow(shift, shift.assignments.find((assignment) => ACTIVE_STATUSES.includes(assignment.status))))
-    .filter((window) => !isInheritedFullDayCallWindow(window))
-    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())[0];
-
-  // No explicit call on an all-day event -> say "All day", not midnight. Uses the
-  // all-day-aware (UTC) date formatter so the date doesn't shift by timezone.
-  if (!realCall && next.allDay) {
-    return `${formatCalendarEventDateRange(next, { includeYear: false })} · All day`;
-  }
-
-  return new Date(realCall ? realCall.startsAt : next.startsAt).toLocaleString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
 export function ScheduleReadiness({
   entries,
   filteredEntries,
@@ -154,8 +120,6 @@ export function ScheduleReadiness({
   const workerClassMismatchCount = health?.queues.dataQuality.issues.filter((issue) => issue.reason === "role_slot_mismatch").length ?? 0;
   const tradeApprovals = health?.queues.tradeApprovals.count ?? 0;
   const openTrades = health?.queues.openTrades.count ?? openTradeCount;
-  const nextCall = health?.nextCall.label ?? formatNextCall(filteredEntries);
-  const nextCallHref = health?.nextCall.eventId ? `/events/${health.nextCall.eventId}` : undefined;
   const sourceNeedsAttention = sourceSignal?.severity === "attention";
   const hiddenAndArchivedCount = (health?.queues.hiddenEvents.count ?? 0) + (health?.queues.archivedEvents.count ?? 0);
   const healthWarnings = health?.partialFailures.length ?? 0;
@@ -289,12 +253,6 @@ export function ScheduleReadiness({
   return (
     <OperationalStatusRail
       className="mb-3"
-      orientation={{
-        label: "Next call",
-        value: nextCall,
-        icon: ClockIcon,
-        href: nextCallHref,
-      }}
       items={railItems}
       allClearLabel={showAllClear ? "Crew set, no open gaps" : undefined}
       notice={filtersHideEverything ? (

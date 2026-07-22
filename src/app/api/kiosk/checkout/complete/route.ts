@@ -162,6 +162,7 @@ export const POST = withKiosk(async (req, { kiosk }) => {
           serializedAssetIds: assetIds,
           bulkItems: bulkRequestsFromCheckoutUnits(bulkUnitItems),
           bookingKind: BookingKind.CHECKOUT,
+          includeBulkTurnaroundRisks: false,
         });
         if (hasBlockingAvailabilityIssue(availability)) {
           throw new HttpError(

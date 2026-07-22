@@ -44,6 +44,24 @@ beforeEach(() => {
 });
 
 describe("generateShiftsForEvent", () => {
+  it("does not guess Home defaults for a neutral or non-game event", async () => {
+    vi.mocked(db.calendarEvent.findUnique).mockResolvedValue(calendarEvent({
+      id: "event-neutral",
+      sportCode: "FB",
+      isHome: null,
+      startsAt: new Date("2026-04-01T18:00:00Z"),
+      endsAt: new Date("2026-04-01T21:00:00Z"),
+      shiftGroup: null,
+    }));
+
+    await expect(generateShiftsForEvent("event-neutral")).resolves.toEqual({
+      created: false,
+      shiftGroupId: null,
+      shiftCount: 0,
+    });
+    expect(db.sportConfig.findUnique).not.toHaveBeenCalled();
+  });
+
   it("creates the planned staff and student slot mix from sport config", async () => {
     const event = {
       id: "event-1",

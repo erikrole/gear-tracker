@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Mobile Operations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-18
+- Last Updated: 2026-07-21
 - Status: Active
 - Version: V1
 
@@ -132,6 +132,8 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 - **V3 (later)**: Bottom nav badge counts via live `/api/nav-counts` polling, game-day/shift context cards
 
 ## Change Log
+
+- 2026-07-21: **Schedule working-copy compatibility foundation.** The server keeps existing native Schedule reads on the last published relational shifts and assignments while adding only optional web/editor metadata, so installed iOS clients continue decoding and viewing the published schedule. The new versioned working-copy route is additive. Native staff Add Shift, Assign Person, unassign, and call-window actions still use the legacy live mutation routes; moving those quick actions onto the working-copy contract, with native publish review, is required before the new lifecycle is production-complete. Student, collaborator, Dashboard, personal calendar, Open Work, and Trade Board reads do not receive working-copy payloads.
 
 - 2026-07-18: **Collaborator Published Schedule is now a first-class native flow.** Its first page is limited to upcoming published events and uses date sections, Schedule-style classification rails, dedicated venue lines, crew previews, and quiet follow state. Event rows navigate to a full-screen read-only detail whose crew is grouped by Video, Photo, Graphics, and Comms with avatar, role, and call-window context. Follow and mute appear only with `SCHEDULE_FOLLOW`, wait for server truth, prevent duplicate requests, and retain the old state after failure. Push taps use the sanitized published-event detail route even when the event is outside the loaded page. Skeleton-first loading, pagination, pull-to-refresh, refresh-failure recovery, VoiceOver summaries, and reduced-motion handling remain in the native surface.
 - 2026-07-18: **Native Schedule filtering and calendar setup are now explicit and recoverable.** Filters show a live result count, separate Only my shifts and Include past events from Event Type and Sport, keep active scope quiet in the Schedule viewport, and finish with one purple Show Events action. Neutral games and Non-game events no longer collapse into the same `isHome == nil` filter. The Schedule overflow now opens Shift Calendar management instead of immediately leaving the app: iOS reports private-feed readiness and its own last successful Calendar handoff without claiming Apple completed a subscription, explains refresh authority, retries failed status reads, and requires a consequence warning before rotating the private link. Existing Schedule navigation state, role gates, Dynamic Type, VoiceOver, reduced motion, token security, and canonical-host routing remain intact.

@@ -170,7 +170,7 @@ describe("schedule source-of-truth and browser smoke contracts", () => {
     );
 
     expect(listView).toContain("EVENT_GRID_CLASS");
-    expect(listView).toContain("grid-cols-[44px_72px_minmax(180px,1fr)_80px_136px_minmax(140px,180px)_40px]");
+    expect(listView).toContain("grid-cols-[44px_72px_minmax(180px,1fr)_80px_minmax(100px,140px)_136px_40px]");
     expect(listView).toContain("const openCount =");
     expect(listView).toContain("Assign {openCount}");
     expect(listView).toContain('weekday: "short"');
@@ -189,21 +189,22 @@ describe("schedule source-of-truth and browser smoke contracts", () => {
     expect(listView).toContain("venueTone.railClass");
   });
 
-  it("keeps all active Schedule filters visible and partial health failures out of the all-clear state", () => {
+  it("keeps active Schedule filters visible and partial health failures out of the all-clear state", () => {
     const filters = source("src/app/(app)/schedule/_components/ScheduleFilters.tsx");
     const readiness = source("src/app/(app)/schedule/_components/ScheduleReadiness.tsx");
 
-    expect(filters).toContain("const activeFilterCount = [");
-    expect(filters).toContain('filters.homeAwayFilter !== "all" ? filters.homeAwayFilter : ""');
-    expect(filters).toContain('filters.myShiftsOnly ? "my-shifts" : ""');
+    expect(filters).toContain("const menuFilterCount = [");
+    expect(filters).toContain('label="Sport"');
+    expect(filters).toContain("options={sportOptions}");
     expect(filters).toContain("<OperationalActiveFilterChips filters={activeFilters} />");
-    expect(filters).toContain("{activeFilterCount}");
-    expect(filters).not.toContain("popoverFilterCount");
+    expect(filters).toContain("{menuFilterCount}");
+    expect(filters).not.toContain('className="w-72 p-3">\n            <div className="flex flex-col gap-3">\n              <FilterChip\n                label="Sport"');
 
     expect(readiness).toContain("const showAllClear = attentionItems.length === 0 && healthWarnings === 0;");
     expect(readiness).toContain("value: sourceNeedsAttention || healthWarnings > 0 ? \"Check\"");
     expect(readiness).toContain("showAllClear ?");
     expect(readiness).toContain("<ScheduleSourceStatus signal={sourceSignal} />");
+    expect(readiness).not.toContain('label: "Next call"');
   });
 
   it("keeps event editing language clear for type, pickup location, and calendar venue", () => {

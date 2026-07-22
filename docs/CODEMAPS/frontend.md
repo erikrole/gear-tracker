@@ -125,10 +125,10 @@
 | `src/components/QrScanner.tsx` | 288 |
 | `src/components/booking-details/BookingSheetOverview.tsx` | 284 |
 | `src/components/PageBreadcrumb.tsx` | 283 |
+| `src/components/shift-detail/UserAvatarPicker.tsx` | 270 |
 | `src/components/booking-details/TransferOwnerDialog.tsx` | 266 |
 | `src/components/booking-wizard/WizardStep3.tsx` | 263 |
 | `src/components/ui/dropdown-menu.tsx` | 258 |
-| `src/components/shift-detail/UserAvatarPicker.tsx` | 257 |
 
 ## Hooks
 
@@ -150,7 +150,7 @@
 | `src/hooks/use-operational-polling-activity.ts` | 131 |
 | `src/hooks/use-profile-completion.ts` | 65 |
 | `src/hooks/use-scan-submission.ts` | 241 |
-| `src/hooks/use-schedule-data.ts` | 528 |
+| `src/hooks/use-schedule-data.ts` | 529 |
 | `src/hooks/use-url-state.ts` | 166 |
 | `src/hooks/useBookingActions.ts` | 203 |
 | `src/hooks/useBookingDetail.ts` | 70 |

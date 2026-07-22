@@ -290,6 +290,44 @@ describe("withAuth", () => {
     expect(handler).toHaveBeenCalled();
   });
 
+  it("allows localhost and IPv4 loopback aliases on the same development port", async () => {
+    const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+    const wrapped = withAuth(handler);
+
+    const res = await wrapped(
+      new Request("http://localhost:3000/api/test", {
+        method: "POST",
+        headers: {
+          host: "localhost:3000",
+          origin: "http://127.0.0.1:3000",
+        },
+      }),
+      { params: Promise.resolve({}) }
+    );
+
+    expect(res.status).toBe(200);
+    expect(handler).toHaveBeenCalled();
+  });
+
+  it("does not allow a loopback development Origin from a different port", async () => {
+    const handler = vi.fn();
+    const wrapped = withAuth(handler);
+
+    const res = await wrapped(
+      new Request("http://localhost:3000/api/test", {
+        method: "POST",
+        headers: {
+          host: "localhost:3000",
+          origin: "http://127.0.0.1:3001",
+        },
+      }),
+      { params: Promise.resolve({}) }
+    );
+
+    expect(res.status).toBe(403);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
   it("blocks POST when Origin header is absent (CSRF protection)", async () => {
     const handler = vi.fn();
     const wrapped = withAuth(handler);

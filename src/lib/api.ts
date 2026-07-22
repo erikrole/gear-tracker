@@ -45,8 +45,11 @@ function allowedSameOrigins(req: Request): Set<string> {
   }
 
   if (process.env.NODE_ENV !== "production" && isLoopbackHost(requestUrl.hostname)) {
-    origins.add(`http://${requestUrl.host}`);
-    origins.add(`https://${requestUrl.host}`);
+    const port = requestUrl.port ? `:${requestUrl.port}` : "";
+    for (const hostname of ["localhost", "127.0.0.1", "[::1]"]) {
+      origins.add(`http://${hostname}${port}`);
+      origins.add(`https://${hostname}${port}`);
+    }
   }
 
   return origins;

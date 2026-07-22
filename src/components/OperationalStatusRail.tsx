@@ -106,7 +106,7 @@ export function OperationalStatusRail({
   items: OperationalStatusRailItem[];
   maxVisibleItems?: number;
   notice?: ReactNode;
-  orientation: OperationalStatusRailOrientation;
+  orientation?: OperationalStatusRailOrientation;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const prioritizedItems = useMemo(
@@ -118,33 +118,33 @@ export function OperationalStatusRail({
   );
   const visibleItems = prioritizedItems.slice(0, maxVisibleItems);
   const hiddenCount = Math.max(0, prioritizedItems.length - visibleItems.length);
-  const OrientationIcon = orientation.icon;
-  const orientationContent = (
+  const OrientationIcon = orientation?.icon;
+  const orientationContent = orientation && OrientationIcon ? (
     <>
       <OrientationIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       <span className="shrink-0 text-muted-foreground">{orientation.label}</span>
       <span className="truncate font-semibold text-foreground">{orientation.value}</span>
     </>
-  );
+  ) : null;
 
   return (
     <section className={cn("border-y border-border/50", className)}>
       <Collapsible open={open} onOpenChange={setOpen}>
         <div className="flex flex-col gap-2 px-1 py-2 lg:flex-row lg:items-center">
-          {orientation.href ? (
+          {orientation?.href ? (
             <Link
               href={orientation.href}
               className="flex h-10 min-w-0 items-center gap-1.5 rounded-md px-2 text-sm no-underline transition-[background-color,color,scale] hover:bg-muted/55 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {orientationContent}
             </Link>
-          ) : (
+          ) : orientation ? (
             <div className="flex h-10 min-w-0 items-center gap-1.5 px-2 text-sm">
               {orientationContent}
             </div>
-          )}
+          ) : null}
 
-          <Separator orientation="vertical" className="hidden h-5 lg:block" />
+          {orientation ? <Separator orientation="vertical" className="hidden h-5 lg:block" /> : null}
 
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
             {visibleItems.length > 0 ? (

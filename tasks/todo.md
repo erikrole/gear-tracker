@@ -3,6 +3,34 @@
 Last updated: 2026-07-21
 
 ---
+## Active: Event shift working schedule and quick crew actions (2026-07-21)
+
+Plan: `tasks/event-shift-working-schedule-plan.md`
+
+- [x] Add the accepted versioned working-copy and published-version decision, schema, and migration.
+- [x] Add private optimistic slot, conversion, assignment, unassign, discard, diff, and publish APIs with serializable reconciliation and audit evidence.
+- [x] Bundle first-publish and affected-worker notifications to one version-deduped event summary per person.
+- [x] Make the expanded web Schedule list a multi-event crew workstation with one concise row per real slot, contextual Staff and Student additions, conversion, assignment, removal, and publish review.
+- [x] Buffer default staffing changes behind Save/Discard, reorganize the matrix by area, remove silent Student defaults, stop guessing Home for Neutral/Non-game generation, and safely rebase upcoming unpublished schedules without removing occupied or manually touched slots.
+- [x] Repair local loopback CSRF handling and make Event detail crew setup apply saved defaults, with an explicit Home/Away/empty chooser for Neutral and Non-game events.
+- [x] Apply migration `0099_shift_group_working_copy`, verify 101/101 live migration health, and complete authenticated desktop proof for Event detail plus the expanded Schedule workstation.
+- [x] Add private inline Call/Release editing to every expanded crew slot, include call changes in publish review, revalidate conflicts and availability, and reset acknowledgement only for affected assignments on publish.
+- [x] Simplify Schedule triage and inline assignment: promote Sport, remove Next call, align crew beside coverage, move Assign into row actions, and rank a scrollable working-copy picker by sport fit and workload.
+- [x] Normalize the expanded Schedule crew editor onto one stable right-side action grid with consistent spacing and 40px controls.
+- [x] Reduce expanded crew density by removing passive publication chrome and nested borders, collapsing repeated add controls, and moving destructive and conversion actions into row overflow menus.
+- [ ] Complete narrow responsive browser proof for the expanded Schedule workstation.
+- [ ] Move native staff quick actions and publish review from legacy live mutation routes to the additive working-copy contract; run source contracts and Xcode builds.
+- [ ] Add the explicit assigned-slot convert-and-replace flow.
+
+### Current verification
+
+- Prisma format/validate/generate and migration shape checks pass.
+- Focused working-copy and publication tests cover private call-window staging, publish review counts, conflict and availability revalidation, and acknowledgement reset; focused ESLint and TypeScript pass.
+- Authenticated desktop browser proof confirms the Football vs Notre Dame Neutral chooser and the expanded row's Call/Release editor without mutating or publishing schedule data.
+- `npm run build:app` compiles the production app, and live migration health reaches Neon with no pending, failed, or DB-only rows.
+- Migration `0099_shift_group_working_copy` is applied and Neon reports 101/101 local migrations with no pending, failed, or DB-only rows. Native mutation adoption remains tracked as GAP-60.
+
+---
 ## Completed: Web booking detail iOS hierarchy alignment (2026-07-21)
 
 - [x] Carry the native title, timing, requester, location, gear, and event hierarchy into the shared web booking header.

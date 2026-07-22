@@ -35,6 +35,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   if (body.callStartsAt !== undefined) data.callStartsAt = callStartsAt;
   if (body.callEndsAt !== undefined) data.callEndsAt = callEndsAt;
   if (body.notes !== undefined) data.notes = body.notes;
+  data.templateManaged = false;
 
   const changesTimeWindow = body.startsAt !== undefined
     || body.endsAt !== undefined

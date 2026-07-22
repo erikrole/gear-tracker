@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ArchiveIcon, ChevronDownIcon, ChevronRightIcon, EyeOffIcon, UserIcon, XIcon } from "lucide-react";
+import { ArchiveIcon, ChevronDownIcon, ChevronRightIcon, EyeOffIcon, UserIcon, UserPlusIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
@@ -47,6 +47,7 @@ import {
   userShiftStatus,
 } from "./types";
 import { CoverageBadge } from "./Coverage";
+import { WorkingCrewEditor } from "./WorkingCrewEditor";
 
 type ListViewProps = {
   entries: CalendarEntry[];
@@ -79,7 +80,7 @@ const AREA_BADGE_VARIANT: Record<string, "green" | "purple" | "orange" | "blue">
   GRAPHICS: "blue",
 };
 
-const EVENT_GRID_CLASS = "grid-cols-[44px_72px_minmax(180px,1fr)_80px_136px_minmax(140px,180px)_40px]";
+const EVENT_GRID_CLASS = "grid-cols-[44px_72px_minmax(180px,1fr)_80px_minmax(100px,140px)_136px_40px]";
 
 function shiftAssignee(shift: Shift) {
   const active = shift.assignments.find((a) => ACTIVE_STATUSES.includes(a.status));
@@ -88,6 +89,10 @@ function shiftAssignee(shift: Shift) {
 
 function activeShiftAssignment(shift: Shift) {
   return shift.assignments.find((a) => ACTIVE_STATUSES.includes(a.status)) ?? null;
+}
+
+function openShiftCount(entry: CalendarEntry) {
+  return entry.shifts.reduce((count, shift) => count + (shiftAssignee(shift) ? 0 : 1), 0);
 }
 
 function workerKindForShift(shift: Shift): ShiftWorkerKind {
@@ -180,39 +185,22 @@ function commonCallWindow(entry: CalendarEntry) {
 
 function CrewSummary({
   entry,
-  isStaff,
-  onSelectGroup,
   compact = false,
 }: {
   entry: CalendarEntry;
-  isStaff: boolean;
-  onSelectGroup?: () => void;
   compact?: boolean;
 }) {
   const assignedUsers = entry.shifts
     .map(shiftAssignee)
     .filter((user): user is NonNullable<ReturnType<typeof shiftAssignee>> => Boolean(user));
-  const openCount = entry.shifts.reduce((count, shift) => count + (shiftAssignee(shift) ? 0 : 1), 0);
+  const openCount = openShiftCount(entry);
 
   if (entry.shifts.length === 0) return null;
 
   return (
     <div className={cn("flex min-w-0 items-center gap-2", compact ? "justify-start" : "justify-end")}>
       {assignedUsers.length > 0 && <UserAvatarGroup users={assignedUsers} max={compact ? 3 : 4} />}
-      {openCount > 0 && isStaff && onSelectGroup ? (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-10 shrink-0 px-2.5 text-xs transition-[background-color,scale] active:scale-[0.96]"
-          onClick={(event) => {
-            event.stopPropagation();
-            onSelectGroup();
-          }}
-        >
-          Assign {openCount}
-        </Button>
-      ) : openCount > 0 ? (
+      {openCount > 0 ? (
         <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
           {openCount} open
         </span>
@@ -517,6 +505,23 @@ export function ListView({
   hidingEventIds,
   onHideEvent,
 }: ListViewProps) {
+  const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(() =>
+    expandedRowId ? new Set([expandedRowId]) : new Set(),
+  );
+  useEffect(() => {
+    if (!expandedRowId) return;
+    setExpandedRowIds((current) => new Set(current).add(expandedRowId));
+  }, [expandedRowId]);
+
+  const toggleExpandedRow = useCallback((entryId: string) => {
+    setExpandedRowIds((current) => {
+      const next = new Set(current);
+      if (next.has(entryId)) next.delete(entryId);
+      else next.add(entryId);
+      return next;
+    });
+    setExpandedRowId(expandedRowIds.has(entryId) ? null : entryId);
+  }, [expandedRowIds, setExpandedRowId]);
 
   // Scroll to today when includePast is toggled on and data has loaded
   const desktopTodayGroupRef = useRef<HTMLDivElement>(null);
@@ -714,8 +719,8 @@ export function ListView({
           <span>Time</span>
           <span>Event</span>
           <span>Coverage</span>
-          <span>Status</span>
           <span className="text-right">Crew</span>
+          <span>Status</span>
           <span className="sr-only">Actions</span>
         </div>
 
@@ -783,8 +788,8 @@ export function ListView({
                   <table className="w-full border-collapse">
                     <tbody>
                       {groupEntries.map((entry) => {
-                        const isExpanded = expandedRowId === entry.id;
-                        const hasShifts = entry.shifts.length > 0;
+                        const isExpanded = expandedRowIds.has(entry.id);
+                        const hasShifts = entry.shifts.length > 0 || (isStaff && Boolean(entry.shiftGroupId));
                         const isAssignedToMe = currentUserId ? userHasShift(entry, currentUserId) : false;
                         const shiftStatus = currentUserId
                           ? userShiftStatus(entry, currentUserId)
@@ -799,9 +804,7 @@ export function ListView({
                             isAssignedToMe={isAssignedToMe}
                             shiftStatus={shiftStatus}
                             isStaff={isStaff}
-                            onToggle={() =>
-                              setExpandedRowId(isExpanded ? null : entry.id)
-                            }
+                            onToggle={() => toggleExpandedRow(entry.id)}
                             onSelectGroup={() =>
                               onSelectGroup(entry.shiftGroupId)
                             }
@@ -850,7 +853,8 @@ export function ListView({
                 <div key={`${dateKey}-${groupIdx}`} ref={isGroupToday ? mobileTodayGroupRef : undefined}>
                   <DateGroupHeader date={groupDate} eventCount={groupEntries.length} isToday={isGroupToday} />
                   {groupEntries.map((entry) => {
-              const isExpanded = expandedRowId === entry.id;
+              const isExpanded = expandedRowIds.has(entry.id);
+              const canExpand = entry.shifts.length > 0 || (isStaff && Boolean(entry.shiftGroupId));
               const isAssignedToMe = currentUserId ? userHasShift(entry, currentUserId) : false;
               const shiftStatus = currentUserId
                 ? userShiftStatus(entry, currentUserId)
@@ -872,15 +876,15 @@ export function ListView({
                   <button
                     className="w-full px-4 py-3 pr-14 text-left"
                     onClick={() =>
-                      entry.shifts.length > 0
-                        ? setExpandedRowId(isExpanded ? null : entry.id)
+                      canExpand
+                        ? toggleExpandedRow(entry.id)
                         : undefined
                     }
-                    aria-expanded={entry.shifts.length > 0 ? isExpanded : undefined}
+                    aria-expanded={canExpand ? isExpanded : undefined}
                   >
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <span className="font-semibold text-sm flex items-center gap-1.5 leading-tight">
-                        {entry.shifts.length > 0 && (
+                        {canExpand && (
                           isExpanded ? (
                             <ChevronDownIcon className="size-3.5 text-muted-foreground shrink-0 mt-0.5" />
                           ) : (
@@ -937,31 +941,56 @@ export function ListView({
                           Archived
                         </span>
                       )}
-                      <CrewSummary entry={entry} isStaff={isStaff} compact />
+                      <CrewSummary entry={entry} compact />
                     </div>
                   </button>
 
-                  {isStaff && onHideEvent && (
+                  {isStaff && (openShiftCount(entry) > 0 || onHideEvent) && (
                     <div className="absolute right-2 top-2">
                       <OperationalRowActions label={`Actions for ${titleParts.title}`}>
-                        <DropdownMenuItem
-                          disabled={hidingEventIds?.has(entry.id) ?? false}
-                          onSelect={() => onHideEvent(entry.id)}
-                        >
-                          <EyeOffIcon className="size-4" />
-                          Hide event
-                        </DropdownMenuItem>
+                        {openShiftCount(entry) > 0 && (
+                          <DropdownMenuItem onSelect={() => onSelectGroup(entry.shiftGroupId)}>
+                            <UserPlusIcon className="size-4" />
+                            Assign {openShiftCount(entry)} open {openShiftCount(entry) === 1 ? "slot" : "slots"}
+                          </DropdownMenuItem>
+                        )}
+                        {onHideEvent && (
+                          <DropdownMenuItem
+                            disabled={hidingEventIds?.has(entry.id) ?? false}
+                            onSelect={() => onHideEvent(entry.id)}
+                          >
+                            <EyeOffIcon className="size-4" />
+                            Hide event
+                          </DropdownMenuItem>
+                        )}
                       </OperationalRowActions>
                     </div>
                   )}
 
-                  {isExpanded && entry.shifts.length > 0 && (
+                  {isExpanded && canExpand && (
                     <div className="border-t border-border/40 px-4 py-3 pl-8">
                       {isStaff && latestChangeLabel(changeEvent) && (
                         <div className="mb-2 text-xs text-muted-foreground">
                           {latestChangeLabel(changeEvent)}
                         </div>
                       )}
+                      {isStaff ? (
+                        <WorkingCrewEditor
+                          entry={entry}
+                          pickerUsers={filteredUsers}
+                          pickerLoading={usersLoading}
+                          pickerSearch={userSearch}
+                          onOpenPicker={() => {
+                            setUserSearch("");
+                            loadUsers();
+                          }}
+                          onClosePicker={() => setUserSearch("")}
+                          onPickerSearchChange={setUserSearch}
+                          onPublished={loadData}
+                          onManageEvent={() => onSelectGroup(entry.shiftGroupId)}
+                          compact
+                        />
+                      ) : (
                       <ShiftRowList
                         entry={entry}
                         isStaff={isStaff}
@@ -987,6 +1016,7 @@ export function ListView({
                         onSelectGroup={() => onSelectGroup(entry.shiftGroupId)}
                         compact
                       />
+                      )}
                     </div>
                   )}
                 </div>
@@ -1115,6 +1145,7 @@ function EventRows({
   onPostTrade?: (assignmentId: string) => void;
 }) {
   const titleParts = scheduleEventTitleParts(entry);
+  const openCount = openShiftCount(entry);
 
   const venueTone = VENUE_TONES[venueToneFromEvent(entry)];
 
@@ -1173,6 +1204,7 @@ function EventRows({
               </div>
             </div>
             <div>{entry.coverage && <CoverageBadge percentage={entry.coverage.percentage} filled={entry.coverage.filled} total={entry.coverage.total} />}</div>
+            <CrewSummary entry={entry} />
             <div className="flex min-w-0 flex-wrap items-center gap-1">
               <PublicationBadge entry={entry} quietPublished />
               {isStaff && <ChangeHistoryBadge summary={changeEvent} reviewOnly />}
@@ -1184,13 +1216,20 @@ function EventRows({
                 </span>
               )}
             </div>
-            <CrewSummary entry={entry} isStaff={isStaff} onSelectGroup={onSelectGroup} />
-            {isStaff && onHide ? (
+            {isStaff && (openCount > 0 || onHide) ? (
               <OperationalRowActions label={`Actions for ${titleParts.title}`} triggerClassName={isHiding ? "opacity-100" : undefined}>
-                <DropdownMenuItem disabled={isHiding} onSelect={onHide}>
-                  <EyeOffIcon className="size-4" />
-                  Hide event
-                </DropdownMenuItem>
+                {openCount > 0 && (
+                  <DropdownMenuItem onSelect={onSelectGroup}>
+                    <UserPlusIcon className="size-4" />
+                    Assign {openCount} open {openCount === 1 ? "slot" : "slots"}
+                  </DropdownMenuItem>
+                )}
+                {onHide && (
+                  <DropdownMenuItem disabled={isHiding} onSelect={onHide}>
+                    <EyeOffIcon className="size-4" />
+                    Hide event
+                  </DropdownMenuItem>
+                )}
               </OperationalRowActions>
             ) : (
               <span aria-hidden="true" />
@@ -1202,28 +1241,21 @@ function EventRows({
       {/* Expanded assignment detail */}
       {isExpanded && (
         <tr className="bg-muted/10">
-          <td className="border-b border-border/15 px-4 py-3">
+          <td className="border-b border-border/15 px-4 py-2">
             <div className="pl-[116px] pr-10">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <div className="flex min-w-0 flex-col gap-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Crew
-                  </span>
-                  {isStaff && latestChangeLabel(changeEvent) && (
-                    <span className="truncate text-xs text-muted-foreground">
-                      {latestChangeLabel(changeEvent)}
-                    </span>
-                  )}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-10 px-2 text-xs text-muted-foreground transition-[background-color,color,scale] hover:text-foreground active:scale-[0.96]"
-                  onClick={onSelectGroup}
-                >
-                  Manage event
-                </Button>
-              </div>
+              {isStaff ? (
+                <WorkingCrewEditor
+                  entry={entry}
+                  pickerUsers={pickerUsers}
+                  pickerLoading={pickerLoading}
+                  pickerSearch={pickerSearch}
+                  onOpenPicker={() => onOpenPicker(entry.shifts[0]?.id ?? "")}
+                  onClosePicker={onClosePicker}
+                  onPickerSearchChange={onPickerSearchChange}
+                  onPublished={onCallWindowSaved}
+                  onManageEvent={onSelectGroup}
+                />
+              ) : (
               <ShiftRowList
                 entry={entry}
                 isStaff={isStaff}
@@ -1243,6 +1275,7 @@ function EventRows({
                 onSelectGroup={onSelectGroup}
                 onCallWindowSaved={onCallWindowSaved}
               />
+              )}
             </div>
           </td>
         </tr>

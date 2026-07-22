@@ -21,7 +21,7 @@ type TemplateShiftConfig = {
   awayStudentCount?: number | null;
 };
 
-function templateCounts(sc: TemplateShiftConfig, isHome: boolean): Record<ShiftWorkerType, number> {
+export function sportTemplateCounts(sc: TemplateShiftConfig, isHome: boolean): Record<ShiftWorkerType, number> {
   if (isHome) {
     return {
       FT: sc.homeStaffCount ?? 0,
@@ -41,7 +41,7 @@ function addTemplateShifts(
   startsAt: Date,
   endsAt: Date,
 ) {
-  const counts = templateCounts(sc, isHome);
+  const counts = sportTemplateCounts(sc, isHome);
   for (const workerType of ["FT", "ST"] as const) {
     for (let i = 0; i < counts[workerType]; i++) {
       target.push({
@@ -72,6 +72,12 @@ export async function generateShiftsForEvent(eventId: string): Promise<{
     return { created: false, shiftGroupId: null, shiftCount: 0 };
   }
 
+  // Neutral and non-game events need an explicit event-level crew decision.
+  // Home/Away defaults must never be selected by guessing.
+  if (event.isHome === null) {
+    return { created: false, shiftGroupId: null, shiftCount: 0 };
+  }
+
   // Skip if already has a ShiftGroup (never overwrite manual edits)
   if (event.shiftGroup) {
     return { created: false, shiftGroupId: event.shiftGroup.id, shiftCount: 0 };
@@ -87,7 +93,7 @@ export async function generateShiftsForEvent(eventId: string): Promise<{
   }
 
   // Create ShiftGroup + Shifts in one transaction
-  const isHome = event.isHome ?? true; // Default to home if unknown
+  const isHome = event.isHome;
 
   const shiftsData: Omit<ShiftToCreate, "shiftGroupId">[] = [];
   for (const sc of sportConfig.shiftConfigs) {
@@ -128,6 +134,7 @@ export async function generateShiftsForEvent(eventId: string): Promise<{
         workerType: s.workerType,
         startsAt: s.startsAt,
         endsAt: s.endsAt,
+        templateManaged: true,
       })),
     });
 
@@ -212,15 +219,15 @@ export async function generateShiftsForEvents(opts: {
   for (let i = 0; i < events.length; i++) {
     const event = events[i]!; // in-bounds by loop condition
     const config = event.sportCode ? configMap.get(event.sportCode) : undefined;
-    if (!config || config.shiftConfigs.length === 0) continue;
+    if (!config || config.shiftConfigs.length === 0 || event.isHome === null) continue;
 
-    const isHome = event.isHome ?? true;
+    const isHome = event.isHome;
 
     let hasShifts = false;
     const shiftStart = new Date(event.startsAt.getTime() - config.shiftStartOffset * 60_000);
     const shiftEnd = new Date(event.endsAt.getTime() + config.shiftEndOffset * 60_000);
     for (const sc of config.shiftConfigs) {
-      const counts = templateCounts(sc, isHome);
+      const counts = sportTemplateCounts(sc, isHome);
       for (const workerType of ["FT", "ST"] as const) {
         for (let j = 0; j < counts[workerType]; j++) {
           pendingShifts.push({
@@ -263,6 +270,7 @@ export async function generateShiftsForEvents(opts: {
       workerType: s.workerType,
       startsAt: s.startsAt,
       endsAt: s.endsAt,
+      templateManaged: true,
     }));
 
     // Batch create shifts
@@ -316,6 +324,10 @@ export async function regenerateShiftsForEvent(eventId: string): Promise<{
     return { added: 0 };
   }
 
+  if (event.isHome === null) {
+    return { added: 0 };
+  }
+
   // Skip regeneration for manually-edited shift groups
   if (event.shiftGroup.manuallyEdited) {
     return { added: 0 };
@@ -330,7 +342,7 @@ export async function regenerateShiftsForEvent(eventId: string): Promise<{
     return { added: 0 };
   }
 
-  const isHome = event.isHome ?? true;
+  const isHome = event.isHome;
   const existingShifts = event.shiftGroup.shifts;
 
   // Count existing shifts per area and planned worker kind.
@@ -347,10 +359,11 @@ export async function regenerateShiftsForEvent(eventId: string): Promise<{
     workerType: ShiftWorkerType;
     startsAt: Date;
     endsAt: Date;
+    templateManaged: boolean;
   }> = [];
 
   for (const sc of sportConfig.shiftConfigs) {
-    const counts = templateCounts(sc, isHome);
+    const counts = sportTemplateCounts(sc, isHome);
     for (const workerType of ["FT", "ST"] as const) {
       const currentCount = existingCounts.get(`${sc.area}:${workerType}`) ?? 0;
       const toAdd = Math.max(0, counts[workerType] - currentCount);
@@ -362,6 +375,7 @@ export async function regenerateShiftsForEvent(eventId: string): Promise<{
           workerType,
           startsAt: new Date(event.startsAt.getTime() - sportConfig.shiftStartOffset * 60_000),
           endsAt: new Date(event.endsAt.getTime() + sportConfig.shiftEndOffset * 60_000),
+          templateManaged: true,
         });
       }
     }
@@ -374,4 +388,231 @@ export async function regenerateShiftsForEvent(eventId: string): Promise<{
   await db.shift.createMany({ data: newShifts });
 
   return { added: newShifts.length };
+}
+
+export type SportDefaultRebaseSummary = {
+  eventsMatched: number;
+  groupsCreated: number;
+  groupsRebased: number;
+  slotsAdded: number;
+  slotsRemoved: number;
+  slotsRetimed: number;
+  protectedSlots: number;
+  protectedOverageSlots: number;
+  publishedSkipped: number;
+  workingCopiesSkipped: number;
+  neutralSkipped: number;
+};
+
+/**
+ * Reconcile upcoming unpublished schedules to newly saved sport defaults.
+ *
+ * Generated, never-edited, unassigned slots may be removed or retimed. Every
+ * slot with assignment history or an event-level edit is protected and counts
+ * toward the target for its current area and worker type. Published schedules
+ * and active working copies stay in the explicit review/publish workflow.
+ */
+export async function rebaseUpcomingShiftsForSportCodes(
+  sportCodes: string[],
+  now = new Date(),
+): Promise<SportDefaultRebaseSummary> {
+  return db.$transaction(async (tx) => {
+    const [configs, events] = await Promise.all([
+      tx.sportConfig.findMany({
+        where: { sportCode: { in: sportCodes }, active: true },
+        include: { shiftConfigs: true },
+      }),
+      tx.calendarEvent.findMany({
+        where: {
+          sportCode: { in: sportCodes },
+          startsAt: { gte: now },
+          status: { not: "CANCELLED" },
+          isHidden: false,
+          archivedAt: null,
+        },
+        select: {
+          id: true,
+          sportCode: true,
+          isHome: true,
+          startsAt: true,
+          endsAt: true,
+          shiftGroup: {
+            select: {
+              id: true,
+              publishedAt: true,
+              workingCopy: { select: { shiftGroupId: true } },
+              shifts: {
+                select: {
+                  id: true,
+                  area: true,
+                  workerType: true,
+                  startsAt: true,
+                  endsAt: true,
+                  callStartsAt: true,
+                  callEndsAt: true,
+                  notes: true,
+                  templateManaged: true,
+                  createdAt: true,
+                  assignments: { select: { id: true } },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { startsAt: "asc" },
+      }),
+    ]);
+
+    const configByCode = new Map(configs.map((config) => [config.sportCode, config]));
+    const summary: SportDefaultRebaseSummary = {
+      eventsMatched: events.length,
+      groupsCreated: 0,
+      groupsRebased: 0,
+      slotsAdded: 0,
+      slotsRemoved: 0,
+      slotsRetimed: 0,
+      protectedSlots: 0,
+      protectedOverageSlots: 0,
+      publishedSkipped: 0,
+      workingCopiesSkipped: 0,
+      neutralSkipped: 0,
+    };
+
+    for (const event of events) {
+      const config = event.sportCode ? configByCode.get(event.sportCode) : undefined;
+      if (!config) continue;
+      if (event.isHome === null) {
+        summary.neutralSkipped += 1;
+        continue;
+      }
+
+      if (event.shiftGroup?.publishedAt) {
+        summary.publishedSkipped += 1;
+        continue;
+      }
+      if (event.shiftGroup?.workingCopy) {
+        summary.workingCopiesSkipped += 1;
+        continue;
+      }
+
+      const startsAt = new Date(event.startsAt.getTime() - config.shiftStartOffset * 60_000);
+      const endsAt = new Date(event.endsAt.getTime() + config.shiftEndOffset * 60_000);
+      const targets = new Map<string, { area: ShiftArea; workerType: ShiftWorkerType; count: number }>();
+      for (const row of config.shiftConfigs) {
+        const counts = sportTemplateCounts(row, event.isHome);
+        for (const workerType of ["FT", "ST"] as const) {
+          targets.set(`${row.area}:${workerType}`, {
+            area: row.area,
+            workerType,
+            count: counts[workerType],
+          });
+        }
+      }
+
+      if (!event.shiftGroup) {
+        const slots = [...targets.values()].flatMap((target) =>
+          Array.from({ length: target.count }, () => ({
+            area: target.area,
+            workerType: target.workerType,
+            startsAt,
+            endsAt,
+            templateManaged: true,
+          })),
+        );
+        if (slots.length === 0) continue;
+        const group = await tx.shiftGroup.create({
+          data: { eventId: event.id, generatedAt: now },
+        });
+        await tx.shift.createMany({
+          data: slots.map((slot) => ({ ...slot, shiftGroupId: group.id })),
+        });
+        summary.groupsCreated += 1;
+        summary.slotsAdded += slots.length;
+        continue;
+      }
+
+      const shiftsByKey = new Map<string, typeof event.shiftGroup.shifts>();
+      for (const shift of event.shiftGroup.shifts) {
+        const key = `${shift.area}:${shift.workerType}`;
+        shiftsByKey.set(key, [...(shiftsByKey.get(key) ?? []), shift]);
+        if (
+          shift.assignments.length > 0
+          || !shift.templateManaged
+          || shift.notes !== null
+          || shift.callStartsAt !== null
+          || shift.callEndsAt !== null
+        ) {
+          summary.protectedSlots += 1;
+        }
+      }
+
+      const allKeys = new Set([...targets.keys(), ...shiftsByKey.keys()]);
+      let groupChanged = false;
+      for (const key of allKeys) {
+        const target = targets.get(key);
+        const current = shiftsByKey.get(key) ?? [];
+        const targetCount = target?.count ?? 0;
+        const removable = current
+          .filter((shift) =>
+            shift.templateManaged
+            && shift.assignments.length === 0
+            && shift.notes === null
+            && shift.callStartsAt === null
+            && shift.callEndsAt === null
+          )
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || b.id.localeCompare(a.id));
+        const removeCount = Math.min(Math.max(0, current.length - targetCount), removable.length);
+        const removeIds = removable.slice(0, removeCount).map((shift) => shift.id);
+        if (removeIds.length > 0) {
+          const removed = await tx.shift.deleteMany({
+            where: { id: { in: removeIds }, assignments: { none: {} } },
+          });
+          summary.slotsRemoved += removed.count;
+          groupChanged ||= removed.count > 0;
+        }
+
+        const remainingCount = current.length - removeCount;
+        summary.protectedOverageSlots += Math.max(0, remainingCount - targetCount);
+        const addCount = Math.max(0, targetCount - remainingCount);
+        if (target && addCount > 0) {
+          await tx.shift.createMany({
+            data: Array.from({ length: addCount }, () => ({
+              shiftGroupId: event.shiftGroup!.id,
+              area: target.area,
+              workerType: target.workerType,
+              startsAt,
+              endsAt,
+              templateManaged: true,
+            })),
+          });
+          summary.slotsAdded += addCount;
+          groupChanged = true;
+        }
+
+        const removeSet = new Set(removeIds);
+        const retimeIds = current
+          .filter((shift) =>
+            !removeSet.has(shift.id)
+            && shift.templateManaged
+            && shift.assignments.length === 0
+            && shift.notes === null
+            && shift.callStartsAt === null
+            && shift.callEndsAt === null
+            && (shift.startsAt.getTime() !== startsAt.getTime() || shift.endsAt.getTime() !== endsAt.getTime())
+          )
+          .map((shift) => shift.id);
+        if (retimeIds.length > 0) {
+          const retimed = await tx.shift.updateMany({
+            where: { id: { in: retimeIds }, assignments: { none: {} } },
+            data: { startsAt, endsAt },
+          });
+          summary.slotsRetimed += retimed.count;
+          groupChanged ||= retimed.count > 0;
+        }
+      }
+      if (groupChanged) summary.groupsRebased += 1;
+    }
+
+    return summary;
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }

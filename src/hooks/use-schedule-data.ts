@@ -107,6 +107,7 @@ function mergeData(events: CalendarEvent[], groups: ShiftGroup[]): CalendarEntry
       shifts: g?.shifts ?? [],
       archivedAt: g?.archivedAt ?? null,
       publication: g?.publication ?? null,
+      hasWorkingCopy: g?.hasWorkingCopy ?? false,
     };
   });
 }

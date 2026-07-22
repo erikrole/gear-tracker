@@ -19,6 +19,7 @@ export const POST = withKiosk(async (req, { kiosk }) => {
     serializedAssetIds: assetIds,
     bulkItems: bulkRequestsFromCheckoutUnits(bulkUnitItems),
     bookingKind: BookingKind.CHECKOUT,
+    includeBulkTurnaroundRisks: false,
   });
 
   return ok(result);

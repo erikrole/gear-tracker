@@ -60,6 +60,7 @@ export type ShiftGroup = {
   notes: string | null;
   archivedAt?: string | null;
   publication?: SchedulePublicationState | null;
+  hasWorkingCopy?: boolean;
   event: { id: string; startsAt: string };
   shifts: Shift[];
   coverage: { total: number; filled: number; percentage: number };
@@ -73,6 +74,7 @@ export type SchedulePublicationState = {
   activeAssignmentCount: number;
   acknowledgedCount: number;
   unacknowledgedCount: number;
+  workingVersion?: number;
 };
 
 /** Merged entry for display */
@@ -82,6 +84,7 @@ export type CalendarEntry = CalendarEvent & {
   shifts: Shift[];
   archivedAt?: string | null;
   publication?: SchedulePublicationState | null;
+  hasWorkingCopy?: boolean;
 };
 
 /* ───── Constants ───── */

@@ -47,6 +47,7 @@ type Props = {
   conflictsLoading?: boolean;
   candidateScores?: Record<string, CandidateRecommendation>;
   scoresLoading?: boolean;
+  scoresLoadError?: boolean;
   slotWorkerType?: string | null;
 };
 
@@ -79,6 +80,7 @@ export function UserAvatarPicker({
   conflictsLoading,
   candidateScores,
   scoresLoading,
+  scoresLoadError = false,
   slotWorkerType,
 }: Props) {
   const [conflictFilter, setConflictFilter] = useState<CandidateConflictFilter>("all");
@@ -89,12 +91,16 @@ export function UserAvatarPicker({
   );
   const groupedUsers = useMemo(() => {
     if (!candidateScores) return [{ key: "all", label: null, users: filteredUsers }];
+    const rankedUsers = [...filteredUsers].sort((a, b) =>
+      (candidateScores[b.id]?.score ?? -1) - (candidateScores[a.id]?.score ?? -1)
+      || a.name.localeCompare(b.name),
+    );
     const groups: Array<{ key: string; label: string | null; users: PickerUser[] }> = SCORE_BUCKET_ORDER.map((bucket) => ({
       key: bucket,
       label: SCORE_BUCKET_LABELS[bucket],
-      users: filteredUsers.filter((user) => candidateScores[user.id]?.bucket === bucket),
+      users: rankedUsers.filter((user) => candidateScores[user.id]?.bucket === bucket),
     })).filter((group) => group.users.length > 0);
-    const unscored = filteredUsers.filter((user) => !candidateScores[user.id]);
+    const unscored = rankedUsers.filter((user) => !candidateScores[user.id]);
     if (unscored.length > 0) groups.push({ key: "unscored", label: "Other", users: unscored });
     return groups;
   }, [candidateScores, filteredUsers]);
@@ -141,6 +147,8 @@ export function UserAvatarPicker({
       )}
       {loading ? (
         <p className="text-xs text-muted-foreground p-2">Loading users...</p>
+      ) : scoresLoading && !candidateScores ? (
+        <p className="text-xs text-muted-foreground p-2">Ranking candidates...</p>
       ) : loadError ? (
         <Alert variant="destructive" className="p-3">
           <AlertDescription className="flex flex-col gap-2 text-xs">
@@ -167,7 +175,7 @@ export function UserAvatarPicker({
                 : "No active users found."}
         </p>
       ) : (
-        <ScrollArea className="max-h-52">
+        <ScrollArea className="h-60 max-h-[var(--radix-popover-content-available-height)]">
           <div className="flex flex-col gap-2 pr-2">
             {groupedUsers.map((group) => (
               <div key={group.key} className="flex flex-col gap-1">
@@ -249,6 +257,11 @@ export function UserAvatarPicker({
       {(conflictsLoading || scoresLoading) && (
         <p className="mt-1 px-1.5 text-[10px] text-muted-foreground">
           {scoresLoading ? "Scoring candidates..." : "Checking availability..."}
+        </p>
+      )}
+      {scoresLoadError && (
+        <p className="mt-1 px-1.5 text-[10px] text-[var(--orange-text)]">
+          Ranking unavailable. Candidates are shown alphabetically.
         </p>
       )}
     </>

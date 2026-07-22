@@ -11,7 +11,7 @@
 
 | Model | Fields | Model-level indexes/constraints |
 |---|---:|---:|
-| `User` | 91 | 5 |
+| `User` | 93 | 5 |
 | `Session` | 6 | 2 |
 | `PasswordResetToken` | 6 | 2 |
 | `Location` | 17 | 1 |
@@ -62,8 +62,9 @@
 | `LicenseCodeClaim` | 10 | 3 |
 | `SportConfig` | 8 | 1 |
 | `SportShiftConfig` | 12 | 2 |
-| `ShiftGroup` | 14 | 3 |
-| `Shift` | 13 | 4 |
+| `ShiftGroup` | 16 | 3 |
+| `ShiftGroupWorkingCopy` | 12 | 2 |
+| `Shift` | 14 | 4 |
 | `ShiftAssignment` | 25 | 5 |
 | `StudentSportAssignment` | 6 | 3 |
 | `StudentAreaAssignment` | 6 | 3 |

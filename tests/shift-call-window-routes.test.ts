@@ -152,6 +152,7 @@ describe("call-window override routes", () => {
       data: {
         callStartsAt: new Date("2026-07-07T12:30:00.000Z"),
         callEndsAt: new Date("2026-07-07T15:30:00.000Z"),
+        templateManaged: false,
       },
     });
     expect(createAuditEntryTx).toHaveBeenCalledWith(

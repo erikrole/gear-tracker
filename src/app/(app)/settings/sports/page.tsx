@@ -13,6 +13,18 @@ import { AREAS, SPORT_GROUPS, defaultShiftConfigs } from "./types";
 import ShiftConfigTable from "./ShiftConfigTable";
 import { SettingsPageShell } from "../SettingsPageShell";
 
+type RebaseSummary = {
+  groupsCreated: number;
+  groupsRebased: number;
+  slotsAdded: number;
+  slotsRemoved: number;
+  slotsRetimed: number;
+  protectedSlots: number;
+  protectedOverageSlots: number;
+  publishedSkipped: number;
+  workingCopiesSkipped: number;
+};
+
 export default function SportsSettingsPage() {
   const { data: fetchedConfigs, loading, error, reload } = useFetch<SportConfig[]>({
     url: "/api/sport-configs",
@@ -32,6 +44,7 @@ export default function SportsSettingsPage() {
     setLocalConfigs(typeof updater === "function" ? updater(configs) : updater);
   };
   const [saving, setSaving] = useState<string | null>(null);
+  const [dirtyCodes, setDirtyCodes] = useState<Set<string>>(() => new Set());
 
   function getConfig(sportCode: string) {
     return configs.find((c) => c.sportCode === sportCode);
@@ -47,6 +60,10 @@ export default function SportsSettingsPage() {
     const codes = group ? group.codes : [sportCode];
     const groupActive = codes.some((code) => getConfig(code)?.active);
     const nextActive = !groupActive;
+    if (codes.some((code) => dirtyCodes.has(code))) {
+      toast.error("Save or discard this sport's staffing changes before turning generation off.");
+      return;
+    }
 
     // For groups whose configs don't exist yet, the group endpoint will create
     // them on demand with default shift counts (matches single-code POST).
@@ -67,7 +84,7 @@ export default function SportsSettingsPage() {
       shiftStartOffset?: number;
       shiftEndOffset?: number;
     },
-  ) {
+  ): Promise<boolean> {
     const group = findGroup(sportCode);
     const codes = group ? group.codes : [sportCode];
 
@@ -78,35 +95,57 @@ export default function SportsSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ codes, ...patch }),
       });
-      if (handleAuthRedirect(res, "/settings/sports")) return;
+      if (handleAuthRedirect(res, "/settings/sports")) return false;
       if (res.ok) {
-        const json = await parseJsonSafely<{ data?: SportConfig[] }>(res);
+        const json = await parseJsonSafely<{
+          data?: SportConfig[];
+          rebase?: RebaseSummary | null;
+          rebaseFailed?: boolean;
+        }>(res);
         const updated = json?.data;
         if (!Array.isArray(updated)) {
           toast.error("Saved, but the response could not be read. Refresh sports settings before continuing.");
           reload();
-          return;
+          return false;
         }
         const byCode = new Map(updated.map((c) => [c.sportCode, c]));
         setConfigs((prev) =>
           prev.map((c) => byCode.get(c.sportCode) ?? c)
             .concat(updated.filter((c) => !prev.some((p) => p.sportCode === c.sportCode)))
         );
+        const rebase = json?.rebase;
+        const changedEvents = (rebase?.groupsCreated ?? 0) + (rebase?.groupsRebased ?? 0);
+        const skippedReview = (rebase?.publishedSkipped ?? 0) + (rebase?.workingCopiesSkipped ?? 0);
         const group = findGroup(sportCode);
-        if (group && group.codes.length > 1) {
+        if (changedEvents > 0) {
+          toast.success(`Saved and updated ${changedEvents} upcoming ${changedEvents === 1 ? "event" : "events"}`);
+        } else if (group && group.codes.length > 1) {
           toast.success(`Saved - applies to ${group.codes.join(" + ")}`);
         } else {
           toast.success("Saved");
         }
+        if (skippedReview > 0) {
+          toast.info(`${skippedReview} published or in-progress ${skippedReview === 1 ? "schedule needs" : "schedules need"} review before changing.`);
+        }
+        if ((rebase?.protectedOverageSlots ?? 0) > 0) {
+          const kept = rebase!.protectedOverageSlots;
+          toast.info(`${kept} ${kept === 1 ? "slot was" : "slots were"} kept because staffing or manual changes already exist.`);
+        }
+        if (json?.rebaseFailed) {
+          toast.warning("Defaults were saved, but upcoming schedules could not be refreshed. Save again to retry safely.");
+        }
+        return true;
       } else if (res.status === 429) {
         toast.error("Too many changes - please slow down.");
       } else {
         toast.error("Save failed - your changes were not applied.");
       }
+      return false;
     } catch (err) {
-      if (isAbortError(err)) return;
+      if (isAbortError(err)) return false;
       const kind = classifyError(err);
       toast.error(kind === "network" ? "You're offline. Check your connection." : "Something went wrong");
+      return false;
     } finally {
       setSaving(null);
     }
@@ -149,11 +188,60 @@ export default function SportsSettingsPage() {
       };
     });
 
-    await applyGroupPatch(sportCode, `${sportCode}-${area}`, { shiftConfigs: updatedConfigs });
+    const codes = findGroup(sportCode)?.codes ?? [sportCode];
+    setConfigs((previous) => previous.map((item) =>
+      codes.includes(item.sportCode) ? { ...item, shiftConfigs: updatedConfigs } : item,
+    ));
+    setDirtyCodes((previous) => {
+      const next = new Set(previous);
+      for (const code of codes) next.add(code);
+      return next;
+    });
   }
 
   async function updateOffset(sportCode: string, field: "shiftStartOffset" | "shiftEndOffset", value: number) {
-    await applyGroupPatch(sportCode, `${sportCode}-calltime`, { [field]: value });
+    const codes = findGroup(sportCode)?.codes ?? [sportCode];
+    setConfigs((previous) => previous.map((item) =>
+      codes.includes(item.sportCode) ? { ...item, [field]: value } : item,
+    ));
+    setDirtyCodes((previous) => {
+      const next = new Set(previous);
+      for (const code of codes) next.add(code);
+      return next;
+    });
+  }
+
+  async function saveConfig(sportCode: string) {
+    const config = getConfig(sportCode);
+    if (!config) return;
+    const saved = await applyGroupPatch(sportCode, `${sportCode}-save`, {
+      shiftConfigs: config.shiftConfigs,
+      shiftStartOffset: config.shiftStartOffset,
+      shiftEndOffset: config.shiftEndOffset,
+    });
+    if (!saved) return;
+    const codes = findGroup(sportCode)?.codes ?? [sportCode];
+    setDirtyCodes((previous) => {
+      const next = new Set(previous);
+      for (const code of codes) next.delete(code);
+      return next;
+    });
+  }
+
+  function discardConfig(sportCode: string) {
+    const codes = findGroup(sportCode)?.codes ?? [sportCode];
+    const baseline = fetchedConfigs ?? [];
+    setConfigs((previous) => previous.map((item) =>
+      codes.includes(item.sportCode)
+        ? baseline.find((saved) => saved.sportCode === item.sportCode) ?? item
+        : item,
+    ));
+    setDirtyCodes((previous) => {
+      const next = new Set(previous);
+      for (const code of codes) next.delete(code);
+      return next;
+    });
+    toast.success("Unsaved staffing changes discarded");
   }
 
   const description = "Configure Staff and Student shift coverage plus default call times for each sport. Grouped sports share the same settings across men's and women's programs.";
@@ -212,6 +300,9 @@ export default function SportsSettingsPage() {
           onToggleActive={toggleActive}
           onUpdateShift={updateShiftCount}
           onUpdateOffset={updateOffset}
+          dirtyCodes={dirtyCodes}
+          onSave={saveConfig}
+          onDiscard={discardConfig}
         />
     </SettingsPageShell>
   );

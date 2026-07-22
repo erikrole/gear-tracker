@@ -99,7 +99,7 @@ Values: `ACTIVE`, `MAINTENANCE`, `UNKNOWN`
 
 ## Model `User`
 
-Fields: 91
+Fields: 93
 
 - `id                          String                       @id @default(cuid())`
 - `name                        String`
@@ -141,6 +141,8 @@ Fields: 91
 - `shiftAssignments            ShiftAssignment[]            @relation("ShiftAssignee")`
 - `shiftAssignedBy             ShiftAssignment[]            @relation("ShiftAssigner")`
 - `shiftGroupsPublished        ShiftGroup[]                 @relation("ShiftGroupPublisher")`
+- `shiftWorkingCopiesCreated   ShiftGroupWorkingCopy[]      @relation("ShiftWorkingCopyCreator")`
+- `shiftWorkingCopiesUpdated   ShiftGroupWorkingCopy[]      @relation("ShiftWorkingCopyUpdater")`
 - `shiftAcknowledged           ShiftAssignment[]            @relation("ShiftAssignmentAcknowledgedBy")`
 - `sportAssignments            StudentSportAssignment[]`
 - `areaAssignments             StudentAreaAssignment[]`
@@ -1398,22 +1400,24 @@ Indexes and constraints:
 
 ## Model `ShiftGroup`
 
-Fields: 14
+Fields: 16
 
-- `id                    String        @id @default(cuid())`
-- `eventId               String        @unique @map("event_id")`
+- `id                    String                 @id @default(cuid())`
+- `eventId               String                 @unique @map("event_id")`
 - `notes                 String?`
-- `generatedAt           DateTime?     @map("generated_at")`
-- `manuallyEdited        Boolean       @default(false) @map("manually_edited")`
-- `publishedAt           DateTime?     @map("published_at")`
-- `publishedById         String?       @map("published_by_id")`
-- `lastPublishedSnapshot Json?         @map("last_published_snapshot")`
-- `archivedAt            DateTime?     @map("archived_at")`
-- `createdAt             DateTime      @default(now()) @map("created_at")`
-- `updatedAt             DateTime      @updatedAt @map("updated_at")`
-- `event                 CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)`
-- `publishedBy           User?         @relation("ShiftGroupPublisher", fields: [publishedById], references: [id], onDelete: SetNull)`
+- `generatedAt           DateTime?              @map("generated_at")`
+- `manuallyEdited        Boolean                @default(false) @map("manually_edited")`
+- `publishedAt           DateTime?              @map("published_at")`
+- `publishedById         String?                @map("published_by_id")`
+- `lastPublishedSnapshot Json?                  @map("last_published_snapshot")`
+- `publishedVersion      Int                    @default(0) @map("published_version")`
+- `archivedAt            DateTime?              @map("archived_at")`
+- `createdAt             DateTime               @default(now()) @map("created_at")`
+- `updatedAt             DateTime               @updatedAt @map("updated_at")`
+- `event                 CalendarEvent          @relation(fields: [eventId], references: [id], onDelete: Cascade)`
+- `publishedBy           User?                  @relation("ShiftGroupPublisher", fields: [publishedById], references: [id], onDelete: SetNull)`
 - `shifts                Shift[]`
+- `workingCopy           ShiftGroupWorkingCopy?`
 
 Indexes and constraints:
 
@@ -1421,23 +1425,46 @@ Indexes and constraints:
 - `@@index([publishedById])`
 - `@@map("shift_groups")`
 
+## Model `ShiftGroupWorkingCopy`
+
+Fields: 12
+
+- `shiftGroupId         String     @id @map("shift_group_id")`
+- `version              Int        @default(1)`
+- `basePublishedVersion Int        @map("base_published_version")`
+- `payloadVersion       Int        @default(1) @map("payload_version")`
+- `payload              Json`
+- `createdById          String     @map("created_by_id")`
+- `updatedById          String     @map("updated_by_id")`
+- `createdAt            DateTime   @default(now()) @map("created_at")`
+- `updatedAt            DateTime   @updatedAt @map("updated_at")`
+- `shiftGroup           ShiftGroup @relation(fields: [shiftGroupId], references: [id], onDelete: Cascade)`
+- `createdBy            User       @relation("ShiftWorkingCopyCreator", fields: [createdById], references: [id], onDelete: Restrict)`
+- `updatedBy            User       @relation("ShiftWorkingCopyUpdater", fields: [updatedById], references: [id], onDelete: Restrict)`
+
+Indexes and constraints:
+
+- `@@index([updatedById, updatedAt])`
+- `@@map("shift_group_working_copies")`
+
 ## Model `Shift`
 
-Fields: 13
+Fields: 14
 
-- `id           String            @id @default(cuid())`
-- `shiftGroupId String            @map("shift_group_id")`
-- `area         ShiftArea`
-- `workerType   ShiftWorkerType   @map("worker_type")`
-- `startsAt     DateTime          @map("starts_at")`
-- `endsAt       DateTime          @map("ends_at")`
-- `callStartsAt DateTime?         @map("call_starts_at")`
-- `callEndsAt   DateTime?         @map("call_ends_at")`
-- `notes        String?`
-- `createdAt    DateTime          @default(now()) @map("created_at")`
-- `updatedAt    DateTime          @updatedAt @map("updated_at")`
-- `shiftGroup   ShiftGroup        @relation(fields: [shiftGroupId], references: [id], onDelete: Cascade)`
-- `assignments  ShiftAssignment[]`
+- `id              String            @id @default(cuid())`
+- `shiftGroupId    String            @map("shift_group_id")`
+- `area            ShiftArea`
+- `workerType      ShiftWorkerType   @map("worker_type")`
+- `startsAt        DateTime          @map("starts_at")`
+- `endsAt          DateTime          @map("ends_at")`
+- `callStartsAt    DateTime?         @map("call_starts_at")`
+- `callEndsAt      DateTime?         @map("call_ends_at")`
+- `notes           String?`
+- `templateManaged Boolean           @default(false) @map("template_managed")`
+- `createdAt       DateTime          @default(now()) @map("created_at")`
+- `updatedAt       DateTime          @updatedAt @map("updated_at")`
+- `shiftGroup      ShiftGroup        @relation(fields: [shiftGroupId], references: [id], onDelete: Cascade)`
+- `assignments     ShiftAssignment[]`
 
 Indexes and constraints:
 

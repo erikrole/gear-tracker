@@ -510,6 +510,7 @@ export async function checkAvailability(
     bulkItems: BulkRequest[];
     excludeBookingId?: string;
     bookingKind?: BookingKind;
+    includeBulkTurnaroundRisks?: boolean;
   }
 ): Promise<AvailabilityResult> {
   const [conflicts, shortages, unavailableAssets, upcomingCommitments, bulkTurnaroundRisks] = await Promise.all([
@@ -535,12 +536,14 @@ export async function checkAvailability(
       endsAt: args.endsAt,
       excludeBookingId: args.excludeBookingId,
     }),
-    checkBulkTurnaroundRisks(tx, {
-      locationId: args.locationId,
-      bulkItems: args.bulkItems,
-      endsAt: args.endsAt,
-      excludeBookingId: args.excludeBookingId,
-    }),
+    args.includeBulkTurnaroundRisks === false
+      ? Promise.resolve([])
+      : checkBulkTurnaroundRisks(tx, {
+          locationId: args.locationId,
+          bulkItems: args.bulkItems,
+          endsAt: args.endsAt,
+          excludeBookingId: args.excludeBookingId,
+        }),
   ]);
   const turnaroundRisks = await checkSerializedTurnaroundRisks(tx, {
     serializedAssetIds: args.serializedAssetIds,

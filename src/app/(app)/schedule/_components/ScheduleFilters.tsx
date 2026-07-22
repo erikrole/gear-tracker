@@ -63,12 +63,9 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
   }, [entries]);
 
   const isListView = filters.viewMode === "list";
-  const activeFilterCount = [
-    filters.sportFilter,
+  const menuFilterCount = [
     filters.areaFilter,
     filters.coverageFilter,
-    filters.homeAwayFilter !== "all" ? filters.homeAwayFilter : "",
-    filters.myShiftsOnly ? "my-shifts" : "",
     isListView && filters.includePast ? "past" : "",
     isListView && filters.includeArchived ? "archived" : "",
   ].filter(Boolean).length;
@@ -219,6 +216,17 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
         {/* Divider */}
         <div className="mx-0.5 h-6 w-px bg-border/80 max-sm:hidden" />
 
+        <FilterChip
+          label="Sport"
+          value={filters.sportFilter}
+          displayValue={filters.sportFilter ? sportLabel(filters.sportFilter) : ""}
+          options={sportOptions}
+          onSelect={(value) => filters.setSportFilter(value)}
+          onClear={() => filters.setSportFilter("")}
+        />
+
+        <div className="mx-0.5 h-6 w-px bg-border/80 max-sm:hidden" />
+
         {/* My Shifts toggle */}
         <Label
           htmlFor="my-shifts-toggle"
@@ -238,15 +246,15 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
         <Popover>
           <PopoverTrigger asChild>
             <Button
-              variant={activeFilterCount > 0 ? "secondary" : "outline"}
+              variant={menuFilterCount > 0 ? "secondary" : "outline"}
               size="sm"
               className="h-10 gap-1.5 text-[13px] transition-[background-color,scale] active:scale-[0.96]"
             >
               <FilterIcon className="size-3.5" />
               Filters
-              {activeFilterCount > 0 && (
+              {menuFilterCount > 0 && (
                 <span className="ml-0.5 rounded-sm bg-background px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-foreground">
-                  {activeFilterCount}
+                  {menuFilterCount}
                 </span>
               )}
             </Button>
@@ -277,16 +285,6 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
                   </div>
                 </div>
               )}
-              <FilterChip
-                label="Sport"
-                value={filters.sportFilter}
-                displayValue={
-                  filters.sportFilter ? sportLabel(filters.sportFilter) : ""
-                }
-                options={sportOptions}
-                onSelect={(v) => filters.setSportFilter(v)}
-                onClear={() => filters.setSportFilter("")}
-              />
               <FilterChip
                 label="Area"
                 value={filters.areaFilter}

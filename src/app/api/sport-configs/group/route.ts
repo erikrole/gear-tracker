@@ -5,6 +5,7 @@ import { updateSportConfigGroupSchema } from "@/lib/validation";
 import { upsertSportConfigsForGroup } from "@/lib/services/sport-configs";
 import { createAuditEntry } from "@/lib/audit";
 import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
+import { rebaseUpcomingShiftsForSportCodes } from "@/lib/services/shift-generation";
 
 /**
  * POST /api/sport-configs/group
@@ -24,14 +25,31 @@ export const POST = withAuth(async (req, { user }) => {
     shiftEndOffset: body.shiftEndOffset,
   });
 
+  const shouldRebase = body.active !== false && (
+    body.active === true
+    || body.shiftConfigs !== undefined
+    || body.shiftStartOffset !== undefined
+    || body.shiftEndOffset !== undefined
+  );
+  let rebase = null;
+  let rebaseFailed = false;
+  if (shouldRebase) {
+    try {
+      rebase = await rebaseUpcomingShiftsForSportCodes(body.codes);
+    } catch (error) {
+      rebaseFailed = true;
+      console.error("Upcoming schedule rebase failed after sport defaults were saved", error);
+    }
+  }
+
   await createAuditEntry({
     actorId: user.id,
     actorRole: user.role,
     entityType: "sport_config",
     entityId: body.codes.join(","),
     action: "sport_config_group_updated",
-    after: body,
+    after: { ...body, rebase, rebaseFailed },
   });
 
-  return ok({ data: updated });
+  return ok({ data: updated, rebase, rebaseFailed });
 });

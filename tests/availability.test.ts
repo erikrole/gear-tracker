@@ -629,4 +629,26 @@ describe("checkAvailability", () => {
       bulkTurnaroundRisks: [],
     });
   });
+
+  it("BUG: skips bulk turnaround advisories when exact kiosk units bind at checkout", async () => {
+    const tx = createMockTx();
+    tx.assetAllocation.findMany.mockResolvedValue([]);
+    tx.bulkStockBalance.findMany.mockResolvedValue([{ bulkSkuId: "sku-1", onHandQuantity: 20 }]);
+    tx.bookingBulkItem.groupBy.mockResolvedValue([]);
+    tx.checkinItemReport.findMany.mockResolvedValue([]);
+    tx.asset.findMany.mockResolvedValue([]);
+
+    const result = await checkAvailability(availabilityTx(tx), {
+      locationId: "loc-1",
+      startsAt: new Date("2026-04-01"),
+      endsAt: new Date("2026-04-02"),
+      serializedAssetIds: [],
+      bulkItems: [{ bulkSkuId: "sku-1", quantity: 2 }],
+      includeBulkTurnaroundRisks: false,
+    });
+
+    expect(result.bulkTurnaroundRisks).toEqual([]);
+    expect(tx.bookingBulkItem.findMany).not.toHaveBeenCalled();
+    expect(tx.bookingBulkItem.groupBy).toHaveBeenCalled();
+  });
 });

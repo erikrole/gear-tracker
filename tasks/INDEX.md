@@ -64,6 +64,7 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Recently Archived
 
+- `archive/completed-2026-07/kiosk-bulk-turnaround-warning-fix-plan.md` - removed misleading bulk-family Tight turn warnings from direct kiosk checkout while preserving hard quantity shortages and exact-unit checks.
 - `archive/completed-2026-07/web-booking-detail-ios-alignment-plan.md` - brought the native identity, live timing, requester, location, gear, and event hierarchy to shared web booking detail while retaining operator controls and context.
 - `archive/completed-2026-07/booking-nudge-push-plan.md` - paired staff/admin overdue-checkout inbox nudges with preference-aware iOS push and booking tap-through.
 - `archive/completed-2026-07/ios-reservation-final-copy-polish-plan.md` - separated event date and venue context, quieted Review battery rows, and removed synthetic event-launched reservation title prefixes.
