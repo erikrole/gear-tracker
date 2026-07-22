@@ -403,7 +403,10 @@ private struct StatStrip: View {
             items.append(StatItem(id: "due-today", value: stats.dueToday, label: "Due Today", systemImage: "clock.fill", tone: .orange, action: openAttention))
         }
         if pendingPickupCount > 0 {
-            items.append(StatItem(id: "pickups", value: pendingPickupCount, label: pendingPickupCount == 1 ? "Pickup" : "Pickups", systemImage: "shippingbox.fill", tone: .green, action: openBookings))
+            // Orange, matching PENDING_PICKUP everywhere else. Green reads as
+            // "available, nothing needed", and this is the one state that
+            // cancels itself and releases the gear after 48 unattended hours.
+            items.append(StatItem(id: "pickups", value: pendingPickupCount, label: pendingPickupCount == 1 ? "Pickup" : "Pickups", systemImage: "shippingbox.fill", tone: .orange, action: openBookings))
         }
         if shiftCount > 0 {
             items.append(StatItem(id: "shifts", value: shiftCount, label: shiftCount == 1 ? "Shift" : "Shifts", systemImage: "calendar", tone: .blue, action: openSchedule))

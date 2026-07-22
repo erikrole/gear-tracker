@@ -369,7 +369,8 @@ struct ItemsView: View {
                         systemImage: asset.isFavorited ? "star.slash" : "star"
                     )
                 }
-                .tint(.yellow)
+                // Shared marker accent, not a status tone -- see Brand.marker.
+                .tint(Color.marker)
             }
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 if asset.computedStatus != .retired {

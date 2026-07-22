@@ -78,6 +78,44 @@ describe("semantic tone sources of truth", () => {
     }
   });
 
+  it("keeps awaiting-pickup orange on every surface", () => {
+    // PENDING_PICKUP is the one state that destroys itself if ignored: it
+    // auto-cancels 48 hours past startsAt and releases the gear. Green is the
+    // system's "nothing needed here" colour, so it is the wrong end of the
+    // scale no matter how ready the gear itself is.
+    const home = source("ios/Wisconsin/Views/HomeView.swift");
+    const pickupTile = home.slice(home.indexOf('StatItem(id: "pickups"'));
+    expect(pickupTile.slice(0, pickupTile.indexOf("\n"))).toContain("tone: .orange");
+
+    const bookingsView = source("ios/Wisconsin/Views/BookingsView.swift");
+    expect(bookingsView).toContain("case .pendingPickup: return .orange");
+  });
+
+  it("routes personal markers through one color, never a status hue", () => {
+    // Favourite and default-traveller stars say "you flagged this", not "this
+    // is in state X". They were four spellings of amber/yellow across the two
+    // platforms; now both sides name the same token.
+    const brand = source("ios/Wisconsin/Core/Brand.swift");
+    expect(brand).toContain("static let marker");
+    expect(source("ios/Wisconsin/Views/ItemsView.swift")).not.toContain(".tint(.yellow)");
+
+    const markerSurfaces = [
+      "src/app/(app)/items/columns.tsx",
+      "src/app/(app)/items/[id]/_components/ItemHeader.tsx",
+      "src/app/(app)/events/[id]/_components/EventTravelCard.tsx",
+    ];
+    for (const file of markerSurfaces) {
+      const markup = source(file);
+      expect(markup, `${file} should use the marker token`).toContain("var(--yellow-text)");
+      expect(markup, `${file} still has an ad-hoc amber`).not.toMatch(/\bamber-\d{3}\b/);
+    }
+
+    // Avatar fallbacks are the one sanctioned home for off-palette hues: they
+    // identify a person and never share a row with that object's status color.
+    const strayAmber = source("src/app/(app)/bulk-inventory/[id]/BulkSkuQrTab.tsx");
+    expect(strayAmber).not.toMatch(/\bamber-\d{3}\b/);
+  });
+
   it("agrees with iOS on which venue gets which color", () => {
     // Web keys off a tone name, iOS off the raw isHome tri-state. Both must
     // land on the same three colors.

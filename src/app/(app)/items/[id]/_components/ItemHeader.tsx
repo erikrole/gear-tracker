@@ -341,7 +341,7 @@ export function ItemHeader({
               >
                 <Star
                   className={`size-3.5 ${
-                    asset.isFavorited ? "fill-amber-400 text-amber-400" : "text-muted-foreground"
+                    asset.isFavorited ? "fill-[var(--yellow-text)] text-[var(--yellow-text)]" : "text-muted-foreground"
                   }`}
                 />
               </Button>

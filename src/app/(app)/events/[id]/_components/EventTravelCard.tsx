@@ -212,7 +212,7 @@ function RosterPicker({
                   disabled={toggling === entry.id}
                   className={`size-10 ${
                     entry.defaultTraveler
-                      ? "text-amber-400 hover:text-amber-500"
+                      ? "text-[var(--yellow-text)] hover:brightness-110"
                       : "text-muted-foreground/30 hover:text-muted-foreground"
                   }`}
                   aria-label={entry.defaultTraveler ? `Remove ${entry.user.name} as default traveler` : `Mark ${entry.user.name} as default traveler`}

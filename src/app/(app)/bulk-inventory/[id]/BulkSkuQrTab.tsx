@@ -145,10 +145,10 @@ export default function BulkSkuQrTab({
         </CardContent>
       </Card>
 
-      <Card className="border-amber-500/30 bg-amber-500/[0.04] shadow-none">
+      <Card className="border-[var(--orange)]/30 bg-[var(--orange)]/[0.04] shadow-none">
         <CardHeader>
           <div className="flex items-center gap-2">
-            <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+            <AlertTriangle className="size-4 text-[var(--orange-text)]" aria-hidden="true" />
             <CardTitle className="text-base">Before you reset</CardTitle>
           </div>
         </CardHeader>

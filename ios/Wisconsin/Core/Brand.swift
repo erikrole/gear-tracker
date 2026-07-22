@@ -125,6 +125,15 @@ extension Color {
         }
     }
 
+    /// The personal-marker accent: favourite stars, default-traveller stars.
+    /// Deliberately outside `StatusTone` — a marker says "you flagged this",
+    /// not "this is in state X", so it must never be mistaken for a status.
+    /// Matches web's `--yellow-text` in both themes.
+    static let marker = Color(UIColor(dynamicProvider: { $0.userInterfaceStyle == .dark
+        ? UIColor(red: 0.980, green: 0.800, blue: 0.082, alpha: 1) // #facc15
+        : UIColor(red: 0.792, green: 0.541, blue: 0.016, alpha: 1) // #ca8a04
+    }))
+
     /// Background fill for a status tone — matches web `--{tone}-bg`.
     /// Dark-mode mixes the text color at low alpha so contrast holds.
     static func statusBackground(_ tone: StatusTone) -> Color {

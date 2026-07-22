@@ -47,6 +47,13 @@ These rules take priority over any component-level decision:
 | MAINTENANCE | orange | `orange` | `.orange` | In Maintenance |
 | RETIRED | gray | `gray` | `.secondary` | Retired |
 
+> **One intentional asymmetry:** iOS `assetStatusTone` returns red for a
+> `CHECKED_OUT` item whose active booking is overdue; web's
+> `statusBadgeVariantEquipment` takes a bare status string and cannot know. This
+> is deliberate rather than drift — iOS is the floor tool, where "this one is
+> late" is worth knowing at a glance from an item list. If a web surface ever
+> has the booking in hand at badge time, it should follow iOS, not the reverse.
+
 ### Booking kind (icon + tint language)
 
 Used in lists and search results where kind is visible but status may not be the primary signal.
@@ -86,6 +93,53 @@ shift, not an overdue booking.
 > **Note:** Green here does not mean "available" — it means "home game." Do not use red for Away — red is reserved for overdue/error states.
 
 > **Which vocabulary a row speaks:** location colors belong to event rows, booking status colors to gear rows. Where the two are separated by surface, that is self-evident. Where they are interleaved — iOS Home's Next Up list, which is ordered by time and mixes shifts with gear — the row's leading glyph declares the domain: `calendar` means read it as location, `shippingbox.fill` means read it as booking status. Any future surface that interleaves the domains must carry the same glyph distinction; without it, green is ambiguous between "home game" and "available."
+
+### Personal marker (not a status)
+
+Favourite stars and default-traveller stars mark something *you* flagged. This is
+deliberately outside the status palette — a marker must never be mistaken for a
+state the system computed.
+
+| Usage | Web | iOS |
+|-------|-----|-----|
+| Favourite item star, default-traveller star | `var(--yellow-text)` | `Color.marker` (Brand.swift) |
+
+> The filled-vs-outline star already carries on/off; the colour is convention,
+> not information. Previously these were three separate `amber-400`/`amber-500`
+> classes on web and a raw `.yellow` on iOS — four spellings of one idea, none
+> of them a token. Yellow has no other job in the system, so it is safe here.
+
+### Trade board availability (scheduling domain)
+
+| State | Color | Meaning |
+|-------|-------|---------|
+| Open (claimable now) | green | Free to take — the one place green's "available" sense applies to a shift rather than gear |
+| Not available | gray | Inactive/not actionable by you |
+
+### License expiry
+
+| State | Color |
+|-------|-------|
+| Past expiry | red |
+| Expires within 30 days | orange |
+| Valid, or no date on file | secondary (no hue) |
+
+### Scan overlay (web, always-dark)
+
+The scanner sits on a `bg-black` camera surface, so its feedback pills use fixed
+dark-palette values (`text-green-400 bg-green-950/40`, `text-red-400
+bg-red-950/40`) rather than theme tokens. This is the same arrangement as the
+kiosk: the surface does not follow the app theme, so neither can its text.
+Meaning still matches the system — green success, red error, neutral zinc for
+informational.
+
+### Avatar fallbacks (decorative)
+
+`src/lib/avatar.ts` holds a 10-colour palette hashed from a user's name. It is
+**not** semantic: the colour identifies a person, carries no state, and is the
+one place hues outside the palette (rose, teal, sky, indigo, violet, pink) are
+allowed. It never appears on a row that also carries a status colour for the
+same object.
 
 ### Guide callouts (Resources reader)
 

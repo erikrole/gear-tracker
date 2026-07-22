@@ -306,7 +306,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
               <Star
                 className={`size-4 ${
                   asset.isFavorited
-                    ? "fill-amber-400 text-amber-400"
+                    ? "fill-[var(--yellow-text)] text-[var(--yellow-text)]"
                     : "text-muted-foreground"
                 }`}
                 aria-hidden="true"
