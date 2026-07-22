@@ -156,6 +156,11 @@ struct NotificationsSheet: View {
                 }
             }
         }
+        // Neutral chrome, applied outside the NavigationStack so the bar's own
+        // items inherit it. Both buttons were brand red, which put the urgent
+        // colour on "Done" and on a routine bulk action, directly above rows
+        // where red means somebody is late with our gear.
+        .tint(Color.primary)
         .onChange(of: vm.actionError) { _, actionError in
             if let actionError {
                 actionErrorHaptic.toggle()
@@ -378,8 +383,12 @@ private struct NotificationRow: View {
 
             if notification.isUnread {
                 Spacer()
+                // Blue, not the accent. `Color.accentColor` resolves to brand
+                // red here, so every unread row grew a red dot -- the same mark
+                // an overdue row earns -- and a week of unread shift assignments
+                // read as a column of alarms.
                 Circle()
-                    .fill(Color.accentColor)
+                    .fill(Color.statusText(.blue))
                     .frame(width: 8, height: 8)
                     .padding(.top, 6)
                     .accessibilityHidden(true)
@@ -418,7 +427,12 @@ private extension String {
     /// Type → status tone, mirroring `notifIconBg` in `src/app/(app)/notifications/page.tsx`.
     /// `nil` falls back to the muted gray pairing.
     var notifTone: StatusTone? {
-        if hasPrefix("checkout_due") || hasPrefix("checkout_overdue") { return .orange }
+        // Overdue is red everywhere else in the app -- COLOR_SYSTEM.md states it
+        // outright ("OVERDUE = red, never orange"). These two shared one orange
+        // branch, so the single notification that means "somebody is late with
+        // our gear" arrived wearing the colour of "due soon".
+        if hasPrefix("checkout_overdue") { return .red }
+        if hasPrefix("checkout_due") { return .orange }
         if hasPrefix("checkin_item_damaged") || hasPrefix("checkin_item_lost") { return .red }
         if self == "trade_claimed" || self == "trade_approved" { return .blue }
         if self == "trade_declined" || self == "trade_expired" { return .red }
