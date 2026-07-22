@@ -611,7 +611,7 @@ private struct HomeActionQueue: View {
     }
 
     private func eventDetailLines(for summary: BookingSummary) -> [QueueDetailLine] {
-        var lines = [QueueDetailLine(text: gearInstruction(for: summary), tone: summary.startsAt < Date() ? .orange : .green)]
+        var lines = [QueueDetailLine(text: gearInstruction(for: summary), tone: queueGearTone(for: summary))]
         if let shift = shiftLinked(to: summary) {
             lines.append(QueueDetailLine(
                 text: "Call time at \(shift.startsAt.formatted(date: .omitted, time: .shortened))",
@@ -658,7 +658,7 @@ private struct HomeActionQueue: View {
         switch entry.kind {
         case .overdue(let summary):
             ActionQueueRow(
-                tone: .red,
+                tone: queueGearTone(for: summary),
                 systemImage: entry.systemImage,
                 title: summary.title,
                 subtitle: personalContext(for: summary),
@@ -667,7 +667,7 @@ private struct HomeActionQueue: View {
             )
         case .dueToday(let summary):
             ActionQueueRow(
-                tone: .orange,
+                tone: queueGearTone(for: summary),
                 systemImage: entry.systemImage,
                 title: summary.title,
                 subtitle: personalContext(for: summary),
@@ -676,7 +676,7 @@ private struct HomeActionQueue: View {
             )
         case .pendingPickup(let summary):
             ActionQueueRow(
-                tone: summary.startsAt < Date() ? .orange : .green,
+                tone: queueGearTone(for: summary),
                 systemImage: entry.systemImage,
                 title: summary.title,
                 subtitle: summary.linkedEventId == nil ? personalContext(for: summary) : nil,
@@ -688,7 +688,7 @@ private struct HomeActionQueue: View {
             )
         case .reservation(let summary):
             ActionQueueRow(
-                tone: .purple,
+                tone: queueGearTone(for: summary),
                 systemImage: entry.systemImage,
                 title: summary.title,
                 subtitle: summary.linkedEventId == nil ? personalContext(for: summary) : nil,
@@ -704,7 +704,7 @@ private struct HomeActionQueue: View {
             )
         case .upcomingCheckout(let summary):
             ActionQueueRow(
-                tone: .blue,
+                tone: queueGearTone(for: summary),
                 systemImage: entry.systemImage,
                 title: summary.title,
                 subtitle: personalContext(for: summary),
@@ -765,6 +765,33 @@ private struct QueueDetailLine {
     let tone: StatusTone
 }
 
+/// Gear rows inherit the booking-status colors from `docs/COLOR_SYSTEM.md`:
+/// purple reserved, orange awaiting pickup, blue checked out, red overdue.
+/// The single overlay is the deadline ramp -- an open checkout goes orange on
+/// the day it is due before it goes red -- which is the same escalation the
+/// stat strip above the card already reads out as Overdue / Due Today.
+private func queueGearTone(for summary: BookingSummary) -> StatusTone {
+    if summary.isOverdue { return .red }
+    switch summary.status {
+    case .booked: return .purple
+    case .pendingPickup: return .orange
+    case .open: return Calendar.current.isDateInToday(summary.endsAt) ? .orange : .blue
+    default: return .gray
+    }
+}
+
+/// Shift rows inherit the scheduling domain's location colors instead: green
+/// home, orange away, gray for neutral sites and non-games, matching the rails
+/// on the Schedule tab. The two domains share one chronological list, so the
+/// row's glyph -- box or calendar -- is what says which vocabulary to read.
+private func queueVenueTone(for event: DashboardEventWorkEvent) -> StatusTone {
+    switch event.isHome {
+    case true: return .green
+    case false: return .orange
+    case nil: return .gray
+    }
+}
+
 /// A Next Up row plus the moment it sorts on, so rows of different kinds can
 /// share one chronological list.
 private struct QueueEntry: Identifiable {
@@ -798,7 +825,11 @@ private struct EventActionQueueRow: View {
     let openEventWork: (DashboardEventWork) -> Void
     @State private var hapticTrigger = false
 
-    private var tone: StatusTone { work.needsGear ? .blue : .green }
+    /// Venue, not gear readiness. This row's colour used to answer "is gear
+    /// booked?", which made green mean "ready" here and "home game" one tab
+    /// over on Schedule. Whether gear is still needed is a fact for the detail
+    /// sheet, not for the one channel the Schedule tab spends on location.
+    private var tone: StatusTone { queueVenueTone(for: work.event) }
     private var scheduleEvent: ScheduleEvent { work.asScheduleEvent }
     private var isAllDayEvent: Bool { scheduleEvent.displayAllDay }
     private var firstTime: Date { min(work.primaryGear?.startsAt ?? work.shift.startsAt, work.shift.startsAt) }
@@ -854,9 +885,11 @@ private struct EventActionQueueRow: View {
                         .lineLimit(2)
                     VStack(alignment: .leading, spacing: 3) {
                         if let gear = work.primaryGear, let gearLine {
+                            // The gear line speaks the gear vocabulary even
+                            // inside a shift row, since it describes a booking.
                             QueueDetailText(
                                 text: gearLine,
-                                tone: gearTone(for: gear),
+                                tone: queueGearTone(for: gear),
                                 showsBullet: callTimeLine != nil
                             )
                         }
@@ -905,20 +938,18 @@ private struct EventActionQueueRow: View {
         return "Pickup gear at \(time)"
     }
 
-    private func gearTone(for gear: BookingSummary) -> StatusTone {
-        gear.status == .pendingPickup && gear.startsAt < Date() ? .orange : .green
-    }
 }
 
 /// A supporting line under a Next Up title. The bullet only earns its place
-/// when there are two lines to tell apart; alone it reads as decoration. A
-/// late line keeps its tone in the text so urgency survives losing the dot.
+/// when there are two lines to tell apart; alone it reads as decoration. Only
+/// a red line colours its text: awaiting-pickup orange is the resting state
+/// for most gear lines, so tinting on it would light up the whole card.
 private struct QueueDetailText: View {
     let text: String
     let tone: StatusTone
     let showsBullet: Bool
 
-    private var isUrgent: Bool { tone == .orange || tone == .red }
+    private var isUrgent: Bool { tone == .red }
 
     var body: some View {
         HStack(spacing: 5) {

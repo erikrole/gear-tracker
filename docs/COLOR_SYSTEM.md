@@ -35,6 +35,8 @@ These rules take priority over any component-level decision:
 
 > **Kind rule:** `BOOKED` is reserved/claimed work and uses purple for both checkout and reservation contexts. `OPEN` is checkout-only so it's always blue.
 
+> **Deadline overlay:** an `OPEN` checkout goes orange on the day it is due, then red once it is past due. This is the only sanctioned departure from the table, and it applies to urgency-ranked surfaces (iOS Home's stat strip and Next Up rows, via `queueGearTone`). Elsewhere `OPEN` stays blue and the due date carries the deadline on its own.
+
 ### Item / asset status
 
 | Status | Color | Web variant | iOS color | Label |
@@ -64,7 +66,9 @@ These badges appear on event rows in the schedule and dashboard. They are **not*
 | Away | orange | `orange` | Elevated logistics/travel effort required |
 | Neutral | gray | `gray` | Informational only, no directional meaning |
 
-> **Note:** Green here does not mean "available" — it means "home game." The separation is clear because these badges only appear on event rows, never on gear or booking rows. Do not use red for Away — red is reserved for overdue/error states.
+> **Note:** Green here does not mean "available" — it means "home game." Do not use red for Away — red is reserved for overdue/error states.
+
+> **Which vocabulary a row speaks:** location colors belong to event rows, booking status colors to gear rows. Where the two are separated by surface, that is self-evident. Where they are interleaved — iOS Home's Next Up list, which is ordered by time and mixes shifts with gear — the row's leading glyph declares the domain: `calendar` means read it as location, `shippingbox.fill` means read it as booking status. Any future surface that interleaves the domains must carry the same glyph distinction; without it, green is ambiguous between "home game" and "available."
 
 ### Guide callouts (Resources reader)
 

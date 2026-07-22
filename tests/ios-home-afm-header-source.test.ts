@@ -117,4 +117,27 @@ describe("iOS Home header source contract", () => {
     // The bullet only separates two detail lines; a lone line goes without.
     expect(home).toContain("showsBullet: detailLines.count > 1");
   });
+
+  it("colors Next Up rows from the domain each row belongs to", () => {
+    const home = source("ios/Wisconsin/Views/HomeView.swift");
+
+    // Gear rows read the booking-status palette in docs/COLOR_SYSTEM.md, with
+    // the sanctioned deadline overlay on an open checkout due today.
+    expect(home).toContain("private func queueGearTone(for summary: BookingSummary) -> StatusTone");
+    expect(home).toContain("if summary.isOverdue { return .red }");
+    expect(home).toContain("case .booked: return .purple");
+    expect(home).toContain("case .pendingPickup: return .orange");
+    expect(home).toContain(
+      "case .open: return Calendar.current.isDateInToday(summary.endsAt) ? .orange : .blue",
+    );
+    // Shift rows read the scheduling domain's location palette instead, the
+    // same mapping the Schedule tab's rails use.
+    expect(home).toContain("private func queueVenueTone(for event: DashboardEventWorkEvent) -> StatusTone");
+    expect(home).toContain("private var tone: StatusTone { queueVenueTone(for: work.event) }");
+    // Gear readiness must not drive an event row's color: green there would
+    // mean "home game" on Schedule and "gear booked" on Home.
+    expect(home).not.toContain("work.needsGear ? .blue : .green");
+    // No queue row invents a tone outside the two mappings.
+    expect(home).not.toContain("summary.startsAt < Date() ? .orange : .green");
+  });
 });
