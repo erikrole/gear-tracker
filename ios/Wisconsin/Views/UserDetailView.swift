@@ -288,9 +288,63 @@ struct BadgeShelfCard: View {
                         }
                         .sensoryFeedback(.selection, trigger: tapFeedback)
                     }
+
+                    if let next = closestToEarned {
+                        Divider()
+                        BadgeProgressRow(badge: next) {
+                            tapFeedback.toggle()
+                            openBadge(next)
+                        }
+                    }
                 }
             }
         }
+    }
+
+    /// The unearned badge this person is nearest to earning. The server already
+    /// derives real progress for threshold and streak badges; until now it was
+    /// only legible after opening the gallery, so the shelf showed what you had
+    /// and never what was within reach.
+    private var closestToEarned: UserBadge? {
+        profile.badges
+            .filter(\.hasProgress)
+            .max { $0.progressFraction < $1.progressFraction }
+    }
+}
+
+/// "3 of 5 · Gear Regular" with a bar. Only ever rendered for a badge whose
+/// progress the server could actually derive.
+private struct BadgeProgressRow: View {
+    let badge: UserBadge
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Text("Closest")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                        .textCase(.uppercase)
+                        .tracking(0.04)
+                    Text(badge.name)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    Spacer(minLength: 8)
+                    Text("\(badge.progressCurrent ?? 0)/\(badge.progressTarget ?? 0)")
+                        .font(.caption.weight(.medium))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+                ProgressView(value: badge.progressFraction)
+                    .tint(Color.statusText(badge.rarity.tone))
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Closest badge: \(badge.name), \(badge.progressCurrent ?? 0) of \(badge.progressTarget ?? 0)")
     }
 }
 
@@ -754,9 +808,15 @@ private struct BadgeMedallionView: View {
                 .fill(Color.statusBackground(tone))
             Circle()
                 .strokeBorder(Color.statusText(tone).opacity(badge.earned ? 0.35 : 0.2), lineWidth: max(1, size * 0.05))
-            Image(systemName: badge.earned ? badge.icon.sfSymbolName : "lock.fill")
+            // A locked badge keeps its own icon, dimmed. Every locked badge used
+            // to draw `lock.fill`, which told you a badge existed but never what
+            // it was -- the same "one glyph repeated" problem the icon map had,
+            // just confined to the half of the shelf you have not earned yet.
+            // What it takes is the reason to go get it.
+            Image(systemName: badge.icon.sfSymbolName)
                 .font(.system(size: size * 0.42, weight: .semibold))
                 .foregroundStyle(Color.statusText(tone))
+                .opacity(badge.earned ? 1 : 0.45)
                 .symbolEffect(.bounce, value: badge.recentlyEarned)
         }
         .frame(width: size, height: size)
@@ -1030,9 +1090,42 @@ private extension String {
         }
     }
 
+    /// `BadgeDefinition.icon` holds a Lucide name, because the catalog was built
+    /// for the web. This map has to cover every name the catalog actually uses
+    /// or badges silently collapse into one glyph -- which is exactly what
+    /// happened: the twelve names below the seeded set were the only ones here,
+    /// they overlap the catalog on `Trophy` alone, and 31 of 33 badges rendered
+    /// `seal.fill`. A shelf of identical medals is not a shelf.
+    ///
+    /// `tests/ios-badge-icon-coverage.test.ts` fails if the seed catalog or the
+    /// custom-icon picker gains a name this switch does not answer.
     var sfSymbolName: String {
         switch self {
+        // Seeded catalog: gear flow
+        case "PackageCheck": "shippingbox.circle.fill"
+        case "PackageOpen": "shippingbox.fill"
+        case "Boxes": "square.stack.3d.up.fill"
+        case "Warehouse": "building.2.fill"
+        // Seeded catalog: scans
+        case "ScanLine": "barcode.viewfinder"
+        case "ScanSearch": "text.viewfinder"
+        case "QrCode": "qrcode"
+        // Seeded catalog: time and reliability
+        case "Clock3": "clock.fill"
+        case "CalendarCheck2": "calendar.badge.checkmark"
+        case "AlarmClockCheck": "alarm.waves.left.and.right.fill"
+        case "CalendarClock": "calendar.badge.clock"
+        case "CalendarDays": "calendar"
+        case "CalendarRange": "calendar.badge.plus"
+        case "ShieldCheck": "checkmark.shield.fill"
+        case "BadgeCheck": "checkmark.seal.fill"
+        // Seeded catalog: people and teamwork
+        case "Handshake": "hands.sparkles.fill"
+        case "UserCheck": "person.fill.checkmark"
+        case "Repeat2": "arrow.triangle.2.circlepath"
+        case "Flame": "flame.fill"
         case "Trophy": "trophy.fill"
+        // Custom-badge picker options that are not already covered above.
         case "Medal": "medal.fill"
         case "Star": "star.fill"
         case "Sparkles": "sparkles"
