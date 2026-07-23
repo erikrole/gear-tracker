@@ -10,9 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Separator } from "@/components/ui/separator";
 import { useFormSubmit } from "@/hooks/use-form-submit";
 
 type LoginResponse = {
@@ -88,22 +87,19 @@ export default function LoginForm() {
     <main className="login-bg min-h-screen flex items-center justify-center p-4">
       {/* Subtle noise texture overlay */}
       <div className="fixed inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")", backgroundRepeat: "repeat", backgroundSize: "256px" }} />
-      {/* data-theme="light" pins light tokens: the card is a fixed-light
-          material over the dark scene regardless of the user's app theme. */}
-      <Card data-theme="light" className="login-card login-materialize relative w-full max-w-[420px] border-0">
-        <CardHeader className="text-center pb-2 pt-8">
-          {/* Brand mark — Motion W */}
-          <div className="login-rise flex items-center justify-center mb-4" style={{ "--rise-index": 0 } as React.CSSProperties}>
-            <Image src="/Badgers.png" alt="Wisconsin" width={56} height={56} className="size-14 object-contain drop-shadow-sm" priority />
-          </div>
-          <CardTitle className="login-rise text-[1.75rem] leading-tight" style={{ "--rise-index": 1, fontFamily: "var(--font-heading)", fontWeight: 800, letterSpacing: "-0.02em" } as React.CSSProperties}>
-            Wisconsin Creative
-          </CardTitle>
-          <CardDescription className="login-rise text-base" style={{ "--rise-index": 1 } as React.CSSProperties}>
-            Sign in to your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      <div className="relative w-full max-w-[420px] flex flex-col items-center">
+        {/* Brand lockup lives on the scene, not the card — the card's only
+            job is the form. */}
+        <div className="login-rise flex flex-col items-center text-center mb-7" style={{ "--rise-index": 0 } as React.CSSProperties}>
+          <Image src="/Badgers.png" alt="Wisconsin" width={64} height={64} className="size-16 object-contain drop-shadow-lg mb-4" priority />
+          <h1 className="login-lockup-title text-[1.875rem] leading-tight">Wisconsin Creative</h1>
+          <p className="text-[0.9375rem] text-white/65 mt-1">Sign in to your account</p>
+        </div>
+
+        {/* data-theme="light" pins light tokens: the card is a fixed-light
+            material over the dark scene regardless of the user's app theme. */}
+        <Card data-theme="light" className="login-card login-materialize w-full border-0">
+          <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="login-rise flex flex-col gap-1.5" style={{ "--rise-index": 2 } as React.CSSProperties}>
               <Label htmlFor="email">Email</Label>
@@ -122,7 +118,7 @@ export default function LoginForm() {
                 disabled={submitting}
                 aria-invalid={!!fieldErrors.email}
                 aria-describedby={fieldErrors.email ? "email-error" : undefined}
-                className="h-11 text-base transition-colors"
+                className="login-field h-11 text-base transition-colors"
               />
               <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.email} aria-hidden={!fieldErrors.email}>
                 <p id="email-error" role="alert" className="overflow-hidden text-destructive text-xs">{fieldErrors.email || "\u00A0"}</p>
@@ -151,7 +147,7 @@ export default function LoginForm() {
                   disabled={submitting}
                   aria-invalid={!!fieldErrors.password}
                   aria-describedby={fieldErrors.password ? "password-error" : undefined}
-                  className="h-11 text-base pr-11 transition-colors"
+                  className="login-field h-11 text-base pr-11 transition-colors"
                 />
                 <Button
                   type="button"
@@ -185,7 +181,7 @@ export default function LoginForm() {
                 name="rememberMe"
                 checked={rememberMe}
                 onCheckedChange={(checked) => setRememberMe(checked === true)}
-                className="shrink-0"
+                className="login-checkbox shrink-0"
               />
               <Label htmlFor="rememberMe" className="text-sm text-muted-foreground cursor-pointer font-normal leading-none">
                 Remember me for 30 days
@@ -203,7 +199,7 @@ export default function LoginForm() {
               </div>
             </div>
 
-            <Button type="submit" className="login-rise login-press w-full h-11 text-base font-semibold" style={{ "--rise-index": 5 } as React.CSSProperties} disabled={submitting}>
+            <Button type="submit" className="login-cta login-rise login-press w-full h-11 text-base font-semibold" style={{ "--rise-index": 5 } as React.CSSProperties} disabled={submitting}>
               {submitting ? (
                 <>
                   <Spinner data-icon="inline-start" />
@@ -211,22 +207,21 @@ export default function LoginForm() {
                 </>
               ) : "Sign in"}
             </Button>
-
-            <Separator className="login-rise" style={{ "--rise-index": 6 } as React.CSSProperties} />
-
-            <p className="login-rise text-center text-sm text-muted-foreground" style={{ "--rise-index": 6 } as React.CSSProperties}>
-              Access is by invitation only.{" "}
-              <a
-                href="mailto:erole@athletics.wisc.edu?subject=Wisconsin%20Creative%20gear-tracker%20access"
-                className="underline underline-offset-2 hover:text-foreground transition-colors"
-              >
-                Contact an administrator
-              </a>{" "}
-              to request access.
-            </p>
           </form>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        <p className="login-rise text-center text-sm text-white/55 mt-6" style={{ "--rise-index": 6 } as React.CSSProperties}>
+          Access is by invitation only.{" "}
+          <a
+            href="mailto:erole@athletics.wisc.edu?subject=Wisconsin%20Creative%20gear-tracker%20access"
+            className="text-white/80 underline underline-offset-2 hover:text-white transition-colors"
+          >
+            Contact an administrator
+          </a>{" "}
+          to request access.
+        </p>
+      </div>
     </main>
   );
 }

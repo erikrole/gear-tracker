@@ -1521,6 +1521,60 @@ a[data-slot="button"]:hover {
   transform: scale(0.98);
 }
 
+/* Brand lockup sits on the scene itself, not the card. Slight shadow lifts
+   the white wordmark off the glowing background. */
+.login-lockup-title {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  text-shadow: 0 2px 12px rgba(10, 2, 4, 0.5);
+}
+
+/* Form fields are solid white wells on the translucent card — defined
+   resting border, crimson focus. Overrides the app's token-driven input
+   chrome, which reads as gray-on-gray over this material. */
+.login-field {
+  background: #ffffff;
+  border-color: rgba(20, 11, 16, 0.14);
+}
+.login-field:focus-visible {
+  border-color: #c41230;
+  box-shadow: 0 0 0 3px rgba(196, 18, 48, 0.18);
+}
+
+.login-checkbox[data-state="unchecked"] {
+  border-color: rgba(20, 11, 16, 0.3);
+  background: #ffffff;
+}
+.login-checkbox[data-state="checked"] {
+  border-color: #c41230;
+  background: #c41230;
+}
+
+/* The one saturated moment on the page: Badger crimson CTA. Bright top
+   edge + shadow give it physical depth; hover lifts, press compresses. */
+.login-cta {
+  background: linear-gradient(180deg, #d31b3b 0%, #c41230 45%, #a80e29 100%);
+  color: #ffffff;
+  border: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 2px 8px rgba(168, 14, 41, 0.45),
+    0 1px 2px rgba(10, 2, 4, 0.3);
+}
+.login-cta:hover {
+  background: linear-gradient(180deg, #e02246 0%, #d31b3b 45%, #b31732 100%);
+}
+.login-cta:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(196, 18, 48, 0.4);
+}
+.login-cta:disabled {
+  opacity: 0.75;
+}
+
 /* ===== Touch Target Audit ===== */
 
 /* Touch targets: only apply min-height to nav/action buttons, not UI primitives */
