@@ -88,18 +88,24 @@ export default function LoginForm() {
     <main className="login-bg min-h-screen flex items-center justify-center p-4">
       {/* Subtle noise texture overlay */}
       <div className="fixed inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")", backgroundRepeat: "repeat", backgroundSize: "256px" }} />
-      <Card className="relative w-full max-w-[420px] shadow-2xl border-0 animate-in fade-in-0 zoom-in-95 duration-500">
+      {/* data-theme="light" pins light tokens: the card is a fixed-light
+          material over the dark scene regardless of the user's app theme. */}
+      <Card data-theme="light" className="login-card login-materialize relative w-full max-w-[420px] border-0">
         <CardHeader className="text-center pb-2 pt-8">
           {/* Brand mark — Motion W */}
-          <div className="flex items-center justify-center mb-3">
-            <Image src="/Badgers.png" alt="Wisconsin" width={48} height={48} className="size-12 object-contain" priority />
+          <div className="login-rise flex items-center justify-center mb-4" style={{ "--rise-index": 0 } as React.CSSProperties}>
+            <Image src="/Badgers.png" alt="Wisconsin" width={56} height={56} className="size-14 object-contain drop-shadow-sm" priority />
           </div>
-          <CardTitle className="text-2xl tracking-tight" style={{ fontFamily: "var(--font-heading)", fontWeight: 800 }}>Wisconsin Creative</CardTitle>
-          <CardDescription className="text-base">Sign in to your account</CardDescription>
+          <CardTitle className="login-rise text-[1.75rem] leading-tight" style={{ "--rise-index": 1, fontFamily: "var(--font-heading)", fontWeight: 800, letterSpacing: "-0.02em" } as React.CSSProperties}>
+            Wisconsin Creative
+          </CardTitle>
+          <CardDescription className="login-rise text-base" style={{ "--rise-index": 1 } as React.CSSProperties}>
+            Sign in to your account
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
+            <div className="login-rise flex flex-col gap-1.5" style={{ "--rise-index": 2 } as React.CSSProperties}>
               <Label htmlFor="email">Email</Label>
               <Input
                 ref={emailRef}
@@ -123,7 +129,7 @@ export default function LoginForm() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
+            <div className="login-rise flex flex-col gap-1.5" style={{ "--rise-index": 3 } as React.CSSProperties}>
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
                 <Link href="/forgot-password" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
@@ -173,7 +179,7 @@ export default function LoginForm() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="login-rise flex items-center gap-2" style={{ "--rise-index": 4 } as React.CSSProperties}>
               <Checkbox
                 id="rememberMe"
                 name="rememberMe"
@@ -197,7 +203,7 @@ export default function LoginForm() {
               </div>
             </div>
 
-            <Button type="submit" className="w-full h-11 text-base font-semibold transition-all" disabled={submitting}>
+            <Button type="submit" className="login-rise login-press w-full h-11 text-base font-semibold" style={{ "--rise-index": 5 } as React.CSSProperties} disabled={submitting}>
               {submitting ? (
                 <>
                   <Spinner data-icon="inline-start" />
@@ -206,9 +212,9 @@ export default function LoginForm() {
               ) : "Sign in"}
             </Button>
 
-            <Separator />
+            <Separator className="login-rise" style={{ "--rise-index": 6 } as React.CSSProperties} />
 
-            <p className="text-center text-sm text-muted-foreground">
+            <p className="login-rise text-center text-sm text-muted-foreground" style={{ "--rise-index": 6 } as React.CSSProperties}>
               Access is by invitation only.{" "}
               <a
                 href="mailto:erole@athletics.wisc.edu?subject=Wisconsin%20Creative%20gear-tracker%20access"
