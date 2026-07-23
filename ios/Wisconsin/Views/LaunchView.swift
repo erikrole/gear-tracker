@@ -2,15 +2,15 @@ import SwiftUI
 
 /// The shared splash scene behind LaunchView and LoginView — mirrors the web
 /// login's layered background (src/app/globals.css `.login-bg`): a deep
-/// Badger-dark base with a crimson glow from the top leading edge and an
-/// ember glow from the bottom trailing corner. Both screens draw the exact
+/// Badger-dark base with a Badger Red glow from the top leading edge and a
+/// second from the bottom trailing corner. Both screens draw the exact
 /// same scene so the Launch → Login hand-off is a steady-background
 /// cross-dissolve.
 struct BrandSplashScene: View {
-    /// Crimson glow — web `rgba(196, 18, 48, 0.55)`.
-    private static let crimson = Color(red: 0.769, green: 0.071, blue: 0.188)
-    /// Ember glow — web `rgba(160, 0, 0, 0.65)`.
-    private static let ember = Color(red: 0.627, green: 0, blue: 0)
+    /// Both corner glows are Badger Red `#A00000` (brand primary, RGB 160/0/0)
+    /// per the 2026 Wisconsin Athletics guide. The top glow previously used an
+    /// off-brand crimson (`#c41230`); it now stays on the brand palette.
+    private static let badgerRed = Color(red: 0.627, green: 0, blue: 0)
 
     var body: some View {
         ZStack {
@@ -27,13 +27,13 @@ struct BrandSplashScene: View {
             GeometryReader { geo in
                 ZStack {
                     RadialGradient(
-                        colors: [Self.crimson.opacity(0.55), .clear],
+                        colors: [Self.badgerRed.opacity(0.55), .clear],
                         center: UnitPoint(x: 0.15, y: 0),
                         startRadius: 0,
                         endRadius: geo.size.height * 0.9
                     )
                     RadialGradient(
-                        colors: [Self.ember.opacity(0.65), .clear],
+                        colors: [Self.badgerRed.opacity(0.65), .clear],
                         center: UnitPoint(x: 0.9, y: 1),
                         startRadius: 0,
                         endRadius: geo.size.height * 0.8

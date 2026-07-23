@@ -10,8 +10,9 @@ import WidgetKit
 // product — the little brother of the web/app login, not a system-grey card.
 
 /// The login splash scene, scaled for a widget tile: a Badger-dark vertical
-/// base with a crimson glow off the top-leading edge and an ember glow from the
-/// bottom-trailing corner. Same stops as `BrandSplashScene`.
+/// base with a Badger Red glow off the top-leading edge and a second from the
+/// bottom-trailing corner. Same stops and brand-primary glow as
+/// `BrandSplashScene` (both glows are `#A00000`, RGB 160/0/0).
 private struct ShiftGlanceScene: View {
     var body: some View {
         GeometryReader { geo in
@@ -26,7 +27,7 @@ private struct ShiftGlanceScene: View {
                     endPoint: .bottom
                 )
                 RadialGradient(
-                    colors: [Color(red: 0.769, green: 0.071, blue: 0.188).opacity(0.55), .clear],
+                    colors: [Color(red: 0.627, green: 0, blue: 0).opacity(0.55), .clear],
                     center: UnitPoint(x: 0.12, y: -0.05),
                     startRadius: 0,
                     endRadius: geo.size.height * 1.15
