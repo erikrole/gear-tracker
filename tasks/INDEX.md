@@ -37,6 +37,9 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Active Follow-up Ledgers
 
+- `dashboard-pending-pickup-web-parity-plan.md` - local Dashboard parity is
+  implemented and verified; production merge/deployment plus authenticated
+  confirmation of the Pending Pickup lane remain.
 - `profile-shift-record-plan.md` - source-backed all-time W-L and final published shift counts on internal web and native profiles, with runtime and release verification tracked separately from the broader Wrapped roadmap.
 - `schema-hardening-plan.md` - License V2 provenance, actor relations, core database checks, CI migration safety, local verification, and migration deployment tracking.
 - `ios-collaborator-published-schedule-redesign-plan.md` - implementation and source/build verification are complete; authenticated temporary-collaborator runtime proof remains blocked by the reset Simulator session.

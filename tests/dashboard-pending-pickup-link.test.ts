@@ -13,6 +13,28 @@ describe("dashboard pending pickup links", () => {
     expect(component).toContain('title="Pending pickup" href={PENDING_PICKUPS_HREF}');
   });
 
+  it("includes Pending Pickup in the active-booking summary", () => {
+    const page = source("src/app/(app)/page.tsx");
+    expect(page).toContain(
+      "const pendingPickupTotal = data?.pendingPickups.total ?? fastStats?.pendingPickupTotal ?? 0",
+    );
+    expect(page).toContain(
+      "stats.checkedOut + stats.reserved + pendingPickupTotal",
+    );
+    expect(page).toContain('label: "Pending pickup"');
+    expect(page).toContain(
+      '<OperationalMetricCard label="Pending pickup" value={pendingPickupTotal}',
+    );
+  });
+
+  it("uses the accepted missed-pickup wording in dashboard rows", () => {
+    const row = source("src/app/(app)/dashboard/booking-row.tsx");
+    expect(row).toContain(
+      "Pickup was due ${formatDayLabel(booking.startsAt, now).toLowerCase()} at ${formatTimeShort(booking.startsAt)}",
+    );
+    expect(row).toContain("pickupIsLate ? pickupDueLabel");
+  });
+
   it("retires the separate stale-reservation dashboard lane", () => {
     const component = source("src/app/(app)/dashboard/team-activity-column.tsx");
     const route = source("src/app/api/dashboard/route.ts");

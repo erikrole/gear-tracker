@@ -186,6 +186,8 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 - 2026-07-23: Pending Pickup now counts and lists due `BOOKED` reservations,
   with dashboard summaries exposing the orange operational display status.
+  The top active-booking total and breakdown include that lane, and a missed
+  handoff uses the accepted `Pickup was due today at 2:30 PM` wording.
   The separate Stale reservations card is retired. Legacy staged checkout rows
   remain in the same lane during compatibility cleanup, while checkout overdue
   continues to mean physical custody only.
