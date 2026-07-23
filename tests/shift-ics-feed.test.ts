@@ -130,9 +130,12 @@ describe("shift ICS feed hardening", () => {
                   event: expect.objectContaining({
                     select: expect.objectContaining({
                       id: true,
-                      sportCode: true,
-                      opponent: true,
-                      isHome: true,
+                      summary: true,
+                      // Venue for the LOCATION line; the sportCode/opponent/
+                      // isHome fields are no longer selected since the title is
+                      // now the plain summary, not a derived "code vs opp".
+                      rawLocationText: true,
+                      location: { select: { name: true } },
                     }),
                   }),
                 }),
@@ -155,8 +158,15 @@ describe("shift ICS feed hardening", () => {
 
     expect(res.headers.get("Content-Type")).toContain("text/calendar");
     expect(body).toContain("BEGIN:VCALENDAR");
-    expect(body).toContain("SUMMARY:Photo: MBB vs Iowa");
-    expect(body).toContain("DTSTART:20260510T143000Z");
+    // Straight event title from the source summary: the "Wisconsin Athletics"
+    // prefix is stripped, and no area/trade decoration is added.
+    expect(body).toContain("SUMMARY:Men's Basketball vs Iowa");
+    expect(body).not.toContain("Photo:");
+    expect(body).not.toContain("MBB vs");
+    // Full call window resolved as a coherent pair. The assignment here has a
+    // personal call *start* but no end, so it falls through to the shift's own
+    // window (15:00-17:00) rather than splicing 14:30 onto the shift end.
+    expect(body).toContain("DTSTART:20260510T150000Z");
     expect(body).toContain("DTEND:20260510T170000Z");
     expect(body).toContain("LOCATION:Camp Randall");
     // Canonical app origin (env.appUrl), never the request's Host header —
@@ -172,6 +182,47 @@ describe("shift ICS feed hardening", () => {
     // can sit a day stale, which is useless for same-day shift trades.
     expect(body).toContain("REFRESH-INTERVAL;VALUE=DURATION:PT1H");
     expect(body).toContain("X-PUBLISHED-TTL:PT1H");
+  });
+
+  it("locates away games from raw source text when there is no linked venue", async () => {
+    vi.mocked(db.shiftAssignment.findMany).mockResolvedValueOnce(shiftAssignments([
+      {
+        id: "assignment-1",
+        callStartsAt: new Date("2026-05-10T15:00:00.000Z"),
+        callEndsAt: new Date("2026-05-10T18:00:00.000Z"),
+        updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+        shift: {
+          startsAt: new Date("2026-05-10T16:00:00.000Z"),
+          endsAt: new Date("2026-05-10T18:00:00.000Z"),
+          callStartsAt: null,
+          callEndsAt: null,
+          area: "PHOTO",
+          notes: null,
+          updatedAt: new Date("2026-05-01T13:00:00.000Z"),
+          shiftGroup: {
+            event: {
+              id: "event-9",
+              summary: "[L] Wisconsin Badgers Softball at UCLA",
+              rawLocationText: "Los Angeles, CA",
+              updatedAt: new Date("2026-05-01T14:00:00.000Z"),
+              location: null,
+            },
+          },
+        },
+        trades: [],
+      },
+    ]));
+
+    const res = await GET(request(), { params: Promise.resolve({ token: validToken }) });
+    const body = await res.text();
+
+    // Result marker and "Wisconsin Badgers" prefix stripped from the title.
+    expect(body).toContain("SUMMARY:Softball at UCLA");
+    // No linked Location, so the raw source text fills the venue.
+    expect(body).toContain("LOCATION:Los Angeles\\, CA");
+    // A complete personal call window is used verbatim.
+    expect(body).toContain("DTSTART:20260510T150000Z");
+    expect(body).toContain("DTEND:20260510T180000Z");
   });
 
   it("folds long content lines per RFC 5545 without splitting multi-byte characters", async () => {
@@ -216,10 +267,10 @@ describe("shift ICS feed hardening", () => {
     }
     // Folded lines reassemble to the original content (unfold then check)
     const unfolded = body.replace(/\r\n /g, "");
-    expect(unfolded).toContain(`SUMMARY:🔁 Photo: MBB vs ${longOpponent}`);
+    expect(unfolded).toContain(`SUMMARY:Men's Basketball vs ${longOpponent}`);
   });
 
-  it("marks active trade-board posts in the shift title", async () => {
+  it("keeps the title plain but re-publishes when a trade posts", async () => {
     vi.mocked(db.shiftAssignment.findMany).mockResolvedValueOnce(shiftAssignments([
       {
         id: "assignment-1",
@@ -254,7 +305,12 @@ describe("shift ICS feed hardening", () => {
     const res = await GET(request(), { params: Promise.resolve({ token: validToken }) });
     const body = await res.text();
 
-    expect(body).toContain("SUMMARY:🔁 Photo: MBB vs Iowa");
+    // Trade status no longer decorates the title — the calendar entry is the
+    // straight event name whether or not the shift is posted for trade.
+    expect(body).toContain("SUMMARY:Men's Basketball vs Iowa");
+    expect(body).not.toContain("🔁");
+    // But the trade's updatedAt still drives LAST-MODIFIED, so posting a shift
+    // for trade re-publishes the event and subscribers re-sync it.
     expect(body).toContain("LAST-MODIFIED:20260502T120000Z");
   });
 });

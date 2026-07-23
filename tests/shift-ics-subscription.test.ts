@@ -47,7 +47,36 @@ describe("shift subscription feed", () => {
     expect(route).toContain('shiftGroup: { event: { status: "CONFIRMED", archivedAt: null } }');
     // SEQUENCE/LAST-MODIFIED bump on any change so moved call times re-render.
     expect(route).toContain("const sequence = Math.floor(lastModified.getTime() / 1000)");
-    expect(route).toContain("a.callStartsAt ?? shift.callStartsAt ?? shift.startsAt");
+  });
+
+  it("titles each entry with the straight event name", () => {
+    const route = source("src/app/api/shifts/ics/[token]/route.ts");
+
+    // The event summary ("Volleyball vs Ohio State"), cleaned of result markers
+    // and team prefixes -- not the sportCode-derived "VB vs ..." and not
+    // wrapped in an area label or trade emoji.
+    expect(route).toContain("const title = cleanSourceSummary(event.summary)");
+    expect(route).not.toContain("shiftSummary(");
+    expect(route).not.toContain("eventTitle(");
+  });
+
+  it("locates each entry at the event venue, with an away-game fallback", () => {
+    const route = source("src/app/api/shifts/ics/[token]/route.ts");
+
+    // Linked venue for home games; raw source text is the only "where" an away
+    // game carries, so it fills in when there is no linked Location.
+    expect(route).toContain("event.location?.name ?? (event.rawLocationText?.trim() || undefined)");
+  });
+
+  it("spans the full call window, resolved as a coherent pair", () => {
+    const route = source("src/app/api/shifts/ics/[token]/route.ts");
+
+    // The canonical resolver the schedule UI uses, not a per-field ?? chain
+    // that could splice a personal call start onto a slot call end.
+    expect(route).toContain("const callWindow = effectiveCallWindow(shift, a)");
+    expect(route).toContain("icsDate(new Date(callWindow.startsAt))");
+    expect(route).toContain("icsDate(new Date(callWindow.endsAt))");
+    expect(route).not.toContain("a.callStartsAt ?? shift.callStartsAt ?? shift.startsAt");
   });
 
   it("keeps the feed private and unguessable", () => {
