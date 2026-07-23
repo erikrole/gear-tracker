@@ -46,12 +46,15 @@ import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 import { useFetch } from "@/hooks/use-fetch";
 
 type Incident = {
+  incidentId: string;
   bookingId: string;
   title: string;
   dueAt: string;
   returnedAt: string | null;
+  extendedAt: string | null;
+  extendedTo: string | null;
   lateHours: number;
-  state: "active" | "resolved";
+  state: "active" | "resolved" | "extended";
   location: { id: string; name: string };
   itemSummary: string;
 };
@@ -270,9 +273,10 @@ export default function AccountabilityClient() {
           <Select value={incidentState} onValueChange={setIncidentState}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Active and resolved</SelectItem>
+              <SelectItem value="all">All late events</SelectItem>
               <SelectItem value="active">Active overdue</SelectItem>
               <SelectItem value="resolved">Resolved late returns</SelectItem>
+              <SelectItem value="extended">Extended after overdue</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -304,6 +308,7 @@ export default function AccountabilityClient() {
         <AlertTitle>How this ranking works</AlertTitle>
         <AlertDescription>
           {data.methodology.ranking}. A checkout becomes late after its due time plus the configured {data.methodology.gracePeriodHours}-hour grace period.
+          Extending an already-late checkout records a separate late event against the prior due time.
           On-time rate appears after {data.methodology.minimumCheckoutsForRate} completed checkouts. Exclusions affect this page only and never remove custody history.
         </AlertDescription>
       </Alert>
@@ -348,7 +353,7 @@ export default function AccountabilityClient() {
                       <TableCell>{isExpanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}</TableCell>
                     </TableRow>,
                     ...(isExpanded ? person.incidents.map((incident) => (
-                      <TableRow key={incident.bookingId} className="bg-muted/30">
+                      <TableRow key={incident.incidentId} className="bg-muted/30">
                         <TableCell />
                         <TableCell colSpan={3}>
                           <Link href={`/checkouts/${incident.bookingId}`} className="font-medium hover:underline">{incident.title}</Link>
@@ -356,7 +361,13 @@ export default function AccountabilityClient() {
                         </TableCell>
                         <TableCell className="text-right">{formatHours(incident.lateHours)}</TableCell>
                         <TableCell className="text-right" colSpan={2}>
-                          <Badge variant={incident.state === "active" ? "red" : "secondary"}>{incident.state === "active" ? "Currently overdue" : `Returned ${formatDate(incident.returnedAt!)}`}</Badge>
+                          <Badge variant={incident.state === "active" ? "red" : "secondary"}>
+                            {incident.state === "active"
+                              ? "Currently overdue"
+                              : incident.state === "extended"
+                                ? `Extended ${formatDate(incident.extendedAt!)} to ${formatDate(incident.extendedTo!)}`
+                                : `Returned ${formatDate(incident.returnedAt!)}`}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>

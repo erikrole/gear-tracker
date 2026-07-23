@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import { Role } from "@prisma/client";
 import {
   capabilitiesForActor,
-  COLLABORATOR_CAPABILITIES,
   isGlobalKioskCollaborator,
   normalizeCollaboratorCapabilities,
+  requireActiveCollaboratorPolicy,
 } from "@/lib/collaborator-access";
 import { PERMISSIONS } from "@/lib/permissions";
 import { canPerformBookingAction } from "@/lib/booking-action-policy";
@@ -26,13 +26,39 @@ vi.mock("@/lib/db", () => ({ db: dbMock }));
 import { listPublishedSchedule } from "@/lib/services/collaborator-schedule";
 
 describe("BTN collaborator authorization", () => {
-  it("maps legacy BTN to the nine rollout capabilities", () => {
+  it("requires live policy grants instead of authorizing a legacy BTN profile", () => {
     expect(capabilitiesForActor({
       role: Role.COLLABORATOR,
       collaboratorProfile: "BTN_STANDARD",
-    })).toEqual([...COLLABORATOR_CAPABILITIES]);
+    })).toEqual([]);
     expect(capabilitiesForActor({ role: Role.COLLABORATOR, collaboratorProfile: null })).toEqual([]);
     expect(capabilitiesForActor({ role: Role.STAFF, collaboratorProfile: "BTN_STANDARD" })).toEqual([]);
+    expect(() => requireActiveCollaboratorPolicy({
+      role: Role.COLLABORATOR,
+      collaboratorProfile: "BTN_STANDARD",
+    })).toThrow("not assigned to a collaborator affiliation");
+    expect(() => requireActiveCollaboratorPolicy({
+      role: Role.COLLABORATOR,
+      collaboratorPolicy: {
+        id: "policy-1",
+        affiliationKey: "BIG_TEN_NETWORK",
+        displayName: "Big Ten Network",
+        badgeLabel: "BTN",
+        status: "SUSPENDED",
+        version: 2,
+      },
+    })).toThrow("affiliation access is suspended");
+    expect(() => requireActiveCollaboratorPolicy({
+      role: Role.COLLABORATOR,
+      collaboratorPolicy: {
+        id: "policy-1",
+        affiliationKey: "BIG_TEN_NETWORK",
+        displayName: "Big Ten Network",
+        badgeLabel: "BTN",
+        status: "ACTIVE",
+        version: 2,
+      },
+    })).not.toThrow();
   });
 
   it("normalizes dependencies and derives kiosk eligibility from policy grants", () => {
@@ -54,7 +80,7 @@ describe("BTN collaborator authorization", () => {
   it("keeps COLLABORATOR default-denied in every role permission entry except narrow self-service", () => {
     // user.edit_self only ever gates PATCH /api/me/profile-completion, which
     // is hard-scoped to the authenticated session's own id and, for
-    // COLLABORATOR, further restricted to the SNOOZE and PHONES steps — it
+    // COLLABORATOR, further restricted to optional SNOOZE and PHONES updates — it
     // can't reach any other resource or another user's record. Broader BTN
     // access still goes exclusively through capabilitiesForActor.
     const selfServiceExceptions: Partial<Record<string, string[]>> = {

@@ -160,7 +160,7 @@ async function main() {
     await tx.location.create({
       data: {
         id: ids.location,
-        name: "[DEMO] Creative Checkout Desk",
+        name: "[DEMO] Camp Randall Creative Desk",
         address: "1440 Monroe St, Madison, WI",
         isHomeVenue: true,
       },

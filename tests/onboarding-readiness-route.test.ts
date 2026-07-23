@@ -72,7 +72,7 @@ describe("GET /api/users/onboarding-readiness", () => {
     }));
   });
 
-  it("treats a missing collaborator phone number as not operationally ready", async () => {
+  it("treats collaborators as operationally ready without requiring a phone", async () => {
     dbMock.user.findMany.mockResolvedValue([account({
       id: "collab-1",
       name: "Guest",
@@ -91,13 +91,13 @@ describe("GET /api/users/onboarding-readiness", () => {
     const body = await response.json();
 
     expect(body.data.accounts[0]).toEqual(expect.objectContaining({
-      operationalReady: false,
+      operationalReady: true,
       profileComplete: false,
-      missingFields: ["personalPhone", "photo"],
+      missingFields: ["photo"],
     }));
   });
 
-  it("treats a collaborator with a phone on file as operational, with only photo left for profile completion", async () => {
+  it("keeps an existing collaborator phone outside onboarding completion", async () => {
     dbMock.user.findMany.mockResolvedValue([account({
       id: "collab-2",
       name: "Guest",

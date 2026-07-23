@@ -3,6 +3,7 @@
 ## Goal
 - Ship a fixed, default-deny Big Ten Network collaborator profile across web, native iOS, and kiosk before inviting Trey Escobar.
 - Replace the fixed profile implementation with one admin-managed, default-deny policy per affiliation while preserving BTN behavior and creating Learfield suspended with no grants.
+- Allow reviewed collaborator policies to grant a minimized People directory because BTN, Learfield, Staff, and Students work together in the same physical operation.
 
 ## Route
 - Owner area: Users and authorization.
@@ -25,6 +26,8 @@
 - Stop before inviting Trey unless authenticated web, iOS, kiosk, and production authorization proof is complete.
 - Stop if affiliation identity becomes the authorization key, an unknown capability can grant access, or a policy save can partially update grants, history, audit, and notifications.
 - Stop if the additive policy migration cannot backfill BTN without rewriting already-numbered migrations or breaking rollout-tolerant clients.
+- Stop if People-directory access exposes personal phones, Wiscard values, birthdays, apparel sizes, internal activity, bookings, shifts, audit data, hidden users, or inactive users to collaborators.
+- Stop if web or native navigation exposes People without the matching server-owned capability.
 
 ## Slices
 - [x] Slice 1: Add collaborator identity/profile schema, migration, capability policy, auth payload, and invite/registration propagation.
@@ -41,6 +44,9 @@
 - [x] Slice 12: Add the Collaborator Access Settings editor with risky-change confirmation, affected counts, history, restore, and constrained archival.
 - [x] Slice 13: Make web and iOS collaborator navigation capability-driven while preserving additive response decoding and the fixed BTN rollout fallback.
 - [x] Slice 14: Add policy matrix, privacy, IDOR, migration, and native verification; amend collaborator decisions/docs and close the local implementation phase. Authenticated production smoke remains a deployment gate.
+- [x] Slice 15: Add `PEOPLE_DIRECTORY_VIEW`, grant it to BTN and Learfield through an additive audited policy migration, expose a minimized active-user directory and profile response, wire capability-driven web and native navigation, and add authorization/privacy regression coverage.
+- [x] Slice 16: Repair collaborator mobile onboarding so the server and native models expose only the optional photo step and Skip enters the app without requiring a phone.
+- [x] Slice 17: Retire the legacy BTN capability fallback, reject policy-less collaborator sessions, and neutralize BTN-specific copy on shared Schedule and People surfaces.
 
 ## Verification
 - [x] Focused Vitest suites for collaborator onboarding, capability denial, privacy, reservations, Schedule snapshots/follows, notifications, and kiosk roster.
@@ -59,9 +65,12 @@
 - [x] `npm run build:app`
 - [x] Controlled full `npm run build` after migration deploy approval; Neon fallback found no pending migrations and the production app build passed.
 - [ ] Authenticated browser smoke for admin invite, collaborator registration, reduced navigation, reservations, published Schedule, following, privacy, and denied routes.
+- [ ] Authenticated browser and native smoke for collaborator People list/detail access, capability denial, and private-field omission.
+- [x] Add `npm run smoke:collaborator` as the credential-injected production proof for People capability, list/detail minimization, active/visible roster scope, and representative denied routes.
 
 ## Review
-- Shipped locally: database-backed affiliation policies, nine validated capabilities, invite-first onboarding, profile and People privacy, sanitized gear, own reservations, kiosk roster/custody, published Schedule/follows/notifications, capability-driven web and native shells, immutable revisions, suspension/reactivation, and a suspended Learfield seed.
+- Shipped locally: database-backed affiliation policies, ten validated capabilities, invite-first onboarding, skippable collaborator photo setup, minimized People access, sanitized gear, own reservations, kiosk roster/custody, published Schedule/follows/notifications, capability-driven web and native shells, immutable revisions, and suspension/reactivation.
+- Production smoke command: `COLLABORATOR_SMOKE_EMAIL=... COLLABORATOR_SMOKE_PASSWORD=... COLLABORATOR_SMOKE_EXPECTED_AFFILIATION=LEARFIELD npm run smoke:collaborator`.
 - Verified: 66 focused affiliation, authorization, onboarding, Schedule, and capability-aware iOS tests pass. TypeScript, full ESLint, `build:app`, the controlled deploy-shaped build, codemap/docs verification, iOS drift/audit, and both Wisconsin and WisconsinKiosk simulator and generic-device builds pass. Prisma validation, formatting, migration checks, and live migration health pass.
 - Hardening verification covers response redaction, audit-history denial, prohibited live routes, cross-user IDOR behavior, dependency normalization, unknown-grant rejection, optimistic conflicts, atomic revisions/audits/notifications, published-only event linking, and follow mutation behavior.
 - 2026-07-16: Live Neon health confirms 100/100 local migrations applied through `0098_affiliation_policy_editor` with no pending, failed, or database-only rows. The deploy-shaped build independently confirmed that the Neon fallback had no pending migrations.

@@ -118,26 +118,17 @@ describe("profile completion", () => {
     expect(result.missingFields).toEqual(["clothingSize", "shoeSize", "photo"]);
   });
 
-  it("requires a phone number and treats photo as optional for collaborator completion", () => {
+  it("lets collaborators enter the app without completing optional profile setup", () => {
     const incomplete = getProfileCompletion(profile({ role: "COLLABORATOR", email: "guest@example.com" }));
-    const operational = getProfileCompletion(profile({
-      role: "COLLABORATOR",
-      email: "guest@example.com",
-      personalPhone: "608-555-0100",
-    }));
     const complete = getProfileCompletion(profile({
       role: "COLLABORATOR",
       email: "guest@example.com",
-      personalPhone: "608-555-0100",
       avatarUrl: "https://example.com/avatar.webp",
     }));
 
-    expect(incomplete.operationalReady).toBe(false);
-    expect(incomplete.missingFields).toEqual(["personalPhone", "photo"]);
-    expect(incomplete.firstIncompleteStep).toBe("PHONES");
-    expect(operational.operationalReady).toBe(true);
-    expect(operational.missingFields).toEqual(["photo"]);
-    expect(operational.firstIncompleteStep).toBe("PHOTO");
+    expect(incomplete.operationalReady).toBe(true);
+    expect(incomplete.missingFields).toEqual(["photo"]);
+    expect(incomplete.firstIncompleteStep).toBe("PHOTO");
     expect(complete.profileComplete).toBe(true);
   });
 

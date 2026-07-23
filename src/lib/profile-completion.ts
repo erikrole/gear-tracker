@@ -60,7 +60,7 @@ const INTERNAL_OPERATIONAL_FIELDS: ProfileCompletionField[] = [
 ];
 
 export function applicableProfileFields(role: ProfileCompletionProfile["role"]): ProfileCompletionField[] {
-  if (role === "COLLABORATOR") return ["personalPhone", "photo"];
+  if (role === "COLLABORATOR") return ["photo"];
   const fields: ProfileCompletionField[] = [
     "campusEmail",
     "athleticsEmail",
@@ -87,7 +87,7 @@ export function applicableProfileFields(role: ProfileCompletionProfile["role"]):
 }
 
 export function visibleProfileSteps(role: ProfileCompletionProfile["role"]): ProfileCompletionStep[] {
-  if (role === "COLLABORATOR") return ["PHONES", "PHOTO"];
+  if (role === "COLLABORATOR") return ["PHOTO"];
   // Students aren't asked for an athletics email or work phone — the EMAIL
   // step has nothing left for them to fill in once athletics email drops off,
   // and PHONES already skips straight to a single personal-phone field below.
@@ -123,7 +123,7 @@ export function getProfileCompletion(profile: ProfileCompletionProfile, now = ne
   };
   const applicableFields = applicableProfileFields(profile.role);
   const operationalFields = profile.role === "COLLABORATOR"
-    ? ["personalPhone"] as ProfileCompletionField[]
+    ? [] as ProfileCompletionField[]
     : profile.role === "STUDENT"
       ? INTERNAL_OPERATIONAL_FIELDS.filter((field) => field !== "workPhone" && field !== "athleticsEmail").concat("studentYear", "anticipatedGraduation")
       : INTERNAL_OPERATIONAL_FIELDS;

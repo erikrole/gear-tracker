@@ -6,7 +6,6 @@ struct AppTabView: View {
     @Environment(NetworkMonitor.self) private var network
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @Environment(\.scenePhase) private var scenePhase
     @AppStorage("sidebarTabCustomization") private var tabCustomization: TabViewCustomization
 
     private var isStaffOrAdmin: Bool {
@@ -59,11 +58,14 @@ struct AppTabView: View {
                     .accessibilityLabel(appState.overdueCount > 0 ? "\(gearTabLabel), \(appState.overdueCount) overdue" : gearTabLabel)
             }
 
-            if hasCapability("GEAR_CATALOG_VIEW") {
+            if hasCapability("GEAR_CATALOG_VIEW") || hasCapability("PEOPLE_DIRECTORY_VIEW") {
                 Tab("Browse", systemImage: "square.grid.2x2", value: 2) {
                     BrowseView()
                 }
 
+            }
+
+            if hasCapability("GEAR_CATALOG_VIEW") {
                 Tab("Search", systemImage: "magnifyingglass", value: 3, role: .search) {
                     GlobalSearchSheet(showsCancelButton: false)
                 }
@@ -116,11 +118,6 @@ struct AppTabView: View {
         }
         .onChange(of: appState.pendingPushBookingId) { _, _ in
             routePendingBookingPush()
-        }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active {
-                Task { await session.refreshCurrentUser() }
-            }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             if !network.isConnected {

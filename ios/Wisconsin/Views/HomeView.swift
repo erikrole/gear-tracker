@@ -42,7 +42,13 @@ final class HomeViewModel {
             error = nil
             lastLoadedAt = Date()
             homePerformanceLog.info("launch.home.dashboardLoad result=success durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public) checkouts=\(loadedDashboard.myCheckouts.items.count, privacy: .public) reservations=\(loadedDashboard.myReservations.count, privacy: .public) pendingPickups=\(loadedDashboard.pendingPickups.items.count, privacy: .public) eventWork=\(loadedDashboard.myEventWork.count, privacy: .public) flagged=\(loadedDashboard.flaggedItems.count, privacy: .public)")
-            Task { await Self.reconcileCheckoutReturnLiveActivity(requesterId: requesterId) }
+            Task {
+                await Self.refreshSecondaryLaunchState(
+                    appState: appState,
+                    requesterId: requesterId,
+                    forceRefresh: forceRefresh
+                )
+            }
         } catch {
             self.error = error.localizedDescription
             homePerformanceLog.error("launch.home.dashboardLoad result=failure durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public)")
@@ -50,8 +56,21 @@ final class HomeViewModel {
         isLoading = false
     }
 
+    private static func refreshSecondaryLaunchState(
+        appState: AppState?,
+        requesterId: String?,
+        forceRefresh: Bool
+    ) async {
+        async let liveActivityRefresh: Void = reconcileCheckoutReturnLiveActivity(requesterId: requesterId)
+        if let appState {
+            await appState.refresh(forceRefresh: forceRefresh)
+        }
+        await liveActivityRefresh
+    }
+
     private static func reconcileCheckoutReturnLiveActivity(requesterId: String?) async {
         let startedAt = Date()
+        await CheckoutReturnLiveActivityManager.shared.prepareRemoteStartRegistration()
         await CheckoutReturnLiveActivityManager.shared.reconcileCurrentUserCheckouts(requesterId: requesterId)
         homePerformanceLog.debug("launch.home.liveActivityReconcile durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public)")
     }

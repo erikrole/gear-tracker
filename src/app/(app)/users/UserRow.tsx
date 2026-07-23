@@ -70,7 +70,7 @@ function mobileMetaParts(user: UserRowType): string[] {
     titleLabel(user),
     user.role === "STUDENT" ? null : areaLabel(user.primaryArea),
     user.location,
-    user.lastActiveAt ? `Active ${lastActiveLabel(user.lastActiveAt)}` : "Never active",
+    user.lastActiveAt ? `Active ${lastActiveLabel(user.lastActiveAt)}` : null,
   ].filter((part): part is string => Boolean(part));
 }
 
@@ -241,12 +241,14 @@ export const UserMobileCard = memo(function UserMobileCard({ user }: { user: Use
                 showInactiveBadge={false}
                 style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}
               />
-              <span
-                className="text-muted-foreground text-[11px] truncate leading-tight"
-                style={{ fontFamily: "var(--font-mono)" }}
-              >
-                {user.email}
-              </span>
+              {user.email ? (
+                <span
+                  className="text-muted-foreground text-[11px] truncate leading-tight"
+                  style={{ fontFamily: "var(--font-mono)" }}
+                >
+                  {user.email}
+                </span>
+              ) : null}
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               {user.active === false && (

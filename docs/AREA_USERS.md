@@ -38,6 +38,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - `ADMIN`: view and edit all users; manage role changes; invite new staff and students through the allowlist.
 - `STAFF`: view and edit all users; manage role changes; invite new students through the allowlist.
 - `STUDENT`: view all users; edit only the approved fields on their own profile; no edit rights for other users.
+- `COLLABORATOR`: view active, non-hidden teammates only when the assigned affiliation policy grants `PEOPLE_DIRECTORY_VIEW`. The directory is name-searchable and exposes only roster identity and work context. Collaborators cannot see private profile, contact, presence, assignment, activity, booking, shift, badge, or audit data and cannot edit another user.
 - Every authenticated role may update its own approved profile-completion fields through the explicit `user.edit_self` permission. This does not grant broader user-edit access.
 
 ### Items
@@ -119,6 +120,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 ## Change Log
 
+- 2026-07-23: Added the policy-granted collaborator People directory. Collaborators with `PEOPLE_DIRECTORY_VIEW` can find active, visible teammates by name and open minimized work profiles while private fields and every cross-user action remain denied.
 - 2026-07-17: **Native profile completion parity.** Authenticated users can now complete the same canonical role-aware profile setup in the main iOS app. Native setup preserves the web field rules, one-day server snooze, student work-phone exclusion, collaborator photo-only scope, typed Wiscard parts, student academic details, apparel systems, and crop-enabled avatar upload. The Profile screen exposes a manual Complete profile entry while required details remain missing. No schema or server behavior changed.
 - 2026-07-17: **Native profile completion input hardening.** The iOS Welcome flow now enforces the ten-digit Wiscard and one-digit issue-code contract at entry, gives form fields explicit keyboard focus and dismissal behavior, reports unreadable photo selections inline, and treats final photo omission as a current-session bypass. Explicit Remind tomorrow remains the only action that writes the canonical one-day server snooze. Native Student and Staff preview fixtures keep role-specific field visibility testable without production identities.
 - 2026-07-16: **Users directory interaction-detail polish.** Header commands, sortable table headers, location-filter recovery, and pagination now meet the 40px desktop target baseline and use the shared 0.96 press treatment. Sort-state icons cross-fade without animating initial render, inactive/hidden roster filters use their full labeled container as the target, mobile roster cards gain tactile and keyboard-focus feedback, and roster avatars use neutral black/white image outlines instead of a tinted border ring. User visibility, filtering, sorting, onboarding, role policy, roster data, and profile behavior are unchanged.

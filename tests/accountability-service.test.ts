@@ -130,6 +130,7 @@ describe("accountability service", () => {
         requester: { id: "user-1", name: "Alex Student", active: true, primaryArea: "VIDEO" },
         location: { id: "main", name: "Main Cage" },
         accountabilityExclusion: null,
+        dueDateChanges: [],
         serializedItems: [{ asset: { assetTag: "CAM-1", name: "Camera" } }],
         bulkItems: [],
       },
@@ -143,6 +144,7 @@ describe("accountability service", () => {
         requester: { id: "user-1", name: "Alex Student", active: true, primaryArea: "VIDEO" },
         location: { id: "main", name: "Main Cage" },
         accountabilityExclusion: null,
+        dueDateChanges: [],
         serializedItems: [],
         bulkItems: [{ plannedQuantity: 2, checkedOutQuantity: 2, bulkSku: { name: "Battery" } }],
       },
@@ -164,6 +166,7 @@ describe("accountability service", () => {
           excludedBy: { id: "admin-1", name: "Admin" },
           restoredBy: null,
         },
+        dueDateChanges: [],
         serializedItems: [],
         bulkItems: [],
       },
@@ -202,6 +205,7 @@ describe("accountability service", () => {
         requester: { id: "user-1", name: "Alex Student", active: true, primaryArea: "VIDEO" },
         location: { id: "main", name: "Main Cage" },
         accountabilityExclusion: null,
+        dueDateChanges: [],
         serializedItems: [],
         bulkItems: [],
       },
@@ -213,5 +217,85 @@ describe("accountability service", () => {
     );
     expect(report.leaderboard).toEqual([]);
     expect(report.metrics.lateEvents).toBe(0);
+  });
+
+  it("counts an overdue extension against the prior due time", async () => {
+    vi.mocked(db.booking.findMany).mockResolvedValue(bookingRows([
+      {
+        id: "extended-after-due",
+        kind: "CHECKOUT",
+        title: "Extended camera",
+        status: "COMPLETED",
+        endsAt: new Date("2026-08-12T18:00:00.000Z"),
+        completedAt: new Date("2026-08-12T17:00:00.000Z"),
+        requester: { id: "user-1", name: "Alex Student", active: true, primaryArea: "VIDEO" },
+        location: { id: "main", name: "Main Cage" },
+        accountabilityExclusion: null,
+        dueDateChanges: [{
+          id: "change-1",
+          bookingId: "extended-after-due",
+          actorUserId: "staff-1",
+          previousEndsAt: new Date("2026-08-10T10:00:00.000Z"),
+          nextEndsAt: new Date("2026-08-12T18:00:00.000Z"),
+          changedAt: new Date("2026-08-10T13:30:00.000Z"),
+        }],
+        serializedItems: [],
+        bulkItems: [],
+      },
+    ]));
+
+    const report = await getAccountabilityReport(
+      { startYear: 2026, incidentState: "extended" },
+      new Date("2026-08-13T12:00:00.000Z"),
+    );
+
+    expect(report.leaderboard).toHaveLength(1);
+    expect(report.leaderboard[0]).toMatchObject({
+      lateEventCount: 1,
+      totalLateHours: 3,
+      activeOverdueCount: 0,
+    });
+    expect(report.leaderboard[0]?.incidents).toEqual([
+      expect.objectContaining({
+        incidentId: "change-1",
+        state: "extended",
+        dueAt: "2026-08-10T10:00:00.000Z",
+        extendedAt: "2026-08-10T13:30:00.000Z",
+        extendedTo: "2026-08-12T18:00:00.000Z",
+        lateHours: 3,
+      }),
+    ]);
+  });
+
+  it("does not count an extension made inside the configured grace period", async () => {
+    vi.mocked(db.booking.findMany).mockResolvedValue(bookingRows([
+      {
+        id: "extended-in-grace",
+        kind: "CHECKOUT",
+        title: "Grace extension",
+        status: "OPEN",
+        endsAt: new Date("2026-08-12T18:00:00.000Z"),
+        completedAt: null,
+        requester: { id: "user-1", name: "Alex Student", active: true, primaryArea: "VIDEO" },
+        location: { id: "main", name: "Main Cage" },
+        accountabilityExclusion: null,
+        dueDateChanges: [{
+          id: "change-2",
+          bookingId: "extended-in-grace",
+          actorUserId: "staff-1",
+          previousEndsAt: new Date("2026-08-10T10:00:00.000Z"),
+          nextEndsAt: new Date("2026-08-12T18:00:00.000Z"),
+          changedAt: new Date("2026-08-10T10:45:00.000Z"),
+        }],
+        serializedItems: [],
+        bulkItems: [],
+      },
+    ]));
+
+    const report = await getAccountabilityReport(
+      { startYear: 2026, incidentState: "extended" },
+      new Date("2026-08-11T12:00:00.000Z"),
+    );
+    expect(report.leaderboard).toEqual([]);
   });
 });

@@ -8,6 +8,7 @@ import { deactivateUserWithCleanup } from "@/lib/services/user-deactivation";
 import { normalizeSlackHandle, normalizeSlackProfileUrl, normalizeWiscardNumber, slackHandleSchema, slackProfileUrlSchema, validateBirthdayParts, wiscardCardNumberSchema, wiscardIssueCodeSchema, wiscardNumberSchema } from "@/lib/validation";
 import { canReadUserProfile } from "@/lib/user-visibility";
 import { normalizeProfilePhone, nullableProfilePhoneSchema, phoneAuditValue } from "@/lib/profile-phone";
+import { requireCollaboratorCapability } from "@/lib/collaborator-access";
 import { z } from "zod";
 
 const updateUserSchema = z.object({
@@ -93,6 +94,85 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
   requireRole(user.role, ["ADMIN", "STAFF", "STUDENT", "COLLABORATOR"]);
   const { id } = params;
 
+  if (user.role === "COLLABORATOR" && user.id !== id) {
+    requireCollaboratorCapability(user, "PEOPLE_DIRECTORY_VIEW");
+    const publicTarget = await db.user.findFirst({
+      where: { id, active: true, hiddenFromRoster: false },
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        affiliation: true,
+        collaboratorProfile: true,
+        staffingType: true,
+        title: true,
+        primaryArea: true,
+        locationId: true,
+        location: { select: { name: true } },
+        avatarUrl: true,
+        active: true,
+        gradYear: true,
+        studentYearOverride: true,
+        collaboratorPolicy: {
+          select: {
+            id: true,
+            status: true,
+            version: true,
+            affiliation: { select: { key: true, displayName: true, badgeLabel: true } },
+          },
+        },
+      },
+    });
+    if (!publicTarget) throw new HttpError(404, "User not found");
+
+    return ok({
+      data: {
+        id: publicTarget.id,
+        name: publicTarget.name,
+        email: "",
+        role: publicTarget.role,
+        affiliation: publicTarget.affiliation,
+        collaboratorProfile: publicTarget.collaboratorProfile,
+        collaboratorPolicy: publicTarget.collaboratorPolicy,
+        staffingType: publicTarget.staffingType,
+        locationId: publicTarget.locationId,
+        location: publicTarget.location?.name ?? null,
+        phone: null,
+        personalPhone: null,
+        workPhone: null,
+        workPhoneNotApplicable: false,
+        wiscardNumber: null,
+        wiscardCardNumber: null,
+        wiscardIssueCode: null,
+        slackHandle: null,
+        slackProfileUrl: null,
+        primaryArea: publicTarget.primaryArea,
+        avatarUrl: publicTarget.avatarUrl ?? null,
+        active: true,
+        hiddenFromRoster: false,
+        createdAt: null,
+        sportAssignments: [],
+        areaAssignments: [],
+        title: publicTarget.title ?? null,
+        athleticsEmail: null,
+        startDate: null,
+        directReportId: null,
+        directReportName: null,
+        directReport: null,
+        gradYear: publicTarget.gradYear ?? null,
+        graduationTerm: null,
+        studentYearOverride: publicTarget.studentYearOverride ?? null,
+        topSize: null,
+        topSizeFit: null,
+        bottomSize: null,
+        shoeSize: null,
+        shoeSizeSystem: null,
+        birthdayMonth: null,
+        birthdayDay: null,
+      },
+    });
+  }
+
   const target = await db.user.findUnique({
     where: { id },
     include: {
@@ -115,7 +195,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
   if (!canReadUserProfile(user, target)) throw new HttpError(404, "User not found");
 
   const targetIsCollaborator = target.role === "COLLABORATOR";
-  if ((user.role === "STUDENT" || user.role === "COLLABORATOR") && user.id !== id && !targetIsCollaborator) {
+  if (user.role === "STUDENT" && user.id !== id && !targetIsCollaborator) {
     throw new HttpError(403, "Forbidden");
   }
 

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import type { UserDetail, Location, Role } from "../types";
-import { deriveStudentYear, STUDENT_YEAR_OPTIONS } from "../types";
+import { AREA_LABELS, deriveStudentYear, STUDENT_YEAR_OPTIONS } from "../types";
 import { useFetch } from "@/hooks/use-fetch";
 import RoleBadge from "../RoleBadge";
 import UserInfoTab from "./UserInfoTab";
@@ -281,6 +281,7 @@ export default function UserDetailPage() {
     reload: reloadFormOptions,
   } = useFetch<{ locations: Location[] }>({
     url: "/api/form-options",
+    enabled: currentUserRole !== null && currentUserRole !== "COLLABORATOR",
     transform: (json) => (json as Record<string, unknown>).data as { locations: Location[] },
     refetchOnFocus: false,
   });
@@ -591,7 +592,10 @@ export default function UserDetailPage() {
   }
 
   const profile = effectiveUser ?? user;
-  if (profile.role === "COLLABORATOR" && currentUserRole !== "ADMIN") {
+  if (
+    (currentUserRole === "COLLABORATOR" && !isSelf) ||
+    (profile.role === "COLLABORATOR" && currentUserRole !== "ADMIN")
+  ) {
     return (
       <FadeUp>
         <div className="mx-auto max-w-2xl rounded-xl border bg-card p-6">
@@ -608,7 +612,11 @@ export default function UserDetailPage() {
               {isSelf && profile.email ? <p className="mt-1 text-sm text-muted-foreground">{profile.email}</p> : null}
               <div className="mt-3 flex flex-wrap gap-2">
                 <RoleBadge role={profile.role} />
-                <Badge variant="outline">{profile.collaboratorPolicy?.affiliation.displayName ?? "External collaborator"}</Badge>
+                {profile.collaboratorPolicy?.affiliation.displayName ? (
+                  <Badge variant="outline">{profile.collaboratorPolicy.affiliation.displayName}</Badge>
+                ) : null}
+                {profile.primaryArea ? <Badge variant="outline">{AREA_LABELS[profile.primaryArea] ?? profile.primaryArea}</Badge> : null}
+                {profile.location ? <Badge variant="outline">{profile.location}</Badge> : null}
               </div>
             </div>
             {isSelf ? (

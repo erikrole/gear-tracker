@@ -13,4 +13,14 @@ describe("Collaborator Access settings response contract", () => {
     expect(source).toContain("const policies = data ?? [];");
     expect(source).not.toContain("const policies = data?.data ?? [];");
   });
+
+  it("preserves intentional badge casing in create and edit fields", () => {
+    const source = readFileSync(
+      path.join(process.cwd(), "src/app/(app)/settings/collaborator-access/page.tsx"),
+      "utf8",
+    );
+
+    expect(source).toContain('placeholder="Learfield"');
+    expect(source).not.toContain("setBadge(event.target.value.toUpperCase())");
+  });
 });

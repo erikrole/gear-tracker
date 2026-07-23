@@ -103,7 +103,7 @@ Values: `ACTIVE`, `MAINTENANCE`, `UNKNOWN`
 
 ## Model `User`
 
-Fields: 95
+Fields: 96
 
 - `id                          String                           @id @default(cuid())`
 - `name                        String`
@@ -182,6 +182,7 @@ Fields: 95
 - `collaboratorPolicyRevisions CollaboratorPolicyRevision[]     @relation("CollaboratorPolicyRevisionActor")`
 - `accountabilityExclusions    BookingAccountabilityExclusion[] @relation("AccountabilityExcludedBy")`
 - `accountabilityRestorations  BookingAccountabilityExclusion[] @relation("AccountabilityRestoredBy")`
+- `bookingDueDateChanges       BookingDueDateChange[]           @relation("BookingDueDateChangeActor")`
 - `title               String?`
 - `athleticsEmail      String?         @unique @map("athletics_email")`
 - `startDate           DateTime?       @map("start_date") @db.Date`
@@ -389,7 +390,7 @@ Indexes and constraints:
 
 ## Model `Booking`
 
-Fields: 42
+Fields: 43
 
 - `id                      String                          @id @default(cuid())`
 - `kind                    BookingKind`
@@ -433,6 +434,7 @@ Fields: 42
 - `liveActivityTokens      LiveActivityToken[]`
 - `liveActivityStarts      LiveActivityStart[]`
 - `accountabilityExclusion BookingAccountabilityExclusion?`
+- `dueDateChanges          BookingDueDateChange[]`
 
 Indexes and constraints:
 
@@ -473,6 +475,26 @@ Indexes and constraints:
 - `@@index([excludedByUserId])`
 - `@@index([restoredByUserId])`
 - `@@map("booking_accountability_exclusions")`
+
+## Model `BookingDueDateChange`
+
+Fields: 8
+
+- `id             String   @id @default(cuid())`
+- `bookingId      String   @map("booking_id")`
+- `actorUserId    String?  @map("actor_user_id")`
+- `previousEndsAt DateTime @map("previous_ends_at")`
+- `nextEndsAt     DateTime @map("next_ends_at")`
+- `changedAt      DateTime @default(now()) @map("changed_at")`
+- `booking        Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)`
+- `actor          User?    @relation("BookingDueDateChangeActor", fields: [actorUserId], references: [id], onDelete: SetNull)`
+
+Indexes and constraints:
+
+- `@@index([bookingId, changedAt])`
+- `@@index([changedAt])`
+- `@@index([actorUserId])`
+- `@@map("booking_due_date_changes")`
 
 ## Model `BookingSerializedItem`
 

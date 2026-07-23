@@ -13,7 +13,7 @@ Do not place the reviewer password or production information in this directory.
 
 ## App Store Screenshots
 
-Captured from the exact frozen Build 20 simulator build while signed into the isolated fictional reviewer account. Files are opaque JPEGs at live App Store Connect accepted dimensions.
+Captured from the Build 22 Release simulator build on 2026-07-23 while signed into the isolated fictional reviewer account. Files are opaque JPEGs at live App Store Connect accepted dimensions.
 
 ### iPhone 6.9-inch, 1320 x 2868
 
@@ -37,4 +37,4 @@ Captured from the exact frozen Build 20 simulator build while signed into the is
 
 The seven-image order tells the product story consistently on both devices: Dashboard, Bookings, Schedule, Items, Users, Create, and Search.
 
-All fourteen screenshots were visually checked for fictional-only content, accepted dimensions, portrait orientation, and absence of an alpha channel. The temporary iPhone screenshot reservation was discarded without creating a server record. The iPad create sheet opened from the fictional item detail and was dismissed without creating a reservation.
+All fourteen screenshots were visually checked for fictional-only content, accepted dimensions, portrait orientation, and absence of an alpha channel. Local `asc` validation passed all seven iPhone files as `APP_IPHONE_67` and all seven iPad files as `APP_IPAD_PRO_3GEN_129`. The iPhone and iPad create sheets were dismissed without creating a reservation.

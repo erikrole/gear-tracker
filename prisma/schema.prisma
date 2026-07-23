@@ -238,6 +238,7 @@ model User {
   collaboratorPolicyRevisions CollaboratorPolicyRevision[]     @relation("CollaboratorPolicyRevisionActor")
   accountabilityExclusions    BookingAccountabilityExclusion[] @relation("AccountabilityExcludedBy")
   accountabilityRestorations  BookingAccountabilityExclusion[] @relation("AccountabilityRestoredBy")
+  bookingDueDateChanges       BookingDueDateChange[]           @relation("BookingDueDateChangeActor")
 
   title               String?
   athleticsEmail      String?         @unique @map("athletics_email")
@@ -458,6 +459,7 @@ model Booking {
   liveActivityTokens      LiveActivityToken[]
   liveActivityStarts      LiveActivityStart[]
   accountabilityExclusion BookingAccountabilityExclusion?
+  dueDateChanges          BookingDueDateChange[]
 
   @@index([locationId, startsAt, endsAt])
   @@index([status, kind])
@@ -492,6 +494,22 @@ model BookingAccountabilityExclusion {
   @@index([excludedByUserId])
   @@index([restoredByUserId])
   @@map("booking_accountability_exclusions")
+}
+
+model BookingDueDateChange {
+  id             String   @id @default(cuid())
+  bookingId      String   @map("booking_id")
+  actorUserId    String?  @map("actor_user_id")
+  previousEndsAt DateTime @map("previous_ends_at")
+  nextEndsAt     DateTime @map("next_ends_at")
+  changedAt      DateTime @default(now()) @map("changed_at")
+  booking        Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  actor          User?    @relation("BookingDueDateChangeActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([bookingId, changedAt])
+  @@index([changedAt])
+  @@index([actorUserId])
+  @@map("booking_due_date_changes")
 }
 
 model BookingSerializedItem {

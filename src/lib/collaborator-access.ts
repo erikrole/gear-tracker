@@ -9,6 +9,7 @@ export const COLLABORATOR_CAPABILITIES = [
   "RESERVATION_CANCEL_OWN",
   "RESERVATION_EXTEND_OWN",
   "PUBLISHED_SCHEDULE_VIEW",
+  "PEOPLE_DIRECTORY_VIEW",
   "SCHEDULE_FOLLOW",
   "KIOSK_ROSTER_ELIGIBLE",
 ] as const;
@@ -24,6 +25,7 @@ export const COLLABORATOR_CAPABILITY_CATALOG: ReadonlyArray<{
   { key: "GEAR_CATALOG_VIEW", label: "Gear catalog", group: "SEE", description: "Browse sanitized reservable gear." },
   { key: "MY_GEAR_VIEW", label: "My Gear", group: "SEE", description: "See only the collaborator's reservations and checkouts." },
   { key: "PUBLISHED_SCHEDULE_VIEW", label: "Published Schedule", group: "SEE", description: "See snapshot-backed published events and crew." },
+  { key: "PEOPLE_DIRECTORY_VIEW", label: "People directory", group: "SEE", description: "See active teammates and minimized work profiles." },
   { key: "RESERVATION_CREATE", label: "Create reservations", group: "DO", description: "Reserve gear for the collaborator's own use." },
   { key: "RESERVATION_EDIT_OWN", label: "Edit own reservations", group: "DO", description: "Change eligible owned reservations." },
   { key: "RESERVATION_CANCEL_OWN", label: "Cancel own reservations", group: "DO", description: "Cancel eligible owned reservations." },
@@ -42,8 +44,6 @@ const CAPABILITY_DEPENDENCIES: Partial<Record<CollaboratorCapability, readonly C
   SCHEDULE_FOLLOW: ["PUBLISHED_SCHEDULE_VIEW"],
   KIOSK_ROSTER_ELIGIBLE: ["MY_GEAR_VIEW"],
 };
-
-export const LEGACY_BTN_CAPABILITIES: readonly CollaboratorCapability[] = COLLABORATOR_CAPABILITIES;
 
 type PolicyLike = {
   id: string;
@@ -111,9 +111,6 @@ export function capabilitiesForActor(actor: CollaboratorActor): CollaboratorCapa
       .map((grant) => grant.capabilityKey)
       .filter(isCollaboratorCapability);
   }
-  if (actor.collaboratorProfile === "BTN_STANDARD") {
-    return [...LEGACY_BTN_CAPABILITIES];
-  }
   return [];
 }
 
@@ -150,25 +147,13 @@ export function requireCollaboratorCapability(actor: CollaboratorActor, capabili
 }
 
 export function requireActiveCollaboratorPolicy(actor: CollaboratorActor) {
-  if (
-    actor.role === Role.COLLABORATOR &&
-    actor.collaboratorPolicy &&
-    actor.collaboratorPolicy.status !== CollaboratorPolicyStatus.ACTIVE
-  ) {
+  if (actor.role !== Role.COLLABORATOR) return;
+  if (!actor.collaboratorPolicy) {
+    throw new HttpError(403, "Your account is not assigned to a collaborator affiliation");
+  }
+  if (actor.collaboratorPolicy.status !== CollaboratorPolicyStatus.ACTIVE) {
     throw new HttpError(403, "Your affiliation access is suspended");
   }
-}
-
-export function isBtnCollaborator(actor: CollaboratorActor) {
-  const policyKey = actor.collaboratorPolicy
-    ? "affiliation" in actor.collaboratorPolicy
-      ? actor.collaboratorPolicy.affiliation.key
-      : actor.collaboratorPolicy.affiliationKey
-    : null;
-  return actor.role === Role.COLLABORATOR && (
-    policyKey === "BIG_TEN_NETWORK" ||
-    actor.collaboratorProfile === "BTN_STANDARD"
-  );
 }
 
 export function isGlobalKioskCollaborator(actor: CollaboratorActor) {

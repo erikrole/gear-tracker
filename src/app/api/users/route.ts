@@ -4,10 +4,15 @@ import { HttpError, ok, parsePagination } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
 import { shouldIncludeHiddenUsers, visibleUserWhere } from "@/lib/user-visibility";
 import { optionalSportCodeSchema } from "@/lib/validation";
+import { requireCollaboratorCapability } from "@/lib/collaborator-access";
 import { Prisma } from "@prisma/client";
 
 export const GET = withAuth(async (req, { user }) => {
-  requireRole(user.role, ["ADMIN", "STAFF", "STUDENT"]);
+  requireRole(user.role, ["ADMIN", "STAFF", "STUDENT", "COLLABORATOR"]);
+  const isCollaboratorDirectory = user.role === "COLLABORATOR";
+  if (isCollaboratorDirectory) {
+    requireCollaboratorCapability(user, "PEOPLE_DIRECTORY_VIEW");
+  }
 
   const { searchParams } = new URL(req.url);
   const { limit, offset } = parsePagination(searchParams);
@@ -20,17 +25,21 @@ export const GET = withAuth(async (req, { user }) => {
   const yearParam = searchParams.get("year");      // FRESHMAN | SOPHOMORE | JUNIOR | SENIOR | GRAD
   const sportParam = optionalSportCodeSchema.parse(searchParams.get("sport") ?? undefined);    // sport code (e.g. WHKY)
   const areaParam = searchParams.get("area");      // ShiftArea enum value
-  const includeHidden = shouldIncludeHiddenUsers(searchParams, user);
+  const includeHidden = isCollaboratorDirectory ? false : shouldIncludeHiddenUsers(searchParams, user);
 
   // Build where clause
-  const conditions: Prisma.UserWhereInput[] = [visibleUserWhere(user, { includeHidden })];
+  const conditions: Prisma.UserWhereInput[] = isCollaboratorDirectory
+    ? [{ active: true, hiddenFromRoster: false }]
+    : [visibleUserWhere(user, { includeHidden })];
 
   if (q) {
     conditions.push({
-      OR: [
-        { name: { contains: q, mode: "insensitive" as const } },
-        { email: { contains: q, mode: "insensitive" as const } },
-      ],
+      OR: isCollaboratorDirectory
+        ? [{ name: { contains: q, mode: "insensitive" as const } }]
+        : [
+            { name: { contains: q, mode: "insensitive" as const } },
+            { email: { contains: q, mode: "insensitive" as const } },
+          ],
     });
   }
 
@@ -38,15 +47,15 @@ export const GET = withAuth(async (req, { user }) => {
     conditions.push({ role: roleParam as Prisma.EnumRoleFilter });
   }
 
-  if (locationId) {
+  if (!isCollaboratorDirectory && locationId) {
     conditions.push({ locationId });
   }
 
-  if (sportParam) {
+  if (!isCollaboratorDirectory && sportParam) {
     conditions.push({ sportAssignments: { some: { sportCode: sportParam } } });
   }
 
-  if (areaParam) {
+  if (!isCollaboratorDirectory && areaParam) {
     conditions.push({
       OR: [
         { primaryArea: areaParam as Prisma.EnumShiftAreaFilter },
@@ -57,7 +66,7 @@ export const GET = withAuth(async (req, { user }) => {
 
   // Year filter — derives an expected gradYear from a Sept→Aug academic calendar
   // and matches either an explicit override or that derived gradYear.
-  if (yearParam && ["FRESHMAN", "SOPHOMORE", "JUNIOR", "SENIOR", "GRAD"].includes(yearParam)) {
+  if (!isCollaboratorDirectory && yearParam && ["FRESHMAN", "SOPHOMORE", "JUNIOR", "SENIOR", "GRAD"].includes(yearParam)) {
     const now = new Date();
     const acadYearEnd = now.getMonth() >= 7 ? now.getFullYear() + 1 : now.getFullYear();
     const yearGradMap: Record<string, Prisma.UserWhereInput> = {
@@ -79,7 +88,9 @@ export const GET = withAuth(async (req, { user }) => {
   const summaryWhere: Prisma.UserWhereInput = { AND: [...conditions] };
 
   // Default list results to active-only, while summary counts retain inactive visibility.
-  if (activeParam === "false") {
+  if (isCollaboratorDirectory) {
+    // Collaborator directories never expose inactive accounts.
+  } else if (activeParam === "false") {
     conditions.push({ active: false });
   } else if (activeParam !== "all") {
     conditions.push({ active: true });
@@ -90,7 +101,7 @@ export const GET = withAuth(async (req, { user }) => {
 
   // Build orderBy
   const orderBy: Prisma.UserOrderByWithRelationInput[] = (() => {
-    switch (sort) {
+    switch (isCollaboratorDirectory && !["name", "name_desc", "role", "role_desc"].includes(sort) ? "name" : sort) {
       case "name_desc":
         return [{ name: "desc" as const }];
       case "role":
@@ -168,6 +179,37 @@ export const GET = withAuth(async (req, { user }) => {
 
   return ok({
     data: data.map((u) => {
+      if (isCollaboratorDirectory) {
+        return {
+          id: u.id,
+          name: u.name,
+          email: "",
+          role: u.role,
+          affiliation: u.affiliation,
+          collaboratorProfile: u.collaboratorProfile,
+          collaboratorPolicy: u.collaboratorPolicy ? {
+            id: u.collaboratorPolicy.id,
+            status: u.collaboratorPolicy.status,
+            version: u.collaboratorPolicy.version,
+            affiliation: u.collaboratorPolicy.affiliation,
+          } : null,
+          staffingType: u.staffingType,
+          phone: null,
+          slackHandle: null,
+          slackProfileUrl: null,
+          primaryArea: u.primaryArea,
+          locationId: u.locationId,
+          location: u.location?.name ?? null,
+          avatarUrl: u.avatarUrl ?? null,
+          active: true,
+          hiddenFromRoster: false,
+          sportAssignments: [],
+          title: u.title ?? null,
+          gradYear: u.gradYear ?? null,
+          studentYearOverride: u.studentYearOverride ?? null,
+          lastActiveAt: null,
+        };
+      }
       const collaboratorBasicOnly = u.role === "COLLABORATOR" && user.role !== "ADMIN" && user.id !== u.id;
       return {
       id: u.id,

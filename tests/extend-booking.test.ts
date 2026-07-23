@@ -4,6 +4,7 @@ import { expectSerializableIsolation } from "./_helpers/assert-transaction";
 type MockFn = ReturnType<typeof vi.fn>;
 type ExtendBookingTx = {
   booking: Record<"findUnique" | "findUniqueOrThrow" | "update", MockFn>;
+  bookingDueDateChange: Record<"create", MockFn>;
   assetAllocation: Record<"updateMany", MockFn>;
   auditLog: Record<"create", MockFn>;
   user: Record<"findUnique", MockFn>;
@@ -16,6 +17,7 @@ const transactionCalls: Array<{ options: unknown }> = [];
 vi.mock("@/lib/db", () => {
   const mockTx = {
     booking: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn() },
+    bookingDueDateChange: { create: vi.fn() },
     assetAllocation: { updateMany: vi.fn() },
     auditLog: { create: vi.fn() },
     user: { findUnique: vi.fn().mockResolvedValue({ role: "ADMIN" }) },
@@ -74,6 +76,7 @@ beforeEach(() => {
   mockTx.booking.findUniqueOrThrow.mockResolvedValue({ id: "b-1" });
   mockTx.booking.update.mockResolvedValue({});
   mockTx.assetAllocation.updateMany.mockResolvedValue({});
+  mockTx.bookingDueDateChange.create.mockResolvedValue({});
   mockTx.auditLog.create.mockResolvedValue({});
   vi.mocked(checkAvailability).mockResolvedValue({
     conflicts: [],
@@ -124,6 +127,19 @@ describe("extendBooking", () => {
         }),
       })
     );
+  });
+
+  it("persists the previous due date in the extension transaction", async () => {
+    await extendBooking("b-1", "actor-1", newEnd);
+
+    expect(mockTx.bookingDueDateChange.create).toHaveBeenCalledWith({
+      data: {
+        bookingId: "b-1",
+        actorUserId: "actor-1",
+        previousEndsAt: currentEnd,
+        nextEndsAt: newEnd,
+      },
+    });
   });
 
   it("throws 404 when booking not found", async () => {

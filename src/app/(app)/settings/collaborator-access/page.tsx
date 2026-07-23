@@ -26,6 +26,7 @@ type Capability =
   | "RESERVATION_CANCEL_OWN"
   | "RESERVATION_EXTEND_OWN"
   | "PUBLISHED_SCHEDULE_VIEW"
+  | "PEOPLE_DIRECTORY_VIEW"
   | "SCHEDULE_FOLLOW"
   | "KIOSK_ROSTER_ELIGIBLE";
 
@@ -61,6 +62,7 @@ const CAPABILITIES: Array<{ key: Capability; label: string; group: "Can see" | "
   { key: "GEAR_CATALOG_VIEW", label: "Gear catalog", group: "Can see", description: "Sanitized reservable gear." },
   { key: "MY_GEAR_VIEW", label: "My Gear", group: "Can see", description: "Only their reservations and checkouts." },
   { key: "PUBLISHED_SCHEDULE_VIEW", label: "Published Schedule", group: "Can see", description: "Published snapshots without internal notes." },
+  { key: "PEOPLE_DIRECTORY_VIEW", label: "People directory", group: "Can see", description: "Active teammates with work-safe profile details." },
   { key: "RESERVATION_CREATE", label: "Create reservations", group: "Can do", description: "Reserve gear for themselves." },
   { key: "RESERVATION_EDIT_OWN", label: "Edit own reservations", group: "Can do", description: "Edit eligible owned reservations." },
   { key: "RESERVATION_CANCEL_OWN", label: "Cancel own reservations", group: "Can do", description: "Cancel eligible owned reservations." },
@@ -261,7 +263,7 @@ function PolicyCard({ policy, onChanged }: { policy: Policy; onChanged: () => vo
       <CardContent className="flex flex-col gap-5">
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="grid gap-1.5"><Label htmlFor={`${policy.id}-name`}>Name</Label><Input id={`${policy.id}-name`} value={name} onChange={(event) => setName(event.target.value)} /></div>
-          <div className="grid gap-1.5"><Label htmlFor={`${policy.id}-badge`}>Badge</Label><Input id={`${policy.id}-badge`} value={badge} maxLength={12} onChange={(event) => setBadge(event.target.value.toUpperCase())} /></div>
+          <div className="grid gap-1.5"><Label htmlFor={`${policy.id}-badge`}>Badge</Label><Input id={`${policy.id}-badge`} value={badge} maxLength={12} onChange={(event) => setBadge(event.target.value)} /></div>
         </div>
         <div className="flex items-center justify-between gap-3 rounded-md border p-3">
           <div><p className="font-medium">Affiliation access</p><p className="text-sm text-muted-foreground">Suspension blocks login, invitations, registration, kiosk roster, and every capability.</p></div>
@@ -342,7 +344,7 @@ function CreateAffiliation({ onCreated }: { onCreated: () => void }) {
         <DialogHeader><DialogTitle>Add collaborator affiliation</DialogTitle><DialogDescription>The affiliation starts suspended with no capabilities. Its stable key is generated from the name and cannot be changed.</DialogDescription></DialogHeader>
         <div className="grid gap-4 py-2">
           <div className="grid gap-1.5"><Label htmlFor="affiliation-name">Name</Label><Input id="affiliation-name" value={name} maxLength={80} onChange={(event) => setName(event.target.value)} placeholder="Learfield" /></div>
-          <div className="grid gap-1.5"><Label htmlFor="affiliation-badge">Badge</Label><Input id="affiliation-badge" value={badge} maxLength={12} onChange={(event) => setBadge(event.target.value.toUpperCase())} placeholder="LEARFIELD" /></div>
+          <div className="grid gap-1.5"><Label htmlFor="affiliation-badge">Badge</Label><Input id="affiliation-badge" value={badge} maxLength={12} onChange={(event) => setBadge(event.target.value)} placeholder="Learfield" /></div>
         </div>
         <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={create} disabled={saving || !name.trim() || badge.trim().length < 2}>{saving ? "Creating…" : "Create affiliation"}</Button></DialogFooter>
       </DialogContent>

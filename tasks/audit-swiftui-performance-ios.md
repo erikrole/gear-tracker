@@ -20,6 +20,41 @@ Keep the highest-frequency native workflows responsive under realistic productio
 
 This audit does not change product behavior, custody boundaries, API contracts, or visual design.
 
+## Launch Warning Follow-Up
+
+### PERF-IOS-07: Initial foreground refresh supersedes session validation
+
+**Severity:** P1
+**Confidence:** High for request ownership and observation invalidation; rendering-warning causality requires the post-fix device trace
+**Category:** Broad observation invalidation, duplicate launch work, unstable framework render timing
+
+The optimistic launch path started `/me` in `SessionStore`, rendered `AppTabView`, then started a second `/me` when the initial scene became active. The second request invalidated the first request token, producing `launch.session.optimistic result=unknown`. Both successful paths republished `CurrentUser` even when its value was unchanged, invalidating the capability-driven native tab hierarchy while iOS 26 rendered its glass tab bar.
+
+The supplied device log also contained one `glassEffect() tried to update multiple times per frame` warning and five full-device-width `1206x0 image slot` failures. Those warnings are correlated with the launch invalidation window but are not attributed to a specific SwiftUI view without Instruments evidence. PointerUI's repeated `cannot add handler to 0 from 0` messages remain framework noise unless a trace connects them to visible Wisconsin behavior.
+
+Remediation:
+
+1. Track initial session validation independently from the optimistic routing hint.
+2. Let `SessionStore` reject foreground refresh while initial validation is in flight.
+3. Publish a decoded `CurrentUser` only when its `Equatable` value changed.
+4. Own foreground lifecycle work at `WisconsinApp`, not inside the tab shell.
+5. Start badge and Live Activity refreshes after Home publishes its dashboard payload.
+6. Preserve the native tab structure and Liquid Glass controls until trace evidence identifies a control-level problem.
+
+Source validation:
+
+- `SessionStore` now logs `authenticated`, `unauthorized`, `offline`, `offline-optimistic`, or `superseded`; it cannot log `unknown`.
+- `AppTabView` no longer observes scene phase or starts session refreshes.
+- `WisconsinApp` skips noncritical initial foreground work while validation is active.
+- Home starts badge and Live Activity refreshes from an unstructured task after dashboard success.
+- Native tab values, capability gates, pinned Search placement, and safe-area inset behavior are unchanged.
+
+Runtime validation still required:
+
+- Five Release cold launches and five foreground cycles on Erik's iPhone.
+- SwiftUI Instruments plus Time Profiler capture under the same network conditions.
+- Confirm one `/me`, zero glass update warnings, zero zero-height image-slot failures, and no tab/navigation regression.
+
 ## Inventory
 
 - 114 Swift source files under `ios/Wisconsin`
@@ -270,6 +305,17 @@ No performance trace was provided or captured during this source audit.
 | Home first useful render | Pending | Pending | Pending | Pending | Pending |
 | Profile photo select/crop/save | Pending | Pending | Pending | Pending | Pending |
 
+Launch baseline from the supplied Debug device log:
+
+| Metric | Before | After source fix | Acceptance |
+| --- | ---: | ---: | --- |
+| Cold first useful Home | 3,879 ms, one observed run | Pending Release-device capture | Lower five-run median under matched conditions |
+| Session validation owners | 2 source-triggered `/me` requests | 1 by source contract | Exactly one |
+| Session result | `unknown` | Cannot emit `unknown` | Explicit terminal result |
+| Liquid Glass warnings | 1 | Pending device capture | 0 |
+| Full-width zero-height image slots | 5 | Pending device capture | 0 |
+| Warm dashboard refresh | 259 ms, one observed run | Pending device capture | No material regression |
+
 ## Instruments Capture Contract
 
 Use a Release build on a physical device where possible. Record one interaction per capture using the SwiftUI Instruments template with Time Profiler and Hangs/Hitches:
@@ -357,10 +403,13 @@ Implementation slices additionally require the native iOS verification matrix fr
 - Reservation equipment results and cart selections are evaluated once per render pass.
 - Trade Board classifies each loaded page in one pass.
 - Home constructs one action-queue collection for row and divider rendering.
+- Initial session validation has one request owner and unchanged user values do not invalidate the tab shell.
+- Home defers badge and Live Activity refreshes until after dashboard success.
 
 ### Verified
 
 - `npx vitest run tests/ios-swiftui-performance.test.ts tests/ios-runtime-warning-cleanup.test.ts tests/ios-create-booking-picker-parity.test.ts tests/ios-home-afm-header-source.test.ts` passed: 37 tests.
+- Launch lifecycle, session ownership, tab stability, Home, collaborator access, and Live Activity source contracts passed: 49 tests across 9 files.
 - `IOS_SKIP_TESTS=1 npm run ios:xcode:verify` passed simulator and generic-device builds for Wisconsin.
 - `npm run ios:xcode:verify:kiosk` passed static gates, simulator build, kiosk XCTest, and generic-device build.
 - `npm run ios:project:check`, `npm run drift:ios`, and `npm run audit:ios:gaps` passed. The gap audit still reports the unrelated unregistered `ProfileNextUp.swift`.
@@ -368,6 +417,7 @@ Implementation slices additionally require the native iOS verification matrix fr
 ### Deferred
 
 - Release-build physical-device Instruments captures and before/after metrics.
+- Post-fix confirmation for the Liquid Glass and zero-height image-slot warnings on Erik's iPhone.
 
 ### Blocked
 

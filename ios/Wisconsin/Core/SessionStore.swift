@@ -40,6 +40,7 @@ final class SessionStore {
     var isRestoring = true
     var error: String?
     var isOffline = false
+    private(set) var isInitialSessionValidationInFlight = true
 
     /// True when this launch optimistically seeded `currentUser` from a stored
     /// snapshot, so the app shell rendered before `/me` confirmed the session.
@@ -75,6 +76,7 @@ final class SessionStore {
                 if self.currentUser != nil {
                     self.authRequests.invalidate()
                     self.isRestoring = false
+                    self.isInitialSessionValidationInFlight = false
                     self.didSeedFromSnapshot = false
                     self.currentUser = nil
                     SessionSnapshot.clear()
@@ -101,8 +103,7 @@ final class SessionStore {
                 let user = try await APIClient.shared.login(email: email, password: password)
                 guard self.authRequests.owns(requestToken) else { return }
                 self.didSeedFromSnapshot = false
-                self.currentUser = user
-                SessionSnapshot.save(user)
+                self.publishCurrentUserIfChanged(user)
             } catch {
                 guard self.authRequests.owns(requestToken) else { return }
                 self.error = error.localizedDescription
@@ -126,9 +127,8 @@ final class SessionStore {
                 )
                 let user = try await APIClient.shared.me()
                 guard self.authRequests.owns(requestToken) else { return }
-                self.currentUser = user
                 self.didSeedFromSnapshot = false
-                if let currentUser = self.currentUser { SessionSnapshot.save(currentUser) }
+                self.publishCurrentUserIfChanged(user)
                 self.isOffline = false
             } catch {
                 guard self.authRequests.owns(requestToken) else { return }
@@ -146,6 +146,7 @@ final class SessionStore {
         authRequests.invalidate()
         SessionSnapshot.clear()
         didSeedFromSnapshot = false
+        isInitialSessionValidationInFlight = false
         currentUser = nil
         isLoading = false
         isRestoring = false
@@ -161,6 +162,7 @@ final class SessionStore {
         authRequests.invalidate()
         SessionSnapshot.clear()
         didSeedFromSnapshot = false
+        isInitialSessionValidationInFlight = false
         currentUser = nil
         isLoading = false
         isRestoring = false
@@ -176,13 +178,12 @@ final class SessionStore {
     }
 
     func refreshCurrentUser() async {
-        guard currentUser != nil else { return }
+        guard currentUser != nil, !isInitialSessionValidationInFlight else { return }
         let requestToken = authRequests.begin()
         do {
             let user = try await APIClient.shared.me()
             guard authRequests.owns(requestToken) else { return }
-            currentUser = user
-            SessionSnapshot.save(user)
+            publishCurrentUserIfChanged(user)
             isOffline = false
             error = nil
         } catch APIError.unauthorized {
@@ -199,8 +200,9 @@ final class SessionStore {
     private func restoreSession(requestToken: UUID) async {
         let startedAt = Date()
         let optimistic = didSeedFromSnapshot
-        var result = "unknown"
+        var result = "superseded"
         defer {
+            isInitialSessionValidationInFlight = false
             if authRequests.owns(requestToken) { isRestoring = false }
             // Distinguish the optimistic path (shell already shown) from a cold
             // blocking restore so launch timings stay comparable in Console.
@@ -209,13 +211,18 @@ final class SessionStore {
         }
         do {
             let user = try await APIClient.shared.me()
-            guard authRequests.owns(requestToken) else { return }
-            currentUser = user
-            SessionSnapshot.save(user)
+            guard authRequests.owns(requestToken) else {
+                result = "superseded"
+                return
+            }
+            publishCurrentUserIfChanged(user)
             isOffline = false
             result = "authenticated"
         } catch APIError.unauthorized {
-            guard authRequests.owns(requestToken) else { return }
+            guard authRequests.owns(requestToken) else {
+                result = "superseded"
+                return
+            }
             // Confirmed revoked/expired session — drop the optimistic shell and
             // send the user to Login.
             authRequests.invalidate()
@@ -224,11 +231,21 @@ final class SessionStore {
             currentUser = nil
             result = "unauthorized"
         } catch {
-            guard authRequests.owns(requestToken) else { return }
+            guard authRequests.owns(requestToken) else {
+                result = "superseded"
+                return
+            }
             // Network failure — don't clear session state; keep any optimistic
             // session and let the user retry.
             isOffline = true
             result = optimistic ? "offline-optimistic" : "offline"
         }
+    }
+
+    private func publishCurrentUserIfChanged(_ user: CurrentUser) {
+        if currentUser != user {
+            currentUser = user
+        }
+        SessionSnapshot.save(user)
     }
 }

@@ -41,6 +41,7 @@
     "test:watch": "vitest",
     "test:e2e:smoke": "playwright test",
     "smoke:deploy": "node scripts/deploy-smoke.mjs",
+    "smoke:collaborator": "node scripts/collaborator-deploy-smoke.mjs",
     "import:cheqroom": "node scripts/import-cheqroom-items.mjs",
     "release": "bash scripts/release.sh",
     "drift:ios": "bash scripts/ios-drift-check.sh",

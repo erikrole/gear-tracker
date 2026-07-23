@@ -1475,6 +1475,15 @@ export async function extendBooking(
         data: { endsAt: newEndsAt }
       });
 
+      await tx.bookingDueDateChange.create({
+        data: {
+          bookingId,
+          actorUserId,
+          previousEndsAt: existing.endsAt,
+          nextEndsAt: newEndsAt,
+        },
+      });
+
       const actorRole = await lookupActorRole(tx, actorUserId);
       await createAuditEntryTx(tx, {
         actorId: actorUserId,

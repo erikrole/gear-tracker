@@ -39,6 +39,7 @@ export default function UserFilters({
   onShowHiddenUsersChange,
   onClearAll,
   searching = false,
+  directoryMode = false,
 }: {
   search: string;
   onSearchChange: (v: string) => void;
@@ -62,6 +63,7 @@ export default function UserFilters({
   onShowHiddenUsersChange: (v: boolean) => void;
   onClearAll: () => void;
   searching?: boolean;
+  directoryMode?: boolean;
 }) {
   const [draftSearch, setDraftSearch] = useState(search);
   const [filtersOpen, setFiltersOpen] = useState(
@@ -164,7 +166,7 @@ export default function UserFilters({
             name="users-search"
             className="peer h-10 pl-9 pr-9 text-base md:text-sm"
             type="text"
-            placeholder="Search name or email"
+            placeholder={directoryMode ? "Search by name" : "Search name or email"}
             value={draftSearch}
             onChange={(e) => setDraftSearch(e.target.value)}
             aria-label="Search users"
@@ -229,7 +231,7 @@ export default function UserFilters({
               ))}
             </SelectContent>
           </Select>
-          <Select
+          {!directoryMode && <Select
             value={locationFilter || "__all__"}
             onValueChange={(v) => onLocationChange(v === "__all__" ? "" : v)}
             disabled={locationFilterUnavailable}
@@ -245,8 +247,8 @@ export default function UserFilters({
                 <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
               ))}
             </SelectContent>
-          </Select>
-          <Select value={areaFilter || "__all__"} onValueChange={(v) => onAreaChange(v === "__all__" ? "" : v)}>
+          </Select>}
+          {!directoryMode && <Select value={areaFilter || "__all__"} onValueChange={(v) => onAreaChange(v === "__all__" ? "" : v)}>
             <SelectTrigger size="sm" className="h-10 w-[130px]">
               <SelectValue placeholder="All areas" />
             </SelectTrigger>
@@ -256,8 +258,8 @@ export default function UserFilters({
                 <SelectItem key={value} value={value}>{label}</SelectItem>
               ))}
             </SelectContent>
-          </Select>
-          <Select value={yearFilter || "__all__"} onValueChange={(v) => onYearChange(v === "__all__" ? "" : v)}>
+          </Select>}
+          {!directoryMode && <Select value={yearFilter || "__all__"} onValueChange={(v) => onYearChange(v === "__all__" ? "" : v)}>
             <SelectTrigger size="sm" className="h-10 w-[130px]">
               <SelectValue placeholder="All years" />
             </SelectTrigger>
@@ -267,8 +269,8 @@ export default function UserFilters({
                 <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
               ))}
             </SelectContent>
-          </Select>
-          <Select value={sportFilter || "__all__"} onValueChange={(v) => onSportChange(v === "__all__" ? "" : v)}>
+          </Select>}
+          {!directoryMode && <Select value={sportFilter || "__all__"} onValueChange={(v) => onSportChange(v === "__all__" ? "" : v)}>
             <SelectTrigger size="sm" className="h-10 w-[150px]">
               <SelectValue placeholder="All sports" />
             </SelectTrigger>
@@ -278,8 +280,8 @@ export default function UserFilters({
                 <SelectItem key={s.code} value={s.code}>{s.label}</SelectItem>
               ))}
             </SelectContent>
-          </Select>
-          <Label htmlFor="show-inactive" className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-border/70 bg-background px-3">
+          </Select>}
+          {!directoryMode && <Label htmlFor="show-inactive" className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-border/70 bg-background px-3">
             <Checkbox
               id="show-inactive"
               checked={showInactive}
@@ -288,7 +290,7 @@ export default function UserFilters({
             <span className="whitespace-nowrap text-xs text-muted-foreground">
               Show inactive
             </span>
-          </Label>
+          </Label>}
           {canShowHiddenUsers && (
             <Label htmlFor="show-hidden-users" className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-border/70 bg-background px-3">
               <Checkbox

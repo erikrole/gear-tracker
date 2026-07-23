@@ -13,7 +13,7 @@ import { loadCheckoutPolicies } from "@/lib/services/checkout-policies";
 const MIN_CHECKOUTS_FOR_RATE = 3;
 const HOUR_MS = 3_600_000;
 
-export type AccountabilityIncidentState = "all" | "active" | "resolved";
+export type AccountabilityIncidentState = "all" | "active" | "resolved" | "extended";
 export type AccountabilityUserState = "all" | "active" | "inactive";
 
 export type AccountabilityFilters = {
@@ -85,6 +85,9 @@ const accountabilityBookingInclude = {
       restoredBy: { select: { id: true, name: true } },
     },
   },
+  dueDateChanges: {
+    orderBy: { changedAt: "asc" as const },
+  },
   serializedItems: {
     select: { asset: { select: { assetTag: true, name: true } } },
   },
@@ -131,7 +134,14 @@ export async function getAccountabilityReport(
   const where: Prisma.BookingWhereInput = {
     kind: "CHECKOUT",
     status: { in: [BookingStatus.OPEN, BookingStatus.COMPLETED] },
-    ...(window ? { endsAt: { gte: window.start, lt: window.end } } : {}),
+    ...(window
+      ? {
+          OR: [
+            { endsAt: { gte: window.start, lt: window.end } },
+            { dueDateChanges: { some: { changedAt: { gte: window.start, lt: window.end } } } },
+          ],
+        }
+      : {}),
     ...(filters.locationId ? { locationId: filters.locationId } : {}),
     ...(filters.userState === "active"
       ? { requester: { active: true } }
@@ -173,12 +183,15 @@ export async function getAccountabilityReport(
     completedCount: number;
     onTimeCount: number;
     incidents: Array<{
+      incidentId: string;
       bookingId: string;
       title: string;
       dueAt: string;
       returnedAt: string | null;
+      extendedAt: string | null;
+      extendedTo: string | null;
       lateHours: number;
-      state: "active" | "resolved";
+      state: "active" | "resolved" | "extended";
       location: { id: string; name: string };
       itemSummary: string;
     }>;
@@ -187,6 +200,12 @@ export async function getAccountabilityReport(
   const byPerson = new Map<string, PersonAccumulator>();
 
   for (const booking of included) {
+    const finalDueInWindow =
+      !window || (booking.endsAt >= window.start && booking.endsAt < window.end);
+    const dueDateChanges = booking.dueDateChanges.filter(
+      (change) =>
+        !window || (change.changedAt >= window.start && change.changedAt < window.end),
+    );
     const person = byPerson.get(booking.requester.id) ?? {
       userId: booking.requester.id,
       name: booking.requester.name,
@@ -199,27 +218,55 @@ export async function getAccountabilityReport(
     };
     person.checkoutCount += 1;
 
-    const effectiveDue = booking.endsAt.getTime() + graceMs;
-    const comparisonTime =
-      booking.status === BookingStatus.COMPLETED
-        ? booking.completedAt?.getTime()
-        : now.getTime();
+    if (finalDueInWindow) {
+      const effectiveDue = booking.endsAt.getTime() + graceMs;
+      const comparisonTime =
+        booking.status === BookingStatus.COMPLETED
+          ? booking.completedAt?.getTime()
+          : now.getTime();
 
-    if (booking.status === BookingStatus.COMPLETED && comparisonTime !== undefined) {
-      person.completedCount += 1;
-      if (comparisonTime <= effectiveDue) person.onTimeCount += 1;
+      if (booking.status === BookingStatus.COMPLETED && comparisonTime !== undefined) {
+        person.completedCount += 1;
+        if (comparisonTime <= effectiveDue) person.onTimeCount += 1;
+      }
+
+      if (comparisonTime !== undefined && comparisonTime > effectiveDue) {
+        const state = booking.status === BookingStatus.OPEN ? "active" : "resolved";
+        if (!filters.incidentState || filters.incidentState === "all" || filters.incidentState === state) {
+          person.incidents.push({
+            incidentId: `${booking.id}:${state}`,
+            bookingId: booking.id,
+            title: booking.title,
+            dueAt: booking.endsAt.toISOString(),
+            returnedAt: booking.completedAt?.toISOString() ?? null,
+            extendedAt: null,
+            extendedTo: null,
+            lateHours: Math.max(1, Math.ceil((comparisonTime - effectiveDue) / HOUR_MS)),
+            state,
+            location: booking.location,
+            itemSummary: itemSummary(booking),
+          });
+        }
+      }
     }
 
-    if (comparisonTime !== undefined && comparisonTime > effectiveDue) {
-      const state = booking.status === BookingStatus.OPEN ? "active" : "resolved";
-      if (!filters.incidentState || filters.incidentState === "all" || filters.incidentState === state) {
+    if (!filters.incidentState || filters.incidentState === "all" || filters.incidentState === "extended") {
+      for (const change of dueDateChanges) {
+        const effectivePreviousDue = change.previousEndsAt.getTime() + graceMs;
+        if (change.changedAt.getTime() <= effectivePreviousDue) continue;
         person.incidents.push({
+          incidentId: change.id,
           bookingId: booking.id,
           title: booking.title,
-          dueAt: booking.endsAt.toISOString(),
-          returnedAt: booking.completedAt?.toISOString() ?? null,
-          lateHours: Math.max(1, Math.ceil((comparisonTime - effectiveDue) / HOUR_MS)),
-          state,
+          dueAt: change.previousEndsAt.toISOString(),
+          returnedAt: null,
+          extendedAt: change.changedAt.toISOString(),
+          extendedTo: change.nextEndsAt.toISOString(),
+          lateHours: Math.max(
+            1,
+            Math.ceil((change.changedAt.getTime() - effectivePreviousDue) / HOUR_MS),
+          ),
+          state: "extended",
           location: booking.location,
           itemSummary: itemSummary(booking),
         });
@@ -234,7 +281,7 @@ export async function getAccountabilityReport(
     .map((person) => {
       const lateHours = person.incidents.map((incident) => incident.lateHours);
       const lastIncidentAt = person.incidents
-        .map((incident) => incident.returnedAt ?? incident.dueAt)
+        .map((incident) => incident.returnedAt ?? incident.extendedAt ?? incident.dueAt)
         .sort()
         .at(-1)!;
       return {

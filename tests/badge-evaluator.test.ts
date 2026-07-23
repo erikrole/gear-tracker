@@ -82,7 +82,8 @@ describe("badge evaluator shift work", () => {
 
     await onShiftsWorked({ userId: "user-1" });
 
-    const where = mockTx.shiftAssignment.count.mock.calls[0][0].where;
+    const where = mockTx.shiftAssignment.count.mock.calls[0]?.[0]?.where;
+    expect(where).toBeDefined();
     expect(JSON.stringify(where)).not.toContain("archivedAt");
   });
 
@@ -97,8 +98,10 @@ describe("badge evaluator shift work", () => {
     await onShiftsWorked({ userId: "user-1" });
 
     const [first, second] = mockTx.studentBadge.createMany.mock.calls;
+    expect(first).toBeDefined();
+    expect(second).toBeDefined();
     expect(second).toEqual(first);
-    expect(first[0].skipDuplicates).toBe(true);
+    expect(first?.[0]?.skipDuplicates).toBe(true);
   });
 });
 
@@ -186,7 +189,10 @@ describe("badge evaluator checkout events", () => {
     );
     // The on-time badge and the streak badge, each written once.
     const written = mockTx.studentBadge.createMany.mock.calls.flatMap(
-      (call: [{ data: Array<{ definitionId: string }> }]) => call[0].data.map((row) => row.definitionId),
+      (call) => {
+        const request = call[0] as { data?: Array<{ definitionId: string }> } | undefined;
+        return request?.data?.map((row) => row.definitionId) ?? [];
+      },
     );
     expect(written).toEqual(["on-time-1", "streak-5"]);
   });
@@ -220,7 +226,10 @@ describe("badge evaluator checkout events", () => {
     expect(mockTx.badgeStreak.upsert).not.toHaveBeenCalled();
     // No streak lane ran, so no streak badge was ever looked up.
     const ruleKeys = mockTx.badgeDefinition.findMany.mock.calls.map(
-      (call: [{ where: { ruleKey?: string } }]) => call[0].where.ruleKey,
+      (call) => {
+        const request = call[0] as { where?: { ruleKey?: string } } | undefined;
+        return request?.where?.ruleKey;
+      },
     );
     expect(ruleKeys).not.toContain("on_time_return_streak");
   });

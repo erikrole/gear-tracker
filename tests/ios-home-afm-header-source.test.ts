@@ -38,11 +38,12 @@ describe("iOS Home header source contract", () => {
     const home = source("ios/Wisconsin/Views/HomeView.swift");
     const loadBody = home.slice(
       home.indexOf("func load(appState: AppState?"),
-      home.indexOf("private static func reconcileCheckoutReturnLiveActivity"),
+      home.indexOf("private static func refreshSecondaryLaunchState"),
     );
 
     expect(loadBody).toContain("launch.home.dashboardLoad result=success");
-    expect(loadBody).toContain("Task { await Self.reconcileCheckoutReturnLiveActivity");
+    expect(loadBody).toContain("Task {");
+    expect(loadBody).toContain("await Self.refreshSecondaryLaunchState");
     expect(loadBody).not.toContain("await CheckoutReturnLiveActivityManager.shared.reconcileCurrentUserCheckouts");
     expect(home).toContain("launch.home.liveActivityReconcile");
   });

@@ -200,7 +200,7 @@ function RosterSummary({
           <OperationalMetricCard label="Students" value={stats.byRole.STUDENT} onClick={() => onRoleChange("STUDENT")} />
           <OperationalMetricCard label="Staff" value={stats.byRole.STAFF} onClick={() => onRoleChange("STAFF")} />
           <OperationalMetricCard label="Admins" value={stats.byRole.ADMIN} onClick={() => onRoleChange("ADMIN")} />
-          <OperationalMetricCard label="BTN collaborators" value={stats.byRole.COLLABORATOR} onClick={() => onRoleChange("COLLABORATOR")} />
+          <OperationalMetricCard label="Collaborators" value={stats.byRole.COLLABORATOR} onClick={() => onRoleChange("COLLABORATOR")} />
         </div>
       )}
     />
@@ -291,6 +291,7 @@ export default function UsersPage() {
     refetchOnFocus: false,
   });
   const currentUserRole = meData?.user.role ?? null;
+  const isCollaboratorDirectory = currentUserRole === "COLLABORATOR";
   const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
   const canShowHiddenUsers = meData?.canViewHiddenUsers === true;
 
@@ -358,6 +359,7 @@ export default function UsersPage() {
     reload: reloadFormOptions,
   } = useFetch<{ locations: Location[] }>({
     url: "/api/form-options",
+    enabled: currentUserRole !== null && !isCollaboratorDirectory,
     transform: (json) => (json as Record<string, unknown>).data as { locations: Location[] },
     refetchOnFocus: false,
   });
@@ -395,7 +397,7 @@ export default function UsersPage() {
   return (
     <FadeUp>
       {/* Header */}
-      <PageHeader title="Users" className="mb-5">
+      <PageHeader title={isCollaboratorDirectory ? "People" : "Users"} className="mb-5">
         {canEdit && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -463,9 +465,10 @@ export default function UsersPage() {
           onShowHiddenUsersChange={setShowHiddenUsers}
           searching={refreshing && !loading}
           onClearAll={clearFilters}
+          directoryMode={isCollaboratorDirectory}
         />
 
-        {formOptionsError && (
+        {formOptionsError && !isCollaboratorDirectory && (
           <Alert variant="destructive">
             <WifiOff className="size-4" />
             <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -547,7 +550,9 @@ export default function UsersPage() {
                       <SortableHead label="Name" sortKey="name" currentSort={sort} onSort={setSort} className="w-[26rem] normal-case tracking-normal" />
                       <SortableHead label="Role" sortKey="role" currentSort={sort} onSort={setSort} className="w-28 normal-case tracking-normal" />
                       <TableHead className="hidden min-w-[18rem] normal-case tracking-normal md:table-cell">Title / area</TableHead>
-                      <SortableHead label="Last active" sortKey="lastActive" currentSort={sort} onSort={setSort} className="hidden w-36 normal-case tracking-normal xl:table-cell" />
+                      {!isCollaboratorDirectory && (
+                        <SortableHead label="Last active" sortKey="lastActive" currentSort={sort} onSort={setSort} className="hidden w-36 normal-case tracking-normal xl:table-cell" />
+                      )}
                     </TableRow>
                   </TableHeader>
                   <TableBody>

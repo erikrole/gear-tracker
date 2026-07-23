@@ -11,6 +11,7 @@
 
 ## Source Checks
 - `Booking.endsAt` is the due time; `completedAt` records completed checkout return.
+- Extending a booking overwrites `Booking.endsAt`; the current audit entry preserves the prior due date but expires after 90 days.
 - The current overdue report includes only `CHECKOUT` + `OPEN` rows past `endsAt`.
 - D-040 requires checkout records to remain the active and historical custody ledger.
 - Reports are currently STAFF/ADMIN; this new surface and its API must be ADMIN-only.
@@ -28,6 +29,7 @@
 - [x] Slice 3: Add the admin-only sidebar destination and accountability UI with filters, methodology, evidence expansion, and CSV export.
 - [x] Slice 4: Add focused schema, service, route, permission, and UI source-contract tests.
 - [x] Slice 5: Sync Reports, Risks, codemaps, and closeout evidence.
+- [x] Slice 6: Persist due-date changes, backfill retained extension audits, and count extensions made after the prior due time as distinct accountability incidents.
 
 ## Verification
 - [x] Focused accountability and adjacent report/search tests: 37 passed
@@ -49,3 +51,15 @@
 - Blocked: Full standalone TypeScript remains blocked by unrelated badge-test strictness errors.
 - Proof artifacts: `0101_accountability_exclusions` applied through the Neon HTTP fallback; migration health reports 103/103 applied with no pending, failed, or DB-only rows. The deploy-shaped build found no pending migrations and compiled all 207 pages. Authenticated browser proof showed one resolved 21-hour late return and expanded booking evidence under the configured 0.5-hour grace period.
 - Next slice or stop: Stop. Exclusion mutation behavior is covered by focused route/service tests; no production record was changed for browser proof.
+
+## Follow-up: overdue extensions
+- Schema: add durable booking due-date-change evidence with booking and actor relations, cascade booking cleanup, actor `SetNull`, and indexes for booking history and time-window reporting.
+- Migration: backfill bounded retained `booking/extended` audit rows without changing or depending on the 90-day audit retention policy.
+- Mutation: write the due-date change in the same SERIALIZABLE transaction as `extendBooking`.
+- Report: classify an extension as late when its change timestamp is after the prior due time plus the configured grace period. Preserve later late-return incidents as separate episodes.
+- UI/API: expose `extended` as an incident state with prior due time, extension time, and new due time.
+- Tests: cover transaction persistence, academic-year attribution, grace-period behavior, filtering, and source contracts.
+- Deploy: migration `0102_booking_due_date_history` was explicitly approved and applied to Neon through the repository HTTP fallback.
+- Recovery: `migrate dev` could not create its shadow-database workflow and direct PostgreSQL port 5432 was unavailable. After wrapper-backed health confirmed 103/103 live/local parity, Prisma generated `0102_booking_due_date_history` by diffing the pre-change and updated datamodels locally. The retained-audit backfill was then added to that new, unapplied migration.
+- Verification: 29 focused accountability, extension, route, and discovery tests passed. Prisma validation, the 104-migration prefix check, focused lint, standalone TypeScript, codemaps/docs, and the 207-page app build passed.
+- Deploy proof: post-deploy migration health reports 104/104 local migrations applied, with no pending, failed, or database-only rows. `0102_booking_due_date_history` is the newest applied migration.

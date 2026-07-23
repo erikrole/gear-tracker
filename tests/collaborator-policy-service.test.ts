@@ -100,6 +100,44 @@ describe("collaborator policy mutations", () => {
     expect(tx.collaboratorPolicyGrant.deleteMany).not.toHaveBeenCalled();
   });
 
+  it("preserves deliberate badge casing without changing existing acronyms", async () => {
+    tx.collaboratorPolicy.findUnique.mockResolvedValue({
+      ...currentPolicy(),
+      affiliation: {
+        ...currentPolicy().affiliation,
+        key: "LEARFIELD",
+        displayName: "Learfield",
+        badgeLabel: "LEARFIELD",
+      },
+    });
+
+    await updateCollaboratorPolicy({
+      actor,
+      policyId: "policy-1",
+      expectedVersion: 3,
+      badgeLabel: "Learfield",
+    });
+
+    expect(tx.collaboratorAffiliation.update).toHaveBeenLastCalledWith({
+      where: { id: "affiliation-1" },
+      data: { displayName: "Learfield", badgeLabel: "Learfield" },
+    });
+
+    tx.collaboratorPolicy.findUnique.mockResolvedValue(currentPolicy());
+
+    await updateCollaboratorPolicy({
+      actor,
+      policyId: "policy-1",
+      expectedVersion: 3,
+      badgeLabel: "BTN",
+    });
+
+    expect(tx.collaboratorAffiliation.update).toHaveBeenLastCalledWith({
+      where: { id: "affiliation-1" },
+      data: { displayName: "Big Ten Network", badgeLabel: "BTN" },
+    });
+  });
+
   it("writes one revision, audit, and deduplicated notices atomically", async () => {
     tx.user.findMany.mockResolvedValue([{ id: "collaborator-1" }]);
 

@@ -27,7 +27,8 @@ function catalogIconNames(): string[] {
       const row = line.trim();
       if (!row.startsWith("('seed_badge_") && !row.startsWith("('badge_")) continue;
       const quoted = [...row.matchAll(/'([^']*)'/g)].map((match) => match[1]);
-      if (quoted.length >= 5) icons.add(quoted[4]);
+      const icon = quoted[4];
+      if (icon) icons.add(icon);
     }
   }
 
@@ -37,7 +38,10 @@ function catalogIconNames(): string[] {
     display.indexOf("export const customBadgeIconOptions"),
     display.indexOf("] as const;", display.indexOf("export const customBadgeIconOptions")),
   );
-  for (const match of picker.matchAll(/"([A-Za-z0-9]+)"/g)) icons.add(match[1]);
+  for (const match of picker.matchAll(/"([A-Za-z0-9]+)"/g)) {
+    const icon = match[1];
+    if (icon) icons.add(icon);
+  }
 
   return [...icons].filter(Boolean).sort();
 }
@@ -70,7 +74,8 @@ describe("iOS badge icon coverage", () => {
       detail.indexOf('default: "seal.fill"'),
     );
 
-    const symbols = [...map.matchAll(/case "[A-Za-z0-9]+": "([a-z0-9.]+)"/g)].map((m) => m[1]);
+    const symbols = [...map.matchAll(/case "[A-Za-z0-9]+": "([a-z0-9.]+)"/g)]
+      .flatMap((match) => match[1] ? [match[1]] : []);
     expect(symbols.length).toBeGreaterThan(25);
     // A one-to-one map. Two badges sharing a symbol is a milder version of the
     // same bug: the shelf stops telling them apart.

@@ -63,6 +63,17 @@ describe("accountability routes", () => {
     });
   });
 
+  it("accepts the overdue-extension incident filter", async () => {
+    const response = await GET(
+      new Request("https://app.example.com/api/accountability?state=extended"),
+      noParams,
+    );
+    expect(response.status).toBe(200);
+    expect(getAccountabilityReport).toHaveBeenCalledWith(
+      expect.objectContaining({ incidentState: "extended" }),
+    );
+  });
+
   it("denies report access to STAFF", async () => {
     vi.mocked(requireAuth).mockResolvedValue(staff);
     const response = await GET(

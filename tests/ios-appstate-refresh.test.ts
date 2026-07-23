@@ -22,8 +22,8 @@ describe("iOS AppState refresh energy budget", () => {
     const home = source("ios/Wisconsin/Views/HomeView.swift");
     const schedule = source("ios/Wisconsin/Views/ScheduleView.swift");
 
-    expect(app).toContain("await appState.refresh()");
-    expect(home).toContain("Task { await appState.refresh(forceRefresh: true) }");
+    expect(app).toContain("async let badgeRefresh: Void = appState.refresh()");
+    expect(home).toContain("await appState.refresh(forceRefresh: forceRefresh)");
     expect(schedule).toContain("Task { await appState.refresh(forceRefresh: true) }");
   });
 

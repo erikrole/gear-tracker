@@ -42,4 +42,13 @@ describe("Resources interaction-detail contracts", () => {
     expect(css).toContain(".guide-heading-anchor:active");
     expect(css).toContain("scale: 0.96;");
   });
+
+  it("wraps long inline paths without changing scrollable code blocks", () => {
+    const css = source("src/app/globals.css");
+
+    expect(css).toContain(".guide-markdown-inline-code {\n  max-width: 100%;\n  overflow-wrap: anywhere;");
+    expect(css).toContain(
+      ".guide-markdown-code-block .guide-markdown-inline-code {\n  display: block;\n  background: transparent;\n  border-radius: 0;\n  color: inherit;\n  max-width: none;\n  overflow-wrap: normal;",
+    );
+  });
 });

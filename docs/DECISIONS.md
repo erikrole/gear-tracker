@@ -840,10 +840,11 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - Decision:
   - External users use `Role.COLLABORATOR`, which remains absent from the central role permission map.
   - Authorization comes from a directly assigned, database-backed policy. Affiliation remains presentational.
-  - Policies grant only the nine implemented capability keys listed in `AREA_COLLABORATORS.md`; unknown keys fail closed and dependencies normalize server-side.
-  - BTN is backfilled active with behavior equivalent to its fixed profile. Learfield is seeded suspended with no grants.
+  - Policies grant only the ten implemented capability keys listed in `AREA_COLLABORATORS.md`; unknown keys fail closed and dependencies normalize server-side.
+  - BTN is backfilled active with behavior equivalent to its fixed profile. Learfield was seeded suspended and is activated only through an explicit reviewed policy change.
+  - `PEOPLE_DIRECTORY_VIEW` grants active, non-hidden teammate discovery through a minimized roster and work-profile response. It never grants contact, identity, presence, activity, booking, shift, badge, audit, or edit access.
   - BTN gear access is sanitized and own-reservation scoped. Checkout custody remains kiosk-owned under D-040.
-  - BTN Schedule access is read-only and rendered from `ShiftGroup.lastPublishedSnapshot`, never live draft state.
+  - Collaborator Schedule access is read-only and rendered from `ShiftGroup.lastPublishedSnapshot`, never live draft state.
   - Only admins may invite, deactivate, or change collaborator accounts.
 - Consequences:
   - New partners require an explicit reviewed and activated policy rather than an affiliation shortcut or internal role grant.
@@ -852,8 +853,9 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - Guardrails:
   - Do not add `COLLABORATOR` to inherited role permissions.
   - Do not authorize from affiliation.
+  - Do not authorize from legacy affiliation or profile fields. A collaborator without an assigned active policy fails closed.
   - Do not add per-user capability grants in V1.
-  - Keep sensitive profile data, notes, serials, borrower identity, audit history, internal metadata, cross-user access, staffing controls, and custody mutations permanently non-configurable.
+  - Keep sensitive profile data, notes, serials, borrower identity, audit history, internal metadata, unrestricted cross-user access, staffing controls, and custody mutations permanently non-configurable.
   - Route every collaborator booking response branch through the collaborator sanitizer and deny direct audit-history reads.
   - Restrict collaborator-created reservation event links to the published, non-hidden Schedule surface and keep inaccessible IDs indistinguishable from missing IDs.
   - Keep linked event objects out of collaborator booking responses; published event identity and crew detail belong to the collaborator Schedule contract.

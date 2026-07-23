@@ -24,41 +24,10 @@ struct WisconsinApp: App {
                     sharedAppState = appState
                 }
                 .onChange(of: session.currentUser, initial: true) { old, user in
-                    if user == nil, old != nil {
-                        GearStore.shared.clearAll()
-                        profileCompletion.resetSession()
-                        Task { await CheckoutReturnLiveActivityManager.shared.endAll() }
-                    }
-                    // Push permission is now requested via PushPrePromptView,
-                    // not as a cold OS alert on login.
-                    if user?.forcePasswordChange == false {
-                        // If the user previously granted permission, keep the token fresh.
-                        Task { await registerForPushIfAuthorized() }
-                        Task { await CheckoutReturnLiveActivityManager.shared.prepareRemoteStartRegistration() }
-                        Task {
-                            await CheckoutReturnLiveActivityManager.shared.reconcileCurrentUserCheckouts(
-                                requesterId: user?.id
-                            )
-                        }
-                    }
+                    handleCurrentUserChange(from: old, to: user)
                 }
                 .onChange(of: scenePhase) { _, phase in
-                    if phase == .active {
-                        Task { await AppDelegate.pruneStaleDeliveredNotifications() }
-                    }
-                    if phase == .active && session.currentUser?.forcePasswordChange == false {
-                        // Refresh tab badge state regardless of which tab the user is on.
-                        Task {
-                            await appState.refresh()
-                            await CheckoutReturnLiveActivityManager.shared.prepareRemoteStartRegistration()
-                            await CheckoutReturnLiveActivityManager.shared.reconcileCurrentUserCheckouts(
-                                requesterId: session.currentUser?.id
-                            )
-                        }
-                        if let user = session.currentUser {
-                            Task { await profileCompletion.load(for: user, force: true) }
-                        }
-                    }
+                    handleScenePhaseChange(phase)
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
                     Task { @MainActor in
@@ -81,6 +50,43 @@ struct WisconsinApp: App {
                 .tint(.brandPrimary)
         }
         .modelContainer(GearStore.shared.container)
+    }
+
+    private func handleCurrentUserChange(from oldUser: CurrentUser?, to user: CurrentUser?) {
+        if user == nil, oldUser != nil {
+            GearStore.shared.clearAll()
+            profileCompletion.resetSession()
+            Task { await CheckoutReturnLiveActivityManager.shared.endAll() }
+        }
+
+        // Push permission is now requested via PushPrePromptView, not as a
+        // cold OS alert on login. Home owns the first checkout reconciliation
+        // after its useful payload arrives.
+        guard user?.forcePasswordChange == false else { return }
+        Task { await registerForPushIfAuthorized() }
+    }
+
+    private func handleScenePhaseChange(_ phase: ScenePhase) {
+        guard phase == .active else { return }
+        Task { await AppDelegate.pruneStaleDeliveredNotifications() }
+
+        guard session.currentUser?.forcePasswordChange == false,
+              !session.isInitialSessionValidationInFlight else {
+            return
+        }
+        Task { await refreshForegroundState() }
+    }
+
+    private func refreshForegroundState() async {
+        await session.refreshCurrentUser()
+        guard let user = session.currentUser, !user.forcePasswordChange else { return }
+
+        async let badgeRefresh: Void = appState.refresh()
+        async let profileRefresh: Void = profileCompletion.load(for: user, force: true)
+        await CheckoutReturnLiveActivityManager.shared.prepareRemoteStartRegistration()
+        await CheckoutReturnLiveActivityManager.shared.reconcileCurrentUserCheckouts(requesterId: user.id)
+        await badgeRefresh
+        await profileRefresh
     }
 
     /// Registers for remote notifications if the user has already authorized.

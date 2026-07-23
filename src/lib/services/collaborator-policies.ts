@@ -49,7 +49,7 @@ function stableAffiliationKey(displayName: string) {
 
 function validateIdentity(displayName: string, badgeLabel: string) {
   const name = displayName.trim();
-  const badge = badgeLabel.trim().toUpperCase();
+  const badge = badgeLabel.trim();
   if (name.length < 1 || name.length > 80) throw new HttpError(400, "Affiliation name must be 1 to 80 characters");
   if (badge.length < 2 || badge.length > 12) throw new HttpError(400, "Badge must be 2 to 12 characters");
   return { displayName: name, badgeLabel: badge };

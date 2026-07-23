@@ -123,6 +123,7 @@ const collaboratorBottomNavItems: BottomNavItem[] = [
   { label: "Schedule", href: "/schedule", icon: CalendarCheckIcon },
   { label: "My Gear", href: "/bookings", icon: BookOpenIcon, badge: "overdue" as const },
   { label: "Items", href: "/items", icon: LayersIcon },
+  { label: "People", href: "/users", icon: UserIcon },
   { label: "Notifications", href: "/notifications", icon: BellIcon },
 ];
 
@@ -130,6 +131,7 @@ const COLLABORATOR_ROUTE_CAPABILITY: Array<{ matches: (pathname: string) => bool
   { matches: (value) => value === "/schedule" || value.startsWith("/schedule/"), capability: "PUBLISHED_SCHEDULE_VIEW" },
   { matches: (value) => value === "/items" || (value.startsWith("/items/") && value !== "/items/new"), capability: "GEAR_CATALOG_VIEW" },
   { matches: (value) => value === "/bookings" || value.startsWith("/bookings/"), capability: "MY_GEAR_VIEW" },
+  { matches: (value) => value === "/users" || value.startsWith("/users/"), capability: "PEOPLE_DIRECTORY_VIEW" },
 ];
 
 function collaboratorCanVisit(pathname: string, user: CurrentUser): boolean {

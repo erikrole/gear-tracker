@@ -104,6 +104,11 @@ struct UsersView: View {
     @State private var vm = UsersViewModel()
     @State private var navigationPath = NavigationPath()
     @Environment(AppState.self) private var appState
+    @Environment(SessionStore.self) private var session
+
+    private var isCollaboratorDirectory: Bool {
+        session.currentUser?.role == "COLLABORATOR"
+    }
 
     var body: some View {
         // Apple's recommended pattern for binding to an @Observable model:
@@ -123,11 +128,11 @@ struct UsersView: View {
 
     private var configuredContent: some View {
         content
-                .navigationTitle("Users")
+                .navigationTitle(isCollaboratorDirectory ? "People" : "Users")
                 .searchable(
                     text: $vm.searchText,
                     placement: .navigationBarDrawer(displayMode: .always),
-                    prompt: Text("Search by name or email…")
+                    prompt: Text(isCollaboratorDirectory ? "Search by name…" : "Search by name or email…")
                 )
                 .onChange(of: vm.searchText) { vm.onSearchChange() }
                 .onChange(of: vm.selectedRole) { Task { await vm.load(reset: true) } }
@@ -249,16 +254,18 @@ struct UsersView: View {
                 }
             }
 
-            Section {
-                Button {
-                    vm.includeInactive.toggle()
-                } label: {
-                    Label(
-                        vm.includeInactive ? "Hide inactive" : "Show inactive",
-                        systemImage: vm.includeInactive ? "eye.slash" : "eye"
-                    )
+            if !isCollaboratorDirectory {
+                Section {
+                    Button {
+                        vm.includeInactive.toggle()
+                    } label: {
+                        Label(
+                            vm.includeInactive ? "Hide inactive" : "Show inactive",
+                            systemImage: vm.includeInactive ? "eye.slash" : "eye"
+                        )
+                    }
+                    .accessibilityLabel(vm.includeInactive ? "Hide inactive users" : "Show inactive users")
                 }
-                .accessibilityLabel(vm.includeInactive ? "Hide inactive users" : "Show inactive users")
             }
         } label: {
             Image(systemName: hasFilter ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")

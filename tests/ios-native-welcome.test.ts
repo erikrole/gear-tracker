@@ -29,12 +29,12 @@ describe("native iOS Welcome flow", () => {
     expect(hint).not.toMatch(/athleticsEmail|personalPhone|workPhone|wiscardCardNumber|topSize|shoeSize|avatarUrl/);
   });
 
-  it("mirrors the role-aware server steps and omits work phone for students and collaborators", () => {
+  it("mirrors the role-aware server steps and keeps collaborator setup skippable", () => {
     const models = source("ios/Wisconsin/Models/ProfileCompletionModels.swift");
     const welcome = source("ios/Wisconsin/Views/Welcome/ProfileCompletionWelcomeView.swift");
     const components = source("ios/Wisconsin/Views/Welcome/ProfileCompletionWelcomeComponents.swift");
 
-    expect(models).toContain('case "COLLABORATOR": [.phones, .photo]');
+    expect(models).toContain('case "COLLABORATOR": [.photo]');
     expect(models).toContain('case "STUDENT": [.phones, .wiscard, .student, .apparel, .photo]');
     expect(models).toContain("default: [.email, .phones, .wiscard, .apparel, .photo]");
     expect(components).toContain("if !hasSimplePhoneStep");
@@ -67,15 +67,16 @@ describe("native iOS Welcome flow", () => {
     const welcome = source("ios/Wisconsin/Views/Welcome/ProfileCompletionWelcomeView.swift");
     const components = source("ios/Wisconsin/Views/Welcome/ProfileCompletionWelcomeComponents.swift");
     const crop = source("ios/Wisconsin/Views/Welcome/ProfilePhotoCropView.swift");
+    const imageProcessor = source("ios/Wisconsin/Core/ThumbnailLoader.swift");
 
     expect(components).toContain("PhotosPicker(selection: $photoSelection, matching: .images)");
-    expect(welcome).toContain("CGImageSourceCreateThumbnailAtIndex");
+    expect(welcome).toContain("NativeImageProcessor.downsample");
     expect(welcome).toContain("reduceMotion ? .easeOut(duration: 0.12)");
     expect(welcome).toContain("photoLoadError = \"That photo couldn’t be opened.");
     expect(crop).toContain("DragGesture()");
     expect(crop).toContain("MagnifyGesture()");
-    expect(crop).toContain("width: 1024, height: 1024");
-    expect(crop).toContain("jpegData(compressionQuality: 0.9)");
+    expect(imageProcessor).toContain("width: 1024, height: 1024");
+    expect(imageProcessor).toContain("jpegData(compressionQuality: 0.9)");
     expect(crop).toContain("@Environment(\\.dismiss)");
   });
 

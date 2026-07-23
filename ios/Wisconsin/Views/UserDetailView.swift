@@ -18,6 +18,10 @@ struct UserDetailView: View {
     @State private var selectedBadge: UserBadge?
     @State private var badgeTapFeedback = false
 
+    private var isCollaboratorDirectoryViewer: Bool {
+        session.currentUser?.role == "COLLABORATOR" && session.currentUser?.id != userId
+    }
+
     var body: some View {
         Group {
             if isLoading && detail == nil {
@@ -35,14 +39,16 @@ struct UserDetailView: View {
                 ScrollView {
                     VStack(spacing: Brand.Space.sm) {
                         profileHeader(detail)
-                        ProfileNextUpCard(
-                            checkouts: checkouts,
-                            reservations: reservations,
-                            shifts: shifts,
-                            openBooking: { pushedBookingId = $0 },
-                            openShift: { selectedShift = $0 }
-                        )
-                        badgesSection
+                        if !isCollaboratorDirectoryViewer {
+                            ProfileNextUpCard(
+                                checkouts: checkouts,
+                                reservations: reservations,
+                                shifts: shifts,
+                                openBooking: { pushedBookingId = $0 },
+                                openShift: { selectedShift = $0 }
+                            )
+                            badgesSection
+                        }
                     }
                     .padding(.horizontal, Brand.Space.md)
                     .padding(.vertical, Brand.Space.sm)
@@ -147,7 +153,7 @@ struct UserDetailView: View {
             // other people. Offering to email or call yourself is a dead end,
             // and it was the one thing your own profile had that a teammate's
             // needed.
-            if detail.id != session.currentUser?.id {
+            if detail.id != session.currentUser?.id && (!detail.email.isEmpty || detail.phone?.isEmpty == false) {
                 ContactActions(detail: detail)
             }
         }
@@ -192,6 +198,14 @@ struct UserDetailView: View {
         error = nil
         defer { isLoading = false }
         do {
+            if isCollaboratorDirectoryViewer {
+                detail = try await APIClient.shared.user(id: userId)
+                badgeProfile = nil
+                checkouts = []
+                reservations = []
+                shifts = []
+                return
+            }
             async let detailTask = APIClient.shared.user(id: userId)
             async let badgeTask = loadBadgeProfileSafely()
             // Active only. The card said "Active Checkouts" while the request

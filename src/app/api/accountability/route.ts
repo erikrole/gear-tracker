@@ -11,7 +11,7 @@ import {
   type AccountabilityUserState,
 } from "@/lib/services/accountability";
 
-const INCIDENT_STATES = new Set(["all", "active", "resolved"]);
+const INCIDENT_STATES = new Set(["all", "active", "resolved", "extended"]);
 const USER_STATES = new Set(["all", "active", "inactive"]);
 
 function parseFilters(searchParams: URLSearchParams) {

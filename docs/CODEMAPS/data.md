@@ -11,7 +11,7 @@
 
 | Model | Fields | Model-level indexes/constraints |
 |---|---:|---:|
-| `User` | 95 | 5 |
+| `User` | 96 | 5 |
 | `Session` | 6 | 2 |
 | `PasswordResetToken` | 6 | 2 |
 | `Location` | 17 | 1 |
@@ -19,8 +19,9 @@
 | `Category` | 9 | 3 |
 | `Asset` | 41 | 7 |
 | `FirmwareWatchTarget` | 17 | 3 |
-| `Booking` | 42 | 14 |
+| `Booking` | 43 | 14 |
 | `BookingAccountabilityExclusion` | 11 | 4 |
+| `BookingDueDateChange` | 8 | 4 |
 | `BookingSerializedItem` | 7 | 3 |
 | `BookingBulkItem` | 10 | 3 |
 | `AssetAllocation` | 11 | 4 |

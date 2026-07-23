@@ -38,6 +38,10 @@ const collaborator = {
   role: Role.COLLABORATOR,
   affiliation: "BIG_TEN_NETWORK" as const,
   collaboratorProfile: "BTN_STANDARD" as const,
+  capabilities: [
+    "MY_GEAR_VIEW" as const,
+    "RESERVATION_EDIT_OWN" as const,
+  ],
   avatarUrl: null,
 };
 

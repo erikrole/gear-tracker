@@ -62,6 +62,7 @@ const COLLABORATOR_NAV_CAPABILITY: Partial<Record<string, string>> = {
   "/schedule": "PUBLISHED_SCHEDULE_VIEW",
   "/items": "GEAR_CATALOG_VIEW",
   "/bookings": "MY_GEAR_VIEW",
+  "/users": "PEOPLE_DIRECTORY_VIEW",
 };
 
 type NavGroup = {
@@ -161,7 +162,7 @@ export default function AppSidebar({
         .filter((item) => !item.requiredRole || item.requiredRole === user?.role)
         .filter((item) => {
           if (!isCollaborator) return true;
-          if (!["/", "/schedule", "/items", "/bookings", "/notifications"].includes(item.href)) return false;
+          if (!["/", "/schedule", "/items", "/bookings", "/users", "/notifications"].includes(item.href)) return false;
           const requiredCapability = COLLABORATOR_NAV_CAPABILITY[item.href];
           return !requiredCapability || collaboratorCapabilities.has(requiredCapability);
         })

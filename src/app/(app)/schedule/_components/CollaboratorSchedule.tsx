@@ -103,7 +103,7 @@ export function CollaboratorSchedule() {
     <div className="space-y-4">
       <PageHeader
         title="Published Schedule"
-        description="Big Ten Network events and published crew assignments."
+        description="Published events and crew assignments."
       />
 
       {loading ? (

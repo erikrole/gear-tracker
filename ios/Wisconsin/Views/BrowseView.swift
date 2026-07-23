@@ -3,13 +3,18 @@ import SwiftUI
 struct BrowseView: View {
     @State private var navigationPath = NavigationPath()
     @Environment(AppState.self) private var appState
+    @Environment(SessionStore.self) private var session
 
-    private let destinations: [BrowseDestination] = [
-        .items,
-        .guides,
-        .licenses,
-        .users,
-    ]
+    private var destinations: [BrowseDestination] {
+        guard session.currentUser?.role == "COLLABORATOR" else {
+            return [.items, .guides, .licenses, .users]
+        }
+        let capabilities = Set(session.currentUser?.capabilities ?? [])
+        return [
+            capabilities.contains("GEAR_CATALOG_VIEW") ? .items : nil,
+            capabilities.contains("PEOPLE_DIRECTORY_VIEW") ? .users : nil,
+        ].compactMap { $0 }
+    }
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -82,7 +87,7 @@ private enum BrowseDestination: String, CaseIterable, Hashable, Identifiable {
         case .licenses:
             "Claim, copy, or return a Photo Mechanic license."
         case .users:
-            "Find people, roles, contact details, and active status."
+            "Find teammates, roles, titles, and work areas."
         }
     }
 

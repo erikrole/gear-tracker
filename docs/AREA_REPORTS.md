@@ -111,9 +111,9 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - **Type:** Intervention-oriented late-return ranking with expandable checkout evidence and reversible data-quality exclusions.
 - **Ranking:** Late-event count, then total late hours, then most recent incident. Rank 1 means the pattern most in need of review, not a gamified award.
 - **Time:** Defaults to the current July 1-June 30 academic year, with four prior years and all-time available.
-- **Filters:** Academic year, location, active/resolved incident state, and active/inactive user state.
+- **Filters:** Academic year, location, active/resolved/overdue-extension incident state, and active/inactive user state.
 - **Metrics:** People needing attention, late events, currently overdue checkouts, and excluded records.
-- **Semantics:** `OPEN` rows use current time; `COMPLETED` rows use `completedAt`. Both compare against `endsAt + checkout_policies.gracePeriodHours`. On-time rate appears only after three completed checkouts.
+- **Semantics:** `OPEN` rows use current time; `COMPLETED` rows use `completedAt`. Both compare against `endsAt + checkout_policies.gracePeriodHours`. An extension made after the prior due time plus grace is a separate late episode, even when the new due time prevents a later late return. On-time rate appears only after three completed checkouts.
 - **Data:** `GET /api/accountability`; `POST /api/accountability/exclusions`; `DELETE /api/accountability/exclusions/{bookingId}`.
 - **Export:** `GET /api/accountability?format=csv` exports the filtered person-level ranking through the shared report-export rate limit.
 - **Cleanup:** Exclusions require a reason, retain the booking and all custody evidence, write audit evidence in the same SERIALIZABLE transaction, and can be restored.
@@ -137,6 +137,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 ## Data Model
 - Reports aggregate from existing models: `Booking`, `ScanEvent`, `BulkStockMovement`, `AuditLog`
 - `BookingAccountabilityExclusion` is the sole report-governance exception. It is a one-to-one annotation on a checkout with reason, note, exclusion/restoration actors, and timestamps; it never replaces the booking.
+- `BookingDueDateChange` is durable operational evidence for each extension. It records the prior due time, new due time, change timestamp, and actor independently of the 90-day audit retention window.
 
 ## Security
 - `requirePermission("report", "view")` on all report routes + endpoints, except `/api/reports/audit`, which requires `report.audit` (ADMIN only)
@@ -157,6 +158,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - [x] AC-9: Admin accountability ranks current and historical late returns and supports audited, reversible data-quality exclusions without deleting custody history.
 
 ## Change Log
+- 2026-07-23: Accountability now preserves checkout due-date changes and counts extensions made after the prior deadline plus grace as distinct late episodes. Migration `0102_booking_due_date_history` backfills retained extension audits, while future extensions write durable evidence in the same SERIALIZABLE transaction.
 - 2026-07-23: Added the ADMIN-only Accountability surface. It ranks academic-year late-return incidents using the configured overdue grace period, separates active and resolved evidence, exposes filtered CSV, and adds audited reversible checkout exclusions for test or bad data while preserving D-040 custody history. The existing staff/admin Overdue report remains the live open-checkout queue.
 - 2026-07-16: Checkout report heatmap colors now use a theme-aware blue OKLCH intensity scale, matching the product rule that blue means active use. The visual change does not alter report data, custody semantics, filters, or APIs.
 - 2026-07-12: Reports hardening sweep. `/api/reports/audit` now requires the new `report.audit` permission (ADMIN only), matching the admin-only `/api/audit` browse feed and AC-6; the Audit tab is hidden from STAFF in the reports nav, global search, and breadcrumb siblings via `requiredRole` on `REPORT_SECTIONS`. All six report CSV export branches now share a per-user `report:export` rate limit (10/min). Corrected doc drift: Utilization has no filters or query params, and the Audit report filters by period only with `startDate`/`endDate`/`action` params.
