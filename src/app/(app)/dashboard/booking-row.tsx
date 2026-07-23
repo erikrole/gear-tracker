@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/tooltip";
 import { UserAvatar } from "@/components/UserAvatar";
 import { cn } from "@/lib/utils";
-import { formatDueLabel, formatEventDateTime, formatPickupLabel, isDueToday } from "@/lib/format";
+import { formatDayLabel, formatDueLabel, formatEventDateTime, formatPickupLabel, formatTimeShort, isDueToday } from "@/lib/format";
 import type { ItemThumb } from "../dashboard-types";
 
 type DashboardBookingRowItem = {
@@ -69,8 +69,9 @@ export function DashboardBookingRow({
   const dueLabel = formatDueLabel(booking.endsAt, now);
   const pickupIsLate = showPickupBadge && new Date(booking.startsAt).getTime() < now.getTime();
   const pickupLabel = showPickupBadge ? formatPickupLabel(booking.startsAt, now) : "";
+  const pickupDueLabel = `Pickup was due ${formatDayLabel(booking.startsAt, now).toLowerCase()} at ${formatTimeShort(booking.startsAt)}`;
   const timingLabel = showPickupBadge
-    ? (pickupIsLate ? pickupLabel : `Pickup ${pickupLabel}`)
+    ? (pickupIsLate ? pickupDueLabel : `Pickup ${pickupLabel}`)
     : dueLabel;
   const timingTone = booking.isOverdue
     ? "text-[var(--wi-red)]"

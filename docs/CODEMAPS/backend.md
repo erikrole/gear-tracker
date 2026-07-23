@@ -25,7 +25,7 @@
 | `src/lib/services/checkout-policies.ts` | 40 |
 | `src/lib/services/collaborator-policies.ts` | 400 |
 | `src/lib/services/collaborator-schedule.ts` | 213 |
-| `src/lib/services/dashboard-counts.ts` | 116 |
+| `src/lib/services/dashboard-counts.ts` | 119 |
 | `src/lib/services/event-defaults.ts` | 69 |
 | `src/lib/services/firmware-watch.ts` | 299 |
 | `src/lib/services/hidden-users-cleanup.ts` | 126 |
@@ -91,7 +91,7 @@
 | `src/lib/calendar-source-freshness.ts` | 259 |
 | `src/lib/candidate-scoring-types.ts` | 26 |
 | `src/lib/category-options.ts` | 34 |
-| `src/lib/collaborator-access.ts` | 177 |
+| `src/lib/collaborator-access.ts` | 162 |
 | `src/lib/collaborator-gear.ts` | 151 |
 | `src/lib/cron.ts` | 35 |
 | `src/lib/crypto.ts` | 17 |
