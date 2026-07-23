@@ -4,7 +4,13 @@ import Foundation
 struct CheckoutReturnActivityAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
         var endsAt: Date
-        var now: Date
+        /// Send time of the state, kept only for backward compatibility with
+        /// activities started by an older build. Nothing reads it: every
+        /// display path takes its date from the widget's `TimelineView` so the
+        /// countdown advances between pushes. Optional because a required
+        /// field nothing uses is just a way for one missing key to silently
+        /// drop an entire update.
+        var now: Date?
         var nextNeedAt: Date?
         var allowsExtend: Bool
         var urgency: Urgency
@@ -39,8 +45,6 @@ extension CheckoutReturnActivityAttributes.ContentState.Urgency: Codable {
 }
 
 extension CheckoutReturnActivityAttributes.ContentState {
-    var isOverdue: Bool { now >= endsAt }
-
     func isOverdue(at date: Date) -> Bool {
         date >= endsAt
     }

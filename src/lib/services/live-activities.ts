@@ -6,6 +6,7 @@ import {
   updateCheckoutReturnLiveActivityTokens,
 } from "@/lib/push/apns";
 import { BookingKind, BookingStatus } from "@prisma/client";
+import { checkUpcomingSerializedCommitments } from "@/lib/services/availability";
 
 const CHECKOUT_RETURN_ACTIVITY = "checkout_return";
 const DEFAULT_LEAD_MS = 30 * 60_000;
@@ -28,6 +29,51 @@ function returnTimeText(date: Date): string {
     minute: "2-digit",
     timeZone: env.appTimezone,
   }).format(date)}`;
+}
+
+/**
+ * Server-side twin of the iOS reconciler's `checkoutReturnInsight`.
+ *
+ * Both paths can drive the same Live Activity, so they have to agree. The
+ * server used to hardcode `nextNeedAt: null, allowsExtend: true`, which meant
+ * any push update wiped the "Needed again 4:30" line the app had computed and
+ * re-offered Extend on gear another booking needs next.
+ *
+ * Mirrors the app's rule exactly: extending is allowed only when nothing is
+ * already committed to this gear after the current return time.
+ */
+async function checkoutReturnInsight(args: {
+  bookingId: string;
+  endsAt: Date;
+}): Promise<{ nextNeedAt: Date | null; allowsExtend: boolean }> {
+  // Live Activity content is best-effort. On any failure fall back to the
+  // permissive values rather than dropping the update entirely.
+  try {
+    const allocations = await db.assetAllocation.findMany({
+      where: { bookingId: args.bookingId, active: true },
+      select: { assetId: true },
+    });
+    const serializedAssetIds = [...new Set(allocations.map((row) => row.assetId))];
+    if (serializedAssetIds.length === 0) return { nextNeedAt: null, allowsExtend: true };
+
+    const commitments = await checkUpcomingSerializedCommitments(db, {
+      serializedAssetIds,
+      endsAt: args.endsAt,
+      excludeBookingId: args.bookingId,
+    });
+
+    const nextNeedAt = commitments.reduce<Date | null>(
+      (soonest, c) => (soonest === null || c.startsAt < soonest ? c.startsAt : soonest),
+      null,
+    );
+    return { nextNeedAt, allowsExtend: nextNeedAt === null };
+  } catch (error) {
+    console.error("[LiveActivity] failed to resolve return insight", {
+      bookingId: args.bookingId,
+      error,
+    });
+    return { nextNeedAt: null, allowsExtend: true };
+  }
 }
 
 function urgencyFor(endsAt: Date, now: Date): "normal" | "warning" | "critical" | "overdue" {
@@ -68,6 +114,28 @@ export async function revokeCheckoutReturnLiveActivityStartTokens(userId: string
     },
     data: { revokedAt: new Date() },
   });
+}
+
+/**
+ * Closes out the per-activity update tokens a user still has open. Sign-out
+ * previously revoked only the push-to-start tokens, so on a shared iPad the
+ * server went on believing the previous user had a live activity running after
+ * somebody else signed in. The app ends the activity locally at the same
+ * moment, so these tokens are already dead; this stops us pushing at them.
+ */
+export async function endCheckoutReturnLiveActivitiesForUser(userId: string) {
+  try {
+    await db.liveActivityToken.updateMany({
+      where: {
+        userId,
+        activity: CHECKOUT_RETURN_ACTIVITY,
+        endedAt: null,
+      },
+      data: { endedAt: new Date() },
+    });
+  } catch (error) {
+    console.error("[LiveActivity] failed to end activities for user", { userId, error });
+  }
 }
 
 export async function registerCheckoutReturnLiveActivity(args: {
@@ -231,6 +299,7 @@ export async function startDueCheckoutReturnLiveActivities(args: {
 
   for (const booking of dueCheckouts) {
     const tokens = booking.requester.liveActivityStartTokens.map((row) => row.token);
+    const insight = await checkoutReturnInsight({ bookingId: booking.id, endsAt: booking.endsAt });
     const result = await startCheckoutReturnLiveActivityTokens(
       tokens,
       {
@@ -243,8 +312,8 @@ export async function startDueCheckoutReturnLiveActivities(args: {
       },
       {
         endsAt: booking.endsAt,
-        nextNeedAt: null,
-        allowsExtend: true,
+        nextNeedAt: insight.nextNeedAt,
+        allowsExtend: insight.allowsExtend,
         urgency: urgencyFor(booking.endsAt, now),
       },
     );
@@ -334,6 +403,7 @@ export async function startCheckoutReturnLiveActivityForBooking(args: {
   if (!booking) return { started: 0, revoked: 0, skipped: true };
 
   const tokens = booking.requester.liveActivityStartTokens.map((row) => row.token);
+  const insight = await checkoutReturnInsight({ bookingId: booking.id, endsAt: booking.endsAt });
   const result = await startCheckoutReturnLiveActivityTokens(
     tokens,
     {
@@ -346,8 +416,8 @@ export async function startCheckoutReturnLiveActivityForBooking(args: {
     },
     {
       endsAt: booking.endsAt,
-      nextNeedAt: null,
-      allowsExtend: true,
+      nextNeedAt: insight.nextNeedAt,
+      allowsExtend: insight.allowsExtend,
       urgency: urgencyFor(booking.endsAt, now),
     },
   );
@@ -384,6 +454,89 @@ export async function startCheckoutReturnLiveActivityForBooking(args: {
     revoked: result.revoked.length,
     skipped: false,
   };
+}
+
+/**
+ * Pushes the overdue state and alert for one booking's Live Activity.
+ *
+ * The batch sweep below only ever runs from `/api/cron/live-activities`, which
+ * is deliberately not registered in `vercel.json` — remote start is driven by
+ * the durable workflow instead. That left the overdue alert with no caller at
+ * all: the widget's own `TimelineView` turns the countdown red on schedule, so
+ * it *looks* right, but the alert that surfaces it never fired. This is the
+ * workflow-driven equivalent, scheduled for the return time itself.
+ *
+ * `expectedEndsAt` must still match: extending a checkout schedules a fresh
+ * workflow, and the superseded run has to no-op rather than declare gear
+ * overdue that now has more time.
+ */
+export async function markCheckoutReturnLiveActivityOverdue(args: {
+  bookingId: string;
+  expectedEndsAt: Date;
+  now?: Date;
+}) {
+  const now = args.now ?? new Date();
+  try {
+    const booking = await db.booking.findFirst({
+      where: {
+        id: args.bookingId,
+        kind: BookingKind.CHECKOUT,
+        status: BookingStatus.OPEN,
+        endsAt: args.expectedEndsAt,
+      },
+      select: {
+        id: true,
+        title: true,
+        endsAt: true,
+        liveActivityTokens: {
+          where: { activity: CHECKOUT_RETURN_ACTIVITY, endedAt: null },
+          select: { token: true },
+        },
+      },
+    });
+
+    if (!booking) return { notified: 0, revoked: 0, skipped: true };
+
+    const tokens = booking.liveActivityTokens.map((row) => row.token);
+    if (tokens.length === 0) return { notified: 0, revoked: 0, skipped: true };
+
+    const insight = await checkoutReturnInsight({ bookingId: booking.id, endsAt: booking.endsAt });
+    const result = await updateCheckoutReturnLiveActivityTokens(
+      tokens,
+      {
+        endsAt: booking.endsAt,
+        nextNeedAt: insight.nextNeedAt,
+        // See the sweep: past the return time the answer is bring it back.
+        allowsExtend: false,
+        urgency: urgencyFor(booking.endsAt, now),
+      },
+      {
+        alert: {
+          title: "Overdue",
+          body: `${booking.title} is overdue for return`,
+        },
+      },
+    );
+
+    if (result.revoked.length > 0) {
+      await db.liveActivityToken.updateMany({
+        where: { token: { in: result.revoked } },
+        data: { endedAt: now },
+      });
+    }
+
+    return {
+      notified: tokens.length - result.revoked.length,
+      revoked: result.revoked.length,
+      skipped: false,
+    };
+  } catch (error) {
+    console.error("[LiveActivity] failed to mark checkout return overdue", {
+      bookingId: args.bookingId,
+      error,
+    });
+    return { notified: 0, revoked: 0, skipped: true };
+  }
 }
 
 export async function sweepOverdueCheckoutReturnLiveActivities(args: {
@@ -434,11 +587,14 @@ export async function sweepOverdueCheckoutReturnLiveActivities(args: {
     const tokens = booking.liveActivityTokens.map((row) => row.token);
     if (tokens.length === 0) continue;
 
+    const insight = await checkoutReturnInsight({ bookingId: booking.id, endsAt: booking.endsAt });
     const result = await updateCheckoutReturnLiveActivityTokens(
       tokens,
       {
         endsAt: booking.endsAt,
-        nextNeedAt: null,
+        nextNeedAt: insight.nextNeedAt,
+        // Overdue deliberately withholds Extend regardless of the insight:
+        // the return window has already lapsed, so the answer is bring it back.
         allowsExtend: false,
         urgency: urgencyFor(booking.endsAt, now),
       },
@@ -495,12 +651,17 @@ export async function updateCheckoutReturnLiveActivities(args: {
             ? "warning"
             : "normal";
 
+    const insight = await checkoutReturnInsight({
+      bookingId: args.bookingId,
+      endsAt: args.endsAt,
+    });
+
     const { revoked } = await updateCheckoutReturnLiveActivityTokens(
       rows.map((row) => row.token),
       {
         endsAt: args.endsAt,
-        nextNeedAt: null,
-        allowsExtend: true,
+        nextNeedAt: insight.nextNeedAt,
+        allowsExtend: insight.allowsExtend,
         urgency,
       },
     );

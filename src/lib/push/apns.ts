@@ -374,7 +374,7 @@ export async function startCheckoutReturnLiveActivityTokens(
         allowsExtend: state.allowsExtend,
         urgency: state.urgency,
       },
-      "stale-date": Math.floor((state.endsAt.getTime() + 6 * 60 * 60_000) / 1000),
+      "stale-date": staleDateFor(state.endsAt),
       "input-push-token": 1,
       alert: {
         title: attrs.bookingTitle,
@@ -384,6 +384,17 @@ export async function startCheckoutReturnLiveActivityTokens(
   };
 
   return dispatch(tokens, notification, liveActivityOpts());
+}
+
+/**
+ * How long after the return time an activity's content is still worth trusting.
+ * Past this the system dims it as stale rather than showing a countdown nobody
+ * has refreshed.
+ */
+const LIVE_ACTIVITY_STALE_AFTER_MS = 6 * 60 * 60_000;
+
+function staleDateFor(endsAt: Date): number {
+  return Math.floor((endsAt.getTime() + LIVE_ACTIVITY_STALE_AFTER_MS) / 1000);
 }
 
 export async function updateCheckoutReturnLiveActivityTokens(
@@ -400,6 +411,10 @@ export async function updateCheckoutReturnLiveActivityTokens(
     aps: {
       timestamp: Math.floor(Date.now() / 1000),
       event: "update",
+      // Re-sent on every update: the stale date is part of the pushed content,
+      // so omitting it here cleared the one `start` established and left the
+      // activity able to show an unrefreshed countdown indefinitely.
+      "stale-date": staleDateFor(state.endsAt),
       "content-state": {
         endsAt: state.endsAt.toISOString(),
         now: new Date().toISOString(),

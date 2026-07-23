@@ -10,7 +10,11 @@ final class CheckoutReturnLiveActivityManager {
     private var isReconciling = false
     private var isObservingPushToStartTokens = false
     private var isObservingActivityUpdates = false
-    private var observedActivityIds: Set<String> = []
+    /// Token-observation task per activity id, so an ended activity's observer
+    /// can be torn down. Previously this was a `Set<String>` that only grew:
+    /// every activity left a `for await` task running for the life of the
+    /// process, and its id in the set forever.
+    private var tokenObservers: [String: Task<Void, Never>] = [:]
 
     private init() {}
 
@@ -53,6 +57,7 @@ final class CheckoutReturnLiveActivityManager {
     }
 
     func endAll() async {
+        cancelAllObservers()
         for activity in Activity<CheckoutReturnActivityAttributes>.activities {
             await activity.end(nil, dismissalPolicy: .immediate)
         }
@@ -203,15 +208,11 @@ final class CheckoutReturnLiveActivityManager {
         return letters.isEmpty ? "?" : String(letters).uppercased()
     }
 
-    private func hexToken(from data: Data) -> String {
-        data.map { String(format: "%02x", $0) }.joined()
-    }
-
     private func observePushToken(
         for activity: Activity<CheckoutReturnActivityAttributes>,
         bookingId: String
     ) {
-        guard observedActivityIds.insert(activity.id).inserted else { return }
+        guard tokenObservers[activity.id] == nil else { return }
         if let tokenData = activity.pushToken {
             Task {
                 try? await APIClient.shared.registerCheckoutReturnLiveActivity(
@@ -220,15 +221,36 @@ final class CheckoutReturnLiveActivityManager {
                 )
             }
         }
-        Task {
+        let activityId = activity.id
+        tokenObservers[activityId] = Task { [weak self] in
             for await tokenData in activity.pushTokenUpdates {
                 try? await APIClient.shared.registerCheckoutReturnLiveActivity(
                     bookingId: bookingId,
                     token: hexToken(from: tokenData)
                 )
             }
+            // `pushTokenUpdates` finishes when the activity ends, which is the
+            // only reliable signal we get that this observer is done.
+            await self?.forgetObserver(activityId)
         }
     }
+
+    private func forgetObserver(_ activityId: String) {
+        tokenObservers[activityId] = nil
+    }
+
+    /// Cancels every outstanding token observer. Used on sign-out, where the
+    /// activities themselves are ended and their tokens revoked server-side.
+    private func cancelAllObservers() {
+        for task in tokenObservers.values { task.cancel() }
+        tokenObservers.removeAll()
+    }
+}
+
+/// Free function rather than a method so the token-observation tasks can call
+/// it without capturing the manager.
+private func hexToken(from data: Data) -> String {
+    data.map { String(format: "%02x", $0) }.joined()
 }
 
 private struct CheckoutReturnCandidate {

@@ -2,6 +2,41 @@ import ActivityKit
 import SwiftUI
 import WidgetKit
 
+/// `wisconsin://booking/<id>` opens the checkout; adding `?action=extend`
+/// makes `BookingDetailView` open its extend flow on arrival. Both halves are
+/// parsed in `WisconsinApp.onOpenURL`.
+func checkoutReturnDeepLink(bookingId: String, action: String? = nil) -> URL? {
+    var components = URLComponents()
+    components.scheme = "wisconsin"
+    components.host = "booking"
+    components.path = "/\(bookingId)"
+    if let action {
+        components.queryItems = [URLQueryItem(name: "action", value: action)]
+    }
+    return components.url
+}
+
+/// Tap target for the Extend affordance. Gated on `allowsExtend`, which the
+/// server clears when another booking needs this gear next — extending then
+/// would strand the next crew, so the button must not be offered.
+private struct ExtendGearLink: View {
+    let bookingId: String
+    var compact = false
+
+    var body: some View {
+        if let url = checkoutReturnDeepLink(bookingId: bookingId, action: "extend") {
+            Link(destination: url) {
+                Label("Extend", systemImage: "clock.arrow.circlepath")
+                    .font(compact ? .caption2.weight(.semibold) : .caption.weight(.semibold))
+                    .padding(.horizontal, compact ? 8 : 10)
+                    .padding(.vertical, compact ? 4 : 6)
+                    .background(.white.opacity(0.16), in: Capsule())
+            }
+            .accessibilityLabel("Extend this checkout")
+        }
+    }
+}
+
 private extension Color {
     static let liveActivityGreen = Color(red: 0.32, green: 0.85, blue: 0.45)
     static let liveActivityAmber = Color(red: 1.0, green: 0.66, blue: 0.18)
@@ -28,13 +63,18 @@ struct CheckoutReturnLiveActivityWidget: Widget {
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Label {
-                        Text(context.attributes.bookingTitle)
-                            .font(.caption.weight(.semibold))
-                            .lineLimit(1)
-                    } icon: {
-                        Image(systemName: "shippingbox.fill")
-                            .foregroundStyle(accentColor(for: context.state.urgency(at: .now)))
+                    // Own TimelineView like the sibling regions: reading `.now`
+                    // outside one left this icon's tint frozen at the render
+                    // that created it while the rest of the island recolored.
+                    TimelineView(.periodic(from: .now, by: 60)) { timeline in
+                        Label {
+                            Text(context.attributes.bookingTitle)
+                                .font(.caption.weight(.semibold))
+                                .lineLimit(1)
+                        } icon: {
+                            Image(systemName: "shippingbox.fill")
+                                .foregroundStyle(accentColor(for: context.state.urgency(at: timeline.date)))
+                        }
                     }
                 }
 
@@ -71,11 +111,7 @@ struct CheckoutReturnLiveActivityWidget: Widget {
     }
 
     private func bookingDeepLink(for context: ActivityViewContext<CheckoutReturnActivityAttributes>) -> URL? {
-        var components = URLComponents()
-        components.scheme = "wisconsin"
-        components.host = "booking"
-        components.path = "/\(context.attributes.bookingId)"
-        return components.url
+        checkoutReturnDeepLink(bookingId: context.attributes.bookingId)
     }
 
     private func statusIcon(
@@ -162,6 +198,8 @@ private struct CheckoutReturnLockScreen: View {
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                    } else if context.state.allowsExtend {
+                        ExtendGearLink(bookingId: context.attributes.bookingId)
                     }
                 }
             }
@@ -226,6 +264,8 @@ private struct ExpandedReturnStatus: View {
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                } else if context.state.allowsExtend {
+                    ExtendGearLink(bookingId: context.attributes.bookingId, compact: true)
                 } else {
                     Text("Return by \(context.state.endsAt, style: .time)")
                         .font(.caption.weight(.medium).monospacedDigit())
