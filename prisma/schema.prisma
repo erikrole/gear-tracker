@@ -826,6 +826,11 @@ enum CalendarEventStatus {
   CANCELLED
 }
 
+enum CalendarEventResult {
+  WIN
+  LOSS
+}
+
 model CalendarSource {
   id             String          @id @default(cuid())
   name           String
@@ -856,6 +861,7 @@ model CalendarEvent {
   endsAt          DateTime              @map("ends_at")
   allDay          Boolean               @default(false) @map("all_day")
   status          CalendarEventStatus   @default(CONFIRMED)
+  result          CalendarEventResult?
   locationId      String?               @map("location_id")
   sportCode       String?               @map("sport_code")
   isHome          Boolean?              @map("is_home")

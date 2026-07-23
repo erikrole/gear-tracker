@@ -37,6 +37,7 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Active Follow-up Ledgers
 
+- `profile-shift-record-plan.md` - source-backed all-time W-L and final published shift counts on internal web and native profiles, with runtime and release verification tracked separately from the broader Wrapped roadmap.
 - `schema-hardening-plan.md` - License V2 provenance, actor relations, core database checks, CI migration safety, local verification, and migration deployment tracking.
 - `ios-collaborator-published-schedule-redesign-plan.md` - implementation and source/build verification are complete; authenticated temporary-collaborator runtime proof remains blocked by the reset Simulator session.
 - `ios-schedule-filters-calendar-management-redesign-plan.md` - result-oriented Schedule filters and recoverable Shift Calendar management plus verification.
@@ -65,6 +66,8 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Recently Archived
 
+- `archive/completed-2026-07/pending-pickup-reservation-consolidation-plan.md` - makes due booked reservations the single Pending Pickup model, starts no-show timing at scheduled pickup, opens kiosk custody directly, and retains raw staged rows only for verified cleanup.
+- `archive/completed-2026-07/ios-booking-pickup-overdue-row-plan.md` - makes past-due native reservation rows turn orange and say when pickup was due without changing reservation lifecycle or kiosk custody.
 - `archive/completed-2026-07/schedule-daily-sync-changes-plan.md` - added an admin-only daily calendar change digest inside the Schedule status rail, with a calm change signal and safe upstream-removal reporting.
 - `archive/completed-2026-07/schedule-auto-assign-audit-hardening-plan.md` - preserved preview-first batch auto-fill while adding real-assignment-id audit continuity inside the existing Serializable transaction.
 - `archive/completed-2026-07/account-security-api-hardening-plan.md` - made both password-change paths and every self-service session-revocation mutation atomic, fail-closed, and secret-free auditable.

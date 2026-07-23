@@ -29,8 +29,7 @@ import { DashboardLayoutItem, DashboardStateSurface } from "./dashboard-motion";
 
 type HomeAwayFilter = VenueFilter;
 
-const PENDING_PICKUPS_HREF = "/bookings?tab=checkouts&status=PENDING_PICKUP";
-const STALE_RESERVATIONS_HREF = "/bookings?tab=reservations&filter=overdue";
+const PENDING_PICKUPS_HREF = "/bookings?tab=reservations";
 
 type Props = {
   data: DashboardData;
@@ -45,11 +44,9 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
   const [homeAwayFilter, setHomeAwayFilter] = useState<HomeAwayFilter>("all");
   const visibleTeamCheckouts = filtered?.teamCheckouts ?? data.teamCheckouts.items;
   const visiblePendingPickups = filtered?.pendingPickups ?? data.pendingPickups.items;
-  const visibleStaleReservations = filtered?.staleReservations ?? data.staleReservations.items;
   const visibleTeamReservations = filtered?.teamReservations ?? data.teamReservations.items;
   const teamCheckoutsCount = filtered ? visibleTeamCheckouts.length : data.teamCheckouts.total;
   const pendingPickupsCount = filtered ? visiblePendingPickups.length : data.pendingPickups.total;
-  const staleReservationsCount = filtered ? visibleStaleReservations.length : data.staleReservations.total;
   const teamReservationsCount = filtered ? visibleTeamReservations.length : data.teamReservations.total;
 
   const filteredEvents = useMemo(() => {
@@ -108,12 +105,12 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
         </ScaleIn>
       </DashboardLayoutItem>
 
-      {/* Awaiting Pickup - only render when present (transient state) */}
+      {/* Due reservations waiting for kiosk pickup */}
       <AnimatePresence initial={false}>
         {visiblePendingPickups.length > 0 && (
           <DashboardStateSurface key="pending-pickups" layout>
             <Card elevation="flat">
-              <DashboardSectionHeader title="Awaiting pickup" href={PENDING_PICKUPS_HREF} count={pendingPickupsCount} />
+              <DashboardSectionHeader title="Pending pickup" href={PENDING_PICKUPS_HREF} count={pendingPickupsCount} />
               <CardContent className="p-0">
                 {visiblePendingPickups.map((p) => {
                   const isLate = new Date(p.startsAt).getTime() < now.getTime();
@@ -130,30 +127,6 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
                 })}
                 {!hasActiveFilter && data.pendingPickups.total > data.pendingPickups.items.length && (
                   <DashboardFooterLink href={PENDING_PICKUPS_HREF}>View all {data.pendingPickups.total} &rarr;</DashboardFooterLink>
-                )}
-              </CardContent>
-            </Card>
-          </DashboardStateSurface>
-        )}
-
-        {/* Stale Reservations - planning cleanup separate from checked-out overdue custody */}
-        {visibleStaleReservations.length > 0 && (
-          <DashboardStateSurface key="stale-reservations" layout>
-            <Card elevation="flat">
-              <DashboardSectionHeader title="Stale reservations" href={STALE_RESERVATIONS_HREF} count={staleReservationsCount} />
-              <CardContent className="p-0">
-                {visibleStaleReservations.map((r) => (
-                  <DashboardBookingRow
-                    key={r.id}
-                    booking={r}
-                    now={now}
-                    accent="overdue"
-                    showDueBadge
-                    onSelectBooking={onSelectBooking}
-                  />
-                ))}
-                {!hasActiveFilter && data.staleReservations.total > data.staleReservations.items.length && (
-                  <DashboardFooterLink href={STALE_RESERVATIONS_HREF}>View all {data.staleReservations.total} &rarr;</DashboardFooterLink>
                 )}
               </CardContent>
             </Card>

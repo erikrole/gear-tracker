@@ -39,7 +39,7 @@
 | `KitMembership` | 6 | 2 |
 | `KitBulkMembership` | 7 | 3 |
 | `CalendarSource` | 11 | 2 |
-| `CalendarEvent` | 31 | 6 |
+| `CalendarEvent` | 32 | 6 |
 | `ScheduleEventFollow` | 9 | 3 |
 | `BookingEvent` | 7 | 4 |
 | `LocationMapping` | 6 | 1 |
@@ -237,6 +237,11 @@
 - `CONFIRMED`
 - `TENTATIVE`
 - `CANCELLED`
+
+### `CalendarEventResult`
+
+- `WIN`
+- `LOSS`
 
 ### `ScheduleFollowSource`
 

@@ -142,13 +142,26 @@ export async function getAdminFixTodayQueue(now = new Date()): Promise<AdminFixT
         requester: { select: { name: true } },
       },
     }),
-    db.booking.count({ where: { kind: "CHECKOUT", status: "PENDING_PICKUP" } }),
+    db.booking.count({
+      where: {
+        OR: [
+          { kind: "RESERVATION", status: "BOOKED", startsAt: { lte: now } },
+          { kind: "CHECKOUT", status: "PENDING_PICKUP" },
+        ],
+      },
+    }),
     db.booking.findMany({
-      where: { kind: "CHECKOUT", status: "PENDING_PICKUP" },
+      where: {
+        OR: [
+          { kind: "RESERVATION", status: "BOOKED", startsAt: { lte: now } },
+          { kind: "CHECKOUT", status: "PENDING_PICKUP" },
+        ],
+      },
       orderBy: { startsAt: "asc" },
       take: SAMPLE_LIMIT,
       select: {
         id: true,
+        kind: true,
         title: true,
         refNumber: true,
         startsAt: true,
@@ -296,16 +309,16 @@ export async function getAdminFixTodayQueue(now = new Date()): Promise<AdminFixT
     section({
       key: "pending-pickups",
       title: "Pending pickup handoffs",
-      description: "Checkouts created but not picked up at a kiosk yet.",
+      description: "Scheduled reservation pickups that have not happened at a kiosk.",
       count: pendingPickupCount,
       severity: "warning",
-      href: "/bookings?tab=checkouts&status=PENDING_PICKUP",
+      href: "/bookings?tab=reservations",
       ctaLabel: "Review handoffs",
       samples: pendingPickupRows.map((row) => ({
         id: row.id,
         label: bookingLabel(row),
         detail: `${row.requester.name} / pickup ${formatQueueDate(row.startsAt)}`,
-        href: `/checkouts/${row.id}`,
+        href: row.kind === "RESERVATION" ? `/reservations/${row.id}` : `/checkouts/${row.id}`,
       })),
     }),
     section({

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Dashboard
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-16
+- Last Updated: 2026-07-23
 - Status: Active — V3 shipped, reliability + UX polish complete
 - Version: V3
 
@@ -23,14 +23,14 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 8. Add a draft system for in-progress booking flows.
 9. No standalone Upcoming Events section in dashboard V1.
 10. Calendar sync remains backend support for event-linked reservations/checkouts.
-11. Past-due reservations are surfaced separately as stale planning work, not merged into checkout overdue custody metrics.
+11. A booked reservation moves from Reserved to Pending Pickup at `startsAt`.
+    It remains separate from checkout-overdue custody metrics.
 
 ## Information Architecture (Top to Bottom)
 1. Overdue Banner (global)
 2. Action Lanes
    - Check-outs needing action
-   - Awaiting pickup handoffs
-   - Stale reservations needing cleanup
+   - Pending pickup handoffs
    - Reservations needing action
 3. My Gear in Custody cards
 4. Drafts section (recover in-progress reservation/checkout drafts)
@@ -184,6 +184,11 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 ## Change Log
 
+- 2026-07-23: Pending Pickup now counts and lists due `BOOKED` reservations,
+  with dashboard summaries exposing the orange operational display status.
+  The separate Stale reservations card is retired. Legacy staged checkout rows
+  remain in the same lane during compatibility cleanup, while checkout overdue
+  continues to mean physical custody only.
 - 2026-07-22: **Personal-scope dashboard counts.** `scope=ios-home` now scopes every stat lane to the caller, not just the row queries: overdue, due today, checked out, reserved, awaiting pickup, and the team/stale totals all read the caller's own numbers, and pending pickups are filtered to `requesterUserId`. `/api/dashboard/stats` accepts the same `scope` parameter and iOS passes it, so the tab badge and Home can no longer disagree. The default web payload keeps its org-wide totals; `COLLABORATOR` behavior is unchanged.
 - 2026-07-22: **Native Home Next Up restyle.** Next Up row titles now use the Bookings list's Gotham face at the same size, so a row does not change typeface between the two lists. Shift rows read as event title, full date (`Sunday, September 6`), a home-games-only `Call time 6:30 PM` line, and the event start time in the meta column; the gear subline was removed from shift rows because gear already has its own Next Up row and the event detail sheet. The stat strip's `Synced <relative>` stamp is gone -- pull-to-refresh is the freshness indicator. Dashboard payload contracts are unchanged.
 - 2026-07-17: **Native Home actionable-count polish.** The iOS triage strip now renders only nonzero overdue, due-today, pickup, and shift counts as compact disclosure rows. Zero-value metrics no longer compete with real work or resemble disabled controls; when every count is zero, Home retains its existing all-clear summary. Dashboard payloads, count definitions, role scope, and destinations are unchanged.

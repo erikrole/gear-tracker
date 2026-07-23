@@ -7,21 +7,19 @@ function source(relativeFile: string) {
 }
 
 describe("dashboard pending pickup links", () => {
-  it("routes awaiting-pickup rows to checkout pending-pickup list, not reservations", () => {
+  it("routes pending-pickup rows to reservations", () => {
     const component = source("src/app/(app)/dashboard/team-activity-column.tsx");
-    expect(component).toContain('const PENDING_PICKUPS_HREF = "/bookings?tab=checkouts&status=PENDING_PICKUP"');
-    expect(component).not.toContain('title="Awaiting pickup" href="/bookings?tab=reservations"');
+    expect(component).toContain('const PENDING_PICKUPS_HREF = "/bookings?tab=reservations"');
+    expect(component).toContain('title="Pending pickup" href={PENDING_PICKUPS_HREF}');
   });
 
-  it("routes stale reservations to the reservation overdue list", () => {
+  it("retires the separate stale-reservation dashboard lane", () => {
     const component = source("src/app/(app)/dashboard/team-activity-column.tsx");
     const route = source("src/app/api/dashboard/route.ts");
     const countReader = source("src/lib/services/dashboard-counts.ts");
-    expect(component).toContain('const STALE_RESERVATIONS_HREF = "/bookings?tab=reservations&filter=overdue"');
-    expect(component).toContain('title="Stale reservations" href={STALE_RESERVATIONS_HREF}');
+    expect(component).not.toContain("STALE_RESERVATIONS_HREF");
+    expect(component).not.toContain('title="Stale reservations"');
     expect(route).toContain("staleReservations");
-    // The stale-reservation count predicate now lives in the shared count reader
-    // that both dashboard routes consume.
-    expect(countReader).toContain("kind = 'RESERVATION' AND status = 'BOOKED' AND ends_at <");
+    expect(countReader).toContain("0::bigint AS stale_reservations");
   });
 });

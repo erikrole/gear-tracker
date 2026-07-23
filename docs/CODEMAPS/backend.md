@@ -14,18 +14,18 @@
 | `src/lib/services/booking-rules.ts` | 107 |
 | `src/lib/services/bookings-checkin.ts` | 846 |
 | `src/lib/services/bookings-helpers.ts` | 251 |
-| `src/lib/services/bookings-lifecycle.ts` | 1623 |
+| `src/lib/services/bookings-lifecycle.ts` | 1625 |
 | `src/lib/services/bookings-queries.ts` | 235 |
 | `src/lib/services/bookings.ts` | 4 |
 | `src/lib/services/bulk-unit-scans.ts` | 608 |
 | `src/lib/services/calendar-sync-health.ts` | 165 |
-| `src/lib/services/calendar-sync.ts` | 876 |
+| `src/lib/services/calendar-sync.ts` | 887 |
 | `src/lib/services/candidate-scoring.ts` | 414 |
 | `src/lib/services/category-mutations.ts` | 174 |
 | `src/lib/services/checkout-policies.ts` | 40 |
 | `src/lib/services/collaborator-policies.ts` | 400 |
 | `src/lib/services/collaborator-schedule.ts` | 213 |
-| `src/lib/services/dashboard-counts.ts` | 116 |
+| `src/lib/services/dashboard-counts.ts` | 119 |
 | `src/lib/services/event-defaults.ts` | 69 |
 | `src/lib/services/firmware-watch.ts` | 300 |
 | `src/lib/services/hidden-users-cleanup.ts` | 126 |
@@ -38,7 +38,7 @@
 | `src/lib/services/notification-prefs.ts` | 103 |
 | `src/lib/services/notifications.ts` | 1129 |
 | `src/lib/services/onboarding-lifecycle.ts` | 618 |
-| `src/lib/services/pending-pickup-expiry.ts` | 218 |
+| `src/lib/services/pending-pickup-expiry.ts` | 239 |
 | `src/lib/services/reports.ts` | 1378 |
 | `src/lib/services/reservation-rules.ts` | 46 |
 | `src/lib/services/scans.ts` | 671 |
@@ -55,17 +55,18 @@
 | `src/lib/services/shift-assignment-conflicts.ts` | 43 |
 | `src/lib/services/shift-assignments.ts` | 628 |
 | `src/lib/services/shift-generation.ts` | 619 |
+| `src/lib/services/shift-records.ts` | 110 |
 | `src/lib/services/shift-trade-emails.ts` | 56 |
 | `src/lib/services/shift-trades.ts` | 901 |
 | `src/lib/services/sport-configs.ts` | 257 |
-| `src/lib/services/status.ts` | 439 |
+| `src/lib/services/status.ts` | 444 |
 | `src/lib/services/user-deactivation.ts` | 111 |
 
 ## Key Library Files
 
 | File | Lines |
 |---|---:|
-| `src/lib/admin-fix-today.ts` | 408 |
+| `src/lib/admin-fix-today.ts` | 421 |
 | `src/lib/api-dates.ts` | 32 |
 | `src/lib/api.ts` | 181 |
 | `src/lib/app-time.ts` | 104 |
@@ -83,7 +84,7 @@
 | `src/lib/booking-action-policy.ts` | 189 |
 | `src/lib/booking-actions.ts` | 14 |
 | `src/lib/booking-availability-window.ts` | 19 |
-| `src/lib/booking-status-display.ts` | 128 |
+| `src/lib/booking-status-display.ts` | 142 |
 | `src/lib/breadcrumbs.ts` | 145 |
 | `src/lib/bulk-batteries.ts` | 28 |
 | `src/lib/bulk-unit-qr.ts` | 111 |
@@ -145,12 +146,12 @@
 | `src/lib/schedule-availability-context.ts` | 93 |
 | `src/lib/schedule-change-history-types.ts` | 55 |
 | `src/lib/schedule-data-quality.ts` | 128 |
-| `src/lib/schedule-event-identity.ts` | 78 |
+| `src/lib/schedule-event-identity.ts` | 87 |
 | `src/lib/schedule-event-where.ts` | 46 |
 | `src/lib/schedule-health-types.ts` | 81 |
 | `src/lib/schedule-publication-types.ts` | 34 |
 | `src/lib/schedule-queues.ts` | 174 |
-| `src/lib/schedule-sync-changes-types.ts` | 42 |
+| `src/lib/schedule-sync-changes-types.ts` | 43 |
 | `src/lib/schedule-template-review-types.ts` | 105 |
 | `src/lib/schedule-working-copy.ts` | 255 |
 | `src/lib/search-pages.ts` | 72 |
@@ -160,6 +161,7 @@
 | `src/lib/shift-constants.ts` | 8 |
 | `src/lib/shift-display.ts` | 71 |
 | `src/lib/shift-notification-workflow.ts` | 18 |
+| `src/lib/shift-record-types.ts` | 17 |
 | `src/lib/sports.ts` | 78 |
 | `src/lib/status-colors.ts` | 49 |
 | `src/lib/status-styles.ts` | 46 |
@@ -574,6 +576,7 @@
 - `/api/users/[id]/reset-password`
 - `/api/users/[id]/role`
 - `/api/users/[id]`
+- `/api/users/[id]/shift-record`
 - `/api/users/bulk-create`
 - `/api/users/export`
 - `/api/users/hidden-cleanup`

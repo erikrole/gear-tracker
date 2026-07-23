@@ -41,7 +41,9 @@ describe("iOS Shift Glance widgets", () => {
     expect(widget).toContain(".systemMedium");
     expect(widget).toContain(".accessoryInline");
     expect(widget).toContain(".accessoryRectangular");
-    expect(widget).toContain(".containerBackground(.fill.tertiary, for: .widget)");
+    expect(widget).toContain(".containerBackground(for: .widget)");
+    expect(widget).toContain("ShiftGlanceSingleMediumView");
+    expect(widget).toContain("shiftGlanceStartLabel");
     expect(widget).toContain('URL(string: "wisconsin://event/');
     expect(widget).toContain('URL(string: "wisconsin://schedule")');
     expect(widget).not.toContain("APIClient");

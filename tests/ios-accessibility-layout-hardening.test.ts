@@ -59,9 +59,9 @@ describe("iOS accessibility-size layout hardening", () => {
   it("uses a dedicated accessibility-size booking card composition", () => {
     const bookings = source("ios/Wisconsin/Views/BookingsView.swift");
 
-    expect(bookings).toContain("private var accessibilityRow: some View");
-    expect(bookings).toContain("private var compactRow: some View");
-    expect(bookings).toContain("timingLine(lineLimit: nil)");
+    expect(bookings).toContain("private func accessibilityRow(now: Date) -> some View");
+    expect(bookings).toContain("private func compactRow(now: Date) -> some View");
+    expect(bookings).toContain("timingLine(now: now, lineLimit: nil)");
     expect(bookings).toContain("metadataLine(lineLimit: nil)");
   });
 

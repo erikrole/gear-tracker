@@ -10,6 +10,7 @@ struct UserDetailView: View {
     @State private var reservations: [Booking] = []
     @State private var checkouts: [Booking] = []
     @State private var shifts: [MyShift] = []
+    @State private var shiftRecord: ShiftRecordStats?
     @State private var pushedBookingId: String?
     @State private var selectedShift: MyShift?
     @State private var isLoading = true
@@ -47,6 +48,9 @@ struct UserDetailView: View {
                                 openBooking: { pushedBookingId = $0 },
                                 openShift: { selectedShift = $0 }
                             )
+                            if let shiftRecord {
+                                ShiftRecordCard(stats: shiftRecord)
+                            }
                             badgesSection
                         }
                     }
@@ -204,10 +208,12 @@ struct UserDetailView: View {
                 checkouts = []
                 reservations = []
                 shifts = []
+                shiftRecord = nil
                 return
             }
             async let detailTask = APIClient.shared.user(id: userId)
             async let badgeTask = loadBadgeProfileSafely()
+            async let shiftRecordTask = loadShiftRecordSafely()
             // Active only. The card said "Active Checkouts" while the request
             // asked for every checkout this person had ever made, so a profile
             // routinely listed four rows stamped "Completed" under a heading
@@ -215,9 +221,17 @@ struct UserDetailView: View {
             async let checkoutsTask = APIClient.shared.checkoutsByUser(userId: userId, activeOnly: true, limit: 5)
             async let reservationsTask = APIClient.shared.reservationsByUser(userId: userId, activeOnly: true, limit: 5)
             async let shiftsTask = try? await APIClient.shared.myShifts(userId: userId, limit: 5)
-            let (d, b, c, r, s) = try await (detailTask, badgeTask, checkoutsTask, reservationsTask, shiftsTask)
+            let (d, b, record, c, r, s) = try await (
+                detailTask,
+                badgeTask,
+                shiftRecordTask,
+                checkoutsTask,
+                reservationsTask,
+                shiftsTask
+            )
             detail = d
             badgeProfile = b
+            shiftRecord = record
             checkouts = c.data
             reservations = r.data
             shifts = s ?? []
@@ -232,6 +246,139 @@ struct UserDetailView: View {
         } catch {
             return nil
         }
+    }
+
+    private func loadShiftRecordSafely() async -> ShiftRecordStats? {
+        do {
+            return try await APIClient.shared.userShiftRecord(userId: userId)
+        } catch {
+            return nil
+        }
+    }
+}
+
+// MARK: - Shift record
+
+private struct ShiftRecordCard: View {
+    let stats: ShiftRecordStats
+
+    @State private var sportsExpanded = false
+
+    private var hasResults: Bool {
+        stats.resultEventCount > 0
+    }
+
+    private var hasIncompleteCoverage: Bool {
+        hasResults && stats.resultEventCount < stats.shiftCount
+    }
+
+    var body: some View {
+        FormCard {
+            HStack(spacing: 6) {
+                Image(systemName: "trophy")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.statusText(.orange))
+                    .accessibilityHidden(true)
+                Text("Shift record")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.04)
+            }
+
+            if hasResults {
+                HStack(alignment: .firstTextBaseline, spacing: Brand.Space.lg) {
+                    ShiftRecordMetric(
+                        value: "\(stats.wins)-\(stats.losses)",
+                        label: "record",
+                        leads: true
+                    )
+                    ShiftRecordMetric(
+                        value: "\(stats.resultEventCount)",
+                        label: countLabel(stats.resultEventCount, singular: "result game")
+                    )
+                    ShiftRecordMetric(
+                        value: "\(stats.shiftCount)",
+                        label: countLabel(stats.shiftCount, singular: "shift")
+                    )
+                    Spacer(minLength: 0)
+                }
+            } else {
+                ShiftRecordMetric(
+                    value: "\(stats.shiftCount)",
+                    label: countLabel(stats.shiftCount, singular: "shift"),
+                    leads: true
+                )
+                Text("No game results recorded.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            if hasIncompleteCoverage {
+                Text("\(stats.resultEventCount) results recorded from \(stats.shiftCount) shifts.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            if !stats.bySport.isEmpty {
+                Divider()
+                DisclosureGroup("By sport", isExpanded: $sportsExpanded) {
+                    VStack(spacing: 0) {
+                        ForEach(stats.bySport) { sport in
+                            Divider()
+                            HStack(alignment: .firstTextBaseline, spacing: Brand.Space.sm) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(sport.sportLabel)
+                                        .font(.subheadline.weight(.medium))
+                                    Text(
+                                        "\(sport.resultEventCount) \(sport.resultEventCount == 1 ? "result game" : "result games") from \(sport.shiftCount) \(sport.shiftCount == 1 ? "shift" : "shifts")"
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                }
+                                Spacer(minLength: Brand.Space.sm)
+                                Text(
+                                    sport.resultEventCount > 0
+                                        ? "\(sport.wins)-\(sport.losses)"
+                                        : "No results"
+                                )
+                                .font(.subheadline.weight(.semibold))
+                                .monospacedDigit()
+                                .foregroundStyle(sport.resultEventCount > 0 ? .primary : .secondary)
+                            }
+                            .padding(.vertical, Brand.Space.sm)
+                            .accessibilityElement(children: .combine)
+                        }
+                    }
+                }
+                .font(.subheadline.weight(.semibold))
+                .tint(.primary)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("All-time shift record")
+    }
+
+    private func countLabel(_ count: Int, singular: String) -> String {
+        count == 1 ? singular : "\(singular)s"
+    }
+}
+
+private struct ShiftRecordMetric: View {
+    let value: String
+    let label: String
+    var leads = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value)
+                .font(leads ? .gothamBlack(size: 28) : .title3.weight(.semibold))
+                .monospacedDigit()
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 

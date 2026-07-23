@@ -23,7 +23,11 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Check, Clock3, ShieldCheck, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { handleAuthRedirect } from "@/lib/errors";
-import { bookingStatusDisplay, bookingStatusDotClassName } from "@/lib/booking-status-display";
+import {
+  bookingStatusDisplay,
+  bookingStatusDotClassName,
+  operationalBookingStatus,
+} from "@/lib/booking-status-display";
 import { UserAvatar } from "@/components/UserAvatar";
 import {
   Table,
@@ -100,13 +104,18 @@ export function ActiveBookingCard({
   now: Date;
   onSelectBooking: (id: string) => void;
 }) {
-  const isPendingPickup = kind === "CHECKOUT" && booking.status === "PENDING_PICKUP";
-  const title = kind === "CHECKOUT"
-    ? isPendingPickup ? "Awaiting Pickup" : "Active Checkout"
-    : "Active Reservation";
-  const activityLabel = kind === "CHECKOUT"
-    ? isPendingPickup ? "Awaiting pickup" : "Checked out"
-    : "Reserved";
+  const displayStatus = operationalBookingStatus({
+    kind,
+    status: booking.status,
+    startsAt: booking.startsAt,
+  }, now);
+  const isPendingPickup = displayStatus === "PENDING_PICKUP";
+  const title = isPendingPickup
+    ? "Pending Pickup"
+    : kind === "CHECKOUT" ? "Active Checkout" : "Active Reservation";
+  const activityLabel = isPendingPickup
+    ? "Pending pickup"
+    : kind === "CHECKOUT" ? "Checked out" : "Reserved";
 
   return (
     <Card>
@@ -121,7 +130,10 @@ export function ActiveBookingCard({
             <span className="text-sm">
               {activityLabel} by {booking.requesterName}
             </span>
-            <UrgencyBadge startsAt={booking.startsAt} endsAt={booking.endsAt} now={now} />
+            {isPendingPickup
+              ? <Badge variant="orange" className="mt-1">Scheduled {formatDateShort(booking.startsAt)}</Badge>
+              : <UrgencyBadge startsAt={booking.startsAt} endsAt={booking.endsAt} now={now} />
+            }
           </div>
         </button>
       </CardContent>

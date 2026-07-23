@@ -6,6 +6,7 @@
 - Start with staff/admin preview and opt-in user profile recap before any public sharing or broad peer comparison.
 
 ## Source Checks
+- `tasks/profile-shift-record-plan.md`: the bounded personal-record precursor establishes source-backed event W-L, final published-assignment counting, event deduplication, per-sport totals, and internal profile visibility without introducing a seasonal recap or leaderboard.
 - `docs/AREA_EVENTS.md`: Events already name Wrapped-style season analytics as a later feature, and the soft-archive pipeline preserves full event, booking, and travel history for future stats.
 - `docs/AREA_REPORTS.md`: Reports are staff/admin-only, read-only analytics over `Booking`, `ScanEvent`, `BulkStockMovement`, and `AuditLog`; existing report exports are bounded and evidence-oriented.
 - `docs/AREA_BADGES.md`: Badges are earned from real service-level outcomes, not route visits, timers, or fake progress. Wrapped should follow the same standard.

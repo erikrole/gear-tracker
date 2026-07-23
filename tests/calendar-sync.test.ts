@@ -597,11 +597,13 @@ function makeParsedEvent(overrides: Partial<ParsedIcsEvent> & { uid: string }): 
 function makeExistingRow(overrides: Partial<ExistingEventRow> & { id: string; externalId: string }): ExistingEventRow {
   return {
     summary: "Test Event",
+    rawSummary: "Test Event",
     description: null,
     startsAt: new Date(Date.UTC(2026, 2, 15, 10, 0, 0)),
     endsAt: new Date(Date.UTC(2026, 2, 15, 12, 0, 0)),
     allDay: false,
     status: "CONFIRMED",
+    result: null,
     locationId: null,
     sportCode: null,
     opponent: null,
@@ -742,6 +744,72 @@ describe("splitEventsForSync", () => {
     expect(result.toCreate[0]!.isHome).toBe(false);
   });
 
+  it("extracts a win before cleaning the synced title", () => {
+    const parsed = [makeParsedEvent({
+      uid: "mbb-win",
+      summary: "[W] Wisconsin Athletics Men's Basketball at Illinois",
+    })];
+    const result = splitEventsForSync(parsed, [], []);
+
+    expect(result.toCreate[0]).toMatchObject({
+      summary: "Men's Basketball at Illinois",
+      rawSummary: "[W] Wisconsin Athletics Men's Basketball at Illinois",
+      result: "WIN",
+      sportCode: "MBB",
+      opponent: "Illinois",
+      isHome: false,
+    });
+  });
+
+  it("treats a W-L-only source-title update as a result change", () => {
+    const parsed = [makeParsedEvent({
+      uid: "mbb-result",
+      summary: "[L] Wisconsin Athletics Men's Basketball at Illinois",
+    })];
+    const existing = [makeExistingRow({
+      id: "db-mbb",
+      externalId: "mbb-result",
+      summary: "Men's Basketball at Illinois",
+      rawSummary: "[W] Wisconsin Athletics Men's Basketball at Illinois",
+      result: "WIN",
+      sportCode: "MBB",
+      opponent: "Illinois",
+      isHome: false,
+    })];
+    const result = splitEventsForSync(parsed, existing, []);
+
+    expect(result.toUpdate).toHaveLength(1);
+    expect(result.toUpdate[0]!.data.result).toBe("LOSS");
+    expect(result.toUpdate[0]!.data.rawSummary).toBe(
+      "[L] Wisconsin Athletics Men's Basketball at Illinois",
+    );
+    expect(result.toUpdate[0]!.changedFields).toEqual(["result"]);
+  });
+
+  it("clears a removed result marker while preserving a locked display title", () => {
+    const parsed = [makeParsedEvent({
+      uid: "mbb-cleared",
+      summary: "Wisconsin Athletics Men's Basketball at Illinois",
+    })];
+    const existing = [makeExistingRow({
+      id: "db-mbb",
+      externalId: "mbb-cleared",
+      summary: "Custom Illinois Game",
+      rawSummary: "[W] Wisconsin Athletics Men's Basketball at Illinois",
+      result: "WIN",
+      sportCode: "MBB",
+      opponent: "Illinois",
+      isHome: false,
+      summaryLocked: true,
+    })];
+    const result = splitEventsForSync(parsed, existing, []);
+
+    expect(result.toUpdate).toHaveLength(1);
+    expect(result.toUpdate[0]!.data.summary).toBe("Custom Illinois Game");
+    expect(result.toUpdate[0]!.data.result).toBeNull();
+    expect(result.toUpdate[0]!.changedFields).toEqual(["result"]);
+  });
+
   it("WRITE_CHUNK_SIZE is exported and equals 500", () => {
     expect(WRITE_CHUNK_SIZE).toBe(500);
   });
@@ -822,7 +890,7 @@ describe("splitEventsForSync", () => {
 
   // ── lock guard tests ──
 
-  it("summaryLocked: sync does not overwrite a manually edited title", () => {
+  it("summaryLocked: sync preserves the display title while refreshing raw source evidence", () => {
     const parsed = [makeParsedEvent({ uid: "evt-1", summary: "New ICS Title" })];
     const existing = [makeExistingRow({
       id: "db-1", externalId: "evt-1",
@@ -830,9 +898,10 @@ describe("splitEventsForSync", () => {
       summaryLocked: true,
     })];
     const result = splitEventsForSync(parsed, existing, []);
-    // Locked title survives: goes to unchanged, not toUpdate
-    expect(result.unchanged).toHaveLength(1);
-    expect(result.toUpdate).toHaveLength(0);
+    expect(result.toUpdate).toHaveLength(1);
+    expect(result.toUpdate[0]!.data.summary).toBe("My Custom Title");
+    expect(result.toUpdate[0]!.data.rawSummary).toBe("New ICS Title");
+    expect(result.toUpdate[0]!.changedFields).toEqual([]);
   });
 
   it("summaryLocked: other fields (e.g. startsAt) still trigger an update", () => {

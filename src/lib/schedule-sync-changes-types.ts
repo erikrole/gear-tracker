@@ -5,6 +5,7 @@ export type CalendarSyncChangedField =
   | "description"
   | "date_time"
   | "status"
+  | "result"
   | "venue"
   | "event_details";
 

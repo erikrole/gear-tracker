@@ -25,23 +25,37 @@ export const GET = withAuth(async (req, { user }) => {
     },
   });
 
-  // Aggregate pending pickup + open checkout counts per location in one query
+  // Aggregate open custody and pending reservation handoffs per location.
   const locationIds = [...new Set(devices.map((d) => d.locationId))];
-  const [bookingStats, pendingPickupsByLocation] = await Promise.all([
+  const now = new Date();
+  const [openCheckoutStats, pendingPickupStats, pendingPickupsByLocation] = await Promise.all([
     db.booking.groupBy({
       by: ["locationId", "status"],
       where: {
         locationId: { in: locationIds },
-        status: { in: ["PENDING_PICKUP", "OPEN"] },
+        status: "OPEN",
         kind: "CHECKOUT",
+      },
+      _count: { id: true },
+    }),
+    db.booking.groupBy({
+      by: ["locationId"],
+      where: {
+        locationId: { in: locationIds },
+        OR: [
+          { kind: "RESERVATION", status: "BOOKED", startsAt: { lte: now } },
+          { kind: "CHECKOUT", status: "PENDING_PICKUP" },
+        ],
       },
       _count: { id: true },
     }),
     db.booking.findMany({
       where: {
         locationId: { in: locationIds },
-        status: "PENDING_PICKUP",
-        kind: "CHECKOUT",
+        OR: [
+          { kind: "RESERVATION", status: "BOOKED", startsAt: { lte: now } },
+          { kind: "CHECKOUT", status: "PENDING_PICKUP" },
+        ],
       },
       select: {
         id: true,
@@ -57,10 +71,14 @@ export const GET = withAuth(async (req, { user }) => {
   ]);
 
   const statsByLocation = new Map<string, { pendingPickup: number; open: number }>();
-  for (const row of bookingStats) {
+  for (const row of openCheckoutStats) {
     const entry = statsByLocation.get(row.locationId) ?? { pendingPickup: 0, open: 0 };
-    if (row.status === "PENDING_PICKUP") entry.pendingPickup = row._count.id;
-    if (row.status === "OPEN") entry.open = row._count.id;
+    entry.open = row._count.id;
+    statsByLocation.set(row.locationId, entry);
+  }
+  for (const row of pendingPickupStats) {
+    const entry = statsByLocation.get(row.locationId) ?? { pendingPickup: 0, open: 0 };
+    entry.pendingPickup = row._count.id;
     statsByLocation.set(row.locationId, entry);
   }
 

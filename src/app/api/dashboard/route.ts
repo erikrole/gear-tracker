@@ -176,7 +176,8 @@ export const GET = withAuth(async (req, { user }) => {
     teamCheckoutsRawResult,
     // Team: reservations excluding current user
     teamReservationsRawResult,
-    // Stale reservations: booked reservations whose window has already ended
+    // Retained response lane for rollout compatibility; the old stale
+    // reservation concept is consolidated into Pending Pickup.
     staleReservationsRawResult,
     // My checkouts (booking-level)
     myCheckoutsRawResult,
@@ -188,7 +189,7 @@ export const GET = withAuth(async (req, { user }) => {
     topOverdueResult,
     // Drafts: current user's in-progress work
     myDraftsResult,
-    // Pending pickups (checkouts awaiting kiosk pickup)
+    // Pending pickups (due reservations plus legacy staged checkouts)
     pendingPickupsRawResult,
     // My shift assignments
     myShiftsRawResult,
@@ -217,15 +218,7 @@ export const GET = withAuth(async (req, { user }) => {
           take: 5,
           include: bookingInclude,
         }),
-    // Stale reservations — planning cleanup, not checkout custody overdue
-    isPersonalOnly
-      ? Promise.resolve([])
-      : db.booking.findMany({
-          where: { kind: "RESERVATION", status: "BOOKED", endsAt: { lt: now } },
-          orderBy: { endsAt: "asc" },
-          take: 5,
-          include: bookingInclude,
-        }),
+    Promise.resolve([]),
     // My checkouts (booking-level summaries)
     db.booking.findMany({
       where: { kind: "CHECKOUT", status: "OPEN", requesterUserId: user.id },
@@ -312,12 +305,14 @@ export const GET = withAuth(async (req, { user }) => {
             _count: { select: { serializedItems: true, bulkItems: true } },
           },
         }),
-    // Pending pickups (checkouts marked ready but not yet picked up)
-    // Order: pickups whose start time has passed first (most urgent),
-    // then by earliest start time. Cap at 5 for the dashboard preview.
+    // Pending pickups are booked reservations whose scheduled pickup time has
+    // passed. Legacy staged checkout rows remain visible during migration.
     db.booking.findMany({
       where: {
-        status: "PENDING_PICKUP",
+        OR: [
+          { kind: "RESERVATION", status: "BOOKED", startsAt: { lte: now } },
+          { kind: "CHECKOUT", status: "PENDING_PICKUP" },
+        ],
         ...(isPersonalOnly ? { requesterUserId: user.id } : {}),
       },
       orderBy: { startsAt: "asc" },
@@ -563,7 +558,7 @@ export const GET = withAuth(async (req, { user }) => {
   const totalReserved = isPersonalOnly ? myReservations.length : counts.totalReserved;
   const dueTodayCount = isPersonalOnly ? counts.myDueToday : counts.dueToday;
   const pendingPickupTotalCount = isPersonalOnly ? pendingPickupsRaw.length : counts.pendingPickupTotal;
-  const staleReservationTotalCount = isPersonalOnly ? 0 : counts.staleReservationTotal;
+  const staleReservationTotalCount = 0;
 
   const teamCheckouts = teamCheckoutsRaw.map((c) => toBookingSummary(c, now, true));
   teamCheckouts.sort(sortOverdueFirst);
@@ -576,15 +571,10 @@ export const GET = withAuth(async (req, { user }) => {
   const myCheckouts = myCheckoutsRaw.map((c) => toBookingSummary(c, now, true));
   myCheckouts.sort(sortOverdueFirst);
 
-  // Pending pickups: surface those whose start time has passed first (student
-  // is late picking up), then upcoming pickups by earliest start.
-  const pendingPickups = pendingPickupsRaw.map((p) => toBookingSummary(p, now, false));
-  pendingPickups.sort((a, b) => {
-    const aLate = new Date(a.startsAt) < now;
-    const bLate = new Date(b.startsAt) < now;
-    if (aLate !== bLate) return aLate ? -1 : 1;
-    return new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime();
-  });
+  const pendingPickups = pendingPickupsRaw.map((p) => ({
+    ...toBookingSummary(p, now, false),
+    status: "PENDING_PICKUP",
+  }));
 
   const events = upcomingEvents.map((e) => {
     // Collect assigned users across all shifts (include shift area for tooltip)

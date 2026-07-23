@@ -523,11 +523,14 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - Label mapping:
   - DRAFT → "Draft"
   - BOOKED → "Reserved"
-  - PENDING_PICKUP → "Awaiting Pickup"
+  - PENDING_PICKUP → "Pending Pickup"
   - OPEN → "Checked Out"
   - COMPLETED → "Completed"
   - CANCELLED → "Cancelled"
 - Constraint: All UI surfaces must use `statusLabel()` for display. Never show raw enum values to users.
+- Derived phase: a `RESERVATION/BOOKED` row displays as Pending Pickup once
+  `startsAt` arrives. The stored reservation status remains `BOOKED` until
+  kiosk fulfillment or cancellation so display state does not create custody.
 - Downstream: List pages, search results, and any future status references should adopt `statusLabel()`.
 
 ---
@@ -724,19 +727,28 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - Context:
   - Vercel cron capacity is intentionally small, and duplicated cron routes drift from the scheduled path.
   - Shift-group archiving already runs inside `morning-refresh`; the standalone `archive-shifts` route was unscheduled dead code.
-  - Stale `PENDING_PICKUP` checkouts need a daily cleanup path, but adding another cron route would increase scheduling and monitoring surface.
+  - Reservations that miss scheduled kiosk pickup need a daily cleanup path,
+    but adding another cron route would increase scheduling and monitoring surface.
   - Firmware release checks are also daily operational maintenance and should not add a separate scheduled cron while Hobby cron capacity is intentionally small.
 - Decision:
   - `GET /api/cron/morning-refresh` is the single daily scheduling maintenance route for calendar sync, shift generation, shift-group archiving, stale trade expiry, and pending-pickup auto-expiry.
   - Firmware watch polling also runs inside `morning-refresh` and reports its own summary/failures without blocking unrelated daily maintenance.
   - Delete duplicate standalone cron routes when their work is already owned by morning-refresh.
-  - Pending-pickup checkouts auto-expire after 48 hours past `startsAt`.
+  - A `BOOKED` reservation enters the operational Pending Pickup phase at
+    `startsAt` and becomes eligible for no-show cancellation after the
+    configured `noShowExpiryHours` window, which defaults to 48 hours.
+  - Legacy `CHECKOUT/PENDING_PICKUP` rows use the same cutoff until production
+    data is verified clean enough to remove the compatibility state.
 - Consequences:
   - One daily maintenance response captures the operational cleanup summary.
   - Fewer unscheduled cron routes and fewer places for schedule comments to drift.
-  - Pending-pickup expiry must be idempotent, audited, and safe to retry.
+  - Pickup no-show expiry must be idempotent, audited, and safe to retry.
 - Guardrails:
-  - Expiry must release serialized allocations, restore held bulk stock, release scanned numbered units, cancel open scan sessions, and write a system audit entry.
+  - Reservation expiry must release serialized allocations and open scan
+    sessions without restoring checkout stock movements that were never made.
+  - Legacy staged-checkout expiry must additionally restore held bulk stock and
+    release scanned numbered units.
+  - Every expiry writes a system audit entry.
   - Cleanup failures should be visible in the morning-refresh response without preventing unrelated per-source calendar sync results from being recorded.
 
 ---
@@ -821,12 +833,17 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - App and web users create and manage reservations when they are not physically at the kiosk with the gear.
   - Direct "I need this now" checkout remains available through kiosk checkout, not through app/web checkout creation.
   - Reservation pickup is fulfilled at the kiosk. Once scans pass, the kiosk creates or opens the linked checkout custody record and marks the source reservation `COMPLETED`; it must not treat a fulfilled reservation as user-cancelled.
-  - `PENDING_PICKUP` may remain as a compatibility or staged handoff state, but it is no longer the normal result of app/web checkout creation.
+  - Pending Pickup is the operational phase of a `BOOKED` reservation after
+    its scheduled `startsAt` while kiosk fulfillment remains incomplete.
+  - New checkout records created at the kiosk open directly as `OPEN` custody.
+    The raw `PENDING_PICKUP` enum remains only for existing staged checkout
+    records during rollout compatibility.
   - Checkout records remain the custody ledger for active and historical gear-out reporting, search, and audit.
   - Active-checkout edits require an identified student context inside the kiosk. Idle dashboard checkout detail is read-only; selecting the student opens the Manage surface that owns edit and return actions, preventing an anonymous idle tap from being attributed to the checkout requester.
 - Consequences:
   - Non-kiosk app/web routes must not create checkout custody, convert reservations into pickup custody, or run normal return flows.
-  - Overdue checkout counts mean physical gear is out. Stale reservations, due reservations, and awaiting-pickup work must be reported separately.
+  - Overdue checkout counts mean physical gear is out. Due reservations belong
+    to the Pending Pickup lane and must not inflate checkout-overdue custody.
   - Existing `PENDING_PICKUP` records need a compatibility path during rollout; they continue to block availability until cancelled, picked up, or expired.
 - Guardrails:
   - Keep server-side enforcement at the mutation boundary. UI removal alone is insufficient.
@@ -913,6 +930,10 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-07-11: Reconciled the decision index and document-control date, formalized the historical D-032 and D-033 decisions, and added their current implementation references and provenance warning.
 - 2026-07-10: Amended D-026 for checkout return Live Activities. Their 30-minute remote start is now event-driven through a durable workflow scheduled when custody opens or its return time changes, so it no longer depends on a sub-daily cron. The protected sweep remains a manual repair path.
 - 2026-07-10: Amended D-040 so active-checkout editing requires an identified student context; idle dashboard detail remains read-only rather than fabricating requester attribution for an anonymous operator tap.
+- 2026-07-23: Amended D-025, D-035, and D-040 so Pending Pickup is the
+  derived operational phase of a due `BOOKED` reservation, its no-show clock
+  starts at `startsAt`, kiosk checkout custody opens directly as `OPEN`, and
+  raw `PENDING_PICKUP` remains only for legacy staged-row compatibility.
 - 2026-06-25: Amended D-028 and D-040 for admin close-without-scan. Kiosk remains the standard custody return surface, while admins can close a physically verified returned checkout through a reasoned override with audit and override evidence.
 - 2026-07-03: Amended D-026 for current Vercel Hobby cron limits. Hobby deploys require daily-or-slower cron expressions, so sub-daily Live Activity sweeps stay unscheduled unless the project moves to Pro or an external scheduler.
 - 2026-06-15: Added D-040 for kiosk-only custody. App/web becomes reservation-first; direct checkout, reservation pickup, and return custody mutations are kiosk-only, with fulfilled source reservations closing as `COMPLETED`.

@@ -1,8 +1,9 @@
 import { db } from "@/lib/db";
-import type { CalendarEventStatus } from "@prisma/client";
+import type { CalendarEventResult, CalendarEventStatus } from "@prisma/client";
 import {
   buildVenueSearchText,
   cleanSourceSummary,
+  extractSourceEventResult,
   normalizeOpponentName,
   normalizeVenueText,
 } from "@/lib/schedule-event-identity";
@@ -384,6 +385,7 @@ type ValidatedEventData = {
   endsAt: Date;
   allDay: boolean;
   status: CalendarEventStatus;
+  result: CalendarEventResult | null;
   locationId: string | null;
   sportCode: string | null;
   opponent: string | null;
@@ -394,11 +396,13 @@ export type ExistingEventRow = {
   id: string;
   externalId: string;
   summary: string;
+  rawSummary: string | null;
   description: string | null;
   startsAt: Date;
   endsAt: Date;
   allDay: boolean;
   status: string;
+  result: CalendarEventResult | null;
   locationId: string | null;
   sportCode: string | null;
   opponent: string | null;
@@ -423,6 +427,7 @@ function changedFields(
     fields.push("date_time");
   }
   if (existing.status !== next.status) fields.push("status");
+  if (existing.result !== next.result) fields.push("result");
   if (existing.locationId !== next.locationId) fields.push("venue");
   if (
     existing.sportCode !== next.sportCode
@@ -478,6 +483,7 @@ export function splitEventsForSync(
       if (!isValidDate(endParsed.date)) throw new Error(`Invalid end date: "${event.dtend}"`);
 
       const status = mapIcsStatus(event.status);
+      const result = extractSourceEventResult(event.summary);
       let locationId: string | null = null;
       let mappedIsHomeVenue: boolean | null = null;
       const rawSearchText = `${event.location} ${event.summary}`.toLowerCase();
@@ -518,6 +524,7 @@ export function splitEventsForSync(
         endsAt: endParsed.date,
         allDay: startParsed.allDay,
         status,
+        result,
         locationId,
         sportCode,
         opponent,
@@ -537,11 +544,13 @@ export function splitEventsForSync(
 
         const changed =
           existing.summary !== data.summary ||
+          existing.rawSummary !== data.rawSummary ||
           existing.description !== data.description ||
           existing.startsAt.getTime() !== data.startsAt.getTime() ||
           existing.endsAt.getTime() !== data.endsAt.getTime() ||
           existing.allDay !== data.allDay ||
           existing.status !== data.status ||
+          existing.result !== data.result ||
           existing.locationId !== data.locationId ||
           existing.sportCode !== data.sportCode ||
           existing.opponent !== data.opponent ||
@@ -690,7 +699,9 @@ export async function syncCalendarSource(
     where: { sourceId },
     select: {
       id: true, externalId: true, summary: true, description: true,
+      rawSummary: true,
       startsAt: true, endsAt: true, allDay: true, status: true, locationId: true,
+      result: true,
       sportCode: true, opponent: true, isHome: true,
       summaryLocked: true, isHomeLocked: true, locationLocked: true,
     }

@@ -81,6 +81,47 @@ describe("iOS Home header source contract", () => {
     expect(brand).toContain("// #ffedd5");
   });
 
+  it("keeps a role-aware Bookings summary directly above Shift", () => {
+    const home = source("ios/Wisconsin/Views/HomeView.swift");
+    const statStrip = home.slice(
+      home.indexOf("private struct StatStrip: View"),
+      home.indexOf("private struct StatItem: Identifiable"),
+    );
+    const bookingRow = 'StatItem(id: "bookings"';
+    const shiftRow = 'StatItem(id: "shifts"';
+
+    expect(home).toContain('contains("MY_GEAR_VIEW")');
+    expect(home).toContain(
+      "bookingCount: dash.myCheckouts.total\n                        + dash.myReservations.count\n                        + dash.pendingPickups.total",
+    );
+    expect(home).toContain('bookingLabel: dash.isStaff ? "Bookings" : "My Gear"');
+    expect(home).toContain("bookingTone: bookingSummaryTone(for: dash)");
+    expect(statStrip).toContain("if showsBookings");
+    expect(statStrip).toContain(bookingRow);
+    expect(statStrip).toContain('systemImage: "calendar.badge.checkmark"');
+    expect(statStrip).toContain("tone: bookingTone");
+    expect(statStrip.indexOf(bookingRow)).toBeLessThan(statStrip.indexOf(shiftRow));
+  });
+
+  it("colors Bookings from the most urgent personal booking state", () => {
+    const home = source("ios/Wisconsin/Views/HomeView.swift");
+    const tone = home.slice(
+      home.indexOf("private func bookingSummaryTone"),
+      home.indexOf("@ViewBuilder private var mainContent"),
+    );
+
+    expect(tone).toContain("if dash.stats.overdue > 0 { return .red }");
+    expect(tone).toContain(
+      "if dash.stats.dueToday > 0 || dash.pendingPickups.total > 0 { return .orange }",
+    );
+    expect(tone).toContain("if dash.myCheckouts.total > 0 { return .blue }");
+    expect(tone).toContain("if !dash.myReservations.isEmpty { return .purple }");
+    expect(tone).toContain("return .gray");
+    expect(tone.indexOf("return .red")).toBeLessThan(tone.indexOf("return .orange"));
+    expect(tone.indexOf("return .orange")).toBeLessThan(tone.indexOf("return .blue"));
+    expect(tone.indexOf("return .blue")).toBeLessThan(tone.indexOf("return .purple"));
+  });
+
   it("states a shift as event, date, call time, and event start", () => {
     const home = source("ios/Wisconsin/Views/HomeView.swift");
 

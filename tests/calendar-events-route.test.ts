@@ -114,6 +114,7 @@ beforeEach(() => {
     endsAt: new Date("2026-05-12T16:00:00.000Z"),
     allDay: false,
     status: CalendarEventStatus.CONFIRMED,
+    result: null,
     locationId: null,
     sportCode: null,
     isHome: null,

@@ -22,6 +22,20 @@ const DOT_BY_VARIANT: Record<BookingStatusBadgeVariant, string> = {
   orange: "var(--orange)",
 };
 
+export function operationalBookingStatus(
+  booking: { kind: string; status: string; startsAt: string | Date },
+  now = new Date(),
+): string {
+  if (
+    booking.kind === "RESERVATION"
+    && booking.status === "BOOKED"
+    && new Date(booking.startsAt) <= now
+  ) {
+    return "PENDING_PICKUP";
+  }
+  return booking.status;
+}
+
 export function bookingStatusLabel(status: string, kind?: BookingDisplayKind): string {
   void kind;
 
@@ -31,7 +45,7 @@ export function bookingStatusLabel(status: string, kind?: BookingDisplayKind): s
     case "BOOKED":
       return "Reserved";
     case "PENDING_PICKUP":
-      return "Awaiting Pickup";
+      return "Pending Pickup";
     case "OPEN":
       return "Checked Out";
     case "COMPLETED":

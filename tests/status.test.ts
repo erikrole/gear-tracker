@@ -96,7 +96,7 @@ describe("deriveAssetStatuses", () => {
     expect(result.get("a1")).toBe("PENDING_PICKUP");
   });
 
-  it("returns RESERVED when asset has active reservation overlapping now", async () => {
+  it("returns PENDING_PICKUP when a booked reservation reaches its scheduled pickup time", async () => {
     const now = new Date();
     const past = new Date(now.getTime() - 3600_000);
     const future = new Date(now.getTime() + 3600_000);
@@ -114,7 +114,7 @@ describe("deriveAssetStatuses", () => {
     ]);
 
     const result = await deriveAssetStatuses(["a1"]);
-    expect(result.get("a1")).toBe("RESERVED");
+    expect(result.get("a1")).toBe("PENDING_PICKUP");
   });
 
   it("returns AVAILABLE when asset has reservation in the future (not overlapping now)", async () => {
@@ -147,7 +147,7 @@ describe("deriveAssetStatuses", () => {
     expect(result.get("a1")).toBe("AVAILABLE");
   });
 
-  it("CHECKED_OUT takes priority over RESERVED", async () => {
+  it("CHECKED_OUT takes priority over a due reservation", async () => {
     const now = new Date();
     const past = new Date(now.getTime() - 3600_000);
     const future = new Date(now.getTime() + 3600_000);

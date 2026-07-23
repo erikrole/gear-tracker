@@ -92,6 +92,20 @@ struct HomeView: View {
     @Environment(AppState.self) private var appState
     @Environment(SessionStore.self) private var session
 
+    private var canViewBookings: Bool {
+        guard let user = session.currentUser else { return false }
+        return user.role != "COLLABORATOR"
+            || (user.capabilities ?? []).contains("MY_GEAR_VIEW")
+    }
+
+    private func bookingSummaryTone(for dash: DashboardData) -> StatusTone {
+        if dash.stats.overdue > 0 { return .red }
+        if dash.stats.dueToday > 0 || dash.pendingPickups.total > 0 { return .orange }
+        if dash.myCheckouts.total > 0 { return .blue }
+        if !dash.myReservations.isEmpty { return .purple }
+        return .gray
+    }
+
     @ViewBuilder private var mainContent: some View {
         if vm.dashboard == nil && vm.error == nil {
             ScrollView {
@@ -172,6 +186,12 @@ struct HomeView: View {
                 StatStrip(
                     stats: dash.stats,
                     pendingPickupCount: dash.pendingPickups.total,
+                    bookingCount: dash.myCheckouts.total
+                        + dash.myReservations.count
+                        + dash.pendingPickups.total,
+                    bookingLabel: dash.isStaff ? "Bookings" : "My Gear",
+                    bookingTone: bookingSummaryTone(for: dash),
+                    showsBookings: canViewBookings,
                     shiftCount: dash.myEventWork.count,
                     openBookings: { appState.selectedTab = 1 },
                     openAttention: {
@@ -422,6 +442,10 @@ private struct DashboardHero: View {
 private struct StatStrip: View {
     let stats: DashboardStats
     let pendingPickupCount: Int
+    let bookingCount: Int
+    let bookingLabel: String
+    let bookingTone: StatusTone
+    let showsBookings: Bool
     let shiftCount: Int
     let openBookings: () -> Void
     let openAttention: () -> Void
@@ -440,6 +464,9 @@ private struct StatStrip: View {
             // "available, nothing needed", and this is the one state that
             // cancels itself and releases the gear after 48 unattended hours.
             items.append(StatItem(id: "pickups", value: pendingPickupCount, label: pendingPickupCount == 1 ? "Pickup" : "Pickups", systemImage: "shippingbox.fill", tone: .orange, action: openBookings))
+        }
+        if showsBookings {
+            items.append(StatItem(id: "bookings", value: bookingCount, label: bookingLabel, systemImage: "calendar.badge.checkmark", tone: bookingTone, action: openBookings))
         }
         if shiftCount > 0 {
             items.append(StatItem(id: "shifts", value: shiftCount, label: shiftCount == 1 ? "Shift" : "Shifts", systemImage: "calendar", tone: .blue, action: openSchedule))

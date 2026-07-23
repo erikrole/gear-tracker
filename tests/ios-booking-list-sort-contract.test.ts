@@ -58,8 +58,13 @@ describe("iOS booking list sort contract", () => {
     expect(queries).toContain('const sortParam = searchParams.get("sort");');
   });
 
-  it("keeps the client-side sort mirroring the requested server order", () => {
-    expect(bookingsView).toContain("if lhs.endsAt != rhs.endsAt { return lhs.endsAt < rhs.endsAt }");
+  it("orders each loaded page by its next operational handoff", () => {
+    expect(bookingsView).toContain(
+      "booking.kind == .reservation ? booking.startsAt : booking.endsAt",
+    );
+    expect(bookingsView).toContain(
+      "sortedBookings = bookings.sorted(by: Self.operationalTimeSort)",
+    );
   });
 
   /**

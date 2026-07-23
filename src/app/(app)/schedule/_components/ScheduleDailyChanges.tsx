@@ -65,6 +65,7 @@ const FIELD_LABELS: Record<CalendarSyncChangedField, string> = {
   description: "description",
   date_time: "date or time",
   status: "status",
+  result: "result",
   venue: "venue",
   event_details: "event details",
 };

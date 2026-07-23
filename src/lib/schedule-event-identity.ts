@@ -1,6 +1,15 @@
 /** Known team-name prefixes to strip from ICS summaries (case-insensitive). */
 const SOURCE_TEAM_PREFIXES = ["Wisconsin Athletics", "Wisconsin Badgers"];
 
+export type SourceEventResult = "WIN" | "LOSS";
+
+/** Extract the upstream game result without coupling source evidence to display titles. */
+export function extractSourceEventResult(raw: string): SourceEventResult | null {
+  const match = raw.trim().match(/^\[(W|L)\](?=\s|$)/i);
+  if (!match) return null;
+  return match[1]!.toUpperCase() === "W" ? "WIN" : "LOSS";
+}
+
 /** Words that are event metadata, not opponent identity. */
 const TRAILING_EVENT_TYPE_PATTERN =
   /\s*\((home|away|neutral|exhibition|scrimmage)\)\s*$/i;

@@ -866,6 +866,10 @@ Indexes and constraints:
 
 Values: `CONFIRMED`, `TENTATIVE`, `CANCELLED`
 
+## Enum `CalendarEventResult`
+
+Values: `WIN`, `LOSS`
+
 ## Model `CalendarSource`
 
 Fields: 11
@@ -889,7 +893,7 @@ Indexes and constraints:
 
 ## Model `CalendarEvent`
 
-Fields: 31
+Fields: 32
 
 - `id              String                @id @default(cuid())`
 - `sourceId        String?               @map("source_id")`
@@ -903,6 +907,7 @@ Fields: 31
 - `endsAt          DateTime              @map("ends_at")`
 - `allDay          Boolean               @default(false) @map("all_day")`
 - `status          CalendarEventStatus   @default(CONFIRMED)`
+- `result          CalendarEventResult?`
 - `locationId      String?               @map("location_id")`
 - `sportCode       String?               @map("sport_code")`
 - `isHome          Boolean?              @map("is_home")`

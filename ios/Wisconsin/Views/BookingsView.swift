@@ -24,7 +24,7 @@ private enum BookingListAction: Identifiable {
 final class BookingsViewModel {
     var bookings: [Booking] = [] {
         didSet {
-            sortedBookings = bookings.sorted(by: Self.dueSoonestSort)
+            sortedBookings = bookings.sorted(by: Self.operationalTimeSort)
         }
     }
     var isLoading = false
@@ -141,16 +141,16 @@ final class BookingsViewModel {
         )
     }
 
-    /// Checkouts and reservations share one list ordered by when each booking
-    /// comes off the requester's plate — due date for gear that's out, end of
-    /// the hold for gear that isn't yet.
-    ///
-    /// This must mirror the `sort=endsAt` order the request asks for. Sorting
-    /// only what a page returned is what hid the original bug: under 30 rows
-    /// everything fits on page 1 and looks right, while past that the most
-    /// urgent booking sat on the last page.
-    private static func dueSoonestSort(_ lhs: Booking, _ rhs: Booking) -> Bool {
-        if lhs.endsAt != rhs.endsAt { return lhs.endsAt < rhs.endsAt }
+    /// One merged list ordered by the next operational handoff: scheduled
+    /// pickup for a reservation, due-back time for gear already checked out.
+    private static func operationalTime(for booking: Booking) -> Date {
+        booking.kind == .reservation ? booking.startsAt : booking.endsAt
+    }
+
+    private static func operationalTimeSort(_ lhs: Booking, _ rhs: Booking) -> Bool {
+        let lhsTime = operationalTime(for: lhs)
+        let rhsTime = operationalTime(for: rhs)
+        if lhsTime != rhsTime { return lhsTime < rhsTime }
         return lhs.id < rhs.id
     }
 
@@ -674,8 +674,16 @@ struct BookingRow: View {
 
     let booking: Booking
 
-    private var isOverdue: Bool {
-        booking.status == .open && booking.endsAt < .now
+    private func isOverdue(now: Date) -> Bool {
+        booking.status == .open && booking.endsAt < now
+    }
+
+    /// Pending Pickup is the operational phase of a booked reservation after
+    /// its scheduled kiosk handoff time. Custody still starts only at pickup.
+    private func isPendingPickup(now: Date) -> Bool {
+        booking.kind == .reservation
+            && booking.status == .booked
+            && booking.startsAt < now
     }
 
     private var itemCount: Int {
@@ -685,7 +693,7 @@ struct BookingRow: View {
     /// The rail and timing color carry the state on their own: blue rail plus
     /// "Due" reads as out, purple rail plus "Pickup" reads as reserved. A
     /// badge restating either is noise, so only the odder statuses get one.
-    private var showsStatusBadge: Bool {
+    private func showsStatusBadge(now: Date) -> Bool {
         switch booking.status {
         case .open: booking.kind != .checkout
         case .booked: false
@@ -695,8 +703,9 @@ struct BookingRow: View {
 
     /// Accent tone for the leading bar — overdue shouts red, otherwise the
     /// status' own tone (reservation purple, checkout blue, pickup orange).
-    private var accentTone: StatusTone {
-        if isOverdue { return .red }
+    private func accentTone(now: Date) -> StatusTone {
+        if isOverdue(now: now) { return .red }
+        if isPendingPickup(now: now) { return .orange }
         switch booking.status {
         case .booked: return booking.kind == .reservation ? .purple : .blue
         case .pendingPickup: return .orange
@@ -706,52 +715,54 @@ struct BookingRow: View {
     }
 
     var body: some View {
-        Group {
-            if dynamicTypeSize.isAccessibilitySize {
-                accessibilityRow
-            } else {
-                compactRow
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            Group {
+                if dynamicTypeSize.isAccessibilitySize {
+                    accessibilityRow(now: context.date)
+                } else {
+                    compactRow(now: context.date)
+                }
             }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            // Faint red wash so an overdue row reads as different at a glance,
+            // rather than only by the hue of its rail and timing text. Deliberately
+            // light: a bad week can put several of these on screen at once.
+            .background(isOverdue(now: context.date) ? Color.statusBackground(.red) : Color.cardSurface)
+            .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                    .strokeBorder(Color.hairline, lineWidth: 0.5)
+            )
+            .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 3)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(rowAccessibilityLabel(now: context.date))
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        // Faint red wash so an overdue row reads as different at a glance,
-        // rather than only by the hue of its rail and timing text. Deliberately
-        // light: a bad week can put several of these on screen at once.
-        .background(isOverdue ? Color.statusBackground(.red) : Color.cardSurface)
-        .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
-                .strokeBorder(Color.hairline, lineWidth: 0.5)
-        )
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 3)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(rowAccessibilityLabel)
     }
 
-    private var compactRow: some View {
+    private func compactRow(now: Date) -> some View {
         HStack(spacing: 12) {
-            StatusRail(tone: accentTone)
+            StatusRail(tone: accentTone(now: now))
             UserAvatarView(name: booking.requester.name, avatarUrl: booking.requester.avatarUrl, size: 40)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     bookingTitle.lineLimit(1)
                     Spacer(minLength: 8)
-                    if showsStatusBadge {
-                        statusBadge
+                    if showsStatusBadge(now: now) {
+                        statusBadge(now: now)
                     }
                 }
-                timingLine(lineLimit: 1)
+                timingLine(now: now, lineLimit: 1)
                 metadataLine(lineLimit: 1)
             }
             disclosureIndicator
         }
     }
 
-    private var accessibilityRow: some View {
+    private func accessibilityRow(now: Date) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            StatusRail(tone: accentTone)
+            StatusRail(tone: accentTone(now: now))
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top, spacing: 10) {
                     UserAvatarView(name: booking.requester.name, avatarUrl: booking.requester.avatarUrl, size: 40)
@@ -760,10 +771,10 @@ struct BookingRow: View {
                     Spacer(minLength: 4)
                     disclosureIndicator
                 }
-                if showsStatusBadge {
-                    statusBadge
+                if showsStatusBadge(now: now) {
+                    statusBadge(now: now)
                 }
-                timingLine(lineLimit: nil)
+                timingLine(now: now, lineLimit: nil)
                 metadataLine(lineLimit: nil)
             }
         }
@@ -774,8 +785,8 @@ struct BookingRow: View {
             .font(.gothamBold(size: 16))
     }
 
-    private var statusBadge: some View {
-        StatusBadge(status: booking.status, kind: booking.kind, isOverdue: isOverdue)
+    private func statusBadge(now: Date) -> some View {
+        StatusBadge(status: booking.status, kind: booking.kind, isOverdue: isOverdue(now: now))
     }
 
     private var disclosureIndicator: some View {
@@ -785,15 +796,13 @@ struct BookingRow: View {
             .accessibilityHidden(true)
     }
 
-    private func timingLine(lineLimit: Int?) -> some View {
-        TimelineView(.periodic(from: .now, by: 60)) { context in
-            let info = timing(now: context.date)
-            Text(info.text)
-                .font(.caption.weight(.semibold))
-                .lineLimit(lineLimit)
-                .fixedSize(horizontal: false, vertical: true)
-                .foregroundStyle(info.urgent ? AnyShapeStyle(Color.statusText(.red)) : AnyShapeStyle(Color.statusText(accentTone)))
-        }
+    private func timingLine(now: Date, lineLimit: Int?) -> some View {
+        let info = timing(now: now)
+        return Text(info.text)
+            .font(.caption.weight(.semibold))
+            .lineLimit(lineLimit)
+            .fixedSize(horizontal: false, vertical: true)
+            .foregroundStyle(info.urgent ? AnyShapeStyle(Color.statusText(.red)) : AnyShapeStyle(Color.statusText(accentTone(now: now))))
     }
 
     private func metadataLine(lineLimit: Int?) -> some View {
@@ -827,23 +836,29 @@ struct BookingRow: View {
             }
         }
         // "Pickup", not "Starts" — the row's job is to name the next action.
+        if isPendingPickup(now: now) {
+            return ("Pickup was due \(booking.startsAt.operationalDateTimeLabel(now: now, capitalizesRelativeDay: false))", false)
+        }
         return ("Pickup \(booking.startsAt.operationalDateTimeLabel(now: now, capitalizesRelativeDay: false))", false)
     }
 
-    private var rowAccessibilityLabel: String {
+    private func rowAccessibilityLabel(now: Date) -> String {
         var parts: [String] = []
-        if isOverdue { parts.append("Overdue") }
+        if isOverdue(now: now) { parts.append("Overdue") }
+        if isPendingPickup(now: now) { parts.append("Pending pickup") }
         parts.append(booking.title)
         parts.append(booking.requester.name)
         parts.append(booking.location.name)
         if itemCount > 0 { parts.append("\(itemCount) item\(itemCount == 1 ? "" : "s")") }
-        if showsStatusBadge {
-            parts.append(StatusBadge.label(for: booking.status, kind: booking.kind, isOverdue: isOverdue))
+        if showsStatusBadge(now: now) {
+            parts.append(StatusBadge.label(for: booking.status, kind: booking.kind, isOverdue: isOverdue(now: now)))
         }
         if booking.kind == .checkout {
-            parts.append("Due \(booking.endsAt.operationalDateTimeLabel(now: .now, capitalizesRelativeDay: false))")
+            parts.append("Due \(booking.endsAt.operationalDateTimeLabel(now: now, capitalizesRelativeDay: false))")
+        } else if isPendingPickup(now: now) {
+            parts.append("Pickup was due \(booking.startsAt.operationalDateTimeLabel(now: now, capitalizesRelativeDay: false))")
         } else {
-            parts.append("Pickup \(booking.startsAt.operationalDateTimeLabel(now: .now, capitalizesRelativeDay: false))")
+            parts.append("Pickup \(booking.startsAt.operationalDateTimeLabel(now: now, capitalizesRelativeDay: false))")
         }
         return parts.joined(separator: ", ")
     }
@@ -865,6 +880,7 @@ struct StatusBadge: View {
     static func label(for status: BookingStatus, kind: BookingKind, isOverdue: Bool = false) -> String {
         if isOverdue { return "Overdue" }
         if status == .booked { return "Reserved" }
+        if status == .pendingPickup { return "Pending Pickup" }
         if status == .open { return "Checked Out" }
         return status.label
     }

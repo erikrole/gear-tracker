@@ -52,7 +52,7 @@ type CountRow = {
 /**
  * Single bounded aggregate that produces every transient-lane count the
  * dashboard surfaces. The `WHERE` clause admits exactly the rows needed for
- * checkout, reservation-window, stale-reservation, and pending-pickup counts;
+ * checkout, reservation-window, and pending-pickup counts;
  * the `FILTER` clauses partition those rows into each lane.
  */
 export async function readDashboardCounts(inputs: DashboardCountInputs): Promise<DashboardCounts> {
@@ -70,12 +70,15 @@ export async function readDashboardCounts(inputs: DashboardCountInputs): Promise
       COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id = ${userId} AND ends_at >= ${startOfToday} AND ends_at < ${startOfTomorrow}) AS my_due_today,
       COUNT(*) FILTER (WHERE kind = 'RESERVATION' AND status = 'BOOKED' AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow}) AS total_reserved,
       COUNT(*) FILTER (WHERE kind = 'RESERVATION' AND status = 'BOOKED' AND requester_user_id != ${userId} AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow}) AS team_reservations,
-      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'PENDING_PICKUP') AS pending_pickup,
-      COUNT(*) FILTER (WHERE kind = 'RESERVATION' AND status = 'BOOKED' AND ends_at < ${now}) AS stale_reservations
+      COUNT(*) FILTER (
+        WHERE (kind = 'CHECKOUT' AND status = 'PENDING_PICKUP')
+           OR (kind = 'RESERVATION' AND status = 'BOOKED' AND starts_at <= ${now})
+      ) AS pending_pickup,
+      0::bigint AS stale_reservations
     FROM bookings
     WHERE (kind = 'CHECKOUT' AND status = 'OPEN')
        OR (kind = 'RESERVATION' AND status = 'BOOKED' AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow})
-       OR (kind = 'RESERVATION' AND status = 'BOOKED' AND ends_at < ${now})
+       OR (kind = 'RESERVATION' AND status = 'BOOKED' AND starts_at <= ${now})
        OR (kind = 'CHECKOUT' AND status = 'PENDING_PICKUP')
   `);
 

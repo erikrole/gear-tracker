@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildVenueSearchText,
   cleanSourceSummary,
+  extractSourceEventResult,
   normalizeOpponentName,
   normalizeVenueText,
 } from "@/lib/schedule-event-identity";
@@ -9,6 +10,13 @@ import {
 describe("schedule event identity normalization", () => {
   it("cleans source summaries without removing real event qualifiers", () => {
     expect(cleanSourceSummary("[A] Wisconsin Athletics Volleyball vs Kentucky (Neutral)")).toBe("Volleyball vs Kentucky");
+  });
+
+  it("extracts only leading W-L source markers", () => {
+    expect(extractSourceEventResult("[W] Wisconsin Athletics Men's Basketball at Illinois")).toBe("WIN");
+    expect(extractSourceEventResult(" [l] Wisconsin Athletics Volleyball vs Kentucky")).toBe("LOSS");
+    expect(extractSourceEventResult("[A] Wisconsin Athletics Volleyball vs Kentucky")).toBeNull();
+    expect(extractSourceEventResult("Wisconsin Athletics [W] Volleyball vs Kentucky")).toBeNull();
   });
 
   it("normalizes rankings and school-name boilerplate from opponents", () => {

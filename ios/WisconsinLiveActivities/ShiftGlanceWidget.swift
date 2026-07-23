@@ -203,17 +203,21 @@ private struct ShiftGlanceWidgetView: View {
     private var mediumView: some View {
         switch state {
         case .shifts(let shifts):
-            VStack(alignment: .leading, spacing: 9) {
-                ShiftGlanceHeader()
-                ForEach(Array(shifts.prefix(2).enumerated()), id: \.element.id) { index, shift in
-                    if index > 0 {
-                        Rectangle()
-                            .fill(Color.white.opacity(0.14))
-                            .frame(height: 1)
+            if shifts.count == 1, let shift = shifts.first {
+                ShiftGlanceSingleMediumView(shift: shift, date: entry.date)
+            } else {
+                VStack(alignment: .leading, spacing: 9) {
+                    ShiftGlanceHeader()
+                    ForEach(Array(shifts.prefix(2).enumerated()), id: \.element.id) { index, shift in
+                        if index > 0 {
+                            Rectangle()
+                                .fill(Color.white.opacity(0.14))
+                                .frame(height: 1)
+                        }
+                        ShiftGlanceRow(shift: shift, date: entry.date)
                     }
-                    ShiftGlanceRow(shift: shift, date: entry.date)
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: 0)
             }
         case .empty:
             ShiftGlanceMessage(
@@ -280,14 +284,14 @@ private struct ShiftGlanceWidgetView: View {
         if shift.isActive(at: entry.date) {
             return "On now: \(shift.title)"
         }
-        return "\(shift.startsAt.formatted(date: .abbreviated, time: .shortened)): \(shift.title)"
+        return "\(shiftGlanceStartLabel(shift.startsAt)): \(shift.title)"
     }
 
     private func rectangularDetail(for shift: ShiftGlanceItem) -> String {
         if shift.isActive(at: entry.date) {
             return "Until \(shift.endsAt.formatted(date: .omitted, time: .shortened)) · \(shift.area)"
         }
-        return "\(shift.startsAt.formatted(date: .abbreviated, time: .shortened)) · \(shift.area)"
+        return "\(shiftGlanceStartLabel(shift.startsAt)) · \(shift.area)"
     }
 }
 
@@ -303,6 +307,53 @@ private struct ShiftGlanceHeader: View {
                 .tracking(0.8)
         }
         .foregroundStyle(.white.opacity(0.6))
+    }
+}
+
+private struct ShiftGlanceSingleMediumView: View {
+    let shift: ShiftGlanceItem
+    let date: Date
+
+    private var isLive: Bool { shift.isActive(at: date) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ShiftGlanceHeader()
+            Text(shift.title)
+                .font(.widgetGothamBold(20, relativeTo: .title3))
+                .foregroundStyle(.white)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+                .layoutPriority(1)
+            Spacer(minLength: 4)
+            HStack(alignment: .bottom, spacing: 16) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Label(timeLabel, systemImage: isLive ? "record.circle" : "clock")
+                    if let location = shift.locationName {
+                        Label(location, systemImage: "mappin.and.ellipse")
+                            .lineLimit(1)
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.68))
+                Spacer(minLength: 8)
+                VStack(alignment: .trailing, spacing: 5) {
+                    Text(shift.area)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.72))
+                    if let gearLabel = shift.gearLabel {
+                        ShiftGlanceGearTag(label: gearLabel, status: shift.gearStatus)
+                    }
+                }
+            }
+        }
+    }
+
+    private var timeLabel: String {
+        if isLive {
+            return "Until \(shift.endsAt.formatted(date: .omitted, time: .shortened))"
+        }
+        return shiftGlanceStartLabel(shift.startsAt)
     }
 }
 
@@ -339,6 +390,7 @@ private struct ShiftGlanceTiming: View {
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(.white)
                 .lineLimit(1)
+                .minimumScaleFactor(0.75)
             Text(shift.area)
                 .font(.caption2)
                 .foregroundStyle(.white.opacity(0.6))
@@ -350,7 +402,7 @@ private struct ShiftGlanceTiming: View {
         if shift.isActive(at: date) {
             return "Until \(shift.endsAt.formatted(date: .omitted, time: .shortened))"
         }
-        return shift.startsAt.formatted(date: .abbreviated, time: .shortened)
+        return shiftGlanceStartLabel(shift.startsAt)
     }
 }
 
@@ -390,7 +442,7 @@ private struct ShiftGlanceRow: View {
         if isLive {
             return "Until \(shift.endsAt.formatted(date: .omitted, time: .shortened)) · \(shift.area)"
         }
-        return "\(shift.startsAt.formatted(date: .abbreviated, time: .shortened)) · \(shift.area)"
+        return "\(shiftGlanceStartLabel(shift.startsAt)) · \(shift.area)"
     }
 }
 
@@ -456,6 +508,17 @@ private enum ShiftGlanceState {
     case shifts([ShiftGlanceItem])
     case empty
     case stale
+}
+
+private func shiftGlanceStartLabel(_ date: Date) -> String {
+    date.formatted(
+        .dateTime
+            .weekday(.abbreviated)
+            .month(.abbreviated)
+            .day()
+            .hour()
+            .minute()
+    )
 }
 
 private extension ShiftGlanceSnapshot {

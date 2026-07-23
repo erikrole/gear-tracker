@@ -337,6 +337,7 @@
 - `/api/users/[id]/reset-password` -> `src/app/api/users/[id]/reset-password/route.ts`
 - `/api/users/[id]/role` -> `src/app/api/users/[id]/role/route.ts`
 - `/api/users/[id]` -> `src/app/api/users/[id]/route.ts`
+- `/api/users/[id]/shift-record` -> `src/app/api/users/[id]/shift-record/route.ts`
 - `/api/users/bulk-create` -> `src/app/api/users/bulk-create/route.ts`
 - `/api/users/export` -> `src/app/api/users/export/route.ts`
 - `/api/users/hidden-cleanup` -> `src/app/api/users/hidden-cleanup/route.ts`

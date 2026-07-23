@@ -68,6 +68,7 @@ import { AvatarCropDialog } from "./AvatarCropDialog";
 import { useQueryClient } from "@tanstack/react-query";
 import { syncCachedUserLists } from "@/lib/user-list-cache";
 import { formatAnticipatedGraduation } from "@/lib/student-profile";
+import { ShiftRecordCard } from "./ShiftRecordCard";
 
 /* ── Tab Definitions ───────────────────────────────────── */
 
@@ -822,6 +823,8 @@ export default function UserDetailPage() {
       </div>
 
       {isSelf && <ProfileCompletionNotice />}
+
+      <ShiftRecordCard userId={id} />
 
       <AvatarCropDialog
         file={pendingAvatarFile}

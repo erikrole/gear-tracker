@@ -66,7 +66,11 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 ### Reservation Rules (`/settings/reservation-rules`) -- Scheduling, ADMIN
 - **Advance booking window** (`advanceWindowDays`, default null = no limit): reservations whose `startsAt` is further out than the window are rejected with 409.
-- **No-show expiry** (`noShowExpiryHours`, default 48): replaces the former hardcoded `PENDING_PICKUP_AUTO_EXPIRY_HOURS = 48`. Loaded at cron run time in `expirePendingPickupCheckouts` so admin changes take effect immediately without a redeploy.
+- **No-show expiry** (`noShowExpiryHours`, default 48): starts when a booked
+  reservation reaches `startsAt`. Loaded at cron run time in
+  `expirePickupNoShows`, so admin changes take effect without a redeploy. The
+  daily run cancels and releases eligible reservations and also drains legacy
+  staged `PENDING_PICKUP` checkout rows.
 - **Max concurrent reservations** (`maxConcurrentReservations`, default null = no limit): enforced at reservation POST time; counts BOOKED reservations for the requester. Rejects with 409 when at/over cap.
 - `GET/PUT /api/settings/reservation-rules` (ADMIN, rate-limited). Stored in `SystemConfig.reservation_rules`. Missing key falls back to defaults.
 
@@ -195,6 +199,10 @@ All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-j
 
 ## Change Log
 
+- 2026-07-23: Reservation Rules now explains that Pending Pickup begins at the
+  scheduled reservation start and that the configured no-show window cancels
+  and releases an uncollected reservation. The maintenance service reads that
+  setting for due reservations and legacy staged checkout cleanup.
 - 2026-07-17: **Category graph mutations are atomic.** Category create, move, and delete perform graph, duplicate, dependency, write, and audit work in one `SERIALIZABLE` transaction with a bounded retry. Reciprocal moves and concurrent root duplicates fail safely, and a resulting subtree is capped at 25 parent-child edges. Name-only edits on a legacy overdeep tree remain available because unchanged placement is not revalidated; explicitly supplying a parent still enforces the cap.
 - 2026-07-16: **Settings directory interaction-detail conformance.** The overview intro and role-aware group cards now enter as separate semantic chunks with a short stagger, destination rows use the shared exact 0.96 press response, the search trigger stays a compact 40px control on small screens, command results provide 44px touch targets, and blocked-route recovery provides an explicit 40px action. Section visibility, direct-route access gating, last-tab resume behavior, route URLs, and all sub-page data behavior are unchanged.
 - 2026-07-16: Added admin-only Collaborator Access settings for affiliation creation, identity, validated capability replacement, suspension/reactivation, affected-count previews, history restoration, and constrained archival.

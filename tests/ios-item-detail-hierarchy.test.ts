@@ -36,16 +36,17 @@ describe("iOS Item Detail hierarchy", () => {
     expect(itemDetail).not.toContain('accessibilityLabel("Open item photo")');
   });
 
-  it("moves status below the hero and orders active custody as title, due time, then person", () => {
+  it("moves status below the hero and orders active custody as title, timing, then person", () => {
     expect(itemDetail).toContain('return "Available until \\(nextReservation.startsAt.formatted(date: .abbreviated, time: .shortened))"');
     expect(itemDetail).toContain("TimelineView(.periodic(from: .now, by: 60))");
-    expect(itemDetail).toContain("Date.itemDueLabel(for: booking.endsAt, now: context.date)");
+    expect(itemDetail).toContain("return Date.itemDueLabel(for: booking.endsAt, now: now)");
     expect(itemDetail).toContain('components.joined(separator: ", ")');
-    expect(itemDetail).toContain("StatusRail(tone: tone)");
+    expect(itemDetail).toContain("StatusRail(tone: currentTone)");
 
     const activeCard = itemDetail.slice(itemDetail.indexOf("private struct ActiveBookingCard"), itemDetail.indexOf("// MARK: - Availability card"));
-    expect(activeCard.indexOf("Text(booking.title)")).toBeLessThan(activeCard.indexOf("TimelineView("));
-    expect(activeCard.indexOf("TimelineView(")).toBeLessThan(activeCard.indexOf("Text(booking.requesterName)"));
+    expect(activeCard.indexOf("TimelineView(")).toBeLessThan(activeCard.indexOf("Text(booking.title)"));
+    expect(activeCard.indexOf("Text(booking.title)")).toBeLessThan(activeCard.indexOf("Text(timing(now: context.date))"));
+    expect(activeCard.indexOf("Text(timing(now: context.date))")).toBeLessThan(activeCard.indexOf("Text(booking.requesterName)"));
   });
 
   it("moves location into the hero and keeps secondary item information nested", () => {

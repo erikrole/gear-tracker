@@ -146,7 +146,7 @@ enum BookingStatus: String, Codable {
         switch self {
         case .draft: "Draft"
         case .booked: "Booked"
-        case .pendingPickup: "Awaiting Pickup"
+        case .pendingPickup: "Pending Pickup"
         case .open: "Checked Out"
         case .completed: "Completed"
         case .cancelled: "Cancelled"
@@ -364,6 +364,25 @@ struct AppUserDetail: Codable, Identifiable {
     let title: String?
     let gradYear: Int?
     let studentYearOverride: String?
+}
+
+struct ShiftRecordSportStats: Codable, Identifiable {
+    let sportCode: String
+    let sportLabel: String
+    let shiftCount: Int
+    let resultEventCount: Int
+    let wins: Int
+    let losses: Int
+
+    var id: String { sportCode }
+}
+
+struct ShiftRecordStats: Codable {
+    let shiftCount: Int
+    let resultEventCount: Int
+    let wins: Int
+    let losses: Int
+    let bySport: [ShiftRecordSportStats]
 }
 
 /// How a person is described in one line. One owner so the Users list row and

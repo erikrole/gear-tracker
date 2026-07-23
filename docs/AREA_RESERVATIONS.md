@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-21
+- Last Updated: 2026-07-23
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -14,11 +14,14 @@ Make app and web reservation-first. A user who is not physically at a kiosk rese
 1. Reservations live in Booking with lifecycle states: `BOOKED`, `COMPLETED`, `CANCELLED`; `DRAFT` exists for interrupted creation.
 2. Reservation creation typically starts as `BOOKED`.
 3. Reservations do not become custody records in the normal flow. Kiosk pickup creates or opens the linked checkout custody record and closes the source reservation as fulfilled.
-4. Cancel and archive patterns are used in V1. No hard delete.
-5. Role and ownership controls follow `AREA_USERS.md`.
-6. Availability checks treat overlapping `PENDING_PICKUP` checkout allocations as committed gear and subtract overlapping `BOOKED` bulk reservation quantities from available bulk stock.
-7. Serialized booking windows include a 60-minute turnaround buffer before the next pickup/start. An item due back at the exact next start time is blocked; it must be due back at least 60 minutes earlier. Bulk/countable availability remains overlap-based against committed quantities.
-8. Reservation creation is guarded at the shared service boundary: creates require at least one equipment item, duplicate multi-event links and duplicate bulk lines are rejected, invalid windows fail before availability work, and DB overlap races return booking conflict responses.
+4. A `BOOKED` reservation enters the user-facing Pending Pickup phase when
+   `startsAt` arrives. This starts the configured no-show clock without
+   changing the stored reservation status or claiming custody.
+5. Cancel and archive patterns are used in V1. No hard delete.
+6. Role and ownership controls follow `AREA_USERS.md`.
+7. Availability checks treat legacy overlapping `PENDING_PICKUP` checkout allocations as committed gear and subtract overlapping `BOOKED` bulk reservation quantities from available bulk stock.
+8. Serialized booking windows include a 60-minute turnaround buffer before the next pickup/start. An item due back at the exact next start time is blocked; it must be due back at least 60 minutes earlier. Bulk/countable availability remains overlap-based against committed quantities.
+9. Reservation creation is guarded at the shared service boundary: creates require at least one equipment item, duplicate multi-event links and duplicate bulk lines are rejected, invalid windows fail before availability work, and DB overlap races return booking conflict responses.
 
 ## V1 Workflow
 
@@ -115,7 +118,10 @@ The reservation detail page (`/reservations/[id]`) uses the shared `BookingDetai
    - Date range
 4. Sort control defaults to earliest `From` datetime.
 5. View toggle can support list/card modes if trivial; list mode is required.
-6. Past-due `BOOKED` reservations are treated as stale planning work: they appear in the reservation overdue filter and dashboard Stale reservations card, but do not change checkout overdue custody counts.
+6. A `BOOKED` reservation whose `startsAt` has arrived is Pending Pickup. It
+   appears in the orange pickup lane and remains eligible for kiosk
+   fulfillment until the configured no-show window cancels and releases it.
+   It never changes checkout-overdue custody counts.
 
 ### Table Columns (List Mode)
 1. Selection checkbox
@@ -252,6 +258,14 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 
 ## Change Log
 
+- 2026-07-23: **Pending Pickup reservation model consolidated.** A booked
+  reservation now enters the operational Pending Pickup phase at its scheduled
+  start. The configured no-show window starts at that timestamp; daily
+  maintenance cancels and releases reservations after the cutoff. Kiosk pickup
+  still creates linked `OPEN` checkout custody and completes the reservation.
+  New kiosk checkouts open directly, while raw `PENDING_PICKUP` checkout rows
+  remain supported only as rollout compatibility.
+- 2026-07-23: **Native overdue-pickup presentation.** The iOS Bookings list now turns a `BOOKED` reservation orange and says `Pickup was due ...` after `startsAt` passes, making a missed handoff visible while preserving the scheduled time. The derivation is local display state only: the database and API remain `BOOKED`, reservation actions remain unchanged, and kiosk pickup still creates linked checkout custody and completes the source reservation.
 - 2026-07-21: **Shared web booking detail now uses the native hierarchy without losing control-room depth.** Reservation detail names the requester beside booking identity and surfaces pickup time, pickup location, physical gear count, and linked event context in one compact summary. Inline editing, equipment planning, operator actions, sync health, and activity history remain web-owned; API payloads, permissions, reservation lifecycle, and kiosk pickup are unchanged.
 - 2026-07-18: **Native reservation creation is visually and operationally consistent end to end.** Event selection reuses Schedule's rail colors, keeps scope beside the title, and gives abbreviated weekday/date/time and the full venue separate supporting lines, including a cleaned raw-calendar fallback for events awaiting venue mapping. Category tabs preserve the API's mixed serialized and item-family popularity order, with Other defined as every reservable result outside Cameras, Lenses, and Batteries. Reservation actions remain purple while destructive and urgent actions keep their status colors. Power guidance now stacks every applicable recommendation in triggering-gear order, animates later recommendations in from below, remains useful after quantity changes, and supports independent swipe or close dismissal. Battery rows show available over effective on-hand counts and matching purple quantity controls. Review catches zero selected power once, then advances after the user has acted instead of repeatedly returning to Batteries. Selected Gear remains one list, Review shows every selected product while omitting the routine secondary line from batteries, and event-launched reservations use the event title without a synthetic `Gear -` prefix. The active Icon Composer package uses the user's updated Block W scale. Multi-event limits, server availability authority, permissions, and kiosk custody are unchanged.
 - 2026-07-17: **Native pickup and return editing works the same for Manual and Event Linked setup.** The reservation Details step now uses separate native date controls and fixed 15-minute time choices instead of the combined UIKit bridge. Pickup no longer silently moves return, invalid ordering is visible before Gear, and schedule edits refresh conflict guidance. Once an event is selected, the same editor appears with defaults of one hour before the first event and two hours after the last event; event-prefilled reservations receive those defaults after event data loads, and later user edits are preserved. Review shows the exact submitted window, including event-linked and all-day reservations. API payloads, multi-event constraints, availability enforcement, permissions, and kiosk custody are unchanged.

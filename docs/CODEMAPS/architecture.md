@@ -11,10 +11,10 @@ Gear Tracker is a Next.js App Router application with a companion native iOS app
 |---|---:|
 | App pages | 80 |
 | App layouts | 5 |
-| API route handlers | 249 |
-| Service files | 55 |
+| API route handlers | 250 |
+| Service files | 56 |
 | Component files | 138 |
-| Test files | 426 |
+| Test files | 432 |
 
 ## Oversized Source Watchlist
 
@@ -22,7 +22,7 @@ Informational only. These are the largest TypeScript and TSX files under `src/`;
 
 | File | Lines |
 |---|---:|
-| `src/lib/services/bookings-lifecycle.ts` | 1623 |
+| `src/lib/services/bookings-lifecycle.ts` | 1625 |
 | `src/app/(app)/items/[id]/ItemInfoTab.tsx` | 1589 |
 | `src/app/(app)/users/[id]/UserInfoTab.tsx` | 1443 |
 | `src/app/(app)/resources/page.tsx` | 1427 |
@@ -33,15 +33,15 @@ Informational only. These are the largest TypeScript and TSX files under `src/`;
 | `src/app/api/assets/route.ts` | 1212 |
 | `src/components/TradeBoard.tsx` | 1192 |
 | `src/lib/services/notifications.ts` | 1129 |
-| `src/app/(app)/users/[id]/page.tsx` | 1098 |
+| `src/app/(app)/users/[id]/page.tsx` | 1101 |
 | `src/components/EquipmentPicker.tsx` | 1001 |
 | `src/app/(app)/kits/[id]/page.tsx` | 979 |
 | `src/app/(app)/events/[id]/_components/ShiftCoverageCard.tsx` | 959 |
-| `src/app/(app)/items/[id]/ItemBookingsTab.tsx` | 946 |
+| `src/app/(app)/items/[id]/ItemBookingsTab.tsx` | 958 |
 | `src/app/(app)/items/page.tsx` | 923 |
 | `src/lib/services/shift-trades.ts` | 901 |
+| `src/lib/services/calendar-sync.ts` | 887 |
 | `src/components/onboarding/OnboardingDialog.tsx` | 884 |
-| `src/lib/services/calendar-sync.ts` | 876 |
 
 ## High-Level Data Flow
 

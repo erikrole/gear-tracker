@@ -3,6 +3,25 @@
 Last updated: 2026-07-21
 
 ---
+## Active: Personal shift records (2026-07-23)
+
+Plan: `tasks/profile-shift-record-plan.md`
+
+- [x] Parse leading synced `[W]` and `[L]` markers into nullable event results while preserving raw source evidence and clean display titles.
+- [x] Backfill captured raw-title evidence and make result corrections or removals visible to normal sync change tracking.
+- [x] Add a protected all-time shift-record route over final active published assignments with event result deduplication and per-sport totals.
+- [x] Add matching coverage-aware record cards to internal web and native User Detail profiles.
+- [x] Complete app build, native build, and documentation verification; record the authenticated profile navigation blockers.
+
+### Current verification
+
+- Focused calendar sync, identity, digest, aggregation, authorization, web, and native source contracts pass.
+- Prisma validation and migration-prefix checks pass.
+- TypeScript and focused ESLint pass.
+- `npm run build:app`, Wisconsin simulator build/run, iOS drift/audit/project checks, codemap/docs, and whitespace checks pass.
+- Local web lacks an authenticated browser session. Signed-in iPhone navigation reached Ashley Steltenpohl's production-backed User Detail; the card remains unavailable there until migration `0106` and the new API route are deployed.
+
+---
 ## Active: Event shift working schedule and quick crew actions (2026-07-21)
 
 Plan: `tasks/event-shift-working-schedule-plan.md`
