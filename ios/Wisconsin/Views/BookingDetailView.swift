@@ -12,26 +12,12 @@ struct BookingDetailView: View {
     @State private var showExtend = false
     @State private var showEdit = false
     @State private var isActioning = false
-    @State private var isAddingToCalendar = false
-    @State private var calendarAdded = false
-    @State private var calendarMessage: String?
     @Environment(SessionStore.self) private var session
     @Environment(AppState.self) private var appState
 
     private func hasCapability(_ capability: String) -> Bool {
         guard let user = session.currentUser else { return false }
         return user.role != "COLLABORATOR" || (user.capabilities ?? []).contains(capability)
-    }
-
-    /// Offered on the caller's own live bookings. Someone else's checkout has
-    /// no business on your calendar, and a returned or cancelled one has
-    /// nothing left to remind you about.
-    private var canAddToCalendar: Bool {
-        guard let booking, let user = session.currentUser else { return false }
-        guard booking.requester.id == user.id else { return false }
-        return booking.status == .booked
-            || booking.status == .open
-            || booking.status == .pendingPickup
     }
 
     private var canEditBooking: Bool {
@@ -139,25 +125,6 @@ struct BookingDetailView: View {
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if canAddToCalendar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Task { await addToCalendar() }
-                    } label: {
-                        Label(
-                            calendarAdded ? "Added to Calendar" : "Add to Calendar",
-                            systemImage: calendarAdded ? "calendar.badge.checkmark" : "calendar.badge.plus"
-                        )
-                        .frame(minHeight: 44)
-                    }
-                    .disabled(isAddingToCalendar)
-                    .accessibilityLabel(
-                        calendarAdded
-                            ? "Already added to your calendar. Tap to add again."
-                            : "Add this checkout to your calendar"
-                    )
-                }
-            }
             if canEditBooking {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showEdit = true } label: {
@@ -167,17 +134,6 @@ struct BookingDetailView: View {
                     .accessibilityLabel("Edit booking details")
                 }
             }
-        }
-        .alert(
-            "Calendar",
-            isPresented: Binding(
-                get: { calendarMessage != nil },
-                set: { if !$0 { calendarMessage = nil } }
-            )
-        ) {
-            Button("OK", role: .cancel) { calendarMessage = nil }
-        } message: {
-            Text(calendarMessage ?? "")
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if canExtendBooking {
@@ -213,39 +169,6 @@ struct BookingDetailView: View {
         }
     }
 
-    private func addToCalendar() async {
-        guard let booking, !isAddingToCalendar else { return }
-        isAddingToCalendar = true
-        defer { isAddingToCalendar = false }
-
-        // The gear itself is what the reminder is about, so name it in the
-        // notes rather than making the user open the app to remember.
-        // Same label the item lists use, so the calendar entry names gear the
-        // way the rest of the app does.
-        let itemNames = booking.serializedItems.map(\.asset.itemListPrimaryTitle)
-        let itemLine = itemNames.isEmpty ? nil : "Gear: \(itemNames.joined(separator: ", "))"
-        let notes = [itemLine, booking.notes]
-            .compactMap { $0 }
-            .joined(separator: "\n\n")
-
-        do {
-            try await CalendarExport.addCheckout(
-                bookingId: booking.id,
-                title: booking.title,
-                startsAt: booking.startsAt,
-                endsAt: booking.endsAt,
-                locationName: booking.location.name,
-                notes: notes.isEmpty ? nil : notes
-            )
-            calendarAdded = true
-            calendarMessage = "Added to your calendar with a reminder 30 minutes before return."
-            Haptics.success()
-        } catch {
-            calendarMessage = error.localizedDescription
-            Haptics.warning()
-        }
-    }
-
     private func loadBooking() async {
         isLoading = true
         error = nil
@@ -253,7 +176,6 @@ struct BookingDetailView: View {
             let loaded = try await APIClient.shared.booking(id: bookingId)
             booking = loaded
             isLoading = false
-            calendarAdded = CalendarExport.hasExported(bookingId: loaded.id)
             await loadConflicts(for: loaded)
             await loadReturnInsight(for: loaded)
             await reconcileLiveActivity(afterLoading: loaded)

@@ -69,9 +69,6 @@ struct WisconsinApp: App {
             // Delivered banners can name gear and bookings the next user has no
             // business seeing on the lock screen.
             UNUserNotificationCenter.current().removeAllDeliveredNotifications()
-            // Only the local "already added" record. Calendar entries belong to
-            // the person who added them and are deliberately left in place.
-            CalendarExport.resetExportedRecord()
         }
 
         // Push permission is now requested via PushPrePromptView, not as a
