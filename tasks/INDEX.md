@@ -37,6 +37,9 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Active Follow-up Ledgers
 
+- `dashboard-pending-pickup-web-parity-plan.md` - local Dashboard parity is
+  implemented and verified; production merge/deployment plus authenticated
+  confirmation of the Pending Pickup lane remain.
 - `ios-collaborator-published-schedule-redesign-plan.md` - implementation and source/build verification are complete; authenticated temporary-collaborator runtime proof remains blocked by the reset Simulator session.
 - `ios-schedule-filters-calendar-management-redesign-plan.md` - result-oriented Schedule filters and recoverable Shift Calendar management plus verification.
 - `ios-schedule-edit-times-post-trade-redesign-plan.md` - Edit Call Window and unified Post to Trade Board redesign plus verification.

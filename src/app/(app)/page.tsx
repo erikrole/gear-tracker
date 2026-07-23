@@ -12,7 +12,7 @@ import { OperationalStatusRail, type OperationalStatusRailItem } from "@/compone
 import { PageHeader } from "@/components/PageHeader";
 import { Progress } from "@/components/ui/progress";
 import StatusIndicator from "@/components/ui/status-indicator";
-import { AlertTriangleIcon, CalendarClockIcon, PackageIcon, PackageOpenIcon, PlusIcon, RefreshCwIcon } from "lucide-react";
+import { AlertTriangleIcon, CalendarClockIcon, ClockAlertIcon, PackageIcon, PackageOpenIcon, PlusIcon, RefreshCwIcon } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
@@ -57,6 +57,7 @@ function InternalDashboardPage() {
   // The hook owns the only fast-stats query and validates partial failures
   // before exposing cached stats for the early render.
   const stats = data?.stats ?? fastStats?.stats ?? null;
+  const pendingPickupTotal = data?.pendingPickups.total ?? fastStats?.pendingPickupTotal ?? 0;
   const overdueCount = data?.overdueCount ?? fastStats?.overdueCount ?? null;
   // Role from full payload, falling back to cached stats payload so the early
   // render doesn't briefly show staff-only buttons to a returning student.
@@ -152,7 +153,8 @@ function InternalDashboardPage() {
   const isAdmin = role === "ADMIN";
   const roleKnown = role !== null;
   const statsEmpty = stats
-    ? stats.checkedOut === 0 && stats.overdue === 0 && stats.reserved === 0 && stats.dueToday === 0
+    ? stats.checkedOut === 0 && stats.overdue === 0 && stats.reserved === 0
+      && stats.dueToday === 0 && pendingPickupTotal === 0
     : false;
   const dataEmpty = data
     ? data.myCheckouts.total === 0 && data.teamCheckouts.total === 0 &&
@@ -181,6 +183,15 @@ function InternalDashboardPage() {
       icon: CalendarClockIcon,
       tone: "warning" as const,
       href: "/bookings?tab=checkouts&filter=due-today",
+    }] : []),
+    ...(pendingPickupTotal > 0 ? [{
+      id: "pending-pickup",
+      label: "Pending pickup",
+      value: pendingPickupTotal,
+      detail: "Scheduled pickup has passed without a kiosk handoff.",
+      icon: ClockAlertIcon,
+      tone: "warning" as const,
+      href: "/bookings?tab=reservations",
     }] : []),
     ...(stats.checkedOut > 0 ? [{
       id: "checked-out",
@@ -262,16 +273,17 @@ function InternalDashboardPage() {
           className="mb-4"
           orientation={{
             label: "Active bookings",
-            value: `${stats.checkedOut + stats.reserved}`,
+            value: `${stats.checkedOut + stats.reserved + pendingPickupTotal}`,
             icon: PackageIcon,
           }}
           items={dashboardRailItems}
           allClearLabel={dashboardRailItems.length === 0 ? "No active booking work" : undefined}
           detailsLabel="Booking breakdown"
           details={(
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
               <OperationalMetricCard label="Overdue" value={stats.overdue} tone={stats.overdue > 0 ? "red" : "muted"} href="/checkouts?filter=overdue" />
               <OperationalMetricCard label="Due today" value={stats.dueToday} tone={stats.dueToday > 0 ? "orange" : "muted"} href="/bookings?tab=checkouts&filter=due-today" />
+              <OperationalMetricCard label="Pending pickup" value={pendingPickupTotal} tone={pendingPickupTotal > 0 ? "orange" : "muted"} href="/bookings?tab=reservations" />
               <OperationalMetricCard label="Checked out" value={stats.checkedOut} tone="blue" href="/bookings?tab=checkouts&status=OPEN" />
               <OperationalMetricCard label="Reserved" value={stats.reserved} tone="purple" href="/bookings?tab=reservations" />
             </div>

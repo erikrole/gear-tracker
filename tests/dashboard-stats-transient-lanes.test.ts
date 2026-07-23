@@ -72,10 +72,11 @@ describe("dashboard stats transient-lane counts", () => {
     expect(hook).toContain("total: statsData.staleReservationTotal");
   });
 
-  it("pending-pickup count lane is guarded to checkout kind", () => {
+  it("pending-pickup count lane includes due reservations and legacy staged checkouts", () => {
     const reader = source("src/lib/services/dashboard-counts.ts");
-    expect(reader).toContain("FILTER (WHERE kind = 'CHECKOUT' AND status = 'PENDING_PICKUP')");
+    expect(reader).toContain("(kind = 'RESERVATION' AND status = 'BOOKED' AND starts_at <= ${now})");
     expect(reader).toContain("OR (kind = 'CHECKOUT' AND status = 'PENDING_PICKUP')");
+    expect(reader).toContain("0::bigint AS stale_reservations");
   });
 });
 
