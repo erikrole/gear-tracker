@@ -45,6 +45,7 @@
 		33F2166407B607A0DADC78B2 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E180A2286F2673D3B7E2179 /* AppDelegate.swift */; };
 		355A828828C691446420E0DB /* AppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 663DC1D3F890A7577C4D89D5 /* AppIntents.swift */; };
 		3626807CF358067A4EF9AF15 /* KioskCheckoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3700D2B2FAE801DC2FF0F1ED /* KioskCheckoutView.swift */; };
+		383FCE0E12937A197BA20247 /* CalendarExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F2A091CD7B5A666DC238266 /* CalendarExport.swift */; };
 		390F43409B451AAB78D2D0C9 /* WisconsinApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3BDE438C8F05EAA14B299BB /* WisconsinApp.swift */; };
 		3A34548DD720E71C6B54BB31 /* ItemsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F12684601FE641B454D0219B /* ItemsView.swift */; };
 		3C5D633C4299CA79C40FCFBA /* Gotham-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F79BD5C4616572A064F43254 /* Gotham-Bold.ttf */; };
@@ -207,6 +208,7 @@
 		2B0058FB3644F501479BA0D5 /* ExtendBookingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtendBookingSheet.swift; sourceTree = "<group>"; };
 		2BD749C0D91CAF1E8784E04F /* ProfilePhotoCropView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilePhotoCropView.swift; sourceTree = "<group>"; };
 		2DCFCD62823EAF922978F5E0 /* PasswordSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordSetupView.swift; sourceTree = "<group>"; };
+		2F2A091CD7B5A666DC238266 /* CalendarExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarExport.swift; sourceTree = "<group>"; };
 		2F4FFF38CD734CA5656C8878 /* KioskIdleRoster.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskIdleRoster.swift; sourceTree = "<group>"; };
 		348C1E3385689A947929A115 /* KioskComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskComponents.swift; sourceTree = "<group>"; };
 		3505D284815BD7237ACFED5F /* KioskFlowRouting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskFlowRouting.swift; sourceTree = "<group>"; };
@@ -571,6 +573,7 @@
 				6ED3D57FAA3E94281C3FF27C /* APIClient.swift */,
 				38065600FA5A1C1AC4C8CC2F /* AppState.swift */,
 				4A9DAB950F60885A23620BEC /* Brand.swift */,
+				2F2A091CD7B5A666DC238266 /* CalendarExport.swift */,
 				39565FFA7236A61DAD12D9BB /* DateFormats.swift */,
 				51D3A73950E2AF7A4B427DAC /* EventWeatherService.swift */,
 				FAD4EC3F211EACBB157F7DDE /* GearStore.swift */,
@@ -921,6 +924,7 @@
 				B2FEB545EEB4F42FE18F292F /* BookingsView.swift in Sources */,
 				41891E6B69644BB1DB025CB9 /* Brand.swift in Sources */,
 				71675D3559403AAD9354C225 /* BrowseView.swift in Sources */,
+				383FCE0E12937A197BA20247 /* CalendarExport.swift in Sources */,
 				41B304E3F5ABE1BF6F9B94BB /* CheckoutReturnActivityAttributes.swift in Sources */,
 				D1BE91AB2F76BE372F49B448 /* CheckoutReturnLiveActivityManager.swift in Sources */,
 				45024C2592BDCC5901293130 /* CreateBookingEquipmentPicker.swift in Sources */,

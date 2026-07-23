@@ -36,6 +36,8 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<false/>
 	</dict>
+	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
+	<string>Add your gear checkouts to your calendar with a reminder before they are due back</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Scan gear barcodes and QR codes</string>
 	<key>NSSupportsLiveActivities</key>

@@ -10,6 +10,17 @@ export const dynamic = "force-dynamic";
 
 const TOKEN_RE = /^[a-f0-9]{48}$/i;
 const ICS_ASSIGNMENT_LIMIT = 500;
+const HISTORY_WINDOW_MS = 31 * 24 * 60 * 60 * 1000;
+const FUTURE_WINDOW_MS = 366 * 24 * 60 * 60 * 1000;
+
+/**
+ * Refresh hint for subscribed clients. Apple Calendar's own default for a
+ * subscription can be as slow as once a day (or whatever the user picked when
+ * subscribing), which is useless for a schedule where call times move and
+ * shifts get traded the morning of. Both spellings are needed: Apple honors
+ * the standard `REFRESH-INTERVAL`, older clients only read `X-PUBLISHED-TTL`.
+ */
+const REFRESH_INTERVAL = "PT1H";
 const TOKEN_LIMIT = { max: 30, windowMs: 60_000 };
 const IP_LIMIT = { max: 120, windowMs: 60_000 };
 
@@ -98,10 +109,11 @@ export const GET = withHandler<{ token: string }>(async (req, { params }) => {
   }
 
   const now = new Date();
-  const windowStart = new Date(now);
-  windowStart.setMonth(windowStart.getMonth() - 1);
-  const windowEnd = new Date(now);
-  windowEnd.setFullYear(windowEnd.getFullYear() + 1);
+  // Plain millisecond arithmetic, not setMonth/setFullYear: on the 29th-31st
+  // `setMonth(getMonth() - 1)` overflows a short month (Mar 31 minus one month
+  // lands on Mar 3), silently shrinking the history window on those days.
+  const windowStart = new Date(now.getTime() - HISTORY_WINDOW_MS);
+  const windowEnd = new Date(now.getTime() + FUTURE_WINDOW_MS);
 
   const assignments = await db.shiftAssignment.findMany({
     where: {
@@ -155,6 +167,8 @@ export const GET = withHandler<{ token: string }>(async (req, { params }) => {
     "METHOD:PUBLISH",
     `X-WR-CALNAME:${icsEscape(user.name + " Shifts")}`,
     "X-WR-TIMEZONE:America/Chicago",
+    `REFRESH-INTERVAL;VALUE=DURATION:${REFRESH_INTERVAL}`,
+    `X-PUBLISHED-TTL:${REFRESH_INTERVAL}`,
   ];
 
   for (const a of assignments) {

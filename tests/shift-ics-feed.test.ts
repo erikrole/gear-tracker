@@ -167,6 +167,11 @@ describe("shift ICS feed hardening", () => {
     expect(body).toContain("SEQUENCE:");
     expect(body).toContain("TRANSP:OPAQUE");
     expect(body).not.toContain("DESCRIPTION:");
+    // Refresh hints, both spellings: Apple honors REFRESH-INTERVAL, older
+    // clients read only X-PUBLISHED-TTL. Without them a subscribed calendar
+    // can sit a day stale, which is useless for same-day shift trades.
+    expect(body).toContain("REFRESH-INTERVAL;VALUE=DURATION:PT1H");
+    expect(body).toContain("X-PUBLISHED-TTL:PT1H");
   });
 
   it("folds long content lines per RFC 5545 without splitting multi-byte characters", async () => {

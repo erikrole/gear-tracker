@@ -43,6 +43,10 @@ targets:
           - UIInterfaceOrientationLandscapeRight
           - UIInterfaceOrientationPortraitUpsideDown
         NSCameraUsageDescription: "Scan gear barcodes and QR codes"
+        # Write-only: the app adds checkout return reminders and never reads
+        # what is already on your calendar. Not granted to the kiosk target,
+        # which has no per-person calendar to write to.
+        NSCalendarsWriteOnlyAccessUsageDescription: "Add your gear checkouts to your calendar with a reminder before they are due back"
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: false
         NSSupportsLiveActivities: true
