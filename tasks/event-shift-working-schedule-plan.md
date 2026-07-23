@@ -77,6 +77,20 @@ Make the expanded web Schedule list the primary crew workstation: fast Staff and
 - [x] Keep Start empty available when an event needs a fully custom crew.
 - [x] Apply migration `0099_shift_group_working_copy`, verify Neon migration health, and prove authenticated Event detail and expanded Schedule behavior against the migrated runtime.
 
+### 8. Draft assignment identity rehydration
+
+- [x] Return a minimal assigned-user projection for every user referenced by the effective working schedule, including draft-only assignees outside the current picker page.
+- [x] Resolve refreshed crew rows from that server-owned projection before falling back to published entry data or the active picker result.
+- [x] Keep the stored working payload ID-only so user names and avatars remain current and are not duplicated into draft JSON.
+- [x] Prove Ashley and Maddy remain named after refresh without publishing, with focused service/source tests and authenticated browser inspection.
+
+## Review: Slice 8
+
+- Shipped: the editor read model batches current user identity fields for every assignee referenced by the effective working schedule.
+- Verified: focused working-copy tests pass, and an authenticated reload of Volleyball vs Alumni shows Maddy Pehler and Ashley Steltenpohl with no `Assigned worker` fallback.
+- Preserved: working-copy JSON remains ID-only, and no publish, notification, relational schedule, or iOS read contract changed.
+- Remaining: the broader plan still tracks narrow responsive proof, native working-copy adoption, and explicit convert-and-replace behavior.
+
 ## Verification
 
 - Focused service and route tests for validation, authorization, stale versions, draft privacy, publish atomicity, notification dedupe, class conversion, trade safety, and compatibility reads.
@@ -91,4 +105,5 @@ Make the expanded web Schedule list the primary crew workstation: fast Staff and
 - Stop before applying migration `0099_shift_group_working_copy` to the shared Neon database without explicit user approval.
 - Stop rather than delete or sever a shift, assignment, trade, or booking relationship that the working payload cannot reconcile safely.
 - Stop if current iOS contracts require a breaking response change; ship an additive server contract first.
+- Stop if restoring draft identity would require persisting user profile fields in the working JSON; the editor read model must hydrate current user data by ID instead.
 - Preserve the unrelated kiosk work already present in the worktree.

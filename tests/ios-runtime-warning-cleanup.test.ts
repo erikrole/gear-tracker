@@ -38,4 +38,17 @@ describe("iOS runtime warning cleanup", () => {
     expect(thumbnails).toContain("ThumbnailCache.shared.image(for: cacheKey)");
     expect(thumbnails).toContain("ThumbnailCache.shared.store(image, for: cacheKey)");
   });
+
+  it("keeps image decode and profile crop rendering off the main actor", () => {
+    const thumbnails = source("ios/Wisconsin/Core/ThumbnailLoader.swift");
+    const welcome = source("ios/Wisconsin/Views/Welcome/ProfileCompletionWelcomeView.swift");
+    const crop = source("ios/Wisconsin/Views/Welcome/ProfilePhotoCropView.swift");
+
+    expect(thumbnails).toContain("enum NativeImageProcessor");
+    expect(thumbnails.match(/@concurrent/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(thumbnails).toContain("await NativeImageProcessor.downsample");
+    expect(welcome).toContain("await NativeImageProcessor.downsample");
+    expect(crop).toContain("await NativeImageProcessor.croppedJPEGData");
+    expect(crop).not.toContain("private func croppedJPEGData()");
+  });
 });

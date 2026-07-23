@@ -5,6 +5,7 @@
 
 | Route | File |
 |---|---|
+| `/accountability` | `src/app/(app)/accountability/page.tsx` |
 | `/admin/fix-today` | `src/app/(app)/admin/fix-today/page.tsx` |
 | `/bookings` | `src/app/(app)/bookings/page.tsx` |
 | `/bulk-inventory/[id]` | `src/app/(app)/bulk-inventory/[id]/page.tsx` |
@@ -113,7 +114,7 @@
 | `src/components/booking-wizard/WizardStep1.tsx` | 570 |
 | `src/components/BookingListPage.tsx` | 512 |
 | `src/components/ui/heatmap.tsx` | 409 |
-| `src/components/Sidebar.tsx` | 402 |
+| `src/components/Sidebar.tsx` | 404 |
 | `src/components/booking-details/BookingHeader.tsx` | 401 |
 | `src/components/ui/chart.tsx` | 389 |
 | `src/components/shift-detail/ShiftSlotCard.tsx` | 375 |

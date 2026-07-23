@@ -45,6 +45,10 @@ Values: `RESERVATION`, `CHECKOUT`
 
 Values: `DRAFT`, `BOOKED`, `PENDING_PICKUP`, `OPEN`, `COMPLETED`, `CANCELLED`
 
+## Enum `AccountabilityExclusionReason`
+
+Values: `TEST_DATA`, `IMPORTED_BAD_DATA`, `INCORRECT_TIMESTAMPS`, `DUPLICATE_RECORD`, `OTHER`
+
 ## Enum `AllocationKind`
 
 Values: `RESERVATION`, `CHECKOUT`
@@ -99,55 +103,55 @@ Values: `ACTIVE`, `MAINTENANCE`, `UNKNOWN`
 
 ## Model `User`
 
-Fields: 93
+Fields: 95
 
-- `id                          String                       @id @default(cuid())`
+- `id                          String                           @id @default(cuid())`
 - `name                        String`
-- `email                       String                       @unique`
-- `passwordHash                String                       @map("password_hash")`
-- `forcePasswordChange         Boolean                      @default(false) @map("force_password_change")`
+- `email                       String                           @unique`
+- `passwordHash                String                           @map("password_hash")`
+- `forcePasswordChange         Boolean                          @default(false) @map("force_password_change")`
 - `role                        Role`
 - `affiliation                 Affiliation?`
-- `collaboratorProfile         CollaboratorProfile?         @map("collaborator_profile")`
-- `collaboratorPolicyId        String?                      @map("collaborator_policy_id")`
-- `staffingType                ShiftWorkerType              @default(ST) @map("staffing_type")`
-- `active                      Boolean                      @default(true)`
-- `hiddenFromRoster            Boolean                      @default(false) @map("hidden_from_roster")`
+- `collaboratorProfile         CollaboratorProfile?             @map("collaborator_profile")`
+- `collaboratorPolicyId        String?                          @map("collaborator_policy_id")`
+- `staffingType                ShiftWorkerType                  @default(ST) @map("staffing_type")`
+- `active                      Boolean                          @default(true)`
+- `hiddenFromRoster            Boolean                          @default(false) @map("hidden_from_roster")`
 - `phone                       String?`
-- `personalPhone               String?                      @map("personal_phone")`
-- `workPhone                   String?                      @map("work_phone")`
-- `workPhoneNotApplicable      Boolean                      @default(false) @map("work_phone_not_applicable")`
-- `wiscardNumber               String?                      @unique @map("wiscard_number")`
-- `wiscardCardNumber           String?                      @unique @map("wiscard_card_number")`
-- `wiscardIssueCode            String?                      @map("wiscard_issue_code")`
-- `profilePromptSnoozedUntil   DateTime?                    @map("profile_prompt_snoozed_until")`
-- `slackHandle                 String?                      @map("slack_handle")`
-- `slackProfileUrl             String?                      @map("slack_profile_url")`
-- `avatarUrl                   String?                      @map("avatar_url")`
-- `primaryArea                 ShiftArea?                   @map("primary_area")`
-- `locationId                  String?                      @map("location_id")`
-- `createdAt                   DateTime                     @default(now()) @map("created_at")`
-- `updatedAt                   DateTime                     @updatedAt @map("updated_at")`
-- `lastActiveAt                DateTime?                    @map("last_active_at")`
-- `location                    Location?                    @relation(fields: [locationId], references: [id], onDelete: SetNull)`
+- `personalPhone               String?                          @map("personal_phone")`
+- `workPhone                   String?                          @map("work_phone")`
+- `workPhoneNotApplicable      Boolean                          @default(false) @map("work_phone_not_applicable")`
+- `wiscardNumber               String?                          @unique @map("wiscard_number")`
+- `wiscardCardNumber           String?                          @unique @map("wiscard_card_number")`
+- `wiscardIssueCode            String?                          @map("wiscard_issue_code")`
+- `profilePromptSnoozedUntil   DateTime?                        @map("profile_prompt_snoozed_until")`
+- `slackHandle                 String?                          @map("slack_handle")`
+- `slackProfileUrl             String?                          @map("slack_profile_url")`
+- `avatarUrl                   String?                          @map("avatar_url")`
+- `primaryArea                 ShiftArea?                       @map("primary_area")`
+- `locationId                  String?                          @map("location_id")`
+- `createdAt                   DateTime                         @default(now()) @map("created_at")`
+- `updatedAt                   DateTime                         @updatedAt @map("updated_at")`
+- `lastActiveAt                DateTime?                        @map("last_active_at")`
+- `location                    Location?                        @relation(fields: [locationId], references: [id], onDelete: SetNull)`
 - `sessions                    Session[]`
-- `requested                   Booking[]                    @relation("BookingRequester")`
-- `createdBookings             Booking[]                    @relation("BookingCreator")`
+- `requested                   Booking[]                        @relation("BookingRequester")`
+- `createdBookings             Booking[]                        @relation("BookingCreator")`
 - `scanEvents                  ScanEvent[]`
 - `scanSessions                ScanSession[]`
 - `overrides                   OverrideEvent[]`
 - `bulkMovements               BulkStockMovement[]`
-- `audits                      AuditLog[]                   @relation("AuditActor")`
-- `shiftAssignments            ShiftAssignment[]            @relation("ShiftAssignee")`
-- `shiftAssignedBy             ShiftAssignment[]            @relation("ShiftAssigner")`
-- `shiftGroupsPublished        ShiftGroup[]                 @relation("ShiftGroupPublisher")`
-- `shiftWorkingCopiesCreated   ShiftGroupWorkingCopy[]      @relation("ShiftWorkingCopyCreator")`
-- `shiftWorkingCopiesUpdated   ShiftGroupWorkingCopy[]      @relation("ShiftWorkingCopyUpdater")`
-- `shiftAcknowledged           ShiftAssignment[]            @relation("ShiftAssignmentAcknowledgedBy")`
+- `audits                      AuditLog[]                       @relation("AuditActor")`
+- `shiftAssignments            ShiftAssignment[]                @relation("ShiftAssignee")`
+- `shiftAssignedBy             ShiftAssignment[]                @relation("ShiftAssigner")`
+- `shiftGroupsPublished        ShiftGroup[]                     @relation("ShiftGroupPublisher")`
+- `shiftWorkingCopiesCreated   ShiftGroupWorkingCopy[]          @relation("ShiftWorkingCopyCreator")`
+- `shiftWorkingCopiesUpdated   ShiftGroupWorkingCopy[]          @relation("ShiftWorkingCopyUpdater")`
+- `shiftAcknowledged           ShiftAssignment[]                @relation("ShiftAssignmentAcknowledgedBy")`
 - `sportAssignments            StudentSportAssignment[]`
 - `areaAssignments             StudentAreaAssignment[]`
-- `tradesPosted                ShiftTrade[]                 @relation("TradePostedBy")`
-- `tradesClaimed               ShiftTrade[]                 @relation("TradeClaimedBy")`
+- `tradesPosted                ShiftTrade[]                     @relation("TradePostedBy")`
+- `tradesClaimed               ShiftTrade[]                     @relation("TradeClaimedBy")`
 - `favorites                   FavoriteItem[]`
 - `familyFavorites             FavoriteItemFamily[]`
 - `passwordResetTokens         PasswordResetToken[]`
@@ -156,26 +160,28 @@ Fields: 93
 - `liveActivityTokens          LiveActivityToken[]`
 - `liveActivityStartTokens     LiveActivityStartToken[]`
 - `liveActivityStarts          LiveActivityStart[]`
-- `bookingPhotos               BookingPhoto[]               @relation("BookingPhotoActor")`
-- `checkinReports              CheckinItemReport[]          @relation("CheckinReports")`
-- `allowedEmailsCreated        AllowedEmail[]               @relation("AllowedEmailCreator")`
-- `allowedEmailsClaimed        AllowedEmail[]               @relation("AllowedEmailClaimer")`
-- `licenseCodesHeld            LicenseCode[]                @relation("LicenseClaimedBy")`
-- `licenseCodesCreated         LicenseCode[]                @relation("LicenseCreatedBy")`
+- `bookingPhotos               BookingPhoto[]                   @relation("BookingPhotoActor")`
+- `checkinReports              CheckinItemReport[]              @relation("CheckinReports")`
+- `allowedEmailsCreated        AllowedEmail[]                   @relation("AllowedEmailCreator")`
+- `allowedEmailsClaimed        AllowedEmail[]                   @relation("AllowedEmailClaimer")`
+- `licenseCodesHeld            LicenseCode[]                    @relation("LicenseClaimedBy")`
+- `licenseCodesCreated         LicenseCode[]                    @relation("LicenseCreatedBy")`
 - `licenseClaims               LicenseCodeClaim[]`
 - `resources                   Resource[]`
-- `resourcesVerified           Resource[]                   @relation("ResourceLastVerifiedBy")`
+- `resourcesVerified           Resource[]                       @relation("ResourceLastVerifiedBy")`
 - `availabilityBlocks          StudentAvailabilityBlock[]`
-- `availabilityReviewed        StudentAvailabilityBlock[]   @relation("AvailabilityReviewer")`
-- `travelMemberships           EventTravelMember[]          @relation("TravelMembers")`
+- `availabilityReviewed        StudentAvailabilityBlock[]       @relation("AvailabilityReviewer")`
+- `travelMemberships           EventTravelMember[]              @relation("TravelMembers")`
 - `badges                      StudentBadge[]`
-- `badgesAwardedByMe           StudentBadge[]               @relation("BadgeAwardedBy")`
+- `badgesAwardedByMe           StudentBadge[]                   @relation("BadgeAwardedBy")`
 - `badgeStreaks                BadgeStreak[]`
-- `notificationPrefs           Json?                        @map("notification_prefs")`
-- `icsToken                    String?                      @unique @map("ics_token")`
+- `notificationPrefs           Json?                            @map("notification_prefs")`
+- `icsToken                    String?                          @unique @map("ics_token")`
 - `scheduleEventFollows        ScheduleEventFollow[]`
-- `collaboratorPolicy          CollaboratorPolicy?          @relation(fields: [collaboratorPolicyId], references: [id], onDelete: Restrict)`
-- `collaboratorPolicyRevisions CollaboratorPolicyRevision[] @relation("CollaboratorPolicyRevisionActor")`
+- `collaboratorPolicy          CollaboratorPolicy?              @relation(fields: [collaboratorPolicyId], references: [id], onDelete: Restrict)`
+- `collaboratorPolicyRevisions CollaboratorPolicyRevision[]     @relation("CollaboratorPolicyRevisionActor")`
+- `accountabilityExclusions    BookingAccountabilityExclusion[] @relation("AccountabilityExcludedBy")`
+- `accountabilityRestorations  BookingAccountabilityExclusion[] @relation("AccountabilityRestoredBy")`
 - `title               String?`
 - `athleticsEmail      String?         @unique @map("athletics_email")`
 - `startDate           DateTime?       @map("start_date") @db.Date`
@@ -383,49 +389,50 @@ Indexes and constraints:
 
 ## Model `Booking`
 
-Fields: 41
+Fields: 42
 
-- `id                  String                  @id @default(cuid())`
-- `kind                BookingKind`
-- `title               String`
-- `requesterUserId     String                  @map("requester_user_id")`
-- `locationId          String                  @map("location_id")`
-- `startsAt            DateTime                @map("starts_at")`
-- `endsAt              DateTime                @map("ends_at")`
-- `status              BookingStatus`
-- `createdBy           String                  @map("created_by")`
-- `notes               String?`
-- `sourceReservationId String?                 @map("source_reservation_id")`
-- `eventId             String?                 @map("event_id")`
-- `sportCode           String?                 @map("sport_code")`
-- `refNumber           String?                 @unique @map("ref_number")`
-- `shiftAssignmentId   String?                 @map("shift_assignment_id")`
-- `kitId               String?                 @map("kit_id")`
-- `pickupKioskDeviceId String?                 @map("pickup_kiosk_device_id")`
-- `createdAt           DateTime                @default(now()) @map("created_at")`
-- `updatedAt           DateTime                @updatedAt @map("updated_at")`
-- `completedAt         DateTime?               @map("completed_at")`
-- `requester           User                    @relation("BookingRequester", fields: [requesterUserId], references: [id], onDelete: Restrict)`
-- `creator             User                    @relation("BookingCreator", fields: [createdBy], references: [id], onDelete: Restrict)`
-- `location            Location                @relation(fields: [locationId], references: [id], onDelete: Restrict)`
-- `pickupKioskDevice   KioskDevice?            @relation("BookingPickupKiosk", fields: [pickupKioskDeviceId], references: [id], onDelete: SetNull)`
-- `sourceReservation   Booking?                @relation("CheckoutFromReservation", fields: [sourceReservationId], references: [id], onDelete: SetNull)`
-- `derivedCheckouts    Booking[]               @relation("CheckoutFromReservation")`
-- `event               CalendarEvent?          @relation(fields: [eventId], references: [id], onDelete: SetNull)`
-- `shiftAssignment     ShiftAssignment?        @relation(fields: [shiftAssignmentId], references: [id], onDelete: SetNull)`
-- `kit                 Kit?                    @relation(fields: [kitId], references: [id], onDelete: SetNull)`
-- `events              BookingEvent[]`
-- `serializedItems     BookingSerializedItem[]`
-- `bulkItems           BookingBulkItem[]`
-- `allocations         AssetAllocation[]`
-- `scanEvents          ScanEvent[]`
-- `scanSessions        ScanSession[]`
-- `overrides           OverrideEvent[]`
-- `bulkMovements       BulkStockMovement[]`
-- `photos              BookingPhoto[]`
-- `checkinReports      CheckinItemReport[]`
-- `liveActivityTokens  LiveActivityToken[]`
-- `liveActivityStarts  LiveActivityStart[]`
+- `id                      String                          @id @default(cuid())`
+- `kind                    BookingKind`
+- `title                   String`
+- `requesterUserId         String                          @map("requester_user_id")`
+- `locationId              String                          @map("location_id")`
+- `startsAt                DateTime                        @map("starts_at")`
+- `endsAt                  DateTime                        @map("ends_at")`
+- `status                  BookingStatus`
+- `createdBy               String                          @map("created_by")`
+- `notes                   String?`
+- `sourceReservationId     String?                         @map("source_reservation_id")`
+- `eventId                 String?                         @map("event_id")`
+- `sportCode               String?                         @map("sport_code")`
+- `refNumber               String?                         @unique @map("ref_number")`
+- `shiftAssignmentId       String?                         @map("shift_assignment_id")`
+- `kitId                   String?                         @map("kit_id")`
+- `pickupKioskDeviceId     String?                         @map("pickup_kiosk_device_id")`
+- `createdAt               DateTime                        @default(now()) @map("created_at")`
+- `updatedAt               DateTime                        @updatedAt @map("updated_at")`
+- `completedAt             DateTime?                       @map("completed_at")`
+- `requester               User                            @relation("BookingRequester", fields: [requesterUserId], references: [id], onDelete: Restrict)`
+- `creator                 User                            @relation("BookingCreator", fields: [createdBy], references: [id], onDelete: Restrict)`
+- `location                Location                        @relation(fields: [locationId], references: [id], onDelete: Restrict)`
+- `pickupKioskDevice       KioskDevice?                    @relation("BookingPickupKiosk", fields: [pickupKioskDeviceId], references: [id], onDelete: SetNull)`
+- `sourceReservation       Booking?                        @relation("CheckoutFromReservation", fields: [sourceReservationId], references: [id], onDelete: SetNull)`
+- `derivedCheckouts        Booking[]                       @relation("CheckoutFromReservation")`
+- `event                   CalendarEvent?                  @relation(fields: [eventId], references: [id], onDelete: SetNull)`
+- `shiftAssignment         ShiftAssignment?                @relation(fields: [shiftAssignmentId], references: [id], onDelete: SetNull)`
+- `kit                     Kit?                            @relation(fields: [kitId], references: [id], onDelete: SetNull)`
+- `events                  BookingEvent[]`
+- `serializedItems         BookingSerializedItem[]`
+- `bulkItems               BookingBulkItem[]`
+- `allocations             AssetAllocation[]`
+- `scanEvents              ScanEvent[]`
+- `scanSessions            ScanSession[]`
+- `overrides               OverrideEvent[]`
+- `bulkMovements           BulkStockMovement[]`
+- `photos                  BookingPhoto[]`
+- `checkinReports          CheckinItemReport[]`
+- `liveActivityTokens      LiveActivityToken[]`
+- `liveActivityStarts      LiveActivityStart[]`
+- `accountabilityExclusion BookingAccountabilityExclusion?`
 
 Indexes and constraints:
 
@@ -443,6 +450,29 @@ Indexes and constraints:
 - `@@index([startsAt, endsAt])`
 - `@@index([createdBy, status])`
 - `@@map("bookings")`
+
+## Model `BookingAccountabilityExclusion`
+
+Fields: 11
+
+- `id               String                        @id @default(cuid())`
+- `bookingId        String                        @unique @map("booking_id")`
+- `reason           AccountabilityExclusionReason`
+- `note             String?`
+- `excludedByUserId String                        @map("excluded_by_user_id")`
+- `excludedAt       DateTime                      @default(now()) @map("excluded_at")`
+- `restoredByUserId String?                       @map("restored_by_user_id")`
+- `restoredAt       DateTime?                     @map("restored_at")`
+- `booking          Booking                       @relation(fields: [bookingId], references: [id], onDelete: Cascade)`
+- `excludedBy       User                          @relation("AccountabilityExcludedBy", fields: [excludedByUserId], references: [id], onDelete: Restrict)`
+- `restoredBy       User?                         @relation("AccountabilityRestoredBy", fields: [restoredByUserId], references: [id], onDelete: SetNull)`
+
+Indexes and constraints:
+
+- `@@index([restoredAt, excludedAt])`
+- `@@index([excludedByUserId])`
+- `@@index([restoredByUserId])`
+- `@@map("booking_accountability_exclusions")`
 
 ## Model `BookingSerializedItem`
 

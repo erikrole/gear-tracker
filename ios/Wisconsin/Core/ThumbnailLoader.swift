@@ -8,18 +8,65 @@ private let thumbnailURLCache = URLCache(
     diskPath: "WisconsinThumbnailURLCache"
 )
 
-// Downsamples image data to a target pixel size using ImageIO (no full-res decode).
-private func downsample(data: Data, maxPixels: CGFloat, scale: CGFloat) -> UIImage? {
-    let sourceOptions: [CFString: Any] = [kCGImageSourceShouldCache: false]
-    guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions as CFDictionary) else { return nil }
-    let thumbOptions: [CFString: Any] = [
-        kCGImageSourceCreateThumbnailFromImageAlways: true,
-        kCGImageSourceShouldCacheImmediately: true,
-        kCGImageSourceCreateThumbnailWithTransform: true,
-        kCGImageSourceThumbnailMaxPixelSize: maxPixels
-    ]
-    guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbOptions as CFDictionary) else { return nil }
-    return UIImage(cgImage: cgImage, scale: scale, orientation: .up)
+enum NativeImageProcessor {
+    // ImageIO decode is deliberately concurrent. Calling this from a SwiftUI
+    // task must not inherit the main actor and turn cache misses into scroll
+    // hitches.
+    @concurrent
+    static func downsample(data: Data, maxPixels: CGFloat, scale: CGFloat) async -> UIImage? {
+        let sourceOptions: [CFString: Any] = [kCGImageSourceShouldCache: false]
+        guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions as CFDictionary) else { return nil }
+        let thumbOptions: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixels
+        ]
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbOptions as CFDictionary) else { return nil }
+        return UIImage(cgImage: cgImage, scale: scale, orientation: .up)
+    }
+
+    @concurrent
+    static func croppedJPEGData(
+        image: UIImage,
+        cropDiameter: CGFloat,
+        zoom: CGFloat,
+        offset: CGSize
+    ) async -> Data? {
+        let normalized = normalizedImage(image)
+        guard let cgImage = normalized.cgImage else { return nil }
+
+        let imageSize = CGSize(width: cgImage.width, height: cgImage.height)
+        let baseScale = max(cropDiameter / imageSize.width, cropDiameter / imageSize.height)
+        let scale = baseScale * zoom
+        let sourceSide = cropDiameter / scale
+        let center = CGPoint(
+            x: imageSize.width / 2 - offset.width / scale,
+            y: imageSize.height / 2 - offset.height / scale
+        )
+        let rect = CGRect(
+            x: min(max(0, center.x - sourceSide / 2), imageSize.width - sourceSide),
+            y: min(max(0, center.y - sourceSide / 2), imageSize.height - sourceSide),
+            width: sourceSide,
+            height: sourceSide
+        ).integral
+
+        guard let cropped = cgImage.cropping(to: rect) else { return nil }
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 1024, height: 1024))
+        let output = renderer.image { _ in
+            UIImage(cgImage: cropped).draw(in: CGRect(x: 0, y: 0, width: 1024, height: 1024))
+        }
+        return output.jpegData(compressionQuality: 0.9)
+    }
+
+    private static func normalizedImage(_ image: UIImage) -> UIImage {
+        guard image.imageOrientation != .up else { return image }
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = image.scale
+        return UIGraphicsImageRenderer(size: image.size, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: image.size))
+        }
+    }
 }
 
 // NSCache-backed thumbnail store. Limited to 20 MB of decoded pixel data.
@@ -103,7 +150,7 @@ struct CachedThumbnail: View {
               !Task.isCancelled else { return }
         let pixels = size * scale
         guard pixels > 0,
-              let image = downsample(data: data, maxPixels: pixels, scale: scale),
+              let image = await NativeImageProcessor.downsample(data: data, maxPixels: pixels, scale: scale),
               !Task.isCancelled else { return }
         ThumbnailCache.shared.store(image, for: cacheKey)
         uiImage = image

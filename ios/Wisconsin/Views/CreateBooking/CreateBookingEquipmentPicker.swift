@@ -20,21 +20,19 @@ struct CreateBookingEquipmentPicker: View {
         vm.assetSearch.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    private var hasNoResults: Bool {
-        vm.displayedAssetGroups.isEmpty
-            && vm.displayedBulkSkus.isEmpty
-            && (vm.displayedCategoryResults?.isEmpty ?? true)
-            && !vm.isLoadingAssets
-            && vm.error == nil
-    }
-
-    private var activeRecommendations: [BatteryRecommendation] {
-        vm.batterySuggestions.filter {
+    var body: some View {
+        let displayedAssetGroups = vm.displayedAssetGroups
+        let displayedBulkSkus = vm.displayedBulkSkus
+        let displayedCategoryResults = vm.displayedCategoryResults
+        let activeRecommendations = vm.batterySuggestions.filter {
             !acknowledgedRecommendationIDs.contains($0.reminderKey)
         }
-    }
+        let hasNoResults = displayedAssetGroups.isEmpty
+            && displayedBulkSkus.isEmpty
+            && (displayedCategoryResults?.isEmpty ?? true)
+            && !vm.isLoadingAssets
+            && vm.error == nil
 
-    var body: some View {
         List {
             if vm.selectedEquipmentCount > 0 {
                 selectedSummary
@@ -48,11 +46,11 @@ struct CreateBookingEquipmentPicker: View {
                 categoryChips
             }
 
-            statusSection
+            statusSection(hasNoResults: hasNoResults)
 
-            if !vm.displayedBulkSkus.isEmpty {
+            if !displayedBulkSkus.isEmpty {
                 Section("Supplies") {
-                    ForEach(vm.displayedBulkSkus) { sku in
+                    ForEach(displayedBulkSkus) { sku in
                         BulkResultRow(
                             sku: sku,
                             quantity: vm.quantity(for: sku),
@@ -65,7 +63,7 @@ struct CreateBookingEquipmentPicker: View {
                 }
             }
 
-            if let categoryResults = vm.displayedCategoryResults, !categoryResults.isEmpty {
+            if let categoryResults = displayedCategoryResults, !categoryResults.isEmpty {
                 Section(vm.browseCategoryFilter ?? "Gear") {
                     ForEach(categoryResults) { result in
                         switch result {
@@ -92,7 +90,7 @@ struct CreateBookingEquipmentPicker: View {
                 }
             }
 
-            ForEach(vm.displayedAssetGroups) { group in
+            ForEach(displayedAssetGroups) { group in
                 Section(group.title) {
                     ForEach(group.assets) { asset in
                         AssetPickerRow(
@@ -283,7 +281,7 @@ struct CreateBookingEquipmentPicker: View {
     }
 
     @ViewBuilder
-    private var statusSection: some View {
+    private func statusSection(hasNoResults: Bool) -> some View {
         if vm.isLoadingAssets || vm.error != nil || hasNoResults {
             Section {
                 if vm.isLoadingAssets {
@@ -645,6 +643,9 @@ struct EquipmentCartSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
+        let selectedAssets = vm.selectedAssets
+        let selectedBulkSkus = vm.selectedBulkSkus
+        let mismatchCount = vm.selectedLocationMismatchCount
         NavigationStack {
             Group {
                 if vm.selectedEquipmentCount == 0 {
@@ -667,11 +668,10 @@ struct EquipmentCartSheet: View {
                             }
                         }
 
-                        if vm.selectedLocationMismatchCount > 0 {
-                            let count = vm.selectedLocationMismatchCount
+                        if mismatchCount > 0 {
                             Section {
                                 Label(
-                                    "\(count) item\(count == 1 ? " is" : "s are") at another pickup location. Remove the item or change pickup before review.",
+                                    "\(mismatchCount) item\(mismatchCount == 1 ? " is" : "s are") at another pickup location. Remove the item or change pickup before review.",
                                     systemImage: "mappin.slash.fill"
                                 )
                                 .font(.footnote)
@@ -679,9 +679,9 @@ struct EquipmentCartSheet: View {
                             }
                         }
 
-                        if !vm.selectedAssets.isEmpty || !vm.selectedBulkSkus.isEmpty {
+                        if !selectedAssets.isEmpty || !selectedBulkSkus.isEmpty {
                             Section {
-                                ForEach(vm.selectedAssets) { asset in
+                                ForEach(selectedAssets) { asset in
                                     SelectedEquipmentRow(
                                         asset: asset,
                                         isConflicted: vm.conflictedAssetIds.contains(asset.id),
@@ -691,7 +691,7 @@ struct EquipmentCartSheet: View {
                                         Haptics.selection()
                                     }
                                 }
-                                ForEach(vm.selectedBulkSkus) { sku in
+                                ForEach(selectedBulkSkus) { sku in
                                     BulkQuantityRow(
                                         sku: sku,
                                         quantity: vm.quantity(for: sku),

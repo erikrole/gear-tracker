@@ -31,6 +31,10 @@ const STAFF_SEARCH_PAGES: PageSearchResult[] = [
   { type: "page", id: "settings", title: "Settings", subtitle: "Personal preferences and operational configuration", href: "/settings", keywords: ["configuration", "admin", "preferences"] },
 ];
 
+const ADMIN_SEARCH_PAGES: PageSearchResult[] = [
+  { type: "page", id: "accountability", title: "Accountability", subtitle: "Late-return patterns, evidence, and data-quality exclusions", href: "/accountability", keywords: ["overdue", "leaderboard", "late returns", "accountability", "exclusions"] },
+];
+
 export function getVisiblePageSearchResults(role: string | undefined, query: string, limit = 8): PageSearchResult[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
@@ -38,6 +42,7 @@ export function getVisiblePageSearchResults(role: string | undefined, query: str
   const pages = [
     ...CORE_SEARCH_PAGES,
     ...(canUseStaffPages ? STAFF_SEARCH_PAGES : []),
+    ...(role === "ADMIN" ? ADMIN_SEARCH_PAGES : []),
     ...SETTINGS_SECTIONS
       .filter((section) => role ? isSectionVisible(section, role) : false)
       .map((section) => ({

@@ -22,7 +22,11 @@ private enum BookingListAction: Identifiable {
 @MainActor
 @Observable
 final class BookingsViewModel {
-    var bookings: [Booking] = []
+    var bookings: [Booking] = [] {
+        didSet {
+            sortedBookings = bookings.sorted(by: Self.dueSoonestSort)
+        }
+    }
     var isLoading = false
     var error: String?
     var pageError: String?
@@ -47,9 +51,7 @@ final class BookingsViewModel {
 
     var isEmpty: Bool { bookings.isEmpty }
 
-    var sortedBookings: [Booking] {
-        bookings.sorted(by: dueSoonestSort)
-    }
+    private(set) var sortedBookings: [Booking] = []
 
     func applyUserContext(id: String?, role: String?) {
         currentUserId = id
@@ -147,7 +149,7 @@ final class BookingsViewModel {
     /// only what a page returned is what hid the original bug: under 30 rows
     /// everything fits on page 1 and looks right, while past that the most
     /// urgent booking sat on the last page.
-    private func dueSoonestSort(_ lhs: Booking, _ rhs: Booking) -> Bool {
+    private static func dueSoonestSort(_ lhs: Booking, _ rhs: Booking) -> Bool {
         if lhs.endsAt != rhs.endsAt { return lhs.endsAt < rhs.endsAt }
         return lhs.id < rhs.id
     }

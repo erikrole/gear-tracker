@@ -24,6 +24,9 @@ describe("schedule working-copy route wiring", () => {
     expect(editor).toContain("will each receive one event summary");
     expect(editor).toContain('type: "setCallWindow"');
     expect(editor).toContain("Private until this schedule is published.");
+    expect(editor).toContain("data?.assignedUsers");
+    expect(workingService).toContain("assignedUsers");
+    expect(workingService).toContain("where: { id: { in: assignedUserIds } }");
     expect(workingService).not.toContain("sendPush");
     expect(workingService).not.toContain("sendEmail");
   });

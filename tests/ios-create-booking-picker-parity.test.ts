@@ -120,7 +120,8 @@ describe("iOS create booking picker parity", () => {
     // The picker renders the displayed groups (popular-first browse, category
     // chips, or grouped search results) as native sections.
     expect(createSheet).toContain("var displayedAssetGroups: [AssetCategoryGroup]");
-    expect(picker).toContain("ForEach(vm.displayedAssetGroups) { group in");
+    expect(picker).toContain("let displayedAssetGroups = vm.displayedAssetGroups");
+    expect(picker).toContain("ForEach(displayedAssetGroups) { group in");
     expect(picker).toContain("ForEach(group.assets) { asset in");
     expect(picker).toContain("Section(group.title)");
     expect(picker).toContain("More equipment exists. Search to narrow results.");

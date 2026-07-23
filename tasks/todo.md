@@ -18,6 +18,7 @@ Plan: `tasks/event-shift-working-schedule-plan.md`
 - [x] Simplify Schedule triage and inline assignment: promote Sport, remove Next call, align crew beside coverage, move Assign into row actions, and rank a scrollable working-copy picker by sport fit and workload.
 - [x] Normalize the expanded Schedule crew editor onto one stable right-side action grid with consistent spacing and 40px controls.
 - [x] Reduce expanded crew density by removing passive publication chrome and nested borders, collapsing repeated add controls, and moving destructive and conversion actions into row overflow menus.
+- [x] Rehydrate every draft-only assignee from the working-copy read model so names and avatars survive refresh without publishing.
 - [ ] Complete narrow responsive browser proof for the expanded Schedule workstation.
 - [ ] Move native staff quick actions and publish review from legacy live mutation routes to the additive working-copy contract; run source contracts and Xcode builds.
 - [ ] Add the explicit assigned-slot convert-and-replace flow.
@@ -27,6 +28,7 @@ Plan: `tasks/event-shift-working-schedule-plan.md`
 - Prisma format/validate/generate and migration shape checks pass.
 - Focused working-copy and publication tests cover private call-window staging, publish review counts, conflict and availability revalidation, and acknowledgement reset; focused ESLint and TypeScript pass.
 - Authenticated desktop browser proof confirms the Football vs Notre Dame Neutral chooser and the expanded row's Call/Release editor without mutating or publishing schedule data.
+- Authenticated refresh proof confirms Maddy Pehler and Ashley Steltenpohl remain named in the unpublished Volleyball vs Alumni working copy, with no `Assigned worker` fallback and no console errors.
 - `npm run build:app` compiles the production app, and live migration health reaches Neon with no pending, failed, or DB-only rows.
 - Migration `0099_shift_group_working_copy` is applied and Neon reports 101/101 local migrations with no pending, failed, or DB-only rows. Native mutation adoption remains tracked as GAP-60.
 

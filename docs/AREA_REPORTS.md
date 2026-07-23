@@ -3,12 +3,12 @@
 ## Document Control
 - Area: Reports & Analytics
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-16
+- Last Updated: 2026-07-23
 - Status: Active
 - Version: V1
 
 ## Direction
-Provide staff and admin with analytics dashboards to track checkout/reservation activity, utilization patterns, scan success rates, badge awards, and audit events. Reports are read-only views gated to ADMIN/STAFF.
+Provide staff and admin with analytics dashboards to track checkout/reservation activity, utilization patterns, scan success rates, badge awards, and audit events. Reports are read-only views gated to ADMIN/STAFF. The separate Accountability surface is an ADMIN-only intervention and data-quality workflow.
 
 ## Core Rules
 1. All reports are ADMIN/STAFF only (enforced on routes and endpoints), except the Audit report, which is ADMIN only (`report.audit`) to match the admin-only `/api/audit` browse feed.
@@ -17,6 +17,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 4. Data is cached via React Query with focus refresh.
 5. Empty states and error states handled with EmptyState + retry.
 6. Report-local CSV exports download only the currently visible report rows and must say that in the action/copy, except Utilization, Checkouts, Overdue, Audit, Scans, and Missing Units where the CSV action exports the full filtered, report-evidence, or row-level inventory result from a bounded server-backed endpoint.
+7. `/reports/overdue` remains the live open-custody queue. `/accountability` owns historical late-return patterns and never replaces or mutates custody evidence.
 
 ## Routes
 
@@ -105,6 +106,18 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - **Tables:** User leaderboard, badge distribution, underused active definitions, recent manual recognition, recent awards
 - **Data:** `GET /api/reports/badges`
 
+### `/accountability`
+- **Access:** ADMIN only through `accountability.view`; its sidebar and global-search entries are hidden from every other role.
+- **Type:** Intervention-oriented late-return ranking with expandable checkout evidence and reversible data-quality exclusions.
+- **Ranking:** Late-event count, then total late hours, then most recent incident. Rank 1 means the pattern most in need of review, not a gamified award.
+- **Time:** Defaults to the current July 1-June 30 academic year, with four prior years and all-time available.
+- **Filters:** Academic year, location, active/resolved incident state, and active/inactive user state.
+- **Metrics:** People needing attention, late events, currently overdue checkouts, and excluded records.
+- **Semantics:** `OPEN` rows use current time; `COMPLETED` rows use `completedAt`. Both compare against `endsAt + checkout_policies.gracePeriodHours`. On-time rate appears only after three completed checkouts.
+- **Data:** `GET /api/accountability`; `POST /api/accountability/exclusions`; `DELETE /api/accountability/exclusions/{bookingId}`.
+- **Export:** `GET /api/accountability?format=csv` exports the filtered person-level ranking through the shared report-export rate limit.
+- **Cleanup:** Exclusions require a reason, retain the booking and all custody evidence, write audit evidence in the same SERIALIZABLE transaction, and can be restored.
+
 ## Components
 
 **Shared across reports:**
@@ -123,13 +136,14 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 
 ## Data Model
 - Reports aggregate from existing models: `Booking`, `ScanEvent`, `BulkStockMovement`, `AuditLog`
-- No new tables; reports are read-only views via API endpoints that SELECT/aggregate
+- `BookingAccountabilityExclusion` is the sole report-governance exception. It is a one-to-one annotation on a checkout with reason, note, exclusion/restoration actors, and timestamps; it never replaces the booking.
 
 ## Security
 - `requirePermission("report", "view")` on all report routes + endpoints, except `/api/reports/audit`, which requires `report.audit` (ADMIN only)
 - ADMIN/STAFF only; the Audit report is ADMIN only
 - CSV export branches are rate limited per user (`report:export`, 10/min shared across all report exports)
 - Audit log endpoint logs report access (low priority)
+- Accountability reads and exclusion mutations require ADMIN-only `accountability.view` or `accountability.manage_exclusions`; mutations retain CSRF, rate-limit, SERIALIZABLE, and audit protections.
 
 ## Acceptance Criteria
 - [x] AC-1: Utilization report with inventory metrics + trend charts
@@ -140,8 +154,10 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - [x] AC-6: Audit report with event log viewer (ADMIN only)
 - [x] AC-7: Badge report with leaderboard, distribution, and recent awards
 - [x] AC-8: Missing Units report includes unit-tracked battery missing-unit, missing-rate, custody-history, and repeat-pattern reporting
+- [x] AC-9: Admin accountability ranks current and historical late returns and supports audited, reversible data-quality exclusions without deleting custody history.
 
 ## Change Log
+- 2026-07-23: Added the ADMIN-only Accountability surface. It ranks academic-year late-return incidents using the configured overdue grace period, separates active and resolved evidence, exposes filtered CSV, and adds audited reversible checkout exclusions for test or bad data while preserving D-040 custody history. The existing staff/admin Overdue report remains the live open-checkout queue.
 - 2026-07-16: Checkout report heatmap colors now use a theme-aware blue OKLCH intensity scale, matching the product rule that blue means active use. The visual change does not alter report data, custody semantics, filters, or APIs.
 - 2026-07-12: Reports hardening sweep. `/api/reports/audit` now requires the new `report.audit` permission (ADMIN only), matching the admin-only `/api/audit` browse feed and AC-6; the Audit tab is hidden from STAFF in the reports nav, global search, and breadcrumb siblings via `requiredRole` on `REPORT_SECTIONS`. All six report CSV export branches now share a per-user `report:export` rate limit (10/min). Corrected doc drift: Utilization has no filters or query params, and the Audit report filters by period only with `startDate`/`endDate`/`action` params.
 - 2026-06-20: Report toolbars inherit the refreshed shared active-filter chip treatment, keeping Checkouts, Scans, and Audit non-default filters removable while making applied filters read as lighter controls with 40px targets and active underline.

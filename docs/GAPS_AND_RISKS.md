@@ -29,6 +29,7 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 | Reservation and checkout templates | AREA_RESERVATIONS | Phase C; defer until repeatable operator habits justify template ownership. |
 | Board or operations view for game-day coordinators | AREA_DASHBOARD | Phase C; do not add another command surface before current queues prove insufficient. |
 | Advanced analytics | NORTH_STAR | Phase C; operational workflows and trustworthy history take priority. |
+| Public accountability publishing | AREA_REPORTS | The ADMIN-only evidence and cleanup workflow must prove trustworthy first. Public identity, anonymization, institutional policy, and the safe public response contract require a separate accepted decision before any unauthenticated route ships. |
 | Multi-source event ingestion beyond UW Badgers ICS | AREA_EVENTS | Defer until another source is operationally required. |
 | Database-configurable equipment guidance rules | AREA_CHECKOUTS | D-016 keeps V1 guidance code-defined. Revisit when operators need direct rule ownership. |
 

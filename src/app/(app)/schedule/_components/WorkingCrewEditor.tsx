@@ -47,6 +47,7 @@ type EditorData = {
     total: number;
   };
   affectedWorkerCount: number;
+  assignedUsers: PickerUser[];
   schedule: WorkingSchedulePayload;
 };
 
@@ -274,12 +275,13 @@ export function WorkingCrewEditor({
 
   const userById = useMemo(() => {
     const users = new Map<string, PickerUser>();
+    for (const user of data?.assignedUsers ?? []) users.set(user.id, user);
     for (const user of pickerUsers) users.set(user.id, user);
     for (const shift of entry.shifts) {
       for (const assignment of shift.assignments) users.set(assignment.user.id, assignment.user);
     }
     return users;
-  }, [entry.shifts, pickerUsers]);
+  }, [data?.assignedUsers, entry.shifts, pickerUsers]);
 
   const mutate = useCallback(async (command: WorkingScheduleCommand, key: string) => {
     if (!shiftGroupId || !data || actingRef.current) return;

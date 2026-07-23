@@ -3,37 +3,76 @@ import SwiftUI
 @MainActor
 @Observable
 final class TradeBoardViewModel {
-    var trades: [ShiftTrade] = []
-    var openWork = OpenWorkResponse(openShifts: [], pickupRequests: [])
+    private struct Sections {
+        var availableOpenShifts: [OpenWorkShift] = []
+        var waitingOpenShifts: [OpenWorkShift] = []
+        var availableTrades: [ShiftTrade] = []
+        var myTrades: [ShiftTrade] = []
+        var resolvedTrades: [ShiftTrade] = []
+        var postedTrades: [ShiftTrade] = []
+    }
+
+    var trades: [ShiftTrade] = [] {
+        didSet { rebuildSections() }
+    }
+    var openWork = OpenWorkResponse(openShifts: [], pickupRequests: []) {
+        didSet { rebuildSections() }
+    }
     var total = 0
     var isLoading = false
     var error: String?
-    var currentUserId: String = ""
-    var currentUserRole: String = ""
+    var currentUserId: String = "" {
+        didSet { rebuildSections() }
+    }
+    var currentUserRole: String = "" {
+        didSet { rebuildSections() }
+    }
     private let pageSize = 30
+    private var sections = Sections()
 
     var isStaff: Bool { currentUserRole == "ADMIN" || currentUserRole == "STAFF" }
-    var availableOpenShifts: [OpenWorkShift] { openWork.openShifts.filter { $0.action == "claim" } }
-    var waitingOpenShifts: [OpenWorkShift] { openWork.openShifts.filter { $0.action == "none" } }
-    var availableTrades: [ShiftTrade] { trades.filter { !isStaff && $0.status == .open && $0.postedBy.id != currentUserId } }
-    var myTrades: [ShiftTrade] { trades.filter { $0.postedBy.id == currentUserId && ($0.status == .open || $0.status == .claimed) } }
-    var resolvedTrades: [ShiftTrade] { trades.filter { $0.status == .completed || $0.status == .cancelled } }
-    var postedTrades: [ShiftTrade] {
-        trades.filter { trade in
-            !availableTrades.contains(where: { $0.id == trade.id })
-            && !myTrades.contains(where: { $0.id == trade.id })
-            && !resolvedTrades.contains(where: { $0.id == trade.id })
-        }
-    }
+    var availableOpenShifts: [OpenWorkShift] { sections.availableOpenShifts }
+    var waitingOpenShifts: [OpenWorkShift] { sections.waitingOpenShifts }
+    var availableTrades: [ShiftTrade] { sections.availableTrades }
+    var myTrades: [ShiftTrade] { sections.myTrades }
+    var resolvedTrades: [ShiftTrade] { sections.resolvedTrades }
+    var postedTrades: [ShiftTrade] { sections.postedTrades }
     var visibleCount: Int {
-        availableOpenShifts.count
-        + availableTrades.count
-        + myTrades.count
-        + waitingOpenShifts.count
-        + postedTrades.count
-        + resolvedTrades.count
+        sections.availableOpenShifts.count
+            + sections.availableTrades.count
+            + sections.myTrades.count
+            + sections.waitingOpenShifts.count
+            + sections.postedTrades.count
+            + sections.resolvedTrades.count
     }
-    var actionableCount: Int { availableOpenShifts.count + availableTrades.count }
+    var actionableCount: Int {
+        sections.availableOpenShifts.count + sections.availableTrades.count
+    }
+
+    private func rebuildSections() {
+        var next = Sections()
+        for shift in openWork.openShifts {
+            switch shift.action {
+            case "claim": next.availableOpenShifts.append(shift)
+            case "none": next.waitingOpenShifts.append(shift)
+            default: break
+            }
+        }
+
+        for trade in trades {
+            if !isStaff, trade.status == .open, trade.postedBy.id != currentUserId {
+                next.availableTrades.append(trade)
+            } else if trade.postedBy.id == currentUserId,
+                      trade.status == .open || trade.status == .claimed {
+                next.myTrades.append(trade)
+            } else if trade.status == .completed || trade.status == .cancelled {
+                next.resolvedTrades.append(trade)
+            } else {
+                next.postedTrades.append(trade)
+            }
+        }
+        sections = next
+    }
 
     func load() async {
         guard !isLoading else { return }

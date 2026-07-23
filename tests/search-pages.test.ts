@@ -26,4 +26,13 @@ describe("global page search results", () => {
       href: "/reports/bulk-losses",
     }));
   });
+
+  it("keeps accountability discovery admin-only", () => {
+    expect(getVisiblePageSearchResults("ADMIN", "late returns", 10)).toContainEqual(
+      expect.objectContaining({ title: "Accountability", href: "/accountability" }),
+    );
+    expect(getVisiblePageSearchResults("STAFF", "late returns", 10)).not.toContainEqual(
+      expect.objectContaining({ href: "/accountability" }),
+    );
+  });
 });

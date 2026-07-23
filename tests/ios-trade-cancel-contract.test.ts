@@ -26,6 +26,9 @@ describe("iOS trade cancel contract", () => {
     expect(sheet).toContain("let updated = try await APIClient.shared.cancelShiftTrade(id: id)");
     expect(sheet).toContain("trades[idx] = updated");
     expect(sheet).not.toContain("trades.removeAll { $0.id == id }");
-    expect(sheet).toContain("var myTrades: [ShiftTrade] { trades.filter { $0.postedBy.id == currentUserId && ($0.status == .open || $0.status == .claimed) } }");
+    expect(sheet).toContain("var myTrades: [ShiftTrade] { sections.myTrades }");
+    expect(sheet).toContain("trade.postedBy.id == currentUserId");
+    expect(sheet).toContain("trade.status == .open || trade.status == .claimed");
+    expect(sheet).toContain("next.myTrades.append(trade)");
   });
 });

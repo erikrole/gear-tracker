@@ -33,14 +33,21 @@ private let scheduleStaleAfter: TimeInterval = 5 * 60 // 5 minutes
 @MainActor
 @Observable
 final class ScheduleViewModel {
-    var events: [ScheduleEvent] = []
+    var events: [ScheduleEvent] = [] {
+        didSet { rebuildEventIndexes() }
+    }
     var myShifts: [MyShift] = []
     var isLoading = false
     var error: String?
     var refreshError: String?
     /// When true, the load also pulls events whose end time is in the past —
     /// matches the "Past" toggle the web schedule's list view exposes.
-    var includePast = false
+    var includePast = false {
+        didSet {
+            guard includePast != oldValue else { return }
+            rebuildEventIndexes()
+        }
+    }
     private var hasLoaded = false
 
     var shiftsByEventId: [String: MyShift] = [:]
@@ -57,29 +64,27 @@ final class ScheduleViewModel {
         includePast ? .distantPast : Calendar.current.startOfDay(for: .now)
     }
 
-    var groupedEvents: [(date: Date, events: [ScheduleEvent])] {
+    private(set) var groupedEvents: [(date: Date, events: [ScheduleEvent])] = []
+    private(set) var eventsByDay: [Date: [ScheduleEvent]] = [:]
+
+    private func rebuildEventIndexes() {
         var byDay: [Date: [ScheduleEvent]] = [:]
+        var allByDay: [Date: [ScheduleEvent]] = [:]
         let lowerBound = spanLowerBound
         for event in events {
             // A multi-day event appears under each calendar day it covers, so
             // it stays visible while it's still in progress.
-            for day in event.spannedDays where day >= lowerBound {
-                byDay[day, default: []].append(event)
+            for day in event.spannedDays {
+                allByDay[day, default: []].append(event)
+                if day >= lowerBound {
+                    byDay[day, default: []].append(event)
+                }
             }
         }
-        return byDay
+        groupedEvents = byDay
             .sorted { $0.key < $1.key }
             .map { (date: $0.key, events: $0.value.sorted { $0.startsAt < $1.startsAt }) }
-    }
-
-    var eventsByDay: [Date: [ScheduleEvent]] {
-        var dict: [Date: [ScheduleEvent]] = [:]
-        for event in events {
-            for day in event.spannedDays {
-                dict[day, default: []].append(event)
-            }
-        }
-        return dict
+        eventsByDay = allByDay
     }
 
     func load(forceRefresh: Bool = false) async {
@@ -889,11 +894,9 @@ private struct InternalScheduleView: View {
         return parts.isEmpty ? "All upcoming events" : parts.joined(separator: " · ")
     }
 
-    private var matchingEventCount: Int {
-        Set(displayedGroups.flatMap { $0.events.map(\.id) }).count
-    }
-
     var body: some View {
+        let groups = displayedGroups
+        let matchingEventCount = Set(groups.flatMap { $0.events.map(\.id) }).count
         NavigationStack(path: $navigationPath) {
             Group {
                 if vm.isLoading && vm.events.isEmpty {
@@ -932,7 +935,7 @@ private struct InternalScheduleView: View {
 
                         switch viewMode {
                         case .list:
-                            eventList
+                            eventList(groups: groups)
                         case .calendar:
                             ScheduleCalendarView(
                                 selectedDate: $calendarSelectedDate,
@@ -1204,8 +1207,8 @@ private struct InternalScheduleView: View {
     }
 
     @ViewBuilder
-    private var eventList: some View {
-        if displayedGroups.isEmpty {
+    private func eventList(groups: [(date: Date, events: [ScheduleEvent])]) -> some View {
+        if groups.isEmpty {
             ContentUnavailableView {
                 Label(filteredEmptyTitle, systemImage: "calendar")
             } description: {
@@ -1218,7 +1221,7 @@ private struct InternalScheduleView: View {
             }
         } else {
             List {
-                ForEach(displayedGroups, id: \.date) { group in
+                ForEach(groups, id: \.date) { group in
                     Section {
                         ForEach(group.events) { event in
                             // A Button (not NavigationLink) so the row keeps its own
@@ -1899,7 +1902,8 @@ struct ScheduleCalendarView: View {
 
     @ViewBuilder
     private var dayEventList: some View {
-        if selectedDayEvents.isEmpty {
+        let events = selectedDayEvents
+        if events.isEmpty {
             VStack {
                 Spacer()
                 Text("No events on \(selectedDate.formatted(.dateTime.month(.abbreviated).day()))")
@@ -1910,7 +1914,7 @@ struct ScheduleCalendarView: View {
             .frame(maxWidth: .infinity)
         } else {
             List {
-                ForEach(selectedDayEvents) { event in
+                ForEach(events) { event in
                     Button { onSelectEvent(event) } label: {
                         EventRow(
                             event: event,

@@ -5,6 +5,7 @@
 
 | File | Lines |
 |---|---:|
+| `src/lib/services/accountability.ts` | 400 |
 | `src/lib/services/auto-assign.ts` | 91 |
 | `src/lib/services/auto-fill-preview.ts` | 259 |
 | `src/lib/services/availability-conflict-recompute.ts` | 128 |
@@ -49,7 +50,7 @@
 | `src/lib/services/schedule-open-work.ts` | 440 |
 | `src/lib/services/schedule-publication.ts` | 596 |
 | `src/lib/services/schedule-template-review.ts` | 551 |
-| `src/lib/services/schedule-working-copy.ts` | 428 |
+| `src/lib/services/schedule-working-copy.ts` | 445 |
 | `src/lib/services/shift-assignment-conflicts.ts` | 43 |
 | `src/lib/services/shift-assignments.ts` | 628 |
 | `src/lib/services/shift-generation.ts` | 619 |
@@ -125,7 +126,7 @@
 | `src/lib/observability.ts` | 19 |
 | `src/lib/operational-health.ts` | 50 |
 | `src/lib/ops-checks.ts` | 176 |
-| `src/lib/permissions.ts` | 171 |
+| `src/lib/permissions.ts` | 175 |
 | `src/lib/profile-completion-events.ts` | 6 |
 | `src/lib/profile-completion.ts` | 157 |
 | `src/lib/profile-phone.ts` | 44 |
@@ -150,7 +151,7 @@
 | `src/lib/schedule-queues.ts` | 174 |
 | `src/lib/schedule-template-review-types.ts` | 105 |
 | `src/lib/schedule-working-copy.ts` | 255 |
-| `src/lib/search-pages.ts` | 67 |
+| `src/lib/search-pages.ts` | 72 |
 | `src/lib/search-result-title.ts` | 13 |
 | `src/lib/shell-navigation.ts` | 11 |
 | `src/lib/shift-call-windows.ts` | 182 |
@@ -175,6 +176,12 @@
 | `src/lib/venue-tone.ts` | 97 |
 
 ## API Route Groups
+
+### `/api/accountability`
+
+- `/api/accountability/exclusions/[bookingId]`
+- `/api/accountability/exclusions`
+- `/api/accountability`
 
 ### `/api/admin`
 

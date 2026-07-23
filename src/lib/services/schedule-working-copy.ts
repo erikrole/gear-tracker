@@ -118,9 +118,25 @@ function parseStoredPayload(value: Prisma.JsonValue): WorkingSchedulePayload {
   return parsed.data;
 }
 
-function editorResponse(group: EditorGroup) {
+async function editorResponse(group: EditorGroup, tx: Prisma.TransactionClient = db) {
   const published = buildWorkingSchedulePayload(group);
   const working = group.workingCopy ? parseStoredPayload(group.workingCopy.payload) : published;
+  const assignedUserIds = [...new Set(
+    working.slots.flatMap((slot) => slot.assignment ? [slot.assignment.userId] : []),
+  )];
+  const assignedUsers = assignedUserIds.length > 0
+    ? await tx.user.findMany({
+      where: { id: { in: assignedUserIds } },
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        staffingType: true,
+        primaryArea: true,
+        avatarUrl: true,
+      },
+    })
+    : [];
   const changes = summarizeWorkingScheduleChanges(published, working);
   const affectedWorkerIds = new Set<string>();
   const publishedBySourceId = new Map(
@@ -166,6 +182,7 @@ function editorResponse(group: EditorGroup) {
     updatedById: group.workingCopy?.updatedById ?? null,
     changes,
     affectedWorkerCount: group.publishedAt ? affectedWorkerIds.size : initialPublishWorkerCount,
+    assignedUsers,
     schedule: working,
   };
 }
@@ -387,7 +404,7 @@ export async function mutateWorkingSchedule(
       after: { version: nextVersion, changes: summarizeWorkingScheduleChanges(buildWorkingSchedulePayload(group), afterPayload) },
     });
 
-    return editorResponse(await findEditorGroup(shiftGroupId, tx));
+    return editorResponse(await findEditorGroup(shiftGroupId, tx), tx);
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
@@ -398,7 +415,7 @@ export async function discardWorkingSchedule(
 ) {
   return db.$transaction(async (tx) => {
     const group = await findEditorGroup(shiftGroupId, tx);
-    if (!group.workingCopy) return editorResponse(group);
+    if (!group.workingCopy) return editorResponse(group, tx);
     if (group.workingCopy.version !== expectedVersion) {
       throw new HttpError(409, "This schedule changed in another session. Refresh before discarding it.");
     }
@@ -422,6 +439,6 @@ export async function discardWorkingSchedule(
       after: { version: 0 },
     });
 
-    return editorResponse(await findEditorGroup(shiftGroupId, tx));
+    return editorResponse(await findEditorGroup(shiftGroupId, tx), tx);
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }

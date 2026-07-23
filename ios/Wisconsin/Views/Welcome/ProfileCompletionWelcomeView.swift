@@ -351,7 +351,11 @@ struct ProfileCompletionWelcomeView: View {
         defer { isLoadingPhoto = false }
         do {
             guard let data = try await item.loadTransferable(type: Data.self),
-                  let image = downsampledImage(data: data, maxPixelSize: 2400) else {
+                  let image = await NativeImageProcessor.downsample(
+                    data: data,
+                    maxPixels: 2400,
+                    scale: 1
+                  ) else {
                 throw CocoaError(.fileReadCorruptFile)
             }
             selectedPhoto = SelectedProfilePhoto(image: image)
@@ -359,18 +363,6 @@ struct ProfileCompletionWelcomeView: View {
             photoSelection = nil
             photoLoadError = "That photo couldn’t be opened. Choose another photo and try again."
         }
-    }
-
-    private func downsampledImage(data: Data, maxPixelSize: Int) -> UIImage? {
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
-        let options: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
-            kCGImageSourceShouldCacheImmediately: true,
-        ]
-        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
-        return UIImage(cgImage: cgImage)
     }
 
 }

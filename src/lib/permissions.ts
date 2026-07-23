@@ -84,6 +84,10 @@ export const PERMISSIONS: Record<string, Record<string, Role[]>> = {
     // aligned with the admin-only /api/audit browse feed.
     audit: ["ADMIN"],
   },
+  accountability: {
+    view: ["ADMIN"],
+    manage_exclusions: ["ADMIN"],
+  },
   notification: {
     view: ["ADMIN", "STAFF", "STUDENT"],
     process: ["ADMIN", "STAFF"],

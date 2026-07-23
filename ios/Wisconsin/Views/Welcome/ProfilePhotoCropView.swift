@@ -204,12 +204,18 @@ struct ProfilePhotoCropView: View {
     private func save() {
         guard !isSaving else { return }
         error = nil
-        guard let data = croppedJPEGData() else {
-            error = "The selected photo could not be cropped. Choose another photo and try again."
-            return
-        }
         isSaving = true
         Task {
+            guard let data = await NativeImageProcessor.croppedJPEGData(
+                image: image,
+                cropDiameter: cropDiameter,
+                zoom: zoom,
+                offset: offset
+            ) else {
+                isSaving = false
+                error = "The selected photo could not be cropped. Choose another photo and try again."
+                return
+            }
             let saved = await onSave(data)
             isSaving = false
             if !saved {
@@ -219,44 +225,6 @@ struct ProfilePhotoCropView: View {
                 Haptics.success()
                 dismiss()
             }
-        }
-    }
-
-    private func croppedJPEGData() -> Data? {
-        let normalized = image.normalizedForProfileCrop()
-        guard let cgImage = normalized.cgImage else { return nil }
-
-        let imageSize = CGSize(width: cgImage.width, height: cgImage.height)
-        let baseScale = max(cropDiameter / imageSize.width, cropDiameter / imageSize.height)
-        let scale = baseScale * zoom
-        let sourceSide = cropDiameter / scale
-        let center = CGPoint(
-            x: imageSize.width / 2 - offset.width / scale,
-            y: imageSize.height / 2 - offset.height / scale
-        )
-        let rect = CGRect(
-            x: min(max(0, center.x - sourceSide / 2), imageSize.width - sourceSide),
-            y: min(max(0, center.y - sourceSide / 2), imageSize.height - sourceSide),
-            width: sourceSide,
-            height: sourceSide
-        ).integral
-
-        guard let cropped = cgImage.cropping(to: rect) else { return nil }
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 1024, height: 1024))
-        let output = renderer.image { _ in
-            UIImage(cgImage: cropped).draw(in: CGRect(x: 0, y: 0, width: 1024, height: 1024))
-        }
-        return output.jpegData(compressionQuality: 0.9)
-    }
-}
-
-private extension UIImage {
-    func normalizedForProfileCrop() -> UIImage {
-        guard imageOrientation != .up else { return self }
-        let format = UIGraphicsImageRendererFormat.default()
-        format.scale = scale
-        return UIGraphicsImageRenderer(size: size, format: format).image { _ in
-            draw(in: CGRect(origin: .zero, size: size))
         }
     }
 }

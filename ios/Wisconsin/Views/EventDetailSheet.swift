@@ -8,7 +8,9 @@ final class EventDetailViewModel {
     let event: ScheduleEvent
     let myShift: MyShift?
 
-    var shiftGroup: EventShiftGroup?
+    var shiftGroup: EventShiftGroup? {
+        didSet { shiftsByArea = Self.makeShiftsByArea(from: shiftGroup) }
+    }
     var isLoading = false
     var error: String?
 
@@ -35,7 +37,9 @@ final class EventDetailViewModel {
 
     private static let areaOrder = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"]
 
-    var shiftsByArea: [(area: String, shifts: [EventShift])] {
+    private(set) var shiftsByArea: [(area: String, shifts: [EventShift])] = []
+
+    private static func makeShiftsByArea(from shiftGroup: EventShiftGroup?) -> [(area: String, shifts: [EventShift])] {
         guard let group = shiftGroup else { return [] }
         var byArea: [String: [EventShift]] = [:]
         for shift in group.shifts {

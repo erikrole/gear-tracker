@@ -3,6 +3,7 @@
 
 ## Pages
 
+- `/accountability` -> `src/app/(app)/accountability/page.tsx`
 - `/admin/fix-today` -> `src/app/(app)/admin/fix-today/page.tsx`
 - `/bookings` -> `src/app/(app)/bookings/page.tsx`
 - `/bulk-inventory/[id]` -> `src/app/(app)/bulk-inventory/[id]/page.tsx`
@@ -93,6 +94,9 @@
 
 ## API Routes
 
+- `/api/accountability/exclusions/[bookingId]` -> `src/app/api/accountability/exclusions/[bookingId]/route.ts`
+- `/api/accountability/exclusions` -> `src/app/api/accountability/exclusions/route.ts`
+- `/api/accountability` -> `src/app/api/accountability/route.ts`
 - `/api/admin/fix-today` -> `src/app/api/admin/fix-today/route.ts`
 - `/api/allowed-emails/[id]` -> `src/app/api/allowed-emails/[id]/route.ts`
 - `/api/allowed-emails/preview` -> `src/app/api/allowed-emails/preview/route.ts`

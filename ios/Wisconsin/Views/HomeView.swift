@@ -532,46 +532,6 @@ private struct HomeActionQueue: View {
     let openEventWork: (DashboardEventWork) -> Void
     let currentUserId: String?
 
-    private var myOverdueBookings: [BookingSummary] {
-        dash.myCheckouts.items.filter(\.isOverdue)
-    }
-
-    private var myPendingPickups: [BookingSummary] {
-        guard let currentUserId else { return [] }
-        return dash.pendingPickups.items.filter { $0.requesterUserId == currentUserId }
-    }
-
-    private var dueTodayBookings: [BookingSummary] {
-        let checkouts = dash.myCheckouts.items
-        var seen = Set<String>()
-        return checkouts.filter { summary in
-            guard !summary.isOverdue,
-                  Calendar.current.isDateInToday(summary.endsAt),
-                  !seen.contains(summary.id)
-            else { return false }
-            seen.insert(summary.id)
-            return true
-        }
-    }
-
-    /// Checkouts due beyond today. Without these the queue's `hasActions`
-    /// (which counts any active checkout) could render a header-only card.
-    private var upcomingCheckouts: [BookingSummary] {
-        dash.myCheckouts.items.filter { !$0.isOverdue && !Calendar.current.isDateInToday($0.endsAt) }
-    }
-
-    private var eventLinkedGearIds: Set<String> {
-        Set(dash.myEventWork.flatMap { $0.gearBookings.map(\.id) })
-    }
-
-    private var standalonePendingPickups: [BookingSummary] {
-        myPendingPickups.filter { !eventLinkedGearIds.contains($0.id) }
-    }
-
-    private var standaloneReservations: [BookingSummary] {
-        dash.myReservations.filter { !eventLinkedGearIds.contains($0.id) }
-    }
-
     private func shiftLinked(to summary: BookingSummary) -> DashboardShift? {
         let ids = Set(summary.eventIds + [summary.linkedEventId, summary.eventId].compactMap { $0 })
         guard !ids.isEmpty else { return nil }
@@ -612,7 +572,37 @@ private struct HomeActionQueue: View {
     /// happens. Grouping by category instead put a Sunday shift above a
     /// checkout due Thursday, which reads as an ordering bug on a list whose
     /// whole job is "what's next". Overdue stays pinned above this.
-    private var chronologicalEntries: [QueueEntry] {
+    private func makeDisplayedEntries() -> [QueueEntry] {
+        let eventLinkedGearIds = Set(dash.myEventWork.flatMap { $0.gearBookings.map(\.id) })
+        var overdueBookings: [BookingSummary] = []
+        var dueTodayBookings: [BookingSummary] = []
+        var upcomingCheckouts: [BookingSummary] = []
+        var seenDueToday = Set<String>()
+
+        for summary in dash.myCheckouts.items {
+            if summary.isOverdue {
+                overdueBookings.append(summary)
+            } else if Calendar.current.isDateInToday(summary.endsAt) {
+                if seenDueToday.insert(summary.id).inserted {
+                    dueTodayBookings.append(summary)
+                }
+            } else {
+                upcomingCheckouts.append(summary)
+            }
+        }
+
+        let standalonePendingPickups: [BookingSummary]
+        if let currentUserId {
+            standalonePendingPickups = dash.pendingPickups.items.filter {
+                $0.requesterUserId == currentUserId && !eventLinkedGearIds.contains($0.id)
+            }
+        } else {
+            standalonePendingPickups = []
+        }
+        let standaloneReservations = dash.myReservations.filter {
+            !eventLinkedGearIds.contains($0.id)
+        }
+
         var entries: [QueueEntry] = []
         entries += dueTodayBookings.prefix(3).map {
             QueueEntry(id: "due-today-\($0.id)", sortsAt: $0.endsAt, kind: .dueToday($0))
@@ -629,9 +619,13 @@ private struct HomeActionQueue: View {
         entries += upcomingCheckouts.prefix(3).map {
             QueueEntry(id: "checkout-\($0.id)", sortsAt: $0.endsAt, kind: .upcomingCheckout($0))
         }
-        return entries.sorted {
+        let chronological = entries.sorted {
             $0.sortsAt == $1.sortsAt ? $0.id < $1.id : $0.sortsAt < $1.sortsAt
         }
+        let overdue = overdueBookings.prefix(3).map {
+            QueueEntry(id: "overdue-\($0.id)", sortsAt: $0.endsAt, kind: .overdue($0))
+        }
+        return overdue + chronological
     }
 
     /// Mirrors `EventActionQueueRow.firstTime` so a row sorts on the same
@@ -712,23 +706,15 @@ private struct HomeActionQueue: View {
             || !dash.myCheckouts.items.isEmpty
     }
 
-    /// Overdue stays pinned above the chronological list, but both render
-    /// through one loop so the dividers between rows are uniform.
-    private var displayedEntries: [QueueEntry] {
-        let overdue = myOverdueBookings.prefix(3).map {
-            QueueEntry(id: "overdue-\($0.id)", sortsAt: $0.endsAt, kind: .overdue($0))
-        }
-        return overdue + chronologicalEntries
-    }
-
     var body: some View {
+        let entries = makeDisplayedEntries()
         VStack(alignment: .leading, spacing: 12) {
             header
 
             VStack(spacing: 0) {
-                ForEach(displayedEntries) { entry in
+                ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
                     row(for: entry)
-                    if entry.id != displayedEntries.last?.id {
+                    if index < entries.count - 1 {
                         // Inset to the title, so the rail and glyph column
                         // reads as one stack of kinds down the left edge.
                         Divider().padding(.leading, 46)
