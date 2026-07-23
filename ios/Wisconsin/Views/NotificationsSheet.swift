@@ -96,7 +96,6 @@ struct NotificationsSheet: View {
 
     @State private var vm = NotificationsViewModel()
     @Environment(\.dismiss) private var dismiss
-    @Environment(AppState.self) private var appState
     @State private var markAllHaptic = false
     @State private var swipeMarkHaptic = false
     @State private var actionErrorHaptic = false
@@ -128,12 +127,6 @@ struct NotificationsSheet: View {
             }
             .navigationTitle("Notifications")
             .navigationBarTitleDisplayMode(.inline)
-            // Marking rows read has to walk the icon badge down immediately.
-            // Waiting for the next AppState refresh leaves a red dot on the
-            // Home Screen for an inbox the user just cleared.
-            .onChange(of: vm.unreadCount, initial: true) { _, count in
-                appState.setUnreadCount(count)
-            }
             .overlay(alignment: .top) {
                 if let actionError = vm.actionError {
                     BannerView(

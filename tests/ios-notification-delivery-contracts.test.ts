@@ -15,7 +15,7 @@ function slice(text: string, start: string, end: string) {
 }
 
 describe("APNs delivery semantics", () => {
-  it("stamps the unread count on every alert so the icon badge is live", () => {
+  it("badges the count of gear the user has out, not unread notifications", () => {
     const apns = source("src/lib/push/apns.ts");
     const notifications = source("src/lib/services/notifications.ts");
 
@@ -23,8 +23,12 @@ describe("APNs delivery semantics", () => {
     // rather than default to zero and wipe a legitimate count.
     expect(apns).toContain('...(typeof opts.badge === "number" ? { badge: Math.max(0, opts.badge) } : {})');
 
-    expect(notifications).toContain("async function unreadBadgeCount(userId: string)");
-    expect(notifications).toContain("db.notification.count({ where: { userId, readAt: null } })");
+    expect(notifications).toContain("async function activeCheckoutBadgeCount(userId: string)");
+    expect(notifications).toContain(
+      'where: { kind: "CHECKOUT", status: "OPEN", requesterUserId: userId },',
+    );
+    // An unread count clears itself by being looked at; open custody does not.
+    expect(notifications).not.toContain("db.notification.count({ where: { userId, readAt: null } })");
     // A failed count must cost the badge, never the notification.
     expect(notifications).toContain("return undefined;");
     expect(notifications).toContain("badge,");
@@ -95,18 +99,19 @@ describe("APNs delivery semantics", () => {
 });
 
 describe("iOS notification lifecycle", () => {
-  it("walks the icon badge down as the inbox is read", () => {
+  it("walks the icon badge down as gear comes back", () => {
     const appState = source("ios/Wisconsin/Core/AppState.swift");
-    const sheet = source("ios/Wisconsin/Views/NotificationsSheet.swift");
+    const dashboardModels = source("ios/Wisconsin/Models/DashboardModels.swift");
 
     expect(appState).toContain("func syncApplicationBadge()");
     expect(appState).toContain("UNUserNotificationCenter.current().setBadgeCount(count)");
-    expect(appState).toContain("func setUnreadCount(_ count: Int)");
     // Server-sent badges only cover the app-closed case; refresh covers the rest.
-    expect(appState).toContain("syncApplicationBadge()");
+    expect(appState).toContain("let count = max(0, activeCheckoutCount)");
+    expect(appState).toContain("activeCheckoutCount = stats.myCheckoutsTotal ?? 0");
 
-    expect(sheet).toContain("@Environment(AppState.self) private var appState");
-    expect(sheet).toContain("appState.setUnreadCount(count)");
+    // `stats.checkedOut` reports the whole org outside the ios-home scope, so
+    // the badge has to read the always-personal field instead.
+    expect(dashboardModels).toContain("let myCheckoutsTotal: Int?");
   });
 
   it("leaves no notification state behind for the next user on a shared device", () => {
@@ -115,6 +120,8 @@ describe("iOS notification lifecycle", () => {
 
     expect(appState).toContain("func clearNotificationState()");
     expect(appState).toContain("pushRegistrationState = .unknown");
+    // Or the next user's icon claims they have the previous user's gear out.
+    expect(appState).toContain("activeCheckoutCount = 0");
 
     const signOut = slice(app, "if user == nil, oldUser != nil {", "// Push permission is now requested");
     // Server-side revoke already happens in SessionStore.logout; the local

@@ -308,4 +308,8 @@ struct DashboardStatsPayload: Codable {
     let overdueCount: Int
     let myShiftsCount: Int
     let myShiftsTodayCount: Int?
+    /// Drives the app icon badge. Read from its own field rather than
+    /// `stats.checkedOut`, which reports the whole org's gear outside the
+    /// `ios-home` scope — the badge must only ever count the caller's own.
+    let myCheckoutsTotal: Int?
 }

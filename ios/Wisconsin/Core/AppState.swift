@@ -27,6 +27,8 @@ final class AppState {
     var myShiftTodayCount = 0
     var unreadNotifCount = 0
     var openTradeCount = 0
+    /// Gear the signed-in user currently has out. Drives the app icon badge.
+    var activeCheckoutCount = 0
     var pendingPushBookingId: String?
     var pendingExtendBookingId: String?
     var pendingPushEventId: String?
@@ -107,6 +109,7 @@ final class AppState {
             myShiftCount = stats.myShiftsCount
             myShiftTodayCount = stats.myShiftsTodayCount ?? 0
             unreadNotifCount = count
+            activeCheckoutCount = stats.myCheckoutsTotal ?? 0
             syncApplicationBadge()
             openTradeCount = min(trades.total, 9)
             appStatePerformanceLog.info("launch.appState.refresh result=success durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public) overdue=\(self.overdueCount, privacy: .public) shifts=\(self.myShiftCount, privacy: .public) shiftsToday=\(self.myShiftTodayCount, privacy: .public) unread=\(self.unreadNotifCount, privacy: .public) openTrades=\(self.openTradeCount, privacy: .public)")
@@ -119,24 +122,18 @@ final class AppState {
     func refreshUnread() async {
         do {
             unreadNotifCount = try await APIClient.shared.notificationUnreadCount()
-            syncApplicationBadge()
         } catch {}
     }
 
-    /// Records an unread count observed elsewhere (the inbox sheet marking rows
-    /// read) so the icon badge tracks it without waiting for the next refresh.
-    func setUnreadCount(_ count: Int) {
-        unreadNotifCount = max(0, count)
-        syncApplicationBadge()
-    }
-
-    /// Mirrors the unread inbox count onto the app icon.
+    /// Mirrors the user's open checkout count onto the app icon.
     ///
-    /// The server also stamps a `badge` on every push, which keeps the icon
-    /// correct while the app is closed. This is the other half: once the user
-    /// reads things in-app, the icon has to come back down on its own.
+    /// The server stamps the same count on every push, which keeps the icon
+    /// correct while the app is closed. This is the other half: once gear comes
+    /// back, the icon has to come down on its own. Check-in and checkout both
+    /// run through the kiosk rather than this app, so the number is re-read on
+    /// every foreground rather than driven by a local mutation.
     func syncApplicationBadge() {
-        let count = max(0, unreadNotifCount)
+        let count = max(0, activeCheckoutCount)
         Task {
             do {
                 try await UNUserNotificationCenter.current().setBadgeCount(count)
@@ -148,9 +145,10 @@ final class AppState {
     }
 
     /// Zeroes the icon badge and the counters behind it. Called on sign-out so
-    /// the next user does not inherit the previous one's unread count.
+    /// the next user does not inherit the previous one's checked-out gear.
     func clearNotificationState() {
         unreadNotifCount = 0
+        activeCheckoutCount = 0
         pendingPushBookingId = nil
         pendingExtendBookingId = nil
         pendingPushEventId = nil

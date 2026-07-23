@@ -49,13 +49,19 @@ export function checkoutCollapseId(bookingId: string): string {
 }
 
 /**
- * Unread inbox count for the app icon badge. Read *after* the caller has
- * created its `Notification` row so the badge includes the alert being sent;
- * every push path in this file creates the row first.
+ * The app icon badge counts gear the user currently has out, not unread
+ * notifications. On a gear tracker that is the number that actually needs
+ * acting on: an unread count clears itself by being looked at, whereas "you
+ * have three things checked out" stays true until the gear comes back.
+ *
+ * Same meaning for every recipient, including admins — the badge is always
+ * about the badge-holder's own custody, never the org's.
  */
-async function unreadBadgeCount(userId: string): Promise<number | undefined> {
+async function activeCheckoutBadgeCount(userId: string): Promise<number | undefined> {
   try {
-    return await db.notification.count({ where: { userId, readAt: null } });
+    return await db.booking.count({
+      where: { kind: "CHECKOUT", status: "OPEN", requesterUserId: userId },
+    });
   } catch (err) {
     // A failed count must not cost the user the notification itself. Undefined
     // omits the badge key entirely, leaving the existing badge untouched.
@@ -91,7 +97,7 @@ export async function sendPushToUser(
     });
     if (tokens.length === 0) return;
 
-    const badge = await unreadBadgeCount(userId);
+    const badge = await activeCheckoutBadgeCount(userId);
 
     const { revoked } = await sendPush(
       tokens.map((t) => t.token),
