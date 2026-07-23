@@ -167,6 +167,8 @@ targets:
       - path: WisconsinLiveActivities
       - path: Wisconsin/LiveActivities/CheckoutReturnActivityAttributes.swift
       - path: Wisconsin/Shared/ShiftGlanceSnapshot.swift
+      - path: Wisconsin/Resources/Fonts
+        buildPhase: resources
     info:
       path: WisconsinLiveActivities/Info.plist
       properties:
@@ -175,6 +177,9 @@ targets:
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        UIAppFonts:
+          - Gotham-Black.ttf
+          - Gotham-Bold.ttf
     entitlements:
       path: WisconsinLiveActivities/WisconsinLiveActivities.entitlements
       properties:
