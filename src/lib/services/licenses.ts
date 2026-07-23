@@ -410,8 +410,11 @@ export async function processExpiryWarnings() {
         await sendPushToUser(admin.id, {
           title,
           body,
-          payload: { type: "license_expiry", licenseCodeId: code.id },
+          // `href` is what gives the iOS tap handler a destination — without it
+          // the banner opens the app to whatever tab was last active.
+          payload: { type: "license_expiry", licenseCodeId: code.id, href: "/licenses" },
           category: "licenseExpiry",
+          threadId: "licenses",
         });
 
         warned++;
@@ -468,8 +471,9 @@ export async function processLicenseNags() {
       await sendPushToUser(claim.userId, {
         title,
         body,
-        payload: { type: "license_nag", licenseCodeId: claim.licenseCodeId },
+        payload: { type: "license_nag", licenseCodeId: claim.licenseCodeId, href: "/licenses" },
         category: "licenseExpiry",
+        threadId: "licenses",
       });
 
       nagged++;

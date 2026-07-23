@@ -77,13 +77,18 @@ extension AppDelegate: @preconcurrency UNUserNotificationCenterDelegate {
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         let userInfo = response.notification.request.content.userInfo
-        if let bookingId = userInfo["bookingId"] as? String {
+        if let route = PushRoute.resolve(userInfo: userInfo) {
             Task { @MainActor in
-                sharedAppState?.pendingPushBookingId = bookingId
-            }
-        } else if let eventId = userInfo["eventId"] as? String {
-            Task { @MainActor in
-                sharedAppState?.pendingPushEventId = eventId
+                switch route {
+                case .booking(let bookingId):
+                    sharedAppState?.pendingPushBookingId = bookingId
+                case .trade(let tradeId):
+                    sharedAppState?.pendingPushTradeId = tradeId
+                case .event(let eventId):
+                    sharedAppState?.pendingPushEventId = eventId
+                case .browse(let destination):
+                    sharedAppState?.pendingBrowseDestination = destination
+                }
             }
         }
         completionHandler()

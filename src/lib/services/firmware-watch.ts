@@ -225,6 +225,7 @@ async function notifyAdminsOfFirmwareRelease(
         title,
         body,
         payload,
+        threadId: `firmware:${target.id}`,
       }));
     }
   }

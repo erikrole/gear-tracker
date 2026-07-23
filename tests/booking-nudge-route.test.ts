@@ -27,6 +27,7 @@ vi.mock("@/lib/rate-limit", () => ({
 vi.mock("@/lib/services/notifications", () => ({
   deferPush: vi.fn(),
   sendPushToUser: vi.fn().mockResolvedValue(undefined),
+  checkoutThreadId: (bookingId: string) => `booking:${bookingId}`,
 }));
 
 vi.mock("@sentry/nextjs", () => ({
@@ -101,6 +102,10 @@ describe("POST /api/bookings/[id]/nudge", () => {
       body: expect.stringContaining("MBB Camera Kit"),
       payload: { bookingId: overdueCheckout.id },
       category: "checkoutOverdue",
+      // Threads with the booking's other alerts; deliberately not collapsed
+      // onto the automated ladder so a human nudge is never overwritten.
+      threadId: `booking:${overdueCheckout.id}`,
+      interruptionLevel: "time-sensitive",
     });
     expect(deferPush).toHaveBeenCalledWith(expect.any(Promise));
     expect(createAuditEntry).toHaveBeenCalledWith(expect.objectContaining({

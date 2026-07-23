@@ -4,7 +4,7 @@ import { HttpError, ok } from "@/lib/http";
 import { requireBookingAction } from "@/lib/services/booking-rules";
 import { createAuditEntry } from "@/lib/audit";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { deferPush, sendPushToUser } from "@/lib/services/notifications";
+import { checkoutThreadId, deferPush, sendPushToUser } from "@/lib/services/notifications";
 
 const NUDGE_LIMIT = { max: 30, windowMs: 60_000 };
 
@@ -45,6 +45,11 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     body,
     payload: { bookingId: booking.id },
     category: "checkoutOverdue",
+    threadId: checkoutThreadId(booking.id),
+    // A staffer deliberately reached for this button, so it breaks through
+    // Focus. Intentionally not collapsed onto the automated escalation ladder:
+    // a human nudge must not be overwritten by the next scheduled reminder.
+    interruptionLevel: "time-sensitive",
   }));
 
   await createAuditEntry({

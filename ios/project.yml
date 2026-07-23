@@ -58,6 +58,10 @@ targets:
       properties:
         aps-environment: production
         com.apple.developer.weatherkit: true
+        # Lets overdue-gear alerts and staff nudges break through Focus and Do
+        # Not Disturb. The server sets `interruption-level: time-sensitive` on
+        # those two paths only; every other push stays at the default level.
+        com.apple.developer.usernotifications.time-sensitive: true
     dependencies:
       - sdk: WeatherKit.framework
         embed: false

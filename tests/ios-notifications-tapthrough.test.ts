@@ -52,7 +52,11 @@ describe("iOS notification tap-through contracts", () => {
     const notifications = source("ios/Wisconsin/Views/NotificationsSheet.swift");
     const notificationModels = source("ios/Wisconsin/Models/NotificationModels.swift");
 
-    expect(appDelegate).toContain("userInfo[\"eventId\"] as? String");
+    // The payload key read moved into PushRoute so the banner and the inbox
+    // resolve destinations through one ordered router; AppDelegate now only
+    // maps the resolved route onto AppState.
+    const routing = source("ios/Wisconsin/Core/PushRouting.swift");
+    expect(routing).toContain("value(\"eventId\")");
     expect(appDelegate).toContain("sharedAppState?.pendingPushEventId = eventId");
 
     expect(appTab).toContain(".onChange(of: appState.pendingPushEventId)");
@@ -70,5 +74,76 @@ describe("iOS notification tap-through contracts", () => {
     expect(notificationModels).toContain("let eventId: String?");
     expect(notifications).toContain("if isShiftTargetedType(notif.type), let eventId = notif.payload?.eventId");
     expect(notifications).toContain("onSelectEvent?(eventId)");
+  });
+
+  it("resolves every banner tap through one router, ordered to match the inbox", () => {
+    const routing = source("ios/Wisconsin/Core/PushRouting.swift");
+    const appDelegate = source("ios/Wisconsin/App/AppDelegate.swift");
+
+    // The tap handler must not read payload keys directly any more; drift
+    // between it and the inbox is exactly what PushRoute exists to prevent.
+    expect(appDelegate).toContain("PushRoute.resolve(userInfo: userInfo)");
+    expect(appDelegate).not.toContain('userInfo["bookingId"] as? String');
+
+    for (const destination of [
+      "case booking(String)",
+      "case trade(String)",
+      "case event(String)",
+      "case browse(BrowseRouteDestination)",
+    ]) {
+      expect(routing).toContain(destination);
+    }
+
+    // Trade payloads carry eventId too, so tradeId has to win or every trade
+    // alert lands in Schedule instead of the Trade Board.
+    const bookingAt = routing.indexOf('value("bookingId")');
+    const tradeAt = routing.indexOf('value("tradeId")');
+    const eventAt = routing.indexOf('value("eventId")');
+    const hrefAt = routing.indexOf('value("href")');
+    expect(bookingAt).toBeGreaterThan(0);
+    expect(tradeAt).toBeGreaterThan(bookingAt);
+    expect(eventAt).toBeGreaterThan(tradeAt);
+    expect(hrefAt).toBeGreaterThan(eventAt);
+
+    // The checkoutId alias the model defines and the inbox honors.
+    expect(routing).toContain('value("bookingId") ?? value("checkoutId")');
+  });
+
+  it("routes trade pushes to the Trade Board, matching the inbox destination", () => {
+    const appTab = source("ios/Wisconsin/Views/AppTabView.swift");
+    const home = source("ios/Wisconsin/Views/HomeView.swift");
+
+    expect(appTab).toContain("private func routePendingTradePush()");
+    expect(appTab).toContain('guard hasCapability("PUBLISHED_SCHEDULE_VIEW") else {');
+
+    expect(home).toContain("private func consumePendingTradePush()");
+    expect(home).toContain("appState.pendingPushTradeId = nil");
+    expect(home).toContain("showTrades = true");
+  });
+
+  it("gives href-only pushes a destination instead of dropping the tap", () => {
+    const routing = source("ios/Wisconsin/Core/PushRouting.swift");
+    const appTab = source("ios/Wisconsin/Views/AppTabView.swift");
+    const browse = source("ios/Wisconsin/Views/BrowseView.swift");
+    const licenses = source("src/lib/services/licenses.ts");
+    const firmware = source("src/lib/services/firmware-watch.ts");
+
+    // Server has to actually send an href for the fallback to have anything
+    // to resolve; license pushes previously carried no routable key at all.
+    expect(licenses).toContain('href: "/licenses"');
+    expect(firmware).toContain("href: `/items?search=");
+
+    // Parsed, not prefix-matched, so "/items?search=…" resolves.
+    expect(routing).toContain("URLComponents(string: href)?.path");
+    expect(routing).toContain("return .browse(.licenses)");
+    expect(routing).toContain("return .browse(.items)");
+
+    expect(appTab).toContain("private func routePendingBrowsePush()");
+    // Licenses is a real tab on sidebar layouts and a Browse row otherwise.
+    expect(appTab).toContain("destination == .licenses && showsSidebarDestinations");
+    expect(browse).toContain("private func consumePendingBrowseDestination()");
+    // Never deep-link past the gating that hides the row in the first place.
+    expect(browse).toContain("guard destinations.contains(destination) else {");
+    expect(appTab).toContain("case .licenses: !isCollaborator");
   });
 });

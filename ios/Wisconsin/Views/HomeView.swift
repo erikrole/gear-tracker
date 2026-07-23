@@ -132,6 +132,18 @@ struct HomeView: View {
         homePerformanceLog.info("launch.home.firstUsefulRender durationMs=\(elapsedMilliseconds(since: firstUsefulRenderStartedAt), privacy: .public) checkouts=\(dash.myCheckouts.items.count, privacy: .public) reservations=\(dash.myReservations.count, privacy: .public) pendingPickups=\(dash.pendingPickups.items.count, privacy: .public) eventWork=\(dash.myEventWork.count, privacy: .public)")
     }
 
+    /// Opens the Trade Board for a tapped trade push. Matches where the
+    /// in-app inbox sends the same notification via `onSelectTrades`.
+    private func consumePendingTradePush() {
+        guard appState.pendingPushTradeId != nil else { return }
+        appState.pendingPushTradeId = nil
+        // Never stack the board on top of another sheet — Home can already be
+        // showing notifications or the profile when a banner is tapped.
+        showNotifications = false
+        showProfile = false
+        showTrades = true
+    }
+
     private func isAllEmpty(_ dash: DashboardData) -> Bool {
         let hasMyPendingPickup: Bool
         if let currentUserId = session.currentUser?.id {
@@ -266,6 +278,10 @@ struct HomeView: View {
                     navigationPath.append(id)
                     appState.pendingPushBookingId = nil
                 }
+                consumePendingTradePush()
+            }
+            .onChange(of: appState.pendingPushTradeId) { _, _ in
+                consumePendingTradePush()
             }
             .onChange(of: appState.tabResetToken) { _, _ in
                 guard appState.resetTab == 0 else { return }

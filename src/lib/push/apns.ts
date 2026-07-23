@@ -84,6 +84,25 @@ type TokenOutcome =
 interface SendOpts {
   topic: string;
   pushType: "alert" | "liveactivity";
+  /**
+   * `apns-collapse-id`. APNs replaces any undelivered *and* already-delivered
+   * notification carrying the same id on that device, so an escalation ladder
+   * (due 1h → due now → overdue 1h → overdue 3h) reads as one updating alert
+   * instead of four stacked banners. Apple caps this at 64 bytes.
+   */
+  collapseId?: string;
+}
+
+/** APNs rejects `apns-collapse-id` values over 64 bytes outright. */
+const MAX_COLLAPSE_ID_BYTES = 64;
+
+function collapseHeader(collapseId: string | undefined): Record<string, string> {
+  if (!collapseId) return {};
+  if (Buffer.byteLength(collapseId, "utf8") > MAX_COLLAPSE_ID_BYTES) {
+    console.error(`[APNS] collapse id too long, sending uncollapsed: ${collapseId.slice(0, 16)}…`);
+    return {};
+  }
+  return { "apns-collapse-id": collapseId };
 }
 
 function sendOne(
@@ -103,6 +122,7 @@ function sendOne(
         "apns-topic": opts.topic,
         "apns-push-type": opts.pushType,
         "content-type": "application/json",
+        ...collapseHeader(opts.collapseId),
       });
     } catch (err) {
       // Session already destroyed (e.g. connection error) — requests on a
@@ -244,14 +264,40 @@ async function dispatch(
   return { revoked, ok };
 }
 
+/**
+ * `time-sensitive` alerts break through Focus and Do Not Disturb. Reserved for
+ * notifications that lose their value if they wait (overdue gear), never for
+ * informational ones — the entitlement is revocable if Apple decides we cried
+ * wolf, and users mute an app that abuses it.
+ */
+export type InterruptionLevel = "passive" | "active" | "time-sensitive";
+
+export interface AlertOptions {
+  title: string;
+  body: string;
+  payload?: Record<string, unknown>;
+  /** App icon badge. Pass the user's total unread count, not a delta. */
+  badge?: number;
+  /** `thread-id`: groups related alerts into one stack in Notification Center. */
+  threadId?: string;
+  /** See `SendOpts.collapseId`. */
+  collapseId?: string;
+  interruptionLevel?: InterruptionLevel;
+}
+
 export async function sendPush(
   deviceTokens: string[],
-  opts: { title: string; body: string; payload?: Record<string, unknown> }
+  opts: AlertOptions
 ): Promise<DispatchResult> {
   const notification = {
     aps: {
       alert: { title: opts.title, body: opts.body },
       sound: "default",
+      // Omit rather than send 0 when unknown: an explicit 0 clears the badge,
+      // which would wipe a legitimate count every time a caller didn't supply one.
+      ...(typeof opts.badge === "number" ? { badge: Math.max(0, opts.badge) } : {}),
+      ...(opts.threadId ? { "thread-id": opts.threadId } : {}),
+      ...(opts.interruptionLevel ? { "interruption-level": opts.interruptionLevel } : {}),
     },
     ...(opts.payload ?? {}),
   };
@@ -259,6 +305,7 @@ export async function sendPush(
   return dispatch(deviceTokens, notification, {
     topic: process.env.APNS_BUNDLE_ID!,
     pushType: "alert",
+    collapseId: opts.collapseId,
   });
 }
 

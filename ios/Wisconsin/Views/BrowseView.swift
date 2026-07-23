@@ -43,7 +43,27 @@ struct BrowseView: View {
                 guard appState.resetTab == 2 else { return }
                 navigationPath = NavigationPath()
             }
+            .onChange(of: appState.pendingBrowseDestination, initial: true) { _, _ in
+                consumePendingBrowseDestination()
+            }
         }
+    }
+
+    /// Lands a push that only carried an `href` (license expiry, firmware
+    /// release) on the matching Browse row. Only follows destinations this user
+    /// actually has, so the deep link can never outrun the visible menu.
+    private func consumePendingBrowseDestination() {
+        guard let pending = appState.pendingBrowseDestination else { return }
+        let destination: BrowseDestination = switch pending {
+        case .items: .items
+        case .licenses: .licenses
+        }
+        guard destinations.contains(destination) else {
+            appState.pendingBrowseDestination = nil
+            return
+        }
+        appState.pendingBrowseDestination = nil
+        navigationPath.append(destination)
     }
 
     @ViewBuilder

@@ -32,7 +32,9 @@ describe("notifications support hardening contracts", () => {
 
     expect(licenses).toContain('type: isExpired ? "license_expired" : "license_expiring_soon"');
     expect(licenses).toContain("sentAt: now");
-    expect(licenses).toContain('payload: { type: "license_expiry", licenseCodeId: code.id }');
+    // `href` is what gives the iOS banner tap a destination — a license push
+    // carries no other key the app routes on.
+    expect(licenses).toContain('payload: { type: "license_expiry", licenseCodeId: code.id, href: "/licenses" }');
     expect(licenses).toContain('category: "licenseExpiry"');
     expect(licenses).toContain('type: "license_held_2d"');
     expect(licenses).toContain("sentAt: new Date()");

@@ -61,6 +61,7 @@
 		4B5FFF1D1D5E4C8FF671E34F /* PasswordSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DCFCD62823EAF922978F5E0 /* PasswordSetupView.swift */; };
 		4F0A1067946B104FF1220865 /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2536547429CB16E12CB069C0 /* NetworkMonitor.swift */; };
 		4F357F478EDC77FFABCE13B7 /* ProfileCompletionModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD21416289B346FEE851FB9 /* ProfileCompletionModelsTests.swift */; };
+		4F9209EBAC23F8A2C3E6B3A0 /* PushRouting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EF6B887AB6D93F65263A5BD /* PushRouting.swift */; };
 		521817F1F579897074A3B1D4 /* CreateBookingEventViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88FF0CACAB4BD4886FD0219B /* CreateBookingEventViews.swift */; };
 		5222CCDEB1C3A451B2B7EDED /* PostTradeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C76AD0C31463DD95EE65E1E6 /* PostTradeSheet.swift */; };
 		53ED600858F0C9D58AD17CB0 /* ProfileNextUp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66242B4730F2C1AF5CF188FF /* ProfileNextUp.swift */; };
@@ -218,6 +219,7 @@
 		44E5D1DB0C8CBAD5E452E807 /* QRScannerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerSheet.swift; sourceTree = "<group>"; };
 		468E248680EC5A61BEC1EE38 /* Skeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Skeleton.swift; sourceTree = "<group>"; };
 		4A9DAB950F60885A23620BEC /* Brand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Brand.swift; sourceTree = "<group>"; };
+		4EF6B887AB6D93F65263A5BD /* PushRouting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushRouting.swift; sourceTree = "<group>"; };
 		512445D206E12968A205246E /* KioskIdentityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskIdentityView.swift; sourceTree = "<group>"; };
 		51D3A73950E2AF7A4B427DAC /* EventWeatherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventWeatherService.swift; sourceTree = "<group>"; };
 		552E4A9FC0A2CB73C36F51C6 /* AccountSecuritySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSecuritySettingsView.swift; sourceTree = "<group>"; };
@@ -576,6 +578,7 @@
 				2536547429CB16E12CB069C0 /* NetworkMonitor.swift */,
 				EB6A309FA698276EE001EE07 /* Preferences.swift */,
 				40E011969D2B77CA098ECCD1 /* ProfileCompletionStore.swift */,
+				4EF6B887AB6D93F65263A5BD /* PushRouting.swift */,
 				74EFD042F26EA7BE52FA67E3 /* SearchService.swift */,
 				D670C3FF7EA66807225FD6FD /* SemanticTones.swift */,
 				0189482D68508F45B086F46F /* SessionStore.swift */,
@@ -966,6 +969,7 @@
 				2C79A800F537F80CF5C414B0 /* ProfilePhotoCropView.swift in Sources */,
 				021A7B27623C3C8544FE58BB /* ProfileView.swift in Sources */,
 				D24677599DC4E06E3E093A81 /* PushPrePromptView.swift in Sources */,
+				4F9209EBAC23F8A2C3E6B3A0 /* PushRouting.swift in Sources */,
 				085E8467FC2D0385A67DD157 /* QRScannerSheet.swift in Sources */,
 				0B3D380ACF389083C083FC5A /* ScanPrePromptView.swift in Sources */,
 				FEB0D17D856222BBA8478CC0 /* ScanResultHeroCard.swift in Sources */,

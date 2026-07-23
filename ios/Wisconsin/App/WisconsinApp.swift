@@ -57,6 +57,18 @@ struct WisconsinApp: App {
             GearStore.shared.clearAll()
             profileCompletion.resetSession()
             Task { await CheckoutReturnLiveActivityManager.shared.endAll() }
+
+            // Sign-out already revokes the token server-side (SessionStore.logout).
+            // Drop the local copy too, or Notification Settings offers "Send Test
+            // Notification" against a token the server has marked revoked, and
+            // reports this device as registered, until re-registration lands.
+            UserDefaults.standard.removeObject(forKey: PushTokenStorage.currentTokenKey)
+            // Clears the icon badge as well, so the next person to sign in on a
+            // shared device doesn't inherit the previous user's unread count.
+            appState.clearNotificationState()
+            // Delivered banners can name gear and bookings the next user has no
+            // business seeing on the lock screen.
+            UNUserNotificationCenter.current().removeAllDeliveredNotifications()
         }
 
         // Push permission is now requested via PushPrePromptView, not as a
@@ -146,7 +158,7 @@ struct RootView: View {
         }
         .onChange(of: profileCompletion.pushPromptEligibleUserId, initial: true) { _, userId in
             guard let userId, session.currentUser?.id == userId else { return }
-            Task { await maybeShowPushPrompt() }
+            Task { await maybeShowPushPrompt(for: userId) }
         }
         .sheet(isPresented: $showPushPrePrompt) {
             PushPrePromptView()
@@ -156,10 +168,14 @@ struct RootView: View {
     }
 
     @MainActor
-    private func maybeShowPushPrompt() async {
+    private func maybeShowPushPrompt(for userId: String) async {
         // Only ever ask once — if the user dismissed the soft prompt without
         // tapping Enable, respect that decision until they toggle from settings.
-        let key = "WisconsinPushSoftPromptShown"
+        //
+        // Keyed per user, not per device: these iPads get shared, and a
+        // device-wide flag meant whoever signed in second never saw the prompt
+        // and had no path to push except digging through iOS Settings.
+        let key = "WisconsinPushSoftPromptShown.\(userId)"
         guard !UserDefaults.standard.bool(forKey: key) else { return }
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         guard settings.authorizationStatus == .notDetermined else { return }

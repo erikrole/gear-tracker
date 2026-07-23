@@ -109,6 +109,8 @@ struct AppTabView: View {
             routePendingAppIntent()
             routePendingEventPush()
             routePendingBookingPush()
+            routePendingTradePush()
+            routePendingBrowsePush()
         }
         .onChange(of: appState.pendingAppIntentDestination) { _, _ in
             routePendingAppIntent()
@@ -118,6 +120,12 @@ struct AppTabView: View {
         }
         .onChange(of: appState.pendingPushBookingId) { _, _ in
             routePendingBookingPush()
+        }
+        .onChange(of: appState.pendingPushTradeId) { _, _ in
+            routePendingTradePush()
+        }
+        .onChange(of: appState.pendingBrowseDestination) { _, _ in
+            routePendingBrowsePush()
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             if !network.isConnected {
@@ -152,6 +160,46 @@ struct AppTabView: View {
         }
         if appState.selectedTab != 0 {
             appState.selectedTab = 0
+        }
+    }
+
+    /// The Trade Board is a sheet owned by Home, so this only has to land the
+    /// user on Home; `HomeView` presents the sheet once it sees the pending id.
+    private func routePendingTradePush() {
+        guard appState.pendingPushTradeId != nil else { return }
+        guard hasCapability("PUBLISHED_SCHEDULE_VIEW") else {
+            appState.pendingPushTradeId = nil
+            return
+        }
+        if appState.selectedTab != 0 {
+            appState.selectedTab = 0
+        }
+    }
+
+    /// Licenses is its own tab on sidebar layouts but lives inside Browse on
+    /// compact ones, so the destination is resolved against the current layout
+    /// rather than hard-coded to a tab index.
+    private func routePendingBrowsePush() {
+        guard let destination = appState.pendingBrowseDestination else { return }
+        // Mirror BrowseView's own row gating: collaborators get Items (with the
+        // catalog capability) and Users, never Licenses. Routing past that would
+        // deep-link a screen the app otherwise hides from them.
+        let allowed: Bool = switch destination {
+        case .items: hasCapability("GEAR_CATALOG_VIEW")
+        case .licenses: !isCollaborator
+        }
+        guard allowed else {
+            appState.pendingBrowseDestination = nil
+            return
+        }
+        if destination == .licenses && showsSidebarDestinations {
+            appState.pendingBrowseDestination = nil
+            appState.selectedTab = 7
+            return
+        }
+        // Browse consumes `pendingBrowseDestination` and appends the row.
+        if appState.selectedTab != 2 {
+            appState.selectedTab = 2
         }
     }
 

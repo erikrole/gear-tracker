@@ -1,7 +1,7 @@
 import { after } from "next/server";
 import { db } from "@/lib/db";
 import { sendEmail, buildNotificationEmail } from "@/lib/email";
-import { sendPush } from "@/lib/push/apns";
+import { sendPush, type InterruptionLevel } from "@/lib/push/apns";
 import { loadUserPrefs, shouldDeliverEmail, shouldDeliverPush, shouldDeliverCategory, type NotificationCategory } from "@/lib/services/notification-prefs";
 import { loadCheckoutPolicies } from "@/lib/services/checkout-policies";
 import { shiftWorkerLabel } from "@/lib/shift-display";
@@ -30,9 +30,53 @@ export function deferPush(task: Promise<void>): void {
   }
 }
 
+/**
+ * Every alert about one booking (reservation lifecycle, due reminders, overdue
+ * escalations) shares a thread so Notification Center stacks them into one
+ * expandable group instead of scattering them through the timeline.
+ */
+export function checkoutThreadId(bookingId: string): string {
+  return `booking:${bookingId}`;
+}
+
+/**
+ * Collapse key for the due/overdue escalation ladder only. Reservation
+ * lifecycle events deliberately do *not* collapse: "cancelled" must never
+ * silently overwrite an unread "ready for pickup".
+ */
+export function checkoutCollapseId(bookingId: string): string {
+  return `checkout-due:${bookingId}`;
+}
+
+/**
+ * Unread inbox count for the app icon badge. Read *after* the caller has
+ * created its `Notification` row so the badge includes the alert being sent;
+ * every push path in this file creates the row first.
+ */
+async function unreadBadgeCount(userId: string): Promise<number | undefined> {
+  try {
+    return await db.notification.count({ where: { userId, readAt: null } });
+  } catch (err) {
+    // A failed count must not cost the user the notification itself. Undefined
+    // omits the badge key entirely, leaving the existing badge untouched.
+    console.error(`[NOTIFY] Badge count for user ${userId} failed:`, err);
+    return undefined;
+  }
+}
+
 export async function sendPushToUser(
   userId: string,
-  opts: { title: string; body?: string | null; payload?: Record<string, unknown>; category?: NotificationCategory }
+  opts: {
+    title: string;
+    body?: string | null;
+    payload?: Record<string, unknown>;
+    category?: NotificationCategory;
+    /** Groups related alerts in Notification Center (e.g. one booking). */
+    threadId?: string;
+    /** Makes a later alert replace an earlier one (e.g. an escalation ladder). */
+    collapseId?: string;
+    interruptionLevel?: InterruptionLevel;
+  }
 ): Promise<void> {
   // Never throws: callers fire-and-forget with `void`, and an unhandled
   // rejection is fatal in modern Node — push is best-effort by design.
@@ -47,9 +91,19 @@ export async function sendPushToUser(
     });
     if (tokens.length === 0) return;
 
+    const badge = await unreadBadgeCount(userId);
+
     const { revoked } = await sendPush(
       tokens.map((t) => t.token),
-      { title: opts.title, body: opts.body ?? "", payload: opts.payload }
+      {
+        title: opts.title,
+        body: opts.body ?? "",
+        payload: opts.payload,
+        badge,
+        threadId: opts.threadId,
+        collapseId: opts.collapseId,
+        interruptionLevel: opts.interruptionLevel,
+      }
     );
 
     if (revoked.length > 0) {
@@ -220,6 +274,14 @@ export async function processOverdueNotifications(): Promise<{
               body,
               payload: { bookingId: checkout.id },
               category: escalationCategory,
+              // The whole ladder for one checkout collapses onto a single
+              // banner: "3 hours overdue" replaces "Due back now" rather than
+              // stacking beneath it.
+              collapseId: checkoutCollapseId(checkout.id),
+              threadId: checkoutThreadId(checkout.id),
+              // Only past-due escalations earn Focus breakthrough. A "due in
+              // 1 hour" heads-up can wait for the user to look at their phone.
+              interruptionLevel: rule.hoursFromDue >= 0 ? "time-sensitive" : undefined,
             }));
 
             if (checkout.requester.email) {
@@ -274,6 +336,12 @@ export async function processOverdueNotifications(): Promise<{
               title: `Overdue: ${checkout.title}`,
               body: adminBody,
               payload: { bookingId: checkout.id },
+              // Deliberately uncategorized: the admin-side overdue escalation
+              // is org custody oversight, not a personal reminder, so it is not
+              // mutable via the "Checkout overdue alerts" toggle.
+              collapseId: checkoutCollapseId(checkout.id),
+              threadId: checkoutThreadId(checkout.id),
+              interruptionLevel: "time-sensitive",
             }));
 
             if (admin.email) {
@@ -885,7 +953,13 @@ export async function createReservationLifecycleNotification(args: {
       },
     });
 
-    deferPush(sendPushToUser(requesterUserId, { title, body, payload: { bookingId }, category: "reservation" }));
+    deferPush(sendPushToUser(requesterUserId, {
+      title,
+      body,
+      payload: { bookingId },
+      category: "reservation",
+      threadId: checkoutThreadId(bookingId),
+    }));
   } catch (err) {
     console.error(`[NOTIFY] Failed to create reservation_${event} notification for booking ${bookingId}:`, err);
   }
