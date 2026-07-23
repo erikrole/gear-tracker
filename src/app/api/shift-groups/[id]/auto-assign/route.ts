@@ -16,6 +16,6 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
   });
   if (!group) throw new HttpError(404, "Shift group not found");
 
-  const result = await autoAssignShiftGroup(id, user.id);
+  const result = await autoAssignShiftGroup(id, user.id, user.role);
   return ok({ data: result });
 });

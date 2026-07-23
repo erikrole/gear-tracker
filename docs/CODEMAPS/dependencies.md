@@ -108,6 +108,7 @@
 - `prisma:generate`: `prisma generate`
 - `prisma:migrate`: `prisma migrate dev`
 - `release`: `bash scripts/release.sh`
+- `smoke:collaborator`: `node scripts/collaborator-deploy-smoke.mjs`
 - `smoke:deploy`: `node scripts/deploy-smoke.mjs`
 - `start`: `next start`
 - `test`: `vitest run`

@@ -14,14 +14,15 @@ Coverage is strong: **~155 of 164 mutation routes** either write a trail record,
 
 ### High
 
-1. **Schedule auto-assign writes no audit entries** — `src/lib/services/auto-assign.ts:73` bulk-creates `ShiftAssignment` rows (`tx.shiftAssignment.createMany`) with zero audit writes. Every *manual* assignment route audits (`shift_assigned`, `shift_assignment_updated`, …), so the schedule's history has a hole exactly where the largest mass mutation happens. A student asking "why am I on this shift?" gets no timeline answer when auto-assign placed them.
-2. **Password change (self-service) is unaudited** — `src/app/api/me/change-password/route.ts:61` updates `passwordHash` with no audit entry. Inconsistent with siblings: admin reset audits `password_reset`, forgot-password flow audits `password_reset_requested`/`password_reset_self`, and the *legacy* profile route audits `password_change` (`src/app/api/profile/route.ts:82`). The newer `/api/me/` path silently dropped it.
-3. **Session revocation is unaudited** — `src/app/api/me/sessions/route.ts:64` (revoke all others) and `src/app/api/me/sessions/[id]/route.ts:31` (revoke one) delete sessions with no audit entry. Login and logout both audit (`entityType: "session"`), so the security timeline shows sign-ins but not revocations — the event you'd most want during an account-compromise review.
+1. ~~**Schedule auto-assign writes no audit entries**~~ — Resolved 2026-07-23. Auto-fill now uses one `createManyAndReturn` batch and one `createAuditEntriesTx` batch inside the existing `SERIALIZABLE` transaction. Each `shift_assigned` entry targets the real created `ShiftAssignment` id and records `{ via: "auto_assign" }`, so event change history can resolve the worker and slot without an N+1 write path.
+2. ~~**Password change (self-service) is unaudited**~~ — Resolved 2026-07-23. Both the current `/api/me/change-password` route and the legacy `/api/profile` password branch now commit the password update, session effects, and a secret-free `password_change` audit entry inside one `SERIALIZABLE` transaction.
+3. ~~**Session revocation is unaudited**~~ — Resolved 2026-07-23. All-other and individual session revocations now re-identify the current cookie-backed session, preserve it, enforce target ownership, and commit a `session_revoked` audit record with the deletion in one `SERIALIZABLE` transaction.
 
 ### Medium
 
 4. **Shift group creation** — `src/app/api/shift-groups/route.ts:150` creates a `ShiftGroup` with no audit entry, while update/regenerate/archive/publish on the same entity all audit (`shift_group_updated`, `shift_group_regenerated`, `shift_group_archived`). The entity's timeline starts mid-life.
 5. **Event travel roster** — `src/app/api/calendar-events/[id]/travel/route.ts:52` (add member) and `.../travel/[memberId]/route.ts:18` (remove) mutate `EventTravelMember` with no audit entry. Who was added to/removed from a travel list, and by whom, is unanswerable.
+   - Resolved 2026-07-23: both writes now commit with event-scoped before/after audit evidence in `SERIALIZABLE` transactions. Add also enforces active event-sport roster membership, translates the database uniqueness constraint into an actionable 409, and shares the bounded settings-mutation limiter.
 6. **Calendar sync + shift generation are invisible** — `src/lib/services/calendar-sync.ts` and `src/lib/services/shift-generation.ts` (0 audit writes each) create/update/delete `CalendarEvent`s and auto-generate shift groups/shifts. These are system actions, but `createSystemAuditEntry` exists precisely for this (`src/lib/audit.ts:66`) and is used by kiosk activation. When a synced event moves or a shift group appears, nothing explains it. A per-sync summary entry (`entityType: "calendar_source"`, action `synced`, after = counts) would close most of this cheaply.
 
 ### Accepted / no action needed (verified, listed so nobody re-audits them)
@@ -61,10 +62,10 @@ Coverage is strong: **~155 of 164 mutation routes** either write a trail record,
 
 ## Recommended Actions (prioritized)
 
-1. Audit auto-assign: one batch `createAuditEntriesTx` inside the existing transaction (`auto-assign.ts:73`), action `shift_assigned`, after = `{via: "auto_assign"}` — reuses existing vocabulary. (S)
-2. Add audit writes to `me/change-password` (`password_change`) and both session-revoke routes (`session_revoked`, entityType `session`). (S)
+1. ~~Audit auto-assign with one batch `createAuditEntriesTx` inside the existing transaction, action `shift_assigned`, and `after = { via: "auto_assign" }`.~~ Completed by the 2026-07-23 schedule auto-assign audit hardening slice. (S)
+2. ~~Add audit writes to `me/change-password` (`password_change`) and both session-revoke routes (`session_revoked`, entityType `session`).~~ Completed by the 2026-07-23 account-security API hardening slice, including the legacy profile password caller and atomic session effects. (S)
 3. Decide the 90-day retention question; if trails must survive, add export-to-Blob before delete in the cron. (S–M, mostly a decision)
-4. Add `created` audit to shift-group POST and `travel_member_added`/`travel_member_removed` to the travel routes. (S)
+4. ~~Add `created` audit to shift-group POST and `travel_member_added`/`travel_member_removed` to the travel routes.~~ Completed by the existing shift-group transaction and the 2026-07-23 travel API hardening slice. (S)
 5. Per-sync summary audit entry from `syncCalendarSource` + `generateShiftsForNewEvents` via `createSystemAuditEntry`. (S)
 6. Extract `AUDIT_ACTIONS` const shared by writers and `ActivityTimeline`/`booking-details/helpers`; migrate the tense-drifted duplicates (`create`→`created` etc.); delete dead renderer entries. (M — the one structural fix)
 7. Return capped diffs (or row-expand fetch) in `/api/audit` so admin surfaces answer "what changed". (M)

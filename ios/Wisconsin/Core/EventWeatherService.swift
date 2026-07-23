@@ -7,6 +7,49 @@ struct EventWeatherData {
     let temperature: String
 }
 
+extension ScheduleEvent {
+    /// Weather is operational context only when it can affect the event.
+    ///
+    /// A mapped or raw venue is stronger evidence than the sport because Track
+    /// and Tennis can run indoors or outdoors. Kohl Center, UW Field House, and
+    /// LaBahn Arena are the only covered home venues. If no venue evidence
+    /// exists, fall back only for sports whose home competition is
+    /// unambiguously outdoors.
+    var isOutdoorHomeEvent: Bool {
+        guard isHome == true else { return false }
+
+        let mappedVenue = location?.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let rawVenue = rawLocationText?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let venueText: String
+        if let mappedVenue, !mappedVenue.isEmpty {
+            venueText = mappedVenue.lowercased()
+        } else {
+            venueText = rawVenue?.lowercased() ?? ""
+        }
+
+        if !venueText.isEmpty {
+            let coveredVenueTerms = [
+                "kohl center",
+                "field house",
+                "labahn",
+                "la bahn",
+            ]
+            return !coveredVenueTerms.contains { venueText.contains($0) }
+        }
+
+        guard let sportCode else { return false }
+        let outdoorOnlySports: Set<String> = [
+            "FB",
+            "MXC", "WXC", "XC",
+            "MGOLF", "WGOLF", "GOLF",
+            "MROW", "LROW", "WROW", "ROW",
+            "MSOC", "WSOC",
+            "SB", "BASE",
+        ]
+        return outdoorOnlySports.contains(sportCode.uppercased())
+    }
+}
+
 actor EventWeatherService {
     static let shared = EventWeatherService()
     private init() {}
@@ -18,7 +61,7 @@ actor EventWeatherService {
         #if targetEnvironment(simulator)
         return nil
         #else
-        guard event.isHome == true else { return nil }
+        guard event.isOutdoorHomeEvent else { return nil }
         let now = Date()
         guard event.endsAt > now,
               event.startsAt <= now.addingTimeInterval(10 * 24 * 60 * 60) else { return nil }

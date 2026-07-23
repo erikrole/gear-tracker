@@ -25,6 +25,12 @@ jobs:
 
       - run: npm audit --audit-level=high
 
+      - run: npx prisma validate
+
+      - run: npm run db:migrate:check
+
       - run: npm test
 
-      - run: npm run build
+      # Pull-request validation must not apply migrations to shared data.
+      # Deploy-shaped migration proof needs an isolated disposable target.
+      - run: npm run build:app

@@ -11,7 +11,7 @@
 
 | Model | Fields | Model-level indexes/constraints |
 |---|---:|---:|
-| `User` | 96 | 5 |
+| `User` | 98 | 5 |
 | `Session` | 6 | 2 |
 | `PasswordResetToken` | 6 | 2 |
 | `Location` | 17 | 1 |
@@ -29,7 +29,7 @@
 | `BulkSkuProduct` | 11 | 3 |
 | `BulkStockBalance` | 7 | 4 |
 | `BulkStockMovement` | 13 | 4 |
-| `BulkSkuUnit` | 14 | 5 |
+| `BulkSkuUnit` | 15 | 6 |
 | `BookingBulkUnitAllocation` | 8 | 3 |
 | `ScanEvent` | 19 | 4 |
 | `ScanSession` | 9 | 2 |
@@ -61,7 +61,7 @@
 | `StudentBadge` | 10 | 5 |
 | `BadgeStreak` | 8 | 3 |
 | `LicenseCode` | 15 | 4 |
-| `LicenseCodeClaim` | 10 | 3 |
+| `LicenseCodeClaim` | 11 | 4 |
 | `SportConfig` | 8 | 1 |
 | `SportShiftConfig` | 12 | 2 |
 | `ShiftGroup` | 16 | 3 |

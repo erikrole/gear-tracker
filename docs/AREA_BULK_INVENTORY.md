@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Bulk Inventory Management
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-15
+- Last Updated: 2026-07-23
 - Status: Active
 - Version: V1
 
@@ -198,6 +198,7 @@ See `AREA_ITEMS.md` 2026-04-06 entry for bulk inventory page hardening:
 - [x] AC-12: A numbered item family can define multiple branded products, assign one product to each permanent unit, show product counts and identity in the unit workspace, and keep one booking line and derived QR sequence.
 
 ## Change Log
+- 2026-07-23: **Database integrity and printed-label attribution.** Printed-label actors now have an optional `User` relation, index, and history-preserving `ON DELETE SET NULL` foreign key in migration `0104_license_claim_history_integrity`. The same preflighted migration adds database checks for nonnegative thresholds and balances, positive unit numbers, valid booking bulk custody counts, positive booking windows, and the accepted 0-through-20 sport staffing ranges.
 - 2026-07-15: **Gold Mount physical-count correction.** Live inspection confirmed the two Anton Bauer Digital 150 records consolidated as Gold Mount units 9-10 do not exist physically. A guarded production transaction removed those unprinted, never-allocated units, deleted the archived Digital 150 product, reduced the Gold Mount balance from 10 to 8, and wrote both product-deletion and inventory-correction audit entries plus a `-2` adjustment movement. Gold Mount now contains exactly eight available units, all assigned to Anton/Bauer Dionic XT 150Wh. The inactive source family remains hidden because its two historical booking rows must be preserved.
 - 2026-07-15: **Canonical battery-family consolidation.** The initial consolidation produced exactly four unit-tracked families: Monitor Battery (18 records), Sony Battery (52 permanent records, including three printed retired placeholders), Gold Mount Battery (initially 10 records), and FX6 Battery (12 records). Model-specific rows moved beneath Gold Mount and FX6 as assigned products. Monitor units 15-18 retain Watson NP-F550 identity; units 1-14 remain product-unassigned until physical Watson/GVM mapping is confirmed. History-free quantity and serialized duplicates were hard-deleted with audit snapshots, while history-bearing Gold Mount and Sony rows were retired or deactivated so booking, allocation, scan, and movement evidence remains intact. The later Gold Mount physical-count correction above supersedes the initial 10-record count.
 - 2026-07-15: **Multi-product item families.** Added family-scoped product records with normalized uniqueness, optional per-unit product assignment, audited product create/edit/archive and unit assignment routes, product-aware add-unit controls, product counts, and unit-grid product identity. QR values remain `{family QR}-{unit number}` and reservations continue to request one family quantity.

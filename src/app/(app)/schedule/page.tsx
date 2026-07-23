@@ -68,6 +68,7 @@ export default function SchedulePage() {
 function InternalSchedulePage() {
   const data = useScheduleData();
   const isStaff = data.currentUserRole === "STAFF" || data.currentUserRole === "ADMIN";
+  const isAdmin = data.currentUserRole === "ADMIN";
   const { loadData, setTradeSheetOpen } = data;
   const { queue, setQueue } = data.filters;
   const hidingRef = useRef<Set<string>>(new Set());
@@ -248,6 +249,7 @@ function InternalSchedulePage() {
         sourceSignal={data.sourceSignal}
         digest={data.scheduleAutomation}
         isStaff={isStaff}
+        isAdmin={isAdmin}
         onShowQueue={showQueue}
         onOpenTradeBoard={openTradeBoard}
       />

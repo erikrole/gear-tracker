@@ -15,12 +15,16 @@ describe("iOS App Intents", () => {
     expect(intents).toContain("struct ShowMyGearIntent: AppIntent");
     expect(intents).toContain("struct ShowTodayScheduleIntent: AppIntent");
     expect(intents).toContain("struct CreateReservationIntent: AppIntent");
-    expect(intents.match(/static let openAppWhenRun = true/g)).toHaveLength(4);
+    expect(intents.match(/static let supportedModes: IntentModes = \.foreground\(\.immediate\)/g)).toHaveLength(4);
+    expect(intents).not.toContain("openAppWhenRun");
     expect(intents).toContain("struct GearTrackerShortcutsProvider: AppShortcutsProvider");
     expect(intents).toContain('shortTitle: "Scan Code"');
     expect(intents).toContain('shortTitle: "My Gear"');
     expect(intents).toContain('shortTitle: "Schedule"');
     expect(intents).toContain('shortTitle: "Reserve Gear"');
+    expect(intents).toContain('shortTitle: "Checked-Out Gear"');
+    expect(intents).toContain('shortTitle: "Open Booking"');
+    expect(intents).toContain('"Open a booking in \\(.applicationName)"');
   });
 
   it("keeps intent execution as app-opening handoff, not background mutation", () => {
@@ -47,12 +51,28 @@ describe("iOS App Intents", () => {
     expect(appState).toContain("func consumeAppIntentDestination(_ destination: GearTrackerAppIntentDestination) -> Bool");
     expect(appTab).toContain("GearTrackerAppIntentHandoff.shared.consumePendingDestination()");
     expect(appTab).toContain("case .scan:");
-    expect(appTab).toContain('if hasCapability("GEAR_CATALOG_VIEW"), appState.selectedTab != 3 { appState.selectedTab = 3 }');
+    expect(appTab).toContain('case .scan: hasCapability("GEAR_CATALOG_VIEW")');
     expect(appTab).toContain("case .createReservation:");
-    expect(appTab).toContain('if hasCapability("RESERVATION_CREATE"), appState.selectedTab != 1 { appState.selectedTab = 1 }');
+    expect(appTab).toContain('case .createReservation: hasCapability("RESERVATION_CREATE")');
+    expect(appTab).toContain("guard isAllowed else {");
+    expect(appTab).toContain("appState.pendingAppIntentDestination = nil");
     expect(search).toContain("if appState.consumeAppIntentDestination(.scan)");
     expect(search).toContain("showScanner = true");
     expect(bookings).toContain("if appState.consumeAppIntentDestination(.createReservation)");
     expect(bookings).toContain("if canCreate { showCreate = true }");
+  });
+
+  it("protects private data and exposes a structured booking entity", () => {
+    const dataIntents = source("ios/Wisconsin/App/AppIntentsData.swift");
+    const bookingEntity = source("ios/Wisconsin/App/BookingEntity.swift");
+
+    expect(dataIntents.match(/static let authenticationPolicy: IntentAuthenticationPolicy = \.requiresAuthentication/g)).toHaveLength(2);
+    expect(dataIntents).toContain('static let title: LocalizedStringResource = "My Checked-Out Gear"');
+    expect(bookingEntity).toContain("struct OpenBookingIntent: OpenIntent");
+    expect(bookingEntity).toContain('requestValueDialog: "Which booking?"');
+    expect(bookingEntity).toContain("static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication");
+    expect(bookingEntity.match(/@Property\(title:/g)).toHaveLength(4);
+    expect(bookingEntity).toContain("catch APIError.notFound");
+    expect(bookingEntity).toContain("throw mapIntentError(error)");
   });
 });

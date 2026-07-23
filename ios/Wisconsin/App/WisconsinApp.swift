@@ -36,7 +36,9 @@ struct WisconsinApp: App {
                     }
                 }
                 .onOpenURL { url in
-                    if url.scheme == "wisconsin", url.host == "booking" {
+                    guard url.scheme == "wisconsin" else { return }
+                    switch url.host {
+                    case "booking":
                         let bookingId = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
                         guard !bookingId.isEmpty else { return }
                         appState.pendingPushBookingId = bookingId
@@ -45,6 +47,14 @@ struct WisconsinApp: App {
                             .contains(where: { $0.name == "action" && $0.value == "extend" }) == true {
                             appState.pendingExtendBookingId = bookingId
                         }
+                    case "event":
+                        let eventId = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                        guard !eventId.isEmpty else { return }
+                        appState.pendingPushEventId = eventId
+                    case "schedule":
+                        appState.pendingAppIntentDestination = .todaySchedule
+                    default:
+                        return
                     }
                 }
                 .tint(.brandPrimary)
@@ -56,6 +66,7 @@ struct WisconsinApp: App {
         if user == nil, oldUser != nil {
             GearStore.shared.clearAll()
             profileCompletion.resetSession()
+            ShiftGlanceSnapshotCoordinator.shared.clear()
             Task { await CheckoutReturnLiveActivityManager.shared.endAll() }
 
             // Sign-out already revokes the token server-side (SessionStore.logout).

@@ -58,6 +58,8 @@ targets:
       properties:
         aps-environment: production
         com.apple.developer.weatherkit: true
+        com.apple.security.application-groups:
+          - group.com.erikrole.Wisconsin
         # Lets overdue-gear alerts and staff nudges break through Focus and Do
         # Not Disturb. The server sets `interruption-level: time-sensitive` on
         # those two paths only; every other push stays at the default level.
@@ -88,6 +90,8 @@ targets:
       - path: Wisconsin/KioskOnly
       - path: Wisconsin/Kiosk
       - path: Wisconsin/Shared
+        excludes:
+          - ShiftGlanceSnapshot.swift
       - path: Wisconsin/Assets.xcassets
       - path: Wisconsin/Resources
     info:
@@ -162,6 +166,7 @@ targets:
     sources:
       - path: WisconsinLiveActivities
       - path: Wisconsin/LiveActivities/CheckoutReturnActivityAttributes.swift
+      - path: Wisconsin/Shared/ShiftGlanceSnapshot.swift
     info:
       path: WisconsinLiveActivities/Info.plist
       properties:
@@ -170,6 +175,11 @@ targets:
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: WisconsinLiveActivities/WisconsinLiveActivities.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.erikrole.Wisconsin
     settings:
       base:
         PRODUCT_NAME: WisconsinLiveActivities

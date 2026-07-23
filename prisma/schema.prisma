@@ -223,6 +223,8 @@ model User {
   licenseCodesHeld            LicenseCode[]                    @relation("LicenseClaimedBy")
   licenseCodesCreated         LicenseCode[]                    @relation("LicenseCreatedBy")
   licenseClaims               LicenseCodeClaim[]
+  licenseClaimsReleased       LicenseCodeClaim[]               @relation("LicenseClaimReleasedBy")
+  bulkUnitLabelsPrinted       BulkSkuUnit[]                    @relation("BulkUnitLabelPrintedBy")
   resources                   Resource[]
   resourcesVerified           Resource[]                       @relation("ResourceLastVerifiedBy")
   availabilityBlocks          StudentAvailabilityBlock[]
@@ -670,11 +672,13 @@ model BulkSkuUnit {
   updatedAt         DateTime                    @updatedAt @map("updated_at")
   bulkSku           BulkSku                     @relation(fields: [bulkSkuId], references: [id], onDelete: Cascade)
   product           BulkSkuProduct?             @relation(fields: [productId], references: [id], onDelete: SetNull)
+  labelPrintedBy    User?                       @relation("BulkUnitLabelPrintedBy", fields: [labelPrintedById], references: [id], onDelete: SetNull)
   allocations       BookingBulkUnitAllocation[]
 
   @@unique([bulkSkuId, unitNumber])
   @@index([bulkSkuId, status])
   @@index([bulkSkuId, labelPrintedAt])
+  @@index([labelPrintedById])
   @@index([productId])
   @@map("bulk_sku_units")
 }
@@ -1255,9 +1259,11 @@ model LicenseCodeClaim {
   notes         String?
   licenseCode   LicenseCode @relation(fields: [licenseCodeId], references: [id], onDelete: Cascade)
   user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  releasedBy    User?       @relation("LicenseClaimReleasedBy", fields: [releasedById], references: [id], onDelete: SetNull)
 
   @@index([userId, releasedAt])
   @@index([licenseCodeId])
+  @@index([releasedById])
   @@map("license_code_claims")
 }
 

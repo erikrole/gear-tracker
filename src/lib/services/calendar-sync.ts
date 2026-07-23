@@ -6,6 +6,10 @@ import {
   normalizeOpponentName,
   normalizeVenueText,
 } from "@/lib/schedule-event-identity";
+import type {
+  CalendarSyncChange,
+  CalendarSyncChangedField,
+} from "@/lib/schedule-sync-changes-types";
 import { SPORT_CODES } from "@/lib/sports";
 import { sortVenueMappings, venueMappingMatches } from "@/lib/venue-mapping-contract";
 
@@ -229,6 +233,8 @@ export type SyncResult = {
   cancelled: number;
   skipped: number;
   errors: SyncEventError[];
+  changes?: CalendarSyncChange[];
+  missingEventIds?: string[];
   diagnostics?: SyncDiagnostics;
   error?: string;
 };
@@ -402,6 +408,32 @@ export type ExistingEventRow = {
   locationLocked: boolean;
 };
 
+function changedFields(
+  existing: ExistingEventRow,
+  next: ValidatedEventData,
+): CalendarSyncChangedField[] {
+  const fields: CalendarSyncChangedField[] = [];
+  if (existing.summary !== next.summary) fields.push("title");
+  if (existing.description !== next.description) fields.push("description");
+  if (
+    existing.startsAt.getTime() !== next.startsAt.getTime()
+    || existing.endsAt.getTime() !== next.endsAt.getTime()
+    || existing.allDay !== next.allDay
+  ) {
+    fields.push("date_time");
+  }
+  if (existing.status !== next.status) fields.push("status");
+  if (existing.locationId !== next.locationId) fields.push("venue");
+  if (
+    existing.sportCode !== next.sportCode
+    || existing.opponent !== next.opponent
+    || existing.isHome !== next.isHome
+  ) {
+    fields.push("event_details");
+  }
+  return fields;
+}
+
 export type ParsedIcsEvent = {
   uid: string;
   summary: string;
@@ -429,7 +461,11 @@ export function splitEventsForSync(
   const sortedMappings = sortVenueMappings(mappings);
 
   const toCreate: ValidatedEventData[] = [];
-  const toUpdate: Array<{ id: string; data: ValidatedEventData }> = [];
+  const toUpdate: Array<{
+    id: string;
+    data: ValidatedEventData;
+    changedFields: CalendarSyncChangedField[];
+  }> = [];
   const unchanged: string[] = [];
   const skippedErrors: SyncEventError[] = [];
 
@@ -512,7 +548,11 @@ export function splitEventsForSync(
           existing.isHome !== data.isHome;
 
         if (changed) {
-          toUpdate.push({ id: existing.id, data });
+          toUpdate.push({
+            id: existing.id,
+            data,
+            changedFields: changedFields(existing, data),
+          });
         } else {
           unchanged.push(event.uid);
         }
@@ -536,7 +576,10 @@ export function splitEventsForSync(
 /**
  * Sync a single CalendarSource — fetches ICS, parses, upserts events.
  */
-export async function syncCalendarSource(sourceId: string): Promise<SyncResult> {
+export async function syncCalendarSource(
+  sourceId: string,
+  options: { includeChanges?: boolean } = {},
+): Promise<SyncResult> {
   const source = await db.calendarSource.findUnique({ where: { id: sourceId } });
   const emptyResult: SyncResult = { added: 0, updated: 0, cancelled: 0, skipped: 0, errors: [] };
 
@@ -656,10 +699,11 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
   // Surface future non-cancelled events that vanished from the feed (deleted
   // upstream without a CANCELLED status). Review-only: a truncated feed must
   // not mass-cancel real games, so nothing is mutated here.
+  let vanished: ExistingEventRow[] = [];
   if (events.length > 0) {
     const parsedUids = new Set(events.map((e) => e.uid));
     const now = new Date();
-    const vanished = existingRows.filter(
+    vanished = existingRows.filter(
       (row) => !parsedUids.has(row.externalId) && row.status !== "CANCELLED" && row.startsAt > now,
     );
     diagnostics.missingFromSourceCount = vanished.length;
@@ -673,13 +717,14 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
 
   // ── Phase 2: In-memory validate + diff (0 queries) ──
 
-  const { toCreate, toUpdate, unchanged, skippedErrors } = splitEventsForSync(events, existingRows, mappings);
+  const { toCreate, toUpdate, skippedErrors } = splitEventsForSync(events, existingRows, mappings);
 
   let added = 0;
-  const updated = toUpdate.length + unchanged.length;
-  const cancelled = [...toCreate, ...toUpdate.map((u) => u.data)].filter((e) => e.status === "CANCELLED").length;
+  let updated = 0;
+  let cancelled = 0;
   let skipped = skippedErrors.length;
   const errors: SyncEventError[] = [...skippedErrors];
+  const changes: CalendarSyncChange[] = [];
   const MAX_STORED_ERRORS = 10;
 
   // ── Phase 3: Batch writes in chunks ──
@@ -688,11 +733,29 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
   for (let i = 0; i < toCreate.length; i += WRITE_CHUNK_SIZE) {
     const chunk = toCreate.slice(i, i + WRITE_CHUNK_SIZE);
     try {
-      await db.calendarEvent.createMany({
+      const created = await db.calendarEvent.createManyAndReturn({
         data: chunk.map((c) => ({ sourceId, ...c })),
         skipDuplicates: true,
+        select: {
+          id: true,
+          externalId: true,
+          summary: true,
+          startsAt: true,
+          status: true,
+        },
       });
-      added += chunk.length;
+      added += created.length;
+      cancelled += created.filter((event) => event.status === "CANCELLED").length;
+      if (options.includeChanges) {
+        changes.push(...created.map((event) => ({
+          kind: "added" as const,
+          eventId: event.id,
+          externalId: event.externalId,
+          summary: event.summary,
+          startsAt: event.startsAt.toISOString(),
+          changedFields: [],
+        })));
+      }
     } catch (err) {
       skipped += chunk.length;
       if (errors.length < MAX_STORED_ERRORS) {
@@ -710,23 +773,61 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
   // Batch update changed events (only rows that actually differ)
   for (let i = 0; i < toUpdate.length; i += WRITE_CHUNK_SIZE) {
     const chunk = toUpdate.slice(i, i + WRITE_CHUNK_SIZE);
-    try {
-      await Promise.all(
-        chunk.map((item) =>
-          db.calendarEvent.update({ where: { id: item.id }, data: item.data })
-        )
-      );
-    } catch (err) {
+    const results = await Promise.allSettled(
+      chunk.map((item) =>
+        db.calendarEvent.update({
+          where: { id: item.id },
+          data: item.data,
+          select: {
+            id: true,
+            externalId: true,
+            summary: true,
+            startsAt: true,
+            status: true,
+          },
+        })
+      ),
+    );
+    for (const [index, result] of results.entries()) {
+      const item = chunk[index]!;
+      if (result.status === "fulfilled") {
+        updated += 1;
+        if (result.value.status === "CANCELLED") cancelled += 1;
+        if (options.includeChanges) {
+          changes.push({
+            kind: "modified",
+            eventId: result.value.id,
+            externalId: result.value.externalId,
+            summary: result.value.summary,
+            startsAt: result.value.startsAt.toISOString(),
+            changedFields: item.changedFields,
+          });
+        }
+        continue;
+      }
+
+      skipped += 1;
       if (errors.length < MAX_STORED_ERRORS) {
-        const reason = err instanceof Error ? err.message : "Unknown error";
+        const reason = result.reason instanceof Error ? result.reason.message : "Unknown error";
         errors.push({
-          uid: chunk.map((item) => item.data.externalId).join(","),
-          summary: `Batch update of ${chunk.length} events`,
+          uid: item.data.externalId,
+          summary: item.data.summary,
           operation: "update",
           reason: reason.length > 300 ? reason.slice(0, 300) + "\u2026" : reason,
         });
       }
     }
+  }
+
+  if (options.includeChanges) {
+    changes.push(...vanished.map((event) => ({
+      kind: "removed" as const,
+      eventId: event.id,
+      externalId: event.externalId,
+      summary: event.summary,
+      startsAt: event.startsAt.toISOString(),
+      changedFields: [],
+    })));
   }
 
   // ── Phase 4: Update source metadata ──
@@ -744,7 +845,18 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
     // If we can't update source metadata, still return results
   }
 
-  return { added, updated, cancelled, skipped, errors, diagnostics };
+  return {
+    added,
+    updated,
+    cancelled,
+    skipped,
+    errors,
+    diagnostics,
+    ...(options.includeChanges ? {
+      changes,
+      missingEventIds: vanished.map((event) => event.id),
+    } : {}),
+  };
 }
 
 /**

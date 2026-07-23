@@ -214,16 +214,27 @@ struct AppTabView: View {
 
     private func routePendingAppIntent() {
         guard let destination = appState.pendingAppIntentDestination else { return }
+        let isAllowed: Bool = switch destination {
+        case .scan: hasCapability("GEAR_CATALOG_VIEW")
+        case .myGear: hasCapability("MY_GEAR_VIEW")
+        case .todaySchedule: hasCapability("PUBLISHED_SCHEDULE_VIEW")
+        case .createReservation: hasCapability("RESERVATION_CREATE")
+        }
+        guard isAllowed else {
+            appState.pendingAppIntentDestination = nil
+            return
+        }
+
         switch destination {
         case .scan:
-            if hasCapability("GEAR_CATALOG_VIEW"), appState.selectedTab != 3 { appState.selectedTab = 3 }
+            if appState.selectedTab != 3 { appState.selectedTab = 3 }
         case .myGear:
-            if hasCapability("MY_GEAR_VIEW"), appState.selectedTab != 1 { appState.selectedTab = 1 }
+            if appState.selectedTab != 1 { appState.selectedTab = 1 }
         case .todaySchedule:
-            if hasCapability("PUBLISHED_SCHEDULE_VIEW"), appState.selectedTab != 4 { appState.selectedTab = 4 }
+            if appState.selectedTab != 4 { appState.selectedTab = 4 }
             appState.pendingAppIntentDestination = nil
         case .createReservation:
-            if hasCapability("RESERVATION_CREATE"), appState.selectedTab != 1 { appState.selectedTab = 1 }
+            if appState.selectedTab != 1 { appState.selectedTab = 1 }
         }
     }
 }

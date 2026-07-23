@@ -99,6 +99,7 @@ final class AppState {
         isRefreshing = true
         lastRefreshAttemptAt = Date()
         defer { isRefreshing = false }
+        async let shiftGlanceRefresh: Void = ShiftGlanceSnapshotCoordinator.shared.refresh()
         do {
             // Use the lightweight stats endpoint instead of the full dashboard payload.
             async let statsTask = APIClient.shared.dashboardStats()
@@ -117,6 +118,7 @@ final class AppState {
             // Non-critical
             appStatePerformanceLog.error("launch.appState.refresh result=failure durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public)")
         }
+        await shiftGlanceRefresh
     }
 
     func refreshUnread() async {

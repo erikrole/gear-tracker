@@ -23,13 +23,50 @@ ALTER TABLE asset_allocations
   )
   WHERE (active = true);
 
-CREATE UNIQUE INDEX license_code_one_active_per_user
-  ON license_codes(claimed_by_id)
-  WHERE status = 'CLAIMED';
+CREATE UNIQUE INDEX license_code_claims_one_active_per_user
+  ON license_code_claims(user_id)
+  WHERE released_at IS NULL AND user_id IS NOT NULL;
 
 CREATE UNIQUE INDEX booking_bulk_unit_allocations_one_active_unit_key
   ON booking_bulk_unit_allocations(bulk_sku_unit_id)
   WHERE checked_out_at IS NOT NULL AND checked_in_at IS NULL;
+
+ALTER TABLE bulk_skus
+  ADD CONSTRAINT bulk_skus_min_threshold_check
+  CHECK (min_threshold >= 0);
+
+ALTER TABLE bulk_stock_balances
+  ADD CONSTRAINT bulk_stock_balances_on_hand_quantity_check
+  CHECK (on_hand_quantity >= 0);
+
+ALTER TABLE bulk_sku_units
+  ADD CONSTRAINT bulk_sku_units_unit_number_check
+  CHECK (unit_number > 0);
+
+ALTER TABLE booking_bulk_items
+  ADD CONSTRAINT booking_bulk_items_quantity_check
+  CHECK (
+    planned_quantity > 0
+    AND checked_out_quantity >= 0
+    AND checked_in_quantity >= 0
+    AND checked_out_quantity <= planned_quantity
+    AND checked_in_quantity <= checked_out_quantity
+  );
+
+ALTER TABLE bookings
+  ADD CONSTRAINT bookings_time_window_check
+  CHECK (ends_at > starts_at);
+
+ALTER TABLE sport_shift_configs
+  ADD CONSTRAINT sport_shift_configs_count_range_check
+  CHECK (
+    home_count BETWEEN 0 AND 20
+    AND away_count BETWEEN 0 AND 20
+    AND home_staff_count BETWEEN 0 AND 20
+    AND home_student_count BETWEEN 0 AND 20
+    AND away_staff_count BETWEEN 0 AND 20
+    AND away_student_count BETWEEN 0 AND 20
+  );
 
 CREATE INDEX IF NOT EXISTS assets_name_trgm_idx ON assets USING gin (name gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS assets_brand_trgm_idx ON assets USING gin (brand gin_trgm_ops);

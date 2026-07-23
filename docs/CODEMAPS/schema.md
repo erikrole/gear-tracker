@@ -103,7 +103,7 @@ Values: `ACTIVE`, `MAINTENANCE`, `UNKNOWN`
 
 ## Model `User`
 
-Fields: 96
+Fields: 98
 
 - `id                          String                           @id @default(cuid())`
 - `name                        String`
@@ -167,6 +167,8 @@ Fields: 96
 - `licenseCodesHeld            LicenseCode[]                    @relation("LicenseClaimedBy")`
 - `licenseCodesCreated         LicenseCode[]                    @relation("LicenseCreatedBy")`
 - `licenseClaims               LicenseCodeClaim[]`
+- `licenseClaimsReleased       LicenseCodeClaim[]               @relation("LicenseClaimReleasedBy")`
+- `bulkUnitLabelsPrinted       BulkSkuUnit[]                    @relation("BulkUnitLabelPrintedBy")`
 - `resources                   Resource[]`
 - `resourcesVerified           Resource[]                       @relation("ResourceLastVerifiedBy")`
 - `availabilityBlocks          StudentAvailabilityBlock[]`
@@ -668,7 +670,7 @@ Indexes and constraints:
 
 ## Model `BulkSkuUnit`
 
-Fields: 14
+Fields: 15
 
 - `id                String                      @id @default(cuid())`
 - `bulkSkuId         String                      @map("bulk_sku_id")`
@@ -683,6 +685,7 @@ Fields: 14
 - `updatedAt         DateTime                    @updatedAt @map("updated_at")`
 - `bulkSku           BulkSku                     @relation(fields: [bulkSkuId], references: [id], onDelete: Cascade)`
 - `product           BulkSkuProduct?             @relation(fields: [productId], references: [id], onDelete: SetNull)`
+- `labelPrintedBy    User?                       @relation("BulkUnitLabelPrintedBy", fields: [labelPrintedById], references: [id], onDelete: SetNull)`
 - `allocations       BookingBulkUnitAllocation[]`
 
 Indexes and constraints:
@@ -690,6 +693,7 @@ Indexes and constraints:
 - `@@unique([bulkSkuId, unitNumber])`
 - `@@index([bulkSkuId, status])`
 - `@@index([bulkSkuId, labelPrintedAt])`
+- `@@index([labelPrintedById])`
 - `@@index([productId])`
 - `@@map("bulk_sku_units")`
 
@@ -1364,7 +1368,7 @@ Indexes and constraints:
 
 ## Model `LicenseCodeClaim`
 
-Fields: 10
+Fields: 11
 
 - `id            String      @id @default(cuid())`
 - `licenseCodeId String      @map("license_code_id")`
@@ -1376,11 +1380,13 @@ Fields: 10
 - `notes         String?`
 - `licenseCode   LicenseCode @relation(fields: [licenseCodeId], references: [id], onDelete: Cascade)`
 - `user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)`
+- `releasedBy    User?       @relation("LicenseClaimReleasedBy", fields: [releasedById], references: [id], onDelete: SetNull)`
 
 Indexes and constraints:
 
 - `@@index([userId, releasedAt])`
 - `@@index([licenseCodeId])`
+- `@@index([releasedById])`
 - `@@map("license_code_claims")`
 
 ## Enum `ShiftArea`

@@ -16,7 +16,7 @@ enum GearIntentError: Error, CustomLocalizedStringResourceConvertible {
 /// Maps a thrown API error into the intent-facing error space. Auth failures
 /// get the actionable "sign in first" message; everything else keeps the
 /// humanized `APIError` copy Siri/Shortcuts will read aloud.
-private func mapIntentError(_ error: Error) -> Error {
+func mapIntentError(_ error: Error) -> Error {
     if case APIError.unauthorized = error { return GearIntentError.signedOut }
     return error
 }
@@ -24,10 +24,11 @@ private func mapIntentError(_ error: Error) -> Error {
 // MARK: - What Gear Is Out
 
 struct MyCheckedOutGearIntent: AppIntent {
-    static let title: LocalizedStringResource = "What's Out"
+    static let title: LocalizedStringResource = "My Checked-Out Gear"
     static let description = IntentDescription(
         "Check which gear you currently have checked out and when it's due back, without opening the app."
     )
+    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 
     func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
         let checkouts: [Booking]
@@ -163,6 +164,7 @@ struct NextShiftIntent: AppIntent {
     static let description = IntentDescription(
         "Find out when your next shift is and whether gear is ready, without opening the app."
     )
+    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 
     func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
         let shifts: [MyShift]

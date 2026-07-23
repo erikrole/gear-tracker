@@ -44,6 +44,28 @@ struct ScheduleDateMathTests {
         )
     }
 
+    private func weatherEvent(
+        sportCode: String? = nil,
+        isHome: Bool? = true,
+        locationName: String? = nil,
+        rawLocationText: String? = nil
+    ) -> ScheduleEvent {
+        var event = ScheduleEvent(
+            id: "weather",
+            summary: "Weather test",
+            startsAt: Date(),
+            endsAt: Date().addingTimeInterval(3_600),
+            allDay: false,
+            status: "CONFIRMED",
+            sportCode: sportCode,
+            opponent: "Opponent",
+            isHome: isHome,
+            location: locationName.map { EventLocation(id: "venue", name: $0) }
+        )
+        event.rawLocationText = rawLocationText
+        return event
+    }
+
     /// Run `body` with the process default time zone pinned, then restore it.
     private func withTimeZone(_ identifier: String, _ body: () -> Void) {
         let previous = NSTimeZone.default
@@ -121,5 +143,30 @@ struct ScheduleDateMathTests {
             #expect(event.dayCount == 1)
             #expect(event.spannedDays == [localMidnight(2026, 7, 7)])
         }
+    }
+
+    // MARK: Outdoor home-event weather
+
+    @Test func weatherUsesAnyNamedHomeVenueExceptCoveredFacilities() {
+        #expect(weatherEvent(locationName: "Camp Randall Stadium").isOutdoorHomeEvent)
+        #expect(weatherEvent(rawLocationText: "Madison, WI, McClimon Track/Soccer Complex").isOutdoorHomeEvent)
+        #expect(weatherEvent(locationName: "Unknown Campus Venue").isOutdoorHomeEvent)
+    }
+
+    @Test func weatherRejectsCoveredAndAwayVenues() {
+        #expect(!weatherEvent(locationName: "Kohl Center").isOutdoorHomeEvent)
+        #expect(!weatherEvent(locationName: "UW Field House").isOutdoorHomeEvent)
+        #expect(!weatherEvent(locationName: "LaBahn Arena").isOutdoorHomeEvent)
+        #expect(!weatherEvent(isHome: false, locationName: "Camp Randall Stadium").isOutdoorHomeEvent)
+        #expect(!weatherEvent(
+            locationName: "Kohl Center",
+            rawLocationText: "Madison, WI, Camp Randall Stadium"
+        ).isOutdoorHomeEvent)
+    }
+
+    @Test func weatherUsesOutdoorSportOnlyWhenVenueEvidenceIsMissing() {
+        #expect(weatherEvent(sportCode: "FB").isOutdoorHomeEvent)
+        #expect(!weatherEvent(sportCode: "MBB").isOutdoorHomeEvent)
+        #expect(!weatherEvent(sportCode: "FB", locationName: "Kohl Center").isOutdoorHomeEvent)
     }
 }

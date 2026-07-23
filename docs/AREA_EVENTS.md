@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Events
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-11
+- Last Updated: 2026-07-23
 - Status: Active
 
 ## Direction
@@ -41,6 +41,7 @@ Make athletics schedule data the operational backbone for booking and checkout w
 20. **Morning-refresh automation digest** — `morning-refresh` now includes a read-only Schedule automation digest in its response after daily maintenance. The digest reports sync additions/updates, generated shift counts, archive counts, stale trade cleanup, pending pickup cleanup, publish readiness, auto-fill preview candidates, unresolved blockers, and source state. It is observability only; manual Settings sync and staff review actions remain the mutation paths.
 21. **Crew operations cleanup** — Event detail Crew keeps publish, auto-fill preview, direct assignment, call-window, and gear-prep paths visible. Template-review and attendance controls are no longer surfaced in the Event detail UI.
 22. **Event identity normalization** — Calendar sync, manual event creation, and event edit/revert paths share opponent and venue text cleanup. Opponents drop ranking/source boilerplate such as `No. 9` or `University of`, while venue matching normalizes source spellings such as `Wis.` to `WI` without overwriting `rawLocationText` evidence or confusing calendar venue with pickup location.
+23. **Travel roster mutation integrity** — Event travel add/remove APIs require `shift.manage`, apply the shared staff mutation rate bound, and write the roster mutation plus useful event-scoped audit evidence inside one `SERIALIZABLE` transaction. Adds accept only active members of the event's sport roster, while the database remains the duplicate-membership boundary and returns an actionable conflict.
 
 ## Next
 1. Schedule V2 enhancements: week view, gear readiness indicators, conflict detection — see `tasks/schedule-roadmap.md`.
@@ -80,6 +81,7 @@ Make athletics schedule data the operational backbone for booking and checkout w
 4. Fallback behavior for incomplete events is implemented — treat event context as non-blocking metadata on all booking flows.
 
 ## Change Log
+- 2026-07-23: **Event travel roster API hardening.** Adding and removing travelers now commits atomically with event-scoped audit evidence, adds are constrained to active members of the event's sport roster, duplicate membership returns a specific conflict, and staff mutation churn is bounded through the shared rate limiter. Student read visibility and staff/admin mutation ownership are unchanged.
 - 2026-07-17: **Synced-title normalization rollback.** Title-case normalization is now limited to manual event records (`sourceId = null`) at creation and title edit. Imported events preserve title casing through ICS sync, staff title edits, and Restore calendar title after the existing Wisconsin-prefix cleanup, so opponent and organization acronyms such as `USC`, `UCLA`, and `TCU` are not rewritten as `Usc`, `Ucla`, or `Tcu`. Exact upstream evidence remains in `rawSummary`; manual title locks remain sync-safe.
 - 2026-07-15: Scheduled-event titles now use the same operational title normalization as bookings. Manual create, manual edit, restore-to-calendar, and ICS sync create/update paths preserve canonical UW sport codes in uppercase, title-case ordinary words, keep connectors such as `at` and `vs` lowercase, collapse repeated whitespace, and retain intentional camel-case names. Synced events keep the exact upstream value in `rawSummary`; locked manual titles remain protected from later sync overwrites.
 - 2026-07-10: **Event detail color-system alignment (shadcn audit).** The source chip (Manual/Edited/Synced) is now a shared `Badge` with semantic variants (purple/orange/blue) instead of hand-rolled palette classes, and all summary-tile tones, revert-link accents, and the edited-fields callout use `--{hue}-bg`/`--{hue}-text` tokens, removing manual `dark:` pairs. Visual only; audit record: `tasks/shadcn-audit-2026-07-10.md`.

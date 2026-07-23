@@ -639,6 +639,7 @@ describe("splitEventsForSync", () => {
     expect(result.toUpdate).toHaveLength(1);
     expect(result.toUpdate[0]!.id).toBe("db-1");
     expect(result.toUpdate[0]!.data.summary).toBe("Updated Title");
+    expect(result.toUpdate[0]!.changedFields).toEqual(["title"]);
   });
 
   it("detects changed startsAt and puts in toUpdate", () => {
@@ -646,6 +647,7 @@ describe("splitEventsForSync", () => {
     const existing = [makeExistingRow({ id: "db-1", externalId: "evt-1" })];
     const result = splitEventsForSync(parsed, existing, []);
     expect(result.toUpdate).toHaveLength(1);
+    expect(result.toUpdate[0]!.changedFields).toEqual(["date_time"]);
   });
 
   it("detects changed status and puts in toUpdate", () => {
@@ -654,6 +656,7 @@ describe("splitEventsForSync", () => {
     const result = splitEventsForSync(parsed, existing, []);
     expect(result.toUpdate).toHaveLength(1);
     expect(result.toUpdate[0]!.data.status).toBe("CANCELLED");
+    expect(result.toUpdate[0]!.changedFields).toEqual(["status"]);
   });
 
   it("splits a mixed feed into creates, updates, and unchanged", () => {

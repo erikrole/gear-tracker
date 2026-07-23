@@ -5,6 +5,7 @@ import {
   AlertTriangleIcon,
   CheckCircle2Icon,
   CloudAlertIcon,
+  HistoryIcon,
   ListChecksIcon,
   PackageCheckIcon,
   Repeat2Icon,
@@ -17,14 +18,17 @@ import {
   type OperationalStatusRailItem,
 } from "@/components/OperationalStatusRail";
 import EmptyState from "@/components/EmptyState";
+import { useFetch } from "@/hooks/use-fetch";
 import type { ScheduleHealthSnapshot } from "@/lib/schedule-health-types";
 import type { ScheduleSourceSignal } from "@/lib/calendar-source-freshness";
 import type { ScheduleQueue } from "@/lib/schedule-queues";
 import { filterEntriesForScheduleQueue } from "@/lib/schedule-queues";
 import type { ScheduleAutomationDigest as ScheduleAutomationDigestData } from "@/lib/schedule-automation-types";
+import type { ScheduleSyncChangesDigest } from "@/lib/schedule-sync-changes-types";
 import type { CalendarEntry } from "./types";
 import { ACTIVE_STATUSES } from "./types";
 import { ScheduleAutomationCards } from "./ScheduleAutomationDigest";
+import { ScheduleDailyChanges } from "./ScheduleDailyChanges";
 import { ScheduleSourceSignal as ScheduleSourceStatus } from "./ScheduleSourceSignal";
 
 type ScheduleReadinessProps = {
@@ -36,6 +40,7 @@ type ScheduleReadinessProps = {
   sourceSignal: ScheduleSourceSignal | null;
   digest: ScheduleAutomationDigestData | null;
   isStaff: boolean;
+  isAdmin: boolean;
   onShowQueue: (queue: ScheduleQueue) => void;
   onOpenTradeBoard: () => void;
 };
@@ -93,9 +98,22 @@ export function ScheduleReadiness({
   sourceSignal,
   digest,
   isStaff,
+  isAdmin,
   onShowQueue,
   onOpenTradeBoard,
 }: ScheduleReadinessProps) {
+  const {
+    data: syncChanges,
+    loading: syncChangesLoading,
+    error: syncChangesError,
+    reload: reloadSyncChanges,
+  } = useFetch<ScheduleSyncChangesDigest | null>({
+    url: "/api/schedule/sync-changes",
+    returnTo: "/schedule",
+    refetchOnMount: "always",
+    enabled: isAdmin,
+    transform: (json) => (json.data as ScheduleSyncChangesDigest | null) ?? null,
+  });
   const fallbackOpenSlots = filteredEntries.reduce((sum, entry) => sum + missingSlots(entry), 0);
   const fallbackNeedsCoverageEvents = filteredEntries.filter((entry) => missingSlots(entry) > 0).length;
   const fallbackCoveredEvents = filteredEntries.filter(
@@ -249,12 +267,28 @@ export function ScheduleReadiness({
     href: item.href,
     scope: item.scope,
   }));
+  const syncChangeCount = syncChanges
+    ? syncChanges.totals.added + syncChanges.totals.modified + syncChanges.totals.removed
+    : 0;
+  const syncChangeValue = syncChangesLoading
+    ? "Checking…"
+    : syncChangesError
+      ? "Unavailable"
+      : syncChanges
+        ? `${syncChangeCount} change${syncChangeCount === 1 ? "" : "s"}`
+        : "Not recorded";
 
   return (
     <OperationalStatusRail
       className="mb-3"
       items={railItems}
       allClearLabel={showAllClear ? "Crew set, no open gaps" : undefined}
+      orientation={isAdmin ? {
+        label: "Daily fetch",
+        value: syncChangeValue,
+        icon: HistoryIcon,
+        tone: "change",
+      } : undefined}
       notice={filtersHideEverything ? (
         <EmptyState
           icon="calendar"
@@ -265,6 +299,15 @@ export function ScheduleReadiness({
       ) : undefined}
       details={(
         <>
+            {isAdmin && (
+              <ScheduleDailyChanges
+                digest={syncChanges}
+                loading={syncChangesLoading}
+                error={syncChangesError}
+                reload={reloadSyncChanges}
+                className="mb-3 border-b border-border/60 pb-3"
+              />
+            )}
             {sourceSignal && (
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-medium text-muted-foreground">Schedule sources</span>

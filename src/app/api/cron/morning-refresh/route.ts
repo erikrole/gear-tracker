@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withCron } from "@/lib/cron";
 import { db } from "@/lib/db";
-import { syncCalendarSource } from "@/lib/services/calendar-sync";
+import { syncCalendarSource, type SyncResult } from "@/lib/services/calendar-sync";
 import { updateCalendarSyncHealth } from "@/lib/services/calendar-sync-health";
 import { generateShiftsForNewEvents } from "@/lib/services/shift-generation";
 import { expireOpenTrades } from "@/lib/services/shift-trades";
@@ -9,6 +9,7 @@ import { expirePendingPickupCheckouts } from "@/lib/services/pending-pickup-expi
 import { pollFirmwareWatchTargets } from "@/lib/services/firmware-watch";
 import { DEFAULT_RESERVATION_RULES } from "@/lib/services/reservation-rules";
 import { getScheduleAutomationDigest } from "@/lib/services/schedule-automation";
+import { recordScheduleSyncChanges } from "@/lib/services/schedule-sync-changes";
 import { badges, badgesEnabled } from "@/lib/badges";
 
 function maintenanceValue<T>(
@@ -45,6 +46,7 @@ const EVENT_ARCHIVE_MONTHS = 4;
  */
 export const GET = withCron(async () => {
   const now = new Date();
+  const maintenanceFailures: string[] = [];
   const syncResults: Array<{
     sourceId: string;
     sourceName: string;
@@ -56,6 +58,11 @@ export const GET = withCron(async () => {
     consecutiveFailures?: number;
     adminNotificationsCreated?: number;
   }> = [];
+  const syncChangeSources: Array<{
+    sourceId: string;
+    sourceName: string;
+    result: SyncResult;
+  }> = [];
 
   // ── 1. Sync all enabled calendar sources ──────────────────────────────
   const sources = await db.calendarSource.findMany({
@@ -66,7 +73,12 @@ export const GET = withCron(async () => {
 
   for (const source of sources) {
     try {
-      const syncResult = await syncCalendarSource(source.id);
+      const syncResult = await syncCalendarSource(source.id, { includeChanges: true });
+      syncChangeSources.push({
+        sourceId: source.id,
+        sourceName: source.name,
+        result: syncResult,
+      });
       const shiftResult = await generateShiftsForNewEvents(source.id);
       const healthResult = await recordCalendarSyncHealth({
         sourceId: source.id,
@@ -89,10 +101,23 @@ export const GET = withCron(async () => {
     } catch (err) {
       console.error(`morning-refresh: sync failed for source ${source.name}:`, err);
       const error = err instanceof Error ? err.message : "Unknown error";
+      const failedResult: SyncResult = {
+        added: 0,
+        updated: 0,
+        cancelled: 0,
+        skipped: 0,
+        errors: [],
+        error,
+      };
+      syncChangeSources.push({
+        sourceId: source.id,
+        sourceName: source.name,
+        result: failedResult,
+      });
       const healthResult = await recordCalendarSyncHealth({
         sourceId: source.id,
         sourceName: source.name,
-        result: { added: 0, updated: 0, cancelled: 0, skipped: 0, errors: [], error },
+        result: failedResult,
         now,
       });
       syncResults.push({
@@ -104,6 +129,15 @@ export const GET = withCron(async () => {
       });
     }
   }
+
+  const scheduleSyncChanges = await recordScheduleSyncChanges({
+    runAt: now,
+    sources: syncChangeSources,
+  }).catch((err) => {
+    console.error("morning-refresh: schedule sync change digest failed", err);
+    maintenanceFailures.push("scheduleSyncChanges");
+    return null;
+  });
 
   // ── 2. Archive completed shift groups ─────────────────────────────────
   const unarchived = await db.shiftGroup.findMany({
@@ -180,7 +214,6 @@ export const GET = withCron(async () => {
     expirePendingPickupCheckouts(now),
     pollFirmwareWatchTargets({ now }),
   ]);
-  const maintenanceFailures: string[] = [];
   const { expired: tradesExpired } = maintenanceValue(
     tradeResult,
     { expired: 0 },
@@ -243,6 +276,7 @@ export const GET = withCron(async () => {
     pendingPickups,
     firmwareWatch,
     scheduleAutomation: automationDigest,
+    scheduleSyncChanges,
     maintenanceFailures,
   });
 });

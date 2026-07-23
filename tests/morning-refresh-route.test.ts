@@ -47,6 +47,10 @@ vi.mock("@/lib/services/schedule-automation", () => ({
   getScheduleAutomationDigest: vi.fn(),
 }));
 
+vi.mock("@/lib/services/schedule-sync-changes", () => ({
+  recordScheduleSyncChanges: vi.fn(),
+}));
+
 import { db } from "@/lib/db";
 import { syncCalendarSource } from "@/lib/services/calendar-sync";
 import { updateCalendarSyncHealth } from "@/lib/services/calendar-sync-health";
@@ -55,6 +59,7 @@ import { expireOpenTrades } from "@/lib/services/shift-trades";
 import { expirePendingPickupCheckouts } from "@/lib/services/pending-pickup-expiry";
 import { pollFirmwareWatchTargets } from "@/lib/services/firmware-watch";
 import { getScheduleAutomationDigest } from "@/lib/services/schedule-automation";
+import { recordScheduleSyncChanges } from "@/lib/services/schedule-sync-changes";
 import { GET } from "@/app/api/cron/morning-refresh/route";
 
 const mockDb = db as unknown as {
@@ -131,6 +136,13 @@ describe("morning refresh cron route", () => {
       },
       cards: [],
       partialFailures: [],
+    });
+    vi.mocked(recordScheduleSyncChanges).mockResolvedValue({
+      runAt: "2026-05-13T12:00:00.000Z",
+      totals: { added: 0, modified: 0, removed: 0 },
+      changes: [],
+      sourceErrors: [],
+      truncated: false,
     });
   });
 
@@ -223,6 +235,16 @@ describe("morning refresh cron route", () => {
       sourceId: "source-1",
       sourceName: "UW Badgers",
       result: expect.objectContaining({ error: "HTTP 500" }),
+    }));
+    expect(syncCalendarSource).toHaveBeenCalledWith("source-1", { includeChanges: true });
+    expect(recordScheduleSyncChanges).toHaveBeenCalledWith(expect.objectContaining({
+      sources: [
+        expect.objectContaining({
+          sourceId: "source-1",
+          sourceName: "UW Badgers",
+          result: expect.objectContaining({ error: "HTTP 500" }),
+        }),
+      ],
     }));
   });
 

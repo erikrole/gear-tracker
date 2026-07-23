@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Role } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
+
+declare global {
+  var __authHardeningTransactionOptions: unknown;
+}
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: vi.fn(),
@@ -14,6 +18,7 @@ const mockTx = {
     deleteMany: vi.fn(),
   },
   user: {
+    findUnique: vi.fn(),
     update: vi.fn(),
   },
   session: {
@@ -23,7 +28,8 @@ const mockTx = {
 
 vi.mock("@/lib/db", () => ({
   db: {
-    $transaction: vi.fn(async (input: unknown) => {
+    $transaction: vi.fn(async (input: unknown, options?: unknown) => {
+      globalThis.__authHardeningTransactionOptions = options;
       if (Array.isArray(input)) return Promise.all(input);
       return (input as (tx: typeof mockTx) => Promise<unknown>)(mockTx);
     }),
@@ -43,6 +49,7 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/audit", () => ({
   createAuditEntry: vi.fn(),
+  createAuditEntryTx: vi.fn(),
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
@@ -56,7 +63,7 @@ vi.mock("@sentry/nextjs", () => ({
 
 import { requireAuth, tokenHash, hashPassword, verifyPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { createAuditEntry } from "@/lib/audit";
+import { createAuditEntryTx } from "@/lib/audit";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { PATCH as patchProfile } from "@/app/api/profile/route";
 import { POST as resetPassword } from "@/app/api/auth/reset-password/route";
@@ -93,6 +100,8 @@ function publicPost(path: string, body: Record<string, unknown>) {
 }
 
 beforeEach(() => {
+  vi.clearAllMocks();
+  globalThis.__authHardeningTransactionOptions = undefined;
   vi.mocked(requireAuth).mockResolvedValue({
     id: "user-1",
     email: "user@example.com",
@@ -128,6 +137,10 @@ beforeEach(() => {
     .mockResolvedValueOnce({ count: 1 })
     .mockResolvedValue({ count: 0 });
   mockTx.user.update.mockResolvedValue({ id: "user-1" });
+  mockTx.user.findUnique.mockResolvedValue({
+    passwordHash: "old-hash",
+    forcePasswordChange: false,
+  });
   mockTx.session.deleteMany.mockResolvedValue({ count: 3 });
 });
 
@@ -143,21 +156,28 @@ describe("auth hardening", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(db.user.update).toHaveBeenCalledWith({
+    expect(mockTx.user.update).toHaveBeenCalledWith({
       where: { id: "user-1" },
       data: { passwordHash: "next-hash", forcePasswordChange: false },
     });
-    expect(db.session.deleteMany).toHaveBeenCalledWith({ where: { userId: "user-1" } });
-    expect(db.$transaction).toHaveBeenCalledWith([
-      expect.any(Promise),
-      expect.any(Promise),
-    ]);
-    expect(createAuditEntry).toHaveBeenCalledWith(
+    expect(mockTx.session.deleteMany).toHaveBeenCalledWith({ where: { userId: "user-1" } });
+    expect(db.$transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+    expect(createAuditEntryTx).toHaveBeenCalledWith(
+      mockTx,
       expect.objectContaining({
         actorId: "user-1",
         action: "password_change",
+        after: expect.objectContaining({
+          revokedSessionCount: 3,
+        }),
       }),
     );
+    expect(globalThis.__authHardeningTransactionOptions).toEqual({
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    });
   });
 
   it("BUG: password reset consumes the token inside a Serializable transaction", async () => {

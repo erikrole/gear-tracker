@@ -125,20 +125,20 @@ First slice:
 - [x] Slice 2: Harden ICS feed metadata and subscription UX, with tests for token, active-user gating, UID stability, escaping, and custom metadata.
 - [x] Slice 3: Add native Calendar status/management screen with subscribe/open, rotate token, and plain-language refresh expectations.
 - [ ] Slice 4: Add iOS Home/AFM greeting summary helper and Gotham Black header.
-- [ ] Slice 5: Add App Group cached shift snapshot writer.
-- [ ] Slice 6: Add WidgetKit small/medium/Lock Screen widgets backed by cached shift snapshots.
+- [x] Slice 5: Add App Group cached shift snapshot writer.
+- [x] Slice 6: Add WidgetKit small/medium/Lock Screen widgets backed by cached shift snapshots.
 - [ ] Slice 7: Evaluate EventKit managed-calendar mode only after V1 ICS metadata and widgets are proven.
 
 ## Verification
 - [ ] API tests for `/api/my-shifts` or summary payload shape, week boundary, active assignment statuses, and linked gear status.
 - [ ] ICS route tests for UID, URL, DESCRIPTION, X-GEAR-TRACKER fields, escaping, rate limiting, active-user token gating, and sequence/last-modified changes.
 - [ ] iOS source tests or focused unit tests for greeting summary copy priority.
-- [ ] iOS drift audit: `npm run drift:ios`.
-- [ ] iOS gap audit: `npm run audit:ios:gaps`.
-- [ ] Xcode simulator build for app plus widget target.
-- [ ] Widget screenshot checks for small, medium, Lock Screen, light/dark, and no-shifts states.
+- [x] iOS drift audit: `npm run drift:ios`.
+- [x] iOS gap audit: `npm run audit:ios:gaps`.
+- [x] Xcode simulator build for app plus widget target.
+- [ ] Widget screenshot checks for small, medium, Lock Screen, light/dark, and no-shifts states. Small/light with cached data is proven; medium, Lock Screen, dark, and no-shifts remain signed-device acceptance.
 - [ ] `npx tsc --noEmit`.
-- [ ] `git diff --check`.
+- [x] `git diff --check`.
 - [ ] `npm run build` before any schema or production route commit.
 
 ## Stop Conditions
@@ -149,6 +149,6 @@ First slice:
 - Stop if Gotham Ultra is referenced in native UI before the font file is actually bundled and licensed for the app target.
 
 ## Review
-- Shipped: Calendar Trust V1 is complete. The ICS feed carries stable assignment identity, effective personal call windows, deep links, update metadata, matchup context, and trade state. Native Shift Calendar management reports private-feed readiness and the app's last Calendar handoff, opens Apple Calendar, rotates the private link with an invalidation warning, and explains that Gear Tracker remains authoritative while Apple controls refresh timing.
-- Verified: Server ICS and token contracts, focused native calendar-management contracts, shared-host routing, iOS audits, and Wisconsin simulator/device builds are recorded in the implementation ledgers.
-- Deferred: Shared shift summary, Home greeting, App Group snapshot writer, WidgetKit surfaces, and any EventKit-managed reconciliation mode remain future slices.
+- Shipped: Calendar Trust V1 is complete. Shift Glance now adds an App Group-backed personal snapshot writer plus small, medium, inline Lock Screen, and rectangular Lock Screen widgets in the existing WidgetKit extension. The extension is cache-only, deep-links to event or Schedule context, and clears private snapshot data on sign-out.
+- Verified: Server ICS and token contracts, focused native calendar-management contracts, shared-host routing, iOS audits, Shift Glance unit/source contracts, Wisconsin simulator build/run, all seven Shortcuts actions, and a rendered small Home Screen widget are recorded in the implementation ledgers.
+- Deferred: Shared Home greeting/summary work, EventKit-managed reconciliation, App Group capability confirmation on the distribution profile, and signed-device screenshot acceptance for medium, Lock Screen, dark, and no-shifts widget states.

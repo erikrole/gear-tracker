@@ -1,6 +1,6 @@
 # Tasks Index
 
-Last updated: 2026-07-18
+Last updated: 2026-07-23
 
 ## Start Here
 
@@ -37,6 +37,7 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Active Follow-up Ledgers
 
+- `schema-hardening-plan.md` - License V2 provenance, actor relations, core database checks, CI migration safety, local verification, and migration deployment tracking.
 - `ios-collaborator-published-schedule-redesign-plan.md` - implementation and source/build verification are complete; authenticated temporary-collaborator runtime proof remains blocked by the reset Simulator session.
 - `ios-schedule-filters-calendar-management-redesign-plan.md` - result-oriented Schedule filters and recoverable Shift Calendar management plus verification.
 - `ios-schedule-edit-times-post-trade-redesign-plan.md` - Edit Call Window and unified Post to Trade Board redesign plus verification.
@@ -64,6 +65,9 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Recently Archived
 
+- `archive/completed-2026-07/schedule-daily-sync-changes-plan.md` - added an admin-only daily calendar change digest inside the Schedule status rail, with a calm change signal and safe upstream-removal reporting.
+- `archive/completed-2026-07/schedule-auto-assign-audit-hardening-plan.md` - preserved preview-first batch auto-fill while adding real-assignment-id audit continuity inside the existing Serializable transaction.
+- `archive/completed-2026-07/account-security-api-hardening-plan.md` - made both password-change paths and every self-service session-revocation mutation atomic, fail-closed, and secret-free auditable.
 - `archive/completed-2026-07/kiosk-bulk-turnaround-warning-fix-plan.md` - removed misleading bulk-family Tight turn warnings from direct kiosk checkout while preserving hard quantity shortages and exact-unit checks.
 - `archive/completed-2026-07/web-booking-detail-ios-alignment-plan.md` - brought the native identity, live timing, requester, location, gear, and event hierarchy to shared web booking detail while retaining operator controls and context.
 - `archive/completed-2026-07/booking-nudge-push-plan.md` - paired staff/admin overdue-checkout inbox nudges with preference-aware iOS push and booking tap-through.

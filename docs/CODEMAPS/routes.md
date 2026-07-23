@@ -284,6 +284,7 @@
 - `/api/schedule/published/[id]/follow` -> `src/app/api/schedule/published/[id]/follow/route.ts`
 - `/api/schedule/published/[id]` -> `src/app/api/schedule/published/[id]/route.ts`
 - `/api/schedule/published` -> `src/app/api/schedule/published/route.ts`
+- `/api/schedule/sync-changes` -> `src/app/api/schedule/sync-changes/route.ts`
 - `/api/seed` -> `src/app/api/seed/route.ts`
 - `/api/settings/checkout-policies` -> `src/app/api/settings/checkout-policies/route.ts`
 - `/api/settings/escalation` -> `src/app/api/settings/escalation/route.ts`

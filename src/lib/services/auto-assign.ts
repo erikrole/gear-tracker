@@ -17,7 +17,8 @@
  * transaction to prevent duplicate assignments under concurrent requests.
  */
 
-import { Prisma } from "@prisma/client";
+import { Prisma, type Role } from "@prisma/client";
+import { createAuditEntriesTx } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { getAutoFillPreview } from "@/lib/services/auto-fill-preview";
 
@@ -36,10 +37,12 @@ export type AutoAssignResult = {
  *
  * @param shiftGroupId  The group to fill.
  * @param actorId       Staff user triggering the action (recorded as assignedBy).
+ * @param actorRole     Authenticated role recorded with each audit entry.
  */
 export async function autoAssignShiftGroup(
   shiftGroupId: string,
   actorId: string,
+  actorRole: Role,
 ): Promise<AutoAssignResult> {
   const preview = await getAutoFillPreview(shiftGroupId);
   const pending = preview.proposals.map((proposal) => ({
@@ -70,7 +73,7 @@ export async function autoAssignShiftGroup(
     created = toCreate.length;
     createdConflicts = toCreate.filter((p) => p.hasConflict).length;
 
-    await tx.shiftAssignment.createMany({
+    const assignments = await tx.shiftAssignment.createManyAndReturn({
       data: toCreate.map((p) => ({
         shiftId: p.shiftId,
         userId: p.userId,
@@ -79,7 +82,29 @@ export async function autoAssignShiftGroup(
         hasConflict: p.hasConflict,
         conflictNote: p.conflictNote,
       })),
+      select: {
+        id: true,
+        shiftId: true,
+        userId: true,
+        hasConflict: true,
+        conflictNote: true,
+      },
     });
+
+    await createAuditEntriesTx(tx, assignments.map((assignment) => ({
+      actorId,
+      actorRole,
+      entityType: "shift_assignment",
+      entityId: assignment.id,
+      action: "shift_assigned",
+      after: {
+        shiftId: assignment.shiftId,
+        userId: assignment.userId,
+        via: "auto_assign",
+        hasConflict: assignment.hasConflict,
+        conflictNote: assignment.conflictNote,
+      },
+    })));
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   return {

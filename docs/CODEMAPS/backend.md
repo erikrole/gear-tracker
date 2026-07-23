@@ -6,7 +6,7 @@
 | File | Lines |
 |---|---:|
 | `src/lib/services/accountability.ts` | 447 |
-| `src/lib/services/auto-assign.ts` | 91 |
+| `src/lib/services/auto-assign.ts` | 116 |
 | `src/lib/services/auto-fill-preview.ts` | 259 |
 | `src/lib/services/availability-conflict-recompute.ts` | 128 |
 | `src/lib/services/availability.ts` | 557 |
@@ -19,7 +19,7 @@
 | `src/lib/services/bookings.ts` | 4 |
 | `src/lib/services/bulk-unit-scans.ts` | 608 |
 | `src/lib/services/calendar-sync-health.ts` | 165 |
-| `src/lib/services/calendar-sync.ts` | 764 |
+| `src/lib/services/calendar-sync.ts` | 876 |
 | `src/lib/services/candidate-scoring.ts` | 414 |
 | `src/lib/services/category-mutations.ts` | 174 |
 | `src/lib/services/checkout-policies.ts` | 40 |
@@ -27,16 +27,16 @@
 | `src/lib/services/collaborator-schedule.ts` | 213 |
 | `src/lib/services/dashboard-counts.ts` | 116 |
 | `src/lib/services/event-defaults.ts` | 69 |
-| `src/lib/services/firmware-watch.ts` | 299 |
+| `src/lib/services/firmware-watch.ts` | 300 |
 | `src/lib/services/hidden-users-cleanup.ts` | 126 |
 | `src/lib/services/kiosk-checkout-complete.ts` | 90 |
 | `src/lib/services/kiosk-location.ts` | 72 |
 | `src/lib/services/kiosk-scan.ts` | 36 |
 | `src/lib/services/kits.ts` | 327 |
-| `src/lib/services/licenses.ts` | 483 |
-| `src/lib/services/live-activities.ts` | 521 |
+| `src/lib/services/licenses.ts` | 487 |
+| `src/lib/services/live-activities.ts` | 682 |
 | `src/lib/services/notification-prefs.ts` | 103 |
-| `src/lib/services/notifications.ts` | 1049 |
+| `src/lib/services/notifications.ts` | 1129 |
 | `src/lib/services/onboarding-lifecycle.ts` | 618 |
 | `src/lib/services/pending-pickup-expiry.ts` | 218 |
 | `src/lib/services/reports.ts` | 1378 |
@@ -49,6 +49,7 @@
 | `src/lib/services/schedule-notification-policy.ts` | 106 |
 | `src/lib/services/schedule-open-work.ts` | 440 |
 | `src/lib/services/schedule-publication.ts` | 596 |
+| `src/lib/services/schedule-sync-changes.ts` | 176 |
 | `src/lib/services/schedule-template-review.ts` | 551 |
 | `src/lib/services/schedule-working-copy.ts` | 445 |
 | `src/lib/services/shift-assignment-conflicts.ts` | 43 |
@@ -91,7 +92,7 @@
 | `src/lib/calendar-source-freshness.ts` | 259 |
 | `src/lib/candidate-scoring-types.ts` | 26 |
 | `src/lib/category-options.ts` | 34 |
-| `src/lib/collaborator-access.ts` | 177 |
+| `src/lib/collaborator-access.ts` | 162 |
 | `src/lib/collaborator-gear.ts` | 151 |
 | `src/lib/cron.ts` | 35 |
 | `src/lib/crypto.ts` | 17 |
@@ -149,6 +150,7 @@
 | `src/lib/schedule-health-types.ts` | 81 |
 | `src/lib/schedule-publication-types.ts` | 34 |
 | `src/lib/schedule-queues.ts` | 174 |
+| `src/lib/schedule-sync-changes-types.ts` | 42 |
 | `src/lib/schedule-template-review-types.ts` | 105 |
 | `src/lib/schedule-working-copy.ts` | 255 |
 | `src/lib/search-pages.ts` | 72 |
@@ -492,6 +494,7 @@
 - `/api/schedule/published/[id]/follow`
 - `/api/schedule/published/[id]`
 - `/api/schedule/published`
+- `/api/schedule/sync-changes`
 
 ### `/api/seed`
 

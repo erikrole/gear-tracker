@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Shift Calendar & Scheduling
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-21
+- Last Updated: 2026-07-23
 - Status: Active — implemented V1 with ongoing hardening
 
 ## Purpose
@@ -57,13 +57,14 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - [x] Auto-fill and manual crew review: staff/admin can preview auto-fill recommendations before applying assignments through existing safety checks. Template-review UI is retired to keep Event detail focused.
 - [x] Gear readiness: Schedule health carries event and assignment gear readiness across primary event, linked-event, and shift-assignment booking paths, while detailed gear prep stays on Event detail and gear queues instead of the main Schedule list
 - [x] Personal calendar subscriptions: worker ICS feeds use the effective personal call window, concise area-plus-matchup titles, event deep links, active trade-board indicators, and remove swapped-away assignments when another worker takes the shift
+- [x] Daily calendar change digest: admin Schedule rail shows the latest morning-refresh additions, actual field changes, newly missing upstream events, source failures, and bounded event-detail links without deleting retained events
 
 ## Information Architecture
 
 ### Schedule Page (`/schedule`)
 1. **Page Header** — title, primary "Assign shifts" (staff), and a "More" overflow menu for New event, Trade Board (with open-trade count), and Export CSV; students keep a direct Trade Board button
-2. **Schedule attention bar** (`ScheduleReadiness` + shared `OperationalStatusRail`) — compact strip with next call plus up to three priority-ordered clickable exceptions for the nonzero staffing, gear-gap, data-quality, conflict, request, trade, source, and personal-shift queues. Additional exceptions remain accounted for in Details, and a calm all-clear state appears only when health data is complete.
-3. **Details panel** — one collapsed-by-default expander (shared `OperationalMetricCard` grid) holding the full readiness metrics and, for staff/admin, the review-first Automation review cards: staffing, auto-fill preview, publish readiness, blockers, sources, and cleanup
+2. **Schedule attention bar** (`ScheduleReadiness` + shared `OperationalStatusRail`) — compact strip with next call plus up to three priority-ordered clickable exceptions for the nonzero staffing, gear-gap, data-quality, conflict, request, trade, source, and personal-shift queues. Admins also see the latest daily-fetch change count as a calm purple orientation signal. Additional exceptions remain accounted for in Details, and a calm all-clear state appears only when health data is complete.
+3. **Details panel** — one collapsed-by-default expander holding the admin-only daily change list (`ScheduleDailyChanges`), the full readiness metric grid, and, for staff/admin, the review-first Automation review cards. The daily list includes latest morning-refresh additions, field-level modifications, newly missing upstream events, source totals, partial-failure context, bounded rows, and links back to retained Event detail records.
 4. **Work queues** — URL-backed `queue` state for Needs staffing, Conflicts, Pending requests, Trade approval, Gear gaps, My calls today, and Stale source
 5. **Data quality queue** — staff/admin Schedule health flags visible events with missing sport context, missing opponents, missing venue/location mapping, future archived status, or shifts without sport metadata. The queue filters the list to affected events and routes cleanup back through existing Event detail, Locations, and Venue Mappings ownership.
 6. **Filter Bar** (`ScheduleFilters`) — quiet `OperationalToolbar` with View, Venue, My Shifts, a Filters popover (Past, Archived, Sport, Area, Coverage), source-signal status, and the active queue banner
@@ -97,6 +98,8 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-07-23: **Admin daily calendar change digest.** Morning refresh now records the exact events added or modified plus events newly missing from each upstream feed. Admin Schedule shows a calm purple daily-fetch count in its status rail and keeps the bounded list inside rail Details with source totals, changed-field labels, source-failure context, and Event detail links. Staff and students neither render nor fetch the digest. Unchanged events no longer inflate the modified count. Feed removals remain review-only and never delete or auto-cancel retained Gear Tracker events; a continuously missing event appears as newly removed only once.
+- 2026-07-23: **Auto-assign audit continuity.** Applying previewed auto-fill proposals now returns the real assignment ids from one batch insert and writes matching `shift_assigned` audit rows in the same Serializable transaction. Event change history can therefore explain who auto-assigned each worker, while the preview, conflict notes, concurrent filled-slot recheck, response counts, and batch efficiency remain unchanged.
 - 2026-07-22: **Draft assignee identity rehydration.** The working-schedule editor read model now batches the current name, avatar, role, staffing class, and primary area for every user referenced by the effective draft. Refreshing an unpublished assignment therefore keeps its real identity even when that person is outside the active picker page and absent from the published schedule. Persisted working-copy JSON remains ID-only, and publishing, notifications, relational reads, and existing iOS schedule behavior are unchanged.
 - 2026-07-21: **Expanded crew density reduction.** The primary Schedule workstation removes the redundant Published badge and nested card border when no edit state needs attention, replaces repeated Staff and Student additions with one Add slot menu per area, and moves conversion, removal, and unassignment into per-slot overflow menus. Assignment and call time stay directly available. Area dividers remain, while per-slot rules are replaced by quiet row hover treatment.
 - 2026-07-21: **Expanded crew layout alignment.** The Schedule working-copy editor now uses one shared grid for worker identity, assignment, call time, conversion, and removal. Worker class moved beside the worker name, call-time controls have a stable width, area add-slot actions align to the same right-side action zone, and every icon action now meets the 40px web target baseline.

@@ -46,7 +46,7 @@ final class GearTrackerAppIntentHandoff {
 struct ScanGearCodeIntent: AppIntent {
     static let title: LocalizedStringResource = "Scan Gear Code"
     static let description = IntentDescription("Open the scanner to look up gear, bookings, and item-family unit codes.")
-    static let openAppWhenRun = true
+    static let supportedModes: IntentModes = .foreground(.immediate)
 
     @MainActor
     func perform() async throws -> some IntentResult {
@@ -58,7 +58,7 @@ struct ScanGearCodeIntent: AppIntent {
 struct ShowMyGearIntent: AppIntent {
     static let title: LocalizedStringResource = "Show My Gear"
     static let description = IntentDescription("Open the active bookings and reservations list.")
-    static let openAppWhenRun = true
+    static let supportedModes: IntentModes = .foreground(.immediate)
 
     @MainActor
     func perform() async throws -> some IntentResult {
@@ -70,7 +70,7 @@ struct ShowMyGearIntent: AppIntent {
 struct ShowTodayScheduleIntent: AppIntent {
     static let title: LocalizedStringResource = "Show Today's Schedule"
     static let description = IntentDescription("Open the Schedule tab for today's event and shift work.")
-    static let openAppWhenRun = true
+    static let supportedModes: IntentModes = .foreground(.immediate)
 
     @MainActor
     func perform() async throws -> some IntentResult {
@@ -82,7 +82,7 @@ struct ShowTodayScheduleIntent: AppIntent {
 struct CreateReservationIntent: AppIntent {
     static let title: LocalizedStringResource = "Create Reservation"
     static let description = IntentDescription("Open the new reservation workflow.")
-    static let openAppWhenRun = true
+    static let supportedModes: IntentModes = .foreground(.immediate)
 
     @MainActor
     func perform() async throws -> some IntentResult {
@@ -141,7 +141,7 @@ struct GearTrackerShortcutsProvider: AppShortcutsProvider {
                 "What's due back in \(.applicationName)",
                 "Check my gear in \(.applicationName)",
             ],
-            shortTitle: "What's Out",
+            shortTitle: "Checked-Out Gear",
             systemImageName: "backpack"
         )
 
@@ -154,6 +154,17 @@ struct GearTrackerShortcutsProvider: AppShortcutsProvider {
             ],
             shortTitle: "Next Shift",
             systemImageName: "clock.badge.checkmark"
+        )
+
+        AppShortcut(
+            intent: OpenBookingIntent(),
+            phrases: [
+                "Open a booking in \(.applicationName)",
+                "Open \(\.$target) in \(.applicationName)",
+                "Show \(\.$target) in \(.applicationName)",
+            ],
+            shortTitle: "Open Booking",
+            systemImageName: "calendar.badge.checkmark"
         )
     }
 }

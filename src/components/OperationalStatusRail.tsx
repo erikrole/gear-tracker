@@ -30,6 +30,7 @@ export type OperationalStatusRailOrientation = {
   value: string;
   icon: LucideIcon;
   href?: string;
+  tone?: "neutral" | "change";
 };
 
 const TONE_RANK: Record<OperationalStatusTone, number> = {
@@ -119,11 +120,23 @@ export function OperationalStatusRail({
   const visibleItems = prioritizedItems.slice(0, maxVisibleItems);
   const hiddenCount = Math.max(0, prioritizedItems.length - visibleItems.length);
   const OrientationIcon = orientation?.icon;
+  const orientationIsChange = orientation?.tone === "change";
   const orientationContent = orientation && OrientationIcon ? (
     <>
-      <OrientationIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <OrientationIcon
+        className={cn(
+          "size-4 shrink-0",
+          orientationIsChange ? "text-[var(--purple-text)]" : "text-muted-foreground",
+        )}
+        aria-hidden="true"
+      />
       <span className="shrink-0 text-muted-foreground">{orientation.label}</span>
-      <span className="truncate font-semibold text-foreground">{orientation.value}</span>
+      <span className={cn(
+        "truncate font-semibold",
+        orientationIsChange ? "text-[var(--purple-text)]" : "text-foreground",
+      )}>
+        {orientation.value}
+      </span>
     </>
   ) : null;
 

@@ -8,10 +8,18 @@ struct BookingEntity: AppEntity, Identifiable, Sendable {
     static let defaultQuery = BookingEntityQuery()
 
     let id: String
-    let title: String
-    let kindLabel: String
-    let statusLabel: String
-    let endsAt: Date
+
+    @Property(title: "Name")
+    var title: String
+
+    @Property(title: "Type")
+    var kindLabel: String
+
+    @Property(title: "Status")
+    var statusLabel: String
+
+    @Property(title: "Due Back")
+    var endsAt: Date
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
@@ -35,8 +43,13 @@ struct BookingEntityQuery: EntityStringQuery {
         for id in identifiers {
             // Tolerate stale ids (cancelled/deleted bookings) instead of
             // failing the whole shortcut.
-            if let booking = try? await APIClient.shared.booking(id: id) {
+            do {
+                let booking = try await APIClient.shared.booking(id: id)
                 results.append(BookingEntity(booking: booking))
+            } catch APIError.notFound {
+                continue
+            } catch {
+                throw mapIntentError(error)
             }
         }
         return results
@@ -45,14 +58,22 @@ struct BookingEntityQuery: EntityStringQuery {
     // `bookings` spans both kinds already sorted by due date, so these no
     // longer fan out to one call per kind and re-merge on the client.
     func entities(matching string: String) async throws -> [BookingEntity] {
-        let result = try await APIClient.shared.bookings(activeOnly: true, search: string, limit: 20)
-        return dedupedEntities(from: result.data)
+        do {
+            let result = try await APIClient.shared.bookings(activeOnly: true, search: string, limit: 20)
+            return dedupedEntities(from: result.data)
+        } catch {
+            throw mapIntentError(error)
+        }
     }
 
     func suggestedEntities() async throws -> [BookingEntity] {
-        let me = try await APIClient.shared.me()
-        let result = try await APIClient.shared.bookings(activeOnly: true, requesterId: me.id, limit: 10)
-        return dedupedEntities(from: result.data)
+        do {
+            let me = try await APIClient.shared.me()
+            let result = try await APIClient.shared.bookings(activeOnly: true, requesterId: me.id, limit: 10)
+            return dedupedEntities(from: result.data)
+        } catch {
+            throw mapIntentError(error)
+        }
     }
 
     private func dedupedEntities(from bookings: [Booking]) -> [BookingEntity] {
@@ -64,21 +85,21 @@ struct BookingEntityQuery: EntityStringQuery {
     }
 }
 
-struct OpenBookingIntent: AppIntent {
+struct OpenBookingIntent: OpenIntent {
     static let title: LocalizedStringResource = "Open Booking"
     static let description = IntentDescription("Open a reservation or checkout in the app.")
-    static let openAppWhenRun = true
+    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 
-    @Parameter(title: "Booking")
-    var booking: BookingEntity
+    @Parameter(title: "Booking", requestValueDialog: "Which booking?")
+    var target: BookingEntity
 
     static var parameterSummary: some ParameterSummary {
-        Summary("Open \(\.$booking)")
+        Summary("Open \(\.$target)")
     }
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        GearTrackerAppIntentHandoff.shared.requestBooking(id: booking.id)
+        GearTrackerAppIntentHandoff.shared.requestBooking(id: target.id)
         return .result()
     }
 }

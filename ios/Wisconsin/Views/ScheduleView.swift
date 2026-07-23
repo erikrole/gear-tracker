@@ -2146,6 +2146,7 @@ struct EventRow: View {
     /// "Day n/m" marker and the segment-aware time line.
     var contextDay: Date? = nil
     var showsCrewCoverage = true
+    @State private var weatherData: EventWeatherData?
 
     /// When this row represents one day of a multi-day event, its 1-based
     /// position and the total span length.
@@ -2218,6 +2219,9 @@ struct EventRow: View {
             RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
                 .strokeBorder(myShift == nil ? Color.hairline : Color.statusText(.blue).opacity(0.32), lineWidth: myShift == nil ? 0.5 : 1)
         )
+        .task(id: event.id) {
+            weatherData = await EventWeatherService.shared.weather(for: event)
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(rowAccessibilityLabel)
     }
@@ -2234,6 +2238,10 @@ struct EventRow: View {
             Text(timeRowText)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
+            if let weatherData {
+                metaDot
+                WeatherBadge(data: weatherData)
+            }
             if let seg = segment {
                 metaDot
                 Text("Day \(seg.index) of \(seg.total)")
@@ -2347,6 +2355,9 @@ struct EventRow: View {
         if let venueName {
             parts.append(venueName)
         }
+        if let weatherData {
+            parts.append("Weather \(weatherData.temperature)")
+        }
         return parts.joined(separator: ", ")
     }
 
@@ -2376,6 +2387,21 @@ struct EventRow: View {
         let start = event.startsAt.formatted(.dateTime.hour().minute())
         let end = event.endsAt.formatted(.dateTime.hour().minute())
         return "\(start) – \(end)"
+    }
+}
+
+private struct WeatherBadge: View {
+    let data: EventWeatherData
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: data.symbolName)
+                .symbolRenderingMode(.multicolor)
+            Text(data.temperature)
+                .monospacedDigit()
+        }
+        .foregroundStyle(.secondary)
+        .accessibilityHidden(true)
     }
 }
 

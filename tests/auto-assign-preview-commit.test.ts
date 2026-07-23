@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Role } from "@prisma/client";
 import { expectSerializableIsolation } from "./_helpers/assert-transaction";
 
 const transactionCalls: Array<{ options: unknown }> = [];
@@ -7,11 +8,15 @@ vi.mock("@/lib/services/auto-fill-preview", () => ({
   getAutoFillPreview: vi.fn(),
 }));
 
+vi.mock("@/lib/audit", () => ({
+  createAuditEntriesTx: vi.fn(),
+}));
+
 vi.mock("@/lib/db", () => {
   const mockTx = {
     shiftAssignment: {
       findMany: vi.fn(),
-      createMany: vi.fn(),
+      createManyAndReturn: vi.fn(),
     },
   };
 
@@ -27,6 +32,7 @@ vi.mock("@/lib/db", () => {
 });
 
 import { db } from "@/lib/db";
+import { createAuditEntriesTx } from "@/lib/audit";
 import { getAutoFillPreview } from "@/lib/services/auto-fill-preview";
 import { autoAssignShiftGroup } from "@/lib/services/auto-assign";
 
@@ -34,7 +40,7 @@ const mockTx = (db as typeof db & {
   _mockTx: {
     shiftAssignment: {
       findMany: ReturnType<typeof vi.fn>;
-      createMany: ReturnType<typeof vi.fn>;
+      createManyAndReturn: ReturnType<typeof vi.fn>;
     };
   };
 })._mockTx;
@@ -43,7 +49,7 @@ beforeEach(() => {
   transactionCalls.length = 0;
   vi.clearAllMocks();
   mockTx.shiftAssignment.findMany.mockResolvedValue([]);
-  mockTx.shiftAssignment.createMany.mockResolvedValue({ count: 0 });
+  mockTx.shiftAssignment.createManyAndReturn.mockResolvedValue([]);
 });
 
 describe("autoAssignShiftGroup preview commit", () => {
@@ -87,7 +93,24 @@ describe("autoAssignShiftGroup preview commit", () => {
       summary: { openSlots: 2, proposed: 2, skipped: 0, warnings: 1 },
     });
 
-    const result = await autoAssignShiftGroup("group-1", "staff-1");
+    mockTx.shiftAssignment.createManyAndReturn.mockResolvedValue([
+      {
+        id: "assignment-1",
+        shiftId: "shift-1",
+        userId: "student-1",
+        hasConflict: false,
+        conflictNote: null,
+      },
+      {
+        id: "assignment-2",
+        shiftId: "shift-2",
+        userId: "student-2",
+        hasConflict: true,
+        conflictNote: "Conflicts with class",
+      },
+    ]);
+
+    const result = await autoAssignShiftGroup("group-1", "staff-1", Role.STAFF);
 
     expectSerializableIsolation(transactionCalls, 0);
     expect(mockTx.shiftAssignment.findMany).toHaveBeenCalledWith({
@@ -97,7 +120,7 @@ describe("autoAssignShiftGroup preview commit", () => {
       },
       select: { shiftId: true },
     });
-    expect(mockTx.shiftAssignment.createMany).toHaveBeenCalledWith({
+    expect(mockTx.shiftAssignment.createManyAndReturn).toHaveBeenCalledWith({
       data: [
         {
           shiftId: "shift-1",
@@ -116,7 +139,44 @@ describe("autoAssignShiftGroup preview commit", () => {
           conflictNote: "Conflicts with class",
         },
       ],
+      select: {
+        id: true,
+        shiftId: true,
+        userId: true,
+        hasConflict: true,
+        conflictNote: true,
+      },
     });
+    expect(createAuditEntriesTx).toHaveBeenCalledWith(mockTx, [
+      {
+        actorId: "staff-1",
+        actorRole: Role.STAFF,
+        entityType: "shift_assignment",
+        entityId: "assignment-1",
+        action: "shift_assigned",
+        after: {
+          shiftId: "shift-1",
+          userId: "student-1",
+          via: "auto_assign",
+          hasConflict: false,
+          conflictNote: null,
+        },
+      },
+      {
+        actorId: "staff-1",
+        actorRole: Role.STAFF,
+        entityType: "shift_assignment",
+        entityId: "assignment-2",
+        action: "shift_assigned",
+        after: {
+          shiftId: "shift-2",
+          userId: "student-2",
+          via: "auto_assign",
+          hasConflict: true,
+          conflictNote: "Conflicts with class",
+        },
+      },
+    ]);
     expect(result).toEqual({ assigned: 2, conflicts: 1, skipped: 0 });
   });
 
@@ -147,9 +207,10 @@ describe("autoAssignShiftGroup preview commit", () => {
     });
     mockTx.shiftAssignment.findMany.mockResolvedValue([{ shiftId: "shift-1" }]);
 
-    const result = await autoAssignShiftGroup("group-1", "staff-1");
+    const result = await autoAssignShiftGroup("group-1", "staff-1", Role.STAFF);
 
-    expect(mockTx.shiftAssignment.createMany).not.toHaveBeenCalled();
+    expect(mockTx.shiftAssignment.createManyAndReturn).not.toHaveBeenCalled();
+    expect(createAuditEntriesTx).not.toHaveBeenCalled();
     expect(result).toEqual({ assigned: 0, conflicts: 0, skipped: 1 });
   });
 });

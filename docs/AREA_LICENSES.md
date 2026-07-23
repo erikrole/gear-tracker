@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Photo Mechanic license pool
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-15
+- Last Updated: 2026-07-23
 - Status: Active — 2-slot model, expiry tracking, unknown occupants, CSV export, and native iOS self-service shipped
 - Version: V2
 
@@ -25,7 +25,16 @@ Replace the Google Sheet at `licenses.xlsx` with an in-app pool that mirrors how
 8. **Staff and admins hold licenses with indefinite custody.** Only students are subject to the 2-day rotation nag. The "one active claim per user" rule still applies to everyone.
 
 ## Data Model
-- Migration: SQL run manually 2026-04-24 (no Prisma migration file).
+- V2 shape: SQL was originally run manually 2026-04-24. Migration
+  `0104_license_claim_history_integrity` now records the missing enum, columns,
+  nullability, and expiry index idempotently so migration history reconciles
+  with the current Prisma contract. Migration
+  `0105_license_expiry_timestamp_parity` reconciles the manually created
+  `timestamptz(6)` expiry column to Prisma's UTC `timestamp(3)` storage shape.
+- Integrity reconciliation: migration `0104_license_claim_history_integrity`
+  restores claim-holder `ON DELETE SET NULL`, adds the optional release-actor
+  foreign key, indexes release-actor history, and replaces the V1 cached-pointer
+  uniqueness index with a partial unique index on active claim rows.
 - `LicenseCode`:
   - `code` (unique), `label`, `accountEmail`, `expiresAt`
   - `status` (`AVAILABLE | PARTIAL | CLAIMED | RETIRED`)
@@ -125,6 +134,9 @@ Implementation: `processLicenseNags` and `processExpiryWarnings` in `src/lib/ser
 - No full admin per-user license usage report beyond the user's own recent history and per-code admin history
 
 ## Change Log
+- 2026-07-23: **License migration deployment and timestamp parity.** Applied `0104_license_claim_history_integrity` to Neon through the repository HTTP fallback, then exact catalog inspection found the manually created `expires_at` column still used `timestamptz(6)` instead of Prisma's `timestamp(3)` contract. Applied follow-up migration `0105_license_expiry_timestamp_parity`, which conditionally converts timestamp-with-time-zone values through UTC and is retry-safe when the column already has the correct type. No live expiry values existed at reconciliation time.
+- 2026-07-23: **Complete License V2 migration provenance.** Expanded `0104_license_claim_history_integrity` to idempotently record `PARTIAL`, account email, expiry, unknown-occupant labeling, nullable claim holders, the expiry index, and the one-active-claim-per-user partial unique index before applying claim-history foreign keys. The guarded empty-database bootstrap mirrors the Prisma-inexpressible index and database checks. This closes the gap between the manually introduced V2 database shape and the repository migration chain.
+- 2026-07-23: **License claim history integrity reconciliation.** The schema now models `releasedById` as an optional user relation with `ON DELETE SET NULL`, and migration `0104_license_claim_history_integrity` repairs the live claim-holder delete rule to match the existing history-preserving contract. The migration fails before changing constraints if an orphaned release actor exists. Live preflight found seven claims, one attributed release, one labeled unknown occupant, and no orphaned release actors, duplicate active user claims, or over-capacity codes.
 - 2026-07-15: **Native iOS Licenses hierarchy and capacity polish.** The self-service page now opens with a shared-capacity summary, gives the holder's code a clearer active-license card, presents open capacity directly on each pool row, hides other student identities behind neutral occupancy copy, and aligns partial/full use to the established blue operational state. Claim, copy, return, masking, expiry, two-slot capacity, and web-owned administration are unchanged.
 - 2026-07-10: **License expiry warnings unified to orange (shadcn audit follow-up).** The admin claim sheet expiring badge and the personal panel expiring-soon text drop off-system yellow for the shared orange warning tokens, matching the license table. Expired remains destructive red.
 - 2026-07-10: **License table color-system alignment (shadcn audit).** The expiring-soon badge moved from off-system yellow to the shared orange (warning) badge variant, and row status tints plus the own-claim ring now use `--green-bg`/`--blue-bg`/`--blue` tokens instead of raw palette + `dark:` pairs. Status semantics unchanged; contract test updated to assert the token form. Audit record: `tasks/shadcn-audit-2026-07-10.md`.

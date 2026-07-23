@@ -8,5 +8,9 @@
 	<true/>
 	<key>com.apple.developer.weatherkit</key>
 	<true/>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.erikrole.Wisconsin</string>
+	</array>
 </dict>
 </plist>

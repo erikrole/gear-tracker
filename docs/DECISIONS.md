@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-07-21
+- Last Updated: 2026-07-23
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -464,6 +464,7 @@
   - Manual "Sync Now" button remains in Settings for on-demand refresh (existing feature).
   - Calendar source list in Settings shows staleness indicator based on `lastFetchedAt`.
   - On repeated sync failure (3+ consecutive errors), create an in-app notification to all admins.
+  - Each completed daily run stores one bounded internal digest of events added, actually modified, or newly missing from the upstream feed. Admin Schedule shows its count as a calm change signal in the status rail and keeps the event links and source-failure context inside rail Details.
 - Consequences:
   - Events refresh daily without manual intervention. Staff can still sync on-demand when needed.
   - Shift auto-generation fires after daily sync — new events produce shifts within ~24 hours.
@@ -473,6 +474,7 @@
   - Sync is idempotent — manual + cron firing close together is harmless.
   - Sequential source processing to avoid parallel DB contention.
   - Manual source sync keeps the source-scoped database lease so duplicate clicks return 409 instead of running duplicate external fetch and shift-generation work.
+  - A missing upstream event is review evidence only. Daily change reporting must not delete or auto-cancel the retained Gear Tracker event, and the same continuously missing event is reported as removed only once.
 
 ## D-027: Venue Mapping Is Admin-Owned with Pattern Validation
 - Date: 2026-03-24

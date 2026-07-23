@@ -1,10 +1,11 @@
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { hashPassword, verifyPassword } from "@/lib/auth";
 import { changePasswordSchema, normalizeSlackHandle, normalizeSlackProfileUrl, normalizeWiscardNumber, updateProfileSchema } from "@/lib/validation";
-import { createAuditEntry } from "@/lib/audit";
+import { createAuditEntry, createAuditEntryTx } from "@/lib/audit";
 import { normalizeProfilePhone, phoneAuditValue } from "@/lib/profile-phone";
 
 const profilePatchSchema = z.union([
@@ -90,23 +91,37 @@ export const PATCH = withAuth(async (req, { user }) => {
     }
 
     const nextHash = await hashPassword(payload.newPassword);
-    await db.$transaction([
-      db.user.update({
+    await db.$transaction(async (tx) => {
+      const current = await tx.user.findUnique({
         where: { id: user.id },
-        data: { passwordHash: nextHash, forcePasswordChange: false }
-      }),
-      db.session.deleteMany({
-        where: { userId: user.id },
-      }),
-    ]);
+        select: { passwordHash: true, forcePasswordChange: true },
+      });
+      if (!current || current.passwordHash !== existing.passwordHash) {
+        throw new HttpError(409, "Password changed while this request was in progress. Try again.");
+      }
 
-    await createAuditEntry({
-      actorId: user.id,
-      actorRole: user.role,
-      entityType: "user",
-      entityId: user.id,
-      action: "password_change",
-    });
+      await tx.user.update({
+        where: { id: user.id },
+        data: { passwordHash: nextHash, forcePasswordChange: false },
+      });
+      const revoked = await tx.session.deleteMany({
+        where: { userId: user.id },
+      });
+
+      await createAuditEntryTx(tx, {
+        actorId: user.id,
+        actorRole: user.role,
+        entityType: "user",
+        entityId: user.id,
+        action: "password_change",
+        before: { forcePasswordChange: current.forcePasswordChange },
+        after: {
+          forcePasswordChange: false,
+          revokedOtherSessions: true,
+          revokedSessionCount: revoked.count,
+        },
+      });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
     return ok({ message: "Password updated" });
   }

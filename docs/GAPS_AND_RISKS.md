@@ -3,7 +3,7 @@
 ## Document Control
 
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-18
+- Last Updated: 2026-07-23
 - Status: Active registry
 - Purpose: Track only open gaps, pending decisions, active risks, and intentionally deferred scope.
 - Historical record: [GAPS_AND_RISKS_HISTORY.md](archive/GAPS_AND_RISKS_HISTORY.md)
@@ -51,6 +51,10 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 
 ## Change Log
 
+- 2026-07-23: Closed the schedule auto-assign audit gap identified by the July audit sweep. Auto-fill now creates assignments with one returning batch insert and commits one matching batch of actor-stamped `shift_assigned` audit rows inside the existing Serializable transaction, preserving real assignment targets for event change history.
+- 2026-07-23: Closed the self-service password-change and session-revocation audit gaps identified by the July audit sweep. Password changes, their requested session effects, and individual or all-other session revocations now commit atomically with actor-stamped, secret-free audit evidence while preserving current-session and ownership safeguards.
+- 2026-07-23: Closed the event travel roster audit gap identified by the July audit sweep. Travel add/remove writes are now atomic with event-scoped audit records, active sport-roster validation, database-owned duplicate conflicts, and a shared mutation rate bound; student read scope and staff/admin mutation authority remain unchanged.
+- 2026-07-23: Applied `0104_license_claim_history_integrity` and corrective `0105_license_expiry_timestamp_parity` to Neon through the repository HTTP fallback. The migrations record the complete manually introduced Photo Mechanic V2 shape, restore history-preserving actor foreign keys, protect printed-label attribution, enforce accepted inventory, booking, and sport-count invariants, and reconcile the manual `timestamptz(6)` expiry column to Prisma's UTC `timestamp(3)` storage contract. Pull-request CI remains read-only and uses `build:app`.
 - 2026-07-23: Expanded the collaborator rollout defense for the policy-granted People directory. Migration `0103` must follow compatible server and client deployment, and authenticated BTN/Learfield smoke must prove both directory access and private-field denial.
 - 2026-07-21: Added GAP-60 and the working-copy rollout risk. Web persistence, API, reconciliation, notifications, expanded editing, and default hardening are implemented locally; migration application, native staff mutation adoption, and authenticated runtime proof remain open.
 
