@@ -57,10 +57,17 @@ vi.mock("@/lib/services/live-activities", () => ({
   endCheckoutReturnLiveActivities: vi.fn().mockResolvedValue(undefined),
 }));
 
+const bulkUnitScan = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/services/bulk-unit-scans", () => ({
+  scanKioskCheckinBulkUnit: bulkUnitScan,
+}));
+
 import { db } from "@/lib/db";
 import { badges } from "@/lib/badges";
 import { endCheckoutReturnLiveActivities } from "@/lib/services/live-activities";
 import { checkinBulkItem } from "@/lib/services/bookings";
+import { kioskCheckinBulkUnit } from "@/lib/services/bookings-checkin";
 
 const mockTx = (db as unknown as { _mockTx: CheckinBulkTx })._mockTx;
 
@@ -86,11 +93,104 @@ beforeEach(() => {
   mockTx.bulkStockMovement.createMany.mockResolvedValue({});
   mockTx.bulkStockMovement.groupBy.mockResolvedValue([]);
   mockTx.auditLog.create.mockResolvedValue({});
+  bulkUnitScan.mockResolvedValue({ handled: false });
   // Default: not auto-completing (active items remain)
   mockTx.bookingSerializedItem.count.mockResolvedValue(0);
   mockTx.bookingBulkItem.findMany.mockResolvedValue([
     { checkedInQuantity: 3, checkedOutQuantity: 10, plannedQuantity: 10 },
   ]);
+});
+
+describe("kioskCheckinBulkUnit", () => {
+  it("BUG: completes a checkout after its only numbered battery is returned", async () => {
+    const completedAtBefore = Date.now();
+    bulkUnitScan.mockResolvedValue({
+      handled: true,
+      success: true,
+      item: {
+        id: "unit-26",
+        name: "Sony Battery #26",
+        tagName: "#26",
+        type: "BATTERY",
+        unitNumber: 26,
+        bulkSkuId: "sony-battery",
+      },
+    });
+    mockTx.booking.findUnique.mockResolvedValue({
+      locationId: "loc-1",
+      requesterUserId: "user-1",
+      endsAt: new Date("2026-07-23T23:00:00.000Z"),
+    });
+    mockTx.bookingSerializedItem.count.mockResolvedValue(0);
+    mockTx.bookingBulkItem.findMany.mockResolvedValue([
+      { checkedInQuantity: 1, checkedOutQuantity: 1, plannedQuantity: 1 },
+    ]);
+    mockTx.booking.update.mockResolvedValue({});
+    mockTx.assetAllocation.updateMany.mockResolvedValue({});
+    mockTx.scanSession.updateMany.mockResolvedValue({});
+
+    const result = await kioskCheckinBulkUnit(mockTx as never, {
+      bookingId: "booking-1",
+      scanValue: "sony-battery-26",
+    });
+
+    expect(result).toMatchObject({
+      handled: true,
+      success: true,
+      completed: true,
+      badgeEvent: {
+        userId: "user-1",
+        bookingId: "booking-1",
+        sourceKey: "booking-1",
+      },
+    });
+    expect(result.handled && result.success).toBe(true);
+    if (!result.handled || !result.success) {
+      throw new Error("Expected a successful numbered-unit return");
+    }
+    expect(result.badgeEvent?.completedAt.getTime()).toBeGreaterThanOrEqual(completedAtBefore);
+    expect(mockTx.booking.update).toHaveBeenCalledWith({
+      where: { id: "booking-1" },
+      data: { status: "COMPLETED", completedAt: expect.any(Date) },
+    });
+  });
+
+  it("keeps a mixed checkout open while another item remains out", async () => {
+    bulkUnitScan.mockResolvedValue({
+      handled: true,
+      success: true,
+      item: {
+        id: "unit-26",
+        name: "Sony Battery #26",
+        tagName: "#26",
+        type: "BATTERY",
+        unitNumber: 26,
+        bulkSkuId: "sony-battery",
+      },
+    });
+    mockTx.booking.findUnique.mockResolvedValue({
+      locationId: "loc-1",
+      requesterUserId: "user-1",
+      endsAt: new Date("2026-07-23T23:00:00.000Z"),
+    });
+    mockTx.bookingSerializedItem.count.mockResolvedValue(1);
+    mockTx.bookingBulkItem.findMany.mockResolvedValue([
+      { checkedInQuantity: 1, checkedOutQuantity: 1, plannedQuantity: 1 },
+    ]);
+
+    const result = await kioskCheckinBulkUnit(mockTx as never, {
+      bookingId: "booking-1",
+      scanValue: "sony-battery-26",
+    });
+
+    expect(result).toMatchObject({
+      handled: true,
+      success: true,
+      completed: false,
+      badgeEvent: null,
+    });
+    expect(mockTx.booking.update).not.toHaveBeenCalled();
+  });
 });
 
 describe("checkinBulkItem", () => {

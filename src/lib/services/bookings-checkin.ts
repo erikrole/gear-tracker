@@ -11,6 +11,7 @@ import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { createAuditEntryTx, lookupActorRole } from "@/lib/audit";
 import { badges } from "@/lib/badges";
+import { scanKioskCheckinBulkUnit } from "./bulk-unit-scans";
 import { settleBulkLedgerAtCompletion, upsertBulkBalancesAndMovements } from "./bookings-helpers";
 import { assetLocationEvidence, reconcileAssetLocationToKiosk, type KioskLocationEvidence } from "./kiosk-location";
 import { endCheckoutReturnLiveActivities } from "./live-activities";
@@ -576,6 +577,56 @@ export async function kioskCheckinAsset(
     ok: true,
     alreadyReturned: false,
     locationEvidence,
+    completed: completedAt !== null,
+    badgeEvent:
+      completedAt && booking
+        ? {
+            userId: booking.requesterUserId,
+            bookingId: args.bookingId,
+            completedAt,
+            wasOnTime: wasReturnedOnTime(booking.endsAt, completedAt),
+            sourceKey: args.bookingId,
+          }
+        : null,
+  };
+}
+
+/**
+ * Kiosk-flavored numbered-unit return.
+ *
+ * The lower-level scanner owns exact unit validation, custody closure, stock
+ * movement, and quantity updates. This wrapper then runs the same completion
+ * invariant as serialized kiosk returns before the SERIALIZABLE scan
+ * transaction commits. Without that final check, a battery-only checkout can
+ * have every physical unit returned while its booking remains OPEN.
+ */
+export async function kioskCheckinBulkUnit(
+  tx: Prisma.TransactionClient,
+  args: { bookingId: string; scanValue: string },
+) {
+  const result = await scanKioskCheckinBulkUnit(tx, args);
+  if (!result.handled || !result.success) return result;
+
+  const booking = await tx.booking.findUnique({
+    where: { id: args.bookingId },
+    select: {
+      locationId: true,
+      requesterUserId: true,
+      endsAt: true,
+    },
+  });
+  const completedAt = booking
+    ? await maybeAutoComplete(
+        tx,
+        args.bookingId,
+        booking.locationId,
+        booking.requesterUserId,
+        { auditAction: "auto_completed_by_kiosk_checkin" },
+      )
+    : null;
+
+  return {
+    ...result,
     completed: completedAt !== null,
     badgeEvent:
       completedAt && booking

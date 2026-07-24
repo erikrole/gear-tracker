@@ -66,6 +66,7 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Recently Archived
 
+- `archive/completed-2026-07/single-battery-return-autoclose-plan.md` - closes battery-only checkout custody in the final numbered-unit kiosk return transaction while preserving partial-return behavior.
 - `archive/completed-2026-07/pending-pickup-reservation-consolidation-plan.md` - makes due booked reservations the single Pending Pickup model, starts no-show timing at scheduled pickup, opens kiosk custody directly, and retains raw staged rows only for verified cleanup.
 - `archive/completed-2026-07/ios-booking-pickup-overdue-row-plan.md` - makes due native reservation rows turn orange and say when pickup was due without changing reservation lifecycle or kiosk custody.
 - `archive/completed-2026-07/kiosk-bulk-turnaround-warning-fix-plan.md` - removed misleading bulk-family Tight turn warnings from direct kiosk checkout while preserving hard quantity shortages and exact-unit checks.

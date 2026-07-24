@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-21
+- Last Updated: 2026-07-23
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -67,7 +67,7 @@ Legacy documentation below describes the retired web wizard contract and is pres
 ### Check In
 1. Partial check-in allowed for multi-item allocations.
 2. Checkout remains `OPEN` until all allocated items are returned.
-3. Auto-transition to `COMPLETED` when full return is confirmed.
+3. Auto-transition to `COMPLETED` in the final kiosk scan transaction when full return is confirmed, whether the last item is serialized gear or a numbered battery unit.
 4. Standard return execution is kiosk-owned. Web detail surfaces return progress and admin override controls only where explicitly gated; it must not present desktop return buttons as the normal custody path.
 5. Admins can close an `OPEN` checkout without scan only as an exception after physically verifying all gear is back. The action requires a reason, marks serialized items and numbered bulk units returned/available, writes an override record plus audit entry, and does not re-enable the retired app/web check-in endpoints.
 
@@ -252,6 +252,11 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
   - Completion state requires zero active allocations.
   - Add invariant check before state transition.
 
+### Trap: Final numbered-unit return leaves a battery-only checkout `OPEN`
+- Mitigation:
+  - Run the shared all-items-returned completion invariant after every successful numbered-unit kiosk return inside the same SERIALIZABLE scan transaction.
+  - Keep the separate completion endpoint idempotent for kiosk flows that tap Complete Return after the final scan.
+
 ### Trap: Stale event metadata blocks checkout operations
 - Mitigation:
   - Treat event link as contextual metadata.
@@ -307,6 +312,7 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 
 ## Change Log
 
+- 2026-07-23: **Final numbered-battery returns now auto-close checkout custody.** A successful numbered-unit kiosk return now runs the same all-items-returned invariant as a serialized return before the scan transaction commits. Battery-only checkouts transition to `COMPLETED` on their final scan, while mixed and partial returns remain `OPEN`; completion audit, badge, scan-session closure, stock settlement, and Live Activity cleanup keep the existing shared behavior.
 - 2026-07-21: Direct kiosk checkout suppresses bulk-family turnaround advisories for scanned numbered batteries while preserving hard quantity shortages and exact-unit availability. Future reservations remain family quantity intent until kiosk binding, so a nearby future family booking no longer labels the currently scanned battery group Tight turn. Serialized turnaround behavior and web reservation planning advisories are unchanged.
 - 2026-07-21: **Shared web booking detail now uses the native hierarchy without losing control-room depth.** Checkout detail names the requester beside booking identity and surfaces live due or pickup time, pickup location, physical gear count, and linked event context in one compact summary. Inline editing, equipment custody context, operator actions, sync health, and activity history remain web-owned; API payloads, permissions, checkout lifecycle, and kiosk-only custody are unchanged.
 - 2026-07-21: The staff/admin `Nudge borrower` action on an overdue `OPEN` checkout now creates its durable inbox reminder and attempts an iOS push through the requester's checkout-overdue preference. The push opens the booking through the existing `bookingId` route and does not change checkout status, due time, allocations, or kiosk return ownership.

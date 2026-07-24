@@ -3,8 +3,7 @@ import { db } from "@/lib/db";
 import { withKiosk } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
 import { findAssetByScanValue } from "@/lib/services/kiosk-scan";
-import { kioskCheckinAsset } from "@/lib/services/bookings-checkin";
-import { scanKioskCheckinBulkUnit } from "@/lib/services/bulk-unit-scans";
+import { kioskCheckinAsset, kioskCheckinBulkUnit } from "@/lib/services/bookings-checkin";
 import { locationEvidencePayload } from "@/lib/services/kiosk-location";
 import { checkinScanBody } from "@/lib/schemas/kiosk";
 import { badges } from "@/lib/badges";
@@ -49,7 +48,7 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
   }
 
   const bulkResult = await db.$transaction(
-    (tx) => scanKioskCheckinBulkUnit(tx, { bookingId: params.id, scanValue }),
+    (tx) => kioskCheckinBulkUnit(tx, { bookingId: params.id, scanValue }),
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
   if (bulkResult.handled) {
@@ -57,7 +56,13 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
       ok: bulkResult.success,
       errorCode: bulkResult.success ? undefined : bulkResult.errorCode,
     });
-    return ok(bulkResult);
+    if (bulkResult.success && bulkResult.completed && bulkResult.badgeEvent) {
+      await badges.onCheckoutReturned(bulkResult.badgeEvent);
+      await endCheckoutReturnLiveActivities(params.id);
+    }
+    return bulkResult.success
+      ? ok({ handled: true, success: true, item: bulkResult.item })
+      : ok(bulkResult);
   }
 
   const asset = await findAssetByScanValue(scanValue, {

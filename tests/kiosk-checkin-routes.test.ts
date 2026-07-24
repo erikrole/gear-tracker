@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   createAuditEntry: vi.fn(),
   findAssetByScanValue: vi.fn(),
   kioskCheckinAsset: vi.fn(),
-  scanKioskCheckinBulkUnit: vi.fn(),
+  kioskCheckinBulkUnit: vi.fn(),
   badgeOnCheckoutReturned: vi.fn(),
   badgeOnScanResult: vi.fn(),
   endCheckoutReturnLiveActivities: vi.fn(),
@@ -68,10 +68,6 @@ vi.mock("@/lib/services/kiosk-scan", () => ({
   findAssetByScanValue: mocks.findAssetByScanValue,
 }));
 
-vi.mock("@/lib/services/bulk-unit-scans", () => ({
-  scanKioskCheckinBulkUnit: mocks.scanKioskCheckinBulkUnit,
-}));
-
 vi.mock("@/lib/services/kiosk-location", () => ({
   locationEvidencePayload: vi.fn(() => ({})),
 }));
@@ -87,6 +83,7 @@ vi.mock("@/lib/services/bookings-checkin", async () => {
   return {
     ...actual,
     kioskCheckinAsset: mocks.kioskCheckinAsset,
+    kioskCheckinBulkUnit: mocks.kioskCheckinBulkUnit,
   };
 });
 
@@ -115,7 +112,7 @@ beforeEach(() => {
       scanEvent: { create: mocks.scanEventCreate },
     }),
   );
-  mocks.scanKioskCheckinBulkUnit.mockResolvedValue({ handled: false });
+  mocks.kioskCheckinBulkUnit.mockResolvedValue({ handled: false });
   mocks.badgeOnScanResult.mockResolvedValue(undefined);
   mocks.badgeOnCheckoutReturned.mockResolvedValue(undefined);
   mocks.endCheckoutReturnLiveActivities.mockResolvedValue(undefined);
@@ -207,6 +204,62 @@ describe("kioskCompleteCheckin counts", () => {
 });
 
 describe("kiosk check-in scan route", () => {
+  it("BUG: closes a battery-only checkout when its final numbered unit is returned", async () => {
+    mocks.bookingFindUnique.mockResolvedValue({
+      id: "booking-1",
+      status: "OPEN",
+      kind: "CHECKOUT",
+      requesterUserId: "user-1",
+      locationId: "loc-1",
+    });
+    const completedAt = new Date("2026-07-23T22:49:18.436Z");
+    mocks.kioskCheckinBulkUnit.mockResolvedValue({
+      handled: true,
+      success: true,
+      item: {
+        id: "unit-26",
+        name: "Sony Battery #26",
+        tagName: "#26",
+        type: "BATTERY",
+        unitNumber: 26,
+        bulkSkuId: "sony-battery",
+      },
+      completed: true,
+      badgeEvent: {
+        userId: "user-1",
+        bookingId: "booking-1",
+        completedAt,
+        wasOnTime: true,
+        sourceKey: "booking-1",
+      },
+    });
+
+    const res = await scanKioskCheckin(
+      new Request("http://test", {
+        method: "POST",
+        body: JSON.stringify({ scanValue: "sony-battery-26" }),
+      }),
+      routeCtx("booking-1"),
+    );
+
+    expect(await res.json()).toEqual({
+      handled: true,
+      success: true,
+      item: {
+        id: "unit-26",
+        name: "Sony Battery #26",
+        tagName: "#26",
+        type: "BATTERY",
+        unitNumber: 26,
+        bulkSkuId: "sony-battery",
+      },
+    });
+    expect(mocks.badgeOnCheckoutReturned).toHaveBeenCalledWith(
+      expect.objectContaining({ bookingId: "booking-1", userId: "user-1" }),
+    );
+    expect(mocks.endCheckoutReturnLiveActivities).toHaveBeenCalledWith("booking-1");
+  });
+
   it("returns the serialized item after a successful return scan", async () => {
     mocks.bookingFindUnique.mockResolvedValue({
       id: "booking-1",
