@@ -808,7 +808,7 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
           <div className="flex gap-2 flex-wrap mb-4">
             {commandCenter.gearSummary.byStatus.draft > 0 && <Badge variant="gray" size="sm" className="h-6 px-2.5 text-[11px]">{commandCenter.gearSummary.byStatus.draft} draft</Badge>}
             {commandCenter.gearSummary.byStatus.reserved > 0 && <Badge variant="purple" size="sm" className="h-6 px-2.5 text-[11px]">{commandCenter.gearSummary.byStatus.reserved} reserved</Badge>}
-            {commandCenter.gearSummary.byStatus.pendingPickup > 0 && <Badge variant="orange" size="sm" className="h-6 px-2.5 text-[11px]">{commandCenter.gearSummary.byStatus.pendingPickup} awaiting pickup</Badge>}
+            {commandCenter.gearSummary.byStatus.pendingPickup > 0 && <Badge variant="orange" size="sm" className="h-6 px-2.5 text-[11px]">{commandCenter.gearSummary.byStatus.pendingPickup} pending pickup</Badge>}
             {commandCenter.gearSummary.byStatus.checkedOut > 0 && <Badge variant="green" size="sm" className="h-6 px-2.5 text-[11px]">{commandCenter.gearSummary.byStatus.checkedOut} checked out</Badge>}
             {commandCenter.gearSummary.byStatus.completed > 0 && <Badge variant="blue" size="sm" className="h-6 px-2.5 text-[11px]">{commandCenter.gearSummary.byStatus.completed} returned</Badge>}
           </div>

@@ -47,7 +47,7 @@ Cheqroom mobile patterns show useful primitives but too much menu depth and too 
 3. Prioritize:
    - Overdue banner
    - Due-today check-outs
-   - Awaiting pickup
+   - Pending pickup
    - Upcoming reservations
    - My upcoming shift
    - Search stays one tap in the tab bar, with scan available inside Search instead of repeated Home queue actions
@@ -133,6 +133,12 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 
 ## Change Log
 
+- 2026-07-23: **Pending Pickup reservation model consolidated.** A `BOOKED`
+  reservation whose scheduled pickup time has arrived now changes from purple
+  reservation treatment to orange Pending Pickup in native Bookings and Item
+  Detail. Bookings orders reservations by pickup time and checkouts by due-back
+  time; a missed handoff reads `Pickup was due today at 2:30 PM`. The whole row
+  reevaluates each minute without mutating lifecycle or custody state.
 - 2026-07-23: **Collaborator Welcome contract repaired.** Native and server profile-completion models now agree that collaborator onboarding contains only the optional photo step. Newly registered collaborators can finish without adding a phone and enter the app immediately; phone remains editable later from Profile. This restores the role-aware Welcome behavior already accepted on 2026-07-17.
 - 2026-07-23: **Native launch lifecycle stabilization.** The initial `/me` validation now has one request owner instead of being superseded by `AppTabView` on the first active-scene transition. App-level foreground work is coordinated from `WisconsinApp`, unchanged `CurrentUser` values are not republished into the capability-driven native tab shell, and Home starts badge and Live Activity refreshes only after its useful dashboard payload arrives. Native tab identities, capability gates, navigation history, Liquid Glass styles, API payloads, and custody behavior are unchanged. Source contracts and Wisconsin simulator/generic-device builds pass; Release-device warning and timing validation remains recorded in `tasks/audit-swiftui-performance-ios.md`.
 - 2026-07-23: **SwiftUI performance hardening.** Shared thumbnail decode, onboarding photo downsampling, and profile crop/JPEG rendering now run through a concurrent image processor instead of inheriting the main actor. Schedule, Bookings, Event Detail, Trade Board, Home, and reservation equipment selection reuse derived collections instead of repeatedly grouping, filtering, or sorting them during the same render cycle. UI, ordering, API payloads, reservation policy, and kiosk custody behavior are unchanged. The main Wisconsin target passes simulator and generic-device builds; the kiosk target passes simulator tests and both builds. Physical-device Instruments metrics remain tracked in `tasks/audit-swiftui-performance-ios.md`.

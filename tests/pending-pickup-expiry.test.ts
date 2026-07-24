@@ -5,7 +5,7 @@ const transactionCalls: Array<{ options: unknown }> = [];
 
 vi.mock("@/lib/db", () => {
   const mockTx = {
-    booking: { findUnique: vi.fn(), update: vi.fn() },
+    booking: { findUnique: vi.fn(), updateMany: vi.fn() },
     bulkStockBalance: { findMany: vi.fn(), upsert: vi.fn() },
     bulkStockMovement: { createMany: vi.fn() },
     bookingBulkUnitAllocation: { updateMany: vi.fn() },
@@ -36,12 +36,12 @@ vi.mock("@/lib/services/reservation-rules", () => ({
 }));
 
 import { db } from "@/lib/db";
-import { expirePendingPickupCheckouts } from "@/lib/services/pending-pickup-expiry";
+import { expirePickupNoShows } from "@/lib/services/pending-pickup-expiry";
 
 const mockDb = db as unknown as {
   booking: { findMany: ReturnType<typeof vi.fn> };
   _mockTx: {
-    booking: { findUnique: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
+    booking: { findUnique: ReturnType<typeof vi.fn>; updateMany: ReturnType<typeof vi.fn> };
     bulkStockBalance: { findMany: ReturnType<typeof vi.fn>; upsert: ReturnType<typeof vi.fn> };
     bulkStockMovement: { createMany: ReturnType<typeof vi.fn> };
     bookingBulkUnitAllocation: { updateMany: ReturnType<typeof vi.fn> };
@@ -77,6 +77,7 @@ beforeEach(() => {
       },
     ],
   });
+  mockTx.booking.updateMany.mockResolvedValue({ count: 1 });
   mockTx.bulkStockBalance.findMany.mockResolvedValue([{ bulkSkuId: "bulk-1", onHandQuantity: 2 }]);
   mockTx.bulkStockBalance.upsert.mockResolvedValue({});
   mockTx.bulkStockMovement.createMany.mockResolvedValue({});
@@ -87,22 +88,31 @@ beforeEach(() => {
   mockTx.auditLog.create.mockResolvedValue({});
 });
 
-describe("expirePendingPickupCheckouts", () => {
-  it("expires stale pending pickups with inventory release and system audit", async () => {
-    const result = await expirePendingPickupCheckouts(now);
+describe("expirePickupNoShows", () => {
+  it("expires legacy pending checkouts with inventory release and system audit", async () => {
+    const result = await expirePickupNoShows(now);
 
     expect(result).toMatchObject({ scanned: 1, expired: 1, failed: 0, errors: {} });
     expectSerializableIsolation(transactionCalls, 0);
     expect(mockDb.booking.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({
-        kind: "CHECKOUT",
-        status: "PENDING_PICKUP",
+        OR: [
+          { kind: "RESERVATION", status: "BOOKED" },
+          { kind: "CHECKOUT", status: "PENDING_PICKUP" },
+        ],
         startsAt: { lt: new Date("2026-05-11T12:00:00.000Z") },
       }),
       take: 50,
     }));
-    expect(mockTx.booking.update).toHaveBeenCalledWith({
-      where: { id: "booking-1" },
+    expect(mockTx.booking.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "booking-1",
+        OR: [
+          { kind: "RESERVATION", status: "BOOKED" },
+          { kind: "CHECKOUT", status: "PENDING_PICKUP" },
+        ],
+        startsAt: { lt: new Date("2026-05-11T12:00:00.000Z") },
+      },
       data: { status: "CANCELLED" },
     });
     expect(mockTx.bulkStockBalance.upsert).toHaveBeenCalledWith({
@@ -152,6 +162,48 @@ describe("expirePendingPickupCheckouts", () => {
     });
   });
 
+  it("expires booked reservation no-shows without inventing stock restoration", async () => {
+    mockTx.booking.findUnique.mockResolvedValue({
+      id: "reservation-1",
+      kind: "RESERVATION",
+      status: "BOOKED",
+      startsAt: staleStart,
+      locationId: "loc-1",
+      createdBy: "creator-1",
+      bulkItems: [{
+        id: "bulk-item-1",
+        bulkSkuId: "bulk-1",
+        plannedQuantity: 3,
+        checkedInQuantity: 0,
+        unitAllocations: [],
+      }],
+    });
+
+    const result = await expirePickupNoShows(now);
+
+    expect(result).toMatchObject({ scanned: 1, expired: 1, failed: 0 });
+    expectSerializableIsolation(transactionCalls, 0);
+    expect(mockTx.booking.updateMany).toHaveBeenCalledOnce();
+    expect(mockTx.bulkStockBalance.upsert).not.toHaveBeenCalled();
+    expect(mockTx.bulkStockMovement.createMany).not.toHaveBeenCalled();
+    expect(mockTx.bookingBulkUnitAllocation.updateMany).not.toHaveBeenCalled();
+    expect(mockTx.bulkSkuUnit.updateMany).not.toHaveBeenCalled();
+    expect(mockTx.assetAllocation.updateMany).toHaveBeenCalledWith({
+      where: { bookingId: "reservation-1" },
+      data: { active: false },
+    });
+    expect(mockTx.scanSession.updateMany).toHaveBeenCalledWith({
+      where: { bookingId: "reservation-1", status: "OPEN" },
+      data: { status: "CANCELLED" },
+    });
+    expect(mockTx.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        entityId: "reservation-1",
+        action: "reservation_no_show_expired",
+      }),
+    });
+  });
+
   it("skips candidates that are no longer stale inside the transaction", async () => {
     mockTx.booking.findUnique.mockResolvedValue({
       id: "booking-1",
@@ -163,9 +215,9 @@ describe("expirePendingPickupCheckouts", () => {
       bulkItems: [],
     });
 
-    const result = await expirePendingPickupCheckouts(now);
+    const result = await expirePickupNoShows(now);
 
     expect(result).toMatchObject({ scanned: 1, expired: 0, failed: 0, errors: {} });
-    expect(mockTx.booking.update).not.toHaveBeenCalled();
+    expect(mockTx.booking.updateMany).not.toHaveBeenCalled();
   });
 });

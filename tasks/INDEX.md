@@ -1,6 +1,6 @@
 # Tasks Index
 
-Last updated: 2026-07-18
+Last updated: 2026-07-23
 
 ## Start Here
 
@@ -37,9 +37,8 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Active Follow-up Ledgers
 
-- `dashboard-pending-pickup-web-parity-plan.md` - local Dashboard parity is
-  implemented and verified; production merge/deployment plus authenticated
-  confirmation of the Pending Pickup lane remain.
+- `dashboard-pending-pickup-web-parity-plan.md` - Dashboard parity is deployed;
+  authenticated confirmation of the production Pending Pickup lane remains.
 - `ios-collaborator-published-schedule-redesign-plan.md` - implementation and source/build verification are complete; authenticated temporary-collaborator runtime proof remains blocked by the reset Simulator session.
 - `ios-schedule-filters-calendar-management-redesign-plan.md` - result-oriented Schedule filters and recoverable Shift Calendar management plus verification.
 - `ios-schedule-edit-times-post-trade-redesign-plan.md` - Edit Call Window and unified Post to Trade Board redesign plus verification.
@@ -67,6 +66,8 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Recently Archived
 
+- `archive/completed-2026-07/pending-pickup-reservation-consolidation-plan.md` - makes due booked reservations the single Pending Pickup model, starts no-show timing at scheduled pickup, opens kiosk custody directly, and retains raw staged rows only for verified cleanup.
+- `archive/completed-2026-07/ios-booking-pickup-overdue-row-plan.md` - makes due native reservation rows turn orange and say when pickup was due without changing reservation lifecycle or kiosk custody.
 - `archive/completed-2026-07/kiosk-bulk-turnaround-warning-fix-plan.md` - removed misleading bulk-family Tight turn warnings from direct kiosk checkout while preserving hard quantity shortages and exact-unit checks.
 - `archive/completed-2026-07/web-booking-detail-ios-alignment-plan.md` - brought the native identity, live timing, requester, location, gear, and event hierarchy to shared web booking detail while retaining operator controls and context.
 - `archive/completed-2026-07/booking-nudge-push-plan.md` - paired staff/admin overdue-checkout inbox nudges with preference-aware iOS push and booking tap-through.

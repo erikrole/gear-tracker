@@ -29,7 +29,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 1. Overdue Banner (global)
 2. Action Lanes
    - Check-outs needing action
-   - Awaiting pickup handoffs
+   - Pending pickup handoffs
    - Stale reservations needing cleanup
    - Reservations needing action
 3. My Gear in Custody cards

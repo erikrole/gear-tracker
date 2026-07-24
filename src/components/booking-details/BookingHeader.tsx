@@ -30,6 +30,7 @@ import { statusBadgeVariant, statusLabel, urgencyBadgeClassName } from "./helper
 import type { BookingChangeSyncStatus } from "@/hooks/use-booking-change-sync";
 import type { BookingDetail } from "./types";
 import { formatDateTime } from "@/lib/format";
+import { operationalBookingStatus } from "@/lib/booking-status-display";
 
 type Props = {
   booking: BookingDetail;
@@ -129,6 +130,7 @@ export function BookingHeader({
 }: Props) {
   const hasSecondaryActions = canDuplicate || canCancel || canNudge || canForceComplete || canTransferOwner || canEditEvents;
   const hasPrimaryActions = canEdit || canExtend;
+  const displayStatus = operationalBookingStatus(booking);
 
   const eventLabel =
     booking.events && booking.events.length > 1
@@ -194,10 +196,10 @@ export function BookingHeader({
                 variant={
                   (booking.isOverdue
                     ? "red"
-                    : statusBadgeVariant(booking.status, kind)) as BadgeProps["variant"]
+                    : statusBadgeVariant(displayStatus, kind)) as BadgeProps["variant"]
                 }
               >
-                {booking.isOverdue ? "Overdue" : statusLabel(booking.status, kind)}
+                {booking.isOverdue ? "Overdue" : statusLabel(displayStatus, kind)}
               </Badge>
               {countdown && (
                 <Badge

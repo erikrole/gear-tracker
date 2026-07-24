@@ -540,7 +540,7 @@ export default function ItemsPage() {
     {
       id: "pending-pickup",
       status: "PENDING_PICKUP",
-      label: "Awaiting pickup",
+      label: "Pending pickup",
       value: query.statusBreakdown.pendingPickup,
       helper: "Committed and waiting for handoff",
       icon: Timer,

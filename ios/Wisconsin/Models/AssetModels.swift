@@ -18,7 +18,7 @@ enum AssetComputedStatus: String, Codable {
         switch self {
         case .available: "Available"
         case .checkedOut: "Checked Out"
-        case .pendingPickup: "Awaiting Pickup"
+        case .pendingPickup: "Pending Pickup"
         case .reserved: "Reserved"
         case .maintenance: "Maintenance"
         case .retired: "Retired"

@@ -21,6 +21,7 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 | GAP-36 | iOS Item detail does not expose AC-8 admin actions: Duplicate, Retire, Delete, and Needs Maintenance | AREA_MOBILE | Expected | These destructive and lifecycle actions remain web-only by design for V1. Track staff-mobile parity separately from student operational work. Source: `tasks/audit-items-ios.md`. |
 | GAP-59 | Firmware watch does not cover every live camera body | AREA_ITEMS | Expected | The inventory-driven seed covers verified Sony pages. DJI, GoPro, Insta360, and JVC remain deferred until official-source adapters exist for each vendor's page format. Source: `tasks/firmware-watch-inventory-report.md`. |
 | GAP-60 | Native staff Schedule authoring still uses legacy live mutations | AREA_MOBILE / AREA_SHIFTS | Active | Web now has a private versioned working schedule, but existing iOS Add Shift, Assign Person, unassign, and call-window actions still mutate relational rows directly. Move native staff quick actions to the additive working-copy API and add native publish review before production rollout. Existing iOS reads remain backward-compatible and published-only. Source: `tasks/event-shift-working-schedule-plan.md`. |
+| GAP-61 | Legacy raw `PENDING_PICKUP` checkout rows and enum remain during rollout | AREA_RESERVATIONS | Active | New kiosk custody opens directly as `OPEN`, while Pending Pickup is derived from due `BOOKED` reservations. Keep legacy kiosk confirmation and expiry support until a production zero-row check proves the enum and compatibility branches can be removed safely. Source: `tasks/archive/completed-2026-07/pending-pickup-reservation-consolidation-plan.md`. |
 
 ## Deferred Product Scope
 
@@ -51,6 +52,9 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 
 ## Change Log
 
+- 2026-07-23: Added GAP-61 after consolidating Pending Pickup into the due
+  reservation model. Product behavior is unified now; destructive removal of
+  the legacy enum and kiosk branches waits for verified zero production rows.
 - 2026-07-23: Expanded the collaborator rollout defense for the policy-granted People directory. Migration `0103` must follow compatible server and client deployment, and authenticated BTN/Learfield smoke must prove both directory access and private-field denial.
 - 2026-07-21: Added GAP-60 and the working-copy rollout risk. Web persistence, API, reconciliation, notifications, expanded editing, and default hardening are implemented locally; migration application, native staff mutation adoption, and authenticated runtime proof remain open.
 

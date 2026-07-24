@@ -655,51 +655,72 @@ private struct ActiveBookingCard: View {
     let booking: AssetActiveBooking
 
     private var isReservation: Bool { booking.kind == "RESERVATION" }
-    private var isPendingPickup: Bool { booking.kind == "CHECKOUT" && booking.status == "PENDING_PICKUP" }
-    private var tone: StatusTone {
-        if booking.isOverdue { return .red }
-        return isReservation ? .purple : isPendingPickup ? .orange : .blue
+
+    private func isPendingPickup(now: Date) -> Bool {
+        if booking.kind == "CHECKOUT" && booking.status == "PENDING_PICKUP" {
+            return true
+        }
+        return isReservation
+            && booking.status == "BOOKED"
+            && booking.startsAt.map { $0 <= now } == true
+    }
+
+    private func tone(now: Date) -> StatusTone {
+        if booking.kind == "CHECKOUT" && booking.isOverdue { return .red }
+        return isPendingPickup(now: now) ? .orange : isReservation ? .purple : .blue
+    }
+
+    private func timing(now: Date) -> String {
+        if let startsAt = booking.startsAt, isPendingPickup(now: now) {
+            return "Scheduled pickup \(startsAt.operationalDateTimeLabel(now: now, capitalizesRelativeDay: false))"
+        }
+        if let startsAt = booking.startsAt, isReservation {
+            return "Pickup \(startsAt.operationalDateTimeLabel(now: now, capitalizesRelativeDay: false))"
+        }
+        return Date.itemDueLabel(for: booking.endsAt, now: now)
     }
 
     var body: some View {
-        let title = isReservation ? "Active Reservation" : isPendingPickup ? "Awaiting Pickup" : "Checked Out"
-        return NavigationLink(destination: BookingDetailView(bookingId: booking.id)) {
-            HStack(spacing: 12) {
-                StatusRail(tone: tone)
-                UserAvatarView(
-                    name: booking.requesterName,
-                    avatarUrl: booking.requesterAvatarUrl,
-                    size: 40
-                )
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(booking.title)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    TimelineView(.periodic(from: .now, by: 60)) { context in
-                        Text(Date.itemDueLabel(for: booking.endsAt, now: context.date))
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            let pendingPickup = isPendingPickup(now: context.date)
+            let title = pendingPickup ? "Pending Pickup" : isReservation ? "Active Reservation" : "Checked Out"
+            let currentTone = tone(now: context.date)
+            NavigationLink(destination: BookingDetailView(bookingId: booking.id)) {
+                HStack(spacing: 12) {
+                    StatusRail(tone: currentTone)
+                    UserAvatarView(
+                        name: booking.requesterName,
+                        avatarUrl: booking.requesterAvatarUrl,
+                        size: 40
+                    )
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(booking.title)
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        Text(timing(now: context.date))
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(Color.statusText(tone))
+                            .foregroundStyle(Color.statusText(currentTone))
                             .contentTransition(.numericText())
+                        Text(booking.requesterName)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
-                    Text(booking.requesterName)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                        .accessibilityHidden(true)
                 }
-                Spacer(minLength: 8)
-                Image(systemName: "chevron.right")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
+                .frame(minHeight: 54)
             }
-            .frame(minHeight: 54)
+            .buttonStyle(.plain)
+            .brandCard(padding: Brand.Space.md)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(title): with \(booking.requesterName), \(booking.title), \(timing(now: context.date))")
+            .accessibilityHint("Opens booking details")
         }
-        .buttonStyle(.plain)
-        .brandCard(padding: Brand.Space.md)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(title): with \(booking.requesterName), \(booking.title), due \(booking.endsAt.formatted(date: .abbreviated, time: .shortened))")
-        .accessibilityHint("Opens booking details")
     }
 
 }

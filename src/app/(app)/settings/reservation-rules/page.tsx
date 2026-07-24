@@ -187,7 +187,7 @@ export default function ReservationRulesPage() {
             />
             {errors.noShowExpiryHours
               ? <p className="text-xs text-destructive">{errors.noShowExpiryHours}</p>
-              : <p className="text-xs text-muted-foreground">Awaiting Pickup checkouts that are not collected within this window are automatically cancelled and stock is restored.</p>
+              : <p className="text-xs text-muted-foreground">A reservation becomes Pending Pickup at its scheduled start. If pickup does not happen within this window, the reservation is automatically cancelled and its gear is released.</p>
             }
           </div>
 

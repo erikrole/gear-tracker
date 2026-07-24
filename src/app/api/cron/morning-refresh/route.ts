@@ -5,7 +5,7 @@ import { syncCalendarSource } from "@/lib/services/calendar-sync";
 import { updateCalendarSyncHealth } from "@/lib/services/calendar-sync-health";
 import { generateShiftsForNewEvents } from "@/lib/services/shift-generation";
 import { expireOpenTrades } from "@/lib/services/shift-trades";
-import { expirePendingPickupCheckouts } from "@/lib/services/pending-pickup-expiry";
+import { expirePickupNoShows } from "@/lib/services/pending-pickup-expiry";
 import { pollFirmwareWatchTargets } from "@/lib/services/firmware-watch";
 import { DEFAULT_RESERVATION_RULES } from "@/lib/services/reservation-rules";
 import { getScheduleAutomationDigest } from "@/lib/services/schedule-automation";
@@ -174,10 +174,10 @@ export const GET = withCron(async () => {
       return 0;
     });
 
-  // ── 4. Expire stale open/claimed trades and pending pickups ─────────
+  // ── 4. Expire stale open/claimed trades and pickup no-shows ─────────
   const [tradeResult, pendingPickupResult, firmwareWatchResult] = await Promise.allSettled([
     expireOpenTrades(),
-    expirePendingPickupCheckouts(now),
+    expirePickupNoShows(now),
     pollFirmwareWatchTargets({ now }),
   ]);
   const maintenanceFailures: string[] = [];

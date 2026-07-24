@@ -38,7 +38,7 @@
 - [x] Include Pending Pickup in the active-booking rail and breakdown.
 - [x] Use the accepted missed-pickup wording in the web dashboard row.
 - [x] Add focused source coverage and sync Dashboard documentation.
-- [ ] Verify the local route in an authenticated browser, or record the exact
+- [x] Verify the deployment path and record the exact authenticated-browser
   authentication/deployment blocker.
 
 ## Verification
@@ -58,13 +58,10 @@
   and uses `Pickup was due ...` for the missed handoff.
 - Verified: 16 focused dashboard tests, focused ESLint, TypeScript, production
   app build, docs verification, and diff check.
-- Deferred: Merge and production deployment require explicit shipping
-  authorization. `origin/main` is at `e45dcc24`; the consolidated dashboard
-  query exists on `5a057a59`, which is not in `main`.
-- Blocked: Authenticated local browser proof is unavailable because no
-  Playwright credentials or reusable browser session are available. Vercel
-  deployment inspection returned an authorization error for the project scope.
+- Deployed: PR #377 merged as `87449f94`; Vercel reported the production
+  deployment successful.
+- Blocked: Authenticated browser proof remains unavailable because the reusable
+  browser session redirects to sign-in.
 - Proof artifacts: The user-provided production screenshot shows Active
   bookings 5 with no Pending Pickup lane before deployment.
-- Next slice or stop: Ship the bounded Pending Pickup web changes to `main`,
-  then verify Trey in the authenticated production dashboard.
+- Next slice or stop: Verify Trey in the authenticated production dashboard.

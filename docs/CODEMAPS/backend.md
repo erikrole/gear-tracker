@@ -14,7 +14,7 @@
 | `src/lib/services/booking-rules.ts` | 107 |
 | `src/lib/services/bookings-checkin.ts` | 846 |
 | `src/lib/services/bookings-helpers.ts` | 251 |
-| `src/lib/services/bookings-lifecycle.ts` | 1623 |
+| `src/lib/services/bookings-lifecycle.ts` | 1625 |
 | `src/lib/services/bookings-queries.ts` | 235 |
 | `src/lib/services/bookings.ts` | 4 |
 | `src/lib/services/bulk-unit-scans.ts` | 608 |
@@ -38,7 +38,7 @@
 | `src/lib/services/notification-prefs.ts` | 103 |
 | `src/lib/services/notifications.ts` | 1049 |
 | `src/lib/services/onboarding-lifecycle.ts` | 618 |
-| `src/lib/services/pending-pickup-expiry.ts` | 218 |
+| `src/lib/services/pending-pickup-expiry.ts` | 239 |
 | `src/lib/services/reports.ts` | 1378 |
 | `src/lib/services/reservation-rules.ts` | 46 |
 | `src/lib/services/scans.ts` | 671 |
@@ -57,7 +57,7 @@
 | `src/lib/services/shift-trade-emails.ts` | 56 |
 | `src/lib/services/shift-trades.ts` | 901 |
 | `src/lib/services/sport-configs.ts` | 257 |
-| `src/lib/services/status.ts` | 439 |
+| `src/lib/services/status.ts` | 444 |
 | `src/lib/services/user-deactivation.ts` | 111 |
 
 ## Key Library Files
@@ -82,7 +82,7 @@
 | `src/lib/booking-action-policy.ts` | 189 |
 | `src/lib/booking-actions.ts` | 14 |
 | `src/lib/booking-availability-window.ts` | 19 |
-| `src/lib/booking-status-display.ts` | 128 |
+| `src/lib/booking-status-display.ts` | 142 |
 | `src/lib/breadcrumbs.ts` | 145 |
 | `src/lib/bulk-batteries.ts` | 28 |
 | `src/lib/bulk-unit-qr.ts` | 111 |

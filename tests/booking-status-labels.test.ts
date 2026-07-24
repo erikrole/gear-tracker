@@ -3,17 +3,36 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { statusBadgeVariant, statusLabel } from "@/components/booking-details/helpers";
 import { getStatusVisual } from "@/components/booking-list/types";
-import { bookingStatusDisplay, bookingStatusLabel, bookingStatusVisual } from "@/lib/booking-status-display";
+import {
+  bookingStatusDisplay,
+  bookingStatusLabel,
+  bookingStatusVisual,
+  operationalBookingStatus,
+} from "@/lib/booking-status-display";
 
 describe("booking status labels", () => {
   it("renders pending pickup as a first-class checkout state", () => {
-    expect(bookingStatusLabel("PENDING_PICKUP", "CHECKOUT")).toBe("Awaiting Pickup");
-    expect(statusLabel("PENDING_PICKUP", "CHECKOUT")).toBe("Awaiting Pickup");
+    expect(bookingStatusLabel("PENDING_PICKUP", "CHECKOUT")).toBe("Pending Pickup");
+    expect(statusLabel("PENDING_PICKUP", "CHECKOUT")).toBe("Pending Pickup");
     expect(statusBadgeVariant("PENDING_PICKUP", "CHECKOUT")).toBe("orange");
     expect(getStatusVisual("PENDING_PICKUP", false, "CHECKOUT")).toMatchObject({
       dot: "var(--orange)",
-      label: "Awaiting Pickup",
+      label: "Pending Pickup",
     });
+  });
+
+  it("derives Pending Pickup when a booked reservation reaches startsAt", () => {
+    const now = new Date("2026-07-23T20:31:00.000Z");
+    expect(operationalBookingStatus({
+      kind: "RESERVATION",
+      status: "BOOKED",
+      startsAt: "2026-07-23T19:30:00.000Z",
+    }, now)).toBe("PENDING_PICKUP");
+    expect(operationalBookingStatus({
+      kind: "RESERVATION",
+      status: "BOOKED",
+      startsAt: "2026-07-23T21:30:00.000Z",
+    }, now)).toBe("BOOKED");
   });
 
   it("keeps terminal and overdue labels separate", () => {

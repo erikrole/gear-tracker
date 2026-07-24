@@ -207,7 +207,7 @@ export default function CheckoutPoliciesPage() {
             />
             {errors.maxItemsPerUser
               ? <p className="text-xs text-destructive">{errors.maxItemsPerUser}</p>
-              : <p className="text-xs text-muted-foreground">Counts both Open and Awaiting Pickup checkouts. Leave blank for no limit.</p>
+              : <p className="text-xs text-muted-foreground">Counts both Open and legacy Pending Pickup checkouts. Leave blank for no limit.</p>
             }
           </div>
 

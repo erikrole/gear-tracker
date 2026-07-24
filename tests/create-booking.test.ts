@@ -165,11 +165,11 @@ describe("createBooking", () => {
     expect(mockTx.booking.create).not.toHaveBeenCalled();
   });
 
-  it("creates a CHECKOUT with PENDING_PICKUP status", async () => {
+  it("creates kiosk CHECKOUT custody directly as OPEN", async () => {
     await createBooking(baseInput({ kind: "CHECKOUT" }));
     expect(mockTx.booking.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ kind: "CHECKOUT", status: "PENDING_PICKUP" }),
+        data: expect.objectContaining({ kind: "CHECKOUT", status: "OPEN" }),
       })
     );
   });

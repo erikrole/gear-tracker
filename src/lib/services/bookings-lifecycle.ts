@@ -408,11 +408,13 @@ export async function createBooking(input: CreateBookingInput) {
             throw new HttpError(409, "Availability conflict", availability);
           }
 
+          // Reservation intent stays BOOKED until the kiosk proves the physical
+          // handoff. Every checkout admitted by this service is kiosk custody,
+          // so it opens directly instead of creating the retired staged
+          // PENDING_PICKUP checkout state.
           const status = input.kind === BookingKind.RESERVATION
             ? BookingStatus.BOOKED
-            : input.custodySource === "KIOSK" && input.sourceReservationId
-              ? BookingStatus.OPEN
-              : BookingStatus.PENDING_PICKUP;
+            : BookingStatus.OPEN;
 
           // Resolve event linking: multi-event (eventIds) or legacy single (eventId).
           // Sort chronologically so primary = first.

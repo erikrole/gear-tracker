@@ -210,7 +210,7 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 ### Checkout-Specific Behavior
 - The shared header follows the native booking hierarchy: lifecycle state and live due/pickup timing lead, the requester is named beside the booking identity, and a compact operational summary keeps the handoff time, pickup location, physical gear count, and linked event context visible before the denser web detail columns.
 - Web-only operator breadth remains below and beside that summary: inline editing, equipment custody context, nudge/extend/transfer/admin-repair actions, sync health, and complete activity history.
-- Status badge shows display labels through the shared booking status display helper: `PENDING_PICKUP` -> "Awaiting Pickup", `OPEN` -> "Checked out".
+- Status badge shows display labels through the shared booking status display helper: `PENDING_PICKUP` -> "Pending Pickup", `OPEN` -> "Checked out".
 - "Due back" countdown rendered as urgency-colored Badge (red/orange/yellow/neutral)
 - Action buttons: `[Actions ▼] [Edit] [Extend]` for app-owned actions. Custody pickup/return scans happen at the kiosk.
 - Actions dropdown contains: Nudge borrower, Close without scan, Transfer owner, Duplicate, and Cancel when each action is allowed. Close without scan is admin-only, requires a reason, records an override event, and must not link to `/scan?checkout=...`.

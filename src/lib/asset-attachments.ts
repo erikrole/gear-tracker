@@ -152,7 +152,7 @@ export function getAttachmentStatusWarning(item: AttachmentLike): string | null 
     case "CHECKED_OUT":
       return "Currently checked out. Confirm before tying it to a parent.";
     case "PENDING_PICKUP":
-      return "Awaiting pickup. Confirm before tying it to a parent.";
+      return "Pending pickup. Confirm before tying it to a parent.";
     case "RESERVED":
       return "Reserved soon. Confirm before tying it to a parent.";
     case "MAINTENANCE":
