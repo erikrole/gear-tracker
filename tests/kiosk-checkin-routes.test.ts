@@ -434,6 +434,102 @@ describe("kiosk check-in scan route", () => {
       routeCtx("booking-1"),
     )).rejects.toThrow("Active checkout not found");
   });
+
+  it("passes the requester as actorUserId to the bulk-unit scan", async () => {
+    mocks.bookingFindUnique.mockResolvedValue({
+      id: "booking-1",
+      status: "OPEN",
+      kind: "CHECKOUT",
+      requesterUserId: "user-1",
+      locationId: "loc-1",
+    });
+    mocks.scanKioskCheckinBulkUnit.mockResolvedValue({ handled: false });
+    mocks.findAssetByScanValue.mockResolvedValue(null);
+
+    await scanKioskCheckin(
+      new Request("http://test", {
+        method: "POST",
+        body: JSON.stringify({ scanValue: "94e068d1-7" }),
+      }),
+      routeCtx("booking-1"),
+    );
+
+    expect(mocks.scanKioskCheckinBulkUnit).toHaveBeenCalledWith(
+      expect.anything(),
+      { bookingId: "booking-1", scanValue: "94e068d1-7", actorUserId: "user-1" },
+    );
+  });
+
+  it("fires the return badge and ends live activities when a battery scan auto-completes the checkout", async () => {
+    mocks.bookingFindUnique.mockResolvedValue({
+      id: "booking-1",
+      status: "OPEN",
+      kind: "CHECKOUT",
+      requesterUserId: "user-1",
+      locationId: "loc-1",
+    });
+    const completedAt = new Date("2026-05-06T10:00:00.000Z");
+    mocks.scanKioskCheckinBulkUnit.mockResolvedValue({
+      handled: true,
+      success: true,
+      item: { id: "unit-7", name: "Sony Battery #7", tagName: "#7", type: "Batteries", unitNumber: 7, bulkSkuId: "sku-1" },
+      completed: true,
+      badgeEvent: {
+        userId: "user-1",
+        bookingId: "booking-1",
+        completedAt,
+        wasOnTime: true,
+        sourceKey: "booking-1",
+      },
+    });
+
+    const res = await scanKioskCheckin(
+      new Request("http://test", {
+        method: "POST",
+        body: JSON.stringify({ scanValue: "94e068d1-7" }),
+      }),
+      routeCtx("booking-1"),
+    );
+    const json = await res.json();
+
+    expect(json).toEqual({
+      success: true,
+      item: { id: "unit-7", name: "Sony Battery #7", tagName: "#7", type: "Batteries", unitNumber: 7, bulkSkuId: "sku-1" },
+    });
+    expect(mocks.badgeOnCheckoutReturned).toHaveBeenCalledWith(expect.objectContaining({
+      userId: "user-1",
+      bookingId: "booking-1",
+    }));
+    expect(mocks.endCheckoutReturnLiveActivities).toHaveBeenCalledWith("booking-1");
+  });
+
+  it("does not fire the return badge when a battery scan leaves items outstanding", async () => {
+    mocks.bookingFindUnique.mockResolvedValue({
+      id: "booking-1",
+      status: "OPEN",
+      kind: "CHECKOUT",
+      requesterUserId: "user-1",
+      locationId: "loc-1",
+    });
+    mocks.scanKioskCheckinBulkUnit.mockResolvedValue({
+      handled: true,
+      success: true,
+      item: { id: "unit-7", name: "Sony Battery #7", tagName: "#7", type: "Batteries", unitNumber: 7, bulkSkuId: "sku-1" },
+      completed: false,
+      badgeEvent: null,
+    });
+
+    await scanKioskCheckin(
+      new Request("http://test", {
+        method: "POST",
+        body: JSON.stringify({ scanValue: "94e068d1-7" }),
+      }),
+      routeCtx("booking-1"),
+    );
+
+    expect(mocks.badgeOnCheckoutReturned).not.toHaveBeenCalled();
+    expect(mocks.endCheckoutReturnLiveActivities).not.toHaveBeenCalled();
+  });
 });
 
 describe("kiosk check-in complete route", () => {
