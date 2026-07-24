@@ -184,10 +184,14 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 ## Change Log
 
+- 2026-07-24: Booking timing now uses calendar-relative labels (`Today`,
+  `Tomorrow`, and `Yesterday`), full month-and-day labels outside that range,
+  a comma before the time, and stronger date/time emphasis across checkout and
+  pending-pickup rows.
 - 2026-07-23: Pending Pickup now counts and lists due `BOOKED` reservations,
   with dashboard summaries exposing the orange operational display status.
   The top active-booking total and breakdown include that lane, and a missed
-  handoff uses the accepted `Pickup was due today at 2:30 PM` wording.
+  handoff uses the accepted `Pickup was due Today, 2:30 PM` wording.
   The separate Stale reservations card is retired. Legacy staged checkout rows
   remain in the same lane during compatibility cleanup, while checkout overdue
   continues to mean physical custody only.

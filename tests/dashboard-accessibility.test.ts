@@ -14,7 +14,10 @@ describe("dashboard accessibility contracts", () => {
     const source = readFileSync("src/app/(app)/dashboard/booking-row.tsx", "utf8");
 
     expect(source).toContain("Clock3Icon");
-    expect(source).toContain("timingLabel");
+    expect(source).toContain("timingPrefix");
+    expect(source).toContain("timingDateTime");
+    expect(source).toContain('className="font-bold">{timingDateTime}</span>');
+    expect(source).toContain('className="size-4 shrink-0"');
     expect(source).not.toContain("GearAvatarStack");
     expect(source).not.toContain("<Badge");
   });

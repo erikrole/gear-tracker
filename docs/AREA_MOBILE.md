@@ -133,6 +133,11 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 
 ## Change Log
 
+- 2026-07-24: **Web dashboard timing language aligned with the native
+  calendar-relative pattern.** Shared web checkout and pending-pickup rows now
+  use `Today`, `Tomorrow`, or `Yesterday`, then full month and day farther out,
+  with a comma before the time and stronger date/time emphasis. Native
+  Bookings and Home behavior are unchanged in this web-only slice.
 - 2026-07-23: **Pending Pickup reservation model consolidated.** A `BOOKED`
   reservation whose scheduled pickup time has arrived now changes from purple
   reservation treatment to orange Pending Pickup in native Bookings and Item

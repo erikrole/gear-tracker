@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { calendarDate, formatDayLabel } from "@/lib/format";
+import {
+  calendarDate,
+  formatDayLabel,
+  formatOperationalDateTime,
+} from "@/lib/format";
 
 // ── REGRESSION: an all-day CalendarEvent stores its date as UTC midnight
 // (e.g. "2026-07-09T00:00:00Z" for July 9). Formatting that instant in a
@@ -46,5 +50,27 @@ describe("formatDayLabel / calendarDate timezone independence", () => {
   it("calendarDate passes non-allDay values through untouched", () => {
     const d = calendarDate("2026-07-09T19:00:00.000Z", false);
     expect(d.toISOString()).toBe("2026-07-09T19:00:00.000Z");
+  });
+});
+
+describe("formatOperationalDateTime", () => {
+  const now = new Date(2026, 6, 24, 10, 0);
+
+  function localIso(year: number, month: number, day: number, hour = 14, minute = 30) {
+    return new Date(year, month, day, hour, minute).toISOString();
+  }
+
+  it("uses nearby calendar-day labels with a comma before the time", () => {
+    expect(formatOperationalDateTime(localIso(2026, 6, 23), now)).toBe("Yesterday, 2:30 PM");
+    expect(formatOperationalDateTime(localIso(2026, 6, 24), now)).toBe("Today, 2:30 PM");
+    expect(formatOperationalDateTime(localIso(2026, 6, 25), now)).toBe("Tomorrow, 2:30 PM");
+  });
+
+  it("uses a full month and day outside the relative range", () => {
+    expect(formatOperationalDateTime(localIso(2026, 6, 29), now)).toBe("July 29, 2:30 PM");
+  });
+
+  it("includes the year when the timestamp is outside the current year", () => {
+    expect(formatOperationalDateTime(localIso(2027, 0, 2), now)).toBe("January 2, 2027, 2:30 PM");
   });
 });

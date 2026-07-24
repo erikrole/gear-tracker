@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/tooltip";
 import { UserAvatar } from "@/components/UserAvatar";
 import { cn } from "@/lib/utils";
-import { formatDayLabel, formatDueLabel, formatEventDateTime, formatPickupLabel, formatTimeShort, isDueToday } from "@/lib/format";
+import { formatEventDateTime, formatOperationalDateTime, isDueToday } from "@/lib/format";
 import type { ItemThumb } from "../dashboard-types";
 
 type DashboardBookingRowItem = {
@@ -66,13 +66,14 @@ export function DashboardBookingRow({
   actions,
   onSelectBooking,
 }: Props) {
-  const dueLabel = formatDueLabel(booking.endsAt, now);
   const pickupIsLate = showPickupBadge && new Date(booking.startsAt).getTime() < now.getTime();
-  const pickupLabel = showPickupBadge ? formatPickupLabel(booking.startsAt, now) : "";
-  const pickupDueLabel = `Pickup was due ${formatDayLabel(booking.startsAt, now).toLowerCase()} at ${formatTimeShort(booking.startsAt)}`;
-  const timingLabel = showPickupBadge
-    ? (pickupIsLate ? pickupDueLabel : `Pickup ${pickupLabel}`)
-    : dueLabel;
+  const timingPrefix = showPickupBadge
+    ? (pickupIsLate ? "Pickup was due" : "Pickup")
+    : "Due";
+  const timingDateTime = formatOperationalDateTime(
+    showPickupBadge ? booking.startsAt : booking.endsAt,
+    now,
+  );
   const timingTone = booking.isOverdue
     ? "text-[var(--wi-red)]"
     : isDueToday(booking.endsAt, now) || pickupIsLate
@@ -117,9 +118,10 @@ export function DashboardBookingRow({
         {(showDueBadge || showPickupBadge) && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className={cn("inline-flex cursor-default items-center gap-1 whitespace-nowrap text-xs font-semibold tabular-nums", timingTone)}>
-                <Clock3Icon className="size-3.5" aria-hidden="true" />
-                {timingLabel}
+              <span className={cn("inline-flex cursor-default items-center gap-1.5 whitespace-nowrap text-xs tabular-nums sm:text-sm", timingTone)}>
+                <Clock3Icon className="size-4 shrink-0" aria-hidden="true" />
+                <span className="font-medium">{timingPrefix}</span>
+                <span className="font-bold">{timingDateTime}</span>
               </span>
             </TooltipTrigger>
             <TooltipContent>{formatEventDateTime(booking.startsAt, booking.endsAt)}</TooltipContent>

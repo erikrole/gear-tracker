@@ -106,7 +106,7 @@
 | `src/lib/errors.ts` | 80 |
 | `src/lib/fetch-with-timeout.ts` | 23 |
 | `src/lib/firmware-watch-targets.ts` | 124 |
-| `src/lib/format.ts` | 266 |
+| `src/lib/format.ts` | 302 |
 | `src/lib/guide-categories.ts` | 138 |
 | `src/lib/guide-content.ts` | 262 |
 | `src/lib/guide-freshness.ts` | 81 |

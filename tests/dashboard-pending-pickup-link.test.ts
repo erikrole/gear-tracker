@@ -29,10 +29,9 @@ describe("dashboard pending pickup links", () => {
 
   it("uses the accepted missed-pickup wording in dashboard rows", () => {
     const row = source("src/app/(app)/dashboard/booking-row.tsx");
-    expect(row).toContain(
-      "Pickup was due ${formatDayLabel(booking.startsAt, now).toLowerCase()} at ${formatTimeShort(booking.startsAt)}",
-    );
-    expect(row).toContain("pickupIsLate ? pickupDueLabel");
+    expect(row).toContain('pickupIsLate ? "Pickup was due" : "Pickup"');
+    expect(row).toContain("formatOperationalDateTime(");
+    expect(row).toContain("showPickupBadge ? booking.startsAt : booking.endsAt");
   });
 
   it("retires the separate stale-reservation dashboard lane", () => {

@@ -98,6 +98,42 @@ export function formatTimeShort(iso: string) {
   });
 }
 
+/**
+ * Calendar-relative operational time, such as "Today, 2:30 PM",
+ * "Tomorrow, 2:30 PM", "Yesterday, 2:30 PM", or "July 29, 2:30 PM".
+ */
+export function formatOperationalDateTime(iso: string, now: Date): string {
+  const date = new Date(iso);
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const dayAfterTomorrow = new Date(today);
+  dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+
+  let dayLabel: string;
+  if (date >= today && date < tomorrow) {
+    dayLabel = "Today";
+  } else if (date >= tomorrow && date < dayAfterTomorrow) {
+    dayLabel = "Tomorrow";
+  } else if (date >= yesterday && date < today) {
+    dayLabel = "Yesterday";
+  } else {
+    dayLabel = date.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      ...(date.getFullYear() !== now.getFullYear() && { year: "numeric" }),
+    });
+  }
+
+  return `${dayLabel}, ${formatTimeShort(iso)}`;
+}
+
 /** "Mar 11, 3:00 – 5:00 PM" — compact date + time range */
 export function formatEventDateTime(startsAt: string, endsAt: string, allDay?: boolean) {
   const date = formatDateShort(startsAt);
