@@ -164,7 +164,9 @@ describe("iOS user directory polish", () => {
 
     // Contact actions are for reaching other people. Mailing yourself is a dead
     // end, and your own profile is the one place they were never useful.
-    expect(detail).toContain("if detail.id != session.currentUser?.id {");
+    expect(detail).toContain(
+      "if detail.id != session.currentUser?.id && (!detail.email.isEmpty || detail.phone?.isEmpty == false) {",
+    );
     expect(profile).not.toContain("ContactActions(");
   });
 });

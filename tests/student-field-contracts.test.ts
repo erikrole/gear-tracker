@@ -86,12 +86,12 @@ describe("student field mobile contracts", () => {
     expect(homeView).toContain(".buttonStyle(.plain)");
     expect(homeView).not.toContain("Circle().strokeBorder(Color(.separator)");
     expect(bookingsView).toContain('scope = currentUserRole == "STUDENT" || currentUserRole == "COLLABORATOR" ? .mine : .all');
-    expect(bookingsView).toContain('BookingListSection(title: "Checkouts"');
-    expect(bookingsView).toContain('BookingListSection(title: "Reservations"');
+    expect(bookingsView).toContain('BookingListSection(title: "Active"');
+    expect(bookingsView).not.toContain('BookingListSection(title: "Checkouts"');
+    expect(bookingsView).not.toContain('BookingListSection(title: "Reservations"');
     expect(bookingsView).toContain('"Search bookings..."');
-    expect(bookingsView).toContain("APIClient.shared.checkouts(");
-    expect(bookingsView).toContain("APIClient.shared.reservations(");
-    expect(bookingsView.match(/activeOnly: true/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(bookingsView).toContain("APIClient.shared.bookings(");
+    expect(bookingsView).toContain("activeOnly: true");
     expect(bookingsView).toContain("enum BookingScope: String");
     expect(bookingsView).toContain('vm.mineOnly ? "person.crop.circle.fill" : "person.crop.circle"');
     expect(bookingsView).not.toContain("Picker(\"Booking scope\", selection: $vm.scope)");
@@ -110,7 +110,7 @@ describe("student field mobile contracts", () => {
     expect(bookingsView).toContain(".refreshable");
     expect(bookingsView).toContain("BookingEmptyState(");
     expect(bookingsView).toContain('Label("View All Bookings", systemImage: "person.2")');
-    expect(bookingsView).toContain("ReservationEmptyRow(canCreate: canCreate)");
+    expect(bookingsView).not.toContain("ReservationEmptyRow");
     expect(bookingsView).toContain("capitalizesRelativeDay: false");
     expect(bookingsView).not.toContain("isRefreshingVisibleRows");
     expect(bookingsView).not.toContain("BookingFreshnessFooter");

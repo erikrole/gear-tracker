@@ -142,6 +142,10 @@ describe("updateBookingEvents", () => {
     mockTx.user.findUnique.mockResolvedValue({
       role: Role.COLLABORATOR,
       collaboratorProfile: CollaboratorProfile.BTN_STANDARD,
+      collaboratorPolicy: {
+        status: "ACTIVE",
+        grants: [{ capabilityKey: "PUBLISHED_SCHEDULE_VIEW" }],
+      },
     });
 
     await updateBookingEvents("reservation-1", "collaborator-1", ["event-late", "event-early"]);

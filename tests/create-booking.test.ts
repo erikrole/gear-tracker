@@ -515,6 +515,10 @@ describe("createBooking", () => {
       active: true,
       role: Role.COLLABORATOR,
       collaboratorProfile: CollaboratorProfile.BTN_STANDARD,
+      collaboratorPolicy: {
+        status: "ACTIVE",
+        grants: [{ capabilityKey: "PUBLISHED_SCHEDULE_VIEW" }],
+      },
     });
     mockTx.calendarEvent.findMany.mockResolvedValue([
       { id: "event-published", startsAt: new Date("2026-04-01T20:00:00Z") },
@@ -548,6 +552,10 @@ describe("createBooking", () => {
       active: true,
       role: Role.COLLABORATOR,
       collaboratorProfile: CollaboratorProfile.BTN_STANDARD,
+      collaboratorPolicy: {
+        status: "ACTIVE",
+        grants: [{ capabilityKey: "PUBLISHED_SCHEDULE_VIEW" }],
+      },
     });
 
     await expect(createBooking(baseInput({

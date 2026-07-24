@@ -39,7 +39,7 @@ describe("dashboard motion contracts", () => {
     expect(myGear).toContain('<AnimatePresence initial={false}>');
     expect(myGear).toContain('key="drafts"');
     expect(team).toContain('key="pending-pickups"');
-    expect(team).toContain('key="stale-reservations"');
+    expect(team).not.toContain('key="stale-reservations"');
     expect(overdue).not.toContain("dash-fade-up");
     expect(flagged).not.toContain("dash-fade-up");
     expect(lost).not.toContain("dash-fade-up");

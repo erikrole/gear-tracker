@@ -57,7 +57,7 @@ describe("Users sweeping ownership contracts", () => {
     const page = source("src/app/(app)/users/page.tsx");
     const dialog = source("src/components/onboarding/OnboardingDialog.tsx");
 
-    expect(page).toContain('<PageHeader title="Users" className="mb-5">');
+    expect(page).toContain('<PageHeader title={isCollaboratorDirectory ? "People" : "Users"} className="mb-5">');
     expect(page).not.toContain("Find people, manage access, and review roster health.");
     expect(page).toContain("Add users");
     expect(dialog).toContain("Grant registration access to one person or paste a roster.");

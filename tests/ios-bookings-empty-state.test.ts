@@ -34,9 +34,10 @@ describe("iOS bookings empty state recovery", () => {
 
   it("renders one chronological list instead of separated sections or top tabs", () => {
     expect(source).toContain("var sortedBookings: [Booking]");
-    // Checkouts and reservations interleave on one key: when the booking is
-    // finished. No per-kind section survives.
-    expect(source).toContain("lhs.endsAt != rhs.endsAt");
+    // Checkouts and reservations interleave on the next operational handoff:
+    // reservation pickup time or checkout due-back time.
+    expect(source).toContain("booking.kind == .reservation ? booking.startsAt : booking.endsAt");
+    expect(source).toContain("sortedBookings = bookings.sorted(by: Self.operationalTimeSort)");
     expect(source).toContain('BookingListSection(title: "Active"');
     expect(source).not.toContain('BookingListSection(title: "Checkouts"');
     expect(source).not.toContain('BookingListSection(title: "Reservations"');

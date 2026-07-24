@@ -20,7 +20,7 @@ describe("iOS Schedule UI cleanup", () => {
     const controlStrip = sliceBetween(
       scheduleView,
       "private var scheduleControlStrip: some View",
-      "@ViewBuilder\n    private var eventList",
+      "@ViewBuilder\n    private func eventList",
     );
     const filterSheet = sliceBetween(
       scheduleView,
