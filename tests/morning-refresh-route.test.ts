@@ -35,7 +35,7 @@ vi.mock("@/lib/services/pending-pickup-expiry", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/services/pending-pickup-expiry")>();
   return {
     ...actual,
-    expirePendingPickupCheckouts: vi.fn(),
+    expirePickupNoShows: vi.fn(),
   };
 });
 
@@ -52,7 +52,7 @@ import { syncCalendarSource } from "@/lib/services/calendar-sync";
 import { updateCalendarSyncHealth } from "@/lib/services/calendar-sync-health";
 import { generateShiftsForNewEvents } from "@/lib/services/shift-generation";
 import { expireOpenTrades } from "@/lib/services/shift-trades";
-import { expirePendingPickupCheckouts } from "@/lib/services/pending-pickup-expiry";
+import { expirePickupNoShows } from "@/lib/services/pending-pickup-expiry";
 import { pollFirmwareWatchTargets } from "@/lib/services/firmware-watch";
 import { getScheduleAutomationDigest } from "@/lib/services/schedule-automation";
 import { GET } from "@/app/api/cron/morning-refresh/route";
@@ -85,7 +85,7 @@ describe("morning refresh cron route", () => {
       notificationsCreated: 0,
     });
     vi.mocked(expireOpenTrades).mockResolvedValue({ expired: 1 });
-    vi.mocked(expirePendingPickupCheckouts).mockResolvedValue({
+    vi.mocked(expirePickupNoShows).mockResolvedValue({
       scanned: 2,
       expired: 1,
       failed: 0,
@@ -160,7 +160,7 @@ describe("morning refresh cron route", () => {
   });
 
   it("reports maintenance failures without throwing away the cron response", async () => {
-    vi.mocked(expirePendingPickupCheckouts).mockRejectedValue(new Error("expiry failed"));
+    vi.mocked(expirePickupNoShows).mockRejectedValue(new Error("expiry failed"));
 
     const res = await GET(request(), { params: Promise.resolve({}) });
     const body = await res.json();

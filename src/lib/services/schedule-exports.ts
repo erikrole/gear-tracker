@@ -87,7 +87,7 @@ function durationHours(startsAt: Date, endsAt: Date) {
 
 function bookingStatusLabel(status: BookingStatus) {
   if (status === BookingStatus.BOOKED) return "Reserved";
-  if (status === BookingStatus.PENDING_PICKUP) return "Awaiting pickup";
+  if (status === BookingStatus.PENDING_PICKUP) return "Pending pickup";
   if (status === BookingStatus.OPEN) return "Checked out";
   return status;
 }

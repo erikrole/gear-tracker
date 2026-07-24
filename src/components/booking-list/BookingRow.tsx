@@ -8,6 +8,7 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { TableRow, TableCell } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { operationalBookingStatus } from "@/lib/booking-status-display";
 
 /* ───── Desktop table row ───── */
 
@@ -24,8 +25,10 @@ export function BookingTableRow({
   onClick,
   menuProps,
 }: BookingTableRowProps) {
-  const isOverdue = item.status === overdueStatus && new Date(item.endsAt) < new Date();
-  const sv = getStatusVisual(item.status, isOverdue, item.kind);
+  const now = new Date();
+  const displayStatus = operationalBookingStatus(item, now);
+  const isOverdue = item.status === overdueStatus && new Date(item.endsAt) < now;
+  const sv = getStatusVisual(displayStatus, isOverdue, item.kind);
   const from = formatDateCol(item.startsAt);
   const to = formatDateCol(item.endsAt);
 
@@ -138,8 +141,10 @@ export function BookingMobileCard({
   onClick,
   menuProps,
 }: BookingMobileCardProps) {
-  const isOverdue = item.status === overdueStatus && new Date(item.endsAt) < new Date();
-  const sv = getStatusVisual(item.status, isOverdue, item.kind);
+  const now = new Date();
+  const displayStatus = operationalBookingStatus(item, now);
+  const isOverdue = item.status === overdueStatus && new Date(item.endsAt) < now;
+  const sv = getStatusVisual(displayStatus, isOverdue, item.kind);
 
   return (
     <div

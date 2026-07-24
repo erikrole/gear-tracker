@@ -20,9 +20,9 @@ export type EffectiveStatus =
  * Logic:
  * 1. If the stored status is MAINTENANCE or RETIRED, return that.
  * 2. If there's an active allocation on an OPEN checkout, return CHECKED_OUT.
- * 3. If there's an active allocation on a PENDING_PICKUP checkout, return PENDING_PICKUP.
- * 4. If there's an active allocation on a BOOKED reservation
- *    whose window overlaps "now", return RESERVED.
+ * 3. If there's an active allocation on a legacy PENDING_PICKUP checkout, return PENDING_PICKUP.
+ * 4. If there's an active allocation on a BOOKED reservation whose scheduled
+ *    pickup time has passed, return PENDING_PICKUP.
  * 5. Otherwise, AVAILABLE.
  */
 export async function deriveAssetStatus(
@@ -125,17 +125,17 @@ export async function deriveAssetStatuses(
       continue;
     }
 
-    // Reservation has started and allocation still active — treat as RESERVED
-    // even past endsAt (overdue but not yet closed by staff).
-    const hasActiveReservation = allocations.some(
+    // A booked reservation becomes operationally pending pickup at startsAt.
+    // It stays in that phase until kiosk pickup or no-show cancellation.
+    const hasDueReservation = allocations.some(
       (a) =>
         a.booking.kind === BookingKind.RESERVATION &&
         a.booking.status === BookingStatus.BOOKED &&
         a.startsAt <= now
     );
 
-    if (hasActiveReservation) {
-      result.set(assetId, "RESERVED");
+    if (hasDueReservation) {
+      result.set(assetId, "PENDING_PICKUP");
       continue;
     }
 
@@ -229,36 +229,41 @@ export function buildDerivedStatusWhere(
         });
         break;
       case "PENDING_PICKUP":
-        // Stored AVAILABLE with an active allocation on a PENDING_PICKUP checkout
+        // Stored AVAILABLE with either a due BOOKED reservation or a legacy
+        // active allocation on a PENDING_PICKUP checkout.
         clauses.push({
           status: AssetStatus.AVAILABLE,
-          allocations: {
-            some: {
-              active: true,
-              booking: {
-                kind: BookingKind.CHECKOUT,
-                status: BookingStatus.PENDING_PICKUP,
+          OR: [
+            {
+              allocations: {
+                some: {
+                  active: true,
+                  booking: {
+                    kind: BookingKind.CHECKOUT,
+                    status: BookingStatus.PENDING_PICKUP,
+                  },
+                },
               },
             },
-          },
+            {
+              allocations: {
+                some: {
+                  active: true,
+                  startsAt: { lte: now },
+                  booking: {
+                    kind: BookingKind.RESERVATION,
+                    status: BookingStatus.BOOKED,
+                  },
+                },
+              },
+            },
+          ],
         });
         break;
       case "RESERVED":
-        // Stored AVAILABLE with an active allocation on a BOOKED reservation that has started
-        // (includes overdue reservations not yet closed by staff).
-        clauses.push({
-          status: AssetStatus.AVAILABLE,
-          allocations: {
-            some: {
-              active: true,
-              startsAt: { lte: now },
-              booking: {
-                kind: BookingKind.RESERVATION,
-                status: BookingStatus.BOOKED,
-              },
-            },
-          },
-        });
+        // Retained in the public effective-status union for rollout
+        // compatibility. Due reservations now belong to PENDING_PICKUP.
+        clauses.push({ id: { in: [] } });
         break;
       case "MAINTENANCE":
         clauses.push({ status: AssetStatus.MAINTENANCE });
@@ -345,14 +350,14 @@ export async function deriveAssetStatusesFromLoaded(
       continue;
     }
 
-    const hasActiveReservation = allocations.some(
+    const hasDueReservation = allocations.some(
       (a) =>
         a.booking.kind === BookingKind.RESERVATION &&
         a.booking.status === BookingStatus.BOOKED &&
         a.startsAt <= now
     );
-    if (hasActiveReservation) {
-      result.set(assetId, "RESERVED");
+    if (hasDueReservation) {
+      result.set(assetId, "PENDING_PICKUP");
       continue;
     }
 

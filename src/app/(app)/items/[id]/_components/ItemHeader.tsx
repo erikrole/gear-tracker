@@ -39,11 +39,12 @@ function StatusLine({ asset }: { asset: AssetDetail }) {
     );
   }
   if (s === "PENDING_PICKUP" && b) {
+    const href = b.kind === "RESERVATION" ? `/reservations/${b.id}` : `/checkouts/${b.id}`;
     return (
       <Badge variant="orange" className="gap-1 px-1.5 py-1 pr-2 text-xs" asChild>
-        <Link href={`/checkouts/${b.id}`} className="no-underline" title={`Awaiting Pickup by ${b.requesterName}`}>
+        <Link href={href} className="no-underline" title={`Pending Pickup by ${b.requesterName}`}>
           <UserAvatar name={b.requesterName} avatarUrl={b.requesterAvatarUrl} size="xs" />
-          Awaiting Pickup
+          Pending Pickup
         </Link>
       </Badge>
     );
@@ -156,10 +157,10 @@ export function ItemHeader({
       : `/checkouts/${asset.activeBooking.id}`
     : null;
   const activeBookingLabel = asset.activeBooking
-    ? asset.activeBooking.kind === "RESERVATION"
-      ? "Open reservation"
-      : asset.activeBooking.status === "PENDING_PICKUP"
-        ? "Open pickup"
+    ? asset.computedStatus === "PENDING_PICKUP"
+      ? "Open pending pickup"
+      : asset.activeBooking.kind === "RESERVATION"
+        ? "Open reservation"
         : "Open checkout"
     : null;
   const brandModel = [asset.brand, asset.model].filter(Boolean).join(" ");

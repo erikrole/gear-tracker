@@ -172,7 +172,7 @@ export function statusBadge(asset: Asset) {
       return (
         <AssigneeStatus
           color="orange"
-          label="Awaiting pickup"
+          label="Pending pickup"
           name={activeBooking?.requesterName}
           avatarUrl={activeBooking?.requesterAvatarUrl}
         />

@@ -20,11 +20,11 @@ type PendingPickupExpiryResult = {
   errors: Record<string, string>;
 };
 
-type PendingPickupCandidate = {
+type PickupNoShowCandidate = {
   id: string;
 };
 
-export async function expirePendingPickupCheckouts(
+export async function expirePickupNoShows(
   now = new Date(),
   limit = DEFAULT_EXPIRY_LIMIT,
 ): Promise<PendingPickupExpiryResult> {
@@ -32,8 +32,16 @@ export async function expirePendingPickupCheckouts(
   const cutoff = new Date(now.getTime() - rules.noShowExpiryHours * 3_600_000);
   const candidates = await db.booking.findMany({
     where: {
-      kind: BookingKind.CHECKOUT,
-      status: BookingStatus.PENDING_PICKUP,
+      OR: [
+        {
+          kind: BookingKind.RESERVATION,
+          status: BookingStatus.BOOKED,
+        },
+        {
+          kind: BookingKind.CHECKOUT,
+          status: BookingStatus.PENDING_PICKUP,
+        },
+      ],
       startsAt: { lt: cutoff },
     },
     select: { id: true },
@@ -46,7 +54,7 @@ export async function expirePendingPickupCheckouts(
 
   for (const candidate of candidates) {
     try {
-      const didExpire = await expirePendingPickupCheckout(candidate, cutoff, now, rules.noShowExpiryHours);
+      const didExpire = await expirePickupNoShow(candidate, cutoff, now, rules.noShowExpiryHours);
       if (didExpire) expired += 1;
     } catch (error) {
       console.error(`[pending-pickup-expiry] failed to expire ${candidate.id}`, error);
@@ -63,8 +71,8 @@ export async function expirePendingPickupCheckouts(
   };
 }
 
-async function expirePendingPickupCheckout(
-  candidate: PendingPickupCandidate,
+async function expirePickupNoShow(
+  candidate: PickupNoShowCandidate,
   cutoff: Date,
   now: Date,
   noShowExpiryHours: number,
@@ -88,51 +96,63 @@ async function expirePendingPickupCheckout(
       },
     });
 
-    if (
-      !booking ||
-      booking.kind !== BookingKind.CHECKOUT ||
-      booking.status !== BookingStatus.PENDING_PICKUP ||
-      booking.startsAt >= cutoff
-    ) {
+    const isReservationNoShow = booking?.kind === BookingKind.RESERVATION
+      && booking.status === BookingStatus.BOOKED;
+    const isLegacyPendingCheckout = booking?.kind === BookingKind.CHECKOUT
+      && booking.status === BookingStatus.PENDING_PICKUP;
+
+    if (!booking || (!isReservationNoShow && !isLegacyPendingCheckout) || booking.startsAt >= cutoff) {
       return false;
     }
 
-    await tx.booking.update({
-      where: { id: booking.id },
+    const cancelled = await tx.booking.updateMany({
+      where: {
+        id: booking.id,
+        OR: [
+          { kind: BookingKind.RESERVATION, status: BookingStatus.BOOKED },
+          { kind: BookingKind.CHECKOUT, status: BookingStatus.PENDING_PICKUP },
+        ],
+        startsAt: { lt: cutoff },
+      },
       data: { status: BookingStatus.CANCELLED },
     });
+    if (cancelled.count !== 1) return false;
 
-    const outstandingBulk = booking.bulkItems
-      .map((item) => ({
-        bulkSkuId: item.bulkSkuId,
-        quantity: item.plannedQuantity - (item.checkedInQuantity ?? 0),
-      }))
-      .filter((item) => item.quantity > 0);
+    // BOOKED reservations express quantity intent and never decrement bulk
+    // stock. Only legacy staged checkouts have stock/unit custody to restore.
+    if (isLegacyPendingCheckout) {
+      const outstandingBulk = booking.bulkItems
+        .map((item) => ({
+          bulkSkuId: item.bulkSkuId,
+          quantity: item.plannedQuantity - (item.checkedInQuantity ?? 0),
+        }))
+        .filter((item) => item.quantity > 0);
 
-    await restoreBulkStock(tx, {
-      bookingId: booking.id,
-      locationId: booking.locationId,
-      actorUserId: booking.createdBy,
-      items: outstandingBulk,
-    });
-
-    const activeUnitIds = booking.bulkItems.flatMap((item) =>
-      item.unitAllocations.map((allocation) => allocation.bulkSkuUnitId),
-    );
-    if (activeUnitIds.length > 0) {
-      await tx.bookingBulkUnitAllocation.updateMany({
-        where: {
-          bookingBulkItemId: { in: booking.bulkItems.map((item) => item.id) },
-          bulkSkuUnitId: { in: activeUnitIds },
-          checkedOutAt: { not: null },
-          checkedInAt: null,
-        },
-        data: { checkedInAt: now },
+      await restoreBulkStock(tx, {
+        bookingId: booking.id,
+        locationId: booking.locationId,
+        actorUserId: booking.createdBy,
+        items: outstandingBulk,
       });
-      await tx.bulkSkuUnit.updateMany({
-        where: { id: { in: activeUnitIds } },
-        data: { status: BulkUnitStatus.AVAILABLE },
-      });
+
+      const activeUnitIds = booking.bulkItems.flatMap((item) =>
+        item.unitAllocations.map((allocation) => allocation.bulkSkuUnitId),
+      );
+      if (activeUnitIds.length > 0) {
+        await tx.bookingBulkUnitAllocation.updateMany({
+          where: {
+            bookingBulkItemId: { in: booking.bulkItems.map((item) => item.id) },
+            bulkSkuUnitId: { in: activeUnitIds },
+            checkedOutAt: { not: null },
+            checkedInAt: null,
+          },
+          data: { checkedInAt: now },
+        });
+        await tx.bulkSkuUnit.updateMany({
+          where: { id: { in: activeUnitIds } },
+          data: { status: BulkUnitStatus.AVAILABLE },
+        });
+      }
     }
 
     await tx.assetAllocation.updateMany({
@@ -150,8 +170,9 @@ async function expirePendingPickupCheckout(
       actorRole: null,
       entityType: "booking",
       entityId: booking.id,
-      action: "pending_pickup_expired",
+      action: isReservationNoShow ? "reservation_no_show_expired" : "pending_pickup_expired",
       before: {
+        kind: booking.kind,
         status: booking.status,
         startsAt: booking.startsAt.toISOString(),
       },

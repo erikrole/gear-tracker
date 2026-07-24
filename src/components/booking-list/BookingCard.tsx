@@ -6,6 +6,7 @@ import { BookingContextMenuWrapper, BookingOverflowMenu, type BookingMenuProps }
 import { ItemThumbnailStack } from "@/components/ItemThumbnailStack";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
+import { operationalBookingStatus } from "@/lib/booking-status-display";
 
 /* ───── Helpers ───── */
 
@@ -50,8 +51,10 @@ export type BookingCardProps = {
 };
 
 export function BookingCard({ item, overdueStatus, onClick, menuProps }: BookingCardProps) {
-  const isOverdue = item.status === overdueStatus && new Date(item.endsAt) < new Date();
-  const sv = getStatusVisual(item.status, isOverdue, item.kind);
+  const now = new Date();
+  const displayStatus = operationalBookingStatus(item, now);
+  const isOverdue = item.status === overdueStatus && new Date(item.endsAt) < now;
+  const sv = getStatusVisual(displayStatus, isOverdue, item.kind);
   const duration = formatDuration(item.startsAt, item.endsAt);
 
   return (

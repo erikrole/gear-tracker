@@ -195,7 +195,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 2. Secondary metadata: `productName`, `brand`, `model`, and tracking code.
 3. Derived status line sits directly under the headline and uses these labels and colors:
    - `Available` (green)
-   - `Awaiting pickup by {user}` (orange, clickable to the pending pickup checkout)
+   - `Pending pickup by {user}` (orange, clickable to the reservation or legacy pending pickup checkout)
    - `Checked out by {user}` (blue, red when overdue, clickable to the active checkout)
    - `Reserved by {user}` (purple, clickable to the active reservation once the reservation window has started)
    - `Needs Maintenance` (orange)

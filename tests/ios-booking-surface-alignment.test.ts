@@ -8,9 +8,9 @@ describe("iOS booking surface alignment", () => {
 
   it("uses the same title, timing, and requester reading order as item detail", () => {
     expect(bookingRow.indexOf("bookingTitle.lineLimit(1)")).toBeLessThan(
-      bookingRow.indexOf("timingLine(lineLimit: 1)"),
+      bookingRow.indexOf("timingLine(now: now, lineLimit: 1)"),
     );
-    expect(bookingRow.indexOf("timingLine(lineLimit: 1)")).toBeLessThan(
+    expect(bookingRow.indexOf("timingLine(now: now, lineLimit: 1)")).toBeLessThan(
       bookingRow.indexOf("metadataLine(lineLimit: 1)"),
     );
     expect(bookingRow).toContain("Text(booking.requester.name)");
@@ -19,10 +19,13 @@ describe("iOS booking surface alignment", () => {
       itemDetail.indexOf("private struct ActiveBookingCard"),
       itemDetail.indexOf("// MARK: - Availability card"),
     );
-    expect(activeItemCard.indexOf("Text(booking.title)")).toBeLessThan(
-      activeItemCard.indexOf("TimelineView("),
-    );
     expect(activeItemCard.indexOf("TimelineView(")).toBeLessThan(
+      activeItemCard.indexOf("Text(booking.title)"),
+    );
+    expect(activeItemCard.indexOf("Text(booking.title)")).toBeLessThan(
+      activeItemCard.indexOf("Text(timing(now: context.date))"),
+    );
+    expect(activeItemCard.indexOf("Text(timing(now: context.date))")).toBeLessThan(
       activeItemCard.indexOf("Text(booking.requesterName)"),
     );
   });
@@ -33,7 +36,7 @@ describe("iOS booking surface alignment", () => {
     expect(bookingRow).toContain("case .open: booking.kind != .checkout");
     expect(bookingRow).toContain("case .booked: false");
     expect(bookingRow).toContain("if showsStatusBadge");
-    expect(bookingRow).toContain("StatusRail(tone: accentTone)");
+    expect(bookingRow).toContain("StatusRail(tone: accentTone(now: now))");
     expect(bookingRow).toContain("capitalizesRelativeDay: false");
     expect(bookingRow).not.toContain("compactMagnitude(now:");
   });

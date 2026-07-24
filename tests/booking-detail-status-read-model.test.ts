@@ -51,7 +51,7 @@ describe("getBookingDetail status read model", () => {
     vi.mocked(db.booking.findUnique).mockResolvedValue(booking({
       kind: "CHECKOUT",
       status: "PENDING_PICKUP",
-      title: "Awaiting pickup",
+      title: "Pending pickup",
     }) as never);
 
     const detail = await getBookingDetail("booking-1");

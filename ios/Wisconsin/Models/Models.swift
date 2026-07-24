@@ -146,7 +146,7 @@ enum BookingStatus: String, Codable {
         switch self {
         case .draft: "Draft"
         case .booked: "Booked"
-        case .pendingPickup: "Awaiting Pickup"
+        case .pendingPickup: "Pending Pickup"
         case .open: "Checked Out"
         case .completed: "Completed"
         case .cancelled: "Cancelled"
