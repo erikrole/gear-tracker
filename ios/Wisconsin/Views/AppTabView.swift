@@ -119,6 +119,9 @@ struct AppTabView: View {
         .onChange(of: appState.pendingPushBookingId) { _, _ in
             routePendingBookingPush()
         }
+        .onChange(of: appState.pendingPushBlastId) { _, _ in
+            routePendingBlastPush()
+        }
         .safeAreaInset(edge: .top, spacing: 0) {
             if !network.isConnected {
                 BannerView(
@@ -141,6 +144,15 @@ struct AppTabView: View {
         }
         if appState.selectedTab != 4 {
             appState.selectedTab = 4
+        }
+    }
+
+    /// Blasts always live on Home. No capability gate: everyone who can receive a
+    /// blast can see the banner, and HomeView clears the pending id once it refreshes.
+    private func routePendingBlastPush() {
+        guard appState.pendingPushBlastId != nil else { return }
+        if appState.selectedTab != 0 {
+            appState.selectedTab = 0
         }
     }
 

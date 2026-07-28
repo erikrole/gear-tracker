@@ -103,7 +103,7 @@ Values: `ACTIVE`, `MAINTENANCE`, `UNKNOWN`
 
 ## Model `User`
 
-Fields: 96
+Fields: 99
 
 - `id                          String                           @id @default(cuid())`
 - `name                        String`
@@ -160,6 +160,9 @@ Fields: 96
 - `liveActivityTokens          LiveActivityToken[]`
 - `liveActivityStartTokens     LiveActivityStartToken[]`
 - `liveActivityStarts          LiveActivityStart[]`
+- `blastsAuthored              Blast[]                          @relation("BlastAuthor")`
+- `blastsCancelled             Blast[]                          @relation("BlastCanceller")`
+- `blastsReceived              BlastRecipient[]                 @relation("BlastRecipient")`
 - `bookingPhotos               BookingPhoto[]                   @relation("BookingPhotoActor")`
 - `checkinReports              CheckinItemReport[]              @relation("CheckinReports")`
 - `allowedEmailsCreated        AllowedEmail[]                   @relation("AllowedEmailCreator")`
@@ -885,7 +888,7 @@ Indexes and constraints:
 
 ## Model `CalendarEvent`
 
-Fields: 31
+Fields: 32
 
 - `id              String                @id @default(cuid())`
 - `sourceId        String?               @map("source_id")`
@@ -918,6 +921,7 @@ Fields: 31
 - `shiftGroup      ShiftGroup?`
 - `travelMembers   EventTravelMember[]`
 - `follows         ScheduleEventFollow[]`
+- `blasts          Blast[]`
 
 Indexes and constraints:
 
@@ -1116,6 +1120,81 @@ Fields: 10
 Indexes and constraints:
 
 - `@@map("escalation_rules")`
+
+## Enum `BlastSeverity`
+
+Values: `INFO`, `WARNING`, `URGENT`
+
+## Enum `BlastStatus`
+
+Values: `SENDING`, `SENT`, `CANCELLED`
+
+## Enum `BlastTargetKind`
+
+Values: `EVENT_CREW`, `USERS`, `DYNAMIC`
+
+## Enum `BlastPushStatus`
+
+Values: `PENDING`, `SENT`, `SKIPPED_PREFS`, `NO_DEVICE`, `FAILED`
+
+## Model `Blast`
+
+Fields: 22
+
+- `id             String           @id @default(cuid())`
+- `title          String`
+- `body           String`
+- `severity       BlastSeverity    @default(INFO)`
+- `status         BlastStatus      @default(SENDING)`
+- `targetKind     BlastTargetKind  @map("target_kind")`
+- `targetSpec     Json             @map("target_spec")`
+- `targetSummary  String           @map("target_summary")`
+- `eventId        String?          @map("event_id")`
+- `requiresAck    Boolean          @default(true) @map("requires_ack")`
+- `expiresAt      DateTime?        @map("expires_at")`
+- `recipientCount Int              @default(0) @map("recipient_count")`
+- `createdById    String           @map("created_by_id")`
+- `sentAt         DateTime?        @map("sent_at")`
+- `cancelledAt    DateTime?        @map("cancelled_at")`
+- `cancelledById  String?          @map("cancelled_by_id")`
+- `createdAt      DateTime         @default(now()) @map("created_at")`
+- `updatedAt      DateTime         @updatedAt @map("updated_at")`
+- `createdBy      User             @relation("BlastAuthor", fields: [createdById], references: [id], onDelete: Restrict)`
+- `cancelledBy    User?            @relation("BlastCanceller", fields: [cancelledById], references: [id], onDelete: SetNull)`
+- `event          CalendarEvent?   @relation(fields: [eventId], references: [id], onDelete: SetNull)`
+- `recipients     BlastRecipient[]`
+
+Indexes and constraints:
+
+- `@@index([status, sentAt])`
+- `@@index([createdById, createdAt])`
+- `@@index([eventId])`
+- `@@index([cancelledById])`
+- `@@map("blasts")`
+
+## Model `BlastRecipient`
+
+Fields: 12
+
+- `id              String          @id @default(cuid())`
+- `blastId         String          @map("blast_id")`
+- `userId          String          @map("user_id")`
+- `notificationId  String?         @map("notification_id")`
+- `pushStatus      BlastPushStatus @default(PENDING) @map("push_status")`
+- `pushAttemptedAt DateTime?       @map("push_attempted_at")`
+- `deliveredAt     DateTime?       @map("delivered_at")`
+- `readAt          DateTime?       @map("read_at")`
+- `acknowledgedAt  DateTime?       @map("acknowledged_at")`
+- `createdAt       DateTime        @default(now()) @map("created_at")`
+- `blast           Blast           @relation(fields: [blastId], references: [id], onDelete: Cascade)`
+- `user            User            @relation("BlastRecipient", fields: [userId], references: [id], onDelete: Cascade)`
+
+Indexes and constraints:
+
+- `@@unique([blastId, userId])`
+- `@@index([userId, acknowledgedAt])`
+- `@@index([blastId, acknowledgedAt])`
+- `@@map("blast_recipients")`
 
 ## Model `FavoriteItem`
 

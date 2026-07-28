@@ -3,9 +3,9 @@
 ## Document Control
 - Area: Notifications
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-17
-- Status: Active: escalation schedule + iOS booking/event tap-through + APNs native push + calendar sync health alerts + schedule notification policy shipped
-- Version: V1.2
+- Last Updated: 2026-07-28
+- Status: Active: escalation schedule + iOS booking/event tap-through + APNs native push + calendar sync health alerts + schedule notification policy + staff blasts shipped
+- Version: V1.3
 
 ## Direction
 Surface custody urgency and overdue situations to the right people at the right time, with zero duplicate noise and a clear escalation path.
@@ -171,6 +171,43 @@ Implementation: `src/lib/services/notifications.ts`
 - Payload includes `firmwareWatchTargetId`, `brand`, `model`, `productName`, `supportMode`, `supportNote`, `version`, `releaseDate`, `sourceUrl`, and an `/items?search=` link for the model.
 - Source URLs are constrained by parser type. The active runtime currently seeds and polls verified Sony support hosts only.
 - Implementation: `FirmwareWatchTarget` model, `src/lib/services/firmware-watch.ts`, and `GET /api/cron/morning-refresh`.
+
+## Blasts (Implemented 2026-07-28)
+
+Authored broadcasts to the people working events. Distinct from every other trigger in this
+document: a blast is composed by a person, not fired by a rule, and it is the only
+notification that demands an explicit acknowledgment back.
+
+| Concern | Behavior |
+|---|---|
+| Who can send | ADMIN + STAFF, web only (`/blasts`). iOS is receive-only in V1. |
+| Targeting | Event crew (active assignments on a **published** shift group), named people (max 200), or dynamic groups (ShiftArea / ShiftWorkerType / sportCode). No "everyone". |
+| Delivery | Batched APNs dispatch plus a banner pinned at the top of the iOS dashboard. |
+| Acknowledgment | The banner stays until the recipient taps "Got it". |
+| Preferences | The in-app banner always renders. Only the push consults `shouldDeliverPush` (`channels.push` + `pausedUntil`). No dedicated `NotificationCategory` in V1. |
+
+- Models: `Blast` + `BlastRecipient` (migration `0105_blast_notifications`). A parallel
+  `Notification` row per recipient (`type: "blast"`, `payload.blastId`) keeps the web inbox,
+  the unread badge, and the iOS notifications sheet working with no extra wiring.
+- **`Notification` is the archive copy; `BlastRecipient` is the authoritative ack ledger.**
+  Acking a blast marks the linked notification read; marking that inbox row read does *not*
+  acknowledge the blast.
+- Targeting resolution runs every branch through `visibleActiveUserWhere`, so inactive,
+  roster-hidden, and COLLABORATOR accounts are excluded in exactly one place.
+- The recipient set is **frozen at send time** -- a shifting denominator would make
+  "21 of 34 acknowledged" meaningless. `GET /api/blasts/[id]` re-resolves the stored
+  `targetSpec` and reports who joined the target afterward rather than back-filling them.
+- Push outcome is recorded per recipient as `SENT`, `SKIPPED_PREFS` (paused or push off),
+  `NO_DEVICE`, or `FAILED` (had tokens, all revoked). A stale token never reads as delivered.
+- `deliveredAt` means "the client fetched this blast", not an APNs receipt -- APNs offers no
+  such receipt.
+- Deduplication: `@@unique([blastId, userId])` + `skipDuplicates`, the globally unique
+  `Notification.dedupeKey` `blast:{blastId}:{userId}`, and idempotent read/ack routes.
+- Cancelling clears the banner on the next fetch; already-delivered push alerts cannot be
+  recalled, and the confirm dialog says so.
+- Implementation: `src/lib/services/blasts.ts`, `src/lib/services/blast-targeting.ts`,
+  `src/app/api/blasts/**`, `src/app/api/me/blasts/**`, `src/app/(app)/blasts/**`,
+  `ios/Wisconsin/Views/Components/BlastBanner.swift`.
 
 ## D-009 Acceptance (2026-03-15)
 

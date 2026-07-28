@@ -1,4 +1,4 @@
-import { GraduationTerm, ResourceType, Role, ShiftArea, ShiftWorkerType, StudentYear } from "@prisma/client";
+import { BlastSeverity, GraduationTerm, ResourceType, Role, ShiftArea, ShiftWorkerType, StudentYear } from "@prisma/client";
 import { z } from "zod";
 import { sanitizeText } from "./sanitize";
 import { isSportCode, normalizeSportCode } from "./sports";
@@ -686,4 +686,52 @@ export const updateGuideSchema = z.object({
   markVerified: z.boolean().optional(),
   // Optimistic concurrency: client sends the updatedAt of the guide it loaded.
   expectedUpdatedAt: z.string().datetime().optional(),
+});
+
+// ── Blasts ──────────────────────────────────────────────
+
+/** One blast may not name more people than a sender could plausibly have picked. */
+export const MAX_BLAST_TARGET_USERS = 200;
+
+export const blastTargetSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("EVENT_CREW"),
+    eventId: databaseIdSchema,
+  }),
+  z.object({
+    kind: z.literal("USERS"),
+    userIds: z.array(databaseIdSchema).min(1).max(MAX_BLAST_TARGET_USERS),
+  }),
+  z.object({
+    kind: z.literal("DYNAMIC"),
+    areas: z.array(z.nativeEnum(ShiftArea)).max(5).optional(),
+    workerTypes: z.array(z.nativeEnum(ShiftWorkerType)).max(2).optional(),
+    sportCodes: z.array(sportCodeSchema).max(30).optional(),
+  }),
+// The refinement sits on the union rather than the DYNAMIC member: zod's
+// discriminatedUnion only accepts plain objects as options, not ZodEffects.
+]).superRefine((target, ctx) => {
+  if (target.kind !== "DYNAMIC") return;
+  const selected = (target.areas?.length ?? 0) + (target.workerTypes?.length ?? 0) + (target.sportCodes?.length ?? 0);
+  if (selected === 0) {
+    // An empty dynamic spec would silently resolve to everyone.
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Pick at least one area, worker type, or sport",
+      path: ["areas"],
+    });
+  }
+});
+
+export const createBlastSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  body: z.string().trim().min(1).max(1000),
+  severity: z.nativeEnum(BlastSeverity).default("INFO"),
+  requiresAck: z.boolean().default(true),
+  expiresAt: z.string().datetime({ offset: true }).nullable().default(null),
+  target: blastTargetSchema,
+});
+
+export const previewBlastSchema = z.object({
+  target: blastTargetSchema,
 });

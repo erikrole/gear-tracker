@@ -77,7 +77,11 @@ extension AppDelegate: @preconcurrency UNUserNotificationCenterDelegate {
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         let userInfo = response.notification.request.content.userInfo
-        if let bookingId = userInfo["bookingId"] as? String {
+        if let blastId = userInfo["blastId"] as? String {
+            Task { @MainActor in
+                sharedAppState?.pendingPushBlastId = blastId
+            }
+        } else if let bookingId = userInfo["bookingId"] as? String {
             Task { @MainActor in
                 sharedAppState?.pendingPushBookingId = bookingId
             }

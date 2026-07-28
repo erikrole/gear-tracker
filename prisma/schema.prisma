@@ -216,6 +216,9 @@ model User {
   liveActivityTokens          LiveActivityToken[]
   liveActivityStartTokens     LiveActivityStartToken[]
   liveActivityStarts          LiveActivityStart[]
+  blastsAuthored              Blast[]                          @relation("BlastAuthor")
+  blastsCancelled             Blast[]                          @relation("BlastCanceller")
+  blastsReceived              BlastRecipient[]                 @relation("BlastRecipient")
   bookingPhotos               BookingPhoto[]                   @relation("BookingPhotoActor")
   checkinReports              CheckinItemReport[]              @relation("CheckinReports")
   allowedEmailsCreated        AllowedEmail[]                   @relation("AllowedEmailCreator")
@@ -871,6 +874,7 @@ model CalendarEvent {
   shiftGroup      ShiftGroup?
   travelMembers   EventTravelMember[]
   follows         ScheduleEventFollow[]
+  blasts          Blast[]
 
   @@unique([sourceId, externalId])
   @@index([startsAt, endsAt])
@@ -1038,6 +1042,105 @@ model EscalationRule {
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@map("escalation_rules")
+}
+
+// ── Blasts ──────────────────────────────────────────────
+
+enum BlastSeverity {
+  INFO
+  WARNING
+  URGENT
+}
+
+enum BlastStatus {
+  SENDING
+  SENT
+  CANCELLED
+}
+
+enum BlastTargetKind {
+  EVENT_CREW
+  USERS
+  DYNAMIC
+}
+
+enum BlastPushStatus {
+  PENDING
+  SENT
+  SKIPPED_PREFS
+  NO_DEVICE
+  FAILED
+}
+
+/// An authored broadcast to staff working events. Separate from `Notification`
+/// because a blast carries an author, a frozen target spec, an expiry, and a
+/// per-recipient acknowledgment ledger that the tracking UI aggregates over.
+/// A parallel `Notification` row is still written per recipient so the existing
+/// web inbox and unread badge pick blasts up for free.
+model Blast {
+  id             String           @id @default(cuid())
+  title          String
+  body           String
+  severity       BlastSeverity    @default(INFO)
+  status         BlastStatus      @default(SENDING)
+  targetKind     BlastTargetKind  @map("target_kind")
+  targetSpec     Json             @map("target_spec")
+  /// Frozen human-readable target description, so tracking stays truthful
+  /// after the crew or group membership changes.
+  targetSummary  String           @map("target_summary")
+  /// Denormalized out of targetSpec so tracking can join event titles; the
+  /// spec remains the source of truth for re-resolution.
+  eventId        String?          @map("event_id")
+  requiresAck    Boolean          @default(true) @map("requires_ack")
+  expiresAt      DateTime?        @map("expires_at")
+  recipientCount Int              @default(0) @map("recipient_count")
+  createdById    String           @map("created_by_id")
+  sentAt         DateTime?        @map("sent_at")
+  cancelledAt    DateTime?        @map("cancelled_at")
+  cancelledById  String?          @map("cancelled_by_id")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  createdBy      User             @relation("BlastAuthor", fields: [createdById], references: [id], onDelete: Restrict)
+  cancelledBy    User?            @relation("BlastCanceller", fields: [cancelledById], references: [id], onDelete: SetNull)
+  event          CalendarEvent?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  recipients     BlastRecipient[]
+
+  @@index([status, sentAt])
+  @@index([createdById, createdAt])
+  @@index([eventId])
+  @@index([cancelledById])
+  @@map("blasts")
+}
+
+/// The authoritative delivery + acknowledgment ledger for one recipient.
+///
+/// Acknowledging a blast marks the linked `Notification` read so the unread
+/// badge stays honest, but marking that inbox row read does NOT acknowledge the
+/// blast -- dismissing a list row is not "Got it". That asymmetry is deliberate.
+///
+/// `notificationId` is a soft pointer, not a foreign key: an FK would force a
+/// back-relation on `Notification` and the cascade is wrong, since deleting an
+/// inbox row must not erase the ack ledger.
+model BlastRecipient {
+  id              String          @id @default(cuid())
+  blastId         String          @map("blast_id")
+  userId          String          @map("user_id")
+  notificationId  String?         @map("notification_id")
+  pushStatus      BlastPushStatus @default(PENDING) @map("push_status")
+  pushAttemptedAt DateTime?       @map("push_attempted_at")
+  /// When the client fetched this blast. APNs gives no delivery receipt, so
+  /// this is deliberately not "the push arrived" -- pushStatus carries that.
+  deliveredAt     DateTime?       @map("delivered_at")
+  readAt          DateTime?       @map("read_at")
+  acknowledgedAt  DateTime?       @map("acknowledged_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  blast           Blast           @relation(fields: [blastId], references: [id], onDelete: Cascade)
+  user            User            @relation("BlastRecipient", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([blastId, userId])
+  @@index([userId, acknowledgedAt])
+  @@index([blastId, acknowledgedAt])
+  @@map("blast_recipients")
 }
 
 // ── Favorites ───────────────────────────────────────────

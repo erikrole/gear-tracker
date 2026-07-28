@@ -967,6 +967,31 @@ final class APIClient {
         return resp.unreadCount
     }
 
+    // MARK: - Blasts
+
+    /// Deliberately its own endpoint rather than a slice of `/api/dashboard`: the
+    /// home view's freshness window would delay a blast, and a dashboard section
+    /// failure must not be able to hide a message someone has to acknowledge.
+    func activeBlasts() async throws -> [ActiveBlast] {
+        let resp: DataWrapper<[ActiveBlast]> = try await perform(request(path: "/api/me/blasts"))
+        return resp.data
+    }
+
+    /// "The banner rendered." Idempotent server-side, so a replay is harmless.
+    func markBlastRead(id: String) async throws {
+        var req = request(path: "/api/me/blasts/\(id)/read", method: "POST")
+        req.httpBody = Data()
+        let _: SuccessResponse = try await perform(req)
+    }
+
+    /// "Got it." Also stamps read server-side, for a tap-through from a push
+    /// where the banner never rendered.
+    func acknowledgeBlast(id: String) async throws {
+        var req = request(path: "/api/me/blasts/\(id)/ack", method: "POST")
+        req.httpBody = Data()
+        let _: SuccessResponse = try await perform(req)
+    }
+
     // MARK: - Notification preferences
 
     func notificationPreferences() async throws -> NotificationPreferences {
