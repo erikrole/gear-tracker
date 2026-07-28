@@ -202,11 +202,102 @@ private struct KioskCornerBrackets: Shape {
     }
 }
 
+// MARK: Scan stage
+
+/// The scan surface for checkout, pickup, and return: one glass panel that *is*
+/// the scanner's state, rather than a grey glyph floating above three separate
+/// lines of chrome.
+///
+/// It replaces a stack of: a low-contrast bracket target, "Scan items to add",
+/// "Or tap Camera if no scanner is connected", and a readiness pill — four
+/// elements all reporting the same thing, none of them prominent. Here the
+/// panel's own tint and border carry the state, the headline says what to do,
+/// and the camera fallback only appears when it is actually the answer (no
+/// scanner paired), instead of sitting there as permanent instruction text.
+struct KioskScanStage: View {
+    let isHardwareConnected: Bool
+    let isReady: Bool
+    var lastScanAt: Date?
+    var feedbackTint: Color?
+    var onCamera: (() -> Void)?
+    var onHelp: (() -> Void)?
+
+    private var tint: Color {
+        if let feedbackTint { return feedbackTint }
+        if !isHardwareConnected { return KioskStatus.problem }
+        return isReady ? Color.kioskRedGlyph : KioskStatus.attention
+    }
+
+    private var headline: String {
+        if !isHardwareConnected { return "No scanner connected" }
+        if !isReady { return "Scanner reconnecting" }
+        return "Ready to scan"
+    }
+
+    private var detail: String {
+        if !isHardwareConnected { return "Turn the scanner on, or use the camera instead." }
+        if !isReady { return "Reconnecting to the hand scanner." }
+        if let lastScanAt {
+            let seconds = max(0, Int(Date().timeIntervalSince(lastScanAt)))
+            if seconds < 5 { return "Scan received." }
+            if seconds < 60 { return "Last scan \(seconds)s ago." }
+        }
+        return "Point the scanner at a barcode."
+    }
+
+    var body: some View {
+        VStack(spacing: KioskSpacing.md) {
+            KioskScanTarget(tint: tint, width: 260, height: 156)
+
+            VStack(spacing: 6) {
+                Text(headline)
+                    .font(KioskType.actionTitle)
+                    .foregroundStyle(KioskText.primary)
+                Text(detail)
+                    .font(KioskType.rowDetail)
+                    .foregroundStyle(KioskText.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            HStack(spacing: KioskSpacing.sm) {
+                // The camera is the answer only when there is no scanner to
+                // wait for. Otherwise it stays in the header where it belongs.
+                if !isHardwareConnected, let onCamera {
+                    Button("Use Camera", action: onCamera)
+                        .font(KioskType.chip)
+                        .kioskButtonRole(.primary)
+                        .controlSize(.large)
+                }
+                if let onHelp {
+                    Button("Scanner help", action: onHelp)
+                        .font(KioskType.chip)
+                        .kioskButtonRole(.secondary)
+                        .controlSize(.regular)
+                }
+            }
+        }
+        .padding(.horizontal, KioskSpacing.xl)
+        .padding(.vertical, KioskSpacing.lg)
+        .frame(maxWidth: .infinity)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: KioskRadius.hero))
+        .overlay(
+            RoundedRectangle(cornerRadius: KioskRadius.hero)
+                .stroke(tint.opacity(0.45), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(headline). \(detail)")
+    }
+}
+
 /// Reports the hidden HID sink's real first-responder state. Scan screens must
 /// never claim the hand scanner is ready merely because the field is mounted.
 struct KioskScannerReadinessBadge: View {
     let isReady: Bool
     var lastScanAt: Date?
+    /// When false, no HID keyboard is paired at all — the scanner is off,
+    /// asleep, or out of range. Distinct from "mounted but not focused",
+    /// because the fix is different: charge/wake the gun vs. tap the screen.
+    var isHardwareConnected: Bool = true
     var onTap: (() -> Void)?
 
     var body: some View {
@@ -243,18 +334,104 @@ struct KioskScannerReadinessBadge: View {
         .kioskCard(KioskSurface.card, radius: KioskRadius.md, stroke: KioskStroke.hairline)
     }
 
+    /// Armed is armed. This used to read blue before the first scan and green
+    /// after it, which made a healthy scanner look like two different states
+    /// and put a third color on "Scanner ready" alongside the shell pill and
+    /// the detail sheet. The label already carries scan recency; the dot only
+    /// answers "can I scan right now?".
     private var statusColor: Color {
-        guard isReady else { return Color.statusText(.orange) }
-        return lastScanAt == nil ? Color.statusText(.blue) : Color.statusText(.green)
+        guard isHardwareConnected else { return KioskStatus.problem }
+        return isReady ? KioskStatus.ok : KioskStatus.attention
     }
 
     private var label: String {
+        guard isHardwareConnected else { return "No scanner connected" }
         guard isReady else { return "Scanner reconnecting" }
         guard let lastScanAt else { return "Scanner ready" }
         let seconds = max(0, Int(Date().timeIntervalSince(lastScanAt)))
         if seconds < 5 { return "Scan received" }
         if seconds < 60 { return "Last scan \(seconds)s ago" }
         return "Last scan \(seconds / 60)m ago"
+    }
+}
+
+// MARK: Choice chip
+
+/// A single-tap choice on the kiosk: return-time presets, purpose shortcuts.
+/// Native glass carries the selected state so the chip reads as a control
+/// rather than another dark card, and selection is brand red because choosing
+/// is an action — not a status.
+struct KioskChoiceChip: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Group {
+            // `.glass` and `.glassProminent` are distinct types, so this has to
+            // branch rather than pick a style inline.
+            if isSelected {
+                button.buttonStyle(.glassProminent).tint(Color.kioskRed)
+            } else {
+                button.buttonStyle(.glass).tint(KioskText.primary)
+            }
+        }
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+        .accessibilityLabel(title)
+    }
+
+    private var button: some View {
+        Button(action: action) {
+            Text(title)
+                .font(KioskType.chip)
+                .foregroundStyle(isSelected ? Color.white : KioskText.secondary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 11)
+        }
+    }
+}
+
+/// Wraps its children onto as many rows as they need. `HStack` forced a single
+/// row that clipped or squeezed chips on narrower kiosk scenes.
+struct FlowingChips: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var rowWidth: CGFloat = 0
+        var totalHeight: CGFloat = 0
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if rowWidth > 0, rowWidth + spacing + size.width > maxWidth {
+                totalHeight += rowHeight + spacing
+                rowWidth = size.width
+                rowHeight = size.height
+            } else {
+                rowWidth += rowWidth > 0 ? spacing + size.width : size.width
+                rowHeight = max(rowHeight, size.height)
+            }
+        }
+        return CGSize(width: maxWidth == .infinity ? rowWidth : maxWidth, height: totalHeight + rowHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > bounds.minX, x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
     }
 }
 

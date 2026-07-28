@@ -202,3 +202,129 @@ extension Font {
     /// Terminal success message.
     static func kioskSuccessTitle(size: CGFloat = 28) -> Font { .gothamBold(size: size) }
 }
+
+// MARK: - Type ramp
+
+/// The kiosk reading order, in one place.
+///
+/// Before this, every screen picked from the raw system ramp
+/// (`.title3.bold()`, `.headline`, `.subheadline.weight(.semibold)`,
+/// `.caption.weight(.bold)`) at each call site, so two sibling cards could
+/// disagree about what "a card title" is and nothing established what to read
+/// first. These rungs are named for their *job on the screen*, not their size,
+/// and they are what new kiosk UI should reach for.
+///
+/// Gotham carries identity and custody nouns (names, item titles, big numbers)
+/// because that mirrors the web `PageHeader`; the system face carries prose,
+/// because Gotham at small sizes on an always-on panel is hard to read.
+/// All rungs stay Dynamic Type responsive via `.custom(_:size:relativeTo:)`
+/// inside the Gotham helpers and the system ramp elsewhere.
+enum KioskType {
+    /// Screen-owning title. One per screen, at most.
+    static var screenTitle: Font { .gothamBold(size: 26) }
+
+    /// The identity moment: a student's name on the hub, the roster headline.
+    static var identity: Font { .gothamBold(size: 34) }
+
+    /// A number that is the point of its tile (stat counts, unit numbers).
+    static var metric: Font { .gothamBlack(size: 40) }
+
+    /// Section owner inside a panel ("Items", "Coming Up", "Scan Wiscard").
+    static var sectionTitle: Font { .headline.weight(.bold) }
+
+    /// Primary line of a row or card -- an item name, an action label.
+    static var rowTitle: Font { .gothamBold(size: 16) }
+
+    /// Hero action label, larger than a normal row because it is the one thing
+    /// the screen wants tapped.
+    static var actionTitle: Font { .title3.weight(.bold) }
+
+    /// Supporting line under a title.
+    static var rowDetail: Font { .subheadline }
+
+    /// Body prose in empty states and explanations.
+    static var body: Font { .subheadline }
+
+    /// All-caps overline above a group ("YOUR SESSION", "GOOD MORNING").
+    /// Always pair with `.tracking(1.2)` and `KioskText.muted`.
+    static var overline: Font { .caption.weight(.bold) }
+
+    /// Chip, badge, and timestamp text.
+    static var chip: Font { .caption.weight(.semibold) }
+
+    /// The smallest readable rung. Use sparingly -- students read this from
+    /// arm's length at a counter.
+    static var micro: Font { .caption2.weight(.semibold) }
+}
+
+// MARK: - Status language
+
+/// One meaning per color, kiosk-wide.
+///
+/// The kiosk previously spent blue, green, orange, and white on overlapping
+/// ideas -- "scanner ready" rendered white in the shell pill, blue in the
+/// readiness badge, and green in the detail sheet, two of them visible at once.
+/// Red is reserved: it is the brand accent and the primary-action color, so it
+/// never doubles as a generic "warning" tint.
+enum KioskStatus {
+    /// Available / free. Also: scanner armed, item accepted.
+    /// Never use for an active checkout — the item is not free.
+    static let ok = Color.statusText(.green)
+
+    /// Active use: an `OPEN` checkout, gear currently out with someone, a
+    /// mutation in flight. This — not red — is what "checked out" looks like.
+    static let active = Color.statusText(.blue)
+
+    /// Reserved / claimed but not yet out: `BOOKED` reservations.
+    static let scheduled = Color.statusText(.purple)
+
+    /// Warning / waiting: pending pickup, scanner reconnecting, and an `OPEN`
+    /// checkout on the day it comes due.
+    static let attention = Color.statusText(.orange)
+
+    /// Urgent / problem: overdue, errors, destructive actions. Deliberately
+    /// distinct from `Color.kioskRed`, which is brand chrome you tap.
+    static let problem = Color.statusText(.red)
+
+    /// Custody urgency ramp for an `OPEN` checkout, mirroring the iOS app's
+    /// `queueGearTone` and the deadline overlay sanctioned in
+    /// `docs/COLOR_SYSTEM.md`: blue while it is simply out, orange on the day
+    /// it is due, red once it is past due.
+    static func custody(isOverdue: Bool, dueAt: Date) -> Color {
+        if isOverdue { return problem }
+        return Calendar.current.isDateInToday(dueAt) ? attention : active
+    }
+}
+
+// MARK: - Button hierarchy
+
+/// What a button is *for*, so call sites stop choosing a style and a tint.
+///
+/// The rule the kiosk was missing: brand red means "this is the action this
+/// screen exists for." Everything else is quieter. A destructive action is red
+/// too, but only ever inside a confirmation path, never competing with a
+/// primary CTA for the same glance.
+enum KioskButtonRole {
+    /// The one action the screen is for. Brand red, prominent glass.
+    case primary
+    /// A supporting action -- Save, Edit, Camera. Neutral glass.
+    case secondary
+    /// Removes custody or data. Red, but compact and never hero-sized.
+    case destructive
+}
+
+extension View {
+    /// Applies the kiosk button hierarchy. Pair with `.controlSize(_:)` when a
+    /// call site genuinely needs a different footprint.
+    @ViewBuilder
+    func kioskButtonRole(_ role: KioskButtonRole) -> some View {
+        switch role {
+        case .primary:
+            self.buttonStyle(.glassProminent).tint(Color.kioskRed)
+        case .secondary:
+            self.buttonStyle(.glass).tint(KioskText.primary)
+        case .destructive:
+            self.buttonStyle(.bordered).tint(KioskStatus.problem)
+        }
+    }
+}

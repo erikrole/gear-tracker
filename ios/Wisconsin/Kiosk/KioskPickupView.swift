@@ -109,12 +109,12 @@ struct KioskPickupView: View {
                     )
                     VStack(spacing: 6) {
                         Text(allConfirmed ? "All items confirmed" : "Scan each item to confirm pickup")
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(allConfirmed ? Color.statusText(.green) : KioskText.primary)
+                            .font(KioskType.actionTitle)
+                            .foregroundStyle(allConfirmed ? KioskStatus.ok : KioskText.primary)
                             .multilineTextAlignment(.center)
                         if !allConfirmed {
                             Text("Use the hand scanner, or tap Camera to scan with the iPad.")
-                                .font(.subheadline)
+                                .font(KioskType.rowDetail)
                                 .foregroundStyle(KioskText.tertiary)
                                 .multilineTextAlignment(.center)
                         }
@@ -122,7 +122,8 @@ struct KioskPickupView: View {
 
                     KioskScannerReadinessBadge(
                         isReady: scannerHasFocus,
-                        lastScanAt: lastScanAt
+                        lastScanAt: lastScanAt,
+                        isHardwareConnected: store.scanner.hardwareConnected
                     )
 
                     if hasBatteryScanStep {
@@ -189,7 +190,7 @@ struct KioskPickupView: View {
         KioskSideRail(isCompact: isCompact) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(detail?.title ?? "Pickup")
-                    .font(.headline)
+                    .font(KioskType.sectionTitle)
                     .foregroundStyle(KioskText.primary)
                 if let ref = detail?.refNumber {
                     Text(ref)

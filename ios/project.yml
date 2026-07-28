@@ -13,6 +13,12 @@ settings:
     ENABLE_USER_SCRIPT_SANDBOXING: "YES"
     DEVELOPMENT_TEAM: T26T3G8C7Q
     STRING_CATALOG_GENERATE_SYMBOLS: "YES"
+    # Xcode 26 recommended settings. These are the mechanical ones: type-safe
+    # asset symbols, string-catalog preference, and dead-code stripping. They
+    # change build output, not runtime semantics.
+    ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: "YES"
+    LOCALIZATION_PREFERS_STRING_CATALOGS: "YES"
+    DEAD_CODE_STRIPPING: "YES"
 
 targets:
   Wisconsin:
@@ -91,16 +97,23 @@ targets:
       properties:
         UILaunchScreen:
           UIColorName: ""
+        # Landscape only. The kiosk is a counter-mounted iPad and every layout
+        # in it is designed as a two-column landscape task; portrait was a
+        # supported-but-unloved fallback that nothing was verified against.
+        #
+        # iPadOS requires an app to support every orientation UNLESS it declares
+        # that it needs the full screen — multitasking hands a resized scene any
+        # aspect it likes, so a landscape-only app cannot also be a Split View
+        # citizen. This was removed in the 2026-07-09 windowing cleanup when the
+        # kiosk still declared all four orientations; restoring it is what makes
+        # the landscape lock legal rather than a warning.
+        UIRequiresFullScreen: true
         UISupportedInterfaceOrientations:
-          - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-          - UIInterfaceOrientationPortraitUpsideDown
         UISupportedInterfaceOrientations~ipad:
-          - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-          - UIInterfaceOrientationPortraitUpsideDown
         NSCameraUsageDescription: "Scan gear barcodes and QR codes"
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: false

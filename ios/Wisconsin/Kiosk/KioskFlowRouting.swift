@@ -1,4 +1,5 @@
 import Foundation
+import GameController
 import Observation
 import OSLog
 
@@ -46,29 +47,82 @@ enum KioskFlowIntentReducer {
 }
 
 enum KioskScannerOwner: String, CaseIterable { case none, home, identity, studentHub, checkout, pickup, `return`, detail }
-enum KioskScannerConnectionState: String { case ready, reconnecting }
+/// `disconnected` means no HID keyboard is attached at all — the scanner is
+/// off, asleep, or out of Bluetooth range. `reconnecting` means hardware is
+/// present but the hidden sink does not currently hold first responder.
+enum KioskScannerConnectionState: String { case ready, reconnecting, disconnected }
 
 @Observable @MainActor
 final class KioskScannerCoordinator {
     private static let logger = Logger(subsystem: "com.erikrole.WisconsinKiosk", category: "FlowRouting")
     var owner: KioskScannerOwner = .none
-    var connectionState: KioskScannerConnectionState = .ready
+    /// Set from `GCKeyboard` connect/disconnect. A Bluetooth barcode scanner in
+    /// its normal HID mode enumerates as a hardware keyboard, so this is the
+    /// only signal iPadOS gives us that the gun is actually paired and awake.
+    var hardwareConnected = false
     var isEditing = false
     var lastScanAt: Date?
     var notice: String?
     @ObservationIgnored private var scanHandler: ((String) -> Void)?
+    @ObservationIgnored private var isMonitoringHardware = false
+
+    /// Derived, not stored. This was a stored property fixed at `.ready` that
+    /// nothing ever wrote, so "Scanner reconnecting" could not appear and the
+    /// kiosk claimed a scanner was ready with nothing plugged in.
+    var connectionState: KioskScannerConnectionState {
+        hardwareConnected ? .ready : .disconnected
+    }
 
     var statusText: String {
         if isEditing { return "Scanner paused while editing" }
-        if connectionState == .reconnecting { return "Scanner reconnecting" }
-        return "Scanner ready"
+        switch connectionState {
+        case .disconnected: return "No scanner connected"
+        case .reconnecting: return "Scanner reconnecting"
+        case .ready: return "Scanner ready"
+        }
     }
     var statusSymbol: String {
         if isEditing { return "pause.circle.fill" }
-        if connectionState == .reconnecting { return "arrow.triangle.2.circlepath" }
-        return "barcode.viewfinder"
+        switch connectionState {
+        case .disconnected: return "barcode.viewfinder.slash"
+        case .reconnecting: return "arrow.triangle.2.circlepath"
+        case .ready: return "barcode.viewfinder"
+        }
     }
-    var acceptsScans: Bool { owner != .none && !isEditing && connectionState == .ready }
+    /// Deliberately NOT gated on `connectionState`. Hardware detection is a
+    /// display signal, not an authorization one: the camera fallback and typed
+    /// entry also route through `receive`, and a scanner that reports itself
+    /// oddly must never cause a real scan to be dropped on the floor. If bytes
+    /// arrive, something scanned them.
+    var acceptsScans: Bool { owner != .none && !isEditing }
+
+    /// True when the scanner has nothing to report. The global shell pill hides
+    /// itself in this state: a permanent "Scanner ready" badge is noise on a
+    /// counter iPad, and it duplicated the per-screen readiness badge that scan
+    /// screens already own. Problems still surface everywhere, immediately.
+    var isNominal: Bool { !isEditing && connectionState == .ready }
+
+    /// Starts watching for HID keyboard connect/disconnect. Safe to call more
+    /// than once; the observers are registered a single time.
+    func startHardwareMonitoring() {
+        guard !isMonitoringHardware else { return }
+        isMonitoringHardware = true
+        hardwareConnected = GCKeyboard.coalesced != nil
+
+        let center = NotificationCenter.default
+        center.addObserver(forName: .GCKeyboardDidConnect, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.hardwareConnected = true
+                Self.logger.notice("scanner hardware connected")
+            }
+        }
+        center.addObserver(forName: .GCKeyboardDidDisconnect, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.hardwareConnected = GCKeyboard.coalesced != nil
+                Self.logger.notice("scanner hardware disconnected")
+            }
+        }
+    }
 
     func claim(_ owner: KioskScannerOwner, handler: @escaping (String) -> Void) {
         self.owner = owner; scanHandler = handler

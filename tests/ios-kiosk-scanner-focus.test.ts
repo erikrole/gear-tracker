@@ -58,8 +58,12 @@ describe("iOS kiosk scanner focus", () => {
     expect(checkout).toContain("if scannerCaptureEnabled {");
     expect(checkout).toContain("isEnabled: shouldListenForHIDScans");
     expect(checkout).toContain("onFocusChange: { scannerHasFocus = $0 }");
-    expect(checkout).toContain("KioskScannerReadinessBadge(");
+    // Checkout's scan step uses the shared KioskScanStage now; pickup and
+    // return still use the badge directly. Both must report the hidden sink's
+    // REAL first-responder state, never merely that the field is mounted.
+    expect(checkout).toContain("KioskScanStage(");
     expect(checkout).toContain("isReady: scannerHasFocus");
+    expect(checkout).toContain("isHardwareConnected: store.scanner.hardwareConnected");
     expect(checkout).toContain("KioskNativeTextField(");
     expect(checkout).toContain("focusedField.wrappedValue == .customPurpose");
     expect(checkout).toContain("HIDScannerFocusGate.allowScannerFocusNow()");
@@ -169,5 +173,31 @@ describe("iOS kiosk scanner focus", () => {
 
     expect(scanner).toContain("field.inputAssistantItem.leadingBarButtonGroups = []");
     expect(scanner).toContain("field.inputAssistantItem.trailingBarButtonGroups = []");
+  });
+
+  it("detects whether a Bluetooth HID scanner is actually connected", () => {
+    const routing = source("ios/Wisconsin/Kiosk/KioskFlowRouting.swift");
+    const shell = source("ios/Wisconsin/Kiosk/KioskShellView.swift");
+    const components = source("ios/Wisconsin/Kiosk/KioskComponents.swift");
+
+    // A Bluetooth barcode scanner in HID mode enumerates as a hardware
+    // keyboard, so GCKeyboard is the signal iPadOS gives us that the gun is
+    // paired and awake. Before this, `connectionState` was a stored property
+    // fixed at `.ready` that nothing ever wrote -- the kiosk reported "Scanner
+    // ready" with nothing attached.
+    expect(routing).toContain("import GameController");
+    expect(routing).toContain("case ready, reconnecting, disconnected");
+    expect(routing).toContain("var hardwareConnected = false");
+    expect(routing).toContain("GCKeyboard.coalesced != nil");
+    expect(routing).toContain(".GCKeyboardDidConnect");
+    expect(routing).toContain(".GCKeyboardDidDisconnect");
+    expect(routing).toContain('case .disconnected: return "No scanner connected"');
+    expect(shell).toContain("store.scanner.startHardwareMonitoring()");
+    expect(components).toContain("var isHardwareConnected: Bool = true");
+
+    // Hardware state must never gate scan acceptance: the camera fallback and
+    // typed entry also route through `receive`, and a scanner that reports
+    // itself oddly must not cause a real scan to be dropped.
+    expect(routing).toContain("var acceptsScans: Bool { owner != .none && !isEditing }");
   });
 });

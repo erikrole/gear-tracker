@@ -16,13 +16,12 @@ private enum KioskCheckoutDefaults {
 }
 
 private enum KioskCheckoutSetupLayout {
-    /// Keep the setup bounded on the managed M2 iPad Air fleet so Context and
-    /// Return remain a stable two-column task instead of sprawling edge to edge.
+    /// Keep the setup bounded on the managed M2 iPad Air fleet so the two
+    /// setup columns remain a stable task instead of sprawling edge to edge.
+    /// The columns themselves split this width evenly -- the old fixed
+    /// 376/648 pair cramped the booking-name field beside a return column
+    /// sized for a month calendar that no longer exists.
     static let maxWidth: CGFloat = 1048
-    static let contextColumnWidth: CGFloat = 376
-    static let returnColumnWidth: CGFloat = 648
-    static let returnDateWidth: CGFloat = 390
-    static let returnTimeWidth: CGFloat = 176
 }
 
 struct KioskCheckoutView: View {
@@ -41,9 +40,14 @@ struct KioskCheckoutView: View {
     @State private var isLinkedToEvent = false
     @State private var selectedEventId: String?
     @State private var customPurpose = ""
-    @State private var checkoutContextReady = true
+    /// A new checkout starts on its details step. Checkout is a two-step flow —
+    /// say what this is for and when it comes back, then scan — and the details
+    /// were previously a sheet floating over a scan screen you could not
+    /// actually use yet, which is why that screen greeted you with a "Details
+    /// needed" banner. A restored draft or a scan-initiated checkout resumes
+    /// straight into scanning; only a genuinely new checkout starts at step 1.
+    @State private var checkoutContextReady = false
     @State private var scannerCaptureEnabled = true
-    @State private var showDetailsSheet = false
     @State private var scannerHasFocus = false
     @State private var showScannerHelp = false
     @State private var showEditContextConfirm = false
@@ -92,7 +96,7 @@ struct KioskCheckoutView: View {
         KioskCartDisplayGroup.groups(from: scannedItems)
     }
     private var shouldListenForHIDScans: Bool {
-        scannerCaptureEnabled && focusedCheckoutField == nil && !showCamera && !showScannerHelp && !showEditContextConfirm && !showDetailsSheet
+        scannerCaptureEnabled && focusedCheckoutField == nil && !showCamera && !showScannerHelp && !showEditContextConfirm
     }
 
     var body: some View {
@@ -161,26 +165,6 @@ struct KioskCheckoutView: View {
                 }
             )
         }
-        .sheet(isPresented: $showDetailsSheet) {
-            VStack(spacing: 16) {
-                HStack {
-                    Text("Checkout Details").font(.title2.bold()).foregroundStyle(KioskText.primary)
-                    Spacer()
-                    Button("Done") { startScanning() }
-                }
-                checkoutSetupPanel
-                KioskCompletionButton(
-                    title: "Save Details",
-                    isEnabled: hasCheckoutContext && hasValidReturnTime,
-                    isBusy: false,
-                    accessibilityLabel: startScanningAccessibilityLabel,
-                    action: startScanning
-                )
-            }
-            .padding(28)
-            .background(KioskSurface.base)
-            .presentationDetents([.large])
-        }
         .task {
             restoreDraftIfNeeded()
             applyRetainedIntent()
@@ -230,11 +214,16 @@ struct KioskCheckoutView: View {
 
     // MARK: - Scan Zone
 
+    @ViewBuilder
     private var checkoutLayout: some View {
-        KioskAdaptiveSplit { _ in
-            activeScanZone
-        } secondary: { isCompact in
-            itemsList(isCompact: isCompact)
+        if checkoutContextReady {
+            KioskAdaptiveSplit { _ in
+                activeScanZone
+            } secondary: { isCompact in
+                itemsList(isCompact: isCompact)
+            }
+        } else {
+            checkoutContextSetupZone
         }
     }
 
@@ -276,7 +265,7 @@ struct KioskCheckoutView: View {
             .frame(maxHeight: .infinity, alignment: .top)
 
             KioskCompletionButton(
-                title: "Start Scanning",
+                title: "Continue to Scan",
                 isEnabled: hasCheckoutContext && hasValidReturnTime,
                 isBusy: false,
                 accessibilityLabel: startScanningAccessibilityLabel,
@@ -334,9 +323,7 @@ struct KioskCheckoutView: View {
                 title: hasCheckoutContext ? checkoutContextTitle : "Details needed",
                 detail: hasCheckoutContext ? checkoutContextDetail : "Keep scanning, then review before checkout.",
                 dueBackAt: dueBackAt,
-                onEdit: {
-                    showDetailsSheet = true
-                }
+                onEdit: { requestEditContext() }
             )
 
             KioskCheckoutAvailabilityBanner(
@@ -347,23 +334,14 @@ struct KioskCheckoutView: View {
 
             Spacer()
 
-            // Scanner indicator
-            VStack(spacing: 16) {
-                KioskScanTarget(tint: scannerBorderColor)
-
-                Text("Scan items to add")
-                    .font(.subheadline)
-                    .foregroundStyle(KioskText.secondary)
-                Text("Or tap Camera if no scanner is connected")
-                    .font(.caption)
-                    .foregroundStyle(KioskText.muted)
-
-                KioskScannerReadinessBadge(
-                    isReady: scannerHasFocus,
-                    lastScanAt: lastScanAt,
-                    onTap: { showScannerHelp = true }
-                )
-            }
+            KioskScanStage(
+                isHardwareConnected: store.scanner.hardwareConnected,
+                isReady: scannerHasFocus,
+                lastScanAt: lastScanAt,
+                feedbackTint: lastResult.map { _ in scannerBorderColor },
+                onCamera: { showCamera = true },
+                onHelp: { showScannerHelp = true }
+            )
 
             // Feedback banner
             if let result = lastResult {
@@ -375,13 +353,13 @@ struct KioskCheckoutView: View {
             Spacer()
 
             KioskCompletionButton(
-                title: hasCheckoutContext && hasValidReturnTime ? completeButtonTitle : "Review Details",
+                title: completeButtonTitle,
                 isEnabled: !scannedItems.isEmpty && pendingScanIdentities.isEmpty && (!hasCheckoutContext || !hasValidReturnTime || (hasVerifiedAvailability && !isCheckingAvailability && availabilityError == nil && !availabilityResult.hasBlockingIssue)),
                 isBusy: isCompleting,
                 accessibilityLabel: completeAccessibilityLabel,
                 action: {
                     if hasCheckoutContext && hasValidReturnTime { completeCheckout() }
-                    else { showDetailsSheet = true }
+                    else { requestEditContext() }
                 }
             )
         }
@@ -549,7 +527,7 @@ struct KioskCheckoutView: View {
         isLoadingEvents = true
         eventLoadError = nil
         do {
-            eventOptions = try await KioskAPI.shared.kioskCheckoutEvents()
+            eventOptions = try await KioskAPI.shared.kioskCheckoutEvents(requesterId: user.id)
         } catch {
             eventLoadError = (error as? APIError)?.errorDescription ?? "Events unavailable"
         }
@@ -673,7 +651,6 @@ struct KioskCheckoutView: View {
         HIDScannerFocusGate.allowScannerFocusNow()
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         checkoutContextReady = true
-        showDetailsSheet = false
         store.resetInactivity()
         Haptics.success()
         DispatchQueue.main.async {
@@ -756,7 +733,10 @@ struct KioskCheckoutView: View {
         selectedEventId = draft.selectedEventId
         customPurpose = draft.customPurpose
         dueBackAt = max(draft.dueBackAt, Date().addingTimeInterval(5 * 60))
-        checkoutContextReady = true
+        // Resume where the draft actually left off. Forcing `true` here sent a
+        // half-filled draft straight to the scan step.
+        checkoutContextReady = draft.contextReady
+        guard checkoutContextReady else { return }
         armScannerCaptureAfterRestore()
     }
 
@@ -770,6 +750,14 @@ struct KioskCheckoutView: View {
         let consumed = KioskFlowIntentReducer.consumePendingScans(in: intent)
         intent = consumed.intent
         store.setIntent(intent)
+        // A scan-initiated checkout means gear is already in hand at the home
+        // screen. Dropping that person on the details step would strand the
+        // scan they just made, so they resume in scanning and fill details from
+        // the scan screen's Edit action instead.
+        if !consumed.scans.isEmpty {
+            checkoutContextReady = true
+            armScannerCaptureAfterRestore()
+        }
         for scan in consumed.scans { handleScan(scan) }
     }
 
@@ -952,21 +940,39 @@ private struct KioskCheckoutSetupPanel: View {
         VStack(alignment: .leading, spacing: KioskSpacing.lg) {
             KioskCheckoutSetupHero(user: user, locationName: locationName)
 
+            // Details left, event linking right. Everything the checkout record
+            // needs -- name and due-back -- stays on one side and is never
+            // pushed below the fold by a long event list.
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: KioskSpacing.lg) {
-                    contextWindow
-                        .frame(width: KioskCheckoutSetupLayout.contextColumnWidth, alignment: .top)
-                    returnWindow
-                        .frame(width: KioskCheckoutSetupLayout.returnColumnWidth, alignment: .top)
+                    detailsColumn.frame(maxWidth: .infinity, alignment: .top)
+                    eventColumn.frame(maxWidth: .infinity, alignment: .top)
                 }
 
                 VStack(alignment: .leading, spacing: KioskSpacing.lg) {
-                    contextWindow
-                    returnWindow
+                    detailsColumn
+                    eventColumn
                 }
             }
         }
         .accessibilityElement(children: .contain)
+    }
+
+    private var detailsColumn: some View {
+        VStack(alignment: .leading, spacing: KioskSpacing.lg) {
+            contextWindow
+            returnWindow
+        }
+    }
+
+    private var eventColumn: some View {
+        KioskCheckoutEventPicker(
+            events: events,
+            isLoading: isLoadingEvents,
+            errorMessage: eventLoadError,
+            selectedEventId: $selectedEventId,
+            isLinkedToEvent: $isLinkedToEvent
+        )
     }
 
     private var contextWindow: some View {
@@ -984,7 +990,98 @@ private struct KioskCheckoutSetupPanel: View {
     }
 
     private var returnWindow: some View {
-        KioskCheckoutReturnWindow(dueBackAt: $dueBackAt)
+        KioskCheckoutReturnWindow(dueBackAt: $dueBackAt, eventEnd: selectedEvent?.endsAt)
+    }
+}
+
+/// Right column of checkout setup: the requester's own published shifts first,
+/// then everything else on the calendar. Tapping a row links the booking to
+/// that event; tapping the linked row again unlinks it.
+///
+/// This replaces a "Link to event" toggle that hid the entire event list behind
+/// a switch, plus an overflow menu that buried the rest of the calendar in
+/// a popover. Linking is the common case for crewed work, so the events are
+/// simply on screen.
+private struct KioskCheckoutEventPicker: View {
+    let events: [KioskCheckoutEvent]
+    let isLoading: Bool
+    let errorMessage: String?
+    @Binding var selectedEventId: String?
+    @Binding var isLinkedToEvent: Bool
+
+    private var myShifts: [KioskCheckoutEvent] { events.filter(\.isMyShift) }
+    private var otherEvents: [KioskCheckoutEvent] { events.filter { !$0.isMyShift } }
+
+    var body: some View {
+        KioskCheckoutWindow(title: "Link an event") {
+            if isLoading {
+                KioskCheckoutEventLoadingRow()
+            } else if events.isEmpty {
+                KioskCheckoutEmptyEventRow()
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: KioskSpacing.md) {
+                        if !myShifts.isEmpty {
+                            group("Your shifts", events: myShifts)
+                        }
+                        if !otherEvents.isEmpty {
+                            group("All events", events: otherEvents)
+                        }
+                    }
+                }
+                .frame(maxHeight: 320)
+                .scrollIndicators(.visible)
+            }
+
+            if let errorMessage {
+                Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                    .font(KioskType.chip)
+                    .foregroundStyle(KioskStatus.attention)
+            }
+        }
+    }
+
+    private func group(_ title: String, events: [KioskCheckoutEvent]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title.uppercased())
+                .font(KioskType.overline)
+                .tracking(1.2)
+                .foregroundStyle(KioskText.muted)
+
+            VStack(spacing: 0) {
+                ForEach(events) { event in
+                    KioskCheckoutEventRow(
+                        event: event,
+                        isSelected: selectedEventId == event.id,
+                        subtitle: KioskCheckoutEventFormat.subtitle(event)
+                    ) {
+                        toggle(event)
+                    }
+
+                    if event.id != events.last?.id {
+                        Divider().background(KioskStroke.divider)
+                    }
+                }
+            }
+            .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
+            .overlay(
+                RoundedRectangle(cornerRadius: KioskRadius.md)
+                    .stroke(KioskStroke.hairline, lineWidth: 1)
+            )
+        }
+    }
+
+    /// Tapping the already-linked event unlinks it, so a mis-tap does not
+    /// strand the booking against the wrong event with no way back.
+    private func toggle(_ event: KioskCheckoutEvent) {
+        if selectedEventId == event.id {
+            selectedEventId = nil
+            isLinkedToEvent = false
+        } else {
+            selectedEventId = event.id
+            isLinkedToEvent = true
+        }
+        Haptics.selection()
     }
 }
 
@@ -997,7 +1094,7 @@ private struct KioskCheckoutSetupHero: View {
             KioskAvatar(url: user.avatarUrl, initials: user.initials, size: 64)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("CHECKOUT SETUP")
+                Text("STEP 1 OF 2 · CHECKOUT DETAILS")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(KioskText.muted)
                 Text(user.name)
@@ -1107,64 +1204,47 @@ private struct KioskCheckoutContextWindow: View {
     let onScannerBurstRejected: () -> Void
 
     var body: some View {
-        KioskCheckoutWindow(
-            title: "Context",
-            trailing: {
-                Toggle("Link to event", isOn: $isLinkedToEvent)
-                    .toggleStyle(.switch)
-                    .tint(Color.kioskRed)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(KioskText.secondary)
-                    .fixedSize()
-            }
-        ) {
-            if isLinkedToEvent {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Text("Upcoming events")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(KioskText.secondary)
-                        Spacer()
-                        if !events.isEmpty {
-                            eventMenu
-                        }
-                    }
-
-                    if isLoading {
-                        KioskCheckoutEventLoadingRow()
-                    } else if events.isEmpty {
-                        KioskCheckoutEmptyEventRow()
-                    } else {
-                        VStack(spacing: 0) {
-                            ForEach(featuredEvents) { event in
-                                KioskCheckoutEventRow(
-                                    event: event,
-                                    isSelected: selectedEventId == event.id,
-                                    subtitle: KioskCheckoutEventFormat.subtitle(event)
-                                ) {
-                                    selectedEventId = event.id
-                                }
-
-                                if event.id != featuredEvents.last?.id {
-                                    Divider().background(KioskStroke.divider)
-                                }
-                            }
-                        }
-                        .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: KioskRadius.md)
-                                .stroke(KioskStroke.hairline, lineWidth: 1)
-                        )
-                    }
-
-                    if let errorMessage {
-                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(Color.statusText(.orange))
-                    }
-                }
-            } else {
+        KioskCheckoutWindow(title: "What's this for?") {
+            VStack(alignment: .leading, spacing: 12) {
                 bookingNameControl
+
+                // When an event is linked, say so here rather than leaving the
+                // booking-name field silently irrelevant. The event list lives
+                // in its own column now, so this is the only place on the
+                // details side that reflects the link.
+                if isLinkedToEvent, let selectedEvent {
+                    HStack(spacing: 10) {
+                        Image(systemName: "calendar.badge.checkmark")
+                            .foregroundStyle(KioskStatus.scheduled)
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(selectedEvent.title)
+                                .font(KioskType.chip)
+                                .foregroundStyle(KioskText.primary)
+                                .lineLimit(1)
+                            Text(KioskCheckoutEventFormat.subtitle(selectedEvent))
+                                .font(KioskType.micro)
+                                .foregroundStyle(KioskText.tertiary)
+                                .lineLimit(1)
+                        }
+                        Spacer(minLength: 8)
+                        Button("Unlink") {
+                            selectedEventId = nil
+                            isLinkedToEvent = false
+                        }
+                        .font(KioskType.micro)
+                        .buttonStyle(.glass)
+                        .controlSize(.small)
+                    }
+                    .padding(12)
+                    .background(KioskStatus.scheduled.opacity(0.12), in: RoundedRectangle(cornerRadius: KioskRadius.md))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: KioskRadius.md)
+                            .stroke(KioskStatus.scheduled.opacity(0.35), lineWidth: 1)
+                    )
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Linked to \(selectedEvent.title)")
+                }
             }
         }
     }
@@ -1199,44 +1279,6 @@ private struct KioskCheckoutContextWindow: View {
 
             KioskKeyboardHint(isFieldFocused: focusedField.wrappedValue == .customPurpose)
         }
-    }
-
-    private var eventMenu: some View {
-        Menu {
-            Button {
-                selectedEventId = nil
-            } label: {
-                Label("No event", systemImage: selectedEventId == nil ? "checkmark" : "calendar")
-            }
-
-            Divider()
-
-            ForEach(events) { event in
-                Button {
-                    selectedEventId = event.id
-                } label: {
-                    Label(event.title, systemImage: selectedEventId == event.id ? "checkmark" : "calendar")
-                }
-            }
-        } label: {
-            Label("All Events", systemImage: "chevron.up.chevron.down")
-                .labelStyle(.titleAndIcon)
-                .font(.subheadline.weight(.semibold))
-        }
-        .buttonStyle(.bordered)
-        .buttonBorderShape(.capsule)
-        .controlSize(.regular)
-        .tint(KioskText.secondary)
-    }
-
-    private var featuredEvents: [KioskCheckoutEvent] {
-        var result = Array(events.prefix(3))
-        if let selectedEvent,
-           !result.contains(where: { $0.id == selectedEvent.id }),
-           !result.isEmpty {
-            result[result.count - 1] = selectedEvent
-        }
-        return result
     }
 }
 
@@ -1326,79 +1368,92 @@ private struct KioskCheckoutEmptyEventRow: View {
 
 private struct KioskCheckoutReturnWindow: View {
     @Binding var dueBackAt: Date
+    var eventEnd: Date?
 
     var body: some View {
-        KioskCheckoutWindow(title: "Return") {
-            KioskCheckoutReturnDatePicker(dueBackAt: $dueBackAt)
+        KioskCheckoutWindow(title: "When's it back?") {
+            KioskCheckoutReturnDatePicker(dueBackAt: $dueBackAt, eventEnd: eventEnd)
         }
     }
 }
 
+/// Return date and time, stated outright.
+///
+/// This screen has been through two wrong answers. First a 300pt
+/// `UICalendarView` beside a 180pt wheel, both `.clipped()` inside a card too
+/// short to hold them -- they visibly overlapped on device. Then one-tap
+/// presets ("2 hours", "Tonight"), which were quick but wrong for a custody
+/// record: an easy default is the one people press to get past the screen, and
+/// a due date nobody chose is a due date nobody honours.
+///
+/// So both fields are always visible, always native, and always require a
+/// deliberate choice. Each opens its own system popover, so neither can
+/// overlap the other.
 private struct KioskCheckoutReturnDatePicker: View {
     @Binding var dueBackAt: Date
+    var eventEnd: Date?
 
-    private var minimumDueBack: Date {
-        Date().addingTimeInterval(5 * 60)
-    }
+    private var minimumDueBack: Date { Date().addingTimeInterval(5 * 60) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                HStack(spacing: 4) {
-                    Text("Return time")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(KioskText.secondary)
-                    Text("*")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(Color.kioskRed)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: KioskSpacing.md) {
+                field("Return date") {
+                    DatePicker(
+                        "Return date",
+                        selection: clampedDueBack,
+                        in: minimumDueBack...,
+                        displayedComponents: .date
+                    )
                 }
-
-                Spacer()
-
-                Text(dueBackAt.formatted(date: .abbreviated, time: .shortened))
-                    .font(.subheadline.weight(.bold).monospacedDigit())
-                    .foregroundStyle(KioskText.primary)
-                    .contentTransition(.numericText())
+                field("Return time") {
+                    DatePicker(
+                        "Return time",
+                        selection: clampedDueBack,
+                        in: minimumDueBack...,
+                        displayedComponents: .hourAndMinute
+                    )
+                }
+                Spacer(minLength: 0)
             }
 
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .center, spacing: 10) {
-                    returnDatePicker
-                    returnTimePicker
-                }
-                VStack(spacing: 12) {
-                    returnDatePicker
-                    returnTimePicker
-                }
+            // The committed answer, restated in full so it is legible from
+            // across the counter and unambiguous about which day it lands on.
+            Text(dueBackAt.kioskDueStamp())
+                .font(.gothamBold(size: 20))
+                .foregroundStyle(KioskText.primary)
+                .contentTransition(.numericText())
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .accessibilityLabel("Due back \(dueBackAt.formatted(date: .complete, time: .shortened))")
+
+            if let eventEnd, abs(eventEnd.timeIntervalSince(dueBackAt)) < 60 {
+                Label("Matches the linked event's end time", systemImage: "calendar.badge.checkmark")
+                    .font(KioskType.chip)
+                    .foregroundStyle(KioskStatus.scheduled)
             }
-            .frame(maxWidth: .infinity)
-            .padding(12)
-            .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
-            .overlay(
-                RoundedRectangle(cornerRadius: KioskRadius.md)
-                    .stroke(KioskStroke.hairline, lineWidth: 1)
-            )
         }
     }
 
-    private var returnDatePicker: some View {
-        KioskUICalendarPicker(
-            selection: clampedDueBack,
-            minimumDate: minimumDueBack
-        )
-        .frame(width: KioskCheckoutSetupLayout.returnDateWidth, height: 300)
-        .clipped()
-    }
-
-    private var returnTimePicker: some View {
-        KioskUIDatePicker(
-            selection: clampedDueBack,
-            displayedComponent: .time,
-            preferredStyle: .wheels,
-            minimumDate: nil
-        )
-        .frame(width: KioskCheckoutSetupLayout.returnTimeWidth, height: 180)
-        .clipped()
+    private func field<Picker: View>(
+        _ label: String,
+        @ViewBuilder picker: () -> Picker
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 4) {
+                Text(label.uppercased())
+                    .font(KioskType.overline)
+                    .tracking(1.2)
+                    .foregroundStyle(KioskText.muted)
+                Text("*")
+                    .font(KioskType.overline)
+                    .foregroundStyle(KioskStatus.problem)
+            }
+            picker()
+                .datePickerStyle(.compact)
+                .labelsHidden()
+                .tint(Color.kioskRed)
+        }
     }
 
     private var clampedDueBack: Binding<Date> {
@@ -1406,204 +1461,6 @@ private struct KioskCheckoutReturnDatePicker: View {
             get: { max(dueBackAt, minimumDueBack) },
             set: { dueBackAt = max($0, minimumDueBack) }
         )
-    }
-}
-
-private struct KioskUICalendarPicker: UIViewRepresentable {
-    @Binding var selection: Date
-    let minimumDate: Date
-
-    func makeUIView(context: Context) -> UICalendarView {
-        let calendarView = UICalendarView()
-        calendarView.calendar = .current
-        calendarView.locale = .current
-        calendarView.tintColor = UIColor(Color.kioskRed)
-        calendarView.selectionBehavior = UICalendarSelectionSingleDate(delegate: context.coordinator)
-        calendarView.setContentCompressionResistancePriority(.required, for: .horizontal)
-        calendarView.setContentHuggingPriority(.required, for: .horizontal)
-        return calendarView
-    }
-
-    func updateUIView(_ calendarView: UICalendarView, context: Context) {
-        context.coordinator.parent = self
-        calendarView.calendar = .current
-        calendarView.locale = .current
-        calendarView.tintColor = UIColor(Color.kioskRed)
-        calendarView.availableDateRange = DateInterval(
-            start: Calendar.current.startOfDay(for: minimumDate),
-            end: Date.distantFuture
-        )
-
-        if let selectionBehavior = calendarView.selectionBehavior as? UICalendarSelectionSingleDate {
-            selectionBehavior.setSelected(selectedDateComponents, animated: false)
-        } else {
-            calendarView.selectionBehavior = UICalendarSelectionSingleDate(delegate: context.coordinator)
-        }
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(parent: self)
-    }
-
-    private var selectedDateComponents: DateComponents {
-        var components = Calendar.current.dateComponents([.era, .year, .month, .day], from: selection)
-        components.calendar = Calendar.current
-        return components
-    }
-
-    fileprivate func canSelect(_ dateComponents: DateComponents?) -> Bool {
-        guard let date = date(from: dateComponents) else { return false }
-        return Calendar.current.startOfDay(for: date) >= Calendar.current.startOfDay(for: minimumDate)
-    }
-
-    fileprivate func mergedSelection(from dateComponents: DateComponents?) -> Date? {
-        guard let selectedDay = date(from: dateComponents) else { return nil }
-        let calendar = Calendar.current
-        let dayParts = calendar.dateComponents([.era, .year, .month, .day], from: selectedDay)
-        let timeParts = calendar.dateComponents([.hour, .minute, .second], from: selection)
-        var components = DateComponents()
-        components.calendar = calendar
-        components.era = dayParts.era
-        components.year = dayParts.year
-        components.month = dayParts.month
-        components.day = dayParts.day
-        components.hour = timeParts.hour
-        components.minute = timeParts.minute
-        components.second = timeParts.second
-        guard let merged = calendar.date(from: components) else { return nil }
-        return max(merged, minimumDate)
-    }
-
-    private func date(from dateComponents: DateComponents?) -> Date? {
-        guard var dateComponents else { return nil }
-        dateComponents.calendar = Calendar.current
-        return Calendar.current.date(from: dateComponents)
-    }
-
-    final class Coordinator: NSObject, UICalendarSelectionSingleDateDelegate {
-        var parent: KioskUICalendarPicker
-
-        init(parent: KioskUICalendarPicker) {
-            self.parent = parent
-        }
-
-        func dateSelection(
-            _ selection: UICalendarSelectionSingleDate,
-            canSelectDate dateComponents: DateComponents?
-        ) -> Bool {
-            parent.canSelect(dateComponents)
-        }
-
-        func dateSelection(
-            _ selection: UICalendarSelectionSingleDate,
-            didSelectDate dateComponents: DateComponents?
-        ) {
-            guard let merged = parent.mergedSelection(from: dateComponents) else { return }
-            parent.selection = merged
-        }
-    }
-}
-
-private struct KioskUIDatePicker: UIViewRepresentable {
-    enum DisplayedComponent {
-        case date
-        case time
-
-        var mode: UIDatePicker.Mode {
-            switch self {
-            case .date: .date
-            case .time: .time
-            }
-        }
-    }
-
-    @Binding var selection: Date
-    let displayedComponent: DisplayedComponent
-    let preferredStyle: UIDatePickerStyle
-    let minimumDate: Date?
-
-    func makeUIView(context: Context) -> UIDatePicker {
-        let picker = UIDatePicker()
-        picker.datePickerMode = displayedComponent.mode
-        picker.preferredDatePickerStyle = preferredStyle
-        picker.tintColor = UIColor(Color.kioskRed)
-        picker.calendar = .current
-        picker.locale = .current
-        picker.minimumDate = minimumDate
-        picker.addTarget(context.coordinator, action: #selector(Coordinator.valueChanged(_:)), for: .valueChanged)
-        picker.setContentCompressionResistancePriority(.required, for: .horizontal)
-        picker.setContentHuggingPriority(.required, for: .horizontal)
-        return picker
-    }
-
-    func updateUIView(_ picker: UIDatePicker, context: Context) {
-        context.coordinator.parent = self
-        picker.datePickerMode = displayedComponent.mode
-        picker.preferredDatePickerStyle = preferredStyle
-        picker.minimumDate = minimumDate
-        picker.tintColor = UIColor(Color.kioskRed)
-
-        let clampedSelection = clamped(selection)
-        if abs(picker.date.timeIntervalSince(clampedSelection)) > 0.5 {
-            picker.setDate(clampedSelection, animated: false)
-        }
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(parent: self)
-    }
-
-    private func clamped(_ date: Date) -> Date {
-        guard let minimumDate else { return date }
-        return max(date, minimumDate)
-    }
-
-    fileprivate func mergedSelection(from pickerDate: Date) -> Date {
-        let calendar = Calendar.current
-        var merged: Date?
-
-        switch displayedComponent {
-        case .date:
-            let dateParts = calendar.dateComponents([.era, .year, .month, .day], from: pickerDate)
-            let timeParts = calendar.dateComponents([.hour, .minute, .second], from: selection)
-            var components = DateComponents()
-            components.calendar = calendar
-            components.era = dateParts.era
-            components.year = dateParts.year
-            components.month = dateParts.month
-            components.day = dateParts.day
-            components.hour = timeParts.hour
-            components.minute = timeParts.minute
-            components.second = timeParts.second
-            merged = calendar.date(from: components)
-        case .time:
-            let dateParts = calendar.dateComponents([.era, .year, .month, .day], from: selection)
-            let timeParts = calendar.dateComponents([.hour, .minute, .second], from: pickerDate)
-            var components = DateComponents()
-            components.calendar = calendar
-            components.era = dateParts.era
-            components.year = dateParts.year
-            components.month = dateParts.month
-            components.day = dateParts.day
-            components.hour = timeParts.hour
-            components.minute = timeParts.minute
-            components.second = timeParts.second
-            merged = calendar.date(from: components)
-        }
-
-        return clamped(merged ?? selection)
-    }
-
-    final class Coordinator: NSObject {
-        var parent: KioskUIDatePicker
-
-        init(parent: KioskUIDatePicker) {
-            self.parent = parent
-        }
-
-        @MainActor @objc func valueChanged(_ picker: UIDatePicker) {
-            parent.selection = parent.mergedSelection(from: picker.date)
-        }
     }
 }
 

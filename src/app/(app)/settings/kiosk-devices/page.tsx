@@ -66,6 +66,10 @@ type KioskDevice = {
   activated: boolean;
   activatedAt: string | null;
   lastSeenAt: string | null;
+  appVersion: string | null;
+  appBuild: string | null;
+  osVersion: string | null;
+  deviceModel: string | null;
   createdAt: string;
   pendingPickupCount: number;
   openCheckoutCount: number;
@@ -558,6 +562,22 @@ export default function KioskDevicesPage() {
                           <>
                             <span>·</span>
                             <span>Last seen: {formatRelative(device.lastSeenAt)}</span>
+                            {/* Build identity answers "is this iPad on the new
+                                build?" without a database query. Devices on an
+                                older build never report it, so say so plainly
+                                rather than rendering an empty gap. */}
+                            <span>
+                              Build:{" "}
+                              {device.appVersion
+                                ? `${device.appVersion} (${device.appBuild ?? "?"})`
+                                : "Unknown — pre-reporting build"}
+                            </span>
+                            {device.osVersion ? (
+                              <span>
+                                iPadOS {device.osVersion}
+                                {device.deviceModel ? ` · ${device.deviceModel}` : ""}
+                              </span>
+                            ) : null}
                           </>
                         )}
                       </div>

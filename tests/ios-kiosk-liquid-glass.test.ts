@@ -24,7 +24,9 @@ describe("iOS 26 kiosk Liquid Glass hierarchy", () => {
     expect(detail).toContain(".buttonStyle(.glassProminent)");
     expect(detail).not.toContain(".glassEffect(");
     expect(detail).not.toContain(".kioskGlassSurface(");
-    expect(detail).toContain('Label("Remove", systemImage: "minus.circle.fill")');
-    expect(detail).toContain(".buttonStyle(.bordered)");
+    // Destructive removal stays off glass: it is operational content, and a
+    // plain trash glyph keeps it quieter than the primary Return Gear CTA.
+    expect(detail).toContain('Image(systemName: "trash.fill")');
+    expect(detail).not.toContain('Label("Remove", systemImage: "minus.circle.fill")');
   });
 });

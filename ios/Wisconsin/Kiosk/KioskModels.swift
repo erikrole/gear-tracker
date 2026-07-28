@@ -227,6 +227,13 @@ struct KioskCheckoutEvent: Decodable, Identifiable, Equatable {
     let endsAt: Date?
     let allDay: Bool
     let locationName: String?
+    /// True when the identified requester is working a published shift on this
+    /// event. Optional for rollout tolerance: a kiosk build newer than the
+    /// server simply sees every event as unassigned rather than failing to
+    /// decode the whole list.
+    let isAssigned: Bool?
+
+    var isMyShift: Bool { isAssigned == true }
 }
 
 struct KioskCheckoutAvailabilityResult: Decodable, Equatable {

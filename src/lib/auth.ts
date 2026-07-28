@@ -284,6 +284,30 @@ export async function requireKiosk(): Promise<KioskContext> {
     expires: sessionExpiresAt,
   });
 
+  // `lastSeenAt` is throttled the same way the session slide above is, and for
+  // the same reason: it was writing on EVERY kiosk request, including pure
+  // reads. That turned every dashboard poll, roster load, and heartbeat into a
+  // write, and write traffic — not read traffic — is what keeps a Neon compute
+  // endpoint from suspending. Minute-level "last seen" precision was never
+  // worth a WAL record per request; five minutes is well inside what the admin
+  // Kiosk Devices column needs to distinguish a live device from a dark one.
+  const lastSeenThrottleMs = 1000 * 60 * 5;
+  const shouldTouchLastSeen =
+    !device.lastSeenAt || now.getTime() - device.lastSeenAt.getTime() > lastSeenThrottleMs;
+
+  const kioskContext = {
+    kioskId: device.id,
+    name: device.name,
+    locationId: device.location.id,
+    locationName: device.location.name,
+  };
+
+  // Nothing to persist: skip the round trip entirely rather than issuing an
+  // UPDATE that would set every column to the value it already holds.
+  if (!shouldSlide && !shouldTouchLastSeen) {
+    return kioskContext;
+  }
+
   // Update last seen + slid expiry after the response is sent -- after()
   // keeps the serverless function alive until this completes, unlike
   // fire-and-forget.
@@ -291,15 +315,13 @@ export async function requireKiosk(): Promise<KioskContext> {
     db.kioskDevice
       .update({
         where: { id: device.id },
-        data: { lastSeenAt: now, ...(shouldSlide ? { sessionExpiresAt } : {}) },
+        data: {
+          ...(shouldTouchLastSeen ? { lastSeenAt: now } : {}),
+          ...(shouldSlide ? { sessionExpiresAt } : {}),
+        },
       })
       .catch(() => {}),
   );
 
-  return {
-    kioskId: device.id,
-    name: device.name,
-    locationId: device.location.id,
-    locationName: device.location.name,
-  };
+  return kioskContext;
 }

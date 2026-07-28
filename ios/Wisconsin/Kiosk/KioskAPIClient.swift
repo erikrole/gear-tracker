@@ -83,7 +83,11 @@ struct KioskAPI {
 
     func kioskHeartbeat() async throws {
         struct Response: Decodable { let status: String; let kioskId: String }
-        let req = request(path: "/api/kiosk/heartbeat", method: "POST")
+        var req = request(path: "/api/kiosk/heartbeat", method: "POST")
+        // Report build identity so the fleet is legible from the server. The
+        // route persists this only when a value actually changes, so sending it
+        // on every beat costs nothing beyond the bytes.
+        req.httpBody = try? JSONEncoder().encode(KioskBuildIdentity.current)
         // Route through `perform` so APIError.unauthorized propagates — the
         // caller (`KioskStore.startHeartbeat`) catches it specifically to
         // detect admin-deactivation. The prior `try?` swallowed 401 silently
@@ -136,9 +140,14 @@ struct KioskAPI {
         return try await perform(req)
     }
 
-    func kioskCheckoutEvents() async throws -> [KioskCheckoutEvent] {
+    /// `requesterId` lets the server mark which events the person checking out
+    /// is actually working, so checkout setup can lead with their own shifts.
+    func kioskCheckoutEvents(requesterId: String? = nil) async throws -> [KioskCheckoutEvent] {
         struct Resp: Decodable { let data: [KioskCheckoutEvent] }
-        let req = request(path: "/api/kiosk/events")
+        let query = requesterId.flatMap { id in
+            id.isEmpty ? nil : [URLQueryItem(name: "userId", value: id)]
+        } ?? []
+        let req = request(path: "/api/kiosk/events", query: query)
         let resp: Resp = try await perform(req)
         return resp.data
     }
@@ -315,8 +324,21 @@ struct KioskAPI {
         return formatter.date(from: value)
     }
 
-    private func request(path: String, method: String = "GET") -> URLRequest {
-        var req = URLRequest(url: baseURL.appendingPathComponent(path))
+    /// `query` must go through `URLComponents`, not into `path`.
+    /// `appendingPathComponent` percent-escapes `?` to `%3F`, which turns a
+    /// query string into part of the path and returns a 404.
+    private func request(
+        path: String,
+        method: String = "GET",
+        query: [URLQueryItem] = []
+    ) -> URLRequest {
+        var url = baseURL.appendingPathComponent(path)
+        if !query.isEmpty,
+           var components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            components.queryItems = query
+            url = components.url ?? url
+        }
+        var req = URLRequest(url: url)
         req.httpMethod = method
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("WisconsinApp/1.0 iOS Kiosk", forHTTPHeaderField: "User-Agent")
@@ -391,3 +413,45 @@ struct KioskAPI {
 
 private struct DataWrapper<T: Decodable>: Decodable { let data: T }
 private struct ErrorBody: Decodable { let error: String }
+
+// MARK: - Build identity
+
+/// What this kiosk app is, reported on every heartbeat.
+///
+/// The server previously knew only that *a* kiosk had checked in — not which
+/// build it was running. That made every rollout unverifiable from the
+/// database ("did the new build land on Video Office?") and left field bug
+/// reports with no version to correlate against.
+struct KioskBuildIdentity: Encodable {
+    let appVersion: String
+    let appBuild: String
+    let osVersion: String
+    let deviceModel: String
+
+    /// Deliberately free of UIKit. `UIDevice` is main-actor isolated under
+    /// Swift 6, which would force the heartbeat — a background task — to hop to
+    /// the main actor just to read a version string. `ProcessInfo` and `sysctl`
+    /// carry no such isolation and give the same answers.
+    static var current: KioskBuildIdentity {
+        let info = Bundle.main.infoDictionary
+        let os = ProcessInfo.processInfo.operatingSystemVersion
+        return KioskBuildIdentity(
+            appVersion: info?["CFBundleShortVersionString"] as? String ?? "unknown",
+            appBuild: info?["CFBundleVersion"] as? String ?? "unknown",
+            osVersion: "\(os.majorVersion).\(os.minorVersion).\(os.patchVersion)",
+            deviceModel: Self.hardwareModel
+        )
+    }
+
+    /// `UIDevice.model` only ever says "iPad". The sysctl machine identifier is
+    /// what distinguishes an M2 iPad Air from the retired 10.5-inch Pro, which
+    /// is the distinction that actually matters when triaging the fleet.
+    private static var hardwareModel: String {
+        var size = 0
+        sysctlbyname("hw.machine", nil, &size, nil, 0)
+        guard size > 0 else { return "unknown" }
+        var machine = [CChar](repeating: 0, count: size)
+        sysctlbyname("hw.machine", &machine, &size, nil, 0)
+        return String(cString: machine)
+    }
+}

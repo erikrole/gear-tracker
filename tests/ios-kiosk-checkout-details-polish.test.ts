@@ -11,7 +11,10 @@ describe("iOS kiosk checkout details polish", () => {
     const checkout = source("ios/Wisconsin/Kiosk/KioskCheckoutView.swift");
 
     expect(checkout).toContain("@State private var isLinkedToEvent = false");
-    expect(checkout).toContain('Toggle("Link to event", isOn: $isLinkedToEvent)');
+    // Linking happens by tapping an event in the list, not by flipping a
+    // toggle that hid the entire calendar behind a switch.
+    expect(checkout).not.toContain('Toggle("Link to event"');
+    expect(checkout).toContain("private func toggle(_ event: KioskCheckoutEvent)");
     expect(checkout).toContain("isLinkedToEvent ? selectedEvent != nil : !trimmedCustomPurpose.isEmpty");
     expect(checkout).toContain("let eventId = isLinkedToEvent ? selectedEvent?.id : nil");
     expect(checkout).toContain("let purpose = !isLinkedToEvent && !trimmedCustomPurpose.isEmpty ? trimmedCustomPurpose : nil");
@@ -36,21 +39,26 @@ describe("iOS kiosk checkout details polish", () => {
     expect(checkout).toContain("KioskCheckoutSetupHero");
     expect(checkout).toContain("private struct KioskCheckoutWindow");
     expect(checkout).toContain("static let maxWidth: CGFloat = 1048");
-    expect(checkout).toContain("static let contextColumnWidth: CGFloat = 376");
-    expect(checkout).toContain("static let returnColumnWidth: CGFloat = 648");
-    expect(checkout).toContain("static let returnDateWidth: CGFloat = 390");
+    // Columns split the bounded width evenly. The old fixed 376/648 pair
+    // sized the return column for a month calendar that no longer exists.
+    expect(checkout).not.toContain("contextColumnWidth");
+    expect(checkout).not.toContain("returnColumnWidth");
+    expect(checkout).not.toContain("returnDateWidth");
     expect(checkout).toContain("ViewThatFits(in: .vertical)");
     expect(checkout).toContain("ViewThatFits(in: .horizontal)");
     expect(checkout).toContain("HStack(alignment: .top, spacing: KioskSpacing.lg) {");
-    expect(checkout).toContain(".frame(width: KioskCheckoutSetupLayout.contextColumnWidth");
-    expect(checkout).toContain(".frame(width: KioskCheckoutSetupLayout.returnColumnWidth");
     expect(checkout).toContain("KioskCheckoutContextWindow(");
-    expect(checkout).toContain("KioskCheckoutReturnWindow(dueBackAt: $dueBackAt)");
-    expect(checkout).toContain('title: "Context"');
-    expect(checkout).toContain('KioskCheckoutWindow(title: "Return")');
-    expect(checkout).toContain('"Upcoming events"');
+    expect(checkout).toContain("KioskCheckoutReturnWindow(dueBackAt: $dueBackAt");
+    // Setup headings ask the question the step answers.
+    expect(checkout).toContain(`title: "What's this for?"`);
+    expect(checkout).toContain(`KioskCheckoutWindow(title: "When's it back?")`);
     expect(checkout).toContain("KioskCheckoutEventRow(");
-    expect(checkout).toContain('"All Events"');
+    // The requester's own published shifts lead; the rest of the calendar
+    // follows in the same column. No "All Events" popover menu.
+    expect(checkout).toContain("private struct KioskCheckoutEventPicker");
+    expect(checkout).toContain('group("Your shifts", events: myShifts)');
+    expect(checkout).toContain('group("All events", events: otherEvents)');
+    expect(checkout).not.toContain('"All Events"');
     expect(checkout).toContain('"Booking name"');
     expect(checkout).toContain("KioskNativeTextField(");
     expect(checkout).toContain('"Return time"');
@@ -69,38 +77,34 @@ describe("iOS kiosk checkout details polish", () => {
     expect(checkout).not.toContain(".buttonStyle(KioskPressStyle())");
   });
 
-  it("keeps return editing native and always visible without preset/custom mode", () => {
+  it("surfaces return date and time as deliberate, separate native pickers", () => {
     const checkout = source("ios/Wisconsin/Kiosk/KioskCheckoutView.swift");
 
     expect(checkout).toContain("private struct KioskCheckoutReturnDatePicker");
-    expect(checkout).toContain("private struct KioskUICalendarPicker: UIViewRepresentable");
-    expect(checkout).toContain("UICalendarView()");
-    expect(checkout).toContain("UICalendarSelectionSingleDate(delegate: context.coordinator)");
-    expect(checkout).toContain("canSelectDate dateComponents");
-    expect(checkout).toContain("didSelectDate dateComponents");
-    expect(checkout).toContain("private struct KioskUIDatePicker: UIViewRepresentable");
-    expect(checkout).toContain("UIDatePicker()");
-    expect(checkout).toContain("preferredDatePickerStyle = preferredStyle");
-    expect(checkout).toContain("displayedComponent: .time");
-    expect(checkout).toContain("preferredStyle: .wheels");
-    expect(checkout).toContain("mergedSelection(from dateComponents: DateComponents?)");
-    expect(checkout).toContain("mergedSelection(from pickerDate: Date)");
-    expect(checkout).toContain("ViewThatFits(in: .horizontal)");
-    expect(checkout).not.toContain("displayedComponent: .date");
-    expect(checkout).not.toContain("preferredStyle: .inline");
-    expect(checkout).not.toContain('DatePicker(\n            "Return date"');
-    expect(checkout).not.toContain('DatePicker(\n            "Return time"');
+    // No one-tap presets. An easy default is the one people press to get past
+    // the screen, and a due date nobody chose is a due date nobody honours --
+    // both fields are always visible and always require a deliberate choice.
+    expect(checkout).not.toContain("KioskReturnPreset");
+    expect(checkout).not.toContain("KioskChoiceChip(");
+
+    // Custom reveals two separate native compact pickers -- one for the date,
+    // one for the time. The previous inline UICalendarView (300pt) and wheel
+    // (180pt) were both `.clipped()` inside a card too short to hold them and
+    // visibly overlapped on device. Neither UIKit bridge has a consumer now.
+    expect(checkout).toContain("displayedComponents: .date");
+    expect(checkout).toContain("displayedComponents: .hourAndMinute");
+    expect(checkout).toContain(".datePickerStyle(.compact)");
+    expect(checkout).not.toContain("KioskUICalendarPicker");
+    expect(checkout).not.toContain("KioskUIDatePicker");
+    expect(checkout).not.toContain("UICalendarView()");
     expect(checkout).not.toContain(".datePickerStyle(.graphical)");
     expect(checkout).not.toContain(".datePickerStyle(.wheel)");
-    expect(checkout).not.toContain("private enum KioskCheckoutReturnPreset");
-    expect(checkout).not.toContain('Picker("Return preset"');
-    expect(checkout).not.toContain(".pickerStyle(.segmented)");
-    expect(checkout).not.toContain("showsCustomReturnPicker");
-    expect(checkout).not.toContain('case custom = "Custom"');
-    expect(checkout).not.toContain("purposeSuggestions");
-    expect(checkout).not.toContain("KioskQuickSelectButton(");
-    expect(checkout).not.toContain('"Repair/Test"');
-    expect(checkout).not.toContain('"Game Prep"');
-    expect(checkout).not.toContain('"Walk-up"');
+
+    // Checkout is a stepped flow: details, then scanning. The details step is a
+    // screen, not a sheet floating over a scan screen you cannot use yet.
+    expect(checkout).toContain("@State private var checkoutContextReady = false");
+    expect(checkout).toContain(`title: "Continue to Scan"`);
+    expect(checkout).toContain("STEP 1 OF 2");
+    expect(checkout).not.toContain("showDetailsSheet");
   });
 });

@@ -65,7 +65,13 @@ describe("kiosk active checkout edits", () => {
     expect(drawer).not.toContain('Button(isMutating ? "Adding..." : "Add")');
 
     expect(drawer).toContain("ForEach(detail?.items ?? [])");
-    expect(drawer).toContain('Label("Remove", systemImage: "minus.circle.fill")');
+    // Removal is a compact destructive trash control, not a full "Remove" pill:
+    // six labelled red buttons made the manifest read as a row of destructive
+    // actions. The confirmation dialog below still names the item, so the
+    // icon-only control loses nothing -- but it must stay labelled for VoiceOver.
+    expect(drawer).toContain('Image(systemName: "trash.fill")');
+    expect(drawer).toContain('.accessibilityLabel("Remove \\(item.itemListPrimaryTitle)")');
+    expect(drawer).not.toContain('Label("Remove", systemImage: "minus.circle.fill")');
     expect(drawer).toContain('"Remove item from checkout?"');
     expect(drawer).toContain("Task { await removeItem(item) }");
     expect(drawer).not.toContain('"Remove one"');

@@ -20,7 +20,7 @@ struct KioskIdentityView: View {
             VStack(alignment: .leading, spacing: 24) {
                 HStack {
                     Button("Cancel") { store.clearIntent(reason: .cancel); store.screen = .idle }
-                        .buttonStyle(.bordered)
+                        .kioskButtonRole(.secondary)
                     Spacer()
                 }
                 VStack(alignment: .leading, spacing: 8) {
@@ -98,19 +98,45 @@ struct KioskIdentityView: View {
     }
 }
 
+/// Global scanner indicator, floating above every screen.
+///
+/// It renders only when the scanner has something to say. A permanently
+/// visible "Scanner ready" pill competed with the per-screen
+/// `KioskScannerReadinessBadge` that checkout, pickup, return, and the detail
+/// drawer already own -- two indicators, same state, different colors -- and it
+/// sat on top of the idle refresh control in portrait. Reconnecting and paused
+/// still surface here on every screen, which is the state staff need to catch.
 struct KioskScannerStatusPill: View {
     @Environment(KioskStore.self) private var store
     @State private var showInspector = false
-    var body: some View {
-        Button { showInspector = true } label: {
-            Label(store.scanner.statusText, systemImage: store.scanner.statusSymbol)
-                .font(.caption.weight(.bold)).foregroundStyle(KioskText.primary)
-                .padding(.horizontal, 13).padding(.vertical, 9)
-                .background(KioskSurface.modal, in: Capsule()).overlay(Capsule().stroke(KioskStroke.strong))
-        }.buttonStyle(.plain)
+
+    private var isVisible: Bool {
         #if DEBUG
-        .sheet(isPresented: $showInspector) { KioskFlowInspector() }
+        return true  // keep the flow-inspector tap target during development
+        #else
+        return !store.scanner.isNominal
         #endif
+    }
+
+    var body: some View {
+        if isVisible {
+            Button { showInspector = true } label: {
+                Label(store.scanner.statusText, systemImage: store.scanner.statusSymbol)
+                    .font(KioskType.chip).foregroundStyle(tint)
+                    .padding(.horizontal, 13).padding(.vertical, 9)
+                    .glassEffect(.regular, in: Capsule())
+                    .overlay(Capsule().stroke(tint.opacity(0.4)))
+            }
+            .buttonStyle(.plain)
+            .transition(.opacity)
+            #if DEBUG
+            .sheet(isPresented: $showInspector) { KioskFlowInspector() }
+            #endif
+        }
+    }
+
+    private var tint: Color {
+        store.scanner.isNominal ? KioskStatus.ok : KioskStatus.attention
     }
 }
 

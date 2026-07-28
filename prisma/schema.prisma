@@ -1562,6 +1562,16 @@ model KioskDevice {
   sessionToken            String?   @unique @map("session_token") // hashed long-lived token
   sessionExpiresAt        DateTime? @map("session_expires_at")
   lastSeenAt              DateTime? @map("last_seen_at")
+  // Build identity reported by the kiosk app on heartbeat. Without this the
+  // server had no way to answer "which build is this iPad running?", which is
+  // the first question on every rollout and after every field bug report.
+  // Written only when a value actually changes, so fleet visibility does not
+  // reintroduce a write on every heartbeat.
+  appVersion              String?   @map("app_version")
+  appBuild                String?   @map("app_build")
+  osVersion               String?   @map("os_version")
+  deviceModel             String?   @map("device_model")
+  appReportedAt           DateTime? @map("app_reported_at")
   active                  Boolean   @default(true)
   createdAt               DateTime  @default(now()) @map("created_at")
   updatedAt               DateTime  @updatedAt @map("updated_at")

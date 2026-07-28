@@ -85,62 +85,45 @@ struct KioskCheckoutDetailSheet: View {
         currentEndsAt < Date()
     }
 
+    private var custodyTone: Color {
+        KioskStatus.custody(isOverdue: currentIsOverdue, dueAt: currentEndsAt)
+    }
+
     var body: some View {
         ZStack {
             KioskSurface.base.ignoresSafeArea()
             VStack(alignment: .leading, spacing: 18) {
                 header
 
-                timingRow
-
-                if canEditActiveCheckout {
-                    editPanel
-                    scanToAddPanel
-                }
-
                 if let mutationMessage {
                     KioskFeedbackBanner(tone: mutationMessage.tone, message: mutationMessage.text)
                 }
 
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Text("Items")
-                            .font(.title3.weight(.bold))
-                            .foregroundStyle(KioskText.primary)
-                        Spacer()
-                        if let items = detail?.items, !items.isEmpty {
-                            Text("\(items.count)")
-                                .font(.caption.weight(.bold).monospacedDigit())
-                                .foregroundStyle(KioskText.secondary)
-                        }
-                    }
-
-                    if isLoading {
-                        ProgressView().tint(KioskText.primary)
-                            .frame(maxWidth: .infinity, minHeight: 80)
-                    } else if let loadError {
-                        KioskErrorState(title: loadError) { Task { await load() } }
-                    } else if detail?.items.isEmpty != false {
-                        ContentUnavailableView(
-                            "No Items",
-                            systemImage: "shippingbox",
-                            description: Text("This checkout has no equipment.")
-                        )
-                        .foregroundStyle(KioskText.secondary)
-                        .frame(maxWidth: .infinity, minHeight: 100)
-                    } else {
-                        ScrollView {
-                            LazyVStack(spacing: 8) {
-                                ForEach(detail?.items ?? []) { item in
-                                    itemRow(item)
-                                }
+                // Controls left, manifest right. Stacking everything vertically
+                // left the item list with whatever height the edit and scan
+                // panels did not take -- about two rows of a six-item checkout,
+                // on the screen whose entire job is showing what someone has.
+                // The manifest now owns a full-height column of its own.
+                if canEditActiveCheckout {
+                    GeometryReader { proxy in
+                        if proxy.size.width < KioskLayout.compactBreakpoint {
+                            VStack(alignment: .leading, spacing: KioskSpacing.md) {
+                                controlColumn
+                                itemsPanel
+                            }
+                        } else {
+                            HStack(alignment: .top, spacing: KioskSpacing.lg) {
+                                controlColumn
+                                    .frame(width: proxy.size.width * 0.44, alignment: .topLeading)
+                                itemsPanel
+                                    .frame(maxWidth: .infinity, alignment: .topLeading)
                             }
                         }
-                        .scrollIndicators(.hidden)
                     }
+                } else {
+                    timingRow
+                    itemsPanel
                 }
-
-                Spacer(minLength: 0)
             }
             .padding(28)
 
@@ -190,6 +173,65 @@ struct KioskCheckoutDetailSheet: View {
         }
     }
 
+    /// Left column while editing: when is it due, what can be changed, and how
+    /// to add another item. Everything here is an input; nothing here is the
+    /// custody record itself.
+    private var controlColumn: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            // No separate DUE banner here: the edit panel's own pickers are the
+            // authority on due-back while editing, and showing the same
+            // timestamp twice, stacked, was the sheet's most obvious redundancy.
+            // The urgency chip that made the banner worth reading moves into the
+            // edit panel header instead.
+            editPanel
+            scanToAddPanel
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// The custody manifest. Full height in its own column so a six-item
+    /// checkout reads as a list rather than a peek.
+    private var itemsPanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Items")
+                    .font(KioskType.sectionTitle)
+                    .foregroundStyle(KioskText.primary)
+                Spacer()
+                if let items = detail?.items, !items.isEmpty {
+                    Text("\(items.count)")
+                        .font(KioskType.chip.monospacedDigit())
+                        .foregroundStyle(KioskText.secondary)
+                }
+            }
+
+            if isLoading {
+                ProgressView().tint(KioskText.primary)
+                    .frame(maxWidth: .infinity, minHeight: 80)
+            } else if let loadError {
+                KioskErrorState(title: loadError) { Task { await load() } }
+            } else if detail?.items.isEmpty != false {
+                ContentUnavailableView(
+                    "No Items",
+                    systemImage: "shippingbox",
+                    description: Text("This checkout has no equipment.")
+                )
+                .foregroundStyle(KioskText.secondary)
+                .frame(maxWidth: .infinity, minHeight: 100)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 8) {
+                        ForEach(detail?.items ?? []) { item in
+                            itemRow(item)
+                        }
+                    }
+                }
+                .scrollIndicators(.visible)
+            }
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
+    }
+
     private var header: some View {
         HStack(alignment: .top, spacing: 14) {
             KioskAvatar(url: context.requesterAvatarUrl, initials: context.requesterInitials, size: 48)
@@ -205,13 +247,16 @@ struct KioskCheckoutDetailSheet: View {
             }
             Spacer()
             if let onReturn {
+                // Returning gear is the primary custody action on this sheet,
+                // so it carries the brand red. Save and Remove are deliberately
+                // quieter below — red here must mean "the main thing to do".
                 Button("Return Gear") {
                     dismiss()
                     onReturn()
                 }
                 .font(.headline.weight(.semibold))
-                .buttonStyle(.borderedProminent)
-                .tint(Color.statusText(.blue))
+                .buttonStyle(.glassProminent)
+                .tint(Color.kioskRed)
                 .controlSize(.large)
             }
             Button("Done") { dismiss() }
@@ -222,49 +267,72 @@ struct KioskCheckoutDetailSheet: View {
         }
     }
 
+    /// Every input on this sheet used to be an unlabelled box -- a bare "Shoot"
+    /// field and a bare date/time pair -- so nothing said what you were editing.
+    private func fieldLabel(_ text: String) -> some View {
+        Text(text.uppercased())
+            .font(KioskType.overline)
+            .tracking(1.2)
+            .foregroundStyle(KioskText.muted)
+    }
+
     private var editPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
+            HStack(spacing: 10) {
                 Text("Edit Checkout")
-                    .font(.headline.weight(.bold))
+                    .font(KioskType.sectionTitle)
                     .foregroundStyle(KioskText.primary)
                 Spacer()
+                // Secondary: editing the title/due-back is housekeeping, not
+                // the reason this sheet is open. Red belongs to Return Gear.
                 Button(activeMutation == .savingDetails ? "Saving..." : "Save") {
                     Task { await saveDetails() }
                 }
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.white)
-                .buttonStyle(.glassProminent)
-                .tint(Color.kioskRed)
+                .font(KioskType.chip)
+                .kioskButtonRole(.secondary)
                 .controlSize(.regular)
                 .disabled(isMutating)
             }
 
-            HStack(spacing: 10) {
-                KioskNativeTextField(
-                    placeholder: "Checkout title",
-                    text: $editTitle,
-                    isFocused: $titleFocused
-                )
-                .padding(.horizontal, 12)
-                .frame(height: 46)
-                .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
-                .overlay(RoundedRectangle(cornerRadius: KioskRadius.md).stroke(KioskStroke.standard, lineWidth: 1))
+            fieldLabel("Title")
+            KioskNativeTextField(
+                placeholder: "Checkout title",
+                text: $editTitle,
+                isFocused: $titleFocused
+            )
+            .padding(.horizontal, 12)
+            .frame(height: 46)
+            .frame(maxWidth: .infinity)
+            .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
+            .overlay(RoundedRectangle(cornerRadius: KioskRadius.md).stroke(KioskStroke.standard, lineWidth: 1))
 
-                DatePicker(
-                    "Due back",
-                    selection: $editEndsAt,
-                    in: Date().addingTimeInterval(5 * 60)...,
-                    displayedComponents: [.date, .hourAndMinute]
-                )
-                .labelsHidden()
-                .datePickerStyle(.compact)
-                .tint(Color.kioskRed)
-                .frame(height: 46)
-                .padding(.horizontal, 10)
-                .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
-                .overlay(RoundedRectangle(cornerRadius: KioskRadius.md).stroke(KioskStroke.standard, lineWidth: 1))
+            HStack(spacing: 8) {
+                fieldLabel("Due back")
+                // The urgency chip lives next to the control that sets it, so
+                // the sheet states the due time once instead of twice.
+                Text(relativeDue)
+                    .font(KioskType.micro)
+                    .foregroundStyle(custodyTone)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(custodyTone.opacity(0.14), in: Capsule())
+                Spacer()
             }
+
+            DatePicker(
+                "Due back",
+                selection: $editEndsAt,
+                in: Date().addingTimeInterval(5 * 60)...,
+                displayedComponents: [.date, .hourAndMinute]
+            )
+            .labelsHidden()
+            .datePickerStyle(.compact)
+            .tint(Color.kioskRed)
+            .frame(height: 46)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 10)
+            .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
+            .overlay(RoundedRectangle(cornerRadius: KioskRadius.md).stroke(KioskStroke.standard, lineWidth: 1))
 
             KioskKeyboardHint(isFieldFocused: titleFocused)
         }
@@ -276,21 +344,24 @@ struct KioskCheckoutDetailSheet: View {
     private var scanToAddPanel: some View {
         HStack(spacing: 18) {
             KioskScanTarget(
-                tint: activeMutation == .addingItem ? Color.statusText(.blue) : Color.kioskRed,
+                tint: activeMutation == .addingItem ? KioskStatus.active : Color.kioskRedGlyph,
                 width: 116,
                 height: 72
             )
 
             VStack(alignment: .leading, spacing: 5) {
                 Text("Add Items")
-                    .font(.headline.weight(.bold))
+                    .font(KioskType.sectionTitle)
                     .foregroundStyle(KioskText.primary)
-                Label(
-                    activeMutation == .addingItem ? "Adding scanned item..." : "Scanner ready",
-                    systemImage: activeMutation == .addingItem ? "arrow.triangle.2.circlepath" : "barcode.viewfinder"
-                )
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(activeMutation == .addingItem ? Color.statusText(.blue) : Color.statusText(.green))
+                if activeMutation == .addingItem {
+                    Label("Adding scanned item...", systemImage: "arrow.triangle.2.circlepath")
+                        .font(KioskType.chip)
+                        .foregroundStyle(KioskStatus.active)
+                } else {
+                    // Same badge the scan screens use, rather than a private
+                    // green Label that made "Scanner ready" a third color.
+                    KioskScannerReadinessBadge(isReady: shouldListenForItemScans)
+                }
             }
 
             Spacer()
@@ -306,7 +377,7 @@ struct KioskCheckoutDetailSheet: View {
         .overlay(
             RoundedRectangle(cornerRadius: KioskRadius.lg)
                 .stroke(
-                    shouldListenForItemScans ? Color.statusText(.green).opacity(0.5) : KioskStroke.standard,
+                    shouldListenForItemScans ? KioskStatus.ok.opacity(0.5) : KioskStroke.standard,
                     lineWidth: 1
                 )
         )
@@ -316,26 +387,26 @@ struct KioskCheckoutDetailSheet: View {
 
     private var timingRow: some View {
         HStack(spacing: 10) {
+            // Custody tone, not brand: blue while simply out, orange on the due
+            // day, red once late. The clock glyph used to be brand red here,
+            // which made an on-time checkout look like an alert.
             Image(systemName: currentIsOverdue ? "exclamationmark.triangle.fill" : "clock.badge.checkmark")
-                .foregroundStyle(currentIsOverdue ? Color.statusText(.red) : Color.kioskRed)
+                .foregroundStyle(custodyTone)
                 .accessibilityHidden(true)
             Text(currentIsOverdue ? "Overdue" : "Due")
-                .font(.caption.weight(.bold))
+                .font(KioskType.overline)
                 .tracking(0.8)
-                .foregroundStyle(currentIsOverdue ? Color.statusText(.red) : KioskText.tertiary)
+                .foregroundStyle(custodyTone)
                 .textCase(.uppercase)
-            Text(currentEndsAt.formatted(date: .abbreviated, time: .shortened))
+            Text(currentEndsAt.kioskDueStamp())
                 .font(.subheadline.weight(.semibold).monospacedDigit())
                 .foregroundStyle(KioskText.primary)
             Text(relativeDue)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(currentIsOverdue ? Color.statusText(.red) : KioskText.tertiary)
+                .font(KioskType.chip)
+                .foregroundStyle(custodyTone)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
-                .background(
-                    (currentIsOverdue ? Color.statusText(.red) : KioskText.tertiary).opacity(0.14),
-                    in: Capsule()
-                )
+                .background(custodyTone.opacity(0.14), in: Capsule())
             Spacer()
         }
         .padding(.horizontal, 14)
@@ -346,7 +417,7 @@ struct KioskCheckoutDetailSheet: View {
                 .stroke(KioskStroke.standard, lineWidth: 1)
         )
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(currentIsOverdue ? "Overdue, due" : "Due") \(currentEndsAt.formatted(date: .abbreviated, time: .shortened))")
+        .accessibilityLabel("\(currentIsOverdue ? "Overdue, due" : "Due") \(currentEndsAt.kioskDueStamp())")
     }
 
     private var relativeDue: String {
@@ -378,15 +449,22 @@ struct KioskCheckoutDetailSheet: View {
             }
             Spacer()
             if canEditActiveCheckout && isRemovable(item) {
+                // Icon-only: six of these stacked as full "Remove" pills made
+                // the item list read as a row of destructive buttons rather
+                // than a custody manifest. The confirmation dialog still names
+                // the item, so nothing is lost by dropping the visible label.
                 Button {
                     pendingRemoval = item
                 } label: {
-                    Label("Remove", systemImage: "minus.circle.fill")
+                    Image(systemName: "trash.fill")
+                        .font(.callout)
                 }
-                .buttonStyle(.bordered)
-                .tint(Color.statusText(.red))
-                .controlSize(.regular)
+                .buttonStyle(.plain)
+                .foregroundStyle(KioskStatus.problem)
+                .frame(width: 40, height: 40)
+                .contentShape(Rectangle())
                 .disabled(isMutating)
+                .accessibilityLabel("Remove \(item.itemListPrimaryTitle)")
             }
             if item.returned {
                 Text("Returned")

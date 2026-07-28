@@ -23,20 +23,20 @@ struct KioskSleepModeView: View {
                         .minimumScaleFactor(0.6)
                     HStack(spacing: 8) {
                         Image(systemName: "moon.zzz.fill")
-                            .font(.caption)
+                            .font(KioskType.chip)
                             .accessibilityHidden(true)
                         Text(context.date, format: .dateTime.weekday(.wide).month(.abbreviated).day())
-                            .font(.caption.weight(.semibold))
+                            .font(KioskType.chip)
                     }
                     .foregroundStyle(Color.white.opacity(0.42))
                     Text(deviceName)
-                        .font(.caption.weight(.semibold))
+                        .font(KioskType.chip)
                         .foregroundStyle(Color.white.opacity(0.64))
                     HStack(spacing: 6) {
                         Image(systemName: "hand.tap.fill")
-                            .font(.caption2)
+                            .font(KioskType.micro)
                         Text("Tap anywhere to wake")
-                            .font(.caption2.weight(.semibold))
+                            .font(KioskType.micro)
                     }
                     .foregroundStyle(Color.white.opacity(0.5))
                     .padding(.top, 6)

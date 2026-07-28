@@ -108,19 +108,19 @@ struct KioskReturnView: View {
 
                     if let detail, detail.isOverdue {
                         Label("Overdue", systemImage: "exclamationmark.triangle.fill")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(Color.statusText(.red))
+                            .font(KioskType.chip)
+                            .foregroundStyle(KioskStatus.problem)
                             .accessibilityLabel("This checkout is overdue")
                     }
 
                     VStack(spacing: 6) {
                         Text(allReturned ? "All items returned" : "Scan items to return them")
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(allReturned ? Color.statusText(.green) : KioskText.primary)
+                            .font(KioskType.actionTitle)
+                            .foregroundStyle(allReturned ? KioskStatus.ok : KioskText.primary)
                             .multilineTextAlignment(.center)
                         if !allReturned {
                             Text("Use the hand scanner, or tap Camera to scan with the iPad.")
-                                .font(.subheadline)
+                                .font(KioskType.rowDetail)
                                 .foregroundStyle(KioskText.tertiary)
                                 .multilineTextAlignment(.center)
                         }
@@ -128,7 +128,8 @@ struct KioskReturnView: View {
 
                     KioskScannerReadinessBadge(
                         isReady: scannerHasFocus,
-                        lastScanAt: lastScanAt
+                        lastScanAt: lastScanAt,
+                        isHardwareConnected: store.scanner.hardwareConnected
                     )
 
                     if hasBatteryScanStep {
@@ -189,7 +190,7 @@ struct KioskReturnView: View {
         KioskSideRail(isCompact: isCompact) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(detail?.title ?? "Return")
-                    .font(.headline)
+                    .font(KioskType.sectionTitle)
                     .foregroundStyle(KioskText.primary)
                 if let ref = detail?.refNumber {
                     Text(ref)

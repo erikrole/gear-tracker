@@ -127,8 +127,33 @@ final class KioskStore {
     private static let inactivityTotal: UInt64 = 300_000_000_000        // 5 min
     private static let inactivityWarning: UInt64 = 270_000_000_000      // 4:30
     private static let sleepDismissalDuration: TimeInterval = 10 * 60
+    /// Heartbeat cadence while someone is actually using the kiosk.
     private static let heartbeatInterval: UInt64 = 300_000_000_000      // 5 min
+    /// Heartbeat cadence once the kiosk has gone quiet, or during night hours.
+    ///
+    /// The 5-minute beat used to run unconditionally, which quietly defeated
+    /// the whole point of gating the idle dashboard poll: a write every five
+    /// minutes sits right on Neon's scale-to-zero threshold, so the compute
+    /// endpoint never suspended even on a kiosk nobody had touched in days.
+    /// Hourly still proves the device is alive for the admin "last seen"
+    /// column while leaving ~55 minutes of every idle hour for Neon to sleep.
+    /// The session itself tolerates far longer gaps — it is a 7-day sliding
+    /// window whose slide is already throttled to about one write per day.
+    private static let heartbeatIdleInterval: UInt64 = 3_600_000_000_000  // 1 hour
     private static let deviceIdleThreshold: UInt64 = 900_000_000_000     // 15 min
+
+    /// 10 PM–6 AM local. The gear room is shut; nothing needs a heartbeat
+    /// cadence faster than the idle one, whatever the screen is doing.
+    static func isNightHours(_ date: Date = Date(), calendar: Calendar = .current) -> Bool {
+        let hour = calendar.component(.hour, from: date)
+        return hour >= 22 || hour < 6
+    }
+
+    /// Interval for the next heartbeat, chosen fresh each cycle so a kiosk that
+    /// wakes mid-cycle returns to the active cadence on its next beat.
+    private var nextHeartbeatInterval: UInt64 {
+        (isDeviceIdle || Self.isNightHours()) ? Self.heartbeatIdleInterval : Self.heartbeatInterval
+    }
 
     init() {
         if let data = UserDefaults.standard.data(forKey: Self.infoKey),
@@ -409,7 +434,8 @@ final class KioskStore {
         heartbeatTask?.cancel()
         heartbeatTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: Self.heartbeatInterval)
+                let interval = await MainActor.run { self?.nextHeartbeatInterval } ?? Self.heartbeatInterval
+                try? await Task.sleep(nanoseconds: interval)
                 guard let self else { return }
                 do {
                     try await KioskAPI.shared.kioskHeartbeat()

@@ -28,7 +28,14 @@ struct KioskStudentHubView: View {
         }
     }
 
-    private let refreshInterval: TimeInterval = 30
+    /// This screen shows one person's own bookings, and those change almost
+    /// exclusively through actions taken on this same kiosk — which already
+    /// reload on completion. A 30-second poll meant a student standing at the
+    /// hub for five minutes issued ten authenticated round trips, each one a
+    /// read plus (previously) a write, for data that had not moved. Three
+    /// minutes is a safety net against a sister kiosk returning their gear
+    /// mid-session, not a live feed.
+    private let refreshInterval: TimeInterval = 180
 
     var body: some View {
         VStack(spacing: 0) {
@@ -56,12 +63,8 @@ struct KioskStudentHubView: View {
                 errorState(message: error)
                 Spacer()
             } else {
-                KioskAdaptiveSplit(compactSecondaryFraction: 0.40) { _ in
-                    actionPanel
-                } secondary: { _ in
-                    statusPanel
-                }
-                .padding(.top, KioskSpacing.lg)
+                hubContent
+                    .padding(.top, KioskSpacing.lg)
             }
         }
         .kioskScreenPadding()
@@ -91,77 +94,166 @@ struct KioskStudentHubView: View {
             ) {
                 Task { await loadContext() }
             }
-            .presentationDetents([.height(620), .large])
+            // A custody manifest has to show the custody. The fixed 620pt
+            // detent left a six-item checkout showing one and a half rows on a
+            // 1180x820 iPad; `.page` gives the sheet the iPad's real estate.
+            .presentationSizing(.page)
             .presentationDragIndicator(.visible)
         }
     }
 
     // MARK: - Action Panel
 
-    private var actionPanel: some View {
+    /// One full-width column instead of a 60/40 split.
+    ///
+    /// The split gave "Coming Up" -- usually an empty state -- half the iPad
+    /// while the actual actions were squeezed left and item names truncated
+    /// mid-word, and it left both columns dead below the fold. Everything here
+    /// is now one prioritized flow: who you are and what you hold, the one
+    /// primary action, then your gear grouped by what it needs from you.
+    private var hubContent: some View {
         VStack(alignment: .leading, spacing: KioskSpacing.lg) {
-            identityHero
+            identityBand
 
-            VStack(alignment: .leading, spacing: KioskSpacing.md) {
-                Text("What do you need?")
-                    .font(.title3.bold())
-                    .foregroundStyle(KioskText.primary)
+            ScrollView {
+                VStack(alignment: .leading, spacing: KioskSpacing.lg) {
+                    checkoutHero
 
-                // A student with several open checkouts/pickups would otherwise push
-                // the lower actions off-screen — keep the list scrollable.
-                ScrollView {
-                    VStack(alignment: .leading, spacing: KioskSpacing.md) {
-                        ActionButton(
-                            title: "Checkout Gear",
-                            subtitle: checkoutActionSubtitle,
-                            icon: "arrow.up.circle.fill",
-                            color: Color.kioskRed,
-                            isHero: true
-                        ) {
-                            store.setIntent(KioskFlowIntent(action: .checkout, source: .person, identifiedUser: user, expectedRequester: nil, selectedEvent: nil, targetBooking: nil, pendingScanValues: [], createdAt: Date(), ambiguity: .none))
-                            store.screen = .checkout(user: user)
-                        }
-
-                        if let pickups = context?.pendingPickups, !pickups.isEmpty {
+                    if let pickups = context?.pendingPickups, !pickups.isEmpty {
+                        section("Ready to pick up") {
                             ForEach(pickups) { pickup in
                                 ActionButton(
-                                    title: "Pickup: \(pickup.title)",
+                                    title: pickup.title,
                                     subtitle: pickupSubtitle(pickup),
                                     icon: "tray.and.arrow.down.fill",
-                                    color: Color.statusText(.orange)
+                                    color: KioskStatus.attention
                                 ) {
                                     startPickup(id: pickup.id, title: pickup.title, startsAt: pickup.startsAt)
                                 }
                             }
                         }
+                    }
 
-                        if let checkouts = context?.checkouts, !checkouts.isEmpty {
+                    if let checkouts = context?.checkouts, !checkouts.isEmpty {
+                        section("Out with you") {
                             ForEach(checkouts) { checkout in
-                                ActionButton(
-                                    title: "Manage: \(checkout.title)",
+                                // The row is the booking, not a verb. Returning
+                                // gear is the common case and now has its own
+                                // button instead of hiding one level down behind
+                                // a "Manage:" label.
+                                ActiveCheckoutRow(
+                                    title: checkout.title,
                                     subtitle: checkoutSubtitle(checkout),
-                                    icon: "arrow.down.circle.fill",
-                                    color: checkout.isOverdue ? Color.statusText(.red) : Color.statusText(.blue),
                                     dueText: dueChipText(checkout),
-                                    dueIsOverdue: checkout.isOverdue
-                                ) {
-                                    selectedCheckout = KioskCheckoutDrawerContext(
-                                        checkoutId: checkout.id,
-                                        title: checkout.title,
-                                        requesterId: user.id,
-                                        requesterName: user.name,
-                                        requesterAvatarUrl: user.avatarUrl,
-                                        endsAt: checkout.endsAt,
-                                        isOverdue: checkout.isOverdue
-                                    )
+                                    isOverdue: checkout.isOverdue,
+                                    dueAt: checkout.endsAt,
+                                    onEdit: {
+                                        selectedCheckout = drawerContext(for: checkout)
+                                    },
+                                    onReturn: {
+                                        startReturn(drawerContext(for: checkout))
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    if let reservations = context?.reservations, !reservations.isEmpty {
+                        section("Coming up") {
+                            ForEach(reservations) { res in
+                                ReservationCard(title: res.title, startsAt: res.startsAt) {
+                                    startPickup(id: res.id, title: res.title, startsAt: res.startsAt)
                                 }
                             }
                         }
                     }
-                    .padding(.bottom, 8)
+
+                    if !hasAnyGear {
+                        Text("Nothing out and nothing reserved. Checkout Gear to grab something.")
+                            .font(KioskType.body)
+                            .foregroundStyle(KioskText.tertiary)
+                            .padding(.top, KioskSpacing.xs)
+                    }
                 }
-                .scrollIndicators(.visible)
+                .padding(.bottom, KioskSpacing.md)
             }
+            .scrollIndicators(.visible)
+        }
+    }
+
+    private var hasAnyGear: Bool {
+        !(context?.pendingPickups.isEmpty ?? true)
+            || !(context?.checkouts.isEmpty ?? true)
+            || !(context?.reservations.isEmpty ?? true)
+    }
+
+    @ViewBuilder
+    private func section<Content: View>(
+        _ title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: KioskSpacing.sm) {
+            Text(title.uppercased())
+                .font(KioskType.overline)
+                .tracking(1.2)
+                .foregroundStyle(KioskText.muted)
+            content()
+        }
+    }
+
+    /// The one thing this screen is for.
+    private var checkoutHero: some View {
+        ActionButton(
+            title: "Checkout Gear",
+            subtitle: checkoutActionSubtitle,
+            icon: "arrow.up.circle.fill",
+            color: Color.kioskRed,
+            isHero: true
+        ) {
+            store.setIntent(KioskFlowIntent(action: .checkout, source: .person, identifiedUser: user, expectedRequester: nil, selectedEvent: nil, targetBooking: nil, pendingScanValues: [], createdAt: Date(), ambiguity: .none))
+            store.screen = .checkout(user: user)
+        }
+    }
+
+    /// Identity on the left, what you currently hold on the right. Replaces the
+    /// separate "YOUR SESSION" card, which restated the same counts and due
+    /// time already shown on the booking rows directly beneath it.
+    private var identityBand: some View {
+        HStack(alignment: .center, spacing: KioskSpacing.md) {
+            identityHero
+            Spacer(minLength: KioskSpacing.lg)
+            if let checkouts = context?.checkouts, !checkouts.isEmpty {
+                let itemsOut = checkouts.reduce(0) { $0 + $1.items.count }
+                let soonest = checkouts.map(\.endsAt).min()
+                let hasOverdue = checkouts.contains(where: \.isOverdue)
+                HStack(spacing: KioskSpacing.lg) {
+                    holdingStat(value: "\(itemsOut)", label: "Items out", tone: KioskText.primary)
+                    if hasOverdue {
+                        holdingStat(value: "Overdue", label: "Return now", tone: KioskStatus.problem)
+                    } else if let soonest {
+                        holdingStat(
+                            value: soonest.formatted(.dateTime.weekday(.abbreviated).hour().minute()),
+                            label: "Next due",
+                            tone: KioskText.primary
+                        )
+                    }
+                }
+                .accessibilityElement(children: .combine)
+            }
+        }
+    }
+
+    private func holdingStat(value: String, label: String, tone: Color) -> some View {
+        VStack(alignment: .trailing, spacing: 2) {
+            Text(value)
+                .font(.gothamBold(size: 22))
+                .foregroundStyle(tone)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(label.uppercased())
+                .font(KioskType.overline)
+                .tracking(1.2)
+                .foregroundStyle(KioskText.muted)
         }
     }
 
@@ -199,29 +291,24 @@ struct KioskStudentHubView: View {
         }
     }
 
+    /// Mirrors the real layout: identity band, then a full-width stack of
+    /// action and booking rows. A skeleton that promises a different shape than
+    /// the content makes the load feel like a jump.
     private var loadingSkeleton: some View {
-        KioskAdaptiveSplit(compactSecondaryFraction: 0.34) { _ in
-            VStack(alignment: .leading, spacing: 18) {
-                HStack(spacing: 16) {
-                    KioskSkeletonBox(cornerRadius: 36).frame(width: 72, height: 72)
-                    KioskSkeletonBox(cornerRadius: 8).frame(width: 220, height: 34)
-                }
-                ForEach(0..<3, id: \.self) { _ in
-                    KioskSkeletonBox(cornerRadius: KioskRadius.lg).frame(height: 88)
-                }
+        VStack(alignment: .leading, spacing: KioskSpacing.lg) {
+            HStack(spacing: 16) {
+                KioskSkeletonBox(cornerRadius: 36).frame(width: 72, height: 72)
+                KioskSkeletonBox(cornerRadius: 8).frame(width: 220, height: 34)
                 Spacer()
+                KioskSkeletonBox(cornerRadius: 8).frame(width: 150, height: 34)
             }
-            .frame(maxWidth: .infinity)
-        } secondary: { _ in
-            VStack(alignment: .leading, spacing: 14) {
-                KioskSkeletonBox(cornerRadius: 8).frame(width: 140, height: 22)
-                ForEach(0..<2, id: \.self) { _ in
-                    KioskSkeletonBox(cornerRadius: KioskRadius.sm).frame(height: 72)
-                }
-                Spacer()
+            KioskSkeletonBox(cornerRadius: KioskRadius.lg).frame(height: 100)
+            ForEach(0..<2, id: \.self) { _ in
+                KioskSkeletonBox(cornerRadius: KioskRadius.lg).frame(height: 88)
             }
-            .frame(maxWidth: .infinity)
+            Spacer()
         }
+        .frame(maxWidth: .infinity)
         .padding(.top, KioskSpacing.lg)
         .accessibilityLabel("Loading your gear")
     }
@@ -253,104 +340,21 @@ struct KioskStudentHubView: View {
         return extra > 0 ? "\(head) · +\(extra) more" : head
     }
 
+    private func drawerContext(for checkout: KioskStudentCheckout) -> KioskCheckoutDrawerContext {
+        KioskCheckoutDrawerContext(
+            checkoutId: checkout.id,
+            title: checkout.title,
+            requesterId: user.id,
+            requesterName: user.name,
+            requesterAvatarUrl: user.avatarUrl,
+            endsAt: checkout.endsAt,
+            isOverdue: checkout.isOverdue
+        )
+    }
+
     private func dueChipText(_ checkout: KioskStudentCheckout) -> String {
         let stamp = checkout.endsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute())
         return checkout.isOverdue ? "Overdue · was due \(stamp)" : "Due \(stamp)"
-    }
-
-    // MARK: - Status Panel — upcoming reservations only (active checkouts and
-    // pending pickups already appear as action buttons; no need to repeat).
-
-    private var statusPanel: some View {
-        VStack(alignment: .leading, spacing: KioskSpacing.md) {
-            Text("Coming Up")
-                .font(.headline)
-                .foregroundStyle(KioskText.secondary)
-
-            if let reservations = context?.reservations, !reservations.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(reservations) { res in
-                        ReservationCard(title: res.title, startsAt: res.startsAt) {
-                            startPickup(id: res.id, title: res.title, startsAt: res.startsAt)
-                        }
-                    }
-                }
-            } else {
-                emptyStatus
-            }
-
-            sessionSummary
-
-            Spacer()
-        }
-    }
-
-    /// Client-side rollup of what this student currently has out, so the
-    /// right panel earns its half of the screen even without reservations.
-    @ViewBuilder
-    private var sessionSummary: some View {
-        if let checkouts = context?.checkouts, !checkouts.isEmpty {
-            let itemsOut = checkouts.reduce(0) { $0 + $1.items.count }
-            let soonest = checkouts.map(\.endsAt).min()
-            let hasOverdue = checkouts.contains(where: \.isOverdue)
-            VStack(alignment: .leading, spacing: 8) {
-                Text("YOUR SESSION")
-                    .font(.caption.weight(.bold))
-                    .tracking(1.2)
-                    .foregroundStyle(KioskText.muted)
-                HStack(spacing: 12) {
-                    KioskSectionIcon(
-                        systemImage: "backpack.fill",
-                        tint: hasOverdue ? Color.statusText(.red) : Color.statusText(.blue),
-                        size: 44
-                    )
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("\(itemsOut) item\(itemsOut == 1 ? "" : "s") out with you")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(KioskText.primary)
-                        if hasOverdue {
-                            Text("Something is overdue — return it below")
-                                .font(.caption)
-                                .foregroundStyle(Color.statusText(.red))
-                        } else if let soonest {
-                            Text("Next due \(soonest.formatted(.dateTime.weekday(.abbreviated).hour().minute()))")
-                                .font(.caption)
-                                .foregroundStyle(KioskText.tertiary)
-                        }
-                    }
-                    Spacer()
-                }
-            }
-            .padding(14)
-            .kioskCard(KioskSurface.card, radius: KioskRadius.lg, stroke: KioskStroke.hairline)
-            .accessibilityElement(children: .combine)
-        }
-    }
-
-    private var emptyStatus: some View {
-        VStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(KioskSurface.cardRaised)
-                    .frame(width: 64, height: 64)
-                Image(systemName: "calendar")
-                    .font(.title2)
-                    .foregroundStyle(KioskText.secondary)
-            }
-            .accessibilityHidden(true)
-            Text("Nothing reserved this week")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(KioskText.primary)
-            Text("You're all clear — tap Checkout Gear to grab something.")
-                .font(.caption)
-                .foregroundStyle(KioskText.tertiary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 28)
-        .padding(.horizontal, 16)
-        .kioskCard(KioskSurface.low, radius: KioskRadius.lg, stroke: KioskStroke.hairline)
-        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Error state
@@ -548,6 +552,73 @@ private struct ActionButton: View {
         .buttonStyle(KioskPressStyle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(title), \(subtitle)\(dueText.map { ", \($0)" } ?? "")")
+    }
+}
+
+/// A booking the student currently holds. Named for the booking itself, with
+/// its two real actions exposed side by side: Edit opens the custody drawer,
+/// Return starts the scan-back flow. This replaces a single "Manage: <title>"
+/// button that made returning gear -- the most common thing anyone does at the
+/// counter -- a two-step discovery problem.
+private struct ActiveCheckoutRow: View {
+    let title: String
+    let subtitle: String
+    let dueText: String
+    let isOverdue: Bool
+    let dueAt: Date
+    let onEdit: () -> Void
+    let onReturn: () -> Void
+
+    /// Status, not brand. An `OPEN` checkout is blue, orange on its due day,
+    /// red only once it is actually late — the ramp in `docs/COLOR_SYSTEM.md`.
+    /// Brand red stays on the Return button, which is an action, not a state.
+    private var accent: Color { KioskStatus.custody(isOverdue: isOverdue, dueAt: dueAt) }
+
+    var body: some View {
+        HStack(spacing: 16) {
+            KioskSectionIcon(systemImage: "shippingbox.fill", tint: accent, size: 44)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(KioskType.rowTitle)
+                    .foregroundStyle(KioskText.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Text(subtitle)
+                    .font(KioskType.chip)
+                    .foregroundStyle(KioskText.secondary)
+                    .lineLimit(1)
+                Text(dueText)
+                    .font(KioskType.micro)
+                    .foregroundStyle(accent)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(accent.opacity(0.14), in: Capsule())
+                    .padding(.top, 2)
+            }
+
+            Spacer(minLength: 12)
+
+            Button("Edit", action: onEdit)
+                .font(KioskType.chip)
+                .kioskButtonRole(.secondary)
+                .controlSize(.large)
+                .accessibilityLabel("Edit \(title)")
+
+            Button("Return", action: onReturn)
+                .font(KioskType.chip)
+                .kioskButtonRole(.primary)
+                .controlSize(.large)
+                .accessibilityLabel("Return gear from \(title)")
+        }
+        .padding(16)
+        .kioskCard(KioskSurface.card, radius: KioskRadius.lg, stroke: accent.opacity(0.3))
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(accent)
+                .frame(width: 3)
+                .padding(.vertical, 12)
+        }
     }
 }
 

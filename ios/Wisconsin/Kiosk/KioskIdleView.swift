@@ -9,10 +9,9 @@ struct KioskIdleView: View {
     @State private var isLoading = false
     @State private var lastLoadedAt: Date?
     @State private var loadFailedAt: Date?
-    @State private var selectedSummary: KioskSummarySelection = .events
+    @State private var selectedSummary: KioskSummarySelection = .all
     @State private var selectedEvent: KioskEvent?
     @State private var selectedCheckout: KioskCheckoutDrawerContext?
-    @State private var rosterLetter: Character?
     @State private var identityScanFeedback: IdentityScanFeedback?
     @State private var isIdentifyingScan = false
     #if DEBUG
@@ -66,9 +65,12 @@ struct KioskIdleView: View {
                 }
 
                 #if DEBUG
+                // Bottom-trailing, not top: the shell mounts the scanner
+                // status pill at topTrailing, and this 0.45-opacity circle sat
+                // directly underneath it as a ghost behind the pill.
                 debugSleepModeButton
                     .padding(24)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 #endif
 
                 // Only capture Wiscard scans when the roster is actually the
@@ -117,7 +119,7 @@ struct KioskIdleView: View {
             }, onScan: { store.scanner.receive($0) }) {
                 Task { await loadAll() }
             }
-                .presentationDetents([.height(520), .large])
+                .presentationSizing(.page)
                 .presentationDragIndicator(.visible)
         }
     }
@@ -298,15 +300,14 @@ struct KioskIdleView: View {
                 }
             }
 
-            eventSections
-
-            if selectedSummary != .events {
-                dashboardDetailPanel
-            }
+            // Events used to sit here and were empty most of the time. The
+            // idle screen now leads with live custody instead; event context
+            // lives in checkout setup, where it is actually used.
+            dashboardDetailPanel
 
             // Quiet-day state: without it the left panel is a black void
             // below the stat tiles whenever nothing is out and no events run.
-            if let dashboard, selectedSummary != .events, dashboard.activeItems.isEmpty, dashboard.checkouts.isEmpty, dashboard.events.isEmpty {
+            if dashboard != nil, dueTodayCheckouts.isEmpty, selectedSummary == .all {
                 Spacer()
                 VStack(spacing: 14) {
                     ZStack {
@@ -357,19 +358,33 @@ struct KioskIdleView: View {
 
     /// Quiet at-a-glance signal for staff that the kiosk is up and talking to
     /// the server — green/online, orange/stale, red/offline.
+    ///
+    /// Wrapped in its own `TimelineView` on purpose. `isStale` is a function of
+    /// elapsed time since `lastLoadedAt`, but this dot lives in the header row
+    /// outside the clock's timeline, so nothing ever invalidated it as time
+    /// passed — it re-rendered only when a load actually completed, which is
+    /// exactly when the data is *not* stale. The result was a permanently green
+    /// ACTIVE dot sitting beside an orange "Updated 1h ago" stamp: the one
+    /// element whose entire job is telling staff whether to trust the screen
+    /// was the element that could not tell the truth. 30s granularity is plenty
+    /// for a 5-minute threshold and costs one view update per half minute.
     private var kioskHealthDot: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(connectionTone)
-                .frame(width: 8, height: 8)
-            Text(hasConnectionIssue ? "Offline" : (isStale ? "Stale" : "Active"))
-                .font(.caption2.weight(.bold))
-                .tracking(0.6)
-                .foregroundStyle(KioskText.tertiary)
-                .textCase(.uppercase)
+        TimelineView(.periodic(from: .now, by: 30)) { _ in
+            let isOffline = hasConnectionIssue
+            let stale = isStale
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(connectionTone)
+                    .frame(width: 8, height: 8)
+                Text(isOffline ? "Offline" : (stale ? "Stale" : "Active"))
+                    .font(.caption2.weight(.bold))
+                    .tracking(0.6)
+                    .foregroundStyle(KioskText.tertiary)
+                    .textCase(.uppercase)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Kiosk \(isOffline ? "offline" : (stale ? "data stale" : "active and online"))")
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Kiosk \(hasConnectionIssue ? "offline" : (isStale ? "data stale" : "active and online"))")
     }
 
     private var connectionBanner: some View {
@@ -441,90 +456,40 @@ struct KioskIdleView: View {
             if users.isEmpty && isLoading {
                 rosterSkeleton
             } else {
-                if showsLetterFilter {
-                    rosterLetterFilter
-                }
-                let labels = disambiguatedLabels(for: users)
-                ScrollView {
-                    LazyVGrid(columns: rosterColumns, spacing: 10) {
-                        ForEach(filteredUsers) { user in
-                            UserTile(user: user, displayName: labels[user.id] ?? user.name) {
-                                store.deferSleepMode(for: sleepWakeDuration)
-                                store.screen = .studentHub(user)
-                            }
-                        }
-                    }
-                }
+                rosterList
             }
         }
     }
 
-    /// First letters present in the roster, for the A–Z quick filter.
-    private var rosterLetters: [Character] {
-        let set = Set(users.compactMap { user -> Character? in
-            guard let first = user.name.trimmingCharacters(in: .whitespaces).first else { return nil }
-            return Character(first.uppercased())
-        })
-        return set.sorted()
-    }
-
-    /// Only worth showing the filter once the grid is big enough to hunt through.
-    private var showsLetterFilter: Bool {
-        users.count > 12 && rosterLetters.count > 1
-    }
-
-    private var filteredUsers: [KioskUser] {
-        guard let rosterLetter else { return users }
-        let matches = users.filter {
-            $0.name.trimmingCharacters(in: .whitespaces).first?.uppercased().first == rosterLetter
-        }
-        // A stale selection (roster changed on refresh) falls back to everyone.
-        return matches.isEmpty ? users : matches
-    }
-
-    private var rosterLetterFilter: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                letterChip(title: "All", isSelected: rosterLetter == nil) { rosterLetter = nil }
-                ForEach(rosterLetters, id: \.self) { letter in
-                    letterChip(title: String(letter), isSelected: rosterLetter == letter) {
-                        rosterLetter = (rosterLetter == letter) ? nil : letter
-                        store.resetInactivity()
+    /// One flat, compact alphabetical grid. No letter sections, no filter rail.
+    ///
+    /// This started as a grid of 112pt photo tiles behind an A-Z chip rail,
+    /// then grew pinned letter headers. Both were structure standing between
+    /// someone and their own name. The roster is already sorted; finding a name
+    /// in a sorted list is a scan, not a lookup, and every separator was a row
+    /// of vertical space that pushed real names off screen. Compact rows, three
+    /// across where the panel allows, is the fastest version of this.
+    private var rosterList: some View {
+        let labels = disambiguatedLabels(for: users)
+        return ScrollView {
+            LazyVGrid(columns: rosterColumns, spacing: 6) {
+                ForEach(users) { user in
+                    UserRow(user: user, displayName: labels[user.id] ?? user.name) {
+                        store.deferSleepMode(for: sleepWakeDuration)
+                        store.screen = .studentHub(user)
                     }
                 }
             }
-            .padding(.vertical, 2)
         }
-        .scrollIndicators(.hidden)
-        .accessibilityLabel("Filter roster by first letter")
-    }
-
-    private func letterChip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(isSelected ? .white : KioskText.secondary)
-                .frame(minWidth: 38, minHeight: 38)
-                .background(
-                    isSelected ? Color.kioskRed : KioskSurface.cardRaised,
-                    in: RoundedRectangle(cornerRadius: KioskRadius.sm)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: KioskRadius.sm)
-                        .stroke(isSelected ? Color.clear : KioskStroke.standard, lineWidth: 1)
-                )
-        }
-        .buttonStyle(KioskPressStyle())
-        .accessibilityLabel(title == "All" ? "Show all names" : "Names starting with \(title)")
-        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+        .scrollIndicators(.visible)
     }
 
     private var rosterSkeleton: some View {
         ScrollView {
-            LazyVGrid(columns: rosterColumns, spacing: 10) {
-                ForEach(0..<12, id: \.self) { _ in
+            LazyVGrid(columns: rosterColumns, spacing: 6) {
+                ForEach(0..<18, id: \.self) { _ in
                     KioskSkeletonBox(cornerRadius: KioskRadius.md)
-                        .frame(height: 92)
+                        .frame(height: 48)
                 }
             }
         }
@@ -534,13 +499,13 @@ struct KioskIdleView: View {
 
     private var rosterColumns: [GridItem] {
         if dynamicTypeSize.isAccessibilitySize {
-            return [GridItem(.flexible(minimum: 150), spacing: 10)]
+            return [GridItem(.flexible(minimum: 150), spacing: 6)]
         }
-        return [GridItem(.adaptive(minimum: 112, maximum: 148), spacing: 10)]
+        return [GridItem(.adaptive(minimum: 155, maximum: 240), spacing: 6)]
     }
 
     private func toggleSummary(_ summary: KioskSummarySelection) {
-        selectedSummary = selectedSummary == summary ? .events : summary
+        selectedSummary = selectedSummary == summary ? .all : summary
         store.resetInactivity()
     }
 
@@ -548,8 +513,12 @@ struct KioskIdleView: View {
     private var dashboardDetailPanel: some View {
         if let dashboard {
             switch selectedSummary {
-            case .events:
-                EmptyView()
+            case .all:
+                KioskDashboardList(title: "Due Today", emptyMessage: "Nothing due today.", isEmpty: dueTodayCheckouts.isEmpty, onClose: nil) {
+                    ForEach(dueTodayCheckouts) { checkout in
+                        CheckoutRow(checkout: checkout) { openCheckout(checkout) }
+                    }
+                }
             case .itemsOut:
                 let itemGroups = ActiveItemGroup.groups(from: dashboard.activeItems)
                 KioskDashboardList(title: "Items Out", emptyMessage: "No items are out.", isEmpty: dashboard.activeItems.isEmpty, onClose: { toggleSummary(.itemsOut) }) {
@@ -572,6 +541,31 @@ struct KioskIdleView: View {
                 }
             }
         }
+    }
+
+    /// The dashboard's resting list: what has to come back by the end of today.
+    ///
+    /// Overdue rows are included deliberately. They are past due -- which is
+    /// "today or earlier" -- and hiding them would let the kiosk show a red
+    /// OVERDUE count above a list that does not contain the overdue gear. A
+    /// checkout due later in the week is real but is not today's work, and it
+    /// is still one tap away via the Checkouts tile.
+    private var dueTodayCheckouts: [KioskActiveCheckout] {
+        let calendar = Calendar.current
+        return (dashboard?.checkouts ?? []).filter { checkout in
+            checkout.isOverdue || calendar.isDateInToday(checkout.endsAt)
+        }
+    }
+
+    /// Staff can start a return without the holder identifying first. The
+    /// booking already names its requester, and handing gear back is the one
+    /// custody action where identity is carried by the record rather than by
+    /// the person at the counter. Checkout still requires identity.
+    private func startReturn(_ checkout: KioskActiveCheckout) {
+        guard let requesterId = checkout.requesterId else { return }
+        store.deferSleepMode()
+        store.resetInactivity()
+        store.screen = .return(bookingId: checkout.id, userId: requesterId)
     }
 
     private func openCheckout(_ checkout: KioskActiveCheckout) {
@@ -830,8 +824,11 @@ private enum IdentityScanFeedback: Equatable {
     }
 }
 
+/// Which slice of live custody the idle list is showing. `all` is the resting
+/// state: the idle screen leads with what is actually out, and the stat tiles
+/// filter that list rather than opening and closing a drawer over dead space.
 private enum KioskSummarySelection {
-    case events
+    case all
     case itemsOut
     case checkouts
     case overdue
@@ -1136,6 +1133,14 @@ private struct CheckoutRow: View {
     let checkout: KioskActiveCheckout
     let onTap: () -> Void
 
+    /// Status, not brand: blue while out, orange on the due day, red once late.
+    private var tone: Color {
+        KioskStatus.custody(isOverdue: checkout.isOverdue, dueAt: checkout.endsAt)
+    }
+
+    // The row is one target: tapping it opens the manage sheet, which owns the
+    // Return action. A Return button sitting on the row alongside a chevron
+    // gave the same row two competing destinations.
     var body: some View {
         Button(action: onTap) {
             HStack {
@@ -1144,7 +1149,7 @@ private struct CheckoutRow: View {
                 // signal regardless of which path renders.
                 ZStack {
                     Circle()
-                        .fill(checkout.isOverdue ? Color.kioskRed.opacity(0.3) : KioskSurface.cardRaised)
+                        .fill(checkout.isOverdue ? tone.opacity(0.3) : KioskSurface.cardRaised)
                         .frame(width: 36, height: 36)
                     avatarInitialsLayer
                 }
@@ -1160,12 +1165,12 @@ private struct CheckoutRow: View {
                         .minimumScaleFactor(0.85)
                 }
                 Spacer()
-                if checkout.isOverdue {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(Color.statusText(.red))
-                        .font(.caption)
-                        .accessibilityLabel("Overdue")
-                }
+                Text(checkout.endsAt.kioskDueStamp())
+                    .font(KioskType.micro)
+                    .foregroundStyle(tone)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(tone.opacity(0.14), in: Capsule())
                 Image(systemName: "chevron.right")
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(KioskText.muted)

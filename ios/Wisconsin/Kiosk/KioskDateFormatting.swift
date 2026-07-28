@@ -6,6 +6,19 @@ import Foundation
 // Extracted verbatim from KioskIdleView.swift (2026-07-02 rework Slice 5a).
 
 extension Date {
+    /// Due-back stamp for custody surfaces. Everything at the counter is due
+    /// within days, so the year is pure noise and the weekday is what staff
+    /// actually read. The year only reappears when the date is not this year,
+    /// which is the only case where omitting it could mislead.
+    func kioskDueStamp(now: Date = Date(), calendar: Calendar = .current) -> String {
+        guard calendar.component(.year, from: self) == calendar.component(.year, from: now) else {
+            return formatted(date: .abbreviated, time: .shortened)
+        }
+        return formatted(
+            .dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute()
+        )
+    }
+
     func kioskClockParts() -> (time: String, seconds: String, meridiem: String) {
         let components = Calendar.current.dateComponents([.hour, .minute, .second], from: self)
         let rawHour = components.hour ?? 0

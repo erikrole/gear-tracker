@@ -388,7 +388,10 @@ describe("iOS API contracts — kiosk checkout context", () => {
     expect(route).toContain("title: b.title");
     expect(availabilityRoute).toContain("withKiosk");
     expect(availabilityRoute).toContain("checkAvailability(db");
-    expect(client).toContain("func kioskCheckoutEvents() async throws -> [KioskCheckoutEvent]");
+    // Events are fetched with the identified requester so the server can flag
+    // which of them that person is actually working a shift on.
+    expect(client).toContain("func kioskCheckoutEvents(requesterId: String? = nil) async throws -> [KioskCheckoutEvent]");
+    expect(client).toContain('URLQueryItem(name: "userId", value: id)');
     expect(client).toContain("func kioskCheckoutAvailability(");
     expect(client).toContain("eventId: eventId");
     expect(client).toContain("customPurpose: customPurpose");
@@ -400,7 +403,7 @@ describe("iOS API contracts — kiosk checkout context", () => {
     expect(checkoutView).toContain("KioskCheckoutReturnWindow");
     expect(checkoutView).toContain("KioskCheckoutAvailabilityBanner");
     expect(checkoutView).toContain("KioskCheckoutContextSummary");
-    expect(checkoutView).toContain("KioskScannerReadinessBadge");
+    expect(checkoutView).toContain("KioskScanStage");
     expect(checkoutView).toContain("KioskCartGroupRow");
     expect(checkoutView).toContain("dueBackAt");
     expect(checkoutView).toContain("availabilityResult.hasBlockingIssue");

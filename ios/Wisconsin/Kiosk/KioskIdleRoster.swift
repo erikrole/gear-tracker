@@ -67,3 +67,48 @@ struct UserTile: View {
         KioskAvatar(url: user.avatarUrl, initials: user.initials, size: 48)
     }
 }
+
+/// Compact roster row: 40pt avatar, name, optional affiliation badge.
+///
+/// Replaces the 112pt photo tile grid. At roster sizes past ~20 people the
+/// tiles read as a wall of colourful avatars rather than a list of names, and
+/// name-finding — the whole point of this fallback — got slower as the roster
+/// grew. A row puts the name first and fits roughly twice as many people on
+/// screen.
+struct UserRow: View {
+    let user: KioskUser
+    let displayName: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                KioskAvatar(url: user.avatarUrl, initials: user.initials, size: 32)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(displayName)
+                        .font(KioskType.rowTitle)
+                        .foregroundStyle(KioskText.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    if let badge = user.affiliationBadge, !badge.isEmpty {
+                        Text(badge)
+                            .font(KioskType.micro)
+                            .foregroundStyle(Color.kioskRedGlyph)
+                            .lineLimit(1)
+                    }
+                }
+
+                Spacer(minLength: 4)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(minHeight: 48)
+            .kioskCard(KioskSurface.cardRaised, radius: KioskRadius.md, stroke: KioskStroke.hairline)
+        }
+        .buttonStyle(KioskPressStyle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(displayName)
+    }
+}

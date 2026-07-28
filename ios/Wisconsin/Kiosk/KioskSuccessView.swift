@@ -19,8 +19,8 @@ struct KioskSuccessView: View {
     private var accent: Color {
         switch info.kind {
         case .checkout: return Color.kioskRed
-        case .returned: return Color.statusText(.green)
-        case .pickup:   return Color.statusText(.orange)
+        case .returned: return KioskStatus.ok
+        case .pickup:   return KioskStatus.attention
         }
     }
 
@@ -32,7 +32,7 @@ struct KioskSuccessView: View {
 
             VStack(spacing: 14) {
                 Text(info.kind.label.uppercased())
-                    .font(.headline.weight(.bold))
+                    .font(KioskType.sectionTitle)
                     .tracking(2)
                     .foregroundStyle(accent)
 
@@ -51,7 +51,7 @@ struct KioskSuccessView: View {
                 skip()
             } label: {
                 Text("Done")
-                    .font(.headline)
+                    .font(KioskType.sectionTitle)
                     .foregroundStyle(KioskText.primary)
                     .padding(.horizontal, 44)
                     .frame(minHeight: 56)
@@ -111,7 +111,7 @@ struct KioskSuccessView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 40))
-                .foregroundStyle(Color.statusText(.green))
+                .foregroundStyle(KioskStatus.ok)
                 .background(KioskSurface.base, in: Circle())
                 .offset(x: 10, y: 10)
                 .modifier(BadgeEntrance(trigger: appeared, reduceMotion: reduceMotion))
@@ -209,7 +209,7 @@ struct KioskSuccessView: View {
                     .contentTransition(.numericText(countsDown: true))
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: countdown)
             }
-            .font(.subheadline)
+            .font(KioskType.rowDetail)
             .foregroundStyle(KioskText.secondary)
             .monospacedDigit()
 

@@ -83,7 +83,10 @@ struct KioskShellView: View {
         .statusBarHidden()
         // Restore an activated kiosk on cold launch without needing the
         // deeplink — a dedicated iPad always returns to kiosk mode.
-        .task { store.resumeIfNeeded() }
+        .task {
+            store.resumeIfNeeded()
+            store.scanner.startHardwareMonitoring()
+        }
         // Kiosk iPads live plugged in on a counter — never let the screen
         // sleep while the kiosk shell is up; restore normal behavior on exit.
         .onAppear { UIApplication.shared.isIdleTimerDisabled = true }

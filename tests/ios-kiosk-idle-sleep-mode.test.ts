@@ -16,7 +16,11 @@ describe("iOS kiosk idle sleep mode", () => {
     expect(idle).toContain('accessibilityLabel("Refresh kiosk data")');
     expect(idle).toContain(".task { await loadAll() }");
     expect(store).toContain("private static let heartbeatInterval: UInt64 = 300_000_000_000");
-    expect(store).toContain("Task.sleep(nanoseconds: Self.heartbeatInterval)");
+    // The heartbeat interval is chosen per cycle now, not fixed. A hard 5-minute
+    // beat ran regardless of use and pinned the Neon compute endpoint awake,
+    // which defeated the idle gating this same test asserts above.
+    expect(store).toContain("Task.sleep(nanoseconds: interval)");
+    expect(store).toContain("private static let heartbeatIdleInterval: UInt64 = 3_600_000_000_000");
   });
 
   it("keeps sleep dismissal across idle navigation and preserves readable overlay text", () => {

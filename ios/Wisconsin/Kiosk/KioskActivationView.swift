@@ -61,7 +61,7 @@ struct KioskActivationView: View {
             KioskSectionIcon(systemImage: "barcode.viewfinder", size: 72)
             VStack(alignment: .leading, spacing: 8) {
                 Text("WISCONSIN ATHLETICS")
-                    .font(.caption.weight(.bold))
+                    .font(KioskType.overline)
                     .tracking(1.6)
                     .foregroundStyle(KioskText.muted)
                 Text("Gear Room Kiosk")
@@ -71,10 +71,10 @@ struct KioskActivationView: View {
                     .minimumScaleFactor(0.75)
             }
             Text("Activate this iPad")
-                .font(.title2.weight(.semibold))
+                .font(KioskType.screenTitle)
                 .foregroundStyle(KioskText.primary)
             Text("Enter the 6-digit kiosk code.")
-                .font(.body)
+                .font(KioskType.body)
                 .foregroundStyle(KioskText.secondary)
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
@@ -90,8 +90,8 @@ struct KioskActivationView: View {
 
             if let error {
                 Text(error)
-                    .foregroundStyle(Color.statusText(.red))
-                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(KioskStatus.problem)
+                    .font(KioskType.rowTitle)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 12)
                     .accessibilityAddTraits(.updatesFrequently)
@@ -187,7 +187,7 @@ struct KioskActivationView: View {
                     .scaleEffect(1.4)
                     .tint(KioskText.primary)
                 Text("Activating…")
-                    .font(.subheadline.weight(.medium))
+                    .font(KioskType.rowDetail)
                     .foregroundStyle(KioskText.primary)
             }
             .padding(.horizontal, 32)
@@ -291,7 +291,7 @@ private struct KioskActivationActionButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.callout.weight(.semibold))
+            .font(KioskType.rowTitle)
             .foregroundStyle(KioskText.primary)
             .padding(.vertical, 13)
             .padding(.horizontal, 14)
@@ -372,7 +372,7 @@ private struct KioskNumPadButton: View {
     var body: some View {
         Button(action: action) {
             Text(key)
-                .font(.title2.weight(.semibold))
+                .font(KioskType.screenTitle)
                 .foregroundStyle(KioskText.primary)
                 .frame(maxWidth: .infinity)
                 .frame(height: 64)

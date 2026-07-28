@@ -128,10 +128,10 @@ struct KioskBarcodeCameraView: View {
                         openURL(url)
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .kioskButtonRole(.primary)
                 .tint(Color.kioskRed)
                 Button("Close") { onCancel() }
-                    .buttonStyle(.bordered)
+                    .kioskButtonRole(.secondary)
             }
             .controlSize(.large)
         }

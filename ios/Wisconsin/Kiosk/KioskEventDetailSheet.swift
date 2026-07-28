@@ -21,7 +21,7 @@ struct KioskEventSection: View {
 
             if events.isEmpty {
                 Text("No events")
-                    .font(.subheadline.weight(.medium))
+                    .font(KioskType.rowDetail)
                     .foregroundStyle(KioskText.muted)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 2)
@@ -59,7 +59,7 @@ private struct KioskEventRow: View {
                     KioskEventAvatarStack(users: event.assignedUsers, totalCount: event.assignedUserCount)
                 } else if event.shiftCount > 0, !hasWorkerDetails {
                     Text("Details pending")
-                        .font(.caption.weight(.semibold))
+                        .font(KioskType.chip)
                         .foregroundStyle(KioskText.tertiary)
                 } else if event.shiftCount > 0 {
                     KioskEventShiftBadge(count: event.shiftCount)
@@ -96,7 +96,7 @@ private struct KioskEventAvatarStack: View {
             }
             if totalCount > 4 {
                 Text("+\(totalCount - 4)")
-                    .font(.caption2.weight(.bold))
+                    .font(KioskType.micro)
                     .foregroundStyle(KioskText.primary)
                     .frame(width: 30, height: 30)
                     .background(KioskSurface.placeholder, in: Circle())
@@ -127,7 +127,7 @@ private struct KioskEventAvatarStack: View {
 
     private func eventInitials(for user: KioskEvent.AssignedUser) -> some View {
         Text(user.initials)
-            .font(.caption2.weight(.bold))
+            .font(KioskType.micro)
             .foregroundStyle(KioskText.primary)
             .frame(width: 30, height: 30)
             .background(KioskSurface.placeholder, in: Circle())
@@ -150,7 +150,7 @@ struct KioskEventDetailSheet: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 10) {
                             Text(eventDayLabel)
-                                .font(.caption.weight(.bold))
+                                .font(KioskType.overline)
                                 .tracking(1.4)
                                 .foregroundStyle(KioskText.tertiary)
                             KioskEventShiftBadge(count: event.shiftCount)
@@ -163,7 +163,7 @@ struct KioskEventDetailSheet: View {
                     }
                     Spacer()
                     Button("Done") { dismiss() }
-                        .font(.headline.weight(.semibold))
+                        .font(KioskType.sectionTitle)
                         .foregroundStyle(KioskText.primary)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
@@ -182,15 +182,15 @@ struct KioskEventDetailSheet: View {
                         dismiss(); onStartCheckout()
                     } label: {
                         Label("Start Checkout for This Event", systemImage: "barcode.viewfinder")
-                            .font(.headline).frame(maxWidth: .infinity, minHeight: 54)
+                            .font(KioskType.sectionTitle).frame(maxWidth: .infinity, minHeight: 54)
                     }
-                    .buttonStyle(.borderedProminent).tint(Color.kioskRed)
+                    .kioskButtonRole(.primary)
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 8) {
                         Text("Working")
-                            .font(.title3.weight(.bold))
+                            .font(KioskType.actionTitle)
                             .foregroundStyle(KioskText.primary)
                         if !event.assignedUsers.isEmpty {
                             Text("\(event.assignedUserCount)")
@@ -285,7 +285,7 @@ private struct KioskEventTimeRow: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 14) {
             Text(label.uppercased())
-                .font(.caption2.weight(.bold))
+                .font(KioskType.micro)
                 .tracking(1)
                 .foregroundStyle(KioskText.tertiary)
                 .frame(width: 48, alignment: .leading)
@@ -312,7 +312,7 @@ private struct KioskEventShiftBadge: View {
 
     var body: some View {
         Text("\(count) shift\(count == 1 ? "" : "s")")
-            .font(.caption.weight(.semibold))
+            .font(KioskType.chip)
             .foregroundStyle(KioskText.secondary)
             .lineLimit(1)
             .padding(.horizontal, 9)
@@ -330,12 +330,12 @@ private struct KioskEventWorkerRow: View {
             avatar
             VStack(alignment: .leading, spacing: 2) {
                 Text(user.name)
-                    .font(.subheadline.weight(.semibold))
+                    .font(KioskType.rowTitle)
                     .foregroundStyle(KioskText.primary)
                     .lineLimit(1)
                 if let detail = workerDetail {
                     Text(detail)
-                        .font(.caption.weight(.medium))
+                        .font(KioskType.chip)
                         .foregroundStyle(KioskText.secondary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.82)
