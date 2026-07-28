@@ -39,12 +39,17 @@ struct CreateBookingSheet: View {
         vm.isValid && (setupMode == .manual || vm.linkedEventCount > 0)
     }
 
-    /// Cancel is the deliberate exit. With work on the table it asks whether to
-    /// keep it as a draft; swipe-down never reaches here because that minimizes.
+    /// Cancel is the deliberate exit. With unsaved work on the table it asks
+    /// whether to keep it as a draft; swipe-down never reaches here because
+    /// that minimizes. An already-saved draft the user did not touch closes
+    /// without deleting anything — backing out of a draft you opened is not a
+    /// request to destroy it.
     private func attemptCancel() {
         if vm.isSubmitting { return }
         if vm.hasUnsavedInput && vm.isWorthSavingAsDraft {
             showExitOptions = true
+        } else if vm.serverDraftId != nil {
+            Task { await drafts.closeKeepingDraft() }
         } else {
             Task { await drafts.discard() }
         }

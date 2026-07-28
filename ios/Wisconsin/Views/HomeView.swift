@@ -134,6 +134,7 @@ struct HomeView: View {
     @State private var didLogFirstUsefulRender = false
     @Environment(AppState.self) private var appState
     @Environment(SessionStore.self) private var session
+    @Environment(ReservationDraftStore.self) private var drafts
 
     /// Rendered in every state of `mainContent` -- loading, error, and loaded. A
     /// message someone is being asked to acknowledge must not be hidden because the
@@ -270,7 +271,14 @@ struct HomeView: View {
                     DashboardCard(title: "Drafts") {
                         ForEach(dash.drafts) { draft in
                             Button {
-                                navigationPath.append(draft.id)
+                                // A reservation draft is unfinished work, so
+                                // resume it in the composer. Checkout drafts
+                                // are web-only, and keep the detail route.
+                                if draft.isReservation {
+                                    Task { await drafts.resume(draftId: draft.id) }
+                                } else {
+                                    navigationPath.append(draft.id)
+                                }
                             } label: {
                                 DraftRow(draft: draft)
                             }
@@ -1306,7 +1314,7 @@ private struct DraftRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: draft.kind == "checkout" ? "archivebox" : "calendar.badge.clock")
+            Image(systemName: draft.isReservation ? "calendar.badge.clock" : "archivebox")
                 .foregroundStyle(.secondary)
                 .frame(width: 24)
                 .accessibilityHidden(true)

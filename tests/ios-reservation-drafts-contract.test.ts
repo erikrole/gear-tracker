@@ -75,13 +75,33 @@ describe("iOS reservation composer survives leaving the sheet", () => {
     expect(composer).toContain("var isWorthSavingAsDraft: Bool");
     expect(composer).toContain("func captureBaselineIfNeeded()");
   });
+
+  // Regression: resuming a saved draft re-baselines the composer, so
+  // `hasUnsavedInput` is false and Cancel fell through to `discard()` —
+  // silently deleting the draft the user had deliberately kept.
+  it("backing out of an untouched saved draft does not delete it", () => {
+    expect(sheet).toContain("} else if vm.serverDraftId != nil {");
+    expect(sheet).toContain("Task { await drafts.closeKeepingDraft() }");
+    expect(store).toContain("func closeKeepingDraft() async {");
+    const closeBody = store.slice(
+      store.indexOf("func closeKeepingDraft() async {"),
+      store.indexOf("/// Exits and throws the work away"),
+    );
+    expect(closeBody).not.toContain("deleteServerDraftIfAny");
+  });
+
+  it("keeps the Event Linked / Manual choice across a minimize", () => {
+    expect(composer).toContain("var usesEventLinkedSetup = true");
+    expect(sheet).toContain("vm.usesEventLinkedSetup ? .event : .manual");
+    expect(sheet).not.toContain("@State private var setupMode");
+  });
 });
 
 describe("iOS reservation draft card", () => {
   it("hangs off the tab shell so it outlives any one screen", () => {
-    expect(shell).toContain(".tabViewBottomAccessory {");
-    expect(shell).toContain("if drafts.showsCard {");
+    expect(shell).toContain("tabViewBottomAccessory");
     expect(shell).toContain("ReservationDraftCard(");
+    expect(store).toContain("var showsCard: Bool {");
     expect(card).toContain("@Environment(\\.tabViewBottomAccessoryPlacement) private var placement");
   });
 
@@ -95,6 +115,23 @@ describe("iOS reservation draft card", () => {
     expect(store).toContain("func loadSavedDraft() async {");
     expect(store).toContain("first(where: { $0.isReservation })");
     expect(shell).toContain("await drafts.loadSavedDraft()");
+  });
+
+  it("hides the accessory slot rather than leaving an empty pill", () => {
+    expect(shell).toContain("ReservationDraftAccessory(isVisible: drafts.showsCard)");
+    expect(shell).toContain("tabViewBottomAccessory(isEnabled: isVisible)");
+    expect(shell).toContain("if #available(iOS 26.1, *)");
+  });
+
+  it("resumes a reservation draft from the Home drafts list", () => {
+    const home = readFileSync("ios/Wisconsin/Views/HomeView.swift", "utf8");
+    expect(home).toContain("if draft.isReservation {");
+    expect(home).toContain("Task { await drafts.resume(draftId: draft.id) }");
+    // `/api/dashboard` passes the raw Prisma enum through, so the old
+    // lowercase comparison never matched and every draft drew the same icon.
+    const models = readFileSync("ios/Wisconsin/Models/DashboardModels.swift", "utf8");
+    expect(models).toContain('kind.caseInsensitiveCompare("RESERVATION") == .orderedSame');
+    expect(home).not.toContain('draft.kind == "checkout"');
   });
 
   it("persists on backgrounding and clears on sign-out", () => {

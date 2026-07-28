@@ -170,6 +170,13 @@ struct DashboardDraft: Codable, Identifiable {
     let title: String
     let itemCount: Int
     let updatedAt: Date
+
+    /// `/api/dashboard` passes the raw Prisma enum through, so this is
+    /// `RESERVATION` / `CHECKOUT`. Compared case-insensitively because the
+    /// list APIs lowercase the same field.
+    var isReservation: Bool {
+        kind.caseInsensitiveCompare("RESERVATION") == .orderedSame
+    }
 }
 
 struct DashboardFlaggedItem: Codable, Identifiable {

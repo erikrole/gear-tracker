@@ -127,17 +127,15 @@ struct AppTabView: View {
         }
         // The reservation composer lives here, above every tab, so a minimized
         // draft survives tab switches and navigation pops.
-        .tabViewBottomAccessory {
-            if drafts.showsCard {
-                ReservationDraftCard(
-                    title: drafts.cardTitle,
-                    subtitle: drafts.cardSubtitle,
-                    isBusy: drafts.isBusy,
-                    onOpen: { Task { await drafts.openCard() } },
-                    onClose: { showDraftCloseOptions = true }
-                )
-            }
-        }
+        .modifier(ReservationDraftAccessory(isVisible: drafts.showsCard) {
+            ReservationDraftCard(
+                title: drafts.cardTitle,
+                subtitle: drafts.cardSubtitle,
+                isBusy: drafts.isBusy,
+                onOpen: { Task { await drafts.openCard() } },
+                onClose: { showDraftCloseOptions = true }
+            )
+        })
         .sheet(isPresented: Binding(
             get: { drafts.isExpanded },
             // Swipe-to-dismiss parks the composer instead of ending it. Every
@@ -270,6 +268,31 @@ struct AppTabView: View {
             appState.pendingAppIntentDestination = nil
         case .createReservation:
             if hasCapability("RESERVATION_CREATE"), appState.selectedTab != 1 { appState.selectedTab = 1 }
+        }
+    }
+}
+
+/// Hosts the minimized-reservation card in the tab bar accessory slot.
+///
+/// The accessory reserves its container for as long as the modifier is
+/// attached, so returning an empty content view leaves a blank pill floating
+/// above the tab bar. iOS 26.1 added `isEnabled:` for exactly this, which hides
+/// the slot without disturbing the view tree. On 26.0 the only way to reclaim
+/// the space is to drop the modifier, and that rebuilds the `TabView` — each
+/// tab's navigation stack resets — so 26.0 keeps the accessory attached and
+/// eats the empty pill rather than throwing away where the user was.
+private struct ReservationDraftAccessory<Accessory: View>: ViewModifier {
+    let isVisible: Bool
+    @ViewBuilder let accessory: () -> Accessory
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 26.1, *) {
+            content.tabViewBottomAccessory(isEnabled: isVisible) { accessory() }
+        } else {
+            content.tabViewBottomAccessory {
+                if isVisible { accessory() }
+            }
         }
     }
 }

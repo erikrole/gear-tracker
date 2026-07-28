@@ -157,7 +157,24 @@ final class ReservationDraftStore {
         step = 1
     }
 
+    /// Closes a saved draft that the user did not change. Cancel here means
+    /// "I'm done looking at this", not "destroy the work I already chose to
+    /// keep" — resuming a draft and backing out must leave it on the server.
+    func closeKeepingDraft() async {
+        guard let composer, let draftId = composer.serverDraftId else {
+            await discard()
+            return
+        }
+        savedDraft = summary(for: composer, id: draftId)
+        self.composer = nil
+        onCreated = nil
+        isExpanded = false
+        step = 1
+    }
+
     /// Exits and throws the work away, including any server row it produced.
+    /// Only ever reached from an explicit Discard, or from a composer that
+    /// never had anything worth keeping.
     func discard() async {
         await deleteServerDraftIfAny()
         composer = nil
@@ -214,16 +231,7 @@ final class ReservationDraftStore {
         defer { isBusy = false }
         do {
             let id = try await composer.saveDraft()
-            savedDraft = BookingDraftSummary(
-                id: id,
-                kind: "RESERVATION",
-                title: composer.title,
-                locationName: composer.selectedLocation?.name,
-                startsAt: composer.startsAt,
-                endsAt: composer.endsAt,
-                itemCount: composer.selectedEquipmentCount,
-                updatedAt: .now
-            )
+            savedDraft = summary(for: composer, id: id)
             if announcing {
                 statusMessage = "Draft saved"
                 Haptics.success()
@@ -232,6 +240,19 @@ final class ReservationDraftStore {
             errorMessage = "Couldn't save your draft. \(error.localizedDescription)"
             Haptics.warning()
         }
+    }
+
+    private func summary(for composer: CreateBookingViewModel, id: String) -> BookingDraftSummary {
+        BookingDraftSummary(
+            id: id,
+            kind: "RESERVATION",
+            title: composer.title,
+            locationName: composer.selectedLocation?.name,
+            startsAt: composer.startsAt,
+            endsAt: composer.endsAt,
+            itemCount: composer.selectedEquipmentCount,
+            updatedAt: .now
+        )
     }
 
     private func deleteServerDraftIfAny() async {
