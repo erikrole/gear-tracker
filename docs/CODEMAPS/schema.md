@@ -1699,7 +1699,7 @@ Indexes and constraints:
 
 ## Model `KioskDevice`
 
-Fields: 14
+Fields: 19
 
 - `id                      String    @id @default(cuid())`
 - `name                    String // "Video Office iPad"`
@@ -1710,6 +1710,11 @@ Fields: 14
 - `sessionToken            String?   @unique @map("session_token") // hashed long-lived token`
 - `sessionExpiresAt        DateTime? @map("session_expires_at")`
 - `lastSeenAt              DateTime? @map("last_seen_at")`
+- `appVersion              String?   @map("app_version")`
+- `appBuild                String?   @map("app_build")`
+- `osVersion               String?   @map("os_version")`
+- `deviceModel             String?   @map("device_model")`
+- `appReportedAt           DateTime? @map("app_reported_at")`
 - `active                  Boolean   @default(true)`
 - `createdAt               DateTime  @default(now()) @map("created_at")`
 - `updatedAt               DateTime  @updatedAt @map("updated_at")`
