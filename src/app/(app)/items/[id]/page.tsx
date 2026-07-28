@@ -328,9 +328,10 @@ function SerializedItemDetailsPage({ id }: { id: string }) {
       />
 
       <ChooseImageModal
+        mode="persisted"
         open={imageModalOpen}
         onClose={() => setImageModalOpen(false)}
-        assetId={asset.id}
+        uploadEndpoint={`/api/assets/${asset.id}/image`}
         currentImageUrl={asset.imageUrl}
         searchQuery={buildImageSearchSeed(asset)}
         onImageChanged={(newUrl) => setAsset((prev) => prev ? { ...prev, imageUrl: newUrl } : prev)}

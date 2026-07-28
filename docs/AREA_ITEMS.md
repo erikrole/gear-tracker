@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-18
+- Last Updated: 2026-07-28
 - Status: Active
 - Version: V1
 
@@ -66,8 +66,9 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
    - Units: one catalog row with numbered/scannable units underneath.
    - Quantity: one catalog row with count-only stock.
 3. User enters required fields and optional advanced metadata.
-4. User attaches image from upload or URL.
-6. User saves item and chooses the next step: open the created record, add an image, return to the refreshed list, or add another asset.
+4. For a newly created Standard, Units, or Quantity record, the user can stage an optional image from product search, HTTPS URL, or file upload before saving. Quantity adjustments to an existing record keep the existing catalog image unchanged.
+5. The create mutation runs first, then the staged image saves through the created record's audited image endpoint.
+6. The shared handoff confirms record and image state, prioritizes `Add another item`, and keeps `Open item` and `Return to list` available.
 
 > **Picker Roadmap:** Form comboboxes (Department, Location, Category, Bulk SKU) are covered in `tasks/item-picker-roadmap.md` — see FormCombobox V1 cleanup for normalization plan.
 
@@ -185,7 +186,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 4. Standard attachments keep category, location, parent item, and QR code required, but the visible asset tag field may be blank. Blank attachment tags submit a generated internal tag from the parent, attachment identity, and QR code so the physical label can stay QR-only with a nearby parent number.
 5. Blank Standard brand/model values submit explicit `Unknown` placeholders until operators replace them, preserving the current non-null asset schema without blocking high-volume intake.
 6. Submit disables form controls, guards rapid duplicate submits, handles expired sessions through the shared auth redirect, and shows form-level errors for validation, permission, server, or network failures.
-7. Save returns user to list, opens the created/updated record, offers the image step for serialized assets, or allows `Add another` continuation.
+7. Every successful Standard, Units, Quantity, or add-to-existing mutation shows the same explicit handoff. `Add another item` resets the full sheet to a blank Standard record; image failure after a successful create keeps the created record and offers a retry without repeating creation.
 8. The sheet does not persist drafts in V1. Long-lived draft recovery remains reserved for full-page wizard flows such as booking creation.
 
 ## Item Detail Surface (V1)
@@ -434,6 +435,7 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 
 ## Change Log
 
+- 2026-07-28: **Add Item image and repeated-intake workflow unified.** The comprehensive Add Item sheet keeps Standard, Units, and Quantity in one form while removing duplicated tracking guidance and the pre-submit Add another checkbox. Every newly created catalog record can stage one optional image through the shared Search, Paste URL, or Upload chooser before save; serialized and item-family image persistence runs only after create returns an ID and uses the existing audited Blob routes. Quantity add-to-existing leaves the current catalog image alone. The shared result state makes `Add another item` primary and fully resets to Standard, while image failure reports that the item was created and retries only the image mutation. The previous serialized upload field mismatch (`image` versus the route's required `file`) is removed.
 - 2026-07-18: **Native reservation item-family presentation now matches Items truth.** Reservation category tabs preserve the server-provided mixed popularity order for serialized assets and item families. Other means every reservable result outside Cameras, Lenses, and Batteries. Numbered-family rows show available over effective on-hand inventory, such as `42/46 available`, while planning quantities remain abstract until exact units bind at kiosk pickup. `/api/form-options` now uses the effective numbered-unit roster for that denominator instead of a potentially stale balance. No family identity, derived availability, unit status, reservation payload, or custody behavior changed.
 - 2026-07-17: **Native Browse-to-Item navigation repaired.** Browse now owns one navigation path across Items and Item Detail instead of embedding an Items-owned `NavigationStack`. Items uses the explicit always-visible native navigation-bar search drawer so SwiftUI reserves its row above loaded content instead of overlaying the first item during the push. Row-to-detail animation and Back navigation stay in one native hierarchy; Back returns to Items, while selecting the active Browse tab again returns to the Browse menu. The adjacent Users destination uses the same embedded-stack and search-drawer contracts, and completed reservation creation from Items still opens the new booking through destination state. No item API, filter, reservation, role, or custody contract changed.
 - 2026-07-17: **Item-family exhaustion and conversion bounds are explicit.** Unit numbers and generated counters stay within PostgreSQL `Int` range, duplicate logical unit identities are rejected, and numbered-family creation/conversion is capped at 500 units. Quantity-tracked families keep large count support. Converting a quantity family to numbered units now rejects any nonzero balance outside the chosen location before writing units, stock, or audit history, preventing hidden stock from being stranded or silently discarded.

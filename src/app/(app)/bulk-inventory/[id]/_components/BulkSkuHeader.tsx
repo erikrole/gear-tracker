@@ -107,6 +107,7 @@ export function BulkSkuHeader({
 
       {canEdit && (
         <ChooseImageModal
+          mode="persisted"
           open={imageModalOpen}
           onClose={() => setImageModalOpen(false)}
           uploadEndpoint={`/api/bulk-skus/${sku.id}/image`}

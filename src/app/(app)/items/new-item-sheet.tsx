@@ -2,11 +2,9 @@
 
 import { FormEvent, type ComponentType, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircleIcon, CheckCircle2Icon, ImageIcon, LayersIcon, PackageIcon, ScanLineIcon } from "lucide-react";
+import { AlertCircleIcon, CheckCircle2Icon, LayersIcon, PackageIcon, ScanLineIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -27,6 +25,12 @@ import type { NewItemSheetProps, ItemKind } from "./new-item-sheet/types";
 import { SectionHeading, SuccessFlash } from "@/components/form-layout";
 import { SerializedItemForm, type SerializedFormHandle } from "./new-item-sheet/SerializedItemForm";
 import { BulkItemForm, type BulkFormHandle } from "./new-item-sheet/BulkItemForm";
+import {
+  persistDraftItemImage,
+  type DraftItemImage,
+} from "@/lib/item-image-draft";
+
+type ImageStatus = "none" | "saved" | "failed";
 
 type CreatedHandoff = {
   kind: ItemKind;
@@ -35,16 +39,16 @@ type CreatedHandoff = {
   openLabel: string;
   successMessage: string;
   description: string;
+  createdRecord: boolean;
+  imageEndpoint: string | null;
+  imageStatus: ImageStatus;
+  imageError: string;
 };
 
 type ItemCreateResponse = {
   data?: {
     id?: string;
   };
-};
-
-type ImageMutationResponse = {
-  imageUrl?: string | null;
 };
 
 type KindOption = {
@@ -55,7 +59,6 @@ type KindOption = {
   badgeVariant: BadgeProps["variant"];
   description: string;
   outcome: string;
-  requirements: string[];
   icon: ComponentType<{ className?: string }>;
 };
 
@@ -68,7 +71,6 @@ const KIND_OPTIONS: KindOption[] = [
     badgeVariant: "blue",
     description: "One specific physical item with its own tag and scan code.",
     outcome: "Creates one item record that can be reserved, checked out, and found by QR.",
-    requirements: ["Asset tag", "Category", "Location", "QR code"],
     icon: ScanLineIcon,
   },
   {
@@ -79,7 +81,6 @@ const KIND_OPTIONS: KindOption[] = [
     badgeVariant: "purple",
     description: "One item family with numbered or scannable units under it.",
     outcome: "Creates a family record plus numbered units for kiosk pickup and return.",
-    requirements: ["Name", "Category", "Location", "Family QR"],
     icon: LayersIcon,
   },
   {
@@ -90,7 +91,6 @@ const KIND_OPTIONS: KindOption[] = [
     badgeVariant: "green",
     description: "Count-only stock where individual units are not scanned.",
     outcome: "Creates or updates one stock record and tracks the count on hand.",
-    requirements: ["Name or existing item", "Category", "Location", "Stock QR"],
     icon: PackageIcon,
   },
 ];
@@ -123,37 +123,6 @@ function SummaryRow({
   );
 }
 
-function buildImageSearchSeed(name?: unknown, brand?: unknown, model?: unknown, fallback?: unknown) {
-  const productName = typeof name === "string" ? name.trim() : "";
-  const brandText = typeof brand === "string" ? brand.trim() : "";
-  const modelText = typeof model === "string" ? model.trim() : "";
-  const fallbackText = typeof fallback === "string" ? fallback.trim() : "";
-  const productLower = productName.toLowerCase();
-  const metadata = [brandText, modelText].filter((part) => part && !productLower.includes(part.toLowerCase()));
-  return [productName, ...metadata].filter(Boolean).join(" ")
-    || [brandText, modelText].filter(Boolean).join(" ")
-    || fallbackText;
-}
-
-async function uploadCreatedAssetImage(assetId: string, file: File) {
-  const formData = new FormData();
-  formData.append("image", file);
-  const res = await fetch(`/api/assets/${assetId}/image`, {
-    method: "POST",
-    body: formData,
-  });
-  if (handleAuthRedirect(res)) {
-    throw new Error("Session expired while uploading the image.");
-  }
-  if (!res.ok) {
-    throw new Error(await parseErrorMessage(res, "Image upload failed."));
-  }
-  const json = await parseJsonSafely<ImageMutationResponse>(res);
-  if (!json?.imageUrl) {
-    throw new Error("Upload finished, but no image URL was returned.");
-  }
-}
-
 export function NewItemSheet({
   open,
   onOpenChange,
@@ -166,30 +135,27 @@ export function NewItemSheet({
   const [kind, setKind] = useState<ItemKind>("standard");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [addAnother, setAddAnother] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const submittingRef = useRef(false);
   const successTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  // Image upload post-creation (serialized items only)
-  const [createdAssetId, setCreatedAssetId] = useState<string | null>(null);
   const [createdHandoff, setCreatedHandoff] = useState<CreatedHandoff | null>(null);
   const [showImageModal, setShowImageModal] = useState(false);
-  const [imageSearchSeed, setImageSearchSeed] = useState("");
+  const [imageSearchQuery, setImageSearchQuery] = useState("");
+  const [imageDraft, setImageDraft] = useState<DraftItemImage | null>(null);
+  const [imageRetrying, setImageRetrying] = useState(false);
 
   const serializedRef = useRef<SerializedFormHandle>(null);
   const bulkRef = useRef<BulkFormHandle>(null);
-  const selectedKind = optionForKind(kind);
-
   const resetAll = useCallback(() => {
     setError("");
     setSuccessMsg("");
     setKind("standard");
-    setAddAnother(false);
-    setCreatedAssetId(null);
     setCreatedHandoff(null);
     setShowImageModal(false);
-    setImageSearchSeed("");
+    setImageSearchQuery("");
+    setImageDraft(null);
+    setImageRetrying(false);
     serializedRef.current?.reset();
     bulkRef.current?.reset();
   }, []);
@@ -205,19 +171,12 @@ export function NewItemSheet({
   function finishCreatedHandoff(mode: "another" | "open" | "list") {
     if (!createdHandoff) return;
     const handoff = createdHandoff;
-    onCreated();
     if (mode === "another") {
-      setKind(handoff.kind);
-      setError("");
-      setCreatedAssetId(null);
-      setCreatedHandoff(null);
-      setShowImageModal(false);
-      serializedRef.current?.reset(true);
-      bulkRef.current?.reset();
+      onCreated();
+      resetAll();
       showSuccessMessage(`"${handoff.label}" created. Ready for the next item.`);
       requestAnimationFrame(() => {
-        if (handoff.kind === "standard") serializedRef.current?.focus();
-        else bulkRef.current?.focus();
+        serializedRef.current?.focus();
       });
     } else {
       onOpenChange(false);
@@ -226,6 +185,34 @@ export function NewItemSheet({
         router.push(handoff.href);
       }
     }
+  }
+
+  async function persistCreatedImage(endpoint: string) {
+    if (!imageDraft) {
+      return { imageStatus: "none" as const, imageError: "" };
+    }
+
+    try {
+      await persistDraftItemImage(endpoint, imageDraft);
+      return { imageStatus: "saved" as const, imageError: "" };
+    } catch (imageError) {
+      return {
+        imageStatus: "failed" as const,
+        imageError: imageError instanceof Error
+          ? imageError.message
+          : "The item was created, but its image could not be saved.",
+      };
+    }
+  }
+
+  async function retryCreatedImage() {
+    if (!createdHandoff?.imageEndpoint || !imageDraft || imageRetrying) return;
+    setImageRetrying(true);
+    const imageResult = await persistCreatedImage(createdHandoff.imageEndpoint);
+    setCreatedHandoff((current) => current
+      ? { ...current, ...imageResult }
+      : current);
+    setImageRetrying(false);
   }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -238,9 +225,9 @@ export function NewItemSheet({
     try {
       let res: globalThis.Response;
       let label = "";
-      let searchSeed = "";
       let bulkHandoffHref: string | null = null;
       let bulkHandoffLabel = "Open item";
+      let createsCatalogRecord = true;
 
       if (kind === "standard") {
         const validationError = serializedRef.current?.validate();
@@ -250,7 +237,6 @@ export function NewItemSheet({
         }
         const body = serializedRef.current!.getSubmitBody();
         label = (body.assetTag as string) || (body.name as string) || "Asset";
-        searchSeed = buildImageSearchSeed(body.name, body.brand, body.model, body.assetTag);
 
         setSubmitting(true);
         submittingRef.current = true;
@@ -270,6 +256,7 @@ export function NewItemSheet({
         label = payload.label;
         bulkHandoffHref = payload.handoffHref ?? null;
         bulkHandoffLabel = payload.openLabel ?? bulkHandoffLabel;
+        createsCatalogRecord = payload.createsCatalogRecord;
 
         setSubmitting(true);
         submittingRef.current = true;
@@ -289,58 +276,43 @@ export function NewItemSheet({
 
       const json = await parseJsonSafely<ItemCreateResponse>(res);
 
-      // For serialized items, show image upload prompt before proceeding
-      if (kind === "standard" && json?.data?.id) {
-        const createdId = json.data.id;
-        const pendingImageFile = serializedRef.current?.getPendingImageFile() ?? null;
-        let handoffDescription = "Open the item record to finish photos, QR details, policy settings, and booking context.";
-        if (pendingImageFile) {
-          try {
-            await uploadCreatedAssetImage(createdId, pendingImageFile);
-            handoffDescription = "Photo uploaded. Open the item record to finish QR details, policy settings, and booking context.";
-          } catch (uploadError) {
-            const message = uploadError instanceof Error ? uploadError.message : "Image upload failed.";
-            handoffDescription = `${message} Use Add image below or open the item record to try again.`;
-          }
-        }
-        setCreatedAssetId(createdId);
-        setImageSearchSeed(searchSeed);
-        setCreatedHandoff({
-          kind: "standard",
-          label,
-          href: `/items/${createdId}`,
-          openLabel: "Open item",
-          successMessage: `"${label}" created successfully.`,
-          description: handoffDescription,
-        });
-        return; // Don't close yet — show image upload prompt
-      }
-
-      if (kind === "standard") {
+      const createdId = json?.data?.id
+        ?? (!createsCatalogRecord ? bulkHandoffHref?.split("/").pop() : undefined);
+      if (!createdId) {
         onCreated();
-        setError("The item was created, but the server did not return an item link. Refresh the list before creating another asset.");
+        setError("The item was created, but the server did not return its item link. Refresh the list before continuing.");
         return;
       }
 
-      const bulkId = json?.data?.id ?? bulkHandoffHref?.split("/").pop();
-      const handoffHref = bulkId ? `/items/bulk-${bulkId}` : "/items";
-      if (addAnother) {
-        onCreated();
-        bulkRef.current?.reset();
-        showSuccessMessage(`"${label}" created. Ready for the next item.`);
-        requestAnimationFrame(() => bulkRef.current?.focus());
-      } else {
-        setCreatedHandoff({
-          kind,
-          label,
-          href: handoffHref,
-          openLabel: bulkHandoffLabel,
-          successMessage: payloadSuccessMessage(label, bulkHandoffLabel),
-          description: kind === "units"
-            ? "Open the item to review availability, units, QR details, thresholds, and activity."
-            : "Open the item to review availability, stock, thresholds, and activity.",
-        });
-      }
+      const imageEndpoint = imageDraft && createsCatalogRecord
+        ? kind === "standard"
+          ? `/api/assets/${createdId}/image`
+          : `/api/bulk-skus/${createdId}/image`
+        : null;
+      const imageResult = imageEndpoint
+        ? await persistCreatedImage(imageEndpoint)
+        : { imageStatus: "none" as const, imageError: "" };
+      const handoffHref = kind === "standard"
+        ? `/items/${createdId}`
+        : `/items/bulk-${createdId}`;
+
+      setCreatedHandoff({
+        kind,
+        label,
+        href: handoffHref,
+        openLabel: bulkHandoffLabel,
+        successMessage: payloadSuccessMessage(label, bulkHandoffLabel),
+        description: kind === "standard"
+          ? "Open the item to review its identity, booking policy, and activity."
+          : kind === "units"
+            ? "Open the item to review availability, numbered units, thresholds, and activity."
+            : createsCatalogRecord
+              ? "Open the item to review availability, stock, thresholds, and activity."
+              : "Open the item to review the updated stock and activity.",
+        createdRecord: createsCatalogRecord,
+        imageEndpoint,
+        ...imageResult,
+      });
     } catch {
       setError("You are offline or the request could not reach the server. Check your connection and try again.");
     } finally {
@@ -349,90 +321,95 @@ export function NewItemSheet({
     }
   }
 
-  // Post-creation success state (serialized only)
+  // Every creation path ends in the same explicit handoff.
   const showPostCreate = !!createdHandoff;
 
   return (
-    <Sheet open={open} onOpenChange={(v) => { if (submitting) return; onOpenChange(v); if (!v) resetAll(); }}>
+    <Sheet
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (submitting) return;
+        if (!nextOpen && createdHandoff) onCreated();
+        onOpenChange(nextOpen);
+        if (!nextOpen) resetAll();
+      }}
+    >
       <SheetContent className="sm:max-w-xl">
         <SheetHeader>
-          <div className="flex items-center gap-2">
-            <Badge variant={selectedKind.badgeVariant} size="sm">
-              {selectedKind.badge}
-            </Badge>
-            <SheetTitle>Add item</SheetTitle>
-          </div>
-          <SheetDescription>{selectedKind.outcome}</SheetDescription>
+          <SheetTitle>Add item</SheetTitle>
+          <SheetDescription>
+            Create a serialized item, numbered item family, or quantity-tracked stock record.
+          </SheetDescription>
         </SheetHeader>
 
         <SheetBody className="px-6 py-6">
           {showPostCreate ? (
-            <div className="flex flex-col gap-6">
-              <div className="rounded-2xl border border-border/50 bg-background/80 px-5 py-7 text-center shadow-[0_12px_50px_rgba(0,0,0,0.05)] dark:shadow-none">
-                <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-[var(--green-bg)] text-[var(--green-text)]">
-                  <CheckCircle2Icon className="size-6" />
+            <div className="flex flex-col gap-4">
+              <div className="rounded-md border border-border/60 bg-background p-5 shadow-xs">
+                <div className="flex items-start gap-3">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-[var(--green-bg)] text-[var(--green-text)]">
+                    <CheckCircle2Icon className="size-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <Badge variant={optionForKind(createdHandoff?.kind ?? kind).badgeVariant} size="sm">
+                      {optionForKind(createdHandoff?.kind ?? kind).badge}
+                    </Badge>
+                    <h3 className="mt-2 text-lg font-semibold tracking-tight text-balance">
+                      {createdHandoff?.label ?? "Item"} is ready
+                    </h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {createdHandoff?.successMessage ?? "Saved successfully."}
+                    </p>
+                  </div>
                 </div>
-                <Badge variant={optionForKind(createdHandoff?.kind ?? kind).badgeVariant} size="sm" className="mt-4">
-                  {optionForKind(createdHandoff?.kind ?? kind).badge}
-                </Badge>
-                <h3 className="mt-3 text-xl font-semibold tracking-tight text-balance">
-                  {createdHandoff?.label ?? "Item"} is ready.
-                </h3>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {createdHandoff?.successMessage ?? "Saved successfully."}
-                </p>
 
-                <div className="mt-6 divide-y divide-border/70 border-y border-border/70">
+                <div className="mt-5 divide-y divide-border/70 border-y border-border/70">
                   <SummaryRow label="Status">
-                    <Badge variant="green" size="sm">
-                      {createdHandoff?.openLabel === "Open stock record" ? "Stock updated" : "Created"}
+                    <Badge variant="gray" size="sm">
+                      {createdHandoff?.createdRecord ? "Created" : "Stock updated"}
                     </Badge>
                   </SummaryRow>
                   <SummaryRow label="Tracking">
                     {optionForKind(createdHandoff?.kind ?? kind).title}
                   </SummaryRow>
+                  {createdHandoff?.imageStatus !== "none" && (
+                    <SummaryRow label="Image">
+                      <Badge
+                        variant={createdHandoff.imageStatus === "saved" ? "blue" : "red"}
+                        size="sm"
+                      >
+                        {createdHandoff.imageStatus === "saved" ? "Saved" : "Needs attention"}
+                      </Badge>
+                    </SummaryRow>
+                  )}
                   <SummaryRow label="Next">
                     <span className="text-muted-foreground">{createdHandoff?.description}</span>
                   </SummaryRow>
                 </div>
               </div>
-              {createdHandoff?.kind === "standard" && (
-                <div className="flex flex-col items-center gap-1 rounded-xl border border-border/50 bg-muted/20 px-4 py-4">
+
+              {createdHandoff?.imageStatus === "failed" && (
+                <Alert variant="destructive">
+                  <AlertCircleIcon className="size-4" />
+                  <AlertDescription className="flex flex-col items-start gap-3">
+                    <span>
+                      Item created, but its image needs attention. {createdHandoff.imageError}
+                    </span>
                   <Button
                     type="button"
                     variant="outline"
-                    className="gap-2"
-                    onClick={() => setShowImageModal(true)}
+                    className="h-10"
+                    loading={imageRetrying}
+                    onClick={retryCreatedImage}
                   >
-                    <ImageIcon className="size-4" />
-                    Add image
+                    Retry image
                   </Button>
-                  <p className="text-xs text-muted-foreground">
-                    You can also add an image later from the item detail page.
-                  </p>
-                </div>
+                  </AlertDescription>
+                </Alert>
               )}
             </div>
           ) : (
             <form id="new-item-form" onSubmit={handleSubmit} className="flex flex-col gap-6">
-              <div className="rounded-md border border-border/60 bg-background px-3 py-2.5 shadow-xs">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant={selectedKind.badgeVariant} size="sm">
-                    {selectedKind.title}
-                  </Badge>
-                  <span className="text-xs font-medium text-muted-foreground">
-                    {selectedKind.outcome}
-                  </span>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {selectedKind.requirements.map((requirement) => (
-                    <Badge key={requirement} variant="outline" size="sm">
-                      {requirement}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
               {/* ── Tracking style ── */}
               <section className="flex flex-col gap-3">
                 <SectionHeading>Tracking style</SectionHeading>
@@ -442,6 +419,7 @@ export function NewItemSheet({
                   value={kind}
                   onValueChange={(v) => {
                     setError("");
+                    setImageDraft(null);
                     setKind(v as ItemKind);
                   }}
                   disabled={submitting}
@@ -505,6 +483,12 @@ export function NewItemSheet({
                   categories={categories}
                   departments={departments}
                   locations={locations}
+                  image={imageDraft}
+                  onChooseImage={(searchQuery) => {
+                    setImageSearchQuery(searchQuery);
+                    setShowImageModal(true);
+                  }}
+                  onClearImage={() => setImageDraft(null)}
                   disabled={submitting}
                 />
               ) : (
@@ -514,6 +498,12 @@ export function NewItemSheet({
                   locations={locations}
                   open={open}
                   trackingMode={kind}
+                  image={imageDraft}
+                  onChooseImage={(searchQuery) => {
+                    setImageSearchQuery(searchQuery);
+                    setShowImageModal(true);
+                  }}
+                  onClearImage={() => setImageDraft(null)}
                   disabled={submitting}
                 />
               )}
@@ -525,11 +515,13 @@ export function NewItemSheet({
           {showPostCreate ? (
             <>
               <div className="flex-1" />
-              {addAnother && (
-                <Button variant="outline" type="button" onClick={() => finishCreatedHandoff("another")}>
-                  Add another item
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => finishCreatedHandoff("list")}
+              >
+                Return to list
+              </Button>
               {createdHandoff && (
                 <Button
                   variant="outline"
@@ -541,49 +533,33 @@ export function NewItemSheet({
               )}
               <Button
                 type="button"
-                onClick={() => finishCreatedHandoff("list")}
+                onClick={() => finishCreatedHandoff("another")}
               >
-                Return to list
+                Add another item
               </Button>
             </>
           ) : (
             <>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="add-another"
-                  name="addAnother"
-                  checked={addAnother}
-                  disabled={submitting}
-                  onCheckedChange={(v) => setAddAnother(!!v)}
-                />
-                <Label htmlFor="add-another" className="text-sm cursor-pointer">Add another</Label>
-              </div>
               <div className="flex-1" />
               <Button variant="outline" type="button" disabled={submitting} onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" form="new-item-form" disabled={submitting}>
-                {submitting ? "Adding..." : "Add item"}
+              <Button type="submit" form="new-item-form" loading={submitting}>
+                Add item
               </Button>
             </>
           )}
         </SheetFooter>
       </SheetContent>
 
-      {/* Image upload modal — renders on top of the sheet */}
-      {createdAssetId && (
-        <ChooseImageModal
-          open={showImageModal}
-          onClose={() => setShowImageModal(false)}
-          assetId={createdAssetId}
-          currentImageUrl={null}
-          searchQuery={imageSearchSeed}
-          onImageChanged={() => {
-            setShowImageModal(false);
-            finishCreatedHandoff(addAnother ? "another" : "list");
-          }}
-        />
-      )}
+      <ChooseImageModal
+        mode="draft"
+        open={showImageModal}
+        onClose={() => setShowImageModal(false)}
+        initialSelection={imageDraft}
+        searchQuery={imageSearchQuery}
+        onDraftChanged={setImageDraft}
+      />
     </Sheet>
   );
 }
