@@ -20,6 +20,19 @@ describe("operational title normalization", () => {
     expect(normalizeBookingTitle(input)).toBe(expected);
   });
 
+  it.each([
+    ["b1g media days", "B1G Media Days"],
+    ["B1g Media Days", "B1G Media Days"],
+    ["ncaa tournament", "NCAA Tournament"],
+    ["wbb b1g championship", "WBB B1G Championship"],
+    ["espn setup", "ESPN Setup"],
+    ["av cart pull", "AV Cart Pull"],
+    ["4k camera test", "4K Camera Test"],
+    ["b1g's media room", "B1G's Media Room"],
+  ])("always capitalizes known terms: %j to %j", (input, expected) => {
+    expect(normalizeBookingTitle(input)).toBe(expected);
+  });
+
   it("uses the same rule for manually authored event titles", () => {
     expect(normalizeManualEventTitle("mbb PRACTICE")).toBe("MBB Practice");
   });
