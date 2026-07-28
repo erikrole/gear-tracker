@@ -8,64 +8,45 @@ private enum ReservationSetupMode: String, CaseIterable, Identifiable {
 }
 
 struct CreateBookingSheet: View {
-    let onCreated: (String) -> Void
+    /// The composer lives in `ReservationDraftStore`, not here: minimizing
+    /// tears this view down and it has to come back with everything intact.
+    @Bindable var vm: CreateBookingViewModel
 
-    @Environment(\.dismiss) private var dismiss
-    @State private var vm: CreateBookingViewModel
-    @State private var step = 1
+    @Environment(ReservationDraftStore.self) private var drafts
     @State private var submitError: String?
-    @State private var showDiscardConfirm = false
-    @State private var initialUserId: String = ""
-    @State private var initialLocationId: String = ""
-    @State private var initialStartsAt: Date = .now
-    @State private var initialEndsAt: Date = .now
-    @State private var initialEventIds: [String] = []
-    @State private var capturedInitial = false
+    @State private var showExitOptions = false
     @State private var showScanner = false
     @State private var showNotesField = false
-    @State private var setupMode: ReservationSetupMode
     @FocusState private var notesFocused: Bool
     @Environment(SessionStore.self) private var session
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(onCreated: @escaping (String) -> Void) {
-        _vm = State(wrappedValue: CreateBookingViewModel())
-        _setupMode = State(wrappedValue: .event)
-        self.onCreated = onCreated
+    init(vm: CreateBookingViewModel) {
+        self.vm = vm
     }
 
-    init(vm: CreateBookingViewModel, onCreated: @escaping (String) -> Void) {
-        _vm = State(wrappedValue: vm)
-        _setupMode = State(wrappedValue: vm.linkedEventCount > 0 ? .event : .manual)
-        self.onCreated = onCreated
+    private var setupMode: ReservationSetupMode {
+        vm.usesEventLinkedSetup ? .event : .manual
+    }
+
+    private var step: Int { drafts.step }
+
+    private func setStep(_ value: Int) {
+        drafts.step = value
     }
 
     private var canContinueToGear: Bool {
         vm.isValid && (setupMode == .manual || vm.linkedEventCount > 0)
     }
 
-    private var hasUnsavedInput: Bool {
-        if !vm.title.trimmingCharacters(in: .whitespaces).isEmpty { return true }
-        if !vm.notes.isEmpty { return true }
-        if !vm.selectedAssetIds.isEmpty { return true }
-        if vm.selectedBulkTotal > 0 { return true }
-        if vm.selectedEventIds != initialEventIds { return true }
-        // Track auto-filled identity, location, and date deltas so Cancel can
-        // warn before losing meaningful setup work.
-        guard capturedInitial else { return false }
-        if vm.selectedUserId != initialUserId { return true }
-        if vm.selectedLocationId != initialLocationId { return true }
-        if vm.startsAt != initialStartsAt { return true }
-        if vm.endsAt != initialEndsAt { return true }
-        return false
-    }
-
+    /// Cancel is the deliberate exit. With work on the table it asks whether to
+    /// keep it as a draft; swipe-down never reaches here because that minimizes.
     private func attemptCancel() {
         if vm.isSubmitting { return }
-        if hasUnsavedInput {
-            showDiscardConfirm = true
+        if vm.hasUnsavedInput && vm.isWorthSavingAsDraft {
+            showExitOptions = true
         } else {
-            dismiss()
+            Task { await drafts.discard() }
         }
     }
 
@@ -89,7 +70,7 @@ struct CreateBookingSheet: View {
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if step == 1 {
                     Button {
-                        step = 2
+                        setStep(2)
                         Task { await vm.loadAvailableAssets(reset: true) }
                         vm.scheduleConflictCheck()
                     } label: {
@@ -149,22 +130,29 @@ struct CreateBookingSheet: View {
                 Text(submitError ?? "")
             }
             .confirmationDialog(
-                "Discard reservation?",
-                isPresented: $showDiscardConfirm,
+                "Save this reservation as a draft?",
+                isPresented: $showExitOptions,
                 titleVisibility: .visible
             ) {
-                Button("Discard", role: .destructive) { dismiss() }
+                Button("Save Draft") {
+                    Task { await drafts.saveAndClose() }
+                }
+                Button("Discard", role: .destructive) {
+                    Task { await drafts.discard() }
+                }
                 Button("Keep Editing", role: .cancel) {}
             } message: {
-                Text("Your changes will be lost.")
+                Text("A saved draft stays in your bookings until you finish or delete it.")
             }
-            .interactiveDismissDisabled(hasUnsavedInput || vm.isSubmitting)
+            // Swipe-down minimizes rather than exits, so it must stay enabled;
+            // only an in-flight submit is worth blocking.
+            .interactiveDismissDisabled(vm.isSubmitting)
             .task {
                 async let optionsTask: Void = vm.loadOptions()
                 async let eventsTask: Void = vm.loadEvents()
                 _ = await (optionsTask, eventsTask)
                 applySelfAndLocationDefaults()
-                captureInitialIfNeeded()
+                vm.captureBaselineIfNeeded()
             }
             .fullScreenCover(isPresented: $showScanner) {
                 // Continuous scanning: the scanner stays open after each hit
@@ -182,31 +170,16 @@ struct CreateBookingSheet: View {
             }
             .onChange(of: vm.options) {
                 applySelfAndLocationDefaults()
-                captureInitialIfNeeded()
+                vm.captureBaselineIfNeeded()
             }
-            .onAppear { captureInitialIfNeeded() }
+            .onAppear { vm.captureBaselineIfNeeded() }
         }
     }
 
-    /// Snapshots the initial requester / location / date values once the
-    /// view-model has had a chance to apply prefills (from the items-list or
-    /// item-detail Reserve flows). `hasUnsavedInput` compares against these
-    /// to detect changes the user made on top of any prefill.
-    private func captureInitialIfNeeded() {
-        if capturedInitial { return }
-        // Wait until we have a non-empty user (either prefilled or auto-set
-        // from the current session) — otherwise the snapshot would record
-        // "" and a later auto-fill would falsely register as a delta.
-        guard !vm.selectedUserId.isEmpty else { return }
-        initialUserId = vm.selectedUserId
-        initialLocationId = vm.selectedLocationId
-        initialStartsAt = vm.startsAt
-        initialEndsAt = vm.endsAt
-        initialEventIds = vm.selectedEventIds
-        capturedInitial = true
-    }
-
     private func applySelfAndLocationDefaults() {
+        // A resumed draft already carries the requester and pickup location it
+        // was saved with; re-applying defaults would silently rewrite them.
+        guard vm.serverDraftId == nil else { return }
         if let current = session.currentUser,
            vm.options?.users.contains(where: { $0.id == current.id }) == true {
             vm.selectedUserId = current.id
@@ -223,11 +196,11 @@ struct CreateBookingSheet: View {
                 Button("Cancel") { attemptCancel() }
                     .disabled(vm.isSubmitting)
             } else {
-                Button("Back") { step -= 1 }
+                Button("Back") { setStep(step - 1) }
                     .disabled(vm.isSubmitting)
             }
         }
-        ToolbarItem(placement: .confirmationAction) {
+        ToolbarItemGroup(placement: .confirmationAction) {
             if step == 2 {
                 // Review lives on the cart bar in step 2; the toolbar slot
                 // hosts scan so it's always reachable above the keyboard.
@@ -240,6 +213,17 @@ struct CreateBookingSheet: View {
                 .accessibilityLabel("Scan equipment")
                 .disabled(vm.isSubmitting)
             }
+            // Swipe-down does the same thing, but a visible control is what
+            // makes "go look something up and come back" discoverable.
+            Button {
+                drafts.minimize()
+            } label: {
+                Image(systemName: "chevron.down")
+            }
+            .tint(Color.statusText(.purple))
+            .accessibilityLabel("Minimize reservation")
+            .accessibilityHint("Keeps this reservation open at the bottom of the screen")
+            .disabled(vm.isSubmitting)
             // Step 3's primary action is anchored above the sheet edge so it
             // remains available while the user checks the summary.
         }
@@ -404,7 +388,7 @@ struct CreateBookingSheet: View {
         Binding(
             get: { setupMode },
             set: { mode in
-                setupMode = mode
+                vm.usesEventLinkedSetup = mode == .event
                 if mode == .manual {
                     vm.unlinkEvents()
                 }
@@ -424,7 +408,7 @@ struct CreateBookingSheet: View {
     @ViewBuilder
     private var equipmentPicker: some View {
         CreateBookingEquipmentPicker(vm: vm) {
-            step = 3
+            setStep(3)
         }
     }
 
@@ -509,7 +493,7 @@ struct CreateBookingSheet: View {
                                     .foregroundStyle(.secondary)
                             }
                             Spacer(minLength: 8)
-                            Button("Review Gear") { step = 2 }
+                            Button("Review Gear") { setStep(2) }
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
                                 .tint(Color.statusText(.orange))
@@ -592,7 +576,7 @@ struct CreateBookingSheet: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Button("Edit") { step = editStep }
+            Button("Edit") { setStep(editStep) }
                 .font(.subheadline.weight(.semibold))
                 .buttonStyle(.plain)
                 .foregroundStyle(Color.statusText(.purple))
@@ -631,10 +615,9 @@ struct CreateBookingSheet: View {
         do {
             let id = try await vm.submit()
             Haptics.success()
-            onCreated(id)
-            dismiss()
+            drafts.finish(bookingId: id)
         } catch APIError.conflict(_) {
-            step = 2
+            setStep(2)
             vm.scheduleConflictCheck()
             Haptics.warning()
         } catch {

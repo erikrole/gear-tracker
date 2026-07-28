@@ -243,8 +243,7 @@ struct ScanResultSheet: View {
     var onRetry: () -> Void
     var onRefresh: () async -> Void
     @Environment(\.dismiss) private var dismiss
-    @State private var reserveAsset: Asset?
-    @State private var reserveFamily: AssetFamilySearchResult?
+    @Environment(ReservationDraftStore.self) private var drafts
 
     var body: some View {
         Group {
@@ -262,7 +261,7 @@ struct ScanResultSheet: View {
                             navigationPath.append(asset)
                             dismiss()
                         },
-                        onReserve: { reserveAsset = asset },
+                        onReserve: { startReservation(for: asset) },
                         onOpenBooking: openBooking
                     )
                 }
@@ -273,7 +272,7 @@ struct ScanResultSheet: View {
                 ScrollView {
                     ScanFamilyHeroCard(
                         family: family,
-                        onReserve: { reserveFamily = family },
+                        onReserve: { startReservation(forFamily: family) },
                         onOpenBooking: openBooking
                     )
                 }
@@ -284,25 +283,31 @@ struct ScanResultSheet: View {
             }
         }
         .presentationCornerRadius(24)
-        .sheet(item: $reserveAsset) { asset in
-            CreateBookingSheet(vm: {
-                let vm = CreateBookingViewModel()
-                vm.prefillReservation(for: asset)
-                return vm
-            }()) { newId in
-                reserveAsset = nil
-                openBooking(newId)
-            }
+    }
+
+    /// This result list is itself a sheet, so it has to be off screen before
+    /// the app-level composer presents; otherwise the two presentations race.
+    private func startReservation(for asset: Asset) {
+        startAfterDismiss {
+            let composer = CreateBookingViewModel()
+            composer.prefillReservation(for: asset)
+            return composer
         }
-        .sheet(item: $reserveFamily) { family in
-            CreateBookingSheet(vm: {
-                let vm = CreateBookingViewModel()
-                vm.prefillReservation(forFamily: family)
-                return vm
-            }()) { newId in
-                reserveFamily = nil
-                openBooking(newId)
-            }
+    }
+
+    private func startReservation(forFamily family: AssetFamilySearchResult) {
+        startAfterDismiss {
+            let composer = CreateBookingViewModel()
+            composer.prefillReservation(forFamily: family)
+            return composer
+        }
+    }
+
+    private func startAfterDismiss(_ makeComposer: @escaping () -> CreateBookingViewModel) {
+        dismiss()
+        Task {
+            try? await Task.sleep(for: .milliseconds(350))
+            drafts.start(makeComposer())
         }
     }
 

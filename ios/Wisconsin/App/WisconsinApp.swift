@@ -8,6 +8,7 @@ struct WisconsinApp: App {
     @State private var session = SessionStore()
     @State private var profileCompletion = ProfileCompletionStore()
     @State private var appState = AppState()
+    @State private var drafts = ReservationDraftStore()
     @State private var network = NetworkMonitor()
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("WisconsinThemeChoice") private var themeChoice: ThemeChoice = .system
@@ -18,6 +19,7 @@ struct WisconsinApp: App {
                 .environment(session)
                 .environment(profileCompletion)
                 .environment(appState)
+                .environment(drafts)
                 .environment(network)
                 .preferredColorScheme(themeChoice.colorScheme)
                 .onAppear {
@@ -56,6 +58,8 @@ struct WisconsinApp: App {
         if user == nil, oldUser != nil {
             GearStore.shared.clearAll()
             profileCompletion.resetSession()
+            // A parked reservation belongs to the person who started it.
+            drafts.clearForSignOut()
             Task { await CheckoutReturnLiveActivityManager.shared.endAll() }
         }
 
@@ -67,6 +71,12 @@ struct WisconsinApp: App {
     }
 
     private func handleScenePhaseChange(_ phase: ScenePhase) {
+        // Leaving the foreground is where an unfinished reservation is most
+        // likely to be lost to a task kill, so persist it and keep composing.
+        if phase == .background {
+            Task { await drafts.autosave() }
+            return
+        }
         guard phase == .active else { return }
         Task { await AppDelegate.pruneStaleDeliveredNotifications() }
 

@@ -59,12 +59,20 @@ final class CreateBookingViewModel {
     var startsAt = nextCleanHour(addingHours: 0)
     var endsAt = nextCleanHour(addingHours: 1)
     var notes = ""
+    /// Whether Details is set to link events or to enter a manual window.
+    /// Lives on the composer, not the sheet, so minimizing and reopening does
+    /// not silently drop the user back to Manual.
+    var usesEventLinkedSetup = true
     var userEditedTitle = false
     var userEditedLocation = false
     var userEditedWindow = false
 
     var prefillEventId: String?
     var prefillShiftAssignmentId: String?
+
+    /// Id of the `/api/drafts` row this composer is bound to, once it has been
+    /// saved at least once. Subsequent saves update in place.
+    var serverDraftId: String?
 
     var options: FormOptions?
     var events: [ScheduleEvent] = []
@@ -350,6 +358,169 @@ final class CreateBookingViewModel {
             && endsAt > startsAt
     }
 
+    // MARK: - Draft state
+
+    /// The values this composer started with: auto-filled identity and pickup
+    /// location, default dates, and anything a Reserve-this-item or prep-gear
+    /// entry point seeded. Exit compares against this so a prefill the user
+    /// never touched does not masquerade as unsaved work.
+    private struct Baseline {
+        let title: String
+        let notes: String
+        let userId: String
+        let locationId: String
+        let startsAt: Date
+        let endsAt: Date
+        let eventIds: [String]
+        let assetIds: Set<String>
+        let bulkQuantities: [String: Int]
+    }
+
+    private var baseline: Baseline?
+
+    /// Captures the starting values once, after identity resolves. Callers fire
+    /// this from several lifecycle points because the requester arrives from
+    /// either a prefill or the session; capturing before it lands would record
+    /// an empty user and read the later auto-fill as an edit.
+    func captureBaselineIfNeeded() {
+        guard baseline == nil, !selectedUserId.isEmpty else { return }
+        baseline = currentBaseline()
+    }
+
+    /// Re-baselines after the composer's contents are safely persisted, so a
+    /// following exit with no further edits leaves without prompting.
+    func markDraftSaved(id: String) {
+        serverDraftId = id
+        baseline = currentBaseline()
+    }
+
+    private func currentBaseline() -> Baseline {
+        Baseline(
+            title: title,
+            notes: notes,
+            userId: selectedUserId,
+            locationId: selectedLocationId,
+            startsAt: startsAt,
+            endsAt: endsAt,
+            eventIds: selectedEventIds,
+            assetIds: selectedAssetIds,
+            bulkQuantities: selectedBulkQuantities
+        )
+    }
+
+    /// True when the composer holds work the user would miss. Before the
+    /// baseline is captured there is nothing to diff against, so any content at
+    /// all counts as unsaved.
+    var hasUnsavedInput: Bool {
+        guard let baseline else {
+            if !title.trimmingCharacters(in: .whitespaces).isEmpty { return true }
+            if !notes.isEmpty { return true }
+            if !selectedAssetIds.isEmpty { return true }
+            if selectedBulkTotal > 0 { return true }
+            return false
+        }
+        if title != baseline.title { return true }
+        if notes != baseline.notes { return true }
+        if selectedUserId != baseline.userId { return true }
+        if selectedLocationId != baseline.locationId { return true }
+        if startsAt != baseline.startsAt { return true }
+        if endsAt != baseline.endsAt { return true }
+        if selectedEventIds != baseline.eventIds { return true }
+        if selectedAssetIds != baseline.assetIds { return true }
+        if selectedBulkQuantities != baseline.bulkQuantities { return true }
+        return false
+    }
+
+    /// A draft with no name and no gear is not worth a row. Mirrors the web
+    /// wizard's save guard so the two surfaces agree on what deserves storage.
+    var isWorthSavingAsDraft: Bool {
+        !title.trimmingCharacters(in: .whitespaces).isEmpty
+            || !selectedAssetIds.isEmpty
+            || selectedBulkTotal > 0
+    }
+
+    /// One-line description of the composer for the minimized card.
+    var draftSummaryLine: String {
+        var parts: [String] = []
+        let count = selectedEquipmentCount
+        parts.append(count == 0 ? "No gear yet" : "\(count) item\(count == 1 ? "" : "s")")
+        parts.append(startsAt.formatted(.dateTime.month(.abbreviated).day().hour().minute()))
+        return parts.joined(separator: " · ")
+    }
+
+    var draftDisplayTitle: String {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "New Reservation" : trimmed
+    }
+
+    /// Saves the composer through the shared `/api/drafts` contract and rebinds
+    /// to the returned row so later saves update rather than duplicate.
+    @discardableResult
+    func saveDraft() async throws -> String {
+        let id = try await APIClient.shared.saveBookingDraft(
+            id: serverDraftId,
+            title: title.trimmingCharacters(in: .whitespaces),
+            requesterUserId: selectedUserId,
+            locationId: selectedLocationId,
+            startsAt: startsAt,
+            endsAt: endsAt,
+            notes: notes.isEmpty ? nil : notes,
+            eventIds: selectedEventIds,
+            serializedAssetIds: Array(selectedAssetIds),
+            bulkItems: selectedBulkRequests
+        )
+        markDraftSaved(id: id)
+        return id
+    }
+
+    /// Rehydrates a saved draft. Event links restore by id and resolve once
+    /// `loadEvents()` returns; the user-edited flags are set so that resolution
+    /// cannot overwrite the title or window the user already chose.
+    func applyDraft(_ draft: BookingDraftDetail) async {
+        serverDraftId = draft.id
+        title = draft.title == "Untitled draft" ? "" : draft.title
+        userEditedTitle = !title.isEmpty
+        if let requesterUserId = draft.requesterUserId { selectedUserId = requesterUserId }
+        if let locationId = draft.locationId {
+            selectedLocationId = locationId
+            userEditedLocation = true
+        }
+        startsAt = draft.startsAt
+        endsAt = draft.endsAt
+        userEditedWindow = true
+        notes = draft.notes
+        selectedEventIds = draft.linkedEventIds
+        usesEventLinkedSetup = !draft.linkedEventIds.isEmpty
+        prefillEventId = nil
+        prefillShiftAssignmentId = nil
+        selectedAssetIds = Set(draft.serializedAssetIds)
+        selectedAssetOrder = draft.serializedAssetIds
+        selectedBulkQuantities = Dictionary(
+            draft.bulkItems.map { ($0.bulkSkuId, $0.quantity) },
+            uniquingKeysWith: { _, later in later }
+        )
+        await loadSnapshotsForSelectedAssets(ids: draft.serializedAssetIds)
+        baseline = currentBaseline()
+    }
+
+    /// Restores display rows for saved gear so Review and the cart read
+    /// correctly before the picker's paged asset list has loaded.
+    private func loadSnapshotsForSelectedAssets(ids: [String]) async {
+        let missing = ids.filter { selectedAssetSnapshots[$0] == nil }
+        guard !missing.isEmpty else { return }
+        await withTaskGroup(of: Asset?.self) { group in
+            for id in missing {
+                group.addTask {
+                    try? await APIClient.shared.asset(id: id).asAsset
+                }
+            }
+            for await asset in group {
+                guard let asset else { continue }
+                selectedAssetSnapshots[asset.id] = asset
+            }
+        }
+    }
+
     /// Pickup and return are independent operational decisions. Moving pickup
     /// must not silently drag a return time the user already reviewed.
     func adjustStart(to newStart: Date) {
@@ -373,6 +544,7 @@ final class CreateBookingViewModel {
         self.selectedUserId = userId
         self.prefillEventId = eventId
         self.prefillShiftAssignmentId = shiftAssignmentId
+        self.usesEventLinkedSetup = eventId != nil
     }
 
     func loadEvents() async {
@@ -472,6 +644,8 @@ final class CreateBookingViewModel {
     /// Sets a sensible title, preselects the asset, and seeds the equipment list
     /// so the asset is visible at the top of step 2.
     func prefillReservation(for asset: Asset) {
+        // Reserving a specific item is an ad-hoc need, not event prep.
+        usesEventLinkedSetup = false
         if title.isEmpty {
             title = "Reservation: \(asset.displayName)"
         }
@@ -492,6 +666,7 @@ final class CreateBookingViewModel {
     /// a scanned battery unit). Seeds one unit of the SKU; the equipment step
     /// resolves the SKU details once form options load.
     func prefillReservation(forFamily family: AssetFamilySearchResult) {
+        usesEventLinkedSetup = false
         if title.isEmpty {
             title = "Reservation: \(family.name)"
         }
@@ -679,7 +854,7 @@ final class CreateBookingViewModel {
         isSubmitting = true
         defer { isSubmitting = false }
         do {
-            return try await APIClient.shared.createReservation(
+            let id = try await APIClient.shared.createReservation(
                 title: title.trimmingCharacters(in: .whitespaces),
                 requesterUserId: selectedUserId,
                 locationId: selectedLocationId,
@@ -692,6 +867,13 @@ final class CreateBookingViewModel {
                 serializedAssetIds: Array(selectedAssetIds),
                 bulkItems: selectedBulkRequests
             )
+            // The reservation now owns this work; leaving the draft behind
+            // would show the user a duplicate of what they just created.
+            if let draftId = serverDraftId {
+                try? await APIClient.shared.deleteBookingDraft(id: draftId)
+                serverDraftId = nil
+            }
+            return id
         } catch APIError.conflict(let message) {
             submissionConflict = message
             throw APIError.conflict(message)

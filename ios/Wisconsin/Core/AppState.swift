@@ -44,6 +44,9 @@ final class AppState {
     /// `BookingScope` value). Set by stat-tile taps (Overdue / Due Today land
     /// on All); consumed and cleared by BookingsView.
     var pendingBookingsScope: String?
+    /// Booking to open in the Bookings tab. Set after a reservation is created
+    /// from the app-level composer, which may outlive the screen it started on.
+    var pendingBookingDetailId: String?
     private var isRefreshing = false
     private var lastRefreshAttemptAt: Date?
     private let minimumRefreshInterval: TimeInterval = 60
