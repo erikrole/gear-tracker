@@ -15,9 +15,11 @@ export const ALWAYS_UPPERCASE_TERMS = new Set([
   // Broadcast and media partners
   "ESPN", "FS1", "CBS", "NBC", "ABC",
   // Gear and production shorthand
-  "AV", "TV", "LED", "SDI", "XLR", "USB", "HDMI", "DSLR", "4K", "UHD", "HD",
+  "AV", "TV", "LED", "SDI", "XLR", "USB", "HDMI", "DSLR", "DJI", "4K", "UHD", "HD",
   // Program shorthand
-  "UW", "NIL", "VIP",
+  "UW", "NIL", "VIP", "UX",
+  // "AD" is always athletic director in this product, never the article "ad".
+  "AD",
 ]);
 
 const WORD_PATTERN = /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu;

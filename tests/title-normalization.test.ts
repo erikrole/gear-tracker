@@ -29,6 +29,9 @@ describe("operational title normalization", () => {
     ["av cart pull", "AV Cart Pull"],
     ["4k camera test", "4K Camera Test"],
     ["b1g's media room", "B1G's Media Room"],
+    ["fb dji mic 1", "FB DJI Mic 1"],
+    ["new ad staff", "New AD Staff"],
+    ["ux checkout guard smoke", "UX Checkout Guard Smoke"],
   ])("always capitalizes known terms: %j to %j", (input, expected) => {
     expect(normalizeBookingTitle(input)).toBe(expected);
   });
