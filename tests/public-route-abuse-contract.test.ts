@@ -19,7 +19,7 @@ const ROUTE_CONTROLS: Record<(typeof PUBLIC_HANDLER_ROUTES)[number], RegExp[]> =
     /\bgetClientIp\s*\(/,
     /If that email exists, we sent a reset link/,
     /\bif\s*\(\s*!env\.resendApiKey\s*\)/,
-    /\bcreateAuditEntry\s*\(/,
+    /\bcreateSystemAuditEntry\s*\(/,
   ],
   "src/app/api/auth/login/route.ts": [
     /\bcheckRateLimit\s*\(\s*`login:ip:\$\{ip\}`/,
@@ -44,7 +44,7 @@ const ROUTE_CONTROLS: Record<(typeof PUBLIC_HANDLER_ROUTES)[number], RegExp[]> =
     /\bpasswordResetToken\.deleteMany\s*\(/,
     /\bsession\.deleteMany\s*\(/,
     /Prisma\.TransactionIsolationLevel\.Serializable/,
-    /\bcreateAuditEntry\s*\(/,
+    /\bcreateAuditEntryTx\s*\(/,
   ],
   "src/app/api/kiosk/activate/route.ts": [
     /\benforceRateLimit\s*\(\s*`kiosk:activate:\$\{ip\}`/,

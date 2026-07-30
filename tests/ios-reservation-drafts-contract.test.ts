@@ -8,6 +8,8 @@ const shell = readFileSync("ios/Wisconsin/Views/AppTabView.swift", "utf8");
 const card = readFileSync("ios/Wisconsin/Views/Components/ReservationDraftCard.swift", "utf8");
 const api = readFileSync("ios/Wisconsin/Core/APIClient.swift", "utf8");
 const app = readFileSync("ios/Wisconsin/App/WisconsinApp.swift", "utf8");
+const reservationRoute = readFileSync("src/app/api/reservations/route.ts", "utf8");
+const draftModels = readFileSync("ios/Wisconsin/Models/DraftModels.swift", "utf8");
 
 const CALL_SITES = [
   "ios/Wisconsin/Views/BookingsView.swift",
@@ -30,13 +32,67 @@ describe("iOS reservation drafts use the shared server contract", () => {
 
   it("re-uses an existing draft row instead of piling up new ones", () => {
     expect(composer).toContain("var serverDraftId: String?");
-    expect(composer).toContain("id: serverDraftId,");
-    expect(composer).toContain("markDraftSaved(id: id)");
+    expect(composer).toContain("id: snapshot.serverDraftId,");
+    expect(composer).toContain("baseline = snapshot.baseline");
+    expect(composer).toContain("if let existing = draftSaveOperation");
+    expect(composer).toContain("draftSaveRequests.owns(requestToken)");
   });
 
-  it("removes the draft once the reservation itself exists", () => {
-    expect(composer).toContain("if let draftId = serverDraftId {");
-    expect(composer).toContain("try? await APIClient.shared.deleteBookingDraft(id: draftId)");
+  it("consumes the source draft atomically with reservation creation", () => {
+    expect(composer).toContain("sourceDraftId: sourceDraftId");
+    expect(composer).not.toContain("try? await APIClient.shared.deleteBookingDraft");
+    expect(api).toContain("let sourceDraftId: String?");
+    expect(reservationRoute).toContain("replayConsumedDraftReservation");
+    expect(reservationRoute).toContain('action: "draft_consumed"');
+    expect(reservationRoute).toContain("createdReservationId");
+  });
+
+  it("binds every replay id to one immutable payload and preserves later edits separately", () => {
+    const sourceIdHelper = composer.slice(
+      composer.indexOf("private func sourceDraftIdForSubmission()"),
+      composer.indexOf("/// Rehydrates a saved draft"),
+    );
+    expect(sourceIdHelper).toContain("if let existing = draftSaveOperation");
+    expect(sourceIdHelper).toContain("if let serverDraftId {");
+    expect(sourceIdHelper).toContain("return serverDraftId");
+    expect(sourceIdHelper).toContain("return try await saveDraft(allowDuringSubmission: true)");
+
+    const submitBody = composer.slice(
+      composer.indexOf(
+        "func submit() async throws -> ReservationSubmissionOutcome",
+      ),
+      composer.indexOf("private func compareAssetsByDisplayName"),
+    );
+    const acquireIndex = submitBody.indexOf(
+      "let sourceDraftId = try await sourceDraftIdForSubmission()",
+    );
+    const postIndex = submitBody.indexOf("draftPersistence.createReservation(");
+    expect(acquireIndex).toBeGreaterThanOrEqual(0);
+    expect(postIndex).toBeGreaterThan(acquireIndex);
+    expect(submitBody).toContain("sourceDraftId: sourceDraftId");
+    expect(submitBody).toContain("if let uncertainReservationSubmission");
+    expect(submitBody).toContain("uncertainReservationSubmission.payload");
+    expect(submitBody).toContain(
+      "uncertainReservationSubmission.sourceDraftId",
+    );
+    expect(submitBody).toContain(
+      "private func finishCommittedSubmission(",
+    );
+    expect(submitBody).toContain("serverDraftId = nil");
+    expect(submitBody).toContain("saveDraft(allowDuringSubmission: true)");
+    expect(submitBody).toContain(".committedOriginal(");
+    expect(draftModels).toContain("func createReservation(");
+  });
+
+  it("keeps HTTP status so 5xx replay is indeterminate and 4xx rejection is definite", () => {
+    expect(api).toContain(
+      "case httpError(statusCode: Int, message: String)",
+    );
+    expect(api).toContain(
+      "APIError.httpError(statusCode: http.statusCode, message: msg)",
+    );
+    expect(composer).toContain("case .httpError(let statusCode, _):");
+    expect(composer).toContain("return (500...599).contains(statusCode)");
   });
 });
 
@@ -71,9 +127,26 @@ describe("iOS reservation composer survives leaving the sheet", () => {
   });
 
   it("only prompts when there is work worth keeping", () => {
-    expect(sheet).toContain("if vm.hasUnsavedInput && vm.isWorthSavingAsDraft {");
+    expect(sheet).toContain("if vm.hasUnsavedInput {");
     expect(composer).toContain("var isWorthSavingAsDraft: Bool");
+    expect(composer).toContain("serverDraftId != nil || hasUnsavedInput");
+    expect(composer).toContain("eventIds: draftEventIds");
     expect(composer).toContain("func captureBaselineIfNeeded()");
+  });
+
+  it("never reports a pristine Save Draft as successful persistence", () => {
+    const saveBody = store.slice(
+      store.indexOf("private func saveCurrentComposerAsDraft("),
+      store.indexOf("private func summary("),
+    );
+    expect(saveBody).toContain("guard composer.isWorthSavingAsDraft else {");
+    expect(saveBody).toContain(
+      "errorMessage = \"There isn't anything to save yet.\"",
+    );
+    expect(saveBody).toContain("return false");
+    expect(saveBody).not.toContain(
+      "guard composer.isWorthSavingAsDraft else { return true }",
+    );
   });
 
   // Regression: resuming a saved draft re-baselines the composer, so
@@ -139,6 +212,33 @@ describe("iOS reservation draft card", () => {
     expect(app).toContain("drafts.clearForSignOut()");
     expect(store).toContain("func autosave() async {");
   });
+
+  it("revokes old-session load ownership before any late response can publish", () => {
+    expect(store).toContain("private var sessionBoundaryId = UUID()");
+    expect(store).toContain("private var loadTask: Task<Void, Never>?");
+    expect(store).toContain("private var loadRequests = LatestRequestGeneration()");
+    expect(store).toContain("sessionBoundaryId = UUID()");
+    expect(store).toContain("composer?.cancelDraftPersistenceForSessionBoundary()");
+
+    const resumeBody = store.slice(
+      store.indexOf("private func performResume("),
+      store.indexOf("/// Exits and keeps the work"),
+    );
+    expect(resumeBody).toContain("let detail = try await persistence.bookingDraft(id: draftId)");
+    expect(resumeBody).toContain("await vm.applyDraft(detail)");
+    const afterApply = resumeBody.slice(resumeBody.indexOf("await vm.applyDraft(detail)"));
+    expect(afterApply).toContain(
+      "guard canPublishLoad(requestToken: requestToken, ownership: ownership) else { return }",
+    );
+
+    const listBody = store.slice(
+      store.indexOf("private func performSavedDraftLoad("),
+      store.indexOf("func clearForSignOut()"),
+    );
+    expect(listBody).toContain("await persistence.bookingDrafts()");
+    expect(listBody).toContain("canPublishLoad(requestToken: requestToken, ownership: ownership)");
+    expect(store).toContain("pendingStart?.composer === pending.composer");
+  });
 });
 
 describe("iOS reservation entry points hand off to the store", () => {
@@ -152,6 +252,9 @@ describe("iOS reservation entry points hand off to the store", () => {
 
   it("routes creation centrally because the composer outlives its origin", () => {
     expect(store).toContain("func finish(bookingId: String) {");
+    expect(store).toContain("guard ownedSubmissionBookingId == bookingId else { return }");
+    expect(store).toContain("self.composer === newComposer");
+    expect(composer).toContain("onReservationSubmitted?(id)");
     expect(shell).toContain("appState.pendingBookingDetailId = bookingId");
     const bookings = readFileSync("ios/Wisconsin/Views/BookingsView.swift", "utf8");
     expect(bookings).toContain("private func consumePendingBookingDetail() {");
@@ -162,5 +265,12 @@ describe("iOS reservation entry points hand off to the store", () => {
     expect(store).toContain("private(set) var pendingStart: PendingStart?");
     expect(shell).toContain('Button("Save Draft & Start New")');
     expect(shell).toContain('Button("Discard & Start New", role: .destructive)');
+  });
+
+  it("keeps draft transitions open when persistence fails", () => {
+    expect(store).toContain("guard await saveCurrentComposerAsDraft(");
+    expect(store).toContain("guard await deleteServerDraftIfAny(");
+    expect(store).toContain("private func deleteServerDraftIfAny(");
+    expect(store).not.toContain("try? await APIClient.shared.deleteBookingDraft");
   });
 });

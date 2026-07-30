@@ -63,8 +63,10 @@ describe("iOS native Licenses page", () => {
     expect(view).toContain('"Claim Photo Mechanic license?"');
     expect(view).toContain("isPresented: claimConfirmBinding");
     expect(view).toContain('"Return Photo Mechanic license?"');
-    expect(view).toContain("UIPasteboard.general.string = result.code");
-    expect(view).toContain("UIPasteboard.general.string = activeClaim.code");
+    expect(view).not.toContain("UIPasteboard.general.string = result.code");
+    expect(view).toContain("UIPasteboard.general.setObjects(");
+    expect(view).toContain("expirationDate: Date().addingTimeInterval(120)");
+    expect(view).toContain("License claimed. Use Copy Code when you’re ready.");
   });
 
   it("only calls release from the active-license path, not from arbitrary pool rows", () => {

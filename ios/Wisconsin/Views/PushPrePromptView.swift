@@ -6,6 +6,7 @@ import UserNotifications
 /// the value before the system alert appears — this materially improves opt-in.
 struct PushPrePromptView: View {
     @Environment(AppState.self) private var appState
+    @Environment(SessionStore.self) private var session
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isRequesting = false
@@ -82,10 +83,18 @@ struct PushPrePromptView: View {
 
     @MainActor
     private func requestSystemPermission() async {
+        guard let userId = session.currentUser?.id else {
+            dismiss()
+            return
+        }
+        let sessionBoundary = authSessionBoundary.capture()
         isRequesting = true
         let granted = (try? await UNUserNotificationCenter.current()
             .requestAuthorization(options: [.alert, .badge, .sound])) ?? false
-        if granted {
+        if granted,
+           session.currentUser?.id == userId,
+           authSessionBoundary.owns(sessionBoundary),
+           PushTokenStorage.registrationAllowed {
             appState.requestRemoteNotificationRegistration()
         }
         isRequesting = false

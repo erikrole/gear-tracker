@@ -1,7 +1,9 @@
-import { Prisma } from "@prisma/client";
+import { BookingKind, Prisma, Role } from "@prisma/client";
 import { withAuth } from "@/lib/api";
+import { createAuditEntryTx } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
+import { requirePermission, requirePermissionOrCollaboratorCapability } from "@/lib/rbac";
 import { z } from "zod";
 import { optionalSportCodeSchema } from "@/lib/validation";
 import { normalizeBookingTitle } from "@/lib/title-normalization";
@@ -75,6 +77,7 @@ async function resolveDraftEventLinks(tx: Prisma.TransactionClient, body: z.infe
 
 /** GET /api/drafts — list current user's drafts */
 export const GET = withAuth(async (_req, { user }) => {
+  requirePermissionOrCollaboratorCapability(user, "booking", "view", "MY_GEAR_VIEW");
   await db.booking.deleteMany({
     where: { status: "DRAFT", createdBy: user.id, updatedAt: { lt: draftExpiryCutoff() } },
   });
@@ -112,6 +115,15 @@ export const POST = withAuth(async (req, { user }) => {
     throw new HttpError(400, "Request body must be valid JSON");
   }
   const body = saveDraftSchema.parse(rawBody);
+  if (body.kind === BookingKind.RESERVATION) {
+    requirePermissionOrCollaboratorCapability(user, "booking", "create", "RESERVATION_CREATE");
+  } else {
+    requirePermission(user.role, "checkout", "create");
+  }
+
+  if (user.role === Role.STUDENT || user.role === Role.COLLABORATOR) {
+    body.requesterUserId = user.id;
+  }
 
   // Default dates: now + 4 hours if not provided
   const now = new Date();
@@ -132,18 +144,36 @@ export const POST = withAuth(async (req, { user }) => {
     notes: body.notes ?? null,
   };
 
-  let draftId: string;
+  const draftId = await db.$transaction(async (tx) => {
+    if (body.id) {
+      // Ownership and lifecycle are checked inside the same transaction as the
+      // replacement writes so a concurrent mutation cannot turn a stale
+      // pre-check into an update of a non-draft booking.
+      const existing = await tx.booking.findFirst({
+        where: { id: body.id, status: "DRAFT", createdBy: user.id },
+        select: {
+          id: true,
+          kind: true,
+          title: true,
+          requesterUserId: true,
+          locationId: true,
+          startsAt: true,
+          endsAt: true,
+          eventId: true,
+          sportCode: true,
+          notes: true,
+          serializedItems: { select: { assetId: true } },
+          bulkItems: { select: { bulkSkuId: true, plannedQuantity: true } },
+          events: { orderBy: { ordinal: "asc" }, select: { eventId: true } },
+        },
+      });
+      if (!existing) {
+        throw new HttpError(404, "Draft not found");
+      }
+      if (existing.kind !== body.kind) {
+        throw new HttpError(400, "Draft kind cannot be changed");
+      }
 
-  if (body.id) {
-    // Update existing draft — verify ownership and DRAFT status
-    const existing = await db.booking.findFirst({
-      where: { id: body.id, status: "DRAFT", createdBy: user.id },
-    });
-    if (!existing) {
-      throw new HttpError(404, "Draft not found");
-    }
-
-    await db.$transaction(async (tx) => {
       const { primaryEventId, sortedEventIds } = await resolveDraftEventLinks(tx, body);
       await tx.booking.update({ where: { id: body.id! }, data: { ...bookingData, eventId: primaryEventId } });
       // Replace items and event links
@@ -177,44 +207,97 @@ export const POST = withAuth(async (req, { user }) => {
           })),
         });
       }
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-    draftId = body.id;
-  } else {
-    // Create new draft
-    const draft = await db.$transaction(async (tx) => {
-      const { primaryEventId, sortedEventIds } = await resolveDraftEventLinks(tx, body);
-      const booking = await tx.booking.create({ data: { ...bookingData, eventId: primaryEventId } });
-      if (body.serializedAssetIds.length > 0) {
-        await tx.bookingSerializedItem.createMany({
-          data: body.serializedAssetIds.map((assetId) => ({
-            bookingId: booking.id,
-            assetId,
-            allocationStatus: "draft",
+      await createAuditEntryTx(tx, {
+        actorId: user.id,
+        actorRole: user.role,
+        entityType: "booking",
+        entityId: body.id,
+        action: "draft_updated",
+        before: {
+          kind: existing.kind,
+          title: existing.title,
+          requesterUserId: existing.requesterUserId,
+          locationId: existing.locationId,
+          startsAt: existing.startsAt,
+          endsAt: existing.endsAt,
+          eventId: existing.eventId,
+          eventIds: existing.events.map((event) => event.eventId),
+          sportCode: existing.sportCode,
+          notes: existing.notes,
+          serializedAssetIds: existing.serializedItems.map((item) => item.assetId),
+          bulkItems: existing.bulkItems.map((item) => ({
+            bulkSkuId: item.bulkSkuId,
+            quantity: item.plannedQuantity,
           })),
-        });
-      }
-      if (body.bulkItems.length > 0) {
-        await tx.bookingBulkItem.createMany({
-          data: body.bulkItems.map((bi) => ({
-            bookingId: booking.id,
-            bulkSkuId: bi.bulkSkuId,
-            plannedQuantity: bi.quantity,
-          })),
-        });
-      }
-      if (sortedEventIds.length > 0) {
-        await tx.bookingEvent.createMany({
-          data: sortedEventIds.map((eventId, ordinal) => ({
-            bookingId: booking.id,
-            eventId,
-            ordinal,
-          })),
-        });
-      }
-      return booking;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-    draftId = draft.id;
-  }
+        },
+        after: {
+          kind: body.kind,
+          title: bookingData.title,
+          requesterUserId: bookingData.requesterUserId,
+          locationId: bookingData.locationId,
+          startsAt,
+          endsAt,
+          eventIds: sortedEventIds,
+          sportCode: bookingData.sportCode,
+          notes: bookingData.notes,
+          serializedAssetIds: body.serializedAssetIds,
+          bulkItems: body.bulkItems,
+        },
+      });
+      return body.id;
+    }
+
+    const { primaryEventId, sortedEventIds } = await resolveDraftEventLinks(tx, body);
+    const booking = await tx.booking.create({ data: { ...bookingData, eventId: primaryEventId } });
+    if (body.serializedAssetIds.length > 0) {
+      await tx.bookingSerializedItem.createMany({
+        data: body.serializedAssetIds.map((assetId) => ({
+          bookingId: booking.id,
+          assetId,
+          allocationStatus: "draft",
+        })),
+      });
+    }
+    if (body.bulkItems.length > 0) {
+      await tx.bookingBulkItem.createMany({
+        data: body.bulkItems.map((bi) => ({
+          bookingId: booking.id,
+          bulkSkuId: bi.bulkSkuId,
+          plannedQuantity: bi.quantity,
+        })),
+      });
+    }
+    if (sortedEventIds.length > 0) {
+      await tx.bookingEvent.createMany({
+        data: sortedEventIds.map((eventId, ordinal) => ({
+          bookingId: booking.id,
+          eventId,
+          ordinal,
+        })),
+      });
+    }
+    await createAuditEntryTx(tx, {
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "booking",
+      entityId: booking.id,
+      action: "draft_created",
+      after: {
+        kind: body.kind,
+        title: bookingData.title,
+        requesterUserId: bookingData.requesterUserId,
+        locationId: bookingData.locationId,
+        startsAt,
+        endsAt,
+        eventIds: sortedEventIds,
+        sportCode: bookingData.sportCode,
+        notes: bookingData.notes,
+        serializedAssetIds: body.serializedAssetIds,
+        bulkItems: body.bulkItems,
+      },
+    });
+    return booking.id;
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   return ok({ data: { id: draftId } }, body.id ? 200 : 201);
 });

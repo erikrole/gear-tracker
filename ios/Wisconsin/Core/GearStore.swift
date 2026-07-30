@@ -1,5 +1,8 @@
 import Foundation
+import OSLog
 import SwiftData
+
+private let gearStoreLog = Logger(subsystem: "com.erikrole.Wisconsin", category: "GearStore")
 
 // MARK: - Cached Models
 
@@ -171,7 +174,23 @@ final class GearStore {
 
     private init() {
         let config = ModelConfiguration("GearCache", schema: Self.schema)
-        container = try! ModelContainer(for: Self.schema, configurations: config)
+        let selectedContainer: ModelContainer
+        do {
+            selectedContainer = try ModelContainer(for: Self.schema, configurations: config)
+        } catch {
+            gearStoreLog.fault("Persistent SwiftData cache unavailable; using an in-memory cache for this launch")
+            let fallback = ModelConfiguration(
+                "GearCacheFallback",
+                schema: Self.schema,
+                isStoredInMemoryOnly: true
+            )
+            do {
+                selectedContainer = try ModelContainer(for: Self.schema, configurations: fallback)
+            } catch {
+                preconditionFailure("Unable to create the GearStore model container: \(error.localizedDescription)")
+            }
+        }
+        container = selectedContainer
         context = ModelContext(container)
     }
 

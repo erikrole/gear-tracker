@@ -67,6 +67,7 @@ struct BookingEntityQuery: EntityStringQuery {
 struct OpenBookingIntent: AppIntent {
     static let title: LocalizedStringResource = "Open Booking"
     static let description = IntentDescription("Open a reservation or checkout in the app.")
+    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresLocalDeviceAuthentication
     static let openAppWhenRun = true
 
     @Parameter(title: "Booking")

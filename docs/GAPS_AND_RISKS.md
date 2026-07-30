@@ -3,7 +3,7 @@
 ## Document Control
 
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-18
+- Last Updated: 2026-07-29
 - Status: Active registry
 - Purpose: Track only open gaps, pending decisions, active risks, and intentionally deferred scope.
 - Historical record: [GAPS_AND_RISKS_HISTORY.md](archive/GAPS_AND_RISKS_HISTORY.md)
@@ -49,9 +49,40 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 | Decision or migration provenance drift | A decision references a migration or constraint that is not present in the local migration chain | Reconcile the decision, schema, live migration health, and runbook before schema work; never recreate history by hand | Engineering |
 | Collaborator rollout skew | A collaborator-aware client or invitation reaches production before server/client smoke proves dynamic policy enforcement | Deploy the People-capability server and clients before migration `0103`, then run `npm run smoke:collaborator` with temporary BTN and Learfield accounts and complete native and kiosk proof before inviting additional collaborators | Engineering |
 | Schedule working-copy rollout skew | Web working-copy editing reaches production while migration `0099`, native staff mutations, or authenticated publish smoke remain incomplete | Apply schema/server first, keep payloads off worker reads, migrate native staff quick actions next, and require authenticated draft/publish/notification proof before enabling the workflow for operators | Engineering |
+| Kiosk landscape enforcement deprecation | Xcode 26 warns that `UIRequiresFullScreen` will be ignored in a future iOS release, allowing an unverified resized or portrait scene | Preserve the current landscape-only mounted-iPad contract for now, keep the adaptive split healthy, and complete a managed-device windowing migration before Apple removes enforcement | Mobile |
 
 ## Change Log
 
+- 2026-07-29: Reconciled native TipKit feature discovery without adding a
+  product gap. One-display prompts attach only to existing reservation and
+  internal Schedule controls, become eligible only after the relevant action
+  or repeated Schedule use, do not change permissions or mutations, and leave
+  the established global Scan permission education intact.
+- 2026-07-28: Completed the final native hardening closeout without adding a
+  product gap. Indeterminate reservation retries retain one immutable payload
+  and source draft, preserve later edits as a fresh draft after replay, and
+  distinguish definite HTTP 4xx rejection from retryable 5xx or transport
+  uncertainty. The standalone kiosk build also caught and closed a
+  target-specific shared-error compile defect. A narrow APNs remote-start
+  concurrency window remains documented in
+  `tasks/audit-ios-system-hardening.md`; final eligibility prevents database
+  resurrection, while activities whose token never registers cannot be
+  remotely addressed.
+- 2026-07-28: Closed the iOS system-hardening findings without adding a new
+  product gap. Session and kiosk credential generations reject obsolete 401s,
+  APNs registration is rate-limited and cardinality-bounded, inactive-account
+  reset and delivery paths fail closed, reservation notifications persist
+  before response, and transient Live Activity ends remain queued for bounded
+  retry. Physical-device APNs, scanner, privacy-snapshot, accessibility, and
+  performance proof remain verification work rather than shipped-runtime
+  claims.
+- 2026-07-28: Closed the reservation Drafts audit follow-up without adding an
+  open gap. Native failure paths preserve recoverable work, Draft API reads and
+  writes enforce role/capability scope, mutations are audited transactionally,
+  and reservation creation consumes its owned source draft atomically.
+- 2026-07-28: Added the kiosk landscape-enforcement risk after the iOS 26
+  simulator build confirmed `UIRequiresFullScreen` is deprecated and will be
+  ignored in a future release. Current mounted-iPad behavior remains unchanged.
 - 2026-07-23: Added GAP-61 after consolidating Pending Pickup into the due
   reservation model. Product behavior is unified now; destructive removal of
   the legacy enum and kiosk branches waits for verified zero production rows.

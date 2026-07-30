@@ -1,6 +1,6 @@
 # iOS Reservation Drafts (Minimize-to-Card)
 
-Status: shipped 2026-07-28 (see `docs/AREA_MOBILE.md` change log)
+Status: complete 2026-07-28 (base workflow and hardening follow-up shipped)
 Surface: Native iOS (`ios/Wisconsin`)
 Related: `docs/AREA_MOBILE.md`, `docs/AREA_RESERVATIONS.md`, `src/app/api/drafts`
 
@@ -72,3 +72,62 @@ Apple Mail's compose model, scoped to reservations:
 - Simulator screenshots: composing → minimized card → browse → reopen → exit dialog.
 - `xcodegen generate` after the new Swift files, then git-diff-verify the project file
   and entitlements.
+
+## Hardening Follow-up — 2026-07-28
+
+### Goal
+
+Keep every draft transition honest under network failure, enforce the same
+reservation/checkout permission boundary as final creation, and remove a source
+draft atomically when its reservation is created.
+
+### Stop Conditions
+
+- Stop if draft authorization cannot preserve both reservation and checkout draft
+  callers through the current permission matrix.
+- Stop if source-draft cleanup cannot remain inside the existing serializable booking
+  creation transaction.
+- Stop if testability would require replacing the app-wide API client rather than a
+  narrow draft persistence boundary.
+
+### Slices
+
+- [x] Make save, save-and-start, discard, and cleanup transitions conditional on
+  successful persistence while keeping recoverable work visible.
+- [x] Gate draft reads and mutations by booking kind and collaborator capability,
+  force student/collaborator reservation drafts to self, and write transactional
+  create/update/delete audit entries.
+- [x] Accept an owned source draft during reservation creation and delete it inside
+  the booking creation transaction.
+- [x] Replace source-only failure assertions with executable Swift store tests and
+  route tests for permission, requester, audit, and atomic cleanup behavior.
+- [x] Sync area docs, risks, and this ledger to verified shipped reality.
+
+### Verification
+
+- [x] Focused Drafts route and iOS contract tests.
+- [x] Native Swift unit tests for failed save/discard transition behavior.
+- [x] `npx tsc --noEmit --pretty false`.
+- [x] `npm run lint`.
+- [x] `npm run codemap` and `npm run verify:docs`.
+- [x] `npm run db:migrate:check`.
+- [x] `npm run drift:ios` and `npm run audit:ios:gaps`.
+- [x] `npm run ios:project:check`.
+- [x] `npm run build:app`.
+- [x] Xcode build for `Wisconsin` and affected test target.
+- [x] `git diff --check`.
+
+### Review
+
+- Shipped: recoverable iOS transition failures, permission- and capability-gated
+  draft persistence, transactional draft audit history, and atomic source-draft
+  consumption during reservation creation.
+- Verified: 2,693 Vitest tests, 4 native draft-store XCTest cases, TypeScript,
+  ESLint, docs, migration state, iOS project/drift/audit checks, Next.js production
+  build, and Wisconsin simulator build.
+- Deferred: authenticated visual failure injection; executable store tests cover
+  the network-failure state transitions without requiring a manipulated live API.
+- Blocked: none.
+- Proof artifacts: XcodeBuildMCP simulator test and build logs; repository command
+  output recorded in the completing task.
+- Next slice or stop: stop. The audited Drafts gaps are closed.

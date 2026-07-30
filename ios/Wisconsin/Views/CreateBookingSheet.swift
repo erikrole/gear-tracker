@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 
 private enum ReservationSetupMode: String, CaseIterable, Identifiable {
     case event = "Event Linked"
@@ -8,12 +9,15 @@ private enum ReservationSetupMode: String, CaseIterable, Identifiable {
 }
 
 struct CreateBookingSheet: View {
+    private let minimizeReservationTip = MinimizeReservationTip()
+    private let scanReservationGearTip = ScanReservationGearTip()
     /// The composer lives in `ReservationDraftStore`, not here: minimizing
     /// tears this view down and it has to come back with everything intact.
     @Bindable var vm: CreateBookingViewModel
 
     @Environment(ReservationDraftStore.self) private var drafts
     @State private var submitError: String?
+    @State private var committedOriginalNotice: String?
     @State private var showExitOptions = false
     @State private var showScanner = false
     @State private var showNotesField = false
@@ -46,7 +50,7 @@ struct CreateBookingSheet: View {
     /// request to destroy it.
     private func attemptCancel() {
         if vm.isSubmitting { return }
-        if vm.hasUnsavedInput && vm.isWorthSavingAsDraft {
+        if vm.hasUnsavedInput {
             showExitOptions = true
         } else if vm.serverDraftId != nil {
             Task { await drafts.closeKeepingDraft() }
@@ -134,6 +138,17 @@ struct CreateBookingSheet: View {
             } message: {
                 Text(submitError ?? "")
             }
+            .alert(
+                "Original reservation created",
+                isPresented: Binding(
+                    get: { committedOriginalNotice != nil },
+                    set: { if !$0 { committedOriginalNotice = nil } }
+                )
+            ) {
+                Button("Keep Editing", role: .cancel) {}
+            } message: {
+                Text(committedOriginalNotice ?? "")
+            }
             .confirmationDialog(
                 "Save this reservation as a draft?",
                 isPresented: $showExitOptions,
@@ -142,9 +157,11 @@ struct CreateBookingSheet: View {
                 Button("Save Draft") {
                     Task { await drafts.saveAndClose() }
                 }
+                .disabled(drafts.isBusy)
                 Button("Discard", role: .destructive) {
                     Task { await drafts.discard() }
                 }
+                .disabled(drafts.isBusy)
                 Button("Keep Editing", role: .cancel) {}
             } message: {
                 Text("A saved draft stays in your bookings until you finish or delete it.")
@@ -158,6 +175,10 @@ struct CreateBookingSheet: View {
                 _ = await (optionsTask, eventsTask)
                 applySelfAndLocationDefaults()
                 vm.captureBaselineIfNeeded()
+            }
+            .task(id: step) {
+                guard step == 2 else { return }
+                await ScanReservationGearTip.openedGearStep.donate()
             }
             .fullScreenCover(isPresented: $showScanner) {
                 // Continuous scanning: the scanner stays open after each hit
@@ -210,9 +231,11 @@ struct CreateBookingSheet: View {
                 // Review lives on the cart bar in step 2; the toolbar slot
                 // hosts scan so it's always reachable above the keyboard.
                 Button {
+                    scanReservationGearTip.invalidate(reason: .actionPerformed)
                     showScanner = true
                 } label: {
                     Image(systemName: "barcode.viewfinder")
+                        .popoverTip(scanReservationGearTip, arrowEdge: .top)
                 }
                 .tint(Color.statusText(.purple))
                 .accessibilityLabel("Scan equipment")
@@ -221,9 +244,11 @@ struct CreateBookingSheet: View {
             // Swipe-down does the same thing, but a visible control is what
             // makes "go look something up and come back" discoverable.
             Button {
+                minimizeReservationTip.invalidate(reason: .actionPerformed)
                 drafts.minimize()
             } label: {
                 Image(systemName: "chevron.down")
+                    .popoverTip(minimizeReservationTip, arrowEdge: .top)
             }
             .tint(Color.statusText(.purple))
             .accessibilityLabel("Minimize reservation")
@@ -618,9 +643,14 @@ struct CreateBookingSheet: View {
 
     private func create() async {
         do {
-            let id = try await vm.submit()
-            Haptics.success()
-            drafts.finish(bookingId: id)
+            switch try await vm.submit() {
+            case .created(let bookingId):
+                Haptics.success()
+                drafts.finish(bookingId: bookingId)
+            case .committedOriginal(_, let preservation):
+                committedOriginalNotice = preservation.userMessage
+                Haptics.warning()
+            }
         } catch APIError.conflict(_) {
             setStep(2)
             vm.scheduleConflictCheck()

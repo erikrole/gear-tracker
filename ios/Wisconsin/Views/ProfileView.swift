@@ -1,10 +1,12 @@
 import SwiftUI
+import TipKit
 import UIKit
 import UserNotifications
 
 // MARK: - Profile
 
 struct ProfileView: View {
+    private let myAvailabilityTip = MyAvailabilityTip()
     @Environment(SessionStore.self) private var session
     @Environment(ProfileCompletionStore.self) private var profileCompletion
     @Environment(AppState.self) private var appState
@@ -284,6 +286,7 @@ struct ProfileView: View {
                     ) {
                         EmptyView()
                     }
+                    .popoverTip(myAvailabilityTip, arrowEdge: .bottom)
                 }
             }
         } header: {
@@ -315,6 +318,9 @@ struct ProfileView: View {
             }
         case .availability:
             AvailabilityView(userId: session.currentUser?.id ?? "")
+                .onAppear {
+                    myAvailabilityTip.invalidate(reason: .actionPerformed)
+                }
         case .notifications:
             NotificationSettingsView(
                 prefsVM: prefsVM,

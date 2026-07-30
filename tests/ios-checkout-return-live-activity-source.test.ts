@@ -80,7 +80,7 @@ describe("iOS checkout return Live Activity source contract", () => {
     const bookings = source("ios/Wisconsin/Views/BookingsView.swift");
 
     expect(manager).toContain("limit: 5");
-    expect(manager).toContain("$0.status == .open");
+    expect(manager).toContain(".checkouts(activeOnly: false, status: .open");
     expect(manager).toContain("candidates.sorted(by: candidateSort).first");
     expect(manager).toContain("activity.attributes.bookingId != candidate.booking.id");
     expect(manager).toContain("dismissalPolicy: .immediate");
@@ -115,11 +115,14 @@ describe("iOS checkout return Live Activity source contract", () => {
     expect(startMigration).toContain("CREATE TABLE \"live_activity_starts\"");
     expect(route).toContain("booking.requesterUserId !== user.id");
     expect(route).toContain("booking.status !== BookingStatus.OPEN");
-    expect(startTokenRoute).toContain("registerCheckoutReturnLiveActivityStartToken");
+    expect(route).toContain("tx.user.findUnique");
+    expect(route).toContain("tx.liveActivityToken.upsert");
+    expect(startTokenRoute).toContain("tx.user.findUnique");
+    expect(startTokenRoute).toContain("tx.liveActivityStartToken.upsert");
     expect(startTokenRoute).toContain("revokeCheckoutReturnLiveActivityStartTokens");
     expect(startTokenRoute).toContain("export const DELETE = withAuth");
-    expect(service).toContain("registerCheckoutReturnLiveActivity");
-    expect(service).toContain("registerCheckoutReturnLiveActivityStartToken");
+    expect(service).not.toContain("export async function registerCheckoutReturnLiveActivity(");
+    expect(service).not.toContain("export async function registerCheckoutReturnLiveActivityStartToken(");
     expect(service).toContain("endCheckoutReturnLiveActivities");
     expect(service).toContain("updateCheckoutReturnLiveActivities");
     expect(apns).toContain('"apns-push-type": opts.pushType');
@@ -167,7 +170,12 @@ describe("iOS checkout return Live Activity source contract", () => {
     expect(apns).toContain('"attributes-type": "CheckoutReturnActivityAttributes"');
     expect(apns).toContain('"input-push-token": 1');
     expect(cron).toContain("withCron");
-    expect(cron).toContain("startDueCheckoutReturnLiveActivities");
+    expect(cron).toContain("startDueCheckoutReturnLiveActivities({ limit: 5 })");
+    expect(cron).toContain("sweepOverdueCheckoutReturnLiveActivities({ limit: 5 })");
+    expect(cron).toContain("retryPendingCheckoutReturnLiveActivityEnds({ limit: 50 })");
+    expect(service.match(/Promise\.allSettled\(/g)).toHaveLength(2);
+    expect(apns).toContain("APNS_STREAM_BATCH_SIZE = 250");
+    expect(apns).toContain("APNS_PARALLEL_BATCHES = 4");
     expect(vercel).not.toContain("/api/cron/live-activities");
     expect(vercel).not.toContain("*/5 * * * *");
     expect(vercel).not.toContain("*/15 * * * *");

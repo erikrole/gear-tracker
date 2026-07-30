@@ -70,18 +70,21 @@ final class SessionStore {
             forName: .sessionDidExpire,
             object: nil,
             queue: .main
-        ) { [weak self] _ in
+        ) { [weak self] notification in
+            let requestBoundary = notification.object as? UUID
             Task { @MainActor in
-                guard let self else { return }
-                if self.currentUser != nil {
-                    self.authRequests.invalidate()
-                    self.isRestoring = false
-                    self.isInitialSessionValidationInFlight = false
-                    self.didSeedFromSnapshot = false
-                    self.currentUser = nil
-                    SessionSnapshot.clear()
-                    self.error = "Your session expired — please sign in again."
-                }
+                guard let self,
+                      let requestBoundary,
+                      authSessionBoundary.owns(requestBoundary),
+                      self.currentUser != nil else { return }
+                authSessionBoundary.advance()
+                self.authRequests.invalidate()
+                self.isRestoring = false
+                self.isInitialSessionValidationInFlight = false
+                self.didSeedFromSnapshot = false
+                self.currentUser = nil
+                SessionSnapshot.clear()
+                self.error = "Your session expired — please sign in again."
             }
         }
         NotificationCenter.default.addObserver(
@@ -144,15 +147,20 @@ final class SessionStore {
         // Clear UI state before suspending, and invalidate any in-flight `/me`
         // request so it cannot repopulate the signed-out shell afterward.
         authRequests.invalidate()
+        authSessionBoundary.advance()
         SessionSnapshot.clear()
         didSeedFromSnapshot = false
         isInitialSessionValidationInFlight = false
         currentUser = nil
         isLoading = false
         isRestoring = false
-        let mutation = authMutations.enqueue {
+        PushTokenStorage.registrationAllowed = false
+        let pushCleanup = pushCredentialMutations.enqueue {
             try? await APIClient.shared.revokeAllDeviceTokens()
             try? await APIClient.shared.revokeCheckoutReturnLiveActivityStartTokens()
+        }
+        let mutation = authMutations.enqueue {
+            await pushCleanup.value
             try? await APIClient.shared.logout()
         }
         await mutation.value
@@ -160,12 +168,14 @@ final class SessionStore {
 
     func clearDeletedAccountLocally() async {
         authRequests.invalidate()
+        authSessionBoundary.advance()
         SessionSnapshot.clear()
         didSeedFromSnapshot = false
         isInitialSessionValidationInFlight = false
         currentUser = nil
         isLoading = false
         isRestoring = false
+        PushTokenStorage.registrationAllowed = false
         let mutation = authMutations.enqueue {
             try? await APIClient.shared.logout()
         }
@@ -188,6 +198,7 @@ final class SessionStore {
             error = nil
         } catch APIError.unauthorized {
             guard authRequests.owns(requestToken) else { return }
+            authSessionBoundary.advance()
             authRequests.invalidate()
             SessionSnapshot.clear()
             currentUser = nil
@@ -225,6 +236,7 @@ final class SessionStore {
             }
             // Confirmed revoked/expired session — drop the optimistic shell and
             // send the user to Login.
+            authSessionBoundary.advance()
             authRequests.invalidate()
             isRestoring = false
             SessionSnapshot.clear()
@@ -243,6 +255,9 @@ final class SessionStore {
     }
 
     private func publishCurrentUserIfChanged(_ user: CurrentUser) {
+        if currentUser?.id != user.id {
+            authSessionBoundary.advance()
+        }
         if currentUser != user {
             currentUser = user
         }

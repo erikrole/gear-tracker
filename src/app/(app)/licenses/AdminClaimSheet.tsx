@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { formatRelativeTime } from "@/lib/format";
@@ -52,6 +53,12 @@ type LicenseHistoryResponse = {
   data?: ClaimRecord[];
 };
 
+type AssignableUser = {
+  id: string;
+  name: string;
+  role: "ADMIN" | "STAFF" | "STUDENT";
+};
+
 async function throwLicenseError(res: Response, fallback: string) {
   if (handleAuthRedirect(res)) return true;
   if (!res.ok) throw new Error(await parseErrorMessage(res, fallback));
@@ -66,6 +73,10 @@ export function AdminClaimSheet({ license, isAdmin, hasMyLicense, onOpenChange, 
   const [claiming, setClaiming] = useState(false);
   const [occupantLabel, setOccupantLabel] = useState("");
   const [addingOccupant, setAddingOccupant] = useState(false);
+  const [users, setUsers] = useState<AssignableUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [assigningUser, setAssigningUser] = useState(false);
   const [editExpiry, setEditExpiry] = useState("");
   const [editAccount, setEditAccount] = useState("");
   const [editLabel, setEditLabel] = useState("");
@@ -110,6 +121,16 @@ export function AdminClaimSheet({ license, isAdmin, hasMyLicense, onOpenChange, 
     setEditAccount(license.accountEmail ?? "");
     setEditLabel(license.label ?? "");
     setHistory([]);
+    setSelectedUserId("");
+    setUsersLoading(true);
+    void fetch("/api/users?limit=200&active=true&sort=name")
+      .then(async (res) => {
+        if (await throwLicenseError(res, "Failed to load users")) return null;
+        return parseJsonSafely<{ data?: AssignableUser[] }>(res);
+      })
+      .then((json) => setUsers(json?.data ?? []))
+      .catch(() => setUsers([]))
+      .finally(() => setUsersLoading(false));
     const controller = new AbortController();
     void loadHistory(controller.signal);
     return () => controller.abort();
@@ -186,6 +207,29 @@ export function AdminClaimSheet({ license, isAdmin, hasMyLicense, onOpenChange, 
       toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setAddingOccupant(false);
+    }
+  }
+
+  async function handleAssignUser(e: React.FormEvent) {
+    e.preventDefault();
+    if (!license || !selectedUserId || assigningUser) return;
+    const assignee = users.find((candidate) => candidate.id === selectedUserId);
+    setAssigningUser(true);
+    try {
+      const res = await fetch(`/api/licenses/${license.id}/occupy`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: selectedUserId }),
+      });
+      if (await throwLicenseError(res, "Failed to assign license")) return;
+      toast.success(`License assigned to ${assignee?.name ?? "user"}`);
+      setSelectedUserId("");
+      onAction();
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setAssigningUser(false);
     }
   }
 
@@ -386,6 +430,29 @@ export function AdminClaimSheet({ license, isAdmin, hasMyLicense, onOpenChange, 
             <>
               <Separator />
               <section className="flex flex-col gap-4">
+                <h3 className="text-sm font-medium">Assign open slot</h3>
+                <form onSubmit={handleAssignUser} className="flex flex-col gap-2">
+                  <Label htmlFor="license-assignee" className="text-xs">User</Label>
+                  <div className="flex gap-2">
+                    <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                      <SelectTrigger id="license-assignee" className="flex-1">
+                        <SelectValue placeholder={usersLoading ? "Loading users…" : "Select a user"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.map((candidate) => (
+                          <SelectItem key={candidate.id} value={candidate.id}>
+                            {candidate.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button type="submit" size="sm" disabled={assigningUser || !selectedUserId}>
+                      {assigningUser ? "Assigning…" : "Assign"}
+                    </Button>
+                  </div>
+                </form>
+
+                <Separator />
                 <h3 className="text-sm font-medium">Mark slot occupied</h3>
                 <form onSubmit={handleAddOccupant} className="flex flex-col gap-2">
                   <Label htmlFor="occupant-name" className="text-xs">Occupant name</Label>

@@ -6,6 +6,8 @@ type EmailParams = {
   html: string;
 };
 
+export const EMAIL_SEND_TIMEOUT_MS = 4_000;
+
 export const EMAIL_THEME = {
   background: "#FFFFFF",
   text: "#1A1A2E",
@@ -30,20 +32,34 @@ export async function sendEmail({ to, subject, html }: EmailParams): Promise<boo
   try {
     const { Resend } = await import("resend");
     const resend = new Resend(env.resendApiKey);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), EMAIL_SEND_TIMEOUT_MS);
 
-    const { error } = await resend.emails.send({
-      from: env.emailFrom,
-      to,
-      subject,
-      html,
-    });
+    try {
+      // Resend forwards its request options into fetch. Its runtime supports
+      // AbortSignal even though the current public request-options type omits it.
+      const requestOptions: NonNullable<Parameters<typeof resend.emails.send>[1]> & {
+        signal: AbortSignal;
+      } = { signal: controller.signal };
+      const { error } = await resend.emails.send(
+        {
+          from: env.emailFrom,
+          to,
+          subject,
+          html,
+        },
+        requestOptions,
+      );
 
-    if (error) {
-      console.error("[EMAIL] Resend error:", error);
-      return false;
+      if (error) {
+        console.error("[EMAIL] Resend error:", error);
+        return false;
+      }
+
+      return true;
+    } finally {
+      clearTimeout(timeout);
     }
-
-    return true;
   } catch (err) {
     console.error("[EMAIL] Failed to send:", err);
     return false;

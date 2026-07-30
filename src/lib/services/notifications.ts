@@ -2,7 +2,7 @@ import { after } from "next/server";
 import { db } from "@/lib/db";
 import { sendEmail, buildNotificationEmail } from "@/lib/email";
 import { sendPush } from "@/lib/push/apns";
-import { loadUserPrefs, shouldDeliverEmail, shouldDeliverPush, shouldDeliverCategory, type NotificationCategory } from "@/lib/services/notification-prefs";
+import { loadUserPrefs, normalizePrefs, shouldDeliverEmail, shouldDeliverPush, shouldDeliverCategory, type NotificationCategory } from "@/lib/services/notification-prefs";
 import { loadCheckoutPolicies } from "@/lib/services/checkout-policies";
 import { shiftWorkerLabel } from "@/lib/shift-display";
 import {
@@ -42,7 +42,11 @@ export async function sendPushToUser(
     if (opts.category && !shouldDeliverCategory(prefs, opts.category)) return;
 
     const tokens = await db.deviceToken.findMany({
-      where: { userId, revokedAt: null },
+      where: {
+        userId,
+        revokedAt: null,
+        user: { active: true },
+      },
       select: { token: true },
     });
     if (tokens.length === 0) return;
@@ -73,7 +77,12 @@ async function sendEmailToUser(
   category?: NotificationCategory
 ): Promise<boolean> {
   if (userId) {
-    const prefs = await loadUserPrefs(userId);
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: { active: true, notificationPrefs: true },
+    });
+    if (!user?.active) return false;
+    const prefs = normalizePrefs(user.notificationPrefs);
     if (!shouldDeliverEmail(prefs)) return false;
     if (category && !shouldDeliverCategory(prefs, category)) return false;
   }
@@ -315,7 +324,7 @@ export async function createShiftGearUpNotification(
   const assignment = await db.shiftAssignment.findUnique({
     where: { id: assignmentId },
     include: {
-      user: { select: { id: true, email: true } },
+      user: { select: { id: true, email: true, active: true } },
       shift: {
         include: {
           shiftGroup: {
@@ -338,7 +347,7 @@ export async function createShiftGearUpNotification(
     },
   });
 
-  if (!assignment) return;
+  if (!assignment?.user.active) return;
 
   const event = assignment.shift.shiftGroup.event;
   const source = opts.source ?? "manual_nudge";
@@ -486,7 +495,7 @@ export async function createShiftScheduleNotification(
   const assignment = await db.shiftAssignment.findUnique({
     where: { id: assignmentId },
     include: {
-      user: { select: { id: true, email: true } },
+      user: { select: { id: true, email: true, active: true } },
       shift: {
         include: {
           shiftGroup: {
@@ -509,7 +518,7 @@ export async function createShiftScheduleNotification(
     },
   });
 
-  if (!assignment) return;
+  if (!assignment?.user.active) return;
   if (!shouldNotifyWorkerForScheduleEvent({
     event,
     publishedAt: assignment.shift.shiftGroup.publishedAt,
@@ -609,7 +618,10 @@ export async function createPublishedShiftGroupNotifications(shiftGroupId: strin
       shifts: {
         select: {
           assignments: {
-            where: { status: { in: ["DIRECT_ASSIGNED", "APPROVED"] } },
+            where: {
+              status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
+              user: { active: true },
+            },
             select: {
               userId: true,
               user: { select: { email: true } },

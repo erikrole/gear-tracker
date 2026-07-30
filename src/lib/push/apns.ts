@@ -57,18 +57,43 @@ function invalidateJwt(): void {
   cachedJwt = null;
 }
 
-/** Per-request timeout — a stalled APNs stream must not hold the function open. */
-const APNS_REQUEST_TIMEOUT_MS = 10_000;
+/**
+ * Keep the complete provider exchange inside the Vercel Hobby 10-second
+ * function budget. One token can take three serial attempts: primary,
+ * provider-token recovery, then the alternate APNs environment.
+ */
+export const APNS_DISPATCH_TIMEOUT_MS = 7_500;
+export const APNS_REQUEST_TIMEOUT_MS = 2_000;
+const APNS_STREAM_BATCH_SIZE = 250;
+const APNS_PARALLEL_BATCHES = 4;
+
+type DispatchBudget = {
+  deadlineAt: number;
+  expired: boolean;
+  sessions: Set<http2.ClientHttp2Session>;
+};
+
+function hasDispatchBudget(budget: DispatchBudget): boolean {
+  return !budget.expired && Date.now() < budget.deadlineAt;
+}
+
+function remainingDispatchMs(budget: DispatchBudget): number {
+  return Math.max(0, budget.deadlineAt - Date.now());
+}
 
 /**
  * Connect to APNs with a session error handler attached. Without one, a
  * transient DNS/connection failure emits an unhandled "error" event, which
  * is fatal in Node — it would kill the serverless function mid-request.
  */
-function connectApns(host: string): http2.ClientHttp2Session {
+function connectApns(host: string, budget: DispatchBudget): http2.ClientHttp2Session {
   const client = http2.connect(host);
+  budget.sessions.add(client);
   client.on("error", (err) => {
     console.error("[APNS] session error:", err.message);
+  });
+  client.once("close", () => {
+    budget.sessions.delete(client);
   });
   return client;
 }
@@ -91,9 +116,21 @@ function sendOne(
   jwt: string,
   token: string,
   notification: object,
-  opts: SendOpts
+  opts: SendOpts,
+  budget: DispatchBudget,
 ): Promise<TokenOutcome> {
+  if (!hasDispatchBudget(budget)) {
+    return Promise.resolve("error");
+  }
+
   return new Promise((resolve) => {
+    let settled = false;
+    const settle = (outcome: TokenOutcome) => {
+      if (settled) return;
+      settled = true;
+      resolve(outcome);
+    };
+
     let req: http2.ClientHttp2Stream;
     try {
       req = client.request({
@@ -108,13 +145,17 @@ function sendOne(
       // Session already destroyed (e.g. connection error) — requests on a
       // dead session throw synchronously.
       console.error("[APNS] request open failed:", err instanceof Error ? err.message : err);
-      return resolve("error");
+      return settle("error");
     }
 
-    req.setTimeout(APNS_REQUEST_TIMEOUT_MS, () => {
+    const requestTimeoutMs = Math.max(
+      1,
+      Math.min(APNS_REQUEST_TIMEOUT_MS, remainingDispatchMs(budget)),
+    );
+    req.setTimeout(requestTimeoutMs, () => {
       console.error(`[APNS] ${token.slice(-8)}: request timed out`);
       req.close(http2.constants.NGHTTP2_CANCEL);
-      resolve("error");
+      settle("error");
     });
 
     let status = 0;
@@ -127,50 +168,93 @@ function sendOne(
       body += chunk.toString();
     });
     req.on("end", () => {
-      if (status === 200) return resolve("ok");
+      if (status === 200) return settle("ok");
       try {
         const { reason } = JSON.parse(body) as { reason?: string };
         if (reason === "BadDeviceToken" || reason === "Unregistered") {
-          resolve("badToken");
+          settle("badToken");
         } else if (reason === "ExpiredProviderToken" || reason === "InvalidProviderToken") {
           console.error(`[APNS] provider token rejected (${reason})`);
-          resolve("authError");
+          settle("authError");
         } else {
           console.error(`[APNS] ${token.slice(-8)}: ${status} ${reason}`);
-          resolve("error");
+          settle("error");
         }
       } catch {
         console.error(`[APNS] ${token.slice(-8)}: ${status} (unparseable body)`);
-        resolve("error");
+        settle("error");
       }
     });
     req.on("error", (err) => {
       console.error("[APNS] request error:", err.message);
-      resolve("error");
+      settle("error");
+    });
+    req.on("close", () => {
+      settle("error");
     });
 
     req.end(JSON.stringify(notification));
   });
 }
 
-/** Sends one notification to a batch of tokens over a single session to `host`. */
+/** Sends one bounded token batch over a single HTTP/2 session. */
+async function sendSessionBatch(
+  host: string,
+  jwt: string,
+  tokens: string[],
+  notification: object,
+  opts: SendOpts,
+  budget: DispatchBudget,
+): Promise<Map<string, TokenOutcome>> {
+  const outcomes = new Map<string, TokenOutcome>();
+  if (!hasDispatchBudget(budget)) {
+    for (const token of tokens) outcomes.set(token, "error");
+    return outcomes;
+  }
+
+  const client = connectApns(host, budget);
+  try {
+    await Promise.all(
+      tokens.map(async (token) => {
+        outcomes.set(token, await sendOne(client, jwt, token, notification, opts, budget));
+      })
+    );
+  } finally {
+    client.destroy();
+    budget.sessions.delete(client);
+  }
+  return outcomes;
+}
+
+/**
+ * Bounds open HTTP/2 streams and sessions. Current selectors cap one dispatch
+ * at 1,000 tokens, which fits one four-session wave; the loop is defensive for
+ * callers that may be added later.
+ */
 async function sendBatch(
   host: string,
   jwt: string,
   tokens: string[],
   notification: object,
-  opts: SendOpts
+  opts: SendOpts,
+  budget: DispatchBudget,
 ): Promise<Map<string, TokenOutcome>> {
-  const client = connectApns(host);
+  const chunks: string[][] = [];
+  for (let index = 0; index < tokens.length; index += APNS_STREAM_BATCH_SIZE) {
+    chunks.push(tokens.slice(index, index + APNS_STREAM_BATCH_SIZE));
+  }
+
   const outcomes = new Map<string, TokenOutcome>();
-  try {
-    await Promise.all(
-      tokens.map(async (token) => {
-        outcomes.set(token, await sendOne(client, jwt, token, notification, opts));
-      })
+  for (let index = 0; index < chunks.length; index += APNS_PARALLEL_BATCHES) {
+    if (!hasDispatchBudget(budget)) break;
+    const wave = await Promise.all(
+      chunks
+        .slice(index, index + APNS_PARALLEL_BATCHES)
+        .map((chunk) => sendSessionBatch(host, jwt, chunk, notification, opts, budget)),
     );
-  } finally {
-    client.destroy();
+    for (const batch of wave) {
+      for (const [token, outcome] of batch) outcomes.set(token, outcome);
+    }
   }
   return outcomes;
 }
@@ -187,7 +271,9 @@ function isConfigured(): boolean {
 export interface DispatchResult {
   /** Tokens rejected by BOTH APNs environments — safe to mark revoked. */
   revoked: string[];
-  /** Count of tokens APNs accepted (either environment). */
+  /** Tokens APNs accepted (either environment). */
+  accepted: string[];
+  /** Count of accepted tokens, retained for existing metrics callers. */
   ok: number;
 }
 
@@ -206,42 +292,83 @@ async function dispatch(
   notification: object,
   opts: SendOpts
 ): Promise<DispatchResult> {
-  if (!isConfigured() || tokens.length === 0) return { revoked: [], ok: 0 };
-
-  const outcomes = await sendBatch(APNS_PRIMARY_HOST, getJwt(), tokens, notification, opts);
-
-  const authFailed = tokens.filter((t) => outcomes.get(t) === "authError");
-  if (authFailed.length > 0) {
-    invalidateJwt();
-    const retried = await sendBatch(APNS_PRIMARY_HOST, getJwt(), authFailed, notification, opts);
-    for (const [token, outcome] of retried) outcomes.set(token, outcome);
+  if (!isConfigured() || tokens.length === 0) {
+    return { revoked: [], accepted: [], ok: 0 };
   }
 
-  const revoked: string[] = [];
-  const wrongEnv = tokens.filter((t) => outcomes.get(t) === "badToken");
-  if (wrongEnv.length > 0) {
-    const fallback = await sendBatch(APNS_FALLBACK_HOST, getJwt(), wrongEnv, notification, opts);
-    for (const [token, outcome] of fallback) {
-      if (outcome === "badToken") {
-        revoked.push(token);
-      }
-      outcomes.set(token, outcome);
-    }
-  }
+  const budget: DispatchBudget = {
+    deadlineAt: Date.now() + APNS_DISPATCH_TIMEOUT_MS,
+    expired: false,
+    sessions: new Set(),
+  };
+  const deadlineTimer = setTimeout(() => {
+    budget.expired = true;
+    console.error(`[APNS] dispatch exceeded ${APNS_DISPATCH_TIMEOUT_MS}ms deadline`);
+    for (const client of budget.sessions) client.destroy();
+  }, APNS_DISPATCH_TIMEOUT_MS);
 
-  let ok = 0;
-  for (const outcome of outcomes.values()) {
-    if (outcome === "ok") ok += 1;
-  }
-  if (ok < tokens.length) {
-    console.warn(
-      `[APNS] dispatch: ${ok}/${tokens.length} delivered` +
-        (wrongEnv.length > 0 ? `, ${wrongEnv.length} retried on fallback env` : "") +
-        (revoked.length > 0 ? `, ${revoked.length} revoked` : "")
+  try {
+    const outcomes = await sendBatch(
+      APNS_PRIMARY_HOST,
+      getJwt(),
+      tokens,
+      notification,
+      opts,
+      budget,
     );
-  }
 
-  return { revoked, ok };
+    const authFailed = tokens.filter((t) => outcomes.get(t) === "authError");
+    if (authFailed.length > 0 && hasDispatchBudget(budget)) {
+      invalidateJwt();
+      const retried = await sendBatch(
+        APNS_PRIMARY_HOST,
+        getJwt(),
+        authFailed,
+        notification,
+        opts,
+        budget,
+      );
+      for (const [token, outcome] of retried) outcomes.set(token, outcome);
+    }
+
+    const revoked: string[] = [];
+    const wrongEnv = tokens.filter((t) => outcomes.get(t) === "badToken");
+    let fallbackAttempted = 0;
+    if (wrongEnv.length > 0 && hasDispatchBudget(budget)) {
+      fallbackAttempted = wrongEnv.length;
+      const fallback = await sendBatch(
+        APNS_FALLBACK_HOST,
+        getJwt(),
+        wrongEnv,
+        notification,
+        opts,
+        budget,
+      );
+      for (const [token, outcome] of fallback) {
+        if (outcome === "badToken") {
+          revoked.push(token);
+        }
+        outcomes.set(token, outcome);
+      }
+    }
+
+    const accepted = tokens.filter((token) => outcomes.get(token) === "ok");
+    const ok = accepted.length;
+    if (ok < tokens.length) {
+      console.warn(
+        `[APNS] dispatch: ${ok}/${tokens.length} delivered` +
+          (fallbackAttempted > 0 ? `, ${fallbackAttempted} retried on fallback env` : "") +
+          (revoked.length > 0 ? `, ${revoked.length} revoked` : "") +
+          (!hasDispatchBudget(budget) ? ", deadline exhausted" : "")
+      );
+    }
+
+    return { revoked, accepted, ok };
+  } finally {
+    clearTimeout(deadlineTimer);
+    for (const client of budget.sessions) client.destroy();
+    budget.sessions.clear();
+  }
 }
 
 export async function sendPush(
@@ -269,7 +396,7 @@ const liveActivityOpts = (): SendOpts => ({
 
 export async function endCheckoutReturnLiveActivityTokens(
   tokens: string[]
-): Promise<{ revoked: string[] }> {
+): Promise<DispatchResult> {
   const nowSeconds = Math.floor(Date.now() / 1000);
   const notification = {
     aps: {
@@ -348,7 +475,7 @@ export async function updateCheckoutReturnLiveActivityTokens(
     urgency: "normal" | "warning" | "critical" | "overdue";
   },
   opts?: { alert?: { title: string; body: string } }
-): Promise<{ revoked: string[] }> {
+): Promise<DispatchResult> {
   const notification = {
     aps: {
       timestamp: Math.floor(Date.now() / 1000),

@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-07-21
+- Last Updated: 2026-07-28
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -812,7 +812,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - The iOS app stored the `kiosk_session` cookie only in `HTTPCookieStorage` and device info only in `UserDefaults` — both live in the app container, which reinstalls (every Xcode build during development, any future App Store reinstall) can wipe. Each rebuild bounced the device to activation.
 - Decision:
   - `requireKiosk()` slides `sessionExpiresAt` forward to a full 7-day window on authenticated activity, throttled to roughly one write per day. The cookie is re-issued with the slid expiry on every response, so cookie and DB stay aligned.
-  - The iOS app mirrors the session token into the Keychain (`kSecAttrAccessibleAfterFirstUnlock`) and re-creates the cookie from it when the cookie jar comes up empty. With `UserDefaults` also wiped, device info is rebuilt from `/api/kiosk/me` (which now returns the device `name`).
+  - The iOS app mirrors the session token into the Keychain (`kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`) and re-creates the cookie from it when the cookie jar comes up empty. The credential survives reinstalls on the same managed iPad but cannot migrate through a backup to another device. With `UserDefaults` also wiped, device info is rebuilt from `/api/kiosk/me` (which now returns the device `name`).
 - Consequences:
   - An active kiosk never re-prompts for an activation code; only 7 full days of darkness (or admin deactivation, which still revokes instantly via `active: false`) ends a session.
   - The Keychain copy outlives app deletion by design — `deactivate()` and any 401 path must keep clearing it (both do).
@@ -917,6 +917,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - Reference: `tasks/event-shift-working-schedule-plan.md` and `docs/AREA_SHIFTS.md`.
 
 ## Change Log
+- 2026-07-28: Amended D-039 so kiosk session credentials retain after-first-unlock availability while using the device-only Keychain class, preventing backup migration to another iPad.
 - 2026-07-21: Added D-042 for versioned Schedule working copies, published-only worker reads, deliberate reconciliation, and bundled publish notification semantics.
 - 2026-07-17: Extended D-037 so authenticated profile completion is native on iOS while registration remains web-owned and the canonical server completion contract remains shared.
 - 2026-07-16: Added D-041 for fixed default-deny external collaborator profiles and the BTN_STANDARD gear plus published-Schedule contract.
