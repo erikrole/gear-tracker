@@ -15,14 +15,7 @@ import {
 import type { CandidateRecommendation, CandidateScoreBucket } from "@/lib/candidate-scoring-types";
 import { shiftWorkerLabelForProfile, shiftWorkerSlotLabel, shiftWorkerTypeForProfile } from "@/lib/shift-display";
 import { cn } from "@/lib/utils";
-
-const AREA_LABELS: Record<string, string> = {
-  VIDEO: "Video",
-  PHOTO: "Photo",
-  GRAPHICS: "Graphics",
-  COMMS: "Comms",
-  LIVE_PRODUCTION: "Live Production",
-};
+import { AREA_LABELS } from "@/types/areas";
 
 export type PickerUser = {
   id: string;

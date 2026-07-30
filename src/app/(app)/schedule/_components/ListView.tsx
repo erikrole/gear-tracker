@@ -35,6 +35,13 @@ import { cn } from "@/lib/utils";
 import { VENUE_TONES, venueToneFromEvent } from "@/lib/venue-tone";
 import { formatRoleSlotAssignmentOutcome, shiftWorkerLabel, shiftWorkerLabelForProfile, shiftWorkerSlotLabel, type RoleSlotOutcomeLike, type ShiftWorkerKind } from "@/lib/shift-display";
 import { callWindowKey, effectiveCallWindow, formatCallWindowLabel, isInheritedFullDayCallWindow } from "@/lib/shift-call-windows";
+import {
+  CREW_ROW_GROUP,
+  CREW_ROW_REVEAL,
+  CrewAreaDot,
+  CrewAreaLabel,
+  CrewTypeLabel,
+} from "@/components/shift-detail/crew-row";
 import type { CalendarEntry, Shift } from "./types";
 import type { ScheduleHealthSnapshot } from "@/lib/schedule-health-types";
 import type { ScheduleChangeEventSummary } from "@/lib/schedule-change-history-types";
@@ -72,19 +79,6 @@ type ListViewProps = {
   hidingEventIds?: Set<string>;
   onHideEvent?: (eventId: string) => void;
 };
-
-// Area keeps its colour as a dot instead of a filled pill, so a crew row reads
-// as one line of text rather than a strip of competing badges.
-const AREA_DOT_TONE: Record<string, string> = {
-  VIDEO: "var(--green-text)",
-  PHOTO: "var(--purple-text)",
-  COMMS: "var(--orange-text)",
-  GRAPHICS: "var(--blue-text)",
-};
-
-/** Row-level destructive controls stay hidden until the row is hovered or focused. */
-const ROW_REVEAL =
-  "transition-opacity sm:opacity-0 sm:group-hover/assignment:opacity-100 sm:group-focus-within/assignment:opacity-100 sm:focus-visible:opacity-100";
 
 const EVENT_GRID_CLASS = "grid-cols-[44px_72px_minmax(180px,1fr)_80px_minmax(100px,140px)_136px_40px]";
 
@@ -297,41 +291,55 @@ function ShiftRowList({
         const callMatchesCommon = Boolean(commonCall && callWindowKey(visibleWindow) === commonCall.key);
         const showRowCallWindow = showStaffCallEditor && !callMatchesCommon;
 
+        const callCell = isStaff && showRowCallWindow ? (
+          <CallWindowEditor
+            target={callEditorTarget}
+            effectiveWindow={visibleWindow}
+            overrideWindow={callEditorOverride}
+            onSaved={onCallWindowSaved}
+            disabled={Boolean(removingAssignmentId)}
+            compact
+            variant="bare"
+          />
+        ) : showCallWindows && !isInheritedFullDayCallWindow(visibleWindow) && !callMatchesCommon ? (
+          <CallWindowEditor
+            effectiveWindow={visibleWindow}
+            compact
+            variant="bare"
+          />
+        ) : null;
+
         return (
           <div
             key={shift.id}
             className={cn(
               "min-h-11 border-border/45 px-2 py-1.5 transition-colors hover:bg-background/70",
-              compact ? "flex flex-col gap-2 rounded-md border bg-background/50" : "grid grid-cols-[104px_72px_minmax(0,1fr)_88px_auto] items-center gap-3 border-t first:border-t-0",
+              compact ? "flex flex-col gap-2 rounded-md border bg-background/50" : "grid grid-cols-[104px_72px_72px_minmax(0,1fr)_auto] items-center gap-3 border-t first:border-t-0",
             )}
           >
             <div className="flex min-w-0 items-center gap-2">
-              <span
-                className="inline-block size-1.5 shrink-0 rounded-full"
-                style={{ backgroundColor: AREA_DOT_TONE[shift.area] ?? "var(--muted-foreground)" }}
-                aria-hidden="true"
-              />
-              <span className="min-w-0 truncate text-[11px] font-semibold uppercase tracking-wider text-foreground/70">
-                {areaLabel}
-              </span>
+              <CrewAreaDot area={shift.area} />
+              <CrewAreaLabel area={shift.area} />
             </div>
 
             {!compact && (
-              <div
-                className={cn(
-                  "min-w-0 truncate text-xs",
-                  // An assigned person whose class differs from the slot keeps
-                  // the emphasis the old inline mismatch label carried.
-                  assignedClassDiffersFromSlot ? "text-foreground" : "text-muted-foreground",
-                )}
-              >
-                {assignedClassLabel ?? shiftWorkerLabel(workerType)}
+              <div className="flex min-h-10 min-w-0 flex-col items-start justify-center">
+                {callCell}
               </div>
+            )}
+
+            {!compact && (
+              // An assigned person whose class differs from the slot keeps the
+              // emphasis the old inline mismatch label carried.
+              <CrewTypeLabel
+                label={assignedClassLabel ?? shiftWorkerLabel(workerType)}
+                emphasis={assignedClassDiffersFromSlot}
+              />
             )}
 
             <div className="min-w-0 flex-1">
               {user ? (
-                <div className="group/assignment flex min-h-10 w-full items-center rounded-md px-2 transition-[background-color] hover:bg-muted/45 focus-within:bg-muted/45">
+                <div className={cn(CREW_ROW_GROUP, "flex min-h-10 w-full items-center rounded-md px-2 transition-[background-color] hover:bg-muted/45 focus-within:bg-muted/45")}>
                   <button
                     type="button"
                     className="inline-flex min-w-0 flex-1 self-stretch items-center gap-2 rounded-md text-left transition-[scale] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
@@ -358,7 +366,7 @@ function ShiftRowList({
                           size="icon-sm"
                           className={cn(
                             "relative ml-1 size-8 text-muted-foreground transition-[background-color,color,scale] before:absolute before:-inset-1 before:content-[''] hover:text-destructive active:scale-[0.96]",
-                            ROW_REVEAL,
+                            CREW_ROW_REVEAL,
                           )}
                           disabled={Boolean(removingAssignmentId)}
                           aria-label={`Remove ${user.name} from ${areaLabel} shift`}
@@ -440,50 +448,8 @@ function ShiftRowList({
               )}
             </div>
 
-            {compact ? (
-              <div className="flex min-w-0 flex-col items-start gap-1">
-                {isStaff && showRowCallWindow ? (
-                  <CallWindowEditor
-                    target={callEditorTarget}
-                    effectiveWindow={visibleWindow}
-                    overrideWindow={callEditorOverride}
-                    onSaved={onCallWindowSaved}
-                    disabled={Boolean(removingAssignmentId)}
-                    compact
-                  />
-                ) : showCallWindows && !isInheritedFullDayCallWindow(visibleWindow) && !callMatchesCommon ? (
-                  <CallWindowEditor
-                    effectiveWindow={visibleWindow}
-                    compact
-                  />
-                ) : null}
-              </div>
-            ) : (
-              <div className="flex min-h-10 min-w-0 flex-col items-start justify-center gap-1">
-                {isStaff && showRowCallWindow ? (
-                  <CallWindowEditor
-                    target={callEditorTarget}
-                    effectiveWindow={visibleWindow}
-                    overrideWindow={callEditorOverride}
-                    onSaved={onCallWindowSaved}
-                    disabled={Boolean(removingAssignmentId)}
-                    compact
-                    showSourceBadge={false}
-                    showLabel={false}
-                    showIcon={false}
-                    className="-ml-2 font-normal text-muted-foreground hover:text-foreground"
-                  />
-                ) : showCallWindows && !isInheritedFullDayCallWindow(visibleWindow) && !callMatchesCommon ? (
-                  <CallWindowEditor
-                    effectiveWindow={visibleWindow}
-                    compact
-                    showSourceBadge={false}
-                    showLabel={false}
-                    showIcon={false}
-                    className="-ml-2 font-normal text-muted-foreground"
-                  />
-                ) : null}
-              </div>
+            {compact && (
+              <div className="flex min-w-0 flex-col items-start gap-1">{callCell}</div>
             )}
 
             <div className={cn("flex min-h-10", compact ? "justify-start" : "shrink-0 justify-end")}>
