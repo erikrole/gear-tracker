@@ -7,6 +7,8 @@
 |---|---|
 | `/accountability` | `src/app/(app)/accountability/page.tsx` |
 | `/admin/fix-today` | `src/app/(app)/admin/fix-today/page.tsx` |
+| `/blasts/[id]` | `src/app/(app)/blasts/[id]/page.tsx` |
+| `/blasts` | `src/app/(app)/blasts/page.tsx` |
 | `/bookings` | `src/app/(app)/bookings/page.tsx` |
 | `/bulk-inventory/[id]` | `src/app/(app)/bulk-inventory/[id]/page.tsx` |
 | `/bulk-inventory/batteries` | `src/app/(app)/bulk-inventory/batteries/page.tsx` |
@@ -105,16 +107,16 @@
 | `src/components/EquipmentPicker.tsx` | 1001 |
 | `src/components/onboarding/OnboardingDialog.tsx` | 884 |
 | `src/components/ShiftDetailPanel.tsx` | 813 |
+| `src/components/ChooseImageModal.tsx` | 770 |
 | `src/components/profile-completion/ProfileCompletionWizard.tsx` | 768 |
 | `src/components/AppShell.tsx` | 742 |
-| `src/components/ChooseImageModal.tsx` | 716 |
 | `src/components/booking-wizard/BookingWizard.tsx` | 710 |
 | `src/components/ui/sidebar.tsx` | 710 |
 | `src/components/BookingDetailsSheet.tsx` | 680 |
 | `src/components/booking-wizard/WizardStep1.tsx` | 570 |
 | `src/components/BookingListPage.tsx` | 512 |
 | `src/components/ui/heatmap.tsx` | 409 |
-| `src/components/Sidebar.tsx` | 405 |
+| `src/components/Sidebar.tsx` | 407 |
 | `src/components/booking-details/BookingHeader.tsx` | 403 |
 | `src/components/ui/chart.tsx` | 389 |
 | `src/components/shift-detail/ShiftSlotCard.tsx` | 375 |

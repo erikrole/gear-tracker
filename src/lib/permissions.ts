@@ -126,6 +126,14 @@ export const PERMISSIONS: Record<string, Record<string, Role[]>> = {
     claim: ["ADMIN", "STAFF", "STUDENT"],
     approve: ["ADMIN", "STAFF"],
   },
+  // Sending a blast reaches every targeted phone at once, so authoring stays with
+  // ADMIN + STAFF. Receiving needs no permission: the /api/me/blasts routes scope
+  // by userId, matching how /api/notifications gates itself.
+  blast: {
+    view: ["ADMIN", "STAFF"],
+    create: ["ADMIN", "STAFF"],
+    cancel: ["ADMIN", "STAFF"],
+  },
   allowed_email: {
     view: ["ADMIN", "STAFF"],
     create: ["ADMIN", "STAFF"],

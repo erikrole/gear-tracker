@@ -5,7 +5,9 @@ import XCTest
 final class ProfileCompletionModelsTests: XCTestCase {
     func testRoleAwareVisibleSteps() {
         XCTAssertEqual(ProfileCompletionStep.visibleSteps(for: "COLLABORATOR"), [.photo])
-        XCTAssertEqual(ProfileCompletionStep.visibleSteps(for: "STUDENT"), [.email, .phones, .wiscard, .student, .apparel, .photo])
+        // Students have no athletics email to confirm, so the email step drops off
+        // entirely (b9f71a00). Staff and admins keep it.
+        XCTAssertEqual(ProfileCompletionStep.visibleSteps(for: "STUDENT"), [.phones, .wiscard, .student, .apparel, .photo])
         XCTAssertEqual(ProfileCompletionStep.visibleSteps(for: "STAFF"), [.email, .phones, .wiscard, .apparel, .photo])
     }
 

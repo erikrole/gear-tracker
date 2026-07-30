@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("Add item sheet booking-inspired UI", () => {
-  it("keeps the compact tracking summary and review-style handoff", () => {
+  it("keeps one tracking choice surface and a compact repeated-intake handoff", () => {
     const source = readFileSync("src/app/(app)/items/new-item-sheet.tsx", "utf8");
 
     expect(source).toContain("KIND_OPTIONS");
@@ -12,7 +12,10 @@ describe("Add item sheet booking-inspired UI", () => {
     expect(source).toContain("SummaryRow label=\"Status\"");
     expect(source).toContain("SummaryRow label=\"Tracking\"");
     expect(source).toContain("SummaryRow label=\"Next\"");
-    expect(source).toContain("shadow-[0_12px_50px_rgba(0,0,0,0.05)]");
+    expect(source).toContain("Add another item");
+    expect(source).toContain('loading={submitting}');
+    expect(source).not.toContain('id="add-another"');
+    expect(source).not.toContain('requirements.map');
   });
 
   it("keeps booking-style section cards inside the item forms", () => {
@@ -44,8 +47,7 @@ describe("Add item sheet booking-inspired UI", () => {
     expect(standardSource).toContain('label="Category" htmlFor="new-item-category"');
     expect(standardSource).toContain('htmlFor="new-item-is-accessory"');
     expect(standardSource).toContain('htmlFor="new-item-available-for-reservation"');
-    expect(standardSource).toContain('label="Photo upload" htmlFor="new-item-photo"');
-    expect(standardSource).toContain('name="imageFile"');
+    expect(standardSource).toContain("<ItemImageDraftField");
     expect(standardSource).toContain('Price (USD)');
     expect(standardSource).toContain("assetTagSummary && assetTag.trim()");
     expect(standardSource).toContain("setTimeout(async () =>");
@@ -54,6 +56,7 @@ describe("Add item sheet booking-inspired UI", () => {
     expect(bulkSource).toContain('label="Item name" htmlFor="new-bulk-item-name"');
     expect(bulkSource).toContain('label="Item" htmlFor="existing-bulk-item"');
     expect(bulkSource).toContain('aria-label="Generate QR code"');
+    expect(bulkSource).toContain("<ItemImageDraftField");
   });
 
   it("excludes unit-tracked families from the Quantity add-to-existing selector", () => {
@@ -65,5 +68,35 @@ describe("Add item sheet booking-inspired UI", () => {
     expect(bulkSource).toContain("skus={quantityOnlyBulkSkus}");
     expect(bulkSource).toContain("quantityOnlyBulkSkus.find((s) => s.id === selectedBulkSkuId)");
     expect(bulkSource).toContain("quantityOnlyBulkSkus.length === 0");
+    expect(bulkSource).toContain("createsCatalogRecord: false");
+    expect(bulkSource).toContain('if (nextMode === "existing") onClearImage()');
+  });
+
+  it("persists staged images only after a new catalog record returns an id", () => {
+    const source = readFileSync("src/app/(app)/items/new-item-sheet.tsx", "utf8");
+    const modal = readFileSync("src/components/ChooseImageModal.tsx", "utf8");
+
+    expect(source).toContain("imageDraft && createsCatalogRecord");
+    expect(source).toContain("`/api/assets/${createdId}/image`");
+    expect(source).toContain("`/api/bulk-skus/${createdId}/image`");
+    expect(source).toContain("await persistDraftItemImage(endpoint, imageDraft)");
+    expect(source).toContain("Item created, but its image needs attention.");
+    expect(source).toContain("Retry image");
+    expect(source).toContain("await persistCreatedImage(createdHandoff.imageEndpoint)");
+    expect(modal).toContain('mode: "persisted"');
+    expect(modal).toContain('mode: "draft"');
+    expect(modal).toContain("initialSelection: DraftItemImage | null");
+    expect(modal).toContain("onDraftChanged: (selection: DraftItemImage) => void");
+  });
+
+  it("fully resets repeated intake to a blank Standard item", () => {
+    const source = readFileSync("src/app/(app)/items/new-item-sheet.tsx", "utf8");
+
+    expect(source).toContain('setKind("standard")');
+    expect(source).toContain("setImageDraft(null)");
+    expect(source).toContain("serializedRef.current?.reset()");
+    expect(source).toContain("bulkRef.current?.reset()");
+    expect(source).toContain('if (mode === "another")');
+    expect(source).toContain("resetAll()");
   });
 });

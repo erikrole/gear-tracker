@@ -62,12 +62,11 @@ struct EventDetailView: View {
     let myShift: MyShift?
     let eventWork: DashboardEventWork?
     @Environment(SessionStore.self) private var session
+    @Environment(ReservationDraftStore.self) private var drafts
 
     @State private var vm: EventDetailViewModel
     @State private var weatherData: EventWeatherData?
-    @State private var prepGearOpen = false
     @State private var createdGearBookingId: String?
-    @State private var pushBooking: BookingRouteId?
     @State private var assignTarget: EventShift?
     @State private var claimTarget: EventShift?
     @State private var postTradeTarget: TradePostCandidate?
@@ -126,16 +125,6 @@ struct EventDetailView: View {
         .task { await vm.load() }
         .task { weatherData = await EventWeatherService.shared.weather(for: event) }
         .refreshable { await vm.load() }
-        .sheet(isPresented: $prepGearOpen) {
-            CreateBookingSheet(vm: makePrepGearVM()) { newId in
-                prepGearOpen = false
-                createdGearBookingId = newId
-                pushBooking = BookingRouteId(id: newId)
-            }
-        }
-        .navigationDestination(item: $pushBooking) { route in
-            BookingDetailView(bookingId: route.id)
-        }
         .sheet(item: $assignTarget) { shift in
             AssignStudentSheet(
                 shiftId: shift.id,
@@ -399,6 +388,16 @@ struct EventDetailView: View {
         }
     }
 
+    /// Hands the prepped composer to the app-level store. The completion only
+    /// records the new booking for this screen's "Gear reserved" line —
+    /// navigation to the reservation is handled centrally, because the composer
+    /// can outlive this view once it is minimized.
+    private func startPrepGearReservation() {
+        drafts.start(makePrepGearVM()) { newId in
+            createdGearBookingId = newId
+        }
+    }
+
     private func makePrepGearVM() -> CreateBookingViewModel {
         let bookingVM = CreateBookingViewModel()
         if let work = eventWork, let userId = session.currentUser?.id {
@@ -530,7 +529,7 @@ struct EventDetailView: View {
                     }
                 } else if !eventHasEnded {
                     Button {
-                        prepGearOpen = true
+                        startPrepGearReservation()
                     } label: {
                         Label(reserveGearTitle, systemImage: "shippingbox.and.arrow.backward.fill")
                             .font(.subheadline.weight(.semibold))

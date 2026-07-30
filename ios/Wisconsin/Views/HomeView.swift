@@ -15,10 +15,53 @@ final class HomeViewModel {
     var isLoading = false
     var error: String?
     var lastLoadedAt: Date?
+    var blasts: [ActiveBlast] = []
+
+    /// Blast ids already reported as read, so a scroll bounce can't spam the endpoint.
+    private var reportedRead: Set<String> = []
+    /// Acks whose network call failed. Retried on the next `loadBlasts()`, which is
+    /// why the ack endpoint is idempotent.
+    private var pendingAcks: Set<String> = []
 
     /// Refresh if data is older than this. `.task` fires on every appearance,
     /// so without a freshness check we'd hammer the endpoint on every tab switch.
     private static let freshnessWindow: TimeInterval = 60
+
+    /// Deliberately outside the freshness window and outside `load()`: a blast has
+    /// to be current, and a dashboard failure must never be able to hide one.
+    func loadBlasts() async {
+        await retryPendingAcks()
+        if let latest = try? await APIClient.shared.activeBlasts() {
+            blasts = latest.filter { !pendingAcks.contains($0.id) }
+        }
+    }
+
+    /// The banner actually rendered. Fire-and-forget -- a lost read is not worth a
+    /// retry, and the ack that matters stamps read on its own.
+    func reportRead(_ id: String) {
+        guard reportedRead.insert(id).inserted else { return }
+        Task { try? await APIClient.shared.markBlastRead(id: id) }
+    }
+
+    /// "Got it." Optimistic, because the banner must feel instant on a phone at a
+    /// venue with bad signal; a failed call is queued and replayed.
+    func acknowledge(_ id: String) async {
+        blasts.removeAll { $0.id == id }
+        do {
+            try await APIClient.shared.acknowledgeBlast(id: id)
+            pendingAcks.remove(id)
+        } catch {
+            pendingAcks.insert(id)
+        }
+    }
+
+    private func retryPendingAcks() async {
+        for id in pendingAcks {
+            if (try? await APIClient.shared.acknowledgeBlast(id: id)) != nil {
+                pendingAcks.remove(id)
+            }
+        }
+    }
 
     func load(appState: AppState? = nil, requesterId: String? = nil, forceRefresh: Bool = false) async {
         let startedAt = Date()
@@ -91,11 +134,26 @@ struct HomeView: View {
     @State private var didLogFirstUsefulRender = false
     @Environment(AppState.self) private var appState
     @Environment(SessionStore.self) private var session
+    @Environment(ReservationDraftStore.self) private var drafts
+
+    /// Rendered in every state of `mainContent` -- loading, error, and loaded. A
+    /// message someone is being asked to acknowledge must not be hidden because the
+    /// dashboard behind it is still loading or failed.
+    @ViewBuilder private var blastStack: some View {
+        if !vm.blasts.isEmpty {
+            BlastBannerStack(
+                blasts: vm.blasts,
+                onAppearBlast: { vm.reportRead($0) },
+                onAcknowledge: { id in Task { await vm.acknowledge(id) } }
+            )
+        }
+    }
 
     @ViewBuilder private var mainContent: some View {
         if vm.dashboard == nil && vm.error == nil {
             ScrollView {
                 VStack(alignment: .leading, spacing: Brand.Space.lg) {
+                    blastStack
                     StatStripSkeleton()
                     VStack(alignment: .leading, spacing: Brand.Space.sm) {
                         Skeleton().frame(width: 140, height: 14)
@@ -112,13 +170,19 @@ struct HomeView: View {
             }
             .allowsHitTesting(false)
         } else if let error = vm.error, vm.dashboard == nil {
-            ContentUnavailableView {
-                Label("Couldn't load dashboard", systemImage: "exclamationmark.triangle")
-            } description: {
-                Text(error)
-            } actions: {
-                Button("Retry") { Task { await vm.load(appState: appState, requesterId: session.currentUser?.id, forceRefresh: true) } }
-                    .buttonStyle(.borderedProminent)
+            ScrollView {
+                VStack(alignment: .leading, spacing: Brand.Space.lg) {
+                    blastStack
+                    ContentUnavailableView {
+                        Label("Couldn't load dashboard", systemImage: "exclamationmark.triangle")
+                    } description: {
+                        Text(error)
+                    } actions: {
+                        Button("Retry") { Task { await vm.load(appState: appState, requesterId: session.currentUser?.id, forceRefresh: true) } }
+                            .buttonStyle(.borderedProminent)
+                    }
+                }
+                .padding(Brand.Space.md)
             }
         } else if let dash = vm.dashboard {
             dashboardScrollView(dash)
@@ -151,6 +215,7 @@ struct HomeView: View {
     @ViewBuilder private func dashboardScrollView(_ dash: DashboardData) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Brand.Space.lg) {
+                blastStack
                 DashboardHero(
                     name: session.currentUser?.name ?? ""
                 )
@@ -206,7 +271,14 @@ struct HomeView: View {
                     DashboardCard(title: "Drafts") {
                         ForEach(dash.drafts) { draft in
                             Button {
-                                navigationPath.append(draft.id)
+                                // A reservation draft is unfinished work, so
+                                // resume it in the composer. Checkout drafts
+                                // are web-only, and keep the detail route.
+                                if draft.isReservation {
+                                    Task { await drafts.resume(draftId: draft.id) }
+                                } else {
+                                    navigationPath.append(draft.id)
+                                }
                             } label: {
                                 DraftRow(draft: draft)
                             }
@@ -253,8 +325,24 @@ struct HomeView: View {
                     .accessibilityLabel(appState.unreadNotifCount > 0 ? "\(appState.unreadNotifCount) unread notifications" : "Notifications")
                 }
             }
-            .refreshable { await vm.load(appState: appState, requesterId: session.currentUser?.id, forceRefresh: true) }
-            .task { await vm.load(appState: appState, requesterId: session.currentUser?.id) }
+            .refreshable {
+                // Concurrent, not sequential: the blast banner must not wait on the
+                // dashboard query, and must not be suppressed if it fails.
+                async let blasts: Void = vm.loadBlasts()
+                await vm.load(appState: appState, requesterId: session.currentUser?.id, forceRefresh: true)
+                await blasts
+            }
+            .task {
+                async let blasts: Void = vm.loadBlasts()
+                await vm.load(appState: appState, requesterId: session.currentUser?.id)
+                await blasts
+            }
+            .onChange(of: appState.pendingPushBlastId) { _, id in
+                if id != nil {
+                    appState.pendingPushBlastId = nil
+                    Task { await vm.loadBlasts() }
+                }
+            }
             .onChange(of: appState.pendingPushBookingId) { _, id in
                 if let id {
                     navigationPath.append(id)
@@ -1226,7 +1314,7 @@ private struct DraftRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: draft.kind == "checkout" ? "archivebox" : "calendar.badge.clock")
+            Image(systemName: draft.isReservation ? "calendar.badge.clock" : "archivebox")
                 .foregroundStyle(.secondary)
                 .frame(width: 24)
                 .accessibilityHidden(true)

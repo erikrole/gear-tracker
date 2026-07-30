@@ -15,10 +15,19 @@ import { FormRow } from "@/components/form-layout";
 import { FormCombobox, CategoryCombobox, BulkSkuCombobox, type BulkSkuOption } from "@/components/FormCombobox";
 import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 import { FormSection } from "./FormSection";
+import { ItemImageDraftField } from "./ItemImageDraftField";
+import type { DraftItemImage } from "@/lib/item-image-draft";
 
 export interface BulkFormHandle {
   validate(): string | null;
-  getSubmitPayload(): { url: string; body: Record<string, unknown>; label: string; handoffHref?: string; openLabel?: string } | null;
+  getSubmitPayload(): {
+    url: string;
+    body: Record<string, unknown>;
+    label: string;
+    createsCatalogRecord: boolean;
+    handoffHref?: string;
+    openLabel?: string;
+  } | null;
   reset(): void;
   focus(): void;
 }
@@ -28,6 +37,9 @@ interface Props {
   locations: Location[];
   open: boolean;
   trackingMode: "units" | "quantity";
+  image: DraftItemImage | null;
+  onChooseImage: (searchQuery: string) => void;
+  onClearImage: () => void;
   disabled?: boolean;
 }
 
@@ -36,7 +48,16 @@ type BulkSkuListResponse = {
 };
 
 export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
-  function BulkItemForm({ categories, locations, open, trackingMode, disabled = false }, ref) {
+  function BulkItemForm({
+    categories,
+    locations,
+    open,
+    trackingMode,
+    image,
+    onChooseImage,
+    onClearImage,
+    disabled = false,
+  }, ref) {
     const [bulkMode, setBulkMode] = useState<BulkMode>("new");
 
     // New bulk SKU fields — empty string = no selection
@@ -101,6 +122,7 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
             url: `/api/bulk-skus/${selectedBulkSkuId}/adjust`,
             body: { quantityDelta: addQty, reason: "Added via New Item sheet" },
             label: sku?.name || "Item",
+            createsCatalogRecord: false,
             handoffHref: `/items/bulk-${selectedBulkSkuId}`,
             openLabel: "Open item",
           };
@@ -118,6 +140,7 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
             trackByNumber: trackingMode === "units",
           },
           label: bulkName.trim() || "Item",
+          createsCatalogRecord: true,
           openLabel: "Open item",
         };
       },
@@ -146,7 +169,16 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
               badgeVariant="green"
               description="Create a new stock record, or add this shipment to an existing count-tracked item."
             >
-              <RadioGroup name="bulk-mode" value={bulkMode} onValueChange={(v) => setBulkMode(v as BulkMode)} disabled={disabled}>
+              <RadioGroup
+                name="bulk-mode"
+                value={bulkMode}
+                onValueChange={(value) => {
+                  const nextMode = value as BulkMode;
+                  setBulkMode(nextMode);
+                  if (nextMode === "existing") onClearImage();
+                }}
+                disabled={disabled}
+              >
                 <div className="flex items-start gap-3">
                   <RadioGroupItem value="new" id="bulk-new" className="mt-0.5" />
                   <div>
@@ -169,26 +201,27 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
         )}
 
         {bulkMode === "new" ? (
-          <FormSection
-            title={trackingMode === "units" ? "New unit item" : "New quantity item"}
-            badge={trackingMode === "units" ? "Numbered family" : "Count stock"}
-            badgeVariant={trackingMode === "units" ? "purple" : "green"}
-            description={trackingMode === "units"
-              ? "Use this for batteries, radios, card readers, or other families where pickup and return bind exact units later."
-              : "Use this for supplies and accessories where the count matters more than each individual unit."}
-          >
-            <FormRow label="Item name" htmlFor="new-bulk-item-name" required>
-              <Input
-                id="new-bulk-item-name"
-                name="bulkName"
-                ref={bulkNameInputRef}
-                value={bulkName}
-                onChange={(e) => setBulkName(e.target.value)}
-                placeholder={trackingMode === "units" ? "e.g. Sony BP-U70 Battery" : "e.g. Gaff Tape"}
-                autoComplete="off"
-                required
-              />
-            </FormRow>
+          <>
+            <FormSection
+              title={trackingMode === "units" ? "New unit item" : "New quantity item"}
+              badge={trackingMode === "units" ? "Numbered family" : "Count stock"}
+              badgeVariant={trackingMode === "units" ? "purple" : "green"}
+              description={trackingMode === "units"
+                ? "Use this for batteries, radios, card readers, or other families where pickup and return bind exact units later."
+                : "Use this for supplies and accessories where the count matters more than each individual unit."}
+            >
+              <FormRow label="Item name" htmlFor="new-bulk-item-name" required>
+                <Input
+                  id="new-bulk-item-name"
+                  name="bulkName"
+                  ref={bulkNameInputRef}
+                  value={bulkName}
+                  onChange={(e) => setBulkName(e.target.value)}
+                  placeholder={trackingMode === "units" ? "e.g. Sony BP-U70 Battery" : "e.g. Gaff Tape"}
+                  autoComplete="off"
+                  required
+                />
+              </FormRow>
 
             <FormRow label="Category" htmlFor="new-bulk-item-category" required>
               <CategoryCombobox id="new-bulk-item-category" value={categoryId} onValueChange={setCategoryId} categories={categories} disabled={disabled} />
@@ -241,7 +274,14 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
                 The initial count creates numbered units under this item. Exact units are scanned during pickup and return.
               </p>
             )}
-          </FormSection>
+            </FormSection>
+            <ItemImageDraftField
+              image={image}
+              disabled={disabled}
+              onChoose={() => onChooseImage(bulkName)}
+              onClear={onClearImage}
+            />
+          </>
         ) : (
           <FormSection
             title="Add to existing"

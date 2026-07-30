@@ -31,6 +31,7 @@ import {
   buildImageSearchSuggestions,
   mergeImageSearchResults,
 } from "@/lib/image-search-modal";
+import type { DraftItemImage } from "@/lib/item-image-draft";
 
 type ImageSearchResult = {
   id: string;
@@ -55,17 +56,27 @@ type ImageMutationResponse = {
   imageUrl?: string | null;
 };
 
-type Props = {
+type CommonProps = {
   open: boolean;
   onClose: () => void;
+  searchQuery?: string;
+};
+
+type PersistedProps = CommonProps & {
+  mode: "persisted";
   /** Base upload endpoint, e.g. `/api/assets/{id}/image` or `/api/bulk-skus/{id}/image` */
-  uploadEndpoint?: string;
+  uploadEndpoint: string;
   currentImageUrl: string | null;
   onImageChanged: (newUrl: string | null) => void;
-  searchQuery?: string;
-  /** @deprecated Use uploadEndpoint instead */
-  assetId?: string;
 };
+
+type DraftProps = CommonProps & {
+  mode: "draft";
+  initialSelection: DraftItemImage | null;
+  onDraftChanged: (selection: DraftItemImage) => void;
+};
+
+type Props = PersistedProps | DraftProps;
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const MAX_SIZE = 4.5 * 1024 * 1024;
@@ -134,9 +145,12 @@ async function fetchSearchData(query: string, controller: AbortController) {
   return json?.data ?? {};
 }
 
-export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetId, currentImageUrl, onImageChanged, searchQuery }: Props) {
-  // Support legacy assetId prop
-  const endpoint = uploadEndpoint ?? `/api/assets/${assetId}/image`;
+export default function ChooseImageModal(props: Props) {
+  const { open, onClose, searchQuery } = props;
+  const persisted = props.mode === "persisted";
+  const endpoint = persisted ? props.uploadEndpoint : null;
+  const currentImageUrl = persisted ? props.currentImageUrl : null;
+  const initialSelection = props.mode === "draft" ? props.initialSelection : null;
   const [tab, setTab] = useState<ImageTab>("url");
   const [url, setUrl] = useState("");
   const [urlPreview, setUrlPreview] = useState<string | null>(null);
@@ -239,10 +253,19 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
 
     const seed = searchQuery?.trim() ?? "";
     setSearchText(seed);
+    if (initialSelection?.kind === "file") {
+      setTab("upload");
+      setFile(initialSelection.file);
+      setFilePreview(initialSelection.previewUrl);
+    } else if (initialSelection?.kind === "remote") {
+      setTab("url");
+      setUrl(initialSelection.url);
+      setUrlPreview(initialSelection.previewUrl);
+    }
 
     if (!seed) {
       setSearchConfigured(false);
-      setTab("url");
+      if (!initialSelection) setTab("url");
       return;
     }
 
@@ -258,7 +281,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
         const configured = !!json?.data?.configured;
         if (cancelled) return;
         setSearchConfigured(configured);
-        if (configured) {
+        if (configured && !initialSelection) {
           setTab("search");
           void runSearch(seed);
         }
@@ -275,7 +298,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
       cancelled = true;
       controller.abort();
     };
-  }, [open, runSearch, searchQuery]);
+  }, [initialSelection, open, runSearch, searchQuery]);
 
   function handleClose() {
     reset();
@@ -321,6 +344,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
   }
 
   async function putImageUrl(imageUrl: string): Promise<string | null> {
+    if (!endpoint) throw new Error("Image persistence is unavailable.");
     const res = await fetch(endpoint, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -340,13 +364,22 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
 
   async function saveUrl() {
     if (!urlPreview || savingRef.current) return;
+    if (props.mode === "draft") {
+      props.onDraftChanged({
+        kind: "remote",
+        url: urlPreview,
+        previewUrl: urlPreview,
+      });
+      handleClose();
+      return;
+    }
     savingRef.current = true;
     setSavingAction("url");
     try {
       const imageUrl = await putImageUrl(urlPreview);
       if (!imageUrl) return;
       toast.success("Image updated");
-      onImageChanged(imageUrl);
+      props.onImageChanged(imageUrl);
       handleClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save image");
@@ -358,6 +391,16 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
 
   async function saveSearchResult() {
     if (!selectedSearchResult || savingRef.current) return;
+    if (props.mode === "draft") {
+      props.onDraftChanged({
+        kind: "remote",
+        url: selectedSearchResult.url,
+        fallbackUrl: selectedSearchResult.thumbnailUrl || undefined,
+        previewUrl: selectedSearchResult.thumbnailUrl || selectedSearchResult.url,
+      });
+      handleClose();
+      return;
+    }
     savingRef.current = true;
     setSavingAction("search");
     try {
@@ -373,7 +416,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
       }
       if (!imageUrl) return;
       toast.success("Image updated");
-      onImageChanged(imageUrl);
+      props.onImageChanged(imageUrl);
       handleClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save image");
@@ -384,12 +427,22 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
   }
 
   async function uploadFile() {
-    if (!file || savingRef.current) return;
+    if (!file || !filePreview || savingRef.current) return;
+    if (props.mode === "draft") {
+      props.onDraftChanged({
+        kind: "file",
+        file,
+        previewUrl: filePreview,
+      });
+      handleClose();
+      return;
+    }
     savingRef.current = true;
     setSavingAction("upload");
     try {
       const formData = new FormData();
       formData.append("file", file);
+      if (!endpoint) throw new Error("Image persistence is unavailable.");
       const res = await fetch(endpoint, {
         method: "POST",
         body: formData,
@@ -402,7 +455,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
       const json = await parseJsonSafely<ImageMutationResponse>(res);
       if (!json?.imageUrl) throw new Error("Upload finished, but no image URL was returned");
       toast.success("Image uploaded");
-      onImageChanged(json.imageUrl);
+      props.onImageChanged(json.imageUrl);
       handleClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
@@ -413,7 +466,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
   }
 
   async function removeImage() {
-    if (savingRef.current) return;
+    if (savingRef.current || props.mode !== "persisted") return;
     const ok = await confirm({
       title: "Remove image",
       message: "Remove the image from this item?",
@@ -424,6 +477,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
     savingRef.current = true;
     setSavingAction("remove");
     try {
+      if (!endpoint) throw new Error("Image persistence is unavailable.");
       const res = await fetch(endpoint, { method: "DELETE" });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
@@ -431,7 +485,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
         throw new Error(msg);
       }
       toast.success("Image removed");
-      onImageChanged(null);
+      props.onImageChanged(null);
       handleClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to remove image");
@@ -607,7 +661,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
                   )}
                   <Button variant="outline" onClick={handleClose}>Cancel</Button>
                   <Button onClick={saveSearchResult} loading={savingAction === "search"} disabled={!selectedSearchResult || (saving && savingAction !== "search")}>
-                    Save
+                    {persisted ? "Save" : "Use image"}
                   </Button>
                 </div>
               </TabsContent>
@@ -649,7 +703,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
                 )}
                 <Button variant="outline" onClick={handleClose}>Cancel</Button>
                 <Button onClick={saveUrl} loading={savingAction === "url"} disabled={!urlPreview || urlError || (saving && savingAction !== "url")}>
-                  Save
+                  {persisted ? "Save" : "Use image"}
                 </Button>
               </div>
             </TabsContent>
@@ -703,7 +757,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
                 )}
                 <Button variant="outline" onClick={handleClose}>Cancel</Button>
                 <Button onClick={uploadFile} loading={savingAction === "upload"} disabled={!file || !!fileError || (saving && savingAction !== "upload")}>
-                  Upload
+                  {persisted ? "Upload" : "Use image"}
                 </Button>
               </div>
             </TabsContent>

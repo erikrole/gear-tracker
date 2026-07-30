@@ -29,6 +29,9 @@ final class AppState {
     var pendingPushBookingId: String?
     var pendingExtendBookingId: String?
     var pendingPushEventId: String?
+    /// Set when a blast push is tapped. Routes to Home and forces a banner refresh;
+    /// the blast itself is fetched from /api/me/blasts, never trusted from the payload.
+    var pendingPushBlastId: String?
     /// Server-registration truth, kept separate from iOS authorization state.
     /// `.registered` means the APNs token was accepted by `/api/devices`; it
     /// does not claim that a later push reached the device.
@@ -41,6 +44,9 @@ final class AppState {
     /// `BookingScope` value). Set by stat-tile taps (Overdue / Due Today land
     /// on All); consumed and cleared by BookingsView.
     var pendingBookingsScope: String?
+    /// Booking to open in the Bookings tab. Set after a reservation is created
+    /// from the app-level composer, which may outlive the screen it started on.
+    var pendingBookingDetailId: String?
     private var isRefreshing = false
     private var lastRefreshAttemptAt: Date?
     private let minimumRefreshInterval: TimeInterval = 60

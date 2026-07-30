@@ -1,8 +1,7 @@
 "use client";
 
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
-import Image from "next/image";
-import { Dices, ImageIcon, ScanLine, X } from "lucide-react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { Dices, ScanLine, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,12 +18,16 @@ import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 import { buildSerializedItemSubmitBody, isValidUsdPriceInput } from "./serialized-submit";
 import { FormSection } from "./FormSection";
 import { getRepeatTagBase, summarizeRepeatTags, type RepeatTagSummary } from "./repeat-tags";
+import { ItemImageDraftField } from "./ItemImageDraftField";
+import {
+  buildItemImageSearchSeed,
+  type DraftItemImage,
+} from "@/lib/item-image-draft";
 
 export interface SerializedFormHandle {
   validate(): string | null;
   getSubmitBody(): Record<string, unknown>;
-  getPendingImageFile(): File | null;
-  reset(keepShared?: boolean): void;
+  reset(): void;
   focus(): void;
 }
 
@@ -32,6 +35,9 @@ interface Props {
   categories: CategoryOption[];
   departments: Department[];
   locations: Location[];
+  image: DraftItemImage | null;
+  onChooseImage: (searchQuery: string) => void;
+  onClearImage: () => void;
   disabled?: boolean;
 }
 
@@ -41,11 +47,16 @@ type AssetSearchResponse = {
   }>;
 };
 
-const ALLOWED_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-const MAX_PHOTO_SIZE = 4.5 * 1024 * 1024;
-
 export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
-  function SerializedItemForm({ categories, departments, locations, disabled = false }, ref) {
+  function SerializedItemForm({
+    categories,
+    departments,
+    locations,
+    image,
+    onChooseImage,
+    onClearImage,
+    disabled = false,
+  }, ref) {
     // Controlled selects — empty string = no selection (no __none__ sentinels)
     const [categoryId, setCategoryId] = useState("");
     const [locationId, setLocationId] = useState("");
@@ -115,51 +126,6 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
       ? "Attachments can leave the visible asset tag blank. A quiet internal tag is generated from the parent item, attachment identity, and QR code."
       : "Fast intake needs the asset tag, category, location, and QR code. Product details can be filled in later.";
 
-    // Optional photo selected before create. The server upload still happens after
-    // asset creation because the image endpoint is asset-id based.
-    const [photoFile, setPhotoFile] = useState<File | null>(null);
-    const [photoPreviewUrl, setPhotoPreviewUrl] = useState("");
-    const [photoError, setPhotoError] = useState("");
-    const photoInputRef = useRef<HTMLInputElement>(null);
-
-    const clearPhoto = useCallback(() => {
-      setPhotoFile(null);
-      setPhotoError("");
-      setPhotoPreviewUrl((current) => {
-        if (current) URL.revokeObjectURL(current);
-        return "";
-      });
-      if (photoInputRef.current) photoInputRef.current.value = "";
-    }, []);
-
-    useEffect(() => () => {
-      if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
-    }, [photoPreviewUrl]);
-
-    function handlePhotoChange(file: File | null) {
-      setPhotoError("");
-      setPhotoFile(null);
-      setPhotoPreviewUrl((current) => {
-        if (current) URL.revokeObjectURL(current);
-        return "";
-      });
-      if (!file) return;
-
-      if (!ALLOWED_PHOTO_TYPES.has(file.type)) {
-        setPhotoError("Upload a JPG, PNG, WebP, or GIF image.");
-        if (photoInputRef.current) photoInputRef.current.value = "";
-        return;
-      }
-      if (file.size > MAX_PHOTO_SIZE) {
-        setPhotoError("Upload an image smaller than 4.5 MB.");
-        if (photoInputRef.current) photoInputRef.current.value = "";
-        return;
-      }
-
-      setPhotoFile(file);
-      setPhotoPreviewUrl(URL.createObjectURL(file));
-    }
-
     // Build combobox options
     const departmentOptions = departments.map((d) => ({ value: d.id, label: d.name }));
     const locationOptions = locations.map((l) => ({ value: l.id, label: l.name }));
@@ -173,7 +139,6 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
         if (!categoryId) return "Please select a category.";
         if (!locationId) return "Please select a location.";
         if (!isValidUsdPriceInput(purchasePrice)) return "Enter purchase price as a USD amount, for example 1299.99.";
-        if (photoError) return photoError;
         if (isAccessory && !parentAsset) return "Please select a parent item for this attachment.";
         return null;
       },
@@ -211,15 +176,10 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
             : undefined,
         });
       },
-      getPendingImageFile() {
-        return photoFile;
-      },
-      reset(keepShared = false) {
-        if (!keepShared) {
-          setCategoryId("");
-          setLocationId("");
-          setDepartmentId("");
-        }
+      reset() {
+        setCategoryId("");
+        setLocationId("");
+        setDepartmentId("");
         setFiscalYear("");
         setAssetTag("");
         setAssetTagError("");
@@ -243,7 +203,6 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
         setIsAccessory(false);
         setParentAsset(null);
         parentSearch.clear();
-        clearPhoto();
       },
       focus() {
         assetTagInputRef.current?.focus();
@@ -296,6 +255,15 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
             <Input id="new-item-serial-number" name="serialNumber" value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} placeholder="Manufacturer serial (optional)" autoComplete="off" />
           </FormRow>
         </FormSection>
+
+        <ItemImageDraftField
+          image={image}
+          disabled={disabled}
+          onChoose={() => onChooseImage(
+            buildItemImageSearchSeed(itemName, brand, model, assetTag),
+          )}
+          onClear={onClearImage}
+        />
 
         <FormSection
           title="Organization"
@@ -458,55 +426,6 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
 
           <FormRow label="Link" htmlFor="new-item-link-url">
             <Input id="new-item-link-url" name="linkUrl" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} type="url" placeholder="https://..." autoComplete="off" />
-          </FormRow>
-        </FormSection>
-
-        <FormSection
-          title="Photo"
-          badge="Optional"
-          badgeVariant="secondary"
-          description="Upload a product photo now, or add search and URL images after the item is created."
-        >
-          <FormRow label="Photo upload" htmlFor="new-item-photo">
-            <div className="flex flex-col gap-3">
-              <Input
-                id="new-item-photo"
-                ref={photoInputRef}
-                name="imageFile"
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                onChange={(e) => handlePhotoChange(e.target.files?.[0] ?? null)}
-                autoComplete="off"
-              />
-              {photoError && <p className="text-sm text-destructive">{photoError}</p>}
-              {photoFile && (
-                <div className="flex items-center gap-3 rounded-md border bg-muted/30 p-2">
-                  <div className="relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded bg-background">
-                    {photoPreviewUrl ? (
-                      <Image src={photoPreviewUrl} alt="" fill sizes="56px" className="object-contain" unoptimized />
-                    ) : (
-                      <ImageIcon className="size-5 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{photoFile.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {(photoFile.size / (1024 * 1024)).toFixed(1)} MB
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-9 shrink-0"
-                    onClick={clearPhoto}
-                    aria-label="Remove selected photo"
-                  >
-                    <X className="size-4" />
-                  </Button>
-                </div>
-              )}
-            </div>
           </FormRow>
         </FormSection>
 

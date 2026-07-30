@@ -216,12 +216,10 @@ struct ItemsView: View {
     var wrapsInNavigationStack = true
 
     @State private var vm = ItemsViewModel()
-    @State private var reserveAsset: Asset?
-    @State private var reserveFamily: AssetFamilySearchResult?
     @State private var navigationPath = NavigationPath()
-    @State private var pushBooking: BookingRouteId?
     @State private var toast: Toast?
     @Environment(AppState.self) private var appState
+    @Environment(ReservationDraftStore.self) private var drafts
 
     var body: some View {
         if wrapsInNavigationStack {
@@ -269,10 +267,7 @@ struct ItemsView: View {
             .toast($toast)
             .onChange(of: appState.tabResetToken) { _, _ in
                 guard appState.resetTab == 2 else { return }
-                reserveAsset = nil
-                reserveFamily = nil
                 navigationPath = NavigationPath()
-                pushBooking = nil
                 vm.resetDefaults()
                 Task { await vm.load(reset: true) }
             }
@@ -282,29 +277,24 @@ struct ItemsView: View {
             .navigationDestination(for: BookingRouteId.self) { route in
                 BookingDetailView(bookingId: route.id)
             }
-            .sheet(item: $reserveAsset) { asset in
-                CreateBookingSheet(vm: {
-                    let vm = CreateBookingViewModel()
-                    vm.prefillReservation(for: asset)
-                    return vm
-                }()) { newId in
-                    reserveAsset = nil
-                    pushBooking = BookingRouteId(id: newId)
-                }
-            }
-            .sheet(item: $reserveFamily) { family in
-                CreateBookingSheet(vm: {
-                    let vm = CreateBookingViewModel()
-                    vm.prefillReservation(forFamily: family)
-                    return vm
-                }()) { newId in
-                    reserveFamily = nil
-                    pushBooking = BookingRouteId(id: newId)
-                }
-            }
-            .navigationDestination(item: $pushBooking) { route in
-                BookingDetailView(bookingId: route.id)
-            }
+    }
+
+    /// Reserve from a row hands the item to the app-level composer, so the user
+    /// keeps the items list underneath and can go on browsing.
+    private func startReservation(for asset: Asset) {
+        drafts.start({
+            let composer = CreateBookingViewModel()
+            composer.prefillReservation(for: asset)
+            return composer
+        }())
+    }
+
+    private func startReservation(forFamily family: AssetFamilySearchResult) {
+        drafts.start({
+            let composer = CreateBookingViewModel()
+            composer.prefillReservation(forFamily: family)
+            return composer
+        }())
     }
 
     private var contentBody: some View {
@@ -427,7 +417,7 @@ struct ItemsView: View {
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 if asset.computedStatus != .retired {
                     Button {
-                        reserveAsset = asset
+                        startReservation(for: asset)
                     } label: {
                         Label("Reserve", systemImage: "plus.circle")
                     }
@@ -446,7 +436,7 @@ struct ItemsView: View {
 
                 if asset.computedStatus != .retired {
                     Button {
-                        reserveAsset = asset
+                        startReservation(for: asset)
                     } label: {
                         Label("Reserve", systemImage: "plus.circle")
                     }
@@ -467,7 +457,7 @@ struct ItemsView: View {
                 .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button {
-                        reserveFamily = family
+                        startReservation(forFamily: family)
                     } label: {
                         Label("Reserve", systemImage: "plus.circle")
                     }
@@ -475,7 +465,7 @@ struct ItemsView: View {
                 }
                 .contextMenu {
                     Button {
-                        reserveFamily = family
+                        startReservation(forFamily: family)
                     } label: {
                         Label("Reserve", systemImage: "plus.circle")
                     }

@@ -31,7 +31,7 @@ enum APIError: LocalizedError {
     }
 }
 
-struct BulkReservationRequest: Encodable, Equatable {
+struct BulkReservationRequest: Codable, Equatable {
     let bulkSkuId: String
     let quantity: Int
 }
@@ -256,6 +256,82 @@ final class APIClient {
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
             if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Cancel failed"
+            throw APIError.serverError(msg)
+        }
+    }
+
+    // MARK: - Booking drafts
+
+    /// Current user's saved drafts, newest first. The server prunes drafts
+    /// older than 30 days on read, so this list is already scoped to work the
+    /// user could plausibly still want.
+    func bookingDrafts() async throws -> [BookingDraftSummary] {
+        let req = request(path: "/api/drafts")
+        let resp: DataWrapper<[BookingDraftSummary]> = try await perform(req)
+        return resp.data
+    }
+
+    func bookingDraft(id: String) async throws -> BookingDraftDetail {
+        let req = request(path: "/api/drafts/\(id)")
+        let resp: DataWrapper<BookingDraftDetail> = try await perform(req)
+        return resp.data
+    }
+
+    /// Creates or updates a draft. Passing `id` updates in place, which is how
+    /// repeated saves of the same composer avoid piling up rows.
+    func saveBookingDraft(
+        id: String?,
+        title: String,
+        requesterUserId: String?,
+        locationId: String?,
+        startsAt: Date,
+        endsAt: Date,
+        notes: String?,
+        eventIds: [String] = [],
+        serializedAssetIds: [String] = [],
+        bulkItems: [BulkReservationRequest] = []
+    ) async throws -> String {
+        struct Body: Encodable {
+            let id: String?
+            let kind: String
+            let title: String
+            let requesterUserId: String?
+            let locationId: String?
+            let startsAt: String
+            let endsAt: String
+            let notes: String?
+            let eventIds: [String]?
+            let serializedAssetIds: [String]
+            let bulkItems: [BulkReservationRequest]
+        }
+        var req = request(path: "/api/drafts", method: "POST")
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        req.httpBody = try JSONEncoder().encode(Body(
+            id: id,
+            kind: "RESERVATION",
+            title: title,
+            requesterUserId: requesterUserId?.isEmpty == true ? nil : requesterUserId,
+            locationId: locationId?.isEmpty == true ? nil : locationId,
+            startsAt: iso.string(from: startsAt),
+            endsAt: iso.string(from: endsAt),
+            notes: notes?.isEmpty == true ? nil : notes,
+            eventIds: eventIds.isEmpty ? nil : eventIds,
+            serializedAssetIds: serializedAssetIds,
+            bulkItems: bulkItems
+        ))
+        let resp: DataWrapper<BookingStub> = try await perform(req)
+        return resp.data.id
+    }
+
+    func deleteBookingDraft(id: String) async throws {
+        let req = request(path: "/api/drafts/\(id)", method: "DELETE")
+        let (data, response) = try await session.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            // A draft that is already gone is the outcome the caller wanted.
+            if http.statusCode == 404 { return }
+            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Discard failed"
             throw APIError.serverError(msg)
         }
     }
@@ -965,6 +1041,31 @@ final class APIClient {
         let req = request(path: "/api/notifications/count")
         let resp: Response = try await perform(req)
         return resp.unreadCount
+    }
+
+    // MARK: - Blasts
+
+    /// Deliberately its own endpoint rather than a slice of `/api/dashboard`: the
+    /// home view's freshness window would delay a blast, and a dashboard section
+    /// failure must not be able to hide a message someone has to acknowledge.
+    func activeBlasts() async throws -> [ActiveBlast] {
+        let resp: DataWrapper<[ActiveBlast]> = try await perform(request(path: "/api/me/blasts"))
+        return resp.data
+    }
+
+    /// "The banner rendered." Idempotent server-side, so a replay is harmless.
+    func markBlastRead(id: String) async throws {
+        var req = request(path: "/api/me/blasts/\(id)/read", method: "POST")
+        req.httpBody = Data()
+        let _: SuccessResponse = try await perform(req)
+    }
+
+    /// "Got it." Also stamps read server-side, for a tap-through from a push
+    /// where the banner never rendered.
+    func acknowledgeBlast(id: String) async throws {
+        var req = request(path: "/api/me/blasts/\(id)/ack", method: "POST")
+        req.httpBody = Data()
+        let _: SuccessResponse = try await perform(req)
     }
 
     // MARK: - Notification preferences

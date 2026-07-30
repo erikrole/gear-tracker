@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-09
+- Last Updated: 2026-07-28
 - Status: Active
 - Purpose: Define the UI and UX rules that keep Gear Tracker cohesive, fast, dense, calm, and operationally clear.
 
@@ -197,6 +197,7 @@ Feature ideas to consider separately:
 - Shared action result copy: Booking list extension failures and Trade Board claim/approve/decline/cancel/request failures now use object-specific recovery and "not changed/not saved" language instead of generic network or failed-action copy.
 - `/search` and quick search: partial endpoint failures now use `OperationalPartialResultsAlert` with named failed result types instead of local generic warning copy.
 - Item image picker: search idle, empty, quota, and failed states now use shadcn `Empty` composition, and result selection uses the shared `Button` primitive while preserving the visible selected/focus treatment.
+- Add Item images: Standard, Units, and new Quantity records stage Search, Paste URL, or Upload selections in the shared item image picker before create. The created record owns persistence and retry, while Quantity add-to-existing preserves the existing catalog image.
 - Shared onboarding dialog: completion, client preview, and account-status preview metrics now use shadcn `Card` composition instead of route-local bordered metric panels.
 - `/bulk-inventory/batteries`: checked-out battery units panel now uses shared inline empty states when no units are out.
 - `/labels` and `/search`: compact clear, open, result, and view-all controls now meet the 40px operational target baseline on the focused print queue and global command surfaces.

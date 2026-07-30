@@ -34,6 +34,7 @@ import {
   KeyIcon,
   WrenchIcon,
   ShieldAlertIcon,
+  MegaphoneIcon,
 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
@@ -90,6 +91,7 @@ const navGroups: NavGroup[] = [
     staffOnly: true,
     items: [
       { label: "Operations", href: "/operations", icon: WrenchIcon },
+      { label: "Blasts", href: "/blasts", icon: MegaphoneIcon },
       { label: "Kits", href: "/kits", icon: BoxIcon },
       { label: "Reports", href: "/reports", icon: BarChart3Icon },
       { label: "Accountability", href: "/accountability", icon: ShieldAlertIcon, requiredRole: "ADMIN" },

@@ -186,12 +186,12 @@ final class BookingsViewModel {
 
 struct BookingsView: View {
     @State private var vm = BookingsViewModel()
-    @State private var showCreate = false
     @State private var presentedAction: BookingListAction?
     @State private var cancelTarget: Booking?
     @State private var navigationPath = NavigationPath()
     @Environment(SessionStore.self) private var session
     @Environment(AppState.self) private var appState
+    @Environment(ReservationDraftStore.self) private var drafts
 
     private var canCreateForOthers: Bool {
         let role = session.currentUser?.role ?? ""
@@ -366,21 +366,13 @@ struct BookingsView: View {
                         .accessibilityValue(vm.mineOnly ? "Mine" : "All")
                     }
                     if canCreate && !showsEmptyCreateAction {
-                        Button { showCreate = true } label: {
+                        Button { drafts.start() } label: {
                             Image(systemName: "plus")
                         }
                         // Purple: this creates a reservation, so it carries the
                         // colour of what it produces.
                         .tint(Color.statusText(.purple))
                         .accessibilityLabel("New Reservation")
-                    }
-                }
-            }
-            .sheet(isPresented: $showCreate) {
-                CreateBookingSheet { newId in
-                    Task {
-                        await vm.load(reset: true, clearExistingRows: true)
-                        navigationPath.append(newId)
                     }
                 }
             }
@@ -423,16 +415,19 @@ struct BookingsView: View {
                 consumePendingScope()
                 consumePendingAppIntent()
                 await vm.load(reset: true)
+                consumePendingBookingDetail()
             }
             .onChange(of: appState.pendingBookingsScope) { _, _ in
                 consumePendingScope()
+            }
+            .onChange(of: appState.pendingBookingDetailId) { _, _ in
+                consumePendingBookingDetail()
             }
             .onChange(of: appState.pendingAppIntentDestination) { _, _ in
                 consumePendingAppIntent()
             }
             .onChange(of: appState.tabResetToken) { _, _ in
                 guard appState.resetTab == 1 else { return }
-                showCreate = false
                 navigationPath = NavigationPath()
                 vm.resetDefaults()
                 Task { await vm.load(reset: true, clearExistingRows: true) }
@@ -533,7 +528,7 @@ struct BookingsView: View {
             .tint(Color.statusText(.blue))
         } else if canCreate {
             Button {
-                showCreate = true
+                drafts.start()
             } label: {
                 Label("New Reservation", systemImage: "plus")
             }
@@ -544,9 +539,21 @@ struct BookingsView: View {
         }
     }
 
+    /// Opens a reservation the app-level composer just created. The list is
+    /// refreshed first so returning from the detail view does not show a page
+    /// that predates the new row.
+    private func consumePendingBookingDetail() {
+        guard let bookingId = appState.pendingBookingDetailId else { return }
+        appState.pendingBookingDetailId = nil
+        Task {
+            await vm.load(reset: true, clearExistingRows: true)
+            navigationPath.append(bookingId)
+        }
+    }
+
     private func consumePendingAppIntent() {
         if appState.consumeAppIntentDestination(.createReservation) {
-            if canCreate { showCreate = true }
+            if canCreate { drafts.start() }
         } else if appState.consumeAppIntentDestination(.myGear) {
             navigationPath = NavigationPath()
         }

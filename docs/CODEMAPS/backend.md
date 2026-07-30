@@ -10,6 +10,8 @@
 | `src/lib/services/auto-fill-preview.ts` | 259 |
 | `src/lib/services/availability-conflict-recompute.ts` | 128 |
 | `src/lib/services/availability.ts` | 557 |
+| `src/lib/services/blast-targeting.ts` | 157 |
+| `src/lib/services/blasts.ts` | 307 |
 | `src/lib/services/booking-ref.ts` | 26 |
 | `src/lib/services/booking-rules.ts` | 107 |
 | `src/lib/services/bookings-checkin.ts` | 846 |
@@ -118,6 +120,7 @@
 | `src/lib/item-asset-tag-sort.ts` | 196 |
 | `src/lib/item-family-products.ts` | 14 |
 | `src/lib/item-family-state.ts` | 75 |
+| `src/lib/item-image-draft.ts` | 88 |
 | `src/lib/live-activity-workflow.ts` | 29 |
 | `src/lib/local-traces.ts` | 28 |
 | `src/lib/media-embed.ts` | 68 |
@@ -126,7 +129,7 @@
 | `src/lib/observability.ts` | 19 |
 | `src/lib/operational-health.ts` | 50 |
 | `src/lib/ops-checks.ts` | 176 |
-| `src/lib/permissions.ts` | 175 |
+| `src/lib/permissions.ts` | 183 |
 | `src/lib/profile-completion-events.ts` | 6 |
 | `src/lib/profile-completion.ts` | 157 |
 | `src/lib/profile-phone.ts` | 44 |
@@ -165,12 +168,12 @@
 | `src/lib/student-profile.ts` | 56 |
 | `src/lib/theme.ts` | 145 |
 | `src/lib/time.ts` | 28 |
-| `src/lib/title-normalization.ts` | 30 |
+| `src/lib/title-normalization.ts` | 58 |
 | `src/lib/url-sync.ts` | 16 |
 | `src/lib/user-list-cache.ts` | 73 |
 | `src/lib/user-visibility.ts` | 45 |
 | `src/lib/utils.ts` | 7 |
-| `src/lib/validation.ts` | 690 |
+| `src/lib/validation.ts` | 738 |
 | `src/lib/venue-mapping-audit.ts` | 56 |
 | `src/lib/venue-mapping-contract.ts` | 46 |
 | `src/lib/venue-tone.ts` | 97 |
@@ -237,6 +240,13 @@
 - `/api/badges/award`
 - `/api/badges`
 - `/api/badges/user/[userId]`
+
+### `/api/blasts`
+
+- `/api/blasts/[id]/cancel`
+- `/api/blasts/[id]`
+- `/api/blasts/preview`
+- `/api/blasts`
 
 ### `/api/bookings`
 
@@ -437,6 +447,9 @@
 ### `/api/me`
 
 - `/api/me/account`
+- `/api/me/blasts/[id]/ack`
+- `/api/me/blasts/[id]/read`
+- `/api/me/blasts`
 - `/api/me/change-password`
 - `/api/me/notification-preferences`
 - `/api/me/profile-completion`

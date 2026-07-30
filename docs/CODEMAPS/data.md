@@ -11,7 +11,7 @@
 
 | Model | Fields | Model-level indexes/constraints |
 |---|---:|---:|
-| `User` | 96 | 5 |
+| `User` | 99 | 5 |
 | `Session` | 6 | 2 |
 | `PasswordResetToken` | 6 | 2 |
 | `Location` | 17 | 1 |
@@ -39,7 +39,7 @@
 | `KitMembership` | 6 | 2 |
 | `KitBulkMembership` | 7 | 3 |
 | `CalendarSource` | 11 | 2 |
-| `CalendarEvent` | 31 | 6 |
+| `CalendarEvent` | 32 | 6 |
 | `ScheduleEventFollow` | 9 | 3 |
 | `BookingEvent` | 7 | 4 |
 | `LocationMapping` | 6 | 1 |
@@ -49,6 +49,8 @@
 | `LiveActivityStart` | 9 | 4 |
 | `Notification` | 12 | 5 |
 | `EscalationRule` | 10 | 1 |
+| `Blast` | 22 | 5 |
+| `BlastRecipient` | 12 | 4 |
 | `FavoriteItem` | 6 | 3 |
 | `FavoriteItemFamily` | 6 | 4 |
 | `AllowedEmail` | 13 | 4 |
@@ -252,6 +254,32 @@
 
 - `IOS`
 - `ANDROID`
+
+### `BlastSeverity`
+
+- `INFO`
+- `WARNING`
+- `URGENT`
+
+### `BlastStatus`
+
+- `SENDING`
+- `SENT`
+- `CANCELLED`
+
+### `BlastTargetKind`
+
+- `EVENT_CREW`
+- `USERS`
+- `DYNAMIC`
+
+### `BlastPushStatus`
+
+- `PENDING`
+- `SENT`
+- `SKIPPED_PREFS`
+- `NO_DEVICE`
+- `FAILED`
 
 ### `LicenseCodeStatus`
 

@@ -3,10 +3,13 @@ import SwiftUI
 struct AppTabView: View {
     @Environment(SessionStore.self) private var session
     @Environment(AppState.self) private var appState
+    @Environment(ReservationDraftStore.self) private var drafts
     @Environment(NetworkMonitor.self) private var network
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @AppStorage("sidebarTabCustomization") private var tabCustomization: TabViewCustomization
+    @State private var draftToast: Toast?
+    @State private var showDraftCloseOptions = false
 
     private var isStaffOrAdmin: Bool {
         let role = session.currentUser?.role ?? ""
@@ -119,6 +122,75 @@ struct AppTabView: View {
         .onChange(of: appState.pendingPushBookingId) { _, _ in
             routePendingBookingPush()
         }
+        .onChange(of: appState.pendingPushBlastId) { _, _ in
+            routePendingBlastPush()
+        }
+        // The reservation composer lives here, above every tab, so a minimized
+        // draft survives tab switches and navigation pops.
+        .modifier(ReservationDraftAccessory(isVisible: drafts.showsCard) {
+            ReservationDraftCard(
+                title: drafts.cardTitle,
+                subtitle: drafts.cardSubtitle,
+                isBusy: drafts.isBusy,
+                onOpen: { Task { await drafts.openCard() } },
+                onClose: { showDraftCloseOptions = true }
+            )
+        })
+        .sheet(isPresented: Binding(
+            get: { drafts.isExpanded },
+            // Swipe-to-dismiss parks the composer instead of ending it. Every
+            // real exit goes through the sheet's own Cancel choice.
+            set: { if !$0 { drafts.minimize() } }
+        )) {
+            if let composer = drafts.composer {
+                CreateBookingSheet(vm: composer)
+            }
+        }
+        .confirmationDialog(
+            "You already have a reservation in progress",
+            isPresented: Binding(
+                get: { drafts.pendingStart != nil },
+                set: { if !$0 { drafts.cancelPendingStart() } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Save Draft & Start New") {
+                Task { await drafts.resolvePendingStartBySavingCurrent() }
+            }
+            Button("Discard & Start New", role: .destructive) {
+                Task { await drafts.resolvePendingStartByDiscardingCurrent() }
+            }
+            Button("Keep Editing", role: .cancel) { drafts.cancelPendingStart() }
+        } message: {
+            Text("Saved drafts stay in your bookings until you finish or delete them.")
+        }
+        .confirmationDialog(
+            "Save this reservation as a draft?",
+            isPresented: $showDraftCloseOptions,
+            titleVisibility: .visible
+        ) {
+            Button("Save Draft") { Task { await drafts.saveAndClose() } }
+            Button("Discard", role: .destructive) { Task { await drafts.discard() } }
+            Button("Keep It", role: .cancel) {}
+        }
+        .toast($draftToast)
+        .onChange(of: drafts.statusMessage) { _, message in
+            guard let message else { return }
+            drafts.statusMessage = nil
+            draftToast = Toast(message: message, icon: "tray.and.arrow.down.fill", role: .success)
+        }
+        .onChange(of: drafts.errorMessage) { _, message in
+            guard let message else { return }
+            drafts.errorMessage = nil
+            draftToast = Toast(message: message, icon: "exclamationmark.triangle.fill", role: .error)
+        }
+        .onChange(of: drafts.createdBookingId) { _, bookingId in
+            routeCreatedReservation(bookingId)
+        }
+        .task(id: session.currentUser?.id) {
+            guard hasCapability("RESERVATION_CREATE") else { return }
+            await drafts.loadSavedDraft()
+        }
         .safeAreaInset(edge: .top, spacing: 0) {
             if !network.isConnected {
                 BannerView(
@@ -133,6 +205,17 @@ struct AppTabView: View {
         .animation(reduceMotion ? nil : .easeInOut, value: network.isConnected)
     }
 
+    /// A reservation can be created long after the screen that started it is
+    /// gone, so completion always lands on Bookings rather than trying to push
+    /// onto whatever stack happened to open the composer.
+    private func routeCreatedReservation(_ bookingId: String?) {
+        guard let bookingId else { return }
+        drafts.createdBookingId = nil
+        guard hasCapability("MY_GEAR_VIEW") else { return }
+        appState.pendingBookingDetailId = bookingId
+        appState.selectedTab = 1
+    }
+
     private func routePendingEventPush() {
         guard appState.pendingPushEventId != nil else { return }
         guard hasCapability("PUBLISHED_SCHEDULE_VIEW") else {
@@ -141,6 +224,15 @@ struct AppTabView: View {
         }
         if appState.selectedTab != 4 {
             appState.selectedTab = 4
+        }
+    }
+
+    /// Blasts always live on Home. No capability gate: everyone who can receive a
+    /// blast can see the banner, and HomeView clears the pending id once it refreshes.
+    private func routePendingBlastPush() {
+        guard appState.pendingPushBlastId != nil else { return }
+        if appState.selectedTab != 0 {
+            appState.selectedTab = 0
         }
     }
 
@@ -176,6 +268,31 @@ struct AppTabView: View {
             appState.pendingAppIntentDestination = nil
         case .createReservation:
             if hasCapability("RESERVATION_CREATE"), appState.selectedTab != 1 { appState.selectedTab = 1 }
+        }
+    }
+}
+
+/// Hosts the minimized-reservation card in the tab bar accessory slot.
+///
+/// The accessory reserves its container for as long as the modifier is
+/// attached, so returning an empty content view leaves a blank pill floating
+/// above the tab bar. iOS 26.1 added `isEnabled:` for exactly this, which hides
+/// the slot without disturbing the view tree. On 26.0 the only way to reclaim
+/// the space is to drop the modifier, and that rebuilds the `TabView` — each
+/// tab's navigation stack resets — so 26.0 keeps the accessory attached and
+/// eats the empty pill rather than throwing away where the user was.
+private struct ReservationDraftAccessory<Accessory: View>: ViewModifier {
+    let isVisible: Bool
+    @ViewBuilder let accessory: () -> Accessory
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 26.1, *) {
+            content.tabViewBottomAccessory(isEnabled: isVisible) { accessory() }
+        } else {
+            content.tabViewBottomAccessory {
+                if isVisible { accessory() }
+            }
         }
     }
 }

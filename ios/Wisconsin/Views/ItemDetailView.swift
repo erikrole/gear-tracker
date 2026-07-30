@@ -10,9 +10,8 @@ struct ItemDetailView: View {
     @State private var isFavorited = false
     @State private var favoriteToggleCount = 0  // user-action ticks; isolates haptic from initial load
     @State private var toast: Toast?
-    @State private var reserveAsset: Asset?
-    @State private var pushBooking: BookingRouteId?
     @Environment(SessionStore.self) private var session
+    @Environment(ReservationDraftStore.self) private var drafts
 
     private var canEditAsset: Bool {
         let role = session.currentUser?.role ?? ""
@@ -67,7 +66,7 @@ struct ItemDetailView: View {
                         }
                         if asset.computedStatus != .retired {
                             ReserveButton(title: asset.computedStatus == .available ? "Reserve Equipment" : "Reserve for Later") {
-                                reserveAsset = asset.asAsset
+                                startReservation(for: asset.asAsset)
                             }
                         }
                         UpcomingReservationsCard(reservations: asset.upcomingReservations)
@@ -136,22 +135,16 @@ struct ItemDetailView: View {
                 }
             }
         }
-        .sheet(item: $reserveAsset) { asset in
-            CreateBookingSheet(vm: {
-                let vm = CreateBookingViewModel()
-                vm.prefillReservation(for: asset)
-                return vm
-            }()) { newId in
-                reserveAsset = nil
-                // Push onto the parent's NavigationStack via the
-                // item-driven destination below (auto-pushes when set,
-                // auto-clears on back).
-                pushBooking = BookingRouteId(id: newId)
-            }
-        }
-        .navigationDestination(item: $pushBooking) { route in
-            BookingDetailView(bookingId: route.id)
-        }
+    }
+
+    /// Reserving hands the item to the app-level composer. The user stays on
+    /// this screen, and the reservation can be minimized to keep reading specs.
+    private func startReservation(for asset: Asset) {
+        drafts.start({
+            let composer = CreateBookingViewModel()
+            composer.prefillReservation(for: asset)
+            return composer
+        }())
     }
 
     private func loadAsset() async {

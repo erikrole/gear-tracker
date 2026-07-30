@@ -35,6 +35,7 @@
 		2516A89A0CD4284023B38A28 /* ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74157D1DF3F4EF9F53F70494 /* ScheduleView.swift */; };
 		27614B86498B5D98CC600630 /* CreateBookingFormRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = 089FAA6DDBB831B89ED4E5F5 /* CreateBookingFormRows.swift */; };
 		27ECC333F667B220F460C700 /* GuidesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14DA88A1DF6F8D23066A07BC /* GuidesView.swift */; };
+		28EE6E9E2F95C9BA9B138B38 /* BlastModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5827A13830B73BC3EB57808 /* BlastModels.swift */; };
 		2A37E7B9C1A68005651FAC4A /* CreateBookingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB412E1DD8493D282F261563 /* CreateBookingViewModel.swift */; };
 		2C79A800F537F80CF5C414B0 /* ProfilePhotoCropView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BD749C0D91CAF1E8784E04F /* ProfilePhotoCropView.swift */; };
 		2CED1D2B5A4282EB13E29796 /* ScheduleModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D50B2D1EA31765C957FED322 /* ScheduleModels.swift */; };
@@ -74,6 +75,7 @@
 		69DD68092CDC35D6924052DF /* BookingDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA04562F7C424114F304B494 /* BookingDetailView.swift */; };
 		6A29F42A3F64F9E6FDD5EB53 /* UserDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B64F325136AF7626ECECE8C /* UserDetailView.swift */; };
 		6A2AF05B82DC2BA24217048C /* BannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 843772771897AABEF8DD1F93 /* BannerView.swift */; };
+		6A83B2291B4776A186254C0F /* ReservationDraftCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDFEAF3DBE56A4AF4AAFDBC5 /* ReservationDraftCard.swift */; };
 		6B9E7D074E50DBAB24DAC522 /* Haptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A73B2A1C9B274552CBA7C8B /* Haptics.swift */; };
 		6D30C6F8EA800382F2619212 /* KioskFlowRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F93CDFD1D75D7CAC2D88211 /* KioskFlowRoutingTests.swift */; };
 		6F494116C14B986CBC4F1C86 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B798A9A6A730D69BA6E9597B /* SettingsView.swift */; };
@@ -97,6 +99,7 @@
 		9920100D23D0FF37F2528340 /* KioskBarcodeCameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06C085E7CDEC3CCE6DFDD630 /* KioskBarcodeCameraView.swift */; };
 		9939B52822812D9C7B8CF92B /* ScannerDebuggerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6B542F56A00A8C2FEB2078C /* ScannerDebuggerView.swift */; };
 		9CF45F32E90F4C03DDE548AB /* KioskShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5A80EBE9AE9D0094E70FBB /* KioskShellView.swift */; };
+		9D35DC6120309C27ADBC9FF3 /* BlastBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 222E2FBE9DCF411B6C8A5FD9 /* BlastBanner.swift */; };
 		9F8F4FCCB5B170E4C08FEBA1 /* KioskIdleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 649B6E0F68D9B5DB4D054656 /* KioskIdleView.swift */; };
 		A2F31705FBCCCE502A3B6C1A /* SearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74EFD042F26EA7BE52FA67E3 /* SearchService.swift */; };
 		A4D4C64C1C5E6904BFF894E3 /* KioskSleepModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE625FDFD675BDE49443B571 /* KioskSleepModeView.swift */; };
@@ -113,6 +116,7 @@
 		B2FEB545EEB4F42FE18F292F /* BookingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2228A84C3CCBC90ABF9103F1 /* BookingsView.swift */; };
 		B5172B28418254E10FE53FCF /* KioskEventDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E476FBFFA1229259FF006C64 /* KioskEventDetailSheet.swift */; };
 		B627C81D60CEF199EE69E537 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB6A309FA698276EE001EE07 /* Preferences.swift */; };
+		B6B0235DB84A35FE3DFF5D6C /* DraftModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DAF420E532759A9116D675B /* DraftModels.swift */; };
 		BA09B1B0BD9687C63E73E59D /* ThumbnailLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6D1B302F1FC5245180A17CD /* ThumbnailLoader.swift */; };
 		BAE863712FA11717C1C77B29 /* NotificationsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E58906A0DD7BCF5024161BE /* NotificationsSheet.swift */; };
 		C3C5D175C583096B0D645F24 /* AssetModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3967BD5EC55792F3B9E94724 /* AssetModels.swift */; };
@@ -131,6 +135,7 @@
 		D90FDB80F8FFF8F2921E26A5 /* LatestRequestGenerationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E2243115099DA4F3973F11 /* LatestRequestGenerationTests.swift */; };
 		DACC18C0E1181FD912992FEE /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D6258D04F2CBF34C14EBB69 /* LoginView.swift */; };
 		DC10577F4AF30D4E44E08B63 /* AssignStudentSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9374732F63AA4EA283094F0 /* AssignStudentSheet.swift */; };
+		DEF5863F656AD6A5D707FDC1 /* ReservationDraftStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5FEA50A163963BC17612FB6 /* ReservationDraftStore.swift */; };
 		DF903B01D6C6E80FD5ABB03E /* ProfileCompletionDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64AD62D4B6264BA6FE15C183 /* ProfileCompletionDraft.swift */; };
 		E6F51692EA10D1DF6DA5F049 /* KioskSuccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E968BAF46C8E557831F73C27 /* KioskSuccessView.swift */; };
 		E74AB0C45B70B59CEBC79AC4 /* AppTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B208F1EB8DD4DA49DADC1CAB /* AppTabView.swift */; };
@@ -198,6 +203,7 @@
 		1B440FC4AD4F07C1163F8856 /* CheckoutReturnLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckoutReturnLiveActivityWidget.swift; sourceTree = "<group>"; };
 		2228A84C3CCBC90ABF9103F1 /* BookingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingsView.swift; sourceTree = "<group>"; };
 		2228C8C2447924ED80ABD8C4 /* CheckoutReturnLiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckoutReturnLiveActivityManager.swift; sourceTree = "<group>"; };
+		222E2FBE9DCF411B6C8A5FD9 /* BlastBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlastBanner.swift; sourceTree = "<group>"; };
 		229CAC26AA9E3BB5EEC36678 /* NotificationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationModels.swift; sourceTree = "<group>"; };
 		2536547429CB16E12CB069C0 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		25CAFE07992F1EB02F507AE2 /* Gotham-Black.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Gotham-Black.ttf"; sourceTree = "<group>"; };
@@ -260,9 +266,11 @@
 		96636E404DEEEDA5C6046ADB /* AddShiftSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddShiftSheet.swift; sourceTree = "<group>"; };
 		966B6B986CA5E9C123B8EC01 /* KioskCheckoutDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskCheckoutDetailSheet.swift; sourceTree = "<group>"; };
 		9CDE77AE37C01B8DA663C7CE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		9DAF420E532759A9116D675B /* DraftModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraftModels.swift; sourceTree = "<group>"; };
 		9E58906A0DD7BCF5024161BE /* NotificationsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsSheet.swift; sourceTree = "<group>"; };
 		A16A76819006E71CB2219DB9 /* Wisconsin.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Wisconsin.entitlements; sourceTree = "<group>"; };
 		A417355DFB5B21031685616A /* ProfileCompletionWelcomeComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileCompletionWelcomeComponents.swift; sourceTree = "<group>"; };
+		A5827A13830B73BC3EB57808 /* BlastModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlastModels.swift; sourceTree = "<group>"; };
 		A6B542F56A00A8C2FEB2078C /* ScannerDebuggerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerDebuggerView.swift; sourceTree = "<group>"; };
 		A9374732F63AA4EA283094F0 /* AssignStudentSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssignStudentSheet.swift; sourceTree = "<group>"; };
 		A943ABC3AA353DC3AAEA0B3A /* ScheduleDateMathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleDateMathTests.swift; sourceTree = "<group>"; };
@@ -281,6 +289,7 @@
 		BA5C2531E017BDBDE5EFDDFE /* KioskAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskAPIClient.swift; sourceTree = "<group>"; };
 		BB8C14E1F7005B408A6A4CCD /* DashboardModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardModels.swift; sourceTree = "<group>"; };
 		BC88ED41091D463A9A8D5503 /* ProfileCompletionModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileCompletionModels.swift; sourceTree = "<group>"; };
+		BDFEAF3DBE56A4AF4AAFDBC5 /* ReservationDraftCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReservationDraftCard.swift; sourceTree = "<group>"; };
 		C139D1C1F9A3D2C4AB5EEF42 /* LaunchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchView.swift; sourceTree = "<group>"; };
 		C2159F738CA242773EA9D438 /* NotificationSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSettingsView.swift; sourceTree = "<group>"; };
 		C22B3A50B4815BC1451C26DD /* HIDScannerField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HIDScannerField.swift; sourceTree = "<group>"; };
@@ -293,6 +302,7 @@
 		D4C885700380306D486A94C9 /* CreateBookingEquipmentRows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateBookingEquipmentRows.swift; sourceTree = "<group>"; };
 		D50B2D1EA31765C957FED322 /* ScheduleModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleModels.swift; sourceTree = "<group>"; };
 		D5EC344925B5666C2CA8F773 /* GlobalSearchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalSearchSheet.swift; sourceTree = "<group>"; };
+		D5FEA50A163963BC17612FB6 /* ReservationDraftStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReservationDraftStore.swift; sourceTree = "<group>"; };
 		D670C3FF7EA66807225FD6FD /* SemanticTones.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SemanticTones.swift; sourceTree = "<group>"; };
 		DB5E4D4F3F432CE124DE63A8 /* KioskPickupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskPickupView.swift; sourceTree = "<group>"; };
 		DDD21416289B346FEE851FB9 /* ProfileCompletionModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileCompletionModelsTests.swift; sourceTree = "<group>"; };
@@ -391,6 +401,8 @@
 			isa = PBXGroup;
 			children = (
 				843772771897AABEF8DD1F93 /* BannerView.swift */,
+				222E2FBE9DCF411B6C8A5FD9 /* BlastBanner.swift */,
+				BDFEAF3DBE56A4AF4AAFDBC5 /* ReservationDraftCard.swift */,
 				468E248680EC5A61BEC1EE38 /* Skeleton.swift */,
 				A97E29E06DBD7A4474F9E66A /* StatusPill.swift */,
 				0D900B3FE267BAB0F0904D07 /* Toast.swift */,
@@ -473,7 +485,9 @@
 			isa = PBXGroup;
 			children = (
 				3967BD5EC55792F3B9E94724 /* AssetModels.swift */,
+				A5827A13830B73BC3EB57808 /* BlastModels.swift */,
 				BB8C14E1F7005B408A6A4CCD /* DashboardModels.swift */,
+				9DAF420E532759A9116D675B /* DraftModels.swift */,
 				6148A160C162A021FF9DE4C0 /* FormModels.swift */,
 				5B540C9027D1885BCBEA2E4D /* Models.swift */,
 				229CAC26AA9E3BB5EEC36678 /* NotificationModels.swift */,
@@ -576,6 +590,7 @@
 				2536547429CB16E12CB069C0 /* NetworkMonitor.swift */,
 				EB6A309FA698276EE001EE07 /* Preferences.swift */,
 				40E011969D2B77CA098ECCD1 /* ProfileCompletionStore.swift */,
+				D5FEA50A163963BC17612FB6 /* ReservationDraftStore.swift */,
 				74EFD042F26EA7BE52FA67E3 /* SearchService.swift */,
 				D670C3FF7EA66807225FD6FD /* SemanticTones.swift */,
 				0189482D68508F45B086F46F /* SessionStore.swift */,
@@ -913,6 +928,8 @@
 				DC10577F4AF30D4E44E08B63 /* AssignStudentSheet.swift in Sources */,
 				56A81DDDEF06AB1D40D13B33 /* AvailabilityView.swift in Sources */,
 				6A2AF05B82DC2BA24217048C /* BannerView.swift in Sources */,
+				9D35DC6120309C27ADBC9FF3 /* BlastBanner.swift in Sources */,
+				28EE6E9E2F95C9BA9B138B38 /* BlastModels.swift in Sources */,
 				69DD68092CDC35D6924052DF /* BookingDetailView.swift in Sources */,
 				A71171A7BA1D1B302A533883 /* BookingEntity.swift in Sources */,
 				B2FEB545EEB4F42FE18F292F /* BookingsView.swift in Sources */,
@@ -929,6 +946,7 @@
 				2A37E7B9C1A68005651FAC4A /* CreateBookingViewModel.swift in Sources */,
 				CE860A32B56D88E0802D8EFE /* DashboardModels.swift in Sources */,
 				7507BE07B0E40EAA31B9DBE9 /* DateFormats.swift in Sources */,
+				B6B0235DB84A35FE3DFF5D6C /* DraftModels.swift in Sources */,
 				713FB9080DFAA1073EE5FA8C /* EventDetailSheet.swift in Sources */,
 				0139CC54E3F0164FA19EA25C /* EventWeatherService.swift in Sources */,
 				904A4A8C645FFEB4CD2AA971 /* ExtendBookingSheet.swift in Sources */,
@@ -967,6 +985,8 @@
 				021A7B27623C3C8544FE58BB /* ProfileView.swift in Sources */,
 				D24677599DC4E06E3E093A81 /* PushPrePromptView.swift in Sources */,
 				085E8467FC2D0385A67DD157 /* QRScannerSheet.swift in Sources */,
+				6A83B2291B4776A186254C0F /* ReservationDraftCard.swift in Sources */,
+				DEF5863F656AD6A5D707FDC1 /* ReservationDraftStore.swift in Sources */,
 				0B3D380ACF389083C083FC5A /* ScanPrePromptView.swift in Sources */,
 				FEB0D17D856222BBA8478CC0 /* ScanResultHeroCard.swift in Sources */,
 				9939B52822812D9C7B8CF92B /* ScannerDebuggerView.swift in Sources */,
