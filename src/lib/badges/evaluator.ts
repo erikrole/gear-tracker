@@ -7,6 +7,7 @@ import {
 } from "@prisma/client";
 import { db } from "@/lib/db";
 
+import { isSerializationConflict } from "@/lib/serialization";
 import {
   ON_TIME_GRACE_MS,
   type CheckoutOpenedBadgeEvent,
@@ -26,10 +27,9 @@ async function runBadgeTransaction<T>(fn: (tx: TxClient) => Promise<T>): Promise
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       });
     } catch (error) {
-      const canRetry =
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2034" &&
-        attempt < MAX_TRANSACTION_ATTEMPTS;
+      // Matches the raw 40001 driver code as well as Prisma's P2034; the
+      // Neon adapter can surface either for the same serialization abort.
+      const canRetry = isSerializationConflict(error) && attempt < MAX_TRANSACTION_ATTEMPTS;
 
       if (!canRetry) throw error;
     }
