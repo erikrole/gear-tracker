@@ -2,6 +2,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { createAuditEntryTx } from "@/lib/audit";
+import { enforceRateLimit, SCHEDULE_MUTATION_LIMIT } from "@/lib/rate-limit";
 import { z } from "zod";
 
 const visibilitySchema = z.object({
@@ -12,6 +13,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   if (user.role !== "ADMIN" && user.role !== "STAFF") {
     throw new HttpError(403, "Only staff and admins can hide events");
   }
+  await enforceRateLimit(`calendar-event:write:${user.id}`, SCHEDULE_MUTATION_LIMIT);
 
   const { id } = params;
   const rawBody = await req.json().catch(() => {

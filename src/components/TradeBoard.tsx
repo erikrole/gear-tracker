@@ -426,6 +426,16 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
     await Promise.all([loadTrades(), loadOpenWork()]);
   }, [loadOpenWork, loadTrades]);
 
+  /**
+   * A lost race (someone else claimed it first, or the shift was pulled) means
+   * the row on screen is stale, so the board has to refresh or the student is
+   * left staring at a Claim button that can only fail again. Rate-limit and
+   * network failures are left alone — nothing changed server-side, and
+   * reloading would just add load to a request the user should simply retry.
+   */
+  const isStaleWorkResponse = (status: number) =>
+    status === 404 || status === 409 || status === 410;
+
   const beginAction = useCallback((tradeId: string) => {
     if (actingRef.current) return false;
     actingRef.current = tradeId;
@@ -450,6 +460,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
       } else {
         const msg = await parseErrorMessage(res, TRADE_OUTCOME_COPY.claimTrade.server);
         toast.error(msg);
+        if (isStaleWorkResponse(res.status)) await reloadWork();
       }
     } catch {
       toast.error(TRADE_OUTCOME_COPY.claimTrade.network);
@@ -478,6 +489,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
       } else {
         const msg = await parseErrorMessage(res, TRADE_OUTCOME_COPY.cancelTrade.server);
         toast.error(msg);
+        if (isStaleWorkResponse(res.status)) await reloadWork();
       }
     } catch {
       toast.error(TRADE_OUTCOME_COPY.cancelTrade.network);
@@ -502,6 +514,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
       } else {
         const msg = await parseErrorMessage(res, TRADE_OUTCOME_COPY.claimShift.server);
         toast.error(msg);
+        if (isStaleWorkResponse(res.status)) await reloadWork();
       }
     } catch {
       toast.error(TRADE_OUTCOME_COPY.claimShift.network);

@@ -6,6 +6,7 @@ import { listTrades, postTrade } from "@/lib/services/shift-trades";
 import { createAuditEntry } from "@/lib/audit";
 import type { ShiftTradeStatus } from "@prisma/client";
 import { AREAS, type Area } from "@/types/areas";
+import { enforceRateLimit, SCHEDULE_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 const TRADE_STATUS_FILTERS = ["OPEN", "CLAIMED", "COMPLETED", "CANCELLED"] as const;
 
@@ -47,6 +48,7 @@ export const GET = withAuth(async (req, { user }) => {
 
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "shift_trade", "post");
+  await enforceRateLimit(`shift-trade:post:${user.id}`, SCHEDULE_MUTATION_LIMIT);
 
   const body = postTradeSchema.parse(await req.json());
   const trade = await postTrade(body.shiftAssignmentId, { id: user.id, role: user.role }, body.notes);

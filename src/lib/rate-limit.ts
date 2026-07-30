@@ -164,6 +164,17 @@ export const REPORT_EXPORT_LIMIT: RateLimitConfig = {
 };
 
 /**
+ * Common preset for worker-facing scheduling mutations (trade claim/cancel,
+ * open-shift pickup, assignment acknowledge/decline, staff trade decisions).
+ * Sized well above a real student's tap rate on the Trade Board while capping
+ * scripted claim-spam against contested shifts.
+ */
+export const SCHEDULE_MUTATION_LIMIT: RateLimitConfig = {
+  max: 30,
+  windowMs: 60_000,
+};
+
+/**
  * Common preset for image write endpoints (asset/bulk-SKU uploads and
  * URL mirroring). Sized for intake sessions, where staff attach images to
  * many items in a row, while still capping blob writes and outbound
