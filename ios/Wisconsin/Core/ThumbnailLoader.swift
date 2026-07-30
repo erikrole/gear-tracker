@@ -92,6 +92,11 @@ final class ThumbnailCache {
     func evictAll() {
         cache.removeAllObjects()
     }
+
+    func clearForSignOut() {
+        cache.removeAllObjects()
+        thumbnailURLCache.removeAllCachedResponses()
+    }
 }
 
 // Dedicated session with a bounded disk cache so cold launches don't refetch

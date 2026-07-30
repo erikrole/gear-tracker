@@ -10,6 +10,7 @@ import {
 } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
+import { isSerializationConflict, withSerializationRetry } from "@/lib/serialization";
 import {
   createAuditEntriesTx,
   createAuditEntryTx,
@@ -58,6 +59,8 @@ type CreateBookingInput = {
   notes?: string;
   createdBy: string;
   sourceReservationId?: string;
+  /** Owned DRAFT row consumed atomically when a reservation is created. */
+  sourceDraftId?: string;
   eventId?: string;
   /** Optional multi-event linking. If provided, events are sorted chronologically
    * and the first one becomes the primary (`Booking.eventId`). Mutually exclusive
@@ -231,22 +234,6 @@ function prismaErrorText(error: unknown) {
   return `${message} ${meta}`;
 }
 
-function isSerializableConflict(error: unknown) {
-  if (!error || typeof error !== "object") return false;
-  const code = (error as { code?: unknown }).code;
-  const metaCode = (error as { meta?: { code?: unknown } }).meta?.code;
-  return code === "P2034" || code === "40001" || metaCode === "40001";
-}
-
-async function withSerializableRetryOnce<T>(operation: () => Promise<T>): Promise<T> {
-  try {
-    return await operation();
-  } catch (error) {
-    if (!isSerializableConflict(error)) throw error;
-    return operation();
-  }
-}
-
 function isBookingAllocationConstraintError(error: unknown) {
   if (!error || typeof error !== "object") return false;
   const code = (error as { code?: unknown }).code;
@@ -273,7 +260,7 @@ function isBookingAllocationConstraintError(error: unknown) {
 }
 
 function handleBookingMutationRace(error: unknown): never {
-  if (isSerializableConflict(error)) {
+  if (isSerializationConflict(error)) {
     throw new HttpError(409, "Someone else submitted at the same time; please try again.");
   }
   if (isBookingAllocationConstraintError(error)) {
@@ -316,9 +303,12 @@ export async function createBooking(input: CreateBookingInput) {
   if (input.bulkUnitItems && input.bulkUnitItems.length > 0 && input.kind !== BookingKind.CHECKOUT) {
     throw new HttpError(400, "bulkUnitItems only apply to checkout custody");
   }
+  if (input.sourceDraftId && input.kind !== BookingKind.RESERVATION) {
+    throw new HttpError(400, "sourceDraftId only applies to reservations");
+  }
 
   try {
-    const booking = await withSerializableRetryOnce(() =>
+    const booking = await withSerializationRetry(() =>
       db.$transaction(
         async (tx) => {
           // A missing requester would otherwise surface as an FK 500; an inactive
@@ -334,6 +324,29 @@ export async function createBooking(input: CreateBookingInput) {
           });
           if (!requester) throw new HttpError(400, "Requester not found");
           if (!requester.active) throw new HttpError(400, "Cannot create a booking for an inactive user");
+
+          const sourceDraft = input.sourceDraftId
+            ? await tx.booking.findFirst({
+                where: {
+                  id: input.sourceDraftId,
+                  kind: BookingKind.RESERVATION,
+                  status: BookingStatus.DRAFT,
+                  createdBy: input.createdBy,
+                },
+                select: {
+                  id: true,
+                  kind: true,
+                  title: true,
+                  requesterUserId: true,
+                  locationId: true,
+                  startsAt: true,
+                  endsAt: true,
+                },
+              })
+            : null;
+          if (input.sourceDraftId && !sourceDraft) {
+            throw new HttpError(404, "Source draft not found");
+          }
 
           if (input.maxConcurrentReservations !== undefined) {
             const activeCount = await tx.booking.count({
@@ -638,9 +651,30 @@ export async function createBooking(input: CreateBookingInput) {
               serializedAssetIds: resolvedSerializedAssetIds,
               bulkItems: resolvedBulkItems,
               sourceReservationId: input.sourceReservationId,
+              sourceDraftId: input.sourceDraftId,
               eventIds: sortedEventIds,
             },
           });
+
+          if (sourceDraft) {
+            await tx.booking.delete({ where: { id: sourceDraft.id } });
+            await createAuditEntryTx(tx, {
+              actorId: input.createdBy,
+              actorRole,
+              entityType: "booking",
+              entityId: sourceDraft.id,
+              action: "draft_consumed",
+              before: {
+                kind: sourceDraft.kind,
+                title: sourceDraft.title,
+                requesterUserId: sourceDraft.requesterUserId,
+                locationId: sourceDraft.locationId,
+                startsAt: sourceDraft.startsAt,
+                endsAt: sourceDraft.endsAt,
+              },
+              after: { createdReservationId: booking.id },
+            });
+          }
 
           // Fulfill the source reservation atomically within the same transaction.
           if (input.sourceReservationId) {

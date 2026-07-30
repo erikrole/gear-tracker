@@ -7,6 +7,22 @@ enum SearchDestination: Hashable {
     case user(String)
 }
 
+enum SearchRecentsStorage {
+    private static let key = "recentSearches"
+
+    static func load() -> [String] {
+        UserDefaults.standard.stringArray(forKey: key) ?? []
+    }
+
+    static func save(_ searches: [String]) {
+        UserDefaults.standard.set(searches, forKey: key)
+    }
+
+    static func clear() {
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+}
+
 struct GlobalSearchSheet: View {
     var showsCancelButton = true
     @Environment(\.dismiss) private var dismiss
@@ -22,9 +38,7 @@ struct GlobalSearchSheet: View {
     @State private var navigationPath = NavigationPath()
     @State private var pendingScannerDestination: SearchDestination?
 
-    @State private var recentSearches: [String] = {
-        (UserDefaults.standard.stringArray(forKey: "recentSearches") ?? [])
-    }()
+    @State private var recentSearches = SearchRecentsStorage.load()
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -176,7 +190,7 @@ struct GlobalSearchSheet: View {
                         }
                         Button("Clear Recents") {
                             recentSearches = []
-                            UserDefaults.standard.removeObject(forKey: "recentSearches")
+                            SearchRecentsStorage.clear()
                         }
                         .foregroundStyle(Color.statusText(.red))
                         .font(.subheadline)
@@ -377,6 +391,6 @@ struct GlobalSearchSheet: View {
         var recents = recentSearches.filter { $0 != term }
         recents.insert(term, at: 0)
         recentSearches = Array(recents.prefix(10))
-        UserDefaults.standard.set(recentSearches, forKey: "recentSearches")
+        SearchRecentsStorage.save(recentSearches)
     }
 }

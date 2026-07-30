@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/db", () => ({
@@ -31,10 +33,12 @@ const mockedSendPush = sendPush as unknown as ReturnType<typeof vi.fn>;
 
 /** Every updateMany call, flattened to { status, userIds }. */
 function statusWrites() {
-  return mockedDb.blastRecipient.updateMany.mock.calls.map(([args]) => ({
-    status: args.data.pushStatus,
-    userIds: args.where.userId.in as string[],
-  }));
+  return mockedDb.blastRecipient.updateMany.mock.calls
+    .filter(([args]) => Array.isArray(args.where.userId?.in))
+    .map(([args]) => ({
+      status: args.data.pushStatus,
+      userIds: args.where.userId.in as string[],
+    }));
 }
 
 function statusFor(userId: string): string | undefined {
@@ -46,10 +50,30 @@ beforeEach(() => {
   mockedDb.blast.findUnique.mockResolvedValue({ title: "Call time moved", body: "Be at gate 3 by 4pm", status: "SENT" });
   mockedDb.blastRecipient.updateMany.mockResolvedValue({ count: 1 });
   mockedDb.deviceToken.updateMany.mockResolvedValue({ count: 0 });
-  mockedSendPush.mockResolvedValue({ revoked: [], ok: 1 });
+  mockedSendPush.mockImplementation(async (tokens: string[]) => ({
+    accepted: tokens,
+    revoked: [],
+    ok: tokens.length,
+  }));
 });
 
 describe("sendBlastPush", () => {
+  it("writes blast inbox copies with bounded set-based database operations", () => {
+    const service = readFileSync(
+      path.join(process.cwd(), "src/lib/services/blasts.ts"),
+      "utf8",
+    );
+    const writer = service.slice(
+      service.indexOf("async function writeInboxCopies"),
+      service.indexOf("export async function sendBlastPush"),
+    );
+
+    expect(writer).toContain("tx.notification.createMany({");
+    expect(writer).toContain('UPDATE "blast_recipients" AS br');
+    expect(writer).not.toContain("Promise.allSettled(");
+    expect(writer).not.toContain("db.notification.create({");
+  });
+
   it("sends one batched dispatch for the whole blast, not one per user", async () => {
     mockedDb.blastRecipient.findMany.mockResolvedValue([
       { userId: "u1", user: { notificationPrefs: null } },
@@ -70,6 +94,20 @@ describe("sendBlastPush", () => {
       title: "Call time moved",
       payload: { blastId: "b1" },
     });
+    expect(mockedDb.blastRecipient.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { blastId: "b1", user: { active: true } },
+      }),
+    );
+    expect(mockedDb.deviceToken.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          platform: "IOS",
+          user: { active: true },
+        }),
+        take: 4_000,
+      }),
+    );
     expect(statusFor("u1")).toBe("SENT");
   });
 
@@ -114,7 +152,11 @@ describe("sendBlastPush", () => {
       { token: "dead2", userId: "twophones" },
       { token: "live", userId: "twophones" },
     ]);
-    mockedSendPush.mockResolvedValue({ revoked: ["dead", "dead2"], ok: 1 });
+    mockedSendPush.mockResolvedValue({
+      accepted: ["live"],
+      revoked: ["dead", "dead2"],
+      ok: 1,
+    });
 
     await sendBlastPush("b1");
 
@@ -125,6 +167,42 @@ describe("sendBlastPush", () => {
       where: { token: { in: ["dead", "dead2"] } },
       data: { revokedAt: expect.any(Date) },
     });
+  });
+
+  it("records FAILED when APNs reports only a transient delivery failure", async () => {
+    mockedDb.blastRecipient.findMany.mockResolvedValue([
+      { userId: "transient", user: { notificationPrefs: null } },
+    ]);
+    mockedDb.deviceToken.findMany.mockResolvedValue([
+      { token: "retry-later", userId: "transient" },
+    ]);
+    mockedSendPush.mockResolvedValue({ accepted: [], revoked: [], ok: 0 });
+
+    await sendBlastPush("b1");
+
+    expect(statusFor("transient")).toBe("FAILED");
+    expect(mockedDb.deviceToken.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("limits a blast to the two newest active registrations per recipient", async () => {
+    mockedDb.blastRecipient.findMany.mockResolvedValue([
+      { userId: "u1", user: { notificationPrefs: null } },
+      { userId: "u2", user: { notificationPrefs: null } },
+    ]);
+    mockedDb.deviceToken.findMany.mockResolvedValue([
+      { token: "u1-newest", userId: "u1" },
+      { token: "u1-second", userId: "u1" },
+      { token: "u1-third", userId: "u1" },
+      { token: "u2-only", userId: "u2" },
+    ]);
+
+    await sendBlastPush("b1");
+
+    expect(mockedSendPush.mock.calls[0]?.[0]).toEqual([
+      "u1-newest",
+      "u1-second",
+      "u2-only",
+    ]);
   });
 
   it("does not send for a cancelled blast", async () => {

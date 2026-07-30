@@ -58,4 +58,15 @@ final class KioskFlowRoutingTests: XCTestCase {
         XCTAssertFalse(scanner.acceptsScans)
         XCTAssertEqual(scanner.statusText, "Scanner paused while editing")
     }
+
+    func testCredentialBoundaryRejectsRequestsFromAReplacedKioskSession() {
+        let boundary = KioskCredentialBoundary()
+        let replacedSession = boundary.capture()
+
+        boundary.advance()
+        let activeSession = boundary.capture()
+
+        XCTAssertFalse(boundary.owns(replacedSession))
+        XCTAssertTrue(boundary.owns(activeSession))
+    }
 }

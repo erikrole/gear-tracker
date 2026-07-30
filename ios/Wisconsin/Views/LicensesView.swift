@@ -45,10 +45,9 @@ final class LicensesViewModel {
         notice = nil
         error = nil
         do {
-            let result = try await APIClient.shared.claimLicense(id: code.id)
-            UIPasteboard.general.string = result.code
+            _ = try await APIClient.shared.claimLicense(id: code.id)
             await load(forceRefresh: true)
-            notice = "License claimed and copied."
+            notice = "License claimed. Use Copy Code when you’re ready."
         } catch {
             self.error = error.localizedDescription
         }
@@ -72,8 +71,12 @@ final class LicensesViewModel {
 
     func copyActiveCode() {
         guard let activeClaim else { return }
-        UIPasteboard.general.string = activeClaim.code
-        notice = "Code copied."
+        UIPasteboard.general.setObjects(
+            [activeClaim.code],
+            localOnly: false,
+            expirationDate: Date().addingTimeInterval(120)
+        )
+        notice = "Code copied for 2 minutes."
     }
 }
 

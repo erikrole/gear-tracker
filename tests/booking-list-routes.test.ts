@@ -15,6 +15,10 @@ vi.mock("@/lib/db", () => ({
   db: {
     booking: {
       count: vi.fn(),
+      findFirst: vi.fn(),
+    },
+    auditLog: {
+      findFirst: vi.fn(),
     },
     bulkStockBalance: {
       findMany: vi.fn(),
@@ -52,6 +56,8 @@ import { createBooking, listBookings } from "@/lib/services/bookings";
 import { loadCheckoutPolicies } from "@/lib/services/checkout-policies";
 import { resolveEventDefaults } from "@/lib/services/event-defaults";
 import { loadReservationRules } from "@/lib/services/reservation-rules";
+import { createReservationLifecycleNotification } from "@/lib/services/notifications";
+import { HttpError } from "@/lib/http";
 import { POST as postCheckouts } from "@/app/api/checkouts/route";
 import { GET as getReservations, POST as postReservations } from "@/app/api/reservations/route";
 
@@ -117,6 +123,8 @@ beforeEach(() => {
     maxConcurrentReservations: null,
   });
   vi.mocked(db.booking.count).mockResolvedValue(0);
+  vi.mocked(db.booking.findFirst).mockResolvedValue(null);
+  vi.mocked(db.auditLog.findFirst).mockResolvedValue(null);
   vi.mocked(createBooking).mockResolvedValue({ id: "booking-1", title: "Event kit", bulkItems: [] } as never);
 });
 
@@ -230,6 +238,7 @@ describe("booking list routes", () => {
         locationId: "cm000000000000000000000002",
         startsAt: startsAt.toISOString(),
         endsAt: endsAt.toISOString(),
+        sourceDraftId: "cm000000000000000000000004",
         serializedAssetIds: ["cm000000000000000000000003"],
         bulkItems: [],
       }),
@@ -243,8 +252,69 @@ describe("booking list routes", () => {
         kind: BookingKind.RESERVATION,
         maxConcurrentReservations: 2,
         requesterUserId: "cm000000000000000000000001",
+        sourceDraftId: "cm000000000000000000000004",
       }),
     );
+  });
+
+  it("replays the committed reservation and ignores changed payload after a response is lost", async () => {
+    const startsAt = new Date(Date.now() + 3_600_000);
+    const endsAt = new Date(startsAt.getTime() + 3_600_000);
+    const sourceDraftId = "cm000000000000000000000004";
+    vi.mocked(createBooking).mockRejectedValueOnce(new HttpError(404, "Source draft not found"));
+    vi.mocked(db.auditLog.findFirst).mockResolvedValueOnce({
+      afterJson: { createdReservationId: "booking-replayed" },
+    } as never);
+    vi.mocked(db.booking.findFirst).mockResolvedValueOnce({
+      id: "booking-replayed",
+      title: "Event kit",
+      requesterUserId: "original-requester",
+      bulkItems: [],
+    } as never);
+
+    const res = await postReservations(
+      post("/api/reservations", {
+        title: "Event kit",
+        requesterUserId: "cm000000000000000000000001",
+        locationId: "cm000000000000000000000002",
+        startsAt: startsAt.toISOString(),
+        endsAt: endsAt.toISOString(),
+        sourceDraftId,
+        serializedAssetIds: ["cm000000000000000000000003"],
+        bulkItems: [],
+      }),
+      { params: Promise.resolve({}) },
+    );
+    const body = await res.json();
+
+    expect(res.status, JSON.stringify(body)).toBe(201);
+    expect(body.data.id).toBe("booking-replayed");
+    expect(db.auditLog.findFirst).toHaveBeenCalledWith({
+      where: {
+        entityType: "booking",
+        entityId: sourceDraftId,
+        action: "draft_consumed",
+        actorUserId: adminUser.id,
+      },
+      orderBy: { createdAt: "desc" },
+      select: { afterJson: true },
+    });
+    expect(db.booking.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "booking-replayed",
+          kind: BookingKind.RESERVATION,
+          createdBy: adminUser.id,
+        },
+      }),
+    );
+    expect(createReservationLifecycleNotification).toHaveBeenCalledWith({
+      bookingId: "booking-replayed",
+      bookingTitle: "Event kit",
+      requesterUserId: "original-requester",
+      actorUserId: adminUser.id,
+      event: "booked",
+    });
   });
 
   it("does not run checkout event-default or create logic for app/web checkout POST", async () => {

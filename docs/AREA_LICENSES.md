@@ -108,6 +108,7 @@ Implementation: `processLicenseNags` and `processExpiryWarnings` in `src/lib/ser
 - [x] Each license code can be held by up to 2 users at once
 - [x] Status badge shows `Open`, `1/2`, `Full`, or `Retired`
 - [x] Admins can record an unknown occupant by name
+- [x] Staff and admins can assign an open slot to an active internal user
 - [x] Admins can set + edit `accountEmail` and `expiresAt`
 - [x] Expiring licenses (≤30d) show yellow badge; expired show red
 - [x] Admins receive in-app + push notification 14d before expiry, monthly thereafter
@@ -125,6 +126,7 @@ Implementation: `processLicenseNags` and `processExpiryWarnings` in `src/lib/ser
 - No full admin per-user license usage report beyond the user's own recent history and per-code admin history
 
 ## Change Log
+- 2026-07-29: **Staff assignment.** Staff and admins can assign an open Photo Mechanic slot to an active internal user from the license detail sheet. The audited management route rejects retired or full licenses and users who already hold an active slot. Unknown-occupant recording remains available as a separate fallback.
 - 2026-07-15: **Native iOS Licenses hierarchy and capacity polish.** The self-service page now opens with a shared-capacity summary, gives the holder's code a clearer active-license card, presents open capacity directly on each pool row, hides other student identities behind neutral occupancy copy, and aligns partial/full use to the established blue operational state. Claim, copy, return, masking, expiry, two-slot capacity, and web-owned administration are unchanged.
 - 2026-07-10: **License expiry warnings unified to orange (shadcn audit follow-up).** The admin claim sheet expiring badge and the personal panel expiring-soon text drop off-system yellow for the shared orange warning tokens, matching the license table. Expired remains destructive red.
 - 2026-07-10: **License table color-system alignment (shadcn audit).** The expiring-soon badge moved from off-system yellow to the shared orange (warning) badge variant, and row status tints plus the own-claim ring now use `--green-bg`/`--blue-bg`/`--blue` tokens instead of raw palette + `dark:` pairs. Status semantics unchanged; contract test updated to assert the token form. Audit record: `tasks/shadcn-audit-2026-07-10.md`.

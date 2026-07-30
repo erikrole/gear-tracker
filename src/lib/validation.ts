@@ -24,6 +24,12 @@ export const databaseIdSchema = z.string().trim().min(1).refine(
   { message: "Invalid id" },
 );
 
+/** APNs credentials are raw bytes encoded as hexadecimal by the native app. */
+export const apnsTokenSchema = z.string()
+  .min(2)
+  .max(512)
+  .regex(/^(?:[0-9a-fA-F]{2})+$/, "APNs token must be an even-length hexadecimal string");
+
 const maxDecimal10_2 = 99_999_999.99;
 
 export const moneyDecimalSchema = z.number()
@@ -164,6 +170,7 @@ const bookingBaseShape = {
   notes: z.string().max(10000).optional(),
   shiftAssignmentId: z.string().cuid().optional(),
   kitId: z.string().cuid().optional(),
+  sourceDraftId: z.string().cuid().optional(),
 } as const;
 
 function eventIdsExclusive(v: { eventId?: string; eventIds?: string[] }): boolean {

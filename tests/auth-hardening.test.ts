@@ -14,10 +14,22 @@ const mockTx = {
     deleteMany: vi.fn(),
   },
   user: {
-    update: vi.fn(),
+    updateMany: vi.fn(),
   },
   session: {
     deleteMany: vi.fn(),
+  },
+  deviceToken: {
+    updateMany: vi.fn(),
+  },
+  liveActivityStartToken: {
+    updateMany: vi.fn(),
+  },
+  liveActivityToken: {
+    count: vi.fn(),
+  },
+  liveActivityStart: {
+    count: vi.fn(),
   },
 };
 
@@ -43,6 +55,7 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/audit", () => ({
   createAuditEntry: vi.fn(),
+  createAuditEntryTx: vi.fn(),
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
@@ -56,7 +69,7 @@ vi.mock("@sentry/nextjs", () => ({
 
 import { requireAuth, tokenHash, hashPassword, verifyPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { createAuditEntry } from "@/lib/audit";
+import { createAuditEntry, createAuditEntryTx } from "@/lib/audit";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { PATCH as patchProfile } from "@/app/api/profile/route";
 import { POST as resetPassword } from "@/app/api/auth/reset-password/route";
@@ -122,13 +135,17 @@ beforeEach(() => {
     id: "token-1",
     userId: "user-1",
     expiresAt: new Date(Date.now() + 60_000),
-    user: { id: "user-1", role: Role.STUDENT },
+    user: { id: "user-1", role: Role.STUDENT, active: true },
   });
   mockTx.passwordResetToken.deleteMany
     .mockResolvedValueOnce({ count: 1 })
     .mockResolvedValue({ count: 0 });
-  mockTx.user.update.mockResolvedValue({ id: "user-1" });
+  mockTx.user.updateMany.mockResolvedValue({ count: 1 });
   mockTx.session.deleteMany.mockResolvedValue({ count: 3 });
+  mockTx.deviceToken.updateMany.mockResolvedValue({ count: 2 });
+  mockTx.liveActivityStartToken.updateMany.mockResolvedValue({ count: 1 });
+  mockTx.liveActivityToken.count.mockResolvedValue(4);
+  mockTx.liveActivityStart.count.mockResolvedValue(3);
 });
 
 describe("auth hardening", () => {
@@ -176,7 +193,7 @@ describe("auth hardening", () => {
     );
     expect(mockTx.passwordResetToken.findUnique).toHaveBeenCalledWith({
       where: { tokenHash: "hashed-token" },
-      include: { user: { select: { id: true, role: true } } },
+      include: { user: { select: { id: true, role: true, active: true } } },
     });
     expect(mockTx.passwordResetToken.deleteMany).toHaveBeenNthCalledWith(
       1,
@@ -187,10 +204,60 @@ describe("auth hardening", () => {
         }),
       }),
     );
-    expect(mockTx.user.update).toHaveBeenCalledWith({
-      where: { id: "user-1" },
+    expect(mockTx.user.updateMany).toHaveBeenCalledWith({
+      where: { id: "user-1", active: true },
       data: { passwordHash: "next-hash", forcePasswordChange: false },
     });
     expect(mockTx.session.deleteMany).toHaveBeenCalledWith({ where: { userId: "user-1" } });
+    const revokedAt = mockTx.deviceToken.updateMany.mock.calls[0]![0].data.revokedAt;
+    expect(mockTx.deviceToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", revokedAt: null },
+      data: { revokedAt },
+    });
+    expect(mockTx.liveActivityStartToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", revokedAt: null },
+      data: { revokedAt },
+    });
+    expect(mockTx.liveActivityToken.count).toHaveBeenCalledWith({
+      where: { userId: "user-1", endedAt: null },
+    });
+    expect(mockTx.liveActivityStart.count).toHaveBeenCalledWith({
+      where: { userId: "user-1", endedAt: null },
+    });
+    expect(createAuditEntryTx).toHaveBeenCalledWith(
+      mockTx,
+      expect.objectContaining({
+        actorId: "user-1",
+        action: "password_reset_self",
+        after: expect.objectContaining({
+          notificationAccessRevoked: {
+            deviceTokens: 2,
+            liveActivityStartTokens: 1,
+            liveActivityTokensQueuedForEnd: 4,
+            liveActivityStartsQueuedForEnd: 3,
+          },
+        }),
+      }),
+    );
+  });
+
+  it("rejects password reset consumption for an inactive user", async () => {
+    mockTx.passwordResetToken.findUnique.mockResolvedValue({
+      id: "token-1",
+      userId: "user-1",
+      expiresAt: new Date(Date.now() + 60_000),
+      user: { id: "user-1", role: Role.STUDENT, active: false },
+    });
+
+    const res = await resetPassword(
+      publicPost("/api/auth/reset-password", {
+        token: "raw-token",
+        password: "new-password",
+      }),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(res.status).toBe(400);
+    expect(mockTx.user.updateMany).not.toHaveBeenCalled();
   });
 });

@@ -9,6 +9,10 @@ struct KioskStudentHubView: View {
     @State private var selectedCheckout: KioskCheckoutDrawerContext?
     @State private var scanFeedback: ScanRouteFeedback?
     @State private var scanFeedbackDismissTask: Task<Void, Never>?
+    @State private var scanRouteTask: Task<Void, Never>?
+    @State private var scanRouteRequests = LatestRequestGeneration()
+    @State private var contextLoadTask: Task<Void, Never>?
+    @State private var contextLoadRequests = LatestRequestGeneration()
 
     private enum ScanRouteFeedback: Equatable {
         case warning(String)
@@ -44,6 +48,7 @@ struct KioskStudentHubView: View {
                 subtitle: store.info?.name,
                 backAccessibilityLabel: "Back to roster",
                 onBack: {
+                    cancelContextLoad()
                     store.deferSleepMode()
                     store.screen = .idle
                 }
@@ -77,10 +82,23 @@ struct KioskStudentHubView: View {
             store.scanner.claim(.studentHub) { routeScan($0) }
             await loadContext()
         }
-        .onDisappear { store.scanner.release(.studentHub) }
+        .onDisappear {
+            cancelContextLoad()
+            scanRouteTask?.cancel()
+            scanRouteTask = nil
+            scanRouteRequests.invalidate()
+            scanFeedbackDismissTask?.cancel()
+            scanFeedbackDismissTask = nil
+            store.scanner.release(.studentHub)
+        }
         .task(id: "refresh") {
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: UInt64(refreshInterval * 1_000_000_000))
+                do {
+                    try await Task.sleep(nanoseconds: UInt64(refreshInterval * 1_000_000_000))
+                } catch {
+                    break
+                }
+                guard !Task.isCancelled else { break }
                 await loadContext()
             }
         }
@@ -369,17 +387,47 @@ struct KioskStudentHubView: View {
     }
 
     private func loadContext() async {
+        contextLoadTask?.cancel()
+        let requestToken = contextLoadRequests.begin()
+        let task = Task { @MainActor in
+            await performContextLoad(requestToken: requestToken)
+        }
+        contextLoadTask = task
+        await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
+        }
+    }
+
+    private func cancelContextLoad() {
+        contextLoadTask?.cancel()
+        contextLoadTask = nil
+        contextLoadRequests.invalidate()
+        isLoading = false
+    }
+
+    private func performContextLoad(requestToken: UUID) async {
+        guard ownsContextLoad(requestToken) else { return }
         if context == nil { isLoading = true }
-        defer { isLoading = false }
+        defer {
+            if contextLoadRequests.owns(requestToken) {
+                isLoading = false
+                contextLoadTask = nil
+            }
+        }
         do {
-            context = try await KioskAPI.shared.kioskStudentContext(userId: user.id)
+            let loadedContext = try await KioskAPI.shared.kioskStudentContext(userId: user.id)
+            guard ownsContextLoad(requestToken) else { return }
+            context = loadedContext
             error = nil
         } catch APIError.unauthorized {
+            guard ownsContextLoad(requestToken) else { return }
             store.deactivate()
         } catch where isCancellation(error) {
-            // View transitions can cancel the first load; don't turn that into
-            // a visible network failure.
+            // A newer refresh or navigation transition owns publication now.
         } catch {
+            guard ownsContextLoad(requestToken) else { return }
             // Keep last-good context; if we never had one, surface the error
             // page. Otherwise the next refresh will retry silently.
             if context == nil {
@@ -388,10 +436,28 @@ struct KioskStudentHubView: View {
         }
     }
 
+    /// Context belongs to this exact hub lifetime, not only the newest network
+    /// request. A scan or action can move the kiosk before SwiftUI tears this
+    /// view down, so navigation and scanner ownership are checked after every
+    /// suspension as well as on explicit cancellation.
+    private func ownsContextLoad(_ requestToken: UUID) -> Bool {
+        guard contextLoadRequests.owns(requestToken),
+              !Task.isCancelled,
+              store.scanner.owner == .studentHub,
+              case .studentHub(let activeUser) = store.screen
+        else { return false }
+        return activeUser.id == user.id
+    }
+
     private func routeScan(_ scan: String) {
-        Task {
+        scanRouteTask?.cancel()
+        let requestToken = scanRouteRequests.begin()
+        scanRouteTask = Task { @MainActor in
             do {
+                guard ownsScanRoute(requestToken) else { return }
                 let result = try await KioskAPI.shared.kioskResolveScan(scanValue: scan, userId: user.id)
+                try Task.checkCancellation()
+                guard ownsScanRoute(requestToken) else { return }
                 guard result.kind == "action", let action = result.action else {
                     showScanFeedback(.warning(result.message ?? "That item cannot start a flow for \(user.name)."))
                     return
@@ -416,10 +482,26 @@ struct KioskStudentHubView: View {
                     if let id = result.booking?.id { store.screen = .return(bookingId: id, userId: user.id) }
                 case .manage: break
                 }
+            } catch is CancellationError {
+                // A newer scan or navigation away owns the screen now.
             } catch {
+                guard ownsScanRoute(requestToken), !isCancellation(error) else { return }
                 showScanFeedback(.error((error as? APIError)?.errorDescription ?? "Could not route that scan."))
             }
         }
+    }
+
+    /// A scanner response can mutate this flow only while it is still the
+    /// newest request and this exact student's hub owns both navigation and
+    /// scanner input. Cancellation is advisory, so every post-await publish
+    /// also checks the generation and live ownership.
+    private func ownsScanRoute(_ requestToken: UUID) -> Bool {
+        guard scanRouteRequests.owns(requestToken),
+              !Task.isCancelled,
+              store.scanner.owner == .studentHub,
+              case .studentHub(let activeUser) = store.screen
+        else { return false }
+        return activeUser.id == user.id
     }
 
     /// Cancels any prior dismiss timer before starting a new one — without
@@ -465,14 +547,10 @@ struct KioskStudentHubView: View {
                 return apiError.errorDescription ?? "Check the kiosk network and try again."
             case .decodingError:
                 return "The server response changed. Try again after the kiosk refreshes."
-            case .conflict(let message):
-                return message
-            case .serverError(let message):
-                return message
             case .notFound:
                 return "This profile is no longer available at this kiosk."
-            case .unauthorized:
-                return apiError.errorDescription ?? "This kiosk session expired."
+            default:
+                return apiError.errorDescription ?? "Try again in a moment."
             }
         }
         return "Try again in a moment."

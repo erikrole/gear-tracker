@@ -14,13 +14,19 @@ enum AppEnvironment {
     static let origin = baseURL.absoluteString
 
     private static let activeAPIHostKey = "WisconsinActiveAPIHost"
+    private static let allowedAPIHosts: Set<String> = [canonicalHost, appReviewHost]
 
     static var activeAPIHost: String {
-        UserDefaults.standard.string(forKey: activeAPIHostKey) ?? canonicalHost
+        guard let storedHost = UserDefaults.standard.string(forKey: activeAPIHostKey),
+              allowedAPIHosts.contains(storedHost) else {
+            UserDefaults.standard.removeObject(forKey: activeAPIHostKey)
+            return canonicalHost
+        }
+        return storedHost
     }
 
     static var activeAPIBaseURL: URL {
-        URL(string: "https://\(activeAPIHost)")!
+        URL(string: "https://\(activeAPIHost)") ?? baseURL
     }
 
     static var activeAPIOrigin: String {
@@ -33,6 +39,10 @@ enum AppEnvironment {
     }
 
     static func setActiveAPIHost(_ host: String) {
+        guard allowedAPIHosts.contains(host) else {
+            resetActiveAPIHost()
+            return
+        }
         if host == canonicalHost {
             UserDefaults.standard.removeObject(forKey: activeAPIHostKey)
         } else {

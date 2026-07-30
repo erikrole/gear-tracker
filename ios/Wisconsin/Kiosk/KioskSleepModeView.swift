@@ -8,45 +8,51 @@ import SwiftUI
 // Slice 5a).
 
 struct KioskSleepModeView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let deviceName: String
     let onWake: () -> Void
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
-            ZStack {
-                Color.black.ignoresSafeArea()
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(context.date.kioskClockParts().time)
-                        .font(.gothamBlack(size: 72))
+            Button(action: onWake) {
+                ZStack {
+                    Color.black.ignoresSafeArea()
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(context.date.kioskClockParts().time)
+                            .font(.gothamBlack(size: 72))
+                            .foregroundStyle(Color.white.opacity(0.42))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                        HStack(spacing: 8) {
+                            Image(systemName: "moon.zzz.fill")
+                                .font(KioskType.chip)
+                                .accessibilityHidden(true)
+                            Text(context.date, format: .dateTime.weekday(.wide).month(.abbreviated).day())
+                                .font(KioskType.chip)
+                        }
                         .foregroundStyle(Color.white.opacity(0.42))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                    HStack(spacing: 8) {
-                        Image(systemName: "moon.zzz.fill")
+                        Text(deviceName)
                             .font(KioskType.chip)
-                            .accessibilityHidden(true)
-                        Text(context.date, format: .dateTime.weekday(.wide).month(.abbreviated).day())
-                            .font(KioskType.chip)
+                            .foregroundStyle(Color.white.opacity(0.64))
+                        HStack(spacing: 6) {
+                            Image(systemName: "hand.tap.fill")
+                                .font(KioskType.micro)
+                            Text("Tap anywhere to wake")
+                                .font(KioskType.micro)
+                        }
+                        .foregroundStyle(Color.white.opacity(0.5))
+                        .padding(.top, 6)
                     }
-                    .foregroundStyle(Color.white.opacity(0.42))
-                    Text(deviceName)
-                        .font(KioskType.chip)
-                        .foregroundStyle(Color.white.opacity(0.64))
-                    HStack(spacing: 6) {
-                        Image(systemName: "hand.tap.fill")
-                            .font(KioskType.micro)
-                        Text("Tap anywhere to wake")
-                            .font(KioskType.micro)
-                    }
-                    .foregroundStyle(Color.white.opacity(0.5))
-                    .padding(.top, 6)
+                    .offset(reduceMotion ? .zero : pixelShiftOffset(for: context.date))
                 }
-                .offset(pixelShiftOffset(for: context.date))
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("Kiosk sleep mode. Tap to wake.")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
             }
-            .contentShape(Rectangle())
-            .onTapGesture { onWake() }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Kiosk sleep mode")
+            .accessibilityHint("Wake the kiosk")
         }
     }
 

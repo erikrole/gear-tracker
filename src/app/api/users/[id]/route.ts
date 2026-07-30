@@ -300,6 +300,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   }
 
   const updateData: Record<string, unknown> = {};
+  let deactivationHandled = false;
 
   if (body.name !== undefined) {
     updateData.name = body.name;
@@ -367,7 +368,13 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
         targetUserId: id,
         actorId: user.id,
         actorRole: user.role,
+        audit: {
+          action: "updated",
+          before: { active: true },
+          after: { active: false },
+        },
       });
+      deactivationHandled = true;
     }
 
     updateData.active = body.active;
@@ -437,16 +444,19 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   let updated;
   try {
-    updated = await db.user.update({
-      where: { id },
-      data: updateData,
-      include: {
-        location: { select: { name: true } },
-        sportAssignments: true,
-        areaAssignments: true,
-        directReport: { select: { id: true, name: true } },
-      },
-    });
+    const include = {
+      location: { select: { name: true } },
+      sportAssignments: true,
+      areaAssignments: true,
+      directReport: { select: { id: true, name: true } },
+    } as const;
+    updated = deactivationHandled
+      ? await db.user.findUniqueOrThrow({ where: { id }, include })
+      : await db.user.update({
+        where: { id },
+        data: updateData,
+        include,
+      });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
       const target = (err.meta?.target as string[] | undefined) ?? [];
@@ -465,15 +475,17 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     afterDiff[key] = auditProfileValue(key, (updated as Record<string, unknown>)[key] ?? null);
   }
 
-  await createAuditEntry({
-    actorId: user.id,
-    actorRole: user.role,
-    entityType: "user",
-    entityId: id,
-    action: "updated",
-    before: beforeDiff,
-    after: afterDiff,
-  });
+  if (!deactivationHandled) {
+    await createAuditEntry({
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "user",
+      entityId: id,
+      action: "updated",
+      before: beforeDiff,
+      after: afterDiff,
+    });
+  }
 
   return ok({
     data: {

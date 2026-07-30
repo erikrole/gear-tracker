@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 import UIKit
 
 // MARK: - View Mode
@@ -49,6 +50,8 @@ final class ScheduleViewModel {
         }
     }
     private var hasLoaded = false
+    private var loadTask: Task<Void, Never>?
+    private var loadRequests = LatestRequestGeneration()
 
     var shiftsByEventId: [String: MyShift] = [:]
     var lastLoadedAt: Date?
@@ -88,16 +91,56 @@ final class ScheduleViewModel {
     }
 
     func load(forceRefresh: Bool = false) async {
-        guard !isLoading else { return }
+        if forceRefresh {
+            // A filter change must replace the in-flight query. Waiting for an
+            // older request would let its query shape win and drop this reload.
+            loadTask?.cancel()
+        } else if isLoading {
+            return
+        }
         // Allow first load, explicit refresh, or staleness-driven refresh.
         guard !hasLoaded || forceRefresh || isStale else { return }
+        let requestedIncludePast = includePast
+        let requestToken = loadRequests.begin()
+        let task = Task { @MainActor in
+            await performLoad(includePast: requestedIncludePast, requestToken: requestToken)
+        }
+        loadTask = task
+        await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            // Unstructured child tasks do not inherit later cancellation from
+            // the calling SwiftUI task. Cancel this exact child, not whatever
+            // newer force refresh may now own `loadTask`.
+            task.cancel()
+        }
+    }
+
+    /// View and session teardown must revoke publication ownership even when
+    /// URLSession resumes with a wrapped cancellation error.
+    func cancelLoad() {
+        loadTask?.cancel()
+        loadTask = nil
+        loadRequests.invalidate()
+        isLoading = false
+    }
+
+    private func performLoad(includePast requestedIncludePast: Bool, requestToken: UUID) async {
+        guard loadRequests.owns(requestToken), !Task.isCancelled else { return }
         isLoading = true
         if events.isEmpty { error = nil }
         refreshError = nil
+        defer {
+            if loadRequests.owns(requestToken) {
+                isLoading = false
+                loadTask = nil
+            }
+        }
         do {
-            async let eventsTask = APIClient.shared.calendarEvents(includePast: includePast)
+            async let eventsTask = APIClient.shared.calendarEvents(includePast: requestedIncludePast)
             async let shiftsTask = APIClient.shared.myShifts()
             let (fetchedEvents, fetchedShifts) = try await (eventsTask, shiftsTask)
+            guard loadRequests.owns(requestToken), !Task.isCancelled else { return }
             events = fetchedEvents
             myShifts = fetchedShifts
             shiftsByEventId = Dictionary(uniqueKeysWithValues: fetchedShifts.map { ($0.event.id, $0) })
@@ -108,9 +151,11 @@ final class ScheduleViewModel {
         } catch APIError.unauthorized {
             // SessionStore listens for the global notification and routes the
             // user to login; nothing to do here besides cleaning up loading state.
-            isLoading = false
             return
+        } catch is CancellationError {
+            // A newer request owns publication.
         } catch {
+            guard loadRequests.owns(requestToken), !Task.isCancelled else { return }
             // Refresh failure must not blank an already-populated screen.
             if events.isEmpty {
                 self.error = error.localizedDescription
@@ -118,7 +163,6 @@ final class ScheduleViewModel {
                 self.refreshError = error.localizedDescription
             }
         }
-        isLoading = false
     }
 }
 
@@ -823,6 +867,8 @@ private func publishedAreaOrder(_ area: String) -> Int {
 }
 
 private struct InternalScheduleView: View {
+    private let scheduleOpenWorkTip = ScheduleOpenWorkTip()
+    private let shiftCalendarTip = ShiftCalendarTip()
     @State private var vm = ScheduleViewModel()
     @State private var navigationPath = NavigationPath()
     @State private var myShiftsOnly = false
@@ -979,6 +1025,7 @@ private struct InternalScheduleView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
+                        scheduleOpenWorkTip.invalidate(reason: .actionPerformed)
                         showTradeBoard = true
                     } label: {
                         ZStack(alignment: .topTrailing) {
@@ -996,6 +1043,7 @@ private struct InternalScheduleView: View {
                             }
                         }
                         .foregroundStyle(Color.primary)
+                        .popoverTip(scheduleOpenWorkTip, arrowEdge: .top)
                     }
                     .accessibilityLabel(appState.openTradeCount > 0
                         ? "Trade Board, \(appState.openTradeCount) open"
@@ -1011,6 +1059,7 @@ private struct InternalScheduleView: View {
                         }
 
                         Button {
+                            shiftCalendarTip.invalidate(reason: .actionPerformed)
                             showCalendarSetup = true
                         } label: {
                             Label("Shift Calendar", systemImage: "calendar.badge.plus")
@@ -1020,6 +1069,7 @@ private struct InternalScheduleView: View {
                             .font(.body.weight(.semibold))
                             .frame(width: 44, height: 44)
                             .foregroundStyle(Color.primary)
+                            .popoverTip(shiftCalendarTip, arrowEdge: .top)
                     }
                     .accessibilityLabel("More Schedule actions")
                 }
@@ -1030,7 +1080,13 @@ private struct InternalScheduleView: View {
                 }
                 await vm.load()
             }
+            .onDisappear { vm.cancelLoad() }
             .refreshable { await vm.load(forceRefresh: true) }
+            .onChange(of: session.currentUser?.id) { _, userId in
+                if userId == nil {
+                    vm.cancelLoad()
+                }
+            }
             .onChange(of: canSeePastEvents) { _, canSee in
                 if !canSee, vm.includePast {
                     vm.includePast = false

@@ -8,10 +8,9 @@ struct BookingAssetThumbnail: View {
     var body: some View {
         Group {
             if let urlString = imageUrl, let url = URL(string: urlString) {
-                AsyncImage(url: url) { image in
-                    image.resizable().aspectRatio(contentMode: .fill)
-                } placeholder: {
+                ZStack {
                     assetPlaceholder
+                    CachedThumbnail(url: url, size: size)
                 }
                 .frame(width: size, height: size)
                 .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
@@ -42,10 +41,9 @@ struct BookingBulkThumbnail: View {
     var body: some View {
         Group {
             if let urlString = imageUrl, let url = URL(string: urlString) {
-                AsyncImage(url: url) { image in
-                    image.resizable().aspectRatio(contentMode: .fill)
-                } placeholder: {
+                ZStack {
                     bulkPlaceholder
+                    CachedThumbnail(url: url, size: size)
                 }
                 .frame(width: size, height: size)
                 .clipShape(RoundedRectangle(cornerRadius: cornerRadius))

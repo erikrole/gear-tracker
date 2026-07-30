@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-23
+- Last Updated: 2026-07-29
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -34,7 +34,7 @@ Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
 
 **Deep-link parameters:** `?title`, `?startsAt`, `?endsAt`, `?locationId`, `?newFor`, `?eventId`, `?sportCode`, `?requesterUserId`, `?draftId`.
 
-**Draft persistence:** "Save draft & exit" persists via `/api/drafts`. Resumable via `?draftId=`. Multi-event drafts persist ordered `BookingEvent` links, return ordered `events[]` on resume, and keep `Booking.eventId` as the chronologically first linked event for legacy readers.
+**Draft persistence:** "Save draft & exit" persists via `/api/drafts`. Resumable via `?draftId=`. Multi-event drafts persist ordered `BookingEvent` links, return ordered `events[]` on resume, and keep `Booking.eventId` as the chronologically first linked event for legacy readers. A consumed `sourceDraftId` is a permanent actor-scoped idempotency key: if the original success response is lost, retry returns the already-committed reservation and ignores a later changed payload rather than creating a duplicate.
 
 ### Native iOS Create Reservation
 Native iOS creation mirrors the three-step reservation rhythm while staying mobile-first:
@@ -258,6 +258,14 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 
 ## Change Log
 
+- 2026-07-29: **Native reservation feature discovery.** TipKit now points
+  eligible users to New Reservation and explains that an in-progress
+  reservation can be minimized without losing work. After the Gear step is
+  opened, a contextual prompt identifies its continuous scanner; after a
+  reservation is minimized, the persistent draft card explains how to resume
+  the same step. Every prompt stays on the existing native control, appears at
+  most once, and completes when used. Reservation payloads, draft persistence,
+  permissions, lifecycle, and kiosk custody are unchanged.
 - 2026-07-23: **Pending Pickup reservation model consolidated.** A booked
   reservation now enters Pending Pickup at its scheduled start. The configured
   no-show window starts at that timestamp; daily maintenance cancels and
@@ -403,3 +411,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - 2026-06-11: **Duplicate creation audit entry fix** — Reservation creation no longer writes a second route-level audit entry; `createBooking()`'s in-transaction `created` entry is the single source, so new reservations show one "created booking" history line instead of two.
 - 2026-06-11: **Booking detail visual refresh** — Reservation detail page and quick-view sheet share the refreshed wizard-aligned styling (inline section headers + count badges, softer card borders with shadow-xs, stagger motion on equipment rows). See AREA_CHECKOUTS 2026-06-11 entry; components are shared across kinds.
 - 2026-07-28: **iOS drafts reach parity with web** — native iOS now reads and writes the same `/api/drafts` rows the web wizard uses, so an interrupted reservation is a `DRAFT` booking rather than lost input. The iOS composer minimizes to a card instead of blocking the app, exit offers save-or-discard, and creating the reservation deletes its draft. No schema, route, or web changes; see `AREA_MOBILE.md` 2026-07-28 for the client detail.
+- 2026-07-28: **Draft permission, audit, and completion hardening** — `/api/drafts` now applies the canonical booking or checkout permission before reads and writes, honors collaborator `MY_GEAR_VIEW` / `RESERVATION_CREATE` capabilities, and forces Student and Collaborator reservation drafts to the authenticated requester. Draft create, update, and discard writes carry useful transactional audit snapshots; ownership and `DRAFT` status are rechecked inside the serializable update/delete transaction. Reservation creation accepts an optional owned `sourceDraftId` and deletes that row with a `draft_consumed` audit entry inside the same serializable transaction as the new `BOOKED` reservation, so a successful response cannot leave a duplicate draft.
+- 2026-07-28: **Lost-response draft recovery** — reservation creation uses the consumed draft audit as an actor-scoped response-recovery record. A retry with the same `sourceDraftId` returns the original committed reservation, notification ownership comes from that persisted row, and any later changed payload is ignored. This closes the response-loss window without duplicate bookings or cross-requester notification side effects.
+- 2026-07-28: **Native submission ownership and durable notification follow-up:** the iOS composer now persists a server draft before every submit path, including a never-saved or bulk-only reservation, and only the exact session-owned composer may adopt, finish, or clear that draft after an await. Reservation create and cancel routes await durable lifecycle-notification creation before returning; only APNs transport remains deferred. This closes cross-account late-submit cleanup, source-draft omission, and serverless response-freeze notification loss without changing reservation permission or custody policy.
+- 2026-07-28: **Indeterminate native submission replay** — the native composer binds one immutable reservation payload to its `sourceDraftId` across network, decoding, session-boundary, non-HTTP, and HTTP 5xx retries. HTTP 4xx rejection is definite and permits correction. If replay confirms that the original payload committed while the user made later edits, the app saves those edits as a fresh draft and keeps the composer available. Notes, requester, location, event links, title, schedule, and gear all participate in unsaved-work protection; a pristine Save Draft cannot report success without persistence.

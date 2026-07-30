@@ -24,7 +24,7 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
   // its SERIALIZABLE transaction — no second audit write here.
   const result = await cancelReservation(id, user.id);
 
-  void createReservationLifecycleNotification({
+  await createReservationLifecycleNotification({
     bookingId: id,
     bookingTitle: booking.title ?? id,
     requesterUserId: booking.requesterUserId,

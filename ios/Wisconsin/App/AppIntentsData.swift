@@ -28,6 +28,7 @@ struct MyCheckedOutGearIntent: AppIntent {
     static let description = IntentDescription(
         "Check which gear you currently have checked out and when it's due back, without opening the app."
     )
+    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresLocalDeviceAuthentication
 
     func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
         let checkouts: [Booking]
@@ -37,7 +38,7 @@ struct MyCheckedOutGearIntent: AppIntent {
             // soonest due — otherwise the overdue count below silently misses
             // the oldest ones, which are exactly the overdue ones.
             checkouts = try await APIClient.shared
-                .checkouts(activeOnly: true, requesterId: me.id, sort: "endsAt", limit: 10)
+                .checkouts(activeOnly: false, status: .open, requesterId: me.id, sort: "endsAt", limit: 10)
                 .data
         } catch {
             throw mapIntentError(error)
@@ -163,6 +164,7 @@ struct NextShiftIntent: AppIntent {
     static let description = IntentDescription(
         "Find out when your next shift is and whether gear is ready, without opening the app."
     )
+    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresLocalDeviceAuthentication
 
     func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
         let shifts: [MyShift]
