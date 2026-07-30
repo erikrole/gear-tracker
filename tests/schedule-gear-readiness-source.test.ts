@@ -12,11 +12,15 @@ describe("schedule gear readiness source contracts", () => {
     expect(listViewSource).not.toContain("/checkouts/new");
   });
 
-  it("distinguishes event-linked and assignment-linked gear states in Event detail Crew", () => {
-    expect(crewSource).toContain("Assignment gear");
-    expect(crewSource).toContain("Event reservation");
-    expect(crewSource).toContain("Pickup ready");
-    expect(crewSource).toContain("Missing gear");
+  it("keeps per-row gear readiness out of Event detail Crew rows", () => {
+    // Crew rows carry one signal (coverage status). Gear readiness lives in the
+    // card's gear summary strip and the actionable Missing Gear section instead.
+    for (const label of ["Assignment gear", "Event reservation", "Pickup ready"]) {
+      expect(crewSource).not.toContain(label);
+    }
+    expect(crewSource).toContain("Missing Gear (");
+    expect(crewSource).toContain("commandCenter.missingGear.map");
+    expect(crewSource).toContain("Reserve gear");
   });
 
   it("shows audit-derived schedule changes on Schedule and Event detail surfaces", () => {

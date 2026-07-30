@@ -46,9 +46,14 @@ describe("Schedule interaction-detail contracts", () => {
   it("keeps expanded crew actions quiet and aligned", () => {
     const editor = source("src/app/(app)/schedule/_components/WorkingCrewEditor.tsx");
 
-    expect(editor).toContain('const SLOT_ROW_GRID_CLASS = "grid-cols-[minmax(0,1fr)_5rem_5.5rem_2.5rem]"');
-    expect(editor).toContain('className="h-10 w-[5.5rem] justify-start gap-1.5 px-2 text-xs tabular-nums text-muted-foreground"');
-    expect(editor).toContain('className="h-10 w-20 px-3 text-xs"');
+    // Call | Type | Person | row actions, matching the Event detail Crew table.
+    expect(editor).toContain('const SLOT_ROW_GRID_CLASS = "grid-cols-[4.5rem_4.5rem_minmax(0,1fr)_2.5rem]"');
+    // The call trigger is bare time in its own column: no clock glyph, no chip.
+    expect(editor).not.toContain("Clock3Icon");
+    expect(editor).toContain('className="-ml-2 h-10 justify-start px-2 text-xs font-normal tabular-nums text-muted-foreground hover:text-foreground"');
+    // Row actions stay hidden until the row is hovered or focused.
+    expect(editor).toContain("const ROW_REVEAL");
+    expect(editor).toContain("group-hover/slot:opacity-100");
     expect(editor).toContain("Add slot");
     expect(editor).toContain("Unassign worker");
     expect(editor).toContain("Remove slot");

@@ -162,13 +162,6 @@ export function ShiftCoverageCard({
     return map;
   }, [shiftGroup.shifts]);
 
-  // Gear status from commandCenter keyed by shift ID
-  type CenterShift = NonNullable<typeof commandCenter>["shifts"][number];
-  const gearMap = useMemo(() => {
-    if (!commandCenter) return new Map<string, CenterShift>();
-    return new Map(commandCenter.shifts.map((cs) => [cs.id, cs]));
-  }, [commandCenter]);
-
   const coverage = shiftGroup.coverage;
   const coverageVariant = !coverage ? "gray"
     : coverage.percentage >= 100 ? "green"
@@ -361,7 +354,6 @@ export function ShiftCoverageCard({
     const isActing = inlineActing === shift.id || inlineActing === (activeAssignment?.id ?? "");
 
     if (activeAssignment) {
-      const gear = gearStateFor(shift.id);
       return (
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="flex min-w-0 items-center gap-2">
@@ -371,18 +363,6 @@ export function ShiftCoverageCard({
               size="sm"
             />
             <span className="min-w-0 truncate text-sm">{activeAssignment.user.name}</span>
-            {gear && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span
-                    className={cn(DOT, "shrink-0")}
-                    style={{ backgroundColor: gear.tone }}
-                    aria-label={gear.label}
-                  />
-                </TooltipTrigger>
-                <TooltipContent>{gear.label}</TooltipContent>
-              </Tooltip>
-            )}
             {isStaffOrAdmin && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -534,24 +514,6 @@ export function ShiftCoverageCard({
         </PopoverContent>
       </Popover>
     );
-  }
-
-  // Gear readiness stays on this surface as a quiet dot beside the person, so
-  // the row keeps one badge (status) instead of three competing pills.
-  function gearStateFor(shiftId: string): { label: string; tone: string } | null {
-    if (!commandCenter) return null;
-    const cs = gearMap.get(shiftId);
-    if (!cs?.assignment) return null;
-    if (commandCenter.missingGear.some((m) => m.shiftId === shiftId)) {
-      return { label: "Missing gear", tone: "var(--red-text)" };
-    }
-    if (cs.assignment.linkedBookingId) {
-      if (cs.assignment.linkedBookingStatus === "PENDING_PICKUP") return { label: "Pickup ready", tone: "var(--orange-text)" };
-      if (cs.assignment.linkedBookingStatus === "OPEN") return { label: "Checked out", tone: "var(--green-text)" };
-      if (cs.assignment.linkedBookingStatus === "BOOKED") return { label: "Assignment gear", tone: "var(--purple-text)" };
-      return { label: "Assignment gear", tone: "var(--green-text)" };
-    }
-    return { label: "Event reservation", tone: "var(--orange-text)" };
   }
 
   function renderAddSlotMenu(area: string) {

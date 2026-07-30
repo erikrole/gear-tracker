@@ -33,7 +33,7 @@ import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/Use
 import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import { VENUE_TONES, venueToneFromEvent } from "@/lib/venue-tone";
-import { formatRoleSlotAssignmentOutcome, shiftWorkerLabelForProfile, shiftWorkerSlotLabel, type RoleSlotOutcomeLike, type ShiftWorkerKind } from "@/lib/shift-display";
+import { formatRoleSlotAssignmentOutcome, shiftWorkerLabel, shiftWorkerLabelForProfile, shiftWorkerSlotLabel, type RoleSlotOutcomeLike, type ShiftWorkerKind } from "@/lib/shift-display";
 import { callWindowKey, effectiveCallWindow, formatCallWindowLabel, isInheritedFullDayCallWindow } from "@/lib/shift-call-windows";
 import type { CalendarEntry, Shift } from "./types";
 import type { ScheduleHealthSnapshot } from "@/lib/schedule-health-types";
@@ -73,12 +73,18 @@ type ListViewProps = {
   onHideEvent?: (eventId: string) => void;
 };
 
-const AREA_BADGE_VARIANT: Record<string, "green" | "purple" | "orange" | "blue"> = {
-  VIDEO: "green",
-  PHOTO: "purple",
-  COMMS: "orange",
-  GRAPHICS: "blue",
+// Area keeps its colour as a dot instead of a filled pill, so a crew row reads
+// as one line of text rather than a strip of competing badges.
+const AREA_DOT_TONE: Record<string, string> = {
+  VIDEO: "var(--green-text)",
+  PHOTO: "var(--purple-text)",
+  COMMS: "var(--orange-text)",
+  GRAPHICS: "var(--blue-text)",
 };
+
+/** Row-level destructive controls stay hidden until the row is hovered or focused. */
+const ROW_REVEAL =
+  "transition-opacity sm:opacity-0 sm:group-hover/assignment:opacity-100 sm:group-focus-within/assignment:opacity-100 sm:focus-visible:opacity-100";
 
 const EVENT_GRID_CLASS = "grid-cols-[44px_72px_minmax(180px,1fr)_80px_minmax(100px,140px)_136px_40px]";
 
@@ -296,17 +302,32 @@ function ShiftRowList({
             key={shift.id}
             className={cn(
               "min-h-11 border-border/45 px-2 py-1.5 transition-colors hover:bg-background/70",
-              compact ? "flex flex-col gap-2 rounded-md border bg-background/50" : "grid grid-cols-[88px_minmax(0,1fr)_auto_auto] items-center gap-3 border-t first:border-t-0",
+              compact ? "flex flex-col gap-2 rounded-md border bg-background/50" : "grid grid-cols-[104px_72px_minmax(0,1fr)_88px_auto] items-center gap-3 border-t first:border-t-0",
             )}
           >
-            <div className="flex min-w-0 items-center">
-              <Badge
-                variant={AREA_BADGE_VARIANT[shift.area] ?? "gray"}
-                size="sm"
-              >
+            <div className="flex min-w-0 items-center gap-2">
+              <span
+                className="inline-block size-1.5 shrink-0 rounded-full"
+                style={{ backgroundColor: AREA_DOT_TONE[shift.area] ?? "var(--muted-foreground)" }}
+                aria-hidden="true"
+              />
+              <span className="min-w-0 truncate text-[11px] font-semibold uppercase tracking-wider text-foreground/70">
                 {areaLabel}
-              </Badge>
+              </span>
             </div>
+
+            {!compact && (
+              <div
+                className={cn(
+                  "min-w-0 truncate text-xs",
+                  // An assigned person whose class differs from the slot keeps
+                  // the emphasis the old inline mismatch label carried.
+                  assignedClassDiffersFromSlot ? "text-foreground" : "text-muted-foreground",
+                )}
+              >
+                {assignedClassLabel ?? shiftWorkerLabel(workerType)}
+              </div>
+            )}
 
             <div className="min-w-0 flex-1">
               {user ? (
@@ -327,11 +348,6 @@ function ShiftRowList({
                     <span className="min-w-0 truncate text-sm font-medium">
                       {user.name}
                     </span>
-                    {!compact && assignedClassDiffersFromSlot && (
-                      <span className="ml-1 shrink-0 text-xs text-muted-foreground">
-                        {assignedClassLabel}
-                      </span>
-                    )}
                   </button>
                   {isStaff && activeAssignment && onRemoveAssignment && (
                     <Tooltip>
@@ -340,7 +356,10 @@ function ShiftRowList({
                           type="button"
                           variant="ghost"
                           size="icon-sm"
-                          className="relative ml-1 size-8 text-muted-foreground transition-[background-color,color,scale] before:absolute before:-inset-1 before:content-[''] hover:text-destructive active:scale-[0.96]"
+                          className={cn(
+                            "relative ml-1 size-8 text-muted-foreground transition-[background-color,color,scale] before:absolute before:-inset-1 before:content-[''] hover:text-destructive active:scale-[0.96]",
+                            ROW_REVEAL,
+                          )}
                           disabled={Boolean(removingAssignmentId)}
                           aria-label={`Remove ${user.name} from ${areaLabel} shift`}
                           onClick={(e) => {
@@ -381,9 +400,11 @@ function ShiftRowList({
                       <span className="min-w-0 truncate text-sm font-medium text-muted-foreground group-hover:text-foreground">
                         {emptyAssignLabel}
                       </span>
-                      <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                        {slotLabel}
-                      </span>
+                      {compact && (
+                        <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                          {slotLabel}
+                        </span>
+                      )}
                     </button>
                   </PopoverTrigger>
                   <PopoverContent
@@ -438,7 +459,7 @@ function ShiftRowList({
                 ) : null}
               </div>
             ) : (
-              <div className="flex min-h-10 min-w-0 flex-col items-end justify-center gap-1">
+              <div className="flex min-h-10 min-w-0 flex-col items-start justify-center gap-1">
                 {isStaff && showRowCallWindow ? (
                   <CallWindowEditor
                     target={callEditorTarget}
@@ -447,11 +468,19 @@ function ShiftRowList({
                     onSaved={onCallWindowSaved}
                     disabled={Boolean(removingAssignmentId)}
                     compact
+                    showSourceBadge={false}
+                    showLabel={false}
+                    showIcon={false}
+                    className="-ml-2 font-normal text-muted-foreground hover:text-foreground"
                   />
                 ) : showCallWindows && !isInheritedFullDayCallWindow(visibleWindow) && !callMatchesCommon ? (
                   <CallWindowEditor
                     effectiveWindow={visibleWindow}
                     compact
+                    showSourceBadge={false}
+                    showLabel={false}
+                    showIcon={false}
+                    className="-ml-2 font-normal text-muted-foreground"
                   />
                 ) : null}
               </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeftRightIcon, Clock3Icon, MoreHorizontalIcon, PlusIcon, SendIcon, UserIcon, XIcon } from "lucide-react";
+import { ArrowLeftRightIcon, MoreHorizontalIcon, PlusIcon, SendIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -65,14 +65,11 @@ type Props = {
 };
 
 const AREA_ORDER = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS", "LIVE_PRODUCTION"] as const;
-const AREA_VARIANTS: Record<string, "green" | "purple" | "blue" | "orange" | "gray"> = {
-  VIDEO: "green",
-  PHOTO: "purple",
-  GRAPHICS: "blue",
-  COMMS: "orange",
-  LIVE_PRODUCTION: "gray",
-};
-const SLOT_ROW_GRID_CLASS = "grid-cols-[minmax(0,1fr)_5rem_5.5rem_2.5rem]";
+// Call | Type | Person | row actions, matching the Event detail Crew table.
+const SLOT_ROW_GRID_CLASS = "grid-cols-[4.5rem_4.5rem_minmax(0,1fr)_2.5rem]";
+/** Row actions stay hidden until the row is hovered or focused. */
+const ROW_REVEAL =
+  "transition-opacity sm:opacity-0 sm:group-hover/slot:opacity-100 sm:group-focus-within/slot:opacity-100";
 
 function stateBadge(data: EditorData) {
   if (data.publicationState === "unpublished_changes") {
@@ -143,11 +140,10 @@ function CallWindowEditor({
           type="button"
           variant="ghost"
           size="sm"
-          className="h-10 w-[5.5rem] justify-start gap-1.5 px-2 text-xs tabular-nums text-muted-foreground"
+          className="-ml-2 h-10 justify-start px-2 text-xs font-normal tabular-nums text-muted-foreground hover:text-foreground"
           disabled={disabled}
           aria-label={`Edit call time for ${AREA_LABELS[slot.area] ?? slot.area} ${slot.workerType === "FT" ? "Staff" : "Student"} slot`}
         >
-          <Clock3Icon className="size-3" />
           {formatTimeShort(defaultStartsAt)}
         </Button>
       </PopoverTrigger>
@@ -432,12 +428,12 @@ export function WorkingCrewEditor({
           return (
             <section key={area} className={cn(compact ? "py-2" : "py-2.5")}>
               <div className="flex min-h-10 items-center justify-between gap-3 px-1">
-                <div className="flex min-w-0 items-center gap-2">
-                  <Badge variant={AREA_VARIANTS[area]} size="sm">
+                <div className="flex min-w-0 items-baseline gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground/70">
                     {AREA_LABELS[area] ?? area}
-                  </Badge>
+                  </span>
                   <span className="text-[11px] tabular-nums text-muted-foreground">
-                    {slots.length} {slots.length === 1 ? "slot" : "slots"}
+                    {slots.filter((slot) => slot.assignment).length}/{slots.length}
                   </span>
                 </div>
                 <DropdownMenu>
@@ -446,10 +442,10 @@ export function WorkingCrewEditor({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-10 gap-1.5 px-2 text-xs text-muted-foreground"
+                      className="h-10 gap-1 px-2 text-xs font-normal text-muted-foreground hover:text-foreground"
                       disabled={Boolean(actingKey)}
                     >
-                      <PlusIcon className="size-3.5" />
+                      <PlusIcon className="size-3" />
                       Add slot
                     </Button>
                   </DropdownMenuTrigger>
@@ -482,21 +478,19 @@ export function WorkingCrewEditor({
                     return staffingType === slot.workerType;
                   });
                   return slot.assignment ? (
-                    <div key={slot.key} className={cn("grid min-h-11 min-w-0 items-center gap-2 rounded-md px-1 hover:bg-muted/20", SLOT_ROW_GRID_CLASS)}>
+                    <div key={slot.key} className={cn("group/slot grid min-h-11 min-w-0 items-center gap-2 rounded-md px-1 hover:bg-muted/20", SLOT_ROW_GRID_CLASS)}>
+                      <CallWindowEditor
+                        slot={slot}
+                        disabled={Boolean(actingKey)}
+                        onSave={(callStartsAt, callEndsAt) => void mutate(
+                          { type: "setCallWindow", slotKey: slot.key, callStartsAt, callEndsAt },
+                          `${slot.key}-call-window`,
+                        )}
+                      />
+                      <span className="min-w-0 truncate text-xs text-muted-foreground">{roleLabel}</span>
                       <div className="flex min-w-0 items-center gap-2">
                         <UserAvatar name={user?.name ?? "Assigned"} avatarUrl={user?.avatarUrl} size="sm" />
-                        <span className="min-w-0 truncate text-sm font-medium">{user?.name ?? "Assigned worker"}</span>
-                        <span className="shrink-0 text-xs text-muted-foreground">{roleLabel}</span>
-                      </div>
-                      <div className="col-start-3">
-                        <CallWindowEditor
-                          slot={slot}
-                          disabled={Boolean(actingKey)}
-                          onSave={(callStartsAt, callEndsAt) => void mutate(
-                            { type: "setCallWindow", slotKey: slot.key, callStartsAt, callEndsAt },
-                            `${slot.key}-call-window`,
-                          )}
-                        />
+                        <span className="min-w-0 truncate text-sm">{user?.name ?? "Assigned worker"}</span>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -504,7 +498,7 @@ export function WorkingCrewEditor({
                             type="button"
                             variant="ghost"
                             size="icon-sm"
-                            className="col-start-4 size-10 text-muted-foreground"
+                            className={cn("size-10 text-muted-foreground", ROW_REVEAL)}
                             aria-label={`Actions for ${user?.name ?? "assigned worker"}`}
                             disabled={Boolean(actingKey)}
                           >
@@ -523,11 +517,16 @@ export function WorkingCrewEditor({
                       </DropdownMenu>
                     </div>
                   ) : (
-                    <div key={slot.key} className={cn("grid min-h-11 min-w-0 items-center gap-2 rounded-md px-1 hover:bg-muted/20", SLOT_ROW_GRID_CLASS)}>
-                      <div className="flex min-w-0 items-center gap-2">
-                        <UserIcon className="ml-1 size-4 shrink-0 text-muted-foreground" />
-                        <span className="min-w-0 truncate text-sm text-muted-foreground">Open {roleLabel} slot</span>
-                      </div>
+                    <div key={slot.key} className={cn("group/slot grid min-h-11 min-w-0 items-center gap-2 rounded-md px-1 hover:bg-muted/20", SLOT_ROW_GRID_CLASS)}>
+                      <CallWindowEditor
+                        slot={slot}
+                        disabled={Boolean(actingKey)}
+                        onSave={(callStartsAt, callEndsAt) => void mutate(
+                          { type: "setCallWindow", slotKey: slot.key, callStartsAt, callEndsAt },
+                          `${slot.key}-call-window`,
+                        )}
+                      />
+                      <span className="min-w-0 truncate text-xs text-muted-foreground">{roleLabel}</span>
                       <Popover onOpenChange={(open) => {
                         if (open) {
                           onOpenPicker();
@@ -537,7 +536,17 @@ export function WorkingCrewEditor({
                         }
                       }}>
                         <PopoverTrigger asChild>
-                          <Button type="button" variant="outline" size="sm" className="h-10 w-20 px-3 text-xs" disabled={Boolean(actingKey)}>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="group/assign -ml-1.5 h-10 w-fit justify-start gap-2 px-1.5 font-normal text-muted-foreground/70 hover:text-foreground"
+                            disabled={Boolean(actingKey)}
+                            aria-label={`Assign ${roleLabel.toLowerCase()} slot`}
+                          >
+                            <span className="flex size-6 items-center justify-center rounded-full border border-dashed border-muted-foreground/30 transition-colors group-hover/assign:border-primary/50">
+                              <PlusIcon className="size-3 text-muted-foreground/50 transition-colors group-hover/assign:text-primary" />
+                            </span>
                             Assign
                           </Button>
                         </PopoverTrigger>
@@ -556,16 +565,6 @@ export function WorkingCrewEditor({
                           />
                         </PopoverContent>
                       </Popover>
-                      <div className="col-start-3">
-                        <CallWindowEditor
-                          slot={slot}
-                          disabled={Boolean(actingKey)}
-                          onSave={(callStartsAt, callEndsAt) => void mutate(
-                            { type: "setCallWindow", slotKey: slot.key, callStartsAt, callEndsAt },
-                            `${slot.key}-call-window`,
-                          )}
-                        />
-                      </div>
                       {canConvert && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -573,7 +572,7 @@ export function WorkingCrewEditor({
                               type="button"
                               variant="ghost"
                               size="icon-sm"
-                              className="col-start-4 size-10 text-muted-foreground"
+                              className={cn("col-start-4 size-10 text-muted-foreground", ROW_REVEAL)}
                               disabled={Boolean(actingKey)}
                               aria-label={`Actions for open ${roleLabel} slot`}
                             >
