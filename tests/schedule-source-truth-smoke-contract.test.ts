@@ -118,8 +118,11 @@ describe("schedule source-of-truth and browser smoke contracts", () => {
     expect(eventCrew).toContain("Review the proposed crew changes before applying them.");
     expect(shiftPanel).toContain("Review suggested assignments before applying them.");
     expect(eventCrew).toContain("rowCallWindow");
-    expect(eventCrew.match(/<CallWindowEditor/g)?.length).toBe(2);
-    expect(eventCrew).toContain("showSourceBadge={false}");
+    // One table for every role means one call-time control, staff-editable via
+    // rowCallTarget and read-only for everyone else.
+    expect(eventCrew.match(/<CallWindowEditor/g)?.length).toBe(1);
+    expect(eventCrew).toContain('variant="bare"');
+    expect(eventCrew).toContain("const rowCallTarget = !isStaffOrAdmin");
 
     expect(eventCrew).not.toContain("CrewTemplateReviewButton");
     expect(shiftPanel).not.toContain("CrewTemplateReviewButton");

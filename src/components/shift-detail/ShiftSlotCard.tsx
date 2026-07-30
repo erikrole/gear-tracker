@@ -1,5 +1,4 @@
 import { UserAvatar } from "@/components/UserAvatar";
-import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -20,6 +19,15 @@ import { CallWindowEditor } from "./CallWindowEditor";
 import { UserAvatarPicker, type PickerUser } from "./UserAvatarPicker";
 import { effectiveCallWindow, isInheritedFullDayCallWindow } from "@/lib/shift-call-windows";
 import { shiftWorkerLabelForProfile, shiftWorkerSlotLabel } from "@/lib/shift-display";
+import { cn } from "@/lib/utils";
+import {
+  AssignSlotButton,
+  CREW_ROW_GROUP,
+  CREW_ROW_REVEAL,
+  CrewSlotStatus,
+  CrewTypeLabel,
+  crewSlotState,
+} from "./crew-row";
 
 type ShiftUser = {
   id: string;
@@ -38,14 +46,6 @@ type ShiftAssignment = {
   callEndsAt?: string | null;
   callNote?: string | null;
   user: ShiftUser;
-};
-
-const STATUS_BADGES: Record<string, string> = {
-  DIRECT_ASSIGNED: "blue",
-  REQUESTED: "orange",
-  APPROVED: "green",
-  DECLINED: "red",
-  SWAPPED: "gray",
 };
 
 type Props = {
@@ -158,23 +158,15 @@ export function ShiftSlotCard({
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <Card
-          elevation="flat"
-          className={`p-3 mb-2 ${isAssigned ? "border-[var(--green)]/20 bg-[var(--green-bg)]" : ""}`}
-        >
+        <Card elevation="flat" className={cn(CREW_ROW_GROUP, "mb-2 p-3")}>
           {/* Header: status badge + assigned role or open planned slot */}
           <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-1.5">
-              {isAssigned ? (
-                <Badge variant="green" size="sm">Filled</Badge>
-              ) : pendingRequests.length > 0 ? (
-                <Badge variant="orange" size="sm">
-                  {pendingRequests.length} request{pendingRequests.length > 1 ? "s" : ""}
-                </Badge>
-              ) : (
-                <Badge variant="red" size="sm">Open</Badge>
-              )}
-              <Badge variant="gray" size="sm">{roleBadgeLabel}</Badge>
+            <div className="flex items-center gap-3">
+              <CrewSlotStatus
+                state={crewSlotState(isAssigned, pendingRequests.length)}
+                requestCount={pendingRequests.length}
+              />
+              <CrewTypeLabel label={roleBadgeLabel} />
             </div>
             {showSlotWindow && (
               <CallWindowEditor
@@ -192,7 +184,7 @@ export function ShiftSlotCard({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="size-10 text-muted-foreground hover:text-destructive"
+                    className={cn(CREW_ROW_REVEAL, "size-10 text-muted-foreground hover:text-destructive")}
                     onClick={onDeleteShift}
                     disabled={acting !== null}
                     aria-label="Remove shift"
@@ -227,22 +219,17 @@ export function ShiftSlotCard({
                     </Tooltip>
                   )}
                 </span>
-                <div className="flex items-center gap-1">
-                  <Badge variant={(STATUS_BADGES[activeAssignment.status] ?? "gray") as BadgeProps["variant"]} size="sm">
-                    {activeAssignment.status.replace("_", " ")}
-                  </Badge>
-                  {isStaff && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-9 px-2 text-xs text-destructive"
-                      onClick={() => onRemove(activeAssignment.id)}
-                      disabled={acting !== null}
-                    >
-                      {acting === activeAssignment.id ? "..." : "Remove"}
-                    </Button>
-                  )}
-                </div>
+                {isStaff && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(CREW_ROW_REVEAL, "h-9 px-2 text-xs text-destructive")}
+                    onClick={() => onRemove(activeAssignment.id)}
+                    disabled={acting !== null}
+                  >
+                    {acting === activeAssignment.id ? "..." : "Remove"}
+                  </Button>
+                )}
               </div>
               {showAssignmentWindow && assignmentWindow && (
                 <div className="mt-1.5 pl-9">
@@ -325,17 +312,10 @@ export function ShiftSlotCard({
                   }}
                 >
                   <PopoverTrigger asChild>
-                    <button
-                      className="group flex min-h-10 w-full items-center gap-2 rounded-md px-1 py-1 text-left transition-[background-color,color,scale] hover:bg-muted/50 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+                    <AssignSlotButton
                       disabled={acting !== null}
-                    >
-                      <div className="size-7 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/25 group-hover:border-primary/50 flex items-center justify-center transition-colors">
-                        <PlusIcon className="size-3 text-muted-foreground/35 group-hover:text-primary transition-colors" />
-                      </div>
-                      <span className="text-sm text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
-                        Assign someone...
-                      </span>
-                    </button>
+                      aria-label={`Assign ${shiftWorkerSlotLabel(workerType).toLowerCase()}`}
+                    />
                   </PopoverTrigger>
                   <PopoverContent className="w-64 p-2" align="start">
                     <UserAvatarPicker

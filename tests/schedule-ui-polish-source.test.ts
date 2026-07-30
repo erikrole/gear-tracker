@@ -50,11 +50,12 @@ describe("Schedule interaction-detail contracts", () => {
     expect(editor).toContain('const SLOT_ROW_GRID_CLASS = "grid-cols-[4.5rem_4.5rem_minmax(0,1fr)_2.5rem]"');
     // The call trigger is bare time in its own column: no clock glyph, no chip.
     expect(editor).not.toContain("Clock3Icon");
-    expect(editor).toContain('className="-ml-2 h-10 justify-start px-2 text-xs font-normal tabular-nums text-muted-foreground hover:text-foreground"');
-    // Row actions stay hidden until the row is hovered or focused.
-    expect(editor).toContain("const ROW_REVEAL");
-    expect(editor).toContain("group-hover/slot:opacity-100");
-    expect(editor).toContain("Add slot");
+    expect(editor).toContain("CREW_CALL_TRIGGER_CLASS");
+    // Row chrome comes from the shared crew-row vocabulary, not local copies.
+    expect(editor).toContain("CREW_ROW_REVEAL");
+    expect(editor).toContain("CREW_ROW_GROUP");
+    expect(editor).not.toContain("const ROW_REVEAL");
+    expect(editor).toContain("<AddSlotMenu");
     expect(editor).toContain("Unassign worker");
     expect(editor).toContain("Remove slot");
     expect(editor).toContain('className="divide-y divide-border/40 border-y border-border/40"');
