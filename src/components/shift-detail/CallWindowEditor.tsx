@@ -39,6 +39,10 @@ type Props = {
   className?: string;
   compact?: boolean;
   showSourceBadge?: boolean;
+  /** Hide the "Call" word when the column header already says it. */
+  showLabel?: boolean;
+  /** Hide the clock glyph when the control sits in a dedicated call-time column. */
+  showIcon?: boolean;
 };
 
 const SOURCE_VARIANTS: Record<CallWindowSource, BadgeProps["variant"]> = {
@@ -64,6 +68,8 @@ export function CallWindowEditor({
   className,
   compact,
   showSourceBadge = true,
+  showLabel = true,
+  showIcon = true,
 }: Props) {
   const editable = Boolean(target);
   const [open, setOpen] = useState(false);
@@ -168,8 +174,8 @@ export function CallWindowEditor({
       title={windowLabel !== label ? `Coverage window: ${windowLabel}` : undefined}
       onClick={(event) => event.stopPropagation()}
     >
-      <ClockIcon className="size-3.5 shrink-0 text-muted-foreground" />
-      <span className="min-w-0 truncate">Call {label}</span>
+      {showIcon && <ClockIcon className="size-3.5 shrink-0 text-muted-foreground" />}
+      <span className="min-w-0 truncate">{showLabel ? `Call ${label}` : label}</span>
       {showSourceBadge && (
         <Badge variant={SOURCE_VARIANTS[effectiveWindow.source]} size="sm" className="shrink-0">
           {callWindowSourceLabel(effectiveWindow.source)}
