@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { HttpError } from "@/lib/http";
+import { isSerializationConflict } from "@/lib/serialization";
 
 const MAX_CATEGORY_TREE_DEPTH = 25;
 const CATEGORY_MUTATION_ATTEMPTS = 2;
@@ -15,13 +16,6 @@ function prismaErrorCode(error: unknown) {
   return (error as { code?: unknown }).code;
 }
 
-function isSerializableConflict(error: unknown) {
-  if (!error || typeof error !== "object") return false;
-  const code = prismaErrorCode(error);
-  const metaCode = (error as { meta?: { code?: unknown } }).meta?.code;
-  return code === "P2034" || code === "40001" || metaCode === "40001";
-}
-
 /**
  * A category-tree mutation must retry the whole transaction, including all
  * duplicate and ancestry reads. That is what makes reciprocal parent moves and
@@ -33,7 +27,7 @@ export async function withCategorySerializableRetry<T>(operation: () => Promise<
     try {
       return await operation();
     } catch (error) {
-      if (!isSerializableConflict(error)) throw error;
+      if (!isSerializationConflict(error)) throw error;
       if (attempt === CATEGORY_MUTATION_ATTEMPTS) {
         throw new HttpError(409, "Category changed at the same time; please try again");
       }
@@ -157,7 +151,7 @@ export function rethrowCategoryMutationError(
   if (error instanceof HttpError) throw error;
 
   const code = prismaErrorCode(error);
-  if (isSerializableConflict(error)) {
+  if (isSerializationConflict(error)) {
     throw new HttpError(409, "Category changed at the same time; please try again");
   }
   if (code === "P2002") {

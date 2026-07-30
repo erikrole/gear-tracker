@@ -6,6 +6,7 @@ import { generateAssetQrCode } from "@/lib/asset-qr-code";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
+import { isSerializationConflict } from "@/lib/serialization";
 
 const replaceQrCodeSchema = z.object({
   value: z.string().trim().min(1).max(500).optional(),
@@ -81,8 +82,9 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
 
       return ok({ data: updated });
     } catch (error) {
-      const serializationConflict = error instanceof Prisma.PrismaClientKnownRequestError
-        && error.code === "P2034";
+      // Matches the raw 40001 driver code as well as Prisma's P2034; the
+      // Neon adapter can surface either for the same serialization abort.
+      const serializationConflict = isSerializationConflict(error);
       if (serializationConflict && attempt < MAX_GENERATION_ATTEMPTS - 1) continue;
 
       const retryableGenerationCollision = generated
