@@ -149,10 +149,12 @@ describe("schedule source-of-truth and browser smoke contracts", () => {
 
     expect(listView).not.toContain("Reserve gear");
     expect(listView).not.toContain("/reservations/new?");
-    expect(eventCrew).toContain("Assignment gear");
-    expect(eventCrew).toContain("Event reservation");
-    expect(eventCrew).toContain("Missing gear");
-    expect(eventCrew).toContain("Pickup ready");
+    // Gear readiness is a card-level concern now, not a per-crew-row badge.
+    expect(eventCrew).toContain("Missing Gear (");
+    expect(eventCrew).toContain("Reserve gear");
+    for (const label of ["Assignment gear", "Event reservation", "Pickup ready"]) {
+      expect(eventCrew).not.toContain(label);
+    }
     expect(eventCrew).not.toContain("type: \"slot\", id: shift.id");
 
     expect(listView).toContain("Review changes");
