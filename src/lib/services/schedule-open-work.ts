@@ -6,6 +6,7 @@ import { scoreCandidatesForShift, type CandidateScoringUser } from "@/lib/servic
 import { evaluateAvailabilityPreferences } from "@/lib/student-availability";
 import { availabilityContextFromCandidate } from "@/lib/schedule-availability-context";
 import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
+import { withSerializationRetry } from "@/lib/serialization";
 
 const ACTIVE_STATUSES = ACTIVE_ASSIGNMENT_STATUSES as ShiftAssignmentStatus[];
 
@@ -330,7 +331,10 @@ export async function getScheduleOpenWork(filters: OpenWorkFilters) {
 }
 
 export async function pickupOpenShift(shiftId: string, userId: string) {
-  return db.$transaction(async (tx) => {
+  // Two students tapping the same open slot is the expected race, so a lost
+  // serialization conflict retries once. The retry re-reads the shift, so the
+  // second attempt correctly returns the 409 if the other student won.
+  return withSerializationRetry(() => db.$transaction(async (tx) => {
     const [shift, user] = await Promise.all([
       tx.shift.findUnique({
         where: { id: shiftId },
@@ -435,5 +439,5 @@ export async function pickupOpenShift(shiftId: string, userId: string) {
         },
       },
     });
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
 }

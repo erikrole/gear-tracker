@@ -10,6 +10,7 @@ type ShiftTradesTx = {
 };
 type ShiftTradesDb = {
   _mockTx: ShiftTradesTx;
+  $transaction: MockFn;
   shiftTrade: Record<"findMany" | "count", MockFn>;
   user: Record<"findMany", MockFn>;
 };
@@ -287,6 +288,46 @@ describe("claimTrade", () => {
     await claimTrade(trade.id, "claimer-1");
 
     expectSerializableIsolation(transactionCalls, 0);
+  });
+
+  // ── REGRESSION: a lost serialization race must retry, and must not
+  // re-send the notifications buffered by the failed attempt. ──
+  it("retries once on a serialization conflict without double-sending notifications", async () => {
+    const trade = openTrade();
+    mockTx.shiftTrade.findUnique.mockResolvedValue(trade);
+    mockTx.user.findUnique.mockResolvedValue(makeUser({ primaryArea: "Field" }));
+    mockTx.shiftAssignment.findUnique.mockResolvedValue({ ...trade.shiftAssignment });
+    mockTx.shiftAssignment.update.mockResolvedValue({});
+    mockTx.shiftAssignment.create.mockResolvedValue({});
+    mockTx.shiftTrade.update.mockResolvedValue({ ...trade, claimedByUserId: "claimer-1", status: "COMPLETED" });
+
+    // The Neon adapter can surface a serialization abort as the raw 40001
+    // driver code rather than Prisma's P2034.
+    const transaction = mockDb.$transaction as unknown as MockFn;
+    transaction.mockRejectedValueOnce({ code: "40001" });
+
+    await claimTrade(trade.id, "claimer-1");
+
+    expect(transaction).toHaveBeenCalledTimes(2);
+    expect(sendPushToUser).toHaveBeenCalledTimes(1);
+    expect(sendShiftTradeEmail).toHaveBeenCalledTimes(1);
+    // Two badge events is correct: a completed trade credits both the poster
+    // and the claimer. The point is that the retry did not double either.
+    expect(badges.onTradeCompleted).toHaveBeenCalledTimes(2);
+    expect(badges.onTradeCompleted).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "poster-1" }),
+    );
+    expect(badges.onTradeCompleted).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "claimer-1" }),
+    );
+  });
+
+  it("does not retry a non-conflict failure", async () => {
+    const transaction = mockDb.$transaction as unknown as MockFn;
+    transaction.mockRejectedValueOnce(new Error("boom"));
+
+    await expect(claimTrade("trade-1", "claimer-1")).rejects.toThrow("boom");
+    expect(transaction).toHaveBeenCalledTimes(1);
   });
 
   it("throws 404 when trade not found", async () => {

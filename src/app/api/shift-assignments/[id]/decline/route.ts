@@ -3,9 +3,11 @@ import { ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { declineRequest } from "@/lib/services/shift-assignments";
 import { createAuditEntry } from "@/lib/audit";
+import { enforceRateLimit, SCHEDULE_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 export const PATCH = withAuth<{ id: string }>(async (_req, { user, params }) => {
   requirePermission(user.role, "shift_assignment", "approve");
+  await enforceRateLimit(`shift-request:review:${user.id}`, SCHEDULE_MUTATION_LIMIT);
   const { id } = params;
 
   const assignment = await declineRequest(id);

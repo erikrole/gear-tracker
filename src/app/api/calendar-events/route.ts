@@ -10,6 +10,7 @@ import { isHomeFromVenueTone, VENUE_TONE_VALUES } from "@/lib/venue-tone";
 import { nullableSportCodeSchema, optionalSportCodeSchema } from "@/lib/validation";
 import { z } from "zod";
 import { normalizeManualEventTitle } from "@/lib/title-normalization";
+import { enforceRateLimit, SCHEDULE_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 function canIncludeHiddenEvents(role: string) {
   return role === "ADMIN" || role === "STAFF";
@@ -139,6 +140,7 @@ export const POST = withAuth(async (req, { user }) => {
   if (user.role !== "ADMIN" && user.role !== "STAFF") {
     throw new HttpError(403, "Only staff and admins can create events");
   }
+  await enforceRateLimit(`calendar-event:write:${user.id}`, SCHEDULE_MUTATION_LIMIT);
 
   let rawBody: unknown;
   try {

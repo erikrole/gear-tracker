@@ -10,6 +10,7 @@ import { badges } from "@/lib/badges";
 import { evaluateAvailabilityPreferences } from "@/lib/student-availability";
 import { availabilityContextFromBlocks } from "@/lib/schedule-availability-context";
 import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
+import { withSerializationRetry } from "@/lib/serialization";
 
 function assertShiftNotStarted(startsAt: Date) {
   if (startsAt <= new Date()) {
@@ -223,7 +224,11 @@ export async function claimTrade(tradeId: string, userId: string) {
   const pushJobs: Array<{ userId: string; title: string; body: string; payload: Record<string, unknown> }> = [];
   const badgeJobs: Array<Parameters<typeof badges.onTradeCompleted>[0]> = [];
 
-  const result = await db.$transaction(async (tx) => {
+  // Two students claiming the same trade is the expected race here, so a lost
+  // serialization conflict retries once instead of surfacing as a failure. The
+  // retry re-runs the transaction body, so the side-effect buffers must be
+  // cleared first or the second attempt would double-send.
+  const result = await withSerializationRetry(() => db.$transaction(async (tx) => {
     const trade = await tx.shiftTrade.findUnique({
       where: { id: tradeId },
       include: {
@@ -341,7 +346,13 @@ export async function claimTrade(tradeId: string, userId: string) {
     });
 
     return completed;
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }), {
+    onRetry: () => {
+      emailJobs.length = 0;
+      pushJobs.length = 0;
+      badgeJobs.length = 0;
+    },
+  });
 
   await Promise.all(badgeJobs.map((event) => badges.onTradeCompleted(event)));
   await Promise.allSettled(pushJobs.map((job) =>
