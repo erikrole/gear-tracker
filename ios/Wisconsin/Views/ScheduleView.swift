@@ -680,10 +680,7 @@ private struct PublishedEventDetailView: View {
             } else {
                 ForEach(crewByArea, id: \.area) { group in
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(group.area.shiftAreaLabel)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .textCase(.uppercase)
+                        CrewAreaHeading(area: group.area)
                             .padding(.bottom, 6)
 
                         ForEach(group.crew) { member in
@@ -722,7 +719,7 @@ private struct PublishedCrewRow: View {
 
                 Text("Call \(publishedCallWindow(member))")
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(Color.statusText(.blue))
+                    .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -802,11 +799,11 @@ private func publishedCrewCount(_ count: Int) -> String {
 }
 
 private func publishedCrewRole(_ role: String) -> String {
-    switch role {
-    case "FT", "STAFF": "Staff"
-    case "ST", "STUDENT": "Student"
-    default: role.replacingOccurrences(of: "_", with: " ").capitalized
-    }
+    // Staff/Student wording comes from the shared crew vocabulary so published
+    // crew reads the same as every other crew surface.
+    let shared = crewWorkerTypeLabel(role)
+    guard shared == role else { return shared }
+    return role.replacingOccurrences(of: "_", with: " ").capitalized
 }
 
 private func publishedCallWindow(_ member: PublishedCrewMember) -> String {

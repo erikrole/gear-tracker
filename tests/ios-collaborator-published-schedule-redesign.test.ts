@@ -40,8 +40,12 @@ describe("iOS collaborator Published Schedule redesign", () => {
     expect(schedule).toContain('Text("Published Crew")');
     expect(schedule).toContain("Dictionary(grouping: event.crew, by: \\.area)");
     expect(schedule).toContain("PublishedCrewRow(member: member)");
-    expect(schedule).toContain('case "FT", "STAFF": "Staff"');
-    expect(schedule).toContain('case "ST", "STUDENT": "Student"');
+    // Staff/Student wording is owned by the shared crew vocabulary so published
+    // crew reads the same as the Event detail and Schedule crew rows.
+    expect(schedule).toContain("crewWorkerTypeLabel(role)");
+    const crewRow = source("ios/Wisconsin/Views/Components/CrewRow.swift");
+    expect(crewRow).toContain('case "FT", "STAFF": return "Staff"');
+    expect(crewRow).toContain('case "ST", "STUDENT": return "Student"');
     expect(schedule).not.toContain("PublishedEventDetailView(event: event, myShift:");
   });
 
