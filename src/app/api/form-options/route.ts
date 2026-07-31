@@ -1,12 +1,16 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { ok } from "@/lib/http";
+import { HttpError, ok } from "@/lib/http";
 import { visibleUserWhere } from "@/lib/user-visibility";
 import { buildActiveBulkUnitAllocationMap } from "@/lib/bulk-unit-status";
 import { summarizeItemFamilyState } from "@/lib/item-family-state";
+import { hasCollaboratorCapability } from "@/lib/collaborator-access";
 
 export const GET = withAuth(async (_req, { user }) => {
   if (user.role === "COLLABORATOR") {
+    if (!hasCollaboratorCapability(user, "GEAR_CATALOG_VIEW") && !hasCollaboratorCapability(user, "MY_GEAR_VIEW")) {
+      throw new HttpError(403, "Forbidden");
+    }
     const locations = await db.location.findMany({
       where: { active: true },
       orderBy: { name: "asc" },

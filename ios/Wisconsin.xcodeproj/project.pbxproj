@@ -88,6 +88,7 @@
 		81413B070B47866D2C7DB337 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0189482D68508F45B086F46F /* SessionStore.swift */; };
 		843586F2B58722883BD12D08 /* KioskReturnView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 687337C19E47FE94FE56F9BF /* KioskReturnView.swift */; };
 		84BE753FF259E17D637E6482 /* AccountAvatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 073F98039DAC37B5AC72487C /* AccountAvatar.swift */; };
+		86CFEB3F8DFA7CF275B00991 /* PasskeyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B83DB9EE3ED741F3A11FD83F /* PasskeyService.swift */; };
 		87F881684924F42EFF019EE6 /* ProfileCompletionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40E011969D2B77CA098ECCD1 /* ProfileCompletionStore.swift */; };
 		880C3E570298237A5D3A7EF0 /* ProfileCompletionWelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5740ABDA01126CBBB53F25EF /* ProfileCompletionWelcomeView.swift */; };
 		889D5483CAC2EA6C8E25DDFD /* ShiftTradeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC21A466188CE0D3011728F2 /* ShiftTradeModels.swift */; };
@@ -133,6 +134,7 @@
 		D24677599DC4E06E3E093A81 /* PushPrePromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A2DFDC7A0C7BD6C018D43D2 /* PushPrePromptView.swift */; };
 		D26919265FC80896DFC0085F /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5932CB2D580EFEB5EA22D828 /* AppEnvironment.swift */; };
 		D4355A04DA0626C754E3993C /* CheckoutReturnActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E11254A1E4647B8B02F4890A /* CheckoutReturnActivityAttributes.swift */; };
+		D622D6499DAFD051C68A9C25 /* PasskeyModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71D4B19DF59FC05500A7F758 /* PasskeyModels.swift */; };
 		D6AFE2C4EFEE0397AA81C6DC /* KioskFlowRouting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3505D284815BD7237ACFED5F /* KioskFlowRouting.swift */; };
 		D90FDB80F8FFF8F2921E26A5 /* LatestRequestGenerationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E2243115099DA4F3973F11 /* LatestRequestGenerationTests.swift */; };
 		DACC18C0E1181FD912992FEE /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D6258D04F2CBF34C14EBB69 /* LoginView.swift */; };
@@ -253,6 +255,7 @@
 		6B64F325136AF7626ECECE8C /* UserDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDetailView.swift; sourceTree = "<group>"; };
 		6D6258D04F2CBF34C14EBB69 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		6ED3D57FAA3E94281C3FF27C /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		71D4B19DF59FC05500A7F758 /* PasskeyModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasskeyModels.swift; sourceTree = "<group>"; };
 		73A192946D33F875B4A0A772 /* WisconsinKioskTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = WisconsinKioskTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		74157D1DF3F4EF9F53F70494 /* ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleView.swift; sourceTree = "<group>"; };
 		74EFD042F26EA7BE52FA67E3 /* SearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchService.swift; sourceTree = "<group>"; };
@@ -289,6 +292,7 @@
 		B24728E65A42F40EDB0BBCF8 /* KioskOnlyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskOnlyApp.swift; sourceTree = "<group>"; };
 		B76322B9A6F0D5B70487D0F2 /* SidebarWebDestinationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarWebDestinationView.swift; sourceTree = "<group>"; };
 		B798A9A6A730D69BA6E9597B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		B83DB9EE3ED741F3A11FD83F /* PasskeyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasskeyService.swift; sourceTree = "<group>"; };
 		B9D82991FC6AE45A56917938 /* AppIntentsData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIntentsData.swift; sourceTree = "<group>"; };
 		BA04562F7C424114F304B494 /* BookingDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingDetailView.swift; sourceTree = "<group>"; };
 		BA5C2531E017BDBDE5EFDDFE /* KioskAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskAPIClient.swift; sourceTree = "<group>"; };
@@ -499,6 +503,7 @@
 				6148A160C162A021FF9DE4C0 /* FormModels.swift */,
 				5B540C9027D1885BCBEA2E4D /* Models.swift */,
 				229CAC26AA9E3BB5EEC36678 /* NotificationModels.swift */,
+				71D4B19DF59FC05500A7F758 /* PasskeyModels.swift */,
 				BC88ED41091D463A9A8D5503 /* ProfileCompletionModels.swift */,
 				D50B2D1EA31765C957FED322 /* ScheduleModels.swift */,
 				EC21A466188CE0D3011728F2 /* ShiftTradeModels.swift */,
@@ -596,6 +601,7 @@
 				FAD4EC3F211EACBB157F7DDE /* GearStore.swift */,
 				2A73B2A1C9B274552CBA7C8B /* Haptics.swift */,
 				2536547429CB16E12CB069C0 /* NetworkMonitor.swift */,
+				B83DB9EE3ED741F3A11FD83F /* PasskeyService.swift */,
 				EB6A309FA698276EE001EE07 /* Preferences.swift */,
 				40E011969D2B77CA098ECCD1 /* ProfileCompletionStore.swift */,
 				D5FEA50A163963BC17612FB6 /* ReservationDraftStore.swift */,
@@ -984,6 +990,8 @@
 				78C02C1D3AEE264D6EA1925B /* NotificationSettingsView.swift in Sources */,
 				BAE863712FA11717C1C77B29 /* NotificationsSheet.swift in Sources */,
 				EB431E266D465DDA520852CB /* OverdueReportView.swift in Sources */,
+				D622D6499DAFD051C68A9C25 /* PasskeyModels.swift in Sources */,
+				86CFEB3F8DFA7CF275B00991 /* PasskeyService.swift in Sources */,
 				4B5FFF1D1D5E4C8FF671E34F /* PasswordSetupView.swift in Sources */,
 				5222CCDEB1C3A451B2B7EDED /* PostTradeSheet.swift in Sources */,
 				B627C81D60CEF199EE69E537 /* Preferences.swift in Sources */,

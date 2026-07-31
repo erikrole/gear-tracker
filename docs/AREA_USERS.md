@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-17
+- Last Updated: 2026-07-31
 - Status: Active
 - Version: V1.2
 
@@ -120,6 +120,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 ## Change Log
 
+- 2026-07-31: **Invite-granted users can add passkeys.** Active users retain the existing invite/access boundary and password recovery while web Security supports current-password-protected passkey enrollment, discoverable passkey login, per-credential metadata, and revocation. Passkey login uses the existing session and active-account checks; kiosk device authentication is unchanged. Native iOS parity remains a follow-up.
 - 2026-07-23: Added the policy-granted collaborator People directory. Collaborators with `PEOPLE_DIRECTORY_VIEW` can find active, visible teammates by name and open minimized work profiles while private fields and every cross-user action remain denied.
 - 2026-07-17: **Native profile completion parity.** Authenticated users can now complete the same canonical role-aware profile setup in the main iOS app. Native setup preserves the web field rules, one-day server snooze, student work-phone exclusion, collaborator photo-only scope, typed Wiscard parts, student academic details, apparel systems, and crop-enabled avatar upload. The Profile screen exposes a manual Complete profile entry while required details remain missing. No schema or server behavior changed.
 - 2026-07-17: **Native profile completion input hardening.** The iOS Welcome flow now enforces the ten-digit Wiscard and one-digit issue-code contract at entry, gives form fields explicit keyboard focus and dismissal behavior, reports unreadable photo selections inline, and treats final photo omission as a current-session bypass. Explicit Remind tomorrow remains the only action that writes the canonical one-day server snooze. Native Student and Staff preview fixtures keep role-specific field visibility testable without production identities.

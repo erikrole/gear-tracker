@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-07-28
+- Last Updated: 2026-07-31
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -50,6 +50,7 @@
 - D-040: Kiosk-only custody, reservation-first app/web
 - D-041: External collaborators use fixed default-deny profiles
 - D-042: Schedule edits use a versioned working copy and deliberate publish
+- D-043: Passkeys are an additive sign-in method for invite-granted users
 
 ---
 
@@ -916,7 +917,30 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Do not send per-click worker notifications while a working copy exists.
 - Reference: `tasks/event-shift-working-schedule-plan.md` and `docs/AREA_SHIFTS.md`.
 
+## D-043: Passkeys Are an Additive Sign-In Method for Invite-Granted Users
+- Date: 2026-07-31
+- Status: Accepted; web and native iOS slices implemented locally, production rollout pending
+- Context:
+  - Gear Tracker access is already invite-gated through `AllowedEmail`, and active users authenticate through the shared password/session boundary.
+  - Users need a faster, phishing-resistant sign-in path on supported browsers and Apple devices without changing the invitation or kiosk custody contracts.
+- Decision:
+  - Any active user who has completed invite-granted access may enroll one or more passkeys after current-password reauthentication.
+  - Passkey login is discoverable, requires user verification, and issues the existing cookie-backed `Session`; it is not a second authorization or session system.
+  - Registration and authentication challenges are short-lived, browser-bound by an HTTP-only ceremony cookie, one-time consumable, and persisted server-side so replay and concurrent consumption are rejected.
+  - Password sign-in and recovery remain available during rollout. A user may revoke an individual passkey only after current-password reauthentication.
+  - Passkey credential metadata, enrollment, login, and revocation are audit-visible. Kiosk authentication remains device-token based under D-030.
+- Consequences:
+  - Web can ship passkey enrollment and login without adding an identity-verification workflow or changing invite semantics.
+  - Native iOS now uses the same server ceremony contract through `AuthenticationServices`, with the app associated to the canonical `webcredentials` domain. Production device and domain proof remain rollout gates.
+  - Production must configure an explicit WebAuthn RP ID and exact accepted origin before enrollment is enabled for real users.
+- Guardrails:
+  - Never accept a passkey assertion without matching RP ID, origin, expected challenge, required user verification, active user, and one-time challenge consumption.
+  - Never store private key material; persist only credential ID, public key, counter, transport metadata, and bounded device metadata.
+  - Do not let deactivated users authenticate through a credential that remains stored.
+- Reference: `tasks/passkey-auth-plan.md`, `docs/AREA_SETTINGS.md`, and `docs/AREA_USERS.md`.
+
 ## Change Log
+- 2026-07-31: Added D-043 for invite-granted user passkeys, shared sessions, recovery, ceremony replay protection, and kiosk separation. Native iOS now has local `AuthenticationServices` login, enrollment, management, and canonical-domain association; production migration and browser/device proof remain open.
 - 2026-07-28: Amended D-039 so kiosk session credentials retain after-first-unlock availability while using the device-only Keychain class, preventing backup migration to another iPad.
 - 2026-07-21: Added D-042 for versioned Schedule working copies, published-only worker reads, deliberate reconciliation, and bundled publish notification semantics.
 - 2026-07-17: Extended D-037 so authenticated profile completion is native on iOS while registration remains web-owned and the canonical server completion contract remains shared.

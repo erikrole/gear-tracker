@@ -39,6 +39,22 @@ export const env = {
   get appUrl() {
     return process.env.APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
   },
+  /** WebAuthn relying-party name shown by the platform authenticator. */
+  get passkeyRpName() {
+    return process.env.PASSKEY_RP_NAME || "Wisconsin Creative";
+  },
+  /** WebAuthn relying-party ID. Configure explicitly for the production host. */
+  get passkeyRpId() {
+    return process.env.PASSKEY_RP_ID || new URL(this.appUrl).hostname;
+  },
+  /** Exact origins accepted by the WebAuthn ceremony verifier. */
+  get passkeyOrigins() {
+    const configured = process.env.PASSKEY_ORIGINS;
+    const origins = configured
+      ? configured.split(",").map((origin) => origin.trim()).filter(Boolean)
+      : [this.appUrl];
+    return [...new Set(origins)];
+  },
   /** Optional — enables Sentry error tracking */
   get sentryDsn() {
     return process.env.SENTRY_DSN || "";

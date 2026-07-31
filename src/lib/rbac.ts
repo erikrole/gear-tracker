@@ -28,6 +28,19 @@ export function requirePermission(userRole: Role, resource: string, action: stri
 }
 
 /**
+ * Internal-only route boundary. Collaborators are external partners whose reads
+ * must come from the reviewed, capability-scoped surfaces (published Schedule
+ * snapshots, own bookings) rather than the live internal routes. Internal role
+ * behavior is deliberately unchanged -- this closes the collaborator hole
+ * without re-litigating who among ADMIN/STAFF/STUDENT may call the route.
+ */
+export function requireInternalActor(actor: { role: Role }) {
+  if (actor.role === Role.COLLABORATOR) {
+    throw new HttpError(403, "Forbidden");
+  }
+}
+
+/**
  * Preserve the default-deny role matrix while allowing a specifically named
  * collaborator capability at a reviewed route boundary.
  */

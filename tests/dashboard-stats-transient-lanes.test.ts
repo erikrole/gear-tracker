@@ -19,7 +19,7 @@ describe("dashboard stats transient-lane counts", () => {
 
     expect(reader).toContain("AS my_due_today");
     expect(reader).toContain("myDueToday: Number(c.my_due_today)");
-    expect(route).toContain("myDueTodayCount: c.myDueToday");
+    expect(route).toContain("myDueTodayCount: visibleMyDueTodayCount");
   });
 
   it("stats endpoint exposes separate upcoming and today shift counts", () => {

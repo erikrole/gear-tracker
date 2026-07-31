@@ -51,7 +51,7 @@ function crewRole(role: string) {
   return role.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-export function CollaboratorSchedule() {
+export function CollaboratorSchedule({ canFollow }: { canFollow: boolean }) {
   const [events, setEvents] = useState<PublishedEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -78,6 +78,7 @@ export function CollaboratorSchedule() {
   useEffect(() => { void load(); }, [load]);
 
   async function setFollowing(event: PublishedEvent, following: boolean) {
+    if (!canFollow) return;
     setPendingFollowId(event.id);
     try {
       const response = await fetch(`/api/schedule/published/${event.id}/follow`, {
@@ -125,27 +126,29 @@ export function CollaboratorSchedule() {
                     {item.event.venue && <span className="inline-flex items-center gap-1.5"><MapPinIcon className="size-4" />{item.event.venue.name}</span>}
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="min-h-10 shrink-0 active:scale-[0.96] transition-transform"
-                  loading={pendingFollowId === item.id}
-                  onClick={() => void setFollowing(item, !item.isFollowing)}
-                >
-                  <AnimatePresence initial={false} mode="popLayout">
-                    <motion.span
-                      key={item.isFollowing ? "mute" : "follow"}
-                      initial={{ opacity: 0, scale: 0.25, filter: "blur(4px)" }}
-                      animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-                      exit={{ opacity: 0, scale: 0.25, filter: "blur(4px)" }}
-                      transition={{ type: "spring", duration: 0.3, bounce: 0 }}
-                      className="inline-flex items-center justify-center"
-                    >
-                      {item.isFollowing ? <BellOffIcon data-icon="inline-start" /> : <BellIcon data-icon="inline-start" />}
-                    </motion.span>
-                  </AnimatePresence>
-                  {item.isFollowing ? "Mute updates" : "Follow event"}
-                </Button>
+                {canFollow && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-10 shrink-0 active:scale-[0.96] transition-transform"
+                    loading={pendingFollowId === item.id}
+                    onClick={() => void setFollowing(item, !item.isFollowing)}
+                  >
+                    <AnimatePresence initial={false} mode="popLayout">
+                      <motion.span
+                        key={item.isFollowing ? "mute" : "follow"}
+                        initial={{ opacity: 0, scale: 0.25, filter: "blur(4px)" }}
+                        animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+                        exit={{ opacity: 0, scale: 0.25, filter: "blur(4px)" }}
+                        transition={{ type: "spring", duration: 0.3, bounce: 0 }}
+                        className="inline-flex items-center justify-center"
+                      >
+                        {item.isFollowing ? <BellOffIcon data-icon="inline-start" /> : <BellIcon data-icon="inline-start" />}
+                      </motion.span>
+                    </AnimatePresence>
+                    {item.isFollowing ? "Mute updates" : "Follow event"}
+                  </Button>
+                )}
               </CardHeader>
               <CardContent className="p-0">
                 {item.crew.length === 0 ? (

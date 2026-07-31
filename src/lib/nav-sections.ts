@@ -47,8 +47,8 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
     label: "Security",
     requiredRole: "STUDENT",
     group: "Personal",
-    description: "Change your password and manage active sessions.",
-    keywords: ["password", "sessions", "sign out", "revoke", "devices", "logout"],
+    description: "Manage passkeys, your password, and active sessions.",
+    keywords: ["passkey", "webauthn", "password", "sessions", "sign out", "revoke", "devices", "logout"],
   },
   {
     href: "/settings/notifications",

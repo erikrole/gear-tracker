@@ -15,6 +15,15 @@ struct AccountSecuritySettingsView: View {
     @State private var error: String?
     @State private var successMessage: String?
     @State private var showDeleteAccount = false
+    @State private var passkeys: [PasskeyCredentialSummary] = []
+    @State private var passkeysLoading = false
+    @State private var passkeyCurrentPassword = ""
+    @State private var passkeyName = ""
+    @State private var passkeyError: String?
+    @State private var passkeyServiceAvailable: Bool?
+    @State private var isPasskeySaving = false
+    @State private var passkeyToRemove: PasskeyCredentialSummary?
+    @State private var showPasskeyRemovalConfirmation = false
     @FocusState private var focusedField: Field?
 
     private enum Field {
@@ -40,6 +49,98 @@ struct AccountSecuritySettingsView: View {
                             .foregroundStyle(.tertiary)
                     }
                 }
+            }
+
+            Section {
+                Text("Use Face ID, Touch ID, or your device security to sign in without typing a password.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                if passkeyServiceAvailable == false {
+                    Label(
+                        "Passkey setup is not available on this server yet. You can continue using your password.",
+                        systemImage: "info.circle"
+                    )
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else if passkeysLoading {
+                    ProgressView("Loading passkeys…")
+                } else {
+                    SecureField("Current password", text: $passkeyCurrentPassword)
+                        .textContentType(.password)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .disabled(isPasskeySaving)
+
+                    TextField("Passkey name (optional)", text: $passkeyName)
+                        .textContentType(nil)
+                        .textInputAutocapitalization(.words)
+                        .autocorrectionDisabled()
+                        .disabled(isPasskeySaving)
+
+                    if let passkeyError {
+                        Text(passkeyError)
+                            .font(.footnote)
+                            .foregroundStyle(Color.statusText(.red))
+                    }
+
+                    Button {
+                        Task { await addPasskey() }
+                    } label: {
+                        HStack {
+                            if isPasskeySaving {
+                                ProgressView().controlSize(.small)
+                            }
+                            Text(isPasskeySaving ? "Waiting for passkey…" : "Add Passkey")
+                                .fontWeight(.semibold)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color.brandPrimary)
+                    .disabled(isPasskeySaving || passkeyCurrentPassword.isEmpty)
+
+                    if passkeys.isEmpty {
+                        Text("No passkeys added yet.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(passkeys) { passkey in
+                            HStack(spacing: 12) {
+                                Image(systemName: "key.fill")
+                                    .foregroundStyle(Color.statusText(.blue))
+                                    .frame(width: 26, height: 26)
+                                    .background(Color.statusText(.blue).opacity(0.12), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                                    .accessibilityHidden(true)
+
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(passkey.name ?? "Passkey")
+                                        .font(.subheadline.weight(.medium))
+                                    Text(passkeyDetail(passkey))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Spacer(minLength: 8)
+
+                                Button {
+                                    requestPasskeyRemoval(passkey)
+                                } label: {
+                                    Image(systemName: "trash")
+                                        .foregroundStyle(Color.statusText(.red))
+                                        .frame(width: 44, height: 44)
+                                }
+                                .buttonStyle(.borderless)
+                                .accessibilityLabel("Remove \(passkey.name ?? "passkey")")
+                                .disabled(isPasskeySaving)
+                            }
+                        }
+                    }
+                }
+            } header: {
+                Text("Passkeys")
+            } footer: {
+                Text("Passkeys use the same Gear Tracker account and session as password sign-in. Your current password is required to add or remove one.")
             }
 
             Section {
@@ -147,6 +248,22 @@ struct AccountSecuritySettingsView: View {
         .sheet(isPresented: $showDeleteAccount) {
             DeleteAccountView()
         }
+        .confirmationDialog(
+            "Remove \(passkeyToRemove?.name ?? "this passkey")?",
+            isPresented: $showPasskeyRemovalConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Remove Passkey", role: .destructive) {
+                guard let passkeyToRemove else { return }
+                Task { await removePasskey(passkeyToRemove) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This device will no longer be able to sign in with that passkey.")
+        }
+        .task {
+            await loadPasskeys()
+        }
         .onChange(of: error) { _, error in
             if let error {
                 AccessibilityNotification.Announcement(error).post()
@@ -234,6 +351,92 @@ struct AccountSecuritySettingsView: View {
         newPassword == confirmPassword &&
         currentPassword != newPassword &&
         !isSaving
+    }
+
+    private func passkeyDetail(_ passkey: PasskeyCredentialSummary) -> String {
+        let added = "Added \(passkey.createdAt.formatted(date: .abbreviated, time: .omitted))"
+        guard let lastUsedAt = passkey.lastUsedAt else { return added }
+        return "\(added) · Used \(lastUsedAt.formatted(date: .abbreviated, time: .omitted))"
+    }
+
+    private func loadPasskeys() async {
+        passkeysLoading = true
+        defer { passkeysLoading = false }
+        do {
+            passkeys = try await APIClient.shared.passkeys()
+            passkeyServiceAvailable = true
+            passkeyError = nil
+        } catch APIError.notFound {
+            passkeys = []
+            passkeyServiceAvailable = false
+            passkeyError = nil
+        } catch {
+            passkeyServiceAvailable = true
+            passkeyError = error.localizedDescription
+        }
+    }
+
+    private func addPasskey() async {
+        guard !isPasskeySaving, !passkeyCurrentPassword.isEmpty else { return }
+        isPasskeySaving = true
+        passkeyError = nil
+        successMessage = nil
+        defer { isPasskeySaving = false }
+
+        do {
+            let options = try await APIClient.shared.passkeyRegistrationOptions(
+                currentPassword: passkeyCurrentPassword
+            )
+            let registration = try await PasskeyService.shared.register(options: options)
+            _ = try await APIClient.shared.verifyPasskeyRegistration(
+                registration,
+                name: passkeyName
+            )
+            passkeyCurrentPassword = ""
+            passkeyName = ""
+            passkeys = try await APIClient.shared.passkeys()
+            successMessage = "Passkey added."
+            Haptics.success()
+        } catch APIError.notFound {
+            passkeys = []
+            passkeyServiceAvailable = false
+            passkeyError = nil
+            Haptics.warning()
+        } catch {
+            passkeyError = error.localizedDescription
+            Haptics.warning()
+        }
+    }
+
+    private func requestPasskeyRemoval(_ passkey: PasskeyCredentialSummary) {
+        guard !passkeyCurrentPassword.isEmpty else {
+            passkeyError = "Enter your current password before removing a passkey."
+            return
+        }
+        passkeyToRemove = passkey
+        showPasskeyRemovalConfirmation = true
+    }
+
+    private func removePasskey(_ passkey: PasskeyCredentialSummary) async {
+        guard !isPasskeySaving else { return }
+        isPasskeySaving = true
+        passkeyError = nil
+        successMessage = nil
+        defer { isPasskeySaving = false }
+
+        do {
+            try await APIClient.shared.revokePasskey(
+                id: passkey.id,
+                currentPassword: passkeyCurrentPassword
+            )
+            passkeys.removeAll { $0.id == passkey.id }
+            passkeyToRemove = nil
+            successMessage = "Passkey removed."
+            Haptics.success()
+        } catch {
+            passkeyError = error.localizedDescription
+            Haptics.warning()
+        }
     }
 
     private func savePassword() async {

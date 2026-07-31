@@ -14,7 +14,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { AlertTriangle, PlusIcon, XIcon } from "lucide-react";
+import { AlertTriangle, XIcon } from "lucide-react";
 import { CallWindowEditor } from "./CallWindowEditor";
 import { UserAvatarPicker, type PickerUser } from "./UserAvatarPicker";
 import { effectiveCallWindow, isInheritedFullDayCallWindow } from "@/lib/shift-call-windows";

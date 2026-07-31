@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-28
+- Last Updated: 2026-07-31
 - Status: Active
 - Version: V1
 
@@ -435,6 +435,7 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 
 ## Change Log
 
+- 2026-07-31: **Snow Leopard catalog and reservation-entry hardening.** Reservation entry points now fail closed until the signed-in user is loaded and collaborators have `RESERVATION_CREATE`. Item page initialization, brand references, and form options enforce the collaborator catalog or My Gear capability at the API boundary, matching the existing sanitized response contract.
 - 2026-07-28: **Add Item image and repeated-intake workflow unified.** The comprehensive Add Item sheet keeps Standard, Units, and Quantity in one form while removing duplicated tracking guidance and the pre-submit Add another checkbox. Every newly created catalog record can stage one optional image through the shared Search, Paste URL, or Upload chooser before save; serialized and item-family image persistence runs only after create returns an ID and uses the existing audited Blob routes. Quantity add-to-existing leaves the current catalog image alone. The shared result state makes `Add another item` primary and fully resets to Standard, while image failure reports that the item was created and retries only the image mutation. The previous serialized upload field mismatch (`image` versus the route's required `file`) is removed.
 - 2026-07-18: **Native reservation item-family presentation now matches Items truth.** Reservation category tabs preserve the server-provided mixed popularity order for serialized assets and item families. Other means every reservable result outside Cameras, Lenses, and Batteries. Numbered-family rows show available over effective on-hand inventory, such as `42/46 available`, while planning quantities remain abstract until exact units bind at kiosk pickup. `/api/form-options` now uses the effective numbered-unit roster for that denominator instead of a potentially stale balance. No family identity, derived availability, unit status, reservation payload, or custody behavior changed.
 - 2026-07-17: **Native Browse-to-Item navigation repaired.** Browse now owns one navigation path across Items and Item Detail instead of embedding an Items-owned `NavigationStack`. Items uses the explicit always-visible native navigation-bar search drawer so SwiftUI reserves its row above loaded content instead of overlaying the first item during the push. Row-to-detail animation and Back navigation stay in one native hierarchy; Back returns to Items, while selecting the active Browse tab again returns to the Browse menu. The adjacent Users destination uses the same embedded-stack and search-drawer contracts, and completed reservation creation from Items still opens the new booking through destination state. No item API, filter, reservation, role, or custody contract changed.

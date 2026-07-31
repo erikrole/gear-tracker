@@ -40,6 +40,9 @@ function dateTime(value: string) {
 }
 
 function bookingState(booking: Booking) {
+  if (booking.status === "DRAFT") {
+    return { label: "Draft", variant: "gray" as const, detail: "Saved draft" };
+  }
   if (booking.status === "PENDING_PICKUP" || booking.kind === "RESERVATION") {
     return { label: "Pickup", variant: "orange" as const, detail: `Starts ${dateTime(booking.startsAt)}` };
   }
@@ -85,7 +88,15 @@ export function CollaboratorHome({ name, capabilities }: { name: string; capabil
 
   return (
     <div className="space-y-4">
-      <PageHeader title={`Welcome, ${name.split(" ")[0]}`} description="Your gear handoffs and followed event updates." />
+      <PageHeader
+        title={`Welcome, ${name.split(" ")[0]}`}
+        description={
+          canViewGear && canViewSchedule ? "Your gear handoffs and followed event updates."
+          : canViewSchedule ? "Updates for the events you follow."
+          : canViewGear ? "Your gear handoffs."
+          : "Notifications from the crew."
+        }
+      />
       <AnimatePresence initial={false} mode="popLayout">
         {loading ? (
           <DashboardStateSurface key="collaborator-loading" variant="shift" layout>

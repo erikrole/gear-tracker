@@ -6,6 +6,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { shiftWorkerLabel } from "@/lib/shift-display";
 import { readDashboardCounts, zeroDashboardCounts } from "@/lib/services/dashboard-counts";
 import { startOfDayInAppTz } from "@/lib/app-time";
+import { hasCollaboratorCapability } from "@/lib/collaborator-access";
 
 const DASHBOARD_LIMIT = { max: 30, windowMs: 60_000 };
 
@@ -130,6 +131,10 @@ export const GET = withAuth(async (req, { user }) => {
   const isIosHomeScope = scope === "ios-home";
   const isCollaborator = user.role === "COLLABORATOR";
   const isPersonalOnly = isIosHomeScope || isCollaborator;
+  // A collaborator whose affiliation was never granted MY_GEAR_VIEW (a
+  // Schedule-only partner) has no gear surface at all. Home must not hand back
+  // booking rows that /api/bookings would deny for the same account.
+  const gearHidden = isCollaborator && !hasCollaboratorCapability(user, "MY_GEAR_VIEW");
   const now = new Date();
   const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
@@ -220,7 +225,7 @@ export const GET = withAuth(async (req, { user }) => {
         }),
     Promise.resolve([]),
     // My checkouts (booking-level summaries)
-    db.booking.findMany({
+    gearHidden ? Promise.resolve([]) : db.booking.findMany({
       where: { kind: "CHECKOUT", status: "OPEN", requesterUserId: user.id },
       orderBy: { endsAt: "asc" },
       take: 5,
@@ -261,7 +266,7 @@ export const GET = withAuth(async (req, { user }) => {
           },
         }),
     // My reservations — next 7 days only (AC-4)
-    db.booking.findMany({
+    gearHidden ? Promise.resolve([]) : db.booking.findMany({
       where: {
         kind: "RESERVATION",
         status: "BOOKED",
@@ -307,7 +312,7 @@ export const GET = withAuth(async (req, { user }) => {
         }),
     // Pending pickups are booked reservations whose scheduled pickup time has
     // passed. Legacy staged checkout rows remain visible during migration.
-    db.booking.findMany({
+    gearHidden ? Promise.resolve([]) : db.booking.findMany({
       where: {
         OR: [
           { kind: "RESERVATION", status: "BOOKED", startsAt: { lte: now } },
@@ -551,12 +556,14 @@ export const GET = withAuth(async (req, { user }) => {
   const teamCheckoutsTotalCount = isPersonalOnly ? 0 : counts.teamCheckoutsTotal;
   const teamCheckoutsOverdueCount = isPersonalOnly ? 0 : counts.teamCheckoutsOverdue;
   const teamReservationsTotalCount = isPersonalOnly ? 0 : counts.teamReservationsTotal;
-  const myCheckoutsTotalCount = counts.myCheckoutsTotal;
-  const myOverdueCount = counts.myOverdue;
-  const totalCheckedOut = isPersonalOnly ? counts.myCheckoutsTotal : counts.totalCheckedOut;
-  const totalOverdue = isPersonalOnly ? counts.myOverdue : counts.totalOverdue;
+  // Without MY_GEAR_VIEW the gear lanes are empty by construction, so their
+  // totals report zero rather than describing rows this caller cannot read.
+  const myCheckoutsTotalCount = gearHidden ? 0 : counts.myCheckoutsTotal;
+  const myOverdueCount = gearHidden ? 0 : counts.myOverdue;
+  const totalCheckedOut = gearHidden ? 0 : isPersonalOnly ? counts.myCheckoutsTotal : counts.totalCheckedOut;
+  const totalOverdue = gearHidden ? 0 : isPersonalOnly ? counts.myOverdue : counts.totalOverdue;
   const totalReserved = isPersonalOnly ? myReservations.length : counts.totalReserved;
-  const dueTodayCount = isPersonalOnly ? counts.myDueToday : counts.dueToday;
+  const dueTodayCount = gearHidden ? 0 : isPersonalOnly ? counts.myDueToday : counts.dueToday;
   const pendingPickupTotalCount = isPersonalOnly ? pendingPickupsRaw.length : counts.pendingPickupTotal;
   const staleReservationTotalCount = 0;
 

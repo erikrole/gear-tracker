@@ -2,10 +2,12 @@ import { ShiftAssignmentStatus } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
+import { requireInternalActor } from "@/lib/rbac";
 
 const ACTIVE_STATUSES: ShiftAssignmentStatus[] = ["DIRECT_ASSIGNED", "APPROVED"];
 
 export const GET = withAuth(async (_req, { user }) => {
+  requireInternalActor(user);
   const now = new Date();
 
   // Week boundaries (Monday–Sunday)

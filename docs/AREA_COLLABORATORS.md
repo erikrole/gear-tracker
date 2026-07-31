@@ -4,7 +4,7 @@
 
 - Area: Collaborators
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-23
+- Last Updated: 2026-07-31
 - Status: People directory implemented locally; migration and production smoke pending
 - Version: V1.3
 
@@ -92,6 +92,7 @@ Collaborator gear responses remain sanitized and own-booking scoped. Published S
 
 ## Change Log
 
+- 2026-07-31: **Snow Leopard website-wide boundary hardening.** Collaborator reservation controls now require exact `RESERVATION_CREATE`, `RESERVATION_EDIT_OWN`, `RESERVATION_EXTEND_OWN`, and `RESERVATION_CANCEL_OWN` grants in both UI and server policy. Follow is hidden and inert without `SCHEDULE_FOLLOW`; internal shift-hours and ICS routes reject collaborators; item reference data and private dashboard counts require their respective catalog or My Gear capabilities. Published Schedule data remains the only collaborator Schedule surface. Authenticated production/browser smoke is still open.
 - 2026-07-23: V1.3 adds the explicit `PEOPLE_DIRECTORY_VIEW` grant. BTN and Learfield can receive a minimized active-user directory on web and iOS without gaining contact, identity, presence, activity, booking, shift, badge, audit, or edit access.
 - 2026-07-23: Retired the legacy `BTN_STANDARD` authorization fallback. Policy-less collaborators now fail closed, and shared Schedule and roster copy no longer labels every collaborator as BTN.
 - 2026-07-23: Affiliation badges now preserve deliberate casing in the admin editor and policy service, allowing `Learfield` while retaining acronym labels such as `BTN`.

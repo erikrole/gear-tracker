@@ -5,6 +5,7 @@ struct LoginView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var showPassword = false
+    @State private var passkeyLoading = false
     @FocusState private var focused: Field?
 
     enum Field { case email, password }
@@ -21,6 +22,16 @@ struct LoginView: View {
         guard canSubmit else { return }
         focused = nil
         Task { await session.login(email: trimmedEmail, password: password) }
+    }
+
+    private func submitPasskey() {
+        guard !session.isLoading, !passkeyLoading else { return }
+        focused = nil
+        passkeyLoading = true
+        Task {
+            await session.loginWithPasskey()
+            passkeyLoading = false
+        }
     }
 
     private static let forgotPasswordURL = AppEnvironment.url(path: "/forgot-password")
@@ -164,6 +175,37 @@ struct LoginView: View {
             .controlSize(.large)
             .tint(.brandPrimary)
             .disabled(!canSubmit)
+
+            HStack(spacing: 12) {
+                Rectangle()
+                    .fill(.secondary.opacity(0.25))
+                    .frame(height: 1)
+                Text("or")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Rectangle()
+                    .fill(.secondary.opacity(0.25))
+                    .frame(height: 1)
+            }
+
+            Button {
+                submitPasskey()
+            } label: {
+                HStack(spacing: 8) {
+                    if passkeyLoading {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "key.fill")
+                    }
+                    Text(passkeyLoading ? "Waiting for passkey…" : "Continue with passkey")
+                        .fontWeight(.semibold)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .disabled(session.isLoading || passkeyLoading)
         }
         .padding(24)
         .background(

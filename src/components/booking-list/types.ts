@@ -13,6 +13,7 @@ export type BookingItem = {
   refNumber?: string | null;
   startsAt: string;
   endsAt: string;
+  updatedAt: string;
   status: string;
   kind: "CHECKOUT" | "RESERVATION";
   sportCode: string | null;

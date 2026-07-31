@@ -53,6 +53,7 @@ type BookingContext = {
 type ActorContext = {
   id: string;
   role: Role;
+  capabilities?: readonly string[];
 };
 
 /**

@@ -13,17 +13,6 @@ Latest scores (after `a3eaea8b`):
 
 ## Open
 
-### P1 — Mobile LCP 4.7s (perf 83)
-
-- **Audit:** `largest-contentful-paint` (score ~45)
-- **Cause:** ~81 KB of unused JS on `/login` is overwhelmingly Sentry browser SDK in chunk `7391-*`. Sentry's `withSentryConfig` wraps every route automatically.
-- **Fix options (high effort):**
-  1. Move Sentry init out of `next.config.ts` `withSentryConfig` and into a dynamic `instrumentation-client.ts` that loads Sentry on `requestIdleCallback` or after first interaction. Sentry has a documented pattern.
-  2. Use Sentry's "lazy load" sample at https://docs.sentry.io/platforms/javascript/install/lazy-load-sentry/ — `loader-script` tag instead of bundled SDK.
-  3. Disable Sentry on auth routes specifically via Sentry's allow/deny URL list.
-- **Impact:** would drop `/login` to ~140 KB first-load, fix mobile LCP.
-- **Effort:** 1-2h, real risk of breaking error reporting if mis-configured. Defer until paying off mobile LCP becomes a priority.
-
 ### P2 — Streaming meta-description (SEO 91)
 
 - **Audit:** `meta-description` (score 0)
@@ -33,14 +22,15 @@ Latest scores (after `a3eaea8b`):
 ### P2 — Legacy JS polyfills (perf insight, score 50)
 
 - **Audit:** `legacy-javascript-insight`
-- **Cause:** Next 15 still ships ES5-era polyfills for older browsers in the no-module bundle.
-- **Fix:** tighten browserslist in `package.json` to drop legacy targets.
-- **Impact:** marginal — only affects no-module fallback path.
+- **Status:** Closed 2026-07-31. `package.json` now targets the supported modern desktop/tablet browser floor instead of Next's broad Chrome 64/Safari 12 fallback target. The no-module fallback remains intentionally outside the supported production browser set.
+- **Impact:** marginal — this only affects the legacy fallback path.
 
 ## Closed
 
 | When | What |
 |---|---|
+| 2026-07-31 | Login Sentry loading moved to a dynamic `instrumentation-client.ts` loader that warms after page load, idle time, interaction, or navigation. The production build's `/login` page chunk set contains no Sentry SDK markers; a fresh Lighthouse LCP score still needs an authenticated-free runtime rerun. |
+| 2026-07-31 | Production browserslist tightened to Chrome/Edge/Firefox 111+, Safari/iOS 16.4+, and `not dead`, removing the old browser target that caused the legacy JavaScript insight. |
 | `c308774c` | landmark-one-main, /login meta-description (page-level export) |
 | `a3eaea8b` | First Load JS 257 → 221 KB on /login (motion/react split) |
 | `a3eaea8b` | best-practices 92 → 100 (CSP `style-src` `'unsafe-inline'` regression fix) |

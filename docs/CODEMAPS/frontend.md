@@ -114,7 +114,7 @@
 | `src/components/ui/sidebar.tsx` | 710 |
 | `src/components/BookingDetailsSheet.tsx` | 680 |
 | `src/components/booking-wizard/WizardStep1.tsx` | 570 |
-| `src/components/BookingListPage.tsx` | 512 |
+| `src/components/BookingListPage.tsx` | 523 |
 | `src/components/ui/heatmap.tsx` | 409 |
 | `src/components/Sidebar.tsx` | 407 |
 | `src/components/booking-details/BookingHeader.tsx` | 403 |

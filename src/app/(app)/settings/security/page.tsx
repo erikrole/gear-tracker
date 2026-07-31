@@ -2,7 +2,9 @@
 
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Monitor, Trash2 } from "lucide-react";
+import { browserSupportsWebAuthn, startRegistration } from "@simplewebauthn/browser";
+import type { PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/server";
+import { KeyRound, Loader2, Monitor, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +24,15 @@ type Session = {
   isCurrent: boolean;
 };
 
+type Passkey = {
+  id: string;
+  name: string | null;
+  createdAt: string;
+  lastUsedAt: string | null;
+  deviceType: string | null;
+  backedUp: boolean;
+};
+
 export default function SecuritySettingsPage() {
   // ── Sessions ──────────────────────────────────────────────────────────────
   const { data, loading, error, reload } = useFetch<{ data: Session[] }>({
@@ -29,6 +40,12 @@ export default function SecuritySettingsPage() {
     returnTo: "/settings/security",
   });
   const sessions = data?.data ?? [];
+
+  const { data: passkeyData, loading: passkeysLoading, error: passkeysError, reload: reloadPasskeys } = useFetch<Passkey[] | { data: Passkey[] }>({
+    url: "/api/me/passkeys",
+    returnTo: "/settings/security",
+  });
+  const passkeys = Array.isArray(passkeyData) ? passkeyData : passkeyData?.data ?? [];
 
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [revokingAll, setRevokingAll] = useState(false);
@@ -91,6 +108,98 @@ export default function SecuritySettingsPage() {
   const [pwError, setPwError] = useState<string | null>(null);
   const savingRef = useRef(false);
 
+  // ── Passkeys ──────────────────────────────────────────────────────────────
+  const [passkeyCurrentPassword, setPasskeyCurrentPassword] = useState("");
+  const [passkeyName, setPasskeyName] = useState("");
+  const [passkeySaving, setPasskeySaving] = useState(false);
+  const [passkeyError, setPasskeyError] = useState<string | null>(null);
+  const passkeySavingRef = useRef(false);
+
+  async function handleRegisterPasskey(e: React.FormEvent) {
+    e.preventDefault();
+    if (passkeySavingRef.current) return;
+    setPasskeyError(null);
+    if (!browserSupportsWebAuthn()) {
+      setPasskeyError("This browser does not support passkeys.");
+      return;
+    }
+
+    passkeySavingRef.current = true;
+    setPasskeySaving(true);
+    try {
+      const optionsResponse = await fetch("/api/auth/passkey/registration/options", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: passkeyCurrentPassword }),
+      });
+      if (!optionsResponse.ok) {
+        setPasskeyError(await parseErrorMessage(optionsResponse, "Could not start passkey setup."));
+        return;
+      }
+      const optionsBody = await parseJsonSafely<{ options?: PublicKeyCredentialCreationOptionsJSON }>(optionsResponse);
+      if (!optionsBody?.options) {
+        setPasskeyError("Could not start passkey setup.");
+        return;
+      }
+
+      const attestation = await startRegistration({ optionsJSON: optionsBody.options });
+      const verifyResponse = await fetch("/api/auth/passkey/registration/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ response: attestation, name: passkeyName }),
+      });
+      if (!verifyResponse.ok) {
+        setPasskeyError(await parseErrorMessage(verifyResponse, "Passkey setup failed. Try again."));
+        return;
+      }
+
+      toast.success("Passkey added.");
+      setPasskeyCurrentPassword("");
+      setPasskeyName("");
+      reloadPasskeys();
+    } catch (error) {
+      if (isAbortError(error)) return;
+      const message = error instanceof Error ? error.message : "Passkey setup failed. Try again.";
+      setPasskeyError(message.includes("NotAllowedError") ? "Passkey setup was canceled or timed out." : message);
+    } finally {
+      passkeySavingRef.current = false;
+      setPasskeySaving(false);
+    }
+  }
+
+  async function handleRevokePasskey(passkey: Passkey) {
+    if (passkeySavingRef.current) return;
+    if (!window.confirm(`Remove ${passkey.name || "this passkey"}?`)) return;
+    if (!passkeyCurrentPassword) {
+      setPasskeyError("Enter your current password before removing a passkey.");
+      return;
+    }
+
+    passkeySavingRef.current = true;
+    setPasskeySaving(true);
+    setPasskeyError(null);
+    try {
+      const res = await fetch(`/api/me/passkeys/${passkey.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: passkeyCurrentPassword }),
+      });
+      if (res.status === 401) { handleAuthRedirect(res, "/settings/security"); return; }
+      if (!res.ok) {
+        setPasskeyError(await parseErrorMessage(res, "Could not remove passkey."));
+        return;
+      }
+      toast.success("Passkey removed.");
+      reloadPasskeys();
+    } catch (error) {
+      if (isAbortError(error)) return;
+      setPasskeyError("Could not reach the server. Check your connection.");
+    } finally {
+      passkeySavingRef.current = false;
+      setPasskeySaving(false);
+    }
+  }
+
   function resetForm() {
     setCurrentPassword("");
     setNewPassword("");
@@ -143,8 +252,102 @@ export default function SecuritySettingsPage() {
   const revoking = revokingId !== null || revokingAll;
 
   return (
-    <SettingsPageShell title="Security" description="Change your password and manage active sessions.">
+    <SettingsPageShell title="Security" description="Manage passkeys, your password, and active sessions.">
       <div className="flex flex-col gap-4">
+        {/* Passkeys */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Passkeys</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Use Face ID, Touch ID, or your device security to sign in without typing a password.
+            </p>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-5">
+            <form onSubmit={handleRegisterPasskey} className="flex flex-col gap-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="passkey-current-pw">Current password</Label>
+                  <Input
+                    id="passkey-current-pw"
+                    name="passkeyCurrentPassword"
+                    type="password"
+                    autoComplete="current-password"
+                    value={passkeyCurrentPassword}
+                    onChange={(e) => setPasskeyCurrentPassword(e.target.value)}
+                    required
+                    disabled={passkeySaving}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="passkey-name">Name <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                  <Input
+                    id="passkey-name"
+                    name="passkeyName"
+                    value={passkeyName}
+                    onChange={(e) => setPasskeyName(e.target.value)}
+                    placeholder="MacBook, iPhone, or security key"
+                    maxLength={80}
+                    disabled={passkeySaving}
+                  />
+                </div>
+              </div>
+              {passkeyError && <p className="text-sm text-destructive" role="alert">{passkeyError}</p>}
+              <div className="flex justify-end">
+                <Button type="submit" disabled={passkeySaving || !passkeyCurrentPassword}>
+                  {passkeySaving ? <Loader2 className="size-4 animate-spin" /> : <KeyRound className="size-4" />}
+                  {passkeySaving ? "Waiting for passkey…" : "Add passkey"}
+                </Button>
+              </div>
+            </form>
+
+            <div className="border-t pt-4">
+              <h3 className="text-sm font-medium mb-3">Your passkeys</h3>
+              {passkeysLoading ? (
+                <div className="flex flex-col gap-3">
+                  <Skeleton className="h-12 w-full rounded-lg" />
+                  <Skeleton className="h-12 w-full rounded-lg" />
+                </div>
+              ) : passkeysError ? (
+                <EmptyState
+                  inline
+                  icon="box"
+                  title="Could not load passkeys"
+                  description="Retry before managing your passkeys."
+                  actionLabel="Retry"
+                  onAction={reloadPasskeys}
+                />
+              ) : passkeys.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No passkeys have been added yet.</p>
+              ) : (
+                <ul className="divide-y rounded-lg border">
+                  {passkeys.map((passkey) => (
+                    <li key={passkey.id} className="flex items-center gap-3 px-4 py-3">
+                      <KeyRound className="size-4 shrink-0 text-muted-foreground" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{passkey.name || "Passkey"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Added {new Date(passkey.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                          {passkey.lastUsedAt ? ` · Used ${new Date(passkey.lastUsedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : ""}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={passkeySaving}
+                        onClick={() => handleRevokePasskey(passkey)}
+                      >
+                        <Trash2 className="size-4" />
+                        <span className="sr-only">Remove {passkey.name || "passkey"}</span>
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Change password */}
         <Card>
           <CardHeader className="pb-3">

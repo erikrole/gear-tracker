@@ -11,7 +11,15 @@ const MIGRATIONS_DIR = join(process.cwd(), 'prisma', 'migrations');
 const MIGRATION_DIR_PATTERN = /^\d{4}_.+/;
 
 // Historical collisions already applied in prod -- new collisions still fail.
-const ALLOWED_COLLISIONS = new Set(['0009', '0077']);
+const ALLOWED_COLLISIONS = new Set([
+  '0009',
+  '0077',
+  // These exact migrations were applied from out-of-tree hardening commits
+  // before their migration folders were restored to the canonical chain.
+  '0104',
+  '0105',
+  '0106',
+]);
 
 export function inspectMigrationDirectories(entries, options = {}) {
   const allowedCollisions = options.allowedCollisions ?? ALLOWED_COLLISIONS;

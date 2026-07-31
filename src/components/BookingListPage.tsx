@@ -169,6 +169,11 @@ export default function BookingListPage({
   const { data: meData } = useCurrentUser();
   const currentUserId = meData?.id ?? "";
   const currentUserRole = meData?.role ?? "";
+  const currentUserCapabilities = meData?.capabilities ?? [];
+  const canCreateReservation = meData != null && (
+    meData.role !== "COLLABORATOR" || currentUserCapabilities.includes("RESERVATION_CREATE")
+  );
+  const canShowNewButton = config.kind !== "RESERVATION" || canCreateReservation;
   // initialRequester is now handled inside the wizard page
 
   // Apply "mine" filter from URL once user data loads
@@ -181,6 +186,7 @@ export default function BookingListPage({
 
   // ── Navigate to wizard page for creation ──
   const navigateToCreate = useCallback(() => {
+    if (config.kind === "RESERVATION" && !canCreateReservation) return;
     const nextParams = new URLSearchParams(urlSignature);
     const base = "/reservations/new";
     const params = new URLSearchParams();
@@ -204,7 +210,7 @@ export default function BookingListPage({
     if (requesterUserId) params.set("requesterUserId", requesterUserId);
     const qs = params.toString();
     router.push(qs ? `${base}?${qs}` : base);
-  }, [router, urlSignature]);
+  }, [canCreateReservation, config.kind, router, urlSignature]);
 
   // Auto-navigate to wizard if deep-link params present
   useEffect(() => {
@@ -282,7 +288,10 @@ export default function BookingListPage({
     try {
       const res = await fetchWithTimeout(`/api/bookings/${bookingId}/extend`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "If-Unmodified-Since": new Date(item.updatedAt).toUTCString(),
+        },
         body: JSON.stringify({ endsAt: new Date(new Date(item.endsAt).getTime() + days * 24 * 60 * 60 * 1000).toISOString() }),
       });
       if (handleAuthRedirect(res)) return;
@@ -323,12 +332,14 @@ export default function BookingListPage({
       {!hideHeader && (
         <div className="flex items-center justify-between mb-6 max-md:mb-4 max-md:flex-col max-md:items-start max-md:gap-3">
           <h1 className="text-[30px] tracking-[-0.03em] leading-none m-0 max-md:text-[22px]">{config.labelPlural}</h1>
-          <Button className="h-10" onClick={navigateToCreate}>
-            New {config.label}
-          </Button>
+          {canShowNewButton && (
+            <Button className="h-10" onClick={navigateToCreate}>
+              New {config.label}
+            </Button>
+          )}
         </div>
       )}
-      {hideHeader && !hideNewButton && (
+      {hideHeader && !hideNewButton && canShowNewButton && (
         <div className="flex justify-end px-4 pt-3">
           <Button className="h-10" onClick={navigateToCreate}>
             New {config.label}
@@ -411,7 +422,7 @@ export default function BookingListPage({
                     overdueStatus={config.overdueStatus}
                     onClick={() => openBookingDetails(item.id)}
                     menuProps={{
-                      currentUserId, currentUserRole, config, extendingId,
+                      currentUserId, currentUserRole, currentUserCapabilities, config, extendingId,
                       onViewDetails: openBookingDetails,
                       onExtend: handleExtendFromMenu,
                       items, reload, setItems,
@@ -443,7 +454,7 @@ export default function BookingListPage({
                           overdueStatus={config.overdueStatus}
                           onClick={() => openBookingDetails(item.id)}
                           menuProps={{
-                            currentUserId, currentUserRole, config, extendingId,
+                            currentUserId, currentUserRole, currentUserCapabilities, config, extendingId,
                             onViewDetails: openBookingDetails,
                             onExtend: handleExtendFromMenu,
                             items, reload, setItems,
@@ -463,7 +474,7 @@ export default function BookingListPage({
                       overdueStatus={config.overdueStatus}
                       onClick={() => openBookingDetails(item.id)}
                       menuProps={{
-                        currentUserId, currentUserRole, config, extendingId,
+                        currentUserId, currentUserRole, currentUserCapabilities, config, extendingId,
                         onViewDetails: openBookingDetails,
                         onExtend: handleExtendFromMenu,
                         items, reload, setItems,

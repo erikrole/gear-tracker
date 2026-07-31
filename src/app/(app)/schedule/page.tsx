@@ -60,7 +60,7 @@ export default function SchedulePage() {
     return null;
   }
   if (user?.role === "COLLABORATOR") {
-    return <CollaboratorSchedule />;
+    return <CollaboratorSchedule canFollow={user.capabilities?.includes("SCHEDULE_FOLLOW") === true} />;
   }
   return <InternalSchedulePage />;
 }

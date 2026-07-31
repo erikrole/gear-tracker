@@ -11,6 +11,7 @@ import { nullableSportCodeSchema, optionalSportCodeSchema } from "@/lib/validati
 import { z } from "zod";
 import { normalizeManualEventTitle } from "@/lib/title-normalization";
 import { enforceRateLimit, SCHEDULE_MUTATION_LIMIT } from "@/lib/rate-limit";
+import { requireInternalActor } from "@/lib/rbac";
 
 function canIncludeHiddenEvents(role: string) {
   return role === "ADMIN" || role === "STAFF";
@@ -61,6 +62,11 @@ const createCalendarEventSchema = z.object({
 });
 
 export const GET = withAuth(async (req, { user }) => {
+  // Live events, including groups whose crew was never published. Collaborators
+  // read the Schedule through /api/schedule/published, which is snapshot-backed
+  // and excludes hidden, archived, and unpublished events.
+  requireInternalActor(user);
+
   const { searchParams } = new URL(req.url);
   const { limit, offset } = parsePagination(searchParams);
 

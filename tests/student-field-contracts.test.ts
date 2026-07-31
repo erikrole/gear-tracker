@@ -42,9 +42,13 @@ describe("student field mobile contracts", () => {
     // The row queries are already filtered to this user, so the counts beside
     // them must be too -- an org-wide "12 overdue" over an empty list reads as
     // missing data, not as somebody else's problem.
-    expect(route).toContain("const totalOverdue = isPersonalOnly ? counts.myOverdue : counts.totalOverdue");
-    expect(route).toContain("const dueTodayCount = isPersonalOnly ? counts.myDueToday : counts.dueToday");
-    expect(route).toContain("const totalCheckedOut = isPersonalOnly ? counts.myCheckoutsTotal : counts.totalCheckedOut");
+    // `gearHidden` short-circuits ahead of the personal/team split for a
+    // collaborator with no MY_GEAR_VIEW, whose gear lanes are empty by
+    // construction. The personal-vs-team branch behind it is unchanged.
+    expect(route).toContain("const totalOverdue = gearHidden ? 0 : isPersonalOnly ? counts.myOverdue : counts.totalOverdue");
+    expect(route).toContain("const dueTodayCount = gearHidden ? 0 : isPersonalOnly ? counts.myDueToday : counts.dueToday");
+    expect(route).toContain("const totalCheckedOut = gearHidden ? 0 : isPersonalOnly ? counts.myCheckoutsTotal : counts.totalCheckedOut");
+    expect(route).toContain('const gearHidden = isCollaborator && !hasCollaboratorCapability(user, "MY_GEAR_VIEW")');
     expect(route).toContain("const pendingPickupTotalCount = isPersonalOnly ? pendingPickupsRaw.length : counts.pendingPickupTotal");
     expect(route).toContain("...(isPersonalOnly ? { requesterUserId: user.id } : {})");
     // No stat lane may still read a team total on a personal dashboard.
@@ -54,7 +58,7 @@ describe("student field mobile contracts", () => {
     // or it accuses a student of gear that was never theirs.
     expect(apiClient).toMatch(/dashboardStats\(\)[\s\S]*?scope", value: "ios-home"/);
     expect(statsRoute).toContain('searchParams.get("scope") === "ios-home" || isCollaborator');
-    expect(statsRoute).toContain("overdueCount: isPersonalOnly ? c.myOverdue : c.totalOverdue");
+    expect(statsRoute).toContain("overdueCount: canViewMyGear ? (isPersonalOnly ? c.myOverdue : c.totalOverdue) : 0");
     expect(statsRoute).not.toMatch(/: isCollaborator \? c\./);
   });
 

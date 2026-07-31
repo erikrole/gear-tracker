@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { PencilIcon, ImageIcon, RefreshCw, Star, ChevronRight } from "lucide-react";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 import type { AssetDetail } from "../types";
 import { getAttachmentKind, getSdCardSlotLabel } from "@/lib/asset-attachments";
@@ -136,6 +137,7 @@ export function ItemHeader({
   const attachmentKind = asset.parentAsset ? getAttachmentKind(asset) : null;
   const slotLabel = asset.parentAsset ? getSdCardSlotLabel(asset, asset.parentAsset.assetTag) : null;
   const [imageFailed, setImageFailed] = useState(false);
+  const { data: currentUser } = useCurrentUser();
   const imageSrc = normalizeAssetImageSrc(asset.imageUrl);
   const isRetired = asset.computedStatus === "RETIRED";
   const isMaintenance = asset.computedStatus === "MAINTENANCE";
@@ -145,8 +147,13 @@ export function ItemHeader({
   // This mirrors server-side booking validation in availability.ts so the
   // header never sends staff into a flow that is rejected at submit time.
   const isAvailable = asset.computedStatus === "AVAILABLE";
-  const canReserve = asset.availableForReservation && isAvailable;
-  const reserveDisabledTitle = isRetired
+  const canCreateReservation = currentUser != null && (
+    currentUser.role !== "COLLABORATOR" || currentUser.capabilities?.includes("RESERVATION_CREATE") === true
+  );
+  const canReserve = canCreateReservation && asset.availableForReservation && isAvailable;
+  const reserveDisabledTitle = !canCreateReservation
+    ? "Your account cannot create reservations"
+    : isRetired
     ? "Retired items cannot be reserved"
     : isMaintenance
       ? "Maintenance items cannot be reserved"

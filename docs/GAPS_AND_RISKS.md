@@ -3,7 +3,7 @@
 ## Document Control
 
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-29
+- Last Updated: 2026-07-31
 - Status: Active registry
 - Purpose: Track only open gaps, pending decisions, active risks, and intentionally deferred scope.
 - Historical record: [GAPS_AND_RISKS_HISTORY.md](archive/GAPS_AND_RISKS_HISTORY.md)
@@ -22,6 +22,7 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 | GAP-59 | Firmware watch does not cover every live camera body | AREA_ITEMS | Expected | The inventory-driven seed covers verified Sony pages. DJI, GoPro, Insta360, and JVC remain deferred until official-source adapters exist for each vendor's page format. Source: `tasks/firmware-watch-inventory-report.md`. |
 | GAP-60 | Native staff Schedule authoring still uses legacy live mutations | AREA_MOBILE / AREA_SHIFTS | Active | Web now has a private versioned working schedule, but existing iOS Add Shift, Assign Person, unassign, and call-window actions still mutate relational rows directly. Move native staff quick actions to the additive working-copy API and add native publish review before production rollout. Existing iOS reads remain backward-compatible and published-only. Source: `tasks/event-shift-working-schedule-plan.md`. |
 | GAP-61 | Legacy raw `PENDING_PICKUP` checkout rows and enum remain during rollout | AREA_RESERVATIONS | Active | New kiosk custody opens directly as `OPEN`, while Pending Pickup is derived from due `BOOKED` reservations. Keep legacy kiosk confirmation and expiry support until a production zero-row check proves the enum and compatibility branches can be removed safely. Source: `tasks/archive/completed-2026-07/pending-pickup-reservation-consolidation-plan.md`. |
+| GAP-62 | Production WebAuthn rollout proof remains open | AREA_MOBILE / AREA_USERS | Active | Web and native iOS enrollment, discoverable login, and credential management are implemented locally against the shared session contract. Migration `0106_passkey_auth` is applied and live migration health matches all 111 local migrations. The production AASA and passkey API paths still return 404 until the application is deployed. Native iOS treats that server skew as an unavailable state, but production RP ID/origin configuration, deployment, authenticated browser smoke, and real-device passkey proof remain before calling passkeys production-ready. Source: `tasks/passkey-auth-plan.md`. |
 
 ## Deferred Product Scope
 
@@ -53,6 +54,20 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 
 ## Change Log
 
+- 2026-07-31: Restored the exact three previously out-of-tree production
+  migration files from repository history, modeled the existing nullable
+  calendar result column, and recorded the historical 0104 through 0106 prefix
+  collisions. The guarded Neon fallback then applied `0106_passkey_auth`.
+  Final health reports 111 of 111 local migrations applied, no pending or
+  failed rows, and no DB-only migrations. GAP-62 remains open for RP/origin
+  configuration, application deployment, and authenticated device proof.
+- 2026-07-31: Confirmed GAP-62 against production: the AASA and passkey API
+  paths are not deployed and `0106_passkey_auth` remains pending. Native iOS
+  now suppresses the unusable enrollment form on a route-level 404 and avoids
+  email autofill in the optional credential-name field; this does not close the
+  server, migration, authenticated-browser, or real-device rollout gates.
+- 2026-07-31: Updated GAP-62 after native iOS passkey parity landed locally. Production RP/origin configuration, migration application, authenticated browser smoke, and real-device proof remain open.
+- 2026-07-31: Closed the Snow Leopard website-wide source-level bug sweep findings for booking optimistic locking, collaborator capability boundaries, published Schedule access, draft filtering, dashboard stat visibility, and login Sentry loading. No new product gap was added. Authenticated browser/production smoke and a fresh mobile LCP measurement remain unverified and therefore stay represented by the existing rollout and runtime-proof boundaries.
 - 2026-07-29: Reconciled native TipKit feature discovery without adding a
   product gap. One-display prompts attach only to existing reservation and
   internal Schedule controls, become eligible only after the relevant action

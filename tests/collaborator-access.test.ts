@@ -2,9 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import { Role } from "@prisma/client";
 import {
   capabilitiesForActor,
+  hasCollaboratorCapability,
   isGlobalKioskCollaborator,
   normalizeCollaboratorCapabilities,
   requireActiveCollaboratorPolicy,
+  requireCollaboratorCapability,
 } from "@/lib/collaborator-access";
 import { PERMISSIONS } from "@/lib/permissions";
 import { canPerformBookingAction } from "@/lib/booking-action-policy";
@@ -77,6 +79,40 @@ describe("BTN collaborator authorization", () => {
     })).toBe(true);
   });
 
+  // Brand Comm is configured as a Schedule-only partner: they see the published
+  // Schedule and follow events, and hold no gear capability at all. This is a
+  // supported shape, not a half-configured one, so nothing may quietly widen it.
+  it("supports a Schedule-only affiliation without pulling in any gear capability", () => {
+    const scheduleOnly = normalizeCollaboratorCapabilities([
+      "PUBLISHED_SCHEDULE_VIEW",
+      "SCHEDULE_FOLLOW",
+    ]);
+    expect(scheduleOnly).toEqual(["PUBLISHED_SCHEDULE_VIEW", "SCHEDULE_FOLLOW"]);
+
+    const brandComm = {
+      role: Role.COLLABORATOR,
+      capabilities: scheduleOnly,
+      collaboratorPolicy: {
+        id: "policy-brand-comm",
+        affiliationKey: "BRAND_COMM",
+        displayName: "Brand Comm",
+        badgeLabel: "BRAND",
+        status: "ACTIVE" as const,
+        version: 1,
+      },
+    };
+
+    expect(() => requireActiveCollaboratorPolicy(brandComm)).not.toThrow();
+    expect(capabilitiesForActor(brandComm)).toEqual(["PUBLISHED_SCHEDULE_VIEW", "SCHEDULE_FOLLOW"]);
+    // No gear catalog, no own-bookings surface, and no kiosk custody.
+    expect(hasCollaboratorCapability(brandComm, "GEAR_CATALOG_VIEW")).toBe(false);
+    expect(hasCollaboratorCapability(brandComm, "MY_GEAR_VIEW")).toBe(false);
+    expect(hasCollaboratorCapability(brandComm, "RESERVATION_CREATE")).toBe(false);
+    expect(hasCollaboratorCapability(brandComm, "PEOPLE_DIRECTORY_VIEW")).toBe(false);
+    expect(isGlobalKioskCollaborator(brandComm)).toBe(false);
+    expect(() => requireCollaboratorCapability(brandComm, "MY_GEAR_VIEW")).toThrow("Forbidden");
+  });
+
   it("keeps COLLABORATOR default-denied in every role permission entry except narrow self-service", () => {
     // user.edit_self only ever gates PATCH /api/me/profile-completion, which
     // is hard-scoped to the authenticated session's own id and, for
@@ -96,7 +132,16 @@ describe("BTN collaborator authorization", () => {
   });
 
   it("allows only owned reservation mutations and owned booking reads", () => {
-    const actor = { id: "btn-1", role: "COLLABORATOR" };
+    const actor = {
+      id: "btn-1",
+      role: "COLLABORATOR",
+      capabilities: [
+        "MY_GEAR_VIEW",
+        "RESERVATION_EDIT_OWN",
+        "RESERVATION_EXTEND_OWN",
+        "RESERVATION_CANCEL_OWN",
+      ],
+    };
     const ownReservation = {
       kind: "RESERVATION" as const,
       status: "BOOKED",
@@ -114,6 +159,21 @@ describe("BTN collaborator authorization", () => {
     expect(canPerformBookingAction(actor, ownCheckout, "view").allowed).toBe(true);
     expect(canPerformBookingAction(actor, ownCheckout, "edit").allowed).toBe(false);
     expect(canPerformBookingAction(actor, { ...ownReservation, requesterUserId: "other", createdBy: "other" }, "view").allowed).toBe(false);
+  });
+
+  it("does not expose collaborator reservation actions without their individual grants", () => {
+    const actor = { id: "btn-1", role: "COLLABORATOR", capabilities: ["MY_GEAR_VIEW"] };
+    const reservation = {
+      kind: "RESERVATION" as const,
+      status: "BOOKED",
+      requesterUserId: actor.id,
+      createdBy: actor.id,
+    };
+
+    expect(canPerformBookingAction(actor, reservation, "view").allowed).toBe(true);
+    expect(canPerformBookingAction(actor, reservation, "edit").allowed).toBe(false);
+    expect(canPerformBookingAction(actor, reservation, "extend").allowed).toBe(false);
+    expect(canPerformBookingAction(actor, reservation, "cancel").allowed).toBe(false);
   });
 });
 
