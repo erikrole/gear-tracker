@@ -101,7 +101,7 @@
 | `src/lib/db.ts` | 18 |
 | `src/lib/editor-snippets.ts` | 28 |
 | `src/lib/email.ts` | 125 |
-| `src/lib/env.ts` | 88 |
+| `src/lib/env.ts` | 104 |
 | `src/lib/equipment-guidance.ts` | 133 |
 | `src/lib/equipment-section-filters.ts` | 87 |
 | `src/lib/equipment-sections.ts` | 200 |
@@ -129,6 +129,7 @@
 | `src/lib/observability.ts` | 19 |
 | `src/lib/operational-health.ts` | 50 |
 | `src/lib/ops-checks.ts` | 176 |
+| `src/lib/passkey.ts` | 321 |
 | `src/lib/permissions.ts` | 183 |
 | `src/lib/profile-completion-events.ts` | 6 |
 | `src/lib/profile-completion.ts` | 157 |
@@ -174,12 +175,16 @@
 | `src/lib/user-list-cache.ts` | 73 |
 | `src/lib/user-visibility.ts` | 45 |
 | `src/lib/utils.ts` | 7 |
-| `src/lib/validation.ts` | 745 |
+| `src/lib/validation.ts` | 782 |
 | `src/lib/venue-mapping-audit.ts` | 56 |
 | `src/lib/venue-mapping-contract.ts` | 46 |
 | `src/lib/venue-tone.ts` | 97 |
 
 ## API Route Groups
+
+### `/.well-known/apple-app-site-association`
+
+- `/.well-known/apple-app-site-association`
 
 ### `/api/accountability`
 
@@ -228,6 +233,10 @@
 - `/api/auth/forgot-password`
 - `/api/auth/login`
 - `/api/auth/logout`
+- `/api/auth/passkey/login/options`
+- `/api/auth/passkey/login/verify`
+- `/api/auth/passkey/registration/options`
+- `/api/auth/passkey/registration/verify`
 - `/api/auth/register`
 - `/api/auth/reset-password`
 
@@ -453,6 +462,8 @@
 - `/api/me/blasts`
 - `/api/me/change-password`
 - `/api/me/notification-preferences`
+- `/api/me/passkeys/[id]`
+- `/api/me/passkeys`
 - `/api/me/profile-completion`
 - `/api/me/profile`
 - `/api/me`

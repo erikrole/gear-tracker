@@ -64,6 +64,8 @@ targets:
       properties:
         aps-environment: production
         com.apple.developer.weatherkit: true
+        com.apple.developer.associated-domains:
+          - webcredentials:wisconsincreative.com
     dependencies:
       - sdk: WeatherKit.framework
         embed: false

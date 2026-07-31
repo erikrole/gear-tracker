@@ -4,7 +4,9 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { AlertCircle, EyeIcon, EyeOffIcon, WifiOff } from "lucide-react";
+import { browserSupportsWebAuthn, startAuthentication } from "@simplewebauthn/browser";
+import type { PublicKeyCredentialRequestOptionsJSON } from "@simplewebauthn/server";
+import { AlertCircle, EyeIcon, EyeOffIcon, KeyRound, WifiOff } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,11 +15,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useFormSubmit } from "@/hooks/use-form-submit";
+import { parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 
 type LoginResponse = {
   user?: {
     forcePasswordChange?: boolean;
   };
+};
+
+type PasskeyLoginResponse = LoginResponse & {
+  options?: PublicKeyCredentialRequestOptionsJSON;
 };
 
 function validateEmail(email: string): string {
@@ -40,6 +47,8 @@ export default function LoginForm() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+  const [passkeyError, setPasskeyError] = useState<string | null>(null);
   const [isNetworkError, setIsNetworkError] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -81,6 +90,47 @@ export default function LoginForm() {
 
     setIsNetworkError(false);
     await submit({ email, password, rememberMe });
+  }
+
+  async function handlePasskeySignIn() {
+    if (passkeyLoading || submitting) return;
+    setPasskeyError(null);
+    if (!browserSupportsWebAuthn()) {
+      setPasskeyError("This browser does not support passkeys. Use your password instead.");
+      return;
+    }
+
+    setPasskeyLoading(true);
+    try {
+      const optionsResponse = await fetch("/api/auth/passkey/login/options", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rememberMe }),
+      });
+      if (!optionsResponse.ok) {
+        throw new Error(await parseErrorMessage(optionsResponse, "Could not start passkey sign-in."));
+      }
+      const optionsBody = await parseJsonSafely<PasskeyLoginResponse>(optionsResponse);
+      if (!optionsBody?.options) throw new Error("Could not start passkey sign-in.");
+
+      const assertion = await startAuthentication({ optionsJSON: optionsBody.options });
+      const verifyResponse = await fetch("/api/auth/passkey/login/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ response: assertion }),
+      });
+      if (!verifyResponse.ok) {
+        throw new Error(await parseErrorMessage(verifyResponse, "Passkey sign-in failed. Use your password instead."));
+      }
+      const result = await parseJsonSafely<LoginResponse>(verifyResponse);
+      router.replace(result?.user?.forcePasswordChange ? "/change-password" : "/");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      const message = error instanceof Error ? error.message : "Passkey sign-in failed. Use your password instead.";
+      setPasskeyError(message.includes("NotAllowedError") ? "Passkey sign-in was canceled or timed out." : message);
+    } finally {
+      setPasskeyLoading(false);
+    }
   }
 
   return (
@@ -207,6 +257,30 @@ export default function LoginForm() {
                 </>
               ) : "Sign in"}
             </Button>
+
+            <div className="flex items-center gap-3 text-xs text-muted-foreground" aria-hidden="true">
+              <div className="h-px flex-1 bg-border" />
+              <span>or</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-11 text-base font-semibold"
+              onClick={handlePasskeySignIn}
+              disabled={submitting || passkeyLoading}
+            >
+              {passkeyLoading ? <Spinner data-icon="inline-start" /> : <KeyRound className="size-4" />}
+              {passkeyLoading ? "Waiting for passkey…" : "Continue with passkey"}
+            </Button>
+
+            {passkeyError && (
+              <Alert variant="destructive" className="animate-in fade-in-0 slide-in-from-top-1 duration-200">
+                <AlertCircle className="size-4" />
+                <AlertDescription>{passkeyError}</AlertDescription>
+              </Alert>
+            )}
           </form>
           </CardContent>
         </Card>

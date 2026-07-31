@@ -38,6 +38,20 @@ describe("inspectMigrationDirectories", () => {
     expect(result.errors).toEqual([]);
   });
 
+  it("keeps the restored 0104 through 0106 production collisions allowlisted", () => {
+    const result = inspectMigrationDirectories([
+      migration("0104_kiosk_build_identity"),
+      migration("0104_license_claim_history_integrity"),
+      migration("0105_blast_notifications"),
+      migration("0105_license_expiry_timestamp_parity"),
+      migration("0106_calendar_event_results"),
+      migration("0106_passkey_auth"),
+    ]);
+
+    expect(result.ok).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
   it("fails folders missing migration.sql", () => {
     const result = inspectMigrationDirectories([
       migration("0081_add_users_index"),

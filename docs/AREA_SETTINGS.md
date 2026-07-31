@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Settings
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-17
+- Last Updated: 2026-07-31
 - Status: Active
 - Version: V1
 
@@ -24,10 +24,14 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 ### Security (`/settings/security`) -- Personal
 - Change password: verify current password, set new one (min 8 chars), optional "sign out of all other devices" checkbox. Client-side confirm-password match before submit.
 - Active sessions list: shows each non-expired session with creation date, expiry date, and "This device" badge for the current session. Per-session "Sign out" button (cannot revoke the current session). "Sign out all other devices" bulk action.
+- Passkeys: active invite-granted users can add one or more discoverable passkeys after current-password reauthentication, name them, see last-used metadata, and revoke an individual credential. Password sign-in and recovery remain available during rollout.
 - `POST /api/me/change-password` (5/min rate limit -- brute-force protection; verifies bcrypt, sets new hash, optionally deletes other sessions).
 - `GET /api/me/sessions` (30/min; lists non-expired sessions with `isCurrent` flag -- tokenHash never exposed to client).
 - `DELETE /api/me/sessions/:id` (10/min; rejects current session with 400, confirms ownership before delete).
 - `DELETE /api/me/sessions` (10/min; revokes all sessions except current).
+- `POST /api/auth/passkey/registration/options` and `POST /api/auth/passkey/registration/verify` (authenticated, current-password reauthentication, one-time server ceremonies).
+- `POST /api/auth/passkey/login/options` and `POST /api/auth/passkey/login/verify` (public discoverable login, required user verification, existing cookie-backed session issuance).
+- `GET /api/me/passkeys` and `DELETE /api/me/passkeys/:id` (credential metadata and current-password-protected per-credential revocation).
 - Available to every authenticated user (STUDENT included).
 
 ### Overview (`/settings`)
@@ -199,6 +203,7 @@ All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-j
 
 ## Change Log
 
+- 2026-07-31: **Passkey Security slice.** Security now supports web passkey enrollment, discoverable passkey login, credential metadata, and current-password-protected revocation. Passkeys issue the existing cookie-backed user session, require user verification, persist one-time ceremonies, and leave password recovery plus kiosk device auth unchanged. Native iOS AuthenticationServices support remains the next bounded slice.
 - 2026-07-23: Reservation Rules now explains that Pending Pickup begins at the
   scheduled reservation start and that the configured no-show window cancels
   and releases an uncollected reservation.

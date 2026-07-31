@@ -191,6 +191,8 @@ model User {
   lastActiveAt                DateTime?                        @map("last_active_at")
   location                    Location?                        @relation(fields: [locationId], references: [id], onDelete: SetNull)
   sessions                    Session[]
+  passkeyCredentials          PasskeyCredential[]
+  passkeyChallenges           PasskeyChallenge[]
   requested                   Booking[]                        @relation("BookingRequester")
   createdBookings             Booking[]                        @relation("BookingCreator")
   scanEvents                  ScanEvent[]
@@ -291,6 +293,45 @@ model PasswordResetToken {
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+enum PasskeyCeremonyType {
+  REGISTRATION
+  AUTHENTICATION
+}
+
+model PasskeyCredential {
+  id           String    @id @default(cuid())
+  credentialId String    @unique @map("credential_id")
+  userId       String    @map("user_id")
+  publicKey    Bytes     @map("public_key")
+  counter      Int       @default(0)
+  transports   String[]  @default([])
+  deviceType   String?   @map("device_type")
+  backedUp     Boolean   @default(false) @map("backed_up")
+  name         String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  lastUsedAt   DateTime? @map("last_used_at")
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("passkey_credentials")
+}
+
+model PasskeyChallenge {
+  id                String              @id @default(cuid())
+  ceremonyTokenHash String              @unique @map("ceremony_token_hash")
+  challenge         String              @unique
+  type              PasskeyCeremonyType
+  userId            String?             @map("user_id")
+  rememberMe        Boolean             @default(false) @map("remember_me")
+  expiresAt         DateTime            @map("expires_at")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  user              User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([expiresAt])
+  @@map("passkey_challenges")
 }
 
 model Location {
@@ -825,6 +866,11 @@ enum CalendarEventStatus {
   CANCELLED
 }
 
+enum CalendarEventResult {
+  WIN
+  LOSS
+}
+
 model CalendarSource {
   id             String          @id @default(cuid())
   name           String
@@ -855,6 +901,7 @@ model CalendarEvent {
   endsAt          DateTime              @map("ends_at")
   allDay          Boolean               @default(false) @map("all_day")
   status          CalendarEventStatus   @default(CONFIRMED)
+  result          CalendarEventResult?
   locationId      String?               @map("location_id")
   sportCode       String?               @map("sport_code")
   isHome          Boolean?              @map("is_home")

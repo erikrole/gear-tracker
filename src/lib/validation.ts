@@ -337,6 +337,43 @@ export const loginSchema = z.object({
   rememberMe: z.boolean().optional()
 });
 
+const passkeyResponseSchema = z.object({
+  id: z.string().min(1).max(512),
+  rawId: z.string().min(1).max(512),
+  response: z.object({
+    clientDataJSON: z.string().min(1),
+    authenticatorData: z.string().optional(),
+    attestationObject: z.string().optional(),
+    signature: z.string().optional(),
+    userHandle: z.string().nullable().optional(),
+    transports: z.array(z.string()).max(8).optional(),
+  }).passthrough(),
+  type: z.literal("public-key"),
+  clientExtensionResults: z.record(z.unknown()).optional(),
+  authenticatorAttachment: z.string().optional(),
+}).passthrough();
+
+export const passkeyLoginOptionsSchema = z.object({
+  rememberMe: z.boolean().optional(),
+});
+
+export const passkeyRegistrationOptionsSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required."),
+});
+
+export const passkeyRegistrationVerifySchema = z.object({
+  response: passkeyResponseSchema,
+  name: z.string().trim().max(80).optional(),
+});
+
+export const passkeyAuthenticationVerifySchema = z.object({
+  response: passkeyResponseSchema,
+});
+
+export const passkeyRevokeSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required."),
+});
+
 export const registerSchema = z.object({
   name: z.string().trim().min(1).max(100),
   email: z.string().max(254).email(),

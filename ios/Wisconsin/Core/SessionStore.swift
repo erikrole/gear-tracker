@@ -116,6 +116,29 @@ final class SessionStore {
         await mutation.value
     }
 
+    func loginWithPasskey() async {
+        let mutation = authMutations.enqueue { [weak self] in
+            guard let self else { return }
+            let requestToken = self.authRequests.begin()
+            self.isLoading = true
+            self.error = nil
+            do {
+                let options = try await APIClient.shared.passkeyAuthenticationOptions()
+                let assertion = try await PasskeyService.shared.authenticate(options: options)
+                let user = try await APIClient.shared.verifyPasskeyAuthentication(assertion)
+                guard self.authRequests.owns(requestToken) else { return }
+                self.didSeedFromSnapshot = false
+                self.publishCurrentUserIfChanged(user)
+                self.isOffline = false
+            } catch {
+                guard self.authRequests.owns(requestToken) else { return }
+                self.error = error.localizedDescription
+            }
+            if self.authRequests.owns(requestToken) { self.isLoading = false }
+        }
+        await mutation.value
+    }
+
     func completeForcedPasswordChange(currentPassword: String, newPassword: String) async {
         let mutation = authMutations.enqueue { [weak self] in
             guard let self else { return }

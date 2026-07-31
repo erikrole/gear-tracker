@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Mobile Operations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-29
+- Last Updated: 2026-07-31
 - Status: Active
 - Version: V1
 
@@ -132,6 +132,21 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 - **V3 (later)**: Bottom nav badge counts via live `/api/nav-counts` polling, game-day/shift context cards
 
 ## Change Log
+
+- 2026-07-31: **Native iOS passkeys use the shared WebAuthn contract.** The
+  Wisconsin app now offers passkey sign-in from Login and passkey enrollment,
+  listing, and revocation in Account & Security. `AuthenticationServices`
+  converts Apple's platform credential responses into the existing server
+  payloads and continues through the shared `APIClient` and `SessionStore`
+  session boundary. The main target declares the canonical
+  `webcredentials:wisconsincreative.com` association and the public AASA route
+  returns the shipped team and bundle identifier. Migration `0106_passkey_auth`
+  is applied in production; real-device passkey use, production RP/origin
+  configuration, and application deployment remain open.
+  During that rollout gap, an older server's missing passkey routes now produce
+  a quiet unavailable state instead of an actionable enrollment form and a
+  generic not-found error. The optional passkey name also opts out of contact
+  autofill so an account email is not mistaken for a credential label.
 
 - 2026-07-29: **Native feature discovery uses TipKit sparingly.** The main
   Wisconsin app now gives eligible users contextual prompts for New

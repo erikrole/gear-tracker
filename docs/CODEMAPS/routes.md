@@ -96,6 +96,7 @@
 
 ## API Routes
 
+- `/.well-known/apple-app-site-association` -> `src/app/.well-known/apple-app-site-association/route.ts`
 - `/api/accountability/exclusions/[bookingId]` -> `src/app/api/accountability/exclusions/[bookingId]/route.ts`
 - `/api/accountability/exclusions` -> `src/app/api/accountability/exclusions/route.ts`
 - `/api/accountability` -> `src/app/api/accountability/route.ts`
@@ -126,6 +127,10 @@
 - `/api/auth/forgot-password` -> `src/app/api/auth/forgot-password/route.ts`
 - `/api/auth/login` -> `src/app/api/auth/login/route.ts`
 - `/api/auth/logout` -> `src/app/api/auth/logout/route.ts`
+- `/api/auth/passkey/login/options` -> `src/app/api/auth/passkey/login/options/route.ts`
+- `/api/auth/passkey/login/verify` -> `src/app/api/auth/passkey/login/verify/route.ts`
+- `/api/auth/passkey/registration/options` -> `src/app/api/auth/passkey/registration/options/route.ts`
+- `/api/auth/passkey/registration/verify` -> `src/app/api/auth/passkey/registration/verify/route.ts`
 - `/api/auth/register` -> `src/app/api/auth/register/route.ts`
 - `/api/auth/reset-password` -> `src/app/api/auth/reset-password/route.ts`
 - `/api/availability/check` -> `src/app/api/availability/check/route.ts`
@@ -261,6 +266,8 @@
 - `/api/me/blasts` -> `src/app/api/me/blasts/route.ts`
 - `/api/me/change-password` -> `src/app/api/me/change-password/route.ts`
 - `/api/me/notification-preferences` -> `src/app/api/me/notification-preferences/route.ts`
+- `/api/me/passkeys/[id]` -> `src/app/api/me/passkeys/[id]/route.ts`
+- `/api/me/passkeys` -> `src/app/api/me/passkeys/route.ts`
 - `/api/me/profile-completion` -> `src/app/api/me/profile-completion/route.ts`
 - `/api/me/profile` -> `src/app/api/me/profile/route.ts`
 - `/api/me` -> `src/app/api/me/route.ts`

@@ -103,7 +103,7 @@ Values: `ACTIVE`, `MAINTENANCE`, `UNKNOWN`
 
 ## Model `User`
 
-Fields: 99
+Fields: 101
 
 - `id                          String                           @id @default(cuid())`
 - `name                        String`
@@ -135,6 +135,8 @@ Fields: 99
 - `lastActiveAt                DateTime?                        @map("last_active_at")`
 - `location                    Location?                        @relation(fields: [locationId], references: [id], onDelete: SetNull)`
 - `sessions                    Session[]`
+- `passkeyCredentials          PasskeyCredential[]`
+- `passkeyChallenges           PasskeyChallenge[]`
 - `requested                   Booking[]                        @relation("BookingRequester")`
 - `createdBookings             Booking[]                        @relation("BookingCreator")`
 - `scanEvents                  ScanEvent[]`
@@ -244,6 +246,52 @@ Indexes and constraints:
 
 - `@@index([userId])`
 - `@@map("password_reset_tokens")`
+
+## Enum `PasskeyCeremonyType`
+
+Values: `REGISTRATION`, `AUTHENTICATION`
+
+## Model `PasskeyCredential`
+
+Fields: 12
+
+- `id           String    @id @default(cuid())`
+- `credentialId String    @unique @map("credential_id")`
+- `userId       String    @map("user_id")`
+- `publicKey    Bytes     @map("public_key")`
+- `counter      Int       @default(0)`
+- `transports   String[]  @default([])`
+- `deviceType   String?   @map("device_type")`
+- `backedUp     Boolean   @default(false) @map("backed_up")`
+- `name         String?`
+- `createdAt    DateTime  @default(now()) @map("created_at")`
+- `lastUsedAt   DateTime? @map("last_used_at")`
+- `user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)`
+
+Indexes and constraints:
+
+- `@@index([userId])`
+- `@@map("passkey_credentials")`
+
+## Model `PasskeyChallenge`
+
+Fields: 9
+
+- `id                String              @id @default(cuid())`
+- `ceremonyTokenHash String              @unique @map("ceremony_token_hash")`
+- `challenge         String              @unique`
+- `type              PasskeyCeremonyType`
+- `userId            String?             @map("user_id")`
+- `rememberMe        Boolean             @default(false) @map("remember_me")`
+- `expiresAt         DateTime            @map("expires_at")`
+- `createdAt         DateTime            @default(now()) @map("created_at")`
+- `user              User?               @relation(fields: [userId], references: [id], onDelete: Cascade)`
+
+Indexes and constraints:
+
+- `@@index([userId, type])`
+- `@@index([expiresAt])`
+- `@@map("passkey_challenges")`
 
 ## Model `Location`
 
@@ -865,6 +913,10 @@ Indexes and constraints:
 
 Values: `CONFIRMED`, `TENTATIVE`, `CANCELLED`
 
+## Enum `CalendarEventResult`
+
+Values: `WIN`, `LOSS`
+
 ## Model `CalendarSource`
 
 Fields: 11
@@ -888,7 +940,7 @@ Indexes and constraints:
 
 ## Model `CalendarEvent`
 
-Fields: 32
+Fields: 33
 
 - `id              String                @id @default(cuid())`
 - `sourceId        String?               @map("source_id")`
@@ -902,6 +954,7 @@ Fields: 32
 - `endsAt          DateTime              @map("ends_at")`
 - `allDay          Boolean               @default(false) @map("all_day")`
 - `status          CalendarEventStatus   @default(CONFIRMED)`
+- `result          CalendarEventResult?`
 - `locationId      String?               @map("location_id")`
 - `sportCode       String?               @map("sport_code")`
 - `isHome          Boolean?              @map("is_home")`

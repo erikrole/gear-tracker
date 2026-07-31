@@ -103,6 +103,78 @@ final class APIClient {
         return resp.user
     }
 
+    func passkeyAuthenticationOptions(rememberMe: Bool = true) async throws -> PasskeyAuthenticationOptions {
+        struct Body: Encodable {
+            let rememberMe: Bool
+        }
+
+        var req = request(path: "/api/auth/passkey/login/options", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(rememberMe: rememberMe))
+        let response: PasskeyOptionsResponse<PasskeyAuthenticationOptions> = try await perform(
+            req,
+            broadcastsSessionExpiry: false
+        )
+        return response.options
+    }
+
+    func verifyPasskeyAuthentication(_ assertion: PasskeyAssertionPayload) async throws -> CurrentUser {
+        struct Body: Encodable {
+            let response: PasskeyAssertionPayload
+        }
+
+        var req = request(path: "/api/auth/passkey/login/verify", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(response: assertion))
+        let response: LoginResponse = try await perform(req, broadcastsSessionExpiry: false)
+        return response.user
+    }
+
+    func passkeyRegistrationOptions(currentPassword: String) async throws -> PasskeyRegistrationOptions {
+        struct Body: Encodable {
+            let currentPassword: String
+        }
+
+        var req = request(path: "/api/auth/passkey/registration/options", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(currentPassword: currentPassword))
+        let response: PasskeyOptionsResponse<PasskeyRegistrationOptions> = try await perform(req)
+        return response.options
+    }
+
+    func verifyPasskeyRegistration(
+        _ registration: PasskeyRegistrationPayload,
+        name: String?
+    ) async throws -> PasskeyCredentialSummary {
+        struct Body: Encodable {
+            let response: PasskeyRegistrationPayload
+            let name: String?
+        }
+
+        var req = request(path: "/api/auth/passkey/registration/verify", method: "POST")
+        let trimmedName = name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        req.httpBody = try JSONEncoder().encode(Body(
+            response: registration,
+            name: trimmedName?.isEmpty == true ? nil : trimmedName
+        ))
+        let response: DataWrapper<PasskeyCredentialSummary> = try await perform(req)
+        return response.data
+    }
+
+    func passkeys() async throws -> [PasskeyCredentialSummary] {
+        let response: DataWrapper<[PasskeyCredentialSummary]> = try await perform(
+            request(path: "/api/me/passkeys")
+        )
+        return response.data
+    }
+
+    func revokePasskey(id: String, currentPassword: String) async throws {
+        struct Body: Encodable {
+            let currentPassword: String
+        }
+
+        var req = request(path: "/api/me/passkeys/\(id)", method: "DELETE")
+        req.httpBody = try JSONEncoder().encode(Body(currentPassword: currentPassword))
+        let _: SuccessResponse = try await perform(req)
+    }
+
     func logout() async throws {
         let req = request(path: "/api/auth/logout", method: "POST")
         _ = try? await session.data(for: req)
@@ -1497,6 +1569,10 @@ private struct DataWrapper<T: Decodable>: Decodable {
 
 private struct LoginResponse: Decodable {
     let user: CurrentUser
+}
+
+private struct PasskeyOptionsResponse<T: Decodable>: Decodable {
+    let options: T
 }
 
 private struct MeResponse: Decodable {
