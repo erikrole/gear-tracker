@@ -1,6 +1,6 @@
 # Tasks Index
 
-Last updated: 2026-07-23
+Last updated: 2026-07-28
 
 ## Start Here
 
@@ -66,6 +66,13 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Recently Archived
 
+- `archive/completed-2026-07/ios-system-hardening-plan.md` - completed the
+  full native bug, security, privacy, correctness, accessibility, recovery, and
+  source-performance hardening pass. Device-only and authenticated acceptance
+  evidence remains explicitly recorded in the root audit and risk registry.
+- `archive/completed-2026-07/ios-reservation-drafts-plan.md` - hardened native
+  draft recovery, canonical draft authorization and audit history, and atomic
+  source-draft consumption during reservation creation.
 - `archive/completed-2026-07/pending-pickup-reservation-consolidation-plan.md` - makes due booked reservations the single Pending Pickup model, starts no-show timing at scheduled pickup, opens kiosk custody directly, and retains raw staged rows only for verified cleanup.
 - `archive/completed-2026-07/ios-booking-pickup-overdue-row-plan.md` - makes due native reservation rows turn orange and say when pickup was due without changing reservation lifecycle or kiosk custody.
 - `archive/completed-2026-07/kiosk-bulk-turnaround-warning-fix-plan.md` - removed misleading bulk-family Tight turn warnings from direct kiosk checkout while preserving hard quantity shortages and exact-unit checks.

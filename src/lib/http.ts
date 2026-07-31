@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { Prisma } from "@prisma/client";
 import { ZodError } from "zod";
+import { isSerializationConflict } from "./serialization";
 
 export class HttpError extends Error {
   readonly status: number;
@@ -61,11 +62,10 @@ export function fail(error: unknown) {
     );
   }
 
-  // Serialization conflict (SERIALIZABLE isolation) — retryable by client
-  if (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === "P2034"
-  ) {
+  // Serialization conflict (SERIALIZABLE isolation) — retryable by client.
+  // Matches both the Prisma `P2034` shape and the raw `40001` driver code the
+  // Neon adapter can surface, so a lost race never falls through to a 500.
+  if (isSerializationConflict(error)) {
     return NextResponse.json(
       { error: "Someone else submitted at the same time — please try again." },
       { status: 409 }

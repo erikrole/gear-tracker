@@ -4,9 +4,11 @@ import { requirePermission } from "@/lib/rbac";
 import { swapShiftSchema } from "@/lib/validation";
 import { initiateSwap } from "@/lib/services/shift-assignments";
 import { createAuditEntry } from "@/lib/audit";
+import { enforceRateLimit, SCHEDULE_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "shift_assignment", "assign");
+  await enforceRateLimit(`shift-swap:${user.id}`, SCHEDULE_MUTATION_LIMIT);
   const { id } = params;
 
   const body = swapShiftSchema.parse(await req.json());

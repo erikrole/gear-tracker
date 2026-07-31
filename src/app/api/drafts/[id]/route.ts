@@ -1,10 +1,13 @@
+import { BookingKind, Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
-import { createAuditEntry } from "@/lib/audit";
+import { createAuditEntryTx } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
+import { requirePermission, requirePermissionOrCollaboratorCapability } from "@/lib/rbac";
 
 /** GET /api/drafts/[id] — load a single draft for resume */
 export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
+  requirePermissionOrCollaboratorCapability(user, "booking", "view", "MY_GEAR_VIEW");
   const { id } = params;
 
   const draft = await db.booking.findFirst({
@@ -98,25 +101,36 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
 export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) => {
   const { id } = params;
 
-  const draft = await db.booking.findFirst({
-    where: { id, status: "DRAFT", createdBy: user.id },
-  });
+  await db.$transaction(async (tx) => {
+    const draft = await tx.booking.findFirst({
+      where: { id, status: "DRAFT", createdBy: user.id },
+      select: { id: true, title: true, kind: true, requesterUserId: true },
+    });
 
-  if (!draft) {
-    throw new HttpError(404, "Draft not found");
-  }
+    if (!draft) {
+      throw new HttpError(404, "Draft not found");
+    }
+    if (draft.kind === BookingKind.RESERVATION) {
+      requirePermissionOrCollaboratorCapability(user, "booking", "create", "RESERVATION_CREATE");
+    } else {
+      requirePermission(user.role, "checkout", "create");
+    }
 
-  // Cascade deletes BookingSerializedItem + BookingBulkItem automatically
-  await db.booking.delete({ where: { id } });
-
-  await createAuditEntry({
-    actorId: user.id,
-    actorRole: user.role,
-    entityType: "booking",
-    entityId: id,
-    action: "draft_discarded",
-    before: { title: draft.title, kind: draft.kind },
-  });
+    // Cascade deletes BookingSerializedItem + BookingBulkItem automatically.
+    await tx.booking.delete({ where: { id } });
+    await createAuditEntryTx(tx, {
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "booking",
+      entityId: id,
+      action: "draft_discarded",
+      before: {
+        title: draft.title,
+        kind: draft.kind,
+        requesterUserId: draft.requesterUserId,
+      },
+    });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   return ok({ success: true });
 });

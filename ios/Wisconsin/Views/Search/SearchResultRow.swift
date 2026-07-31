@@ -104,16 +104,7 @@ struct SearchBulkThumbnail: View {
                 .fill(Color(.secondarySystemBackground))
                 .frame(width: size, height: size)
             if let imageUrl, let url = URL(string: imageUrl) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    default:
-                        placeholder
-                    }
-                }
+                CachedThumbnail(url: url, size: size)
                 .frame(width: size, height: size)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             } else {

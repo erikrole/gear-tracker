@@ -1,6 +1,8 @@
 import SwiftUI
+import TipKit
 
 struct AppTabView: View {
+    private let resumeReservationTip = ResumeReservationTip()
     @Environment(SessionStore.self) private var session
     @Environment(AppState.self) private var appState
     @Environment(ReservationDraftStore.self) private var drafts
@@ -125,6 +127,7 @@ struct AppTabView: View {
         .onChange(of: appState.pendingPushBlastId) { _, _ in
             routePendingBlastPush()
         }
+        .modifier(ScheduleVisitDonation(selectedTab: appState.selectedTab))
         // The reservation composer lives here, above every tab, so a minimized
         // draft survives tab switches and navigation pops.
         .modifier(ReservationDraftAccessory(isVisible: drafts.showsCard) {
@@ -132,9 +135,13 @@ struct AppTabView: View {
                 title: drafts.cardTitle,
                 subtitle: drafts.cardSubtitle,
                 isBusy: drafts.isBusy,
-                onOpen: { Task { await drafts.openCard() } },
+                onOpen: {
+                    resumeReservationTip.invalidate(reason: .actionPerformed)
+                    Task { await drafts.openCard() }
+                },
                 onClose: { showDraftCloseOptions = true }
             )
+            .popoverTip(resumeReservationTip, arrowEdge: .bottom)
         })
         .sheet(isPresented: Binding(
             get: { drafts.isExpanded },
@@ -157,9 +164,11 @@ struct AppTabView: View {
             Button("Save Draft & Start New") {
                 Task { await drafts.resolvePendingStartBySavingCurrent() }
             }
+            .disabled(drafts.isBusy)
             Button("Discard & Start New", role: .destructive) {
                 Task { await drafts.resolvePendingStartByDiscardingCurrent() }
             }
+            .disabled(drafts.isBusy)
             Button("Keep Editing", role: .cancel) { drafts.cancelPendingStart() }
         } message: {
             Text("Saved drafts stay in your bookings until you finish or delete them.")
@@ -170,7 +179,9 @@ struct AppTabView: View {
             titleVisibility: .visible
         ) {
             Button("Save Draft") { Task { await drafts.saveAndClose() } }
+                .disabled(drafts.isBusy)
             Button("Discard", role: .destructive) { Task { await drafts.discard() } }
+                .disabled(drafts.isBusy)
             Button("Keep It", role: .cancel) {}
         }
         .toast($draftToast)
@@ -186,6 +197,10 @@ struct AppTabView: View {
         }
         .onChange(of: drafts.createdBookingId) { _, bookingId in
             routeCreatedReservation(bookingId)
+        }
+        .onChange(of: drafts.showsCard) { _, showsCard in
+            guard showsCard else { return }
+            Task { await ResumeReservationTip.minimizedReservation.donate() }
         }
         .task(id: session.currentUser?.id) {
             guard hasCapability("RESERVATION_CREATE") else { return }
@@ -306,6 +321,17 @@ private struct AppTabShellStyle: ViewModifier {
             content.tabViewStyle(.sidebarAdaptable)
         } else {
             content.tabViewStyle(.tabBarOnly)
+        }
+    }
+}
+
+private struct ScheduleVisitDonation: ViewModifier {
+    let selectedTab: Int
+
+    func body(content: Content) -> some View {
+        content.onChange(of: selectedTab) { _, newValue in
+            guard newValue == 4 else { return }
+            Task { await ShiftCalendarTip.openedSchedule.donate() }
         }
     }
 }

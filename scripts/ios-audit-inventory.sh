@@ -118,6 +118,7 @@ Kiosk/KioskIdleRoster.swift            |                             | exempt-sh
 Kiosk/KioskDateFormatting.swift        |                             | exempt-infra
 Components/BannerView.swift            |                             | exempt-shared
 Components/BlastBanner.swift           |                             | exempt-shared
+Components/ReservationDraftCard.swift  |                             | exempt-shared
 Components/Skeleton.swift              |                             | exempt-shared
 Components/StatusPill.swift            |                             | exempt-shared
 Components/Toast.swift                 |                             | exempt-shared

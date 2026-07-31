@@ -1,21 +1,6 @@
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { PlusIcon } from "lucide-react";
+import { AddSlotMenu, CrewAreaHeading } from "./crew-row";
 import { ShiftSlotCard } from "./ShiftSlotCard";
 import type { PickerUser } from "./UserAvatarPicker";
-
-const AREA_LABELS: Record<string, string> = {
-  VIDEO: "Video",
-  PHOTO: "Photo",
-  GRAPHICS: "Graphics",
-  COMMS: "Comms",
-  LIVE_PRODUCTION: "Live Production",
-};
 
 type ShiftUser = {
   id: string;
@@ -61,7 +46,7 @@ type Props = {
   onPickerSearchChange: (value: string) => void;
   onOpenPicker: (shiftId: string) => void;
   onClosePicker: () => void;
-  onAddShift: (workerType: string) => void;
+  onAddShift: (workerType: "FT" | "ST") => void;
   onDeleteShift: (shiftId: string, hasAssignment: boolean) => void;
   onAssign: (shiftId: string, userId: string) => void;
   onRemove: (assignmentId: string) => void;
@@ -98,40 +83,20 @@ export function ShiftAreaSection({
 }: Props) {
   return (
     <div className="mt-4">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold text-muted-foreground">
-          {AREA_LABELS[area] ?? area}
-          {shifts.length > 0 && (
-            <span className="ml-1.5 text-xs font-normal">({shifts.length})</span>
-          )}
-        </h3>
-        {isStaff && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-9 px-2 text-xs text-muted-foreground"
-                disabled={acting !== null}
-              >
-                <PlusIcon className="size-3.5 mr-0.5" />
-                Add
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem onClick={() => onAddShift("FT")}>
-                Add Staff slot
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onAddShift("ST")}>
-                Add Student slot
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </div>
+      <CrewAreaHeading
+        className="mb-2"
+        area={area}
+        filled={shifts.filter((shift) => shift.assignments.some(
+          (a) => a.status === "DIRECT_ASSIGNED" || a.status === "APPROVED",
+        )).length}
+        total={shifts.length}
+        action={isStaff ? (
+          <AddSlotMenu area={area} disabled={acting !== null} onAdd={onAddShift} />
+        ) : undefined}
+      />
 
       {shifts.length === 0 ? (
-        <p className="text-xs text-muted-foreground mb-2">No shifts configured</p>
+        <p className="mb-2 text-sm text-muted-foreground">No shifts configured</p>
       ) : (
         shifts.map((shift) => {
           const activeAssignment = shift.assignments.find(

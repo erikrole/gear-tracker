@@ -49,7 +49,39 @@ final class AppState {
     var pendingBookingDetailId: String?
     private var isRefreshing = false
     private var lastRefreshAttemptAt: Date?
+    private var refreshRequests = LatestRequestGeneration()
+    private var unreadRefreshRequests = LatestRequestGeneration()
     private let minimumRefreshInterval: TimeInterval = 60
+
+    /// Clears every account-owned app-shell value before a signed-out or
+    /// different-user shell can render. Invalidating request ownership also
+    /// prevents a response started by the previous session from repopulating
+    /// counts after this synchronous reset.
+    func resetForSessionBoundary() {
+        refreshRequests.invalidate()
+        unreadRefreshRequests.invalidate()
+        isRefreshing = false
+        lastRefreshAttemptAt = nil
+
+        overdueCount = 0
+        myShiftCount = 0
+        myShiftTodayCount = 0
+        unreadNotifCount = 0
+        openTradeCount = 0
+
+        pendingPushBookingId = nil
+        pendingExtendBookingId = nil
+        pendingPushEventId = nil
+        pendingPushBlastId = nil
+        pendingAppIntentDestination = nil
+        pendingBookingsScope = nil
+        pendingBookingDetailId = nil
+
+        selectedTab = 0
+        resetTab = nil
+        tabResetToken = 0
+        pushRegistrationState = .unknown
+    }
 
     func selectTab(_ tab: Int) {
         if selectedTab == tab {
@@ -69,6 +101,7 @@ final class AppState {
     }
 
     func requestRemoteNotificationRegistration() {
+        PushTokenStorage.registrationAllowed = true
         pushRegistrationState = .registering
         UIApplication.shared.registerForRemoteNotifications()
     }
@@ -92,15 +125,21 @@ final class AppState {
             appStatePerformanceLog.debug("launch.appState.refresh result=skipped reason=fresh ageSeconds=\(ageSeconds, privacy: .public) durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public)")
             return
         }
+        let requestToken = refreshRequests.begin()
         isRefreshing = true
         lastRefreshAttemptAt = Date()
-        defer { isRefreshing = false }
+        defer {
+            if refreshRequests.owns(requestToken) {
+                isRefreshing = false
+            }
+        }
         do {
             // Use the lightweight stats endpoint instead of the full dashboard payload.
             async let statsTask = APIClient.shared.dashboardStats()
             async let countTask = APIClient.shared.notificationUnreadCount()
             async let tradesTask = APIClient.shared.shiftTrades(status: "OPEN", limit: 1)
             let (stats, count, trades) = try await (statsTask, countTask, tradesTask)
+            guard refreshRequests.owns(requestToken), !Task.isCancelled else { return }
             overdueCount = stats.overdueCount
             myShiftCount = stats.myShiftsCount
             myShiftTodayCount = stats.myShiftsTodayCount ?? 0
@@ -108,14 +147,18 @@ final class AppState {
             openTradeCount = min(trades.total, 9)
             appStatePerformanceLog.info("launch.appState.refresh result=success durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public) overdue=\(self.overdueCount, privacy: .public) shifts=\(self.myShiftCount, privacy: .public) shiftsToday=\(self.myShiftTodayCount, privacy: .public) unread=\(self.unreadNotifCount, privacy: .public) openTrades=\(self.openTradeCount, privacy: .public)")
         } catch {
+            guard refreshRequests.owns(requestToken), !Task.isCancelled else { return }
             // Non-critical
             appStatePerformanceLog.error("launch.appState.refresh result=failure durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public)")
         }
     }
 
     func refreshUnread() async {
+        let requestToken = unreadRefreshRequests.begin()
         do {
-            unreadNotifCount = try await APIClient.shared.notificationUnreadCount()
+            let count = try await APIClient.shared.notificationUnreadCount()
+            guard unreadRefreshRequests.owns(requestToken), !Task.isCancelled else { return }
+            unreadNotifCount = count
         } catch {}
     }
 }

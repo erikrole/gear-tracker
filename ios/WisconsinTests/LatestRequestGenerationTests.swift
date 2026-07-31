@@ -76,4 +76,45 @@ final class LatestRequestGenerationTests: XCTestCase {
         XCTAssertTrue(loginStarted)
         XCTAssertEqual(cookie, "new")
     }
+
+    @MainActor
+    func testCredentialQueueFinishesRegistrationBeforeLogoutRevocation() async {
+        let queue = AuthMutationQueue()
+        let registrationStarted = TestSignal()
+        let releaseRegistration = TestSignal()
+        var operations: [String] = []
+
+        let registration = queue.enqueue {
+            operations.append("register-start")
+            await registrationStarted.signal()
+            await releaseRegistration.wait()
+            operations.append("register-finish")
+        }
+        await registrationStarted.wait()
+
+        let revocation = queue.enqueue {
+            operations.append("revoke")
+        }
+        await Task.yield()
+
+        XCTAssertEqual(operations, ["register-start"])
+
+        await releaseRegistration.signal()
+        await registration.value
+        await revocation.value
+
+        XCTAssertEqual(operations, ["register-start", "register-finish", "revoke"])
+    }
+
+    @MainActor
+    func testAuthSessionBoundaryRejectsAnOlderAccountsLateResponse() {
+        let boundary = AuthSessionBoundary()
+        let olderAccount = boundary.capture()
+
+        boundary.advance()
+        let currentAccount = boundary.capture()
+
+        XCTAssertFalse(boundary.owns(olderAccount))
+        XCTAssertTrue(boundary.owns(currentAccount))
+    }
 }

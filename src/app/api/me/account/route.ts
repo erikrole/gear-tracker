@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { withAuth } from "@/lib/api";
-import { createAuditEntry } from "@/lib/audit";
 import { verifyPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
@@ -38,23 +37,14 @@ export const DELETE = withAuth(async (req, { user }) => {
     throw new HttpError(400, "Current password is incorrect.");
   }
 
-  const result = await deactivateUserWithCleanup({
+  await deactivateUserWithCleanup({
     targetUserId: user.id,
     actorId: user.id,
     actorRole: user.role,
-  });
-
-  await createAuditEntry({
-    actorId: user.id,
-    actorRole: user.role,
-    entityType: "user",
-    entityId: user.id,
-    action: "account_self_deleted",
-    before: { active: true },
-    after: {
-      active: false,
-      cancelledBookingIds: result.cancelledIds,
-      directReportsCleared: result.directReportsCleared,
+    audit: {
+      action: "account_self_deleted",
+      before: { active: true },
+      after: { active: false },
     },
   });
 

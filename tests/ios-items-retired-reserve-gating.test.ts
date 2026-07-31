@@ -22,6 +22,7 @@ describe("iOS Items retired reserve gating", () => {
 
     expect(itemDetailView).toContain("if asset.computedStatus != .retired");
     expect(itemDetailView).toContain("ReserveButton(title:");
-    expect(itemDetailView).toContain("reserveAsset = asset.asAsset");
+    expect(itemDetailView).toContain("startReservation(for: asset.asAsset)");
+    expect(itemDetailView).toContain("drafts.start({");
   });
 });

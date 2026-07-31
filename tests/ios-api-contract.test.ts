@@ -57,7 +57,7 @@ describe("iOS API contracts — reservation create payload", () => {
 
     expect(validation).toContain("bulkSkuId: z.string().cuid()");
     expect(validation).toContain("quantity: z.number().int().positive()");
-    expect(apiClient).toContain("struct BulkReservationRequest: Encodable, Equatable");
+    expect(apiClient).toContain("struct BulkReservationRequest: Codable, Equatable");
     expect(apiClient).toContain("bulkItems: [BulkReservationRequest] = []");
     expect(apiClient).toContain("let bulkItems: [BulkReservationRequest]");
     expect(apiClient).toContain("bulkItems: bulkItems");
@@ -281,7 +281,9 @@ describe("iOS API contracts — asset lookup item families", () => {
     expect(itemsView).not.toContain("includeAccessories: true");
     expect(itemsView).toContain("let resultRows = result.orderedRows");
     expect(itemsView).toContain("ItemFamilyListRow(family: family)");
-    expect(itemsView).toContain("vm.prefillReservation(forFamily: family)");
+    expect(itemsView).toContain("startReservation(forFamily: family)");
+    expect(itemsView).toContain("drafts.start({");
+    expect(itemsView).toContain("composer.prefillReservation(forFamily: family)");
   });
 
   it("iOS item detail uses attachment language for bundled child rows", () => {
@@ -570,9 +572,16 @@ describe("iOS API contracts — kiosk session", () => {
     const route = source("src/app/api/kiosk/activate/route.ts");
     const client = source("ios/Wisconsin/Kiosk/KioskAPIClient.swift");
     const store = source("ios/Wisconsin/Kiosk/KioskStore.swift");
+    const activation = client.slice(
+      client.indexOf("func kioskActivate"),
+      client.indexOf("func kioskHeartbeat"),
+    );
 
     expect(route).toContain("sessionToken,");
-    expect(client).toContain("let result: (KioskActivationResponse, HTTPURLResponse) = try await performWithResponse(req)");
+    expect(activation).toContain("kioskCredentialBoundary.advance()");
+    expect(activation).toMatch(
+      /let result: \(KioskActivationResponse, HTTPURLResponse\) = try await performWithResponse\(\s*req,\s*broadcastsUnauthorizedSession: false\s*\)/,
+    );
     expect(client).toContain("kioskSessionToken(from: http)");
     expect(client).toContain("cookieValue(named: \"kiosk_session\"");
     expect(store).toContain("KioskSessionVault.save(sessionToken)");

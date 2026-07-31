@@ -13,6 +13,7 @@ import { nullableSportCodeSchema } from "@/lib/validation";
 import { isHomeFromVenueTone, VENUE_TONE_VALUES } from "@/lib/venue-tone";
 import { z } from "zod";
 import { normalizeManualEventTitle } from "@/lib/title-normalization";
+import { enforceRateLimit, SCHEDULE_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 const patchSchema = z
   .object({
@@ -61,6 +62,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   if (user.role !== "ADMIN" && user.role !== "STAFF") {
     throw new HttpError(403, "Only staff and admins can edit events");
   }
+  await enforceRateLimit(`calendar-event:write:${user.id}`, SCHEDULE_MUTATION_LIMIT);
 
   const { id } = params;
   const rawBody = await req.json().catch(() => {

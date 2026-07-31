@@ -2,8 +2,10 @@ import { withAuth } from "@/lib/api";
 import { createAuditEntry } from "@/lib/audit";
 import { ok } from "@/lib/http";
 import { acknowledgeShiftAssignment } from "@/lib/services/schedule-publication";
+import { enforceRateLimit, SCHEDULE_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
+  await enforceRateLimit(`shift-ack:${user.id}`, SCHEDULE_MUTATION_LIMIT);
   const result = await acknowledgeShiftAssignment(params.id, {
     id: user.id,
     role: user.role,

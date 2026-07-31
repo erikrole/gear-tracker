@@ -118,8 +118,11 @@ describe("schedule source-of-truth and browser smoke contracts", () => {
     expect(eventCrew).toContain("Review the proposed crew changes before applying them.");
     expect(shiftPanel).toContain("Review suggested assignments before applying them.");
     expect(eventCrew).toContain("rowCallWindow");
-    expect(eventCrew.match(/<CallWindowEditor/g)?.length).toBe(2);
-    expect(eventCrew).toContain("showSourceBadge={false}");
+    // One table for every role means one call-time control, staff-editable via
+    // rowCallTarget and read-only for everyone else.
+    expect(eventCrew.match(/<CallWindowEditor/g)?.length).toBe(1);
+    expect(eventCrew).toContain('variant="bare"');
+    expect(eventCrew).toContain("const rowCallTarget = !isStaffOrAdmin");
 
     expect(eventCrew).not.toContain("CrewTemplateReviewButton");
     expect(shiftPanel).not.toContain("CrewTemplateReviewButton");
@@ -149,10 +152,12 @@ describe("schedule source-of-truth and browser smoke contracts", () => {
 
     expect(listView).not.toContain("Reserve gear");
     expect(listView).not.toContain("/reservations/new?");
-    expect(eventCrew).toContain("Assignment gear");
-    expect(eventCrew).toContain("Event reservation");
-    expect(eventCrew).toContain("Missing gear");
-    expect(eventCrew).toContain("Pickup ready");
+    // Gear readiness is a card-level concern now, not a per-crew-row badge.
+    expect(eventCrew).toContain("Missing Gear (");
+    expect(eventCrew).toContain("Reserve gear");
+    for (const label of ["Assignment gear", "Event reservation", "Pickup ready"]) {
+      expect(eventCrew).not.toContain(label);
+    }
     expect(eventCrew).not.toContain("type: \"slot\", id: shift.id");
 
     expect(listView).toContain("Review changes");

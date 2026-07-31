@@ -14,7 +14,6 @@ struct WisconsinKioskApp: App {
                 .frame(minWidth: 640, minHeight: 540)
                 .onAppear {
                     sharedKioskStore = kioskStore
-                    kioskStore.enterKiosk()
                 }
         }
         .windowResizability(.contentMinSize)

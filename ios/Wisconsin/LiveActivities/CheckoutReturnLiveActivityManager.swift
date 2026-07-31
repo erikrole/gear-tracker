@@ -8,48 +8,83 @@ final class CheckoutReturnLiveActivityManager {
     private let defaultLeadTime: TimeInterval = 30 * 60
     private let maxNextNeedLeadTime: TimeInterval = 60 * 60
     private var isReconciling = false
-    private var isObservingPushToStartTokens = false
-    private var isObservingActivityUpdates = false
+    private var observerGeneration = LatestRequestGeneration()
+    private var activeObserverGeneration: UUID?
+    private var pushToStartObserverTask: Task<Void, Never>?
+    private var activityUpdatesObserverTask: Task<Void, Never>?
+    private var activityPushTokenObserverTasks: [String: Task<Void, Never>] = [:]
     private var observedActivityIds: Set<String> = []
 
     private init() {}
 
     func prepareRemoteStartRegistration() async {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-        observeExistingActivities()
-        observePushToStartTokens()
-        observeActivityUpdates()
+        guard ActivityAuthorizationInfo().areActivitiesEnabled,
+              PushTokenStorage.registrationAllowed else {
+            return
+        }
+        let generation = beginObserverGenerationIfNeeded()
+        observeExistingActivities(generation: generation)
+        observePushToStartTokens(generation: generation)
+        observeActivityUpdates(generation: generation)
     }
 
     func reconcileCurrentUserCheckouts(requesterId: String?) async {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled, !isReconciling else { return }
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         guard let requesterId else {
+            cancelObserverWork()
             await endAll()
             return
         }
+        guard PushTokenStorage.registrationAllowed, !isReconciling else { return }
+        let generation = beginObserverGenerationIfNeeded()
         isReconciling = true
-        defer { isReconciling = false }
+        defer {
+            if observerGeneration.owns(generation) {
+                isReconciling = false
+            }
+        }
 
         do {
             // `sort: endsAt` so this 5-row window is the soonest due rather than
             // the most recently started — the activity counts down to a return.
-            let result = try await APIClient.shared.checkouts(activeOnly: true, requesterId: requesterId, sort: "endsAt", limit: 5, offset: 0)
-            let openCheckouts = result.data.filter { $0.kind == .checkout && $0.status == .open }
+            let result = try await APIClient.shared.checkouts(activeOnly: false, status: .open, requesterId: requesterId, sort: "endsAt", limit: 5, offset: 0)
+            guard ownsObserverGeneration(generation), !Task.isCancelled else { return }
+            let openCheckouts = result.data.filter { $0.kind == .checkout }
             guard !openCheckouts.isEmpty else {
                 await endAllAsReturned()
                 return
             }
 
             let candidates = await buildCandidates(from: openCheckouts)
+            guard ownsObserverGeneration(generation), !Task.isCancelled else { return }
             guard let selected = candidates.sorted(by: candidateSort).first else {
                 await endAllAsReturned()
                 return
             }
-            await upsertActivity(for: selected)
+            await upsertActivity(for: selected, generation: generation)
         } catch {
             // Live Activities are a secondary surface. Leave any existing
             // activity alone on transient network failures.
         }
+    }
+
+    /// Stops every long-lived ActivityKit sequence before logout cleanup ends
+    /// activities. Generation invalidation also makes already-enqueued
+    /// credential writes no-ops if they have not started yet.
+    func cancelObserverWork() {
+        observerGeneration.invalidate()
+        activeObserverGeneration = nil
+        isReconciling = false
+
+        pushToStartObserverTask?.cancel()
+        pushToStartObserverTask = nil
+        activityUpdatesObserverTask?.cancel()
+        activityUpdatesObserverTask = nil
+        for task in activityPushTokenObserverTasks.values {
+            task.cancel()
+        }
+        activityPushTokenObserverTasks.removeAll()
+        observedActivityIds.removeAll()
     }
 
     func endAll() async {
@@ -114,7 +149,11 @@ final class CheckoutReturnLiveActivityManager {
         return lhs.booking.endsAt < rhs.booking.endsAt
     }
 
-    private func upsertActivity(for candidate: CheckoutReturnCandidate) async {
+    private func upsertActivity(
+        for candidate: CheckoutReturnCandidate,
+        generation: UUID
+    ) async {
+        guard ownsObserverGeneration(generation), !Task.isCancelled else { return }
         let attributes = CheckoutReturnActivityAttributes(
             bookingId: candidate.booking.id,
             bookingTitle: candidate.booking.title,
@@ -129,51 +168,85 @@ final class CheckoutReturnLiveActivityManager {
         )
 
         for activity in Activity<CheckoutReturnActivityAttributes>.activities where activity.attributes.bookingId != candidate.booking.id {
+            stopObservingPushToken(for: activity.id)
             await activity.end(nil, dismissalPolicy: .immediate)
+            guard ownsObserverGeneration(generation), !Task.isCancelled else { return }
         }
 
         if let existing = Activity<CheckoutReturnActivityAttributes>.activities.first(where: { $0.attributes.bookingId == candidate.booking.id }) {
             let existingId = existing.id
             await existing.update(content)
+            guard ownsObserverGeneration(generation), !Task.isCancelled else { return }
             if let updated = Activity<CheckoutReturnActivityAttributes>.activities.first(where: { $0.id == existingId }) {
-                observePushToken(for: updated, bookingId: candidate.booking.id)
+                observePushToken(
+                    for: updated,
+                    bookingId: candidate.booking.id,
+                    generation: generation
+                )
             }
             return
         }
 
+        guard ownsObserverGeneration(generation), !Task.isCancelled else { return }
         do {
             let activity = try Activity.request(attributes: attributes, content: content, pushType: .token)
-            observePushToken(for: activity, bookingId: candidate.booking.id)
+            guard ownsObserverGeneration(generation), !Task.isCancelled else {
+                await activity.end(nil, dismissalPolicy: .immediate)
+                return
+            }
+            observePushToken(
+                for: activity,
+                bookingId: candidate.booking.id,
+                generation: generation
+            )
         } catch {
             // Best-effort only. The app still has normal due/overdue surfaces.
         }
     }
 
-    private func observeExistingActivities() {
+    private func observeExistingActivities(generation: UUID) {
         for activity in Activity<CheckoutReturnActivityAttributes>.activities {
-            observePushToken(for: activity, bookingId: activity.attributes.bookingId)
+            observePushToken(
+                for: activity,
+                bookingId: activity.attributes.bookingId,
+                generation: generation
+            )
         }
     }
 
-    private func observePushToStartTokens() {
-        guard !isObservingPushToStartTokens else { return }
-        isObservingPushToStartTokens = true
+    private func observePushToStartTokens(generation: UUID) {
+        guard pushToStartObserverTask == nil else { return }
 
-        Task {
+        pushToStartObserverTask = Task { [weak self] in
+            guard let self else { return }
             for await tokenData in Activity<CheckoutReturnActivityAttributes>.pushToStartTokenUpdates {
-                let token = hexToken(from: tokenData)
-                try? await APIClient.shared.registerCheckoutReturnLiveActivityStartToken(token)
+                guard !Task.isCancelled, self.ownsObserverGeneration(generation) else { break }
+                let token = self.hexToken(from: tokenData)
+                self.enqueueCredentialRegistration(generation: generation) {
+                    try await APIClient.shared.registerCheckoutReturnLiveActivityStartToken(token)
+                }
+            }
+            if self.observerGeneration.owns(generation) {
+                self.pushToStartObserverTask = nil
             }
         }
     }
 
-    private func observeActivityUpdates() {
-        guard !isObservingActivityUpdates else { return }
-        isObservingActivityUpdates = true
+    private func observeActivityUpdates(generation: UUID) {
+        guard activityUpdatesObserverTask == nil else { return }
 
-        Task {
+        activityUpdatesObserverTask = Task { [weak self] in
+            guard let self else { return }
             for await activity in Activity<CheckoutReturnActivityAttributes>.activityUpdates {
-                observePushToken(for: activity, bookingId: activity.attributes.bookingId)
+                guard !Task.isCancelled, self.ownsObserverGeneration(generation) else { break }
+                self.observePushToken(
+                    for: activity,
+                    bookingId: activity.attributes.bookingId,
+                    generation: generation
+                )
+            }
+            if self.observerGeneration.owns(generation) {
+                self.activityUpdatesObserverTask = nil
             }
         }
     }
@@ -209,25 +282,68 @@ final class CheckoutReturnLiveActivityManager {
 
     private func observePushToken(
         for activity: Activity<CheckoutReturnActivityAttributes>,
-        bookingId: String
+        bookingId: String,
+        generation: UUID
     ) {
+        guard ownsObserverGeneration(generation) else { return }
         guard observedActivityIds.insert(activity.id).inserted else { return }
         if let tokenData = activity.pushToken {
-            Task {
-                try? await APIClient.shared.registerCheckoutReturnLiveActivity(
+            let token = hexToken(from: tokenData)
+            enqueueCredentialRegistration(generation: generation) {
+                try await APIClient.shared.registerCheckoutReturnLiveActivity(
                     bookingId: bookingId,
-                    token: hexToken(from: tokenData)
+                    token: token
                 )
             }
         }
-        Task {
+        let activityId = activity.id
+        activityPushTokenObserverTasks[activityId] = Task { [weak self] in
+            guard let self else { return }
             for await tokenData in activity.pushTokenUpdates {
-                try? await APIClient.shared.registerCheckoutReturnLiveActivity(
-                    bookingId: bookingId,
-                    token: hexToken(from: tokenData)
-                )
+                guard !Task.isCancelled, self.ownsObserverGeneration(generation) else { break }
+                let token = self.hexToken(from: tokenData)
+                self.enqueueCredentialRegistration(generation: generation) {
+                    try await APIClient.shared.registerCheckoutReturnLiveActivity(
+                        bookingId: bookingId,
+                        token: token
+                    )
+                }
+            }
+            if self.observerGeneration.owns(generation) {
+                self.activityPushTokenObserverTasks[activityId] = nil
+                self.observedActivityIds.remove(activityId)
             }
         }
+    }
+
+    private func beginObserverGenerationIfNeeded() -> UUID {
+        if let activeObserverGeneration,
+           observerGeneration.owns(activeObserverGeneration) {
+            return activeObserverGeneration
+        }
+        let generation = observerGeneration.begin()
+        activeObserverGeneration = generation
+        return generation
+    }
+
+    private func ownsObserverGeneration(_ generation: UUID) -> Bool {
+        PushTokenStorage.registrationAllowed && observerGeneration.owns(generation)
+    }
+
+    private func enqueueCredentialRegistration(
+        generation: UUID,
+        _ operation: @escaping @MainActor () async throws -> Void
+    ) {
+        guard ownsObserverGeneration(generation) else { return }
+        pushCredentialMutations.enqueue { [weak self] in
+            guard let self, self.ownsObserverGeneration(generation) else { return }
+            try? await operation()
+        }
+    }
+
+    private func stopObservingPushToken(for activityId: String) {
+        activityPushTokenObserverTasks.removeValue(forKey: activityId)?.cancel()
+        observedActivityIds.remove(activityId)
     }
 }
 

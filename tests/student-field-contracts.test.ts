@@ -19,7 +19,7 @@ describe("student field mobile contracts", () => {
   it("keeps iOS active checkouts scoped to open and pending-pickup work", () => {
     const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
 
-    expect(apiClient).toContain("statusList: activeOnly ? [.open, .pendingPickup] : nil");
+    expect(apiClient).toContain("statusList: status == nil && activeOnly ? [.open, .pendingPickup] : nil");
     expect(apiClient).toContain(".init(name: \"status_in\", value: statusList.map(\\.rawValue).joined(separator: \",\"))");
   });
 
@@ -150,8 +150,12 @@ describe("student field mobile contracts", () => {
     expect(eventDetail).toContain("Label(\"Add Shift\", systemImage: \"plus\")");
     expect(eventDetail).toContain("Label(\"Assign person\", systemImage: \"plus.circle.fill\")");
     expect(eventDetail).toContain("Label(\"Claim shift\", systemImage: \"hand.raised.fill\")");
-    expect(eventDetail).toContain("Button(\"Approve \\(assignment.user.name)\")");
-    expect(eventDetail).toContain("Button(\"Decline \\(assignment.user.name)\")");
+    // The buttons carry short visible titles -- the full name wrapped them to
+    // four lines and swallowed the row -- with the name in the a11y label.
+    expect(eventDetail).toContain('Button("Approve") { onApprove(assignment) }');
+    expect(eventDetail).toContain('Button("Decline") { onDecline(assignment) }');
+    expect(eventDetail).toContain('accessibilityLabel("Approve \\(assignment.user.name)")');
+    expect(eventDetail).toContain('accessibilityLabel("Decline \\(assignment.user.name)")');
     expect(eventDetail).toContain("Text(\"Event\")");
     // Time-aware reserve copy: "now" only when the event is today/underway.
     expect(eventDetail).toContain("Label(reserveGearTitle, systemImage: \"shippingbox.and.arrow.backward.fill\")");

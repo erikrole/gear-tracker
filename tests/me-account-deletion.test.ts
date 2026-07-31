@@ -7,12 +7,10 @@ vi.mock("@/lib/auth", () => ({
 vi.mock("@/lib/db", () => ({
   db: { user: { findUnique: vi.fn() } },
 }));
-vi.mock("@/lib/audit", () => ({ createAuditEntry: vi.fn() }));
 vi.mock("@/lib/rate-limit", () => ({ enforceRateLimit: vi.fn() }));
 vi.mock("@/lib/services/user-deactivation", () => ({ deactivateUserWithCleanup: vi.fn() }));
 vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
 
-import { createAuditEntry } from "@/lib/audit";
 import { requireAuth, verifyPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { deactivateUserWithCleanup } from "@/lib/services/user-deactivation";
@@ -42,8 +40,16 @@ describe("DELETE /api/me/account", () => {
 
     expect(response.status).toBe(200);
     expect(verifyPassword).toHaveBeenCalledWith("hash", "correct-password");
-    expect(deactivateUserWithCleanup).toHaveBeenCalledWith({ targetUserId: "user-1", actorId: "user-1", actorRole: "STUDENT" });
-    expect(createAuditEntry).toHaveBeenCalledWith(expect.objectContaining({ action: "account_self_deleted", entityId: "user-1" }));
+    expect(deactivateUserWithCleanup).toHaveBeenCalledWith({
+      targetUserId: "user-1",
+      actorId: "user-1",
+      actorRole: "STUDENT",
+      audit: {
+        action: "account_self_deleted",
+        before: { active: true },
+        after: { active: false },
+      },
+    });
   });
 
   it("rejects an incorrect password before changing lifecycle state", async () => {

@@ -4,14 +4,17 @@ import { HttpError } from "@/lib/http";
 import { sendPush } from "@/lib/push/apns";
 import { deferPush } from "@/lib/services/notifications";
 import { normalizePrefs, shouldDeliverPush } from "@/lib/services/notification-prefs";
-import { resolveBlastTargets, type BlastTargetSpec } from "@/lib/services/blast-targeting";
+import {
+  MAX_BLAST_RECIPIENTS,
+  resolveBlastTargets,
+  type BlastTargetSpec,
+} from "@/lib/services/blast-targeting";
 
-/**
- * Hard ceiling on one blast. The fan-out itself is batched and flat in N, but a
- * four-hundred-person broadcast is almost always a mis-selected filter rather than
- * an intent, and it is cheaper to make the sender narrow it than to recall it.
- */
-export const MAX_BLAST_RECIPIENTS = 500;
+export { MAX_BLAST_RECIPIENTS } from "@/lib/services/blast-targeting";
+const MAX_ACTIVE_TOKENS_PER_BLAST_RECIPIENT = 8;
+const MAX_DELIVERY_TOKENS_PER_BLAST_RECIPIENT = 2;
+const MAX_BLAST_PUSH_TOKEN_ROWS =
+  MAX_BLAST_RECIPIENTS * MAX_ACTIVE_TOKENS_PER_BLAST_RECIPIENT;
 
 export type CreateBlastInput = {
   title: string;
@@ -49,7 +52,7 @@ export async function createAndSendBlast(
   if (target.userIds.length > MAX_BLAST_RECIPIENTS) {
     throw new HttpError(
       400,
-      `That target reaches ${target.userIds.length} people, over the ${MAX_BLAST_RECIPIENTS} limit. Narrow it first.`,
+      `That target reaches more than ${MAX_BLAST_RECIPIENTS} people. Narrow it first.`,
     );
   }
 
@@ -106,35 +109,34 @@ async function writeInboxCopies(
   input: Pick<CreateBlastInput, "title" | "body">,
   userIds: string[],
 ): Promise<void> {
-  await Promise.allSettled(
-    userIds.map(async (userId) => {
-      // `Notification.dedupeKey` is globally unique, so the prefix is required to
-      // avoid colliding with schedule and trade keys.
-      const dedupeKey = `blast:${blastId}:${userId}`;
-      try {
-        const notification = await db.notification.create({
-          data: {
-            userId,
-            type: "blast",
-            title: input.title,
-            body: input.body,
-            payload: { blastId },
-            channel: "IN_APP",
-            sentAt: new Date(),
-            dedupeKey,
-          },
-          select: { id: true },
-        });
-        await db.blastRecipient.update({
-          where: { blastId_userId: { blastId, userId } },
-          data: { notificationId: notification.id },
-        });
-      } catch (error) {
-        if (error && typeof error === "object" && "code" in error && error.code === "P2002") return;
-        throw error;
-      }
-    }),
-  );
+  const sentAt = new Date();
+  await db.$transaction(async (tx) => {
+    await tx.notification.createMany({
+      data: userIds.map((userId) => ({
+        userId,
+        type: "blast",
+        title: input.title,
+        body: input.body,
+        payload: { blastId },
+        channel: "IN_APP",
+        sentAt,
+        // The prefix keeps this globally unique from schedule and trade rows.
+        dedupeKey: `blast:${blastId}:${userId}`,
+      })),
+      skipDuplicates: true,
+    });
+
+    // `notificationId` is a soft pointer. Link every frozen recipient in one
+    // set-based statement instead of issuing two Neon writes per recipient.
+    await tx.$executeRaw`
+      UPDATE "blast_recipients" AS br
+      SET "notification_id" = n."id"
+      FROM "notifications" AS n
+      WHERE br."blast_id" = ${blastId}
+        AND n."dedupe_key" = 'blast:' || br."blast_id" || ':' || br."user_id"
+        AND br."notification_id" IS DISTINCT FROM n."id"
+    `;
+  });
 }
 
 /**
@@ -153,8 +155,14 @@ export async function sendBlastPush(blastId: string): Promise<void> {
     });
     if (!blast || blast.status === "CANCELLED") return;
 
+    const attemptedAt = new Date();
+    await db.blastRecipient.updateMany({
+      where: { blastId, user: { active: false } },
+      data: { pushStatus: "NO_DEVICE", pushAttemptedAt: attemptedAt },
+    });
+
     const recipients = await db.blastRecipient.findMany({
-      where: { blastId },
+      where: { blastId, user: { active: true } },
       select: { userId: true, user: { select: { notificationPrefs: true } } },
     });
     if (recipients.length === 0) return;
@@ -167,31 +175,45 @@ export async function sendBlastPush(blastId: string): Promise<void> {
       (shouldDeliverPush(prefs) ? eligible : skipped).push(recipient.userId);
     }
 
-    const attemptedAt = new Date();
-    const tokens = eligible.length
+    const registeredTokens = eligible.length
       ? await db.deviceToken.findMany({
-          where: { userId: { in: eligible }, revokedAt: null },
+          where: {
+            userId: { in: eligible },
+            platform: "IOS",
+            revokedAt: null,
+            user: { active: true },
+          },
           select: { token: true, userId: true },
+          orderBy: { lastSeenAt: "desc" },
+          take: MAX_BLAST_PUSH_TOKEN_ROWS,
         })
       : [];
+    const selectedPerUser = new Map<string, number>();
+    const tokens = registeredTokens.filter((token) => {
+      const selected = selectedPerUser.get(token.userId) ?? 0;
+      if (selected >= MAX_DELIVERY_TOKENS_PER_BLAST_RECIPIENT) return false;
+      selectedPerUser.set(token.userId, selected + 1);
+      return true;
+    });
 
+    let accepted: string[] = [];
     let revoked: string[] = [];
     if (tokens.length > 0) {
-      ({ revoked } = await sendPush(
+      ({ accepted, revoked } = await sendPush(
         tokens.map((t) => t.token),
         { title: blast.title, body: blast.body, payload: { blastId } },
       ));
     }
 
-    const revokedSet = new Set(revoked);
+    const acceptedSet = new Set(accepted);
     const withAnyToken = new Set(tokens.map((t) => t.userId));
     const withLiveToken = new Set(
-      tokens.filter((t) => !revokedSet.has(t.token)).map((t) => t.userId),
+      tokens.filter((t) => acceptedSet.has(t.token)).map((t) => t.userId),
     );
 
     const sentIds = eligible.filter((id) => withLiveToken.has(id));
-    // Had tokens, but every one of them came back revoked -- a stale token must not
-    // read as delivered on the tracking page.
+    // Had tokens, but APNs accepted none of them. Permanent revocation and
+    // transient provider failures must not read as delivered.
     const failedIds = eligible.filter((id) => withAnyToken.has(id) && !withLiveToken.has(id));
     const noDeviceIds = eligible.filter((id) => !withAnyToken.has(id));
 

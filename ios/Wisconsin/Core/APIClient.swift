@@ -2,8 +2,10 @@ import Foundation
 
 enum APIError: LocalizedError {
     case unauthorized
+    case sessionChanged
     case notFound
     case conflict(String)
+    case httpError(statusCode: Int, message: String)
     case serverError(String)
     case decodingError(Error)
     case networkError(Error)
@@ -11,8 +13,10 @@ enum APIError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unauthorized: "Your session has expired. Please sign in again."
+        case .sessionChanged: "This request belonged to a previous sign-in and was cancelled."
         case .notFound: "The requested item could not be found."
         case .conflict(let msg): msg
+        case .httpError(_, let message): message
         case .serverError(let msg): msg
         case .decodingError: "Unexpected response from server."
         case .networkError(let err): Self.humanize(err)
@@ -48,9 +52,9 @@ struct TestPushResult: Decodable {
 }
 
 extension Notification.Name {
-    /// Fired when any API call returns 401. SessionStore listens and clears
-    /// `currentUser`, which lets RootView swap to LoginView automatically —
-    /// no per-VM "Session expired" string needed.
+    /// Fired when an authenticated API call returns 401. The notification
+    /// object is the request's captured `AuthSessionBoundary` generation, so a
+    /// late response from an older account cannot evict the current account.
     static let sessionDidExpire = Notification.Name("WisconsinSessionDidExpire")
     static let collaboratorPolicyMayHaveChanged = Notification.Name("WisconsinCollaboratorPolicyMayHaveChanged")
 }
@@ -212,12 +216,12 @@ final class APIClient {
         try await perform(bookingListRequest(path: "/api/reservations", active: activeOnly, status: nil, statusList: nil, search: search, requesterId: requesterId, filter: filter, sort: sort, limit: limit, offset: offset))
     }
 
-    func checkouts(activeOnly: Bool = true, search: String? = nil, requesterId: String? = nil, filter: String? = nil, sort: String? = nil, limit: Int = 30, offset: Int = 0) async throws -> PaginatedResponse<Booking> {
+    func checkouts(activeOnly: Bool = true, status: BookingStatus? = nil, search: String? = nil, requesterId: String? = nil, filter: String? = nil, sort: String? = nil, limit: Int = 30, offset: Int = 0) async throws -> PaginatedResponse<Booking> {
         try await perform(bookingListRequest(
             path: "/api/checkouts",
             active: false,
-            status: nil,
-            statusList: activeOnly ? [.open, .pendingPickup] : nil,
+            status: status,
+            statusList: status == nil && activeOnly ? [.open, .pendingPickup] : nil,
             search: search,
             requesterId: requesterId,
             filter: filter,
@@ -252,9 +256,12 @@ final class APIClient {
 
     func cancelBooking(id: String) async throws {
         let req = request(path: "/api/bookings/\(id)/cancel", method: "POST")
-        let (data, response) = try await session.data(for: req)
+        let (data, response, requestBoundary) = try await authenticatedData(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            if http.statusCode == 401 {
+                broadcastSessionExpiry(for: requestBoundary)
+                throw APIError.unauthorized
+            }
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Cancel failed"
             throw APIError.serverError(msg)
         }
@@ -326,11 +333,14 @@ final class APIClient {
 
     func deleteBookingDraft(id: String) async throws {
         let req = request(path: "/api/drafts/\(id)", method: "DELETE")
-        let (data, response) = try await session.data(for: req)
+        let (data, response, requestBoundary) = try await authenticatedData(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
             // A draft that is already gone is the outcome the caller wanted.
             if http.statusCode == 404 { return }
-            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            if http.statusCode == 401 {
+                broadcastSessionExpiry(for: requestBoundary)
+                throw APIError.unauthorized
+            }
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Discard failed"
             throw APIError.serverError(msg)
         }
@@ -340,9 +350,12 @@ final class APIClient {
         struct Body: Encodable { let qrCodeValue: String }
         var req = request(path: "/api/assets/\(id)", method: "PATCH")
         req.httpBody = try JSONEncoder().encode(Body(qrCodeValue: qrCodeValue))
-        let (data, response) = try await session.data(for: req)
+        let (data, response, requestBoundary) = try await authenticatedData(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            if http.statusCode == 401 {
+                broadcastSessionExpiry(for: requestBoundary)
+                throw APIError.unauthorized
+            }
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Update failed"
             throw APIError.serverError(msg)
         }
@@ -356,9 +369,12 @@ final class APIClient {
         }
         var req = request(path: "/api/assets/\(id)", method: "PATCH")
         req.httpBody = try JSONEncoder().encode(Body(name: name, serialNumber: serialNumber, notes: notes))
-        let (data, response) = try await session.data(for: req)
+        let (data, response, requestBoundary) = try await authenticatedData(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            if http.statusCode == 401 {
+                broadcastSessionExpiry(for: requestBoundary)
+                throw APIError.unauthorized
+            }
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Update failed"
             throw APIError.serverError(msg)
         }
@@ -385,9 +401,12 @@ final class APIClient {
             startsAt: startsAt.map { iso.string(from: $0) },
             endsAt: endsAt.map { iso.string(from: $0) }
         ))
-        let (data, response) = try await session.data(for: req)
+        let (data, response, requestBoundary) = try await authenticatedData(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            if http.statusCode == 401 {
+                broadcastSessionExpiry(for: requestBoundary)
+                throw APIError.unauthorized
+            }
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Update failed"
             throw APIError.serverError(msg)
         }
@@ -440,9 +459,12 @@ final class APIClient {
         let iso = ISO8601DateFormatter()
         iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         req.httpBody = try JSONEncoder().encode(Body(endsAt: iso.string(from: endsAt)))
-        let (data, response) = try await session.data(for: req)
+        let (data, response, requestBoundary) = try await authenticatedData(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            if http.statusCode == 401 {
+                broadcastSessionExpiry(for: requestBoundary)
+                throw APIError.unauthorized
+            }
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Extend failed"
             throw APIError.serverError(msg)
         }
@@ -458,6 +480,7 @@ final class APIClient {
         eventId: String? = nil,
         eventIds: [String] = [],
         shiftAssignmentId: String? = nil,
+        sourceDraftId: String? = nil,
         serializedAssetIds: [String] = [],
         bulkItems: [BulkReservationRequest] = []
     ) async throws -> String {
@@ -473,6 +496,7 @@ final class APIClient {
             let eventId: String?
             let eventIds: [String]?
             let shiftAssignmentId: String?
+            let sourceDraftId: String?
         }
         var req = request(path: "/api/reservations", method: "POST")
         let iso = ISO8601DateFormatter()
@@ -488,7 +512,8 @@ final class APIClient {
             bulkItems: bulkItems,
             eventId: eventId,
             eventIds: eventIds.isEmpty ? nil : eventIds,
-            shiftAssignmentId: shiftAssignmentId
+            shiftAssignmentId: shiftAssignmentId,
+            sourceDraftId: sourceDraftId
         ))
         let resp: DataWrapper<BookingStub> = try await perform(req)
         return resp.data.id
@@ -534,12 +559,12 @@ final class APIClient {
             excludeBookingId: excludeBookingId
         )) else { return [:] }
         req.httpBody = body
-        guard let (data, response) = try? await session.data(for: req),
+        guard let (data, response, requestBoundary) = try? await authenticatedData(for: req),
               let http = response as? HTTPURLResponse else { return [:] }
         // Hint-style call, but a swallowed 401 hides an expired session until the
         // next mutation (IOS_PATTERNS R3 / the kioskHeartbeat P0). Broadcast it.
         if http.statusCode == 401 {
-            NotificationCenter.default.post(name: .sessionDidExpire, object: nil)
+            broadcastSessionExpiry(for: requestBoundary)
             return [:]
         }
         guard (200...299).contains(http.statusCode),
@@ -579,12 +604,12 @@ final class APIClient {
         )) else { return CheckoutReturnInsight(nextNeedAt: nil, hasUpcomingNeed: false) }
         req.httpBody = body
 
-        guard let (data, response) = try? await session.data(for: req),
+        guard let (data, response, requestBoundary) = try? await authenticatedData(for: req),
               let http = response as? HTTPURLResponse else {
             return CheckoutReturnInsight(nextNeedAt: nil, hasUpcomingNeed: false)
         }
         if http.statusCode == 401 {
-            NotificationCenter.default.post(name: .sessionDidExpire, object: nil)
+            broadcastSessionExpiry(for: requestBoundary)
             return CheckoutReturnInsight(nextNeedAt: nil, hasUpcomingNeed: false)
         }
         guard (200...299).contains(http.statusCode),
@@ -601,10 +626,10 @@ final class APIClient {
     /// swallowed expired session can't hide here (IOS_PATTERNS R3).
     func shiftConflicts(shiftId: String) async -> [String: String] {
         let req = request(path: "/api/shifts/\(shiftId)/conflicts")
-        guard let (data, response) = try? await session.data(for: req),
+        guard let (data, response, requestBoundary) = try? await authenticatedData(for: req),
               let http = response as? HTTPURLResponse else { return [:] }
         if http.statusCode == 401 {
-            NotificationCenter.default.post(name: .sessionDidExpire, object: nil)
+            broadcastSessionExpiry(for: requestBoundary)
             return [:]
         }
         struct ConflictResponse: Decodable { let data: [String: String] }
@@ -698,9 +723,12 @@ final class APIClient {
 
     func deleteAvailabilityBlock(userId: String, blockId: String) async throws {
         let req = request(path: "/api/users/\(userId)/availability/\(blockId)", method: "DELETE")
-        let (data, response) = try await session.data(for: req)
+        let (data, response, requestBoundary) = try await authenticatedData(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            if http.statusCode == 401 {
+                broadcastSessionExpiry(for: requestBoundary)
+                throw APIError.unauthorized
+            }
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Couldn't remove block"
             throw APIError.serverError(msg)
         }
@@ -1157,9 +1185,12 @@ final class APIClient {
         struct Body: Encodable { let shiftId: String; let userId: String }
         var req = request(path: "/api/shift-assignments", method: "POST")
         req.httpBody = try JSONEncoder().encode(Body(shiftId: shiftId, userId: userId))
-        let (data, response) = try await session.data(for: req)
+        let (data, response, requestBoundary) = try await authenticatedData(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            if http.statusCode == 401 {
+                broadcastSessionExpiry(for: requestBoundary)
+                throw APIError.unauthorized
+            }
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Couldn't assign shift"
             throw APIError.serverError(msg)
         }
@@ -1168,9 +1199,12 @@ final class APIClient {
     /// Remove an assignment (STAFF/ADMIN).
     func unassignShift(assignmentId: String) async throws {
         let req = request(path: "/api/shift-assignments/\(assignmentId)", method: "DELETE")
-        let (data, response) = try await session.data(for: req)
+        let (data, response, requestBoundary) = try await authenticatedData(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            if http.statusCode == 401 {
+                broadcastSessionExpiry(for: requestBoundary)
+                throw APIError.unauthorized
+            }
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Couldn't remove assignment"
             throw APIError.serverError(msg)
         }
@@ -1181,9 +1215,12 @@ final class APIClient {
         let iso = ISO8601DateFormatter()
         var req = request(path: "/api/shifts/\(shiftId)", method: "PATCH")
         req.httpBody = try JSONEncoder().encode(Body(startsAt: iso.string(from: startsAt), endsAt: iso.string(from: endsAt)))
-        let (data, response) = try await session.data(for: req)
+        let (data, response, requestBoundary) = try await authenticatedData(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            if http.statusCode == 401 {
+                broadcastSessionExpiry(for: requestBoundary)
+                throw APIError.unauthorized
+            }
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Couldn't update shift times"
             throw APIError.serverError(msg)
         }
@@ -1191,9 +1228,12 @@ final class APIClient {
 
     func approveShift(assignmentId: String) async throws {
         let req = request(path: "/api/shift-assignments/\(assignmentId)/approve", method: "PATCH")
-        let (data, response) = try await session.data(for: req)
+        let (data, response, requestBoundary) = try await authenticatedData(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            if http.statusCode == 401 {
+                broadcastSessionExpiry(for: requestBoundary)
+                throw APIError.unauthorized
+            }
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Couldn't approve request"
             throw APIError.serverError(msg)
         }
@@ -1201,9 +1241,12 @@ final class APIClient {
 
     func declineShift(assignmentId: String) async throws {
         let req = request(path: "/api/shift-assignments/\(assignmentId)/decline", method: "PATCH")
-        let (data, response) = try await session.data(for: req)
+        let (data, response, requestBoundary) = try await authenticatedData(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            if http.statusCode == 401 {
+                broadcastSessionExpiry(for: requestBoundary)
+                throw APIError.unauthorized
+            }
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Couldn't decline request"
             throw APIError.serverError(msg)
         }
@@ -1216,9 +1259,12 @@ final class APIClient {
             method: "DELETE",
             queryItems: [.init(name: "force", value: "true")]
         )
-        let (data, response) = try await session.data(for: req)
+        let (data, response, requestBoundary) = try await authenticatedData(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            if http.statusCode == 401 {
+                broadcastSessionExpiry(for: requestBoundary)
+                throw APIError.unauthorized
+            }
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Couldn't delete shift"
             throw APIError.serverError(msg)
         }
@@ -1247,9 +1293,12 @@ final class APIClient {
         )
         var req = request(path: "/api/shift-groups/\(shiftGroupId)/shifts", method: "POST")
         req.httpBody = try JSONEncoder().encode(body)
-        let (data, response) = try await session.data(for: req)
+        let (data, response, requestBoundary) = try await authenticatedData(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            if http.statusCode == 401 {
+                broadcastSessionExpiry(for: requestBoundary)
+                throw APIError.unauthorized
+            }
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Couldn't add shift"
             throw APIError.serverError(msg)
         }
@@ -1318,14 +1367,35 @@ final class APIClient {
         return formatter.string(from: date)
     }
 
+    private func authenticatedData(
+        for request: URLRequest
+    ) async throws -> (data: Data, response: URLResponse, boundary: UUID) {
+        let requestBoundary = authSessionBoundary.capture()
+        let (data, response) = try await session.data(for: request)
+        guard authSessionBoundary.owns(requestBoundary) else {
+            throw APIError.sessionChanged
+        }
+        return (data, response, requestBoundary)
+    }
+
+    private func broadcastSessionExpiry(for requestBoundary: UUID) {
+        NotificationCenter.default.post(
+            name: .sessionDidExpire,
+            object: requestBoundary
+        )
+    }
+
     private func perform<T: Decodable>(
         _ request: URLRequest,
         broadcastsSessionExpiry: Bool = true
     ) async throws -> T {
         let data: Data
         let response: URLResponse
+        let requestBoundary: UUID
         do {
-            (data, response) = try await session.data(for: request)
+            (data, response, requestBoundary) = try await authenticatedData(for: request)
+        } catch let error as APIError {
+            throw error
         } catch {
             throw APIError.networkError(error)
         }
@@ -1345,7 +1415,7 @@ final class APIClient {
             if broadcastsSessionExpiry {
                 // Authenticated requests broadcast globally so SessionStore can
                 // route the user back to login when their session expires.
-                NotificationCenter.default.post(name: .sessionDidExpire, object: nil)
+                broadcastSessionExpiry(for: requestBoundary)
                 throw APIError.unauthorized
             }
             let message = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error
@@ -1359,7 +1429,7 @@ final class APIClient {
             }
             let message = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error
                 ?? "You do not have access to this feature."
-            throw APIError.serverError(message)
+            throw APIError.httpError(statusCode: http.statusCode, message: message)
         case 409:
             if let body = try? decoder.decode(ConflictResponseBody.self, from: data),
                let d = body.data {
@@ -1387,11 +1457,11 @@ final class APIClient {
             // Only structured availability responses route reservation creation
             // back to Gear. Other 409s include booking-window policy and
             // concurrency limits, which need their normal submit error dialog.
-            throw APIError.serverError(msg409)
+            throw APIError.httpError(statusCode: http.statusCode, message: msg409)
         default:
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error
                 ?? "Server error (\(http.statusCode))"
-            throw APIError.serverError(msg)
+            throw APIError.httpError(statusCode: http.statusCode, message: msg)
         }
     }
 
@@ -1416,6 +1486,8 @@ final class APIClient {
         return resp.data.token
     }
 }
+
+extension APIClient: ReservationDraftPersistence {}
 
 // MARK: - Private response shapes
 

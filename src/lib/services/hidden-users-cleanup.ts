@@ -1,9 +1,9 @@
 import type { Role } from "@prisma/client";
-import { createAuditEntries } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { deactivateUserWithCleanup } from "@/lib/services/user-deactivation";
 
 const MS_PER_DAY = 86_400_000;
+export const MAX_APPLIED_HIDDEN_USER_CLEANUP = 3;
 
 export type HiddenUsersCleanupInput = {
   actor: {
@@ -39,7 +39,10 @@ export type HiddenUsersCleanupResult = {
 export async function cleanupHiddenUsers(args: HiddenUsersCleanupInput): Promise<HiddenUsersCleanupResult> {
   const dryRun = args.dryRun ?? true;
   const maxAgeDays = args.maxAgeDays ?? 14;
-  const limit = args.limit ?? 25;
+  const requestedLimit = args.limit ?? 25;
+  const limit = dryRun
+    ? requestedLimit
+    : Math.min(requestedLimit, MAX_APPLIED_HIDDEN_USER_CLEANUP);
   const now = args.now ?? new Date();
   const cutoff = new Date(now.getTime() - maxAgeDays * MS_PER_DAY);
 
@@ -84,6 +87,16 @@ export async function cleanupHiddenUsers(args: HiddenUsersCleanupInput): Promise
         targetUserId: candidate.id,
         actorId: args.actor.id,
         actorRole: args.actor.role,
+        audit: {
+          action: "hidden_smoke_user_cleanup_deactivated",
+          before: { active: true, hiddenFromRoster: true },
+          after: {
+            active: false,
+            hiddenFromRoster: true,
+            maxAgeDays,
+            cutoff: cutoff.toISOString(),
+          },
+        },
       });
       deactivated.push({
         ...candidate,
@@ -97,23 +110,6 @@ export async function cleanupHiddenUsers(args: HiddenUsersCleanupInput): Promise
       });
     }
   }
-
-  await createAuditEntries(deactivated.map((user) => ({
-    actorId: args.actor.id,
-    actorRole: args.actor.role,
-    entityType: "user",
-    entityId: user.id,
-    action: "hidden_smoke_user_cleanup_deactivated",
-    before: { active: true, hiddenFromRoster: true },
-    after: {
-      active: false,
-      hiddenFromRoster: true,
-      maxAgeDays,
-      cutoff: cutoff.toISOString(),
-      cancelledBookingIds: user.cancelledBookingIds,
-      directReportsCleared: user.directReportsCleared,
-    },
-  })));
 
   return {
     dryRun,

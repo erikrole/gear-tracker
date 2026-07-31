@@ -38,25 +38,64 @@ function urgencyFor(endsAt: Date, now: Date): "normal" | "warning" | "critical" 
   return "normal";
 }
 
-export async function registerCheckoutReturnLiveActivityStartToken(args: {
+async function recordCheckoutReturnLiveActivityStartIfEligible(args: {
   userId: string;
-  token: string;
-}) {
-  const now = new Date();
-  await db.liveActivityStartToken.upsert({
-    where: { token: args.token },
-    update: {
-      userId: args.userId,
-      activity: CHECKOUT_RETURN_ACTIVITY,
-      lastSeenAt: now,
-      revokedAt: null,
-    },
-    create: {
-      userId: args.userId,
-      token: args.token,
-      activity: CHECKOUT_RETURN_ACTIVITY,
-    },
-  });
+  bookingId: string;
+  expectedEndsAt: Date;
+  candidateTokens: string[];
+  now: Date;
+}): Promise<boolean> {
+  const candidateTokens = [...new Set(args.candidateTokens)];
+  if (candidateTokens.length === 0) return false;
+
+  return db.$transaction(async (tx) => {
+    // Re-read every authority that deactivation or a concurrent booking close
+    // can change. Serializable ordering means either this start records first
+    // and cleanup observes it, or cleanup wins and this write is suppressed.
+    const eligible = await tx.booking.findFirst({
+      where: {
+        id: args.bookingId,
+        requesterUserId: args.userId,
+        kind: BookingKind.CHECKOUT,
+        status: BookingStatus.OPEN,
+        endsAt: args.expectedEndsAt,
+        requester: {
+          active: true,
+          liveActivityStartTokens: {
+            some: {
+              token: { in: candidateTokens },
+              activity: CHECKOUT_RETURN_ACTIVITY,
+              revokedAt: null,
+            },
+          },
+        },
+      },
+      select: { id: true },
+    });
+    if (!eligible) return false;
+
+    await tx.liveActivityStart.upsert({
+      where: {
+        userId_bookingId_activity: {
+          userId: args.userId,
+          bookingId: args.bookingId,
+          activity: CHECKOUT_RETURN_ACTIVITY,
+        },
+      },
+      update: {
+        lastAttemptAt: args.now,
+        endedAt: null,
+      },
+      create: {
+        userId: args.userId,
+        bookingId: args.bookingId,
+        activity: CHECKOUT_RETURN_ACTIVITY,
+        startedAt: args.now,
+        lastAttemptAt: args.now,
+      },
+    });
+    return true;
+  }, { isolationLevel: "Serializable" });
 }
 
 export async function revokeCheckoutReturnLiveActivityStartTokens(userId: string) {
@@ -70,41 +109,64 @@ export async function revokeCheckoutReturnLiveActivityStartTokens(userId: string
   });
 }
 
-export async function registerCheckoutReturnLiveActivity(args: {
-  userId: string;
-  bookingId: string;
+type CheckoutReturnEndToken = {
   token: string;
-}) {
-  const now = new Date();
+  bookingId: string;
+};
 
-  await db.$transaction(async (tx) => {
-    await tx.liveActivityToken.updateMany({
+async function dispatchCheckoutReturnLiveActivityEnds(
+  rows: CheckoutReturnEndToken[],
+) {
+  if (rows.length === 0) {
+    return { selected: 0, ended: 0, pending: 0 };
+  }
+
+  const tokens = rows.map((row) => row.token);
+  const { accepted, revoked } = await endCheckoutReturnLiveActivityTokens(tokens);
+  const completedTokens = [...new Set([...accepted, ...revoked])];
+  const bookingIds = [...new Set(rows.map((row) => row.bookingId))];
+  const endedAt = new Date();
+
+  if (completedTokens.length > 0) {
+    await db.liveActivityToken.updateMany({
       where: {
-        userId: args.userId,
         activity: CHECKOUT_RETURN_ACTIVITY,
-        bookingId: { not: args.bookingId },
         endedAt: null,
+        token: { in: completedTokens },
       },
-      data: { endedAt: now },
+      data: { endedAt },
     });
+  }
 
-    await tx.liveActivityToken.upsert({
-      where: { token: args.token },
-      update: {
-        userId: args.userId,
-        bookingId: args.bookingId,
-        activity: CHECKOUT_RETURN_ACTIVITY,
-        lastSeenAt: now,
-        endedAt: null,
-      },
-      create: {
-        userId: args.userId,
-        bookingId: args.bookingId,
-        token: args.token,
-        activity: CHECKOUT_RETURN_ACTIVITY,
-      },
-    });
+  const pending = await db.liveActivityToken.count({
+    where: {
+      bookingId: { in: bookingIds },
+      activity: CHECKOUT_RETURN_ACTIVITY,
+      endedAt: null,
+    },
   });
+  await db.liveActivityStart.updateMany({
+    where: {
+      bookingId: { in: bookingIds },
+      activity: CHECKOUT_RETURN_ACTIVITY,
+      endedAt: null,
+      booking: {
+        liveActivityTokens: {
+          none: {
+            activity: CHECKOUT_RETURN_ACTIVITY,
+            endedAt: null,
+          },
+        },
+      },
+    },
+    data: { endedAt },
+  });
+
+  return {
+    selected: tokens.length,
+    ended: completedTokens.length,
+    pending,
+  };
 }
 
 export async function endCheckoutReturnLiveActivities(bookingId: string) {
@@ -115,7 +177,7 @@ export async function endCheckoutReturnLiveActivities(bookingId: string) {
         activity: CHECKOUT_RETURN_ACTIVITY,
         endedAt: null,
       },
-      select: { token: true },
+      select: { token: true, bookingId: true },
     });
 
     if (rows.length === 0) {
@@ -127,38 +189,80 @@ export async function endCheckoutReturnLiveActivities(bookingId: string) {
         },
         data: { endedAt: new Date() },
       });
-      return;
+      return { selected: 0, ended: 0, pending: 0 };
     }
 
-    const tokens = rows.map((row) => row.token);
-    const { revoked } = await endCheckoutReturnLiveActivityTokens(tokens);
-    const endedAt = new Date();
-
-    await db.liveActivityToken.updateMany({
-      where: { token: { in: tokens } },
-      data: { endedAt },
-    });
-    await db.liveActivityStart.updateMany({
-      where: {
-        bookingId,
-        activity: CHECKOUT_RETURN_ACTIVITY,
-        endedAt: null,
-      },
-      data: { endedAt },
-    });
-
-    if (revoked.length > 0) {
-      await db.liveActivityToken.updateMany({
-        where: { token: { in: revoked } },
-        data: { endedAt },
-      });
-    }
+    return await dispatchCheckoutReturnLiveActivityEnds(rows);
   } catch (error) {
     console.error("[LiveActivity] failed to end checkout return activity", {
       bookingId,
       error,
     });
+    return { selected: 0, ended: 0, pending: null };
   }
+}
+
+export async function retryPendingCheckoutReturnLiveActivityEnds(args: {
+  limit?: number;
+} = {}) {
+  const rows = await db.liveActivityToken.findMany({
+    where: {
+      activity: CHECKOUT_RETURN_ACTIVITY,
+      endedAt: null,
+      OR: [
+        { user: { active: false } },
+        { booking: { status: { not: BookingStatus.OPEN } } },
+        {
+          user: {
+            liveActivityStartTokens: {
+              none: {
+                activity: CHECKOUT_RETURN_ACTIVITY,
+                revokedAt: null,
+              },
+            },
+          },
+        },
+      ],
+    },
+    select: { token: true, bookingId: true },
+    orderBy: { lastSeenAt: "asc" },
+    take: args.limit ?? 200,
+  });
+
+  const result = await dispatchCheckoutReturnLiveActivityEnds(rows);
+  await db.liveActivityStart.updateMany({
+    where: {
+      activity: CHECKOUT_RETURN_ACTIVITY,
+      endedAt: null,
+      OR: [
+        { user: { active: false } },
+        { booking: { status: { not: BookingStatus.OPEN } } },
+        {
+          user: {
+            liveActivityStartTokens: {
+              none: {
+                activity: CHECKOUT_RETURN_ACTIVITY,
+                revokedAt: null,
+              },
+            },
+          },
+        },
+      ],
+      booking: {
+        liveActivityTokens: {
+          none: {
+            activity: CHECKOUT_RETURN_ACTIVITY,
+            endedAt: null,
+          },
+        },
+      },
+    },
+    data: { endedAt: new Date() },
+  });
+  return {
+    scanned: new Set(rows.map((row) => row.bookingId)).size,
+    pending: result.pending,
+  };
 }
 
 export async function startDueCheckoutReturnLiveActivities(args: {
@@ -194,6 +298,7 @@ export async function startDueCheckoutReturnLiveActivities(args: {
         },
       },
       requester: {
+        active: true,
         liveActivityStartTokens: {
           some: {
             activity: CHECKOUT_RETURN_ACTIVITY,
@@ -215,6 +320,7 @@ export async function startDueCheckoutReturnLiveActivities(args: {
             where: {
               activity: CHECKOUT_RETURN_ACTIVITY,
               revokedAt: null,
+              user: { active: true },
             },
             select: { token: true },
           },
@@ -222,14 +328,11 @@ export async function startDueCheckoutReturnLiveActivities(args: {
       },
     },
     orderBy: { endsAt: "asc" },
-    take: args.limit ?? 50,
+    take: args.limit ?? 5,
   });
 
   const scanned = dueCheckouts.length;
-  let started = 0;
-  let revoked = 0;
-
-  for (const booking of dueCheckouts) {
+  const outcomes = await Promise.allSettled(dueCheckouts.map(async (booking) => {
     const tokens = booking.requester.liveActivityStartTokens.map((row) => row.token);
     const result = await startCheckoutReturnLiveActivityTokens(
       tokens,
@@ -250,35 +353,35 @@ export async function startDueCheckoutReturnLiveActivities(args: {
     );
 
     if (result.revoked.length > 0) {
-      revoked += result.revoked.length;
       await db.liveActivityStartToken.updateMany({
         where: { token: { in: result.revoked } },
         data: { revokedAt: new Date() },
       });
     }
 
-    if (result.ok > 0) {
-      started += result.ok;
-      await db.liveActivityStart.upsert({
-        where: {
-          userId_bookingId_activity: {
-            userId: booking.requesterUserId,
-            bookingId: booking.id,
-            activity: CHECKOUT_RETURN_ACTIVITY,
-          },
-        },
-        update: {
-          lastAttemptAt: now,
-          endedAt: null,
-        },
-        create: {
-          userId: booking.requesterUserId,
-          bookingId: booking.id,
-          activity: CHECKOUT_RETURN_ACTIVITY,
-          startedAt: now,
-          lastAttemptAt: now,
-        },
-      });
+    const revokedTokens = new Set(result.revoked);
+    const recorded = result.ok > 0 && await recordCheckoutReturnLiveActivityStartIfEligible({
+      userId: booking.requesterUserId,
+      bookingId: booking.id,
+      expectedEndsAt: booking.endsAt,
+      candidateTokens: tokens.filter((token) => !revokedTokens.has(token)),
+      now,
+    });
+
+    return {
+      started: recorded ? result.ok : 0,
+      revoked: result.revoked.length,
+    };
+  }));
+
+  let started = 0;
+  let revoked = 0;
+  for (const outcome of outcomes) {
+    if (outcome.status === "fulfilled") {
+      started += outcome.value.started;
+      revoked += outcome.value.revoked;
+    } else {
+      console.error("[LiveActivity] scheduled start failed", outcome.reason);
     }
   }
 
@@ -308,6 +411,7 @@ export async function startCheckoutReturnLiveActivityForBooking(args: {
         none: { activity: CHECKOUT_RETURN_ACTIVITY, endedAt: null },
       },
       requester: {
+        active: true,
         liveActivityStartTokens: {
           some: { activity: CHECKOUT_RETURN_ACTIVITY, revokedAt: null },
         },
@@ -323,7 +427,11 @@ export async function startCheckoutReturnLiveActivityForBooking(args: {
           name: true,
           avatarUrl: true,
           liveActivityStartTokens: {
-            where: { activity: CHECKOUT_RETURN_ACTIVITY, revokedAt: null },
+            where: {
+              activity: CHECKOUT_RETURN_ACTIVITY,
+              revokedAt: null,
+              user: { active: true },
+            },
             select: { token: true },
           },
         },
@@ -359,30 +467,19 @@ export async function startCheckoutReturnLiveActivityForBooking(args: {
     });
   }
 
-  if (result.ok > 0) {
-    await db.liveActivityStart.upsert({
-      where: {
-        userId_bookingId_activity: {
-          userId: booking.requesterUserId,
-          bookingId: booking.id,
-          activity: CHECKOUT_RETURN_ACTIVITY,
-        },
-      },
-      update: { lastAttemptAt: now, endedAt: null },
-      create: {
-        userId: booking.requesterUserId,
-        bookingId: booking.id,
-        activity: CHECKOUT_RETURN_ACTIVITY,
-        startedAt: now,
-        lastAttemptAt: now,
-      },
-    });
-  }
+  const revokedTokens = new Set(result.revoked);
+  const recorded = result.ok > 0 && await recordCheckoutReturnLiveActivityStartIfEligible({
+    userId: booking.requesterUserId,
+    bookingId: booking.id,
+    expectedEndsAt: booking.endsAt,
+    candidateTokens: tokens.filter((token) => !revokedTokens.has(token)),
+    now,
+  });
 
   return {
-    started: result.ok,
+    started: recorded ? result.ok : 0,
     revoked: result.revoked.length,
-    skipped: false,
+    skipped: result.ok > 0 && !recorded,
   };
 }
 
@@ -407,8 +504,10 @@ export async function sweepOverdueCheckoutReturnLiveActivities(args: {
         some: {
           activity: CHECKOUT_RETURN_ACTIVITY,
           endedAt: null,
+          user: { active: true },
         },
       },
+      requester: { active: true },
     },
     select: {
       id: true,
@@ -418,21 +517,19 @@ export async function sweepOverdueCheckoutReturnLiveActivities(args: {
         where: {
           activity: CHECKOUT_RETURN_ACTIVITY,
           endedAt: null,
+          user: { active: true },
         },
         select: { token: true },
       },
     },
     orderBy: { endsAt: "asc" },
-    take: args.limit ?? 50,
+    take: args.limit ?? 5,
   });
 
   const scanned = overdueCheckouts.length;
-  let notified = 0;
-  let revoked = 0;
-
-  for (const booking of overdueCheckouts) {
+  const outcomes = await Promise.allSettled(overdueCheckouts.map(async (booking) => {
     const tokens = booking.liveActivityTokens.map((row) => row.token);
-    if (tokens.length === 0) continue;
+    if (tokens.length === 0) return { notified: 0, revoked: 0 };
 
     const result = await updateCheckoutReturnLiveActivityTokens(
       tokens,
@@ -451,14 +548,27 @@ export async function sweepOverdueCheckoutReturnLiveActivities(args: {
     );
 
     if (result.revoked.length > 0) {
-      revoked += result.revoked.length;
       await db.liveActivityToken.updateMany({
         where: { token: { in: result.revoked } },
         data: { endedAt: now },
       });
     }
 
-    notified += tokens.length - result.revoked.length;
+    return {
+      notified: result.ok,
+      revoked: result.revoked.length,
+    };
+  }));
+
+  let notified = 0;
+  let revoked = 0;
+  for (const outcome of outcomes) {
+    if (outcome.status === "fulfilled") {
+      notified += outcome.value.notified;
+      revoked += outcome.value.revoked;
+    } else {
+      console.error("[LiveActivity] overdue update failed", outcome.reason);
+    }
   }
 
   return {
@@ -478,6 +588,7 @@ export async function updateCheckoutReturnLiveActivities(args: {
         bookingId: args.bookingId,
         activity: CHECKOUT_RETURN_ACTIVITY,
         endedAt: null,
+        user: { active: true },
       },
       select: { token: true },
     });

@@ -452,3 +452,41 @@ describe("badge evaluator checkout events", () => {
     expect(mockTx.studentBadge.createMany).not.toHaveBeenCalled();
   });
 });
+
+describe("badge evaluator serialization retry", () => {
+  beforeEach(() => {
+    mockTx.booking.count.mockResolvedValue(0);
+    mockTx.badgeDefinition.findMany.mockResolvedValue([]);
+  });
+
+  // REGRESSION: the retry check matched only Prisma's P2034, so the raw 40001
+  // driver code the Neon adapter can surface was never retried.
+  it("retries a raw 40001 serialization conflict", async () => {
+    dbMock.$transaction.mockRejectedValueOnce({ code: "40001" });
+
+    await onCheckoutOpened({ userId: "user-1", bookingId: "booking-1", source: "kiosk_checkout", sourceKey: "checkout-1" });
+
+    expect(db.$transaction).toHaveBeenCalledTimes(2);
+  });
+
+  it("still retries the Prisma P2034 shape", async () => {
+    dbMock.$transaction.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("write conflict", {
+        code: "P2034",
+        clientVersion: "test",
+      }),
+    );
+
+    await onCheckoutOpened({ userId: "user-1", bookingId: "booking-1", source: "kiosk_checkout", sourceKey: "checkout-1" });
+
+    expect(db.$transaction).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry an unrelated failure", async () => {
+    dbMock.$transaction.mockRejectedValueOnce(new Error("boom"));
+
+    await expect(onCheckoutOpened({ userId: "user-1", bookingId: "booking-1", source: "kiosk_checkout", sourceKey: "checkout-1" }))
+      .rejects.toThrow("boom");
+    expect(db.$transaction).toHaveBeenCalledTimes(1);
+  });
+});

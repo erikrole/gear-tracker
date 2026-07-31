@@ -93,6 +93,7 @@
 		889D5483CAC2EA6C8E25DDFD /* ShiftTradeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC21A466188CE0D3011728F2 /* ShiftTradeModels.swift */; };
 		8AD1ECE2467134BBDC92A41B /* KioskIdentityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 512445D206E12968A205246E /* KioskIdentityView.swift */; };
 		8AD8110B0A79C58084C6CB22 /* UsersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F94CA79BF538DBB6FF7F225 /* UsersView.swift */; };
+		8AF1D9B30757EC04020B0A22 /* CrewRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50023637E6B61A75BF40891B /* CrewRow.swift */; };
 		904A4A8C645FFEB4CD2AA971 /* ExtendBookingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B0058FB3644F501479BA0D5 /* ExtendBookingSheet.swift */; };
 		92FB41EABAD386A10484F5D8 /* KioskDesign.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07116906C1A1FF6F5D10BFA1 /* KioskDesign.swift */; };
 		96DAC20EB887DA3916DEE474 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38065600FA5A1C1AC4C8CC2F /* AppState.swift */; };
@@ -114,6 +115,7 @@
 		B1DDE3C06BD40F1F8615A227 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64F14676788E6FA7CDD08D48 /* HomeView.swift */; };
 		B276BCB07DEE006B7B4BA266 /* WeatherKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 87AF393E027CAF24A08F414E /* WeatherKit.framework */; };
 		B2FEB545EEB4F42FE18F292F /* BookingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2228A84C3CCBC90ABF9103F1 /* BookingsView.swift */; };
+		B5152EECF15D45DC25BE2D08 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D7348A946664F1C8E265C2A3 /* PrivacyInfo.xcprivacy */; };
 		B5172B28418254E10FE53FCF /* KioskEventDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E476FBFFA1229259FF006C64 /* KioskEventDetailSheet.swift */; };
 		B627C81D60CEF199EE69E537 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB6A309FA698276EE001EE07 /* Preferences.swift */; };
 		B6B0235DB84A35FE3DFF5D6C /* DraftModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DAF420E532759A9116D675B /* DraftModels.swift */; };
@@ -144,6 +146,7 @@
 		F2A0A3013F3F22792FA32C84 /* KioskComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 348C1E3385689A947929A115 /* KioskComponents.swift */; };
 		F3AE80E47FC7B6AAA76035B6 /* KioskStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA38BB094C95612DBF9F1C24 /* KioskStore.swift */; };
 		F8198BB80C4CB84C0C12ED6A /* FloatingSearchButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E89852F4DC85939BA9A8AA /* FloatingSearchButton.swift */; };
+		FBCE9485C52357F314061D25 /* ReservationDraftStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4461DC62BDB05085191DB129 /* ReservationDraftStoreTests.swift */; };
 		FC55F8C00EAB32F578B178F0 /* ItemDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80CA4880F08046F8E23F079B /* ItemDetailView.swift */; };
 		FEB0D17D856222BBA8478CC0 /* ScanResultHeroCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC5B889D242E8A0835B68845 /* ScanResultHeroCard.swift */; };
 /* End PBXBuildFile section */
@@ -221,9 +224,11 @@
 		3967BD5EC55792F3B9E94724 /* AssetModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetModels.swift; sourceTree = "<group>"; };
 		40E011969D2B77CA098ECCD1 /* ProfileCompletionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileCompletionStore.swift; sourceTree = "<group>"; };
 		41D51AC00210AD1B6DE0E466 /* LinkStickerWizard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkStickerWizard.swift; sourceTree = "<group>"; };
+		4461DC62BDB05085191DB129 /* ReservationDraftStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReservationDraftStoreTests.swift; sourceTree = "<group>"; };
 		44E5D1DB0C8CBAD5E452E807 /* QRScannerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerSheet.swift; sourceTree = "<group>"; };
 		468E248680EC5A61BEC1EE38 /* Skeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Skeleton.swift; sourceTree = "<group>"; };
 		4A9DAB950F60885A23620BEC /* Brand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Brand.swift; sourceTree = "<group>"; };
+		50023637E6B61A75BF40891B /* CrewRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrewRow.swift; sourceTree = "<group>"; };
 		512445D206E12968A205246E /* KioskIdentityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskIdentityView.swift; sourceTree = "<group>"; };
 		51D3A73950E2AF7A4B427DAC /* EventWeatherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventWeatherService.swift; sourceTree = "<group>"; };
 		552E4A9FC0A2CB73C36F51C6 /* AccountSecuritySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSecuritySettingsView.swift; sourceTree = "<group>"; };
@@ -304,6 +309,7 @@
 		D5EC344925B5666C2CA8F773 /* GlobalSearchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalSearchSheet.swift; sourceTree = "<group>"; };
 		D5FEA50A163963BC17612FB6 /* ReservationDraftStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReservationDraftStore.swift; sourceTree = "<group>"; };
 		D670C3FF7EA66807225FD6FD /* SemanticTones.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SemanticTones.swift; sourceTree = "<group>"; };
+		D7348A946664F1C8E265C2A3 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		DB5E4D4F3F432CE124DE63A8 /* KioskPickupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskPickupView.swift; sourceTree = "<group>"; };
 		DDD21416289B346FEE851FB9 /* ProfileCompletionModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileCompletionModelsTests.swift; sourceTree = "<group>"; };
 		DE250FADCDB66EDCBD5DF234 /* AvailabilityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvailabilityView.swift; sourceTree = "<group>"; };
@@ -402,6 +408,7 @@
 			children = (
 				843772771897AABEF8DD1F93 /* BannerView.swift */,
 				222E2FBE9DCF411B6C8A5FD9 /* BlastBanner.swift */,
+				50023637E6B61A75BF40891B /* CrewRow.swift */,
 				BDFEAF3DBE56A4AF4AAFDBC5 /* ReservationDraftCard.swift */,
 				468E248680EC5A61BEC1EE38 /* Skeleton.swift */,
 				A97E29E06DBD7A4474F9E66A /* StatusPill.swift */,
@@ -468,6 +475,7 @@
 			children = (
 				59BEC868CE07F10941FEBB5C /* Info.plist */,
 				B24728E65A42F40EDB0BBCF8 /* KioskOnlyApp.swift */,
+				D7348A946664F1C8E265C2A3 /* PrivacyInfo.xcprivacy */,
 			);
 			path = KioskOnly;
 			sourceTree = "<group>";
@@ -660,6 +668,7 @@
 			children = (
 				F7E2243115099DA4F3973F11 /* LatestRequestGenerationTests.swift */,
 				DDD21416289B346FEE851FB9 /* ProfileCompletionModelsTests.swift */,
+				4461DC62BDB05085191DB129 /* ReservationDraftStoreTests.swift */,
 				A943ABC3AA353DC3AAEA0B3A /* ScheduleDateMathTests.swift */,
 			);
 			path = WisconsinTests;
@@ -841,6 +850,7 @@
 				783075F2A904D279CA0653C5 /* Assets.xcassets in Resources */,
 				1055262B6F98F58C10AC34F1 /* Gotham-Black.ttf in Resources */,
 				3C5D633C4299CA79C40FCFBA /* Gotham-Bold.ttf in Resources */,
+				B5152EECF15D45DC25BE2D08 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -853,6 +863,7 @@
 			files = (
 				D90FDB80F8FFF8F2921E26A5 /* LatestRequestGenerationTests.swift in Sources */,
 				4F357F478EDC77FFABCE13B7 /* ProfileCompletionModelsTests.swift in Sources */,
+				FBCE9485C52357F314061D25 /* ReservationDraftStoreTests.swift in Sources */,
 				B0583B1951EA442CCD563320 /* ScheduleDateMathTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -944,6 +955,7 @@
 				30A2174F020A46E7B8538492 /* CreateBookingPickers.swift in Sources */,
 				237DD2AF7BCC2631721C737C /* CreateBookingSheet.swift in Sources */,
 				2A37E7B9C1A68005651FAC4A /* CreateBookingViewModel.swift in Sources */,
+				8AF1D9B30757EC04020B0A22 /* CrewRow.swift in Sources */,
 				CE860A32B56D88E0802D8EFE /* DashboardModels.swift in Sources */,
 				7507BE07B0E40EAA31B9DBE9 /* DateFormats.swift in Sources */,
 				B6B0235DB84A35FE3DFF5D6C /* DraftModels.swift in Sources */,

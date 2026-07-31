@@ -27,9 +27,9 @@ private enum KioskSessionVault {
         let data = Data(token.utf8)
         let attrs: [String: Any] = [
             kSecValueData as String: data,
-            // AfterFirstUnlock: the kiosk iPad reboots unattended; the token
-            // must be readable as soon as the device has been unlocked once.
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+            // The kiosk can resume after the device has been unlocked once,
+            // but the credential must never migrate to a replacement iPad.
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
         ]
         let status = SecItemUpdate(baseQuery as CFDictionary, attrs as CFDictionary)
         if status == errSecItemNotFound {
@@ -47,7 +47,11 @@ private enum KioskSessionVault {
         var result: AnyObject?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
               let data = result as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
+        guard let token = String(data: data, encoding: .utf8) else { return nil }
+        // Re-save once loaded so credentials written by an older build are
+        // migrated to the device-only accessibility class.
+        _ = save(token)
+        return token
     }
 
     static func clear() {
@@ -171,9 +175,11 @@ final class KioskStore {
             forName: .kioskSessionUnauthorized,
             object: nil,
             queue: .main
-        ) { [weak self] _ in
+        ) { [weak self] notification in
+            let requestGeneration = notification.object as? UUID
             Task { @MainActor [weak self] in
-                self?.handleUnauthorizedSession()
+                guard let requestGeneration else { return }
+                self?.handleUnauthorizedSession(requestGeneration: requestGeneration)
             }
         }
     }
@@ -246,6 +252,9 @@ final class KioskStore {
     }
 
     func activate(response: KioskActivationResponse) {
+        // The activation response installs a new cookie/Keychain owner. Revoke
+        // every request and queued 401 notification from the prior credential.
+        kioskCredentialBoundary.advance()
         saveInfo(KioskInfo(
             kioskId: response.kioskId,
             name: response.name,
@@ -268,6 +277,9 @@ final class KioskStore {
     }
 
     func deactivate() {
+        // Advance before clearing local state so an in-flight request cannot
+        // publish or revoke anything after this credential lifetime ends.
+        kioskCredentialBoundary.advance()
         isActive = false
         isResuming = false
         didAttemptResume = false
@@ -282,8 +294,9 @@ final class KioskStore {
         }
     }
 
-    private func handleUnauthorizedSession() {
-        guard info != nil || isActive else { return }
+    private func handleUnauthorizedSession(requestGeneration: UUID) {
+        guard kioskCredentialBoundary.owns(requestGeneration),
+              info != nil || isActive else { return }
         deactivate()
         UIAccessibility.post(
             notification: .announcement,
@@ -332,7 +345,9 @@ final class KioskStore {
     /// hard reset at 5:00. Any user touch (handled by KioskShellView's
     /// non-cancelling UIKit activity monitor) calls this.
     func resetInactivity() {
-        isDeviceIdle = false
+        if isDeviceIdle {
+            isDeviceIdle = false
+        }
         deviceIdleTask?.cancel()
         deviceIdleTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: Self.deviceIdleThreshold)
@@ -341,7 +356,9 @@ final class KioskStore {
         }
 
         inactivityTask?.cancel()
-        inactivityWarningVisible = false
+        if inactivityWarningVisible {
+            inactivityWarningVisible = false
+        }
         inactivityTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: Self.inactivityWarning)
             guard let self, !Task.isCancelled else { return }
@@ -356,7 +373,9 @@ final class KioskStore {
             guard !Task.isCancelled else { return }
             // Soft reset: keep the cart for the active student so a returning
             // tap restores progress; just route back to idle.
-            self.inactivityWarningVisible = false
+            if self.inactivityWarningVisible {
+                self.inactivityWarningVisible = false
+            }
             self.clearIntent(reason: .timeout)
             self.screen = .idle
         }

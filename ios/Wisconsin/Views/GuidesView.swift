@@ -371,11 +371,11 @@ private struct GuideReaderHeader: View {
 }
 
 private struct NativeMarkdownArticle: View {
-    let markdown: String
+    private let blocks: [MarkdownBlock]
 
-    private var blocks: [MarkdownBlock] {
+    init(markdown: String) {
         let parsed = MarkdownBlock.parse(markdown.trimmingCharacters(in: .whitespacesAndNewlines))
-        return Array(parsed.drop { block in
+        blocks = Array(parsed.drop { block in
             if case .rule = block.kind { return true }
             return false
         })
@@ -516,7 +516,7 @@ private struct NativeMarkdownArticle: View {
 }
 
 private struct MarkdownBlock: Identifiable {
-    enum Kind {
+    enum Kind: Hashable {
         case heading(level: Int, text: String)
         case paragraph(String)
         case bullet(String)
@@ -528,8 +528,18 @@ private struct MarkdownBlock: Identifiable {
         case rule
     }
 
-    let id = UUID()
+    struct ID: Hashable {
+        let sourcePosition: Int
+        let kind: Kind
+    }
+
+    let id: ID
     let kind: Kind
+
+    init(kind: Kind, sourcePosition: Int = 0) {
+        self.id = ID(sourcePosition: sourcePosition, kind: kind)
+        self.kind = kind
+    }
 
     static func parse(_ markdown: String) -> [MarkdownBlock] {
         guard !markdown.isEmpty else { return [] }
@@ -632,7 +642,9 @@ private struct MarkdownBlock: Identifiable {
             blocks.append(MarkdownBlock(kind: .code(codeLines.joined(separator: "\n"))))
         }
         flushParagraph()
-        return blocks
+        return blocks.enumerated().map { sourcePosition, block in
+            MarkdownBlock(kind: block.kind, sourcePosition: sourcePosition)
+        }
     }
 
     private static func parseHeading(_ line: String) -> (level: Int, text: String)? {

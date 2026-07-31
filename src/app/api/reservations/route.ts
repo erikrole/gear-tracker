@@ -1,13 +1,43 @@
 import { BookingKind, BookingStatus, Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
+import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermissionOrCollaboratorCapability } from "@/lib/rbac";
 import { createBooking, listBookings } from "@/lib/services/bookings";
+import { bookingInclude } from "@/lib/services/bookings-helpers";
 import { parseDateRange } from "@/lib/time";
 import { createReservationSchema, sanitizeBookingFields } from "@/lib/validation";
 import { createReservationLifecycleNotification } from "@/lib/services/notifications";
 import { loadReservationRules } from "@/lib/services/reservation-rules";
 import { sanitizeCollaboratorBooking } from "@/lib/collaborator-gear";
+
+async function replayConsumedDraftReservation(sourceDraftId: string, actorUserId: string) {
+  const consumption = await db.auditLog.findFirst({
+    where: {
+      entityType: "booking",
+      entityId: sourceDraftId,
+      action: "draft_consumed",
+      actorUserId,
+    },
+    orderBy: { createdAt: "desc" },
+    select: { afterJson: true },
+  });
+  const afterJson = consumption?.afterJson;
+  const createdReservationId =
+    afterJson && typeof afterJson === "object" && !Array.isArray(afterJson)
+      ? (afterJson as Prisma.JsonObject).createdReservationId
+      : null;
+  if (typeof createdReservationId !== "string") return null;
+
+  return db.booking.findFirst({
+    where: {
+      id: createdReservationId,
+      kind: BookingKind.RESERVATION,
+      createdBy: actorUserId,
+    },
+    include: bookingInclude,
+  });
+}
 
 export const GET = withAuth(async (req, { user }) => {
   requirePermissionOrCollaboratorCapability(user, "booking", "view", "MY_GEAR_VIEW");
@@ -61,31 +91,49 @@ export const POST = withAuth(async (req, { user }) => {
     }
   }
 
-  const reservation = await createBooking({
-    kind: BookingKind.RESERVATION,
-    maxConcurrentReservations: rules.maxConcurrentReservations ?? undefined,
-    title: body.title,
-    requesterUserId: body.requesterUserId,
-    locationId: body.locationId,
-    startsAt: start,
-    endsAt: end,
-    serializedAssetIds: body.serializedAssetIds,
-    bulkItems: body.bulkItems,
-    notes: body.notes,
-    createdBy: user.id,
-    eventId: body.eventId,
-    eventIds: body.eventIds,
-    sportCode: body.sportCode,
-    shiftAssignmentId: body.shiftAssignmentId,
-    kitId: body.kitId,
-  });
+  let reservation;
+  try {
+    reservation = await createBooking({
+      kind: BookingKind.RESERVATION,
+      maxConcurrentReservations: rules.maxConcurrentReservations ?? undefined,
+      title: body.title,
+      requesterUserId: body.requesterUserId,
+      locationId: body.locationId,
+      startsAt: start,
+      endsAt: end,
+      serializedAssetIds: body.serializedAssetIds,
+      bulkItems: body.bulkItems,
+      notes: body.notes,
+      createdBy: user.id,
+      eventId: body.eventId,
+      eventIds: body.eventIds,
+      sportCode: body.sportCode,
+      shiftAssignmentId: body.shiftAssignmentId,
+      kitId: body.kitId,
+      sourceDraftId: body.sourceDraftId,
+    });
+  } catch (error) {
+    const sourceDraftId = body.sourceDraftId;
+    const canReplay =
+      error instanceof HttpError
+      && error.status === 404
+      && error.message === "Source draft not found"
+      && typeof sourceDraftId === "string";
+    if (!canReplay) throw error;
+
+    // A consumed sourceDraftId is a permanent, actor-scoped idempotency key.
+    // Return the committed reservation and ignore any later payload reuse.
+    const replayed = await replayConsumedDraftReservation(sourceDraftId, user.id);
+    if (!replayed) throw error;
+    reservation = replayed;
+  }
 
   // Audit entry is written inside createBooking()'s transaction — do not log again here.
 
-  void createReservationLifecycleNotification({
+  await createReservationLifecycleNotification({
     bookingId: reservation.id,
     bookingTitle: reservation.title ?? body.title,
-    requesterUserId: body.requesterUserId,
+    requesterUserId: reservation.requesterUserId,
     actorUserId: user.id,
     event: "booked",
   });

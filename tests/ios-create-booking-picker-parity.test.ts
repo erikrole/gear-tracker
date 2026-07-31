@@ -75,7 +75,7 @@ describe("iOS create booking picker parity", () => {
 
     expect(createSheet).toContain("bulkItems: selectedBulkRequests");
     expect(createSheet).toContain(".map { BulkReservationRequest(bulkSkuId: $0.key, quantity: $0.value) }");
-    expect(apiClient).toContain("struct BulkReservationRequest: Encodable, Equatable");
+    expect(apiClient).toContain("struct BulkReservationRequest: Codable, Equatable");
     expect(apiClient).toContain("bulkItems: [BulkReservationRequest] = []");
     expect(apiClient).toContain("bulkItems: bulkItems");
   });
@@ -155,13 +155,17 @@ describe("iOS create booking picker parity", () => {
     const formOptions = source("src/app/api/form-options/route.ts");
     const models = source("ios/Wisconsin/Models/FormModels.swift");
     const createSheet = createBookingSource();
+    const equipmentRows = source("ios/Wisconsin/Views/CreateBooking/CreateBookingEquipmentRows.swift");
+    const thumbnailLoader = source("ios/Wisconsin/Core/ThumbnailLoader.swift");
     const bulkRow = createSheet.slice(createSheet.indexOf("struct BulkQuantityRow"));
 
     expect(formOptions).toContain("imageUrl: true");
     expect(formOptions).toContain("imageUrl: s.imageUrl");
     expect(models).toContain("let imageUrl: String?");
     expect(bulkRow).toContain("BookingBulkThumbnail(imageUrl: sku.imageUrl)");
-    expect(createSheet).toContain("AsyncImage(url: url)");
+    expect(equipmentRows.match(/CachedThumbnail\(url: url, size: size\)/g)).toHaveLength(2);
+    expect(equipmentRows).not.toContain("AsyncImage(");
+    expect(thumbnailLoader).toContain("struct CachedThumbnail: View");
   });
 
   it("lets native reservation creation link upcoming events", () => {
@@ -196,7 +200,8 @@ describe("iOS create booking picker parity", () => {
     expect(details).toContain("EventSelectionCard(");
     expect(sheet).toContain('case event = "Event Linked"');
     expect(sheet).toContain('case manual = "Manual"');
-    expect(sheet).toContain('_setupMode = State(wrappedValue: .event)');
+    expect(sheet).toContain("vm.usesEventLinkedSetup ? .event : .manual");
+    expect(sheet).toContain("vm.usesEventLinkedSetup = mode == .event");
     expect(eventCard).not.toContain("Text(\"Link an Event\")");
     expect(eventCard).toContain("EventChip(event: event)");
     expect(eventCard).toContain("AllEventsPickerView(");
@@ -400,7 +405,7 @@ describe("iOS create booking picker parity", () => {
     expect(picker).toContain('vm.selectedLocationMismatchCount > 0');
     expect(sheet).toContain('reviewSectionHeader(title: "Schedule", editStep: 1)');
     expect(sheet).toContain('reviewSectionHeader(title: "Gear", count: vm.selectedEquipmentCount, editStep: 2)');
-    expect(sheet).toContain('Button("Review Gear") { step = 2 }');
+    expect(sheet).toContain('Button("Review Gear") { setStep(2) }');
     expect(sheet).toContain('} else if step == 3 {');
     const cartSheet = picker.slice(picker.indexOf("struct EquipmentCartSheet"));
     expect(cartSheet).not.toContain('Section("Equipment")');
@@ -416,25 +421,26 @@ describe("iOS create booking picker parity", () => {
     expect(api).toContain("case conflict(String)");
     expect(api).toContain("case 409:");
     expect(api).toContain('throw APIError.conflict("Some equipment is no longer available:');
-    expect(api).toContain("throw APIError.serverError(msg409)");
+    expect(api).toContain(
+      "throw APIError.httpError(statusCode: http.statusCode, message: msg409)",
+    );
     expect(viewModel).toContain("var submissionConflict: String?");
     expect(viewModel).toContain("catch APIError.conflict(let message)");
     expect(viewModel).toContain("submissionConflict = message");
     expect(picker).toContain("if let submissionConflict = vm.submissionConflict");
     expect(picker).toContain('Text("Gear changed since review")');
     expect(sheet).toContain("catch APIError.conflict(_)");
-    expect(sheet).toContain("step = 2");
+    expect(sheet).toContain("setStep(2)");
     expect(sheet).toContain("vm.scheduleConflictCheck()");
   });
 
   it("opens an event-created reservation and replaces the stale reserve prompt", () => {
     const eventDetail = source("ios/Wisconsin/Views/EventDetailSheet.swift");
 
-    expect(eventDetail).toContain("@State private var pushBooking: BookingRouteId?");
-    expect(eventDetail).toContain("CreateBookingSheet(vm: makePrepGearVM()) { newId in");
+    expect(eventDetail).toContain("private func startPrepGearReservation()");
+    expect(eventDetail).toContain("drafts.start(makePrepGearVM()) { newId in");
     expect(eventDetail).toContain("createdGearBookingId = newId");
-    expect(eventDetail).toContain("pushBooking = BookingRouteId(id: newId)");
-    expect(eventDetail).toContain(".navigationDestination(item: $pushBooking)");
+    expect(eventDetail).toContain("BookingDetailView(bookingId: createdGearBookingId)");
     expect(eventDetail).toContain("if let createdGearBookingId");
     expect(eventDetail).toContain('title: "Gear reserved"');
   });

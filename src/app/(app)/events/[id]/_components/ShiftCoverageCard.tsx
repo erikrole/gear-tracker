@@ -2,8 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangleIcon, PlusIcon, XIcon } from "lucide-react";
-import EmptyState from "@/components/EmptyState";
+import { AlertTriangleIcon, Trash2Icon, XIcon } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -17,12 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -35,6 +28,20 @@ import { AREA_LABELS } from "../_utils";
 import { shiftWorkerLabel, shiftWorkerLabelForProfile, shiftWorkerSlotLabel } from "@/lib/shift-display";
 import { effectiveCallWindow, isInheritedFullDayCallWindow, type EffectiveCallWindow } from "@/lib/shift-call-windows";
 import type { AutoFillPreviewResponse } from "@/lib/auto-fill-preview-types";
+import { cn } from "@/lib/utils";
+import {
+  AddSlotMenu,
+  AssignSlotButton,
+  CREW_ROW_GROUP,
+  CREW_ROW_REVEAL,
+  CrewAreaHeading,
+  CrewSlotStatus,
+  CrewStateDot,
+  CrewTypeLabel,
+  areaLabel,
+  crewSlotState,
+  crewSlotStateLabel,
+} from "@/components/shift-detail/crew-row";
 
 const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS", "LIVE_PRODUCTION"] as const;
 
@@ -146,13 +153,6 @@ export function ShiftCoverageCard({
     }
     return map;
   }, [shiftGroup.shifts]);
-
-  // Gear status from commandCenter keyed by shift ID
-  type CenterShift = NonNullable<typeof commandCenter>["shifts"][number];
-  const gearMap = useMemo(() => {
-    if (!commandCenter) return new Map<string, CenterShift>();
-    return new Map(commandCenter.shifts.map((cs) => [cs.id, cs]));
-  }, [commandCenter]);
 
   const coverage = shiftGroup.coverage;
   const coverageVariant = !coverage ? "gray"
@@ -338,15 +338,17 @@ export function ShiftCoverageCard({
     }
   }
 
-  // ── Sub-components ──
+  // ── Row renderers ──
+  // Plain functions, not nested components: nested components get a fresh
+  // identity on every render, which remounts every cell on each keystroke.
 
-  function AssignCell({ shift, activeAssignment }: { shift: Shift; activeAssignment: Assignment | null }) {
+  function renderPerson(shift: Shift, activeAssignment: Assignment | null) {
     const isActing = inlineActing === shift.id || inlineActing === (activeAssignment?.id ?? "");
 
     if (activeAssignment) {
       return (
-        <div className="group flex min-w-0 flex-col gap-1">
-          <span className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="flex min-w-0 items-center gap-2">
             <UserAvatar
               name={activeAssignment.user.name}
               avatarUrl={activeAssignment.user.avatarUrl}
@@ -359,24 +361,24 @@ export function ShiftCoverageCard({
                   <Button
                     type="button"
                     variant="ghost"
-                    size="icon"
+                    size="icon-sm"
                     onClick={() => handleRemove(activeAssignment.id)}
                     disabled={isActing || inlineActing !== null}
-                    className="size-10 text-muted-foreground transition-[background-color,color,box-shadow] hover:text-destructive focus-visible:text-destructive sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
-                    aria-label="Remove assignment"
+                    className={cn(CREW_ROW_REVEAL, "text-muted-foreground hover:text-destructive focus-visible:text-destructive")}
+                    aria-label={`Unassign ${activeAssignment.user.name}`}
                   >
                     <XIcon className="size-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Remove assignment</TooltipContent>
+                <TooltipContent>Unassign</TooltipContent>
               </Tooltip>
             )}
           </span>
           {activeAssignment.hasConflict && (
-            <Badge variant="orange" size="sm" className="w-fit gap-1">
-              <AlertTriangleIcon className="size-3" />
-              {activeAssignment.conflictNote ?? "Schedule conflict"}
-            </Badge>
+            <span className="flex items-center gap-1 pl-8 text-[11px] text-[var(--orange-text)]">
+              <AlertTriangleIcon className="size-3 shrink-0" />
+              <span className="truncate">{activeAssignment.conflictNote ?? "Schedule conflict"}</span>
+            </span>
           )}
         </div>
       );
@@ -393,22 +395,7 @@ export function ShiftCoverageCard({
         }}
       >
         <PopoverTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="group h-10 justify-start gap-1.5 px-1.5 text-muted-foreground/60 hover:text-muted-foreground"
-            disabled={isActing || inlineActing !== null}
-          >
-            {isActing ? <span className="text-xs">Assigning...</span> : (
-              <>
-                <div className="size-6 rounded-full border-2 border-dashed border-muted-foreground/20 group-hover:border-primary/40 flex items-center justify-center transition-colors">
-                  <PlusIcon className="size-3 text-muted-foreground/30 group-hover:text-primary/60 transition-colors" />
-                </div>
-                <span className="group-hover:text-muted-foreground/80">Assign</span>
-              </>
-            )}
-          </Button>
+          <AssignSlotButton busy={isActing} disabled={isActing || inlineActing !== null} />
         </PopoverTrigger>
         <PopoverContent className="w-64 p-2" align="start">
           <UserAvatarPicker
@@ -424,32 +411,33 @@ export function ShiftCoverageCard({
     );
   }
 
-  function StatusCell({ shift, activeAssignment, pendingRequests }: {
-    shift: Shift;
-    activeAssignment: Assignment | null;
-    pendingRequests: Assignment[];
-  }) {
+  function renderStatus(shift: Shift, activeAssignment: Assignment | null, pendingRequests: Assignment[]) {
     if (pendingRequests.length > 0 && isStaffOrAdmin) {
       return (
         <Popover open={requestsShiftId === shift.id} onOpenChange={(open) => setRequestsShiftId(open ? shift.id : null)}>
           <PopoverTrigger asChild>
-              <Button type="button" variant="ghost" size="sm" className="h-10 px-1.5" aria-label={`${pendingRequests.length} pending shift request${pendingRequests.length === 1 ? "" : "s"}`}>
-              <Badge variant="orange" className="cursor-pointer">
-                {pendingRequests.length} req
-              </Badge>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="-ml-1.5 h-8 gap-2 px-1.5 font-normal text-muted-foreground hover:text-foreground"
+              aria-label={`Review ${pendingRequests.length} pending shift request${pendingRequests.length === 1 ? "" : "s"}`}
+            >
+              <CrewStateDot state="requested" />
+              {crewSlotStateLabel("requested", pendingRequests.length)}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-64 p-3" align="start">
-            <p className="text-[11px] font-medium text-muted-foreground mb-2 uppercase tracking-wide">Pending requests</p>
+          <PopoverContent className="w-72 p-3" align="start">
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Pending requests</p>
             <div className="flex flex-col gap-2">
               {pendingRequests.map((req) => (
                 <div key={req.id} className="flex items-center justify-between gap-2">
-                  <span className="text-sm truncate">{req.user.name}</span>
-                  <div className="flex gap-1 shrink-0">
-                    <Button size="sm" className="h-10 px-2 text-xs" onClick={() => handleApprove(req.id)} disabled={inlineActing !== null}>
+                  <span className="truncate text-sm">{req.user.name}</span>
+                  <div className="flex shrink-0 gap-1">
+                    <Button size="sm" onClick={() => handleApprove(req.id)} disabled={inlineActing !== null}>
                       {inlineActing === req.id ? "..." : "Approve"}
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-10 px-2 text-xs text-destructive" onClick={() => handleDecline(req.id)} disabled={inlineActing !== null}>
+                    <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDecline(req.id)} disabled={inlineActing !== null}>
                       Decline
                     </Button>
                   </div>
@@ -461,27 +449,15 @@ export function ShiftCoverageCard({
       );
     }
 
-    if (activeAssignment) return <Badge variant="green" size="sm" className="h-6 px-2.5 text-[11px]">Filled</Badge>;
-    if (pendingRequests.length > 0) return <Badge variant="orange" size="sm" className="h-6 px-2.5 text-[11px]">{pendingRequests.length} req</Badge>;
-    return <Badge variant="red" size="sm" className="h-6 px-2.5 text-[11px]">Open</Badge>;
+    return (
+      <CrewSlotStatus
+        state={crewSlotState(Boolean(activeAssignment), pendingRequests.length)}
+        requestCount={pendingRequests.length}
+      />
+    );
   }
 
-  function GearCell({ shiftId, hasAssignment }: { shiftId: string; hasAssignment: boolean }) {
-    if (!commandCenter || !hasAssignment) return <span className="text-muted-foreground">-</span>;
-    const cs = gearMap.get(shiftId);
-    if (!cs?.assignment) return <span className="text-muted-foreground">-</span>;
-    const hasMissing = commandCenter.missingGear.some((m) => m.shiftId === shiftId);
-    if (hasMissing) return <Badge variant="red" size="sm" className="h-6 px-2.5 text-[11px]">Missing gear</Badge>;
-    if (cs.assignment.linkedBookingId) {
-      if (cs.assignment.linkedBookingStatus === "PENDING_PICKUP") return <Badge variant="orange" size="sm" className="h-6 px-2.5 text-[11px]">Pickup ready</Badge>;
-      if (cs.assignment.linkedBookingStatus === "OPEN") return <Badge variant="green" size="sm" className="h-6 px-2.5 text-[11px]">Checked out</Badge>;
-      if (cs.assignment.linkedBookingStatus === "BOOKED") return <Badge variant="purple" size="sm" className="h-6 px-2.5 text-[11px]">Assignment gear</Badge>;
-      return <Badge variant="green" size="sm" className="h-6 px-2.5 text-[11px]">Assignment gear</Badge>;
-    }
-    return <Badge variant="orange" size="sm" className="h-6 px-2.5 text-[11px]">Event reservation</Badge>;
-  }
-
-  function DeleteCell({ shift, activeAssignment }: { shift: Shift; activeAssignment: Assignment | null }) {
+  function renderRowActions(shift: Shift, activeAssignment: Assignment | null) {
     const hasAssignment = !!activeAssignment;
     return (
       <Popover
@@ -494,26 +470,26 @@ export function ShiftCoverageCard({
               <Button
                 type="button"
                 variant="ghost"
-                size="icon"
+                size="icon-sm"
                 onClick={() => {
                   if (hasAssignment) setDeleteConfirmId(shift.id);
                   else handleDeleteShift(shift.id, false);
                 }}
                 disabled={inlineActing !== null}
-                className="size-10 text-muted-foreground/50 hover:text-destructive focus-visible:text-destructive"
-                aria-label="Remove shift"
+                className={cn(CREW_ROW_REVEAL, "text-muted-foreground hover:text-destructive focus-visible:text-destructive")}
+                aria-label="Remove slot"
               >
-                <XIcon className="size-3.5" />
+                <Trash2Icon className="size-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Remove shift</TooltipContent>
+            <TooltipContent>Remove slot</TooltipContent>
           </Tooltip>
         </PopoverTrigger>
-        <PopoverContent className="w-56 p-3" align="end">
-          <p className="text-sm mb-3">This shift has an assigned worker. Remove it anyway?</p>
-          <div className="flex gap-2 justify-end">
-                    <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
-                    <Button variant="destructive" size="sm" onClick={() => handleDeleteShift(shift.id, true)}>Remove</Button>
+        <PopoverContent className="w-60 p-3" align="end">
+          <p className="mb-3 text-sm">This slot has an assigned worker. Remove it anyway?</p>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+            <Button variant="destructive" size="sm" onClick={() => handleDeleteShift(shift.id, true)}>Remove</Button>
           </div>
         </PopoverContent>
       </Popover>
@@ -556,47 +532,45 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
   })();
   const reviewChangeCount = recentChanges.filter((change) => change.needsReview).length;
 
-  // ── Staff table (grouped by area) ──
-  const staffTable = (
+  // ── Crew table ──
+  // One table for every role. Staff get the editing affordances (assign,
+  // unassign, call time, add/remove slot); students get the same read of the
+  // schedule plus their own acknowledge action.
+  const crewTable = (
     <Table>
       <TableHeader>
-        <TableRow>
-          <TableHead className="w-56">Call</TableHead>
+        <TableRow striped={false}>
+          <TableHead className="w-28">Call</TableHead>
+          <TableHead className="w-24">Type</TableHead>
           <TableHead>Person</TableHead>
-          <TableHead className="w-28">Status</TableHead>
-          {commandCenter && <TableHead className="w-24">Gear</TableHead>}
-          <TableHead className="w-6" />
+          <TableHead className="w-32">Status</TableHead>
+          <TableHead className="w-32" />
         </TableRow>
       </TableHeader>
       <TableBody>
         {AREAS.map((area) => {
           const shifts = shiftsByArea[area] ?? [];
+          // Students have no way to add a slot, so an empty area is just noise.
+          if (shifts.length === 0 && !isStaffOrAdmin) return [];
+          const filledInArea = shifts.filter((s) =>
+            s.assignments.some((a) => a.status === "DIRECT_ASSIGNED" || a.status === "APPROVED")
+          ).length;
           return [
             // Area sub-header
-            <TableRow key={`header-${area}`} className="bg-muted/40 hover:bg-muted/40">
-              <TableCell colSpan={commandCenter ? 4 : 3} className="py-1.5">
-                <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-                  {AREA_LABELS[area] ?? area}
-                </span>
-              </TableCell>
-              <TableCell className="py-1.5 text-right pr-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-10 text-muted-foreground"
+            <TableRow key={`header-${area}`} striped={false} className="border-b-0 bg-transparent hover:bg-transparent">
+              <TableCell colSpan={5} className="pt-5 pb-1.5">
+                <CrewAreaHeading
+                  area={area}
+                  filled={filledInArea}
+                  total={shifts.length}
+                  action={isStaffOrAdmin ? (
+                    <AddSlotMenu
+                      area={area}
                       disabled={inlineActing !== null}
-                      aria-label={`Add ${AREA_LABELS[area] ?? area} staff or student slot`}
-                    >
-                      <PlusIcon className="size-3" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-40">
-                    <DropdownMenuItem onClick={() => handleAddShift(area, "FT")}>Add Staff slot</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleAddShift(area, "ST")}>Add Student slot</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                      onAdd={(workerType) => handleAddShift(area, workerType)}
+                    />
+                  ) : undefined}
+                />
               </TableCell>
             </TableRow>,
             // Shift rows
@@ -608,156 +582,76 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
               const slotWindow = effectiveCallWindow(shift);
               const assignmentWindow = activeAssignment ? effectiveCallWindow(shift, activeAssignment) : null;
               const rowCallWindow = assignmentWindow ?? slotWindow;
-              const rowCallTarget = activeAssignment
-                ? { type: "assignment" as const, id: activeAssignment.id }
-                : { type: "slot" as const, id: shift.id };
+              // Only staff get an edit target; everyone reads the same time.
+              const rowCallTarget = !isStaffOrAdmin
+                ? undefined
+                : activeAssignment
+                  ? { type: "assignment" as const, id: activeAssignment.id }
+                  : { type: "slot" as const, id: shift.id };
               const rowCallOverride = activeAssignment
                 ? { startsAt: activeAssignment.callStartsAt ?? null, endsAt: activeAssignment.callEndsAt ?? null }
                 : { startsAt: shift.callStartsAt ?? null, endsAt: shift.callEndsAt ?? null };
               const rowClassLabel = activeAssignment
                 ? shiftWorkerLabelForProfile(activeAssignment.user) ?? "Assigned"
-                : shiftWorkerSlotLabel(shift.workerType);
+                : shiftWorkerLabel(shift.workerType);
+              const canAcknowledge = Boolean(
+                currentUserId
+                && activeAssignment
+                && activeAssignment.user.id === currentUserId
+                && publication?.publishedAt
+                && (!activeAssignment.acknowledgedAt || activeAssignment.acknowledgedAt < publication.publishedAt),
+              );
               return (
-                <TableRow key={shift.id}>
-                  <TableCell>
-                    <div className="flex flex-col items-start gap-1">
-                      <div className="flex items-center gap-1.5">
-                        {shouldShowCallWindow(rowCallWindow) && (
-                          <CallWindowEditor
-                            target={rowCallTarget}
-                            effectiveWindow={rowCallWindow}
-                            overrideWindow={rowCallOverride}
-                            onSaved={onUpdated}
-                            disabled={inlineActing !== null}
-                            compact
-                            showSourceBadge={false}
-                          />
-                        )}
-                        <Badge variant="gray" size="sm">{rowClassLabel}</Badge>
-                      </div>
-                      {activeAssignment?.hasConflict && (
-                        <Badge variant="orange" size="sm" className="max-w-56 gap-1">
-                          <AlertTriangleIcon className="size-3 shrink-0" />
-                          <span className="truncate">
-                            {activeAssignment.conflictNote ?? "Schedule conflict"}
-                          </span>
-                        </Badge>
-                      )}
-                    </div>
+                <TableRow key={shift.id} striped={false} className={cn(CREW_ROW_GROUP, "border-border/40")}>
+                  <TableCell className="py-2.5 text-muted-foreground">
+                    {shouldShowCallWindow(rowCallWindow) ? (
+                      <CallWindowEditor
+                        target={rowCallTarget}
+                        effectiveWindow={rowCallWindow}
+                        overrideWindow={rowCallOverride}
+                        onSaved={onUpdated}
+                        disabled={inlineActing !== null}
+                        compact
+                        variant="bare"
+                      />
+                    ) : (
+                      <span className="pl-0.5">-</span>
+                    )}
                   </TableCell>
-                  <TableCell>
-                    <AssignCell shift={shift} activeAssignment={activeAssignment} />
+                  <TableCell className="py-2.5">
+                    <CrewTypeLabel label={rowClassLabel} />
                   </TableCell>
-                  <TableCell>
-                    <StatusCell shift={shift} activeAssignment={activeAssignment} pendingRequests={pendingRequests} />
+                  <TableCell className="py-2.5">
+                    {renderPerson(shift, activeAssignment)}
                   </TableCell>
-                  {commandCenter && (
-                    <TableCell>
-                      <GearCell shiftId={shift.id} hasAssignment={!!activeAssignment} />
-                    </TableCell>
-                  )}
-                  <TableCell className="text-right pr-2">
-                    <DeleteCell shift={shift} activeAssignment={activeAssignment} />
+                  <TableCell className="py-2.5">
+                    {renderStatus(shift, activeAssignment, pendingRequests)}
+                  </TableCell>
+                  <TableCell className="py-2.5 pr-2 text-right">
+                    {isStaffOrAdmin
+                      ? renderRowActions(shift, activeAssignment)
+                      : canAcknowledge && activeAssignment ? (
+                        <Button
+                          size="sm"
+                          onClick={() => handleAcknowledge(activeAssignment.id)}
+                          disabled={acknowledgingId === activeAssignment.id}
+                        >
+                          {acknowledgingId === activeAssignment.id ? "Saving..." : "Acknowledge"}
+                        </Button>
+                      ) : null}
                   </TableCell>
                 </TableRow>
               );
             }),
             // Empty area placeholder
             ...(shifts.length === 0 ? [
-              <TableRow key={`empty-${area}`}>
-                <TableCell colSpan={commandCenter ? 5 : 4} className="py-0">
-                  <EmptyState
-                    inline
-                    icon="users"
-                    title={`No ${AREA_LABELS[area] ?? area} shifts`}
-                    description="Add Staff and Student slots to match the crew minimum for this area."
-                  />
+              <TableRow key={`empty-${area}`} striped={false} className="border-border/40">
+                <TableCell colSpan={5} className="py-3 text-sm text-muted-foreground">
+                  No {areaLabel(area).toLowerCase()} slots yet.
                 </TableCell>
               </TableRow>
             ] : []),
           ];
-        })}
-      </TableBody>
-    </Table>
-  );
-
-  // ── Student table (flat, read-only) ──
-  const studentTable = (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Area</TableHead>
-          <TableHead className="w-36">Call</TableHead>
-          <TableHead>Assigned</TableHead>
-          <TableHead className="w-28">Status</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {shiftGroup.shifts.map((shift) => {
-          const activeAssignment = shift.assignments.find(
-            (a) => a.status === "DIRECT_ASSIGNED" || a.status === "APPROVED"
-          ) ?? null;
-          const pendingCount = shift.assignments.filter((a) => a.status === "REQUESTED").length;
-          const callWindow = effectiveCallWindow(shift, activeAssignment);
-          const rowClassLabel = activeAssignment
-            ? shiftWorkerLabelForProfile(activeAssignment.user) ?? "Assigned"
-            : shiftWorkerSlotLabel(shift.workerType);
-          const canAcknowledge = Boolean(
-            currentUserId
-            && activeAssignment
-            && activeAssignment.user.id === currentUserId
-            && publication?.publishedAt
-            && (!activeAssignment.acknowledgedAt || activeAssignment.acknowledgedAt < publication.publishedAt),
-          );
-          return (
-            <TableRow key={shift.id}>
-              <TableCell>
-                <span className="flex items-center gap-1.5">
-                  {AREA_LABELS[shift.area] ?? shift.area}
-                  <Badge variant="gray" size="sm">{rowClassLabel}</Badge>
-                </span>
-              </TableCell>
-              <TableCell>
-                {shouldShowCallWindow(callWindow) ? (
-                  <CallWindowEditor
-                    effectiveWindow={callWindow}
-                    compact
-                    showSourceBadge={false}
-                  />
-                ) : (
-                  <span className="text-muted-foreground">-</span>
-                )}
-              </TableCell>
-              <TableCell>
-                {activeAssignment ? (
-                  <span className="flex items-center gap-2">
-                    <UserAvatar
-                      name={activeAssignment.user.name}
-                      avatarUrl={activeAssignment.user.avatarUrl}
-                      size="sm"
-                    />
-                    {activeAssignment.user.name}
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">-</span>
-                )}
-              </TableCell>
-              <TableCell>
-                {canAcknowledge && activeAssignment ? (
-                  <Button
-                    size="sm"
-                    className="h-9"
-                    onClick={() => handleAcknowledge(activeAssignment.id)}
-                    disabled={acknowledgingId === activeAssignment.id}
-                  >
-                    {acknowledgingId === activeAssignment.id ? "Saving..." : "Acknowledge"}
-                  </Button>
-                ) : activeAssignment ? <Badge variant="green">Filled</Badge>
-                  : pendingCount > 0 ? <Badge variant="orange">{pendingCount} req</Badge>
-                  : <Badge variant="red">Open</Badge>}
-              </TableCell>
-            </TableRow>
-          );
         })}
       </TableBody>
     </Table>
@@ -770,11 +664,11 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
         <div className="flex items-center gap-2">
           <CardTitle>Crew</CardTitle>
           {coverage && (
-            <Badge variant={coverageVariant} size="sm" className="h-6 px-2.5 text-[11px]">
+            <Badge variant={coverageVariant} size="sm" className="tabular-nums">
               {coverage.filled}/{coverage.total} filled
             </Badge>
           )}
-          <Badge variant={publicationBadge.variant} size="sm" className="h-6 px-2.5 text-[11px]">
+          <Badge variant={publicationBadge.variant} size="sm">
             {publicationBadge.label}
           </Badge>
         </div>
@@ -805,16 +699,16 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
           commandCenter.gearSummary.byStatus.checkedOut > 0 ||
           commandCenter.gearSummary.byStatus.completed > 0
         ) && (
-          <div className="flex gap-2 flex-wrap mb-4">
-            {commandCenter.gearSummary.byStatus.draft > 0 && <Badge variant="gray" size="sm" className="h-6 px-2.5 text-[11px]">{commandCenter.gearSummary.byStatus.draft} draft</Badge>}
-            {commandCenter.gearSummary.byStatus.reserved > 0 && <Badge variant="purple" size="sm" className="h-6 px-2.5 text-[11px]">{commandCenter.gearSummary.byStatus.reserved} reserved</Badge>}
-            {commandCenter.gearSummary.byStatus.pendingPickup > 0 && <Badge variant="orange" size="sm" className="h-6 px-2.5 text-[11px]">{commandCenter.gearSummary.byStatus.pendingPickup} pending pickup</Badge>}
-            {commandCenter.gearSummary.byStatus.checkedOut > 0 && <Badge variant="green" size="sm" className="h-6 px-2.5 text-[11px]">{commandCenter.gearSummary.byStatus.checkedOut} checked out</Badge>}
-            {commandCenter.gearSummary.byStatus.completed > 0 && <Badge variant="blue" size="sm" className="h-6 px-2.5 text-[11px]">{commandCenter.gearSummary.byStatus.completed} returned</Badge>}
+          <div className="mb-4 flex flex-wrap gap-2">
+            {commandCenter.gearSummary.byStatus.draft > 0 && <Badge variant="gray" size="sm">{commandCenter.gearSummary.byStatus.draft} draft</Badge>}
+            {commandCenter.gearSummary.byStatus.reserved > 0 && <Badge variant="purple" size="sm">{commandCenter.gearSummary.byStatus.reserved} reserved</Badge>}
+            {commandCenter.gearSummary.byStatus.pendingPickup > 0 && <Badge variant="orange" size="sm">{commandCenter.gearSummary.byStatus.pendingPickup} pending pickup</Badge>}
+            {commandCenter.gearSummary.byStatus.checkedOut > 0 && <Badge variant="green" size="sm">{commandCenter.gearSummary.byStatus.checkedOut} checked out</Badge>}
+            {commandCenter.gearSummary.byStatus.completed > 0 && <Badge variant="blue" size="sm">{commandCenter.gearSummary.byStatus.completed} returned</Badge>}
           </div>
         )}
 
-        {isStaffOrAdmin ? staffTable : studentTable}
+        {crewTable}
 
         {isStaffOrAdmin && recentChanges.length > 0 && (
           <div className="mt-4 rounded-lg border border-border/60 bg-muted/20 px-3 py-3">

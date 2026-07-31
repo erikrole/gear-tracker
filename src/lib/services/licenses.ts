@@ -3,25 +3,10 @@ import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { sendPushToUser } from "@/lib/services/notifications";
 import { visibleActiveUserWhere } from "@/lib/user-visibility";
+// Retry once on conflict — covers the rare two-students-tap-the-last-slot race.
+import { withSerializationRetry } from "@/lib/serialization";
 
 const MAX_SLOTS = 2;
-
-// Postgres serialization-failure SQLSTATE. Retry once on conflict —
-// covers the rare two-students-tap-the-last-slot race.
-const SERIALIZATION_FAILURE = "40001";
-
-async function withSerializableRetry<T>(fn: () => Promise<T>): Promise<T> {
-  try {
-    return await fn();
-  } catch (err) {
-    const code = (err as { code?: string })?.code;
-    const meta = (err as { meta?: { code?: string } })?.meta?.code;
-    if (code === SERIALIZATION_FAILURE || meta === SERIALIZATION_FAILURE || code === "P2034") {
-      return await fn();
-    }
-    throw err;
-  }
-}
 
 const activeClaimsInclude = {
   where: { releasedAt: null as null },
@@ -77,7 +62,7 @@ export async function getActiveClaimForUser(userId: string) {
 }
 
 export async function claimCode(codeId: string, userId: string) {
-  return withSerializableRetry(() =>
+  return withSerializationRetry(() =>
     db.$transaction(
       async (tx) => {
         const existing = await tx.licenseCodeClaim.findFirst({
@@ -188,7 +173,7 @@ export async function releaseCode(
 }
 
 export async function addUnknownOccupant(codeId: string, label: string) {
-  return withSerializableRetry(() =>
+  return withSerializationRetry(() =>
     db.$transaction(
       async (tx) => {
         const code = await tx.licenseCode.findUnique({
@@ -210,6 +195,57 @@ export async function addUnknownOccupant(codeId: string, label: string) {
           where: { id: codeId },
           data: { status: newStatus },
         });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    )
+  );
+}
+
+export async function assignCodeToUser(codeId: string, userId: string) {
+  return withSerializationRetry(() =>
+    db.$transaction(
+      async (tx) => {
+        const assignee = await tx.user.findFirst({
+          where: visibleActiveUserWhere({
+            id: userId,
+            role: { in: ["ADMIN", "STAFF", "STUDENT"] },
+          }),
+          select: { id: true, name: true },
+        });
+        if (!assignee) throw new HttpError(404, "Active user not found.");
+
+        const existing = await tx.licenseCodeClaim.findFirst({
+          where: { userId, releasedAt: null },
+          select: { id: true },
+        });
+        if (existing) {
+          throw new HttpError(409, `${assignee.name} already has an active Photo Mechanic license.`);
+        }
+
+        const code = await tx.licenseCode.findUnique({
+          where: { id: codeId },
+          include: { claims: { where: { releasedAt: null } } },
+        });
+        if (!code) throw new HttpError(404, "License code not found.");
+        if (code.status === LicenseCodeStatus.RETIRED) throw new HttpError(409, "This license code is retired.");
+        if (code.claims.length >= MAX_SLOTS) throw new HttpError(409, "This license code is fully claimed.");
+
+        const now = new Date();
+        await tx.licenseCodeClaim.create({
+          data: { licenseCodeId: codeId, userId, claimedAt: now },
+        });
+
+        const newStatus =
+          code.claims.length + 1 >= MAX_SLOTS ? LicenseCodeStatus.CLAIMED : LicenseCodeStatus.PARTIAL;
+        const updated = await tx.licenseCode.update({
+          where: { id: codeId },
+          data: {
+            status: newStatus,
+            ...(code.claims.length === 0 ? { claimedById: userId, claimedAt: now } : {}),
+          },
+        });
+
+        return { code: updated, assignee };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
     )
@@ -268,7 +304,7 @@ export async function bulkCreateCodes(
 }
 
 export async function retireCode(codeId: string) {
-  return withSerializableRetry(() =>
+  return withSerializationRetry(() =>
     db.$transaction(
       async (tx) => {
         const code = await tx.licenseCode.findUnique({
@@ -290,7 +326,7 @@ export async function retireCode(codeId: string) {
 }
 
 export async function deleteCode(codeId: string) {
-  return withSerializableRetry(() =>
+  return withSerializationRetry(() =>
     db.$transaction(
       async (tx) => {
         const code = await tx.licenseCode.findUnique({

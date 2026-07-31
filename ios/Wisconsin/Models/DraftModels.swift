@@ -1,5 +1,41 @@
 import Foundation
 
+/// Narrow persistence boundary for reservation drafts. Keeping this separate
+/// from the app-wide API client makes lifecycle transitions executable in unit
+/// tests, including network failures that must leave the composer recoverable.
+@MainActor
+protocol ReservationDraftPersistence {
+    func bookingDrafts() async throws -> [BookingDraftSummary]
+    func bookingDraft(id: String) async throws -> BookingDraftDetail
+    func saveBookingDraft(
+        id: String?,
+        title: String,
+        requesterUserId: String?,
+        locationId: String?,
+        startsAt: Date,
+        endsAt: Date,
+        notes: String?,
+        eventIds: [String],
+        serializedAssetIds: [String],
+        bulkItems: [BulkReservationRequest]
+    ) async throws -> String
+    func deleteBookingDraft(id: String) async throws
+    func createReservation(
+        title: String,
+        requesterUserId: String,
+        locationId: String,
+        startsAt: Date,
+        endsAt: Date,
+        notes: String?,
+        eventId: String?,
+        eventIds: [String],
+        shiftAssignmentId: String?,
+        sourceDraftId: String?,
+        serializedAssetIds: [String],
+        bulkItems: [BulkReservationRequest]
+    ) async throws -> String
+}
+
 /// A saved in-progress booking. Drafts are real `Booking` rows with
 /// `status = DRAFT`, shared with the web wizard through `/api/drafts`, so a
 /// reservation started on the phone can be finished at a desk.

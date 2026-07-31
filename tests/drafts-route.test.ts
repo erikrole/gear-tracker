@@ -7,10 +7,11 @@ vi.mock("@/lib/auth", () => ({
 
 const mockTx = {
   calendarEvent: { findMany: vi.fn() },
-  booking: { create: vi.fn(), update: vi.fn() },
+  booking: { create: vi.fn(), update: vi.fn(), findFirst: vi.fn(), delete: vi.fn() },
   bookingSerializedItem: { deleteMany: vi.fn(), createMany: vi.fn() },
   bookingBulkItem: { deleteMany: vi.fn(), createMany: vi.fn() },
   bookingEvent: { deleteMany: vi.fn(), createMany: vi.fn() },
+  auditLog: { create: vi.fn() },
 };
 
 vi.mock("@/lib/db", () => ({
@@ -19,14 +20,9 @@ vi.mock("@/lib/db", () => ({
     booking: {
       findFirst: vi.fn(),
       findMany: vi.fn(),
-      delete: vi.fn(),
     },
     location: { findFirst: vi.fn() },
   },
-}));
-
-vi.mock("@/lib/audit", () => ({
-  createAuditEntry: vi.fn(),
 }));
 
 vi.mock("@sentry/nextjs", () => ({
@@ -41,7 +37,7 @@ import {
   MAX_EQUIPMENT_SELECTIONS_PER_REQUEST,
 } from "@/lib/request-limits";
 import { POST } from "@/app/api/drafts/route";
-import { GET } from "@/app/api/drafts/[id]/route";
+import { DELETE, GET } from "@/app/api/drafts/[id]/route";
 
 const user = {
   id: "cm000000000000000000000001",
@@ -97,10 +93,21 @@ function makeGetRequest() {
   });
 }
 
+function makeDeleteRequest() {
+  return new Request("https://app.example.com/api/drafts/cm000000000000000000000010", {
+    method: "DELETE",
+    headers: {
+      host: "app.example.com",
+      origin: "https://app.example.com",
+    },
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(requireAuth).mockResolvedValue(user);
   vi.mocked(db.location.findFirst).mockResolvedValue(location({ id: "cm000000000000000000000002" }));
+  mockTx.auditLog.create.mockResolvedValue({});
 });
 
 describe("POST /api/drafts", () => {
@@ -226,6 +233,106 @@ describe("POST /api/drafts", () => {
     );
   });
 
+  it("denies collaborators without reservation-create capability", async () => {
+    vi.mocked(requireAuth).mockResolvedValue({
+      ...user,
+      role: Role.COLLABORATOR,
+      capabilities: ["MY_GEAR_VIEW"],
+    });
+
+    const res = await POST(
+      makePostRequest({ kind: "RESERVATION", title: "Unauthorized draft" }),
+      noParams,
+    );
+
+    expect(res.status).toBe(403);
+    expect(db.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("forces student reservation drafts to the authenticated requester", async () => {
+    vi.mocked(requireAuth).mockResolvedValue({
+      ...user,
+      id: "cm000000000000000000000099",
+      role: Role.STUDENT,
+    });
+    mockTx.booking.create.mockResolvedValue({ id: "cm000000000000000000000010" });
+
+    const res = await POST(
+      makePostRequest({
+        kind: "RESERVATION",
+        title: "Student draft",
+        requesterUserId: "cm000000000000000000000088",
+      }),
+      noParams,
+    );
+
+    expect(res.status).toBe(201);
+    expect(mockTx.booking.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        requesterUserId: "cm000000000000000000000099",
+      }),
+    });
+  });
+
+  it("writes the draft-created audit in the same transaction", async () => {
+    mockTx.booking.create.mockResolvedValue({ id: "cm000000000000000000000010" });
+
+    const res = await POST(
+      makePostRequest({ kind: "RESERVATION", title: "Audited draft" }),
+      noParams,
+    );
+
+    expect(res.status).toBe(201);
+    expect(mockTx.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        actorUserId: user.id,
+        entityId: "cm000000000000000000000010",
+        action: "draft_created",
+      }),
+    });
+  });
+
+  it("updates and audits an owned draft in one transaction", async () => {
+    mockTx.booking.findFirst.mockResolvedValue({
+      id: "cm000000000000000000000010",
+      kind: "RESERVATION",
+      title: "Before",
+      requesterUserId: user.id,
+      locationId: "cm000000000000000000000002",
+      startsAt: new Date("2026-07-01T12:00:00.000Z"),
+      endsAt: new Date("2026-07-01T16:00:00.000Z"),
+      eventId: null,
+      events: [],
+      sportCode: null,
+      notes: null,
+      serializedItems: [],
+      bulkItems: [],
+    });
+
+    const res = await POST(
+      makePostRequest({
+        id: "cm000000000000000000000010",
+        kind: "RESERVATION",
+        title: "After",
+      }),
+      noParams,
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockTx.booking.update).toHaveBeenCalledWith({
+      where: { id: "cm000000000000000000000010" },
+      data: expect.objectContaining({ title: "After" }),
+    });
+    expect(mockTx.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        entityId: "cm000000000000000000000010",
+        action: "draft_updated",
+        beforeJson: expect.objectContaining({ title: "Before" }),
+        afterJson: expect.objectContaining({ title: "After" }),
+      }),
+    });
+  });
+
   it("rejects serialized equipment above the request ceiling before opening a transaction", async () => {
     const serializedAssetIds = Array.from(
       { length: MAX_EQUIPMENT_SELECTIONS_PER_REQUEST + 1 },
@@ -332,5 +439,29 @@ describe("GET /api/drafts/[id]", () => {
       "cm000000000000000000000101",
     ]);
     expect(body.data.events[0].startsAt).toBe("2026-05-30T20:00:00.000Z");
+  });
+});
+
+describe("DELETE /api/drafts/[id]", () => {
+  it("deletes and audits an owned reservation draft atomically", async () => {
+    mockTx.booking.findFirst.mockResolvedValue({
+      id: "cm000000000000000000000010",
+      kind: "RESERVATION",
+      title: "Draft",
+      requesterUserId: user.id,
+    });
+
+    const res = await DELETE(makeDeleteRequest(), draftParams);
+
+    expect(res.status).toBe(200);
+    expect(mockTx.booking.delete).toHaveBeenCalledWith({
+      where: { id: "cm000000000000000000000010" },
+    });
+    expect(mockTx.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        entityId: "cm000000000000000000000010",
+        action: "draft_discarded",
+      }),
+    });
   });
 });

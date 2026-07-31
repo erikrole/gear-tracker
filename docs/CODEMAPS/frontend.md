@@ -103,7 +103,7 @@
 | File | Lines |
 |---|---:|
 | `src/components/ActivityTimeline.tsx` | 1369 |
-| `src/components/TradeBoard.tsx` | 1192 |
+| `src/components/TradeBoard.tsx` | 1205 |
 | `src/components/EquipmentPicker.tsx` | 1001 |
 | `src/components/onboarding/OnboardingDialog.tsx` | 884 |
 | `src/components/ShiftDetailPanel.tsx` | 813 |
@@ -119,7 +119,7 @@
 | `src/components/Sidebar.tsx` | 407 |
 | `src/components/booking-details/BookingHeader.tsx` | 403 |
 | `src/components/ui/chart.tsx` | 389 |
-| `src/components/shift-detail/ShiftSlotCard.tsx` | 375 |
+| `src/components/shift-detail/ShiftSlotCard.tsx` | 355 |
 | `src/components/booking-details/BookingInfoCard.tsx` | 342 |
 | `src/components/booking-details/EditBookingEventsDialog.tsx` | 335 |
 | `src/components/FormCombobox.tsx` | 329 |
@@ -128,9 +128,9 @@
 | `src/components/QrScanner.tsx` | 288 |
 | `src/components/booking-details/BookingSheetOverview.tsx` | 284 |
 | `src/components/PageBreadcrumb.tsx` | 283 |
-| `src/components/shift-detail/UserAvatarPicker.tsx` | 270 |
 | `src/components/booking-details/TransferOwnerDialog.tsx` | 266 |
 | `src/components/booking-wizard/WizardStep3.tsx` | 263 |
+| `src/components/shift-detail/UserAvatarPicker.tsx` | 263 |
 | `src/components/ui/dropdown-menu.tsx` | 258 |
 
 ## Hooks

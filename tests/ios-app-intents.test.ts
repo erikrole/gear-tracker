@@ -53,6 +53,6 @@ describe("iOS App Intents", () => {
     expect(search).toContain("if appState.consumeAppIntentDestination(.scan)");
     expect(search).toContain("showScanner = true");
     expect(bookings).toContain("if appState.consumeAppIntentDestination(.createReservation)");
-    expect(bookings).toContain("if canCreate { showCreate = true }");
+    expect(bookings).toContain("if canCreate { drafts.start() }");
   });
 });

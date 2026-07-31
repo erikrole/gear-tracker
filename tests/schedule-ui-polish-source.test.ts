@@ -46,10 +46,16 @@ describe("Schedule interaction-detail contracts", () => {
   it("keeps expanded crew actions quiet and aligned", () => {
     const editor = source("src/app/(app)/schedule/_components/WorkingCrewEditor.tsx");
 
-    expect(editor).toContain('const SLOT_ROW_GRID_CLASS = "grid-cols-[minmax(0,1fr)_5rem_5.5rem_2.5rem]"');
-    expect(editor).toContain('className="h-10 w-[5.5rem] justify-start gap-1.5 px-2 text-xs tabular-nums text-muted-foreground"');
-    expect(editor).toContain('className="h-10 w-20 px-3 text-xs"');
-    expect(editor).toContain("Add slot");
+    // Call | Type | Person | row actions, matching the Event detail Crew table.
+    expect(editor).toContain('const SLOT_ROW_GRID_CLASS = "grid-cols-[4.5rem_4.5rem_minmax(0,1fr)_2.5rem]"');
+    // The call trigger is bare time in its own column: no clock glyph, no chip.
+    expect(editor).not.toContain("Clock3Icon");
+    expect(editor).toContain("CREW_CALL_TRIGGER_CLASS");
+    // Row chrome comes from the shared crew-row vocabulary, not local copies.
+    expect(editor).toContain("CREW_ROW_REVEAL");
+    expect(editor).toContain("CREW_ROW_GROUP");
+    expect(editor).not.toContain("const ROW_REVEAL");
+    expect(editor).toContain("<AddSlotMenu");
     expect(editor).toContain("Unassign worker");
     expect(editor).toContain("Remove slot");
     expect(editor).toContain('className="divide-y divide-border/40 border-y border-border/40"');

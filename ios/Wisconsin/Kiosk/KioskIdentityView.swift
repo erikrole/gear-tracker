@@ -5,21 +5,29 @@ struct KioskIdentityView: View {
     @State private var users: [KioskUser] = []
     @State private var query = ""
     @State private var message: String?
+    @State private var loadError: String?
     @State private var loading = true
+    @State private var identifyTask: Task<Void, Never>?
+    @State private var identifyRequests = LatestRequestGeneration()
     @FocusState private var searchFocused: Bool
 
     private var intent: KioskFlowIntent? { store.pendingIntent }
+    private var roster: [KioskUser] {
+        intent?.expectedRequester.map { [$0] } ?? users
+    }
+    private var normalizedQuery: String {
+        query.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
     private var visibleUsers: [KioskUser] {
-        let roster = intent?.expectedRequester.map { [$0] } ?? users
-        guard !query.isEmpty else { return roster }
-        return roster.filter { $0.name.localizedCaseInsensitiveContains(query) }
+        guard !normalizedQuery.isEmpty else { return roster }
+        return roster.filter { $0.name.localizedCaseInsensitiveContains(normalizedQuery) }
     }
 
     var body: some View {
         ZStack {
             VStack(alignment: .leading, spacing: 24) {
                 HStack {
-                    Button("Cancel") { store.clearIntent(reason: .cancel); store.screen = .idle }
+                    Button("Cancel") { cancelIdentityFlow() }
                         .kioskButtonRole(.secondary)
                     Spacer()
                 }
@@ -35,20 +43,7 @@ struct KioskIdentityView: View {
                     .padding(16).background(KioskSurface.cardRaised, in: RoundedRectangle(cornerRadius: KioskRadius.lg))
                     .focused($searchFocused)
                 if let message { Text(message).foregroundStyle(Color.statusText(.orange)).font(.headline) }
-                ScrollView {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 14)], spacing: 14) {
-                        ForEach(visibleUsers) { user in
-                            Button { choose(user) } label: {
-                                HStack(spacing: 12) {
-                                    KioskAvatar(url: user.avatarUrl, initials: user.initials, size: 52)
-                                    Text(user.name).font(.headline).foregroundStyle(KioskText.primary)
-                                    Spacer(); Image(systemName: "chevron.right").foregroundStyle(KioskText.muted)
-                                }.padding(16).kioskCard(KioskSurface.cardRaised, radius: KioskRadius.lg, stroke: KioskStroke.standard)
-                            }.buttonStyle(KioskPressStyle())
-                        }
-                    }
-                }
-                if loading { ProgressView().tint(KioskText.primary) }
+                rosterContent
             }
             .padding(36)
 
@@ -58,26 +53,135 @@ struct KioskIdentityView: View {
         }
         .task {
             store.scanner.claim(.identity) { scan in identify(scan) }
-            do { users = try await KioskAPI.shared.kioskUsers() } catch { message = "Could not load the roster." }
-            loading = false
+            if intent?.expectedRequester == nil {
+                await loadRoster()
+            } else {
+                loading = false
+            }
         }
         .onChange(of: searchFocused) { _, focused in store.scanner.setEditing(focused) }
-        .onDisappear { store.scanner.setEditing(false); store.scanner.release(.identity) }
+        .onDisappear {
+            cancelIdentityRequest()
+            store.scanner.setEditing(false)
+            store.scanner.release(.identity)
+        }
+    }
+
+    @ViewBuilder
+    private var rosterContent: some View {
+        if loading {
+            ProgressView("Loading roster")
+                .tint(KioskText.primary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let loadError {
+            ContentUnavailableView {
+                Label("Couldn’t load the roster", systemImage: "wifi.exclamationmark")
+            } description: {
+                Text(loadError)
+            } actions: {
+                Button("Retry") { Task { await loadRoster() } }
+                    .kioskButtonRole(.primary)
+            }
+        } else if roster.isEmpty {
+            ContentUnavailableView {
+                Label("No people available", systemImage: "person.2.slash")
+            } description: {
+                Text("The roster is empty right now.")
+            } actions: {
+                Button("Retry") { Task { await loadRoster() } }
+                    .kioskButtonRole(.secondary)
+            }
+        } else if visibleUsers.isEmpty {
+            ContentUnavailableView {
+                Label("No matching people", systemImage: "magnifyingglass")
+            } description: {
+                Text("No one matches “\(normalizedQuery)”.")
+            } actions: {
+                Button("Clear Search") {
+                    query = ""
+                    searchFocused = true
+                }
+                .kioskButtonRole(.secondary)
+            }
+        } else {
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 14)], spacing: 14) {
+                    ForEach(visibleUsers) { user in
+                        Button { choose(user) } label: {
+                            HStack(spacing: 12) {
+                                KioskAvatar(url: user.avatarUrl, initials: user.initials, size: 52)
+                                Text(user.name).font(.headline).foregroundStyle(KioskText.primary)
+                                Spacer()
+                                Image(systemName: "chevron.right").foregroundStyle(KioskText.muted)
+                            }
+                            .padding(16)
+                            .kioskCard(KioskSurface.cardRaised, radius: KioskRadius.lg, stroke: KioskStroke.standard)
+                        }
+                        .buttonStyle(KioskPressStyle())
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(user.name)
+                        .accessibilityHint("Select \(user.name)")
+                    }
+                }
+            }
+        }
+    }
+
+    private func loadRoster() async {
+        loading = true
+        loadError = nil
+        do {
+            users = try await KioskAPI.shared.kioskUsers()
+        } catch is CancellationError {
+            loading = false
+            return
+        } catch {
+            loadError = (error as? APIError)?.errorDescription ?? "Check the kiosk connection and try again."
+        }
+        loading = false
     }
 
     private func identify(_ scan: String) {
-        Task {
+        cancelIdentityRequest()
+        let requestToken = identifyRequests.begin()
+        identifyTask = Task { @MainActor in
             do {
+                guard ownsIdentityRequest(requestToken) else { return }
                 let result = try await KioskAPI.shared.kioskResolveScan(scanValue: scan)
+                try Task.checkCancellation()
+                guard ownsIdentityRequest(requestToken) else { return }
+
                 guard result.kind == "identity", let user = result.user else {
-                    message = result.message ?? "Scan a Wiscard to confirm your name."; Haptics.warning(); return
+                    finishIdentityRequest(requestToken)
+                    message = result.message ?? "Scan a Wiscard to confirm your name."
+                    Haptics.warning()
+                    return
                 }
                 choose(user)
-            } catch { message = (error as? APIError)?.errorDescription ?? "Could not read that Wiscard."; Haptics.error() }
+            } catch is CancellationError {
+                finishIdentityRequest(requestToken)
+            } catch {
+                guard ownsIdentityRequest(requestToken) else { return }
+                finishIdentityRequest(requestToken)
+                message = (error as? APIError)?.errorDescription ?? "Could not read that Wiscard."
+                Haptics.error()
+            }
         }
     }
 
+    /// Cancels the active request and releases scanner ownership before
+    /// navigation changes. `onDisappear` can run after the screen mutation, so
+    /// relying on it alone leaves a window where a late scan can start work.
+    private func cancelIdentityFlow() {
+        cancelIdentityRequest()
+        store.scanner.setEditing(false)
+        store.scanner.release(.identity)
+        store.clearIntent(reason: .cancel)
+        store.screen = .idle
+    }
+
     private func choose(_ user: KioskUser) {
+        cancelIdentityRequest()
         guard var intent else { store.screen = .studentHub(user); return }
         guard KioskFlowIntentReducer.canIdentify(user, for: intent) else {
             message = "This flow requires \(intent.expectedRequester?.name ?? "the expected requester")."
@@ -96,6 +200,29 @@ struct KioskIdentityView: View {
         case .manage: store.screen = .studentHub(user)
         }
     }
+
+    /// Cancellation is advisory. A response may route only while this request
+    /// remains newest and this exact screen still owns scanner input.
+    private func ownsIdentityRequest(_ requestToken: UUID) -> Bool {
+        guard identifyRequests.owns(requestToken),
+              !Task.isCancelled,
+              store.scanner.owner == .identity,
+              case .identity = store.screen
+        else { return false }
+        return true
+    }
+
+    private func finishIdentityRequest(_ requestToken: UUID) {
+        guard identifyRequests.owns(requestToken) else { return }
+        identifyTask = nil
+        identifyRequests.invalidate()
+    }
+
+    private func cancelIdentityRequest() {
+        identifyTask?.cancel()
+        identifyTask = nil
+        identifyRequests.invalidate()
+    }
 }
 
 /// Global scanner indicator, floating above every screen.
@@ -108,7 +235,9 @@ struct KioskIdentityView: View {
 /// still surface here on every screen, which is the state staff need to catch.
 struct KioskScannerStatusPill: View {
     @Environment(KioskStore.self) private var store
+    #if DEBUG
     @State private var showInspector = false
+    #endif
 
     private var isVisible: Bool {
         #if DEBUG
@@ -120,19 +249,27 @@ struct KioskScannerStatusPill: View {
 
     var body: some View {
         if isVisible {
-            Button { showInspector = true } label: {
-                Label(store.scanner.statusText, systemImage: store.scanner.statusSymbol)
-                    .font(KioskType.chip).foregroundStyle(tint)
-                    .padding(.horizontal, 13).padding(.vertical, 9)
-                    .glassEffect(.regular, in: Capsule())
-                    .overlay(Capsule().stroke(tint.opacity(0.4)))
-            }
-            .buttonStyle(.plain)
-            .transition(.opacity)
             #if DEBUG
+            Button { showInspector = true } label: { scannerStatusLabel }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Open scanner inspector. \(store.scanner.statusText)")
+            .transition(.opacity)
             .sheet(isPresented: $showInspector) { KioskFlowInspector() }
+            #else
+            scannerStatusLabel
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Scanner status: \(store.scanner.statusText)")
+                .transition(.opacity)
             #endif
         }
+    }
+
+    private var scannerStatusLabel: some View {
+        Label(store.scanner.statusText, systemImage: store.scanner.statusSymbol)
+            .font(KioskType.chip).foregroundStyle(tint)
+            .padding(.horizontal, 13).padding(.vertical, 9)
+            .glassEffect(.regular, in: Capsule())
+            .overlay(Capsule().stroke(tint.opacity(0.4)))
     }
 
     private var tint: Color {

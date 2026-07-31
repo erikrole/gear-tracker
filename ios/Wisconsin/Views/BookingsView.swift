@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 
 enum BookingScope: String {
     case mine
@@ -185,6 +186,7 @@ final class BookingsViewModel {
 }
 
 struct BookingsView: View {
+    private let newReservationTip = NewReservationTip()
     @State private var vm = BookingsViewModel()
     @State private var presentedAction: BookingListAction?
     @State private var cancelTarget: Booking?
@@ -366,8 +368,12 @@ struct BookingsView: View {
                         .accessibilityValue(vm.mineOnly ? "Mine" : "All")
                     }
                     if canCreate && !showsEmptyCreateAction {
-                        Button { drafts.start() } label: {
+                        Button {
+                            newReservationTip.invalidate(reason: .actionPerformed)
+                            drafts.start()
+                        } label: {
                             Image(systemName: "plus")
+                                .popoverTip(newReservationTip, arrowEdge: .top)
                         }
                         // Purple: this creates a reservation, so it carries the
                         // colour of what it produces.
@@ -528,9 +534,11 @@ struct BookingsView: View {
             .tint(Color.statusText(.blue))
         } else if canCreate {
             Button {
+                newReservationTip.invalidate(reason: .actionPerformed)
                 drafts.start()
             } label: {
                 Label("New Reservation", systemImage: "plus")
+                    .popoverTip(newReservationTip, arrowEdge: .top)
             }
             .buttonStyle(.bordered)
             .buttonBorderShape(.capsule)

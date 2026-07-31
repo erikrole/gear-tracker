@@ -1025,13 +1025,12 @@ struct AreaBlock: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Area header — title-cased ("Video" / "Photo") so the row's
-            // ALL-CAPS server token doesn't shout, with the area's icon. The
-            // worker-type chip stays on the rows, never here: hoisting it for
-            // uniform areas made adjacent blocks structurally different and
-            // knocked the name column out of alignment between them.
-            Label(area.shiftAreaLabel, systemImage: areaIcon)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
+            // ALL-CAPS server token doesn't shout, with the area's icon and the
+            // same filled count the web Crew table shows. The worker-type label
+            // stays on the rows, never here: hoisting it for uniform areas made
+            // adjacent blocks structurally different and knocked the name column
+            // out of alignment between them.
+            CrewAreaHeading(area: area, filled: filledCount, total: shifts.count)
 
             VStack(spacing: 0) {
                 ForEach(Array(shifts.enumerated()), id: \.element.id) { idx, shift in
@@ -1068,15 +1067,9 @@ struct AreaBlock: View {
         }
     }
 
-    /// SF Symbol per shift area, matching the area's job.
-    private var areaIcon: String {
-        switch area {
-        case "VIDEO":    return "video.fill"
-        case "PHOTO":    return "camera.fill"
-        case "GRAPHICS": return "paintpalette.fill"
-        case "COMMS":    return "dot.radiowaves.left.and.right"
-        default:         return "person.fill"
-        }
+    /// Slots in this area with someone actually on them.
+    private var filledCount: Int {
+        shifts.filter { !$0.isOpen }.count
     }
 
     private func isMyShift(_ shift: EventShift) -> Bool {
@@ -1111,42 +1104,63 @@ struct ShiftRow: View {
 
     private var isStudentSlot: Bool { shift.workerType == "ST" }
 
+    /// The call column is wide enough for "12:00 PM" at the default text size
+    /// and grows with Dynamic Type. At the old fixed 52pt it broke the time
+    /// across two lines, and it did not scale at all.
+    @ScaledMetric(relativeTo: .caption) private var callColumnWidth: CGFloat = 66
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
-        HStack(spacing: 12) {
-            // Call time column
-            if !hidesShiftTimes {
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(shift.startsAt.formatted(.dateTime.hour().minute()))
-                        .font(.caption.monospacedDigit().weight(.medium))
-                    Text(shift.endsAt.formatted(.dateTime.hour().minute()))
-                        .font(.caption2.monospacedDigit())
-                        .foregroundStyle(.tertiary)
+        Group {
+            if dynamicTypeSize >= .xxLarge {
+                // Three columns plus an action stop fitting a phone well before
+                // the true accessibility sizes — the row ran off the screen
+                // edge. Call time and crew type move to their own line so
+                // nothing is clipped or hyphenated.
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        if !hidesShiftTimes {
+                            callWindowText
+                        }
+                        if showsWorkerType {
+                            // Never let the crew type truncate to "St…"; the
+                            // call window wraps instead if the line runs out.
+                            CrewTypeLabel(label: workerTypeLabel, baseWidth: nil)
+                                .fixedSize()
+                        }
+                    }
+                    assignedPersonView
                 }
-                .frame(width: 52, alignment: .trailing)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                HStack(spacing: 12) {
+                    // Call time column
+                    if !hidesShiftTimes {
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text(shift.startsAt.formatted(.dateTime.hour().minute()))
+                                .font(.caption.monospacedDigit().weight(.medium))
+                            Text(shift.endsAt.formatted(.dateTime.hour().minute()))
+                                .font(.caption2.monospacedDigit())
+                                .foregroundStyle(.tertiary)
+                        }
+                        .frame(width: callColumnWidth, alignment: .trailing)
 
-                Divider().frame(height: 36)
+                        Divider().frame(height: 36)
+                    }
+
+                    // Crew type — plain text in a fixed column, matching the web
+                    // Crew table. It was a filled capsule, which made every row
+                    // carry a coloured pill repeating what the column says.
+                    if showsWorkerType {
+                        CrewTypeLabel(label: workerTypeLabel)
+                    }
+
+                    // Assigned person (or open slot)
+                    assignedPersonView
+
+                    Spacer(minLength: 0)
+                }
             }
-
-            // Worker type badge — only when the block mixes Student/Staff.
-            if showsWorkerType {
-                Text(workerTypeLabel)
-                    .font(.caption2.weight(.medium))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(workerTypeColor.opacity(0.12))
-                    .foregroundStyle(workerTypeColor)
-                    .clipShape(Capsule())
-                    .fixedSize()
-                    // A fixed column so the avatar and name start at the same x
-                    // on every row. "Student" is wider than "Staff", which
-                    // otherwise ragged the name edge between rows.
-                    .frame(width: 62, alignment: .leading)
-            }
-
-            // Assigned person (or open slot)
-            assignedPersonView
-
-            Spacer()
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -1154,6 +1168,12 @@ struct ShiftRow: View {
         .contextMenu { rowContextMenu }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(rowAccessibilityLabel)
+    }
+
+    /// Call window on one line, for the stacked accessibility layout.
+    private var callWindowText: some View {
+        Text("\(shift.startsAt.formatted(.dateTime.hour().minute())) – \(shift.endsAt.formatted(.dateTime.hour().minute()))")
+            .font(.caption.monospacedDigit().weight(.medium))
     }
 
     private var rowAccessibilityLabel: String {
@@ -1313,19 +1333,19 @@ struct ShiftRow: View {
                             .clipShape(Capsule())
                     }
                     if assignment.status == "REQUESTED" {
-                        StatusPill(label: "Pending", tone: .orange)
+                        CrewSlotStatusLabel(state: .requested, requestCount: 1)
                     }
-                    if assignment.isOnTradeBoard {
-                        // On-the-board cue, matching the Schedule legend's
-                        // trade iconography.
-                        Label("Trade Board", systemImage: "arrow.left.arrow.right")
-                            .font(.caption2.weight(.semibold))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.statusBackground(.orange))
-                            .foregroundStyle(Color.statusText(.orange))
-                            .clipShape(Capsule())
-                    }
+                }
+                if assignment.isOnTradeBoard {
+                    // On-the-board cue, matching the Schedule legend's trade
+                    // iconography. It sits under the name rather than beside it:
+                    // as an inline capsule it wrapped into a column of single
+                    // letters whenever the name column got tight.
+                    Label("Trade Board", systemImage: "arrow.left.arrow.right")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(Color.statusText(.orange))
+                        .lineLimit(1)
+                        .fixedSize()
                 }
                 if canManageShifts && assignment.status == "REQUESTED" {
                     // Approve is the primary call-to-action (filled green);
@@ -1334,18 +1354,20 @@ struct ShiftRow: View {
                     // actions aren't a mis-tap risk on a dense row.
                     HStack(spacing: 10) {
                         if let onApprove {
-                            Button("Approve \(assignment.user.name)") { onApprove(assignment) }
+                            Button("Approve") { onApprove(assignment) }
                                 .buttonStyle(.borderedProminent)
                                 .controlSize(.small)
                                 .frame(minHeight: 44)
+                                .lineLimit(1)
                                 .tint(Color.statusText(.green))
                                 .accessibilityLabel("Approve \(assignment.user.name)")
                         }
                         if let onDecline {
-                            Button("Decline \(assignment.user.name)") { onDecline(assignment) }
+                            Button("Decline") { onDecline(assignment) }
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
                                 .frame(minHeight: 44)
+                                .lineLimit(1)
                                 .tint(Color.statusText(.red))
                                 .accessibilityLabel("Decline \(assignment.user.name)")
                         }
@@ -1398,24 +1420,11 @@ struct ShiftRow: View {
             .tint(Color.statusText(.purple))
             .accessibilityLabel("Claim \(shift.area.shiftAreaLabel) shift")
         } else {
-            Text("Open")
-                .font(.subheadline)
-                .foregroundStyle(.tertiary)
-                .italic()
+            CrewSlotStatusLabel(state: .open)
         }
     }
 
-    private var workerTypeLabel: String {
-        switch shift.workerType {
-        case "ST": return "Student"
-        case "FT": return "Staff"
-        default:   return shift.workerType
-        }
-    }
-
-    private var workerTypeColor: Color {
-        shift.workerType == "FT" ? .secondary : Color.statusText(.blue)
-    }
+    private var workerTypeLabel: String { crewWorkerTypeLabel(shift.workerType) }
 }
 
 // MARK: - Edit Shift Times Sheet

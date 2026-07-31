@@ -3,6 +3,12 @@ import UserNotifications
 
 enum PushTokenStorage {
     static let currentTokenKey = "WisconsinCurrentAPNsToken"
+    private static let registrationAllowedKey = "WisconsinAPNsRegistrationAllowed"
+
+    static var registrationAllowed: Bool {
+        get { UserDefaults.standard.bool(forKey: registrationAllowedKey) }
+        set { UserDefaults.standard.set(newValue, forKey: registrationAllowedKey) }
+    }
 }
 
 @MainActor
@@ -20,20 +26,28 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        guard PushTokenStorage.registrationAllowed else { return }
         let hex = deviceToken.map { String(format: "%02x", $0) }.joined()
         UserDefaults.standard.set(hex, forKey: PushTokenStorage.currentTokenKey)
         Task { @MainActor in
-            do {
-                try await APIClient.shared.registerDeviceToken(hex)
-                sharedAppState?.pushRegistrationState = .registered
-            } catch {
-                sharedAppState?.pushRegistrationState = .failed
-                print("[APNS] Device token registration failed: \(error.localizedDescription)")
+            let mutation = pushCredentialMutations.enqueue {
+                guard PushTokenStorage.registrationAllowed else { return }
+                do {
+                    try await APIClient.shared.registerDeviceToken(hex)
+                    guard PushTokenStorage.registrationAllowed else { return }
+                    sharedAppState?.pushRegistrationState = .registered
+                } catch {
+                    guard PushTokenStorage.registrationAllowed else { return }
+                    sharedAppState?.pushRegistrationState = .failed
+                    print("[APNS] Device token registration failed: \(error.localizedDescription)")
+                }
             }
+            await mutation.value
         }
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        guard PushTokenStorage.registrationAllowed else { return }
         sharedAppState?.pushRegistrationState = .failed
         print("[APNS] Registration failed: \(error.localizedDescription)")
     }
@@ -54,6 +68,22 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         guard !staleIds.isEmpty else { return }
         center.removeDeliveredNotifications(withIdentifiers: staleIds)
     }
+
+    /// Prevents a delayed APNs callback from re-registering a token after the
+    /// authenticated session ends, and removes notification content that may
+    /// identify the previous user.
+    @MainActor
+    static func clearRemoteNotificationsForSignedOutUser() {
+        PushTokenStorage.registrationAllowed = false
+        UserDefaults.standard.removeObject(forKey: PushTokenStorage.currentTokenKey)
+        UIApplication.shared.unregisterForRemoteNotifications()
+
+        let center = UNUserNotificationCenter.current()
+        center.removeAllDeliveredNotifications()
+        center.removeAllPendingNotificationRequests()
+        Task { try? await center.setBadgeCount(0) }
+        sharedAppState?.pushRegistrationState = .unknown
+    }
 }
 
 // UNUserNotificationCenterDelegate's methods aren't @MainActor in their
@@ -67,6 +97,10 @@ extension AppDelegate: @preconcurrency UNUserNotificationCenterDelegate {
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
+        guard PushTokenStorage.registrationAllowed else {
+            completionHandler([])
+            return
+        }
         completionHandler([.banner, .sound, .badge])
     }
 
@@ -76,17 +110,28 @@ extension AppDelegate: @preconcurrency UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
+        guard PushTokenStorage.registrationAllowed else {
+            completionHandler()
+            return
+        }
+        let notificationBoundary = authSessionBoundary.capture()
         let userInfo = response.notification.request.content.userInfo
         if let blastId = userInfo["blastId"] as? String {
             Task { @MainActor in
+                guard PushTokenStorage.registrationAllowed,
+                      authSessionBoundary.owns(notificationBoundary) else { return }
                 sharedAppState?.pendingPushBlastId = blastId
             }
         } else if let bookingId = userInfo["bookingId"] as? String {
             Task { @MainActor in
+                guard PushTokenStorage.registrationAllowed,
+                      authSessionBoundary.owns(notificationBoundary) else { return }
                 sharedAppState?.pendingPushBookingId = bookingId
             }
         } else if let eventId = userInfo["eventId"] as? String {
             Task { @MainActor in
+                guard PushTokenStorage.registrationAllowed,
+                      authSessionBoundary.owns(notificationBoundary) else { return }
                 sharedAppState?.pendingPushEventId = eventId
             }
         }

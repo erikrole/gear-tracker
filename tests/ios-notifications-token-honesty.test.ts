@@ -52,9 +52,19 @@ describe("iOS APNs device token honesty", () => {
   it("shared perform remains the central 401 session-expiry path", () => {
     const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
     const perform = apiClient.slice(apiClient.indexOf("private func perform"));
+    const broadcaster = apiClient.slice(
+      apiClient.indexOf("private func broadcastSessionExpiry"),
+      apiClient.indexOf("private func perform"),
+    );
 
     expect(perform).toContain("case 401:");
-    expect(perform).toContain("NotificationCenter.default.post(name: .sessionDidExpire, object: nil)");
+    expect(perform).toContain("broadcastSessionExpiry(for: requestBoundary)");
+    expect(perform).not.toContain("NotificationCenter.default.post(name: .sessionDidExpire");
+    expect(apiClient).toContain("let requestBoundary = authSessionBoundary.capture()");
+    expect(broadcaster).toContain("NotificationCenter.default.post(");
+    expect(broadcaster).toContain("name: .sessionDidExpire");
+    expect(broadcaster).toContain("object: requestBoundary");
+    expect(broadcaster).not.toContain("object: nil");
     expect(apiClient).toContain("private struct SuccessResponse: Decodable");
   });
 });

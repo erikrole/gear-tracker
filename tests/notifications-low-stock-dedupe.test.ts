@@ -104,8 +104,35 @@ describe("APNs transport contract", () => {
     expect(apns).toContain('client.on("error"');
     // The only raw http2.connect lives inside connectApns.
     expect((apns.match(/http2\.connect\(/g) ?? []).length).toBe(1);
-    expect(apns).toContain("connectApns(host)");
-    expect(apns).toContain("req.setTimeout(APNS_REQUEST_TIMEOUT_MS");
+    expect(apns).toContain("connectApns(host, budget)");
+    expect(apns).toContain("req.setTimeout(requestTimeoutMs");
+  });
+
+  it("BUG: bounds the full APNs dispatch across provider and environment retries", () => {
+    const apns = source("src/lib/push/apns.ts");
+    const readTimeout = (name: string) => {
+      const match = apns.match(new RegExp(`const ${name} = ([\\d_]+);`));
+      if (!match?.[1]) throw new Error(`Missing ${name}`);
+      return Number(match[1].replaceAll("_", ""));
+    };
+    const dispatchTimeout = readTimeout("APNS_DISPATCH_TIMEOUT_MS");
+    const requestTimeout = readTimeout("APNS_REQUEST_TIMEOUT_MS");
+
+    expect(dispatchTimeout).toBeLessThan(10_000);
+    expect(requestTimeout * 3).toBeLessThan(dispatchTimeout);
+    expect(apns).toContain("deadlineAt: Date.now() + APNS_DISPATCH_TIMEOUT_MS");
+    expect(apns).toContain("Math.min(APNS_REQUEST_TIMEOUT_MS, remainingDispatchMs(budget))");
+    expect(apns).toContain("if (authFailed.length > 0 && hasDispatchBudget(budget))");
+    expect(apns).toContain("if (wrongEnv.length > 0 && hasDispatchBudget(budget))");
+
+    const dispatch = apns.slice(
+      apns.indexOf("async function dispatch("),
+      apns.indexOf("export async function sendPush("),
+    );
+    expect(dispatch).toContain("const deadlineTimer = setTimeout(");
+    expect(dispatch).toContain("for (const client of budget.sessions) client.destroy()");
+    expect(dispatch).toContain("finally {");
+    expect(dispatch).toContain("clearTimeout(deadlineTimer)");
   });
 
   it("caches the provider JWT instead of minting one per send", () => {

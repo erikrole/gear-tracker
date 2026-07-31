@@ -6,6 +6,8 @@ import { GUIDE_AREA_LABELS } from "@/lib/guide-categories";
 import { shiftWorkerLabel } from "@/lib/shift-display";
 import { visibleActiveUserWhere } from "@/lib/user-visibility";
 
+export const MAX_BLAST_RECIPIENTS = 500;
+
 /**
  * Who a blast goes to. Stored verbatim on `Blast.targetSpec` so the tracking page
  * can re-resolve it later and show who joined the crew after the blast was sent.
@@ -112,14 +114,19 @@ export async function resolveBlastTargets(spec: BlastTargetSpec): Promise<Resolv
       if (!event.shiftGroup?.publishedAt) {
         throw new HttpError(400, "That event's schedule has not been published yet.");
       }
-      const assignments = await db.shiftAssignment.findMany({
-        where: {
-          status: { in: ACTIVE_ASSIGNMENT_STATUSES },
-          shift: { shiftGroup: { eventId: spec.eventId, publishedAt: { not: null } } },
+      idFilter = {
+        shiftAssignments: {
+          some: {
+            status: { in: ACTIVE_ASSIGNMENT_STATUSES },
+            shift: {
+              shiftGroup: {
+                eventId: spec.eventId,
+                publishedAt: { not: null },
+              },
+            },
+          },
         },
-        select: { userId: true },
-      });
-      idFilter = { id: { in: [...new Set(assignments.map((a) => a.userId))] } };
+      };
       summary = `${event.summary} crew`;
       eventId = event.id;
       break;
@@ -150,6 +157,7 @@ export async function resolveBlastTargets(spec: BlastTargetSpec): Promise<Resolv
     }),
     select: TARGET_USER_SELECT,
     orderBy: { name: "asc" },
+    take: MAX_BLAST_RECIPIENTS + 1,
   });
 
   return { userIds: users.map((u) => u.id), summary, users, eventId };

@@ -31,4 +31,18 @@ describe("licenses UI and privacy contracts", () => {
     expect(table).toContain('code.status === "CLAIMED" && "bg-[var(--blue-bg)]');
     expect(table).not.toContain('code.status === "CLAIMED" && "bg-[var(--red-bg)]');
   });
+
+  it("lets staff assign an open slot to an active user through the managed occupy route", () => {
+    const sheet = source("src/app/(app)/licenses/AdminClaimSheet.tsx");
+    const route = source("src/app/api/licenses/[id]/occupy/route.ts");
+    const service = source("src/lib/services/licenses.ts");
+
+    expect(sheet).toContain("Assign open slot");
+    expect(sheet).toContain('body: JSON.stringify({ userId: selectedUserId })');
+    expect(route).toContain("body.userId !== undefined");
+    expect(route).toContain("assignCodeToUser(params.id, body.userId)");
+    expect(route).toContain("assignedUserId: assignment.assignee?.id ?? null");
+    expect(service).toContain('role: { in: ["ADMIN", "STAFF", "STUDENT"] }');
+    expect(service).toContain("already has an active Photo Mechanic license");
+  });
 });

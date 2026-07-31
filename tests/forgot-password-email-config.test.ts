@@ -19,6 +19,18 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/email", () => ({
   sendEmail: vi.fn(),
+  EMAIL_THEME: {
+    body: "#111111",
+    brand: "#c5050c",
+    onBrand: "#ffffff",
+    muted: "#555555",
+  },
+  buildEmailDocument: vi.fn(({ content }: { content: string }) => content),
+  escapeEmailHtml: vi.fn((value: string) => value),
+}));
+
+vi.mock("@/lib/audit", () => ({
+  createSystemAuditEntry: vi.fn(),
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
@@ -31,6 +43,8 @@ vi.mock("@sentry/nextjs", () => ({
 }));
 
 import { db } from "@/lib/db";
+import { randomHex, tokenHash } from "@/lib/auth";
+import { createSystemAuditEntry } from "@/lib/audit";
 import { sendEmail } from "@/lib/email";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { POST } from "@/app/api/auth/forgot-password/route";
@@ -55,6 +69,9 @@ beforeEach(() => {
     resetAt: Date.now() + 60_000,
   });
   vi.mocked(getClientIp).mockReturnValue("127.0.0.1");
+  vi.mocked(randomHex).mockReturnValue("raw-reset-token");
+  vi.mocked(tokenHash).mockResolvedValue("hashed-reset-token");
+  vi.mocked(sendEmail).mockResolvedValue(true);
 });
 
 describe("POST /api/auth/forgot-password", () => {
@@ -68,5 +85,54 @@ describe("POST /api/auth/forgot-password", () => {
     expect(db.user.findUnique).not.toHaveBeenCalled();
     expect(db.passwordResetToken.create).not.toHaveBeenCalled();
     expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("does not issue a reset token or email for an inactive user", async () => {
+    process.env.RESEND_API_KEY = "test-key";
+    vi.mocked(db.user.findUnique).mockResolvedValue({
+      id: "user-1",
+      active: false,
+    } as never);
+
+    const res = await POST(forgotPasswordRequest(), { params: Promise.resolve({}) });
+
+    expect(res.status).toBe(200);
+    expect(db.passwordResetToken.deleteMany).not.toHaveBeenCalled();
+    expect(db.passwordResetToken.create).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+    delete process.env.RESEND_API_KEY;
+  });
+
+  it("records an active reset request as a pre-auth system event", async () => {
+    process.env.RESEND_API_KEY = "test-key";
+    vi.mocked(db.user.findUnique).mockResolvedValue({
+      id: "user-1",
+      email: "user@example.com",
+      name: "User One",
+      role: "STUDENT",
+      active: true,
+    } as never);
+
+    const res = await POST(forgotPasswordRequest(), { params: Promise.resolve({}) });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toEqual({
+      message: "If that email exists, we sent a reset link.",
+      resetEmailConfigured: true,
+    });
+    expect(createSystemAuditEntry).toHaveBeenCalledWith({
+      entityType: "user",
+      entityId: "user-1",
+      action: "password_reset_requested",
+      after: {
+        ip: "127.0.0.1",
+        userAgent: null,
+      },
+    });
+    expect(createSystemAuditEntry).not.toHaveBeenCalledWith(
+      expect.objectContaining({ actorId: expect.anything() }),
+    );
+    delete process.env.RESEND_API_KEY;
   });
 });

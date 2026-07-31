@@ -1,5 +1,7 @@
 import SwiftUI
 import SwiftData
+import TipKit
+import UIKit
 import UserNotifications
 
 @main
@@ -13,6 +15,10 @@ struct WisconsinApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("WisconsinThemeChoice") private var themeChoice: ThemeChoice = .system
 
+    init() {
+        try? Tips.configure()
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
@@ -22,6 +28,9 @@ struct WisconsinApp: App {
                 .environment(drafts)
                 .environment(network)
                 .preferredColorScheme(themeChoice.colorScheme)
+                .background {
+                    WindowPrivacyShieldHost(isSceneActive: scenePhase == .active)
+                }
                 .onAppear {
                     sharedAppState = appState
                 }
@@ -55,19 +64,43 @@ struct WisconsinApp: App {
     }
 
     private func handleCurrentUserChange(from oldUser: CurrentUser?, to user: CurrentUser?) {
-        if user == nil, oldUser != nil {
-            GearStore.shared.clearAll()
-            profileCompletion.resetSession()
-            // A parked reservation belongs to the person who started it.
-            drafts.clearForSignOut()
-            Task { await CheckoutReturnLiveActivityManager.shared.endAll() }
+        let authenticatedIdentityChanged = oldUser != nil && oldUser?.id != user?.id
+        if user == nil || authenticatedIdentityChanged {
+            // Keep this synchronous and first: no previous-user counts, routes,
+            // or navigation state may survive into a signed-out or replacement
+            // account shell.
+            appState.resetForSessionBoundary()
+            CheckoutReturnLiveActivityManager.shared.cancelObserverWork()
+            AppDelegate.clearRemoteNotificationsForSignedOutUser()
+            SearchRecentsStorage.clear()
+            ThumbnailCache.shared.clearForSignOut()
+
+            if oldUser != nil {
+                GearStore.shared.clearAll()
+                profileCompletion.resetSession()
+                // A parked reservation belongs to the person who started it.
+                drafts.clearForSignOut()
+                Task { await CheckoutReturnLiveActivityManager.shared.endAll() }
+            }
         }
 
+        if user == nil {
+            return
+        }
+
+        PushTokenStorage.registrationAllowed = true
         // Push permission is now requested via PushPrePromptView, not as a
         // cold OS alert on login. Home owns the first checkout reconciliation
         // after its useful payload arrives.
         guard user?.forcePasswordChange == false else { return }
-        Task { await registerForPushIfAuthorized() }
+        let userId = user?.id ?? ""
+        let sessionBoundary = authSessionBoundary.capture()
+        Task {
+            await registerForPushIfAuthorized(
+                userId: userId,
+                sessionBoundary: sessionBoundary
+            )
+        }
     }
 
     private func handleScenePhaseChange(_ phase: ScenePhase) {
@@ -101,13 +134,311 @@ struct WisconsinApp: App {
 
     /// Registers for remote notifications if the user has already authorized.
     /// New authorization is collected by `PushPrePromptView` after login.
-    private func registerForPushIfAuthorized() async {
+    @MainActor
+    private func registerForPushIfAuthorized(
+        userId: String,
+        sessionBoundary: UUID
+    ) async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
+        guard session.currentUser?.id == userId,
+              authSessionBoundary.owns(sessionBoundary),
+              PushTokenStorage.registrationAllowed else {
+            return
+        }
         switch settings.authorizationStatus {
         case .authorized, .provisional, .ephemeral:
-            await MainActor.run { appState.requestRemoteNotificationRegistration() }
+            appState.requestRemoteNotificationRegistration()
         default:
-            await MainActor.run { appState.pushRegistrationState = .unknown }
+            appState.pushRegistrationState = .unknown
+        }
+    }
+}
+
+// MARK: - Feature Discovery
+
+struct NewReservationTip: Tip {
+    var title: Text {
+        Text("Reserve gear for upcoming work")
+    }
+
+    var message: Text? {
+        Text("Choose an event, pickup time, and the gear you need.")
+    }
+
+    var options: [Option] {
+        MaxDisplayCount(1)
+    }
+}
+
+struct MinimizeReservationTip: Tip {
+    var title: Text {
+        Text("Keep this reservation handy")
+    }
+
+    var message: Text? {
+        Text("Minimize it to check another tab without losing your progress.")
+    }
+
+    var options: [Option] {
+        MaxDisplayCount(1)
+    }
+}
+
+struct ScheduleOpenWorkTip: Tip {
+    var title: Text {
+        Text("Open work and trades")
+    }
+
+    var message: Text? {
+        Text("Pick up an open shift, post a trade, or check your requests.")
+    }
+
+    var options: [Option] {
+        MaxDisplayCount(1)
+    }
+}
+
+struct ShiftCalendarTip: Tip {
+    static let openedSchedule = Tips.Event(id: "internal-schedule-opened")
+
+    var title: Text {
+        Text("Add shifts to Apple Calendar")
+    }
+
+    var message: Text? {
+        Text("Shift Calendar keeps your assignments and call times available outside the app.")
+    }
+
+    var rules: [Rule] {
+        #Rule(Self.openedSchedule) {
+            $0.donations.count >= 3
+        }
+    }
+
+    var options: [Option] {
+        MaxDisplayCount(1)
+    }
+}
+
+struct MyAvailabilityTip: Tip {
+    var title: Text {
+        Text("Share when you can't work")
+    }
+
+    var message: Text? {
+        Text("Add availability so staff can see conflicts while building the schedule.")
+    }
+
+    var rules: [Rule] {
+        #Rule(ShiftCalendarTip.openedSchedule) {
+            $0.donations.count >= 3
+        }
+    }
+
+    var options: [Option] {
+        MaxDisplayCount(1)
+    }
+}
+
+struct ScanReservationGearTip: Tip {
+    static let openedGearStep = Tips.Event(id: "reservation-gear-step-opened")
+
+    var title: Text {
+        Text("Scan gear into this reservation")
+    }
+
+    var message: Text? {
+        Text("Keep the scanner open while you add several labeled items.")
+    }
+
+    var rules: [Rule] {
+        #Rule(Self.openedGearStep) {
+            $0.donations.count >= 1
+        }
+    }
+
+    var options: [Option] {
+        MaxDisplayCount(1)
+    }
+}
+
+struct ResumeReservationTip: Tip {
+    static let minimizedReservation = Tips.Event(id: "reservation-minimized")
+
+    var title: Text {
+        Text("Your reservation is still here")
+    }
+
+    var message: Text? {
+        Text("Tap this card to return to the same step with your progress intact.")
+    }
+
+    var rules: [Rule] {
+        #Rule(Self.minimizedReservation) {
+            $0.donations.count >= 1
+        }
+    }
+
+    var options: [Option] {
+        MaxDisplayCount(1)
+    }
+}
+
+/// Installs the privacy cover directly on the scene's window. SwiftUI sheets
+/// are presented above their source view, so a normal root overlay cannot
+/// cover them in an inactive app-switcher snapshot.
+private struct WindowPrivacyShieldHost: UIViewRepresentable {
+    let isSceneActive: Bool
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(isSceneActive: isSceneActive)
+    }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: .zero)
+        view.backgroundColor = .clear
+        view.isUserInteractionEnabled = false
+        return view
+    }
+
+    func updateUIView(_ view: UIView, context: Context) {
+        context.coordinator.update(isSceneActive: isSceneActive)
+        DispatchQueue.main.async {
+            context.coordinator.install(on: view.window)
+        }
+    }
+
+    static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
+        coordinator.uninstall()
+    }
+
+    @MainActor
+    final class Coordinator: NSObject {
+        private weak var window: UIWindow?
+        private var isSceneActive: Bool
+        private var isObservingScene = false
+
+        private lazy var shieldView: UIView = {
+            let shield = UIView(frame: .zero)
+            shield.backgroundColor = .systemBackground
+            shield.isAccessibilityElement = false
+            shield.accessibilityElementsHidden = true
+
+            let image = UIImageView(image: UIImage(systemName: "lock.shield.fill"))
+            image.preferredSymbolConfiguration = UIImage.SymbolConfiguration(
+                pointSize: 36,
+                weight: .semibold
+            )
+            image.tintColor = .secondaryLabel
+            image.contentMode = .scaleAspectFit
+
+            let label = UILabel()
+            label.text = "Wisconsin Creative"
+            label.font = .preferredFont(forTextStyle: .headline)
+            label.textColor = .secondaryLabel
+
+            let stack = UIStackView(arrangedSubviews: [image, label])
+            stack.axis = .vertical
+            stack.alignment = .center
+            stack.spacing = 12
+            stack.translatesAutoresizingMaskIntoConstraints = false
+            shield.addSubview(stack)
+            NSLayoutConstraint.activate([
+                stack.centerXAnchor.constraint(equalTo: shield.centerXAnchor),
+                stack.centerYAnchor.constraint(equalTo: shield.centerYAnchor),
+            ])
+            return shield
+        }()
+
+        init(isSceneActive: Bool) {
+            self.isSceneActive = isSceneActive
+        }
+
+        func update(isSceneActive: Bool) {
+            self.isSceneActive = isSceneActive
+            updateShieldVisibility()
+        }
+
+        func install(on window: UIWindow?) {
+            guard let window else { return }
+            if self.window !== window {
+                uninstall()
+                self.window = window
+                observeSceneLifecycle()
+            }
+            updateShieldVisibility()
+        }
+
+        func uninstall() {
+            shieldView.removeFromSuperview()
+            window = nil
+            if isObservingScene {
+                NotificationCenter.default.removeObserver(self)
+                isObservingScene = false
+            }
+        }
+
+        private func observeSceneLifecycle() {
+            guard !isObservingScene else { return }
+            isObservingScene = true
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(sceneWillDeactivate(_:)),
+                name: UIScene.willDeactivateNotification,
+                object: nil
+            )
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(sceneDidEnterBackground(_:)),
+                name: UIScene.didEnterBackgroundNotification,
+                object: nil
+            )
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(sceneDidActivate(_:)),
+                name: UIScene.didActivateNotification,
+                object: nil
+            )
+        }
+
+        @objc private func sceneWillDeactivate(_ notification: Notification) {
+            guard belongsToInstalledScene(notification) else { return }
+            isSceneActive = false
+            updateShieldVisibility()
+        }
+
+        @objc private func sceneDidEnterBackground(_ notification: Notification) {
+            guard belongsToInstalledScene(notification) else { return }
+            isSceneActive = false
+            updateShieldVisibility()
+        }
+
+        @objc private func sceneDidActivate(_ notification: Notification) {
+            guard belongsToInstalledScene(notification) else { return }
+            isSceneActive = true
+            updateShieldVisibility()
+        }
+
+        private func belongsToInstalledScene(_ notification: Notification) -> Bool {
+            guard let notificationScene = notification.object as? UIScene else { return true }
+            return notificationScene === window?.windowScene
+        }
+
+        private func updateShieldVisibility() {
+            guard let window, !isSceneActive else {
+                shieldView.removeFromSuperview()
+                return
+            }
+
+            if shieldView.superview !== window {
+                shieldView.removeFromSuperview()
+                shieldView.frame = window.bounds
+                shieldView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+                window.addSubview(shieldView)
+            } else {
+                shieldView.frame = window.bounds
+                window.bringSubviewToFront(shieldView)
+            }
         }
     }
 }
@@ -124,6 +455,7 @@ struct RootView: View {
                 LaunchView()
             } else if let user = session.currentUser, user.forcePasswordChange {
                 PasswordSetupView(email: user.email)
+                    .id(user.id)
             } else if let user = session.currentUser {
                 switch profileCompletion.route(
                     for: user,
@@ -131,8 +463,10 @@ struct RootView: View {
                 ) {
                 case .welcome:
                     ProfileCompletionWelcomeView()
+                        .id(user.id)
                 case .app:
                     AppTabView()
+                        .id(user.id)
                 }
             } else {
                 LoginView()
@@ -156,7 +490,13 @@ struct RootView: View {
         }
         .onChange(of: profileCompletion.pushPromptEligibleUserId, initial: true) { _, userId in
             guard let userId, session.currentUser?.id == userId else { return }
-            Task { await maybeShowPushPrompt() }
+            let sessionBoundary = authSessionBoundary.capture()
+            Task {
+                await maybeShowPushPrompt(
+                    for: userId,
+                    sessionBoundary: sessionBoundary
+                )
+            }
         }
         .sheet(isPresented: $showPushPrePrompt) {
             PushPrePromptView()
@@ -166,16 +506,31 @@ struct RootView: View {
     }
 
     @MainActor
-    private func maybeShowPushPrompt() async {
+    private func maybeShowPushPrompt(
+        for userId: String,
+        sessionBoundary: UUID
+    ) async {
         // Only ever ask once — if the user dismissed the soft prompt without
         // tapping Enable, respect that decision until they toggle from settings.
         let key = "WisconsinPushSoftPromptShown"
         guard !UserDefaults.standard.bool(forKey: key) else { return }
+        guard session.currentUser?.id == userId,
+              authSessionBoundary.owns(sessionBoundary) else {
+            return
+        }
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         guard settings.authorizationStatus == .notDetermined else { return }
-        UserDefaults.standard.set(true, forKey: key)
         // Small delay so it doesn't crash into the LoginView → AppTabView swap.
-        try? await Task.sleep(for: .milliseconds(600))
+        do {
+            try await Task.sleep(for: .milliseconds(600))
+        } catch {
+            return
+        }
+        guard session.currentUser?.id == userId,
+              authSessionBoundary.owns(sessionBoundary) else {
+            return
+        }
+        UserDefaults.standard.set(true, forKey: key)
         showPushPrePrompt = true
     }
 }

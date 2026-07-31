@@ -6,7 +6,7 @@ import { HttpError, ok } from "@/lib/http";
 import { forgotPasswordSchema } from "@/lib/validation";
 import { withHandler } from "@/lib/api";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { createAuditEntry } from "@/lib/audit";
+import { createSystemAuditEntry } from "@/lib/audit";
 
 const RESET_TOKEN_EXPIRY_MS = 1000 * 60 * 60; // 1 hour
 const FORGOT_LIMIT = { max: 20, windowMs: 15 * 60 * 1000 }; // per IP; sized for shared NAT
@@ -29,7 +29,7 @@ export const POST = withHandler(async (req) => {
   // Always return success to prevent email enumeration
   const user = await db.user.findUnique({ where: { email } });
 
-  if (user) {
+  if (user?.active) {
     // Delete any existing reset tokens for this user
     await db.passwordResetToken.deleteMany({ where: { userId: user.id } });
 
@@ -52,9 +52,7 @@ export const POST = withHandler(async (req) => {
 
     // Audit the issuance so reset abuse against a target account is traceable.
     // Consumption is logged separately in reset-password as password_reset_self.
-    await createAuditEntry({
-      actorId: user.id,
-      actorRole: user.role,
+    await createSystemAuditEntry({
       entityType: "user",
       entityId: user.id,
       action: "password_reset_requested",

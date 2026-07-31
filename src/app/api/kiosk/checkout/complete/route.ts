@@ -15,6 +15,7 @@ import { badges } from "@/lib/badges";
 import { scheduleCheckoutReturnLiveActivity } from "@/lib/live-activity-workflow";
 import { normalizeBookingTitle } from "@/lib/title-normalization";
 import { normalizeCheckoutPolicies } from "@/lib/services/checkout-policies";
+import { isSerializationConflict } from "@/lib/serialization";
 
 const MAX_SERIALIZABLE_ATTEMPTS = 2;
 
@@ -55,19 +56,12 @@ function isBookingAllocationConstraintError(error: unknown) {
   return error.code === "P2004" && text.includes("asset_allocations");
 }
 
-function isSerializableConflict(error: unknown) {
-  if (!error || typeof error !== "object") return false;
-  const code = (error as { code?: unknown }).code;
-  const metaCode = (error as { meta?: { code?: unknown } }).meta?.code;
-  return code === "P2034" || code === "40001" || metaCode === "40001";
-}
-
 async function withSerializableRetry<T>(operation: () => Promise<T>): Promise<T> {
   for (let attempt = 1; attempt <= MAX_SERIALIZABLE_ATTEMPTS; attempt += 1) {
     try {
       return await operation();
     } catch (error) {
-      if (!isSerializableConflict(error) || attempt === MAX_SERIALIZABLE_ATTEMPTS) {
+      if (!isSerializationConflict(error) || attempt === MAX_SERIALIZABLE_ATTEMPTS) {
         throw error;
       }
     }
@@ -385,7 +379,7 @@ export const POST = withKiosk(async (req, { kiosk }) => {
       endsAt: booking.endsAt,
     });
   } catch (error) {
-    if (isSerializableConflict(error)) {
+    if (isSerializationConflict(error)) {
       throw new HttpError(409, "Checkout changed while it was being created. Please retry");
     }
 

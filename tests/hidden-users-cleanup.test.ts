@@ -12,12 +12,8 @@ vi.mock("@/lib/auth", () => ({ requireAuth: vi.fn() }));
 vi.mock("@/lib/services/user-deactivation", () => ({
   deactivateUserWithCleanup: vi.fn(),
 }));
-vi.mock("@/lib/audit", () => ({
-  createAuditEntries: vi.fn(),
-}));
 
 import { requireAuth } from "@/lib/auth";
-import { createAuditEntries } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { cleanupHiddenUsers } from "@/lib/services/hidden-users-cleanup";
 import { deactivateUserWithCleanup } from "@/lib/services/user-deactivation";
@@ -61,7 +57,6 @@ beforeEach(() => {
     cancelledIds: [],
     directReportsCleared: 0,
   });
-  vi.mocked(createAuditEntries).mockResolvedValue(undefined);
 });
 
 describe("hidden user cleanup", () => {
@@ -98,7 +93,6 @@ describe("hidden user cleanup", () => {
       deactivated: [{ id: "hidden-1", cancelledBookingIds: [], directReportsCleared: 0 }],
     });
     expect(deactivateUserWithCleanup).not.toHaveBeenCalled();
-    expect(createAuditEntries).not.toHaveBeenCalled();
   });
 
   it("deactivates eligible hidden users and records cleanup audit entries when applied", async () => {
@@ -119,30 +113,35 @@ describe("hidden user cleanup", () => {
       targetUserId: "hidden-1",
       actorId: "owner-1",
       actorRole: Role.ADMIN,
-    });
-    expect(createAuditEntries).toHaveBeenCalledWith([
-      expect.objectContaining({
-        actorId: "owner-1",
-        actorRole: Role.ADMIN,
-        entityType: "user",
-        entityId: "hidden-1",
+      audit: {
         action: "hidden_smoke_user_cleanup_deactivated",
         before: { active: true, hiddenFromRoster: true },
-        after: expect.objectContaining({
+        after: {
           active: false,
           hiddenFromRoster: true,
           maxAgeDays: 7,
-          cancelledBookingIds: ["booking-1"],
-          directReportsCleared: 2,
-        }),
-      }),
-    ]);
+          cutoff: "2026-06-17T12:00:00.000Z",
+        },
+      },
+    });
     expect(result).toMatchObject({
       dryRun: false,
       scanned: 1,
       deactivated: [{ id: "hidden-1", cancelledBookingIds: ["booking-1"], directReportsCleared: 2 }],
       failed: [],
     });
+  });
+
+  it("caps applied cleanup batches below the serverless timeout budget", async () => {
+    await cleanupHiddenUsers({
+      actor: { id: actor.id, role: actor.role },
+      dryRun: false,
+      maxAgeDays: 7,
+      limit: 100,
+      now: new Date("2026-06-24T12:00:00.000Z"),
+    });
+
+    expect(db.user.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 3 }));
   });
 
   it("rejects non-internal operators at the API boundary", async () => {

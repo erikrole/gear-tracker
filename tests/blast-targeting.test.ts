@@ -1,5 +1,29 @@
-import { describe, expect, it } from "vitest";
-import { buildDynamicTargetWhere, describeDynamicTarget } from "@/lib/services/blast-targeting";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const dbMock = vi.hoisted(() => ({
+  calendarEvent: {
+    findUnique: vi.fn(),
+  },
+  shiftAssignment: {
+    findMany: vi.fn(),
+  },
+  user: {
+    findMany: vi.fn(),
+  },
+}));
+
+vi.mock("@/lib/db", () => ({ db: dbMock }));
+
+import {
+  MAX_BLAST_RECIPIENTS,
+  buildDynamicTargetWhere,
+  describeDynamicTarget,
+  resolveBlastTargets,
+} from "@/lib/services/blast-targeting";
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe("buildDynamicTargetWhere", () => {
   it("returns an empty clause when nothing is selected", () => {
@@ -62,5 +86,46 @@ describe("describeDynamicTarget", () => {
     expect(
       describeDynamicTarget({ areas: ["VIDEO", "LIVE_PRODUCTION"], workerTypes: ["ST"], sportCodes: ["FB", "MBB"] }),
     ).toBe("Video + Live Production · Student · FB, MBB");
+  });
+});
+
+describe("resolveBlastTargets", () => {
+  it("bounds event-crew resolution at the recipient ceiling plus one", async () => {
+    dbMock.calendarEvent.findUnique.mockResolvedValue({
+      id: "event-1",
+      summary: "Football",
+      shiftGroup: { publishedAt: new Date("2026-07-28T12:00:00.000Z") },
+    });
+    dbMock.user.findMany.mockResolvedValue([
+      {
+        id: "user-1",
+        name: "Crew Member",
+        role: "STAFF",
+        primaryArea: "VIDEO",
+        staffingType: "FT",
+      },
+    ]);
+
+    await resolveBlastTargets({ kind: "EVENT_CREW", eventId: "event-1" });
+
+    expect(dbMock.shiftAssignment.findMany).not.toHaveBeenCalled();
+    expect(dbMock.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          shiftAssignments: {
+            some: {
+              status: { in: expect.any(Array) },
+              shift: {
+                shiftGroup: {
+                  eventId: "event-1",
+                  publishedAt: { not: null },
+                },
+              },
+            },
+          },
+        }),
+        take: MAX_BLAST_RECIPIENTS + 1,
+      }),
+    );
   });
 });

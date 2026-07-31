@@ -46,12 +46,49 @@ enum ReservationPickerResult: Identifiable {
     }
 }
 
+enum ReservationSubmissionPreservation: Equatable {
+    case savedDraft(id: String, hasNewerUnsavedInput: Bool)
+    case inMemoryOnly(errorMessage: String)
+
+    var userMessage: String {
+        switch self {
+        case .savedDraft(_, let hasNewerUnsavedInput):
+            if hasNewerUnsavedInput {
+                return "Your original reservation was created. A snapshot of your later changes was saved as a new draft, and newer edits are still open on this device. Save again before leaving."
+            }
+            return "Your original reservation was created. The changes you made afterward were saved as a new draft and are still open. Review them before creating another reservation."
+        case .inMemoryOnly(let errorMessage):
+            return "Your original reservation was created, but the changes you made afterward could not be saved as a new draft. They are still open on this device. Save them before leaving. \(errorMessage)"
+        }
+    }
+}
+
+enum ReservationSubmissionOutcome: Equatable {
+    case created(bookingId: String)
+    case committedOriginal(
+        bookingId: String,
+        preservation: ReservationSubmissionPreservation
+    )
+
+    var bookingId: String {
+        switch self {
+        case .created(let bookingId), .committedOriginal(let bookingId, _):
+            return bookingId
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class CreateBookingViewModel {
     private let assetPickerLimit = 300
     private let eventPickupLeadTime: TimeInterval = 60 * 60
     private let eventReturnBuffer: TimeInterval = 2 * 60 * 60
+    private let draftPersistence: any ReservationDraftPersistence
+
+    init(draftPersistence: any ReservationDraftPersistence = APIClient.shared) {
+        self.draftPersistence = draftPersistence
+    }
 
     var title = ""
     var selectedUserId: String = ""
@@ -82,6 +119,7 @@ final class CreateBookingViewModel {
     var isSubmitting = false
     var error: String?
     var eventError: String?
+    var onReservationSubmitted: ((String) -> Void)?
 
     // Equipment selection
     var selectedAssetIds: Set<String> = []
@@ -103,22 +141,26 @@ final class CreateBookingViewModel {
     var conflictedAssetIds: Set<String> = []
     var submissionConflict: String?
     private var conflictCheckTask: Task<Void, Never>?
+    private var conflictRequests = LatestRequestGeneration()
 
     func scheduleConflictCheck() {
         conflictCheckTask?.cancel()
         guard !selectedAssetIds.isEmpty, !selectedLocationId.isEmpty, endsAt > startsAt else {
+            conflictRequests.invalidate()
             conflictedAssetIds = []
             return
         }
+        let requestToken = conflictRequests.begin()
         let ids = Array(selectedAssetIds)
         let location = selectedLocationId
         let start = startsAt, end = endsAt
         conflictCheckTask = Task {
             try? await Task.sleep(for: .milliseconds(500))
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, conflictRequests.owns(requestToken) else { return }
             let result = await APIClient.shared.checkAvailability(
                 locationId: location, serializedAssetIds: ids, startsAt: start, endsAt: end
             )
+            guard !Task.isCancelled, conflictRequests.owns(requestToken) else { return }
             conflictedAssetIds = Set(result.keys)
         }
     }
@@ -376,7 +418,50 @@ final class CreateBookingViewModel {
         let bulkQuantities: [String: Int]
     }
 
+    /// One source draft id is an idempotency key for exactly one immutable
+    /// reservation payload. Holding that payload after an indeterminate
+    /// response prevents a retry from attaching later composer edits to a
+    /// reservation the server may already have committed.
+    private struct ReservationSubmissionSnapshot: Equatable {
+        let title: String
+        let requesterUserId: String
+        let locationId: String
+        let startsAt: Date
+        let endsAt: Date
+        let notes: String?
+        let eventId: String?
+        let eventIds: [String]
+        let shiftAssignmentId: String?
+        let serializedAssetIds: [String]
+        let bulkItems: [BulkReservationRequest]
+    }
+
+    private struct UncertainReservationSubmission {
+        let sourceDraftId: String
+        let payload: ReservationSubmissionSnapshot
+    }
+
+    /// Immutable request state for one draft write. A slow response must only
+    /// baseline the values it actually sent, never newer edits made while the
+    /// request was in flight.
+    private struct DraftSaveSnapshot {
+        let serverDraftId: String?
+        let title: String
+        let requesterUserId: String?
+        let locationId: String?
+        let startsAt: Date
+        let endsAt: Date
+        let notes: String?
+        let eventIds: [String]
+        let serializedAssetIds: [String]
+        let bulkItems: [BulkReservationRequest]
+        let baseline: Baseline
+    }
+
     private var baseline: Baseline?
+    private var draftSaveOperation: (id: UUID, task: Task<String, Error>)?
+    private var draftSaveRequests = LatestRequestGeneration()
+    private var uncertainReservationSubmission: UncertainReservationSubmission?
 
     /// Captures the starting values once, after identity resolves. Callers fire
     /// this from several lifecycle points because the requester arrives from
@@ -384,13 +469,6 @@ final class CreateBookingViewModel {
     /// an empty user and read the later auto-fill as an edit.
     func captureBaselineIfNeeded() {
         guard baseline == nil, !selectedUserId.isEmpty else { return }
-        baseline = currentBaseline()
-    }
-
-    /// Re-baselines after the composer's contents are safely persisted, so a
-    /// following exit with no further edits leaves without prompting.
-    func markDraftSaved(id: String) {
-        serverDraftId = id
         baseline = currentBaseline()
     }
 
@@ -402,9 +480,32 @@ final class CreateBookingViewModel {
             locationId: selectedLocationId,
             startsAt: startsAt,
             endsAt: endsAt,
-            eventIds: selectedEventIds,
+            eventIds: draftEventIds,
             assetIds: selectedAssetIds,
             bulkQuantities: selectedBulkQuantities
+        )
+    }
+
+    private var draftEventIds: [String] {
+        if !selectedEventIds.isEmpty {
+            return selectedEventIds
+        }
+        return prefillEventId.map { [$0] } ?? []
+    }
+
+    private func currentDraftSaveSnapshot() -> DraftSaveSnapshot {
+        DraftSaveSnapshot(
+            serverDraftId: serverDraftId,
+            title: title.trimmingCharacters(in: .whitespaces),
+            requesterUserId: selectedUserId,
+            locationId: selectedLocationId,
+            startsAt: startsAt,
+            endsAt: endsAt,
+            notes: notes.isEmpty ? nil : notes,
+            eventIds: draftEventIds,
+            serializedAssetIds: selectedAssetIds.sorted(),
+            bulkItems: selectedBulkRequests,
+            baseline: currentBaseline()
         )
     }
 
@@ -415,6 +516,8 @@ final class CreateBookingViewModel {
         guard let baseline else {
             if !title.trimmingCharacters(in: .whitespaces).isEmpty { return true }
             if !notes.isEmpty { return true }
+            if userEditedLocation || userEditedWindow { return true }
+            if !selectedEventIds.isEmpty { return true }
             if !selectedAssetIds.isEmpty { return true }
             if selectedBulkTotal > 0 { return true }
             return false
@@ -425,18 +528,17 @@ final class CreateBookingViewModel {
         if selectedLocationId != baseline.locationId { return true }
         if startsAt != baseline.startsAt { return true }
         if endsAt != baseline.endsAt { return true }
-        if selectedEventIds != baseline.eventIds { return true }
+        if draftEventIds != baseline.eventIds { return true }
         if selectedAssetIds != baseline.assetIds { return true }
         if selectedBulkQuantities != baseline.bulkQuantities { return true }
         return false
     }
 
-    /// A draft with no name and no gear is not worth a row. Mirrors the web
-    /// wizard's save guard so the two surfaces agree on what deserves storage.
+    /// Every server-backed field that differs from the starting state is worth
+    /// preserving. A pristine new composer remains row-free, while an existing
+    /// server draft remains a real draft even when it has no newer edits.
     var isWorthSavingAsDraft: Bool {
-        !title.trimmingCharacters(in: .whitespaces).isEmpty
-            || !selectedAssetIds.isEmpty
-            || selectedBulkTotal > 0
+        serverDraftId != nil || hasUnsavedInput
     }
 
     /// One-line description of the composer for the minimized card.
@@ -454,23 +556,92 @@ final class CreateBookingViewModel {
     }
 
     /// Saves the composer through the shared `/api/drafts` contract and rebinds
-    /// to the returned row so later saves update rather than duplicate.
+    /// to the returned row so later saves update rather than duplicate. All
+    /// callers join the same in-flight write, preventing two nil-id saves from
+    /// creating separate rows.
     @discardableResult
     func saveDraft() async throws -> String {
-        let id = try await APIClient.shared.saveBookingDraft(
-            id: serverDraftId,
-            title: title.trimmingCharacters(in: .whitespaces),
-            requesterUserId: selectedUserId,
-            locationId: selectedLocationId,
-            startsAt: startsAt,
-            endsAt: endsAt,
-            notes: notes.isEmpty ? nil : notes,
-            eventIds: selectedEventIds,
-            serializedAssetIds: Array(selectedAssetIds),
-            bulkItems: selectedBulkRequests
-        )
-        markDraftSaved(id: id)
-        return id
+        try await saveDraft(allowDuringSubmission: false)
+    }
+
+    @discardableResult
+    private func saveDraft(allowDuringSubmission: Bool) async throws -> String {
+        if let existing = draftSaveOperation {
+            return try await existing.task.value
+        }
+        guard allowDuringSubmission || !isSubmitting else {
+            throw APIError.serverError("This reservation is already being created.")
+        }
+
+        let snapshot = currentDraftSaveSnapshot()
+        let operationId = UUID()
+        let requestToken = draftSaveRequests.begin()
+        let persistence = draftPersistence
+        let task = Task { @MainActor [self] in
+            let id = try await persistence.saveBookingDraft(
+                id: snapshot.serverDraftId,
+                title: snapshot.title,
+                requesterUserId: snapshot.requesterUserId,
+                locationId: snapshot.locationId,
+                startsAt: snapshot.startsAt,
+                endsAt: snapshot.endsAt,
+                notes: snapshot.notes,
+                eventIds: snapshot.eventIds,
+                serializedAssetIds: snapshot.serializedAssetIds,
+                bulkItems: snapshot.bulkItems
+            )
+            try Task.checkCancellation()
+            guard draftSaveRequests.owns(requestToken) else {
+                throw CancellationError()
+            }
+            serverDraftId = id
+            baseline = snapshot.baseline
+            return id
+        }
+        draftSaveOperation = (operationId, task)
+
+        do {
+            let id = try await task.value
+            if draftSaveOperation?.id == operationId {
+                draftSaveOperation = nil
+            }
+            if draftSaveRequests.owns(requestToken) {
+                draftSaveRequests.invalidate()
+            }
+            return id
+        } catch {
+            if draftSaveOperation?.id == operationId {
+                draftSaveOperation = nil
+            }
+            if draftSaveRequests.owns(requestToken) {
+                draftSaveRequests.invalidate()
+            }
+            throw error
+        }
+    }
+
+    /// A session boundary owns cancellation, but cancellation alone is
+    /// advisory. Invalidating the request generation prevents a delayed save
+    /// response from rebinding a composer that belonged to the prior account.
+    func cancelDraftPersistenceForSessionBoundary() {
+        draftSaveOperation?.task.cancel()
+        draftSaveOperation = nil
+        draftSaveRequests.invalidate()
+    }
+
+    /// Existing server ids are permanent replay keys and must not be rewritten:
+    /// after a lost create response the source row is already consumed, so a
+    /// retry has to POST the same id for the server's audit-backed replay path.
+    /// A never-saved composer first creates its source row and cannot POST
+    /// without that server-issued id.
+    private func sourceDraftIdForSubmission() async throws -> String {
+        if let existing = draftSaveOperation {
+            return try await existing.task.value
+        }
+        if let serverDraftId {
+            return serverDraftId
+        }
+        return try await saveDraft(allowDuringSubmission: true)
     }
 
     /// Rehydrates a saved draft. Event links restore by id and resolve once
@@ -844,39 +1015,132 @@ final class CreateBookingViewModel {
         }
     }
 
-    func submit() async throws -> String {
+    func submit() async throws -> ReservationSubmissionOutcome {
+        guard !isSubmitting else {
+            throw APIError.serverError("This reservation is already being created.")
+        }
+        isSubmitting = true
+        defer { isSubmitting = false }
+
+        if let uncertainReservationSubmission {
+            return try await submit(
+                uncertainReservationSubmission.payload,
+                sourceDraftId: uncertainReservationSubmission.sourceDraftId,
+                recordsUncertainFailure: false
+            )
+        }
+
         guard !selectedUserId.isEmpty, !selectedLocationId.isEmpty else {
             throw APIError.serverError("Select a requester and location.")
         }
         guard selectedLocationMismatchCount == 0 else {
             throw APIError.serverError("Remove gear from another pickup location before creating this reservation.")
         }
-        isSubmitting = true
-        defer { isSubmitting = false }
+
+        let payload = currentReservationSubmissionSnapshot()
+        let sourceDraftId = try await sourceDraftIdForSubmission()
+        return try await submit(
+            payload,
+            sourceDraftId: sourceDraftId,
+            recordsUncertainFailure: true
+        )
+    }
+
+    private func currentReservationSubmissionSnapshot() -> ReservationSubmissionSnapshot {
+        ReservationSubmissionSnapshot(
+            title: title.trimmingCharacters(in: .whitespaces),
+            requesterUserId: selectedUserId,
+            locationId: selectedLocationId,
+            startsAt: startsAt,
+            endsAt: endsAt,
+            notes: notes.isEmpty ? nil : notes,
+            eventId: selectedEventIds.isEmpty ? prefillEventId : nil,
+            eventIds: selectedEventIds,
+            shiftAssignmentId: prefillShiftAssignmentId,
+            serializedAssetIds: selectedAssetIds.sorted(),
+            bulkItems: selectedBulkRequests
+        )
+    }
+
+    private func submit(
+        _ payload: ReservationSubmissionSnapshot,
+        sourceDraftId: String,
+        recordsUncertainFailure: Bool
+    ) async throws -> ReservationSubmissionOutcome {
         do {
-            let id = try await APIClient.shared.createReservation(
-                title: title.trimmingCharacters(in: .whitespaces),
-                requesterUserId: selectedUserId,
-                locationId: selectedLocationId,
-                startsAt: startsAt,
-                endsAt: endsAt,
-                notes: notes.isEmpty ? nil : notes,
-                eventId: selectedEventIds.isEmpty ? prefillEventId : nil,
-                eventIds: selectedEventIds,
-                shiftAssignmentId: prefillShiftAssignmentId,
-                serializedAssetIds: Array(selectedAssetIds),
-                bulkItems: selectedBulkRequests
+            let id = try await draftPersistence.createReservation(
+                title: payload.title,
+                requesterUserId: payload.requesterUserId,
+                locationId: payload.locationId,
+                startsAt: payload.startsAt,
+                endsAt: payload.endsAt,
+                notes: payload.notes,
+                eventId: payload.eventId,
+                eventIds: payload.eventIds,
+                shiftAssignmentId: payload.shiftAssignmentId,
+                sourceDraftId: sourceDraftId,
+                serializedAssetIds: payload.serializedAssetIds,
+                bulkItems: payload.bulkItems
             )
-            // The reservation now owns this work; leaving the draft behind
-            // would show the user a duplicate of what they just created.
-            if let draftId = serverDraftId {
-                try? await APIClient.shared.deleteBookingDraft(id: draftId)
-                serverDraftId = nil
-            }
-            return id
+            return await finishCommittedSubmission(id: id, payload: payload)
         } catch APIError.conflict(let message) {
             submissionConflict = message
             throw APIError.conflict(message)
+        } catch {
+            if recordsUncertainFailure, responseMayHaveCommitted(error) {
+                uncertainReservationSubmission = UncertainReservationSubmission(
+                    sourceDraftId: sourceDraftId,
+                    payload: payload
+                )
+            }
+            throw error
+        }
+    }
+
+    private func responseMayHaveCommitted(_ error: Error) -> Bool {
+        guard let apiError = error as? APIError else {
+            return true
+        }
+        switch apiError {
+        case .networkError, .decodingError, .sessionChanged, .serverError:
+            return true
+        case .httpError(let statusCode, _):
+            return (500...599).contains(statusCode)
+        case .unauthorized, .notFound, .conflict:
+            return false
+        }
+    }
+
+    private func finishCommittedSubmission(
+        id: String,
+        payload: ReservationSubmissionSnapshot
+    ) async -> ReservationSubmissionOutcome {
+        uncertainReservationSubmission = nil
+        submissionConflict = nil
+
+        // The route consumes this draft in the creation transaction. Detach it
+        // before preserving any edits made after the submitted snapshot.
+        serverDraftId = nil
+
+        guard currentReservationSubmissionSnapshot() != payload else {
+            onReservationSubmitted?(id)
+            return .created(bookingId: id)
+        }
+
+        do {
+            let draftId = try await saveDraft(allowDuringSubmission: true)
+            return .committedOriginal(
+                bookingId: id,
+                preservation: .savedDraft(
+                    id: draftId,
+                    hasNewerUnsavedInput: hasUnsavedInput
+                )
+            )
+        } catch {
+            return .committedOriginal(
+                bookingId: id,
+                preservation: .inMemoryOnly(errorMessage: error.localizedDescription)
+            )
         }
     }
 

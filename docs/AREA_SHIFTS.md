@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Shift Calendar & Scheduling
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-21
+- Last Updated: 2026-07-29
 - Status: Active — implemented V1 with ongoing hardening
 
 ## Purpose
@@ -97,6 +97,16 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-07-30: **Contested scheduling mutation hardening shipped.** Trade claim and open-shift pickup now retry once when they lose a `SERIALIZABLE` race, matching the treatment `licenses.ts` already gave the identical two-students-tap-the-last-slot case. `claimTrade` clears its buffered email, push, and badge jobs before the retry so a second attempt cannot double-send. Conflict detection moved into one shared `src/lib/serialization.ts` helper that recognizes both Prisma's `P2034` and the raw `40001` driver code the Neon adapter can surface; `fail()` previously matched only `P2034`, so a real race returned `500 Internal server error` plus Sentry noise instead of the intended retryable 409. Worker-facing scheduling mutations (trade post/claim/cancel/approve/decline, open-shift pickup and the legacy request path, assignment acknowledge/decline/swap) now carry the shared `SCHEDULE_MUTATION_LIMIT`; publish, auto-fill, working-copy, and export limits are unchanged. On the web Trade Board, a claim or cancel that fails with 404/409/410 now refreshes the board so a lost race clears the stale row instead of leaving a Claim button that can only fail again; rate-limit and network failures deliberately do not refetch. Existing single-flight action guards, outcome-specific recovery copy, permissions, eligibility rules, auditing, and notification policy are unchanged.
+- 2026-07-29: **Native Open Work feature discovery.** TipKit now points
+  eligible internal Schedule users to the existing Trade Board control and
+  names the open-shift, trade-post, and request workflows it contains. The tip
+  appears at most once and completes when the control is used. After three
+  Schedule visits, Shift Calendar discovery appears on the existing Schedule
+  overflow control and student Availability discovery becomes eligible on the
+  dedicated Profile row. Those prompts also appear at most once and complete
+  when used. Collaborator Schedule, assignment visibility, trade policy,
+  permissions, APIs, and scheduling authority are unchanged.
 - 2026-07-22: **Draft assignee identity rehydration.** The working-schedule editor read model now batches the current name, avatar, role, staffing class, and primary area for every user referenced by the effective draft. Refreshing an unpublished assignment therefore keeps its real identity even when that person is outside the active picker page and absent from the published schedule. Persisted working-copy JSON remains ID-only, and publishing, notifications, relational reads, and existing iOS schedule behavior are unchanged.
 - 2026-07-21: **Expanded crew density reduction.** The primary Schedule workstation removes the redundant Published badge and nested card border when no edit state needs attention, replaces repeated Staff and Student additions with one Add slot menu per area, and moves conversion, removal, and unassignment into per-slot overflow menus. Assignment and call time stay directly available. Area dividers remain, while per-slot rules are replaced by quiet row hover treatment.
 - 2026-07-21: **Expanded crew layout alignment.** The Schedule working-copy editor now uses one shared grid for worker identity, assignment, call time, conversion, and removal. Worker class moved beside the worker name, call-time controls have a stable width, area add-slot actions align to the same right-side action zone, and every icon action now meets the 40px web target baseline.

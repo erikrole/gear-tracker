@@ -9,7 +9,7 @@ import {
 
 type MockFn = ReturnType<typeof vi.fn>;
 type CreateBookingTx = {
-  booking: Record<"findUnique" | "findUniqueOrThrow" | "create" | "update" | "count", MockFn>;
+  booking: Record<"findUnique" | "findUniqueOrThrow" | "findFirst" | "create" | "update" | "delete" | "count", MockFn>;
   calendarEvent: Record<"findMany", MockFn>;
   bookingEvent: Record<"createMany", MockFn>;
   scheduleEventFollow: Record<"createMany", MockFn>;
@@ -34,8 +34,10 @@ vi.mock("@/lib/db", () => {
     booking: {
       findUnique: vi.fn(),
       findUniqueOrThrow: vi.fn(),
+      findFirst: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      delete: vi.fn(),
       count: vi.fn(),
     },
     calendarEvent: { findMany: vi.fn() },
@@ -119,6 +121,8 @@ function bulkRequests(count: number) {
 beforeEach(() => {
   transactionCalls.length = 0;
   mockTx.booking.create.mockResolvedValue({ id: "b-new" });
+  mockTx.booking.findFirst.mockResolvedValue(null);
+  mockTx.booking.delete.mockResolvedValue({});
   mockTx.booking.count.mockResolvedValue(0);
   mockTx.$queryRaw.mockResolvedValue([{ nextval: 1n }]);
   mockTx.booking.update.mockResolvedValue({});
@@ -181,6 +185,58 @@ describe("createBooking", () => {
         data: expect.objectContaining({ kind: "RESERVATION", status: "BOOKED" }),
       })
     );
+  });
+
+  it("consumes an owned source draft inside reservation creation", async () => {
+    mockTx.booking.findFirst.mockResolvedValue({
+      id: "draft-1",
+      kind: BookingKind.RESERVATION,
+      title: "Saved draft",
+      requesterUserId: "user-1",
+      locationId: "loc-1",
+      startsAt: new Date("2026-04-01T08:00:00Z"),
+      endsAt: new Date("2026-04-01T17:00:00Z"),
+    });
+
+    await createBooking(baseInput({
+      kind: BookingKind.RESERVATION,
+      custodySource: undefined,
+      sourceDraftId: "draft-1",
+    }));
+
+    expect(mockTx.booking.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "draft-1",
+        kind: BookingKind.RESERVATION,
+        status: "DRAFT",
+        createdBy: "user-1",
+      },
+      select: expect.any(Object),
+    });
+    expect(mockTx.booking.delete).toHaveBeenCalledWith({ where: { id: "draft-1" } });
+    expect(mockTx.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        entityId: "draft-1",
+        action: "draft_consumed",
+        afterJson: expect.objectContaining({ createdReservationId: "b-new" }),
+      }),
+    });
+  });
+
+  it("does not create a reservation when its source draft is no longer owned and active", async () => {
+    mockTx.booking.findFirst.mockResolvedValue(null);
+
+    await expect(createBooking(baseInput({
+      kind: BookingKind.RESERVATION,
+      custodySource: undefined,
+      sourceDraftId: "draft-1",
+    }))).rejects.toMatchObject({
+      status: 404,
+      message: "Source draft not found",
+    });
+
+    expect(mockTx.booking.create).not.toHaveBeenCalled();
+    expect(mockTx.booking.delete).not.toHaveBeenCalled();
   });
 
   it("BUG: rejects a reservation at its concurrent reservation cap inside the transaction", async () => {

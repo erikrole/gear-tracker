@@ -62,8 +62,8 @@ describe("iOS Browse tab", () => {
     expect(items).toContain("var wrapsInNavigationStack = true");
     expect(items).toContain("if wrapsInNavigationStack {");
     expect(items).toContain("placement: .navigationBarDrawer(displayMode: .always)");
-    expect(items).toContain("pushBooking = BookingRouteId(id: newId)");
-    expect(items).toContain(".navigationDestination(item: $pushBooking)");
+    expect(items).toContain("drafts.start({");
+    expect(items).toContain(".navigationDestination(for: BookingRouteId.self)");
 
     expect(users).toContain("var wrapsInNavigationStack = true");
     expect(users).toContain("if wrapsInNavigationStack {");

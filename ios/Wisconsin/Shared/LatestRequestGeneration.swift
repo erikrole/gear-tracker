@@ -48,3 +48,32 @@ final class AuthMutationQueue {
         return task
     }
 }
+
+/// Identifies the authenticated cookie-owner lifetime that a request started
+/// under. A late 401 from an older account must not evict the user who signed
+/// in afterward.
+@MainActor
+final class AuthSessionBoundary {
+    private var generation = UUID()
+
+    func capture() -> UUID {
+        generation
+    }
+
+    func advance() {
+        generation = UUID()
+    }
+
+    func owns(_ capturedGeneration: UUID) -> Bool {
+        generation == capturedGeneration
+    }
+}
+
+@MainActor
+let authSessionBoundary = AuthSessionBoundary()
+
+/// Orders authenticated push-credential writes with logout revocation. A token
+/// callback that began before logout must finish before the logout cleanup
+/// revokes server rows and clears the shared cookie.
+@MainActor
+let pushCredentialMutations = AuthMutationQueue()

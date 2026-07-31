@@ -10,35 +10,35 @@
 | `src/lib/services/auto-fill-preview.ts` | 259 |
 | `src/lib/services/availability-conflict-recompute.ts` | 128 |
 | `src/lib/services/availability.ts` | 557 |
-| `src/lib/services/blast-targeting.ts` | 157 |
-| `src/lib/services/blasts.ts` | 307 |
+| `src/lib/services/blast-targeting.ts` | 165 |
+| `src/lib/services/blasts.ts` | 329 |
 | `src/lib/services/booking-ref.ts` | 26 |
 | `src/lib/services/booking-rules.ts` | 107 |
 | `src/lib/services/bookings-checkin.ts` | 846 |
 | `src/lib/services/bookings-helpers.ts` | 251 |
-| `src/lib/services/bookings-lifecycle.ts` | 1625 |
+| `src/lib/services/bookings-lifecycle.ts` | 1659 |
 | `src/lib/services/bookings-queries.ts` | 235 |
 | `src/lib/services/bookings.ts` | 4 |
 | `src/lib/services/bulk-unit-scans.ts` | 608 |
 | `src/lib/services/calendar-sync-health.ts` | 165 |
 | `src/lib/services/calendar-sync.ts` | 764 |
 | `src/lib/services/candidate-scoring.ts` | 414 |
-| `src/lib/services/category-mutations.ts` | 174 |
+| `src/lib/services/category-mutations.ts` | 168 |
 | `src/lib/services/checkout-policies.ts` | 40 |
 | `src/lib/services/collaborator-policies.ts` | 400 |
 | `src/lib/services/collaborator-schedule.ts` | 213 |
 | `src/lib/services/dashboard-counts.ts` | 119 |
 | `src/lib/services/event-defaults.ts` | 69 |
 | `src/lib/services/firmware-watch.ts` | 299 |
-| `src/lib/services/hidden-users-cleanup.ts` | 126 |
+| `src/lib/services/hidden-users-cleanup.ts` | 122 |
 | `src/lib/services/kiosk-checkout-complete.ts` | 90 |
 | `src/lib/services/kiosk-location.ts` | 72 |
 | `src/lib/services/kiosk-scan.ts` | 36 |
 | `src/lib/services/kits.ts` | 327 |
-| `src/lib/services/licenses.ts` | 483 |
-| `src/lib/services/live-activities.ts` | 521 |
+| `src/lib/services/licenses.ts` | 519 |
+| `src/lib/services/live-activities.ts` | 632 |
 | `src/lib/services/notification-prefs.ts` | 103 |
-| `src/lib/services/notifications.ts` | 1049 |
+| `src/lib/services/notifications.ts` | 1061 |
 | `src/lib/services/onboarding-lifecycle.ts` | 618 |
 | `src/lib/services/pending-pickup-expiry.ts` | 239 |
 | `src/lib/services/reports.ts` | 1378 |
@@ -49,7 +49,7 @@
 | `src/lib/services/schedule-exports.ts` | 492 |
 | `src/lib/services/schedule-health.ts` | 378 |
 | `src/lib/services/schedule-notification-policy.ts` | 106 |
-| `src/lib/services/schedule-open-work.ts` | 440 |
+| `src/lib/services/schedule-open-work.ts` | 444 |
 | `src/lib/services/schedule-publication.ts` | 596 |
 | `src/lib/services/schedule-template-review.ts` | 551 |
 | `src/lib/services/schedule-working-copy.ts` | 445 |
@@ -57,10 +57,10 @@
 | `src/lib/services/shift-assignments.ts` | 628 |
 | `src/lib/services/shift-generation.ts` | 619 |
 | `src/lib/services/shift-trade-emails.ts` | 56 |
-| `src/lib/services/shift-trades.ts` | 901 |
+| `src/lib/services/shift-trades.ts` | 912 |
 | `src/lib/services/sport-configs.ts` | 257 |
 | `src/lib/services/status.ts` | 444 |
-| `src/lib/services/user-deactivation.ts` | 111 |
+| `src/lib/services/user-deactivation.ts` | 313 |
 
 ## Key Library Files
 
@@ -100,7 +100,7 @@
 | `src/lib/csv.ts` | 17 |
 | `src/lib/db.ts` | 18 |
 | `src/lib/editor-snippets.ts` | 28 |
-| `src/lib/email.ts` | 109 |
+| `src/lib/email.ts` | 125 |
 | `src/lib/env.ts` | 88 |
 | `src/lib/equipment-guidance.ts` | 133 |
 | `src/lib/equipment-section-filters.ts` | 87 |
@@ -136,7 +136,7 @@
 | `src/lib/profile-sizing.ts` | 24 |
 | `src/lib/public-showroom.ts` | 444 |
 | `src/lib/query-client.ts` | 58 |
-| `src/lib/rate-limit.ts` | 176 |
+| `src/lib/rate-limit.ts` | 187 |
 | `src/lib/rbac.ts` | 46 |
 | `src/lib/remark-callouts.ts` | 73 |
 | `src/lib/request-limits.ts` | 15 |
@@ -156,6 +156,7 @@
 | `src/lib/schedule-working-copy.ts` | 255 |
 | `src/lib/search-pages.ts` | 72 |
 | `src/lib/search-result-title.ts` | 13 |
+| `src/lib/serialization.ts` | 47 |
 | `src/lib/shell-navigation.ts` | 11 |
 | `src/lib/shift-call-windows.ts` | 182 |
 | `src/lib/shift-constants.ts` | 8 |
@@ -173,7 +174,7 @@
 | `src/lib/user-list-cache.ts` | 73 |
 | `src/lib/user-visibility.ts` | 45 |
 | `src/lib/utils.ts` | 7 |
-| `src/lib/validation.ts` | 738 |
+| `src/lib/validation.ts` | 745 |
 | `src/lib/venue-mapping-audit.ts` | 56 |
 | `src/lib/venue-mapping-contract.ts` | 46 |
 | `src/lib/venue-tone.ts` | 97 |

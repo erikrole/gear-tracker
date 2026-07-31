@@ -95,13 +95,7 @@ export type CommandCenterData = {
   recentChanges: ScheduleChangeItem[];
 };
 
-export const AREA_LABELS: Record<string, string> = {
-  VIDEO: "Video",
-  PHOTO: "Photo",
-  GRAPHICS: "Graphics",
-  COMMS: "Comms",
-  LIVE_PRODUCTION: "Live Production",
-};
+export { AREA_LABELS } from "@/types/areas";
 
 export const WORKER_LABELS: Record<string, string> = {
   FT: "Staff",

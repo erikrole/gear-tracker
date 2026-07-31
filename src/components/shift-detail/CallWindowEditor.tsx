@@ -19,6 +19,7 @@ import {
   toDateTimeLocalValue,
 } from "@/lib/shift-call-windows";
 import { cn } from "@/lib/utils";
+import { CREW_CALL_TRIGGER_CLASS } from "./crew-row";
 
 type EditableTarget = {
   type: "slot" | "assignment";
@@ -39,6 +40,12 @@ type Props = {
   className?: string;
   compact?: boolean;
   showSourceBadge?: boolean;
+  /**
+   * "chip" is the standalone control: clock glyph, "Call 3:00 PM", source badge.
+   * "bare" is the crew-row form: just the time, for a column already headed
+   * Call. See {@link CREW_CALL_TRIGGER_CLASS} for the matching row styling.
+   */
+  variant?: "chip" | "bare";
 };
 
 const SOURCE_VARIANTS: Record<CallWindowSource, BadgeProps["variant"]> = {
@@ -64,7 +71,9 @@ export function CallWindowEditor({
   className,
   compact,
   showSourceBadge = true,
+  variant = "chip",
 }: Props) {
+  const bare = variant === "bare";
   const editable = Boolean(target);
   const [open, setOpen] = useState(false);
   const [startDraft, setStartDraft] = useState("");
@@ -155,12 +164,15 @@ export function CallWindowEditor({
   const trigger = (
     <Button
       type="button"
-      variant={editable ? "ghost" : "outline"}
+      // A read-only chip needs its own outline; a bare row cell must not draw
+      // a box around a value the reader cannot change.
+      variant={editable || bare ? "ghost" : "outline"}
       size={compact ? "sm" : "default"}
       className={cn(
         "min-w-0 justify-start gap-1.5 px-2 text-left tabular-nums",
         compact ? "h-8 text-[11px]" : "h-9 text-xs",
-        !editable && "pointer-events-none bg-transparent",
+        bare && CREW_CALL_TRIGGER_CLASS,
+        !editable && "pointer-events-none bg-transparent hover:bg-transparent hover:text-muted-foreground",
         className,
       )}
       disabled={disabled}
@@ -168,9 +180,9 @@ export function CallWindowEditor({
       title={windowLabel !== label ? `Coverage window: ${windowLabel}` : undefined}
       onClick={(event) => event.stopPropagation()}
     >
-      <ClockIcon className="size-3.5 shrink-0 text-muted-foreground" />
-      <span className="min-w-0 truncate">Call {label}</span>
-      {showSourceBadge && (
+      {!bare && <ClockIcon className="size-3.5 shrink-0 text-muted-foreground" />}
+      <span className="min-w-0 truncate">{bare ? label : `Call ${label}`}</span>
+      {showSourceBadge && !bare && (
         <Badge variant={SOURCE_VARIANTS[effectiveWindow.source]} size="sm" className="shrink-0">
           {callWindowSourceLabel(effectiveWindow.source)}
         </Badge>

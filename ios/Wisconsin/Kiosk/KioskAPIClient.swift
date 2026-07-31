@@ -4,6 +4,38 @@ extension Notification.Name {
     static let kioskSessionUnauthorized = Notification.Name("kioskSessionUnauthorized")
 }
 
+/// Identifies the kiosk credential lifetime that owns an API request.
+///
+/// Kiosk requests can still finish after a device is reactivated. A late 401
+/// from the replaced token must not clear the new cookie and Keychain item, so
+/// every request captures this generation before its first suspension.
+final class KioskCredentialBoundary: @unchecked Sendable {
+    private let lock = NSLock()
+    private var generation = UUID()
+
+    func capture() -> UUID {
+        lock.lock()
+        defer { lock.unlock() }
+        return generation
+    }
+
+    @discardableResult
+    func advance() -> UUID {
+        lock.lock()
+        defer { lock.unlock() }
+        generation = UUID()
+        return generation
+    }
+
+    func owns(_ capturedGeneration: UUID) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return generation == capturedGeneration
+    }
+}
+
+let kioskCredentialBoundary = KioskCredentialBoundary()
+
 // Standalone kiosk API client. Uses HTTPCookieStorage.shared so the
 // kiosk_session cookie set during activation is sent automatically.
 struct KioskAPI {
@@ -65,9 +97,18 @@ struct KioskAPI {
 
     func kioskActivate(code: String) async throws -> KioskActivationResponse {
         struct Body: Encodable { let code: String }
+        // Entering activation establishes a new credential attempt. Any
+        // outstanding request from the prior kiosk session is obsolete even if
+        // this code is ultimately rejected.
+        kioskCredentialBoundary.advance()
         var req = request(path: "/api/kiosk/activate", method: "POST")
         req.httpBody = try JSONEncoder().encode(Body(code: code))
-        let result: (KioskActivationResponse, HTTPURLResponse) = try await performWithResponse(req)
+        // A 401 here means "invalid activation code", not "the active kiosk
+        // session expired", so it must never broadcast a credential reset.
+        let result: (KioskActivationResponse, HTTPURLResponse) = try await performWithResponse(
+            req,
+            broadcastsUnauthorizedSession: false
+        )
         let response = result.0
         let http = result.1
         guard response.sessionToken == nil, let headerToken = kioskSessionToken(from: http) else {
@@ -88,11 +129,8 @@ struct KioskAPI {
         // route persists this only when a value actually changes, so sending it
         // on every beat costs nothing beyond the bytes.
         req.httpBody = try? JSONEncoder().encode(KioskBuildIdentity.current)
-        // Route through `perform` so APIError.unauthorized propagates — the
-        // caller (`KioskStore.startHeartbeat`) catches it specifically to
-        // detect admin-deactivation. The prior `try?` swallowed 401 silently
-        // and the kiosk would heartbeat into the void until the next user
-        // mutation finally surfaced the auth failure.
+        // Route through `perform` so a 401 reaches the generation-bound
+        // unauthorized observer and returns the kiosk to activation.
         let _: Response = try await perform(req)
     }
 
@@ -351,29 +389,59 @@ struct KioskAPI {
         return result.0
     }
 
-    private func performWithResponse<T: Decodable>(_ request: URLRequest) async throws -> (T, HTTPURLResponse) {
+    private func performWithResponse<T: Decodable>(
+        _ request: URLRequest,
+        broadcastsUnauthorizedSession: Bool = true
+    ) async throws -> (T, HTTPURLResponse) {
+        let requestGeneration = kioskCredentialBoundary.capture()
         let data: Data
         let response: URLResponse
         do {
             (data, response) = try await session.data(for: request)
         } catch {
+            guard kioskCredentialBoundary.owns(requestGeneration) else {
+                throw CancellationError()
+            }
             throw APIError.networkError(error)
+        }
+        // Activation or deactivation replaced the credential while this request
+        // was suspended. Ignore every result from that obsolete identity,
+        // including a success payload that could otherwise republish old state.
+        guard kioskCredentialBoundary.owns(requestGeneration) else {
+            throw CancellationError()
         }
         guard let http = response as? HTTPURLResponse else {
             throw APIError.serverError("Invalid response")
         }
         switch http.statusCode {
         case 200...299:
+            let decoded: T
             do {
-                return (try decoder.decode(T.self, from: data), http)
+                decoded = try decoder.decode(T.self, from: data)
             } catch {
                 #if DEBUG
                 print("[KioskAPI] decode failed for \(request.url?.path ?? "unknown path"): \(error)")
                 #endif
                 throw APIError.decodingError(error)
             }
+            // Decoding runs off the main actor. Reactivation can therefore
+            // advance the credential while a large payload is being decoded,
+            // after the post-network check above but before this value returns.
+            guard kioskCredentialBoundary.owns(requestGeneration) else {
+                throw CancellationError()
+            }
+            return (decoded, http)
         case 401:
-            NotificationCenter.default.post(name: .kioskSessionUnauthorized, object: nil)
+            if broadcastsUnauthorizedSession {
+                NotificationCenter.default.post(
+                    name: .kioskSessionUnauthorized,
+                    object: requestGeneration
+                )
+                // The generation-bound observer is the sole owner of session
+                // teardown. A caller handling this error later must not clear a
+                // replacement credential installed after the notification.
+                throw CancellationError()
+            }
             throw APIError.unauthorized
         case 404:
             throw APIError.notFound
@@ -452,6 +520,7 @@ struct KioskBuildIdentity: Encodable {
         guard size > 0 else { return "unknown" }
         var machine = [CChar](repeating: 0, count: size)
         sysctlbyname("hw.machine", &machine, &size, nil, 0)
-        return String(cString: machine)
+        let bytes = machine.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }
+        return String(decoding: bytes, as: UTF8.self)
     }
 }

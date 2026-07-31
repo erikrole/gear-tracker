@@ -5,9 +5,11 @@ import { requestShiftSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
 import { pickupOpenShift } from "@/lib/services/schedule-open-work";
 import { dispatchScheduleAssignmentNotifications } from "@/lib/services/notifications";
+import { enforceRateLimit, SCHEDULE_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "shift_assignment", "request");
+  await enforceRateLimit(`shift-pickup:${user.id}`, SCHEDULE_MUTATION_LIMIT);
 
   const body = requestShiftSchema.parse(await req.json());
   const assignment = await pickupOpenShift(body.shiftId, user.id);
