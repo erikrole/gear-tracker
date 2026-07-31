@@ -2,6 +2,21 @@
   "name": "creative-ops",
   "version": "2026.04.08.1",
   "private": true,
+  "browserslist": {
+    "production": [
+      "Chrome >= 111",
+      "Edge >= 111",
+      "Firefox >= 111",
+      "Safari >= 16.4",
+      "iOS >= 16.4",
+      "not dead"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
   "overrides": {
     "esbuild": "0.28.1",
     "fast-uri": "3.1.4",

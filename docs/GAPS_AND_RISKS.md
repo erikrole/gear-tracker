@@ -3,7 +3,7 @@
 ## Document Control
 
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-29
+- Last Updated: 2026-07-31
 - Status: Active registry
 - Purpose: Track only open gaps, pending decisions, active risks, and intentionally deferred scope.
 - Historical record: [GAPS_AND_RISKS_HISTORY.md](archive/GAPS_AND_RISKS_HISTORY.md)
@@ -53,6 +53,7 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 
 ## Change Log
 
+- 2026-07-31: Closed the Snow Leopard website-wide source-level bug sweep findings for booking optimistic locking, collaborator capability boundaries, published Schedule access, draft filtering, dashboard stat visibility, and login Sentry loading. No new product gap was added. Authenticated browser/production smoke and a fresh mobile LCP measurement remain unverified and therefore stay represented by the existing rollout and runtime-proof boundaries.
 - 2026-07-29: Reconciled native TipKit feature discovery without adding a
   product gap. One-display prompts attach only to existing reservation and
   internal Schedule controls, become eligible only after the relevant action

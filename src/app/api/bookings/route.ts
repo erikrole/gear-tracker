@@ -18,7 +18,6 @@ function parseStatusParam(value: string | null): BookingStatus | undefined {
 }
 
 const ACTIVE_BOOKING_STATUSES = [
-  BookingStatus.DRAFT,
   BookingStatus.BOOKED,
   BookingStatus.PENDING_PICKUP,
   BookingStatus.OPEN,

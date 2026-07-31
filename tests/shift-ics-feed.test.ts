@@ -149,6 +149,19 @@ describe("shift ICS feed hardening", () => {
     expect(res.headers.get("X-Event-Limit")).toBe("500");
   });
 
+  it("does not serve a collaborator's legacy private feed", async () => {
+    vi.mocked(db.user.findFirst).mockResolvedValueOnce(user({
+      id: "collaborator-1",
+      name: "Partner One",
+      role: "COLLABORATOR",
+    }));
+
+    const res = await GET(request(), { params: Promise.resolve({ token: validToken }) });
+
+    expect(res.status).toBe(404);
+    expect(db.shiftAssignment.findMany).not.toHaveBeenCalled();
+  });
+
   it("renders a bounded ICS calendar response", async () => {
     const res = await GET(request(), { params: Promise.resolve({ token: validToken }) });
     const body = await res.text();

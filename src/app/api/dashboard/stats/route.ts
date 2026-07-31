@@ -8,6 +8,7 @@ import {
   type DashboardCounts,
 } from "@/lib/services/dashboard-counts";
 import { startOfDayInAppTz } from "@/lib/app-time";
+import { hasCollaboratorCapability } from "@/lib/collaborator-access";
 
 const STATS_LIMIT = { max: 180, windowMs: 60_000 };
 
@@ -38,6 +39,7 @@ export const GET = withAuth(async (req, { user }) => {
   const startOfToday = startOfDayInAppTz(now, 0);
   const startOfTomorrow = startOfDayInAppTz(now, 1);
   const isCollaborator = user.role === "COLLABORATOR";
+  const canViewMyGear = !isCollaborator || hasCollaboratorCapability(user, "MY_GEAR_VIEW");
   // Same scope switch `/api/dashboard` reads. The iOS tab badge and the Home
   // stat rows are the same number to a student, so they must be scoped
   // identically or the badge accuses them of somebody else's overdue gear.
@@ -81,20 +83,23 @@ export const GET = withAuth(async (req, { user }) => {
   const c: DashboardCounts = settledValue(countsResult, zeroDashboardCounts, "counts", partialFailures);
   const myShiftsCount = settledValue(myShiftsCountResult, 0, "myShiftsCount", partialFailures);
   const myShiftsTodayCount = settledValue(myShiftsTodayCountResult, 0, "myShiftsTodayCount", partialFailures);
+  const visibleMyCheckoutsTotal = canViewMyGear ? c.myCheckoutsTotal : 0;
+  const visibleMyOverdueCount = canViewMyGear ? c.myOverdue : 0;
+  const visibleMyDueTodayCount = canViewMyGear ? c.myDueToday : 0;
 
   return ok({
     data: {
       role: user.role,
       stats: {
-        checkedOut: isPersonalOnly ? c.myCheckoutsTotal : c.totalCheckedOut,
-        overdue: isPersonalOnly ? c.myOverdue : c.totalOverdue,
-        reserved: isPersonalOnly ? Math.max(0, c.totalReserved - c.teamReservationsTotal) : c.totalReserved,
-        dueToday: isPersonalOnly ? c.myDueToday : c.dueToday,
+        checkedOut: canViewMyGear ? (isPersonalOnly ? c.myCheckoutsTotal : c.totalCheckedOut) : 0,
+        overdue: canViewMyGear ? (isPersonalOnly ? c.myOverdue : c.totalOverdue) : 0,
+        reserved: canViewMyGear ? (isPersonalOnly ? Math.max(0, c.totalReserved - c.teamReservationsTotal) : c.totalReserved) : 0,
+        dueToday: canViewMyGear ? (isPersonalOnly ? c.myDueToday : c.dueToday) : 0,
       },
-      overdueCount: isPersonalOnly ? c.myOverdue : c.totalOverdue,
-      myCheckoutsTotal: c.myCheckoutsTotal,
-      myOverdueCount: c.myOverdue,
-      myDueTodayCount: c.myDueToday,
+      overdueCount: canViewMyGear ? (isPersonalOnly ? c.myOverdue : c.totalOverdue) : 0,
+      myCheckoutsTotal: visibleMyCheckoutsTotal,
+      myOverdueCount: visibleMyOverdueCount,
+      myDueTodayCount: visibleMyDueTodayCount,
       teamCheckoutsTotal: isPersonalOnly ? 0 : c.teamCheckoutsTotal,
       teamCheckoutsOverdue: isPersonalOnly ? 0 : c.teamCheckoutsOverdue,
       teamReservationsTotal: isPersonalOnly ? 0 : c.teamReservationsTotal,

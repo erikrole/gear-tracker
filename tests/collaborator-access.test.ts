@@ -132,7 +132,16 @@ describe("BTN collaborator authorization", () => {
   });
 
   it("allows only owned reservation mutations and owned booking reads", () => {
-    const actor = { id: "btn-1", role: "COLLABORATOR" };
+    const actor = {
+      id: "btn-1",
+      role: "COLLABORATOR",
+      capabilities: [
+        "MY_GEAR_VIEW",
+        "RESERVATION_EDIT_OWN",
+        "RESERVATION_EXTEND_OWN",
+        "RESERVATION_CANCEL_OWN",
+      ],
+    };
     const ownReservation = {
       kind: "RESERVATION" as const,
       status: "BOOKED",
@@ -150,6 +159,21 @@ describe("BTN collaborator authorization", () => {
     expect(canPerformBookingAction(actor, ownCheckout, "view").allowed).toBe(true);
     expect(canPerformBookingAction(actor, ownCheckout, "edit").allowed).toBe(false);
     expect(canPerformBookingAction(actor, { ...ownReservation, requesterUserId: "other", createdBy: "other" }, "view").allowed).toBe(false);
+  });
+
+  it("does not expose collaborator reservation actions without their individual grants", () => {
+    const actor = { id: "btn-1", role: "COLLABORATOR", capabilities: ["MY_GEAR_VIEW"] };
+    const reservation = {
+      kind: "RESERVATION" as const,
+      status: "BOOKED",
+      requesterUserId: actor.id,
+      createdBy: actor.id,
+    };
+
+    expect(canPerformBookingAction(actor, reservation, "view").allowed).toBe(true);
+    expect(canPerformBookingAction(actor, reservation, "edit").allowed).toBe(false);
+    expect(canPerformBookingAction(actor, reservation, "extend").allowed).toBe(false);
+    expect(canPerformBookingAction(actor, reservation, "cancel").allowed).toBe(false);
   });
 });
 

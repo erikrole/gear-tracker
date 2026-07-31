@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Dashboard
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-16
+- Last Updated: 2026-07-31
 - Status: Active — V3 shipped, reliability + UX polish complete
 - Version: V3
 
@@ -184,6 +184,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 ## Change Log
 
+- 2026-07-31: **Snow Leopard collaborator and draft-state hardening.** The active booking API and dashboard totals exclude `DRAFT` records, while draft recovery labels them explicitly as Draft. Collaborator dashboard statistics return zero for private My Gear counts unless `MY_GEAR_VIEW` is granted, preventing a capability-denied account from learning personal booking totals.
 - 2026-07-24: Booking timing now uses calendar-relative labels (`Today`,
   `Tomorrow`, and `Yesterday`), full month-and-day labels outside that range,
   a comma before the time, and stronger date/time emphasis across checkout and

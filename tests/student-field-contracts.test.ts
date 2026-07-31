@@ -58,7 +58,7 @@ describe("student field mobile contracts", () => {
     // or it accuses a student of gear that was never theirs.
     expect(apiClient).toMatch(/dashboardStats\(\)[\s\S]*?scope", value: "ios-home"/);
     expect(statsRoute).toContain('searchParams.get("scope") === "ios-home" || isCollaborator');
-    expect(statsRoute).toContain("overdueCount: isPersonalOnly ? c.myOverdue : c.totalOverdue");
+    expect(statsRoute).toContain("overdueCount: canViewMyGear ? (isPersonalOnly ? c.myOverdue : c.totalOverdue) : 0");
     expect(statsRoute).not.toMatch(/: isCollaborator \? c\./);
   });
 

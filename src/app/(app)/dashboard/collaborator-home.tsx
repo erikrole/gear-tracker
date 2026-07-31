@@ -40,6 +40,9 @@ function dateTime(value: string) {
 }
 
 function bookingState(booking: Booking) {
+  if (booking.status === "DRAFT") {
+    return { label: "Draft", variant: "gray" as const, detail: "Saved draft" };
+  }
   if (booking.status === "PENDING_PICKUP" || booking.kind === "RESERVATION") {
     return { label: "Pickup", variant: "orange" as const, detail: `Starts ${dateTime(booking.startsAt)}` };
   }

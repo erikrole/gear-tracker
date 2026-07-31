@@ -1,6 +1,7 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { cachedOk } from "@/lib/http";
+import { requirePermissionOrCollaboratorCapability } from "@/lib/rbac";
 
 function settledValue<T>(
   result: PromiseSettledResult<T>,
@@ -20,6 +21,7 @@ function settledValue<T>(
  * in a single round-trip instead of 4 separate fetches.
  */
 export const GET = withAuth(async (_req, { user }) => {
+  requirePermissionOrCollaboratorCapability(user, "asset", "view", "GEAR_CATALOG_VIEW");
   const isCollaborator = user.role === "COLLABORATOR";
   const [
     locationsResult,

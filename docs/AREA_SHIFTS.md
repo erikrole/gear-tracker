@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Shift Calendar & Scheduling
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-29
+- Last Updated: 2026-07-31
 - Status: Active — implemented V1 with ongoing hardening
 
 ## Purpose
@@ -97,6 +97,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-07-31: **Snow Leopard collaborator boundary hardening.** The collaborator Schedule renders Follow and Mute only when `SCHEDULE_FOLLOW` is granted. Personal shift-hours and ICS token/feed routes now require an internal actor, so collaborators remain limited to the sanitized published Schedule snapshot and cannot reach private calendar data.
 - 2026-07-30: **Contested scheduling mutation hardening shipped.** Trade claim and open-shift pickup now retry once when they lose a `SERIALIZABLE` race, matching the treatment `licenses.ts` already gave the identical two-students-tap-the-last-slot case. `claimTrade` clears its buffered email, push, and badge jobs before the retry so a second attempt cannot double-send. Conflict detection moved into one shared `src/lib/serialization.ts` helper that recognizes both Prisma's `P2034` and the raw `40001` driver code the Neon adapter can surface; `fail()` previously matched only `P2034`, so a real race returned `500 Internal server error` plus Sentry noise instead of the intended retryable 409. Worker-facing scheduling mutations (trade post/claim/cancel/approve/decline, open-shift pickup and the legacy request path, assignment acknowledge/decline/swap) now carry the shared `SCHEDULE_MUTATION_LIMIT`; publish, auto-fill, working-copy, and export limits are unchanged. On the web Trade Board, a claim or cancel that fails with 404/409/410 now refreshes the board so a lost race clears the stale row instead of leaving a Claim button that can only fail again; rate-limit and network failures deliberately do not refetch. Existing single-flight action guards, outcome-specific recovery copy, permissions, eligibility rules, auditing, and notification policy are unchanged.
 - 2026-07-29: **Native Open Work feature discovery.** TipKit now points
   eligible internal Schedule users to the existing Trade Board control and

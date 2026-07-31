@@ -17,6 +17,7 @@ export type BookingContext = {
 export type ActorContext = {
   id: string;
   role: string;
+  capabilities?: readonly string[];
 };
 
 export type ActionCheckResult = {
@@ -32,6 +33,11 @@ const CLIENT_CHECKOUT_ACTIONS: CheckoutAction[] = ["edit", "extend", "cancel", "
 const SERVER_CHECKOUT_ACTIONS: CheckoutAction[] = ["edit", "extend", "cancel", "checkin", "open", "force-complete", "nudge", "transfer-owner"];
 const CLIENT_RESERVATION_ACTIONS: ReservationAction[] = ["edit", "extend", "cancel", "duplicate", "transfer-owner"];
 const SERVER_RESERVATION_ACTIONS: ReservationAction[] = ["edit", "extend", "cancel", "convert", "duplicate", "transfer-owner"];
+const COLLABORATOR_RESERVATION_ACTION_CAPABILITIES: Partial<Record<"edit" | "extend" | "cancel", string>> = {
+  edit: "RESERVATION_EDIT_OWN",
+  extend: "RESERVATION_EXTEND_OWN",
+  cancel: "RESERVATION_CANCEL_OWN",
+};
 
 const STATE_ACTIONS: Record<BookingKind, Record<BookingStatus, Set<string>>> = {
   CHECKOUT: {
@@ -79,6 +85,10 @@ function collaboratorActionCheck(
   if (action === "view") return { allowed: true };
   if (kind !== "RESERVATION" || !["edit", "extend", "cancel"].includes(action)) {
     return { allowed: false, reason: "This action is not available to collaborators" };
+  }
+  const requiredCapability = COLLABORATOR_RESERVATION_ACTION_CAPABILITIES[action as "edit" | "extend" | "cancel"];
+  if (!requiredCapability || !actor.capabilities?.includes(requiredCapability)) {
+    return { allowed: false, reason: "Your collaborator access does not include this reservation action" };
   }
   return null;
 }

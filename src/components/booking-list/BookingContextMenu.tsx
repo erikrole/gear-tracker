@@ -20,6 +20,7 @@ export type BookingMenuProps = {
   item: BookingItem;
   currentUserId: string;
   currentUserRole: string;
+  currentUserCapabilities: readonly string[];
   config: BookingListConfig;
   extendingId: string | null;
   onViewDetails: (id: string, sheetTab?: BookingListConfig["contextMenuExtras"][number]["sheetTab"] | null) => void;
@@ -34,6 +35,7 @@ function MenuItems({
   item,
   currentUserId,
   currentUserRole,
+  currentUserCapabilities,
   config,
   extendingId,
   onViewDetails,
@@ -47,7 +49,7 @@ function MenuItems({
   Separator: React.ComponentType;
   Item: React.ComponentType<{ children?: React.ReactNode; className?: string; onSelect?: () => void; disabled?: boolean }>;
 }) {
-  const actor = { id: currentUserId, role: currentUserRole };
+  const actor = { id: currentUserId, role: currentUserRole, capabilities: currentUserCapabilities };
   const kindForActions = config.kind === "CHECKOUT" || config.kind === "RESERVATION" ? config.kind : item.kind;
   const allowed = new Set(
     getAllowedBookingActions(actor, {

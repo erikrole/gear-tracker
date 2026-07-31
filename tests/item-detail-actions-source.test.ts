@@ -10,7 +10,8 @@ describe("item detail header booking actions", () => {
     // Reserve only starts when current status is AVAILABLE, matching
     // server-side booking validation in availability.ts.
     expect(source).toContain('const isAvailable = asset.computedStatus === "AVAILABLE"');
-    expect(source).toContain("const canReserve = asset.availableForReservation && isAvailable");
+    expect(source).toContain("const canReserve = canCreateReservation && asset.availableForReservation && isAvailable");
+    expect(source).toContain('currentUser.capabilities?.includes("RESERVATION_CREATE")');
     expect(source).not.toContain("const canCheckOut");
   });
 

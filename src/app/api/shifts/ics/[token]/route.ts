@@ -93,7 +93,7 @@ export const GET = withHandler<{ token: string }>(async (req, { params }) => {
   }
 
   const user = await db.user.findFirst({ where: { icsToken: token, active: true } });
-  if (!user) {
+  if (!user || user.role === "COLLABORATOR") {
     return new NextResponse("Not found", { status: 404 });
   }
 

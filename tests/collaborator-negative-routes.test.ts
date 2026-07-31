@@ -51,6 +51,11 @@ import { GET as getCalendarEvents } from "@/app/api/calendar-events/route";
 import { GET as getMyShifts } from "@/app/api/my-shifts/route";
 import { GET as getAssetInsights } from "@/app/api/assets/[id]/insights/route";
 import { GET as getCommandCenter } from "@/app/api/calendar-events/[id]/command-center/route";
+import { GET as getMyHours } from "@/app/api/shifts/my-hours/route";
+import { GET as getIcsToken } from "@/app/api/shifts/ics-token/route";
+import { GET as getItemsPageInit } from "@/app/api/items-page-init/route";
+import { GET as getAssetBrands } from "@/app/api/assets/brands/route";
+import { GET as getFormOptions } from "@/app/api/form-options/route";
 
 const collaborator = {
   id: "btn-1",
@@ -117,6 +122,24 @@ describe("collaborator default-deny route matrix", () => {
     ],
   ])("denies %s", async (_label, invoke) => {
     const response = await invoke();
+    expect(response.status).toBe(403);
+  });
+
+  it.each([
+    ["personal shift hours", () => getMyHours(request("/api/shifts/my-hours"), { params: Promise.resolve({}) })],
+    ["private calendar token", () => getIcsToken(request("/api/shifts/ics-token"), { params: Promise.resolve({}) })],
+    ["items page reference data", () => getItemsPageInit(request("/api/items-page-init"), { params: Promise.resolve({}) })],
+    ["asset brand reference data", () => getAssetBrands(request("/api/assets/brands"), { params: Promise.resolve({}) })],
+  ])("denies %s outside the collaborator surface", async (_label, invoke) => {
+    const response = await invoke();
+    expect(response.status).toBe(403);
+  });
+
+  it("denies shared form options to a collaborator without a gear or own-bookings capability", async () => {
+    vi.mocked(requireAuth).mockResolvedValue({ ...collaborator, capabilities: [] });
+
+    const response = await getFormOptions(request("/api/form-options"), { params: Promise.resolve({}) });
+
     expect(response.status).toBe(403);
   });
 

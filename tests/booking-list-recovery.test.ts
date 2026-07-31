@@ -8,6 +8,7 @@ function booking(id: string, status = "OPEN"): BookingItem {
     title: `Booking ${id}`,
     startsAt: "2026-06-01T15:00:00.000Z",
     endsAt: "2026-06-01T17:00:00.000Z",
+    updatedAt: "2026-06-01T14:00:00.000Z",
     status,
     kind: "CHECKOUT",
     sportCode: null,
