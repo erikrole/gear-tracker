@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
 const ItemInsightsTab = dynamic(() => import("./ItemInsightsTab"), { ssr: false });
@@ -41,6 +41,17 @@ const tabDefs: Array<{ key: TabKey; label: string }> = [
 
 function parseItemDetailTab(raw: string | null): TabKey {
   return tabDefs.some((tab) => tab.key === raw) ? (raw as TabKey) : "info";
+}
+
+// Collaborators reach item detail through the sanitized gear catalog. Insights
+// names the people who booked the asset, History is the admin-only audit feed,
+// and Settings is internal configuration -- all three are denied server-side, so
+// the tabs must not be offered either.
+const COLLABORATOR_ITEM_TABS: ReadonlySet<TabKey> = new Set<TabKey>(["info", "calendar", "accessories"]);
+
+function visibleItemTabs(role: string | null | undefined) {
+  if (role !== "COLLABORATOR") return tabDefs;
+  return tabDefs.filter((tab) => COLLABORATOR_ITEM_TABS.has(tab.key));
 }
 
 function serializeDetailTab(tab: TabKey): string | null {
@@ -105,19 +116,26 @@ function SerializedItemDetailsPage({ id }: { id: string }) {
     saveHeaderField,
   } = useItemActions({ asset, setAsset, loadAsset });
 
+  const availableTabs = useMemo(() => visibleItemTabs(currentUserRole), [currentUserRole]);
+
+  // A deep link or a remembered tab can name a tab this role cannot open.
+  useEffect(() => {
+    if (!availableTabs.some((tab) => tab.key === activeTab)) setActiveTab("info");
+  }, [availableTabs, activeTab, setActiveTab]);
+
   // Keyboard shortcuts: 1-6 to switch tabs
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
       const num = parseInt(e.key);
-      if (num >= 1 && num <= tabDefs.length) {
+      if (num >= 1 && num <= availableTabs.length) {
         e.preventDefault();
-        setActiveTab(tabDefs[num - 1]!.key);
+        setActiveTab(availableTabs[num - 1]!.key);
       }
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [setActiveTab]);
+  }, [setActiveTab, availableTabs]);
 
   if (fetchError && !asset) {
     return (
@@ -240,7 +258,7 @@ function SerializedItemDetailsPage({ id }: { id: string }) {
       {/* Tabs — sticky on scroll, horizontally scrollable on mobile */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)}>
         <TabsList className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm overflow-x-auto scrollbar-hide">
-          {tabDefs.map((tab) => {
+          {availableTabs.map((tab) => {
             const count =
               tab.key === "accessories" ? attachmentsCount :
               0;

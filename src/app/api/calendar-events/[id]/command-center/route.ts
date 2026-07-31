@@ -4,8 +4,10 @@ import { HttpError, ok } from "@/lib/http";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { shiftWorkerLabel } from "@/lib/shift-display";
 import { getScheduleChangeHistory } from "@/lib/services/schedule-change-history";
+import { requireInternalActor } from "@/lib/rbac";
 
 export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
+  requireInternalActor(user);
   if (user.role === "STUDENT") {
     throw new HttpError(403, "Staff or admin access required");
   }

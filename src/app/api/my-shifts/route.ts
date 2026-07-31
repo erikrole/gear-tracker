@@ -1,6 +1,7 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
+import { requireInternalActor } from "@/lib/rbac";
 import { shiftWorkerLabel } from "@/lib/shift-display";
 import { startOfTodayInAppTz } from "@/lib/app-time";
 
@@ -37,6 +38,11 @@ function gearStatusPriority(status: string) {
  *   - limit:   (optional, default 5) max results
  */
 export const GET = withAuth(async (req, { user }) => {
+  // Live assignments, including groups that were never published, and readable
+  // for any userId. Collaborators read crew from the published snapshot instead,
+  // so this route stays internal.
+  requireInternalActor(user);
+
   const url = new URL(req.url);
   const eventId = url.searchParams.get("eventId");
   const rawLimit = Number(url.searchParams.get("limit") || "5");

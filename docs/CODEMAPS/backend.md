@@ -137,7 +137,7 @@
 | `src/lib/public-showroom.ts` | 444 |
 | `src/lib/query-client.ts` | 58 |
 | `src/lib/rate-limit.ts` | 187 |
-| `src/lib/rbac.ts` | 46 |
+| `src/lib/rbac.ts` | 59 |
 | `src/lib/remark-callouts.ts` | 73 |
 | `src/lib/request-limits.ts` | 15 |
 | `src/lib/resource-search.ts` | 124 |

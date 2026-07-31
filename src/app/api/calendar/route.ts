@@ -2,8 +2,14 @@ import { BookingStatus, Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
 
-export const GET = withAuth(async (req) => {
+export const GET = withAuth(async (req, { user }) => {
+  // Org-wide booking calendar: requester names and emails, asset tags, and
+  // serial numbers. Same internal roles as every other booking read; the map is
+  // default-deny for collaborators, who get their own bookings via /api/bookings.
+  requirePermission(user.role, "booking", "view");
+
   const { searchParams } = new URL(req.url);
 
   const from = searchParams.get("from");

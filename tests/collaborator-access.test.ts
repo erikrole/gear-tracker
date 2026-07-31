@@ -2,9 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import { Role } from "@prisma/client";
 import {
   capabilitiesForActor,
+  hasCollaboratorCapability,
   isGlobalKioskCollaborator,
   normalizeCollaboratorCapabilities,
   requireActiveCollaboratorPolicy,
+  requireCollaboratorCapability,
 } from "@/lib/collaborator-access";
 import { PERMISSIONS } from "@/lib/permissions";
 import { canPerformBookingAction } from "@/lib/booking-action-policy";
@@ -75,6 +77,40 @@ describe("BTN collaborator authorization", () => {
       role: Role.COLLABORATOR,
       capabilities: ["KIOSK_ROSTER_ELIGIBLE"],
     })).toBe(true);
+  });
+
+  // Brand Comm is configured as a Schedule-only partner: they see the published
+  // Schedule and follow events, and hold no gear capability at all. This is a
+  // supported shape, not a half-configured one, so nothing may quietly widen it.
+  it("supports a Schedule-only affiliation without pulling in any gear capability", () => {
+    const scheduleOnly = normalizeCollaboratorCapabilities([
+      "PUBLISHED_SCHEDULE_VIEW",
+      "SCHEDULE_FOLLOW",
+    ]);
+    expect(scheduleOnly).toEqual(["PUBLISHED_SCHEDULE_VIEW", "SCHEDULE_FOLLOW"]);
+
+    const brandComm = {
+      role: Role.COLLABORATOR,
+      capabilities: scheduleOnly,
+      collaboratorPolicy: {
+        id: "policy-brand-comm",
+        affiliationKey: "BRAND_COMM",
+        displayName: "Brand Comm",
+        badgeLabel: "BRAND",
+        status: "ACTIVE" as const,
+        version: 1,
+      },
+    };
+
+    expect(() => requireActiveCollaboratorPolicy(brandComm)).not.toThrow();
+    expect(capabilitiesForActor(brandComm)).toEqual(["PUBLISHED_SCHEDULE_VIEW", "SCHEDULE_FOLLOW"]);
+    // No gear catalog, no own-bookings surface, and no kiosk custody.
+    expect(hasCollaboratorCapability(brandComm, "GEAR_CATALOG_VIEW")).toBe(false);
+    expect(hasCollaboratorCapability(brandComm, "MY_GEAR_VIEW")).toBe(false);
+    expect(hasCollaboratorCapability(brandComm, "RESERVATION_CREATE")).toBe(false);
+    expect(hasCollaboratorCapability(brandComm, "PEOPLE_DIRECTORY_VIEW")).toBe(false);
+    expect(isGlobalKioskCollaborator(brandComm)).toBe(false);
+    expect(() => requireCollaboratorCapability(brandComm, "MY_GEAR_VIEW")).toThrow("Forbidden");
   });
 
   it("keeps COLLABORATOR default-denied in every role permission entry except narrow self-service", () => {

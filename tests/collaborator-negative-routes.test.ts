@@ -46,6 +46,11 @@ import { GET as getUtilization } from "@/app/api/reports/utilization/route";
 import { GET as getReservationRules } from "@/app/api/settings/reservation-rules/route";
 import { GET as getCheckouts, POST as createCheckout } from "@/app/api/checkouts/route";
 import { GET as getBooking } from "@/app/api/bookings/[id]/route";
+import { GET as getBookingCalendar } from "@/app/api/calendar/route";
+import { GET as getCalendarEvents } from "@/app/api/calendar-events/route";
+import { GET as getMyShifts } from "@/app/api/my-shifts/route";
+import { GET as getAssetInsights } from "@/app/api/assets/[id]/insights/route";
+import { GET as getCommandCenter } from "@/app/api/calendar-events/[id]/command-center/route";
 
 const collaborator = {
   id: "btn-1",
@@ -84,9 +89,60 @@ describe("collaborator default-deny route matrix", () => {
     ["settings", () => getReservationRules(request("/api/settings/reservation-rules"), { params: Promise.resolve({}) })],
     ["checkout list", () => getCheckouts(request("/api/checkouts"), { params: Promise.resolve({}) })],
     ["direct checkout creation", () => createCheckout(request("/api/checkouts", "POST"), { params: Promise.resolve({}) })],
+    // Live internal reads that predate the capability model. Each one answered
+    // any authenticated caller, so a collaborator could route around the
+    // published-snapshot and own-bookings contracts by calling them directly.
+    [
+      "the org-wide booking calendar (requester emails, serial numbers)",
+      () => getBookingCalendar(
+        request("/api/calendar?from=2026-01-01T00:00:00.000Z&to=2026-02-01T00:00:00.000Z"),
+        { params: Promise.resolve({}) },
+      ),
+    ],
+    [
+      "the live event list, which includes unpublished crew",
+      () => getCalendarEvents(request("/api/calendar-events"), { params: Promise.resolve({}) }),
+    ],
+    [
+      "live shift assignments for any user id",
+      () => getMyShifts(request("/api/my-shifts?userId=staff-1"), { params: Promise.resolve({}) }),
+    ],
+    [
+      "asset insights, which name who booked the gear",
+      () => getAssetInsights(request("/api/assets/asset-1/insights"), { params: Promise.resolve({ id: "asset-1" }) }),
+    ],
+    [
+      "the event command center",
+      () => getCommandCenter(request("/api/calendar-events/event-1/command-center"), { params: Promise.resolve({ id: "event-1" }) }),
+    ],
   ])("denies %s", async (_label, invoke) => {
     const response = await invoke();
     expect(response.status).toBe(403);
+  });
+
+  // Positive control: the denials above must come from the role gate, not from
+  // a route that fails for everybody under the stubbed db. A student is refused
+  // by neither gate, so these calls get past authorization and die later.
+  it.each([
+    [
+      "the booking calendar",
+      () => getBookingCalendar(
+        request("/api/calendar?from=2026-01-01T00:00:00.000Z&to=2026-02-01T00:00:00.000Z"),
+        { params: Promise.resolve({}) },
+      ),
+    ],
+    [
+      "my-shifts",
+      () => getMyShifts(request("/api/my-shifts"), { params: Promise.resolve({}) }),
+    ],
+    [
+      "asset insights",
+      () => getAssetInsights(request("/api/assets/asset-1/insights"), { params: Promise.resolve({ id: "asset-1" }) }),
+    ],
+  ])("still admits a student to %s", async (_label, invoke) => {
+    vi.mocked(requireAuth).mockResolvedValue({ ...collaborator, role: Role.STUDENT, capabilities: [] });
+    const response = await invoke();
+    expect(response.status).not.toBe(403);
   });
 
   it("returns 404 for another user's booking instead of exposing its existence", async () => {

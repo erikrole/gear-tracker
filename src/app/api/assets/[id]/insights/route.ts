@@ -1,6 +1,7 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
 import { NextResponse } from "next/server";
 import type { WindowStats } from "@/app/(app)/items/[id]/types";
 
@@ -185,7 +186,12 @@ function computeWindow(
 
 /* ── Route Handler ───────────────────────────────────────── */
 
-export const GET = withAuth<{ id: string }>(async (_req, { params }) => {
+export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
+  // Utilization insights name the people who booked the asset (including a top
+  // borrowers list), so this is an internal read even though the asset itself is
+  // visible to collaborators holding GEAR_CATALOG_VIEW.
+  requirePermission(user.role, "asset", "view");
+
   const now = new Date();
 
   // Single lean query: only the fields we need for aggregation

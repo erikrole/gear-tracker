@@ -29,8 +29,21 @@ struct CreateBookingSheet: View {
         self.vm = vm
     }
 
+    /// Event linking reads the live internal event list, which collaborators
+    /// cannot see -- their Schedule is the published snapshot. Without a source
+    /// to pick from, the composer stays on the manual window.
+    private var canLinkEvents: Bool {
+        session.currentUser?.role != "COLLABORATOR"
+    }
+
     private var setupMode: ReservationSetupMode {
-        vm.usesEventLinkedSetup ? .event : .manual
+        guard canLinkEvents else { return .manual }
+        return vm.usesEventLinkedSetup ? .event : .manual
+    }
+
+    private func loadEventsIfPermitted() async {
+        guard canLinkEvents else { return }
+        await vm.loadEvents()
     }
 
     private var step: Int { drafts.step }
@@ -171,7 +184,7 @@ struct CreateBookingSheet: View {
             .interactiveDismissDisabled(vm.isSubmitting)
             .task {
                 async let optionsTask: Void = vm.loadOptions()
-                async let eventsTask: Void = vm.loadEvents()
+                async let eventsTask: Void = loadEventsIfPermitted()
                 _ = await (optionsTask, eventsTask)
                 applySelfAndLocationDefaults()
                 vm.captureBaselineIfNeeded()
@@ -263,14 +276,16 @@ struct CreateBookingSheet: View {
     private var detailsForm: some View {
         ScrollView {
             VStack(spacing: 18) {
-                FormCard {
-                    BrandSectionHeader("Set Schedule From")
-                    Picker("Schedule source", selection: setupModeBinding) {
-                        ForEach(ReservationSetupMode.allCases) { mode in
-                            Text(mode.rawValue).tag(mode)
+                if canLinkEvents {
+                    FormCard {
+                        BrandSectionHeader("Set Schedule From")
+                        Picker("Schedule source", selection: setupModeBinding) {
+                            ForEach(ReservationSetupMode.allCases) { mode in
+                                Text(mode.rawValue).tag(mode)
+                            }
                         }
+                        .pickerStyle(.segmented)
                     }
-                    .pickerStyle(.segmented)
                 }
 
                 if setupMode == .event {

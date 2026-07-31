@@ -47,6 +47,7 @@
 - [x] Slice 15: Add `PEOPLE_DIRECTORY_VIEW`, grant it to BTN and Learfield through an additive audited policy migration, expose a minimized active-user directory and profile response, wire capability-driven web and native navigation, and add authorization/privacy regression coverage.
 - [x] Slice 16: Repair collaborator mobile onboarding so the server and native models expose only the optional photo step and Skip enters the app without requiring a phone.
 - [x] Slice 17: Retire the legacy BTN capability fallback, reject policy-less collaborator sessions, and neutralize BTN-specific copy on shared Schedule and People surfaces.
+- [x] Slice 18: Close the pre-capability live routes that answered any authenticated caller, hide the collaborator-denied item detail tabs, and prove a Schedule-only affiliation (Brand Comm) is a supported shape.
 
 ## Verification
 - [x] Focused Vitest suites for collaborator onboarding, capability denial, privacy, reservations, Schedule snapshots/follows, notifications, and kiosk roster.
@@ -67,6 +68,24 @@
 - [ ] Authenticated browser smoke for admin invite, collaborator registration, reduced navigation, reservations, published Schedule, following, privacy, and denied routes.
 - [ ] Authenticated browser and native smoke for collaborator People list/detail access, capability denial, and private-field omission.
 - [x] Add `npm run smoke:collaborator` as the credential-injected production proof for People capability, list/detail minimization, active/visible roster scope, and representative denied routes.
+
+## Slice 18 findings
+- Five live internal routes predated the capability model and were gated only by `withAuth`, so any authenticated collaborator could call them directly and route around the published-snapshot and own-bookings contracts:
+- `GET /api/calendar` returned up to 500 org-wide bookings including requester names, requester emails, asset tags, and asset serial numbers. Now `requirePermission(booking, view)`.
+- `GET /api/calendar-events` returned the live event list with crew coverage, including groups whose crew was never published. Now internal-only; collaborators keep `/api/schedule/published`.
+- `GET /api/my-shifts` accepted an arbitrary `userId` and returned live assignments from unpublished groups, so a collaborator holding `PEOPLE_DIRECTORY_VIEW` could read a teammate's shifts from their profile. Now internal-only.
+- `GET /api/assets/[id]/insights` returned per-booking `requesterName` values and a top-borrowers ranking with no check of any kind. Now `requirePermission(asset, view)`.
+- `GET /api/calendar-events/[id]/command-center` denied `STUDENT` by name, which let `COLLABORATOR` through. Now denied explicitly.
+- `GET /api/dashboard` returned the caller's own booking rows and totals without consulting `MY_GEAR_VIEW`, contradicting `/api/bookings` for the same account. The gear lanes and their counts are now empty for a collaborator without the capability.
+- Item detail offered collaborators the Insights, History, and Settings tabs. Insights leaked borrower names until this slice, History is the admin-only audit feed, and Settings is internal configuration; all three are now hidden for the role.
+- `requireInternalActor` in `src/lib/rbac.ts` is the new boundary for internal-only routes. It denies `COLLABORATOR` and deliberately leaves ADMIN/STAFF/STUDENT behavior untouched, so closing the collaborator hole did not re-litigate the internal role matrix.
+
+## Brand Comm readiness
+- Brand Comm needs no migration and no code. It is created through Settings > Collaborator Access, which mints the affiliation `SUSPENDED` with zero grants and a version 1 revision.
+- Schedule-only shape: grant `PUBLISHED_SCHEDULE_VIEW` and `SCHEDULE_FOLLOW`, then activate. Dependency normalization pulls in nothing else, so no gear, People, or kiosk capability is acquired by side effect.
+- Resulting surfaces: web navigation is Home, Schedule, and Notifications; iOS shows the Home and Schedule tabs only. Home reports no gear lanes, and the header copy no longer promises gear handoffs to an affiliation that has none.
+- `stableAffiliationKey("Brand Comm")` yields `BRAND_COMM`. Badge must be 2 to 12 characters.
+- Activation is an admin action against production data and was deliberately left to a human; nothing in this slice creates or activates the affiliation.
 
 ## Review
 - Shipped locally: database-backed affiliation policies, ten validated capabilities, invite-first onboarding, skippable collaborator photo setup, minimized People access, sanitized gear, own reservations, kiosk roster/custody, published Schedule/follows/notifications, capability-driven web and native shells, immutable revisions, and suspension/reactivation.
