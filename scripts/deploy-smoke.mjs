@@ -9,10 +9,10 @@ const password = process.env.DEPLOY_SMOKE_PASSWORD ?? (isLocalTarget ? defaultLo
 
 const publicChecks = [
   { path: "/about", terms: ["Built around physical handoffs", "Wisconsin Creative Gear Tracker"] },
-  { path: "/about/features", terms: ["The workflow is the product", "Feature breadth"] },
-  { path: "/about/tech-stack", terms: ["Modern web, typed data, native field work", "Platform map"] },
-  { path: "/about/security", terms: ["Show the posture without opening the operation", "Public-safe posture"] },
-  { path: "/about/field-work", terms: ["Native where the work leaves the desk", "Execution model"] },
+  { path: "/about/features", terms: ["Features by workflow.", "What the public pages cover."] },
+  { path: "/about/tech-stack", terms: ["Web app, Postgres data, native iOS.", "Major platform pieces."] },
+  { path: "/about/security", terms: ["Public pages do not expose operations.", "Security controls at a high level."] },
+  { path: "/about/field-work", terms: ["Native iOS and kiosk cover field work.", "Phone, counter, and web have different jobs."] },
   { path: "/privacy", terms: ["Wisconsin Creative Privacy Policy", "What We Collect"] },
   { path: "/login", terms: ["Wisconsin Creative", "Sign in to your account"] },
 ];
