@@ -1,0 +1,2 @@
+# Local App Store Connect archives and dSYMs are not web deployment inputs.
+.asc/
