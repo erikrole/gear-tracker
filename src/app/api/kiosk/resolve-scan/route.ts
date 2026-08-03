@@ -6,6 +6,7 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 import { resolveKioskScanBody } from "@/lib/schemas/kiosk";
 import { findAssetByScanValue } from "@/lib/services/kiosk-scan";
 import { findBulkUnitByScanValue } from "@/lib/services/bulk-unit-scans";
+import { kioskRosterUserWhere } from "@/lib/user-visibility";
 import { normalizeWiscardNumber } from "@/lib/validation";
 
 const requesterSelect = {
@@ -105,9 +106,8 @@ export const POST = withKiosk(async (req, { kiosk }) => {
     wiscardNumber
       ? db.user.findFirst({
           where: {
-            active: true,
+            ...kioskRosterUserWhere(),
             wiscardNumber,
-            OR: [{ locationId: kiosk.locationId }, { locationId: null }],
           },
           select: requesterSelect,
         })

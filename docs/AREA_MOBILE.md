@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Mobile Operations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-31
+- Last Updated: 2026-08-03
 - Status: Active
 - Version: V1
 
@@ -132,6 +132,8 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 - **V3 (later)**: Bottom nav badge counts via live `/api/nav-counts` polling, game-day/shift context cards
 
 ## Change Log
+
+- 2026-08-03: **Kiosk person discovery is global.** Native kiosk roster and Wiscard identity now include every active, visible internal user regardless of saved profile location, while collaborator eligibility stays policy-granted and physical inventory, reservation pickup, and custody remain kiosk-location scoped.
 
 - 2026-08-03: **Build 23 is live in TestFlight.** The Wisconsin app and
   Live Activities extension share build 23 while the separate kiosk target
@@ -366,7 +368,7 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 - 2026-06-15: **iOS kiosk checkout event context** - native kiosk checkout now loads a kiosk-authenticated upcoming-event list capped to the next 7 days, shows a required Event or Purpose card above the scan target, and sends `eventId` plus optional custom details on completion. The server rejects context-free kiosk checkouts, uses the event or typed purpose as the booking title, and links selected events to the booking.
 - 2026-06-15: **iOS kiosk checkout photo rail** - native kiosk checkout scan responses now include optional `imageUrl` for serialized assets and numbered bulk units, and the scanned-items rail renders 56pt thumbnails with category-aware fallbacks. The field is optional in Swift so older API responses continue to decode during rollout.
 - 2026-06-15: **iOS kiosk battery hand-scanner hardening** - native kiosk direct checkout now carries scanned numbered battery units through the cart and complete request instead of treating them like serialized assets, matching pickup/return custody behavior. Native kiosk HID scanner input now submits buffered scans even without an explicit Return suffix, using a conservative idle window so partial values do not fire before the unit suffix arrives. The shared numbered battery QR parser accepts scanner-shaped values such as legacy `QR-` prefixes, URL/query wrappers, Unicode dash separators, and non-printing scanner control bytes.
-- 2026-06-15: **iOS kiosk Wiscard selection** - native kiosk idle now listens for hand-scanner Wiscard input, resolves it through the kiosk-only `/api/kiosk/identify` endpoint, and opens that user's kiosk hub when the user is active and scoped to the kiosk location. The roster grid remains available as the fallback selection path.
+- 2026-06-15: **iOS kiosk Wiscard selection** - native kiosk idle now listens for hand-scanner Wiscard input, resolves it through the kiosk-only `/api/kiosk/identify` endpoint, and opens that user's kiosk hub when the user is active and visible. The roster grid remains available as the fallback selection path.
 - 2026-06-15: **iOS hand-scanner debugger** - native Settings -> Tools now includes a Scanner Debugger for staff/admin users. The Settings row presents a dedicated debugger sheet so scan-result navigation stays local to the tool. The screen captures HID keyboard scanner input, shows the raw and trimmed values, submits the value through the same lookup service as the Scan tab, and opens the existing scan result hero card for serialized assets or item-family unit matches. Custody scans remain kiosk-owned.
 - 2026-06-11: **iOS booking event linking and polish** - native reservation creation now loads upcoming calendar events in Details, lets users link up to 3 events, auto-fills title/location/window from the selected event span until the user edits those fields, submits `eventIds[]` through the existing reservation API, and keeps event-launched prep-gear reservations on the legacy prefilled event/shift contract. The three-step sheet also gained stronger Apple-style context headers and an event-aware Confirm screen while preserving scan-to-add, bulk/countable selection, advisory conflict hints, and server-authoritative availability enforcement.
 - 2026-06-11: **iOS Scan item-family QR resolution** - native Scan and global search now preserve `/api/assets` item-family `bulkItems`, so printed numbered Sony battery unit QR labels resolve to the battery family and scanned unit context instead of a false no-result state. The regular app scan stays lookup-only; pickup and return scans remain kiosk-owned.

@@ -2,13 +2,14 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { withKiosk } from "@/lib/api";
 import { ok } from "@/lib/http";
+import { kioskRosterUserWhere } from "@/lib/user-visibility";
 import { normalizeWiscardNumber } from "@/lib/validation";
 
 const identifyBody = z.object({
   scanValue: z.string().trim().min(1).max(128),
 });
 
-export const POST = withKiosk(async (req, { kiosk }) => {
+export const POST = withKiosk(async (req) => {
   const body = identifyBody.parse(await req.json());
   const wiscardNumber = normalizeWiscardNumber(body.scanValue);
   if (!wiscardNumber) {
@@ -17,9 +18,8 @@ export const POST = withKiosk(async (req, { kiosk }) => {
 
   const user = await db.user.findFirst({
     where: {
-      active: true,
+      ...kioskRosterUserWhere(),
       wiscardNumber,
-      OR: [{ locationId: kiosk.locationId }, { locationId: null }],
     },
     select: {
       id: true,
@@ -30,7 +30,7 @@ export const POST = withKiosk(async (req, { kiosk }) => {
   });
 
   if (!user) {
-    return ok({ success: false, error: "No active user found for that Wiscard at this kiosk" });
+    return ok({ success: false, error: "No active user found for that Wiscard" });
   }
 
   return ok({ success: true, data: user });

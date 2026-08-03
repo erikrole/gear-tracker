@@ -1,28 +1,12 @@
 import { db } from "@/lib/db";
 import { withKiosk } from "@/lib/api";
 import { ok } from "@/lib/http";
+import { kioskRosterUserWhere } from "@/lib/user-visibility";
 
-/** List active users for kiosk avatar grid (local roster plus every active BTN collaborator). */
-export const GET = withKiosk(async (_req, { kiosk }) => {
+/** List every active, visible person allowed in the staffed kiosk roster. */
+export const GET = withKiosk(async () => {
   const users = await db.user.findMany({
-    where: {
-      active: true,
-      hiddenFromRoster: false,
-      OR: [
-        { locationId: kiosk.locationId },
-        { locationId: null },
-        {
-          role: "COLLABORATOR",
-          collaboratorPolicy: {
-            is: {
-              status: "ACTIVE",
-              affiliation: { archivedAt: null },
-              grants: { some: { capabilityKey: "KIOSK_ROSTER_ELIGIBLE" } },
-            },
-          },
-        },
-      ],
-    },
+    where: kioskRosterUserWhere(),
     orderBy: { name: "asc" },
     select: {
       id: true,

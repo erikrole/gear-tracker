@@ -6,6 +6,7 @@ const dbMock = vi.hoisted(() => ({
   user: {
     count: vi.fn(),
     findMany: vi.fn(),
+    findFirst: vi.fn(),
     findUnique: vi.fn(),
     groupBy: vi.fn(),
   },
@@ -38,6 +39,7 @@ import { GET as exportUsers } from "@/app/api/users/export/route";
 import { GET as getUserById } from "@/app/api/users/[id]/route";
 import { GET as getFormOptions } from "@/app/api/form-options/route";
 import { GET as getKioskUsers } from "@/app/api/kiosk/users/route";
+import { POST as identifyKioskUser } from "@/app/api/kiosk/identify/route";
 import { GET as getOrgChart } from "@/app/api/users/org-chart/route";
 
 const operator = {
@@ -57,6 +59,18 @@ function getReq(path: string) {
   return new Request(`https://app.example.com${path}`, {
     method: "GET",
     headers: { host: "app.example.com" },
+  });
+}
+
+function postReq(path: string, body: object) {
+  return new Request(`https://app.example.com${path}`, {
+    method: "POST",
+    headers: {
+      host: "app.example.com",
+      origin: "https://app.example.com",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(body),
   });
 }
 
@@ -124,6 +138,7 @@ beforeEach(() => {
   });
   vi.mocked(db.user.count).mockResolvedValue(0);
   vi.mocked(db.user.findMany).mockResolvedValue([]);
+  vi.mocked(db.user.findFirst).mockResolvedValue(null);
   vi.mocked(db.user.findUnique).mockResolvedValue(null);
   vi.mocked(db.user.groupBy).mockResolvedValue([]);
   vi.mocked(db.location.findMany).mockResolvedValue([]);
@@ -239,6 +254,35 @@ describe("hidden smoke user visibility", () => {
         }),
       }),
     );
+  });
+
+  it("keeps the kiosk person roster global while retaining visible-active boundaries", async () => {
+    await getKioskUsers(getReq("/api/kiosk/users"), { params: Promise.resolve({}) });
+
+    const where = vi.mocked(db.user.findMany).mock.calls.at(-1)?.[0]?.where;
+    expect(where).toMatchObject({ active: true, hiddenFromRoster: false });
+    expect(where).not.toHaveProperty("locationId");
+    expect(where).toHaveProperty("OR");
+  });
+
+  it("resolves a visible user from another saved location by Wiscard", async () => {
+    vi.mocked(db.user.findFirst).mockResolvedValue(makeUser({
+      id: "other-location-user",
+      locationId: "loc-kohl",
+      wiscardNumber: "9000000000",
+    }));
+
+    const res = await identifyKioskUser(postReq("/api/kiosk/identify", { scanValue: "9000000000" }), { params: Promise.resolve({}) });
+    const json = await res.json();
+
+    expect(json).toMatchObject({ success: true, data: { id: "other-location-user" } });
+    const where = vi.mocked(db.user.findFirst).mock.calls[0]?.[0]?.where;
+    expect(where).toMatchObject({
+      active: true,
+      hiddenFromRoster: false,
+      wiscardNumber: "9000000000",
+    });
+    expect(where).not.toHaveProperty("locationId");
   });
 
   it("only trusts comma-separated internal operator emails for hidden access", () => {

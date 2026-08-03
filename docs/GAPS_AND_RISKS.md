@@ -3,7 +3,7 @@
 ## Document Control
 
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-31
+- Last Updated: 2026-08-03
 - Status: Active registry
 - Purpose: Track only open gaps, pending decisions, active risks, and intentionally deferred scope.
 - Historical record: [GAPS_AND_RISKS_HISTORY.md](archive/GAPS_AND_RISKS_HISTORY.md)
@@ -53,6 +53,8 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 | Kiosk landscape enforcement deprecation | Xcode 26 warns that `UIRequiresFullScreen` will be ignored in a future iOS release, allowing an unverified resized or portrait scene | Preserve the current landscape-only mounted-iPad contract for now, keep the adaptive split healthy, and complete a managed-device windowing migration before Apple removes enforcement | Mobile |
 
 ## Change Log
+
+- 2026-08-03: Reconciled kiosk person discovery so active visible users are available at every staffed kiosk regardless of saved profile location. No new gap was added because gear, reservation pickup, booking, and custody location enforcement remains in place.
 
 - 2026-07-31: Fixed a native iOS rollout-skew defect in GAP-62. The
   registration verifier returns a compact created-credential response, while

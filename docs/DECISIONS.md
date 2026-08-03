@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-07-31
+- Last Updated: 2026-08-03
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -39,7 +39,7 @@
 - D-029: Registration gated by admin-managed email allowlist
 - D-030: Kiosk auth uses device-level token, not user sessions
 - D-031: Multi-event booking via junction table with preserved primary FK
-- D-032: Kiosk reads are scoped to the kiosk location
+- D-032: Kiosk person discovery is global; operational reads stay location-scoped
 - D-033: Database enforces one active allocation per asset
 - D-034: Badge achievements are event-sourced, flag-gated, and profile-first
 - D-035: Daily maintenance work is consolidated into morning-refresh
@@ -638,18 +638,28 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 
 ---
 
-## D-032: Kiosk Reads Are Scoped to the Kiosk Location
-- Date: 2026-04-29
+## D-032: Kiosk Person Discovery Is Global; Operational Reads Stay Location-Scoped
+- Date: 2026-04-29; amended 2026-08-03
 - Status: Accepted
 - Context:
-  - Kiosk users, dashboard rows, and student identity choices must reflect the physical kiosk's location.
+  - A staffed kiosk may serve a person whose saved profile location differs from the physical handoff location.
+  - User location is profile and operational metadata. It is not a safe identity boundary for a kiosk name picker or Wiscard scan.
 - Decision:
-  - Kiosk read paths scope users, dashboard data, and student lookup by `kiosk.locationId`.
-  - Users without a `locationId` remain visible to every kiosk as a transitional rule until all rosters carry a location relation.
+  - Kiosk person discovery includes every active, non-hidden internal user, regardless of `User.locationId`.
+  - Active external collaborators appear only when their affiliation policy grants `KIOSK_ROSTER_ELIGIBLE`; that grant is global across staffed kiosks.
+  - Person discovery covers the manual roster, Wiscard identity routes, scan identity resolution, and student-hub context lookup.
+  - Dashboard, gear, booking, reservation-pickup, allocation, and custody reads and writes remain scoped to the authenticated kiosk's `locationId` where the physical operation requires it.
+  - Reservation pickup at a different kiosk remains blocked with the reservation's expected location, while direct checkout records the authenticated kiosk location.
 - Consequences:
-  - A kiosk cannot accidentally present another location's operational roster as local context.
-  - The null-location exception remains a documented migration and data-quality concern.
+  - Every kiosk can find an active visible person without requiring a profile-location repair first.
+  - Saved profile locations no longer hide legitimate identity choices, while physical gear and reservation boundaries remain enforced by kiosk and booking location evidence.
+  - Hidden smoke users, inactive users, and collaborators without the explicit kiosk grant remain unavailable to kiosk identity discovery.
 - Implementation Reference:
+  - `src/lib/user-visibility.ts`
+  - `src/app/api/kiosk/users/route.ts`
+  - `src/app/api/kiosk/identify/route.ts`
+  - `src/app/api/kiosk/resolve-scan/route.ts`
+  - `src/app/api/kiosk/student/[userId]/route.ts`
   - `docs/AREA_KIOSK.md`
 
 ## D-033: Database Enforces One Active Allocation per Asset
@@ -941,6 +951,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - Reference: `tasks/passkey-auth-plan.md`, `docs/AREA_SETTINGS.md`, and `docs/AREA_USERS.md`.
 
 ## Change Log
+- 2026-08-03: Amended D-032 after the Kohl Center kiosk exposed only users assigned to Camp Randall. Kiosk person discovery is now global for active visible internal users, with the existing explicit collaborator grant preserved; operational inventory, reservation pickup, booking, and custody location boundaries remain unchanged.
 - 2026-07-31: Added D-043 for invite-granted user passkeys, shared sessions, recovery, ceremony replay protection, and kiosk separation. Native iOS now has local `AuthenticationServices` login, enrollment, management, and canonical-domain association; production migration and browser/device proof remain open.
 - 2026-07-28: Amended D-039 so kiosk session credentials retain after-first-unlock availability while using the device-only Keychain class, preventing backup migration to another iPad.
 - 2026-07-21: Added D-042 for versioned Schedule working copies, published-only worker reads, deliberate reconciliation, and bundled publish notification semantics.

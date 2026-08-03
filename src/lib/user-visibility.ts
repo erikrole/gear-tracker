@@ -1,3 +1,4 @@
+import { Role } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
 import type { AuthUser } from "@/lib/auth";
 
@@ -32,6 +33,31 @@ export function visibleActiveUserWhere(extra: Prisma.UserWhereInput = {}): Prism
     ...extra,
     active: true,
     hiddenFromRoster: false,
+  };
+}
+
+/**
+ * Person discovery at a staffed kiosk is global. The kiosk's location is an
+ * operational handoff boundary, not a user's identity or roster boundary.
+ * Collaborators still need the explicit kiosk-roster capability.
+ */
+export function kioskRosterUserWhere(): Prisma.UserWhereInput {
+  return {
+    active: true,
+    hiddenFromRoster: false,
+    OR: [
+      { role: { not: Role.COLLABORATOR } },
+      {
+        role: Role.COLLABORATOR,
+        collaboratorPolicy: {
+          is: {
+            status: "ACTIVE",
+            affiliation: { archivedAt: null },
+            grants: { some: { capabilityKey: "KIOSK_ROSTER_ELIGIBLE" } },
+          },
+        },
+      },
+    ],
   };
 }
 

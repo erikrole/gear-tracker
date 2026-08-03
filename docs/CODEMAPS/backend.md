@@ -172,7 +172,7 @@
 | `src/lib/title-normalization.ts` | 58 |
 | `src/lib/url-sync.ts` | 16 |
 | `src/lib/user-list-cache.ts` | 73 |
-| `src/lib/user-visibility.ts` | 45 |
+| `src/lib/user-visibility.ts` | 71 |
 | `src/lib/utils.ts` | 7 |
 | `src/lib/validation.ts` | 782 |
 | `src/lib/venue-mapping-audit.ts` | 56 |

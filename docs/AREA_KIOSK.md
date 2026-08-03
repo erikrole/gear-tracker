@@ -4,9 +4,9 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped — iOS canonical (web kiosk deprecated 2026-04-24)
 - Created: 2026-04-07
-- Last Updated: 2026-07-28
+- Last Updated: 2026-08-03
 - Brief: `BRIEF_KIOSK.md`
-- Decision Refs: D-030, D-040
+- Decision Refs: D-030, D-032, D-040
 
 ## Description
 
@@ -21,7 +21,7 @@ The kiosk is intentionally low-friction: no per-student password, no PIN, no bio
 1. **Physical trust.** The iPad is at the gear counter or carried by staff. Guided Access pins it to the Wisconsin app.
 2. **Device authentication.** Each `KioskDevice` is created by an admin in Settings → Kiosk Devices. A 6-digit activation code provisions a `kiosk_session` cookie tied to a specific `KioskDevice` row (with `locationId`, `active`, `lastSeenAt`, and `sessionExpiresAt`). The code is **single-use and time-limited**: it expires 24h after issue (`activation_code_expires_at`) and is cleared the moment it is redeemed, so a leaked or overheard code can't be replayed later. Already-activated kiosks are unaffected — they stay signed in via the sliding 7-day session, so consuming the code never forces the fleet to re-activate. An admin can mint a fresh code for an existing device via the reset flow.
 3. **Server-side scope.** `withKiosk()` rejects all `/api/kiosk/*` calls without a valid kiosk-session cookie. Routes do not accept a regular user-session cookie. Bookings created through the kiosk are stamped with `source: "KIOSK"` for the audit trail.
-4. **Identity = Wiscard scan or name picker.** A student scans their Wiscard at the kiosk to select their profile; the location-scoped name grid remains the manual fallback. There is **no password / PIN / NFC** in V1. This is a deliberate trade-off: the counter is staffed during open hours, and physical+device gates carry the security weight. Misattribution risk is mitigated by the audit log, Wiscard profile binding, and the social context of a staffed counter.
+4. **Identity = Wiscard scan or name picker.** A student scans their Wiscard at the kiosk to select their profile; the global active-visible name grid remains the manual fallback. There is **no password / PIN / NFC** in V1. This is a deliberate trade-off: the counter is staffed during open hours, and physical+device gates carry the security weight. Misattribution risk is mitigated by the audit log, Wiscard profile binding, and the social context of a staffed counter.
 
 If at some point the kiosk needs to operate unattended or in a less-trusted physical context, a per-student PIN or NFC tap is the natural extension. Not in V1.
 
@@ -37,7 +37,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 - **`KioskStore.swift`** — `@Observable` state machine. Owns `screen` (`activation | idle | identity | studentHub | checkout | pickup | return | success`), in-memory `KioskFlowIntent`, the scanner coordinator, `info` (KioskInfo from activation), inactivity timer, heartbeat task, and persisted `kiosk_info_v1` in UserDefaults. Raw pending scan values never leave memory.
 - **`KioskShellView.swift`** — switches between screens, applies dark color scheme, hides system overlays + status bar, and tracks activity through non-cancelling UIKit recognizers so embedded controls keep their own tap handling.
 - **`KioskActivationView.swift`** — 6-digit numpad, calls `/api/kiosk/activate`.
-- **`KioskIdleView.swift`** — left panel: clock, the Items Out / Checkouts / Overdue tiles, and a **Due Today** custody list (checkouts due today plus anything already overdue). Tapping a stat tile filters that list; tapping a row opens the read-only manage drawer, which owns the Return action. Today/Tomorrow event sections were removed on 2026-07-27 — they were empty most days and event context belongs in checkout setup. The right panel is a flat, compact alphabetical roster list (no A–Z filter rail, no letter sections). It loads immediately when the kiosk returns to idle, supports an explicit Refresh control, and otherwise refreshes its dashboard and location-scoped roster on a five-minute idle cadence.
+- **`KioskIdleView.swift`** — left panel: clock, the Items Out / Checkouts / Overdue tiles, and a **Due Today** custody list (checkouts due today plus anything already overdue). Tapping a stat tile filters that list; tapping a row opens the read-only manage drawer, which owns the Return action. Today/Tomorrow event sections were removed on 2026-07-27 — they were empty most days and event context belongs in checkout setup. The right panel is a flat, compact alphabetical roster list of every active visible kiosk-eligible person (no A–Z filter rail, no letter sections). It loads immediately when the kiosk returns to idle, supports an explicit Refresh control, and refreshes the global person roster alongside its location-scoped dashboard on a five-minute idle cadence.
 - **`KioskStudentHubView.swift`** — entry point after a student taps their tile; lists their active checkouts/reservations and routes to checkout/pickup/return.
 - **`KioskIdentityView.swift`** — dedicated roster-first identity confirmation for retained event, scan, reservation, and active-checkout intent. Inferred pickup and return expose only the expected requester.
 - **`KioskFlowRouting.swift`** — pure intent/reducer types, exactly-once pending-scan consumption, logical scanner ownership, scanner status, and privacy-safe OSLog transitions.
@@ -61,9 +61,9 @@ Files under `ios/Wisconsin/Kiosk/`:
   - `POST /heartbeat` — updates `lastSeenAt`
   - `GET /dashboard` — live stats (active checkouts, today's events, team status) with partial-result fallbacks so one failed read does not blank the idle screen
   - `GET /events` — visible upcoming events for checkout context, capped to the next 7 days
-  - `GET /users` — roster filtered by kiosk's `locationId`
-  - `POST /identify` — resolves a scanned Wiscard value to an active, location-scoped kiosk user
-  - `GET /student/[userId]` — a student's active checkouts, pending pickups, due reservation pickups, and upcoming reservations
+  - `GET /users` — global roster of active, visible internal users plus policy-eligible collaborators
+  - `POST /identify` — resolves a scanned Wiscard value to an active, visible kiosk user regardless of saved profile location
+  - `GET /student/[userId]` — global person context with active checkouts, while pending pickups and reservations remain scoped to this kiosk's location
   - `POST /checkout/scan`, `POST /checkout/complete`, `GET/PATCH/POST/DELETE /checkout/[id]`
   - `POST /checkin/[id]/scan`, `POST /checkin/[id]/complete`
   - `POST /pickup/[id]/scan`, `POST /pickup/[id]/confirm`
@@ -106,7 +106,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 
 ## Known Gaps
 
-- No search on the roster. The A–Z filter rail and letter section headers were both removed on 2026-07-27: the roster is already sorted and both were structure standing between someone and their own name. Revisit if a location's roster outgrows a single scrollable screen.
+- No search on the roster. The A–Z filter rail and letter section headers were both removed on 2026-07-27: the roster is already sorted and both were structure standing between someone and their own name. Revisit if the global roster outgrows a single scrollable screen.
 - No "wrong person" undo path inside kiosk — admin must fix from web. Acceptable for V1.
 - Activation code lifecycle: codes are single-use and expire 24h after issue. Redeeming a code clears it; an unredeemed code that ages out can no longer activate. Once a device is activated its sliding session keeps it signed in without the code. If a cookie is wiped or a code expires, an admin resets the activation code for the existing device from Settings → Kiosk Devices, which revokes the old kiosk session and moves the device back to pending activation.
 - Domain cutover: kiosk API traffic and cookie rehydration now use the shared `wisconsincreative.com` host. Keep the legacy host aliased during the first rollout if any already-activated kiosk devices need a soft landing; otherwise a development kiosk can be reactivated through Settings → Kiosk Devices.
@@ -114,9 +114,11 @@ Files under `ios/Wisconsin/Kiosk/`:
 
 ## Change Log
 
-| 2026-07-16 | Kiosk collaborator eligibility now comes from the active affiliation policy's `KIOSK_ROSTER_ELIGIBLE` grant; eligible collaborators appear globally with their dynamic badge and no Wiscard requirement. |
 | Date | Change |
 |------|--------|
+| 2026-08-03 | **Global kiosk person discovery.** The roster, Wiscard identity, scan identity resolution, and student-hub context no longer require a user's saved location to match the kiosk. Active and hidden-user boundaries remain intact, collaborators still require `KIOSK_ROSTER_ELIGIBLE`, and gear, reservations, bookings, and custody remain kiosk-location scoped. |
+
+| 2026-07-16 | Kiosk collaborator eligibility now comes from the active affiliation policy's `KIOSK_ROSTER_ELIGIBLE` grant; eligible collaborators appear globally with their dynamic badge and no Wiscard requirement. |
 | 2026-07-28 | System hardening bound the kiosk session Keychain item to the current iPad with `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` and migrates older saved tokens on load. Every kiosk API request is now credential-generation owned, so a late 401 from a replaced kiosk session cannot erase a newly activated token or return the new session to activation; activation-code 401s remain local validation errors. The kiosk now has its own privacy manifest, cold-launch resume has one owner, device-model decoding no longer uses deprecated C-string initialization, student and identity scans reject stale responses, roster states expose loading/error/retry/empty recovery, the Release scanner control is noninteractive, and sleep mode respects Reduce Motion with one full-screen accessible wake action. Kiosk XCTest passes on the Work iPad simulator with only the separately tracked `UIRequiresFullScreen` deprecation warning; HID scanner and managed-iPad runtime proof remain open. |
 | 2026-07-27 | Kiosk UI/UX rebuild. **Foundation:** added the `KioskType` ramp, `kioskButtonRole` hierarchy, and a `KioskStatus` language aligned to `docs/COLOR_SYSTEM.md` (blue out, orange due today, red overdue) via `KioskStatus.custody(isOverdue:dueAt:)`. `Color.kioskRed` moved from `#C5050C` to `#A00000` — the old hot red sat in the same hue/luminance band as the error tone, so every brand surface read as a warning. **Checkout** became an explicit two-step flow (Details → Scan); the details sheet is gone, the colliding `UICalendarView`+wheel pair is gone (both UIKit bridges deleted), return time is two native pickers with no presets, and events are linked by tapping a row with the requester's shifts listed first (`/api/kiosk/events` gained an optional `userId` and returns `isAssigned`). **Idle** leads with a Due Today custody list instead of empty event sections; the roster is a flat compact list. **Scanner** state is now real: `GCKeyboard` connect/disconnect drives a `disconnected` state, replacing a stored `connectionState` fixed at `.ready` that nothing ever wrote. Hardware state is display-only and never gates `acceptsScans`, so the camera fallback and typed entry cannot be blocked by it. The idle health dot moved into its own `TimelineView` — it is time-derived but rendered outside any time-driven invalidation, so it could never show "Stale". Kiosk target locked to landscape. Untouched screens (activation, success, pickup, return, sleep, event detail) were migrated onto the type ramp and status language. **Open:** `isAssigned` is undeployed so Your Shifts is unproven; scanner disconnect is unverified on hardware; activation/success/pickup/event-detail were patched without being rendered; dashboard reservations not yet added. |
 | 2026-07-21 | Direct kiosk checkout no longer shows family-level Tight turn warnings for numbered bulk batteries. Reservations commit family quantities and exact units bind at the kiosk, so a nearby future family booking is not evidence that the scanned unit has a tight turnaround. Preflight and transactional completion still enforce overlapping family shortages, exact-unit availability, serialized conflicts, and serialized turnaround rules. This is a server response correction and requires no kiosk app build. |

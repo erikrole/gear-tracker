@@ -16,7 +16,7 @@ export const GET = withKiosk<{ userId: string }>(async (req, { kiosk, params }) 
     select: {
       id: true,
       active: true,
-      locationId: true,
+      hiddenFromRoster: true,
       role: true,
       affiliation: true,
       collaboratorProfile: true,
@@ -24,14 +24,14 @@ export const GET = withKiosk<{ userId: string }>(async (req, { kiosk, params }) 
     },
   });
 
-  if (!user || !user.active) {
+  if (!user || !user.active || user.hiddenFromRoster) {
     throw new HttpError(404, "User not found");
   }
 
-  // Location scoping: a user with a non-null locationId must match this kiosk.
-  // Users with `locationId = null` are treated as global (transitional).
-  // See docs/DECISIONS.md — "Kiosk operates within `kiosk.locationId`".
-  if (!isGlobalKioskCollaborator(user) && user.locationId !== null && user.locationId !== kiosk.locationId) {
+  // Person discovery is global, but collaborators still need explicit kiosk
+  // roster eligibility. The booking reads below keep physical pickup work
+  // scoped to this kiosk's location.
+  if (user.role === "COLLABORATOR" && !isGlobalKioskCollaborator(user)) {
     throw new HttpError(404, "User not found");
   }
 

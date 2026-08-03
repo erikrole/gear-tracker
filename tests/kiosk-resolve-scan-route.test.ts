@@ -94,6 +94,20 @@ describe("POST /api/kiosk/resolve-scan", () => {
     expect(json).toMatchObject({ kind: "ambiguous" });
   });
 
+  it("BUG: resolves a visible Wiscard user without applying kiosk-location scope", async () => {
+    mocks.userFindFirst.mockResolvedValue(requester);
+    const json = await (await request({ scanValue: "9000000000" })).json();
+
+    expect(json).toMatchObject({ kind: "identity", user: requester });
+    const where = mocks.userFindFirst.mock.calls[0]?.[0]?.where;
+    expect(where).toMatchObject({
+      active: true,
+      hiddenFromRoster: false,
+      wiscardNumber: "9000000000",
+    });
+    expect(where).not.toHaveProperty("locationId");
+  });
+
   it("routes an available numbered unit into checkout after identity", async () => {
     mocks.findUnit.mockResolvedValue({
       id: "unit-31", name: "Sony Battery #31", tagName: "#31", type: "Batteries",

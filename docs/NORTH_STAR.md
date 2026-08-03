@@ -103,7 +103,7 @@ The current operating model is clear:
 - The end state says "reserved for pickup" instead of pretending custody already changed.
 
 ### Kiosk Checkout, Pickup, and Return
-- The kiosk identifies the student by Wiscard or location-scoped roster selection.
+- The kiosk identifies the student by Wiscard or global active-visible roster selection.
 - Checkout requires an event or clear purpose, then scans exact items before custody opens.
 - Reservation pickup fulfills the source reservation into linked checkout custody through `sourceReservationId`.
 - Numbered battery units are scanned as physical units, not abstract quantities.

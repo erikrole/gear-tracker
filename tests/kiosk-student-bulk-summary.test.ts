@@ -40,6 +40,7 @@ beforeEach(() => {
   mocks.userFindUnique.mockResolvedValue({
     id: "user-1",
     active: true,
+    hiddenFromRoster: false,
     locationId: "loc-1",
     role: "STUDENT",
     affiliation: null,
@@ -78,5 +79,30 @@ describe("kiosk student bulk summaries", () => {
       tagName: "x1000000",
     }]);
     expect(json.checkouts[0].items).toHaveLength(1);
+  });
+
+  it("BUG: opens the student hub for an active visible user assigned to another location", async () => {
+    mocks.userFindUnique.mockResolvedValue({
+      id: "user-1",
+      active: true,
+      hiddenFromRoster: false,
+      locationId: "loc-kohl",
+      role: "STUDENT",
+      affiliation: null,
+      collaboratorProfile: null,
+      collaboratorPolicy: null,
+    });
+    mocks.bookingFindMany.mockResolvedValue([]);
+
+    const res = await getKioskStudent(
+      new Request("http://test"),
+      { params: Promise.resolve({ userId: "user-1" }) },
+    );
+
+    expect(res.status).toBe(200);
+    expect(mocks.userFindUnique).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "user-1" },
+      select: expect.objectContaining({ hiddenFromRoster: true }),
+    }));
   });
 });
