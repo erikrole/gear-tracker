@@ -1,6 +1,6 @@
 # App Store Connect Submission Content — Wisconsin Creative
 
-Drafted: 2026-07-08. Updated: 2026-07-17 for Build 21. Paste-ready copy for the `Wisconsin` app's first Unlisted App Store submission. Kiosk (`WisconsinKiosk`) stays off the Store entirely; this content is for the main app only.
+Drafted: 2026-07-08. Updated: 2026-08-03 for Build 23. Paste-ready copy for the `Wisconsin` app's first Unlisted App Store submission. Kiosk (`WisconsinKiosk`) stays off the Store entirely; this content is for the main app only.
 
 Sources used: `docs/AREA_PUBLIC_SHOWROOM.md`, `src/lib/public-showroom.ts`, `tasks/app-privacy-data-inventory.md`, `ios/Wisconsin/Supporting/PrivacyInfo.xcprivacy`, `scripts/seed-app-review-demo.mjs`, `ios/project.yml`.
 
@@ -101,7 +101,7 @@ The operational records, internal guides, reservations, and equipment notes in t
 
 ## Screenshot Capture Set
 
-Capture these from Build 21 while signed into the isolated fictional reviewer account. Use portrait orientation, no alpha channel, no real people, and no production records. Recapture both complete sets even when a screen appears unchanged from Build 20 so every submitted image matches the selected binary.
+Capture these from Build 23 while signed into the isolated fictional reviewer account. Use portrait orientation, no alpha channel, no real people, and no production records. Recapture both complete sets even when a screen appears unchanged from earlier builds so every submitted image matches the selected binary.
 
 **Required device sets**
 - iPhone 6.9-inch: `1320 x 2868` pixels using iPhone 17 Pro Max or another accepted 6.9-inch simulator size.
@@ -124,23 +124,21 @@ No video is required for the initial submission. The written notes, fictional ac
 
 ## Version Information
 
-**Build 21 release notes** (TestFlight/internal candidate):
+**Build 23 release notes** (TestFlight/internal candidate):
 ```
-Profile and access
-- Added a native, role-aware Welcome flow for completing contact, Wiscard, apparel, and
-  optional profile-photo details.
-- Added capability-aware access for external collaborators so navigation, reservations,
-  Schedule, and My Gear match each person's assigned policy.
+Account and access
+- Added passkey sign-in and Account & Security management with clearer enrollment,
+  recovery, and removal states.
+- Improved session and error handling when access or follow-up data is incomplete.
 
-Resources and daily work
-- Improved native Guides with full article loading, clearer steps and callouts, retry, and
-  pull-to-refresh.
-- Improved Licenses with clearer availability, active-code, claim, and return states.
-- Refined Schedule, Bookings, Search, and login recovery behavior.
+Badges and operations
+- Improved badge progress and automatic recognition across serialized and bulk gear,
+  including clean returns.
+- Kept dashboard overdue and due-today counts stable when a partial read cannot be trusted.
 
 Polish
-- Standardized Wisconsin Creative on the approved Block W app icon.
-- Improved accessibility layouts, loading states, error recovery, and session freshness.
+- Improved failure feedback, accessibility behavior, and recovery across the latest native
+  and web-connected workflows.
 ```
 
 **Promotional text** (170 char max, editable anytime without re-review):
@@ -189,7 +187,7 @@ gear,equipment,reservation,checkout,inventory,schedule,shift,scan,barcode,athlet
 
 ## Compliance and Legal Fields
 
-- **Export compliance:** No non-exempt encryption. The submitted target declares `ITSAppUsesNonExemptEncryption = false`. Confirm the processed Build 21 record shows the same answer.
+- **Export compliance:** No non-exempt encryption. The submitted target declares `ITSAppUsesNonExemptEncryption = false`. Confirm the processed Build 23 record shows the same answer.
 - **Content rights:** confirm Yes only after the Account Holder confirms rights to the Wisconsin branding, app icon, submitted screenshots, and fictional review assets.
 - **Digital Services Act:** use the organization-level trader status already established by the Account Holder. Do not infer or change this from repository content.
 - **Custom license agreement:** none is required by the app. Use Apple's standard EULA unless the Account Holder has an approved institutional agreement.
@@ -198,21 +196,50 @@ gear,equipment,reservation,checkout,inventory,schedule,shift,scan,barcode,athlet
 
 ## TestFlight
 
-**What to Test** (this build, draft — edit per actual build contents):
+**What to Test** (Build 23, full user-facing release notes attached to App Store Connect):
 ```
-Build 21 adds the native Welcome flow and includes the latest access, resource, and daily-work
-improvements:
-- Sign in with one of the isolated Welcome test accounts and complete or defer the role-aware
-  profile steps. Test keyboard dismissal, selection sheets, optional photo crop, Dynamic Type,
-  and reduced motion.
-- Confirm collaborator capabilities hide or show tabs, reservations, Schedule follow, and
-  My Gear scope correctly after foregrounding the app.
-- Open Guides and verify full article loading, numbered steps, callouts, retry, refresh, and
-  Dynamic Type. Open Licenses and verify active-code, availability, claim, and return states.
-- Use Search for typed and QR lookup, including camera-denied recovery and Type Code.
-- Create a reservation, review Bookings scopes, and check Schedule shifts and trades.
-- Report crashes, stale access, blocked navigation, unclear errors, or layouts that break at
-  accessibility text sizes.
+Account & Security
+- Added passkey sign-in with Face ID or Touch ID.
+- Added passkey management in Account & Security, including named credentials,
+  last-used details, clearer setup and removal, and password-protected changes.
+- Improved recovery when setup is unavailable or a credential list refresh is delayed,
+  and fixed false enrollment failures.
+
+Reservations
+- Added native reservation drafts. Minimize a reservation while checking gear, events,
+  or bookings, then resume from the same step without losing your work.
+- Save drafts on iPhone and continue them on the web. Save, Discard, Keep Editing, and
+  Start New choices are clearer, and retry protection prevents duplicate reservations.
+- Added contextual guidance for new reservations, continuous scanning, and resuming a
+  saved draft.
+
+Messages and updates
+- Staff can send targeted updates to event crews and groups.
+- Recipients see updates in the app and through push notifications, then acknowledge
+  them from the dashboard.
+
+Schedule and daily work
+- Added contextual guidance for Open Work, Shift Calendar, and Availability.
+- Simplified crew rows across Schedule and event details so assignments, areas, call
+  times, and actions are easier to scan.
+- Improved recovery when multiple people act on the same shift or trade.
+- Dashboard timing now uses Today, Tomorrow, and Yesterday where helpful, with clearer
+  date and time emphasis.
+- Draft reservations no longer inflate active booking totals.
+
+Inventory and access
+- Add Item can stage an image from search, URL, or upload before saving, with retry
+  available without recreating the item.
+- Tightened role-aware access so collaborators see only permitted reservations, gear,
+  schedules, and personal information.
+
+Recognition and polish
+- Badge progress now includes bulk equipment, and clean returns receive recognition
+  even when returned late.
+- Improved badge detail, recent-award display, and error feedback.
+- Improved sign-out and account switching so old account alerts, drafts, and cached data
+  do not appear for the next account.
+- Refined accessibility announcements, loading states, and recovery behavior.
 ```
 
 **Beta App Review Information:** same demo account and notes as App Review Information above — TestFlight external testing also goes through Apple review on first submission.

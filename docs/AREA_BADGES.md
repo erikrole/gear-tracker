@@ -4,7 +4,7 @@
 - Area: Badges
 - Owner: Wisconsin Athletics Creative Product
 - Created: 2026-05-09
-- Last Updated: 2026-07-22
+- Last Updated: 2026-07-31
 - Status: Active, Badge Achievements MVP verified with feature flag off-safe behavior
 - Plan: `tasks/badge-achievements-plan.md`
 - Decision Refs: D-034
@@ -35,7 +35,7 @@ Badges are lightweight recognition for every active user inside the existing ops
 | `onShiftsWorked` | `src/app/api/cron/morning-refresh/route.ts`, nightly, for anyone whose assignment sat on an event that ended in the last two days | Complete |
 
 ## Data Model
-- `BadgeDefinition`: seeded catalog. Uses immutable `key`, display copy, icon name, category, kind, trigger, threshold, rule key, active flag, and sort order. The canonical launch catalog is seeded by migration `0064_seed_badge_definitions` so production deploys do not depend on `prisma/seed.mjs`.
+- `BadgeDefinition`: seeded catalog. Uses immutable `key`, display copy, icon name, category, kind, trigger, threshold, rule key, active flag, and sort order. The canonical launch catalog is seeded by migration `0064_seed_badge_definitions`, and `prisma/seed.mjs` mirrors the current post-`0100_badge_catalog_rebalance` catalog so reseeding cannot regress automatic definitions.
 - Custom manual badges are also `BadgeDefinition` rows. Admin-created custom badges use a generated `custom_` key, `trigger="manual"`, `kind=RULE`, `category=MILESTONE`, and no evaluator wiring.
 - `StudentBadge`: legacy-named earned badge row for any user. Unique on `(userId, definitionId)`, supports `AUTO` and `MANUAL`, optional `awardedById`, and optional staff note.
 - `BadgeStreak`: per-user streak state. Unique on `(userId, streakType)` and deduped by `lastSourceKey`. `SCAN_SUCCESS_COUNT` is the durable scan success counter; `SCAN_CLEAN` is the clean-scan streak that resets on failed scans.
@@ -68,12 +68,14 @@ Rarity is computed from how many people hold a badge, not from a hardcoded list.
 `BadgeStreak` has always stored `current` and `longest` per user. The badge profile payload now exposes `ON_TIME_RETURN` and `SCAN_CLEAN` as `streaks[]`, and native Home renders them on the badge card. `SCAN_SUCCESS_COUNT` stays out: it is a durable lifetime counter, not a run, and cannot be broken.
 
 ## Starting Badge Set
-- Checkout: `first_checkout`, `checkout_5`, `checkout_25`, `checkout_100`
-- On-time return: `on_time_1`, `on_time_10`, `on_time_50`
-- Scan: `first_scan`, `scan_25`, `scan_100`, `zero_errors`
+- Checkout: `first_checkout`, `checkout_5`, `checkout_10`, `checkout_25`, `checkout_100`
+- On-time return: `on_time_1`, `on_time_10`, `on_time_25`, `on_time_50`, `damage_free_10`, `damage_free_50`
+- Scan: `first_scan`, `scan_25`, `scan_50`, `scan_100`, `zero_errors`
+- Shift: `first_shift`, `shift_10`, `shift_50`
 - Trade: `first_trade`, `trade_10`
 - Streak: `streak_on_time_5`, `streak_on_time_10`
-- Fun/manual: `perfect_handoff`, `clean_loop`, `clutch_cover`, `full_kit_no_misses`, `semester_streak`, `category_collector`, `event_hero`, `rookie_run`, `reliable_regular`, `above_and_beyond`
+- Automatic milestone: `category_collector`
+- Fun/manual: `event_hero`, `above_and_beyond`, plus custom manual definitions created by admins
 
 ## Acceptance Criteria
 - [x] `BADGES_ENABLED=false` causes zero evaluator work, badge queries, and side effects.
@@ -102,6 +104,7 @@ Rarity is computed from how many people hold a badge, not from a hardcoded list.
 ## Change Log
 | Date | Change |
 |---|---|
+| 2026-07-31 | Badge hardening: synchronized `prisma/seed.mjs` with the rebalance migration, included bulk inventory in category breadth, awarded damage-free badges for late clean returns, preserved trusted sidebar counts when dashboard count data is partial, and surfaced badge revoke failures with auth-aware error feedback. |
 | 2026-07-22 | Badge system rethought against live award data (33 definitions, 67 awards, 14 users). **Icons:** every badge on iOS rendered `seal.fill` -- `BadgeDefinition.icon` holds Lucide names and the iOS `sfSymbolName` map knew twelve unrelated ones, overlapping on `Trophy` alone, so 31 of 33 badges collapsed to one glyph. The map now covers the whole catalog, guarded by `tests/ios-badge-icon-coverage.test.ts`; locked badges show their own icon dimmed instead of `lock.fill`; the badge card gained the closest-to-earned progress row and the streak rows. **Rarity:** replaced four hardcoded key lists that had drifted into falsehood (`zero_errors` labelled Uncommon while held by 10 of 14 users; `checkout_25` labelled Common while held by nobody) with holder-share computation served from the API. **Catalog** (`0100_badge_catalog_rebalance`): added `checkout_10`, `on_time_25`, `scan_50`, `damage_free_10`, `damage_free_50`; converted `category_collector` from manual to automatic on distinct checked-out categories; revived `first_shift`/`shift_10`/`shift_50` from assignments to ended events; retired seven manual badges with zero awards since launch (`perfect_handoff`, `clean_loop`, `full_kit_no_misses`, `semester_streak`, `rookie_run`, `reliable_regular`, `clutch_cover`), keeping `above_and_beyond` and `event_hero` as catch-alls. Nothing deleted -- retirement is `active=false` and awarded rows still render. Core rule 2 narrowed to admit the nightly shift evaluation. |
 | 2026-07-02 | Badges awards and sections redesigned on web and iOS around a flat "trophy shelf" model. Web: the two-level collection-card → drill-in navigation was removed; the tab now shows one summary band (completion + progress bar + earned/remaining/hidden) and five always-visible shelf sections of compact medallion-first tiles (each badge on exactly one shelf; staff recognition wins over thematic hints). Tile chip rows were dropped — locked reads as grayscale medallion, rarity as rim tone, chips live in the unchanged detail dialog. iOS: web's coin/hex/shield/stack medallion silhouettes were ported as SwiftUI Shapes with rarity fill/stroke; the profile badge card became a horizontal earned-medallion shelf; the gallery sheet groups into the same five collections with compact tiles (descriptions moved to the detail sheet). Verified with mock-data scratch-route screenshots (light/dark, filters, dialog), `npm run build:app`, vitest, and Wisconsin simulator build. |
 | 2026-05-14 | Award badge dialog redesigned with a live preview header (rarity-aware gradient, centered hex medallion, badge name updates as you configure), custom icon grid picker replacing the Select dropdown, and a cleaner form layout with explicit note label + updated placeholder. No logic changes. |

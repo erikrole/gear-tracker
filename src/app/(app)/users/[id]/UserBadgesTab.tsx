@@ -56,8 +56,10 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { StaggerItem, StaggerList } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
 import { badgeRarityVariant, getBadgeRarity, isHiddenUntilEarnedBadge, type BadgeRarity } from "@/lib/badges/display";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import { formatDateFull } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type UserBadge = {
   id: string;
@@ -232,7 +234,8 @@ function isRecentlyEarned(awardedAt: string | null) {
   if (!awardedAt) return false;
   const awardedAtMs = new Date(awardedAt).getTime();
   if (Number.isNaN(awardedAtMs)) return false;
-  return Date.now() - awardedAtMs <= 7 * 86_400_000;
+  const age = Date.now() - awardedAtMs;
+  return age >= 0 && age <= 7 * 86_400_000;
 }
 
 function readableCategory(category: string) {
@@ -507,6 +510,7 @@ function ShelfSection({
 }
 
 function BadgeDetailDialog({
+  userId,
   badge,
   canRevoke = false,
   canAward = false,
@@ -514,6 +518,7 @@ function BadgeDetailDialog({
   onRevoke,
   onAwardRequest,
 }: {
+  userId: string;
   badge: UserBadge | null;
   canRevoke?: boolean;
   canAward?: boolean;
@@ -532,9 +537,15 @@ function BadgeDetailDialog({
     setRevokeBusy(true);
     try {
       const res = await fetch(`/api/badges/award/${badge.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Revoke failed");
+      if (handleAuthRedirect(res, `/users/${userId}?tab=badges`)) return;
+      if (!res.ok) {
+        toast.error(await parseErrorMessage(res, "Failed to revoke badge"));
+        return;
+      }
       onRevoke?.(badge.id);
       onOpenChange(false);
+    } catch {
+      toast.error("Network error. Badge was not revoked.");
     } finally {
       setRevokeBusy(false);
     }
@@ -851,6 +862,7 @@ export default function UserBadgesTab({
       )}
 
       <BadgeDetailDialog
+        userId={userId}
         badge={selectedBadge}
         canRevoke={canRevoke}
         canAward={canAward}

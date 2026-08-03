@@ -9,14 +9,6 @@ export function generateQrCode(): string {
   return generateAssetQrCode();
 }
 
-export function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    setIsMobile(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
-  }, []);
-  return isMobile;
-}
-
 export function getFiscalYearOptions(): string[] {
   const now = new Date();
   const calYear = now.getFullYear();

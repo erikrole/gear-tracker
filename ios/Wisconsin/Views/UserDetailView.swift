@@ -1115,7 +1115,8 @@ private extension UserBadge {
 
     var recentlyEarned: Bool {
         guard earned, let date = awardedDate else { return false }
-        return Date().timeIntervalSince(date) <= 7 * 86_400
+        let age = Date().timeIntervalSince(date)
+        return age >= 0 && age <= 7 * 86_400
     }
 
     var awardedDate: Date? {

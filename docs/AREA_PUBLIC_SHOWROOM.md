@@ -4,7 +4,7 @@
 - Area: Public Showroom
 - Owner: Wisconsin Athletics Creative Product
 - Created: 2026-07-01
-- Last Updated: 2026-07-02
+- Last Updated: 2026-08-03
 - Status: Active
 - Version: V1
 
@@ -47,6 +47,7 @@ Make `/about` a shareable public overview for Gear Tracker. It should explain th
 - Browser smoke `/about`, `/about/features`, `/about/tech-stack`, `/about/security`, `/about/field-work`, `/login`, and protected `/`.
 
 ## Change Log
+- 2026-08-03: Fixed the desktop public-header wordmark contrast. The logo link now explicitly uses the white text token required by the dark header, and the public-showroom content contract guards that relationship.
 - 2026-07-10: Removed the public showroom's decorative hero atmosphere, repeated oversized card shadows, tinted icon tiles, and max-radius mockup framing. The static routes, factual copy, product mockups, and Wisconsin visual identity remain unchanged; shared status indicators now use a static labeled dot rather than a pulsing halo.
 - 2026-07-08: Added `src/app/robots.ts` (`Disallow: /` for all user agents), closing a P2 finding from `tasks/security-headers-audit.md` that predated the public showroom. The site is invite-only and now App Store Unlisted; `/about` and `/privacy` are for direct-link stakeholder/reviewer sharing, not search discovery.
 - 2026-07-02: Reduced marketing language across the `/about` route set. Headlines, CTA copy, mockup descriptions, metadata, footer copy, and section navigation now describe concrete workflows, platform pieces, security controls, and field surfaces in a matter-of-fact tone.

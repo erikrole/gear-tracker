@@ -203,7 +203,22 @@ All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-j
 
 ## Change Log
 
-- 2026-07-31: **Passkey Security slice.** Security now supports web passkey enrollment, discoverable passkey login, credential metadata, and current-password-protected revocation. Passkeys issue the existing cookie-backed user session, require user verification, persist one-time ceremonies, and leave password recovery plus kiosk device auth unchanged. Native iOS AuthenticationServices support remains the next bounded slice.
+- 2026-07-31: **Passkey self-service hardening.** Enrollment and revocation now
+  enforce the explicit all-role `user.edit_self` permission in addition to the
+  authenticated session and current-password checks. Duplicate credential
+  races return a specific conflict and retire the completed ceremony. Native
+  Account & Security keeps passkey success feedback in the passkey section,
+  clears reauthentication secrets after successful mutations, bounds optional
+  names to the server contract, and distinguishes successful enrollment from a
+  failed follow-up list refresh.
+
+- 2026-07-31: **Native passkey enrollment confirmation is rollout-safe.**
+  Account & Security now decodes the registration endpoint's compact created
+  credential response separately from the full passkey metadata list, so a
+  passkey created in an external provider can finish enrollment without a
+  false server-response error.
+
+- 2026-07-31: **Passkey Security slice.** Security now supports web and native iOS passkey enrollment, discoverable passkey login, credential metadata, and current-password-protected revocation. Passkeys issue the existing cookie-backed user session, require user verification, persist one-time ceremonies, and leave password recovery plus kiosk device auth unchanged. The production AASA and API route contract is live; browser and real-device proof remain open.
 - 2026-07-23: Reservation Rules now explains that Pending Pickup begins at the
   scheduled reservation start and that the configured no-show window cancels
   and releases an uncollected reservation.

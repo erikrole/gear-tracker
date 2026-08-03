@@ -45,7 +45,6 @@
 | `/resources/[slug]` | `src/app/(app)/resources/[slug]/page.tsx` |
 | `/resources/new` | `src/app/(app)/resources/new/page.tsx` |
 | `/resources` | `src/app/(app)/resources/page.tsx` |
-| `/scan` | `src/app/(app)/scan/page.tsx` |
 | `/schedule/assign` | `src/app/(app)/schedule/assign/page.tsx` |
 | `/schedule` | `src/app/(app)/schedule/page.tsx` |
 | `/search` | `src/app/(app)/search/page.tsx` |
@@ -104,19 +103,19 @@
 |---|---:|
 | `src/components/ActivityTimeline.tsx` | 1369 |
 | `src/components/TradeBoard.tsx` | 1205 |
-| `src/components/EquipmentPicker.tsx` | 1001 |
 | `src/components/onboarding/OnboardingDialog.tsx` | 884 |
+| `src/components/EquipmentPicker.tsx` | 879 |
 | `src/components/ShiftDetailPanel.tsx` | 813 |
 | `src/components/ChooseImageModal.tsx` | 770 |
 | `src/components/profile-completion/ProfileCompletionWizard.tsx` | 768 |
-| `src/components/AppShell.tsx` | 742 |
+| `src/components/AppShell.tsx` | 749 |
 | `src/components/booking-wizard/BookingWizard.tsx` | 710 |
 | `src/components/ui/sidebar.tsx` | 710 |
 | `src/components/BookingDetailsSheet.tsx` | 680 |
 | `src/components/booking-wizard/WizardStep1.tsx` | 570 |
 | `src/components/BookingListPage.tsx` | 523 |
 | `src/components/ui/heatmap.tsx` | 409 |
-| `src/components/Sidebar.tsx` | 407 |
+| `src/components/Sidebar.tsx` | 408 |
 | `src/components/booking-details/BookingHeader.tsx` | 403 |
 | `src/components/ui/chart.tsx` | 389 |
 | `src/components/shift-detail/ShiftSlotCard.tsx` | 355 |
@@ -125,13 +124,13 @@
 | `src/components/FormCombobox.tsx` | 329 |
 | `src/components/resources/MarkdownReader.tsx` | 305 |
 | `src/components/public-showroom/showroom-blocks.tsx` | 290 |
-| `src/components/QrScanner.tsx` | 288 |
 | `src/components/booking-details/BookingSheetOverview.tsx` | 284 |
 | `src/components/PageBreadcrumb.tsx` | 283 |
 | `src/components/booking-details/TransferOwnerDialog.tsx` | 266 |
 | `src/components/booking-wizard/WizardStep3.tsx` | 263 |
 | `src/components/shift-detail/UserAvatarPicker.tsx` | 263 |
 | `src/components/ui/dropdown-menu.tsx` | 258 |
+| `src/components/shift-detail/CallWindowEditor.tsx` | 255 |
 
 ## Hooks
 
@@ -152,7 +151,6 @@
 | `src/hooks/use-mobile.ts` | 20 |
 | `src/hooks/use-operational-polling-activity.ts` | 131 |
 | `src/hooks/use-profile-completion.ts` | 65 |
-| `src/hooks/use-scan-submission.ts` | 241 |
 | `src/hooks/use-schedule-data.ts` | 529 |
 | `src/hooks/use-url-state.ts` | 166 |
 | `src/hooks/useBookingActions.ts` | 203 |

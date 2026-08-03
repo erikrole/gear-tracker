@@ -179,13 +179,17 @@ export async function onCheckoutOpened(event: CheckoutOpenedBadgeEvent): Promise
         kind: BookingKind.CHECKOUT,
         status: { in: [BookingStatus.OPEN, BookingStatus.COMPLETED] },
       },
-      select: { serializedItems: { select: { asset: { select: { categoryId: true } } } } },
+      select: {
+        serializedItems: { select: { asset: { select: { categoryId: true } } } },
+        bulkItems: { select: { bulkSku: { select: { categoryId: true } } } },
+      },
     });
     const distinctCategories = new Set(
       categories.flatMap((booking) =>
-        booking.serializedItems
-          .map((item) => item.asset.categoryId)
-          .filter((id): id is string => Boolean(id)),
+        [
+          ...booking.serializedItems.map((item) => item.asset.categoryId),
+          ...(booking.bulkItems ?? []).map((item) => item.bulkSku.categoryId),
+        ].filter((id): id is string => Boolean(id)),
       ),
     );
 
@@ -201,6 +205,25 @@ export async function onCheckoutOpened(event: CheckoutOpenedBadgeEvent): Promise
 
 export async function onCheckoutReturned(event: CheckoutReturnedBadgeEvent): Promise<void> {
   await runBadgeTransaction(async (tx) => {
+    // A clean return remains clean even when it is late. Award this independent
+    // lane before the on-time streak early return below.
+    const damageFreeCount = await tx.booking.count({
+      where: {
+        requesterUserId: event.userId,
+        kind: BookingKind.CHECKOUT,
+        status: BookingStatus.COMPLETED,
+        checkinReports: { none: {} },
+      },
+    });
+
+    await awardThresholdBadges(tx, {
+      userId: event.userId,
+      category: BadgeCategory.ON_TIME,
+      trigger: "checkout:returned",
+      count: damageFreeCount,
+      ruleKey: "damage_free_return",
+    });
+
     if (!event.wasOnTime) {
       await resetStreak(tx, {
         userId: event.userId,
@@ -229,27 +252,6 @@ export async function onCheckoutReturned(event: CheckoutReturnedBadgeEvent): Pro
       trigger: "checkout:returned",
       count: onTimeCount,
       ruleKey: "on_time_return",
-    });
-
-    // Returned complete and undamaged, which is the thing `perfect_handoff`
-    // and `full_kit_no_misses` asked staff to notice by hand and nobody ever
-    // did. A check-in report is the durable record of something going wrong,
-    // so its absence is the record of everything going right.
-    const damageFreeCount = await tx.booking.count({
-      where: {
-        requesterUserId: event.userId,
-        kind: BookingKind.CHECKOUT,
-        status: BookingStatus.COMPLETED,
-        checkinReports: { none: {} },
-      },
-    });
-
-    await awardThresholdBadges(tx, {
-      userId: event.userId,
-      category: BadgeCategory.ON_TIME,
-      trigger: "checkout:returned",
-      count: damageFreeCount,
-      ruleKey: "damage_free_return",
     });
 
     const streakCount = await incrementStreak(tx, {

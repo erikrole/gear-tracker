@@ -54,6 +54,13 @@ If a conflict could change behavior, stop and reconcile the source of truth in t
 - A Swift source refactor requires both an Xcode build and the web-side source-contract tests that inspect Swift files.
 - For explicit Xcode projects, register new Swift files in the project file and verify the target membership.
 
+### Simulator policy
+
+- Use `platform=iOS Simulator,name=iPhone 16 Pro` as the default iOS build and UI-verification destination for both `Wisconsin` and `WisconsinKiosk`.
+- Use the physical iPhone 16 Pro for device-only proof such as passkeys, camera, notifications, APNs, and other hardware or permission behavior. Simulator success does not replace that proof.
+- Do not silently substitute iPhone 17 or maintain a broad simulator matrix. Add another simulator only when the task specifically requires a different form factor, OS version, iPad, or watch.
+- If the iPhone 16 Pro destination is unavailable, report the missing runtime/device and stop at the source or generic-device gate rather than changing the default destination.
+
 ### UI and component standards
 
 - Web UI uses existing shadcn/ui primitives from `src/components/ui/`. Add a primitive through the project convention before creating a custom equivalent.

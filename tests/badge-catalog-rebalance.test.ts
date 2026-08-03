@@ -7,6 +7,7 @@ function source(relativeFile: string) {
 }
 
 const migration = source("prisma/migrations/0100_badge_catalog_rebalance/migration.sql");
+const seed = source("prisma/seed.mjs");
 const evaluator = source("src/lib/badges/evaluator.ts");
 const queries = source("src/lib/badges/queries.ts");
 
@@ -81,5 +82,38 @@ describe("badge catalog rebalance", () => {
   it("never deletes a badge definition or award", () => {
     expect(migration).not.toMatch(/\bDELETE\b/i);
     expect(migration).not.toMatch(/\bDROP\b/i);
+  });
+
+  it("keeps reseeding aligned with the migrated catalog", () => {
+    for (const key of ["checkout_10", "on_time_25", "scan_50", "damage_free_10", "damage_free_50"]) {
+      expect(seed).toContain(`key: "${key}"`);
+    }
+    expect(seed).toContain('description: "Worked a first event shift."');
+    expect(seed).toContain('description: "Checked out gear from five different categories."');
+    expect(seed).toContain("kind: BadgeKind.COUNT");
+    expect(seed).toContain('trigger: "checkout:opened"');
+    expect(seed).toContain("ruleKey: definition.ruleKey ?? null");
+
+    const categoryDefinition = seed.slice(seed.indexOf('key: "category_collector"'), seed.indexOf('key: "event_hero"'));
+    expect(categoryDefinition).toContain("kind: BadgeKind.COUNT");
+    expect(categoryDefinition).toContain('threshold: 5');
+    expect(categoryDefinition).not.toContain('trigger: "manual"');
+
+    const retiredKeys = [
+      "perfect_handoff",
+      "clean_loop",
+      "full_kit_no_misses",
+      "semester_streak",
+      "rookie_run",
+      "reliable_regular",
+      "clutch_cover",
+    ];
+    for (const key of retiredKeys) {
+      const definitionStart = seed.indexOf(`key: "${key}"`);
+      const definitionEnd = seed.indexOf("\n  },", definitionStart);
+      const definition = seed.slice(definitionStart, definitionEnd);
+      expect(definition).toContain("active: false");
+      expect(definition).toContain("Retired: replaced by automatic recognition or unused in practice.");
+    }
   });
 });

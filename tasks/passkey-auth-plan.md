@@ -35,6 +35,7 @@
 - [x] Slice 4: Add focused API, service, source-contract, schema, and migration checks.
 - [x] Slice 5: Update Users, Settings, decisions, gaps, and native follow-up documentation.
 - [x] Slice 6: Add native iOS passkey login, enrollment, and credential management against the web API contract.
+- [x] Slice 7: Harden explicit self-service authorization, duplicate conflicts, and native post-mutation recovery.
 
 ## Verification
 
@@ -50,14 +51,18 @@
 - [x] `npm run codemap` and `npm run verify:docs`.
 - [ ] Authenticated browser smoke for login and Settings Security, unavailable in this turn without a usable invited test account/browser session.
 - [x] Native iOS source-contract tests, XcodeGen project check, drift checks, and affected-target simulator build.
+- [x] Native registration confirmation decodes the compact `201` response returned by the verifier instead of the fuller passkey-list model.
 - [x] Native rollout-skew handling: production route 404 hides enrollment with a clear unavailable state and the optional passkey name opts out of contact autofill.
-- [ ] Real-device passkey enrollment/sign-in and production RP/origin proof.
+- [x] Hardening regressions: 23 focused tests across passkey server, native source contract, route wrapper, and collaborator permission policy files.
+- [x] Current TypeScript, focused ESLint, migration-free `build:app`, iOS project/drift/gap checks, and Wisconsin simulator build.
+- [ ] Current docs verification is blocked by parallel badge/sidebar codemap drift across four generated codemaps; do not regenerate until those owners finish.
+- [ ] Authenticated browser smoke, device-side AASA refresh, and real-device passkey enrollment/sign-in.
 
 ## Review
 
-- Shipped locally: web and native iOS passkey enrollment, discoverable login, credential listing/revocation, shared-session issuance, audit entries, schema/migration file, associated-domain/AASA support, rollout-skew handling, UI, tests, and documentation.
-- Verified: focused tests, native source contracts, XcodeGen project membership, iOS drift checks, Wisconsin simulator build, Prisma validation/generation, migration prefix check, TypeScript, ESLint, diff check, codemap/docs verification, and `build:app`. A 2026-07-31 production read confirmed that the AASA, registration-options, and passkey-list paths return 404.
-- Deferred: authenticated browser smoke, real-device passkey use, production RP/origin configuration, server/AASA deployment, and production client rollout.
+- Shipped locally: web and native iOS passkey enrollment, discoverable login, credential listing/revocation, shared-session issuance, audit entries, schema/migration file, associated-domain/AASA support, rollout-skew handling, explicit self-service permission gates, actionable duplicate conflicts, truthful native refresh recovery, UI, tests, and documentation.
+- Verified: focused tests, native source contracts, XcodeGen project membership, iOS drift checks, Wisconsin simulator build, Prisma validation/generation, migration prefix check, TypeScript, ESLint, diff check, codemap/docs verification, and `build:app`. The native registration confirmation now matches the verifier's compact `201` response. A 2026-07-31 production read confirmed AASA `200 application/json`, registration-options `405` for unauthenticated `GET`, and passkey listing `401` for unauthenticated `GET`; Apple’s AASA CDN returned the matching app ID.
+- Deferred: authenticated browser smoke, device-side association refresh, and real-device passkey use.
 - Migration: production `0106_passkey_auth` is applied. The exact previously DB-only migration files were restored from Git history, the existing calendar-result column was reconciled into Prisma, and final health matches all 111 local migrations.
 - Proof artifacts: `src/lib/passkey.ts`, `prisma/migrations/0106_passkey_auth/migration.sql`, `ios/Wisconsin/Core/PasskeyService.swift`, `tests/passkey-auth.test.ts`, `tests/ios-passkey-source.test.ts`, `docs/DECISIONS.md` D-043, and `docs/GAPS_AND_RISKS.md` GAP-62.
-- Next slice or stop: establish production `PASSKEY_RP_ID` and exact `PASSKEY_ORIGINS`, deploy the server and AASA route, and run authenticated browser/device proof before enabling enrollment for real users.
+- Next slice or stop: install the current build on a real iPhone, allow Apple’s association refresh, and run invited browser and device enrollment/sign-in proof before enabling enrollment for real users.

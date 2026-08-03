@@ -16,7 +16,6 @@ const CORE_SEARCH_PAGES: PageSearchResult[] = [
   { type: "page", id: "bookings", title: "Bookings", subtitle: "Combined active checkouts and reservations", href: "/bookings", keywords: ["all bookings", "active", "past", "history"] },
   { type: "page", id: "checkouts", title: "Checkouts", subtitle: "Gear pickup, custody, due-back, and return work", href: "/bookings?tab=checkouts", keywords: ["checked out", "pickup", "pending pickup", "returns", "custody"] },
   { type: "page", id: "reservations", title: "Reservations", subtitle: "Future gear holds and planning work", href: "/bookings?tab=reservations", keywords: ["reserve", "reserved", "confirmed", "planned"] },
-  { type: "page", id: "lookup", title: "Lookup", subtitle: "Scan or type a tag, QR, serial, or primary scan code", href: "/scan", keywords: ["scan", "qr", "barcode", "serial", "tag"] },
   { type: "page", id: "resources", title: "Resources", subtitle: "Guides, docs, links, and workflow references", href: "/resources", keywords: ["guides", "docs", "documentation", "contacts"] },
   { type: "page", id: "licenses", title: "Licenses", subtitle: "Software license assignments and availability", href: "/licenses", keywords: ["software", "seats", "codes", "claims"] },
   { type: "page", id: "notifications", title: "Notifications", subtitle: "Unread alerts, reminders, and operational messages", href: "/notifications", keywords: ["alerts", "inbox", "messages", "reminders"] },

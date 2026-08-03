@@ -90,7 +90,7 @@ Avoid:
 - **Edit**: inline edits should save with clear success/failure state; bulk edits need a visible pending/disabled state.
 - **Delete**: avoid where history matters. Prefer "Cancel", "Deactivate", "Archive", or "Retire" when those are the true lifecycle actions.
 - **Assign**: use "Assign" for staff choosing an owner or worker; use "Claim" only when the current user is taking something.
-- **Scan**: app `/scan` is lookup-only. Pickup and return scans belong to kiosk flows.
+- **Scan**: native iOS and kiosk own scan interactions. Web is text-first; pickup and return scans belong to kiosk flows.
 - **Schedule**: use event, shift, and coverage language. Keep dashboard event widgets read-only unless the full management surface is intentionally opened.
 - **Approve**: say what will happen after approval, especially for shift trades and requests.
 - **Invite**: email is not assumed. User creation should expose the temporary-password handoff when mail delivery is not wired.
@@ -139,7 +139,7 @@ Feature ideas to consider separately:
 - Public showroom: shared section blocks now use solid backgrounds, restrained borders, inline icons, and compact mockup framing instead of atmospheric gradients, tinted icon tiles, and repeated oversized card shadows.
 - `/dashboard`: pending pickup previously used green row accent. Fixed to orange waiting semantics.
 - `/checkouts/new` confirmation: checkout handoff previously looked complete. Fixed to pending kiosk pickup language.
-- `/scan`: custom page heading and small controls drifted from shared page/header and target-size rules. Header and controls now align.
+- `/scan`: removed from the web app. Native iOS owns lookup, web remains text-first, and kiosk owns custody scans.
 - `/items`: toolbar was the best existing command surface. It now uses `OperationalToolbar` and shared active-filter chips.
 - `/items`: inventory status now uses `OperationalStatusRail` with an active-inventory orientation, prioritized nonzero operational states, and the complete pressed-state-aware status facet set under Details.
 - Page-level operational summaries on Dashboard, Inventory Hygiene, Battery Ops, Notifications, Kits, Licenses, Onboarding Status, and Allowed Emails now share `OperationalStatusRail`; report analytics, import outcomes, badge progress, item insights, and Resources navigation remain card-based by design.

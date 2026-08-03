@@ -43,7 +43,6 @@
 - `/resources/[slug]` -> `src/app/(app)/resources/[slug]/page.tsx`
 - `/resources/new` -> `src/app/(app)/resources/new/page.tsx`
 - `/resources` -> `src/app/(app)/resources/page.tsx`
-- `/scan` -> `src/app/(app)/scan/page.tsx`
 - `/schedule/assign` -> `src/app/(app)/schedule/assign/page.tsx`
 - `/schedule` -> `src/app/(app)/schedule/page.tsx`
 - `/search` -> `src/app/(app)/search/page.tsx`

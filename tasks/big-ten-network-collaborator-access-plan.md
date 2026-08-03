@@ -101,5 +101,6 @@
 - 2026-07-16: After explicit user authorization to migrate everything, reviewed additive migration `0098` was applied through the Neon HTTP fallback. Health now reports 100/100 applied with no pending, failed, or database-only rows.
 - Proof artifacts:
 - `prisma/schema.prisma`, migrations `0095` through `0098`, policy and negative-route tests, migration health, and both Wisconsin target verification builds contain the implementation proof.
+- 2026-08-03: Added the missing collaborator Home entry point for `RESERVATION_CREATE` and capability-gated `/reservations/new` in the web shell. Focused source coverage, TypeScript, ESLint, and `build:app` pass; docs verification remains blocked by pre-existing codemap drift, and production/browser smoke is still deferred.
 - Next slice or stop:
 - Deploy the server and clients, run authenticated production smoke with a temporary account, configure and activate Learfield only after admin review, then invite Trey. Do not invite external collaborators from the current local-only state.

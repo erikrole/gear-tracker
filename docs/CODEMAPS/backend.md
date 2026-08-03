@@ -85,7 +85,7 @@
 | `src/lib/booking-actions.ts` | 14 |
 | `src/lib/booking-availability-window.ts` | 19 |
 | `src/lib/booking-status-display.ts` | 142 |
-| `src/lib/breadcrumbs.ts` | 145 |
+| `src/lib/breadcrumbs.ts` | 144 |
 | `src/lib/bulk-batteries.ts` | 28 |
 | `src/lib/bulk-unit-qr.ts` | 111 |
 | `src/lib/bulk-unit-status.ts` | 52 |
@@ -129,7 +129,7 @@
 | `src/lib/observability.ts` | 19 |
 | `src/lib/operational-health.ts` | 50 |
 | `src/lib/ops-checks.ts` | 176 |
-| `src/lib/passkey.ts` | 321 |
+| `src/lib/passkey.ts` | 328 |
 | `src/lib/permissions.ts` | 183 |
 | `src/lib/profile-completion-events.ts` | 6 |
 | `src/lib/profile-completion.ts` | 157 |
@@ -143,7 +143,6 @@
 | `src/lib/request-limits.ts` | 15 |
 | `src/lib/resource-search.ts` | 124 |
 | `src/lib/sanitize.ts` | 40 |
-| `src/lib/scan-feedback.ts` | 87 |
 | `src/lib/schedule-automation-types.ts` | 55 |
 | `src/lib/schedule-availability-context.ts` | 93 |
 | `src/lib/schedule-change-history-types.ts` | 55 |
@@ -155,7 +154,7 @@
 | `src/lib/schedule-queues.ts` | 174 |
 | `src/lib/schedule-template-review-types.ts` | 105 |
 | `src/lib/schedule-working-copy.ts` | 255 |
-| `src/lib/search-pages.ts` | 72 |
+| `src/lib/search-pages.ts` | 71 |
 | `src/lib/search-result-title.ts` | 13 |
 | `src/lib/serialization.ts` | 47 |
 | `src/lib/shell-navigation.ts` | 11 |

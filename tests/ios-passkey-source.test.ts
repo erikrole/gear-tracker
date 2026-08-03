@@ -20,8 +20,12 @@ describe("iOS passkey source contract", () => {
     expect(service).toContain("attestationObject");
     expect(service).toContain("rawAuthenticatorData");
     expect(service).toContain("signature");
+    expect(service).toContain("associationUnavailable");
+    expect(service).toContain("Passkey setup requires a real iPhone.");
+    expect(service).toContain("Passkey request was canceled.");
     expect(models).toContain("type = \"public-key\"");
     expect(models).toContain("clientExtensionResults: [String: String] = [:]");
+    expect(models).toContain("struct PasskeyRegistrationConfirmation");
   });
 
   it("keeps native login, enrollment, and management on the existing API contract", () => {
@@ -34,6 +38,7 @@ describe("iOS passkey source contract", () => {
     expect(api).toContain("/api/auth/passkey/login/verify");
     expect(api).toContain("/api/auth/passkey/registration/options");
     expect(api).toContain("/api/auth/passkey/registration/verify");
+    expect(api).toContain("DataWrapper<PasskeyRegistrationConfirmation>");
     expect(api).toContain("/api/me/passkeys");
     expect(session).toContain("PasskeyService.shared.authenticate");
     expect(login).toContain("Continue with passkey");
@@ -44,6 +49,10 @@ describe("iOS passkey source contract", () => {
     expect(security).toContain("Passkey setup is not available on this server yet.");
     expect(security).toContain('TextField("Passkey name (optional)"');
     expect(security).toContain(".textContentType(nil)");
+    expect(security).toContain("String(value.prefix(80))");
+    expect(security).toContain('passkeySuccessMessage = "Passkey added."');
+    expect(security).toContain("Passkey added, but the list could not refresh.");
+    expect(security).toContain('passkeyCurrentPassword = ""');
   });
 
   it("publishes the webcredentials association for the shipped bundle", () => {

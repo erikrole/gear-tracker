@@ -133,6 +133,30 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 
 ## Change Log
 
+- 2026-08-03: **Build 23 is live in TestFlight.** The Wisconsin app and
+  Live Activities extension share build 23 while the separate kiosk target
+  remains at build 1. Focused source tests, TypeScript, `build:app`, XcodeGen
+  project consistency, iOS drift and audit checks, codemap/docs checks,
+  signed generic-device archive/export, and final IPA entitlement inspection
+  passed. App Store Connect processed the build as `VALID` and the existing
+  Internal QA and External Beta groups both include it. The required iPhone 16
+  Pro simulator is unavailable on this Mac; real-device passkey, hardware,
+  and exact-binary screenshot acceptance remain separate proof gates.
+
+- 2026-07-31: **Native Account & Security has truthful passkey recovery.** A
+  successful enrollment remains visibly successful if the follow-up credential
+  list refresh fails, so users are not prompted to create a duplicate passkey.
+  Passkey feedback stays in its own section, optional names stop at the server's
+  80-character boundary, successful add/remove actions clear the current
+  password, and removal copy no longer implies a synced passkey belongs only to
+  the current device.
+
+- 2026-07-31: **Native passkey confirmation now matches the server response.**
+  iOS no longer decodes the registration confirmation as the fuller passkey
+  listing model. The server-created credential can now complete enrollment
+  without the client reporting `Unexpected response from server`; the full
+  metadata model remains reserved for the passkey list and management view.
+
 - 2026-07-31: **Native iOS passkeys use the shared WebAuthn contract.** The
   Wisconsin app now offers passkey sign-in from Login and passkey enrollment,
   listing, and revocation in Account & Security. `AuthenticationServices`
@@ -142,11 +166,12 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
   `webcredentials:wisconsincreative.com` association and the public AASA route
   returns the shipped team and bundle identifier. Migration `0106_passkey_auth`
   is applied in production; real-device passkey use, production RP/origin
-  configuration, and application deployment remain open.
-  During that rollout gap, an older server's missing passkey routes now produce
-  a quiet unavailable state instead of an actionable enrollment form and a
-  generic not-found error. The optional passkey name also opts out of contact
-  autofill so an account email is not mistaken for a credential label.
+  configuration, and device-side association refresh remain open. An older
+  server's missing passkey routes produce a quiet unavailable state instead of
+  an actionable enrollment form and a generic not-found error. The optional
+  passkey name also opts out of contact autofill so an account email is not
+  mistaken for a credential label. A simulator-side Apple association failure
+  now explains that enrollment requires a real iPhone.
 
 - 2026-07-29: **Native feature discovery uses TipKit sparingly.** The main
   Wisconsin app now gives eligible users contextual prompts for New

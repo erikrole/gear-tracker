@@ -142,7 +142,7 @@ final class APIClient {
     func verifyPasskeyRegistration(
         _ registration: PasskeyRegistrationPayload,
         name: String?
-    ) async throws -> PasskeyCredentialSummary {
+    ) async throws -> PasskeyRegistrationConfirmation {
         struct Body: Encodable {
             let response: PasskeyRegistrationPayload
             let name: String?
@@ -154,7 +154,7 @@ final class APIClient {
             response: registration,
             name: trimmedName?.isEmpty == true ? nil : trimmedName
         ))
-        let response: DataWrapper<PasskeyCredentialSummary> = try await perform(req)
+        let response: DataWrapper<PasskeyRegistrationConfirmation> = try await perform(req)
         return response.data
     }
 

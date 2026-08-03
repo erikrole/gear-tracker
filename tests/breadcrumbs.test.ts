@@ -65,7 +65,7 @@ describe("formatSegment", () => {
   it("uses overrides where the label diverges from title-casing", () => {
     expect(formatSegment("events")).toBe("Schedule");
     expect(formatSegment("bulk-inventory")).toBe("Item family operations");
-    expect(formatSegment("scan")).toBe("Lookup");
+    expect(formatSegment("scan")).toBe("Scan");
   });
 
   it("title-cases hyphenated segments by default", () => {

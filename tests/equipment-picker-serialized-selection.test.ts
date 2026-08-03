@@ -74,10 +74,12 @@ describe("canSelectSerializedAssetForWindow", () => {
 });
 
 describe("EquipmentPicker serialized availability contract", () => {
-  it("uses the window-aware selection helper for row toggles and scan-to-add", () => {
+  it("uses the window-aware selection helper for row toggles", () => {
     expect(equipmentPickerSource).toContain("import { canSelectSerializedAssetForWindow }");
     expect(equipmentPickerSource).toContain("const canSelect = canSelectSerializedAssetForWindow(asset, { startsAt, conflict });");
-    expect(equipmentPickerSource).toContain("if (!canSelectSerializedAssetForWindow(asset, { startsAt, conflict: scanConflict }))");
+    expect(equipmentPickerSource).toContain('disabled={isUnavailable}');
+    expect(equipmentPickerSource).toContain("onCheckedChange={() => toggleAsset(asset.id, asset)}");
+    expect(equipmentPickerSource).toContain("onClick={() => toggleAsset(asset.id, asset)}");
     expect(equipmentPickerSource).not.toContain('if (asset.computedStatus !== "AVAILABLE")');
   });
 });

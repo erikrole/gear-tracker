@@ -847,6 +847,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Keep server-side enforcement at the mutation boundary. UI removal alone is insufficient.
   - Preserve `sourceReservationId` and audit entries when a reservation is fulfilled into checkout custody.
   - Do not reintroduce app/web scan completion paths outside kiosk APIs.
+- 2026-08-03 amendment: The signed-in web app no longer exposes a standalone `/scan` lookup route or browser camera scanner controls. Native iOS owns item lookup, kiosk owns physical custody scans, and web retains text-first search plus scan-history reporting.
 
 ## D-041: External Collaborators Use Default-Deny Affiliation Policies
 - Date: 2026-07-16

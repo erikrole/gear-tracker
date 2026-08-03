@@ -8,7 +8,7 @@ import {
   type AuthenticationResponseJSON,
   type RegistrationResponseJSON,
 } from "@simplewebauthn/server";
-import { PasskeyCeremonyType } from "@prisma/client";
+import { PasskeyCeremonyType, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { HttpError } from "@/lib/http";
@@ -197,7 +197,14 @@ export async function verifyPasskeyRegistration(
         name: normalizePasskeyName(name),
       },
     });
-  }, { isolationLevel: "Serializable" });
+  }, { isolationLevel: "Serializable" }).catch(async (error: unknown) => {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      await db.passkeyChallenge.deleteMany({ where: { id: ceremony.id } });
+      await clearCeremonyCookie();
+      throw new HttpError(409, "This passkey is already registered.");
+    }
+    throw error;
+  });
 
   await clearCeremonyCookie();
   return created;

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reports & Analytics
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-23
+- Last Updated: 2026-08-03
 - Status: Active
 - Version: V1
 
@@ -158,6 +158,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - [x] AC-9: Admin accountability ranks current and historical late returns and supports audited, reversible data-quality exclusions without deleting custody history.
 
 ## Change Log
+- 2026-08-03: Disabled automatic RSC prefetching for the authenticated sidebar, notification chrome, and report section links after Safari desktop proof showed the viewport prefetch storm failing and falling back to full browser navigations. Click navigation remains client-routed.
 - 2026-07-23: Accountability now preserves checkout due-date changes and counts extensions made after the prior deadline plus grace as distinct late episodes. Migration `0102_booking_due_date_history` backfills retained extension audits, while future extensions write durable evidence in the same SERIALIZABLE transaction.
 - 2026-07-23: Added the ADMIN-only Accountability surface. It ranks academic-year late-return incidents using the configured overdue grace period, separates active and resolved evidence, exposes filtered CSV, and adds audited reversible checkout exclusions for test or bad data while preserving D-040 custody history. The existing staff/admin Overdue report remains the live open-checkout queue.
 - 2026-07-16: Checkout report heatmap colors now use a theme-aware blue OKLCH intensity scale, matching the product rule that blue means active use. The visual change does not alter report data, custody semantics, filters, or APIs.

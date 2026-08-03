@@ -10,7 +10,6 @@ import {
 const SEGMENT_OVERRIDE: Record<string, { label: string; href?: string }> = {
   events: { label: "Schedule", href: "/schedule" },
   "bulk-inventory": { label: "Item family operations", href: "/items" },
-  scan: { label: "Lookup", href: "/scan" },
 };
 
 export type SiblingItem = {

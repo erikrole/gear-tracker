@@ -7,6 +7,7 @@ enum PasskeyServiceError: LocalizedError {
     case cancelled
     case invalidServerOptions
     case unsupportedCredential
+    case associationUnavailable
     case authorizationFailed(Error)
 
     var errorDescription: String? {
@@ -14,9 +15,11 @@ enum PasskeyServiceError: LocalizedError {
         case .unavailable:
             "Passkeys are not available on this device. Use your password instead."
         case .cancelled:
-            "Passkey sign-in was canceled."
+            "Passkey request was canceled."
         case .invalidServerOptions, .unsupportedCredential:
             "The passkey request could not be completed. Try again."
+        case .associationUnavailable:
+            "Apple could not verify this app's website association. Passkey setup requires a real iPhone. On a device, reinstall the latest build and try again."
         case .authorizationFailed(let error):
             error.localizedDescription
         }
@@ -137,6 +140,8 @@ final class PasskeyService: NSObject, ASAuthorizationControllerDelegate, ASAutho
         if let authorizationError = error as? ASAuthorizationError,
            authorizationError.code == .canceled {
             finish(.failure(PasskeyServiceError.cancelled))
+        } else if error.localizedDescription.localizedCaseInsensitiveContains("webcredentials association") {
+            finish(.failure(PasskeyServiceError.associationUnavailable))
         } else {
             finish(.failure(PasskeyServiceError.authorizationFailed(error)))
         }

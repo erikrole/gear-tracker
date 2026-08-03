@@ -1,17 +1,16 @@
 "use client";
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { Dices, ScanLine, X } from "lucide-react";
+import { Dices, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import QrScanner from "@/components/QrScanner";
 
 import type { Department, Location, ParentSearchResult } from "./types";
 import type { CategoryOption } from "@/types/category";
-import { generateQrCode, useIsMobile, useParentSearch, FISCAL_YEARS } from "./helpers";
+import { generateQrCode, useParentSearch, FISCAL_YEARS } from "./helpers";
 import { FormRow, FormRow2Col } from "@/components/form-layout";
 import { FormCombobox, CategoryCombobox } from "@/components/FormCombobox";
 import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
@@ -110,7 +109,6 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
 
     // QR code
     const [qrCodeValue, setQrCodeValue] = useState("");
-    const [showScanner, setShowScanner] = useState(false);
 
     // Settings — three independent booking toggles matching detail page
     const [availableForReservation, setAvailableForReservation] = useState(true);
@@ -120,7 +118,6 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
     const [parentAsset, setParentAsset] = useState<ParentSearchResult | null>(null);
     const parentSearch = useParentSearch();
 
-    const isMobile = useIsMobile();
     const assetTagRequired = !isAccessory;
     const identityDescription = isAccessory
       ? "Attachments can leave the visible asset tag blank. A quiet internal tag is generated from the parent item, attachment identity, and QR code."
@@ -196,7 +193,6 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
         setUwAssetTag("");
         setUserNotes("");
         setQrCodeValue("");
-        setShowScanner(false);
         setAvailableForReservation(true);
         setAvailableForCheckout(true);
         setAvailableForCustody(true);
@@ -328,40 +324,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
               >
                 <Dices className="size-4" />
               </Button>
-              {isMobile && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  title="Scan QR code"
-                  aria-label="Scan QR code"
-                  onClick={() => setShowScanner((v) => !v)}
-                >
-                  <ScanLine className="size-4" />
-                </Button>
-              )}
             </div>
-            {showScanner && (
-              <div className="mt-2">
-                <QrScanner
-                  active={showScanner}
-                  onScan={(value) => {
-                    setQrCodeValue(value);
-                    setShowScanner(false);
-                  }}
-                  onError={() => setShowScanner(false)}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="mt-1 w-full text-xs"
-                  onClick={() => setShowScanner(false)}
-                >
-                  Close scanner
-                </Button>
-              </div>
-            )}
           </FormRow>
 
           <FormRow label="UW Asset Tag" htmlFor="new-item-uw-asset-tag">

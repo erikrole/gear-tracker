@@ -9,7 +9,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/reports/badges`
 - APIs: `/api/badges/award/[id]`, `/api/badges/award`, `/api/badges`, `/api/badges/user/[userId]`, `/api/reports/badges`
 - Services: _none matched_
-- Tests: `tests/badges-award-route.test.ts`, `tests/badges-display.test.ts`, `tests/badges-flag-off.test.ts`, `tests/badges-manual-awards.test.ts`, `tests/badges-report-route.test.ts`, `tests/badges-routes.test.ts`, `tests/badges-service.test.ts`, `tests/kiosk-checkout-scan-badges.test.ts`
+- Tests: `tests/badges-award-route.test.ts`, `tests/badges-display.test.ts`, `tests/badges-flag-off.test.ts`, `tests/badges-manual-awards.test.ts`, `tests/badges-report-route.test.ts`, `tests/badges-routes.test.ts`, `tests/badges-service.test.ts`, `tests/badges-ui-hardening.test.ts`
 
 ## bulk-inventory
 
@@ -142,7 +142,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 ## scan
 
 - Doc: `docs/AREA_SCAN.md`
-- Pages: `/reports/scans`, `/scan`
+- Pages: `/reports/scans`
 - APIs: `/api/checkouts/[id]/checkin-scan`, `/api/checkouts/[id]/scan-status`, `/api/checkouts/[id]/scan`, `/api/checkouts/[id]/start-scan-session`, `/api/kiosk/checkin/[id]/scan`, `/api/kiosk/checkout/scan`, `/api/kiosk/pickup/[id]/scan`, `/api/kiosk/resolve-scan`, `/api/kiosk/scan-lookup`, `/api/reports/scans`
 - Services: `src/lib/services/bulk-unit-scans.ts`, `src/lib/services/kiosk-scan.ts`, `src/lib/services/scans.ts`
 - Tests: `tests/bulk-scan-race.test.ts`, `tests/bulk-unit-kiosk-scans.test.ts`, `tests/ios-kiosk-rapid-scan-atomicity.test.ts`, `tests/ios-kiosk-scanner-focus.test.ts`, `tests/ios-scan-result-retry.test.ts`, `tests/kiosk-checkout-scan-badges.test.ts`, `tests/kiosk-resolve-scan-route.test.ts`, `tests/scan-route-gate-contract.test.ts`

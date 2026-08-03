@@ -225,7 +225,6 @@
   --z-popover: 50;
   --z-toast: 60;
   --z-sidebar: 200;
-  --z-scan-feedback: 1000;
   --z-offline: 9999;
 
   /* Brand — Wisconsin Red for identity moments only (sidebar, logo, overdue) */
@@ -1265,18 +1264,6 @@ a[data-slot="button"]:hover {
 }
 
 /* ===== Equipment Picker ===== */
-
-/* ── Scan page keyframes (used via Tailwind animate-[...]) ── */
-@keyframes scan-feedback-in {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes scan-check-pop {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.2); }
-  100% { transform: scale(1); }
-}
 
 /* ===== Print styles ===== */
 @media print {

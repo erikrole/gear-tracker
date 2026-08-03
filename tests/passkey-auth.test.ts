@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Role } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
 
 const dbMock = vi.hoisted(() => ({
   $transaction: vi.fn(),
@@ -50,6 +50,7 @@ vi.mock("@/lib/rate-limit", () => ({
   enforceRateLimit: vi.fn(),
 }));
 vi.mock("@/lib/audit", () => ({ createAuditEntry: vi.fn() }));
+vi.mock("@/lib/rbac", () => ({ requirePermission: vi.fn() }));
 vi.mock("@/lib/collaborator-access", () => ({
   capabilitiesForActor: vi.fn(() => []),
   collaboratorPolicyMetadataForActor: vi.fn(() => null),
@@ -67,9 +68,12 @@ vi.mock("@simplewebauthn/server", () => ({
 import { requireAuth, createSession, verifyPassword } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createAuditEntry } from "@/lib/audit";
-import { generateRegistrationOptions, verifyAuthenticationResponse } from "@simplewebauthn/server";
+import { requirePermission } from "@/lib/rbac";
+import { generateRegistrationOptions, verifyAuthenticationResponse, verifyRegistrationResponse } from "@simplewebauthn/server";
 import { POST as registrationOptions } from "@/app/api/auth/passkey/registration/options/route";
+import { POST as registrationVerify } from "@/app/api/auth/passkey/registration/verify/route";
 import { POST as loginVerify } from "@/app/api/auth/passkey/login/verify/route";
+import { DELETE as revokePasskey } from "@/app/api/me/passkeys/[id]/route";
 
 const user = {
   id: "user-1",
@@ -131,6 +135,7 @@ beforeEach(() => {
     backedUp: false,
   });
   dbMock.passkeyCredential.updateMany.mockResolvedValue({ count: 1 });
+  dbMock.passkeyCredential.deleteMany.mockResolvedValue({ count: 1 });
   vi.mocked(verifyAuthenticationResponse).mockResolvedValue({
     verified: true,
     authenticationInfo: {
@@ -153,6 +158,7 @@ describe("passkey authentication", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(requirePermission).toHaveBeenCalledWith(Role.STAFF, "user", "edit_self");
     expect(verifyPassword).toHaveBeenCalledWith("password-hash", "correct-password");
     expect(dbMock.passkeyChallenge.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -166,6 +172,108 @@ describe("passkey authentication", () => {
       "raw-ceremony-token",
       expect.objectContaining({ httpOnly: true, maxAge: 300 }),
     );
+  });
+
+  it("does not create an enrollment ceremony when reauthentication fails", async () => {
+    vi.mocked(verifyPassword).mockResolvedValue(false);
+
+    const response = await registrationOptions(
+      request("/api/auth/passkey/registration/options", { currentPassword: "wrong-password" }),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(response.status).toBe(400);
+    expect(requirePermission).toHaveBeenCalledWith(Role.STAFF, "user", "edit_self");
+    expect(dbMock.passkeyChallenge.create).not.toHaveBeenCalled();
+  });
+
+  it("returns an actionable conflict and retires the ceremony for a duplicate credential", async () => {
+    dbMock.passkeyChallenge.findUnique.mockResolvedValue({
+      id: "challenge-1",
+      challenge: "registration-challenge",
+      type: "REGISTRATION",
+      userId: "user-1",
+      rememberMe: false,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    dbMock.passkeyChallenge.deleteMany
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 });
+    vi.mocked(verifyRegistrationResponse).mockResolvedValue({
+      verified: true,
+      registrationInfo: {
+        fmt: "none",
+        aaguid: "00000000-0000-0000-0000-000000000000",
+        credential: {
+          id: "credential-public-id",
+          publicKey: new Uint8Array([1, 2, 3]),
+          counter: 0,
+          transports: ["internal"],
+        },
+        credentialType: "public-key",
+        attestationObject: new Uint8Array(),
+        userVerified: true,
+        credentialDeviceType: "multiDevice",
+        credentialBackedUp: true,
+        origin: "https://app.example.com",
+        rpID: "app.example.com",
+      },
+    });
+    dbMock.passkeyCredential.create.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("Unique constraint", {
+        code: "P2002",
+        clientVersion: "test",
+        meta: { target: ["credential_id"] },
+      }),
+    );
+
+    const response = await registrationVerify(
+      request("/api/auth/passkey/registration/verify", {
+        response: {
+          id: "credential-public-id",
+          rawId: "credential-public-id",
+          type: "public-key",
+          response: {
+            clientDataJSON: "client-data",
+            attestationObject: "attestation-object",
+            transports: ["internal"],
+          },
+        },
+      }),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ error: "This passkey is already registered." });
+    expect(verifyRegistrationResponse).toHaveBeenCalledWith(expect.objectContaining({
+      expectedChallenge: "registration-challenge",
+      expectedOrigin: ["https://app.example.com"],
+      expectedRPID: "app.example.com",
+      requireUserVerification: true,
+    }));
+    expect(requirePermission).toHaveBeenCalledWith(Role.STAFF, "user", "edit_self");
+    expect(dbMock.passkeyChallenge.deleteMany).toHaveBeenLastCalledWith({ where: { id: "challenge-1" } });
+    expect(cookieApi.delete).toHaveBeenCalledWith("passkey_ceremony");
+    expect(createAuditEntry).not.toHaveBeenCalled();
+  });
+
+  it("permission-gates and password-protects owned passkey revocation", async () => {
+    const response = await revokePasskey(
+      request("/api/me/passkeys/credential-1", { currentPassword: "correct-password" }, "DELETE"),
+      { params: Promise.resolve({ id: "credential-1" }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(requirePermission).toHaveBeenCalledWith(Role.STAFF, "user", "edit_self");
+    expect(verifyPassword).toHaveBeenCalledWith("password-hash", "correct-password");
+    expect(dbMock.passkeyCredential.deleteMany).toHaveBeenCalledWith({
+      where: { id: "credential-1", userId: "user-1" },
+    });
+    expect(createAuditEntry).toHaveBeenCalledWith(expect.objectContaining({
+      actorId: "user-1",
+      entityId: "credential-1",
+      action: "passkey_revoked",
+    }));
   });
 
   it("verifies a discoverable assertion and issues the normal session", async () => {
@@ -196,7 +304,34 @@ describe("passkey authentication", () => {
       where: { id: "credential-1", counter: 4 },
       data: expect.objectContaining({ counter: 5 }),
     });
+    expect(verifyAuthenticationResponse).toHaveBeenCalledWith(expect.objectContaining({
+      expectedChallenge: "authentication-challenge",
+      expectedOrigin: ["https://app.example.com"],
+      expectedRPID: "app.example.com",
+      requireUserVerification: true,
+    }));
     expect(createAuditEntry).toHaveBeenCalledWith(expect.objectContaining({ action: "passkey_login" }));
+  });
+
+  it("rejects a valid assertion when its owning user is inactive", async () => {
+    dbMock.user.findUnique.mockResolvedValue({ ...user, active: false, collaboratorPolicy: null });
+
+    const response = await loginVerify(
+      request("/api/auth/passkey/login/verify", {
+        response: {
+          id: "credential-public-id",
+          rawId: "credential-public-id",
+          type: "public-key",
+          response: { clientDataJSON: "client-data", authenticatorData: "authenticator-data", signature: "signature" },
+        },
+      }),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(response.status).toBe(401);
+    expect(dbMock.passkeyChallenge.deleteMany).not.toHaveBeenCalled();
+    expect(dbMock.passkeyCredential.updateMany).not.toHaveBeenCalled();
+    expect(createSession).not.toHaveBeenCalled();
   });
 
   it("does not accept a ceremony that has already been consumed", async () => {

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { SearchIcon, ClipboardCheckIcon, CalendarCheckIcon, BellIcon, UserIcon, LayoutGridIcon, LayersIcon, BookOpenIcon, ScanIcon, ArrowRightIcon } from "lucide-react";
+import { SearchIcon, ClipboardCheckIcon, CalendarCheckIcon, BellIcon, UserIcon, LayoutGridIcon, LayersIcon, BookOpenIcon, ArrowRightIcon } from "lucide-react";
 import AppSidebar from "./Sidebar";
 import { AssetImage } from "@/components/AssetImage";
 import { OperationalPartialResultsAlert } from "@/components/OperationalFeedback";
@@ -36,6 +36,7 @@ import { toast } from "sonner";
 import { BOOKING_CHANGE_SYNC_EVENT } from "@/hooks/use-booking-change-sync";
 import { NOTIFICATION_COUNT_CHANGED_EVENT } from "@/lib/notification-count-sync";
 import { ProfileCompletionWizard } from "@/components/profile-completion/ProfileCompletionWizard";
+import { hasDashboardCountFailure } from "@/app/(app)/dashboard-types";
 
 type EntitySearchResult = {
   type: "item" | "checkout" | "reservation" | "user";
@@ -93,7 +94,15 @@ type DashboardStatsBadgeResponse = {
     myOverdueCount?: unknown;
     myDueTodayCount?: unknown;
   };
+  partialFailures?: unknown[];
 };
+
+function dashboardBadgeCountsAreTrusted(response: DashboardStatsBadgeResponse | null) {
+  const partialFailures = Array.isArray(response?.partialFailures)
+    ? response.partialFailures.filter((failure): failure is string => typeof failure === "string")
+    : [];
+  return !hasDashboardCountFailure(partialFailures);
+}
 
 const SEARCH_RESULT_SOURCES = {
   items: "Items",
@@ -107,7 +116,6 @@ type BottomNavItem = {
   href: string;
   icon: React.ElementType;
   badge?: "overdue";
-  primary?: boolean;
 };
 
 const bottomNavItems: BottomNavItem[] = [
@@ -115,7 +123,6 @@ const bottomNavItems: BottomNavItem[] = [
   { label: "Schedule", href: "/schedule", icon: CalendarCheckIcon },
   { label: "Bookings", href: "/bookings", icon: BookOpenIcon, badge: "overdue" as const },
   { label: "Items", href: "/items", icon: LayersIcon },
-  { label: "Lookup", href: "/scan", icon: ScanIcon, primary: true },
 ];
 
 const collaboratorBottomNavItems: BottomNavItem[] = [
@@ -131,6 +138,7 @@ const COLLABORATOR_ROUTE_CAPABILITY: Array<{ matches: (pathname: string) => bool
   { matches: (value) => value === "/schedule" || value.startsWith("/schedule/"), capability: "PUBLISHED_SCHEDULE_VIEW" },
   { matches: (value) => value === "/items" || (value.startsWith("/items/") && value !== "/items/new"), capability: "GEAR_CATALOG_VIEW" },
   { matches: (value) => value === "/bookings" || value.startsWith("/bookings/"), capability: "MY_GEAR_VIEW" },
+  { matches: (value) => value === "/reservations/new", capability: "RESERVATION_CREATE" },
   { matches: (value) => value === "/users" || value.startsWith("/users/"), capability: "PEOPLE_DIRECTORY_VIEW" },
 ];
 
@@ -211,14 +219,16 @@ export default function AppShell({
           if (handleAuthRedirect(dashboardResult.value, pathname)) return;
           if (dashboardResult.value.ok) {
             const json = await parseJsonSafely<DashboardStatsBadgeResponse>(dashboardResult.value);
-            const count = json?.data?.myOverdueCount;
-            const dueToday = json?.data?.myDueTodayCount;
-            // User-scoped overdue count so STUDENT sees only their own overdue
-            if (typeof count === "number") {
-              setOverdueBadgeCount(count);
-            }
-            if (typeof dueToday === "number") {
-              setDueTodayBadgeCount(dueToday);
+            if (dashboardBadgeCountsAreTrusted(json)) {
+              const count = json?.data?.myOverdueCount;
+              const dueToday = json?.data?.myDueTodayCount;
+              // User-scoped overdue count so STUDENT sees only their own overdue
+              if (typeof count === "number") {
+                setOverdueBadgeCount(count);
+              }
+              if (typeof dueToday === "number") {
+                setDueTodayBadgeCount(dueToday);
+              }
             }
           }
         }
@@ -240,10 +250,12 @@ export default function AppShell({
         const response = await fetch("/api/dashboard/stats");
         if (handleAuthRedirect(response, pathname) || !response.ok) return;
         const json = await parseJsonSafely<DashboardStatsBadgeResponse>(response);
-        const overdue = json?.data?.myOverdueCount;
-        const dueToday = json?.data?.myDueTodayCount;
-        if (typeof overdue === "number") setOverdueBadgeCount(overdue);
-        if (typeof dueToday === "number") setDueTodayBadgeCount(dueToday);
+        if (dashboardBadgeCountsAreTrusted(json)) {
+          const overdue = json?.data?.myOverdueCount;
+          const dueToday = json?.data?.myDueTodayCount;
+          if (typeof overdue === "number") setOverdueBadgeCount(overdue);
+          if (typeof dueToday === "number") setDueTodayBadgeCount(dueToday);
+        }
       } catch {
         // Keep the last known chrome counts until the next sync/navigation refresh.
       }
@@ -666,7 +678,7 @@ export default function AppShell({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative p-2 no-underline text-muted-foreground rounded-lg transition-colors hover:bg-black/5 hover:text-foreground max-md:p-2.5 max-md:min-w-[44px] max-md:min-h-[44px] max-md:flex max-md:items-center max-md:justify-center [&_a]:no-underline" asChild>
-                  <Link href="/notifications" aria-label={unreadNotifications > 0 ? `Notifications (${unreadNotifications} unread)` : "Notifications"}>
+                  <Link prefetch={false} href="/notifications" aria-label={unreadNotifications > 0 ? `Notifications (${unreadNotifications} unread)` : "Notifications"}>
                     <BellIcon className="size-5" />
                     {unreadNotifications > 0 && (
                       <span className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground text-[length:var(--text-2xs)] font-bold rounded-full px-[5px] min-w-4 h-4 leading-4 text-center tabular-nums" aria-hidden="true">{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>
@@ -705,30 +717,25 @@ export default function AppShell({
                 className={cn(
                   "group relative flex min-h-[58px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-[9.5px] font-semibold leading-none text-muted-foreground no-underline outline-none transition-[background-color,color,box-shadow,scale] duration-150 [-webkit-tap-highlight-color:transparent] hover:bg-muted/70 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card active:scale-[0.96]",
                   isActive && "bg-muted text-foreground shadow-[inset_0_0_0_1px_rgba(0,0,0,0.04)]",
-                  item.primary && "gap-0.5",
                 )}
               >
                 <span
                   className={cn(
                     "relative flex size-7 items-center justify-center rounded-full transition-[background-color,color,box-shadow,scale] duration-150",
-                    item.primary
-                      ? isActive
-                        ? "bg-[var(--wi-red)] text-white shadow-[0_8px_18px_rgba(160,0,0,0.28)]"
-                        : "bg-[var(--wi-red)] text-white shadow-[0_8px_18px_rgba(160,0,0,0.20)] group-hover:shadow-[0_10px_22px_rgba(160,0,0,0.26)]"
-                      : isActive
+                    isActive
                       ? "bg-[var(--wi-red)]/10 text-[var(--wi-red)]"
                       : "text-muted-foreground group-hover:text-foreground",
                   )}
                   aria-hidden="true"
                 >
-                  <Icon className={item.primary ? "size-[19px]" : "size-[18px]"} />
+                  <Icon className="size-[18px]" />
                   {badgeCount > 0 && (
                     <span className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold leading-4 text-destructive-foreground tabular-nums shadow-sm">
                       {badgeCount > 99 ? "99+" : badgeCount}
                     </span>
                   )}
                 </span>
-                <span className={cn("max-w-full truncate tracking-normal", isActive && "text-[var(--wi-red)]", item.primary && isActive && "text-foreground")}>
+                <span className={cn("max-w-full truncate tracking-normal", isActive && "text-[var(--wi-red)]")}>
                   {item.label}
                 </span>
               </Link>

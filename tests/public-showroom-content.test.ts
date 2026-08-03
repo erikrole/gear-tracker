@@ -18,6 +18,7 @@ const aboutLayoutSource = readFileSync("src/app/(public)/about/layout.tsx", "utf
 const globalsSource = readFileSync("src/app/globals.css", "utf8");
 const nextConfigSource = readFileSync("next.config.ts", "utf8");
 const deploySmokeSource = readFileSync("scripts/deploy-smoke.mjs", "utf8");
+const publicNavSource = readFileSync("src/components/public-showroom/PublicShowroomNav.tsx", "utf8");
 const showroomBlocksSource = readFileSync("src/components/public-showroom/showroom-blocks.tsx", "utf8");
 
 describe("public showroom content", () => {
@@ -40,6 +41,11 @@ describe("public showroom content", () => {
   it("pins the showroom to light tokens regardless of app theme", () => {
     expect(aboutLayoutSource).toContain('data-theme="light"');
     expect(globalsSource).toMatch(/:root,\s*\[data-theme="light"\]/);
+  });
+
+  it("keeps the public header wordmark readable on its dark background", () => {
+    expect(publicNavSource).toContain('aria-label="Wisconsin Creative public pages"');
+    expect(publicNavSource).toMatch(/aria-label="Wisconsin Creative public pages"[^>]*className="[^"]*text-white/);
   });
 
   it("ships share metadata and a social image for the showroom", () => {

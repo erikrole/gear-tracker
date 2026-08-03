@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 const APP_SCAN_ROUTES = [
@@ -13,10 +13,20 @@ const APP_SCAN_ROUTES = [
   },
 ] as const;
 
-const APP_SCAN_LINK_SURFACES = [
+const REMOVED_WEB_SCAN_FILES = [
+  "src/app/(app)/scan/page.tsx",
+  "src/app/(app)/scan/loading.tsx",
+  "src/app/(app)/scan/_components/ScanControls.tsx",
+  "src/app/(app)/scan/_components/ItemPreviewDrawer.tsx",
+  "src/app/(app)/scan/_components/types.ts",
+  "src/components/QrScanner.tsx",
+  "src/hooks/use-scan-submission.ts",
+  "src/lib/scan-feedback.ts",
+] as const;
+
+const STALE_WEB_SCAN_LINK_SURFACES = [
   "src/app/(app)/bookings/BookingDetailPage.tsx",
   "src/app/(app)/dashboard/overdue-banner.tsx",
-  "src/app/(app)/scan/page.tsx",
   "src/components/AppShell.tsx",
 ] as const;
 
@@ -34,13 +44,31 @@ describe("app scan route gate contract", () => {
     expect(drift).toEqual([]);
   });
 
-  it("keeps the app scan UI lookup-only", () => {
-    const staleLinks = APP_SCAN_LINK_SURFACES.filter((file) =>
-      sourceFor(file).includes("/scan?checkout"),
-    );
+  it("removes the standalone web scan surface and camera triggers", () => {
+    const remainingFiles = REMOVED_WEB_SCAN_FILES.filter((file) => existsSync(path.join(process.cwd(), file)));
+    expect(remainingFiles).toEqual([]);
 
+    const staleLinks = STALE_WEB_SCAN_LINK_SURFACES.filter((file) => sourceFor(file).includes("/scan"));
     expect(staleLinks).toEqual([]);
-    expect(sourceFor("src/components/AppShell.tsx")).toContain('label: "Lookup", href: "/scan"');
-    expect(sourceFor("src/components/Sidebar.tsx")).not.toContain('{ label: "Lookup", href: "/scan"');
+
+    const appShell = sourceFor("src/components/AppShell.tsx");
+    expect(appShell).not.toContain('label: "Lookup"');
+    expect(appShell).not.toContain('href: "/scan"');
+    expect(appShell).not.toContain("ScanIcon");
+
+    const searchPages = sourceFor("src/lib/search-pages.ts");
+    expect(searchPages).not.toContain('id: "lookup"');
+    expect(searchPages).not.toContain('href: "/scan"');
+
+    expect(sourceFor("src/lib/breadcrumbs.ts")).not.toContain("scan:");
+
+    const equipmentPicker = sourceFor("src/components/EquipmentPicker.tsx");
+    expect(equipmentPicker).not.toContain("QrScanner");
+    expect(equipmentPicker).not.toContain("Scan to add");
+    expect(equipmentPicker).not.toContain("scannerOpen");
+
+    const serializedForm = sourceFor("src/app/(app)/items/new-item-sheet/SerializedItemForm.tsx");
+    expect(serializedForm).not.toContain("QrScanner");
+    expect(serializedForm).not.toContain("Scan QR code");
   });
 });

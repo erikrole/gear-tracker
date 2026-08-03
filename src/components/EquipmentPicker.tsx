@@ -23,7 +23,6 @@ import {
 } from "@/lib/equipment-sections";
 import {
   AlertCircleIcon,
-  CameraIcon,
   CheckCircle2Icon,
   MinusIcon,
   PlusIcon,
@@ -56,11 +55,10 @@ import {
 } from "@/components/ui/item";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
+import { handleAuthRedirect, isAbortError, parseJsonSafely } from "@/lib/errors";
 import { getBatteryCompatibilitySummaries } from "@/lib/battery-compatibility";
 import { compareItemAssetTags } from "@/lib/item-asset-tag-sort";
 import { AssetImage } from "@/components/AssetImage";
-import QrScanner from "@/components/QrScanner";
 
 /* ───── Types ───── */
 
@@ -251,9 +249,6 @@ export default function EquipmentPicker({
     setSectionSearchBySection((prev) => ({ ...prev, [activeSection]: value }));
   };
   const [onlyAvailable, setOnlyAvailable] = useState(false);
-  const [scannerOpen, setScannerOpen] = useState(false);
-  const [scanFeedback, setScanFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
-  const [scanLookupBusy, setScanLookupBusy] = useState(false);
   const [cacheVersion, setCacheVersion] = useState(0);
   const [bulkCountRecovery, setBulkCountRecovery] = useState<string | null>(null);
 
@@ -473,85 +468,6 @@ export default function EquipmentPicker({
     setSelectedBulkItems([]);
   }
 
-  const findBulkScanMatch = useCallback((scanValue: string) => {
-    const normalized = scanValue.trim().toLowerCase();
-    if (!normalized) return null;
-    return bulkSkus.find((sku) =>
-      sku.binQrCodeValue?.toLowerCase() === normalized ||
-      sku.id.toLowerCase() === normalized ||
-      sku.name.toLowerCase() === normalized
-    ) ?? null;
-  }, [bulkSkus]);
-
-  const handleScan = useCallback(async (rawValue: string) => {
-    const value = rawValue.trim();
-    if (!value || scanLookupBusy) return;
-    setScanLookupBusy(true);
-    setScanFeedback(null);
-
-    const itemMatch = value.match(/^bg:\/\/item\/(.+)$/i);
-    const scannedId = itemMatch?.[1];
-    const bulkMatch = findBulkScanMatch(value);
-    if (bulkMatch) {
-      const current = selectedBulkItems.find((item) => item.bulkSkuId === bulkMatch.id)?.quantity ?? 0;
-      const available = getBulkAvailable(bulkMatch);
-      setActiveSection(classifyAssetType(bulkMatch.category, bulkMatch.categoryName));
-      if (available === 0 || current >= available) {
-        setScanFeedback({ kind: "error", message: `No available ${bulkMatch.name} left to add` });
-        setScanLookupBusy(false);
-        return;
-      }
-      setBulkQty(bulkMatch.id, current + 1);
-      setScanFeedback({ kind: "success", message: `Requested ${current + 1} ${bulkMatch.name}` });
-      setScanLookupBusy(false);
-      return;
-    }
-
-    try {
-      const params = new URLSearchParams();
-      if (scannedId) {
-        params.set("ids", scannedId);
-      } else {
-        params.set("qr", value);
-      }
-      params.set("limit", "1");
-      const res = await fetch(`/api/assets/picker-search?${params}`);
-      if (handleAuthRedirect(res)) return;
-      if (!res.ok) {
-        setScanFeedback({ kind: "error", message: await parseErrorMessage(res, "Could not look up that scan code") });
-        return;
-      }
-      const json = await parseJsonSafely<{ data?: { assets?: PickerAsset[] } }>(res);
-      const asset = json?.data?.assets?.[0] ?? null;
-      if (!asset) {
-        setScanFeedback({ kind: "error", message: "No matching item found in inventory" });
-        return;
-      }
-      rememberAsset(asset);
-      setActiveSection(classifyAssetType(asset.type, asset.categoryName));
-      const scanConflict = conflicts.get(asset.id);
-      if (!canSelectSerializedAssetForWindow(asset, { startsAt, conflict: scanConflict })) {
-        setScanFeedback({
-          kind: "error",
-          message: scanConflict
-            ? `${asset.assetTag} conflicts with another booking`
-            : `${asset.assetTag} is ${statusText(asset.computedStatus)} and cannot be added`,
-        });
-        return;
-      }
-      if (selectedAssetIds.includes(asset.id)) {
-        setScanFeedback({ kind: "success", message: `${asset.assetTag} is already selected` });
-        return;
-      }
-      setSelectedAssetIds((prev) => prev.includes(asset.id) ? prev : [...prev, asset.id]);
-      setScanFeedback({ kind: "success", message: `Added ${asset.assetTag}` });
-    } catch {
-      setScanFeedback({ kind: "error", message: "Scan lookup failed. Check the connection and try again." });
-    } finally {
-      setScanLookupBusy(false);
-    }
-  }, [conflicts, findBulkScanMatch, rememberAsset, scanLookupBusy, selectedAssetIds, selectedBulkItems, setActiveSection, setBulkQty, setSelectedAssetIds, startsAt]);
-
   const bulkQuantity = selectedBulkItems.reduce((s, i) => s + i.quantity, 0);
   const selectedConflictCount = resolvedSelectedAssets.filter((asset) => conflicts.has(asset.id)).length;
   const selectedUpcomingCommitmentCount = resolvedSelectedAssets.filter((asset) =>
@@ -658,10 +574,6 @@ export default function EquipmentPicker({
               />
               Available only
             </label>
-            <Button type="button" variant="outline" size="sm" onClick={() => setScannerOpen((open) => !open)}>
-              <CameraIcon data-icon="inline-start" />
-              Scan
-            </Button>
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
@@ -679,40 +591,6 @@ export default function EquipmentPicker({
           )}
         </div>
       </div>
-
-      {scannerOpen && (
-        <div className="border-b border-border/60 bg-background p-3">
-          <div className="flex items-center justify-between gap-3 pb-3">
-            <div>
-              <p className="text-sm font-semibold">Scan to add</p>
-              <p className="text-xs text-muted-foreground">Scan a QR code or barcode to add it without leaving this step.</p>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-10"
-              onClick={() => setScannerOpen(false)}
-              aria-label="Close scanner"
-            >
-              <XIcon />
-            </Button>
-          </div>
-          <QrScanner onScan={handleScan} onError={(message) => setScanFeedback({ kind: "error", message })} active={scannerOpen} />
-          {scanFeedback && (
-            <Alert
-              variant={scanFeedback.kind === "error" ? "destructive" : "default"}
-              className="mt-3 py-2.5"
-            >
-              {scanFeedback.kind === "error" ? <AlertCircleIcon /> : <CheckCircle2Icon />}
-              <AlertDescription>{scanFeedback.message}</AlertDescription>
-            </Alert>
-          )}
-          {scanLookupBusy && (
-            <p className="mt-2 text-xs text-muted-foreground">Looking up scanned item...</p>
-          )}
-        </div>
-      )}
 
       {visibleBatteryGuidance.length > 0 && (
         <div className="flex flex-col gap-2 border-b border-border/60 bg-background px-3 py-2">

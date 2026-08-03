@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence } from "motion/react";
-import { BellIcon, CalendarDaysIcon, PackageIcon } from "lucide-react";
+import { BellIcon, CalendarDaysIcon, PackageIcon, PlusIcon } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { OperationalLoadingState } from "@/components/OperationalLoadingState";
 import { PageHeader } from "@/components/PageHeader";
@@ -57,6 +57,7 @@ export function CollaboratorHome({ name, capabilities }: { name: string; capabil
   const canViewGear = capabilities.includes("MY_GEAR_VIEW");
   const canBrowseGear = capabilities.includes("GEAR_CATALOG_VIEW");
   const canViewSchedule = capabilities.includes("PUBLISHED_SCHEDULE_VIEW");
+  const canCreateReservation = capabilities.includes("RESERVATION_CREATE");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -96,7 +97,16 @@ export function CollaboratorHome({ name, capabilities }: { name: string; capabil
           : canViewGear ? "Your gear handoffs."
           : "Notifications from the crew."
         }
-      />
+      >
+        {canCreateReservation && (
+          <Button className="h-10" asChild>
+            <Link href="/reservations/new">
+              <PlusIcon className="size-3.5" data-icon="inline-start" />
+              New reservation
+            </Link>
+          </Button>
+        )}
+      </PageHeader>
       <AnimatePresence initial={false} mode="popLayout">
         {loading ? (
           <DashboardStateSurface key="collaborator-loading" variant="shift" layout>

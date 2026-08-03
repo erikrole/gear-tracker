@@ -199,7 +199,10 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
             kind: BookingKind.CHECKOUT,
             status: { in: [BookingStatus.OPEN, BookingStatus.COMPLETED] },
           },
-          select: { serializedItems: { select: { asset: { select: { categoryId: true } } } } },
+          select: {
+            serializedItems: { select: { asset: { select: { categoryId: true } } } },
+            bulkItems: { select: { bulkSku: { select: { categoryId: true } } } },
+          },
         })
       : Promise.resolve([]),
     needsDamageFree
@@ -225,9 +228,10 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
 
   const distinctCategoryCount = new Set(
     categoryRows.flatMap((booking) =>
-      booking.serializedItems
-        .map((item) => item.asset.categoryId)
-        .filter((id): id is string => Boolean(id)),
+      [
+        ...booking.serializedItems.map((item) => item.asset.categoryId),
+        ...(booking.bulkItems ?? []).map((item) => item.bulkSku.categoryId),
+      ].filter((id): id is string => Boolean(id)),
     ),
   ).size;
 

@@ -20,6 +20,7 @@ struct AccountSecuritySettingsView: View {
     @State private var passkeyCurrentPassword = ""
     @State private var passkeyName = ""
     @State private var passkeyError: String?
+    @State private var passkeySuccessMessage: String?
     @State private var passkeyServiceAvailable: Bool?
     @State private var isPasskeySaving = false
     @State private var passkeyToRemove: PasskeyCredentialSummary?
@@ -77,11 +78,22 @@ struct AccountSecuritySettingsView: View {
                         .textInputAutocapitalization(.words)
                         .autocorrectionDisabled()
                         .disabled(isPasskeySaving)
+                        .onChange(of: passkeyName) { _, value in
+                            if value.count > 80 {
+                                passkeyName = String(value.prefix(80))
+                            }
+                        }
 
                     if let passkeyError {
                         Text(passkeyError)
                             .font(.footnote)
                             .foregroundStyle(Color.statusText(.red))
+                    }
+
+                    if let passkeySuccessMessage {
+                        Text(passkeySuccessMessage)
+                            .font(.footnote)
+                            .foregroundStyle(Color.statusText(.green))
                     }
 
                     Button {
@@ -259,7 +271,7 @@ struct AccountSecuritySettingsView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This device will no longer be able to sign in with that passkey.")
+            Text("This passkey will no longer sign in to Gear Tracker.")
         }
         .task {
             await loadPasskeys()
@@ -272,6 +284,11 @@ struct AccountSecuritySettingsView: View {
         .onChange(of: successMessage) { _, successMessage in
             if let successMessage {
                 AccessibilityNotification.Announcement(successMessage).post()
+            }
+        }
+        .onChange(of: passkeySuccessMessage) { _, passkeySuccessMessage in
+            if let passkeySuccessMessage {
+                AccessibilityNotification.Announcement(passkeySuccessMessage).post()
             }
         }
     }
@@ -380,7 +397,7 @@ struct AccountSecuritySettingsView: View {
         guard !isPasskeySaving, !passkeyCurrentPassword.isEmpty else { return }
         isPasskeySaving = true
         passkeyError = nil
-        successMessage = nil
+        passkeySuccessMessage = nil
         defer { isPasskeySaving = false }
 
         do {
@@ -394,9 +411,14 @@ struct AccountSecuritySettingsView: View {
             )
             passkeyCurrentPassword = ""
             passkeyName = ""
-            passkeys = try await APIClient.shared.passkeys()
-            successMessage = "Passkey added."
+            passkeySuccessMessage = "Passkey added."
             Haptics.success()
+
+            do {
+                passkeys = try await APIClient.shared.passkeys()
+            } catch {
+                passkeyError = "Passkey added, but the list could not refresh. Reopen Account & Security to refresh it."
+            }
         } catch APIError.notFound {
             passkeys = []
             passkeyServiceAvailable = false
@@ -421,7 +443,7 @@ struct AccountSecuritySettingsView: View {
         guard !isPasskeySaving else { return }
         isPasskeySaving = true
         passkeyError = nil
-        successMessage = nil
+        passkeySuccessMessage = nil
         defer { isPasskeySaving = false }
 
         do {
@@ -430,8 +452,9 @@ struct AccountSecuritySettingsView: View {
                 currentPassword: passkeyCurrentPassword
             )
             passkeys.removeAll { $0.id == passkey.id }
+            passkeyCurrentPassword = ""
             passkeyToRemove = nil
-            successMessage = "Passkey removed."
+            passkeySuccessMessage = "Passkey removed."
             Haptics.success()
         } catch {
             passkeyError = error.localizedDescription

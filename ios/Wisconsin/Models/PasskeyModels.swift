@@ -31,6 +31,12 @@ struct PasskeyCredentialSummary: Codable, Identifiable, Equatable {
     let backedUp: Bool
 }
 
+struct PasskeyRegistrationConfirmation: Decodable {
+    let id: String
+    let name: String?
+    let createdAt: Date
+}
+
 struct PasskeyRegistrationPayload: Encodable {
     struct Response: Encodable {
         let clientDataJSON: String

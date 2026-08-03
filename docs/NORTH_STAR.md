@@ -191,7 +191,7 @@ Use these questions before adding or changing a feature:
 | Reservations | App/web/iOS are reservation-first; kiosk pickup fulfills reservations into linked checkout custody |
 | Checkouts | Direct custody creation, pickup, return, and active checkout item edits are kiosk-owned |
 | Kiosk | Native iOS kiosk is canonical; web kiosk was removed; `WisconsinKiosk` supports dedicated iPadOS 17 hardware |
-| Mobile | Native iOS owns student action queues, scan lookup, reservation creation, Schedule, Settings, and kiosk surfaces |
+| Mobile | Native iOS owns student action queues, camera and hand-scanner lookup, reservation creation, Schedule, Settings, and kiosk surfaces; web remains text-first for lookup |
 | Schedule | Schedule is a source-of-truth area with worker class, call-time, publication, Open Work, time off, automation review, data quality, and gear readiness |
 | Items | Tag-first item detail/list workflows, image support, favorites, maintenance, and derived status are established |
 | Item families | BulkSku families are first-class item rows; Battery Ops owns numbered-unit operations, labels, warnings, and missing-unit reporting |

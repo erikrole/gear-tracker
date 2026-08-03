@@ -40,6 +40,14 @@ describe("web sidebar source contract", () => {
     expect(sidebar).toContain("bg-[var(--orange-bg)] text-[var(--orange-text)]");
   });
 
+  it("does not replace ambient counts with partial dashboard fallbacks", () => {
+    const appShell = source("src/components/AppShell.tsx");
+
+    expect(appShell).toContain("hasDashboardCountFailure");
+    expect(appShell).toContain("dashboardBadgeCountsAreTrusted");
+    expect(appShell).toContain("partialFailures?: unknown[]");
+  });
+
   it("does not wire sidebar keyboard shortcuts that conflict with browser shortcuts", () => {
     const appShell = source("src/components/AppShell.tsx");
     const sidebar = source("src/components/Sidebar.tsx");
@@ -92,5 +100,16 @@ describe("web sidebar source contract", () => {
     expect(sidebar).toContain('href={`/users/${user.id}`}');
     expect(appShell).not.toContain('aria-label="My profile"');
     expect(appShell).not.toContain("<TooltipContent>Profile</TooltipContent>");
+  });
+
+  it("avoids authenticated shell RSC prefetch failures in Safari", () => {
+    const appShell = source("src/components/AppShell.tsx");
+    const sidebar = source("src/components/Sidebar.tsx");
+    const sectionNav = source("src/components/SectionNav.tsx");
+
+    expect(sidebar).toMatch(/<Link\s+prefetch=\{false\}\s+href=\{`\/users\/\$\{user\.id\}`\}/);
+    expect(sidebar).toMatch(/<Link prefetch=\{false\} href=\{href\}/);
+    expect(appShell).toContain('<Link prefetch={false} href="/notifications"');
+    expect(sectionNav).toMatch(/<Link\s+prefetch=\{false\}\s+href=\{href\}/);
   });
 });

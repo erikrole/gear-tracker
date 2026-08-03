@@ -114,11 +114,11 @@ describe("BTN collaborator authorization", () => {
   });
 
   it("keeps COLLABORATOR default-denied in every role permission entry except narrow self-service", () => {
-    // user.edit_self only ever gates PATCH /api/me/profile-completion, which
-    // is hard-scoped to the authenticated session's own id and, for
-    // COLLABORATOR, further restricted to optional SNOOZE and PHONES updates — it
-    // can't reach any other resource or another user's record. Broader BTN
-    // access still goes exclusively through capabilitiesForActor.
+    // user.edit_self gates session-owned profile completion and personal
+    // passkey enrollment/revocation. Those routes cannot target another user;
+    // collaborator profile fields remain restricted to optional SNOOZE and
+    // PHONES updates. Broader external access still goes exclusively through
+    // capabilitiesForActor.
     const selfServiceExceptions: Partial<Record<string, string[]>> = {
       user: ["edit_self"],
     };

@@ -71,6 +71,7 @@ export function SectionNavLink({
 }) {
   return (
     <Link
+      prefetch={false}
       href={href}
       title={title}
       aria-current={active ? "page" : undefined}

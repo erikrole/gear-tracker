@@ -224,6 +224,7 @@ export default function AppSidebar({
                 className="hover:bg-white/[0.05] active:bg-white/[0.05] data-[active=true]:bg-white/[0.05] group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-full"
               >
                 <Link
+                  prefetch={false}
                   href={`/users/${user.id}`}
                   className="flex items-center gap-2.5 group-data-[collapsible=icon]:gap-0"
                 >
@@ -315,7 +316,7 @@ export default function AppSidebar({
                             : "text-white/50 hover:text-white/90 hover:bg-white/[0.055] border-l-2 border-l-transparent rounded-r-md rounded-l-none pl-[calc(0.5rem-2px)] transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.96] group-data-[collapsible=icon]:rounded-md group-data-[collapsible=icon]:pl-2!"
                         }
                       >
-                        <Link href={href} aria-current={isActive ? "page" : undefined}>
+                        <Link prefetch={false} href={href} aria-current={isActive ? "page" : undefined}>
                           <Icon className={isActive ? "text-white" : "text-white/55 group-hover/menu-item:text-white/80"} />
                           <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500 }}>
                             {item.label}

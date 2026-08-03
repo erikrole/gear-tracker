@@ -45,6 +45,8 @@ beforeEach(() => {
   mockTx.studentBadge.createMany.mockResolvedValue({ count: 0 });
   mockTx.badgeStreak.upsert.mockResolvedValue({});
   mockTx.booking.findMany.mockResolvedValue([]);
+  mockTx.booking.count.mockResolvedValue(0);
+  mockTx.badgeDefinition.findMany.mockResolvedValue([]);
 });
 
 describe("badge evaluator shift work", () => {
@@ -136,6 +138,39 @@ describe("badge evaluator checkout events", () => {
     });
     expect(db.$transaction).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: "Serializable",
+    });
+  });
+
+  it("counts serialized and bulk inventory toward category breadth", async () => {
+    mockTx.booking.count.mockResolvedValue(1);
+    mockTx.booking.findMany.mockResolvedValue([
+      {
+        serializedItems: [{ asset: { categoryId: "camera" } }],
+        bulkItems: [{ bulkSku: { categoryId: "audio" } }],
+      },
+    ]);
+    mockTx.badgeDefinition.findMany
+      .mockResolvedValueOnce([])
+      .mockImplementationOnce(async ({ where }: { where: Record<string, unknown> }) => (
+        where.ruleKey === "category_collector" ? [{ id: "category-collector" }] : []
+      ));
+
+    await onCheckoutOpened({
+      userId: "user-1",
+      bookingId: "booking-1",
+      source: "kiosk_checkout",
+      sourceKey: "booking-1",
+    });
+
+    expect(mockTx.booking.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      select: {
+        serializedItems: { select: { asset: { select: { categoryId: true } } } },
+        bulkItems: { select: { bulkSku: { select: { categoryId: true } } } },
+      },
+    }));
+    expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
+      data: [{ userId: "user-1", definitionId: "category-collector" }],
+      skipDuplicates: true,
     });
   });
 
@@ -247,12 +282,13 @@ describe("badge evaluator checkout events", () => {
         updatedAt: new Date("2026-05-08T18:05:00.000Z"),
       },
     ]);
-    mockTx.badgeDefinition.findMany
-      .mockImplementationOnce(async ({ where }) => {
+    mockTx.badgeDefinition.findMany.mockImplementation(async ({ where }) => {
+      if (where.ruleKey === "on_time_return") {
         expect(where.threshold?.lte).toBe(2);
         return [{ id: "on-time-2" }];
-      })
-      .mockResolvedValueOnce([]);
+      }
+      return [];
+    });
     mockTx.badgeStreak.findUnique.mockResolvedValue(null);
 
     await onCheckoutReturned({
@@ -278,6 +314,8 @@ describe("badge evaluator checkout events", () => {
   });
 
   it("resets the on-time streak on a late return", async () => {
+    mockTx.booking.count.mockResolvedValue(0);
+    mockTx.badgeDefinition.findMany.mockResolvedValue([]);
     mockTx.badgeStreak.findUnique.mockResolvedValue({
       current: 3,
       longest: 4,
@@ -301,6 +339,31 @@ describe("badge evaluator checkout events", () => {
       }),
     );
     expect(mockTx.studentBadge.createMany).not.toHaveBeenCalled();
+  });
+
+  it("awards damage-free badges for late clean returns", async () => {
+    mockTx.booking.count.mockResolvedValue(10);
+    mockTx.badgeDefinition.findMany.mockImplementation(async ({ where }: { where: Record<string, unknown> }) => (
+      where.ruleKey === "damage_free_return" ? [{ id: "damage-free-10" }] : []
+    ));
+
+    await onCheckoutReturned({
+      userId: "user-1",
+      bookingId: "booking-1",
+      completedAt: new Date("2026-05-09T19:00:00.000Z"),
+      wasOnTime: false,
+      sourceKey: "booking-1",
+    });
+
+    expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
+      data: [{ userId: "user-1", definitionId: "damage-free-10" }],
+      skipDuplicates: true,
+    });
+    expect(mockTx.badgeStreak.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ current: 0 }),
+      }),
+    );
   });
 
   it("awards scan count and clean-scan rule badges on successful scans", async () => {

@@ -3,51 +3,39 @@
 ## Document Control
 - Area: Scan
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-10
-- Status: Active — lookup-only app surface; custody scans are kiosk-owned
+- Last Updated: 2026-08-03
+- Status: Web surface removed; native iOS owns lookup and kiosk owns custody scans
 - Decision Refs: D-028, D-040
 
 ## Overview
-The app scan page is a camera and manual-code lookup tool for finding inventory items by tag, QR value, serial number, or primary scan code. Checkout pickup, reservation pickup, and return scans are executed by kiosk flows, not by the signed-in web app scan page.
+The standalone web scan page and browser camera scanner were removed. Native iOS owns camera and hand-scanner lookup for inventory items. Web remains text-first through global search, item search, and item detail; scan-history reporting remains available to staff. Checkout pickup, reservation pickup, and return scans are executed by kiosk flows.
 
 Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
-## Architecture
+## Current ownership
 
-```
-src/app/(app)/scan/
-├── page.tsx                    — lookup-only scanner and stale booking-link guard
-└── _components/
-    ├── types.ts                — shared type definitions
-    ├── ScanControls.tsx        — camera toggle, QrScanner, manual entry, feedback banner
-    └── ItemPreviewDrawer.tsx   — lookup mode item preview bottom drawer (Drawer, not Sheet)
-
-src/hooks/
-└── use-scan-submission.ts      — lookup processing, feedback auto-clear, item preview state
-
-src/lib/
-└── scan-feedback.ts            — Web Audio API tones + haptic vibration patterns (success/error/info/celebration)
-
-src/components/
-└── QrScanner.tsx               — native BarcodeDetector with ZXing polyfill (dynamic import, SSR: false)
-```
+- **Native iOS**: camera and hand-scanner lookup, result presentation, and item-family/unit resolution.
+- **Native iOS kiosk**: checkout pickup, reservation pickup, return, and exact-unit custody scans.
+- **Web**: text-first global search, item search/detail, and staff scan-history reporting at `/reports/scans`.
+- **Shared API**: `/api/assets` and item detail endpoints remain available to native clients and web detail/search consumers. Legacy app custody scan endpoints remain kiosk-gated 403 stubs.
 
 ## Modes
 
 | Mode | URL Pattern | Description |
 |---|---|---|
-| **Lookup** | `/scan` | Free-form scan → item preview bottom sheet |
-| **Legacy booking deep link** | `/scan?checkout={id}&phase=CHECKOUT|CHECKIN` | Shows a kiosk-only handoff notice and keeps the page in lookup mode |
+| **Web text search** | Global search, `/search`, item search/detail | Search by tag, serial, name, or other text without opening a browser scanner |
+| **Scan history** | `/reports/scans` | Staff reporting and audit history for scan activity |
+| **Native lookup** | Native iOS | Camera or hand-scanner lookup with item result presentation |
+| **Kiosk custody** | Native iOS kiosk | Physical checkout, pickup, return, and unit custody scans |
 
 ## Key Patterns
 
-1. **Lookup-only web contract** - app `/scan` never starts or completes booking custody scans, checkout creation, reservation pickup, or return.
-2. **Kiosk execution boundary** - checkout pickup, check-in, and numbered battery unit scans run through kiosk routes.
-3. **Stale deep-link guard** - old `/scan?checkout=...` URLs do not show a broken booking checklist; they show the kiosk handoff and a checkout detail link.
-4. **Manual fallback** - `ScanControls` supports typed tag, QR, serial, or primary scan code values for desktop/no-camera situations.
-5. **Attachment visibility** - lookup scans show attached camera items with parent camera context and SD card slot labels when the tag convention supports it.
-6. **Item-family lookup** - parent/bin QR values and derived unit QR values resolve to the parent item-family context. Exact unit scans may show unit status, but app scan remains lookup-only.
-7. **Feedback auto-clear** - success: 5s, error/info: 8s.
+1. **No standalone web scanner** - the web app has no `/scan` route, navigation entry, command-palette page result, breadcrumb override, or browser camera trigger.
+2. **Text-first web lookup** - desktop web users use global search, item search, and item detail. Native iOS owns camera and hand-scanner lookup.
+3. **Kiosk execution boundary** - checkout pickup, check-in, reservation pickup, and numbered battery unit scans run through kiosk routes.
+4. **Scan history remains** - staff can review scan activity at `/reports/scans`; reporting is not a capture surface.
+5. **Attachment visibility** - item detail and native lookup preserve attached camera context and SD card slot labels when the tag convention supports it.
+6. **Item-family lookup** - native lookup resolves parent/bin QR values and derived unit QR values to the parent item-family context. Exact unit scans may show unit status, while custody remains kiosk-owned.
 
 ## API Dependencies
 
@@ -64,12 +52,13 @@ Kiosk execution endpoints are documented in `docs/AREA_KIOSK.md`.
 
 | Date | Change |
 |---|---|
+| 2026-08-03 | Removed the standalone web `/scan` route, browser camera decoder, web navigation/search/breadcrumb entry points, and embedded camera triggers from booking and item intake surfaces. Native iOS keeps lookup, kiosk keeps custody, and `/reports/scans` keeps history. |
 | 2026-07-10 | Scan item preview drawer: the Current custody label unifies to the sanctioned small-uppercase label style. Visual only. |
 | 2026-07-03 | Native iOS tab order now keeps Search pinned trailing after Home, Schedule, Bookings/My Gear, and More. The directory surface formerly shown as Browse is now More, with Items, Guides, Licenses, and Users still inside it; scan remains inside Search and custody scan boundaries did not change. |
 | 2026-06-30 | Native iOS Browse navigation replaced the standalone compact Items tab with a system Browse tab for Items, Guides, Licenses, and Users. Search remains the pinned trailing search tab, and scan remains inside Search; custody scan boundaries did not change. |
 | 2026-06-29 | Native iOS navigation polish: Scan lookup now uses SwiftUI's built-in `Tab(...)` API with `role: .search` and pinned placement, and compact iPhone uses `.tabBarOnly` instead of sidebar-adaptable styling so the system owns the dedicated trailing Scan placement. The custom bottom bar overlay was removed, and Users is kept out of the compact iPhone tab set to prevent Scan from falling into More. Regular-width layouts expose Guides, Users, and Licenses as sidebar-only secondary destinations; compact iPhone reaches them from Profile/Settings > Directory. Scan remains lookup-only; kiosk custody routes did not change. |
 | 2026-06-25 | Battery custody trust hardening: `/api/assets`, scan lookup, kiosk pickup/reservation staging, and generic numbered-bulk scan recording now share the same allocation-aware effective status rule. Active `BookingBulkUnitAllocation` rows make a unit checked out; stale raw `CHECKED_OUT` flags with no active allocation read as available so returned Sony batteries do not block pickup or inflate native Scan checked-out counts. |
-| 2026-06-16 | iOS camera preview fix (`QrScanner.tsx`): a benign `video.play()` rejection on iOS (AbortError/NotAllowedError) no longer surfaces as a fatal "Camera not available" error, and the live feed sets the `muted` DOM property plus `playsinline`/`webkit-playsinline`/`disablepictureinpicture` attributes so WebKit keeps the camera inline and stops offering/auto-popping Picture-in-Picture. Affects web scan lookup, new-item serialized form, and the equipment picker. |
+| 2026-06-16 | iOS camera preview fix (`QrScanner.tsx`): a benign `video.play()` rejection on iOS (AbortError/NotAllowedError) no longer surfaces as a fatal "Camera not available" error, and the live feed sets the `muted` DOM property plus `playsinline`/`webkit-playsinline`/`disablepictureinpicture` attributes so WebKit keeps the camera inline and stops offering/auto-popping Picture-in-Picture. Historical entry; current camera ownership is native iOS/kiosk. |
 | 2026-06-15 | Synced scan scope with D-040: app/web scan remains lookup-only, while checkout creation, reservation pickup, and return custody scans belong to kiosk flows. |
 | 2026-06-15 | Kiosk custody location evidence shipped. Serialized kiosk checkout/pickup/return scans now reconcile the item's saved location to the kiosk location, and pickup/return scan events record expected and actual location IDs plus a mismatch flag when the item or booking is not where the kiosk flow expected it. App `/scan` remains lookup-only. |
 | 2026-06-15 | iOS hand-scanner debugger: staff/admin Settings -> Tools now has a Scanner Debugger that opens as a dedicated sheet, captures HID keyboard scanner input, displays raw/trimmed scan values, submits through native `SearchService`, and reuses the existing `ScanResultSheet` hero-card presentation. This is lookup/debug only; checkout pickup and return custody scans stay kiosk-owned. |
@@ -99,5 +88,5 @@ Kiosk execution endpoints are documented in `docs/AREA_KIOSK.md`.
 | 2026-04-09 | **Scan flow stress test (4 fixes):** scanValue normalization (trim+lowercase), bulk bin case-insensitive matching, cross-booking numbered bulk unit check-in integrity guard + frontend picker scope fix, completeCheckinScan booking status guard |
 | 2026-04-09 | **Hardening pass (6 fixes):** mode badges → Badge component; bulk row/circle dark-mode color normalization; handleLookupScan finally block; loadScanStatus finally block; Page Visibility refresh on tab return; camera error prefix removed |
 
-Historical entries before 2026-05-10 may reference the retired app booking-mode scan implementation. Current app scan scope is lookup only.
+Historical entries before 2026-08-03 may reference the retired web lookup implementation. Current web scope is text-first search and scan-history reporting; native iOS owns lookup and kiosk owns custody.
 - 2026-06-11: **Real holder avatars on scan hero card (iOS)** — the hero card custody row drew a hand-rolled initials circle for the gear's current holder. It now renders the shared `UserAvatarView` (real profile photo with initials fallback), matching how the web shows requester avatars. Serialized matches use `Asset.activeBooking.requesterAvatarUrl` (server already returned it); bulk-family unit matches use a new `matchedUnitHolderAvatarUrl` added to `/api/assets`'s matched-unit custody payload.
