@@ -215,6 +215,20 @@ export function BookingHeader({
                   {kioskHandoffLabel}
                 </Badge>
               )}
+              {booking.scheduleStatus === "scheduled" && (
+                <Badge variant="green" className="gap-1">
+                  On schedule
+                </Badge>
+              )}
+              {booking.scheduleStatus === "needs_review" && (
+                <Badge
+                  variant="orange"
+                  className="gap-1"
+                  title={booking.scheduleStatusReason ?? undefined}
+                >
+                  Schedule review
+                </Badge>
+              )}
             </div>
 
             {/* Title */}

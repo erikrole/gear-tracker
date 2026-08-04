@@ -9,6 +9,8 @@ import {
 import { createAuditEntryTx } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
+import { createShiftScheduleNotification } from "@/lib/services/notifications";
+import { releaseReservationManagedAssignmentTx } from "@/lib/services/reservation-schedule";
 
 export type UserDeactivationResult = {
   cancelledIds: string[];
@@ -160,6 +162,7 @@ export async function deactivateUserWithCleanup(args: {
   };
 }): Promise<UserDeactivationResult> {
   const { targetUserId, actorId, actorRole, audit } = args;
+  const releasedAssignmentIds: string[] = [];
 
   const deactivationResult = await db.$transaction(async (tx) => {
     const openCheckouts = await tx.booking.count({
@@ -185,6 +188,7 @@ export async function deactivateUserWithCleanup(args: {
         id: true,
         kind: true,
         status: true,
+        shiftAssignmentId: true,
         locationId: true,
         bulkItems: { select: { bulkSkuId: true, plannedQuantity: true } },
       },
@@ -213,6 +217,45 @@ export async function deactivateUserWithCleanup(args: {
         where: { id: { in: toCancel.map((b) => b.id) } },
         data: { status: BookingStatus.CANCELLED },
       });
+
+      // Mark the whole cancellation set first so two reservations sharing one
+      // reservation-managed assignment do not keep each other artificially
+      // alive while this transaction reconciles their links.
+      for (const booking of toCancel) {
+        if (booking.kind !== BookingKind.RESERVATION || !booking.shiftAssignmentId) continue;
+        const release = await releaseReservationManagedAssignmentTx(tx, {
+          bookingId: booking.id,
+          assignmentId: booking.shiftAssignmentId,
+        });
+        if (release.released && release.assignmentId) {
+          releasedAssignmentIds.push(release.assignmentId);
+          await createAuditEntryTx(tx, {
+            actorId,
+            actorRole,
+            entityType: "shift_assignment",
+            entityId: release.assignmentId,
+            action: "shift_assignment_removed",
+            before: {
+              source: "event_gear_reservation",
+              bookingId: booking.id,
+            },
+            after: { reason: "requester_deactivated" },
+          });
+        } else if (release.blocked) {
+          await createAuditEntryTx(tx, {
+            actorId,
+            actorRole,
+            entityType: "booking",
+            entityId: booking.id,
+            action: "schedule_assignment_review_needed",
+            after: {
+              status: "blocked_working_copy",
+              reason: "Requester deactivation could not change an event's working schedule.",
+            },
+          });
+        }
+      }
+
       await tx.assetAllocation.updateMany({
         where: { bookingId: { in: toCancel.map((b) => b.id) } },
         data: { active: false },
@@ -304,6 +347,10 @@ export async function deactivateUserWithCleanup(args: {
 
     return result;
   }, { isolationLevel: "Serializable" });
+
+  await Promise.all(releasedAssignmentIds.map((assignmentId) =>
+    createShiftScheduleNotification(assignmentId, "removed"),
+  ));
 
   return {
     cancelledIds: deactivationResult.cancelledIds,

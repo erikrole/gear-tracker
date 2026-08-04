@@ -49,7 +49,7 @@ export type BookingDetail = {
   createdAt: string;
   updatedAt: string;
   location: LocationInfo;
-  requester: { id: string; name: string; email: string; avatarUrl?: string | null };
+  requester: { id: string; name: string; email: string; avatarUrl?: string | null; role?: string };
   creator?: { id: string; name: string; email: string; avatarUrl?: string | null };
   serializedItems: SerializedItem[];
   bulkItems: BulkItem[];
@@ -76,7 +76,31 @@ export type BookingDetail = {
     endsAt: string;
   }>;
   sportCode?: string | null;
-  shiftAssignment?: { id: string; shift: { area: string } } | null;
+  shiftAssignment?: {
+    id: string;
+    userId?: string;
+    status?: string;
+    source?: string;
+    callStartsAt?: string | null;
+    callEndsAt?: string | null;
+    callNote?: string | null;
+    shift: {
+      id?: string;
+      area: string;
+      workerType?: string;
+      startsAt?: string;
+      endsAt?: string;
+      callStartsAt?: string | null;
+      callEndsAt?: string | null;
+      shiftGroup?: {
+        eventId?: string;
+        publishedAt?: string | null;
+        workingCopy?: { shiftGroupId: string } | null;
+      };
+    };
+  } | null;
+  scheduleStatus?: "scheduled" | "needs_review" | "not_applicable";
+  scheduleStatusReason?: string | null;
   kit?: { id: string; name: string } | null;
   pickupKioskDevice?: { id: string; name: string; location: { id: string; name: string } } | null;
   photos?: BookingPhoto[];

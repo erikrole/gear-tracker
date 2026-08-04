@@ -42,6 +42,18 @@ import {
   MAX_EQUIPMENT_SELECTIONS_PER_REQUEST,
 } from "@/lib/request-limits";
 import { assertCheckoutDistinctBulkSkuLimit } from "@/lib/services/kiosk-checkout-complete";
+import {
+  createShiftScheduleNotification,
+  dispatchScheduleAssignmentNotifications,
+} from "@/lib/services/notifications";
+import {
+  assignReservationRequesterToScheduleTx,
+  reconcileReservationScheduleTx,
+  releaseReservationManagedAssignmentTx,
+  validateReservationScheduleAssignmentTx,
+  type ReservationScheduleAssignment,
+  type ReservationScheduleRequester,
+} from "@/lib/services/reservation-schedule";
 
 type CreateBookingInput = {
   kind: BookingKind;
@@ -318,6 +330,29 @@ export async function createBooking(input: CreateBookingInput) {
             select: {
               active: true,
               role: true,
+              staffingType: true,
+              primaryArea: true,
+              areaAssignments: {
+                select: {
+                  area: true,
+                  isPrimary: true,
+                },
+              },
+              availabilityBlocks: {
+                select: {
+                  kind: true,
+                  intent: true,
+                  status: true,
+                  dayOfWeek: true,
+                  date: true,
+                  startsAt: true,
+                  endsAt: true,
+                  label: true,
+                  semesterLabel: true,
+                  semesterStartsOn: true,
+                  semesterEndsOn: true,
+                },
+              },
               collaboratorProfile: true,
               collaboratorPolicy: { select: collaboratorPolicyActorSelect },
             },
@@ -449,6 +484,14 @@ export async function createBooking(input: CreateBookingInput) {
           }
           const primaryEventId = sortedEventIds[0] ?? null;
 
+          if (input.shiftAssignmentId) {
+            await validateReservationScheduleAssignmentTx(tx, {
+              assignmentId: input.shiftAssignmentId,
+              requesterUserId: input.requesterUserId,
+              eventIds: sortedEventIds,
+            });
+          }
+
           const prefix = input.kind === BookingKind.CHECKOUT ? "CO" : "RV";
           const refNumber = await nextBookingRef(tx, prefix);
 
@@ -474,6 +517,7 @@ export async function createBooking(input: CreateBookingInput) {
             }
           });
 
+          let reservationScheduleAssignment: ReservationScheduleAssignment | null = null;
           if (sortedEventIds.length > 0) {
             await tx.bookingEvent.createMany({
               data: sortedEventIds.map((eventId, ordinal) => ({
@@ -494,6 +538,26 @@ export async function createBooking(input: CreateBookingInput) {
                 })),
                 skipDuplicates: true,
               });
+            }
+
+            if (
+              input.kind === BookingKind.RESERVATION
+              && primaryEventId
+              && !input.shiftAssignmentId
+            ) {
+              reservationScheduleAssignment = await assignReservationRequesterToScheduleTx(tx, {
+                bookingId: booking.id,
+                eventId: primaryEventId,
+                requesterUserId: input.requesterUserId,
+                requester,
+                createdBy: input.createdBy,
+              });
+              if (reservationScheduleAssignment) {
+                await tx.booking.update({
+                  where: { id: booking.id },
+                  data: { shiftAssignmentId: reservationScheduleAssignment.shiftAssignmentId },
+                });
+              }
             }
           }
 
@@ -637,6 +701,26 @@ export async function createBooking(input: CreateBookingInput) {
 
           const actorRole = await lookupActorRole(tx, input.createdBy);
 
+          if (reservationScheduleAssignment?.created) {
+            await createAuditEntryTx(tx, {
+              actorId: input.createdBy,
+              actorRole,
+              entityType: "shift_assignment",
+              entityId: reservationScheduleAssignment.shiftAssignmentId,
+              action: "shift_assigned",
+              after: {
+                source: "event_gear_reservation",
+                bookingId: booking.id,
+                eventId: reservationScheduleAssignment.eventId,
+                shiftId: reservationScheduleAssignment.shiftId,
+                userId: reservationScheduleAssignment.userId,
+                area: reservationScheduleAssignment.area,
+                workerType: reservationScheduleAssignment.workerType,
+                hasConflict: reservationScheduleAssignment.hasConflict,
+              },
+            });
+          }
+
           await createAuditEntryTx(tx, {
             actorId: input.createdBy,
             actorRole,
@@ -653,6 +737,7 @@ export async function createBooking(input: CreateBookingInput) {
               sourceReservationId: input.sourceReservationId,
               sourceDraftId: input.sourceDraftId,
               eventIds: sortedEventIds,
+              shiftAssignmentId: reservationScheduleAssignment?.shiftAssignmentId ?? input.shiftAssignmentId ?? null,
             },
           });
 
@@ -716,6 +801,10 @@ export async function createBooking(input: CreateBookingInput) {
       await scheduleCheckoutReturnLiveActivity({ bookingId: booking.id, endsAt: booking.endsAt });
     }
 
+    if (booking.kind === BookingKind.RESERVATION && booking.shiftAssignment?.source === "RESERVATION") {
+      await dispatchScheduleAssignmentNotifications(booking.shiftAssignment.id, "assigned");
+    }
+
     return booking;
   } catch (error) {
     handleBookingMutationRace(error);
@@ -727,14 +816,44 @@ export async function updateReservation(
   actorUserId: string,
   updates: UpdateBookingInput
 ) {
+  const scheduleNotificationAssignmentIds: string[] = [];
+  let updated;
   try {
-    return await db.$transaction(
+    updated = await db.$transaction(
       async (tx) => {
       const existing = await tx.booking.findUnique({
         where: { id: bookingId },
         include: {
           serializedItems: true,
-          bulkItems: true
+          bulkItems: true,
+          requester: {
+            select: {
+              role: true,
+              staffingType: true,
+              primaryArea: true,
+              areaAssignments: {
+                select: {
+                  area: true,
+                  isPrimary: true,
+                },
+              },
+              availabilityBlocks: {
+                select: {
+                  kind: true,
+                  intent: true,
+                  status: true,
+                  dayOfWeek: true,
+                  date: true,
+                  startsAt: true,
+                  endsAt: true,
+                  label: true,
+                  semesterLabel: true,
+                  semesterStartsOn: true,
+                  semesterEndsOn: true,
+                },
+              },
+            },
+          },
         }
       });
 
@@ -750,13 +869,41 @@ export async function updateReservation(
         throw new HttpError(400, "Cannot edit a cancelled or completed reservation");
       }
 
+      let nextRequester: ReservationScheduleRequester | null = existing.requester ?? null;
       if (updates.requesterUserId && updates.requesterUserId !== existing.requesterUserId) {
         const requester = await tx.user.findUnique({
           where: { id: updates.requesterUserId },
-          select: { active: true },
+          select: {
+            active: true,
+            role: true,
+            staffingType: true,
+            primaryArea: true,
+            areaAssignments: {
+              select: {
+                area: true,
+                isPrimary: true,
+              },
+            },
+            availabilityBlocks: {
+              select: {
+                kind: true,
+                intent: true,
+                status: true,
+                dayOfWeek: true,
+                date: true,
+                startsAt: true,
+                endsAt: true,
+                label: true,
+                semesterLabel: true,
+                semesterStartsOn: true,
+                semesterEndsOn: true,
+              },
+            },
+          },
         });
         if (!requester) throw new HttpError(400, "Requester not found");
         if (!requester.active) throw new HttpError(400, "Cannot set an inactive user as requester");
+        nextRequester = requester;
       }
 
       const nextStartsAt = updates.startsAt ?? existing.startsAt;
@@ -903,6 +1050,55 @@ export async function updateReservation(
         );
       }
 
+      const shouldReconcileSchedule = Boolean(
+        existing.eventId
+        || existing.shiftAssignmentId
+        || (updates.requesterUserId !== undefined && existing.eventId),
+      );
+      if (shouldReconcileSchedule) {
+        const scheduleOutcome = await reconcileReservationScheduleTx(tx, {
+          bookingId,
+          requesterUserId: updates.requesterUserId ?? existing.requesterUserId,
+          requester: nextRequester,
+          primaryEventId: existing.eventId ?? null,
+          currentAssignmentId: existing.shiftAssignmentId ?? null,
+          createdBy: actorUserId,
+        });
+
+        if (scheduleOutcome.assignment?.created) {
+          scheduleNotificationAssignmentIds.push(scheduleOutcome.assignment.shiftAssignmentId);
+        }
+        if (scheduleOutcome.releasedAssignmentId) {
+          await createAuditEntryTx(tx, {
+            actorId: actorUserId,
+            actorRole,
+            entityType: "shift_assignment",
+            entityId: scheduleOutcome.releasedAssignmentId,
+            action: "shift_assignment_removed",
+            before: {
+              source: "event_gear_reservation",
+              bookingId,
+            },
+            after: {
+              reason: "reservation_schedule_reconciled",
+            },
+          });
+        }
+        if (scheduleOutcome.status === "needs_review" || scheduleOutcome.status === "blocked_working_copy") {
+          await createAuditEntryTx(tx, {
+            actorId: actorUserId,
+            actorRole,
+            entityType: "booking",
+            entityId: bookingId,
+            action: "schedule_assignment_review_needed",
+            after: {
+              status: scheduleOutcome.status,
+              reason: scheduleOutcome.reason ?? null,
+            },
+          });
+        }
+      }
+
       return tx.booking.findUniqueOrThrow({
         where: { id: bookingId },
         include: bookingInclude
@@ -913,6 +1109,11 @@ export async function updateReservation(
   } catch (error) {
     handleBookingMutationRace(error);
   }
+
+  for (const assignmentId of scheduleNotificationAssignmentIds) {
+    await dispatchScheduleAssignmentNotifications(assignmentId, "assigned");
+  }
+  return updated;
 }
 
 export async function updateBookingEvents(
@@ -921,9 +1122,10 @@ export async function updateBookingEvents(
   eventIds: string[],
 ) {
   assertValidEventLinks(eventIds);
+  const scheduleNotificationAssignmentIds: string[] = [];
 
   try {
-    return await db.$transaction(
+    const updated = await db.$transaction(
       async (tx) => {
         const actor = await tx.user.findUnique({
           where: { id: actorUserId },
@@ -944,6 +1146,36 @@ export async function updateBookingEvents(
             kind: true,
             status: true,
             eventId: true,
+            requesterUserId: true,
+            shiftAssignmentId: true,
+            requester: {
+              select: {
+                role: true,
+                staffingType: true,
+                primaryArea: true,
+                areaAssignments: {
+                  select: {
+                    area: true,
+                    isPrimary: true,
+                  },
+                },
+                availabilityBlocks: {
+                  select: {
+                    kind: true,
+                    intent: true,
+                    status: true,
+                    dayOfWeek: true,
+                    date: true,
+                    startsAt: true,
+                    endsAt: true,
+                    label: true,
+                    semesterLabel: true,
+                    semesterStartsOn: true,
+                    semesterEndsOn: true,
+                  },
+                },
+              },
+            },
             events: {
               select: { eventId: true },
               orderBy: { ordinal: "asc" },
@@ -1017,6 +1249,71 @@ export async function updateBookingEvents(
           });
         }
 
+        let reservationScheduleAssignment: ReservationScheduleAssignment | null = null;
+        if (existing.kind === BookingKind.RESERVATION && existing.requesterUserId && existing.requester) {
+          const scheduleOutcome = await reconcileReservationScheduleTx(tx, {
+            bookingId,
+            requesterUserId: existing.requesterUserId,
+            requester: existing.requester,
+            primaryEventId,
+            currentAssignmentId: existing.shiftAssignmentId,
+            createdBy: actorUserId,
+          });
+          reservationScheduleAssignment = scheduleOutcome.assignment;
+          if (reservationScheduleAssignment?.created) {
+            scheduleNotificationAssignmentIds.push(reservationScheduleAssignment.shiftAssignmentId);
+          }
+          if (scheduleOutcome.releasedAssignmentId) {
+            await createAuditEntryTx(tx, {
+              actorId: actorUserId,
+              actorRole: actor.role,
+              entityType: "shift_assignment",
+              entityId: scheduleOutcome.releasedAssignmentId,
+              action: "shift_assignment_removed",
+              before: {
+                source: "event_gear_reservation",
+                bookingId,
+              },
+              after: {
+                reason: "booking_events_updated",
+              },
+            });
+          }
+          if (scheduleOutcome.status === "needs_review" || scheduleOutcome.status === "blocked_working_copy") {
+            await createAuditEntryTx(tx, {
+              actorId: actorUserId,
+              actorRole: actor.role,
+              entityType: "booking",
+              entityId: bookingId,
+              action: "schedule_assignment_review_needed",
+              after: {
+                status: scheduleOutcome.status,
+                reason: scheduleOutcome.reason ?? null,
+              },
+            });
+          }
+        }
+
+        if (reservationScheduleAssignment?.created) {
+          await createAuditEntryTx(tx, {
+            actorId: actorUserId,
+            actorRole: actor.role,
+            entityType: "shift_assignment",
+            entityId: reservationScheduleAssignment.shiftAssignmentId,
+            action: "shift_assigned",
+            after: {
+              source: "event_gear_reservation",
+              bookingId,
+              eventId: reservationScheduleAssignment.eventId,
+              shiftId: reservationScheduleAssignment.shiftId,
+              userId: reservationScheduleAssignment.userId,
+              area: reservationScheduleAssignment.area,
+              workerType: reservationScheduleAssignment.workerType,
+              hasConflict: reservationScheduleAssignment.hasConflict,
+            },
+          });
+        }
+
         return tx.booking.findUniqueOrThrow({
           where: { id: bookingId },
           include: bookingInclude,
@@ -1024,13 +1321,19 @@ export async function updateBookingEvents(
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
+
+    for (const assignmentId of scheduleNotificationAssignmentIds) {
+      await dispatchScheduleAssignmentNotifications(assignmentId, "assigned");
+    }
+    return updated;
   } catch (error) {
     handleBookingMutationRace(error);
   }
 }
 
 export async function cancelReservation(bookingId: string, actorUserId: string) {
-  return db.$transaction(async (tx) => {
+  let releasedAssignmentId: string | null = null;
+  const result = await db.$transaction(async (tx) => {
     const booking = await tx.booking.findUnique({ where: { id: bookingId } });
 
     if (!booking) {
@@ -1048,6 +1351,40 @@ export async function cancelReservation(bookingId: string, actorUserId: string) 
     }
     if (booking.status === BookingStatus.COMPLETED) {
       throw new HttpError(400, "Cannot cancel a completed reservation");
+    }
+
+    const scheduleRelease = await releaseReservationManagedAssignmentTx(tx, {
+      bookingId,
+      assignmentId: booking.shiftAssignmentId,
+    });
+    if (scheduleRelease.released) {
+      releasedAssignmentId = scheduleRelease.assignmentId;
+      const actorRole = await lookupActorRole(tx, actorUserId);
+      await createAuditEntryTx(tx, {
+        actorId: actorUserId,
+        actorRole,
+        entityType: "shift_assignment",
+        entityId: scheduleRelease.assignmentId!,
+        action: "shift_assignment_removed",
+        before: {
+          source: "event_gear_reservation",
+          bookingId,
+        },
+        after: { reason: "reservation_cancelled" },
+      });
+    } else if (scheduleRelease.blocked) {
+      const actorRole = await lookupActorRole(tx, actorUserId);
+      await createAuditEntryTx(tx, {
+        actorId: actorUserId,
+        actorRole,
+        entityType: "booking",
+        entityId: bookingId,
+        action: "schedule_assignment_review_needed",
+        after: {
+          status: "blocked_working_copy",
+          reason: "Reservation cancelled while its schedule working copy was open.",
+        },
+      });
     }
 
     await tx.booking.update({
@@ -1074,8 +1411,13 @@ export async function cancelReservation(bookingId: string, actorUserId: string) 
       action: "cancelled",
     });
 
-    return { success: true };
+    return { success: true, scheduleAssignmentReleased: Boolean(releasedAssignmentId) };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+  if (releasedAssignmentId) {
+    await createShiftScheduleNotification(releasedAssignmentId, "removed");
+  }
+  return result;
 }
 
 export async function updateCheckout(
@@ -1355,15 +1697,19 @@ export async function transferBookingOwner(
   actorUserId: string,
   input: TransferBookingOwnerInput,
 ) {
+  const scheduleNotificationAssignmentIds: string[] = [];
   try {
-    return await db.$transaction(
+    const updated = await db.$transaction(
       async (tx) => {
         const existing = await tx.booking.findUnique({
           where: { id: bookingId },
           select: {
             id: true,
+            kind: true,
             status: true,
             requesterUserId: true,
+            eventId: true,
+            shiftAssignmentId: true,
             createdBy: true,
             requester: { select: { id: true, name: true, email: true } },
           },
@@ -1401,6 +1747,30 @@ export async function transferBookingOwner(
             email: true,
             active: true,
             hiddenFromRoster: true,
+            role: true,
+            staffingType: true,
+            primaryArea: true,
+            areaAssignments: {
+              select: {
+                area: true,
+                isPrimary: true,
+              },
+            },
+            availabilityBlocks: {
+              select: {
+                kind: true,
+                intent: true,
+                status: true,
+                dayOfWeek: true,
+                date: true,
+                startsAt: true,
+                endsAt: true,
+                label: true,
+                semesterLabel: true,
+                semesterStartsOn: true,
+                semesterEndsOn: true,
+              },
+            },
           },
         });
 
@@ -1435,6 +1805,50 @@ export async function transferBookingOwner(
           after,
         });
 
+        if (
+          existing.kind === BookingKind.RESERVATION
+          && (existing.eventId || existing.shiftAssignmentId)
+        ) {
+          const scheduleOutcome = await reconcileReservationScheduleTx(tx, {
+            bookingId,
+            requesterUserId: target.id,
+            requester: target,
+            primaryEventId: existing.eventId ?? null,
+            currentAssignmentId: existing.shiftAssignmentId ?? null,
+            createdBy: actorUserId,
+          });
+          if (scheduleOutcome.assignment?.created) {
+            scheduleNotificationAssignmentIds.push(scheduleOutcome.assignment.shiftAssignmentId);
+          }
+          if (scheduleOutcome.releasedAssignmentId) {
+            await createAuditEntryTx(tx, {
+              actorId: actorUserId,
+              actorRole: actor.role,
+              entityType: "shift_assignment",
+              entityId: scheduleOutcome.releasedAssignmentId,
+              action: "shift_assignment_removed",
+              before: {
+                source: "event_gear_reservation",
+                bookingId,
+              },
+              after: { reason: "booking_owner_transferred" },
+            });
+          }
+          if (scheduleOutcome.status === "needs_review" || scheduleOutcome.status === "blocked_working_copy") {
+            await createAuditEntryTx(tx, {
+              actorId: actorUserId,
+              actorRole: actor.role,
+              entityType: "booking",
+              entityId: bookingId,
+              action: "schedule_assignment_review_needed",
+              after: {
+                status: scheduleOutcome.status,
+                reason: scheduleOutcome.reason ?? null,
+              },
+            });
+          }
+        }
+
         return tx.booking.findUniqueOrThrow({
           where: { id: bookingId },
           include: bookingInclude,
@@ -1442,6 +1856,11 @@ export async function transferBookingOwner(
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
+
+    for (const assignmentId of scheduleNotificationAssignmentIds) {
+      await dispatchScheduleAssignmentNotifications(assignmentId, "assigned");
+    }
+    return updated;
   } catch (error) {
     handleBookingMutationRace(error);
   }
@@ -1554,6 +1973,7 @@ export async function extendBooking(
 }
 
 export async function cancelBooking(bookingId: string, actorUserId: string) {
+  let releasedAssignmentId: string | null = null;
   const result = await db.$transaction(async (tx) => {
     const booking = await tx.booking.findUnique({
       where: { id: bookingId },
@@ -1583,6 +2003,42 @@ export async function cancelBooking(bookingId: string, actorUserId: string) {
 
     if (booking.status === BookingStatus.COMPLETED) {
       throw new HttpError(400, "Cannot cancel a completed booking");
+    }
+
+    if (booking.kind === BookingKind.RESERVATION && booking.shiftAssignmentId) {
+      const scheduleRelease = await releaseReservationManagedAssignmentTx(tx, {
+        bookingId,
+        assignmentId: booking.shiftAssignmentId,
+      });
+      if (scheduleRelease.released) {
+        releasedAssignmentId = scheduleRelease.assignmentId;
+        const actorRole = await lookupActorRole(tx, actorUserId);
+        await createAuditEntryTx(tx, {
+          actorId: actorUserId,
+          actorRole,
+          entityType: "shift_assignment",
+          entityId: scheduleRelease.assignmentId!,
+          action: "shift_assignment_removed",
+          before: {
+            source: "event_gear_reservation",
+            bookingId,
+          },
+          after: { reason: "booking_cancelled" },
+        });
+      } else if (scheduleRelease.blocked) {
+        const actorRole = await lookupActorRole(tx, actorUserId);
+        await createAuditEntryTx(tx, {
+          actorId: actorUserId,
+          actorRole,
+          entityType: "booking",
+          entityId: bookingId,
+          action: "schedule_assignment_review_needed",
+          after: {
+            status: "blocked_working_copy",
+            reason: "Booking cancelled while its event schedule working copy was open.",
+          },
+        });
+      }
     }
 
     await tx.booking.update({
@@ -1646,6 +2102,7 @@ export async function cancelBooking(bookingId: string, actorUserId: string) {
 
     return {
       success: true,
+      scheduleAssignmentReleased: Boolean(releasedAssignmentId),
       shouldEndLiveActivity: booking.kind === BookingKind.CHECKOUT && booking.status === BookingStatus.OPEN,
     };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
@@ -1654,5 +2111,9 @@ export async function cancelBooking(bookingId: string, actorUserId: string) {
     await endCheckoutReturnLiveActivities(bookingId);
   }
 
-  return { success: true };
+  if (releasedAssignmentId) {
+    await createShiftScheduleNotification(releasedAssignmentId, "removed");
+  }
+
+  return { success: true, scheduleAssignmentReleased: Boolean(releasedAssignmentId) };
 }

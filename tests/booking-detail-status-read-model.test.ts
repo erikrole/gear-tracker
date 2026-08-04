@@ -16,6 +16,8 @@ function booking(overrides: Partial<Record<string, unknown>> = {}) {
     kind: "RESERVATION",
     title: "Past reservation",
     status: "BOOKED",
+    requesterUserId: "student-1",
+    requester: { id: "student-1", name: "Student One", email: "student@example.com", role: "STUDENT" },
     startsAt: new Date("2026-04-01T10:00:00Z"),
     endsAt: new Date("2026-04-01T12:00:00Z"),
     location: { id: "loc-1", name: "Equipment Room" },
@@ -57,5 +59,34 @@ describe("getBookingDetail status read model", () => {
     const detail = await getBookingDetail("booking-1");
 
     expect(detail.isOverdue).toBe(false);
+  });
+
+  it("reports whether an internal event reservation is connected to the schedule", async () => {
+    vi.mocked(db.booking.findUnique).mockResolvedValue(booking({
+      event: { id: "event-1", summary: "Game" },
+      shiftAssignment: {
+        id: "assignment-1",
+        userId: "student-1",
+        status: "DIRECT_ASSIGNED",
+        source: "RESERVATION",
+        shift: { area: "VIDEO", shiftGroup: { eventId: "event-1" } },
+      },
+    }) as never);
+
+    const detail = await getBookingDetail("booking-1");
+
+    expect(detail.scheduleStatus).toBe("scheduled");
+    expect(detail.scheduleStatusReason).toBeNull();
+  });
+
+  it("marks an internal event reservation without an active assignment for review", async () => {
+    vi.mocked(db.booking.findUnique).mockResolvedValue(booking({
+      event: { id: "event-1", summary: "Game" },
+    }) as never);
+
+    const detail = await getBookingDetail("booking-1");
+
+    expect(detail.scheduleStatus).toBe("needs_review");
+    expect(detail.scheduleStatusReason).toContain("not connected");
   });
 });
