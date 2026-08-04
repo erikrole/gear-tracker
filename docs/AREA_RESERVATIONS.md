@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-31
+- Last Updated: 2026-08-04
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -258,6 +258,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 
 ## Change Log
 
+- 2026-08-04: **Booking detail mutation freshness hardened.** Inline title, schedule, and notes saves now apply the server-returned booking snapshot, including `updatedAt`, so a following rename or owner transfer uses the current optimistic-lock value. Owner-transfer retries for the already-committed target now return the committed booking while true stale competing transfers remain conflicts.
 - 2026-07-31: **Snow Leopard reservation boundary hardening.** Collaborator create, edit, extend, and cancel controls now require their exact server-backed capabilities, while direct requests use the same policy. The default active booking payload excludes `DRAFT` records; drafts remain available through the dedicated recovery path. Quick extend sends the shared optimistic-lock timestamp header from the current booking row.
 - 2026-07-29: **Native reservation feature discovery.** TipKit now points
   eligible users to New Reservation and explains that an in-progress

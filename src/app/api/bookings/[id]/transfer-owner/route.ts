@@ -19,6 +19,11 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   }
   const serverTs = Math.floor(new Date(current.updatedAt).getTime() / 1000) * 1000;
   if (clientTs < serverTs) {
+    if (current.requesterUserId === body.targetUserId) {
+      await requireBookingAction(id, user, "transfer-owner");
+      const allowedActions = getAllowedBookingActions(user, current);
+      return ok({ data: { ...current, allowedActions } });
+    }
     throw new HttpError(409, "This booking was modified by someone else. Please refresh and try again.");
   }
 

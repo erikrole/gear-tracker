@@ -18,7 +18,7 @@ type Props = {
   booking: BookingDetail;
   canEdit: boolean;
   /** PATCH a single booking field. */
-  onSave: (field: string, value: unknown) => Promise<void>;
+  onSave: (field: string, value: unknown) => Promise<BookingDetail>;
   /** Optimistically patch local booking state. */
   onPatch: (patch: Partial<BookingDetail>) => void;
   /** When true, drops the outer Card chrome (for use inside a sheet). */
@@ -36,16 +36,16 @@ export default function BookingInfoCard({
 
   const saveStart = useCallback(
     async (iso: string) => {
-      await onSave("startsAt", iso);
-      onPatch({ startsAt: iso });
+      const updated = await onSave("startsAt", iso);
+      onPatch(updated);
     },
     [onSave, onPatch],
   );
 
   const saveEnd = useCallback(
     async (iso: string) => {
-      await onSave("endsAt", iso);
-      onPatch({ endsAt: iso });
+      const updated = await onSave("endsAt", iso);
+      onPatch(updated);
     },
     [onSave, onPatch],
   );
@@ -191,8 +191,8 @@ export default function BookingInfoCard({
           value={booking.notes ?? ""}
           canEdit={canEdit}
           onSave={async (v) => {
-            await onSave("notes", v || null);
-            onPatch({ notes: v || null });
+            const updated = await onSave("notes", v || null);
+            onPatch(updated);
           }}
         />
       </FieldGroup>

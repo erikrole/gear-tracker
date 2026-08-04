@@ -103,6 +103,30 @@ describe("booking transfer-owner route contract", () => {
     expect(transferBookingOwner).not.toHaveBeenCalled();
   });
 
+  it("returns the committed owner for an idempotent stale retry", async () => {
+    const transferred = {
+      ...baseDetail,
+      requesterUserId: "cm000000000000000000000004",
+      updatedAt: new Date("2026-07-09T16:01:00.500Z"),
+    };
+    vi.mocked(getBookingDetail).mockResolvedValue(bookingDetail(transferred));
+
+    const res = await POST(
+      request(
+        { targetUserId: "cm000000000000000000000004" },
+        { "if-unmodified-since": "Thu, 09 Jul 2026 16:00:00 GMT" },
+      ),
+      { params: Promise.resolve({ id: baseDetail.id }) },
+    );
+
+    expect(res.status).toBe(200);
+    expect(requireBookingAction).toHaveBeenCalledWith(baseDetail.id, staffUser, "transfer-owner");
+    expect(transferBookingOwner).not.toHaveBeenCalled();
+    await expect(res.json()).resolves.toMatchObject({
+      data: { requesterUserId: "cm000000000000000000000004" },
+    });
+  });
+
   it("dispatches a fresh transfer to the service", async () => {
     const res = await POST(
       request(

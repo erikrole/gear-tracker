@@ -268,8 +268,8 @@ export default function BookingDetailPage({
         syncStatus={bookingSync}
         actionLoading={actions.actionLoading}
         onSaveTitle={async (v) => {
-          await actions.saveField("title", v);
-          patchLocal({ title: v });
+          const updated = await actions.saveField("title", v);
+          patchLocal(updated);
         }}
         onReload={reload}
         onEdit={() => setEditSheetOpen(true)}
@@ -400,7 +400,6 @@ export default function BookingDetailPage({
         onOpenChange={setTransferOwnerOpen}
         onTransferred={(updated) => {
           patchLocal(updated);
-          reload();
         }}
       />
 

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-31
+- Last Updated: 2026-08-04
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -307,6 +307,7 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 
 ## Change Log
 
+- 2026-08-04: **Booking detail mutation freshness hardened.** Inline title, schedule, and notes saves now apply the server-returned booking snapshot, including `updatedAt`, so a following rename or owner transfer uses the current optimistic-lock value. Owner-transfer retries for the already-committed target now return the committed booking while true stale competing transfers remain conflicts.
 - 2026-07-31: **Snow Leopard web contract hardening.** Booking-list quick extend now sends the required `If-Unmodified-Since` value from the row's `updatedAt`, so the shared optimistic-lock route can accept the action instead of returning a missing-header response. Collaborator booking actions remain individually capability-gated, and `DRAFT` rows stay out of the default active booking work queue while remaining recoverable through the Drafts surface.
 - 2026-07-21: Direct kiosk checkout suppresses bulk-family turnaround advisories for scanned numbered batteries while preserving hard quantity shortages and exact-unit availability. Future reservations remain family quantity intent until kiosk binding, so a nearby future family booking no longer labels the currently scanned battery group Tight turn. Serialized turnaround behavior and web reservation planning advisories are unchanged.
 - 2026-07-21: **Shared web booking detail now uses the native hierarchy without losing control-room depth.** Checkout detail names the requester beside booking identity and surfaces live due or pickup time, pickup location, physical gear count, and linked event context in one compact summary. Inline editing, equipment custody context, operator actions, sync health, and activity history remain web-owned; API payloads, permissions, checkout lifecycle, and kiosk-only custody are unchanged.

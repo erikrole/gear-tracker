@@ -7,8 +7,10 @@ import { toast } from "sonner";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { getBookingCancelCopy } from "@/hooks/booking-action-copy";
+import type { BookingDetail } from "@/components/booking-details/types";
 
 type ActionResult = { ok: boolean; error?: string };
+type BookingMutationResponse = { data?: BookingDetail };
 
 async function callAction(
   url: string,
@@ -171,7 +173,7 @@ export function useBookingActions(
   );
 
   const saveField = useCallback(
-    async (field: string, value: unknown) => {
+    async (field: string, value: unknown): Promise<BookingDetail> => {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (updatedAt) headers["If-Unmodified-Since"] = new Date(updatedAt).toUTCString();
       const res = await fetchWithTimeout(`/api/bookings/${bookingId}`, {
@@ -183,9 +185,19 @@ export function useBookingActions(
         throw new DOMException("Auth redirect", "AbortError");
       }
       if (!res.ok) {
-        if (res.status === 409) throw new Error("This booking was modified by someone else. Please refresh.");
-        throw new Error("Save failed");
+        const message = await parseErrorMessage(
+          res,
+          res.status === 409
+            ? "This booking was modified by someone else. Please refresh."
+            : "Save failed",
+        );
+        throw new Error(message);
       }
+      const json = await parseJsonSafely<BookingMutationResponse>(res);
+      if (!json?.data) {
+        throw new Error("Booking saved, but the refreshed booking was unavailable. Reload and try again.");
+      }
+      return json.data;
     },
     [bookingId, updatedAt],
   );

@@ -306,9 +306,11 @@ export default function BookingDetailsSheet({
 
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
+        const json = await parseJsonSafely<ApiEnvelope<BookingDetail>>(res);
+        if (json?.data) setBooking(json.data);
         toast.success("Equipment updated");
         setEquipEditMode(false);
-        await fetchBooking({ silent: true });
+        if (!json?.data) await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
         const json = await parseJsonSafely<ApiEnvelope<ConflictData>>(res);
@@ -336,8 +338,10 @@ export default function BookingDetailsSheet({
 
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
+        const json = await parseJsonSafely<ApiEnvelope<BookingDetail>>(res);
+        if (json?.data) setBooking(json.data);
         toast.success(field === "title" ? "Title updated" : field === "notes" ? "Notes updated" : "Schedule updated");
-        await fetchBooking({ silent: true });
+        if (!json?.data) await fetchBooking({ silent: true });
         onUpdated?.();
         return;
       }

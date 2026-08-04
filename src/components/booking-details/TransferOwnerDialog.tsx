@@ -114,6 +114,7 @@ export function TransferOwnerDialog({
     busyRef.current = true;
     setSaving(true);
 
+    let updated: BookingDetail;
     try {
       const res = await fetchWithTimeout(`/api/bookings/${booking.id}/transfer-owner`, {
         method: "POST",
@@ -139,19 +140,21 @@ export function TransferOwnerDialog({
         toast.error("Ownership changed, but the refreshed booking did not load.");
         return;
       }
-
-      toast.success(`Transferred to ${json.data.requester.name}`);
-      window.dispatchEvent(new CustomEvent(BOOKING_CHANGE_SYNC_EVENT, {
-        detail: { changedBookingIds: [booking.id] },
-      }));
-      onTransferred(json.data);
-      onOpenChange(false);
+      updated = json.data;
     } catch {
       toast.error("Could not reach the server. Ownership was not transferred.");
+      return;
     } finally {
       busyRef.current = false;
       setSaving(false);
     }
+
+    toast.success(`Transferred to ${updated.requester.name}`);
+    window.dispatchEvent(new CustomEvent(BOOKING_CHANGE_SYNC_EVENT, {
+      detail: { changedBookingIds: [booking.id] },
+    }));
+    onTransferred(updated);
+    onOpenChange(false);
   }
 
   return (
