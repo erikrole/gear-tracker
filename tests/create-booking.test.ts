@@ -11,6 +11,9 @@ type MockFn = ReturnType<typeof vi.fn>;
 type CreateBookingTx = {
   booking: Record<"findUnique" | "findUniqueOrThrow" | "findFirst" | "create" | "update" | "delete" | "count", MockFn>;
   calendarEvent: Record<"findMany", MockFn>;
+  shiftGroup: Record<"findUnique" | "update", MockFn>;
+  shift: Record<"create", MockFn>;
+  shiftAssignment: Record<"findMany" | "findUnique" | "updateMany" | "create", MockFn>;
   bookingEvent: Record<"createMany", MockFn>;
   scheduleEventFollow: Record<"createMany", MockFn>;
   bookingSerializedItem: Record<"createMany", MockFn>;
@@ -41,6 +44,9 @@ vi.mock("@/lib/db", () => {
       count: vi.fn(),
     },
     calendarEvent: { findMany: vi.fn() },
+    shiftGroup: { findUnique: vi.fn(), update: vi.fn() },
+    shift: { create: vi.fn() },
+    shiftAssignment: { findMany: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn(), create: vi.fn() },
     bookingEvent: { createMany: vi.fn() },
     scheduleEventFollow: { createMany: vi.fn() },
     bookingSerializedItem: { createMany: vi.fn() },
@@ -128,6 +134,21 @@ beforeEach(() => {
   mockTx.booking.update.mockResolvedValue({});
   mockTx.booking.findUniqueOrThrow.mockResolvedValue({ id: "b-new", refNumber: "CO-0001" });
   mockTx.calendarEvent.findMany.mockResolvedValue([]);
+  mockTx.shiftGroup.findUnique.mockResolvedValue(null);
+  mockTx.shiftGroup.update.mockResolvedValue({});
+  mockTx.shift.create.mockResolvedValue({});
+  mockTx.shiftAssignment.findMany.mockResolvedValue([]);
+  mockTx.shiftAssignment.findUnique.mockResolvedValue(null);
+  mockTx.shiftAssignment.updateMany.mockResolvedValue({ count: 0 });
+  mockTx.shiftAssignment.create.mockResolvedValue({
+    id: "assignment-new",
+    userId: "user-1",
+    status: "DIRECT_ASSIGNED",
+    callStartsAt: null,
+    callEndsAt: null,
+    callNote: null,
+    acknowledgedAt: null,
+  });
   mockTx.bookingEvent.createMany.mockResolvedValue({});
   mockTx.scheduleEventFollow.createMany.mockResolvedValue({});
   mockTx.bookingSerializedItem.createMany.mockResolvedValue({});
@@ -564,6 +585,110 @@ describe("createBooking", () => {
         { bookingId: "b-new", eventId: "event-late", ordinal: 1 },
       ],
     });
+  });
+
+  it("adds an internal event reservation requester to the schedule and links the booking", async () => {
+    mockTx.user.findUnique.mockResolvedValue({
+      active: true,
+      role: Role.STUDENT,
+      staffingType: "ST",
+      primaryArea: "VIDEO",
+      areaAssignments: [],
+      availabilityBlocks: [],
+      collaboratorProfile: null,
+      collaboratorPolicy: null,
+    });
+    mockTx.calendarEvent.findMany.mockResolvedValue([
+      { id: "event-1", startsAt: new Date("2026-04-01T18:00:00Z") },
+    ]);
+    mockTx.shiftGroup.findUnique.mockResolvedValue({
+      id: "group-1",
+      publishedAt: null,
+      workingCopy: null,
+      event: {
+        startsAt: new Date("2026-04-01T18:00:00Z"),
+        endsAt: new Date("2026-04-01T22:00:00Z"),
+        allDay: false,
+      },
+      shifts: [{
+        id: "shift-1",
+        area: "VIDEO",
+        workerType: "ST",
+        startsAt: new Date("2026-04-01T17:00:00Z"),
+        endsAt: new Date("2026-04-01T23:00:00Z"),
+        callStartsAt: null,
+        callEndsAt: null,
+        assignments: [],
+      }],
+    });
+
+    await createBooking(baseInput({
+      kind: BookingKind.RESERVATION,
+      custodySource: undefined,
+      eventId: "event-1",
+    }));
+
+    expect(mockTx.booking.update).toHaveBeenCalledWith({
+      where: { id: "b-new" },
+      data: { shiftAssignmentId: "assignment-new" },
+    });
+    expect(mockTx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        entityType: "shift_assignment",
+        entityId: "assignment-new",
+        action: "shift_assigned",
+        afterJson: expect.objectContaining({
+          source: "event_gear_reservation",
+          bookingId: "b-new",
+          eventId: "event-1",
+        }),
+      }),
+    }));
+  });
+
+  it("validates an explicit schedule link before creating the booking", async () => {
+    mockTx.user.findUnique.mockResolvedValue({
+      active: true,
+      role: Role.STUDENT,
+      staffingType: "ST",
+      primaryArea: "VIDEO",
+      areaAssignments: [],
+      availabilityBlocks: [],
+      collaboratorProfile: null,
+      collaboratorPolicy: null,
+    });
+    mockTx.calendarEvent.findMany.mockResolvedValue([
+      { id: "event-1", startsAt: new Date("2026-04-01T18:00:00Z") },
+    ]);
+    mockTx.shiftAssignment.findUnique.mockResolvedValue({
+      id: "assignment-explicit",
+      userId: "user-1",
+      status: "DIRECT_ASSIGNED",
+      source: "MANUAL",
+      shift: {
+        id: "shift-1",
+        area: "VIDEO",
+        workerType: "ST",
+        shiftGroup: {
+          id: "group-1",
+          eventId: "event-1",
+          publishedAt: null,
+          workingCopy: null,
+        },
+      },
+    });
+
+    await createBooking(baseInput({
+      kind: BookingKind.RESERVATION,
+      custodySource: undefined,
+      eventId: "event-1",
+      shiftAssignmentId: "assignment-explicit",
+    }));
+
+    expect(mockTx.booking.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ shiftAssignmentId: "assignment-explicit" }),
+    }));
+    expect(mockTx.shiftAssignment.create).not.toHaveBeenCalled();
   });
 
   it("limits collaborator event links to published visible schedule events", async () => {

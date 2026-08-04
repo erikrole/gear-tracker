@@ -1539,6 +1539,10 @@ Values: `APPROVED`, `PENDING`, `DENIED`
 
 Values: `DIRECT_ASSIGNED`, `REQUESTED`, `APPROVED`, `DECLINED`, `SWAPPED`
 
+## Enum `ShiftAssignmentSource`
+
+Values: `MANUAL`, `RESERVATION`, `AUTO_FILL`
+
 ## Enum `ShiftTradeStatus`
 
 Values: `OPEN`, `CLAIMED`, `APPROVED`, `COMPLETED`, `CANCELLED`
@@ -1659,12 +1663,13 @@ Indexes and constraints:
 
 ## Model `ShiftAssignment`
 
-Fields: 25
+Fields: 26
 
 - `id               String                @id @default(cuid())`
 - `shiftId          String                @map("shift_id")`
 - `userId           String                @map("user_id")`
 - `status           ShiftAssignmentStatus`
+- `source           ShiftAssignmentSource @default(MANUAL)`
 - `assignedBy       String?               @map("assigned_by")`
 - `swapFromId       String?               @map("swap_from_id")`
 - `callStartsAt     DateTime?             @map("call_starts_at")`

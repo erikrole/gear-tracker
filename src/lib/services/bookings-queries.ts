@@ -159,7 +159,35 @@ export async function getBookingDetail(bookingId: string) {
         },
       },
       sourceReservation: { select: { id: true, refNumber: true, title: true } },
-      shiftAssignment: { select: { id: true, shift: { select: { area: true } } } },
+      shiftAssignment: {
+        select: {
+          id: true,
+          userId: true,
+          status: true,
+          source: true,
+          callStartsAt: true,
+          callEndsAt: true,
+          callNote: true,
+          shift: {
+            select: {
+              id: true,
+              area: true,
+              workerType: true,
+              startsAt: true,
+              endsAt: true,
+              callStartsAt: true,
+              callEndsAt: true,
+              shiftGroup: {
+                select: {
+                  eventId: true,
+                  publishedAt: true,
+                  workingCopy: { select: { shiftGroupId: true } },
+                },
+              },
+            },
+          },
+        },
+      },
       kit: { select: { id: true, name: true } },
       pickupKioskDevice: { select: { id: true, name: true, location: { select: { id: true, name: true } } } },
       photos: { select: { id: true, phase: true, imageUrl: true, createdAt: true, actor: { select: { id: true, name: true } } }, orderBy: { createdAt: "asc" } },
@@ -179,12 +207,37 @@ export async function getBookingDetail(bookingId: string) {
   });
   const hasMoreAuditLogs = auditLogsRaw.length > AUDIT_LOG_LIMIT;
   const auditLogs = hasMoreAuditLogs ? auditLogsRaw.slice(0, AUDIT_LOG_LIMIT) : auditLogsRaw;
+  const { events: eventLinks, ...rest } = booking;
 
   const now = new Date();
   const isOverdue =
     (booking.kind === BookingKind.CHECKOUT && booking.status === BookingStatus.OPEN && booking.endsAt < now) ||
     (booking.kind === BookingKind.RESERVATION && booking.status === BookingStatus.BOOKED && booking.endsAt < now);
   const isActive = booking.status === BookingStatus.OPEN || booking.status === BookingStatus.BOOKED;
+
+  const linkedEventIds = eventLinks.length > 0
+    ? eventLinks.map((link) => link.eventId)
+    : booking.event
+      ? [booking.event.id]
+      : [];
+  const isInternalEventReservation =
+    booking.kind === BookingKind.RESERVATION
+    && linkedEventIds.length > 0
+    && booking.requester?.role !== "COLLABORATOR";
+  const hasMatchingScheduleAssignment = Boolean(
+    booking.shiftAssignment
+    && (booking.shiftAssignment.status === "DIRECT_ASSIGNED" || booking.shiftAssignment.status === "APPROVED")
+    && booking.shiftAssignment.userId === booking.requesterUserId
+    && linkedEventIds.includes(booking.shiftAssignment.shift.shiftGroup.eventId),
+  );
+  const scheduleStatus: "scheduled" | "needs_review" | "not_applicable" = isInternalEventReservation
+    ? hasMatchingScheduleAssignment ? "scheduled" : "needs_review"
+    : "not_applicable";
+  const scheduleStatusReason = scheduleStatus === "needs_review"
+    ? booking.shiftAssignment
+      ? "The linked schedule assignment needs review."
+      : "This event-linked reservation is not connected to an active schedule assignment."
+    : null;
 
   // Compute distinct locations represented by assets in this booking
   const locationMap = new Map<string, string>();
@@ -198,7 +251,6 @@ export async function getBookingDetail(bookingId: string) {
   const locationMode: "SINGLE" | "MIXED" = itemLocations.length > 1 ? "MIXED" : "SINGLE";
 
   // Flatten BookingEvent junction rows to a plain sorted event array for consumers.
-  const { events: eventLinks, ...rest } = booking;
   const linkedEvents = eventLinks.map((link) => link.event);
 
   return {
@@ -207,6 +259,8 @@ export async function getBookingDetail(bookingId: string) {
     isOverdue,
     isActive,
     bookingType: booking.kind === BookingKind.RESERVATION ? "Reservation" : "Checkout",
+    scheduleStatus,
+    scheduleStatusReason,
     auditLogs,
     hasMoreAuditLogs,
     auditLogNextCursor: hasMoreAuditLogs ? auditLogs[auditLogs.length - 1]?.id : null,

@@ -950,7 +950,38 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Do not let deactivated users authenticate through a credential that remains stored.
 - Reference: `tasks/passkey-auth-plan.md`, `docs/AREA_SETTINGS.md`, and `docs/AREA_USERS.md`.
 
+## D-044: Event-Linked Reservations Infer Internal Schedule Work
+- Date: 2026-08-04
+- Status: Accepted
+- Context:
+  - An event-linked gear reservation is an explicit statement that the internal requester expects to work that event, but the existing booking flow only linked equipment to the event.
+  - Internal Schedule visibility is assignment-backed. A collaborator event follow is not a substitute for an internal `ShiftAssignment`.
+  - D-042 protects private working copies and requires published worker-facing schedule truth to remain coherent.
+- Decision:
+  - Creating a `RESERVATION` for one or more events automatically reuses the requester’s existing active assignment on the chronologically primary event, or creates one direct assignment when a safe slot is available.
+  - The requester’s `User.staffingType` selects the FT or ST slot class. `primaryArea`, then area assignments, select a preferred area. An open preferred-area slot is filled first; when all preferred-area slots are occupied, a matching slot is cloned from that area. Without a resolvable area, the system may use an existing open slot but never invents an area.
+  - An explicit `shiftAssignmentId` remains authoritative. Collaborators continue to use the existing published-event follow behavior and are never added to internal staffing assignments.
+  - The reservation and assignment are written in the same `SERIALIZABLE` transaction. Existing active-assignment conflicts and approved time off block the reservation; advisory availability conflicts are retained on the assignment.
+  - A reservation may update a published group’s relational assignment and `lastPublishedSnapshot` together, incrementing `publishedVersion`. It never mutates an active working copy. Missing shift groups, active working copies, and ambiguous crew setup leave the booking valid without silently creating an event crew.
+  - `ShiftAssignment.source` records `MANUAL`, `AUTO_FILL`, or `RESERVATION` provenance. Existing reservation-note rows are backfilled during migration `0107`, and new reservation assignments carry the durable source.
+  - Event relinks, owner transfers, cancellation, no-show expiry, and user deactivation reconcile reservation-managed links. Shared assignments remain active for another active reservation; manual and auto-fill links remain untouched; a working-copy conflict becomes an auditable review state.
+  - Explicit assignment links are validated for requester ownership, active status, and event scope before the booking write. Assignment notifications are dispatched only after the transaction commits.
+- Consequences:
+  - Reserving gear from an event now places internal workers on the event Schedule without a second staffing action when the event has a usable crew setup.
+  - Published collaborator and worker-facing schedule reads remain internally consistent after an automatic assignment.
+  - Neutral, Non-game, or otherwise unconfigured events still require deliberate crew setup before a reservation can infer a schedule assignment.
+- Guardrails:
+  - Do not replace an explicit booking-to-assignment link.
+  - Do not mutate a versioned working copy from the reservation path.
+  - Do not release a manual or auto-fill assignment merely because a booking changed or was cancelled.
+  - Do not release a shared reservation-managed assignment while another active reservation points at it.
+  - Do not assign collaborators or guess an operational area when no safe area or slot exists.
+  - Keep assignment conflict, availability, permission, transaction, and audit rules in force.
+- Reference: `tasks/reservation-auto-schedule-plan.md`, `docs/AREA_RESERVATIONS.md`, and `docs/AREA_SHIFTS.md`.
+
 ## Change Log
+- 2026-08-04: Added D-044 for treating internal event-linked gear reservations as schedule-work evidence while preserving explicit assignment links, working-copy isolation, published snapshot coherence, and safe crew-setup boundaries.
+- 2026-08-04: Amended D-044 with durable assignment provenance, explicit link validation, lifecycle reconciliation for relinks/owner changes/cancellation/no-show/deactivation, shared-assignment protection, and post-commit schedule notifications.
 - 2026-08-03: Amended D-032 after the Kohl Center kiosk exposed only users assigned to Camp Randall. Kiosk person discovery is now global for active visible internal users, with the existing explicit collaborator grant preserved; operational inventory, reservation pickup, booking, and custody location boundaries remain unchanged.
 - 2026-07-31: Added D-043 for invite-granted user passkeys, shared sessions, recovery, ceremony replay protection, and kiosk separation. Native iOS now has local `AuthenticationServices` login, enrollment, management, and canonical-domain association; production migration and browser/device proof remain open.
 - 2026-07-28: Amended D-039 so kiosk session credentials retain after-first-unlock availability while using the device-only Keychain class, preventing backup migration to another iPad.

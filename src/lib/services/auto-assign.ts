@@ -17,7 +17,7 @@
  * transaction to prevent duplicate assignments under concurrent requests.
  */
 
-import { Prisma } from "@prisma/client";
+import { Prisma, ShiftAssignmentSource } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getAutoFillPreview } from "@/lib/services/auto-fill-preview";
 
@@ -75,6 +75,7 @@ export async function autoAssignShiftGroup(
         shiftId: p.shiftId,
         userId: p.userId,
         status: "DIRECT_ASSIGNED" as const,
+        source: ShiftAssignmentSource.AUTO_FILL,
         assignedBy: actorId,
         hasConflict: p.hasConflict,
         conflictNote: p.conflictNote,

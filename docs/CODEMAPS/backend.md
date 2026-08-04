@@ -6,7 +6,7 @@
 | File | Lines |
 |---|---:|
 | `src/lib/services/accountability.ts` | 447 |
-| `src/lib/services/auto-assign.ts` | 91 |
+| `src/lib/services/auto-assign.ts` | 92 |
 | `src/lib/services/auto-fill-preview.ts` | 259 |
 | `src/lib/services/availability-conflict-recompute.ts` | 128 |
 | `src/lib/services/availability.ts` | 557 |
@@ -15,9 +15,9 @@
 | `src/lib/services/booking-ref.ts` | 26 |
 | `src/lib/services/booking-rules.ts` | 108 |
 | `src/lib/services/bookings-checkin.ts` | 846 |
-| `src/lib/services/bookings-helpers.ts` | 251 |
-| `src/lib/services/bookings-lifecycle.ts` | 1659 |
-| `src/lib/services/bookings-queries.ts` | 235 |
+| `src/lib/services/bookings-helpers.ts` | 281 |
+| `src/lib/services/bookings-lifecycle.ts` | 2120 |
+| `src/lib/services/bookings-queries.ts` | 289 |
 | `src/lib/services/bookings.ts` | 4 |
 | `src/lib/services/bulk-unit-scans.ts` | 608 |
 | `src/lib/services/calendar-sync-health.ts` | 165 |
@@ -40,9 +40,10 @@
 | `src/lib/services/notification-prefs.ts` | 103 |
 | `src/lib/services/notifications.ts` | 1061 |
 | `src/lib/services/onboarding-lifecycle.ts` | 618 |
-| `src/lib/services/pending-pickup-expiry.ts` | 239 |
+| `src/lib/services/pending-pickup-expiry.ts` | 281 |
 | `src/lib/services/reports.ts` | 1378 |
 | `src/lib/services/reservation-rules.ts` | 46 |
+| `src/lib/services/reservation-schedule.ts` | 665 |
 | `src/lib/services/scans.ts` | 671 |
 | `src/lib/services/schedule-automation.ts` | 336 |
 | `src/lib/services/schedule-change-history.ts` | 377 |
@@ -60,7 +61,7 @@
 | `src/lib/services/shift-trades.ts` | 912 |
 | `src/lib/services/sport-configs.ts` | 257 |
 | `src/lib/services/status.ts` | 444 |
-| `src/lib/services/user-deactivation.ts` | 313 |
+| `src/lib/services/user-deactivation.ts` | 360 |
 
 ## Key Library Files
 

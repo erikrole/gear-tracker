@@ -114,9 +114,9 @@
 | `src/components/BookingDetailsSheet.tsx` | 680 |
 | `src/components/booking-wizard/WizardStep1.tsx` | 570 |
 | `src/components/BookingListPage.tsx` | 523 |
+| `src/components/booking-details/BookingHeader.tsx` | 417 |
 | `src/components/ui/heatmap.tsx` | 409 |
 | `src/components/Sidebar.tsx` | 408 |
-| `src/components/booking-details/BookingHeader.tsx` | 403 |
 | `src/components/ui/chart.tsx` | 389 |
 | `src/components/shift-detail/ShiftSlotCard.tsx` | 355 |
 | `src/components/booking-details/BookingInfoCard.tsx` | 342 |

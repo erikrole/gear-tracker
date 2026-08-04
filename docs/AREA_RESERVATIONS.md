@@ -22,6 +22,7 @@ Make app and web reservation-first. A user who is not physically at a kiosk rese
 7. Availability checks treat legacy overlapping `PENDING_PICKUP` checkout allocations as committed gear and subtract overlapping `BOOKED` bulk reservation quantities from available bulk stock.
 8. Serialized booking windows include a 60-minute turnaround buffer before the next pickup/start. An item due back at the exact next start time is blocked; it must be due back at least 60 minutes earlier. Bulk/countable availability remains overlap-based against committed quantities.
 9. Reservation creation is guarded at the shared service boundary: creates require at least one equipment item, duplicate multi-event links and duplicate bulk lines are rejected, invalid windows fail before availability work, and DB overlap races return booking conflict responses.
+10. An event-linked reservation from an internal user also infers schedule work on the chronologically primary event: it reuses an active assignment or fills a safe slot using the requester’s staffing class and area. Explicit `shiftAssignmentId` links are validated for ownership, activity, and event scope. Reservation-managed links reconcile when events or owners change and release on cancellation, no-show expiry, or requester deactivation, while shared links, manual/auto-fill assignments, collaborator follow behavior, private working copies, and unconfigured crew setups remain protected.
 
 ## V1 Workflow
 
@@ -257,7 +258,8 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - Mobile operations contract from `AREA_MOBILE.md`.
 
 ## Change Log
-
+- 2026-08-04: **Event-linked reservation scheduling shipped.** Internal reservations now reuse or create a direct assignment for the requester on the primary linked event inside the same serializable booking transaction, link `Booking.shiftAssignmentId`, enforce existing conflict and approved-time-off checks, and keep published schedule snapshots coherent. Explicit assignment links, collaborator follows, private working copies, and events without a safe crew setup remain unchanged.
+- 2026-08-04: **Reservation schedule lifecycle hardening shipped.** Assignment provenance is durable, explicit links are validated at the booking transaction boundary, and event relinks, owner transfers, cancellation, no-show expiry, and requester deactivation reconcile only reservation-managed assignments. Shared links remain active for other reservations, working-copy changes become review-needed audit states, and worker notifications wait for commit.
 - 2026-07-31: **Snow Leopard reservation boundary hardening.** Collaborator create, edit, extend, and cancel controls now require their exact server-backed capabilities, while direct requests use the same policy. The default active booking payload excludes `DRAFT` records; drafts remain available through the dedicated recovery path. Quick extend sends the shared optimistic-lock timestamp header from the current booking row.
 - 2026-07-29: **Native reservation feature discovery.** TipKit now points
   eligible users to New Reservation and explains that an in-progress

@@ -24,9 +24,39 @@ export const bookingInclude = {
       id: true,
       name: true,
       email: true,
-      avatarUrl: true
+      avatarUrl: true,
+      role: true,
     }
-  }
+  },
+  shiftAssignment: {
+    select: {
+      id: true,
+      userId: true,
+      status: true,
+      source: true,
+      callStartsAt: true,
+      callEndsAt: true,
+      callNote: true,
+      shift: {
+        select: {
+          id: true,
+          area: true,
+          workerType: true,
+          startsAt: true,
+          endsAt: true,
+          callStartsAt: true,
+          callEndsAt: true,
+          shiftGroup: {
+            select: {
+              eventId: true,
+              publishedAt: true,
+              workingCopy: { select: { shiftGroupId: true } },
+            },
+          },
+        },
+      },
+    },
+  },
 } satisfies Prisma.BookingInclude;
 
 /* ── Helpers ── */

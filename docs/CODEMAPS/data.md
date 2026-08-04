@@ -71,7 +71,7 @@
 | `ShiftGroup` | 16 | 3 |
 | `ShiftGroupWorkingCopy` | 12 | 2 |
 | `Shift` | 14 | 4 |
-| `ShiftAssignment` | 25 | 5 |
+| `ShiftAssignment` | 26 | 5 |
 | `StudentSportAssignment` | 6 | 3 |
 | `StudentAreaAssignment` | 6 | 3 |
 | `ShiftTrade` | 14 | 4 |
@@ -338,6 +338,12 @@
 - `APPROVED`
 - `DECLINED`
 - `SWAPPED`
+
+### `ShiftAssignmentSource`
+
+- `MANUAL`
+- `RESERVATION`
+- `AUTO_FILL`
 
 ### `ShiftTradeStatus`
 

@@ -37,6 +37,7 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Active Follow-up Ledgers
 
+- `reservation-auto-schedule-plan.md` - event-linked reservations infer internal work and attach the requester to the primary event schedule.
 - `dashboard-pending-pickup-web-parity-plan.md` - Dashboard parity is deployed;
   authenticated confirmation of the production Pending Pickup lane remains.
 - `ios-collaborator-published-schedule-redesign-plan.md` - implementation and source/build verification are complete; authenticated temporary-collaborator runtime proof remains blocked by the reset Simulator session.

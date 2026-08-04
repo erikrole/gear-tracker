@@ -9,6 +9,8 @@ import {
 import { db } from "@/lib/db";
 import { createAuditEntryTx } from "@/lib/audit";
 import { loadReservationRules } from "@/lib/services/reservation-rules";
+import { createShiftScheduleNotification } from "@/lib/services/notifications";
+import { releaseReservationManagedAssignmentTx } from "@/lib/services/reservation-schedule";
 
 const DEFAULT_EXPIRY_LIMIT = 50;
 
@@ -77,7 +79,7 @@ async function expirePickupNoShow(
   now: Date,
   noShowExpiryHours: number,
 ) {
-  return db.$transaction(async (tx) => {
+  const result = await db.$transaction(async (tx) => {
     const booking = await tx.booking.findUnique({
       where: { id: candidate.id },
       include: {
@@ -102,7 +104,7 @@ async function expirePickupNoShow(
       && booking.status === BookingStatus.PENDING_PICKUP;
 
     if (!booking || (!isReservationNoShow && !isLegacyPendingCheckout) || booking.startsAt >= cutoff) {
-      return false;
+      return { expired: false, releasedAssignmentId: null as string | null };
     }
 
     const cancelled = await tx.booking.updateMany({
@@ -116,7 +118,42 @@ async function expirePickupNoShow(
       },
       data: { status: BookingStatus.CANCELLED },
     });
-    if (cancelled.count !== 1) return false;
+    if (cancelled.count !== 1) return { expired: false, releasedAssignmentId: null as string | null };
+
+    let releasedAssignmentId: string | null = null;
+    if (isReservationNoShow && booking.shiftAssignmentId) {
+      const release = await releaseReservationManagedAssignmentTx(tx, {
+        bookingId: booking.id,
+        assignmentId: booking.shiftAssignmentId,
+      });
+      if (release.released) {
+        releasedAssignmentId = release.assignmentId;
+        await createAuditEntryTx(tx, {
+          actorId: null,
+          actorRole: null,
+          entityType: "shift_assignment",
+          entityId: release.assignmentId!,
+          action: "shift_assignment_removed",
+          before: {
+            source: "event_gear_reservation",
+            bookingId: booking.id,
+          },
+          after: { reason: "reservation_no_show_expired" },
+        });
+      } else if (release.blocked) {
+        await createAuditEntryTx(tx, {
+          actorId: null,
+          actorRole: null,
+          entityType: "booking",
+          entityId: booking.id,
+          action: "schedule_assignment_review_needed",
+          after: {
+            status: "blocked_working_copy",
+            reason: "No-show expiry could not change an event's working schedule.",
+          },
+        });
+      }
+    }
 
     // BOOKED reservations express quantity intent and never decrement bulk
     // stock. Only legacy staged checkouts have stock/unit custody to restore.
@@ -183,8 +220,13 @@ async function expirePickupNoShow(
       },
     });
 
-    return true;
+    return { expired: true, releasedAssignmentId };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+  if (result.releasedAssignmentId) {
+    await createShiftScheduleNotification(result.releasedAssignmentId, "removed");
+  }
+  return result.expired;
 }
 
 async function restoreBulkStock(
