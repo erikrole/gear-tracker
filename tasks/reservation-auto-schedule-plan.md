@@ -1,6 +1,6 @@
 # Reservation-created schedule assignments
 
-- Status: Lifecycle hardening implemented locally; authenticated runtime proof and migration application pending
+- Status: Production deployed at `b763b67c`; authenticated browser proof remains pending
 - Date: 2026-08-04
 - Owner: Reservations with Schedule integration
 - Scope: Event-linked internal reservations only
@@ -59,13 +59,16 @@ When an active internal user reserves gear for a scheduled event, treat that res
 - [x] `npm run codemap` then `npm run verify:docs`
 - [x] `npm run db:migrate:check` and `npx prisma generate` for migration `0107_shift_assignment_source`
 - [ ] Authenticated browser proof remains pending because no authenticated runtime session was available.
-- [x] Full `npm test` (447 files, 2,879 tests passed)
+- [x] Full `npm test` on the clean release worktree (446 files, 2,877 tests passed)
+- [x] Production deployment `b763b67c` reached Vercel `Ready` at `https://wisconsincreative.com`.
+- [x] Production migration health: 112/112 local migrations applied; `0107_shift_assignment_source` applied; no pending or failed rows.
+- [x] Canonical production smoke: public pages, nonce CSP, `/login`, and unauthenticated `/` redirect passed.
 
 ## Review
 
 - Shipped: Transactional event-linked reservation scheduling and first-event relinking.
-- Shipped locally: Reservation-managed provenance, lifecycle reconciliation, explicit assignment validation, outcome visibility, and post-commit notifications.
-- Verified: Full test suite, focused lifecycle tests, typecheck, lint, production app build, migration prefix check, Prisma client generation, codemap/docs verification, and whitespace.
-- Deferred: Authenticated browser confirmation and production behavior proof.
-- Blocked: No local code or test blocker. Authenticated browser proof and migration application remain external rollout gates.
+- Shipped in production: Reservation-managed provenance, lifecycle reconciliation, explicit assignment validation, outcome visibility, and post-commit notifications.
+- Verified: Full test suite, focused lifecycle tests, typecheck, lint, production app build, migration prefix check, Prisma client generation, codemap/docs verification, whitespace, migration application, and canonical smoke.
+- Deferred: Authenticated browser confirmation because no authenticated runtime session was available.
+- Blocked: No local, build, migration, or public-runtime blocker. Authenticated browser proof remains the only external acceptance gap.
 - Final diff review: Unrelated kiosk changes and the parallel `tasks/booking-rename-transfer-fix-plan.md` remain untouched.
