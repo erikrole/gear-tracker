@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-08-03
+- Last Updated: 2026-08-04
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -51,6 +51,7 @@
 - D-041: External collaborators use fixed default-deny profiles
 - D-042: Schedule edits use a versioned working copy and deliberate publish
 - D-043: Passkeys are an additive sign-in method for invite-granted users
+- D-045: A shift's coverage window is a settings-derived fallback, not manual intent
 
 ---
 
@@ -638,21 +639,22 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 
 ---
 
-## D-032: Kiosk Person Discovery Is Global; Operational Reads Stay Location-Scoped
+## D-032: Kiosk Operations Are Global; Check-In Sets Return Location
 - Date: 2026-04-29; amended 2026-08-03
 - Status: Accepted
 - Context:
-  - A staffed kiosk may serve a person whose saved profile location differs from the physical handoff location.
-  - User location is profile and operational metadata. It is not a safe identity boundary for a kiosk name picker or Wiscard scan.
+  - A staffed kiosk may serve people and custody work created at another location.
+  - Saved location is neither a safe identity boundary nor a useful visibility boundary for a staffed operational kiosk.
 - Decision:
   - Kiosk person discovery includes every active, non-hidden internal user, regardless of `User.locationId`.
   - Active external collaborators appear only when their affiliation policy grants `KIOSK_ROSTER_ELIGIBLE`; that grant is global across staffed kiosks.
-  - Person discovery covers the manual roster, Wiscard identity routes, scan identity resolution, and student-hub context lookup.
-  - Dashboard, gear, booking, reservation-pickup, allocation, and custody reads and writes remain scoped to the authenticated kiosk's `locationId` where the physical operation requires it.
-  - Reservation pickup at a different kiosk remains blocked with the reservation's expected location, while direct checkout records the authenticated kiosk location.
+  - Every kiosk can read dashboard custody, student checkout and reservation context, checkout detail, and scan resolution across locations, and can pick up or manage an open checkout across locations.
+  - Direct checkout continues to use the authenticated kiosk as its availability and booking source. It does not change a serialized asset's saved location.
+  - Pickup scans and active-checkout edits do not change an item's saved location. Cross-location pickup is allowed when requester, booking state, allocation, and scan evidence all pass.
+  - Kiosk check-in is the explicit physical transfer: it changes a serialized `Asset.locationId` to the authenticated kiosk location; for numbered bulk gear, it creates the `CHECKIN` stock movement and balance at that kiosk location. It never changes family-level `BulkSku.locationId` for one returned unit.
 - Consequences:
-  - Every kiosk can find an active visible person without requiring a profile-location repair first.
-  - Saved profile locations no longer hide legitimate identity choices, while physical gear and reservation boundaries remain enforced by kiosk and booking location evidence.
+  - Every kiosk can complete the full operational custody flow without a profile or booking location repair first.
+  - Location is preserved as booking/audit evidence and becomes current physical inventory state only on return.
   - Hidden smoke users, inactive users, and collaborators without the explicit kiosk grant remain unavailable to kiosk identity discovery.
 - Implementation Reference:
   - `src/lib/user-visibility.ts`
@@ -660,6 +662,9 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - `src/app/api/kiosk/identify/route.ts`
   - `src/app/api/kiosk/resolve-scan/route.ts`
   - `src/app/api/kiosk/student/[userId]/route.ts`
+  - `src/app/api/kiosk/dashboard/route.ts`
+  - `src/app/api/kiosk/checkin/[id]/scan/route.ts`
+  - `src/lib/services/bulk-unit-scans.ts`
   - `docs/AREA_KIOSK.md`
 
 ## D-033: Database Enforces One Active Allocation per Asset
@@ -916,6 +921,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Staff/Student conversion changes the slot's scheduling class, never `User.staffingType`. A class mismatch, active trade, or linked booking requires an explicit safe resolution instead of silent data loss.
   - Existing response fields remain compatible. Publication and working-copy metadata is additive, and old native clients continue to receive published schedule data.
   - Default staffing changes set the target for new events and conservatively rebase upcoming unpublished schedules. Generated, untouched, unassigned slots may be added, removed, or retimed; occupied and manually touched slots are protected and count toward the target. Published schedules and active working copies require explicit review.
+  - Sport call-time offsets are the canonical fallback for future timed shift coverage. Settings changes synchronize relational shift fallbacks and active working-copy payloads through one service, refresh published snapshots when needed, preserve explicit slot and personal overrides, and leave all-day event boundaries unchanged.
 - Consequences:
   - Staff can build and preview a schedule without exposing partial staffing or generating notification bursts.
   - Web can become the dense editing control room while iOS keeps a bounded quick-action contract.
@@ -980,6 +986,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - Reference: `tasks/reservation-auto-schedule-plan.md`, `docs/AREA_RESERVATIONS.md`, and `docs/AREA_SHIFTS.md`.
 
 ## Change Log
+- 2026-08-04: Added the settings-owned call-time fallback rule to D-042. The same default-window helper now feeds generation, manual creation, template review, settings mutations, and the live repair path, so call-time updates do not diverge between schedule locations.
 - 2026-08-04: Added D-044 for treating internal event-linked gear reservations as schedule-work evidence while preserving explicit assignment links, working-copy isolation, published snapshot coherence, and safe crew-setup boundaries.
 - 2026-08-04: Amended D-044 with durable assignment provenance, explicit link validation, lifecycle reconciliation for relinks/owner changes/cancellation/no-show/deactivation, shared-assignment protection, and post-commit schedule notifications.
 - 2026-08-03: Amended D-032 after the Kohl Center kiosk exposed only users assigned to Camp Randall. Kiosk person discovery is now global for active visible internal users, with the existing explicit collaborator grant preserved; operational inventory, reservation pickup, booking, and custody location boundaries remain unchanged.
@@ -1029,3 +1036,16 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-05-09: Added D-034 for badge achievements: event-sourced service boundary, feature flag off path, no retroactive backfill, 15-minute on-time grace, immutable definition keys, single-emit status helpers, peer visibility default, and profile-first UI.
 - 2026-06-11: Extended D-022 consequences for Brother P-Touch label CSV export and printed-label tracking. Printed-label state stored per `BulkSkuUnit` (`labelPrintedAt`/`labelPrintedById`/`labelPrintBatchId`, migration 0077); QR data stays derived and is never stored.
 - 2026-06-12: Added D-039 (kiosk sessions slide on activity server-side; iOS persists the session token in Keychain and rebuilds device info from /api/kiosk/me after reinstalls).
+
+## D-045: A Shift's Coverage Window Is a Settings-Derived Fallback
+
+**Decision.** `Shift.startsAt`/`Shift.endsAt` are a fallback derived from Settings > Sports call-time offsets, not a durable record of manual intent. A sport-settings save may retime any future timed shift whose window differs from the new default, regardless of whether that shift was generated, manually created, assigned, or annotated.
+
+**Why.** Two services disagreed about this. `rebaseUpcomingShiftsForSportCodes` retimes only a shift that is `templateManaged` with no assignments, notes, or explicit call window, while `syncCurrentSportCallTimes` retimes every drifting shift with no provenance check. Because a grouped settings save runs the conservative rebase and then the aggressive sync, the sync's rule already won in practice. Making the fallback reading explicit matches shipped behavior and keeps one obvious answer to "what time is this shift?" rather than a per-slot archaeology problem.
+
+**Consequences.**
+- The durable per-slot and per-person override layer is the call window (`callStartsAt`/`callEndsAt`), which every propagation path preserves. That is where a real exception belongs.
+- A manual edit to a shift's coverage window through `PATCH /api/shifts/[id]`, or an explicit `startsAt`/`endsAt` on shift creation, is not durable: the next sport-settings save may revert it. Staff wanting a lasting exception must set a call window instead. This is a known sharp edge in those two surfaces and is worth a UI nudge if it ever bites.
+- All-day events keep date-only boundaries and are never given fabricated clock times.
+- Verified on 2026-08-05: across 55 future timed events, 0 shifts differed from their sport default, so adopting this reading required no data change.
+

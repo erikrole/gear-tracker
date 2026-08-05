@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeftRightIcon, MoreHorizontalIcon, PlusIcon, SendIcon, XIcon } from "lucide-react";
+import { ArrowLeftRightIcon, MoreHorizontalIcon, PlusIcon, RefreshCwIcon, SendIcon, UsersRoundIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,31 @@ import {
 import type { CalendarEntry } from "./types";
 import { AREA_LABELS } from "./types";
 
+type RebaseSummary = {
+  adoptedSlots: number;
+  droppedSlots: number;
+  refreshedAssignments: number;
+  refreshedHistoryCounts: number;
+  rebasedToPublishedVersion: number;
+};
+
+/** Say what the refresh actually pulled in, so it never looks like a no-op. */
+function describeRebase(rebase: RebaseSummary | undefined): string {
+  if (!rebase) return "Refreshed from the live schedule";
+  const parts: string[] = [];
+  if (rebase.adoptedSlots > 0) {
+    parts.push(`${rebase.adoptedSlots} slot${rebase.adoptedSlots === 1 ? "" : "s"} added since you started`);
+  }
+  if (rebase.droppedSlots > 0) {
+    parts.push(`${rebase.droppedSlots} deleted slot${rebase.droppedSlots === 1 ? "" : "s"} removed`);
+  }
+  if (rebase.refreshedAssignments > 0) {
+    parts.push(`${rebase.refreshedAssignments} assignment${rebase.refreshedAssignments === 1 ? "" : "s"} updated`);
+  }
+  if (parts.length === 0) return "Already up to date with the live schedule";
+  return `Refreshed: ${parts.join(", ")}`;
+}
+
 type EditorData = {
   shiftGroupId: string;
   publicationState: "draft" | "published" | "unpublished_changes";
@@ -47,6 +72,8 @@ type EditorData = {
   publishedVersion: number;
   workingVersion: number;
   hasWorkingCopy: boolean;
+  allDay: boolean;
+  defaultWindow: { startsAt: string; endsAt: string };
   changes: {
     addedSlots: number;
     removedSlots: number;
@@ -199,6 +226,91 @@ function CallWindowEditor({
   );
 }
 
+function SetAllCallTimesEditor({
+  data,
+  disabled,
+  onSave,
+}: {
+  data: Pick<EditorData, "defaultWindow" | "schedule">;
+  disabled: boolean;
+  onSave: (callStartsAt: string, callEndsAt: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [startsAt, setStartsAt] = useState(() => toLocalDateTimeValue(data.defaultWindow.startsAt));
+  const [endsAt, setEndsAt] = useState(() => toLocalDateTimeValue(data.defaultWindow.endsAt));
+
+  useEffect(() => {
+    setStartsAt(toLocalDateTimeValue(data.defaultWindow.startsAt));
+    setEndsAt(toLocalDateTimeValue(data.defaultWindow.endsAt));
+  }, [data.defaultWindow.endsAt, data.defaultWindow.startsAt]);
+
+  function save() {
+    const nextStartsAt = new Date(startsAt);
+    const nextEndsAt = new Date(endsAt);
+    if (!startsAt || !endsAt || Number.isNaN(nextStartsAt.getTime()) || Number.isNaN(nextEndsAt.getTime())) {
+      toast.error("Enter both a call time and release time.");
+      return;
+    }
+    if (nextEndsAt <= nextStartsAt) {
+      toast.error("Release time must be after call time.");
+      return;
+    }
+    onSave(nextStartsAt.toISOString(), nextEndsAt.toISOString());
+    setOpen(false);
+  }
+
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-10 gap-1.5 px-2 text-xs"
+        disabled={disabled || data.schedule.slots.length === 0}
+        onClick={() => setOpen(true)}
+      >
+        <UsersRoundIcon className="size-3.5" />
+        Set all call times
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Set call time for everyone</DialogTitle>
+            <DialogDescription>
+              Every slot in this event will use this window. Personal call-time overrides will be cleared.
+              The change stays private until you publish the schedule.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-2 px-6 py-2">
+            <label className="space-y-1 text-xs" htmlFor="all-call-time-start">
+              <span className="text-muted-foreground">Call time</span>
+              <Input
+                id="all-call-time-start"
+                type="datetime-local"
+                value={startsAt}
+                onChange={(event) => setStartsAt(event.target.value)}
+              />
+            </label>
+            <label className="space-y-1 text-xs" htmlFor="all-call-time-end">
+              <span className="text-muted-foreground">Coverage end</span>
+              <Input
+                id="all-call-time-end"
+                type="datetime-local"
+                value={endsAt}
+                onChange={(event) => setEndsAt(event.target.value)}
+              />
+            </label>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button type="button" onClick={save}>Apply to everyone</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 export function WorkingCrewEditor({
   entry,
   pickerUsers,
@@ -346,6 +458,38 @@ export function WorkingCrewEditor({
     }
   }, [data, loadEditor, shiftGroupId]);
 
+  /**
+   * Re-seat the draft on the current live schedule. Every "refresh before
+   * publishing" conflict used to leave Discard as the only exit, which meant
+   * losing the whole draft to recover from a change someone else made.
+   */
+  const refreshFromLive = useCallback(async () => {
+    if (!shiftGroupId || !data?.hasWorkingCopy || actingRef.current) return;
+    actingRef.current = true;
+    setActingKey("refresh");
+    try {
+      const response = await fetch(`/api/shift-groups/${shiftGroupId}/working-copy`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ expectedVersion: data.workingVersion }),
+      });
+      if (handleAuthRedirect(response)) return;
+      if (!response.ok) {
+        toast.error(await parseErrorMessage(response, "Failed to refresh from the live schedule"));
+        if (response.status === 409) void loadEditor();
+        return;
+      }
+      const json = await parseJsonSafely<{ data?: EditorData & { rebase?: RebaseSummary } }>(response);
+      if (json?.data) setData(json.data);
+      toast.success(describeRebase(json?.data?.rebase));
+    } catch {
+      toast.error("Network error - could not refresh from the live schedule");
+    } finally {
+      actingRef.current = false;
+      setActingKey(null);
+    }
+  }, [data, loadEditor, shiftGroupId]);
+
   const publish = useCallback(async () => {
     if (!shiftGroupId || !data || actingRef.current) return;
     actingRef.current = true;
@@ -413,6 +557,30 @@ export function WorkingCrewEditor({
             <span className="text-xs text-muted-foreground">{changeSummary(data)}</span>
           )}
           <div className="ml-auto flex items-center gap-1.5">
+            {!data.allDay && data.schedule.slots.length > 0 && (
+              <SetAllCallTimesEditor
+                data={data}
+                disabled={Boolean(actingKey)}
+                onSave={(callStartsAt, callEndsAt) => void mutate(
+                  { type: "setCallWindowForAll", callStartsAt, callEndsAt },
+                  "all-call-window",
+                )}
+              />
+            )}
+            {data.hasWorkingCopy && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-10 gap-1.5 px-2 text-xs text-muted-foreground"
+                disabled={Boolean(actingKey)}
+                onClick={() => void refreshFromLive()}
+                title="Pull any changes made to the live schedule into these unpublished changes"
+              >
+                <RefreshCwIcon className="size-3.5" />
+                {actingKey === "refresh" ? "Refreshing..." : "Refresh from live"}
+              </Button>
+            )}
             {data.hasWorkingCopy && (
               <Button
                 type="button"

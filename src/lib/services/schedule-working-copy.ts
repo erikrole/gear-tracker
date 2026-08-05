@@ -26,6 +26,7 @@ const groupEditorSelect = {
     orderBy: [{ startsAt: "asc" }, { area: "asc" }, { workerType: "asc" }, { createdAt: "asc" }],
     select: {
       id: true,
+      createdAt: true,
       area: true,
       workerType: true,
       startsAt: true,
@@ -61,6 +62,7 @@ const groupEditorSelect = {
       basePublishedVersion: true,
       payloadVersion: true,
       payload: true,
+      createdAt: true,
       updatedAt: true,
       updatedById: true,
     },
@@ -573,6 +575,144 @@ export async function mutateWorkingSchedule(
     });
 
     return editorResponse(await findEditorGroup(shiftGroupId, tx), tx);
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+}
+
+export type WorkingScheduleRebaseSummary = {
+  adoptedSlots: number;
+  droppedSlots: number;
+  refreshedAssignments: number;
+  refreshedHistoryCounts: number;
+  rebasedToPublishedVersion: number;
+};
+
+/**
+ * Re-seat a private working schedule on the current live schedule.
+ *
+ * Every staleness guard on the publish path tells staff to refresh before
+ * publishing, but until this existed the only exit was Discard, which threw
+ * away the whole draft. Rebase keeps the draft's intent and re-reads the facts
+ * the server owns:
+ *
+ * - draft-only slots are kept as-is; they are the staff member's additions
+ * - slots whose live shift was deleted are dropped, because there is nothing
+ *   left to reconcile them against
+ * - a draft assignment that merely mirrors a live one is re-pointed at the live
+ *   row, which is what the "an assignment changed after this draft started"
+ *   publish guard was complaining about
+ * - a draft-only assignment is preserved, because staging a replacement is a
+ *   deliberate edit that publish already knows how to apply
+ * - live shifts created after this draft started are adopted, since the draft
+ *   never had an opinion about them; shifts that predate the draft and are
+ *   absent from it were genuinely removed and stay removed
+ *
+ * Assignment history counts are re-read for every surviving slot so the editor
+ * stops guarding removals with a frozen snapshot while publish uses live rows.
+ */
+export async function rebaseWorkingSchedule(
+  shiftGroupId: string,
+  expectedVersion: number,
+  actor: { id: string; role: Role },
+) {
+  return db.$transaction(async (tx) => {
+    const group = await findEditorGroup(shiftGroupId, tx);
+    if (!group.workingCopy) {
+      throw new HttpError(409, "This event has no unpublished changes to refresh.");
+    }
+    if (group.workingCopy.version !== expectedVersion) {
+      throw new HttpError(409, "This schedule changed in another session. Refresh before editing again.");
+    }
+
+    const draft = parseStoredPayload(group.workingCopy.payload);
+    const live = buildWorkingSchedulePayload(group);
+    const liveBySourceId = new Map(
+      live.slots.flatMap((slot) => slot.sourceShiftId ? [[slot.sourceShiftId, slot] as const] : []),
+    );
+    const shiftCreatedAt = new Map(group.shifts.map((shift) => [shift.id, shift.createdAt]));
+    const draftSourceIds = new Set(
+      draft.slots.flatMap((slot) => slot.sourceShiftId ? [slot.sourceShiftId] : []),
+    );
+    const draftStartedAt = group.workingCopy.createdAt;
+
+    const summary: WorkingScheduleRebaseSummary = {
+      adoptedSlots: 0,
+      droppedSlots: 0,
+      refreshedAssignments: 0,
+      refreshedHistoryCounts: 0,
+      rebasedToPublishedVersion: group.publishedVersion,
+    };
+
+    const slots: WorkingSchedulePayload["slots"] = [];
+    for (const slot of draft.slots) {
+      if (!slot.sourceShiftId) {
+        slots.push(slot);
+        continue;
+      }
+      const liveSlot = liveBySourceId.get(slot.sourceShiftId);
+      if (!liveSlot) {
+        summary.droppedSlots += 1;
+        continue;
+      }
+      const next = structuredClone(slot);
+      if (next.assignmentHistoryCount !== liveSlot.assignmentHistoryCount) {
+        next.assignmentHistoryCount = liveSlot.assignmentHistoryCount;
+        summary.refreshedHistoryCounts += 1;
+      }
+      if (
+        slot.assignment?.sourceAssignmentId
+        && slot.assignment.sourceAssignmentId !== (liveSlot.assignment?.sourceAssignmentId ?? null)
+      ) {
+        next.assignment = liveSlot.assignment ? structuredClone(liveSlot.assignment) : null;
+        summary.refreshedAssignments += 1;
+      }
+      slots.push(next);
+    }
+
+    for (const liveSlot of live.slots) {
+      if (!liveSlot.sourceShiftId || draftSourceIds.has(liveSlot.sourceShiftId)) continue;
+      const createdAt = shiftCreatedAt.get(liveSlot.sourceShiftId);
+      if (createdAt && createdAt > draftStartedAt) {
+        slots.push(structuredClone(liveSlot));
+        summary.adoptedSlots += 1;
+      }
+    }
+
+    const rebased = workingSchedulePayloadSchema.parse({
+      eventStartsAt: live.eventStartsAt,
+      eventEndsAt: live.eventEndsAt,
+      slots,
+    });
+
+    const nextVersion = expectedVersion + 1;
+    const updated = await tx.shiftGroupWorkingCopy.updateMany({
+      where: { shiftGroupId, version: expectedVersion },
+      data: {
+        version: nextVersion,
+        basePublishedVersion: group.publishedVersion,
+        payload: rebased as unknown as Prisma.InputJsonValue,
+        updatedById: actor.id,
+      },
+    });
+    if (updated.count !== 1) {
+      throw new HttpError(409, "This schedule changed in another session. Refresh before editing again.");
+    }
+
+    await createAuditEntryTx(tx, {
+      actorId: actor.id,
+      actorRole: actor.role,
+      entityType: "shift_group_working_copy",
+      entityId: shiftGroupId,
+      action: "working_schedule_rebased",
+      before: {
+        version: expectedVersion,
+        basePublishedVersion: group.workingCopy.basePublishedVersion,
+        slots: draft.slots.length,
+      },
+      after: { version: nextVersion, slots: rebased.slots.length, ...summary },
+    });
+
+    const editor = await editorResponse(await findEditorGroup(shiftGroupId, tx), tx);
+    return { ...editor, rebase: summary };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 

@@ -55,4 +55,22 @@ describe("working-copy mutation guard", () => {
     // The publish query has to actually load both timestamps for that to work.
     expect(source).toContain("createdAt: true,");
   });
+
+  // A refresh that staff cannot reach is not a recovery path. Pin the route
+  // verb, the service wiring, and the editor control together.
+  it("exposes draft rebase through the route and the editor", () => {
+    const route = readFileSync("src/app/api/shift-groups/[id]/working-copy/route.ts", "utf8");
+    const service = readFileSync("src/lib/services/schedule-working-copy.ts", "utf8");
+    const editor = readFileSync("src/app/(app)/schedule/_components/WorkingCrewEditor.tsx", "utf8");
+
+    expect(route).toContain("export const POST");
+    expect(route).toContain("rebaseWorkingSchedule");
+    expect(route).toContain('requirePermission(user.role, "shift", "manage")');
+    expect(route).toContain("enforceRateLimit");
+    expect(service).toContain("export async function rebaseWorkingSchedule");
+    expect(service).toContain("Prisma.TransactionIsolationLevel.Serializable");
+    expect(service).toContain("basePublishedVersion: group.publishedVersion");
+    expect(editor).toContain("refreshFromLive");
+    expect(editor).toContain("Refresh from live");
+  });
 });

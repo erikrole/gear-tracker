@@ -8,11 +8,16 @@ import {
   discardWorkingSchedule,
   getWorkingScheduleEditor,
   mutateWorkingSchedule,
+  rebaseWorkingSchedule,
 } from "@/lib/services/schedule-working-copy";
 
 const mutateSchema = z.object({
   expectedVersion: z.number().int().min(0),
   command: workingScheduleCommandSchema,
+});
+
+const rebaseSchema = z.object({
+  expectedVersion: z.number().int().min(1),
 });
 
 const discardSchema = z.object({
@@ -30,6 +35,14 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   const body = mutateSchema.parse(await req.json());
   const data = await mutateWorkingSchedule(params.id, body.expectedVersion, body.command, user);
   return ok({ data });
+});
+
+/** Re-seat an existing draft on the current live schedule without discarding it. */
+export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
+  requirePermission(user.role, "shift", "manage");
+  await enforceRateLimit(`shift:working-copy:${user.id}`, { max: 30, windowMs: 60_000 });
+  const body = rebaseSchema.parse(await req.json());
+  return ok({ data: await rebaseWorkingSchedule(params.id, body.expectedVersion, user) });
 });
 
 export const DELETE = withAuth<{ id: string }>(async (req, { user, params }) => {
