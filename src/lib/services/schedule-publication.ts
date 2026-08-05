@@ -152,11 +152,13 @@ async function findGroupForPublication(shiftGroupId: string, tx: Prisma.Transact
           version: true,
           basePublishedVersion: true,
           payload: true,
+          createdAt: true,
         },
       },
       shifts: {
         select: {
           id: true,
+          createdAt: true,
           area: true,
           workerType: true,
           startsAt: true,
@@ -260,7 +262,24 @@ export async function publishShiftGroup(
         }
       }
 
-      const removed = group.shifts.filter((shift) => !workingSourceIds.has(shift.id));
+      const absent = group.shifts.filter((shift) => !workingSourceIds.has(shift.id));
+      // A slot missing from the draft means one of two very different things.
+      // Either the user removed a slot the draft snapshot contained, or a slot
+      // was added to the live schedule after this draft started and the draft
+      // never knew about it. Only the first is a removal. Reporting the second
+      // as "a history-bearing slot cannot be removed" is both wrong and a dead
+      // end: those slots are invisible in the editor, so the advice to add or
+      // convert one cannot resolve it and the user has no way forward.
+      const draftStartedAt = group.workingCopy.createdAt;
+      const driftedIn = absent.filter((shift) => shift.createdAt > draftStartedAt);
+      const removed = absent.filter((shift) => shift.createdAt <= draftStartedAt);
+      if (driftedIn.length > 0) {
+        const slots = driftedIn.length === 1 ? "slot was" : "slots were";
+        throw new HttpError(
+          409,
+          `${driftedIn.length} ${slots} added to this event's live schedule after this draft started, so publishing would delete work this draft never saw. Discard this draft to keep the live schedule, then re-apply any changes you still need.`,
+        );
+      }
       if (removed.some((shift) => shift._count.assignments > 0)) {
         throw new HttpError(409, "A history-bearing slot cannot be removed. Add or convert an empty slot instead.");
       }

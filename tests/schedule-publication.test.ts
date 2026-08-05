@@ -639,3 +639,109 @@ describe("acknowledgeShiftAssignment", () => {
       .toMatchObject({ status: 403 });
   });
 });
+
+describe("publishShiftGroup drift detection", () => {
+  const draftStartedAt = new Date("2026-08-05T02:17:21.000Z");
+
+  function liveShift(id: string, createdAt: Date, assigned: boolean) {
+    return {
+      id,
+      createdAt,
+      area: "VIDEO",
+      workerType: "FT",
+      startsAt: new Date("2026-08-05T17:00:00.000Z"),
+      endsAt: new Date("2026-08-05T21:00:00.000Z"),
+      callStartsAt: null,
+      callEndsAt: null,
+      notes: null,
+      _count: { assignments: assigned ? 1 : 0 },
+      assignments: assigned
+        ? [{
+          id: `assignment-${id}`,
+          userId: `user-${id}`,
+          status: "DIRECT_ASSIGNED",
+          callStartsAt: null,
+          callEndsAt: null,
+          callNote: null,
+          acknowledgedAt: null,
+          trades: [],
+          _count: { bookings: 0 },
+        }]
+        : [],
+    };
+  }
+
+  function groupWithDraft(shifts: Array<ReturnType<typeof liveShift>>) {
+    return {
+      id: "group-1",
+      publishedAt: null,
+      publishedById: null,
+      publishedVersion: 0,
+      lastPublishedSnapshot: null,
+      workingCopy: {
+        version: 7,
+        basePublishedVersion: 0,
+        createdAt: draftStartedAt,
+        // The draft references no live shift, mirroring the production case
+        // where every draft slot was a new draft-only slot.
+        payload: {
+          eventStartsAt: "2026-08-05T18:00:00.000Z",
+          eventEndsAt: "2026-08-05T20:00:00.000Z",
+          slots: [],
+        },
+      },
+      shifts,
+    };
+  }
+
+  // Reproduces the real failure: two shifts were added to the live schedule 18
+  // minutes after the draft started, so the draft never contained them. Publish
+  // used to call them history-bearing slots the user had removed and told them
+  // to "add or convert an empty slot" — advice that cannot work, because those
+  // slots are not visible in the editor at all.
+  it("names post-draft drift instead of blaming a removal the user never made", async () => {
+    mockTx.shiftGroup.findUnique.mockResolvedValue(groupWithDraft([
+      liveShift("shift-late-1", new Date("2026-08-05T02:35:43.000Z"), true),
+      liveShift("shift-late-2", new Date("2026-08-05T02:35:56.000Z"), true),
+    ]));
+
+    await expect(publishShiftGroup("group-1", "staff-1", 7)).rejects.toMatchObject({
+      status: 409,
+      message: expect.stringContaining("2 slots were added to this event's live schedule"),
+    });
+  });
+
+  it("points at discard as the way out", async () => {
+    mockTx.shiftGroup.findUnique.mockResolvedValue(groupWithDraft([
+      liveShift("shift-late-1", new Date("2026-08-05T02:35:43.000Z"), true),
+    ]));
+
+    await expect(publishShiftGroup("group-1", "staff-1", 7)).rejects.toMatchObject({
+      status: 409,
+      message: expect.stringContaining("Discard this draft"),
+    });
+  });
+
+  it("still reports a genuine removal of a history-bearing slot", async () => {
+    mockTx.shiftGroup.findUnique.mockResolvedValue(groupWithDraft([
+      liveShift("shift-old", new Date("2026-08-04T10:00:00.000Z"), true),
+    ]));
+
+    await expect(publishShiftGroup("group-1", "staff-1", 7)).rejects.toMatchObject({
+      status: 409,
+      message: "A history-bearing slot cannot be removed. Add or convert an empty slot instead.",
+    });
+  });
+
+  it("lets a drift-free draft remove an empty pre-draft slot", async () => {
+    const group = groupWithDraft([liveShift("shift-old", new Date("2026-08-04T10:00:00.000Z"), false)]);
+    mockTx.shiftGroup.findUnique
+      .mockResolvedValueOnce(group)
+      .mockResolvedValue({ ...group, shifts: [], workingCopy: null });
+    mockTx.shiftAssignment.findMany.mockResolvedValue([]);
+
+    await publishShiftGroup("group-1", "staff-1", 7);
+
+    expect(mockTx.shift.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ["shift-old"] } } });
+  });
+});
