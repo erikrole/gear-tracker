@@ -7,6 +7,7 @@ import { createAuditEntry } from "@/lib/audit";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import type { ShiftAssignmentStatus } from "@prisma/client";
 import { assertNoWorkingCopy } from "@/lib/schedule-working-copy-guard";
+import { createShiftScheduleNotificationFromSnapshot } from "@/lib/services/notifications";
 
 export const DELETE = withAuth<{ id: string; shiftId: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "shift", "delete");
@@ -21,8 +22,25 @@ export const DELETE = withAuth<{ id: string; shiftId: string }>(async (req, { us
       include: {
         assignments: {
           where: { status: { in: ACTIVE_ASSIGNMENT_STATUSES as ShiftAssignmentStatus[] } },
+          include: { user: { select: { email: true, active: true } } },
         },
-        shiftGroup: { select: { workingCopy: { select: { version: true } } } },
+        shiftGroup: {
+          select: {
+            publishedAt: true,
+            workingCopy: { select: { version: true } },
+            event: {
+              select: {
+                id: true,
+                summary: true,
+                startsAt: true,
+                sportCode: true,
+                opponent: true,
+                isHome: true,
+                locationId: true,
+              },
+            },
+          },
+        },
       },
     });
     if (!shift) throw new HttpError(404, "Shift not found");
@@ -62,6 +80,22 @@ export const DELETE = withAuth<{ id: string; shiftId: string }>(async (req, { us
       area: shift.area,
       workerType: shift.workerType,
       activeAssignmentCount: shift.assignments.length,
+      // Captured before the delete; these rows are gone once it commits.
+      removedAssignments: shift.assignments.map((assignment) => ({
+        assignmentId: assignment.id,
+        shiftId: shift.id,
+        userId: assignment.userId,
+        userEmail: assignment.user.email,
+        userActive: assignment.user.active,
+        publishedAt: shift.shiftGroup.publishedAt,
+        area: shift.area,
+        workerType: shift.workerType,
+        shiftStartsAt: shift.startsAt,
+        callStartsAt: assignment.callStartsAt ?? shift.callStartsAt ?? shift.startsAt,
+        callEndsAt: assignment.callEndsAt ?? shift.callEndsAt ?? shift.endsAt,
+        callNote: assignment.callNote,
+        calendarEvent: shift.shiftGroup.event,
+      })),
     };
     // Serializable so the force gate cannot be raced: at Read Committed a
     // concurrent assignment could commit between the count check and the
@@ -83,6 +117,14 @@ export const DELETE = withAuth<{ id: string; shiftId: string }>(async (req, { us
       activeAssignmentCount: result.activeAssignmentCount,
     },
   });
+
+  // A forced delete takes a worker's shift away. Tell them, the same as
+  // removing the assignment directly does.
+  for (const removed of result.removedAssignments) {
+    createShiftScheduleNotificationFromSnapshot(removed, "removed").catch((error) => {
+      console.error("[shift-delete] removal notification failed", error);
+    });
+  }
 
   return ok({ data: { id: shiftId, removed: true } });
 });

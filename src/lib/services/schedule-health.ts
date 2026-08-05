@@ -125,6 +125,7 @@ export async function getScheduleHealth(input: ScheduleHealthInput): Promise<Sch
       },
       shiftGroup: {
         include: {
+          workingCopy: { select: { updatedAt: true, updatedById: true } },
           shifts: {
             include: {
               assignments: {
@@ -166,6 +167,12 @@ export async function getScheduleHealth(input: ScheduleHealthInput): Promise<Sch
   const needsCoverageEventIds: string[] = [];
   const eventsWithoutCrewIds: string[] = [];
   const coveredEventIds: string[] = [];
+
+  // An open working copy holds every legacy edit path on this event and, until
+  // the first publish, keeps assigned crew invisible to the workers themselves.
+  const unpublishedDraftIds = events
+    .filter((event) => event.shiftGroup?.workingCopy)
+    .map((event) => event.id);
 
   for (const event of events) {
     const shifts = event.shiftGroup?.shifts ?? [];
@@ -343,6 +350,7 @@ export async function getScheduleHealth(input: ScheduleHealthInput): Promise<Sch
     queues: {
       openSlots: { count: openSlots, eventCount: needsCoverageEvents, eventIds: needsCoverageEventIds },
       eventsWithoutCrew: { count: eventsWithoutCrew, eventCount: eventsWithoutCrew, eventIds: eventsWithoutCrewIds },
+      unpublishedDrafts: { count: unpublishedDraftIds.length, eventCount: unpublishedDraftIds.length, eventIds: unpublishedDraftIds },
       coveredEvents: { count: coveredEvents, eventCount: coveredEvents, eventIds: coveredEventIds, totalVisibleEvents: events.length },
       myShifts: { count: myAssignments.length, eventCount: eventIdsFor(myAssignments), eventIds: uniqueEventIdsFor(myAssignments) },
       pendingRequests: { count: pendingAssignments.length, eventCount: eventIdsFor(pendingAssignments), eventIds: uniqueEventIdsFor(pendingAssignments) },

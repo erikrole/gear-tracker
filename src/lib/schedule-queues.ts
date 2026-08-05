@@ -10,6 +10,7 @@ export const SCHEDULE_QUEUE_VALUES = [
   "data-quality",
   "my-calls-today",
   "stale-source",
+  "unpublished-drafts",
 ] as const;
 
 export type ScheduleQueue = (typeof SCHEDULE_QUEUE_VALUES)[number];
@@ -69,6 +70,12 @@ export const SCHEDULE_QUEUE_META: Record<ScheduleQueue, ScheduleQueueMeta> = {
     shortLabel: "Stale source",
     emptyTitle: "No stale-source events",
     emptyDescription: "No visible event is tied to a source that currently needs attention.",
+  },
+  "unpublished-drafts": {
+    label: "Unpublished drafts",
+    shortLabel: "Drafts",
+    emptyTitle: "No open drafts",
+    emptyDescription: "No visible event is being held behind unpublished Schedule changes.",
   },
 };
 
@@ -167,6 +174,10 @@ export function filterEntriesForScheduleQueue({
       );
     case "stale-source":
       return entries.filter((entry) => entry.source?.id && staleSourceIds.has(entry.source.id));
+    case "unpublished-drafts": {
+      const ids = eventIdSet(health?.queues.unpublishedDrafts.eventIds);
+      return ids ? entries.filter((entry) => ids.has(entry.id)) : entries;
+    }
     case "trade-approval":
       return entries;
   }

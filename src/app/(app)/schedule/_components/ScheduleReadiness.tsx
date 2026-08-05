@@ -5,6 +5,7 @@ import {
   AlertTriangleIcon,
   CheckCircle2Icon,
   CloudAlertIcon,
+  FileClockIcon,
   ListChecksIcon,
   PackageCheckIcon,
   Repeat2Icon,
@@ -120,6 +121,7 @@ export function ScheduleReadiness({
   const workerClassMismatchCount = health?.queues.dataQuality.issues.filter((issue) => issue.reason === "role_slot_mismatch").length ?? 0;
   const tradeApprovals = health?.queues.tradeApprovals.count ?? 0;
   const openTrades = health?.queues.openTrades.count ?? openTradeCount;
+  const unpublishedDrafts = health?.queues.unpublishedDrafts.count ?? 0;
   const sourceNeedsAttention = sourceSignal?.severity === "attention";
   const hiddenAndArchivedCount = (health?.queues.hiddenEvents.count ?? 0) + (health?.queues.archivedEvents.count ?? 0);
   const healthWarnings = health?.partialFailures.length ?? 0;
@@ -208,6 +210,20 @@ export function ScheduleReadiness({
           icon: AlertTriangleIcon,
           tone: "critical" as const,
           onClick: () => onShowQueue("conflicts"),
+        }]
+      : []),
+    ...(unpublishedDrafts > 0
+      ? [{
+          label: "Unpublished drafts",
+          value: unpublishedDrafts,
+          // An open draft blocks every legacy edit path on its event and, before
+          // a first publish, keeps assigned crew invisible to the workers.
+          detail: unpublishedDrafts === 1
+            ? "Event held behind unpublished changes"
+            : "Events held behind unpublished changes",
+          icon: FileClockIcon,
+          tone: "attention" as const,
+          onClick: () => onShowQueue("unpublished-drafts"),
         }]
       : []),
     ...((sourceNeedsAttention || hiddenAndArchivedCount > 0 || healthWarnings > 0)

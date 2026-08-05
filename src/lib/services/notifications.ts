@@ -488,6 +488,37 @@ function shiftScheduleNotificationCopy(args: {
   }
 }
 
+/**
+ * Everything a schedule notification needs, detached from the assignment row.
+ *
+ * A removal caused by deleting the shift cannot look the assignment up
+ * afterwards -- it cascades away with the shift -- so the caller captures this
+ * before the delete and sends it after the transaction commits.
+ */
+export type ShiftScheduleNotificationSnapshot = {
+  assignmentId: string;
+  shiftId: string;
+  userId: string;
+  userEmail: string | null;
+  userActive: boolean;
+  publishedAt: Date | null;
+  area: string;
+  workerType: string;
+  shiftStartsAt: Date;
+  callStartsAt: Date;
+  callEndsAt: Date;
+  callNote: string | null;
+  calendarEvent: {
+    id: string;
+    summary: string;
+    startsAt: Date;
+    sportCode: string | null;
+    opponent: string | null;
+    isHome: boolean | null;
+    locationId: string | null;
+  };
+};
+
 export async function createShiftScheduleNotification(
   assignmentId: string,
   event: ShiftScheduleEvent,
@@ -517,31 +548,54 @@ export async function createShiftScheduleNotification(
       },
     },
   });
+  if (!assignment) return;
 
-  if (!assignment?.user.active) return;
+  return createShiftScheduleNotificationFromSnapshot({
+    assignmentId: assignment.id,
+    shiftId: assignment.shiftId,
+    userId: assignment.userId,
+    userEmail: assignment.user.email,
+    userActive: assignment.user.active,
+    publishedAt: assignment.shift.shiftGroup.publishedAt,
+    area: assignment.shift.area,
+    workerType: assignment.shift.workerType,
+    shiftStartsAt: assignment.shift.startsAt,
+    callStartsAt: assignment.callStartsAt ?? assignment.shift.callStartsAt ?? assignment.shift.startsAt,
+    callEndsAt: assignment.callEndsAt ?? assignment.shift.callEndsAt ?? assignment.shift.endsAt,
+    callNote: assignment.callNote,
+    calendarEvent: assignment.shift.shiftGroup.event,
+  }, event);
+}
+
+export async function createShiftScheduleNotificationFromSnapshot(
+  assignment: ShiftScheduleNotificationSnapshot,
+  event: ShiftScheduleEvent,
+): Promise<void> {
+  const assignmentId = assignment.assignmentId;
+  if (!assignment.userActive) return;
   if (!shouldNotifyWorkerForScheduleEvent({
     event,
-    publishedAt: assignment.shift.shiftGroup.publishedAt,
+    publishedAt: assignment.publishedAt,
   })) return;
 
-  const calendarEvent = assignment.shift.shiftGroup.event;
+  const calendarEvent = assignment.calendarEvent;
   const eventTitle = calendarEvent.opponent
     ? `${calendarEvent.isHome === false ? "at" : "vs"} ${calendarEvent.opponent}`
     : calendarEvent.summary;
-  const callStartsAt = assignment.callStartsAt ?? assignment.shift.callStartsAt ?? assignment.shift.startsAt;
-  const callEndsAt = assignment.callEndsAt ?? assignment.shift.callEndsAt ?? assignment.shift.endsAt;
+  const callStartsAt = assignment.callStartsAt;
+  const callEndsAt = assignment.callEndsAt;
   const copy = shiftScheduleNotificationCopy({
     event,
     eventTitle,
-    area: assignment.shift.area,
-    workerType: assignment.shift.workerType,
+    area: assignment.area,
+    workerType: assignment.workerType,
     callStartsAt,
     callEndsAt,
     callNote: assignment.callNote,
   });
   const dedupeKey = `shift:${assignmentId}:${copy.type}:${callStartsAt.toISOString()}:${callEndsAt.toISOString()}:${assignment.callNote ?? ""}`;
   const pushPayload = scheduleNotificationPayload({
-    assignmentId: assignment.id,
+    assignmentId: assignment.assignmentId,
     shiftId: assignment.shiftId,
     eventId: calendarEvent.id,
   });
@@ -560,9 +614,9 @@ export async function createShiftScheduleNotification(
         payload: {
           ...pushPayload,
           eventSummary: calendarEvent.summary,
-          area: assignment.shift.area,
-          workerType: shiftWorkerLabel(assignment.shift.workerType),
-          startsAt: assignment.shift.startsAt.toISOString(),
+          area: assignment.area,
+          workerType: shiftWorkerLabel(assignment.workerType),
+          startsAt: assignment.shiftStartsAt.toISOString(),
           callStartsAt: callStartsAt.toISOString(),
           callEndsAt: callEndsAt.toISOString(),
           sportCode: calendarEvent.sportCode,
@@ -581,9 +635,9 @@ export async function createShiftScheduleNotification(
       category,
     }));
 
-    if (assignment.user.email) {
+    if (assignment.userEmail) {
       await sendEmailToUser(assignment.userId, {
-        to: assignment.user.email,
+        to: assignment.userEmail,
         subject: copy.title,
         html: buildNotificationEmail({
           title: copy.title,

@@ -247,8 +247,9 @@ type PublicationGroup = Awaited<ReturnType<typeof findGroupForPublication>>;
 export async function collectPublishBlockers(
   tx: Prisma.TransactionClient,
   group: PublicationGroup,
-  workingSlots: WorkingSchedulePayload["slots"],
+  payload: WorkingSchedulePayload,
 ): Promise<{ staleness: PublishStaleness | null; blockers: PublishBlocker[] }> {
+  const workingSlots = payload.slots;
   if (!group.workingCopy) return { staleness: null, blockers: [] };
   if (group.workingCopy.basePublishedVersion !== group.publishedVersion) {
     return {
@@ -328,8 +329,14 @@ export async function collectPublishBlockers(
   }
 
   const absent = group.shifts.filter((shift) => !workingSourceIds.has(shift.id));
+  // A shift absent from the draft was either removed by the user or added to
+  // the live schedule after the snapshot. `baseShiftIds` distinguishes them
+  // exactly; drafts predating payloadVersion 2 fall back to the timestamp.
   const draftStartedAt = group.workingCopy.createdAt;
-  const driftedIn = absent.filter((shift) => shift.createdAt > draftStartedAt);
+  const baseShiftIds = payload.baseShiftIds ? new Set(payload.baseShiftIds) : null;
+  const driftedIn = absent.filter((shift) => baseShiftIds
+    ? !baseShiftIds.has(shift.id)
+    : shift.createdAt > draftStartedAt);
   if (driftedIn.length > 0) {
     const slots = driftedIn.length === 1 ? "slot was" : "slots were";
     return {
@@ -448,7 +455,7 @@ export async function getPublishPreflight(shiftGroupId: string) {
       blockers: [] as PublishBlocker[],
     };
   }
-  return collectPublishBlockers(db, group, parsed.data.slots);
+  return collectPublishBlockers(db, group, parsed.data);
 }
 
 export async function publishShiftGroup(
@@ -481,7 +488,7 @@ export async function publishShiftGroup(
       // Everything that can block this publish, gathered before a single row is
       // written, so one attempt reports the whole list instead of making staff
       // rediscover it one exception at a time.
-      const preflight = await collectPublishBlockers(tx, group, workingSlots);
+      const preflight = await collectPublishBlockers(tx, group, parsed.data);
       if (preflight.staleness) {
         throw new HttpError(409, preflight.staleness.message, { staleness: preflight.staleness });
       }

@@ -127,7 +127,7 @@ function group(shifts: unknown[], draftSlots: unknown[], publishedVersion = 0) {
 /** The payload handed to the working-copy row on write. */
 function writtenPayload() {
   const call = tx.shiftGroupWorkingCopy.updateMany.mock.calls[0]![0] as {
-    data: { payload: { slots: Array<Record<string, unknown>> } };
+    data: { payload: { slots: Array<Record<string, unknown>>; baseShiftIds?: string[] } };
   };
   return call.data.payload;
 }
@@ -281,5 +281,37 @@ describe("rebaseWorkingSchedule", () => {
 
     await expect(rebaseWorkingSchedule("group-1", 7, actor)).rejects.toMatchObject({ status: 409 });
     expect(tx.shiftGroupWorkingCopy.updateMany).not.toHaveBeenCalled();
+  });
+
+  // With payloadVersion 2 the base set is exact, so adoption no longer depends
+  // on comparing timestamps.
+  it("adopts using the recorded base shift set when present", async () => {
+    const g = group(
+      [liveShift("shift-known", beforeDraft, null), liveShift("shift-new", beforeDraft, null)],
+      [draftSlot("shift-known", "shift-known", null)],
+    );
+    (g.workingCopy.payload as Record<string, unknown>).baseShiftIds = ["shift-known"];
+    tx.shiftGroup.findUnique.mockResolvedValue(g);
+
+    const result = await rebaseWorkingSchedule("group-1", 7, actor);
+
+    // shift-new predates the draft by timestamp, so the proxy would skip it;
+    // the recorded base set correctly reports the draft never saw it.
+    expect(result.rebase.adoptedSlots).toBe(1);
+    expect(writtenPayload().slots.map((s) => s.sourceShiftId)).toEqual(["shift-known", "shift-new"]);
+  });
+
+  it("re-seats the base shift set on the current live shifts", async () => {
+    tx.shiftGroup.findUnique.mockResolvedValue(group(
+      [liveShift("shift-a", beforeDraft, null), liveShift("shift-b", afterDraft, null)],
+      [draftSlot("shift-a", "shift-a", null)],
+    ));
+
+    await rebaseWorkingSchedule("group-1", 7, actor);
+
+    expect(writtenPayload().baseShiftIds).toEqual(["shift-a", "shift-b"]);
+    const data = tx.shiftGroupWorkingCopy.updateMany.mock.calls[0]![0] as { data: Record<string, unknown> };
+    // A legacy draft becomes payloadVersion 2 the moment it is refreshed.
+    expect(data.data.payloadVersion).toBe(2);
   });
 });

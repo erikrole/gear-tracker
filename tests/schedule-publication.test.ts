@@ -916,3 +916,90 @@ describe("publish preflight", () => {
     expect(mockTx.shiftAssignment.create).not.toHaveBeenCalled();
   });
 });
+
+describe("publish drift uses the recorded base shift set", () => {
+  const draftStartedAt = new Date("2026-08-05T02:17:21.000Z");
+  const afterDraft = new Date("2026-08-05T02:35:43.000Z");
+
+  function shiftRow(id: string, createdAt: Date) {
+    return {
+      id,
+      createdAt,
+      area: "VIDEO",
+      workerType: "FT",
+      startsAt: new Date("2026-08-05T17:00:00.000Z"),
+      endsAt: new Date("2026-08-05T21:00:00.000Z"),
+      callStartsAt: null,
+      callEndsAt: null,
+      notes: null,
+      _count: { assignments: 0 },
+      assignments: [],
+    };
+  }
+
+  function groupWith(payload: Record<string, unknown>, shifts: unknown[]) {
+    return {
+      id: "group-1",
+      publishedAt: null,
+      publishedById: null,
+      publishedVersion: 0,
+      lastPublishedSnapshot: null,
+      workingCopy: {
+        version: 9,
+        basePublishedVersion: 0,
+        createdAt: draftStartedAt,
+        payload: {
+          eventStartsAt: "2026-08-05T17:00:00.000Z",
+          eventEndsAt: "2026-08-05T21:00:00.000Z",
+          slots: [],
+          ...payload,
+        },
+      },
+      shifts,
+    };
+  }
+
+  it("treats a shift outside the recorded base as drift", async () => {
+    mockTx.shiftGroup.findUnique.mockResolvedValue(groupWith(
+      { baseShiftIds: [] },
+      [shiftRow("shift-late", afterDraft)],
+    ));
+
+    await expect(publishShiftGroup("group-1", "staff-1", 9)).rejects.toMatchObject({
+      status: 409,
+      message: expect.stringContaining("added to this event's live schedule"),
+    });
+  });
+
+  /**
+   * The case the createdAt proxy gets wrong. After a refresh adopts a shift
+   * that was created after the draft started, removing it is a deliberate
+   * removal — but its timestamp still postdates the working copy, so the proxy
+   * would call it drift forever and the draft could never be published.
+   */
+  it("treats a removal of a previously adopted shift as a removal, not drift", async () => {
+    mockTx.shiftGroup.findUnique
+      .mockResolvedValueOnce(groupWith(
+        { baseShiftIds: ["shift-adopted"] },
+        [shiftRow("shift-adopted", afterDraft)],
+      ))
+      .mockResolvedValue({
+        ...groupWith({ baseShiftIds: ["shift-adopted"] }, []),
+        workingCopy: null,
+      });
+    mockTx.shiftAssignment.findMany.mockResolvedValue([]);
+
+    await publishShiftGroup("group-1", "staff-1", 9);
+
+    expect(mockTx.shift.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ["shift-adopted"] } } });
+  });
+
+  it("falls back to the timestamp for drafts written before payloadVersion 2", async () => {
+    mockTx.shiftGroup.findUnique.mockResolvedValue(groupWith({}, [shiftRow("shift-late", afterDraft)]));
+
+    await expect(publishShiftGroup("group-1", "staff-1", 9)).rejects.toMatchObject({
+      status: 409,
+      message: expect.stringContaining("added to this event's live schedule"),
+    });
+  });
+});

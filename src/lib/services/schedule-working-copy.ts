@@ -105,6 +105,7 @@ export function buildWorkingSchedulePayload(group: EditorGroup): WorkingSchedule
   return workingSchedulePayloadSchema.parse({
     eventStartsAt: group.event.startsAt.toISOString(),
     eventEndsAt: group.event.endsAt.toISOString(),
+    baseShiftIds: group.shifts.map((shift) => shift.id),
     slots: group.shifts.map((shift) => {
       const assignment = shift.assignments[0] ?? null;
       return {
@@ -550,7 +551,7 @@ export async function mutateWorkingSchedule(
             shiftGroupId,
             version: nextVersion,
             basePublishedVersion: group.publishedVersion,
-            payloadVersion: 1,
+            payloadVersion: 2,
             payload: afterPayload as unknown as Prisma.InputJsonValue,
             createdById: actor.id,
             updatedById: actor.id,
@@ -668,10 +669,17 @@ export async function rebaseWorkingSchedule(
       slots.push(next);
     }
 
+    // A live shift the draft never saw gets adopted; one the draft did see and
+    // no longer lists was deliberately removed. `baseShiftIds` answers that
+    // exactly; drafts predating payloadVersion 2 fall back to the timestamp.
+    const baseShiftIds = draft.baseShiftIds ? new Set(draft.baseShiftIds) : null;
+    const neverInDraft = (shiftId: string) => baseShiftIds
+      ? !baseShiftIds.has(shiftId)
+      : (shiftCreatedAt.get(shiftId)?.getTime() ?? 0) > draftStartedAt.getTime();
+
     for (const liveSlot of live.slots) {
       if (!liveSlot.sourceShiftId || draftSourceIds.has(liveSlot.sourceShiftId)) continue;
-      const createdAt = shiftCreatedAt.get(liveSlot.sourceShiftId);
-      if (createdAt && createdAt > draftStartedAt) {
+      if (neverInDraft(liveSlot.sourceShiftId)) {
         slots.push(structuredClone(liveSlot));
         summary.adoptedSlots += 1;
       }
@@ -680,6 +688,8 @@ export async function rebaseWorkingSchedule(
     const rebased = workingSchedulePayloadSchema.parse({
       eventStartsAt: live.eventStartsAt,
       eventEndsAt: live.eventEndsAt,
+      // The draft is now seated on this shift set, so the base moves with it.
+      baseShiftIds: live.baseShiftIds ?? group.shifts.map((shift) => shift.id),
       slots,
     });
 
@@ -690,6 +700,9 @@ export async function rebaseWorkingSchedule(
         version: nextVersion,
         basePublishedVersion: group.publishedVersion,
         payload: rebased as unknown as Prisma.InputJsonValue,
+        // The rebased payload carries baseShiftIds, so a payloadVersion 1 draft
+        // becomes a version 2 draft the moment it is refreshed.
+        payloadVersion: 2,
         updatedById: actor.id,
       },
     });

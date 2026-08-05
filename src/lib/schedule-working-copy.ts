@@ -31,6 +31,17 @@ export const workingSlotSchema = z.object({
 export const workingSchedulePayloadSchema = z.object({
   eventStartsAt: isoDate,
   eventEndsAt: isoDate,
+  /**
+   * The live shift IDs this draft was snapshotted from (payloadVersion 2+).
+   *
+   * A shift absent from `slots` means one of two opposite things: the user
+   * removed it, or it was added to the live schedule after this draft started
+   * and the draft never saw it. Only this list answers that exactly. Drafts
+   * written before payloadVersion 2 omit it and fall back to comparing the
+   * shift's `createdAt` against the working copy's, which is a good proxy but
+   * still a proxy.
+   */
+  baseShiftIds: z.array(z.string().min(1)).max(250).optional(),
   slots: z.array(workingSlotSchema).max(250),
 }).superRefine((payload, ctx) => {
   if (new Date(payload.eventEndsAt) <= new Date(payload.eventStartsAt)) {

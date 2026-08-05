@@ -46,6 +46,7 @@ function health(eventIds: Partial<Record<keyof ScheduleHealthSnapshot["queues"],
     queues: {
       openSlots: { count: 0, eventIds: eventIds.openSlots },
       eventsWithoutCrew: { count: 0, eventIds: eventIds.eventsWithoutCrew },
+      unpublishedDrafts: { count: 0, eventIds: eventIds.unpublishedDrafts },
       coveredEvents: { count: 0, totalVisibleEvents: 0 },
       myShifts: { count: 0, eventIds: eventIds.myShifts },
       pendingRequests: { count: 0, eventIds: eventIds.pendingRequests },
@@ -180,5 +181,32 @@ describe("schedule queues", () => {
     });
 
     expect(filtered.map((item) => item.id)).toEqual(["stale"]);
+  });
+
+  // An open working copy blocks every legacy edit path on its event and, before
+  // the first publish, keeps assigned crew invisible to the workers themselves.
+  // Nothing on Schedule showed which events were in that state.
+  it("filters to events held behind an open draft", () => {
+    const entries = [entry({ id: "event-1" }), entry({ id: "event-2" }), entry({ id: "event-3" })];
+
+    const filtered = filterEntriesForScheduleQueue({
+      entries,
+      queue: "unpublished-drafts",
+      health: health({ unpublishedDrafts: ["event-2"] }),
+    });
+
+    expect(filtered.map((e) => e.id)).toEqual(["event-2"]);
+  });
+
+  it("keeps every entry when no draft data is available", () => {
+    const entries = [entry({ id: "event-1" }), entry({ id: "event-2" })];
+
+    const filtered = filterEntriesForScheduleQueue({
+      entries,
+      queue: "unpublished-drafts",
+      health: null,
+    });
+
+    expect(filtered).toHaveLength(2);
   });
 });

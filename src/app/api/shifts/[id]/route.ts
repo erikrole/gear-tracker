@@ -12,6 +12,7 @@ import { availabilityConflictNote } from "@/lib/student-availability";
 import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
 import { updateShiftAssignmentConflictsTx } from "@/lib/services/shift-assignment-conflicts";
 import { scheduleShiftTimeChangedNotifications } from "@/lib/shift-notification-workflow";
+import { createShiftScheduleNotificationFromSnapshot } from "@/lib/services/notifications";
 import { assertNoWorkingCopy } from "@/lib/schedule-working-copy-guard";
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
@@ -157,9 +158,32 @@ export const DELETE = withAuth<{ id: string }>(async (req, { user, params }) => 
       include: {
         assignments: {
           where: { status: { in: ACTIVE_ASSIGNMENT_STATUSES } },
-          select: { id: true },
+          select: {
+            id: true,
+            userId: true,
+            callStartsAt: true,
+            callEndsAt: true,
+            callNote: true,
+            user: { select: { email: true, active: true } },
+          },
         },
-        shiftGroup: { select: { workingCopy: { select: { version: true } } } },
+        shiftGroup: {
+          select: {
+            publishedAt: true,
+            workingCopy: { select: { version: true } },
+            event: {
+              select: {
+                id: true,
+                summary: true,
+                startsAt: true,
+                sportCode: true,
+                opponent: true,
+                isHome: true,
+                locationId: true,
+              },
+            },
+          },
+        },
       },
     });
     if (!existing) throw new HttpError(404, "Shift not found");
@@ -195,6 +219,23 @@ export const DELETE = withAuth<{ id: string }>(async (req, { user, params }) => 
       area: existing.area,
       workerType: existing.workerType,
       activeAssignmentCount: existing.assignments.length,
+      // Captured before the delete: assignments cascade off the shift, so
+      // nothing can look them up once this transaction commits.
+      removedAssignments: existing.assignments.map((assignment) => ({
+        assignmentId: assignment.id,
+        shiftId: existing.id,
+        userId: assignment.userId,
+        userEmail: assignment.user.email,
+        userActive: assignment.user.active,
+        publishedAt: existing.shiftGroup.publishedAt,
+        area: existing.area,
+        workerType: existing.workerType,
+        shiftStartsAt: existing.startsAt,
+        callStartsAt: assignment.callStartsAt ?? existing.callStartsAt ?? existing.startsAt,
+        callEndsAt: assignment.callEndsAt ?? existing.callEndsAt ?? existing.endsAt,
+        callNote: assignment.callNote,
+        calendarEvent: existing.shiftGroup.event,
+      })),
     };
     // Serializable so the force gate cannot be raced: at Read Committed a
     // concurrent assignment could commit between the count check and the
@@ -215,6 +256,14 @@ export const DELETE = withAuth<{ id: string }>(async (req, { user, params }) => 
       activeAssignmentCount: result.activeAssignmentCount,
     },
   });
+
+  // A forced delete takes a worker's shift away. Tell them, the same as
+  // removing the assignment directly does.
+  for (const removed of result.removedAssignments) {
+    createShiftScheduleNotificationFromSnapshot(removed, "removed").catch((error) => {
+      console.error("[shift-delete] removal notification failed", error);
+    });
+  }
 
   return ok({ success: true });
 });

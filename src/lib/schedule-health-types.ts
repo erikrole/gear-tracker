@@ -63,6 +63,8 @@ export type ScheduleHealthSnapshot = {
   queues: {
     openSlots: ScheduleHealthQueue;
     eventsWithoutCrew: ScheduleHealthQueue;
+    /** Visible events held behind an open private working copy. */
+    unpublishedDrafts: ScheduleHealthQueue;
     coveredEvents: ScheduleHealthQueue & { totalVisibleEvents: number };
     myShifts: ScheduleHealthQueue;
     pendingRequests: ScheduleHealthQueue;
