@@ -314,4 +314,47 @@ describe("rebaseWorkingSchedule", () => {
     // A legacy draft becomes payloadVersion 2 the moment it is refreshed.
     expect(data.data.payloadVersion).toBe(2);
   });
+
+  // Staff routinely stage a person in the draft and separately assign that same
+  // person live. Adopting the live slot while keeping the staged one puts the
+  // worker in the event twice, and publish then reports them as conflicting
+  // with themselves -- an error with no sensible reading.
+  it("merges a staged slot when the adopted live slot already holds that person", async () => {
+    tx.shiftGroup.findUnique.mockResolvedValue(group(
+      [liveShift("shift-live", afterDraft, { id: "assignment-live", userId: "zimmerman" })],
+      [draftSlot("draft:staged", null, { sourceAssignmentId: null, userId: "zimmerman" })],
+    ));
+
+    const result = await rebaseWorkingSchedule("group-1", 7, actor);
+
+    expect(result.rebase.adoptedSlots).toBe(1);
+    expect(result.rebase.deduplicatedSlots).toBe(1);
+    const slots = writtenPayload().slots;
+    expect(slots).toHaveLength(1);
+    expect(slots[0]).toMatchObject({ sourceShiftId: "shift-live" });
+  });
+
+  it("keeps a staged slot for a different person", async () => {
+    tx.shiftGroup.findUnique.mockResolvedValue(group(
+      [liveShift("shift-live", afterDraft, { id: "assignment-live", userId: "zimmerman" })],
+      [draftSlot("draft:staged", null, { sourceAssignmentId: null, userId: "saddler" })],
+    ));
+
+    const result = await rebaseWorkingSchedule("group-1", 7, actor);
+
+    expect(result.rebase.deduplicatedSlots).toBe(0);
+    expect(writtenPayload().slots).toHaveLength(2);
+  });
+
+  it("keeps a staged slot in a different area", async () => {
+    tx.shiftGroup.findUnique.mockResolvedValue(group(
+      [liveShift("shift-live", afterDraft, { id: "assignment-live", userId: "zimmerman" })],
+      [draftSlot("draft:staged", null, { sourceAssignmentId: null, userId: "zimmerman" }, { area: "PHOTO" })],
+    ));
+
+    const result = await rebaseWorkingSchedule("group-1", 7, actor);
+
+    expect(result.rebase.deduplicatedSlots).toBe(0);
+    expect(writtenPayload().slots).toHaveLength(2);
+  });
 });

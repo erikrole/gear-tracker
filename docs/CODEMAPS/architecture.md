@@ -34,7 +34,7 @@ Informational only. These are the largest TypeScript and TSX files under `src/`;
 | `src/components/TradeBoard.tsx` | 1205 |
 | `src/lib/services/notifications.ts` | 1115 |
 | `src/app/(app)/users/[id]/page.tsx` | 1098 |
-| `src/app/(app)/schedule/_components/WorkingCrewEditor.tsx` | 983 |
+| `src/app/(app)/schedule/_components/WorkingCrewEditor.tsx` | 987 |
 | `src/app/(app)/kits/[id]/page.tsx` | 979 |
 | `src/app/(app)/items/[id]/ItemBookingsTab.tsx` | 946 |
 | `src/lib/services/shift-trades.ts` | 929 |

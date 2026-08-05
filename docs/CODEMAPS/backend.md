@@ -54,7 +54,7 @@
 | `src/lib/services/schedule-open-work.ts` | 447 |
 | `src/lib/services/schedule-publication.ts` | 867 |
 | `src/lib/services/schedule-template-review.ts` | 554 |
-| `src/lib/services/schedule-working-copy.ts` | 766 |
+| `src/lib/services/schedule-working-copy.ts` | 791 |
 | `src/lib/services/shift-assignment-conflicts.ts` | 43 |
 | `src/lib/services/shift-assignments.ts` | 656 |
 | `src/lib/services/shift-generation.ts` | 624 |

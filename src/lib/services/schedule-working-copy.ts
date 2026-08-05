@@ -582,6 +582,8 @@ export async function mutateWorkingSchedule(
 export type WorkingScheduleRebaseSummary = {
   adoptedSlots: number;
   droppedSlots: number;
+  /** Staged slots removed because an adopted live slot already holds that person. */
+  deduplicatedSlots: number;
   refreshedAssignments: number;
   refreshedHistoryCounts: number;
   rebasedToPublishedVersion: number;
@@ -638,6 +640,7 @@ export async function rebaseWorkingSchedule(
     const summary: WorkingScheduleRebaseSummary = {
       adoptedSlots: 0,
       droppedSlots: 0,
+      deduplicatedSlots: 0,
       refreshedAssignments: 0,
       refreshedHistoryCounts: 0,
       rebasedToPublishedVersion: group.publishedVersion,
@@ -677,13 +680,35 @@ export async function rebaseWorkingSchedule(
       ? !baseShiftIds.has(shiftId)
       : (shiftCreatedAt.get(shiftId)?.getTime() ?? 0) > draftStartedAt.getTime();
 
+    const adopted: WorkingSchedulePayload["slots"] = [];
     for (const liveSlot of live.slots) {
       if (!liveSlot.sourceShiftId || draftSourceIds.has(liveSlot.sourceShiftId)) continue;
       if (neverInDraft(liveSlot.sourceShiftId)) {
-        slots.push(structuredClone(liveSlot));
+        adopted.push(structuredClone(liveSlot));
         summary.adoptedSlots += 1;
       }
     }
+
+    // Staff commonly stage a person in the draft and, separately, assign that
+    // same person on the live schedule. Adopting the live slot while keeping
+    // the staged one would put the worker in the event twice, which publish
+    // then reports as them conflicting with themselves. The live slot already
+    // holds a real assignment, so the staged duplicate is the redundant one.
+    for (const adoptedSlot of adopted) {
+      const userId = adoptedSlot.assignment?.userId;
+      if (!userId) continue;
+      const duplicateIndex = slots.findIndex((slot) =>
+        !slot.sourceShiftId
+        && slot.area === adoptedSlot.area
+        && slot.assignment?.sourceAssignmentId === null
+        && slot.assignment.userId === userId,
+      );
+      if (duplicateIndex !== -1) {
+        slots.splice(duplicateIndex, 1);
+        summary.deduplicatedSlots += 1;
+      }
+    }
+    slots.push(...adopted);
 
     const rebased = workingSchedulePayloadSchema.parse({
       eventStartsAt: live.eventStartsAt,

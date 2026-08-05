@@ -43,6 +43,7 @@ import { AREA_LABELS } from "./types";
 type RebaseSummary = {
   adoptedSlots: number;
   droppedSlots: number;
+  deduplicatedSlots: number;
   refreshedAssignments: number;
   refreshedHistoryCounts: number;
   rebasedToPublishedVersion: number;
@@ -57,6 +58,9 @@ function describeRebase(rebase: RebaseSummary | undefined): string {
   }
   if (rebase.droppedSlots > 0) {
     parts.push(`${rebase.droppedSlots} deleted slot${rebase.droppedSlots === 1 ? "" : "s"} removed`);
+  }
+  if (rebase.deduplicatedSlots > 0) {
+    parts.push(`${rebase.deduplicatedSlots} duplicate staged slot${rebase.deduplicatedSlots === 1 ? "" : "s"} merged`);
   }
   if (rebase.refreshedAssignments > 0) {
     parts.push(`${rebase.refreshedAssignments} assignment${rebase.refreshedAssignments === 1 ? "" : "s"} updated`);
