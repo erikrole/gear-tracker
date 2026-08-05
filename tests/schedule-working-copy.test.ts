@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyWorkingScheduleCommand,
   summarizeWorkingScheduleChanges,
+  workingSchedulePayloadSchema,
   type WorkingSchedulePayload,
 } from "@/lib/schedule-working-copy";
 
@@ -47,24 +48,52 @@ describe("working schedule commands", () => {
   });
 
   it("allows a native quick-add to stage an explicit call window", () => {
+    const defaultWindow = {
+      startsAt: "2026-10-06T17:00:00.000Z",
+      endsAt: "2026-10-06T22:00:00.000Z",
+    };
     const result = applyWorkingScheduleCommand(
-      payload(),
+      payload({ slots: [] }),
       {
         type: "adjustSlots",
-        area: "VIDEO",
-        workerType: "ST",
+        area: "PHOTO",
+        workerType: "FT",
         delta: 1,
         callStartsAt: "2026-10-06T16:30:00.000Z",
         callEndsAt: "2026-10-06T21:30:00.000Z",
       },
       () => "draft:custom",
+      defaultWindow,
     );
 
-    expect(result.slots[1]).toMatchObject({
+    expect(result.slots[0]).toMatchObject({
       key: "draft:custom",
-      startsAt: "2026-10-06T18:00:00.000Z",
+      startsAt: defaultWindow.startsAt,
+      endsAt: defaultWindow.endsAt,
       callStartsAt: "2026-10-06T16:30:00.000Z",
       callEndsAt: "2026-10-06T21:30:00.000Z",
+    });
+  });
+
+  it("uses the settings-owned window for the first slot in a class", () => {
+    const result = applyWorkingScheduleCommand(
+      payload({ slots: [] }),
+      { type: "adjustSlots", area: "PHOTO", workerType: "FT", delta: 1 },
+      () => "draft:first",
+      {
+        startsAt: "2026-10-06T16:30:00.000Z",
+        endsAt: "2026-10-06T22:00:00.000Z",
+      },
+    );
+
+    expect(result.slots[0]).toMatchObject({
+      key: "draft:first",
+      area: "PHOTO",
+      workerType: "FT",
+      startsAt: "2026-10-06T16:30:00.000Z",
+      endsAt: "2026-10-06T22:00:00.000Z",
+      callStartsAt: null,
+      callEndsAt: null,
     });
   });
 
@@ -287,6 +316,54 @@ describe("working schedule commands", () => {
     });
   });
 
+  it("stages one shared call window for every slot and clears personal overrides", () => {
+    const baseSlot = payload().slots[0]!;
+    const published = payload({
+      slots: [
+        {
+          ...baseSlot,
+          assignment: {
+            sourceAssignmentId: "assignment-1",
+            userId: "user-1",
+            status: "DIRECT_ASSIGNED",
+            callStartsAt: "2026-10-06T16:30:00.000Z",
+            callEndsAt: "2026-10-06T21:30:00.000Z",
+            callNote: "Personal exception",
+            activeTradeId: null,
+            bookingCount: 0,
+          },
+        },
+        { ...baseSlot, key: "shift-2", sourceShiftId: "shift-2", area: "PHOTO" },
+      ],
+    });
+
+    const working = applyWorkingScheduleCommand(
+      published,
+      {
+        type: "setCallWindowForAll",
+        callStartsAt: "2026-10-06T17:15:00.000Z",
+        callEndsAt: "2026-10-06T22:15:00.000Z",
+      },
+      () => "unused",
+    );
+
+    expect(working.slots).toEqual([
+      expect.objectContaining({
+        callStartsAt: "2026-10-06T17:15:00.000Z",
+        callEndsAt: "2026-10-06T22:15:00.000Z",
+        assignment: expect.objectContaining({
+          callStartsAt: null,
+          callEndsAt: null,
+          callNote: "Personal exception",
+        }),
+      }),
+      expect.objectContaining({
+        callStartsAt: "2026-10-06T17:15:00.000Z",
+        callEndsAt: "2026-10-06T22:15:00.000Z",
+      }),
+    ]);
+  });
+
   it("summarizes additions, removals, and conversions for publish review", () => {
     const baseSlot = payload().slots[0]!;
     const published = payload({
@@ -310,5 +387,56 @@ describe("working schedule commands", () => {
       callWindowChanges: 0,
       total: 3,
     });
+  });
+});
+
+describe("working schedule payload invariants", () => {
+  function assigned(overrides: Record<string, unknown> = {}) {
+    const base = payload();
+    base.slots[0]!.assignment = {
+      sourceAssignmentId: "assignment-1",
+      userId: "student-1",
+      status: "DIRECT_ASSIGNED",
+      callStartsAt: "2026-10-06T19:00:00.000Z",
+      callEndsAt: "2026-10-06T20:00:00.000Z",
+      callNote: null,
+      activeTradeId: null,
+      bookingCount: 0,
+      ...overrides,
+    };
+    return base;
+  }
+
+  it("accepts a complete personal call window", () => {
+    expect(workingSchedulePayloadSchema.safeParse(assigned()).success).toBe(true);
+  });
+
+  // A half pair reads differently depending on the consumer: the shared
+  // `effectiveCallWindow` helper ignores the override entirely, while the reads
+  // that chain `??` per field splice a personal start onto a slot end. Publish
+  // writes this payload straight onto ShiftAssignment, so the payload is the
+  // last boundary that can hold the invariant the REST routes already enforce.
+  it("rejects a personal call window missing its release time", () => {
+    const result = workingSchedulePayloadSchema.safeParse(assigned({ callEndsAt: null }));
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a personal call window missing its call time", () => {
+    const result = workingSchedulePayloadSchema.safeParse(assigned({ callStartsAt: null }));
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an inverted personal call window", () => {
+    const result = workingSchedulePayloadSchema.safeParse(
+      assigned({ callStartsAt: "2026-10-06T20:00:00.000Z", callEndsAt: "2026-10-06T19:00:00.000Z" }),
+    );
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts an assignment with no personal override", () => {
+    const result = workingSchedulePayloadSchema.safeParse(
+      assigned({ callStartsAt: null, callEndsAt: null }),
+    );
+    expect(result.success).toBe(true);
   });
 });

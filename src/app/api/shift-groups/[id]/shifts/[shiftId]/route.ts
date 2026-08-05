@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
@@ -62,7 +63,11 @@ export const DELETE = withAuth<{ id: string; shiftId: string }>(async (req, { us
       workerType: shift.workerType,
       activeAssignmentCount: shift.assignments.length,
     };
-  });
+    // Serializable so the force gate cannot be raced: at Read Committed a
+    // concurrent assignment could commit between the count check and the
+    // delete, removing a live assignment without force and recording
+    // activeAssignmentCount: 0 in the audit trail.
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   await createAuditEntry({
     actorId: user.id,

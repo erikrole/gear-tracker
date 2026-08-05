@@ -68,11 +68,41 @@ export const workingSchedulePayloadSchema = z.object({
         message: "Call end must be after call start",
       });
     }
+    // Personal overrides carry the same pair invariant as the slot window.
+    // `effectiveCallWindow` only honours an override when both sides are set,
+    // while the reads that chain `??` per field would mix a personal start with
+    // a slot end. Publishing writes this payload straight onto ShiftAssignment,
+    // so an unvalidated half pair here bypasses the REST-route guards.
+    const assignment = slot.assignment;
+    if (assignment) {
+      if (Boolean(assignment.callStartsAt) !== Boolean(assignment.callEndsAt)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["slots", index, "assignment"],
+          message: "Call start and end must both be set or both be empty",
+        });
+      }
+      if (
+        assignment.callStartsAt
+        && assignment.callEndsAt
+        && new Date(assignment.callEndsAt) <= new Date(assignment.callStartsAt)
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["slots", index, "assignment", "callEndsAt"],
+          message: "Call end must be after call start",
+        });
+      }
+    }
   }
 });
 
 export type WorkingSchedulePayload = z.infer<typeof workingSchedulePayloadSchema>;
 export type WorkingScheduleSlot = z.infer<typeof workingSlotSchema>;
+export type WorkingScheduleDefaultWindow = {
+  startsAt: string;
+  endsAt: string;
+};
 
 export const workingScheduleCommandSchema = z.discriminatedUnion("type", [
   z.object({
@@ -110,6 +140,11 @@ export const workingScheduleCommandSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("setCallWindow"),
     slotKey: z.string().min(1),
+    callStartsAt: isoDate.nullable(),
+    callEndsAt: isoDate.nullable(),
+  }),
+  z.object({
+    type: z.literal("setCallWindowForAll"),
     callStartsAt: isoDate.nullable(),
     callEndsAt: isoDate.nullable(),
   }),
@@ -190,6 +225,10 @@ export function applyWorkingScheduleCommand(
   payload: WorkingSchedulePayload,
   command: WorkingScheduleCommand,
   createKey: () => string,
+  defaultWindow: WorkingScheduleDefaultWindow = {
+    startsAt: payload.eventStartsAt,
+    endsAt: payload.eventEndsAt,
+  },
 ): WorkingSchedulePayload {
   const next = structuredClone(payload);
 
@@ -203,8 +242,8 @@ export function applyWorkingScheduleCommand(
         sourceShiftId: null,
         area: command.area,
         workerType: command.workerType,
-        startsAt: peer?.startsAt ?? next.eventStartsAt,
-        endsAt: peer?.endsAt ?? next.eventEndsAt,
+        startsAt: peer?.startsAt ?? defaultWindow.startsAt,
+        endsAt: peer?.endsAt ?? defaultWindow.endsAt,
         callStartsAt: command.callStartsAt !== undefined ? command.callStartsAt : peer?.callStartsAt ?? null,
         callEndsAt: command.callEndsAt !== undefined ? command.callEndsAt : peer?.callEndsAt ?? null,
         notes: null,
@@ -281,7 +320,7 @@ export function applyWorkingScheduleCommand(
       throw new Error("UNASSIGN_BEFORE_REDUCING");
     }
     next.slots.splice(slotIndex, 1);
-  } else {
+  } else if (command.type === "setCallWindow") {
     const slot = next.slots.find((candidate) => candidate.key === command.slotKey);
     if (!slot) throw new Error("WORKING_SLOT_NOT_FOUND");
     if (slot.assignment) {
@@ -290,6 +329,15 @@ export function applyWorkingScheduleCommand(
     } else {
       slot.callStartsAt = command.callStartsAt;
       slot.callEndsAt = command.callEndsAt;
+    }
+  } else {
+    for (const slot of next.slots) {
+      slot.callStartsAt = command.callStartsAt;
+      slot.callEndsAt = command.callEndsAt;
+      if (slot.assignment) {
+        slot.assignment.callStartsAt = null;
+        slot.assignment.callEndsAt = null;
+      }
     }
   }
 

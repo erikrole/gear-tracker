@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   findGroup: vi.fn(),
   findUsers: vi.fn(),
+  findSportConfig: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
   db: {
     shiftGroup: { findUnique: mocks.findGroup },
     user: { findMany: mocks.findUsers },
+    sportConfig: { findUnique: mocks.findSportConfig },
   },
 }));
 
@@ -46,6 +48,8 @@ describe("working schedule editor read model", () => {
   beforeEach(() => {
     mocks.findGroup.mockReset();
     mocks.findUsers.mockReset();
+    mocks.findSportConfig.mockReset();
+    mocks.findSportConfig.mockResolvedValue(null);
   });
 
   it("hydrates draft-only assignee identities after refresh", async () => {
@@ -53,7 +57,7 @@ describe("working schedule editor read model", () => {
       id: "group-1",
       publishedAt: new Date("2026-07-01T12:00:00.000Z"),
       publishedVersion: 2,
-      event: { startsAt: eventStartsAt, endsAt: eventEndsAt, sportCode: "VB" },
+      event: { startsAt: eventStartsAt, endsAt: eventEndsAt, allDay: false, sportCode: "VB" },
       shifts: [],
       workingCopy: {
         version: 4,
@@ -107,5 +111,35 @@ describe("working schedule editor read model", () => {
       expect.objectContaining({ id: "ashley-id", name: "Ashley" }),
       expect.objectContaining({ id: "maddy-id", name: "Maddy" }),
     ]);
+    expect(result.defaultWindow).toEqual({
+      startsAt: eventStartsAt.toISOString(),
+      endsAt: eventEndsAt.toISOString(),
+    });
+    expect(result.allDay).toBe(false);
+  });
+
+  it("returns the settings-owned default window for a timed event", async () => {
+    mocks.findGroup.mockResolvedValue({
+      id: "group-2",
+      publishedAt: new Date("2026-07-01T12:00:00.000Z"),
+      publishedVersion: 2,
+      event: { startsAt: eventStartsAt, endsAt: eventEndsAt, allDay: false, sportCode: "VB" },
+      shifts: [],
+      workingCopy: null,
+    });
+    mocks.findUsers.mockResolvedValue([]);
+    mocks.findSportConfig.mockResolvedValue({ shiftStartOffset: 90, shiftEndOffset: 30 });
+
+    const result = await getWorkingScheduleEditor("group-2");
+
+    expect(mocks.findSportConfig).toHaveBeenCalledWith({
+      where: { sportCode: "VB" },
+      select: { shiftStartOffset: true, shiftEndOffset: true },
+    });
+    expect(result.defaultWindow).toEqual({
+      startsAt: "2026-08-08T15:30:00.000Z",
+      endsAt: "2026-08-08T20:30:00.000Z",
+    });
+    expect(result.allDay).toBe(false);
   });
 });

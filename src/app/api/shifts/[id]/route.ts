@@ -183,12 +183,24 @@ export const DELETE = withAuth<{ id: string }>(async (req, { user, params }) => 
 
     await tx.shift.delete({ where: { id } });
 
+    // Removing a slot is manual intent. Without this the group stays
+    // regeneration-eligible and the next sync re-creates the deleted slot,
+    // matching the sibling group-scoped delete route.
+    await tx.shiftGroup.update({
+      where: { id: existing.shiftGroupId },
+      data: { manuallyEdited: true },
+    });
+
     return {
       area: existing.area,
       workerType: existing.workerType,
       activeAssignmentCount: existing.assignments.length,
     };
-  });
+    // Serializable so the force gate cannot be raced: at Read Committed a
+    // concurrent assignment could commit between the count check and the
+    // delete, cascading away a live assignment without force and recording
+    // activeAssignmentCount: 0 in the audit trail.
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   await createAuditEntry({
     actorId: user.id,

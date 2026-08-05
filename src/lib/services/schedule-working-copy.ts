@@ -3,10 +3,12 @@ import { Prisma, Role, ShiftAssignmentStatus, ShiftWorkerType } from "@prisma/cl
 import { createAuditEntryTx } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
+import { sportDefaultShiftWindow } from "@/lib/schedule-defaults";
 import {
   applyWorkingScheduleCommand,
   summarizeWorkingScheduleChanges,
   type WorkingScheduleCommand,
+  type WorkingScheduleDefaultWindow,
   type WorkingSchedulePayload,
   workingSchedulePayloadSchema,
 } from "@/lib/schedule-working-copy";
@@ -19,7 +21,7 @@ const groupEditorSelect = {
   id: true,
   publishedAt: true,
   publishedVersion: true,
-  event: { select: { startsAt: true, endsAt: true, sportCode: true } },
+  event: { select: { startsAt: true, endsAt: true, allDay: true, sportCode: true } },
   shifts: {
     orderBy: [{ startsAt: "asc" }, { area: "asc" }, { workerType: "asc" }, { createdAt: "asc" }],
     select: {
@@ -78,6 +80,25 @@ function effectiveSlotWindow(slot: WorkingSchedulePayload["slots"][number]) {
   };
 }
 
+async function resolveWorkingScheduleDefaultWindow(
+  group: EditorGroup,
+  tx: Prisma.TransactionClient = db,
+): Promise<WorkingScheduleDefaultWindow> {
+  const config = group.event.sportCode
+    ? await tx.sportConfig.findUnique({
+      where: { sportCode: group.event.sportCode },
+      select: { shiftStartOffset: true, shiftEndOffset: true },
+    })
+    : null;
+  const window = config
+    ? sportDefaultShiftWindow(group.event, config)
+    : { startsAt: group.event.startsAt, endsAt: group.event.endsAt };
+  return {
+    startsAt: window.startsAt.toISOString(),
+    endsAt: window.endsAt.toISOString(),
+  };
+}
+
 export function buildWorkingSchedulePayload(group: EditorGroup): WorkingSchedulePayload {
   return workingSchedulePayloadSchema.parse({
     eventStartsAt: group.event.startsAt.toISOString(),
@@ -121,6 +142,7 @@ function parseStoredPayload(value: Prisma.JsonValue): WorkingSchedulePayload {
 async function editorResponse(group: EditorGroup, tx: Prisma.TransactionClient = db) {
   const published = buildWorkingSchedulePayload(group);
   const working = group.workingCopy ? parseStoredPayload(group.workingCopy.payload) : published;
+  const defaultWindow = await resolveWorkingScheduleDefaultWindow(group, tx);
   const assignedUserIds = [...new Set(
     working.slots.flatMap((slot) => slot.assignment ? [slot.assignment.userId] : []),
   )];
@@ -168,6 +190,7 @@ async function editorResponse(group: EditorGroup, tx: Prisma.TransactionClient =
     : new Set(working.slots.flatMap((slot) => slot.assignment ? [slot.assignment.userId] : [])).size;
   return {
     shiftGroupId: group.id,
+    allDay: group.event.allDay,
     publicationState: group.workingCopy
       ? "unpublished_changes"
       : group.publishedAt
@@ -183,6 +206,7 @@ async function editorResponse(group: EditorGroup, tx: Prisma.TransactionClient =
     changes,
     affectedWorkerCount: group.publishedAt ? affectedWorkerIds.size : initialPublishWorkerCount,
     assignedUsers,
+    defaultWindow,
     schedule: working,
   };
 }
@@ -237,6 +261,9 @@ export async function mutateWorkingSchedule(
     const beforePayload = group.workingCopy
       ? parseStoredPayload(group.workingCopy.payload)
       : buildWorkingSchedulePayload(group);
+    const defaultWindow = command.type === "adjustSlots" && command.delta === 1
+      ? await resolveWorkingScheduleDefaultWindow(group, tx)
+      : undefined;
 
     if (command.type === "convertAndReplace") {
       const slot = beforePayload.slots.find((candidate) => candidate.key === command.slotKey);
@@ -396,9 +423,69 @@ export async function mutateWorkingSchedule(
           },
         });
         if (!assignee) throw new HttpError(404, "Assigned user not found");
+        // Clearing a personal override drops back to the slot's own call
+        // window, not the raw shift window — the command only touches
+        // `slot.assignment` when the slot is assigned.
+        const startsAt = new Date(command.callStartsAt ?? slot.callStartsAt ?? slot.startsAt);
+        const endsAt = new Date(command.callEndsAt ?? slot.callEndsAt ?? slot.endsAt);
+        await checkTimeConflict(tx, assignee.id, startsAt, endsAt, slot.assignment.sourceAssignmentId ?? undefined);
+        if (slot.workerType === "ST") {
+          const availability = evaluateAvailabilityPreferences(assignee.availabilityBlocks, { startsAt, endsAt });
+          if (availability.blocking) throw new HttpError(409, availability.blocking.note);
+        }
+      }
+    }
+    if (command.type === "setCallWindowForAll") {
+      if (group.event.allDay && (command.callStartsAt || command.callEndsAt)) {
+        throw new HttpError(400, "All-day events do not have call times.");
+      }
+      if (Boolean(command.callStartsAt) !== Boolean(command.callEndsAt)) {
+        throw new HttpError(400, "Call start and release time must both be set or both be cleared.");
+      }
+      if (
+        command.callStartsAt
+        && command.callEndsAt
+        && new Date(command.callEndsAt) <= new Date(command.callStartsAt)
+      ) {
+        throw new HttpError(400, "Release time must be after call time.");
+      }
+      // Clearing is validated too. The command wipes every slot window *and*
+      // every personal override, so each assigned worker drops back to the raw
+      // shift window — a move that can push a student into approved time off
+      // just as readily as setting an explicit window can.
+      const assignedSlots = beforePayload.slots.filter((slot) => slot.assignment);
+      const userIds = [...new Set(assignedSlots.map((slot) => slot.assignment!.userId))];
+      const users = userIds.length > 0
+        ? await tx.user.findMany({
+          where: { id: { in: userIds } },
+          select: {
+            id: true,
+            staffingType: true,
+            availabilityBlocks: {
+              select: {
+                kind: true,
+                intent: true,
+                status: true,
+                dayOfWeek: true,
+                date: true,
+                startsAt: true,
+                endsAt: true,
+                label: true,
+                semesterLabel: true,
+                semesterStartsOn: true,
+                semesterEndsOn: true,
+              },
+            },
+          },
+        })
+        : [];
+      const userById = new Map(users.map((user) => [user.id, user]));
+      for (const slot of assignedSlots) {
+        const assignee = userById.get(slot.assignment!.userId);
+        if (!assignee) throw new HttpError(404, "Assigned user not found");
         const startsAt = new Date(command.callStartsAt ?? slot.startsAt);
         const endsAt = new Date(command.callEndsAt ?? slot.endsAt);
-        await checkTimeConflict(tx, assignee.id, startsAt, endsAt, slot.assignment.sourceAssignmentId ?? undefined);
+        await checkTimeConflict(tx, assignee.id, startsAt, endsAt, slot.assignment!.sourceAssignmentId ?? undefined);
         if (slot.workerType === "ST") {
           const availability = evaluateAvailabilityPreferences(assignee.availabilityBlocks, { startsAt, endsAt });
           if (availability.blocking) throw new HttpError(409, availability.blocking.note);
@@ -411,6 +498,7 @@ export async function mutateWorkingSchedule(
         beforePayload,
         command,
         () => `draft:${randomUUID()}`,
+        defaultWindow,
       );
     } catch (error) {
       if (error instanceof Error && error.message === "UNASSIGN_BEFORE_REDUCING") {
