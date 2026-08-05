@@ -50,8 +50,10 @@ describe("working-copy mutation guard", () => {
     const source = readFileSync("src/lib/services/schedule-publication.ts", "utf8");
     expect(source).toContain("const draftStartedAt = group.workingCopy.createdAt;");
     expect(source).toContain("shift.createdAt > draftStartedAt");
-    expect(source).toContain("shift.createdAt <= draftStartedAt");
-    expect(source).toContain("Discard this draft to keep the live schedule");
+    // Drift short-circuits, so the removal check below only ever sees shifts
+    // that predate the draft; an explicit partition is no longer needed.
+    expect(source).toContain('code: "drifted_in"');
+    expect(source).toContain("Refresh to pull them into this draft");
     // The publish query has to actually load both timestamps for that to work.
     expect(source).toContain("createdAt: true,");
   });
@@ -72,5 +74,24 @@ describe("working-copy mutation guard", () => {
     expect(service).toContain("basePublishedVersion: group.publishedVersion");
     expect(editor).toContain("refreshFromLive");
     expect(editor).toContain("Refresh from live");
+  });
+
+  // Blockers must be gathered before any write, and reachable before the user
+  // commits to a publish. A preflight nobody can read is not a preflight.
+  it("collects publish blockers ahead of any write and exposes them", () => {
+    const service = readFileSync("src/lib/services/schedule-publication.ts", "utf8");
+    const route = readFileSync("src/app/api/shift-groups/[id]/publish/route.ts", "utf8");
+    const editor = readFileSync("src/app/(app)/schedule/_components/WorkingCrewEditor.tsx", "utf8");
+
+    expect(service).toContain("export async function collectPublishBlockers");
+    expect(service).toContain("export async function getPublishPreflight");
+    expect(service).toContain("problems block publishing this schedule");
+    // findTimeConflict is the non-throwing form; the collector must not use the
+    // throwing one or it would stop at the first conflicted worker.
+    expect(service).toContain("findTimeConflict(");
+    expect(route).toContain("export const GET");
+    expect(route).toContain("getPublishPreflight");
+    expect(editor).toContain("preflight");
+    expect(editor).toContain("blocks publishing");
   });
 });

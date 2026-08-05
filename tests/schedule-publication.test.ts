@@ -711,14 +711,14 @@ describe("publishShiftGroup drift detection", () => {
     });
   });
 
-  it("points at discard as the way out", async () => {
+  it("offers refresh and discard as the ways out", async () => {
     mockTx.shiftGroup.findUnique.mockResolvedValue(groupWithDraft([
       liveShift("shift-late-1", new Date("2026-08-05T02:35:43.000Z"), true),
     ]));
 
     await expect(publishShiftGroup("group-1", "staff-1", 7)).rejects.toMatchObject({
       status: 409,
-      message: expect.stringContaining("Discard this draft"),
+      message: expect.stringContaining("Refresh to pull them into this draft"),
     });
   });
 
@@ -743,5 +743,176 @@ describe("publishShiftGroup drift detection", () => {
     await publishShiftGroup("group-1", "staff-1", 7);
 
     expect(mockTx.shift.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ["shift-old"] } } });
+  });
+});
+
+describe("publish preflight", () => {
+  const draftStartedAt = new Date("2026-08-05T02:17:21.000Z");
+  const beforeDraft = new Date("2026-08-04T10:00:00.000Z");
+
+  function shiftRow(id: string, workerType: string, assignment: Record<string, unknown> | null) {
+    return {
+      id,
+      createdAt: beforeDraft,
+      area: "VIDEO",
+      workerType,
+      startsAt: new Date("2026-08-05T17:00:00.000Z"),
+      endsAt: new Date("2026-08-05T21:00:00.000Z"),
+      callStartsAt: null,
+      callEndsAt: null,
+      notes: null,
+      _count: { assignments: assignment ? 1 : 0 },
+      assignments: assignment ? [assignment] : [],
+    };
+  }
+
+  function slot(key: string, sourceShiftId: string | null, workerType: string, assignment: Record<string, unknown> | null) {
+    return {
+      key,
+      sourceShiftId,
+      area: "VIDEO",
+      workerType,
+      startsAt: "2026-08-05T17:00:00.000Z",
+      endsAt: "2026-08-05T21:00:00.000Z",
+      callStartsAt: null,
+      callEndsAt: null,
+      notes: null,
+      assignmentHistoryCount: 0,
+      assignment,
+    };
+  }
+
+  function liveAssignment(id: string, userId: string, extra: Record<string, unknown> = {}) {
+    return {
+      id,
+      userId,
+      status: "DIRECT_ASSIGNED",
+      callStartsAt: null,
+      callEndsAt: null,
+      callNote: null,
+      acknowledgedAt: null,
+      trades: [],
+      _count: { bookings: 0 },
+      ...extra,
+    };
+  }
+
+  // Two independent problems on two different slots. Publish used to throw on
+  // whichever it met first, so staff fixed it, clicked Publish, and met the
+  // second. One attempt now reports both.
+  it("reports every blocker in one attempt", async () => {
+    mockTx.shiftGroup.findUnique.mockResolvedValue({
+      id: "group-1",
+      publishedAt: null,
+      publishedById: null,
+      publishedVersion: 0,
+      lastPublishedSnapshot: null,
+      workingCopy: {
+        version: 3,
+        basePublishedVersion: 0,
+        createdAt: draftStartedAt,
+        payload: {
+          eventStartsAt: "2026-08-05T17:00:00.000Z",
+          eventEndsAt: "2026-08-05T21:00:00.000Z",
+          slots: [
+            // Replacing a worker whose assignment is posted for trade.
+            slot("shift-traded", "shift-traded", "FT",
+              { sourceAssignmentId: null, userId: "replacement", status: "DIRECT_ASSIGNED",
+                callStartsAt: null, callEndsAt: null, callNote: null, activeTradeId: null, bookingCount: 0 }),
+            // Replacing a worker whose assignment still has gear linked.
+            slot("shift-booked", "shift-booked", "FT",
+              { sourceAssignmentId: null, userId: "replacement-2", status: "DIRECT_ASSIGNED",
+                callStartsAt: null, callEndsAt: null, callNote: null, activeTradeId: null, bookingCount: 0 }),
+          ],
+        },
+      },
+      shifts: [
+        shiftRow("shift-traded", "FT", liveAssignment("assignment-1", "poster", { trades: [{ id: "trade-1" }] })),
+        shiftRow("shift-booked", "FT", liveAssignment("assignment-2", "booker", { _count: { bookings: 2 } })),
+      ],
+    });
+    mockTx.user.findMany.mockResolvedValue([
+      { id: "replacement", name: "Rep One", active: true, staffingType: "FT", availabilityBlocks: [] },
+      { id: "replacement-2", name: "Rep Two", active: true, staffingType: "FT", availabilityBlocks: [] },
+    ]);
+    mockTx.shiftAssignment.findMany.mockResolvedValue([]);
+
+    const error = await publishShiftGroup("group-1", "staff-1", 3).catch((e: unknown) => e);
+
+    expect(error).toMatchObject({ status: 409, message: expect.stringContaining("2 problems") });
+    const codes = ((error as { data: { blockers: Array<{ code: string }> } }).data.blockers).map((b) => b.code);
+    expect(codes).toEqual(["active_trade", "linked_booking"]);
+  });
+
+  // A single blocker must keep reading exactly as it did, so existing recovery
+  // copy and its tests stay meaningful.
+  it("keeps the plain message when only one thing is wrong", async () => {
+    mockTx.shiftGroup.findUnique.mockResolvedValue({
+      id: "group-1",
+      publishedAt: null,
+      publishedById: null,
+      publishedVersion: 0,
+      lastPublishedSnapshot: null,
+      workingCopy: {
+        version: 3,
+        basePublishedVersion: 0,
+        createdAt: draftStartedAt,
+        payload: {
+          eventStartsAt: "2026-08-05T17:00:00.000Z",
+          eventEndsAt: "2026-08-05T21:00:00.000Z",
+          slots: [
+            slot("shift-traded", "shift-traded", "FT",
+              { sourceAssignmentId: null, userId: "replacement", status: "DIRECT_ASSIGNED",
+                callStartsAt: null, callEndsAt: null, callNote: null, activeTradeId: null, bookingCount: 0 }),
+          ],
+        },
+      },
+      shifts: [shiftRow("shift-traded", "FT", liveAssignment("assignment-1", "poster", { trades: [{ id: "trade-1" }] }))],
+    });
+    mockTx.user.findMany.mockResolvedValue([
+      { id: "replacement", name: "Rep One", active: true, staffingType: "FT", availabilityBlocks: [] },
+    ]);
+    mockTx.shiftAssignment.findMany.mockResolvedValue([]);
+
+    await expect(publishShiftGroup("group-1", "staff-1", 3)).rejects.toMatchObject({
+      status: 409,
+      message: "Cancel the active trade before publishing this assignment change.",
+    });
+  });
+
+  // Blockers are gathered before anything is written, so a rejected publish
+  // cannot have already created a shift or an assignment.
+  it("writes nothing when a blocker is found", async () => {
+    mockTx.shiftGroup.findUnique.mockResolvedValue({
+      id: "group-1",
+      publishedAt: null,
+      publishedById: null,
+      publishedVersion: 0,
+      lastPublishedSnapshot: null,
+      workingCopy: {
+        version: 3,
+        basePublishedVersion: 0,
+        createdAt: draftStartedAt,
+        payload: {
+          eventStartsAt: "2026-08-05T17:00:00.000Z",
+          eventEndsAt: "2026-08-05T21:00:00.000Z",
+          slots: [
+            slot("draft:new", null, "ST",
+              { sourceAssignmentId: null, userId: "inactive-person", status: "DIRECT_ASSIGNED",
+                callStartsAt: null, callEndsAt: null, callNote: null, activeTradeId: null, bookingCount: 0 }),
+          ],
+        },
+      },
+      shifts: [],
+    });
+    mockTx.user.findMany.mockResolvedValue([
+      { id: "inactive-person", name: "Gone", active: false, staffingType: "ST", availabilityBlocks: [] },
+    ]);
+    mockTx.shiftAssignment.findMany.mockResolvedValue([]);
+
+    await expect(publishShiftGroup("group-1", "staff-1", 3)).rejects.toMatchObject({ status: 409 });
+
+    expect(mockTx.shift.create).not.toHaveBeenCalled();
+    expect(mockTx.shiftAssignment.create).not.toHaveBeenCalled();
   });
 });

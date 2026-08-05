@@ -52,11 +52,11 @@
 | `src/lib/services/schedule-health.ts` | 378 |
 | `src/lib/services/schedule-notification-policy.ts` | 106 |
 | `src/lib/services/schedule-open-work.ts` | 447 |
-| `src/lib/services/schedule-publication.ts` | 636 |
+| `src/lib/services/schedule-publication.ts` | 860 |
 | `src/lib/services/schedule-template-review.ts` | 554 |
 | `src/lib/services/schedule-working-copy.ts` | 753 |
 | `src/lib/services/shift-assignment-conflicts.ts` | 43 |
-| `src/lib/services/shift-assignments.ts` | 642 |
+| `src/lib/services/shift-assignments.ts` | 656 |
 | `src/lib/services/shift-generation.ts` | 624 |
 | `src/lib/services/shift-trade-emails.ts` | 56 |
 | `src/lib/services/shift-trades.ts` | 929 |

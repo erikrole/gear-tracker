@@ -65,6 +65,19 @@ function describeRebase(rebase: RebaseSummary | undefined): string {
   return `Refreshed: ${parts.join(", ")}`;
 }
 
+type PublishBlocker = {
+  code: string;
+  message: string;
+  slotKey: string | null;
+  area: string | null;
+  userId: string | null;
+};
+
+type PublishPreflight = {
+  staleness: { code: string; message: string } | null;
+  blockers: PublishBlocker[];
+};
+
 type EditorData = {
   shiftGroupId: string;
   publicationState: "draft" | "published" | "unpublished_changes";
@@ -328,6 +341,8 @@ export function WorkingCrewEditor({
   const [loading, setLoading] = useState(true);
   const [actingKey, setActingKey] = useState<string | null>(null);
   const [publishReviewOpen, setPublishReviewOpen] = useState(false);
+  const [preflight, setPreflight] = useState<PublishPreflight | null>(null);
+  const [preflightLoading, setPreflightLoading] = useState(false);
   const [candidateScoreState, setCandidateScoreState] = useState<{
     slotKey: string;
     scores: Record<string, CandidateRecommendation>;
@@ -457,6 +472,29 @@ export function WorkingCrewEditor({
       setActingKey(null);
     }
   }, [data, loadEditor, shiftGroupId]);
+
+  // Load what would block this publish as the review opens, so the whole list
+  // is visible before committing rather than one rejected attempt at a time.
+  useEffect(() => {
+    if (!publishReviewOpen || !shiftGroupId) return;
+    let cancelled = false;
+    setPreflightLoading(true);
+    setPreflight(null);
+    void (async () => {
+      try {
+        const response = await fetch(`/api/shift-groups/${shiftGroupId}/publish`);
+        if (cancelled || handleAuthRedirect(response) || !response.ok) return;
+        const json = await parseJsonSafely<{ data?: PublishPreflight }>(response);
+        if (!cancelled && json?.data) setPreflight(json.data);
+      } catch {
+        // A preflight that cannot load must not block publishing; the publish
+        // attempt itself still reports every blocker.
+      } finally {
+        if (!cancelled) setPreflightLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [publishReviewOpen, shiftGroupId]);
 
   /**
    * Re-seat the draft on the current live schedule. Every "refresh before
@@ -891,10 +929,49 @@ export function WorkingCrewEditor({
                 ? "No workers will be notified."
                 : `${data.affectedWorkerCount} ${data.affectedWorkerCount === 1 ? "person" : "people"} will each receive one event summary.`}
             </p>
+            {preflightLoading && (
+              <p className="text-xs text-muted-foreground">Checking for problems...</p>
+            )}
+            {preflight?.staleness && (
+              <div className="rounded-md border border-orange-500/40 bg-orange-500/10 p-3 text-xs">
+                <p className="font-medium">This draft is out of date</p>
+                <p className="mt-1 text-muted-foreground">{preflight.staleness.message}</p>
+              </div>
+            )}
+            {preflight && !preflight.staleness && preflight.blockers.length > 0 && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs">
+                <p className="font-medium">
+                  {preflight.blockers.length === 1
+                    ? "1 problem blocks publishing"
+                    : `${preflight.blockers.length} problems block publishing`}
+                </p>
+                <ul className="mt-1 list-disc space-y-1 pl-4 text-muted-foreground">
+                  {preflight.blockers.map((blocker, index) => (
+                    <li key={`${blocker.code}-${blocker.slotKey ?? index}`}>
+                      {blocker.area ? `${AREA_LABELS[blocker.area] ?? blocker.area}: ` : ""}{blocker.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPublishReviewOpen(false)} disabled={actingKey === "publish"}>Cancel</Button>
-            <Button onClick={() => void publish()} disabled={actingKey === "publish"}>
+            {preflight?.staleness && (
+              <Button
+                variant="outline"
+                onClick={() => { setPublishReviewOpen(false); void refreshFromLive(); }}
+                disabled={Boolean(actingKey)}
+              >
+                <RefreshCwIcon data-icon="inline-start" />
+                Refresh from live
+              </Button>
+            )}
+            <Button
+              onClick={() => void publish()}
+              disabled={actingKey === "publish" || preflightLoading
+                || Boolean(preflight?.staleness) || (preflight?.blockers.length ?? 0) > 0}
+            >
               {actingKey === "publish" ? "Publishing..." : "Publish"}
             </Button>
           </DialogFooter>

@@ -9,10 +9,20 @@ import {
   notifyPublishedShiftGroupWorkers,
   notifyPublishedScheduleFollowers,
 } from "@/lib/services/notifications";
-import { publishShiftGroup } from "@/lib/services/schedule-publication";
+import { getPublishPreflight, publishShiftGroup } from "@/lib/services/schedule-publication";
 
 const publishSchema = z.object({
   expectedWorkingVersion: z.number().int().min(1).optional(),
+});
+
+/**
+ * What would block this publish, without attempting it. Read on opening the
+ * publish review so staff see the whole list before committing, rather than
+ * discovering it one rejected attempt at a time.
+ */
+export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
+  requirePermission(user.role, "shift", "manage");
+  return ok({ data: await getPublishPreflight(params.id) });
 });
 
 export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {

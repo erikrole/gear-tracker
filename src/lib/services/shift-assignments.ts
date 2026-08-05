@@ -177,13 +177,18 @@ async function resolveAssignableShiftForUser(
  * Check if a user already has an active shift assignment during the given time window.
  * Optionally exclude a specific assignment (for swap scenarios).
  */
-export async function checkTimeConflict(
+/**
+ * Non-throwing form of {@link checkTimeConflict}, returning the conflict
+ * message or null. Publish preflight needs to gather every blocker in one pass
+ * instead of surfacing them one exception at a time.
+ */
+export async function findTimeConflict(
   tx: Prisma.TransactionClient,
   userId: string,
   startsAt: Date,
   endsAt: Date,
   excludeAssignmentId?: string,
-) {
+): Promise<string | null> {
   const allDayPrefilterStartsAt = new Date(startsAt.getTime() - DAY_MS);
   const allDayPrefilterEndsAt = new Date(endsAt.getTime() + DAY_MS);
   const where: Prisma.ShiftAssignmentWhereInput = {
@@ -219,11 +224,20 @@ export async function checkTimeConflict(
   for (const conflict of conflicts) {
     const { startsAt: conflictStartsAt, endsAt: conflictEndsAt } = effectiveAssignmentWindow(conflict);
     if (!(conflictStartsAt < endsAt && conflictEndsAt > startsAt)) continue;
-    throw new HttpError(
-      409,
-      `User already has a shift during this time (${conflict.shift.area})`
-    );
+    return `User already has a shift during this time (${conflict.shift.area})`;
   }
+  return null;
+}
+
+export async function checkTimeConflict(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  startsAt: Date,
+  endsAt: Date,
+  excludeAssignmentId?: string,
+) {
+  const conflict = await findTimeConflict(tx, userId, startsAt, endsAt, excludeAssignmentId);
+  if (conflict) throw new HttpError(409, conflict);
 }
 
 /**
