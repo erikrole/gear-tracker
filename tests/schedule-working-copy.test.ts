@@ -46,6 +46,28 @@ describe("working schedule commands", () => {
     });
   });
 
+  it("allows a native quick-add to stage an explicit call window", () => {
+    const result = applyWorkingScheduleCommand(
+      payload(),
+      {
+        type: "adjustSlots",
+        area: "VIDEO",
+        workerType: "ST",
+        delta: 1,
+        callStartsAt: "2026-10-06T16:30:00.000Z",
+        callEndsAt: "2026-10-06T21:30:00.000Z",
+      },
+      () => "draft:custom",
+    );
+
+    expect(result.slots[1]).toMatchObject({
+      key: "draft:custom",
+      startsAt: "2026-10-06T18:00:00.000Z",
+      callStartsAt: "2026-10-06T16:30:00.000Z",
+      callEndsAt: "2026-10-06T21:30:00.000Z",
+    });
+  });
+
   it("subtracts only an open slot with no assignment history", () => {
     const historyBearing = payload().slots[0]!;
     expect(() => applyWorkingScheduleCommand(
@@ -103,6 +125,82 @@ describe("working schedule commands", () => {
     )).toThrow("UNASSIGN_BEFORE_CONVERTING");
   });
 
+  it("converts an assigned slot only through an explicit replacement", () => {
+    const baseSlot = payload().slots[0]!;
+    const assigned = payload({
+      slots: [{
+        ...baseSlot,
+        assignmentHistoryCount: 1,
+        assignment: {
+          sourceAssignmentId: "assignment-1",
+          userId: "user-1",
+          status: "DIRECT_ASSIGNED",
+          callStartsAt: "2026-10-06T16:30:00.000Z",
+          callEndsAt: "2026-10-06T21:30:00.000Z",
+          callNote: "Old call window",
+          activeTradeId: null,
+          bookingCount: 0,
+        },
+      }],
+    });
+
+    const replaced = applyWorkingScheduleCommand(
+      assigned,
+      {
+        type: "convertAndReplace",
+        slotKey: "shift-1",
+        workerType: "FT",
+        userId: "user-2",
+      },
+      () => "unused",
+    );
+
+    expect(replaced.slots[0]).toMatchObject({
+      workerType: "FT",
+      assignmentHistoryCount: 1,
+      assignment: {
+        sourceAssignmentId: null,
+        userId: "user-2",
+        status: "DIRECT_ASSIGNED",
+        callStartsAt: null,
+        callEndsAt: null,
+        callNote: null,
+      },
+    });
+  });
+
+  it("protects active trades and linked bookings during replacement", () => {
+    const baseSlot = payload().slots[0]!;
+    for (const assignment of [
+      { activeTradeId: "trade-1", bookingCount: 0 },
+      { activeTradeId: null, bookingCount: 1 },
+    ]) {
+      expect(() => applyWorkingScheduleCommand(
+        payload({
+          slots: [{
+            ...baseSlot,
+            assignment: {
+              sourceAssignmentId: "assignment-1",
+              userId: "user-1",
+              status: "DIRECT_ASSIGNED",
+              callStartsAt: null,
+              callEndsAt: null,
+              callNote: null,
+              ...assignment,
+            },
+          }],
+        }),
+        {
+          type: "convertAndReplace",
+          slotKey: "shift-1",
+          workerType: "FT",
+          userId: "user-2",
+        },
+        () => "unused",
+      )).toThrow(assignment.activeTradeId ? "CANCEL_TRADE_BEFORE_REPLACING" : "UNLINK_BOOKING_BEFORE_REPLACING");
+    }
+  });
+
   it("stages assignment and removal without mutating a published row", () => {
     const assigned = applyWorkingScheduleCommand(
       payload(),
@@ -141,6 +239,49 @@ describe("working schedule commands", () => {
       callEndsAt: "2026-10-06T21:30:00.000Z",
     });
     expect(summarizeWorkingScheduleChanges(published, working)).toMatchObject({
+      callWindowChanges: 1,
+      total: 1,
+    });
+  });
+
+  it("stages an assigned worker's personal call window on the assignment", () => {
+    const baseSlot = payload().slots[0]!;
+    const published = payload({
+      slots: [{
+        ...baseSlot,
+        assignment: {
+          sourceAssignmentId: "assignment-1",
+          userId: "user-1",
+          status: "DIRECT_ASSIGNED",
+          callStartsAt: null,
+          callEndsAt: null,
+          callNote: null,
+          activeTradeId: null,
+          bookingCount: 0,
+        },
+      }],
+    });
+    const working = applyWorkingScheduleCommand(
+      published,
+      {
+        type: "setCallWindow",
+        slotKey: "shift-1",
+        callStartsAt: "2026-10-06T16:30:00.000Z",
+        callEndsAt: "2026-10-06T21:30:00.000Z",
+      },
+      () => "unused",
+    );
+
+    expect(working.slots[0]).toMatchObject({
+      callStartsAt: "2026-10-06T17:00:00.000Z",
+      callEndsAt: "2026-10-06T22:00:00.000Z",
+      assignment: {
+        callStartsAt: "2026-10-06T16:30:00.000Z",
+        callEndsAt: "2026-10-06T21:30:00.000Z",
+      },
+    });
+    expect(summarizeWorkingScheduleChanges(published, working)).toMatchObject({
+      assignmentChanges: 0,
       callWindowChanges: 1,
       total: 1,
     });

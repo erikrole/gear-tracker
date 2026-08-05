@@ -4,6 +4,8 @@ import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 import { assertCallTimePair, assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
+import { assertNoWorkingCopy } from "@/lib/schedule-working-copy-guard";
+import { sportDefaultShiftWindow } from "@/lib/schedule-defaults";
 import { z } from "zod";
 import { Prisma, ShiftArea, ShiftWorkerType } from "@prisma/client";
 
@@ -36,12 +38,22 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   const result = await db.$transaction(async (tx) => {
     const group = await tx.shiftGroup.findUnique({
       where: { id },
-      include: { event: true },
+      include: { event: true, workingCopy: { select: { version: true } } },
     });
     if (!group) throw new HttpError(404, "Shift group not found");
+    assertNoWorkingCopy(group.workingCopy);
 
-    const startsAt = overrideStartsAt ?? group.event.startsAt;
-    const endsAt = overrideEndsAt ?? group.event.endsAt;
+    const config = group.event.sportCode
+      ? await tx.sportConfig.findUnique({
+        where: { sportCode: group.event.sportCode },
+        select: { shiftStartOffset: true, shiftEndOffset: true },
+      })
+      : null;
+    const defaultWindow = config
+      ? sportDefaultShiftWindow(group.event, config)
+      : { startsAt: group.event.startsAt, endsAt: group.event.endsAt };
+    const startsAt = overrideStartsAt ?? defaultWindow.startsAt;
+    const endsAt = overrideEndsAt ?? defaultWindow.endsAt;
     assertDateOrder(startsAt, endsAt, "endsAt must be after startsAt", { allowEqual: false });
 
     const shift = await tx.shift.create({

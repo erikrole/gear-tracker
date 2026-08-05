@@ -59,6 +59,7 @@ type Props = {
   activeAssignment: ShiftAssignment | null;
   pendingRequests: ShiftAssignment[];
   isStaff: boolean;
+  canEdit?: boolean;
   currentUserId?: string;
   acting: string | null;
   // Picker state
@@ -92,6 +93,7 @@ export function ShiftSlotCard({
   activeAssignment,
   pendingRequests,
   isStaff,
+  canEdit = isStaff,
   currentUserId,
   acting,
   pickerOpen,
@@ -126,7 +128,7 @@ export function ShiftSlotCard({
 
   const contextItems = (
     <ContextMenuContent className="w-48">
-      {isStaff && isAssigned && (
+      {canEdit && isAssigned && (
         <ContextMenuItem
           className="text-destructive focus:text-destructive"
           onClick={() => onRemove(activeAssignment!.id)}
@@ -135,7 +137,7 @@ export function ShiftSlotCard({
           Remove assignment
         </ContextMenuItem>
       )}
-      {isStaff && (
+      {canEdit && (
         <>
           {isAssigned && <ContextMenuSeparator />}
           <ContextMenuItem
@@ -170,7 +172,7 @@ export function ShiftSlotCard({
             </div>
             {showSlotWindow && (
               <CallWindowEditor
-                target={isStaff ? { type: "slot", id: shiftId } : undefined}
+                target={canEdit ? { type: "slot", id: shiftId } : undefined}
                 effectiveWindow={slotWindow}
                 overrideWindow={{ startsAt: callStartsAt ?? null, endsAt: callEndsAt ?? null }}
                 onSaved={onCallWindowSaved}
@@ -178,7 +180,7 @@ export function ShiftSlotCard({
                 compact
               />
             )}
-            {isStaff && (
+            {canEdit && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -219,7 +221,7 @@ export function ShiftSlotCard({
                     </Tooltip>
                   )}
                 </span>
-                {isStaff && (
+                {canEdit && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -234,7 +236,7 @@ export function ShiftSlotCard({
               {showAssignmentWindow && assignmentWindow && (
                 <div className="mt-1.5 pl-9">
                   <CallWindowEditor
-                    target={isStaff ? { type: "assignment", id: activeAssignment.id } : undefined}
+                    target={canEdit ? { type: "assignment", id: activeAssignment.id } : undefined}
                     effectiveWindow={assignmentWindow}
                     overrideWindow={{ startsAt: activeAssignment.callStartsAt ?? null, endsAt: activeAssignment.callEndsAt ?? null }}
                     onSaved={onCallWindowSaved}
@@ -274,7 +276,7 @@ export function ShiftSlotCard({
                     />
                     {req.user.name}
                   </span>
-                  {isStaff && (
+                  {canEdit && (
                     <div className="flex gap-1">
                       <Button
                         size="sm"
@@ -303,7 +305,7 @@ export function ShiftSlotCard({
           {/* Empty slot - assign staff-side or let students request student slots. */}
           {!isAssigned && (
             <div className="mt-1">
-              {isStaff && (
+              {canEdit && (
                 <Popover
                   open={pickerOpen}
                   onOpenChange={(open) => {

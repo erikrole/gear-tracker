@@ -12,6 +12,7 @@ import { availabilityConflictNote } from "@/lib/student-availability";
 import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
 import { updateShiftAssignmentConflictsTx } from "@/lib/services/shift-assignment-conflicts";
 import { scheduleShiftTimeChangedNotifications } from "@/lib/shift-notification-workflow";
+import { assertNoWorkingCopy } from "@/lib/schedule-working-copy-guard";
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "shift", "edit");
@@ -45,9 +46,10 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   const { updated, assignmentIds } = await db.$transaction(async (tx) => {
     const existing = await tx.shift.findUnique({
       where: { id },
-      include: { shiftGroup: { select: { publishedAt: true } } },
+      include: { shiftGroup: { select: { publishedAt: true, workingCopy: { select: { version: true } } } } },
     });
     if (!existing) throw new HttpError(404, "Shift not found");
+    assertNoWorkingCopy(existing.shiftGroup?.workingCopy);
 
     // Validate one-bound edits against the row visible to this transaction.
     const mergedStartsAt = startsAt ?? existing.startsAt;
@@ -157,9 +159,11 @@ export const DELETE = withAuth<{ id: string }>(async (req, { user, params }) => 
           where: { status: { in: ACTIVE_ASSIGNMENT_STATUSES } },
           select: { id: true },
         },
+        shiftGroup: { select: { workingCopy: { select: { version: true } } } },
       },
     });
     if (!existing) throw new HttpError(404, "Shift not found");
+    assertNoWorkingCopy(existing.shiftGroup?.workingCopy);
 
     // Match the shift-group delete contract: staffed shifts need an explicit force
     if (existing.assignments.length > 0 && !force) {

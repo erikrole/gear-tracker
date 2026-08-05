@@ -11,6 +11,7 @@ import { evaluateAvailabilityPreferences } from "@/lib/student-availability";
 import { availabilityContextFromBlocks } from "@/lib/schedule-availability-context";
 import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
 import { withSerializationRetry } from "@/lib/serialization";
+import { assertNoWorkingCopy } from "@/lib/schedule-working-copy-guard";
 
 function assertShiftNotStarted(startsAt: Date) {
   if (startsAt <= new Date()) {
@@ -235,7 +236,14 @@ export async function claimTrade(tradeId: string, userId: string) {
         shiftAssignment: {
           include: {
             shift: {
-              include: { shiftGroup: { include: { event: { select: { summary: true } } } } },
+              include: {
+                shiftGroup: {
+                  include: {
+                    workingCopy: { select: { version: true } },
+                    event: { select: { summary: true } },
+                  },
+                },
+              },
             },
           },
         },
@@ -251,6 +259,7 @@ export async function claimTrade(tradeId: string, userId: string) {
 
     // Validate claimant doesn't have a conflicting shift during this time
     const shift = trade.shiftAssignment.shift;
+    assertNoWorkingCopy(shift.shiftGroup?.workingCopy);
     const window = effectiveAssignmentWindow(trade.shiftAssignment);
     assertShiftNotStarted(window.startsAt);
     await checkTimeConflict(tx, userId, window.startsAt, window.endsAt);
@@ -382,7 +391,14 @@ export async function approveTrade(tradeId: string) {
         shiftAssignment: {
           include: {
             shift: {
-              include: { shiftGroup: { include: { event: { select: { id: true, summary: true } } } } },
+              include: {
+                shiftGroup: {
+                  include: {
+                    workingCopy: { select: { version: true } },
+                    event: { select: { id: true, summary: true } },
+                  },
+                },
+              },
             },
           },
         },
@@ -395,6 +411,7 @@ export async function approveTrade(tradeId: string) {
     if (!trade.claimedByUserId) {
       throw new HttpError(400, "Trade has no claimer");
     }
+    assertNoWorkingCopy(trade.shiftAssignment.shift.shiftGroup?.workingCopy);
     assertShiftNotStarted(effectiveAssignmentWindow(trade.shiftAssignment).startsAt);
 
     await executeSwap(tx, trade.shiftAssignment.id, trade.claimedByUserId, trade.postedByUserId);

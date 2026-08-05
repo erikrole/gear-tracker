@@ -25,6 +25,12 @@ type RebaseSummary = {
   workingCopiesSkipped: number;
 };
 
+type CallTimeSyncSummary = {
+  shiftsUpdated: number;
+  workingCopiesUpdated: number;
+  invalidWorkingCopies: number;
+};
+
 export default function SportsSettingsPage() {
   const { data: fetchedConfigs, loading, error, reload } = useFetch<SportConfig[]>({
     url: "/api/sport-configs",
@@ -101,6 +107,8 @@ export default function SportsSettingsPage() {
           data?: SportConfig[];
           rebase?: RebaseSummary | null;
           rebaseFailed?: boolean;
+          callTimes?: CallTimeSyncSummary | null;
+          callTimesFailed?: boolean;
         }>(res);
         const updated = json?.data;
         if (!Array.isArray(updated)) {
@@ -114,6 +122,7 @@ export default function SportsSettingsPage() {
             .concat(updated.filter((c) => !prev.some((p) => p.sportCode === c.sportCode)))
         );
         const rebase = json?.rebase;
+        const callTimes = json?.callTimes;
         const changedEvents = (rebase?.groupsCreated ?? 0) + (rebase?.groupsRebased ?? 0);
         const skippedReview = (rebase?.publishedSkipped ?? 0) + (rebase?.workingCopiesSkipped ?? 0);
         const group = findGroup(sportCode);
@@ -131,8 +140,20 @@ export default function SportsSettingsPage() {
           const kept = rebase!.protectedOverageSlots;
           toast.info(`${kept} ${kept === 1 ? "slot was" : "slots were"} kept because staffing or manual changes already exist.`);
         }
+        if ((callTimes?.shiftsUpdated ?? 0) > 0) {
+          toast.info(`${callTimes!.shiftsUpdated} current ${callTimes!.shiftsUpdated === 1 ? "call time was" : "call times were"} updated from Sport settings.`);
+        }
+        if ((callTimes?.workingCopiesUpdated ?? 0) > 0) {
+          toast.info("Private working schedules were updated so publishing will keep the new call times.");
+        }
+        if ((callTimes?.invalidWorkingCopies ?? 0) > 0) {
+          toast.warning("Some private working schedules could not be updated. Review or discard them before publishing.");
+        }
         if (json?.rebaseFailed) {
           toast.warning("Defaults were saved, but upcoming schedules could not be refreshed. Save again to retry safely.");
+        }
+        if (json?.callTimesFailed) {
+          toast.warning("Defaults were saved, but current call times could not be synchronized. Save again to retry safely.");
         }
         return true;
       } else if (res.status === 429) {

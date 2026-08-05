@@ -112,8 +112,9 @@ function CallWindowEditor({
   disabled: boolean;
   onSave: (callStartsAt: string | null, callEndsAt: string | null) => void;
 }) {
-  const defaultStartsAt = slot.callStartsAt ?? slot.startsAt;
-  const defaultEndsAt = slot.callEndsAt ?? slot.endsAt;
+  const defaultStartsAt = slot.assignment?.callStartsAt ?? slot.callStartsAt ?? slot.startsAt;
+  const defaultEndsAt = slot.assignment?.callEndsAt ?? slot.callEndsAt ?? slot.endsAt;
+  const resetLabel = slot.assignment ? "Use slot time" : "Use shift time";
   const [open, setOpen] = useState(false);
   const [startsAt, setStartsAt] = useState(() => toLocalDateTimeValue(defaultStartsAt));
   const [endsAt, setEndsAt] = useState(() => toLocalDateTimeValue(defaultEndsAt));
@@ -189,7 +190,7 @@ function CallWindowEditor({
               setOpen(false);
             }}
           >
-            Use shift time
+            {resetLabel}
           </Button>
           <Button type="button" size="sm" className="text-xs" onClick={save}>Save call time</Button>
         </div>
@@ -221,6 +222,11 @@ export function WorkingCrewEditor({
   } | null>(null);
   const [scoresLoadingKey, setScoresLoadingKey] = useState<string | null>(null);
   const [scoresErrorKey, setScoresErrorKey] = useState<string | null>(null);
+  const [replacementTarget, setReplacementTarget] = useState<{
+    slotKey: string;
+    workerType: "FT" | "ST";
+    currentWorkerName: string;
+  } | null>(null);
   const actingRef = useRef(false);
 
   const loadEditor = useCallback(async () => {
@@ -246,13 +252,15 @@ export function WorkingCrewEditor({
     void loadEditor();
   }, [loadEditor]);
 
-  const loadCandidateScores = useCallback(async (slotKey: string) => {
+  const loadCandidateScores = useCallback(async (slotKey: string, workerType?: "FT" | "ST") => {
     if (!shiftGroupId) return;
     setScoresLoadingKey(slotKey);
     setScoresErrorKey(null);
+    const query = new URLSearchParams({ slotKey });
+    if (workerType) query.set("workerType", workerType);
     try {
       const response = await fetch(
-        `/api/shift-groups/${shiftGroupId}/working-copy/candidate-scores?slotKey=${encodeURIComponent(slotKey)}`,
+        `/api/shift-groups/${shiftGroupId}/working-copy/candidate-scores?${query.toString()}`,
       );
       if (handleAuthRedirect(response)) return;
       if (!response.ok) {
@@ -386,6 +394,15 @@ export function WorkingCrewEditor({
     .map((area) => ({ area, slots: data.schedule.slots.filter((slot) => slot.area === area) }))
     .filter(({ slots }) => slots.length > 0);
   const emptyAreas = AREA_ORDER.filter((area) => !areasWithSlots.some((entry) => entry.area === area));
+  const replacementSlot = replacementTarget
+    ? data.schedule.slots.find((slot) => slot.key === replacementTarget.slotKey) ?? null
+    : null;
+  const replacementUsers = replacementTarget
+    ? pickerUsers.filter((candidate) => {
+      const staffingType = candidate.staffingType ?? (candidate.role === "STUDENT" ? "ST" : "FT");
+      return staffingType === replacementTarget.workerType;
+    })
+    : [];
 
   return (
     <div className="flex flex-col gap-2">
@@ -487,7 +504,22 @@ export function WorkingCrewEditor({
                             <MoreHorizontalIcon className="size-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuContent align="end" className="w-56">
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              const target = {
+                                slotKey: slot.key,
+                                workerType: otherWorkerType as "FT" | "ST",
+                                currentWorkerName: user?.name ?? "assigned worker",
+                              };
+                              setReplacementTarget(target);
+                              onOpenPicker();
+                              void loadCandidateScores(slot.key, target.workerType);
+                            }}
+                          >
+                            <ArrowLeftRightIcon />
+                            Replace and convert to {otherWorkerType === "FT" ? "Staff" : "Student"}
+                          </DropdownMenuItem>
                           <DropdownMenuItem
                             variant="destructive"
                             onSelect={() => void mutate({ type: "unassign", slotKey: slot.key }, `${slot.key}-unassign`)}
@@ -618,6 +650,59 @@ export function WorkingCrewEditor({
           </div>
         )}
       </div>
+
+      <Dialog
+        open={replacementTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setReplacementTarget(null);
+            onClosePicker();
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Replace and convert to {replacementTarget?.workerType === "FT" ? "Staff" : "Student"}
+            </DialogTitle>
+            <DialogDescription>
+              {replacementTarget
+                ? `${replacementTarget.currentWorkerName} will be replaced when this private schedule is published.`
+                : "Choose a replacement worker."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="px-6 pb-2">
+            {replacementSlot && replacementTarget ? (
+              <UserAvatarPicker
+                users={replacementUsers}
+                loading={pickerLoading}
+                search={pickerSearch}
+                onSearchChange={onPickerSearchChange}
+                onSelect={(userId) => {
+                  void mutate(
+                    {
+                      type: "convertAndReplace",
+                      slotKey: replacementTarget.slotKey,
+                      workerType: replacementTarget.workerType,
+                      userId,
+                    },
+                    `${replacementTarget.slotKey}-convert-replace`,
+                  );
+                  setReplacementTarget(null);
+                  onClosePicker();
+                }}
+                disabled={Boolean(actingKey)}
+                slotWorkerType={replacementTarget.workerType}
+                candidateScores={candidateScoreState?.slotKey === replacementTarget.slotKey ? candidateScoreState.scores : undefined}
+                scoresLoading={scoresLoadingKey === replacementTarget.slotKey}
+                scoresLoadError={scoresErrorKey === replacementTarget.slotKey}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">Refresh the schedule and try again.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={publishReviewOpen} onOpenChange={setPublishReviewOpen}>
         <DialogContent className="sm:max-w-md">

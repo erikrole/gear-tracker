@@ -27,11 +27,14 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
         },
         orderBy: [{ area: "asc" }, { workerType: "asc" }],
       },
+      workingCopy: { select: { version: true } },
     },
   });
 
   if (!group) throw new HttpError(404, "Shift group not found");
-  return ok({ data: { ...group, publication: getSchedulePublicationState(group) } });
+  const { workingCopy, ...groupData } = group;
+  const staffCanSeeWorkingState = user.role === "ADMIN" || user.role === "STAFF";
+  return ok({ data: { ...groupData, hasWorkingCopy: staffCanSeeWorkingState ? Boolean(workingCopy) : undefined, publication: getSchedulePublicationState(group) } });
 });
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {

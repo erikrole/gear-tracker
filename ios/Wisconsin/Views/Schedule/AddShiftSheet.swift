@@ -3,6 +3,7 @@ import SwiftUI
 /// STAFF/ADMIN authoring flow for adding one open slot to an event.
 struct AddShiftSheet: View {
     let shiftGroupId: String
+    let expectedWorkingVersion: Int
     let eventTitle: String
     let defaultStart: Date
     let defaultEnd: Date
@@ -19,12 +20,14 @@ struct AddShiftSheet: View {
 
     init(
         shiftGroupId: String,
+        expectedWorkingVersion: Int = 0,
         eventTitle: String,
         defaultStart: Date,
         defaultEnd: Date,
         onAdded: @escaping () -> Void
     ) {
         self.shiftGroupId = shiftGroupId
+        self.expectedWorkingVersion = expectedWorkingVersion
         self.eventTitle = eventTitle
         self.defaultStart = defaultStart
         self.defaultEnd = defaultEnd
@@ -220,12 +223,13 @@ struct AddShiftSheet: View {
         error = nil
         defer { isSubmitting = false }
         do {
-            try await APIClient.shared.addShift(
+            _ = try await APIClient.shared.addWorkingScheduleSlot(
                 shiftGroupId: shiftGroupId,
+                expectedVersion: expectedWorkingVersion,
                 area: area.rawValue,
                 workerType: workerType.rawValue,
-                startsAt: customizeTimes ? startsAt : nil,
-                endsAt: customizeTimes ? endsAt : nil
+                callStartsAt: customizeTimes ? startsAt : nil,
+                callEndsAt: customizeTimes ? endsAt : nil
             )
             Haptics.success()
             onAdded()

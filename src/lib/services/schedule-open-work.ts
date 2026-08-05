@@ -7,6 +7,7 @@ import { evaluateAvailabilityPreferences } from "@/lib/student-availability";
 import { availabilityContextFromCandidate } from "@/lib/schedule-availability-context";
 import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
 import { withSerializationRetry } from "@/lib/serialization";
+import { assertNoWorkingCopy } from "@/lib/schedule-working-copy-guard";
 
 const ACTIVE_STATUSES = ACTIVE_ASSIGNMENT_STATUSES as ShiftAssignmentStatus[];
 
@@ -344,6 +345,7 @@ export async function pickupOpenShift(shiftId: string, userId: string) {
           },
           shiftGroup: {
             include: {
+              workingCopy: { select: { version: true } },
               event: { select: { isHidden: true, archivedAt: true, status: true } },
             },
           },
@@ -376,6 +378,7 @@ export async function pickupOpenShift(shiftId: string, userId: string) {
     ]);
 
     if (!shift) throw new HttpError(404, "Shift not found");
+    assertNoWorkingCopy(shift.shiftGroup.workingCopy);
     if (!user || !user.active) throw new HttpError(400, "Cannot claim a shift for an inactive user");
     if (shiftWorkerTypeForProfile(user) !== "ST" || shift.workerType !== "ST") {
       throw new HttpError(400, "Open pickup is available for Student slots only");

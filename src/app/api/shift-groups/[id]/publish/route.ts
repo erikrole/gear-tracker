@@ -1,4 +1,5 @@
 import { withAuth } from "@/lib/api";
+import { after } from "next/server";
 import { z } from "zod";
 import { HttpError, ok } from "@/lib/http";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -31,7 +32,9 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   const result = await publishShiftGroup(params.id, user.id, body.expectedWorkingVersion, user.role);
 
   if (!result.before.publishedAt) {
-    createPublishedShiftGroupNotifications(params.id).catch(() => {});
+    after(() => createPublishedShiftGroupNotifications(params.id).catch((error) => {
+      console.error("[schedule-publish] initial worker notifications failed", error);
+    }));
   } else if (result.publishedSnapshotChanged) {
     await notifyPublishedShiftGroupWorkers(params.id, result.affectedUserIds).catch((error) => {
       console.error("[schedule-publish] worker notifications failed", error);

@@ -9,6 +9,7 @@ import { assertCallTimePair, assertDateOrder, parseOptionalDate } from "@/lib/ap
 import { createShiftScheduleNotification } from "@/lib/services/notifications";
 import { evaluateAvailabilityPreferences } from "@/lib/student-availability";
 import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
+import { assertNoWorkingCopy } from "@/lib/schedule-working-copy-guard";
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "shift_assignment", "assign");
@@ -20,7 +21,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     include: {
       shift: {
         include: {
-          shiftGroup: { select: { publishedAt: true } },
+          shiftGroup: { select: { publishedAt: true, workingCopy: { select: { version: true } } } },
         },
       },
       user: {
@@ -47,6 +48,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     },
   });
   if (!existing) throw new HttpError(404, "Assignment not found");
+  assertNoWorkingCopy(existing.shift?.shiftGroup?.workingCopy);
 
   const callStartsAt = parseOptionalDate(body.callStartsAt ?? undefined, "callStartsAt");
   const callEndsAt = parseOptionalDate(body.callEndsAt ?? undefined, "callEndsAt");

@@ -66,9 +66,9 @@ Make the expanded web Schedule list the primary crew workstation: fast Staff and
 
 - [x] Keep existing models tolerant of additive publication metadata.
 - [x] Keep student and old-client reads on the published schedule.
-- [ ] Add staff working-copy reads and the bounded quick actions appropriate on iPhone.
+- [x] Add staff working-copy reads and the bounded quick actions appropriate on iPhone.
 - [x] Keep bulk defaults, full diff review, and repair workflows web-only.
-- [ ] Run affected source-contract tests and Xcode simulator/device builds.
+- [x] Run the affected source-contract tests, project consistency check, and Wisconsin simulator target build; authenticated device/runtime proof remains a rollout gate.
 
 ### 7. Local runtime recovery and explicit crew setup
 
@@ -84,12 +84,61 @@ Make the expanded web Schedule list the primary crew workstation: fast Staff and
 - [x] Keep the stored working payload ID-only so user names and avatars remain current and are not duplicated into draft JSON.
 - [x] Prove Ashley and Maddy remain named after refresh without publishing, with focused service/source tests and authenticated browser inspection.
 
+### 9. Publish and assignment boundary repairs
+
+- [x] Allow an assigned draft-only slot to reconcile into a new relational shift and assignment during publish.
+- [x] Apply call-window edits at the assignment layer when a slot has a personal override, while preserving the slot fallback window.
+- [x] Retry one serialization conflict around publish so concurrent schedule edits return a real stale/conflict response instead of an incidental server error.
+- [x] Keep legacy Event detail and Schedule mutation controls read-only while a private working copy exists.
+- [ ] Verify the repaired publish, assignment, and working-copy boundary behavior with focused tests and the required web gates.
+
+### 10. Settings-owned current call-time synchronization
+
+- [x] Make Sport settings offsets the source for upcoming timed shift coverage, including assigned and manually created slots, while preserving explicit slot and personal overrides.
+- [x] Keep all-day and date-only events free of fabricated call times.
+- [x] Synchronize active private working-copy payloads so a later publish cannot restore stale default times.
+- [x] Add a reusable dry-run/apply repair path and wire future Sport settings changes through the same service.
+- [x] Apply the current live correction and verify the settings, schedule, publication, and working-copy contracts.
+
+### 11. Explicit assigned-slot convert-and-replace
+
+- [x] Add one versioned `convertAndReplace` command that requires a target scheduling class and replacement user.
+- [x] Reject active trades, linked bookings, inactive users, duplicate draft assignments, conflicts, and Student availability violations before changing the working copy.
+- [x] Preserve assignment history while publishing the replacement by declining the old assignment and creating the new relational assignment.
+- [x] Wire target-class replacement pickers into the web Schedule workstation and native Event detail flow.
+- [x] Cover the command, publication reconciliation, web/native source contracts, TypeScript, lint, project check, drift check, and Wisconsin simulator build.
+
+## Review: Slice 6 Native working-copy adoption
+
+- Shipped: Staff Event detail now loads the additive working-schedule editor and routes Add Shift, Assign Person, unassign, duplicate, delete, and call-window actions through optimistic expected-version commands. Native Publish and Discard dialogs explain the private draft boundary and keep worker visibility on the last published crew until release.
+- Preserved: Student open-shift pickup, collaborator Schedule, worker-facing reads, Trade Board, ICS, Dashboard, and existing old-client schedule reads remain published-only. Full diff, bulk defaults, and repair remain web or follow-up scope; assigned-slot replacement is covered in Slice 11.
+- Verified: The focused native working-copy source contracts, TypeScript, project consistency check, and Wisconsin simulator target build pass. Authenticated native runtime/device proof and production rollout remain open.
+
 ## Review: Slice 8
 
 - Shipped: the editor read model batches current user identity fields for every assignee referenced by the effective working schedule.
 - Verified: focused working-copy tests pass, and an authenticated reload of Volleyball vs Alumni shows Maddy Pehler and Ashley Steltenpohl with no `Assigned worker` fallback.
 - Preserved: working-copy JSON remains ID-only, and no publish, notification, relational schedule, or iOS read contract changed.
-- Remaining: the broader plan still tracks narrow responsive proof, native working-copy adoption, and explicit convert-and-replace behavior.
+- Remaining: the broader plan still tracks narrow responsive proof and authenticated native runtime proof.
+
+## Review: Slice 9
+
+- Shipped: publish now accepts assigned draft-only slots, persists personal call-window overrides on assignments, retries one serialization conflict, and prevents legacy live schedule mutations from racing a private working copy.
+- Verified: focused publication, working-copy, assignment, call-window, open-work, trade, auto-fill, and source-contract tests pass; TypeScript passes.
+- Remaining: authenticated browser proof of the guarded legacy surfaces and authenticated native runtime proof remain open.
+
+## Review: Slice 10
+
+- Shipped: `sportDefaultShiftWindow` is the single fallback calculation for timed and all-day generation, regeneration, rebase, manual slots, template review, settings mutations, and current schedule synchronization. Settings call-time changes update future relational fallbacks and active working-copy payloads, refresh published snapshots, recalculate assignment conflicts, and preserve explicit slot or personal overrides.
+- Preserved: all-day events retain date-only boundaries; assignment and slot call-window override fields are not overwritten; native and worker-facing reads remain published-only.
+- Live correction: the shared dry-run/apply path corrected 35 fallback shift windows across 9 groups, 3 private working copies, and 1 published snapshot. The post-apply dry run reported zero remaining updates, zero invalid working copies, and zero missing configurations.
+- Verification: focused default, generation, rebase, sync-service, TypeScript, and lint gates pass. Authenticated browser proof of the Settings save and published schedule notification surface remains open with GAP-60.
+
+## Review: Slice 11
+
+- Shipped: staff can explicitly replace an assigned person while converting the slot between Staff and Student. The versioned command chooses the target class and person together, clears stale personal call overrides, and keeps the draft private until publish. Active trades and linked bookings require explicit cleanup first; conflicts, inactive users, duplicate draft assignments, and Student availability are revalidated server-side.
+- Published: an explicit replacement declines the prior relational assignment and creates the new assignment, preserving assignment history and worker-facing publication boundaries.
+- Verified: focused working-copy, route-source, publication, and native source-contract tests pass; TypeScript, focused ESLint, `npm run ios:project:check`, `npm run drift:ios:warn`, and the Wisconsin simulator build pass. Authenticated browser/native runtime proof remains a rollout gate under GAP-60.
 
 ## Verification
 

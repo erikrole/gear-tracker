@@ -80,11 +80,19 @@ export const workingScheduleCommandSchema = z.discriminatedUnion("type", [
     area: z.nativeEnum(ShiftArea),
     workerType: z.nativeEnum(ShiftWorkerType),
     delta: z.union([z.literal(-1), z.literal(1)]),
+    callStartsAt: isoDate.nullable().optional(),
+    callEndsAt: isoDate.nullable().optional(),
   }),
   z.object({
     type: z.literal("convertSlot"),
     slotKey: z.string().min(1),
     workerType: z.nativeEnum(ShiftWorkerType),
+  }),
+  z.object({
+    type: z.literal("convertAndReplace"),
+    slotKey: z.string().min(1),
+    workerType: z.nativeEnum(ShiftWorkerType),
+    userId: z.string().min(1),
   }),
   z.object({
     type: z.literal("assign"),
@@ -118,6 +126,13 @@ export type WorkingScheduleChanges = {
   total: number;
 };
 
+function effectiveCallWindow(slot: WorkingScheduleSlot) {
+  return {
+    startsAt: slot.assignment?.callStartsAt ?? slot.callStartsAt ?? slot.startsAt,
+    endsAt: slot.assignment?.callEndsAt ?? slot.callEndsAt ?? slot.endsAt,
+  };
+}
+
 export function summarizeWorkingScheduleChanges(
   published: WorkingSchedulePayload,
   working: WorkingSchedulePayload,
@@ -143,16 +158,18 @@ export function summarizeWorkingScheduleChanges(
     const previous = publishedById.get(id);
     if (!previous) continue;
     if (previous.workerType !== slot.workerType) convertedSlots += 1;
+    const previousWindow = effectiveCallWindow(previous);
+    const workingWindow = effectiveCallWindow(slot);
     if (
       previous.callStartsAt !== slot.callStartsAt
       || previous.callEndsAt !== slot.callEndsAt
+      || previousWindow.startsAt !== workingWindow.startsAt
+      || previousWindow.endsAt !== workingWindow.endsAt
     ) {
       callWindowChanges += 1;
     }
     if (
       previous.assignment?.userId !== slot.assignment?.userId
-      || previous.assignment?.callStartsAt !== slot.assignment?.callStartsAt
-      || previous.assignment?.callEndsAt !== slot.assignment?.callEndsAt
       || previous.assignment?.callNote !== slot.assignment?.callNote
     ) {
       assignmentChanges += 1;
@@ -188,8 +205,8 @@ export function applyWorkingScheduleCommand(
         workerType: command.workerType,
         startsAt: peer?.startsAt ?? next.eventStartsAt,
         endsAt: peer?.endsAt ?? next.eventEndsAt,
-        callStartsAt: peer?.callStartsAt ?? null,
-        callEndsAt: peer?.callEndsAt ?? null,
+        callStartsAt: command.callStartsAt !== undefined ? command.callStartsAt : peer?.callStartsAt ?? null,
+        callEndsAt: command.callEndsAt !== undefined ? command.callEndsAt : peer?.callEndsAt ?? null,
         notes: null,
         assignmentHistoryCount: 0,
         assignment: null,
@@ -214,6 +231,27 @@ export function applyWorkingScheduleCommand(
       throw new Error("UNASSIGN_BEFORE_CONVERTING");
     }
     slot.workerType = command.workerType;
+  } else if (command.type === "convertAndReplace") {
+    const slot = next.slots.find((candidate) => candidate.key === command.slotKey);
+    if (!slot) throw new Error("WORKING_SLOT_NOT_FOUND");
+    if (!slot.assignment) throw new Error("WORKING_SLOT_NOT_ASSIGNED");
+    if (slot.workerType === command.workerType) {
+      throw new Error("CONVERT_AND_REPLACE_REQUIRES_CONVERSION");
+    }
+    if (slot.assignment.activeTradeId) throw new Error("CANCEL_TRADE_BEFORE_REPLACING");
+    if (slot.assignment.bookingCount > 0) throw new Error("UNLINK_BOOKING_BEFORE_REPLACING");
+    slot.workerType = command.workerType;
+    slot.assignment = {
+      ...slot.assignment,
+      sourceAssignmentId: null,
+      userId: command.userId,
+      status: "DIRECT_ASSIGNED",
+      callStartsAt: null,
+      callEndsAt: null,
+      callNote: null,
+      activeTradeId: null,
+      bookingCount: 0,
+    };
   } else if (command.type === "assign") {
     const slot = next.slots.find((candidate) => candidate.key === command.slotKey);
     if (!slot) throw new Error("WORKING_SLOT_NOT_FOUND");
@@ -246,8 +284,13 @@ export function applyWorkingScheduleCommand(
   } else {
     const slot = next.slots.find((candidate) => candidate.key === command.slotKey);
     if (!slot) throw new Error("WORKING_SLOT_NOT_FOUND");
-    slot.callStartsAt = command.callStartsAt;
-    slot.callEndsAt = command.callEndsAt;
+    if (slot.assignment) {
+      slot.assignment.callStartsAt = command.callStartsAt;
+      slot.assignment.callEndsAt = command.callEndsAt;
+    } else {
+      slot.callStartsAt = command.callStartsAt;
+      slot.callEndsAt = command.callEndsAt;
+    }
   }
 
   return workingSchedulePayloadSchema.parse(next);

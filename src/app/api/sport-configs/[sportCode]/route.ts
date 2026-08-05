@@ -1,10 +1,13 @@
 import { withAuth } from "@/lib/api";
+import { after } from "next/server";
 import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { sportCodeSchema, updateSportConfigSchema } from "@/lib/validation";
 import { getSportConfig, upsertSportConfig, toggleSportConfig } from "@/lib/services/sport-configs";
 import { createAuditEntry } from "@/lib/audit";
 import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
+import { syncCurrentSportCallTimes } from "@/lib/services/schedule-call-time-sync";
+import { notifyPublishedScheduleFollowers, notifyPublishedShiftGroupWorkers } from "@/lib/services/notifications";
 
 export const GET = withAuth<{ sportCode: string }>(async (_req, { user, params }) => {
   requirePermission(user.role, "sport_config", "view");
@@ -47,6 +50,29 @@ export const PATCH = withAuth<{ sportCode: string }>(async (req, { user, params 
     config = existing;
   }
 
+  let callTimes = null;
+  let callTimesFailed = false;
+  if (hasCallTimeChange) {
+    try {
+      callTimes = await syncCurrentSportCallTimes([sportCode], { actor: user });
+    } catch (error) {
+      callTimesFailed = true;
+      console.error("Current schedule call-time synchronization failed after sport defaults were saved", error);
+    }
+  }
+  if (callTimes?.publishedChanges.length) {
+    after(() => Promise.allSettled(callTimes.publishedChanges.flatMap((change) => [
+      notifyPublishedShiftGroupWorkers(change.shiftGroupId, change.affectedUserIds),
+      notifyPublishedScheduleFollowers(change.shiftGroupId),
+    ])).then((results) => {
+      for (const result of results) {
+        if (result.status === "rejected") {
+          console.error("Published schedule call-time notification failed", result.reason);
+        }
+      }
+    }));
+  }
+
   await createAuditEntry({
     actorId: user.id,
     actorRole: user.role,
@@ -54,8 +80,8 @@ export const PATCH = withAuth<{ sportCode: string }>(async (req, { user, params 
     entityId: existing.id,
     action: "sport_config_updated",
     before: { active: existing.active },
-    after: { active: config!.active, ...body },
+    after: { active: config!.active, ...body, callTimes, callTimesFailed },
   });
 
-  return ok({ data: config });
+  return ok({ data: config, callTimes, callTimesFailed });
 });

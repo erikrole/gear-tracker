@@ -81,7 +81,7 @@ describe("schedule staff/student display source contracts", () => {
     expect(assignmentCell).not.toContain('target={{ type: "slot", id: shift.id }}');
 
     expect(slotCard).toContain("const showSlotWindow = !isAssigned");
-    expect(slotCard).toContain('target={isStaff ? { type: "assignment", id: activeAssignment.id } : undefined}');
+    expect(slotCard).toContain('target={canEdit ? { type: "assignment", id: activeAssignment.id } : undefined}');
   });
 
   it("keeps historical role-slot repair permissioned and audited", () => {

@@ -105,7 +105,7 @@
 | `src/components/TradeBoard.tsx` | 1205 |
 | `src/components/onboarding/OnboardingDialog.tsx` | 884 |
 | `src/components/EquipmentPicker.tsx` | 879 |
-| `src/components/ShiftDetailPanel.tsx` | 813 |
+| `src/components/ShiftDetailPanel.tsx` | 832 |
 | `src/components/ChooseImageModal.tsx` | 770 |
 | `src/components/profile-completion/ProfileCompletionWizard.tsx` | 768 |
 | `src/components/AppShell.tsx` | 749 |
@@ -118,7 +118,7 @@
 | `src/components/ui/heatmap.tsx` | 409 |
 | `src/components/Sidebar.tsx` | 408 |
 | `src/components/ui/chart.tsx` | 389 |
-| `src/components/shift-detail/ShiftSlotCard.tsx` | 355 |
+| `src/components/shift-detail/ShiftSlotCard.tsx` | 357 |
 | `src/components/booking-details/BookingInfoCard.tsx` | 342 |
 | `src/components/booking-details/EditBookingEventsDialog.tsx` | 335 |
 | `src/components/FormCombobox.tsx` | 329 |

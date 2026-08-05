@@ -44,9 +44,25 @@ describe("schedule working-copy route wiring", () => {
     expect(scoreRoute).toContain("getWorkingScheduleCandidateScores");
     expect(workingService).toContain("getCandidateScoresForTarget");
     expect(workingService).toContain("sportCode: group.event.sportCode");
-    expect(editor).toContain("/working-copy/candidate-scores?slotKey=");
+    expect(workingService).toContain("workerTypeOverride");
+    expect(editor).toContain("/working-copy/candidate-scores?");
     expect(editor).toContain("candidateScores=");
     expect(picker).toContain("candidateScores[b.id]?.score");
     expect(picker).toContain('className="h-60 max-h-[var(--radix-popover-content-available-height)]"');
+  });
+
+  it("keeps assigned conversion explicit and replacement-only", () => {
+    const workingCopy = readFileSync("src/lib/schedule-working-copy.ts", "utf8");
+    const workingService = readFileSync("src/lib/services/schedule-working-copy.ts", "utf8");
+    const publication = readFileSync("src/lib/services/schedule-publication.ts", "utf8");
+    const editor = readFileSync("src/app/(app)/schedule/_components/WorkingCrewEditor.tsx", "utf8");
+
+    expect(workingCopy).toContain('type: z.literal("convertAndReplace")');
+    expect(workingCopy).toContain("sourceAssignmentId: null");
+    expect(workingService).toContain("Cancel the active trade before replacing this person.");
+    expect(workingService).toContain("Unlink the assignment's booking before replacing this person.");
+    expect(publication).toContain("explicitlyReplacingCurrentAssignment");
+    expect(editor).toContain('type: "convertAndReplace"');
+    expect(editor).toContain("Replace and convert to");
   });
 });

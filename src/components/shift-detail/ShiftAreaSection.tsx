@@ -37,6 +37,7 @@ type Props = {
   shifts: Shift[];
   eventAllDay?: boolean;
   isStaff: boolean;
+  canEdit?: boolean;
   currentUserId?: string;
   acting: string | null;
   pickerShiftId: string | null;
@@ -62,6 +63,7 @@ export function ShiftAreaSection({
   shifts,
   eventAllDay = false,
   isStaff,
+  canEdit = isStaff,
   currentUserId,
   acting,
   pickerShiftId,
@@ -90,7 +92,7 @@ export function ShiftAreaSection({
           (a) => a.status === "DIRECT_ASSIGNED" || a.status === "APPROVED",
         )).length}
         total={shifts.length}
-        action={isStaff ? (
+        action={canEdit ? (
           <AddSlotMenu area={area} disabled={acting !== null} onAdd={onAddShift} />
         ) : undefined}
       />
@@ -119,6 +121,7 @@ export function ShiftAreaSection({
               activeAssignment={activeAssignment ?? null}
               pendingRequests={pendingRequests}
               isStaff={isStaff}
+              canEdit={canEdit}
               currentUserId={currentUserId}
               acting={acting}
               pickerOpen={pickerShiftId === shift.id}

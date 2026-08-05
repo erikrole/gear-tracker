@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Prisma, Role, ShiftAssignmentStatus } from "@prisma/client";
+import { Prisma, Role, ShiftAssignmentStatus, ShiftWorkerType } from "@prisma/client";
 import { createAuditEntryTx } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
@@ -113,7 +113,7 @@ export function buildWorkingSchedulePayload(group: EditorGroup): WorkingSchedule
 function parseStoredPayload(value: Prisma.JsonValue): WorkingSchedulePayload {
   const parsed = workingSchedulePayloadSchema.safeParse(value);
   if (!parsed.success) {
-    throw new HttpError(409, "This working schedule is invalid. Discard it or contact an administrator.");
+    throw new HttpError(409, "This working schedule is invalid. Discard it or contact Erik Role.");
   }
   return parsed.data;
 }
@@ -197,7 +197,11 @@ export async function getWorkingScheduleEditor(shiftGroupId: string) {
   return editorResponse(await findEditorGroup(shiftGroupId));
 }
 
-export async function getWorkingScheduleCandidateScores(shiftGroupId: string, slotKey: string) {
+export async function getWorkingScheduleCandidateScores(
+  shiftGroupId: string,
+  slotKey: string,
+  workerTypeOverride?: ShiftWorkerType,
+) {
   const group = await findEditorGroup(shiftGroupId);
   const schedule = group.workingCopy
     ? parseStoredPayload(group.workingCopy.payload)
@@ -208,7 +212,7 @@ export async function getWorkingScheduleCandidateScores(shiftGroupId: string, sl
   return getCandidateScoresForTarget({
     id: slot.sourceShiftId ?? slot.key,
     area: slot.area,
-    workerType: slot.workerType,
+    workerType: workerTypeOverride ?? slot.workerType,
     startsAt: new Date(slot.startsAt),
     endsAt: new Date(slot.endsAt),
     callStartsAt: slot.callStartsAt ? new Date(slot.callStartsAt) : null,
@@ -233,6 +237,61 @@ export async function mutateWorkingSchedule(
     const beforePayload = group.workingCopy
       ? parseStoredPayload(group.workingCopy.payload)
       : buildWorkingSchedulePayload(group);
+
+    if (command.type === "convertAndReplace") {
+      const slot = beforePayload.slots.find((candidate) => candidate.key === command.slotKey);
+      if (!slot) throw new HttpError(404, "Working slot not found");
+      if (!slot.assignment) throw new HttpError(409, "This slot is not assigned");
+      if (slot.workerType === command.workerType) {
+        throw new HttpError(400, "Choose the other worker class when converting this slot.");
+      }
+      if (slot.assignment.activeTradeId) {
+        throw new HttpError(409, "Cancel the active trade before replacing this person.");
+      }
+      if ((slot.assignment.bookingCount ?? 0) > 0) {
+        throw new HttpError(409, "Unlink the assignment's booking before replacing this person.");
+      }
+      const replacement = await tx.user.findUnique({
+        where: { id: command.userId },
+        select: {
+          id: true,
+          active: true,
+          staffingType: true,
+          availabilityBlocks: {
+            select: {
+              kind: true,
+              intent: true,
+              status: true,
+              dayOfWeek: true,
+              date: true,
+              startsAt: true,
+              endsAt: true,
+              label: true,
+              semesterLabel: true,
+              semesterStartsOn: true,
+              semesterEndsOn: true,
+            },
+          },
+        },
+      });
+      if (!replacement) throw new HttpError(404, "User not found");
+      if (!replacement.active) throw new HttpError(400, "Cannot assign an inactive user");
+      if (replacement.staffingType !== command.workerType) {
+        throw new HttpError(409, `Choose a ${command.workerType === "FT" ? "Staff" : "Student"} worker for this slot.`);
+      }
+      if (beforePayload.slots.some((candidate) =>
+        candidate.key !== slot.key && candidate.assignment?.userId === replacement.id,
+      )) {
+        throw new HttpError(409, "This person is already assigned within this event draft.");
+      }
+      const startsAt = new Date(slot.callStartsAt ?? slot.startsAt);
+      const endsAt = new Date(slot.callEndsAt ?? slot.endsAt);
+      await checkTimeConflict(tx, replacement.id, startsAt, endsAt);
+      if (command.workerType === "ST") {
+        const availability = evaluateAvailabilityPreferences(replacement.availabilityBlocks, { startsAt, endsAt });
+        if (availability.blocking) throw new HttpError(409, availability.blocking.note);
+      }
+    }
 
     if (command.type === "assign") {
       const slot = beforePayload.slots.find((candidate) => candidate.key === command.slotKey);
@@ -286,6 +345,18 @@ export async function mutateWorkingSchedule(
       }
       if ((slot.assignment?.bookingCount ?? 0) > 0) {
         throw new HttpError(409, "Unlink the assignment's booking before unassigning this person.");
+      }
+    }
+    if (command.type === "adjustSlots" && command.delta === 1) {
+      if (Boolean(command.callStartsAt) !== Boolean(command.callEndsAt)) {
+        throw new HttpError(400, "Call start and release time must both be set or both be cleared.");
+      }
+      if (
+        command.callStartsAt
+        && command.callEndsAt
+        && new Date(command.callEndsAt) <= new Date(command.callStartsAt)
+      ) {
+        throw new HttpError(400, "Release time must be after call time.");
       }
     }
     if (command.type === "setCallWindow") {
@@ -347,6 +418,15 @@ export async function mutateWorkingSchedule(
       }
       if (error instanceof Error && error.message === "UNASSIGN_BEFORE_CONVERTING") {
         throw new HttpError(409, "Unassign this person before converting the slot.");
+      }
+      if (error instanceof Error && error.message === "CONVERT_AND_REPLACE_REQUIRES_CONVERSION") {
+        throw new HttpError(400, "Choose the other worker class when converting this slot.");
+      }
+      if (error instanceof Error && error.message === "CANCEL_TRADE_BEFORE_REPLACING") {
+        throw new HttpError(409, "Cancel the active trade before replacing this person.");
+      }
+      if (error instanceof Error && error.message === "UNLINK_BOOKING_BEFORE_REPLACING") {
+        throw new HttpError(409, "Unlink the assignment's booking before replacing this person.");
       }
       if (error instanceof Error && error.message === "WORKING_SLOT_NOT_FOUND") {
         throw new HttpError(404, "Working slot not found");

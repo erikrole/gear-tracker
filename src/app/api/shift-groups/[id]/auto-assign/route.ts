@@ -4,6 +4,7 @@ import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { autoAssignShiftGroup } from "@/lib/services/auto-assign";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { assertNoWorkingCopy } from "@/lib/schedule-working-copy-guard";
 
 export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
   requirePermission(user.role, "shift", "manage");
@@ -12,9 +13,10 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
 
   const group = await db.shiftGroup.findUnique({
     where: { id },
-    select: { id: true },
+    select: { id: true, workingCopy: { select: { version: true } } },
   });
   if (!group) throw new HttpError(404, "Shift group not found");
+  assertNoWorkingCopy(group.workingCopy);
 
   const result = await autoAssignShiftGroup(id, user.id);
   return ok({ data: result });

@@ -93,5 +93,6 @@ describe("schedule assign source wiring", () => {
     expect(publishRoute).toContain("createPublishedShiftGroupNotifications(params.id)");
     expect(publishRoute).toContain("notifyPublishedShiftGroupWorkers(params.id, result.affectedUserIds)");
     expect(publishRoute).toContain("if (!result.before.publishedAt)");
+    expect(publishRoute).toContain("after(() => createPublishedShiftGroupNotifications(params.id)");
   });
 });

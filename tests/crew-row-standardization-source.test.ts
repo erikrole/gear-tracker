@@ -48,10 +48,12 @@ describe("crew row standardization", () => {
     expect(eventCrew).not.toContain("const studentTable = (");
     expect(eventCrew).toContain("{crewTable}");
 
-    // Editing is gated on role; reading is not.
-    expect(eventCrew).toContain("const rowCallTarget = !isStaffOrAdmin");
-    expect(eventCrew).toContain("action={isStaffOrAdmin ? (");
-    expect(eventCrew).toContain("{isStaffOrAdmin\n                      ? renderRowActions(shift, activeAssignment)");
+    // Editing is gated on role and the absence of a private working copy;
+    // reading is not.
+    expect(eventCrew).toContain("const canEditPublishedSchedule = isStaffOrAdmin && !shiftGroup.hasWorkingCopy");
+    expect(eventCrew).toContain("const rowCallTarget = !canEditPublishedSchedule");
+    expect(eventCrew).toContain("action={canEditPublishedSchedule ? (");
+    expect(eventCrew).toContain("{canEditPublishedSchedule\n                      ? renderRowActions(shift, activeAssignment)");
     expect(eventCrew).toContain("Acknowledge");
   });
 

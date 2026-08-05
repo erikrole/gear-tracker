@@ -1,4 +1,5 @@
 import { withAuth } from "@/lib/api";
+import { after } from "next/server";
 import { ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { updateSportConfigGroupSchema } from "@/lib/validation";
@@ -6,6 +7,8 @@ import { upsertSportConfigsForGroup } from "@/lib/services/sport-configs";
 import { createAuditEntry } from "@/lib/audit";
 import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 import { rebaseUpcomingShiftsForSportCodes } from "@/lib/services/shift-generation";
+import { syncCurrentSportCallTimes } from "@/lib/services/schedule-call-time-sync";
+import { notifyPublishedScheduleFollowers, notifyPublishedShiftGroupWorkers } from "@/lib/services/notifications";
 
 /**
  * POST /api/sport-configs/group
@@ -42,14 +45,39 @@ export const POST = withAuth(async (req, { user }) => {
     }
   }
 
+  let callTimes = null;
+  let callTimesFailed = false;
+  const hasCallTimeChange = body.shiftStartOffset !== undefined || body.shiftEndOffset !== undefined;
+  if (hasCallTimeChange) {
+    try {
+      callTimes = await syncCurrentSportCallTimes(body.codes, { actor: user });
+    } catch (error) {
+      callTimesFailed = true;
+      console.error("Current schedule call-time synchronization failed after sport defaults were saved", error);
+    }
+  }
+
+  if (callTimes?.publishedChanges.length) {
+    after(() => Promise.allSettled(callTimes!.publishedChanges.flatMap((change) => [
+      notifyPublishedShiftGroupWorkers(change.shiftGroupId, change.affectedUserIds),
+      notifyPublishedScheduleFollowers(change.shiftGroupId),
+    ])).then((results) => {
+      for (const result of results) {
+        if (result.status === "rejected") {
+          console.error("Published schedule call-time notification failed", result.reason);
+        }
+      }
+    }));
+  }
+
   await createAuditEntry({
     actorId: user.id,
     actorRole: user.role,
     entityType: "sport_config",
     entityId: body.codes.join(","),
     action: "sport_config_group_updated",
-    after: { ...body, rebase, rebaseFailed },
+    after: { ...body, rebase, rebaseFailed, callTimes, callTimesFailed },
   });
 
-  return ok({ data: updated, rebase, rebaseFailed });
+  return ok({ data: updated, rebase, rebaseFailed, callTimes, callTimesFailed });
 });

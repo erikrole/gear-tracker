@@ -1,6 +1,7 @@
 import { Role, ShiftArea, ShiftAssignmentStatus, ShiftWorkerType } from "@prisma/client";
 import { createAuditEntry } from "@/lib/audit";
 import { db } from "@/lib/db";
+import { sportDefaultShiftWindow } from "@/lib/schedule-defaults";
 import { HttpError } from "@/lib/http";
 import type { CandidateRecommendation } from "@/lib/candidate-scoring-types";
 import type {
@@ -90,6 +91,7 @@ async function loadTargetGroup(shiftGroupId: string) {
           summary: true,
           sportCode: true,
           isHome: true,
+          allDay: true,
           sourceId: true,
           locationId: true,
           startsAt: true,
@@ -249,8 +251,9 @@ function buildTemplateDrift(group: LoadedTargetGroup, sportConfig: Awaited<Retur
   const expectedCounts = new Map<string, { area: ShiftArea; workerType: ShiftWorkerType; expected: number }>();
   const currentCounts = new Map<string, number>();
   const isHome = group.event.isHome ?? true;
-  const startsAt = new Date(group.event.startsAt.getTime() - sportConfig.shiftStartOffset * 60_000);
-  const endsAt = new Date(group.event.endsAt.getTime() + sportConfig.shiftEndOffset * 60_000);
+  const defaultWindow = sportDefaultShiftWindow(group.event, sportConfig);
+  const startsAt = defaultWindow.startsAt;
+  const endsAt = defaultWindow.endsAt;
 
   for (const config of sportConfig.shiftConfigs) {
     const counts = templateCounts(config, isHome);

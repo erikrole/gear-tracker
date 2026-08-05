@@ -51,6 +51,7 @@
 - **Custody is allocation truth**: For numbered batteries, active `BookingBulkUnitAllocation` rows determine holder, booking, due date, and checked-out state. A stale raw unit flag is not custody proof.
 - **Quantity intent is not physical custody**: Booking quantity rows express intent; kiosk scans bind exact physical units.
 - **All-day values are dates**: Normalize and group by encoded display dates in the app timezone. Never group by a raw UTC instant or use server-local `setHours(0, 0, 0, 0)` for institutional day boundaries.
+- **Effective overrides can hide stale fallbacks**: When a settings-owned call window changes, reconcile the stored shift fallback even if a slot or assignment override currently makes the effective worker window match. Preserve the override fields, update active working-copy payloads, and verify both fallback and effective drift.
 - **Read-then-write is a race**: Re-read inside a transaction or use an atomic conditional write. Use `deleteMany` plus `count` when deletion must enforce a condition.
 - **Read-only parallel queries can degrade independently**: Prefer `Promise.allSettled` for dashboard summaries where one optional query should not blank the whole response.
 - **Scanner input is a transport boundary**: Trim, normalize legacy prefixes/wrappers/control bytes, tolerate suffix differences, and deduplicate rapid repeats.

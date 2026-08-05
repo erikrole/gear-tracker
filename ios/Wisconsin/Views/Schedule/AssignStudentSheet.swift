@@ -4,13 +4,45 @@ import SwiftUI
 /// advisory presentation; the assignment API remains authoritative.
 struct AssignStudentSheet: View {
     let shiftId: String
+    let workingCopyShiftGroupId: String?
+    let expectedWorkingVersion: Int?
     let shiftArea: String
     let shiftWorkerType: String
     let shiftStartsAt: Date
     let shiftEndsAt: Date
     let eventTitle: String
     let sportCode: String?
+    let replacementWorkerType: String?
+    let replacingUserName: String?
     let onAssigned: () -> Void
+
+    init(
+        shiftId: String,
+        workingCopyShiftGroupId: String? = nil,
+        expectedWorkingVersion: Int? = nil,
+        shiftArea: String,
+        shiftWorkerType: String,
+        shiftStartsAt: Date,
+        shiftEndsAt: Date,
+        eventTitle: String,
+        sportCode: String?,
+        replacementWorkerType: String? = nil,
+        replacingUserName: String? = nil,
+        onAssigned: @escaping () -> Void
+    ) {
+        self.shiftId = shiftId
+        self.workingCopyShiftGroupId = workingCopyShiftGroupId
+        self.expectedWorkingVersion = expectedWorkingVersion
+        self.shiftArea = shiftArea
+        self.shiftWorkerType = shiftWorkerType
+        self.shiftStartsAt = shiftStartsAt
+        self.shiftEndsAt = shiftEndsAt
+        self.eventTitle = eventTitle
+        self.sportCode = sportCode
+        self.replacementWorkerType = replacementWorkerType
+        self.replacingUserName = replacingUserName
+        self.onAssigned = onAssigned
+    }
 
     @Environment(\.dismiss) private var dismiss
     @State private var users: [AppUser] = []
@@ -29,8 +61,18 @@ struct AssignStudentSheet: View {
     @State private var searchTask: Task<Void, Never>?
     private let pageSize = 50
 
+    private var targetWorkerType: String { replacementWorkerType ?? shiftWorkerType }
+
+    private func workerType(for user: AppUser) -> String {
+        user.staffingType ?? (user.role == "STUDENT" ? "ST" : "FT")
+    }
+
+    private var eligibleUsers: [AppUser] {
+        users.filter { workerType(for: $0) == targetWorkerType }
+    }
+
     private var rankedUsers: [AppUser] {
-        users.sorted { lhs, rhs in
+        eligibleUsers.sorted { lhs, rhs in
             let lhsScore = recommendations[lhs.id]?.score ?? 0
             let rhsScore = recommendations[rhs.id]?.score ?? 0
             if lhsScore != rhsScore { return lhsScore > rhsScore }
@@ -82,7 +124,7 @@ struct AssignStudentSheet: View {
                 }
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("Assign Person")
+            .navigationTitle(replacingUserName == nil ? "Assign Person" : "Replace Person")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -129,7 +171,7 @@ struct AssignStudentSheet: View {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(Color.statusText(.red))
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(retryUser.map { "Couldn't assign \($0.name)" } ?? "Couldn't assign person")
+                            Text(retryUser.map { replacingUserName == nil ? "Couldn't assign \($0.name)" : "Couldn't replace with \($0.name)" } ?? "Couldn't assign person")
                                 .font(.subheadline.weight(.semibold))
                             Text(assignError)
                                 .font(.caption)
@@ -190,7 +232,7 @@ struct AssignStudentSheet: View {
                 Text(eventTitle)
                     .font(.headline)
                     .lineLimit(2)
-                Text("\(workerTypeLabel) · \(shiftArea.shiftAreaLabel)")
+                Text(contextLabel)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color.statusText(.purple))
                 Text(callWindowText)
@@ -225,7 +267,14 @@ struct AssignStudentSheet: View {
     }
 
     private var workerTypeLabel: String {
-        shiftWorkerType == "FT" ? "Staff slot" : "Student slot"
+        targetWorkerType == "FT" ? "Staff slot" : "Student slot"
+    }
+
+    private var contextLabel: String {
+        if let replacingUserName {
+            return "Replace \(replacingUserName) · \(workerTypeLabel) · \(shiftArea.shiftAreaLabel)"
+        }
+        return "\(workerTypeLabel) · \(shiftArea.shiftAreaLabel)"
     }
 
     private var callWindowText: String {
@@ -240,7 +289,10 @@ struct AssignStudentSheet: View {
     }
 
     private var confirmationTitle: String {
-        confirmationUser.map { "Assign \($0.name)?" } ?? "Assign person?"
+        if let user = confirmationUser, let replacingUserName {
+            return "Replace \(replacingUserName) with \(user.name)?"
+        }
+        return confirmationUser.map { "Assign \($0.name)?" } ?? "Assign person?"
     }
 
     private var confirmationMessage: String {
@@ -267,12 +319,23 @@ struct AssignStudentSheet: View {
         loadError = nil
         scoresLoading = true
 
-        async let scoresTask = try? APIClient.shared.shiftCandidateScores(shiftId: shiftId)
-        async let conflictsTask = APIClient.shared.shiftConflicts(shiftId: shiftId)
+        let loadedRecommendations: [CandidateRecommendation]
+        let fallbackConflicts: [String: String]
+        if let workingCopyShiftGroupId {
+            loadedRecommendations = (try? await APIClient.shared.workingScheduleCandidateScores(
+                shiftGroupId: workingCopyShiftGroupId,
+                slotKey: shiftId,
+                workerType: targetWorkerType
+            )) ?? []
+            fallbackConflicts = [:]
+        } else {
+            async let scoresTask = try? APIClient.shared.shiftCandidateScores(shiftId: shiftId)
+            async let conflictsTask = APIClient.shared.shiftConflicts(shiftId: shiftId)
+            loadedRecommendations = (await scoresTask) ?? []
+            fallbackConflicts = await conflictsTask
+        }
         await loadPage(reset: true)
 
-        let loadedRecommendations = (await scoresTask) ?? []
-        let fallbackConflicts = await conflictsTask
         recommendations = Dictionary(uniqueKeysWithValues: loadedRecommendations.map { ($0.userId, $0) })
         conflicts = fallbackConflicts.merging(
             Dictionary(uniqueKeysWithValues: loadedRecommendations.compactMap { item in
@@ -324,8 +387,29 @@ struct AssignStudentSheet: View {
         assignError = nil
         retryUser = nil
         defer { assigningUserId = nil }
+        guard let workingCopyShiftGroupId, let expectedWorkingVersion else {
+            retryUser = user
+            assignError = "Crew is unavailable. Refresh and try again."
+            Haptics.warning()
+            return
+        }
         do {
-            try await APIClient.shared.assignShift(shiftId: shiftId, userId: user.id)
+            if let replacementWorkerType {
+                _ = try await APIClient.shared.convertAndReplaceWorkingScheduleSlot(
+                    shiftGroupId: workingCopyShiftGroupId,
+                    expectedVersion: expectedWorkingVersion,
+                    slotKey: shiftId,
+                    workerType: replacementWorkerType,
+                    userId: user.id
+                )
+            } else {
+                _ = try await APIClient.shared.assignWorkingScheduleSlot(
+                    shiftGroupId: workingCopyShiftGroupId,
+                    expectedVersion: expectedWorkingVersion,
+                    slotKey: shiftId,
+                    userId: user.id
+                )
+            }
             Haptics.success()
             onAssigned()
             dismiss()

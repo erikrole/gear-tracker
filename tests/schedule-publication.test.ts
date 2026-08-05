@@ -13,6 +13,8 @@ vi.mock("@/lib/db", () => {
       findUnique: vi.fn(),
       findMany: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
+      create: vi.fn(),
     },
     shift: {
       update: vi.fn(),
@@ -56,6 +58,8 @@ const mockTx = (db as typeof db & {
       findUnique: ReturnType<typeof vi.fn>;
       findMany: ReturnType<typeof vi.fn>;
       update: ReturnType<typeof vi.fn>;
+      updateMany: ReturnType<typeof vi.fn>;
+      create: ReturnType<typeof vi.fn>;
     };
     shift: {
       update: ReturnType<typeof vi.fn>;
@@ -197,6 +201,29 @@ describe("publishShiftGroup", () => {
     expect(result.after.status).toBe("published");
   });
 
+  it("retries one serialization conflict before returning a publish result", async () => {
+    const group = {
+      id: "group-1",
+      publishedAt: null,
+      publishedById: null,
+      lastPublishedSnapshot: null,
+      shifts: [shift()],
+    };
+    mockTx.shiftGroup.findUnique.mockResolvedValue(group);
+    mockTx.shiftGroup.update.mockImplementation(async ({ data }) => ({
+      ...group,
+      publishedAt: data.publishedAt,
+      publishedById: data.publishedById,
+      lastPublishedSnapshot: data.lastPublishedSnapshot,
+    }));
+    vi.mocked(db.$transaction).mockRejectedValueOnce({ code: "P2034" });
+
+    const result = await publishShiftGroup("group-1", "staff-1");
+
+    expect(vi.mocked(db.$transaction)).toHaveBeenCalledTimes(2);
+    expect(result.after.status).toBe("published");
+  });
+
   it("reconciles an empty working slot and removes the draft in the publish transaction", async () => {
     const currentShift = {
       ...shift(),
@@ -271,7 +298,7 @@ describe("publishShiftGroup", () => {
     expect(result.workingVersion).toBe(2);
   });
 
-  it("revalidates an assigned call-window change and resets acknowledgement on publish", async () => {
+  it("revalidates and persists an assigned personal call-window change on publish", async () => {
     const currentAssignment = {
       id: "assignment-1",
       userId: "user-1",
@@ -295,13 +322,122 @@ describe("publishShiftGroup", () => {
       workerType: "ST",
       startsAt: "2026-10-06T18:00:00.000Z",
       endsAt: "2026-10-06T21:00:00.000Z",
-      callStartsAt: "2026-10-06T17:00:00.000Z",
-      callEndsAt: "2026-10-06T22:00:00.000Z",
+      callStartsAt: null,
+      callEndsAt: null,
       notes: null,
       assignmentHistoryCount: 1,
       assignment: {
         sourceAssignmentId: "assignment-1",
         userId: "user-1",
+        status: "DIRECT_ASSIGNED",
+        callStartsAt: "2026-10-06T17:00:00.000Z",
+        callEndsAt: "2026-10-06T22:00:00.000Z",
+        callNote: null,
+        activeTradeId: null,
+        bookingCount: 0,
+      },
+    };
+    const group = {
+      id: "group-1",
+      publishedAt: new Date("2026-10-01T12:00:00.000Z"),
+      publishedById: "staff-1",
+      publishedVersion: 1,
+      lastPublishedSnapshot: buildSchedulePublicationSnapshot({ shifts: [currentShift] }),
+      workingCopy: {
+        version: 2,
+        basePublishedVersion: 1,
+        payload: {
+          eventStartsAt: "2026-10-06T18:00:00.000Z",
+          eventEndsAt: "2026-10-06T21:00:00.000Z",
+          slots: [workingSlot],
+        },
+      },
+      shifts: [currentShift],
+    };
+    const updatedShift = {
+      ...currentShift,
+      assignments: [{
+        ...currentAssignment,
+        callStartsAt: new Date(workingSlot.assignment.callStartsAt),
+        callEndsAt: new Date(workingSlot.assignment.callEndsAt),
+        acknowledgedAt: null,
+      }],
+    };
+    mockTx.shiftGroup.findUnique
+      .mockResolvedValueOnce(group)
+      .mockResolvedValueOnce({ ...group, shifts: [updatedShift] });
+    mockTx.user.findMany.mockResolvedValue([{
+      id: "user-1",
+      active: true,
+      staffingType: "ST",
+      availabilityBlocks: [],
+    }]);
+    mockTx.shift.update.mockResolvedValue({ id: "shift-1" });
+    mockTx.shiftAssignment.update.mockResolvedValue({ id: "assignment-1" });
+    mockTx.shiftGroupWorkingCopy.deleteMany.mockResolvedValue({ count: 1 });
+    mockTx.shiftGroup.update.mockImplementation(async ({ data }) => ({
+      ...group,
+      shifts: [updatedShift],
+      publishedAt: data.publishedAt ?? group.publishedAt,
+      publishedById: data.publishedById ?? group.publishedById,
+      lastPublishedSnapshot: data.lastPublishedSnapshot ?? group.lastPublishedSnapshot,
+    }));
+
+    const result = await publishShiftGroup("group-1", "staff-1", 2);
+
+    expect(mockTx.shiftAssignment.update).toHaveBeenCalledWith({
+      where: { id: "assignment-1" },
+      data: {
+        callStartsAt: new Date("2026-10-06T17:00:00.000Z"),
+        callEndsAt: new Date("2026-10-06T22:00:00.000Z"),
+        callNote: null,
+        acknowledgedAt: null,
+        acknowledgedById: null,
+      },
+    });
+    expect(result.affectedUserIds).toEqual(["user-1"]);
+  });
+
+  it("publishes an explicit assigned-slot conversion by declining the old assignment and creating the replacement", async () => {
+    const currentAssignment = {
+      id: "assignment-1",
+      userId: "user-1",
+      status: "DIRECT_ASSIGNED",
+      callStartsAt: null,
+      callEndsAt: null,
+      callNote: null,
+      acknowledgedAt: new Date("2026-10-01T12:05:00.000Z"),
+      trades: [],
+      _count: { bookings: 0 },
+    };
+    const currentShift = {
+      ...shift({ assignments: [currentAssignment] }),
+      notes: null,
+      _count: { assignments: 1 },
+    };
+    const replacementAssignment = {
+      id: "assignment-2",
+      userId: "user-2",
+      status: "DIRECT_ASSIGNED",
+      callStartsAt: null,
+      callEndsAt: null,
+      callNote: null,
+      acknowledgedAt: null,
+    };
+    const workingSlot = {
+      key: "shift-1",
+      sourceShiftId: "shift-1",
+      area: "VIDEO",
+      workerType: "FT",
+      startsAt: "2026-10-06T18:00:00.000Z",
+      endsAt: "2026-10-06T21:00:00.000Z",
+      callStartsAt: null,
+      callEndsAt: null,
+      notes: null,
+      assignmentHistoryCount: 1,
+      assignment: {
+        sourceAssignmentId: null,
+        userId: "user-2",
         status: "DIRECT_ASSIGNED",
         callStartsAt: null,
         callEndsAt: null,
@@ -329,21 +465,21 @@ describe("publishShiftGroup", () => {
     };
     const updatedShift = {
       ...currentShift,
-      callStartsAt: new Date(workingSlot.callStartsAt),
-      callEndsAt: new Date(workingSlot.callEndsAt),
-      assignments: [{ ...currentAssignment, acknowledgedAt: null }],
+      workerType: "FT",
+      assignments: [replacementAssignment],
     };
     mockTx.shiftGroup.findUnique
       .mockResolvedValueOnce(group)
       .mockResolvedValueOnce({ ...group, shifts: [updatedShift] });
     mockTx.user.findMany.mockResolvedValue([{
-      id: "user-1",
+      id: "user-2",
       active: true,
-      staffingType: "ST",
+      staffingType: "FT",
       availabilityBlocks: [],
     }]);
     mockTx.shift.update.mockResolvedValue({ id: "shift-1" });
     mockTx.shiftAssignment.update.mockResolvedValue({ id: "assignment-1" });
+    mockTx.shiftAssignment.create.mockResolvedValue({ id: "assignment-2" });
     mockTx.shiftGroupWorkingCopy.deleteMany.mockResolvedValue({ count: 1 });
     mockTx.shiftGroup.update.mockImplementation(async ({ data }) => ({
       ...group,
@@ -353,19 +489,114 @@ describe("publishShiftGroup", () => {
       lastPublishedSnapshot: data.lastPublishedSnapshot ?? group.lastPublishedSnapshot,
     }));
 
-    const result = await publishShiftGroup("group-1", "staff-1", 2);
+    await publishShiftGroup("group-1", "staff-1", 2);
 
-    expect(mockTx.shift.update).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: "shift-1" },
-      data: expect.objectContaining({
-        callStartsAt: new Date("2026-10-06T17:00:00.000Z"),
-        callEndsAt: new Date("2026-10-06T22:00:00.000Z"),
-      }),
-    }));
     expect(mockTx.shiftAssignment.update).toHaveBeenCalledWith({
       where: { id: "assignment-1" },
-      data: { acknowledgedAt: null, acknowledgedById: null },
+      data: {
+        status: "DECLINED",
+        acknowledgedAt: null,
+        acknowledgedById: null,
+      },
     });
+    expect(mockTx.shiftAssignment.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        shiftId: "shift-1",
+        userId: "user-2",
+        status: "DIRECT_ASSIGNED",
+        assignedBy: "staff-1",
+      }),
+    });
+  });
+
+  it("publishes an assigned draft-only slot after creating its relational shift", async () => {
+    const currentShift = {
+      ...shift({ assignments: [] }),
+      notes: null,
+      _count: { assignments: 0 },
+    };
+    const group = {
+      id: "group-1",
+      publishedAt: new Date("2026-10-01T12:00:00.000Z"),
+      publishedById: "staff-1",
+      publishedVersion: 1,
+      lastPublishedSnapshot: buildSchedulePublicationSnapshot({ shifts: [currentShift] }),
+      workingCopy: {
+        version: 2,
+        basePublishedVersion: 1,
+        payload: {
+          eventStartsAt: "2026-10-06T18:00:00.000Z",
+          eventEndsAt: "2026-10-06T21:00:00.000Z",
+          slots: [{
+            key: "shift-1",
+            sourceShiftId: "shift-1",
+            area: "VIDEO",
+            workerType: "ST",
+            startsAt: "2026-10-06T18:00:00.000Z",
+            endsAt: "2026-10-06T21:00:00.000Z",
+            callStartsAt: null,
+            callEndsAt: null,
+            notes: null,
+            assignmentHistoryCount: 0,
+            assignment: null,
+          }, {
+            key: "draft:assigned",
+            sourceShiftId: null,
+            area: "PHOTO",
+            workerType: "FT",
+            startsAt: "2026-10-06T18:00:00.000Z",
+            endsAt: "2026-10-06T21:00:00.000Z",
+            callStartsAt: null,
+            callEndsAt: null,
+            notes: null,
+            assignmentHistoryCount: 0,
+            assignment: {
+              sourceAssignmentId: null,
+              userId: "user-1",
+              status: "DIRECT_ASSIGNED",
+              callStartsAt: null,
+              callEndsAt: null,
+              callNote: "Bring the wireless kit",
+              activeTradeId: null,
+              bookingCount: 0,
+            },
+          }],
+        },
+      },
+      shifts: [currentShift],
+    };
+    mockTx.shiftGroup.findUnique
+      .mockResolvedValueOnce(group)
+      .mockResolvedValueOnce(group);
+    mockTx.shift.create.mockResolvedValue({ id: "shift-new" });
+    mockTx.shiftAssignment.updateMany.mockResolvedValue({ count: 0 });
+    mockTx.shiftAssignment.create.mockResolvedValue({ id: "assignment-new" });
+    mockTx.user.findMany.mockResolvedValue([{
+      id: "user-1",
+      active: true,
+      staffingType: "FT",
+      availabilityBlocks: [],
+    }]);
+    mockTx.shiftGroupWorkingCopy.deleteMany.mockResolvedValue({ count: 1 });
+    mockTx.shiftGroup.update.mockImplementation(async ({ data }) => ({
+      ...group,
+      publishedAt: data.publishedAt ?? group.publishedAt,
+      publishedById: data.publishedById ?? group.publishedById,
+      lastPublishedSnapshot: data.lastPublishedSnapshot ?? group.lastPublishedSnapshot,
+    }));
+
+    const result = await publishShiftGroup("group-1", "staff-1", 2);
+
+    expect(mockTx.shift.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ area: "PHOTO", workerType: "FT" }),
+    }));
+    expect(mockTx.shiftAssignment.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        shiftId: "shift-new",
+        userId: "user-1",
+        callNote: "Bring the wireless kit",
+      }),
+    }));
     expect(result.affectedUserIds).toEqual(["user-1"]);
   });
 });

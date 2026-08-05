@@ -122,7 +122,7 @@ describe("schedule source-of-truth and browser smoke contracts", () => {
     // rowCallTarget and read-only for everyone else.
     expect(eventCrew.match(/<CallWindowEditor/g)?.length).toBe(1);
     expect(eventCrew).toContain('variant="bare"');
-    expect(eventCrew).toContain("const rowCallTarget = !isStaffOrAdmin");
+    expect(eventCrew).toContain("const rowCallTarget = !canEditPublishedSchedule");
 
     expect(eventCrew).not.toContain("CrewTemplateReviewButton");
     expect(shiftPanel).not.toContain("CrewTemplateReviewButton");

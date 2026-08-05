@@ -1,5 +1,6 @@
 import { Prisma, ShiftArea, ShiftWorkerType } from "@prisma/client";
 import { db } from "@/lib/db";
+import { sportDefaultShiftWindow } from "@/lib/schedule-defaults";
 
 const WRITE_CHUNK_SIZE = 500;
 
@@ -96,13 +97,14 @@ export async function generateShiftsForEvent(eventId: string): Promise<{
   const isHome = event.isHome;
 
   const shiftsData: Omit<ShiftToCreate, "shiftGroupId">[] = [];
+  const defaultWindow = sportDefaultShiftWindow(event, sportConfig);
   for (const sc of sportConfig.shiftConfigs) {
     addTemplateShifts(
       shiftsData,
       sc,
       isHome,
-      new Date(event.startsAt.getTime() - sportConfig.shiftStartOffset * 60_000),
-      new Date(event.endsAt.getTime() + sportConfig.shiftEndOffset * 60_000),
+      defaultWindow.startsAt,
+      defaultWindow.endsAt,
     );
   }
 
@@ -184,6 +186,7 @@ export async function generateShiftsForEvents(opts: {
       id: true,
       sportCode: true,
       isHome: true,
+      allDay: true,
       startsAt: true,
       endsAt: true,
     },
@@ -224,8 +227,9 @@ export async function generateShiftsForEvents(opts: {
     const isHome = event.isHome;
 
     let hasShifts = false;
-    const shiftStart = new Date(event.startsAt.getTime() - config.shiftStartOffset * 60_000);
-    const shiftEnd = new Date(event.endsAt.getTime() + config.shiftEndOffset * 60_000);
+    const defaultWindow = sportDefaultShiftWindow(event, config);
+    const shiftStart = defaultWindow.startsAt;
+    const shiftEnd = defaultWindow.endsAt;
     for (const sc of config.shiftConfigs) {
       const counts = sportTemplateCounts(sc, isHome);
       for (const workerType of ["FT", "ST"] as const) {
@@ -373,8 +377,7 @@ export async function regenerateShiftsForEvent(eventId: string): Promise<{
           shiftGroupId: event.shiftGroup.id,
           area: sc.area,
           workerType,
-          startsAt: new Date(event.startsAt.getTime() - sportConfig.shiftStartOffset * 60_000),
-          endsAt: new Date(event.endsAt.getTime() + sportConfig.shiftEndOffset * 60_000),
+          ...sportDefaultShiftWindow(event, sportConfig),
           templateManaged: true,
         });
       }
@@ -434,6 +437,7 @@ export async function rebaseUpcomingShiftsForSportCodes(
           id: true,
           sportCode: true,
           isHome: true,
+          allDay: true,
           startsAt: true,
           endsAt: true,
           shiftGroup: {
@@ -495,8 +499,9 @@ export async function rebaseUpcomingShiftsForSportCodes(
         continue;
       }
 
-      const startsAt = new Date(event.startsAt.getTime() - config.shiftStartOffset * 60_000);
-      const endsAt = new Date(event.endsAt.getTime() + config.shiftEndOffset * 60_000);
+      const defaultWindow = sportDefaultShiftWindow(event, config);
+      const startsAt = defaultWindow.startsAt;
+      const endsAt = defaultWindow.endsAt;
       const targets = new Map<string, { area: ShiftArea; workerType: ShiftWorkerType; count: number }>();
       for (const row of config.shiftConfigs) {
         const counts = sportTemplateCounts(row, event.isHome);

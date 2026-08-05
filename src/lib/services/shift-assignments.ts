@@ -5,6 +5,7 @@ import { normalizeAllDayToUtcMidnight } from "@/lib/app-time";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
 import { evaluateAvailabilityPreferences } from "@/lib/student-availability";
+import { assertNoWorkingCopy } from "@/lib/schedule-working-copy-guard";
 
 export type RoleSlotOutcome = {
   requestedShiftId: string;
@@ -36,6 +37,7 @@ const assignableShiftSelect = {
           allDay: true,
         },
       },
+      workingCopy: { select: { version: true } },
     },
   },
 } satisfies Prisma.ShiftSelect;
@@ -247,6 +249,7 @@ export async function directAssignShiftWithOutcome(
   return db.$transaction(async (tx) => {
     const shift = await tx.shift.findUnique({ where: { id: shiftId }, select: assignableShiftSelect });
     if (!shift) throw new HttpError(404, "Shift not found");
+    assertNoWorkingCopy(shift.shiftGroup?.workingCopy);
     const assignee = await tx.user.findUnique({
       where: { id: userId },
       select: {
@@ -339,6 +342,7 @@ export async function repairRoleSlotMismatch(assignmentId: string) {
       },
     });
     if (!assignment) throw new HttpError(404, "Assignment not found");
+    assertNoWorkingCopy(assignment.shift.shiftGroup?.workingCopy);
     if (!(ACTIVE_ASSIGNMENT_STATUSES as readonly ShiftAssignmentStatus[]).includes(assignment.status)) {
       throw new HttpError(400, "Only active assignments can be repaired");
     }
@@ -436,6 +440,7 @@ export async function approveRequest(assignmentId: string) {
       },
     });
     if (!assignment) throw new HttpError(404, "Assignment not found");
+    assertNoWorkingCopy(assignment.shift.shiftGroup?.workingCopy);
     if (assignment.status !== "REQUESTED") {
       throw new HttpError(400, "Only REQUESTED assignments can be approved");
     }
@@ -488,8 +493,12 @@ export async function approveRequest(assignmentId: string) {
  */
 export async function declineRequest(assignmentId: string) {
   return db.$transaction(async (tx) => {
-    const assignment = await tx.shiftAssignment.findUnique({ where: { id: assignmentId } });
+    const assignment = await tx.shiftAssignment.findUnique({
+      where: { id: assignmentId },
+      include: { shift: { select: { shiftGroup: { select: { workingCopy: { select: { version: true } } } } } } },
+    });
     if (!assignment) throw new HttpError(404, "Assignment not found");
+    assertNoWorkingCopy(assignment.shift?.shiftGroup?.workingCopy);
     if (assignment.status !== "REQUESTED") {
       throw new HttpError(400, "Only REQUESTED assignments can be declined");
     }
@@ -515,6 +524,7 @@ export async function initiateSwap(
       include: { shift: { select: assignableShiftSelect } },
     });
     if (!assignment) throw new HttpError(404, "Assignment not found");
+    assertNoWorkingCopy(assignment.shift.shiftGroup?.workingCopy);
     if (!(ACTIVE_ASSIGNMENT_STATUSES as readonly string[]).includes(assignment.status)) {
       throw new HttpError(400, "Only active assignments can be swapped");
     }
@@ -603,8 +613,12 @@ export async function removeAssignment(assignmentId: string) {
   ];
 
   return db.$transaction(async (tx) => {
-    const assignment = await tx.shiftAssignment.findUnique({ where: { id: assignmentId } });
+    const assignment = await tx.shiftAssignment.findUnique({
+      where: { id: assignmentId },
+      include: { shift: { select: { shiftGroup: { select: { workingCopy: { select: { version: true } } } } } } },
+    });
     if (!assignment) throw new HttpError(404, "Assignment not found");
+    assertNoWorkingCopy(assignment.shift?.shiftGroup?.workingCopy);
     if (!REMOVABLE_STATUSES.includes(assignment.status)) {
       throw new HttpError(400, "This assignment cannot be removed in its current state");
     }

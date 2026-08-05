@@ -1052,6 +1052,16 @@ final class APIClient {
         return resp.data.first
     }
 
+    /// Staff-only versioned working schedule. The relational shift group stays
+    /// the published read model; this additive editor contract carries private
+    /// draft slots and the optimistic version needed for every mutation.
+    func workingScheduleEditor(shiftGroupId: String) async throws -> WorkingScheduleEditor {
+        let response: DataWrapper<WorkingScheduleEditor> = try await perform(
+            request(path: "/api/shift-groups/\(shiftGroupId)/working-copy")
+        )
+        return response.data
+    }
+
     /// Creates a new shift group for an event (STAFF/ADMIN).
     func createShiftGroup(eventId: String) async throws -> EventShiftGroup {
         struct Body: Encodable { let eventId: String }
@@ -1252,6 +1262,142 @@ final class APIClient {
         return resp.data
     }
 
+    func workingScheduleCandidateScores(
+        shiftGroupId: String,
+        slotKey: String,
+        workerType: String? = nil
+    ) async throws -> [CandidateRecommendation] {
+        var queryItems: [URLQueryItem] = [.init(name: "slotKey", value: slotKey)]
+        if let workerType {
+            queryItems.append(.init(name: "workerType", value: workerType))
+        }
+        let response: DataWrapper<[CandidateRecommendation]> = try await perform(
+            request(
+                path: "/api/shift-groups/\(shiftGroupId)/working-copy/candidate-scores",
+                queryItems: queryItems
+            )
+        )
+        return response.data
+    }
+
+    func addWorkingScheduleSlot(
+        shiftGroupId: String,
+        expectedVersion: Int,
+        area: String,
+        workerType: String,
+        callStartsAt: Date? = nil,
+        callEndsAt: Date? = nil
+    ) async throws -> WorkingScheduleEditor {
+        let iso = ISO8601DateFormatter()
+        return try await mutateWorkingSchedule(
+            shiftGroupId: shiftGroupId,
+            expectedVersion: expectedVersion,
+            command: WorkingScheduleCommand(
+                type: "adjustSlots",
+                area: area,
+                workerType: workerType,
+                delta: 1,
+                callStartsAt: callStartsAt.map { iso.string(from: $0) },
+                callEndsAt: callEndsAt.map { iso.string(from: $0) }
+            )
+        )
+    }
+
+    func assignWorkingScheduleSlot(
+        shiftGroupId: String,
+        expectedVersion: Int,
+        slotKey: String,
+        userId: String
+    ) async throws -> WorkingScheduleEditor {
+        try await mutateWorkingSchedule(
+            shiftGroupId: shiftGroupId,
+            expectedVersion: expectedVersion,
+            command: WorkingScheduleCommand(type: "assign", slotKey: slotKey, userId: userId)
+        )
+    }
+
+    func convertAndReplaceWorkingScheduleSlot(
+        shiftGroupId: String,
+        expectedVersion: Int,
+        slotKey: String,
+        workerType: String,
+        userId: String
+    ) async throws -> WorkingScheduleEditor {
+        try await mutateWorkingSchedule(
+            shiftGroupId: shiftGroupId,
+            expectedVersion: expectedVersion,
+            command: WorkingScheduleCommand(
+                type: "convertAndReplace",
+                workerType: workerType,
+                slotKey: slotKey,
+                userId: userId
+            )
+        )
+    }
+
+    func unassignWorkingScheduleSlot(
+        shiftGroupId: String,
+        expectedVersion: Int,
+        slotKey: String
+    ) async throws -> WorkingScheduleEditor {
+        try await mutateWorkingSchedule(
+            shiftGroupId: shiftGroupId,
+            expectedVersion: expectedVersion,
+            command: WorkingScheduleCommand(type: "unassign", slotKey: slotKey)
+        )
+    }
+
+    func removeWorkingScheduleSlot(
+        shiftGroupId: String,
+        expectedVersion: Int,
+        slotKey: String
+    ) async throws -> WorkingScheduleEditor {
+        try await mutateWorkingSchedule(
+            shiftGroupId: shiftGroupId,
+            expectedVersion: expectedVersion,
+            command: WorkingScheduleCommand(type: "removeSlot", slotKey: slotKey)
+        )
+    }
+
+    func setWorkingScheduleCallWindow(
+        shiftGroupId: String,
+        expectedVersion: Int,
+        slotKey: String,
+        callStartsAt: Date?,
+        callEndsAt: Date?
+    ) async throws -> WorkingScheduleEditor {
+        let iso = ISO8601DateFormatter()
+        return try await mutateWorkingSchedule(
+            shiftGroupId: shiftGroupId,
+            expectedVersion: expectedVersion,
+            command: WorkingScheduleCommand(
+                type: "setCallWindow",
+                slotKey: slotKey,
+                callStartsAt: callStartsAt.map { iso.string(from: $0) },
+                callEndsAt: callEndsAt.map { iso.string(from: $0) }
+            )
+        )
+    }
+
+    func discardWorkingSchedule(shiftGroupId: String, expectedVersion: Int) async throws -> WorkingScheduleEditor {
+        let response: DataWrapper<WorkingScheduleEditor> = try await perform(
+            request(
+                path: "/api/shift-groups/\(shiftGroupId)/working-copy",
+                method: "DELETE",
+                queryItems: [.init(name: "expectedVersion", value: "\(expectedVersion)")]
+            )
+        )
+        return response.data
+    }
+
+    func publishWorkingSchedule(shiftGroupId: String, expectedWorkingVersion: Int) async throws -> SchedulePublicationState {
+        struct Body: Encodable { let expectedWorkingVersion: Int }
+        var req = request(path: "/api/shift-groups/\(shiftGroupId)/publish", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(expectedWorkingVersion: expectedWorkingVersion))
+        let response: DataWrapper<SchedulePublicationState> = try await perform(req)
+        return response.data
+    }
+
     /// Direct-assign a user to a shift (STAFF/ADMIN).
     func assignShift(shiftId: String, userId: String) async throws {
         struct Body: Encodable { let shiftId: String; let userId: String }
@@ -1412,6 +1558,29 @@ final class APIClient {
 
     // MARK: - Internals
 
+    private func mutateWorkingSchedule(
+        shiftGroupId: String,
+        expectedVersion: Int,
+        command: WorkingScheduleCommand
+    ) async throws -> WorkingScheduleEditor {
+        struct Body: Encodable {
+            let expectedVersion: Int
+            let command: WorkingScheduleCommand
+        }
+        var req = request(path: "/api/shift-groups/\(shiftGroupId)/working-copy", method: "PATCH")
+        req.httpBody = try JSONEncoder().encode(Body(expectedVersion: expectedVersion, command: command))
+        let response: DataWrapper<WorkingScheduleEditor> = try await perform(req)
+        return response.data
+    }
+
+    private func prepareAuthHost(for email: String) {
+        let nextHost = AppEnvironment.apiHost(forLoginEmail: email)
+        if nextHost != AppEnvironment.activeAPIHost {
+            HTTPCookieStorage.shared.removeCookies(since: .distantPast)
+            AppEnvironment.setActiveAPIHost(nextHost)
+        }
+    }
+
     /// `path` must be a pure path — `appendingPathComponent` percent-encodes
     /// `?`, so a query string embedded in `path` becomes part of the last
     /// route param (`shifts/abc%3Fforce=true` → shiftId "abc?force=true").
@@ -1565,6 +1734,37 @@ extension APIClient: ReservationDraftPersistence {}
 
 private struct DataWrapper<T: Decodable>: Decodable {
     let data: T
+}
+
+private struct WorkingScheduleCommand: Encodable {
+    let type: String
+    let area: String?
+    let workerType: String?
+    let delta: Int?
+    let slotKey: String?
+    let userId: String?
+    let callStartsAt: String?
+    let callEndsAt: String?
+
+    init(
+        type: String,
+        area: String? = nil,
+        workerType: String? = nil,
+        delta: Int? = nil,
+        slotKey: String? = nil,
+        userId: String? = nil,
+        callStartsAt: String? = nil,
+        callEndsAt: String? = nil
+    ) {
+        self.type = type
+        self.area = area
+        self.workerType = workerType
+        self.delta = delta
+        self.slotKey = slotKey
+        self.userId = userId
+        self.callStartsAt = callStartsAt
+        self.callEndsAt = callEndsAt
+    }
 }
 
 private struct LoginResponse: Decodable {

@@ -9,22 +9,40 @@ final class EventDetailViewModel {
     let myShift: MyShift?
 
     var shiftGroup: EventShiftGroup? {
-        didSet { shiftsByArea = Self.makeShiftsByArea(from: shiftGroup) }
+        didSet { shiftsByArea = Self.makeShiftsByArea(from: workingEditor?.eventShifts() ?? shiftGroup?.shifts ?? []) }
+    }
+    var workingEditor: WorkingScheduleEditor? {
+        didSet {
+            shiftsByArea = Self.makeShiftsByArea(from: workingEditor?.eventShifts() ?? shiftGroup?.shifts ?? [])
+        }
     }
     var isLoading = false
     var error: String?
+    private var loadsWorkingCopy = false
 
     init(event: ScheduleEvent, myShift: MyShift?) {
         self.event = event
         self.myShift = myShift
     }
 
-    func load() async {
+    var workingVersion: Int { workingEditor?.workingVersion ?? 0 }
+    var hasUnpublishedChanges: Bool { workingEditor?.hasUnpublishedChanges == true }
+    var workingChangeSummary: String { workingEditor?.changes.summary ?? "No unpublished changes" }
+    var displayedShifts: [EventShift] { workingEditor?.eventShifts() ?? shiftGroup?.shifts ?? [] }
+
+    func load(includeWorkingCopy: Bool? = nil) async {
         guard !isLoading else { return }
+        if let includeWorkingCopy { loadsWorkingCopy = includeWorkingCopy }
         isLoading = true
         error = nil
         do {
-            shiftGroup = try await APIClient.shared.shiftGroup(eventId: event.id)
+            let group = try await APIClient.shared.shiftGroup(eventId: event.id)
+            shiftGroup = group
+            if loadsWorkingCopy, let group {
+                workingEditor = try await APIClient.shared.workingScheduleEditor(shiftGroupId: group.id)
+            } else {
+                workingEditor = nil
+            }
         } catch APIError.unauthorized {
             // SessionStore handles the global routing on 401.
             isLoading = false
@@ -39,10 +57,10 @@ final class EventDetailViewModel {
 
     private(set) var shiftsByArea: [(area: String, shifts: [EventShift])] = []
 
-    private static func makeShiftsByArea(from shiftGroup: EventShiftGroup?) -> [(area: String, shifts: [EventShift])] {
-        guard let group = shiftGroup else { return [] }
+    private static func makeShiftsByArea(from shifts: [EventShift]) -> [(area: String, shifts: [EventShift])] {
+        guard !shifts.isEmpty else { return [] }
         var byArea: [String: [EventShift]] = [:]
-        for shift in group.shifts {
+        for shift in shifts {
             byArea[shift.area, default: []].append(shift)
         }
         return byArea
@@ -52,6 +70,12 @@ final class EventDetailViewModel {
                 return ai < bi
             }
             .map { (area: $0.key, shifts: $0.value.sorted { $0.startsAt < $1.startsAt }) }
+    }
+
+    func shift(containingAssignmentId assignmentId: String) -> EventShift? {
+        displayedShifts.first { shift in
+            shift.assignments.contains { $0.id == assignmentId }
+        }
     }
 }
 
@@ -68,6 +92,7 @@ struct EventDetailView: View {
     @State private var weatherData: EventWeatherData?
     @State private var createdGearBookingId: String?
     @State private var assignTarget: EventShift?
+    @State private var replaceTarget: EventShift?
     @State private var claimTarget: EventShift?
     @State private var postTradeTarget: TradePostCandidate?
     @State private var cancelTradeTarget: ShiftAssignmentRecord?
@@ -76,6 +101,10 @@ struct EventDetailView: View {
     @State private var editTimesTarget: EventShift?
     @State private var showAddShift = false
     @State private var isCreatingGroup = false
+    @State private var isPublishing = false
+    @State private var isDiscarding = false
+    @State private var showPublishReview = false
+    @State private var showDiscardReview = false
     @State private var actionError: String?
     @State private var actionErrorTitle = "Couldn't update event"
     @State private var actionRetry: (() -> Void)?
@@ -122,25 +151,20 @@ struct EventDetailView: View {
                     .lineLimit(1)
             }
         }
-        .task { await vm.load() }
+        .task { await vm.load(includeWorkingCopy: canManageShifts) }
         .task { weatherData = await EventWeatherService.shared.weather(for: event) }
         .refreshable { await vm.load() }
         .sheet(item: $assignTarget) { shift in
-            AssignStudentSheet(
-                shiftId: shift.id,
-                shiftArea: shift.area,
-                shiftWorkerType: shift.workerType,
-                shiftStartsAt: shift.startsAt,
-                shiftEndsAt: shift.endsAt,
-                eventTitle: scheduleEventDisplayTitle(event),
-                sportCode: event.sportCode,
-                onAssigned: { Task { await vm.load() } }
-            )
+            assignStudentSheet(for: shift)
+        }
+        .sheet(item: $replaceTarget) { shift in
+            replacePersonSheet(for: shift)
         }
         .sheet(isPresented: $showAddShift) {
             if let group = vm.shiftGroup {
                 AddShiftSheet(
                     shiftGroupId: group.id,
+                    expectedWorkingVersion: vm.workingVersion,
                     eventTitle: scheduleEventDisplayTitle(event),
                     defaultStart: event.startsAt,
                     defaultEnd: event.endsAt,
@@ -234,6 +258,26 @@ struct EventDetailView: View {
                 Text("This cannot be undone.")
             }
         }
+        .confirmationDialog(
+            "Publish schedule changes?",
+            isPresented: $showPublishReview,
+            titleVisibility: .visible
+        ) {
+            Button("Publish") { Task { await publishWorkingSchedule() } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("\(vm.workingChangeSummary). Workers will see the updated crew after publishing.")
+        }
+        .confirmationDialog(
+            "Discard private changes?",
+            isPresented: $showDiscardReview,
+            titleVisibility: .visible
+        ) {
+            Button("Discard", role: .destructive) { Task { await discardWorkingSchedule() } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The unpublished crew edits for this event will be removed. The last published schedule will remain.")
+        }
         .alert(
             actionErrorTitle,
             isPresented: Binding(
@@ -256,6 +300,42 @@ struct EventDetailView: View {
     }
 
     // MARK: - Action handlers
+
+    private func assignStudentSheet(for shift: EventShift) -> some View {
+        let workingCopyShiftGroupId = canManageShifts ? vm.shiftGroup?.id : nil
+        let expectedWorkingVersion = canManageShifts ? vm.workingVersion : nil
+        return AssignStudentSheet(
+            shiftId: shift.id,
+            workingCopyShiftGroupId: workingCopyShiftGroupId,
+            expectedWorkingVersion: expectedWorkingVersion,
+            shiftArea: shift.area,
+            shiftWorkerType: shift.workerType,
+            shiftStartsAt: shift.startsAt,
+            shiftEndsAt: shift.endsAt,
+            eventTitle: scheduleEventDisplayTitle(event),
+            sportCode: event.sportCode,
+            onAssigned: { Task { await vm.load() } }
+        )
+    }
+
+    private func replacePersonSheet(for shift: EventShift) -> some View {
+        let targetWorkerType = shift.workerType == "FT" ? "ST" : "FT"
+        let currentWorkerName = shift.assignments.first?.user.name ?? "assigned worker"
+        return AssignStudentSheet(
+            shiftId: shift.id,
+            workingCopyShiftGroupId: vm.shiftGroup?.id,
+            expectedWorkingVersion: vm.workingVersion,
+            shiftArea: shift.area,
+            shiftWorkerType: shift.workerType,
+            shiftStartsAt: shift.startsAt,
+            shiftEndsAt: shift.endsAt,
+            eventTitle: scheduleEventDisplayTitle(event),
+            sportCode: event.sportCode,
+            replacementWorkerType: targetWorkerType,
+            replacingUserName: currentWorkerName,
+            onAssigned: { Task { await vm.load() } }
+        )
+    }
 
     private var claimDialogTitle: String {
         guard let shift = claimTarget else { return "Claim shift?" }
@@ -310,7 +390,15 @@ struct EventDetailView: View {
 
     private func unassign(_ assignment: ShiftAssignmentRecord) async {
         do {
-            try await APIClient.shared.unassignShift(assignmentId: assignment.id)
+            guard let groupId = vm.shiftGroup?.id,
+                  let shift = vm.shift(containingAssignmentId: assignment.id) else {
+                throw APIError.serverError("Crew is unavailable. Refresh and try again.")
+            }
+            _ = try await APIClient.shared.unassignWorkingScheduleSlot(
+                shiftGroupId: groupId,
+                expectedVersion: vm.workingVersion,
+                slotKey: shift.id
+            )
             Haptics.success()
             await vm.load()
         } catch {
@@ -347,7 +435,11 @@ struct EventDetailView: View {
     private func deleteShift(_ shift: EventShift) async {
         guard let groupId = vm.shiftGroup?.id else { return }
         do {
-            try await APIClient.shared.deleteShift(shiftGroupId: groupId, shiftId: shift.id)
+            _ = try await APIClient.shared.removeWorkingScheduleSlot(
+                shiftGroupId: groupId,
+                expectedVersion: vm.workingVersion,
+                slotKey: shift.id
+            )
             Haptics.success()
             await vm.load()
         } catch {
@@ -359,7 +451,14 @@ struct EventDetailView: View {
 
     private func updateShiftTimes(_ shift: EventShift, startsAt: Date, endsAt: Date) async -> String? {
         do {
-            try await APIClient.shared.updateShiftTimes(shiftId: shift.id, startsAt: startsAt, endsAt: endsAt)
+            guard let groupId = vm.shiftGroup?.id else { return "Crew is unavailable. Refresh and try again." }
+            _ = try await APIClient.shared.setWorkingScheduleCallWindow(
+                shiftGroupId: groupId,
+                expectedVersion: vm.workingVersion,
+                slotKey: shift.id,
+                callStartsAt: startsAt,
+                callEndsAt: endsAt
+            )
             Haptics.success()
             await vm.load()
             return nil
@@ -372,18 +471,59 @@ struct EventDetailView: View {
     private func duplicateShift(_ shift: EventShift) async {
         guard let groupId = vm.shiftGroup?.id else { return }
         do {
-            try await APIClient.shared.addShift(
+            _ = try await APIClient.shared.addWorkingScheduleSlot(
                 shiftGroupId: groupId,
+                expectedVersion: vm.workingVersion,
                 area: shift.area,
                 workerType: shift.workerType,
-                startsAt: shift.startsAt,
-                endsAt: shift.endsAt
+                callStartsAt: shift.callStartsAt,
+                callEndsAt: shift.callEndsAt
             )
             Haptics.success()
             await vm.load()
         } catch {
             presentActionError(title: "Couldn't duplicate shift", error: error) {
                 await duplicateShift(shift)
+            }
+        }
+    }
+
+    private func publishWorkingSchedule() async {
+        guard !isPublishing,
+              let groupId = vm.shiftGroup?.id,
+              vm.hasUnpublishedChanges else { return }
+        isPublishing = true
+        defer { isPublishing = false }
+        do {
+            _ = try await APIClient.shared.publishWorkingSchedule(
+                shiftGroupId: groupId,
+                expectedWorkingVersion: vm.workingVersion
+            )
+            Haptics.success()
+            await vm.load()
+        } catch {
+            presentActionError(title: "Couldn't publish schedule", error: error) {
+                await self.publishWorkingSchedule()
+            }
+        }
+    }
+
+    private func discardWorkingSchedule() async {
+        guard !isDiscarding,
+              let groupId = vm.shiftGroup?.id,
+              vm.hasUnpublishedChanges else { return }
+        isDiscarding = true
+        defer { isDiscarding = false }
+        do {
+            _ = try await APIClient.shared.discardWorkingSchedule(
+                shiftGroupId: groupId,
+                expectedVersion: vm.workingVersion
+            )
+            Haptics.success()
+            await vm.load()
+        } catch {
+            presentActionError(title: "Couldn't discard schedule changes", error: error) {
+                await self.discardWorkingSchedule()
             }
         }
     }
@@ -437,9 +577,9 @@ struct EventDetailView: View {
 
     private var claimableStudentShifts: [EventShift] {
         guard isStudent, myShift == nil, !eventHasEnded else { return [] }
-        return vm.shiftGroup?.shifts.filter {
+        return vm.displayedShifts.filter {
             $0.workerType == "ST" && $0.isOpen && $0.startsAt > Date()
-        } ?? []
+        }
     }
 
     private var showsOpenShiftSection: Bool {
@@ -560,7 +700,7 @@ struct EventDetailView: View {
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(.primary)
                                 if !event.displayAllDay {
-                                    Text("\(shift.startsAt.formatted(date: .omitted, time: .shortened)) to \(shift.endsAt.formatted(date: .omitted, time: .shortened))")
+                                    Text("\(shift.effectiveStartsAt.formatted(date: .omitted, time: .shortened)) to \(shift.effectiveEndsAt.formatted(date: .omitted, time: .shortened))")
                                         .font(.caption.monospacedDigit())
                                         .foregroundStyle(.secondary)
                                 }
@@ -826,8 +966,43 @@ struct EventDetailView: View {
                     addShiftButton
                 }
             }
+            if canManageShifts, vm.hasUnpublishedChanges {
+                workingScheduleReviewCard
+            }
             crewBody
         }
+    }
+
+    private var workingScheduleReviewCard: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "pencil.and.list.clipboard")
+                .foregroundStyle(Color.statusText(.orange))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Private schedule changes")
+                    .font(.subheadline.weight(.semibold))
+                Text(vm.workingChangeSummary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("Workers still see the last published crew.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .trailing, spacing: 4) {
+                Button("Review & Publish") { showPublishReview = true }
+                    .font(.caption.weight(.semibold))
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color.statusText(.purple))
+                    .disabled(isPublishing || isDiscarding)
+                Button("Discard", role: .destructive) { showDiscardReview = true }
+                    .font(.caption.weight(.semibold))
+                    .disabled(isPublishing || isDiscarding)
+            }
+        }
+        .padding(14)
+        .background(Color.statusBackground(.orange), in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+        .accessibilityElement(children: .contain)
     }
 
     @ViewBuilder
@@ -917,11 +1092,13 @@ struct EventDetailView: View {
                     myShiftId: myShift?.id,
                     currentUserId: session.currentUser?.id,
                     canManageShifts: canManageShifts,
+                    isWorkingCopy: canManageShifts && vm.workingEditor != nil,
                     // Unassigned students claim from the dedicated action card
                     // above. Once assigned, the row menu remains available for
                     // their own trade actions without duplicating Claim controls.
                     isStudent: isStudent && !showsOpenShiftSection,
                     onAssign: { shift in assignTarget = shift },
+                    onConvertAndReplace: { shift in replaceTarget = shift },
                     onRequest: { shift in claimTarget = shift },
                     onPostTrade: { shift, assignment in
                         postTradeTarget = TradePostCandidate(
@@ -1009,8 +1186,10 @@ struct AreaBlock: View {
     let myShiftId: String?
     let currentUserId: String?
     var canManageShifts: Bool = false
+    var isWorkingCopy: Bool = false
     var isStudent: Bool = false
     var onAssign: ((EventShift) -> Void)? = nil
+    var onConvertAndReplace: ((EventShift) -> Void)? = nil
     var onRequest: ((EventShift) -> Void)? = nil
     var onPostTrade: ((EventShift, ShiftAssignmentRecord) -> Void)? = nil
     var onCancelTrade: ((ShiftAssignmentRecord) -> Void)? = nil
@@ -1039,10 +1218,12 @@ struct AreaBlock: View {
                         isHighlighted: isMyShift(shift),
                         currentUserId: currentUserId,
                         canManageShifts: canManageShifts,
+                        isWorkingCopy: isWorkingCopy,
                         isStudent: isStudent,
                         hidesShiftTimes: hidesShiftTimes,
                         showsWorkerType: true,
                         onAssign: onAssign,
+                        onConvertAndReplace: onConvertAndReplace,
                         onRequest: onRequest,
                         onPostTrade: onPostTrade,
                         onCancelTrade: onCancelTrade,
@@ -1085,6 +1266,7 @@ struct ShiftRow: View {
     let isHighlighted: Bool
     let currentUserId: String?
     var canManageShifts: Bool = false
+    var isWorkingCopy: Bool = false
     var isStudent: Bool = false
     var hidesShiftTimes = false
     /// Per-row Student/Staff badge. Suppressed when the whole area block is one
@@ -1092,6 +1274,7 @@ struct ShiftRow: View {
     /// crew isn't a column of identical "Staff" pills.
     var showsWorkerType: Bool = true
     var onAssign: ((EventShift) -> Void)? = nil
+    var onConvertAndReplace: ((EventShift) -> Void)? = nil
     var onRequest: ((EventShift) -> Void)? = nil
     var onPostTrade: ((EventShift, ShiftAssignmentRecord) -> Void)? = nil
     var onCancelTrade: ((ShiftAssignmentRecord) -> Void)? = nil
@@ -1137,9 +1320,9 @@ struct ShiftRow: View {
                     // Call time column
                     if !hidesShiftTimes {
                         VStack(alignment: .trailing, spacing: 2) {
-                            Text(shift.startsAt.formatted(.dateTime.hour().minute()))
+                            Text(shift.effectiveStartsAt.formatted(.dateTime.hour().minute()))
                                 .font(.caption.monospacedDigit().weight(.medium))
-                            Text(shift.endsAt.formatted(.dateTime.hour().minute()))
+                            Text(shift.effectiveEndsAt.formatted(.dateTime.hour().minute()))
                                 .font(.caption2.monospacedDigit())
                                 .foregroundStyle(.tertiary)
                         }
@@ -1172,7 +1355,7 @@ struct ShiftRow: View {
 
     /// Call window on one line, for the stacked accessibility layout.
     private var callWindowText: some View {
-        Text("\(shift.startsAt.formatted(.dateTime.hour().minute())) – \(shift.endsAt.formatted(.dateTime.hour().minute()))")
+        Text("\(shift.effectiveStartsAt.formatted(.dateTime.hour().minute())) – \(shift.effectiveEndsAt.formatted(.dateTime.hour().minute()))")
             .font(.caption.monospacedDigit().weight(.medium))
     }
 
@@ -1181,7 +1364,7 @@ struct ShiftRow: View {
         if isHighlighted { parts.append("Your shift") }
         parts.append("\(workerTypeLabel) shift")
         if !hidesShiftTimes {
-            let timeRange = "\(shift.startsAt.formatted(.dateTime.hour().minute())) to \(shift.endsAt.formatted(.dateTime.hour().minute()))"
+            let timeRange = "\(shift.effectiveStartsAt.formatted(.dateTime.hour().minute())) to \(shift.effectiveEndsAt.formatted(.dateTime.hour().minute()))"
             parts.append(timeRange)
         }
         if shift.isOpen {
@@ -1232,6 +1415,7 @@ struct ShiftRow: View {
             }
             // Trade Board: owners post their own shift; staff post student
             // shifts. Started shifts can't be traded (server enforces too).
+            if !isWorkingCopy {
             ForEach(shift.assignments.filter { $0.status != "REQUESTED" }, id: \.id) { assignment in
                 let isMine = currentUserId == assignment.user.id
                 if shift.startsAt > Date() {
@@ -1258,9 +1442,14 @@ struct ShiftRow: View {
                     }
                 }
             }
+            }
             // Replace / Remove for assigned slots
             if canManageShifts {
-                if let onAssign {
+                if isWorkingCopy, let onConvertAndReplace {
+                    Button { onConvertAndReplace(shift) } label: {
+                        Label("Replace and convert…", systemImage: "arrow.left.arrow.right")
+                    }
+                } else if !isWorkingCopy, let onAssign {
                     Button { onAssign(shift) } label: {
                         Label("Replace…", systemImage: "person.2.badge.gearshape.fill")
                     }
@@ -1449,12 +1638,12 @@ struct EditShiftTimesSheet: View {
         self.shift = shift
         self.eventTitle = eventTitle
         self.onSave = onSave
-        _startsAt = State(initialValue: shift.startsAt)
-        _endsAt = State(initialValue: shift.endsAt)
+        _startsAt = State(initialValue: shift.effectiveStartsAt)
+        _endsAt = State(initialValue: shift.effectiveEndsAt)
     }
 
     private var hasChanges: Bool {
-        startsAt != shift.startsAt || endsAt != shift.endsAt
+        startsAt != shift.effectiveStartsAt || endsAt != shift.effectiveEndsAt
     }
 
     private var hasValidWindow: Bool {

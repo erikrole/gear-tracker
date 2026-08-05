@@ -5,6 +5,7 @@ import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import type { ShiftAssignmentStatus } from "@prisma/client";
+import { assertNoWorkingCopy } from "@/lib/schedule-working-copy-guard";
 
 export const DELETE = withAuth<{ id: string; shiftId: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "shift", "delete");
@@ -20,10 +21,12 @@ export const DELETE = withAuth<{ id: string; shiftId: string }>(async (req, { us
         assignments: {
           where: { status: { in: ACTIVE_ASSIGNMENT_STATUSES as ShiftAssignmentStatus[] } },
         },
+        shiftGroup: { select: { workingCopy: { select: { version: true } } } },
       },
     });
     if (!shift) throw new HttpError(404, "Shift not found");
     if (shift.shiftGroupId !== id) throw new HttpError(400, "Shift does not belong to this group");
+    assertNoWorkingCopy(shift.shiftGroup?.workingCopy);
 
     // Block deletion of shifts with active assignments unless forced
     if (shift.assignments.length > 0 && !force) {

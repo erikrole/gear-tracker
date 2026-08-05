@@ -1,0 +1,60 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+
+const apiClient = readFileSync("ios/Wisconsin/Core/APIClient.swift", "utf8");
+const scheduleModels = readFileSync("ios/Wisconsin/Models/ScheduleModels.swift", "utf8");
+const eventDetail = readFileSync("ios/Wisconsin/Views/EventDetailSheet.swift", "utf8");
+const assignSheet = readFileSync("ios/Wisconsin/Views/Schedule/AssignStudentSheet.swift", "utf8");
+const addSheet = readFileSync("ios/Wisconsin/Views/Schedule/AddShiftSheet.swift", "utf8");
+
+describe("native schedule working-copy adoption", () => {
+  it("keeps the working-copy API additive and version checked", () => {
+    expect(apiClient).toContain("/api/shift-groups/\\(shiftGroupId)/working-copy");
+    expect(apiClient).toContain("func workingScheduleEditor");
+    expect(apiClient).toContain("func publishWorkingSchedule");
+    expect(apiClient).toContain("func discardWorkingSchedule");
+    expect(apiClient).toContain("func convertAndReplaceWorkingScheduleSlot");
+    expect(apiClient).toContain("type: \"convertAndReplace\"");
+    expect(apiClient).toContain("expectedWorkingVersion");
+    expect(apiClient).toContain("expectedVersion: Int");
+  });
+
+  it("decodes private draft identity and effective call windows without changing published models", () => {
+    expect(scheduleModels).toContain("struct WorkingScheduleEditor: Codable, Identifiable");
+    expect(scheduleModels).toContain("struct WorkingScheduleSlot: Codable, Identifiable");
+    expect(scheduleModels).toContain("var effectiveStartsAt: Date { callStartsAt ?? startsAt }");
+    expect(scheduleModels).toContain("sourceAssignmentId ?? \"working:\\(slot.key)\"");
+    expect(scheduleModels).toContain("struct SchedulePublicationState: Codable");
+  });
+
+  it("loads staff drafts and routes authoring through working-copy commands", () => {
+    expect(eventDetail).toContain("vm.load(includeWorkingCopy: canManageShifts)");
+    expect(eventDetail).toContain("workingScheduleEditor");
+    expect(eventDetail).toContain("unassignWorkingScheduleSlot");
+    expect(eventDetail).toContain("removeWorkingScheduleSlot");
+    expect(eventDetail).toContain("setWorkingScheduleCallWindow");
+    expect(eventDetail).toContain("addWorkingScheduleSlot");
+    expect(eventDetail).toContain("publishWorkingSchedule");
+    expect(eventDetail).toContain("discardWorkingSchedule");
+    expect(eventDetail).toContain("onConvertAndReplace");
+    expect(eventDetail).toContain("Replace and convert…");
+    expect(eventDetail).toContain("isWorkingCopy: canManageShifts && vm.workingEditor != nil");
+    expect(eventDetail).not.toContain("APIClient.shared.updateShiftTimes");
+    expect(eventDetail).not.toContain("APIClient.shared.deleteShift(");
+    expect(eventDetail).not.toContain("APIClient.shared.addShift(");
+    expect(eventDetail).not.toContain("APIClient.shared.unassignShift(");
+  });
+
+  it("uses draft slot keys for assignment and add-slot quick actions", () => {
+    expect(assignSheet).toContain("workingScheduleCandidateScores");
+    expect(assignSheet).toContain("assignWorkingScheduleSlot");
+    expect(assignSheet).toContain("convertAndReplaceWorkingScheduleSlot");
+    expect(assignSheet).toContain("replacementWorkerType");
+    expect(assignSheet).toContain("workerType: targetWorkerType");
+    expect(assignSheet).toContain("expectedWorkingVersion");
+    expect(assignSheet).not.toContain("APIClient.shared.assignShift(");
+    expect(addSheet).toContain("addWorkingScheduleSlot");
+    expect(addSheet).toContain("callStartsAt: customizeTimes ? startsAt : nil");
+    expect(addSheet).not.toContain("APIClient.shared.addShift(");
+  });
+});

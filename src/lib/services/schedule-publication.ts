@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { createAuditEntryTx } from "@/lib/audit";
 import { HttpError } from "@/lib/http";
 import { workingSchedulePayloadSchema } from "@/lib/schedule-working-copy";
+import { withSerializationRetry } from "@/lib/serialization";
 import { checkTimeConflict } from "@/lib/services/shift-assignments";
 import { evaluateAvailabilityPreferences } from "@/lib/student-availability";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
@@ -196,7 +197,7 @@ export async function publishShiftGroup(
   expectedWorkingVersion?: number,
   actorRole?: Role,
 ) {
-  return db.$transaction(async (tx) => {
+  return withSerializationRetry(() => db.$transaction(async (tx) => {
     let group = await findGroupForPublication(shiftGroupId, tx);
     const before = getSchedulePublicationState(group);
     const workingVersion = group.workingCopy?.version ?? null;
@@ -222,9 +223,6 @@ export async function publishShiftGroup(
 
       for (const slot of workingSlots) {
         if (!slot.sourceShiftId) {
-          if (slot.assignment) {
-            throw new HttpError(409, "Assign new working slots before publishing them through the assignment workflow.");
-          }
           continue;
         }
         const current = currentById.get(slot.sourceShiftId);
@@ -236,9 +234,6 @@ export async function publishShiftGroup(
           if (
             assignment?.id !== slot.assignment.sourceAssignmentId
             || assignment.userId !== slot.assignment.userId
-            || assignment.callStartsAt?.toISOString() !== (slot.assignment.callStartsAt ?? undefined)
-            || assignment.callEndsAt?.toISOString() !== (slot.assignment.callEndsAt ?? undefined)
-            || (assignment.callNote ?? null) !== slot.assignment.callNote
           ) {
             throw new HttpError(409, "An assignment changed after this draft started. Refresh before publishing.");
           }
@@ -251,7 +246,16 @@ export async function publishShiftGroup(
           }
           affectedUserIds.add(assignment.userId);
         }
-        if (slot.workerType !== current.workerType && current._count.assignments > 0) {
+        const explicitlyReplacingCurrentAssignment = Boolean(
+          current.assignments[0]
+          && slot.assignment
+          && slot.assignment.sourceAssignmentId === null,
+        );
+        if (
+          slot.workerType !== current.workerType
+          && current._count.assignments > 0
+          && !explicitlyReplacingCurrentAssignment
+        ) {
           throw new HttpError(409, "A history-bearing slot cannot be converted. Add a new slot instead.");
         }
       }
@@ -262,14 +266,20 @@ export async function publishShiftGroup(
       }
 
       const changedAssignedWindows = workingSlots.flatMap((slot) => {
-        if (!slot.sourceShiftId || !slot.assignment?.sourceAssignmentId) return [];
+        const workingAssignment = slot.assignment;
+        if (!slot.sourceShiftId || !workingAssignment?.sourceAssignmentId) return [];
         const current = currentById.get(slot.sourceShiftId);
         const assignment = current?.assignments[0];
-        if (!current || !assignment || assignment.id !== slot.assignment.sourceAssignmentId) return [];
+        if (!current || !assignment || assignment.id !== workingAssignment.sourceAssignmentId) return [];
         const beforeWindow = effectiveCurrentWindow(current, assignment);
         const afterWindow = effectiveWorkingWindow(slot);
-        if (beforeWindow.startsAt === afterWindow.startsAt && beforeWindow.endsAt === afterWindow.endsAt) return [];
-        return [{ slot, assignment, afterWindow }];
+        const windowChanged = beforeWindow.startsAt !== afterWindow.startsAt
+          || beforeWindow.endsAt !== afterWindow.endsAt;
+        const assignmentFieldsChanged = iso(assignment.callStartsAt) !== workingAssignment.callStartsAt
+          || iso(assignment.callEndsAt) !== workingAssignment.callEndsAt
+          || (assignment.callNote ?? null) !== workingAssignment.callNote;
+        if (!windowChanged && !assignmentFieldsChanged) return [];
+        return [{ slot, assignment, workingAssignment, afterWindow, windowChanged, assignmentFieldsChanged }];
       });
       if (changedAssignedWindows.length > 0) {
         const userIds = [...new Set(changedAssignedWindows.map(({ assignment }) => assignment.userId))];
@@ -297,26 +307,37 @@ export async function publishShiftGroup(
           },
         });
         const userById = new Map(users.map((user) => [user.id, user]));
-        for (const { slot, assignment, afterWindow } of changedAssignedWindows) {
+        for (const { slot, assignment, workingAssignment, afterWindow, windowChanged, assignmentFieldsChanged } of changedAssignedWindows) {
           const user = userById.get(assignment.userId);
           if (!user?.active) throw new HttpError(409, "An assigned worker is no longer active.");
-          await checkTimeConflict(
-            tx,
-            user.id,
-            new Date(afterWindow.startsAt),
-            new Date(afterWindow.endsAt),
-            assignment.id,
-          );
-          if (slot.workerType === "ST") {
-            const availability = evaluateAvailabilityPreferences(user.availabilityBlocks, {
-              startsAt: new Date(afterWindow.startsAt),
-              endsAt: new Date(afterWindow.endsAt),
-            });
-            if (availability.blocking) throw new HttpError(409, availability.blocking.note);
+          if (windowChanged) {
+            await checkTimeConflict(
+              tx,
+              user.id,
+              new Date(afterWindow.startsAt),
+              new Date(afterWindow.endsAt),
+              assignment.id,
+            );
+            if (slot.workerType === "ST") {
+              const availability = evaluateAvailabilityPreferences(user.availabilityBlocks, {
+                startsAt: new Date(afterWindow.startsAt),
+                endsAt: new Date(afterWindow.endsAt),
+              });
+              if (availability.blocking) throw new HttpError(409, availability.blocking.note);
+            }
           }
+          const data = {
+            ...(assignmentFieldsChanged ? {
+              callStartsAt: workingAssignment.callStartsAt ? new Date(workingAssignment.callStartsAt) : null,
+              callEndsAt: workingAssignment.callEndsAt ? new Date(workingAssignment.callEndsAt) : null,
+              callNote: workingAssignment.callNote,
+            } : {}),
+            acknowledgedAt: null,
+            acknowledgedById: null,
+          };
           await tx.shiftAssignment.update({
             where: { id: assignment.id },
-            data: { acknowledgedAt: null, acknowledgedById: null },
+            data,
           });
           affectedUserIds.add(user.id);
         }
@@ -529,7 +550,7 @@ export async function publishShiftGroup(
       before,
       after,
     };
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
 }
 
 export async function acknowledgeShiftAssignment(

@@ -279,7 +279,9 @@ describe("call-window override routes", () => {
     expect(db.shift.findUnique).not.toHaveBeenCalled();
     expect(txShiftFindUnique).toHaveBeenCalledWith({
       where: { id: "shift-1" },
-      include: { shiftGroup: { select: { publishedAt: true } } },
+      include: {
+        shiftGroup: { select: { publishedAt: true, workingCopy: { select: { version: true } } } },
+      },
     });
     expect(txShiftUpdate).not.toHaveBeenCalled();
     expect(createAuditEntryTx).not.toHaveBeenCalled();

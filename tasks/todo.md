@@ -1,6 +1,6 @@
 # Task Queue
 
-Last updated: 2026-07-21
+Last updated: 2026-08-04
 
 ---
 ## Active: Event shift working schedule and quick crew actions (2026-07-21)
@@ -19,18 +19,22 @@ Plan: `tasks/event-shift-working-schedule-plan.md`
 - [x] Normalize the expanded Schedule crew editor onto one stable right-side action grid with consistent spacing and 40px controls.
 - [x] Reduce expanded crew density by removing passive publication chrome and nested borders, collapsing repeated add controls, and moving destructive and conversion actions into row overflow menus.
 - [x] Rehydrate every draft-only assignee from the working-copy read model so names and avatars survive refresh without publishing.
+- [x] Make Sport settings the shared source for future timed call-time fallbacks, synchronize active working copies and published snapshots, preserve explicit overrides, and repair current live drift.
 - [ ] Complete narrow responsive browser proof for the expanded Schedule workstation.
-- [ ] Move native staff quick actions and publish review from legacy live mutation routes to the additive working-copy contract; run source contracts and Xcode builds.
-- [ ] Add the explicit assigned-slot convert-and-replace flow.
+- [x] Move native staff quick actions and publish review from legacy live mutation routes to the additive working-copy contract; run source contracts and Xcode builds.
+- [ ] Complete authenticated native Event detail draft/publish proof against an isolated runtime before rollout.
+- [x] Add the explicit assigned-slot convert-and-replace flow.
 
 ### Current verification
 
 - Prisma format/validate/generate and migration shape checks pass.
-- Focused working-copy and publication tests cover private call-window staging, publish review counts, conflict and availability revalidation, and acknowledgement reset; focused ESLint and TypeScript pass.
+- Focused working-copy and publication tests cover private call-window staging, publish review counts, conflict and availability revalidation, acknowledgement reset, and explicit assigned-slot replacement; focused ESLint and TypeScript pass.
+- The explicit replacement slice covers class conversion, active-trade and linked-booking guards, target selection, publication reconciliation, and native/web source contracts; the focused 29-test run passes.
 - Authenticated desktop browser proof confirms the Football vs Notre Dame Neutral chooser and the expanded row's Call/Release editor without mutating or publishing schedule data.
 - Authenticated refresh proof confirms Maddy Pehler and Ashley Steltenpohl remain named in the unpublished Volleyball vs Alumni working copy, with no `Assigned worker` fallback and no console errors.
 - `npm run build:app` compiles the production app, and live migration health reaches Neon with no pending, failed, or DB-only rows.
-- Migration `0099_shift_group_working_copy` is applied and Neon reports 101/101 local migrations with no pending, failed, or DB-only rows. Native mutation adoption remains tracked as GAP-60.
+- Migration `0099_shift_group_working_copy` is applied and Neon reports 101/101 local migrations with no pending, failed, or DB-only rows. Native rollout proof remains tracked as GAP-60.
+- Native working-copy source contracts, `npm run ios:project:check`, and the Wisconsin iOS simulator target build pass. Authenticated native runtime/device proof remains blocked by the absence of isolated credentials/auth state in this checkout.
 
 ---
 ## Completed: Web booking detail iOS hierarchy alignment (2026-07-21)

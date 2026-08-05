@@ -336,6 +336,7 @@ struct AppUser: Codable, Identifiable {
     let name: String
     let email: String
     let role: String
+    let staffingType: String?
     let location: String?
     let avatarUrl: String?
     let primaryArea: String?

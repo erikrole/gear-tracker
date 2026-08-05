@@ -144,6 +144,18 @@ describe("directAssignShift", () => {
     );
   });
 
+  it("rejects live assignment changes while a private working copy exists", async () => {
+    mockTx.shift.findUnique.mockResolvedValue({
+      ...shift,
+      shiftGroup: { workingCopy: { version: 2 } },
+    });
+
+    await expect(directAssignShift(shift.id, "user-1", "admin-1"))
+      .rejects
+      .toMatchObject({ status: 409 });
+    expect(mockTx.user.findUnique).not.toHaveBeenCalled();
+  });
+
   it("throws 409 when shift already has an active assignment", async () => {
     mockTx.shift.findUnique.mockResolvedValue(shift);
     mockTx.shiftAssignment.findFirst.mockResolvedValue(

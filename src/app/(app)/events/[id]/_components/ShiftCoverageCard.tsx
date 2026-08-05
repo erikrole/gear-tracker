@@ -80,6 +80,7 @@ export function ShiftCoverageCard({
   const { titleParam, dateParam, endParam, locationParam, eventParam } = linkParams;
   const isStaffOrAdmin = currentUserRole === "STAFF" || currentUserRole === "ADMIN";
   const groupId = shiftGroup.id;
+  const canEditPublishedSchedule = isStaffOrAdmin && !shiftGroup.hasWorkingCopy;
 
   // ── User picker ──
   const [pickerShiftId, setPickerShiftId] = useState<string | null>(null);
@@ -171,6 +172,10 @@ export function ShiftCoverageCard({
   // ── Mutations ──
 
   async function mutate(key: string, url: string, opts: RequestInit, successMsg: string, onSuccess?: () => void) {
+    if (!canEditPublishedSchedule) {
+      toast.error("Review or discard the private working schedule before changing live assignments.");
+      return;
+    }
     if (actionBusyRef.current) return;
     actionBusyRef.current = true;
     setInlineActing(key);
@@ -237,6 +242,10 @@ export function ShiftCoverageCard({
   }
 
   async function handleAutoFill() {
+    if (!canEditPublishedSchedule) {
+      toast.error("Review or discard the private working schedule before running auto-fill.");
+      return;
+    }
     if (actionBusyRef.current) return;
     actionBusyRef.current = true;
     setAutoFilling(true);
@@ -297,6 +306,10 @@ export function ShiftCoverageCard({
   }
 
   async function handlePublish() {
+    if (!canEditPublishedSchedule) {
+      toast.error("Open Schedule to review and publish the private working copy.");
+      return;
+    }
     if (actionBusyRef.current) return;
     actionBusyRef.current = true;
     setPublishing(true);
@@ -355,7 +368,7 @@ export function ShiftCoverageCard({
               size="sm"
             />
             <span className="min-w-0 truncate text-sm">{activeAssignment.user.name}</span>
-            {isStaffOrAdmin && (
+            {canEditPublishedSchedule && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -384,7 +397,7 @@ export function ShiftCoverageCard({
       );
     }
 
-    if (!isStaffOrAdmin) return <span className="text-muted-foreground">-</span>;
+    if (!canEditPublishedSchedule) return <span className="text-muted-foreground">-</span>;
 
     return (
       <Popover
@@ -412,7 +425,7 @@ export function ShiftCoverageCard({
   }
 
   function renderStatus(shift: Shift, activeAssignment: Assignment | null, pendingRequests: Assignment[]) {
-    if (pendingRequests.length > 0 && isStaffOrAdmin) {
+    if (pendingRequests.length > 0 && canEditPublishedSchedule) {
       return (
         <Popover open={requestsShiftId === shift.id} onOpenChange={(open) => setRequestsShiftId(open ? shift.id : null)}>
           <PopoverTrigger asChild>
@@ -563,7 +576,7 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
                   area={area}
                   filled={filledInArea}
                   total={shifts.length}
-                  action={isStaffOrAdmin ? (
+                  action={canEditPublishedSchedule ? (
                     <AddSlotMenu
                       area={area}
                       disabled={inlineActing !== null}
@@ -583,7 +596,7 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
               const assignmentWindow = activeAssignment ? effectiveCallWindow(shift, activeAssignment) : null;
               const rowCallWindow = assignmentWindow ?? slotWindow;
               // Only staff get an edit target; everyone reads the same time.
-              const rowCallTarget = !isStaffOrAdmin
+              const rowCallTarget = !canEditPublishedSchedule
                 ? undefined
                 : activeAssignment
                   ? { type: "assignment" as const, id: activeAssignment.id }
@@ -628,7 +641,7 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
                     {renderStatus(shift, activeAssignment, pendingRequests)}
                   </TableCell>
                   <TableCell className="py-2.5 pr-2 text-right">
-                    {isStaffOrAdmin
+                    {canEditPublishedSchedule
                       ? renderRowActions(shift, activeAssignment)
                       : canAcknowledge && activeAssignment ? (
                         <Button
@@ -672,7 +685,7 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
             {publicationBadge.label}
           </Badge>
         </div>
-        {isStaffOrAdmin && (
+        {canEditPublishedSchedule && (
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Button variant="outline" size="sm" onClick={handleAutoFill} disabled={autoFilling || inlineActing !== null || publishing}>
               {autoFilling ? "Building preview..." : "Preview auto-fill"}
@@ -685,6 +698,13 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
       </CardHeader>
 
       <CardContent>
+        {shiftGroup.hasWorkingCopy && isStaffOrAdmin && (
+          <Alert className="mb-4">
+            <AlertDescription>
+              This event has unpublished Schedule changes. Review them in the <Link href="/schedule" className="font-medium underline">Schedule</Link> workstation before changing or publishing live assignments.
+            </AlertDescription>
+          </Alert>
+        )}
         {(actionError || createdShiftNotice) && (
           <Alert variant={actionError ? "destructive" : "default"} className="mb-4">
             <AlertDescription>{actionError || createdShiftNotice}</AlertDescription>

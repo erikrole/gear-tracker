@@ -225,10 +225,53 @@ struct EventShift: Codable, Identifiable {
     let workerType: String
     let startsAt: Date
     let endsAt: Date
+    let callStartsAt: Date?
+    let callEndsAt: Date?
     let notes: String?
     let assignments: [ShiftAssignmentRecord]
 
+    private enum CodingKeys: String, CodingKey {
+        case id, area, workerType, startsAt, endsAt, callStartsAt, callEndsAt, notes, assignments
+    }
+
+    init(
+        id: String,
+        area: String,
+        workerType: String,
+        startsAt: Date,
+        endsAt: Date,
+        callStartsAt: Date? = nil,
+        callEndsAt: Date? = nil,
+        notes: String?,
+        assignments: [ShiftAssignmentRecord]
+    ) {
+        self.id = id
+        self.area = area
+        self.workerType = workerType
+        self.startsAt = startsAt
+        self.endsAt = endsAt
+        self.callStartsAt = callStartsAt
+        self.callEndsAt = callEndsAt
+        self.notes = notes
+        self.assignments = assignments
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        area = try container.decode(String.self, forKey: .area)
+        workerType = try container.decode(String.self, forKey: .workerType)
+        startsAt = try container.decode(Date.self, forKey: .startsAt)
+        endsAt = try container.decode(Date.self, forKey: .endsAt)
+        callStartsAt = try container.decodeIfPresent(Date.self, forKey: .callStartsAt)
+        callEndsAt = try container.decodeIfPresent(Date.self, forKey: .callEndsAt)
+        notes = try container.decodeIfPresent(String.self, forKey: .notes)
+        assignments = try container.decodeIfPresent([ShiftAssignmentRecord].self, forKey: .assignments) ?? []
+    }
+
     var isOpen: Bool { assignments.isEmpty }
+    var effectiveStartsAt: Date { callStartsAt ?? startsAt }
+    var effectiveEndsAt: Date { callEndsAt ?? endsAt }
 }
 
 struct ShiftAssignmentRecord: Codable, Identifiable {
@@ -251,6 +294,13 @@ struct ShiftAssignmentRecord: Codable, Identifiable {
         activeTrade = try c.decodeIfPresent(ActiveTradeRef.self, forKey: .activeTrade)
     }
 
+    init(id: String, status: String, user: ShiftWorker, activeTrade: ActiveTradeRef? = nil) {
+        self.id = id
+        self.status = status
+        self.user = user
+        self.activeTrade = activeTrade
+    }
+
     var isOnTradeBoard: Bool { activeTrade != nil }
 }
 
@@ -258,6 +308,133 @@ struct ShiftAssignmentRecord: Codable, Identifiable {
 struct ActiveTradeRef: Codable {
     let id: String
     let status: String
+}
+
+// MARK: - Native working schedule editor
+
+struct WorkingScheduleChanges: Codable {
+    let addedSlots: Int
+    let removedSlots: Int
+    let convertedSlots: Int
+    let assignmentChanges: Int
+    let callWindowChanges: Int
+    let total: Int
+
+    var summary: String {
+        var parts: [String] = []
+        if addedSlots > 0 { parts.append("\(addedSlots) added") }
+        if removedSlots > 0 { parts.append("\(removedSlots) removed") }
+        if convertedSlots > 0 { parts.append("\(convertedSlots) converted") }
+        if assignmentChanges > 0 { parts.append("\(assignmentChanges) assignments") }
+        if callWindowChanges > 0 { parts.append("\(callWindowChanges) call windows") }
+        return parts.isEmpty ? "No unpublished changes" : parts.joined(separator: " · ")
+    }
+}
+
+struct WorkingScheduleUser: Codable, Identifiable {
+    let id: String
+    let name: String
+    let role: String?
+    let staffingType: String?
+    let primaryArea: String?
+    let avatarUrl: String?
+}
+
+struct WorkingScheduleAssignment: Codable {
+    let sourceAssignmentId: String?
+    let userId: String
+    let status: String
+    let callStartsAt: Date?
+    let callEndsAt: Date?
+    let callNote: String?
+    let activeTradeId: String?
+    let bookingCount: Int
+}
+
+struct WorkingScheduleSlot: Codable, Identifiable {
+    let key: String
+    let sourceShiftId: String?
+    let area: String
+    let workerType: String
+    let startsAt: Date
+    let endsAt: Date
+    let callStartsAt: Date?
+    let callEndsAt: Date?
+    let notes: String?
+    let assignmentHistoryCount: Int
+    let assignment: WorkingScheduleAssignment?
+
+    var id: String { key }
+}
+
+struct WorkingSchedulePayload: Codable {
+    let eventStartsAt: Date
+    let eventEndsAt: Date
+    let slots: [WorkingScheduleSlot]
+}
+
+struct WorkingScheduleEditor: Codable, Identifiable {
+    let shiftGroupId: String
+    let publicationState: String
+    let publishedAt: Date?
+    let publishedVersion: Int
+    let workingVersion: Int
+    let basePublishedVersion: Int
+    let hasWorkingCopy: Bool
+    let updatedAt: Date?
+    let updatedById: String?
+    let changes: WorkingScheduleChanges
+    let affectedWorkerCount: Int
+    let assignedUsers: [WorkingScheduleUser]
+    let schedule: WorkingSchedulePayload
+
+    var id: String { shiftGroupId }
+    var hasUnpublishedChanges: Bool { hasWorkingCopy && changes.total > 0 }
+
+    func eventShifts() -> [EventShift] {
+        let users = Dictionary(uniqueKeysWithValues: assignedUsers.map { ($0.id, $0) })
+        return schedule.slots.map { slot in
+            let assignment = slot.assignment.map { draftAssignment in
+                let profile = users[draftAssignment.userId]
+                let worker = ShiftWorker(
+                    id: draftAssignment.userId,
+                    name: profile?.name ?? "Assigned worker",
+                    primaryArea: profile?.primaryArea,
+                    avatarUrl: profile?.avatarUrl,
+                    role: profile?.role,
+                    staffingType: profile?.staffingType
+                )
+                let trade = draftAssignment.activeTradeId.map { ActiveTradeRef(id: $0, status: "OPEN") }
+                return ShiftAssignmentRecord(
+                    id: draftAssignment.sourceAssignmentId ?? "working:\(slot.key)",
+                    status: draftAssignment.status,
+                    user: worker,
+                    activeTrade: trade
+                )
+            }
+            return EventShift(
+                id: slot.key,
+                area: slot.area,
+                workerType: slot.workerType,
+                startsAt: slot.startsAt,
+                endsAt: slot.endsAt,
+                callStartsAt: slot.assignment?.callStartsAt ?? slot.callStartsAt,
+                callEndsAt: slot.assignment?.callEndsAt ?? slot.callEndsAt,
+                notes: slot.notes,
+                assignments: assignment.map { [$0] } ?? []
+            )
+        }
+    }
+}
+
+struct SchedulePublicationState: Codable {
+    let status: String
+    let publishedAt: Date?
+    let publishedById: String?
+    let changedAfterPublish: Bool
+    let activeAssignmentCount: Int
+    let acknowledgedCount: Int
+    let unacknowledgedCount: Int
 }
 
 struct ShiftWorker: Codable, Identifiable {

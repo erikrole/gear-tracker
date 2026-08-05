@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { formatDateShort, formatTimeShort } from "@/lib/format";
@@ -75,6 +76,7 @@ type Shift = {
 type ShiftGroupDetail = {
   id: string;
   eventId: string;
+  hasWorkingCopy?: boolean;
   publication?: {
     status: "draft" | "published" | "changed";
     publishedAt: string | null;
@@ -164,6 +166,7 @@ export default function ShiftDetailPanel({
   const [userSearch, setUserSearch] = useState("");
 
   const isStaff = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
+  const canEditPublishedSchedule = isStaff && !group?.hasWorkingCopy;
   const eventTimingLabel = group?.event.allDay
     ? formatCalendarEventDateRange(group.event, { includeYear: true })
     : group
@@ -364,6 +367,10 @@ export default function ShiftDetailPanel({
   }
 
   async function handleAutoFill() {
+    if (!canEditPublishedSchedule) {
+      toast.error("Review or discard the private working schedule before running auto-fill.");
+      return;
+    }
     if (!group || autoFillingRef.current) return;
     autoFillingRef.current = true;
     setAutoFilling(true);
@@ -430,6 +437,10 @@ export default function ShiftDetailPanel({
   }
 
   async function handlePublish() {
+    if (!canEditPublishedSchedule) {
+      toast.error("Open Schedule to review and publish the private working copy.");
+      return;
+    }
     if (!group || publishingRef.current) return;
     publishingRef.current = true;
     setPublishing(true);
@@ -574,6 +585,13 @@ export default function ShiftDetailPanel({
           <div className="p-4 text-muted-foreground">Shift group not found.</div>
         ) : (
           <SheetBody className="px-6 py-4">
+            {group.hasWorkingCopy && isStaff && (
+              <Alert className="mb-4">
+                <AlertDescription>
+                  This event has unpublished Schedule changes. Review them in the <Link href="/schedule" className="font-medium underline">Schedule</Link> workstation before changing or publishing live assignments.
+                </AlertDescription>
+              </Alert>
+            )}
             {(actionError || createdShiftNotice) && (
               <Alert variant={actionError ? "destructive" : "default"} className="mb-4">
                 <AlertDescription>{actionError || createdShiftNotice}</AlertDescription>
@@ -590,7 +608,7 @@ export default function ShiftDetailPanel({
                   {eventTimingLabel}
                 </span>
               </div>
-              {isStaff && (
+              {canEditPublishedSchedule && (
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <Button
                     variant="outline"
@@ -623,6 +641,7 @@ export default function ShiftDetailPanel({
                   shifts={shifts}
                   eventAllDay={group.event.allDay}
                   isStaff={isStaff}
+                  canEdit={canEditPublishedSchedule}
                   currentUserId={currentUserId}
                   acting={acting}
                   pickerShiftId={pickerShiftId}

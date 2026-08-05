@@ -98,10 +98,68 @@ describe("generateShiftsForEvent", () => {
     expect(result).toEqual({ created: true, shiftGroupId: "shift-group-1", shiftCount: 3 });
     expect(mockTx.shift.createMany).toHaveBeenCalledWith({
       data: expect.arrayContaining([
-        expect.objectContaining({ area: "VIDEO", workerType: "FT" }),
-        expect.objectContaining({ area: "VIDEO", workerType: "ST" }),
-        expect.objectContaining({ area: "VIDEO", workerType: "ST" }),
+        expect.objectContaining({
+          area: "VIDEO",
+          workerType: "FT",
+          startsAt: new Date("2026-04-01T17:00:00Z"),
+          endsAt: new Date("2026-04-01T21:30:00Z"),
+        }),
+        expect.objectContaining({
+          area: "VIDEO",
+          workerType: "ST",
+          startsAt: new Date("2026-04-01T17:00:00Z"),
+          endsAt: new Date("2026-04-01T21:30:00Z"),
+        }),
+        expect.objectContaining({
+          area: "VIDEO",
+          workerType: "ST",
+          startsAt: new Date("2026-04-01T17:00:00Z"),
+          endsAt: new Date("2026-04-01T21:30:00Z"),
+        }),
       ]),
+    });
+  });
+
+  it("preserves date-only boundaries for all-day events", async () => {
+    const event = {
+      id: "event-all-day",
+      sportCode: "FB",
+      isHome: true,
+      allDay: true,
+      startsAt: new Date("2026-04-02T00:00:00Z"),
+      endsAt: new Date("2026-04-03T00:00:00Z"),
+      shiftGroup: null,
+    };
+    vi.mocked(db.calendarEvent.findUnique).mockResolvedValue(calendarEvent(event));
+    vi.mocked(db.sportConfig.findUnique).mockResolvedValue(sportConfig({
+      sportCode: "FB",
+      active: true,
+      shiftStartOffset: 120,
+      shiftEndOffset: 120,
+      shiftConfigs: [{
+        area: "VIDEO",
+        homeCount: 1,
+        awayCount: 0,
+        homeStaffCount: 0,
+        homeStudentCount: 1,
+        awayStaffCount: 0,
+        awayStudentCount: 0,
+      }],
+    }));
+    mockTx.calendarEvent.findUnique.mockResolvedValue({ ...event, shiftGroup: null });
+    mockTx.shiftGroup.create.mockResolvedValue({ id: "shift-group-all-day" });
+    mockTx.shift.createMany.mockResolvedValue({ count: 1 });
+
+    await expect(generateShiftsForEvent("event-all-day")).resolves.toEqual({
+      created: true,
+      shiftGroupId: "shift-group-all-day",
+      shiftCount: 1,
+    });
+    expect(mockTx.shift.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({
+        startsAt: new Date("2026-04-02T00:00:00Z"),
+        endsAt: new Date("2026-04-03T00:00:00Z"),
+      })],
     });
   });
 });

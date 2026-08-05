@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Settings
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-31
+- Last Updated: 2026-08-04
 - Status: Active
 - Version: V1
 
@@ -99,6 +99,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Toggle sports active/inactive for shift generation.
 - Configure separate Staff and Student home/away shift counts per area (Video, Photo, Graphics, Comms).
 - Configure the sport-level default call time window used when a shift or assignment does not have a more specific call override.
+- Saving call-time offsets synchronizes upcoming timed shift fallbacks and active private working copies through the shared schedule service. Explicit slot and personal call windows remain unchanged; all-day events retain date-only boundaries.
 - Expandable roster panel per sport — add/remove users.
 - Mobile: card layout replaces dense table for shift configs.
 
@@ -203,6 +204,7 @@ All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-j
 
 ## Change Log
 
+- 2026-08-04: **Sport settings now own current timed call-time synchronization.** The shared default-window helper is consumed by generation, manual slot creation, template review, and the grouped/direct Sport settings mutations. Saving call-time offsets updates future timed shift fallbacks, keeps active working-copy payloads publishable with the same defaults, refreshes published snapshots, and preserves explicit slot or personal overrides. All-day events remain date-only. A shared dry-run/apply path was used to repair live drift: 35 fallback shift windows across 9 groups, 3 private working copies, and 1 published snapshot were corrected; the post-apply audit found zero remaining drift.
 - 2026-07-31: **Passkey self-service hardening.** Enrollment and revocation now
   enforce the explicit all-role `user.edit_self` permission in addition to the
   authenticated session and current-password checks. Duplicate credential

@@ -6,6 +6,7 @@ import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
 import { getSchedulePublicationState } from "@/lib/services/schedule-publication";
 import { sportTemplateCounts } from "@/lib/services/shift-generation";
+import { sportDefaultShiftWindow } from "@/lib/schedule-defaults";
 import { optionalSportCodeSchema } from "@/lib/validation";
 import { createAuditEntryTx } from "@/lib/audit";
 import { Prisma } from "@prisma/client";
@@ -166,7 +167,7 @@ export const POST = withAuth(async (req, { user }) => {
     group = await db.$transaction(async (tx) => {
       const event = await tx.calendarEvent.findUnique({
         where: { id: eventId },
-        select: { id: true, sportCode: true, startsAt: true, endsAt: true },
+        select: { id: true, sportCode: true, allDay: true, startsAt: true, endsAt: true },
       });
       if (!event) throw new HttpError(404, "Event not found");
 
@@ -194,8 +195,9 @@ export const POST = withAuth(async (req, { user }) => {
       let slotsCreated = 0;
       if (config && templateSide !== "EMPTY") {
         const isHomeTemplate = templateSide === "HOME";
-        const startsAt = new Date(event.startsAt.getTime() - config.shiftStartOffset * 60_000);
-        const endsAt = new Date(event.endsAt.getTime() + config.shiftEndOffset * 60_000);
+        const defaultWindow = sportDefaultShiftWindow(event, config);
+        const startsAt = defaultWindow.startsAt;
+        const endsAt = defaultWindow.endsAt;
         const shifts = config.shiftConfigs.flatMap((row) => {
           const counts = sportTemplateCounts(row, isHomeTemplate);
           return (["FT", "ST"] as const).flatMap((workerType) =>

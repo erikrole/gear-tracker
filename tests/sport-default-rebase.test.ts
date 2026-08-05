@@ -151,4 +151,32 @@ describe("sport default rebasing", () => {
     expect(tx.shift.createMany).not.toHaveBeenCalled();
     expect(tx.shift.deleteMany).not.toHaveBeenCalled();
   });
+
+  it("keeps all-day rebase slots on the event date boundaries", async () => {
+    tx.shiftGroup.create.mockResolvedValue({ id: "group-all-day" });
+    tx.calendarEvent.findMany.mockResolvedValue([{
+      id: "all-day",
+      sportCode: "FB",
+      isHome: true,
+      allDay: true,
+      startsAt: new Date("2026-09-02T00:00:00Z"),
+      endsAt: new Date("2026-09-03T00:00:00Z"),
+      shiftGroup: null,
+    }]);
+
+    await rebaseUpcomingShiftsForSportCodes(["FB"]);
+
+    expect(tx.shift.createMany).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          startsAt: new Date("2026-09-02T00:00:00Z"),
+          endsAt: new Date("2026-09-03T00:00:00Z"),
+        }),
+        expect.objectContaining({
+          startsAt: new Date("2026-09-02T00:00:00Z"),
+          endsAt: new Date("2026-09-03T00:00:00Z"),
+        }),
+      ],
+    });
+  });
 });
