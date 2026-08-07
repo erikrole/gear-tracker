@@ -842,6 +842,25 @@ describe("publish preflight", () => {
     expect(error).toMatchObject({ status: 409, message: expect.stringContaining("2 problems") });
     const codes = ((error as { data: { blockers: Array<{ code: string }> } }).data.blockers).map((b) => b.code);
     expect(codes).toEqual(["active_trade", "linked_booking"]);
+    expect(mockTx.shiftGroup.findUnique).toHaveBeenCalledWith(expect.objectContaining({
+      select: expect.objectContaining({
+        shifts: expect.objectContaining({
+          select: expect.objectContaining({
+            assignments: expect.objectContaining({
+              select: expect.objectContaining({
+                _count: {
+                  select: {
+                    bookings: {
+                      where: { status: { in: ["BOOKED", "PENDING_PICKUP", "OPEN"] } },
+                    },
+                  },
+                },
+              }),
+            }),
+          }),
+        }),
+      }),
+    }));
   });
 
   // A single blocker must keep reading exactly as it did, so existing recovery

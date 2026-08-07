@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-04
+- Last Updated: 2026-08-07
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -258,6 +258,12 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - Mobile operations contract from `AREA_MOBILE.md`.
 
 ## Change Log
+
+- 2026-08-07: **Canceled reservations release Schedule edit blockers.**
+  Working-copy and publish guards now treat only active linked booking states
+  as gear commitments. Canceled rows remain preserved for audit, and stale
+  working-copy metadata is refreshed from live assignment relationships before
+  unassign or replacement decisions.
 
 - 2026-08-04: **Event-linked reservation scheduling shipped.** Internal reservations now reuse or create a direct assignment for the requester on the primary linked event inside the same serializable booking transaction, link `Booking.shiftAssignmentId`, enforce existing conflict and approved-time-off checks, and keep published schedule snapshots coherent. Explicit assignment links, collaborator follows, private working copies, and events without a safe crew setup remain unchanged.
 - 2026-08-04: **Reservation schedule lifecycle hardening shipped.** Assignment provenance is durable, explicit links are validated at the booking transaction boundary, and event relinks, owner transfers, cancellation, no-show expiry, and requester deactivation reconcile only reservation-managed assignments. Shared links remain active for other reservations, working-copy changes become review-needed audit states, and worker notifications wait for commit.

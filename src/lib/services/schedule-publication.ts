@@ -1,6 +1,7 @@
 import { Prisma, Role, ShiftAssignmentStatus, ShiftArea, ShiftWorkerType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { createAuditEntryTx } from "@/lib/audit";
+import { ACTIVE_BOOKING_STATUSES } from "@/lib/booking-statuses";
 import { HttpError } from "@/lib/http";
 import { workingSchedulePayloadSchema, type WorkingSchedulePayload } from "@/lib/schedule-working-copy";
 import { withSerializationRetry } from "@/lib/serialization";
@@ -182,7 +183,11 @@ async function findGroupForPublication(shiftGroupId: string, tx: Prisma.Transact
                 select: { id: true },
                 take: 1,
               },
-              _count: { select: { bookings: true } },
+              _count: {
+                select: {
+                  bookings: { where: { status: { in: ACTIVE_BOOKING_STATUSES } } },
+                },
+              },
             },
           },
         },

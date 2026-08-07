@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Prisma, Role, ShiftAssignmentStatus, ShiftWorkerType } from "@prisma/client";
 import { createAuditEntryTx } from "@/lib/audit";
+import { ACTIVE_BOOKING_STATUSES } from "@/lib/booking-statuses";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { sportDefaultShiftWindow } from "@/lib/schedule-defaults";
@@ -51,7 +52,11 @@ const groupEditorSelect = {
             select: { id: true },
             take: 1,
           },
-          _count: { select: { bookings: true } },
+          _count: {
+            select: {
+              bookings: { where: { status: { in: ACTIVE_BOOKING_STATUSES } } },
+            },
+          },
         },
       },
     },
@@ -79,6 +84,40 @@ function effectiveSlotWindow(slot: WorkingSchedulePayload["slots"][number]) {
   return {
     startsAt: slot.assignment?.callStartsAt ?? slot.callStartsAt ?? slot.startsAt,
     endsAt: slot.assignment?.callEndsAt ?? slot.callEndsAt ?? slot.endsAt,
+  };
+}
+
+/**
+ * Working-copy payloads intentionally preserve staff intent, but relationship
+ * facts such as active trades and linked bookings belong to the live rows.
+ * Refresh those facts before guards run so a canceled booking kept for audit
+ * cannot remain a live edit blocker in an older draft.
+ */
+function refreshLiveAssignmentMetadata(
+  payload: WorkingSchedulePayload,
+  group: EditorGroup,
+): WorkingSchedulePayload {
+  const liveAssignments = new Map(
+    group.shifts.flatMap((shift) =>
+      shift.assignments.map((assignment) => [assignment.id, assignment] as const),
+    ),
+  );
+
+  return {
+    ...payload,
+    slots: payload.slots.map((slot) => {
+      const assignment = slot.assignment;
+      if (!assignment?.sourceAssignmentId) return slot;
+      const live = liveAssignments.get(assignment.sourceAssignmentId);
+      return {
+        ...slot,
+        assignment: {
+          ...assignment,
+          activeTradeId: live?.trades[0]?.id ?? null,
+          bookingCount: live?._count.bookings ?? 0,
+        },
+      };
+    }),
   };
 }
 
@@ -144,7 +183,9 @@ function parseStoredPayload(value: Prisma.JsonValue): WorkingSchedulePayload {
 
 async function editorResponse(group: EditorGroup, tx: Prisma.TransactionClient = db) {
   const published = buildWorkingSchedulePayload(group);
-  const working = group.workingCopy ? parseStoredPayload(group.workingCopy.payload) : published;
+  const working = group.workingCopy
+    ? refreshLiveAssignmentMetadata(parseStoredPayload(group.workingCopy.payload), group)
+    : published;
   const defaultWindow = await resolveWorkingScheduleDefaultWindow(group, tx);
   const assignedUserIds = [...new Set(
     working.slots.flatMap((slot) => slot.assignment ? [slot.assignment.userId] : []),
@@ -262,7 +303,7 @@ export async function mutateWorkingSchedule(
     }
 
     const beforePayload = group.workingCopy
-      ? parseStoredPayload(group.workingCopy.payload)
+      ? refreshLiveAssignmentMetadata(parseStoredPayload(group.workingCopy.payload), group)
       : buildWorkingSchedulePayload(group);
     const defaultWindow = command.type === "adjustSlots" && command.delta === 1
       ? await resolveWorkingScheduleDefaultWindow(group, tx)
@@ -626,7 +667,7 @@ export async function rebaseWorkingSchedule(
       throw new HttpError(409, "This schedule changed in another session. Refresh before editing again.");
     }
 
-    const draft = parseStoredPayload(group.workingCopy.payload);
+    const draft = refreshLiveAssignmentMetadata(parseStoredPayload(group.workingCopy.payload), group);
     const live = buildWorkingSchedulePayload(group);
     const liveBySourceId = new Map(
       live.slots.flatMap((slot) => slot.sourceShiftId ? [[slot.sourceShiftId, slot] as const] : []),

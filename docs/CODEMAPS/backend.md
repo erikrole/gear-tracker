@@ -52,9 +52,9 @@
 | `src/lib/services/schedule-health.ts` | 386 |
 | `src/lib/services/schedule-notification-policy.ts` | 106 |
 | `src/lib/services/schedule-open-work.ts` | 447 |
-| `src/lib/services/schedule-publication.ts` | 867 |
+| `src/lib/services/schedule-publication.ts` | 872 |
 | `src/lib/services/schedule-template-review.ts` | 554 |
-| `src/lib/services/schedule-working-copy.ts` | 791 |
+| `src/lib/services/schedule-working-copy.ts` | 832 |
 | `src/lib/services/shift-assignment-conflicts.ts` | 43 |
 | `src/lib/services/shift-assignments.ts` | 656 |
 | `src/lib/services/shift-generation.ts` | 624 |
@@ -87,6 +87,7 @@
 | `src/lib/booking-actions.ts` | 14 |
 | `src/lib/booking-availability-window.ts` | 19 |
 | `src/lib/booking-status-display.ts` | 142 |
+| `src/lib/booking-statuses.ts` | 9 |
 | `src/lib/breadcrumbs.ts` | 144 |
 | `src/lib/bulk-batteries.ts` | 28 |
 | `src/lib/bulk-unit-qr.ts` | 111 |
