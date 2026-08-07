@@ -53,9 +53,9 @@
 | `src/lib/services/schedule-health.ts` | 386 |
 | `src/lib/services/schedule-notification-policy.ts` | 106 |
 | `src/lib/services/schedule-open-work.ts` | 447 |
-| `src/lib/services/schedule-publication.ts` | 890 |
+| `src/lib/services/schedule-publication.ts` | 899 |
 | `src/lib/services/schedule-template-review.ts` | 554 |
-| `src/lib/services/schedule-working-copy.ts` | 880 |
+| `src/lib/services/schedule-working-copy.ts` | 890 |
 | `src/lib/services/shift-assignment-conflicts.ts` | 43 |
 | `src/lib/services/shift-assignments.ts` | 656 |
 | `src/lib/services/shift-generation.ts` | 628 |
@@ -162,7 +162,7 @@
 | `src/lib/schedule-queues.ts` | 185 |
 | `src/lib/schedule-template-review-types.ts` | 105 |
 | `src/lib/schedule-working-copy-guard.ts` | 13 |
-| `src/lib/schedule-working-copy.ts` | 376 |
+| `src/lib/schedule-working-copy.ts` | 423 |
 | `src/lib/search-pages.ts` | 71 |
 | `src/lib/search-result-title.ts` | 13 |
 | `src/lib/serialization.ts` | 47 |

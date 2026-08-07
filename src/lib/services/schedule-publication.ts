@@ -4,7 +4,11 @@ import { createAuditEntryTx } from "@/lib/audit";
 import { ACTIVE_BOOKING_STATUSES } from "@/lib/booking-statuses";
 import { HttpError } from "@/lib/http";
 import { scheduleAssigneeWorkerType } from "@/lib/schedule-assignee";
-import { workingSchedulePayloadSchema, type WorkingSchedulePayload } from "@/lib/schedule-working-copy";
+import {
+  reconcileWorkingAssignmentSources,
+  workingSchedulePayloadSchema,
+  type WorkingSchedulePayload,
+} from "@/lib/schedule-working-copy";
 import { withSerializationRetry } from "@/lib/serialization";
 import { checkTimeConflict, findTimeConflict } from "@/lib/services/shift-assignments";
 import { evaluateAvailabilityPreferences } from "@/lib/student-availability";
@@ -465,7 +469,11 @@ export async function getPublishPreflight(shiftGroupId: string) {
       blockers: [] as PublishBlocker[],
     };
   }
-  return collectPublishBlockers(db, group, parsed.data);
+  return collectPublishBlockers(
+    db,
+    group,
+    reconcileWorkingAssignmentSources(parsed.data, group.shifts),
+  );
 }
 
 export async function publishShiftGroup(
@@ -489,7 +497,8 @@ export async function publishShiftGroup(
         throw new HttpError(409, "This working schedule is invalid and cannot be published.");
       }
 
-      const workingSlots = parsed.data.slots;
+      const workingPayload = reconcileWorkingAssignmentSources(parsed.data, group.shifts);
+      const workingSlots = workingPayload.slots;
       const currentById = new Map(group.shifts.map((shift) => [shift.id, shift]));
       const workingSourceIds = new Set(
         workingSlots.flatMap((slot) => slot.sourceShiftId ? [slot.sourceShiftId] : []),
@@ -498,7 +507,7 @@ export async function publishShiftGroup(
       // Everything that can block this publish, gathered before a single row is
       // written, so one attempt reports the whole list instead of making staff
       // rediscover it one exception at a time.
-      const preflight = await collectPublishBlockers(tx, group, parsed.data);
+      const preflight = await collectPublishBlockers(tx, group, workingPayload);
       if (preflight.staleness) {
         throw new HttpError(409, preflight.staleness.message, { staleness: preflight.staleness });
       }
@@ -606,8 +615,8 @@ export async function publishShiftGroup(
       for (const slot of workingSlots) {
         if (!slot.sourceShiftId) continue;
         const current = currentById.get(slot.sourceShiftId)!;
-        const startsAt = slot.workerType === "FT" ? parsed.data.eventStartsAt : slot.startsAt;
-        const endsAt = slot.workerType === "FT" ? parsed.data.eventEndsAt : slot.endsAt;
+        const startsAt = slot.workerType === "FT" ? workingPayload.eventStartsAt : slot.startsAt;
+        const endsAt = slot.workerType === "FT" ? workingPayload.eventEndsAt : slot.endsAt;
         const callStartsAt = slot.workerType === "ST" ? slot.callStartsAt : null;
         const callEndsAt = slot.workerType === "ST" ? slot.callEndsAt : null;
         const unchanged = current.area === slot.area
@@ -638,8 +647,8 @@ export async function publishShiftGroup(
         workingSlots.flatMap((slot) => slot.sourceShiftId ? [[slot.key, slot.sourceShiftId] as const] : []),
       );
       for (const slot of added) {
-        const startsAt = slot.workerType === "FT" ? parsed.data.eventStartsAt : slot.startsAt;
-        const endsAt = slot.workerType === "FT" ? parsed.data.eventEndsAt : slot.endsAt;
+        const startsAt = slot.workerType === "FT" ? workingPayload.eventStartsAt : slot.startsAt;
+        const endsAt = slot.workerType === "FT" ? workingPayload.eventEndsAt : slot.endsAt;
         const created = await tx.shift.create({
           data: {
             shiftGroupId,

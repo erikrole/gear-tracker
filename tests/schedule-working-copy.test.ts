@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyWorkingScheduleCommand,
+  reconcileWorkingAssignmentSources,
   summarizeWorkingScheduleChanges,
   workingSchedulePayloadSchema,
   type WorkingSchedulePayload,
@@ -30,6 +31,60 @@ function payload(overrides: Partial<WorkingSchedulePayload> = {}): WorkingSchedu
 }
 
 describe("working schedule commands", () => {
+  it("reconnects a same-person staged assignment to its live row", () => {
+    const staged = payload({
+      slots: [{
+        ...payload().slots[0]!,
+        workerType: "FT",
+        assignment: {
+          sourceAssignmentId: null,
+          userId: "user-1",
+          status: "DIRECT_ASSIGNED",
+          callStartsAt: null,
+          callEndsAt: null,
+          callNote: null,
+          activeTradeId: null,
+          bookingCount: 0,
+        },
+      }],
+    });
+
+    const repaired = reconcileWorkingAssignmentSources(staged, [{
+      id: "shift-1",
+      workerType: "FT",
+      assignments: [{ id: "assignment-1", userId: "user-1" }],
+    }]);
+
+    expect(repaired.slots[0]!.assignment?.sourceAssignmentId).toBe("assignment-1");
+  });
+
+  it("keeps a real worker-class replacement staged as new", () => {
+    const staged = payload({
+      slots: [{
+        ...payload().slots[0]!,
+        workerType: "ST",
+        assignment: {
+          sourceAssignmentId: null,
+          userId: "user-1",
+          status: "DIRECT_ASSIGNED",
+          callStartsAt: null,
+          callEndsAt: null,
+          callNote: null,
+          activeTradeId: null,
+          bookingCount: 0,
+        },
+      }],
+    });
+
+    const repaired = reconcileWorkingAssignmentSources(staged, [{
+      id: "shift-1",
+      workerType: "FT",
+      assignments: [{ id: "assignment-1", userId: "user-1" }],
+    }]);
+
+    expect(repaired.slots[0]!.assignment?.sourceAssignmentId).toBeNull();
+  });
+
   it("adds a same-class slot with its peer's call window", () => {
     const result = applyWorkingScheduleCommand(
       payload(),

@@ -959,6 +959,56 @@ describe("publish preflight", () => {
     expect(mockTx.shift.create).not.toHaveBeenCalled();
     expect(mockTx.shiftAssignment.create).not.toHaveBeenCalled();
   });
+
+  it("does not report a same-person staged replacement as a time conflict", async () => {
+    const currentShift = shiftRow("shift-video", "FT", liveAssignment("assignment-maddy", "maddy"));
+    const group = {
+      id: "group-1",
+      publishedAt: new Date("2026-08-01T12:00:00.000Z"),
+      publishedById: "staff-1",
+      publishedVersion: 1,
+      lastPublishedSnapshot: null,
+      workingCopy: {
+        version: 3,
+        basePublishedVersion: 1,
+        createdAt: draftStartedAt,
+        payload: {
+          eventStartsAt: "2026-08-05T17:00:00.000Z",
+          eventEndsAt: "2026-08-05T21:00:00.000Z",
+          slots: [slot("shift-video", "shift-video", "FT", {
+            sourceAssignmentId: null,
+            userId: "maddy",
+            status: "DIRECT_ASSIGNED",
+            callStartsAt: null,
+            callEndsAt: null,
+            callNote: null,
+            activeTradeId: null,
+            bookingCount: 0,
+          })],
+        },
+      },
+      shifts: [currentShift],
+    };
+    mockTx.shiftGroup.findUnique
+      .mockResolvedValueOnce(group)
+      .mockResolvedValueOnce({ ...group, workingCopy: null });
+    mockTx.shiftGroup.update.mockImplementation(async ({ data }) => ({
+      ...group,
+      publishedAt: data.publishedAt,
+      publishedById: data.publishedById,
+      publishedVersion: 2,
+      lastPublishedSnapshot: data.lastPublishedSnapshot,
+      workingCopy: null,
+    }));
+    mockTx.shiftGroupWorkingCopy.deleteMany.mockResolvedValue({ count: 1 });
+
+    await expect(publishShiftGroup("group-1", "staff-1", 3)).resolves.toMatchObject({
+      workingVersion: 3,
+    });
+
+    expect(mockTx.shiftAssignment.update).not.toHaveBeenCalled();
+    expect(mockTx.shiftAssignment.create).not.toHaveBeenCalled();
+  });
 });
 
 describe("publish drift uses the recorded base shift set", () => {

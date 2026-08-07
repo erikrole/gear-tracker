@@ -115,6 +115,53 @@ export type WorkingScheduleDefaultWindow = {
   endsAt: string;
 };
 
+/**
+ * Repair a same-person slot that was staged as a replacement even though the
+ * live slot still holds that person. Older working copies can contain a null
+ * sourceAssignmentId for this no-op replacement; treating it as new makes the
+ * publish conflict check compare the worker with their own live assignment.
+ * Only matching worker classes are repaired. A real class conversion remains
+ * an explicit replacement and must continue through its normal guards.
+ */
+export function reconcileWorkingAssignmentSources(
+  payload: WorkingSchedulePayload,
+  liveShifts: ReadonlyArray<{
+    id: string;
+    workerType: ShiftWorkerType | string;
+    assignments: ReadonlyArray<{ id: string; userId: string }>;
+  }>,
+): WorkingSchedulePayload {
+  const liveByShiftId = new Map(liveShifts.map((shift) => [shift.id, shift] as const));
+  let changed = false;
+
+  const slots = payload.slots.map((slot) => {
+    if (!slot.sourceShiftId || !slot.assignment || slot.assignment.sourceAssignmentId !== null) {
+      return slot;
+    }
+    const live = liveByShiftId.get(slot.sourceShiftId);
+    const liveAssignment = live?.assignments.length === 1 ? live.assignments[0] : undefined;
+    if (
+      !live
+      || !liveAssignment
+      || live.workerType !== slot.workerType
+      || liveAssignment.userId !== slot.assignment.userId
+    ) {
+      return slot;
+    }
+
+    changed = true;
+    return {
+      ...slot,
+      assignment: {
+        ...slot.assignment,
+        sourceAssignmentId: liveAssignment.id,
+      },
+    };
+  });
+
+  return changed ? { ...payload, slots } : payload;
+}
+
 export const workingScheduleCommandSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("adjustSlots"),

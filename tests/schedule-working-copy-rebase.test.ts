@@ -143,6 +143,20 @@ describe("rebaseWorkingSchedule", () => {
     tx.shiftGroupWorkingCopy.updateMany.mockResolvedValue({ count: 1 });
   });
 
+  it("repairs a same-person staged assignment before writing the rebased copy", async () => {
+    tx.shiftGroup.findUnique.mockResolvedValue(group(
+      [liveShift("shift-video", beforeDraft, { id: "assignment-live", userId: "maddy" })],
+      [draftSlot("shift-video", "shift-video", { sourceAssignmentId: null, userId: "maddy" })],
+    ));
+
+    await rebaseWorkingSchedule("group-1", 7, actor);
+
+    expect(writtenPayload().slots[0]!.assignment).toMatchObject({
+      sourceAssignmentId: "assignment-live",
+      userId: "maddy",
+    });
+  });
+
   // The production failure: two shifts were added live 18 minutes after the
   // draft started, so the draft never saw them and publish refused to proceed.
   it("adopts live shifts created after the draft started", async () => {

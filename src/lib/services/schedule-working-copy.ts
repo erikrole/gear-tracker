@@ -8,6 +8,7 @@ import { scheduleAssigneeWorkerType } from "@/lib/schedule-assignee";
 import { sportDefaultShiftWindow } from "@/lib/schedule-defaults";
 import {
   applyWorkingScheduleCommand,
+  reconcileWorkingAssignmentSources,
   summarizeWorkingScheduleChanges,
   type WorkingScheduleCommand,
   type WorkingScheduleDefaultWindow,
@@ -191,7 +192,10 @@ function parseStoredPayload(value: Prisma.JsonValue): WorkingSchedulePayload {
 async function editorResponse(group: EditorGroup, tx: Prisma.TransactionClient = db) {
   const published = buildWorkingSchedulePayload(group);
   const working = group.workingCopy
-    ? refreshLiveAssignmentMetadata(parseStoredPayload(group.workingCopy.payload), group)
+    ? refreshLiveAssignmentMetadata(
+      reconcileWorkingAssignmentSources(parseStoredPayload(group.workingCopy.payload), group.shifts),
+      group,
+    )
     : published;
   const defaultWindow = await resolveWorkingScheduleDefaultWindow(group, tx);
   const assignedUserIds = [...new Set(
@@ -314,7 +318,10 @@ export async function mutateWorkingSchedule(
     }
 
     const beforePayload = group.workingCopy
-      ? refreshLiveAssignmentMetadata(parseStoredPayload(group.workingCopy.payload), group)
+      ? refreshLiveAssignmentMetadata(
+        reconcileWorkingAssignmentSources(parseStoredPayload(group.workingCopy.payload), group.shifts),
+        group,
+      )
       : buildWorkingSchedulePayload(group);
     const defaultWindow = command.type === "adjustSlots" && command.delta === 1
       ? await resolveWorkingScheduleDefaultWindow(group, tx)
@@ -710,7 +717,10 @@ export async function rebaseWorkingSchedule(
       throw new HttpError(409, "This schedule changed in another session. Refresh before editing again.");
     }
 
-    const draft = refreshLiveAssignmentMetadata(parseStoredPayload(group.workingCopy.payload), group);
+    const draft = refreshLiveAssignmentMetadata(
+      reconcileWorkingAssignmentSources(parseStoredPayload(group.workingCopy.payload), group.shifts),
+      group,
+    );
     const live = buildWorkingSchedulePayload(group);
     const liveBySourceId = new Map(
       live.slots.flatMap((slot) => slot.sourceShiftId ? [[slot.sourceShiftId, slot] as const] : []),

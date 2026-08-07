@@ -38,10 +38,10 @@ Informational only. These are the largest TypeScript and TSX files under `src/`;
 | `src/app/(app)/items/[id]/ItemBookingsTab.tsx` | 946 |
 | `src/lib/services/shift-trades.ts` | 929 |
 | `src/app/(app)/items/page.tsx` | 923 |
-| `src/lib/services/schedule-publication.ts` | 890 |
+| `src/lib/services/schedule-publication.ts` | 899 |
+| `src/lib/services/schedule-working-copy.ts` | 890 |
 | `src/components/onboarding/OnboardingDialog.tsx` | 884 |
 | `src/app/(app)/users/[id]/UserBadgesTab.tsx` | 881 |
-| `src/lib/services/schedule-working-copy.ts` | 880 |
 
 ## High-Level Data Flow
 
