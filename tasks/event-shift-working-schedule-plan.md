@@ -181,11 +181,11 @@ Make the expanded web Schedule list the primary crew workstation: fast Staff and
 
 ## Review: Slices 14–20 (2026-08-07)
 
-- Shipped locally: every working-schedule edit pre-enqueues an exact-version durable Workflow release ten minutes out. Newer edits supersede sleeping runs, permanent validation blockers persist on the pending version, and the old manual release endpoint returns `410`.
+- Shipped to production 2026-08-07: every working-schedule edit pre-enqueues an exact-version durable Workflow release ten minutes out. Newer edits supersede sleeping runs, permanent validation blockers persist on the pending version, and the old manual release endpoint returns `410`.
 - Defaults and people: Settings owns Non-game Staff/Student counts and Student offsets; sync, backfill, and manual event creation generate missing schedules. Neutral-site games with an opponent use the sport Away template. Active collaborators with published-Schedule access may be selected for Staff slots only.
 - Timing and visibility: Staff/collaborator slots retain event-window storage for schedule integrity but expose no call-time value or event-time substitute across notifications, exports, ICS, web, and iOS. Only Student slots expose call-time controls. Active acknowledgement controls and readiness state are retired while historical fields remain compatible.
 - Verified: 67 focused scheduling/notification/native source tests, TypeScript, focused ESLint, `npm run build:app`, codemap/docs checks, iOS project/drift checks, and the exact iPhone 16 Pro simulator build pass after the neutral/Staff-timing correction. The full repository suite passes 2,974 tests and retains three unrelated failures from concurrent App Store, login-domain, and Social-area work; repository-wide lint still stops in `.tmp/call-time-sync-bundle.mjs`.
-- Remaining: apply migration `0109_schedule_timed_release`, deploy the Workflow-capable server before clients, and prove an authenticated ten-minute release and consolidated notification on web/native.
+- Production evidence: migration health reports 114/114 local migrations applied with no pending, failed, or database-only rows. Vercel deployment `dpl_7oiHWXm3s2A7q3jkTbebXUq2RcN9` is READY and aliased at `https://gear.erikrole.com`; public deploy smoke passed. Authenticated ten-minute release and consolidated notification proof on web/native remains open.
 
 ## Review: Slice 6 Native working-copy adoption
 
