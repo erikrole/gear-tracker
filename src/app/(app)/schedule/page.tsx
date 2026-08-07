@@ -297,7 +297,6 @@ function InternalSchedulePage() {
           clearQueue={() => data.filters.setQueue(null)}
           currentUserId={data.currentUserId}
           isStaff={isStaff}
-          scheduleHealth={data.scheduleHealth}
           expandedRowId={data.expandedRowId}
           setExpandedRowId={data.setExpandedRowId}
           onSelectGroup={data.setSelectedGroupId}

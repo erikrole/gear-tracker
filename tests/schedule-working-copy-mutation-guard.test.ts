@@ -58,9 +58,9 @@ describe("working-copy mutation guard", () => {
     expect(source).toContain("createdAt: true,");
   });
 
-  // A refresh that staff cannot reach is not a recovery path. Pin the route
-  // verb, the service wiring, and the editor control together.
-  it("exposes draft rebase through the route and the editor", () => {
+  // Live rebase is automatic once the working copy sees a newer published
+  // version. Pin the route, service wiring, and editor polling together.
+  it("automatically rebases a working schedule after live drift", () => {
     const route = readFileSync("src/app/api/shift-groups/[id]/working-copy/route.ts", "utf8");
     const service = readFileSync("src/lib/services/schedule-working-copy.ts", "utf8");
     const editor = readFileSync("src/app/(app)/schedule/_components/WorkingCrewEditor.tsx", "utf8");
@@ -73,7 +73,9 @@ describe("working-copy mutation guard", () => {
     expect(service).toContain("Prisma.TransactionIsolationLevel.Serializable");
     expect(service).toContain("basePublishedVersion: group.publishedVersion");
     expect(editor).toContain("refreshFromLive");
-    expect(editor).toContain("Refresh from live");
+    expect(editor).toContain("basePublishedVersion < latest.publishedVersion");
+    expect(editor).toContain("formatNotificationCountdown");
+    expect(editor).not.toContain("Refresh from live");
   });
 
   it("retires the manual release endpoint and leaves reconciliation to the timer workflow", () => {

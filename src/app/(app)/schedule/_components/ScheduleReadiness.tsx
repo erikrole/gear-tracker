@@ -3,9 +3,9 @@
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangleIcon,
+  CalendarDaysIcon,
   CheckCircle2Icon,
   CloudAlertIcon,
-  FileClockIcon,
   ListChecksIcon,
   PackageCheckIcon,
   Repeat2Icon,
@@ -19,6 +19,7 @@ import {
 } from "@/components/OperationalStatusRail";
 import EmptyState from "@/components/EmptyState";
 import type { ScheduleHealthSnapshot } from "@/lib/schedule-health-types";
+import type { ScheduleChangeKind } from "@/lib/schedule-change-history-types";
 import type { ScheduleSourceSignal } from "@/lib/calendar-source-freshness";
 import type { ScheduleQueue } from "@/lib/schedule-queues";
 import { filterEntriesForScheduleQueue } from "@/lib/schedule-queues";
@@ -85,6 +86,29 @@ function userActiveShiftCount(entries: CalendarEntry[], userId: string) {
   }, 0);
 }
 
+const DAILY_ACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
+const CALENDAR_ACTIVITY_KINDS = new Set<ScheduleChangeKind>([
+  "event_created",
+  "event_updated",
+  "event_visibility_updated",
+]);
+const ASSIGNEE_ACTIVITY_KINDS = new Set<ScheduleChangeKind>([
+  "assignment_assigned",
+  "assignment_removed",
+  "assignment_updated",
+  "pickup_claimed",
+]);
+
+function recentActivityCount(health: ScheduleHealthSnapshot | null, kinds: Set<ScheduleChangeKind>) {
+  if (!health) return 0;
+  const cutoff = Date.now() - DAILY_ACTIVITY_WINDOW_MS;
+  return Object.values(health.changeHistory.events).reduce((count, summary) => {
+    return count + summary.items.filter((item) => {
+      return kinds.has(item.kind) && Date.parse(item.createdAt) >= cutoff;
+    }).length;
+  }, 0);
+}
+
 export function ScheduleReadiness({
   entries,
   filteredEntries,
@@ -121,12 +145,31 @@ export function ScheduleReadiness({
   const workerClassMismatchCount = health?.queues.dataQuality.issues.filter((issue) => issue.reason === "role_slot_mismatch").length ?? 0;
   const tradeApprovals = health?.queues.tradeApprovals.count ?? 0;
   const openTrades = health?.queues.openTrades.count ?? openTradeCount;
-  const unpublishedDrafts = health?.queues.unpublishedDrafts.count ?? 0;
+  const recentCalendarChanges = recentActivityCount(health, CALENDAR_ACTIVITY_KINDS);
+  const recentAssigneeChanges = recentActivityCount(health, ASSIGNEE_ACTIVITY_KINDS);
   const sourceNeedsAttention = sourceSignal?.severity === "attention";
   const hiddenAndArchivedCount = (health?.queues.hiddenEvents.count ?? 0) + (health?.queues.archivedEvents.count ?? 0);
   const healthWarnings = health?.partialFailures.length ?? 0;
 
   const items: ReadinessItem[] = [
+    {
+      label: "Synced calendar",
+      value: recentCalendarChanges,
+      detail: recentCalendarChanges > 0
+        ? `${recentCalendarChanges} change${recentCalendarChanges === 1 ? "" : "s"} in the last 24 hours`
+        : "No changes in the last 24 hours",
+      icon: CalendarDaysIcon,
+      tone: recentCalendarChanges > 0 ? "good" : "neutral",
+    },
+    {
+      label: "Assignee changes",
+      value: recentAssigneeChanges,
+      detail: recentAssigneeChanges > 0
+        ? `${recentAssigneeChanges} change${recentAssigneeChanges === 1 ? "" : "s"} in the last 24 hours`
+        : "No changes in the last 24 hours",
+      icon: UsersIcon,
+      tone: recentAssigneeChanges > 0 ? "good" : "neutral",
+    },
     {
       label: "Crew needed",
       value: openSlots,
@@ -212,20 +255,6 @@ export function ScheduleReadiness({
           onClick: () => onShowQueue("conflicts"),
         }]
       : []),
-    ...(unpublishedDrafts > 0
-      ? [{
-          label: "Unpublished drafts",
-          value: unpublishedDrafts,
-          // An open draft blocks every legacy edit path on its event and, before
-          // a first publish, keeps assigned crew invisible to the workers.
-          detail: unpublishedDrafts === 1
-            ? "Event held behind unpublished changes"
-            : "Events held behind unpublished changes",
-          icon: FileClockIcon,
-          tone: "attention" as const,
-          onClick: () => onShowQueue("unpublished-drafts"),
-        }]
-      : []),
     ...((sourceNeedsAttention || hiddenAndArchivedCount > 0 || healthWarnings > 0)
       ? [{
           label: healthWarnings > 0 ? "Health check" : "Source health",
@@ -249,10 +278,10 @@ export function ScheduleReadiness({
     (item) => (item.tone === "critical" || item.tone === "attention") && isActionableValue(item.value),
   );
   const personalItem = contextualItems.find((item) => item.tone === "personal");
-  const showAllClear = attentionItems.length === 0 && healthWarnings === 0;
+  const activityItems = items.slice(0, 2);
   const filtersHideEverything = filteredEntries.length === 0 && entries.length > 0;
   const railItems: OperationalStatusRailItem[] = [
-    ...attentionItems,
+    ...activityItems,
     ...(personalItem ? [personalItem] : []),
   ].map((item) => ({
     id: item.label,
@@ -260,7 +289,13 @@ export function ScheduleReadiness({
     value: item.value,
     detail: item.detail,
     icon: item.icon,
-    tone: item.tone === "critical" ? "critical" : item.tone === "personal" ? "info" : "warning",
+    tone: item.tone === "critical"
+      ? "critical"
+      : item.tone === "personal" || item.tone === "good"
+        ? "info"
+        : item.tone === "neutral"
+          ? "neutral"
+          : "warning",
     onSelect: item.onClick,
     href: item.href,
     scope: item.scope,
@@ -270,7 +305,7 @@ export function ScheduleReadiness({
     <OperationalStatusRail
       className="mb-3"
       items={railItems}
-      allClearLabel={showAllClear ? "Crew set, no open gaps" : undefined}
+      allClearLabel={attentionItems.length === 0 && healthWarnings === 0 ? "No recent schedule activity" : undefined}
       notice={filtersHideEverything ? (
         <EmptyState
           icon="calendar"

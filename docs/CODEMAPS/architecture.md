@@ -29,7 +29,7 @@ Informational only. These are the largest TypeScript and TSX files under `src/`;
 | `src/lib/services/reports.ts` | 1378 |
 | `src/components/ActivityTimeline.tsx` | 1369 |
 | `src/app/(app)/bulk-inventory/batteries/page.tsx` | 1342 |
-| `src/app/(app)/schedule/_components/ListView.tsx` | 1282 |
+| `src/app/(app)/schedule/_components/ListView.tsx` | 1225 |
 | `src/app/api/assets/route.ts` | 1212 |
 | `src/components/TradeBoard.tsx` | 1205 |
 | `src/lib/services/notifications.ts` | 1143 |

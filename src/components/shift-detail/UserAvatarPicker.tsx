@@ -101,30 +101,32 @@ export function UserAvatarPicker({
     if (unscored.length > 0) groups.push({ key: "unscored", label: "Other", users: unscored });
     return groups;
   }, [candidateScores, filteredUsers]);
-  const conflictCount = users.reduce((count, user) => count + (conflictMap?.[user.id] ? 1 : 0), 0);
-  const cleanCount = users.length - conflictCount;
-
   return (
     <>
-      <Input
-        id="user-avatar-picker-search"
-        name="user-avatar-picker-search"
-        type="text"
-        className="mb-2 h-9 text-sm"
-        placeholder="Search all users..."
-        value={search}
-        onChange={(e) => onSearchChange(e.target.value)}
-        autoFocus
-      />
+      <div className="mb-3 flex items-center gap-2">
+        <Input
+          id="user-avatar-picker-search"
+          name="user-avatar-picker-search"
+          type="text"
+          className="h-10 text-sm"
+          placeholder="Search by name"
+          value={search}
+          onChange={(e) => onSearchChange(e.target.value)}
+          autoFocus
+        />
+        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+          {filteredUsers.length} available
+        </span>
+      </div>
       {canFilterConflicts && (
-        <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="mb-3 border-b border-border/50 pb-2">
           <ToggleGroup
             type="single"
             value={conflictFilter}
             onValueChange={(value) => {
               if (value) setConflictFilter(value as CandidateConflictFilter);
             }}
-            className="gap-1"
+            className="grid w-full grid-cols-3 gap-1"
             aria-label="Filter assignment candidates by conflict state"
           >
             <ToggleGroupItem value="all" className="h-8 px-2 text-[11px]">
@@ -137,9 +139,6 @@ export function UserAvatarPicker({
               Clean
             </ToggleGroupItem>
           </ToggleGroup>
-          <span className="shrink-0 text-[10px] text-muted-foreground tabular-nums">
-            {conflictCount} conflict{conflictCount === 1 ? "" : "s"} · {cleanCount} clean
-          </span>
         </div>
       )}
       {loading ? (
@@ -172,8 +171,8 @@ export function UserAvatarPicker({
                 : "No active users found."}
         </p>
       ) : (
-        <ScrollArea className="h-60 max-h-[var(--radix-popover-content-available-height)]">
-          <div className="flex flex-col gap-2 pr-2">
+        <ScrollArea className="h-72 max-h-[var(--radix-popover-content-available-height)]">
+          <div className="flex flex-col gap-1 pr-2">
             {groupedUsers.map((group) => (
               <div key={group.key} className="flex flex-col gap-1">
                 {group.label && (
@@ -196,53 +195,41 @@ export function UserAvatarPicker({
                       key={u.id}
                       type="button"
                       variant="ghost"
-                      className="min-h-10 w-full justify-start gap-2 rounded-md p-1.5 text-left text-sm transition-[background-color,color,scale] hover:bg-accent active:scale-[0.96] disabled:opacity-50"
+                      className="min-h-12 w-full justify-start gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-[background-color,color,scale] hover:bg-accent active:scale-[0.96] disabled:opacity-50"
                       onClick={() => onSelect(u.id)}
                       disabled={disabled}
-                      title={roleSlotNote ?? topReason ?? conflict ?? undefined}
+                      title={topReason ?? roleSlotNote ?? conflict ?? undefined}
                     >
                       <div className="relative shrink-0">
-                        <UserAvatar name={u.name} avatarUrl={u.avatarUrl} size="default" />
+                        <UserAvatar name={u.name} avatarUrl={u.avatarUrl} size="sm" />
                         {conflict && (
                           <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full border border-background bg-[var(--orange)]" />
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="truncate font-medium text-xs">{u.name}</div>
-                        <div className="flex min-w-0 items-center gap-1 text-[10px] text-muted-foreground">
-                          <span className="truncate">
-                            {candidateWorkerLabel}
-                            {u.primaryArea ? ` · ${AREA_LABELS[u.primaryArea] ?? u.primaryArea}` : ""}
-                          </span>
-                          {conflict && (
-                            <Badge variant="orange" size="sm" className="ml-1 px-1 py-0 text-[9px]">
-                              Conflict
-                            </Badge>
-                          )}
+                        <div className="truncate text-sm font-medium">{u.name}</div>
+                        <div className="truncate text-[11px] text-muted-foreground">
+                          {candidateWorkerLabel}
+                          {u.primaryArea ? ` · ${AREA_LABELS[u.primaryArea] ?? u.primaryArea}` : ""}
                         </div>
-                        {topReason && (
-                          <div className="mt-0.5 truncate text-[10px] text-muted-foreground">
-                            {topReason}
-                          </div>
+                      </div>
+                      <div className="ml-auto flex shrink-0 items-center gap-1">
+                        {conflict && (
+                          <Badge variant="orange" size="sm" className="px-1.5 py-0 text-[9px]">Conflict</Badge>
                         )}
-                        {roleSlotNote && (
-                          <div className="mt-0.5 text-pretty text-[10px] text-muted-foreground">
-                            {roleSlotNote}
-                          </div>
+                        {score && (
+                          <Badge
+                            variant={SCORE_BUCKET_BADGE[score.bucket]}
+                            size="sm"
+                            className={cn(
+                              "px-1.5 py-0 text-[9px] tabular-nums",
+                              score.bucket === "recommended" && "bg-[var(--green)] text-white hover:bg-[var(--green)]",
+                            )}
+                          >
+                            {score.score}
+                          </Badge>
                         )}
                       </div>
-                      {score && (
-                        <Badge
-                          variant={SCORE_BUCKET_BADGE[score.bucket]}
-                          size="sm"
-                          className={cn(
-                            "shrink-0 px-1.5 py-0 text-[9px] tabular-nums",
-                            score.bucket === "recommended" && "bg-[var(--green)] text-white hover:bg-[var(--green)]",
-                          )}
-                        >
-                          {score.score}
-                        </Badge>
-                      )}
                     </Button>
                   );
                 })}

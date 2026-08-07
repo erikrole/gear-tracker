@@ -23,9 +23,12 @@ describe("schedule gear readiness source contracts", () => {
     expect(crewSource).toContain("Reserve gear");
   });
 
-  it("shows audit-derived schedule changes on Schedule and Event detail surfaces", () => {
-    expect(listViewSource).toContain("Review changes");
-    expect(listViewSource).not.toContain("Changed recently");
+  it("shows audit-derived schedule changes without draft/review badges", () => {
+    const readinessSource = readFileSync("src/app/(app)/schedule/_components/ScheduleReadiness.tsx", "utf8");
+    expect(readinessSource).toContain('label: "Assignee changes"');
+    expect(readinessSource).toContain("recentActivityCount");
+    expect(listViewSource).not.toContain("Review changes");
+    expect(listViewSource).not.toContain("Unpublished changes");
     expect(crewSource).toContain("Recent schedule changes");
     expect(crewSource).toContain("Needs review");
   });

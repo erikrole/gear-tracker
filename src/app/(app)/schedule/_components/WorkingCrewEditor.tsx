@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeftRightIcon, MoreHorizontalIcon, PlusIcon, RefreshCwIcon, UsersRoundIcon, XIcon } from "lucide-react";
+import { ArrowLeftRightIcon, MoreHorizontalIcon, PlusIcon, UsersRoundIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -40,33 +39,12 @@ import {
 import type { CalendarEntry } from "./types";
 import { AREA_LABELS } from "./types";
 
-type RebaseSummary = {
-  adoptedSlots: number;
-  droppedSlots: number;
-  deduplicatedSlots: number;
-  refreshedAssignments: number;
-  refreshedHistoryCounts: number;
-  rebasedToPublishedVersion: number;
-};
-
-/** Say what the refresh actually pulled in, so it never looks like a no-op. */
-function describeRebase(rebase: RebaseSummary | undefined): string {
-  if (!rebase) return "Refreshed from the live schedule";
-  const parts: string[] = [];
-  if (rebase.adoptedSlots > 0) {
-    parts.push(`${rebase.adoptedSlots} slot${rebase.adoptedSlots === 1 ? "" : "s"} added since you started`);
-  }
-  if (rebase.droppedSlots > 0) {
-    parts.push(`${rebase.droppedSlots} deleted slot${rebase.droppedSlots === 1 ? "" : "s"} removed`);
-  }
-  if (rebase.deduplicatedSlots > 0) {
-    parts.push(`${rebase.deduplicatedSlots} duplicate staged slot${rebase.deduplicatedSlots === 1 ? "" : "s"} merged`);
-  }
-  if (rebase.refreshedAssignments > 0) {
-    parts.push(`${rebase.refreshedAssignments} assignment${rebase.refreshedAssignments === 1 ? "" : "s"} updated`);
-  }
-  if (parts.length === 0) return "Already up to date with the live schedule";
-  return `Refreshed: ${parts.join(", ")}`;
+function formatNotificationCountdown(iso: string, now = Date.now()) {
+  const releaseAt = new Date(iso).getTime();
+  if (!Number.isFinite(releaseAt)) return "Assignees notified after this change is released";
+  const minutes = Math.ceil((releaseAt - now) / 60_000);
+  if (minutes <= 0) return "Assignees notified now";
+  return `Assignees notified in ${minutes} minute${minutes === 1 ? "" : "s"}`;
 }
 
 type EditorData = {
@@ -74,6 +52,7 @@ type EditorData = {
   publicationState: "draft" | "published" | "unpublished_changes";
   publishedAt: string | null;
   publishedVersion: number;
+  basePublishedVersion: number;
   workingVersion: number;
   hasWorkingCopy: boolean;
   allDay: boolean;
@@ -110,11 +89,6 @@ const AREA_ORDER = ["VIDEO", "PHOTO", "GRAPHICS", "SOCIAL", "COMMS", "LIVE_PRODU
 // Call | Type | Person | row actions, matching the Event detail Crew table.
 const SLOT_ROW_GRID_CLASS = "grid-cols-[4.5rem_4.5rem_minmax(0,1fr)_2.5rem]";
 
-function stateBadge(data: EditorData) {
-  if (data.hasWorkingCopy) return <Badge variant="orange" size="sm">Pending changes</Badge>;
-  return null;
-}
-
 function candidateWorkerType(candidate: PickerUser): "FT" | "ST" {
   if (candidate.role === "COLLABORATOR") return "FT";
   return candidate.staffingType === "ST" ? "ST" : "FT";
@@ -124,17 +98,6 @@ function isEligibleScheduleCandidate(candidate: PickerUser) {
   if (candidate.role !== "COLLABORATOR") return true;
   return candidate.collaboratorPolicy?.status === "ACTIVE"
     && candidate.collaboratorPolicy.capabilities?.includes("PUBLISHED_SCHEDULE_VIEW") === true;
-}
-
-function changeSummary(data: EditorData) {
-  const parts = [
-    data.changes.addedSlots ? `${data.changes.addedSlots} added` : null,
-    data.changes.removedSlots ? `${data.changes.removedSlots} removed` : null,
-    data.changes.convertedSlots ? `${data.changes.convertedSlots} converted` : null,
-    data.changes.assignmentChanges ? `${data.changes.assignmentChanges} assignment changes` : null,
-    data.changes.callWindowChanges ? `${data.changes.callWindowChanges} call ${data.changes.callWindowChanges === 1 ? "time" : "times"}` : null,
-  ].filter(Boolean);
-  return parts.join(" · ");
 }
 
 function toLocalDateTimeValue(iso: string) {
@@ -338,6 +301,7 @@ export function WorkingCrewEditor({
   const shiftGroupId = entry.shiftGroupId;
   const [data, setData] = useState<EditorData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [clock, setClock] = useState(() => Date.now());
   const [actingKey, setActingKey] = useState<string | null>(null);
   const [candidateScoreState, setCandidateScoreState] = useState<{
     slotKey: string;
@@ -352,20 +316,25 @@ export function WorkingCrewEditor({
   } | null>(null);
   const actingRef = useRef(false);
 
-  const loadEditor = useCallback(async () => {
-    if (!shiftGroupId) return;
+  const loadEditor = useCallback(async (): Promise<EditorData | null> => {
+    if (!shiftGroupId) return null;
     setLoading(true);
     try {
       const response = await fetch(`/api/shift-groups/${shiftGroupId}/working-copy`);
-      if (handleAuthRedirect(response)) return;
+      if (handleAuthRedirect(response)) return null;
       if (!response.ok) {
         toast.error(await parseErrorMessage(response, "Failed to load working schedule"));
-        return;
+        return null;
       }
       const json = await parseJsonSafely<{ data?: EditorData }>(response);
-      if (json?.data) setData(json.data);
+      if (json?.data) {
+        setData(json.data);
+        return json.data;
+      }
+      return null;
     } catch {
       toast.error("Network error - could not load working schedule");
+      return null;
     } finally {
       setLoading(false);
     }
@@ -374,14 +343,6 @@ export function WorkingCrewEditor({
   useEffect(() => {
     void loadEditor();
   }, [loadEditor]);
-
-  useEffect(() => {
-    if (!data?.hasWorkingCopy) return;
-    const timer = window.setInterval(() => {
-      void loadEditor().then(() => onPublished());
-    }, 15_000);
-    return () => window.clearInterval(timer);
-  }, [data?.hasWorkingCopy, loadEditor, onPublished]);
 
   const loadCandidateScores = useCallback(async (slotKey: string, workerType?: "FT" | "ST") => {
     if (!shiftGroupId) return;
@@ -468,7 +429,7 @@ export function WorkingCrewEditor({
       }
       const json = await parseJsonSafely<{ data?: EditorData }>(response);
       if (json?.data) setData(json.data);
-      toast.success("Pending changes reverted");
+      toast.success("Changes reverted");
     } catch {
       toast.error("Network error - could not discard changes");
     } finally {
@@ -477,20 +438,15 @@ export function WorkingCrewEditor({
     }
   }, [data, loadEditor, shiftGroupId]);
 
-  /**
-   * Re-seat the draft on the current live schedule. Every "refresh before
-   * publishing" conflict used to leave Discard as the only exit, which meant
-   * losing the whole draft to recover from a change someone else made.
-   */
-  const refreshFromLive = useCallback(async () => {
-    if (!shiftGroupId || !data?.hasWorkingCopy || actingRef.current) return;
+  const refreshFromLive = useCallback(async (sourceData: EditorData | null = data, silent = false) => {
+    if (!shiftGroupId || !sourceData?.hasWorkingCopy || actingRef.current) return;
     actingRef.current = true;
     setActingKey("refresh");
     try {
       const response = await fetch(`/api/shift-groups/${shiftGroupId}/working-copy`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ expectedVersion: data.workingVersion }),
+        body: JSON.stringify({ expectedVersion: sourceData.workingVersion }),
       });
       if (handleAuthRedirect(response)) return;
       if (!response.ok) {
@@ -498,9 +454,9 @@ export function WorkingCrewEditor({
         if (response.status === 409) void loadEditor();
         return;
       }
-      const json = await parseJsonSafely<{ data?: EditorData & { rebase?: RebaseSummary } }>(response);
+      const json = await parseJsonSafely<{ data?: EditorData }>(response);
       if (json?.data) setData(json.data);
-      toast.success(describeRebase(json?.data?.rebase));
+      if (!silent) toast.success("Schedule refreshed from live");
     } catch {
       toast.error("Network error - could not refresh from the live schedule");
     } finally {
@@ -508,6 +464,29 @@ export function WorkingCrewEditor({
       setActingKey(null);
     }
   }, [data, loadEditor, shiftGroupId]);
+
+  useEffect(() => {
+    if (!data?.hasWorkingCopy || !data.autoReleaseAt) return;
+    const timer = window.setInterval(() => setClock(Date.now()), 15_000);
+    return () => window.clearInterval(timer);
+  }, [data?.autoReleaseAt, data?.hasWorkingCopy]);
+
+  useEffect(() => {
+    if (!data?.hasWorkingCopy || data.basePublishedVersion >= data.publishedVersion) return;
+    void refreshFromLive(data, true);
+  }, [data, refreshFromLive]);
+
+  useEffect(() => {
+    if (!data?.hasWorkingCopy) return;
+    const timer = window.setInterval(async () => {
+      const latest = await loadEditor();
+      if (latest?.hasWorkingCopy && latest.basePublishedVersion < latest.publishedVersion) {
+        await refreshFromLive(latest, true);
+      }
+      onPublished();
+    }, 15_000);
+    return () => window.clearInterval(timer);
+  }, [data?.hasWorkingCopy, loadEditor, onPublished, refreshFromLive]);
 
   if (!shiftGroupId) {
     return <p className="text-xs text-muted-foreground">Create staffing for this event before editing crew.</p>;
@@ -539,16 +518,13 @@ export function WorkingCrewEditor({
 
   return (
     <div className="flex flex-col gap-2">
-      {(data.publicationState !== "published" || data.changes.total > 0 || data.hasWorkingCopy || compact) && (
+      {(data.hasWorkingCopy || data.autoReleaseError || compact) && (
         <div className="flex min-h-10 flex-wrap items-center gap-2 pb-1">
-          {stateBadge(data)}
-          {data.changes.total > 0 && (
-            <span className="text-xs text-muted-foreground">{changeSummary(data)}</span>
-          )}
           {data.hasWorkingCopy && data.autoReleaseAt && !data.autoReleaseError && (
-            <span className="text-xs text-muted-foreground">
-              Releases at {formatTimeShort(data.autoReleaseAt)}
-            </span>
+            <span className="text-xs text-muted-foreground">{formatNotificationCountdown(data.autoReleaseAt, clock)}</span>
+          )}
+          {data.hasWorkingCopy && !data.autoReleaseAt && !data.autoReleaseError && (
+            <span className="text-xs text-muted-foreground">Assignees notified after this change is released</span>
           )}
           {data.autoReleaseError && (
             <span className="text-xs text-destructive">Release needs attention: {data.autoReleaseError}</span>
@@ -563,20 +539,6 @@ export function WorkingCrewEditor({
                   "all-call-window",
                 )}
               />
-            )}
-            {data.hasWorkingCopy && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-10 gap-1.5 px-2 text-xs text-muted-foreground"
-                disabled={Boolean(actingKey)}
-                onClick={() => void refreshFromLive()}
-                title="Pull changes from the last released schedule into these pending changes"
-              >
-                <RefreshCwIcon className="size-3.5" />
-                {actingKey === "refresh" ? "Refreshing..." : "Refresh from live"}
-              </Button>
             )}
             {data.hasWorkingCopy && (
               <Button
@@ -712,7 +674,7 @@ export function WorkingCrewEditor({
                             aria-label={`Assign ${roleLabel.toLowerCase()} slot`}
                           />
                         </PopoverTrigger>
-                        <PopoverContent className="w-64 p-2" align="start">
+                        <PopoverContent className="w-80 max-w-[calc(100vw-2rem)] p-2 sm:w-96" align="start">
                           <UserAvatarPicker
                             users={eligibleUsers}
                             loading={pickerLoading}

@@ -137,8 +137,9 @@ describe("schedule source-of-truth and browser smoke contracts", () => {
     const releaseRoute = source("src/app/api/shift-groups/[id]/publish/route.ts");
     const tradeBoard = source("src/components/TradeBoard.tsx");
 
-    expect(editor).toContain("Pending changes");
-    expect(editor).toContain("Releases at");
+    expect(editor).toContain("Assignees notified in");
+    expect(editor).not.toContain("Pending changes");
+    expect(editor).not.toContain("Releases at");
     expect(editor).toContain("Revert changes");
     expect(editor).not.toContain("/publish");
     expect(eventCrew).not.toContain("/acknowledge");
@@ -159,9 +160,9 @@ describe("schedule source-of-truth and browser smoke contracts", () => {
     }
     expect(eventCrew).not.toContain("type: \"slot\", id: shift.id");
 
-    expect(listView).toContain("Review changes");
+    expect(listView).not.toContain("Review changes");
+    expect(listView).not.toContain("Unpublished changes");
     expect(listView).not.toContain("Changed recently");
-    expect(listView).toContain("latestChangeLabel");
     expect(eventCrew).toContain("Recent schedule changes");
     expect(eventCrew).toContain("Needs review");
   });
@@ -204,9 +205,10 @@ describe("schedule source-of-truth and browser smoke contracts", () => {
     expect(filters).toContain("{menuFilterCount}");
     expect(filters).not.toContain('className="w-72 p-3">\n            <div className="flex flex-col gap-3">\n              <FilterChip\n                label="Sport"');
 
-    expect(readiness).toContain("const showAllClear = attentionItems.length === 0 && healthWarnings === 0;");
+    expect(readiness).toContain('label: "Synced calendar"');
+    expect(readiness).toContain('label: "Assignee changes"');
     expect(readiness).toContain("value: sourceNeedsAttention || healthWarnings > 0 ? \"Check\"");
-    expect(readiness).toContain("showAllClear ?");
+    expect(readiness).toContain("No recent schedule activity");
     expect(readiness).toContain("<ScheduleSourceStatus signal={sourceSignal} />");
     expect(readiness).not.toContain('label: "Next call"');
   });

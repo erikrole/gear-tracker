@@ -43,8 +43,6 @@ import {
   CrewTypeLabel,
 } from "@/components/shift-detail/crew-row";
 import type { CalendarEntry, Shift } from "./types";
-import type { ScheduleHealthSnapshot } from "@/lib/schedule-health-types";
-import type { ScheduleChangeEventSummary } from "@/lib/schedule-change-history-types";
 import type { ScheduleQueueMeta } from "@/lib/schedule-queues";
 import {
   ACTIVE_STATUSES,
@@ -72,7 +70,6 @@ type ListViewProps = {
   clearQueue: () => void;
   currentUserId: string;
   isStaff: boolean;
-  scheduleHealth: ScheduleHealthSnapshot | null;
   expandedRowId: string | null;
   setExpandedRowId: (id: string | null) => void;
   onSelectGroup: (groupId: string | null) => void;
@@ -101,45 +98,6 @@ function workerKindForShift(shift: Shift): ShiftWorkerKind {
 
 function roleSlotLabel(kind: ShiftWorkerKind) {
   return shiftWorkerSlotLabel(kind);
-}
-
-function PublicationBadge({ entry, quietPublished = false }: { entry: CalendarEntry; quietPublished?: boolean }) {
-  const state = entry.publication;
-  if (!state) return null;
-  if (!state.publishedAt) return null;
-  if (state.changedAfterPublish) return <Badge variant="orange" size="sm">Unpublished changes</Badge>;
-  if (state.unacknowledgedCount > 0) return <Badge variant="blue" size="sm">{state.unacknowledgedCount} unack</Badge>;
-  if (quietPublished) return null;
-  return <Badge variant="green" size="sm">Published</Badge>;
-}
-
-function ChangeHistoryBadge({
-  summary,
-  reviewOnly = false,
-}: {
-  summary?: ScheduleChangeEventSummary | null;
-  reviewOnly?: boolean;
-}) {
-  if (!summary || summary.items.length === 0) return null;
-  if (reviewOnly && !summary.needsReview) return null;
-  if (!summary.needsReview) return null;
-  return (
-    <Badge variant="orange" size="sm">
-      Review changes
-    </Badge>
-  );
-}
-
-function latestChangeLabel(summary?: ScheduleChangeEventSummary | null) {
-  const latest = summary?.items[0];
-  if (!latest) return null;
-  const time = new Date(latest.createdAt).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-  return `${latest.label} · ${time}`;
 }
 
 function eventStartLabel(entry: CalendarEntry) {
@@ -417,7 +375,7 @@ function ShiftRowList({
                     </button>
                   </PopoverTrigger>
                   <PopoverContent
-                    className="w-64 p-2"
+                    className="w-80 max-w-[calc(100vw-2rem)] p-2 sm:w-96"
                     align="start"
                     onClick={(e) => e.stopPropagation()}
                   >
@@ -494,7 +452,6 @@ export function ListView({
   clearQueue,
   currentUserId,
   isStaff,
-  scheduleHealth,
   expandedRowId,
   setExpandedRowId,
   onSelectGroup,
@@ -824,7 +781,6 @@ export function ListView({
                             currentUserId={currentUserId}
                             showShiftStatus={myShiftsOnly}
                             postingTradeId={postingTradeId}
-                            changeEvent={scheduleHealth?.changeHistory.events[entry.id] ?? null}
                             removingAssignmentId={removingAssignmentId}
                             onRemoveAssignment={handleRemoveAssignment}
                             onCallWindowSaved={loadData}
@@ -858,8 +814,6 @@ export function ListView({
               const titleParts = scheduleEventTitleParts(entry);
 
               const venueTone = VENUE_TONES[venueToneFromEvent(entry)];
-              const changeEvent = scheduleHealth?.changeHistory.events[entry.id] ?? null;
-
               return (
                 <div
                   key={entry.id}
@@ -911,8 +865,6 @@ export function ListView({
                             total={entry.coverage.total}
                           />
                         )}
-                        {isStaff && <ChangeHistoryBadge summary={changeEvent} reviewOnly />}
-                        <PublicationBadge entry={entry} quietPublished />
                       </div>
                     </div>
                     <div className="text-xs text-muted-foreground flex gap-2 flex-wrap pl-5">
@@ -965,11 +917,6 @@ export function ListView({
 
                   {isExpanded && canExpand && (
                     <div className="border-t border-border/40 px-4 py-3 pl-8">
-                      {isStaff && latestChangeLabel(changeEvent) && (
-                        <div className="mb-2 text-xs text-muted-foreground">
-                          {latestChangeLabel(changeEvent)}
-                        </div>
-                      )}
                       {isStaff ? (
                         <WorkingCrewEditor
                           entry={entry}
@@ -1107,7 +1054,6 @@ function EventRows({
   currentUserId,
   showShiftStatus,
   postingTradeId,
-  changeEvent,
   removingAssignmentId,
   onRemoveAssignment,
   onCallWindowSaved,
@@ -1134,7 +1080,6 @@ function EventRows({
   currentUserId: string;
   showShiftStatus: boolean;
   postingTradeId: string | null;
-  changeEvent?: ScheduleChangeEventSummary | null;
   removingAssignmentId: string | null;
   onRemoveAssignment?: (assignmentId: string) => void;
   onCallWindowSaved: () => void;
@@ -1202,8 +1147,6 @@ function EventRows({
             <div>{entry.coverage && <CoverageBadge percentage={entry.coverage.percentage} filled={entry.coverage.filled} total={entry.coverage.total} />}</div>
             <CrewSummary entry={entry} />
             <div className="flex min-w-0 flex-wrap items-center gap-1">
-              <PublicationBadge entry={entry} quietPublished />
-              {isStaff && <ChangeHistoryBadge summary={changeEvent} reviewOnly />}
               {showShiftStatus && shiftStatus === "Pending" && <Badge variant="orange" size="sm">{shiftStatus}</Badge>}
               {entry.archivedAt && (
                 <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/60">

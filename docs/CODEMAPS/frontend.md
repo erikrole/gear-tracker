@@ -127,10 +127,10 @@
 | `src/components/booking-details/BookingSheetOverview.tsx` | 284 |
 | `src/components/PageBreadcrumb.tsx` | 283 |
 | `src/components/booking-details/TransferOwnerDialog.tsx` | 269 |
-| `src/components/shift-detail/UserAvatarPicker.tsx` | 267 |
 | `src/components/booking-wizard/WizardStep3.tsx` | 263 |
 | `src/components/ui/dropdown-menu.tsx` | 258 |
 | `src/components/shift-detail/CallWindowEditor.tsx` | 255 |
+| `src/components/shift-detail/UserAvatarPicker.tsx` | 254 |
 
 ## Hooks
 
