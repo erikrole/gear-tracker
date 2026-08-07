@@ -116,6 +116,27 @@ final class SessionStore {
         await mutation.value
     }
 
+    func register(name: String, email: String, password: String) async {
+        let mutation = authMutations.enqueue { [weak self] in
+            guard let self else { return }
+            let requestToken = self.authRequests.begin()
+            self.isLoading = true
+            self.error = nil
+            do {
+                let user = try await APIClient.shared.register(name: name, email: email, password: password)
+                guard self.authRequests.owns(requestToken) else { return }
+                self.didSeedFromSnapshot = false
+                self.publishCurrentUserIfChanged(user)
+                self.isOffline = false
+            } catch {
+                guard self.authRequests.owns(requestToken) else { return }
+                self.error = error.localizedDescription
+            }
+            if self.authRequests.owns(requestToken) { self.isLoading = false }
+        }
+        await mutation.value
+    }
+
     func loginWithPasskey() async {
         let mutation = authMutations.enqueue { [weak self] in
             guard let self else { return }

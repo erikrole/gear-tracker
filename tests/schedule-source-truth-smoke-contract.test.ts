@@ -130,20 +130,19 @@ describe("schedule source-of-truth and browser smoke contracts", () => {
     expect(shiftPanel).not.toContain("Review template");
   });
 
-  it("keeps publish acknowledgement, Open Work, Event detail gear readiness, and change history visible", () => {
+  it("keeps timed release, Open Work, Event detail gear readiness, and change history visible", () => {
     const listView = source("src/app/(app)/schedule/_components/ListView.tsx");
     const eventCrew = source("src/app/(app)/events/[id]/_components/ShiftCoverageCard.tsx");
+    const editor = source("src/app/(app)/schedule/_components/WorkingCrewEditor.tsx");
+    const releaseRoute = source("src/app/api/shift-groups/[id]/publish/route.ts");
     const tradeBoard = source("src/components/TradeBoard.tsx");
 
-    for (const label of ["Unpublished changes", "Published", "unack"]) {
-      expect(listView).toContain(label);
-    }
-    expect(listView).not.toContain("Draft");
-    for (const label of ["Republish", "Publish", "Acknowledge"]) {
-      expect(eventCrew).toContain(label);
-    }
-    expect(eventCrew).toContain("/publish");
-    expect(eventCrew).toContain("/acknowledge");
+    expect(editor).toContain("Pending changes");
+    expect(editor).toContain("Releases at");
+    expect(editor).toContain("Revert changes");
+    expect(editor).not.toContain("/publish");
+    expect(eventCrew).not.toContain("/acknowledge");
+    expect(releaseRoute).toContain("new HttpError(410");
 
     expect(tradeBoard).toContain("OpenWorkShift");
     expect(tradeBoard).toContain("/api/schedule/open-work");

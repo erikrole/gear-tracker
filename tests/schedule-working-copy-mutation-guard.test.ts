@@ -76,22 +76,20 @@ describe("working-copy mutation guard", () => {
     expect(editor).toContain("Refresh from live");
   });
 
-  // Blockers must be gathered before any write, and reachable before the user
-  // commits to a publish. A preflight nobody can read is not a preflight.
-  it("collects publish blockers ahead of any write and exposes them", () => {
+  it("retires the manual release endpoint and leaves reconciliation to the timer workflow", () => {
     const service = readFileSync("src/lib/services/schedule-publication.ts", "utf8");
     const route = readFileSync("src/app/api/shift-groups/[id]/publish/route.ts", "utf8");
     const editor = readFileSync("src/app/(app)/schedule/_components/WorkingCrewEditor.tsx", "utf8");
+    const workflow = readFileSync("src/workflows/pending-schedule-release.ts", "utf8");
 
     expect(service).toContain("export async function collectPublishBlockers");
-    expect(service).toContain("export async function getPublishPreflight");
     expect(service).toContain("problems block publishing this schedule");
-    // findTimeConflict is the non-throwing form; the collector must not use the
-    // throwing one or it would stop at the first conflicted worker.
     expect(service).toContain("findTimeConflict(");
     expect(route).toContain("export const GET");
-    expect(route).toContain("getPublishPreflight");
-    expect(editor).toContain("preflight");
-    expect(editor).toContain("blocks publishing");
+    expect(route).toContain("new HttpError(410");
+    expect(route).not.toContain("publishShiftGroup(");
+    expect(editor).not.toContain("/publish");
+    expect(workflow).toContain("publishShiftGroup(");
+    expect(workflow).toContain("autoReleaseError");
   });
 });

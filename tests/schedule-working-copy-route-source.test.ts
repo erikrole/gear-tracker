@@ -13,17 +13,26 @@ describe("schedule working-copy route wiring", () => {
     expect(service).toContain("Prisma.TransactionIsolationLevel.Serializable");
     expect(service).toContain("createAuditEntryTx(tx");
     expect(service).toContain("where: { shiftGroupId, version: expectedVersion }");
+    expect(service).toContain("sportDefaultShiftWindow");
+    expect(service).toContain("defaultWindow");
+    expect(service).toContain("allDay: true");
   });
 
-  it("keeps draft edits on the working route and publishes only through review", () => {
+  it("keeps pending edits private and starts the exact-version release timer before saving", () => {
+    const route = readFileSync("src/app/api/shift-groups/[id]/working-copy/route.ts", "utf8");
     const editor = readFileSync("src/app/(app)/schedule/_components/WorkingCrewEditor.tsx", "utf8");
     const workingService = readFileSync("src/lib/services/schedule-working-copy.ts", "utf8");
 
     expect(editor).toContain("/working-copy");
-    expect(editor).toContain("expectedWorkingVersion");
-    expect(editor).toContain("will each receive one event summary");
+    expect(editor).not.toContain("/publish");
+    expect(editor).toContain("Releases at");
+    expect(route).toContain("enqueuePendingScheduleRelease");
+    expect(route.indexOf("await enqueuePendingScheduleRelease")).toBeLessThan(route.indexOf("await mutateWorkingSchedule"));
+    expect(route).toContain("version: body.expectedVersion + 1");
     expect(editor).toContain('type: "setCallWindow"');
-    expect(editor).toContain("Private until this schedule is published.");
+    expect(editor).toContain('type: "setCallWindowForAll"');
+    expect(editor).toContain("Student call time");
+    expect(editor).toContain("Staff and collaborators do not have a call time");
     expect(editor).toContain("data?.assignedUsers");
     expect(workingService).toContain("assignedUsers");
     expect(workingService).toContain("where: { id: { in: assignedUserIds } }");

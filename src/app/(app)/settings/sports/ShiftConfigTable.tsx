@@ -253,7 +253,7 @@ export default function ShiftConfigTable({
 
                 {/* Call time config */}
                 <div className="flex flex-wrap items-center gap-4 pt-1">
-                  <span className="text-sm text-muted-foreground font-medium">Default call time</span>
+                  <span className="text-sm text-muted-foreground font-medium">Student call time</span>
                   <div className="flex items-center gap-2">
                     <Select
                       value={String(config?.shiftStartOffset ?? 60)}
@@ -288,6 +288,7 @@ export default function ShiftConfigTable({
                     </Select>
                     <span className="text-sm text-muted-foreground">after</span>
                   </div>
+                  <p className="text-xs text-muted-foreground">Staff and collaborators use the event start and end.</p>
                 </div>
               </CardContent>
             )}

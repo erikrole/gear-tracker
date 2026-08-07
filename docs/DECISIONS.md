@@ -52,6 +52,7 @@
 - D-042: Schedule edits use a versioned working copy and deliberate publish
 - D-043: Passkeys are an additive sign-in method for invite-granted users
 - D-045: A shift's coverage window is a settings-derived fallback, not manual intent
+- D-046: Schedule edits release automatically after a ten-minute quiet period
 
 ---
 
@@ -907,7 +908,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 
 ## D-042: Schedule Edits Use a Versioned Working Copy and Deliberate Publish
 - Date: 2026-07-21
-- Status: Accepted
+- Status: Superseded by D-046 on 2026-08-07; retained as staging-model history
 - Context:
   - The expanded web Schedule list is the primary crew-management surface and needs rapid slot, assignment, removal, and worker-class actions.
   - The current publication marker does not isolate later edits. Mutations change live relational shifts and assignments before republish, so worker-facing reads and notification policy can observe work in progress.
@@ -933,6 +934,35 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Do not allow stale working versions to overwrite newer staff edits.
   - Do not send per-click worker notifications while a working copy exists.
 - Reference: `tasks/event-shift-working-schedule-plan.md` and `docs/AREA_SHIFTS.md`.
+
+## D-046: Schedule Edits Release Automatically After a Ten-Minute Quiet Period
+- Date: 2026-08-07
+- Status: Accepted; implemented locally, rollout pending
+- Context:
+  - Manual Draft and Publish actions make routine staffing slower and create ambiguity about whether a visible name is actually on the worker-facing schedule.
+  - Staff commonly make several assignment and slot changes together and need a short quiet period before workers see or receive churn.
+  - The versioned working-copy model already provides safe staging, optimistic concurrency, atomic reconciliation, and compatibility with existing worker-facing relational reads.
+- Decision:
+  - Staff schedule edits remain private for ten minutes after the most recent edit. Every new edit restarts the quiet period.
+  - Each mutation pre-enqueues a version-specific durable Workflow run before committing the pending version. When it wakes, the run releases only if that exact version is still current; superseded runs no-op.
+  - Release reconciles the pending copy into relational shifts and assignments atomically, updates the collaborator snapshot, preserves history and safety blockers, and sends at most one consolidated event notification per affected worker.
+  - Draft, Publish, Republish, and Unacknowledged are retired as active product concepts. Staff see Pending changes, the scheduled release time, Revert changes, and actionable recovery when validation blocks release.
+  - The relational schedule remains worker-facing truth. Until the quiet period completes, My Shifts, Dashboard, ICS, Open Work, Trade Board, collaborator Schedule, and existing iOS clients continue showing the last released version.
+  - Active collaborators whose policy grants `PUBLISHED_SCHEDULE_VIEW` may be manually assigned to Staff slots. They remain outside Student availability, Open Work pickup, and Trade Board workflows, and reservation-created collaborator staffing remains excluded.
+  - Only Student slots and Student assignments use configured call times. Staff and collaborator coverage retains the event window internally for integrity but exposes no call-time value, event-time substitute in the call-time position, editing control, or call-time notification copy.
+  - Every eligible future event receives configured slots. Home events use their sport Home template; Away and neutral-site games with an opponent use the sport Away template; events without an opponent use the Settings-owned Non-game template. Cancelled, hidden, and archived events are excluded.
+  - Assignment acknowledgement timestamps remain historical compatibility data but no longer gate readiness, visibility, or release.
+- Consequences:
+  - A name becomes worker-visible only after the ten-minute quiet period, at the same boundary that creates consolidated notification evidence.
+  - Operators can make several quick changes without notification churn or a separate publish ceremony.
+  - The staging table remains an internal reliability mechanism, but product surfaces no longer present a draft lifecycle.
+- Guardrails:
+  - Never commit a pending schedule mutation unless its version-specific release run was successfully enqueued.
+  - Never let an older workflow release a newer pending version.
+  - Never hide a permanent release blocker; persist and surface recovery state.
+  - Never expose collaborators to internal contacts, availability, Trade Board, Open Work, or broader Schedule controls through assignment eligibility.
+  - Never apply Student call-time offsets or overrides to Staff or collaborator assignments.
+- Reference: `tasks/event-shift-working-schedule-plan.md`, `docs/AREA_SHIFTS.md`, `docs/AREA_MOBILE.md`, and `docs/AREA_SETTINGS.md`.
 
 ## D-043: Passkeys Are an Additive Sign-In Method for Invite-Granted Users
 - Date: 2026-07-31
@@ -986,6 +1016,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - Reference: `tasks/reservation-auto-schedule-plan.md`, `docs/AREA_RESERVATIONS.md`, and `docs/AREA_SHIFTS.md`.
 
 ## Change Log
+- 2026-08-07: Added D-046, superseding manual Schedule publication with a durable ten-minute quiet-period release, Student-only call times, Non-game defaults, eligible collaborator Staff-slot assignment, and retirement of active acknowledgement state.
 - 2026-08-04: Added the settings-owned call-time fallback rule to D-042. The same default-window helper now feeds generation, manual creation, template review, settings mutations, and the live repair path, so call-time updates do not diverge between schedule locations.
 - 2026-08-04: Added D-044 for treating internal event-linked gear reservations as schedule-work evidence while preserving explicit assignment links, working-copy isolation, published snapshot coherence, and safe crew-setup boundaries.
 - 2026-08-04: Amended D-044 with durable assignment provenance, explicit link validation, lifecycle reconciliation for relinks/owner changes/cancellation/no-show/deactivation, shared-assignment protection, and post-commit schedule notifications.
@@ -1048,4 +1079,3 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - A manual edit to a shift's coverage window through `PATCH /api/shifts/[id]`, or an explicit `startsAt`/`endsAt` on shift creation, is not durable: the next sport-settings save may revert it. Staff wanting a lasting exception must set a call window instead. This is a known sharp edge in those two surfaces and is worth a UI nudge if it ever bites.
 - All-day events keep date-only boundaries and are never given fabricated clock times.
 - Verified on 2026-08-05: across 55 future timed events, 0 shifts differed from their sport default, so adopting this reading required no data change.
-

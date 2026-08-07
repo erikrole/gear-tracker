@@ -31,3 +31,15 @@ export type SchedulePublicationState = {
   acknowledgedCount: number;
   unacknowledgedCount: number;
 };
+
+/**
+ * Publication reconciliation clears acknowledgement only when that worker's
+ * visible assignment changes. A later group publish must not invalidate an
+ * unchanged coworker's acknowledgement just because `publishedAt` advanced.
+ */
+export function isShiftAssignmentAcknowledged(
+  publishedAt: Date | string | null | undefined,
+  acknowledgedAt: Date | string | null | undefined,
+) {
+  return Boolean(publishedAt && acknowledgedAt);
+}

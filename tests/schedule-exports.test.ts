@@ -130,6 +130,7 @@ describe("schedule exports", () => {
     expect(result.csv).toContain("Assigned Class,Planned Slot,Assignee");
     expect(result.csv).toContain("Student,Student slot,'@Ada");
     expect(result.csv).toContain("Staff,Staff slot,Grace");
+    expect(result.csv).toContain("Staff,Staff slot,Grace,DIRECT_ASSIGNED,,,");
     expect(result.csv).toContain("Publication,Published At,Acknowledged,Acknowledged At");
     expect(result.csv).toContain("'=Volleyball");
     expect(result.csv).toContain("'+Field House");

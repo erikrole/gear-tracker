@@ -52,14 +52,13 @@ describe("schedule assign source wiring", () => {
     expect(shiftDetail).toContain("Nothing changes until you apply.");
   });
 
-  it("keeps publish and acknowledgement routes permissioned and audited", () => {
+  it("retires manual release while preserving the audited reconciliation service", () => {
     const publishRoute = readFileSync("src/app/api/shift-groups/[id]/publish/route.ts", "utf8");
     const acknowledgeRoute = readFileSync("src/app/api/shift-assignments/[id]/acknowledge/route.ts", "utf8");
 
     expect(publishRoute).toContain('requirePermission(user.role, "shift", "manage")');
-    expect(publishRoute).toContain("publishShiftGroup(params.id, user.id, body.expectedWorkingVersion, user.role)");
-    expect(publishRoute).toContain("expectedWorkingVersion");
-    expect(publishRoute).toContain("enforceRateLimit");
+    expect(publishRoute).toContain("new HttpError(410");
+    expect(publishRoute).not.toContain("publishShiftGroup(");
     const publicationService = readFileSync("src/lib/services/schedule-publication.ts", "utf8");
     expect(publicationService).toContain("createAuditEntryTx(tx");
     expect(publicationService).toContain('"shift_group_republished"');
@@ -78,7 +77,7 @@ describe("schedule assign source wiring", () => {
     const assignmentRoute = readFileSync("src/app/api/shift-assignments/[id]/route.ts", "utf8");
     const shiftRoute = readFileSync("src/app/api/shifts/[id]/route.ts", "utf8");
     const conflictRefresh = readFileSync("src/lib/services/shift-assignment-conflicts.ts", "utf8");
-    const publishRoute = readFileSync("src/app/api/shift-groups/[id]/publish/route.ts", "utf8");
+    const releaseWorkflow = readFileSync("src/workflows/pending-schedule-release.ts", "utf8");
 
     expect(assignRoute).toContain("dispatchScheduleAssignmentNotifications(assignment.id, \"assigned\")");
     expect(assignRoute).not.toContain("createShiftGearUpNotification(assignment.id)");
@@ -90,9 +89,8 @@ describe("schedule assign source wiring", () => {
     expect(shiftRoute).toContain("scheduleShiftTimeChangedNotifications(assignmentIds)");
     expect(conflictRefresh).toContain("acknowledged_by_id");
     expect(conflictRefresh).toContain("WHEN CAST(${resetAcknowledgements} AS BOOLEAN) THEN NULL");
-    expect(publishRoute).toContain("createPublishedShiftGroupNotifications(params.id)");
-    expect(publishRoute).toContain("notifyPublishedShiftGroupWorkers(params.id, result.affectedUserIds)");
-    expect(publishRoute).toContain("if (!result.before.publishedAt)");
-    expect(publishRoute).toContain("after(() => createPublishedShiftGroupNotifications(params.id)");
+    expect(releaseWorkflow).toContain("createPublishedShiftGroupNotifications(shiftGroupId)");
+    expect(releaseWorkflow).toContain("notifyPublishedShiftGroupWorkers(shiftGroupId, result.affectedUserIds)");
+    expect(releaseWorkflow).toContain("if (!result.before.publishedAt)");
   });
 });

@@ -105,7 +105,7 @@
 | `src/components/TradeBoard.tsx` | 1205 |
 | `src/components/onboarding/OnboardingDialog.tsx` | 884 |
 | `src/components/EquipmentPicker.tsx` | 879 |
-| `src/components/ShiftDetailPanel.tsx` | 832 |
+| `src/components/ShiftDetailPanel.tsx` | 796 |
 | `src/components/ChooseImageModal.tsx` | 770 |
 | `src/components/profile-completion/ProfileCompletionWizard.tsx` | 768 |
 | `src/components/AppShell.tsx` | 749 |
@@ -118,7 +118,7 @@
 | `src/components/ui/heatmap.tsx` | 409 |
 | `src/components/Sidebar.tsx` | 408 |
 | `src/components/ui/chart.tsx` | 389 |
-| `src/components/shift-detail/ShiftSlotCard.tsx` | 357 |
+| `src/components/shift-detail/ShiftSlotCard.tsx` | 358 |
 | `src/components/booking-details/BookingInfoCard.tsx` | 342 |
 | `src/components/booking-details/EditBookingEventsDialog.tsx` | 335 |
 | `src/components/FormCombobox.tsx` | 329 |
@@ -127,8 +127,8 @@
 | `src/components/booking-details/BookingSheetOverview.tsx` | 284 |
 | `src/components/PageBreadcrumb.tsx` | 283 |
 | `src/components/booking-details/TransferOwnerDialog.tsx` | 269 |
+| `src/components/shift-detail/UserAvatarPicker.tsx` | 267 |
 | `src/components/booking-wizard/WizardStep3.tsx` | 263 |
-| `src/components/shift-detail/UserAvatarPicker.tsx` | 263 |
 | `src/components/ui/dropdown-menu.tsx` | 258 |
 | `src/components/shift-detail/CallWindowEditor.tsx` | 255 |
 

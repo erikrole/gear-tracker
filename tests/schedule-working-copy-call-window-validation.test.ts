@@ -77,7 +77,7 @@ function group(slots: Array<Record<string, unknown>>) {
     publishedAt: new Date("2026-09-01T12:00:00.000Z"),
     publishedVersion: 3,
     event: { startsAt: eventStartsAt, endsAt: eventEndsAt, allDay: false, sportCode: "VB" },
-    shifts: [],
+    shifts: [] as Array<Record<string, unknown>>,
     workingCopy: {
       version: 5,
       basePublishedVersion: 3,
@@ -91,6 +91,42 @@ function group(slots: Array<Record<string, unknown>>) {
       updatedById: "staff-1",
     },
   };
+}
+
+function liveAssignment(bookingCount: number) {
+  return {
+    id: "assignment-1",
+    userId: "student-1",
+    status: "DIRECT_ASSIGNED",
+    callStartsAt: null,
+    callEndsAt: null,
+    callNote: null,
+    trades: [],
+    _count: { bookings: bookingCount },
+  };
+}
+
+function groupWithLiveAssignment(storedBookingCount: number, liveBookingCount: number) {
+  const live = group([slot({
+    assignment: {
+      ...slot().assignment,
+      bookingCount: storedBookingCount,
+    },
+  })]);
+  live.shifts = [{
+    id: "shift-1",
+    createdAt: eventStartsAt,
+    area: "VIDEO",
+    workerType: "ST",
+    startsAt: eventStartsAt,
+    endsAt: eventEndsAt,
+    callStartsAt: null,
+    callEndsAt: null,
+    notes: null,
+    _count: { assignments: 1 },
+    assignments: [liveAssignment(liveBookingCount)],
+  }];
+  return live;
 }
 
 const assignee = {
@@ -200,5 +236,52 @@ describe("working-copy call-window validation", () => {
       startsAt: "2026-10-06T16:00:00.000Z",
       endsAt: "2026-10-06T23:00:00.000Z",
     }]);
+  });
+
+  it("ignores a canceled booking left in an older working-copy snapshot", async () => {
+    mocks.findGroup.mockResolvedValue(groupWithLiveAssignment(1, 0));
+
+    await expect(mutateWorkingSchedule(
+      "group-1",
+      5,
+      { type: "unassign", slotKey: "shift-1" },
+      actor,
+    )).resolves.toBeDefined();
+
+    const writtenPayload = mocks.updateWorkingCopy.mock.calls[0]?.[0]?.data?.payload as {
+      slots: Array<{ assignment: unknown }>;
+    };
+    expect(writtenPayload.slots[0]?.assignment).toBeNull();
+    expect(mocks.findGroup).toHaveBeenCalledWith(expect.objectContaining({
+      select: expect.objectContaining({
+        shifts: expect.objectContaining({
+          select: expect.objectContaining({
+            assignments: expect.objectContaining({
+              select: expect.objectContaining({
+                _count: {
+                  select: {
+                    bookings: {
+                      where: { status: { in: ["BOOKED", "PENDING_PICKUP", "OPEN"] } },
+                    },
+                  },
+                },
+              }),
+            }),
+          }),
+        }),
+      }),
+    }));
+  });
+
+  it("still blocks unassign when the live assignment has an active booking", async () => {
+    mocks.findGroup.mockResolvedValue(groupWithLiveAssignment(0, 1));
+
+    await expect(mutateWorkingSchedule(
+      "group-1",
+      5,
+      { type: "unassign", slotKey: "shift-1" },
+      actor,
+    )).rejects.toThrow("Unlink the assignment's booking before unassigning this person.");
+    expect(mocks.updateWorkingCopy).not.toHaveBeenCalled();
   });
 });

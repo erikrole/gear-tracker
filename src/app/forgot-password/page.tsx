@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useFormSubmit } from "@/hooks/use-form-submit";
+import { AUTH_EMAIL_DOMAIN_NOTE, shouldSuggestWiscEmail } from "@/lib/auth-email-guidance";
 
 type ForgotPasswordResponse = {
   message?: string;
@@ -83,6 +84,12 @@ export default function ForgotPasswordPage() {
                   disabled={submitting}
                   className="h-11 text-base transition-colors"
                 />
+                {shouldSuggestWiscEmail(email) && (
+                  <Alert role="status" aria-live="polite" className="bg-muted/40">
+                    <AlertCircle className="size-4" />
+                    <AlertDescription>{AUTH_EMAIL_DOMAIN_NOTE}</AlertDescription>
+                  </Alert>
+                )}
               </div>
 
               <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!formError}>
@@ -114,7 +121,7 @@ export default function ForgotPasswordPage() {
                   href="mailto:erole@athletics.wisc.edu?subject=Wisconsin%20Creative%20gear-tracker%20help"
                   className="underline underline-offset-2 hover:text-foreground transition-colors"
                 >
-                  Contact an administrator
+                  Contact Erik Role
                 </a>
               </p>
             </form>

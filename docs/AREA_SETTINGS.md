@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Settings
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-04
+- Last Updated: 2026-08-07
 - Status: Active
 - Version: V1
 
@@ -96,10 +96,11 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Rows show the last audit actor/time when audit history exists.
 
 ### Sports (`/settings/sports`)
+- Configure one Non-game template with per-area Staff and Student counts for events without an opponent.
 - Toggle sports active/inactive for shift generation.
 - Configure separate Staff and Student home/away shift counts per area (Video, Photo, Graphics, Comms).
-- Configure the sport-level default call time window used when a shift or assignment does not have a more specific call override.
-- Saving call-time offsets synchronizes upcoming timed shift fallbacks and active private working copies through the shared schedule service. Explicit slot and personal call windows remain unchanged; all-day events retain date-only boundaries.
+- Configure sport-level and Non-game Student call-time windows. Staff and collaborators have no displayed call time or event-time substitute.
+- Saving Non-game defaults backfills missing upcoming Non-game schedules. Sport saves continue synchronizing safe upcoming Student fallback windows and active pending copies; explicit Student overrides remain unchanged and all-day events retain date-only boundaries.
 - Expandable roster panel per sport — add/remove users.
 - Mobile: card layout replaces dense table for shift configs.
 
@@ -203,6 +204,11 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages. Role-gated Settings sibling menus now wait for the current role before becoming dropdowns, so the loading frame does not expose an empty menu. The global breadcrumb UI now uses a lighter trail treatment with the current Settings sub-page marked by a subtle underline instead of a filled chip.
 
 ## Change Log
+
+- 2026-08-07: **Non-game staffing and Student call time are Settings-owned.** Admins can configure per-area Staff and Student counts plus Student offsets for events without an opponent. Saving backfills missing eligible future schedules; manual event creation and calendar sync use the same defaults. Staff and collaborators have no displayed call time.
+
+- 2026-08-05: **The authorized one-time call-time override is complete.** Settings offsets were applied to the active visible future schedule as a bounded repair: 145 events and 118 groups inspected, 2 groups and 2 fallback shifts updated, 2 explicit shift call windows and 6 personal assignment call windows cleared, 1 private working copy rebased, and 1 already-published group refreshed. The 83 all-day events remained date-only, and 5 events without sport configuration were skipped. Ordinary settings synchronization continues to preserve explicit slot and personal overrides. Audit records were written for both changed groups.
+- 2026-08-05: **Sport call-time defaults now reach new working-copy slots.** The schedule editor and native Add Shift flow consume the same settings-owned default window as direct shift creation, while existing peer, slot, personal, and all-day boundaries remain unchanged.
 
 - 2026-08-04: **Sport settings now own current timed call-time synchronization.** The shared default-window helper is consumed by generation, manual slot creation, template review, and the grouped/direct Sport settings mutations. Saving call-time offsets updates future timed shift fallbacks, keeps active working-copy payloads publishable with the same defaults, refreshes published snapshots, and preserves explicit slot or personal overrides. All-day events remain date-only. A shared dry-run/apply path was used to repair live drift: 35 fallback shift windows across 9 groups, 3 private working copies, and 1 published snapshot were corrected; the post-apply audit found zero remaining drift.
 - 2026-07-31: **Passkey self-service hardening.** Enrollment and revocation now

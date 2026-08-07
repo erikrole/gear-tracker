@@ -43,7 +43,7 @@ import {
   crewSlotStateLabel,
 } from "@/components/shift-detail/crew-row";
 
-const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS", "LIVE_PRODUCTION"] as const;
+const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "SOCIAL", "COMMS", "LIVE_PRODUCTION"] as const;
 
 type Shift = ShiftGroupSummary["shifts"][number];
 type Assignment = Shift["assignments"][number];
@@ -69,7 +69,6 @@ type Props = {
 export function ShiftCoverageCard({
   shiftGroup,
   commandCenter,
-  currentUserId,
   currentUserRole,
   acting,
   linkParams,
@@ -80,7 +79,7 @@ export function ShiftCoverageCard({
   const { titleParam, dateParam, endParam, locationParam, eventParam } = linkParams;
   const isStaffOrAdmin = currentUserRole === "STAFF" || currentUserRole === "ADMIN";
   const groupId = shiftGroup.id;
-  const canEditPublishedSchedule = isStaffOrAdmin && !shiftGroup.hasWorkingCopy;
+  const canEditPublishedSchedule = false;
 
   // ── User picker ──
   const [pickerShiftId, setPickerShiftId] = useState<string | null>(null);
@@ -96,8 +95,6 @@ export function ShiftCoverageCard({
   const [autoFillApplying, setAutoFillApplying] = useState(false);
   const [autoFillPreview, setAutoFillPreview] = useState<AutoFillPreviewResponse | null>(null);
   const [autoFillPreviewOpen, setAutoFillPreviewOpen] = useState(false);
-  const [publishing, setPublishing] = useState(false);
-  const [acknowledgingId, setAcknowledgingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState("");
   const [createdShiftNotice, setCreatedShiftNotice] = useState("");
   const actionBusyRef = useRef(false);
@@ -162,12 +159,10 @@ export function ShiftCoverageCard({
     : "red";
   const publication = shiftGroup.publication;
   const publicationBadge = !publication?.publishedAt
-    ? { label: "Draft", variant: "gray" as const }
+    ? { label: "Not released", variant: "gray" as const }
     : publication.changedAfterPublish
-      ? { label: "Changed", variant: "orange" as const }
-      : publication.unacknowledgedCount > 0
-        ? { label: `${publication.unacknowledgedCount} unacknowledged`, variant: "blue" as const }
-        : { label: "Published", variant: "green" as const };
+      ? { label: "Pending sync", variant: "orange" as const }
+      : { label: "Current", variant: "green" as const };
 
   // ── Mutations ──
 
@@ -302,52 +297,6 @@ export function ShiftCoverageCard({
     } finally {
       actionBusyRef.current = false;
       setAutoFillApplying(false);
-    }
-  }
-
-  async function handlePublish() {
-    if (!canEditPublishedSchedule) {
-      toast.error("Open Schedule to review and publish the private working copy.");
-      return;
-    }
-    if (actionBusyRef.current) return;
-    actionBusyRef.current = true;
-    setPublishing(true);
-    try {
-      const res = await fetch(`/api/shift-groups/${groupId}/publish`, { method: "POST" });
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        toast.success(shiftGroup.publication?.publishedAt ? "Schedule republished" : "Schedule published");
-        onUpdated?.();
-      } else {
-        toast.error(await parseErrorMessage(res, "Publish failed"));
-      }
-    } catch (err) {
-      toast.error(err instanceof TypeError ? "You’re offline. Check your connection." : "Publish failed");
-    } finally {
-      actionBusyRef.current = false;
-      setPublishing(false);
-    }
-  }
-
-  async function handleAcknowledge(assignmentId: string) {
-    if (actionBusyRef.current) return;
-    actionBusyRef.current = true;
-    setAcknowledgingId(assignmentId);
-    try {
-      const res = await fetch(`/api/shift-assignments/${assignmentId}/acknowledge`, { method: "POST" });
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        toast.success("Shift acknowledged");
-        onUpdated?.();
-      } else {
-        toast.error(await parseErrorMessage(res, "Acknowledge failed"));
-      }
-    } catch (err) {
-      toast.error(err instanceof TypeError ? "You’re offline. Check your connection." : "Acknowledge failed");
-    } finally {
-      actionBusyRef.current = false;
-      setAcknowledgingId(null);
     }
   }
 
@@ -548,7 +497,7 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
   // ── Crew table ──
   // One table for every role. Staff get the editing affordances (assign,
   // unassign, call time, add/remove slot); students get the same read of the
-  // schedule plus their own acknowledge action.
+  // schedule. All authoring lives in Schedule so every change gets the buffer.
   const crewTable = (
     <Table>
       <TableHeader>
@@ -607,17 +556,10 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
               const rowClassLabel = activeAssignment
                 ? shiftWorkerLabelForProfile(activeAssignment.user) ?? "Assigned"
                 : shiftWorkerLabel(shift.workerType);
-              const canAcknowledge = Boolean(
-                currentUserId
-                && activeAssignment
-                && activeAssignment.user.id === currentUserId
-                && publication?.publishedAt
-                && (!activeAssignment.acknowledgedAt || activeAssignment.acknowledgedAt < publication.publishedAt),
-              );
               return (
                 <TableRow key={shift.id} striped={false} className={cn(CREW_ROW_GROUP, "border-border/40")}>
                   <TableCell className="py-2.5 text-muted-foreground">
-                    {shouldShowCallWindow(rowCallWindow) ? (
+                    {shift.workerType === "ST" && shouldShowCallWindow(rowCallWindow) ? (
                       <CallWindowEditor
                         target={rowCallTarget}
                         effectiveWindow={rowCallWindow}
@@ -641,17 +583,7 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
                     {renderStatus(shift, activeAssignment, pendingRequests)}
                   </TableCell>
                   <TableCell className="py-2.5 pr-2 text-right">
-                    {canEditPublishedSchedule
-                      ? renderRowActions(shift, activeAssignment)
-                      : canAcknowledge && activeAssignment ? (
-                        <Button
-                          size="sm"
-                          onClick={() => handleAcknowledge(activeAssignment.id)}
-                          disabled={acknowledgingId === activeAssignment.id}
-                        >
-                          {acknowledgingId === activeAssignment.id ? "Saving..." : "Acknowledge"}
-                        </Button>
-                      ) : null}
+                    {canEditPublishedSchedule ? renderRowActions(shift, activeAssignment) : null}
                   </TableCell>
                 </TableRow>
               );
@@ -687,21 +619,18 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
         </div>
         {canEditPublishedSchedule && (
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={handleAutoFill} disabled={autoFilling || inlineActing !== null || publishing}>
+            <Button variant="outline" size="sm" onClick={handleAutoFill} disabled={autoFilling || inlineActing !== null}>
               {autoFilling ? "Building preview..." : "Preview auto-fill"}
-            </Button>
-            <Button size="sm" onClick={handlePublish} disabled={publishing || inlineActing !== null}>
-              {publishing ? "Publishing..." : shiftGroup.publication?.publishedAt ? "Republish" : "Publish"}
             </Button>
           </div>
         )}
       </CardHeader>
 
       <CardContent>
-        {shiftGroup.hasWorkingCopy && isStaffOrAdmin && (
+        {isStaffOrAdmin && (
           <Alert className="mb-4">
             <AlertDescription>
-              This event has unpublished Schedule changes. Review them in the <Link href="/schedule" className="font-medium underline">Schedule</Link> workstation before changing or publishing live assignments.
+              Make crew changes in <Link href="/schedule" className="font-medium underline">Schedule</Link>. Each edit restarts a 10-minute buffer before workers see it.
             </AlertDescription>
           </Alert>
         )}

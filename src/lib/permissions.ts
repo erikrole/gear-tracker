@@ -137,6 +137,7 @@ export const PERMISSIONS: Record<string, Record<string, Role[]>> = {
   allowed_email: {
     view: ["ADMIN", "STAFF"],
     create: ["ADMIN", "STAFF"],
+    edit: ["ADMIN", "STAFF"],
     delete: ["ADMIN", "STAFF"],
   },
   kit: {

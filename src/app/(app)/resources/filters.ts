@@ -6,6 +6,7 @@ export type ResourceFilterKey =
   | "area-video"
   | "area-photo"
   | "area-graphics"
+  | "area-social"
   | "area-comms"
   | "area-live-production"
   | "contacts"
@@ -30,6 +31,7 @@ const FILTER_PARAM_MAP: Record<string, ResourceFilterKey> = {
   "area-video": "area-video",
   "area-photo": "area-photo",
   "area-graphics": "area-graphics",
+  "area-social": "area-social",
   "area-comms": "area-comms",
   "area-live-production": "area-live-production",
   contacts: "contacts",
@@ -50,6 +52,7 @@ const LEGACY_AREA_PARAM_MAP: Record<string, ResourceFilterKey> = {
   video: "area-video",
   photo: "area-photo",
   graphics: "area-graphics",
+  social: "area-social",
   comms: "area-comms",
   "live-production": "area-live-production",
 };

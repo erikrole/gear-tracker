@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useFormSubmit } from "@/hooks/use-form-submit";
 import { parseErrorMessage, parseJsonSafely } from "@/lib/errors";
+import { AUTH_EMAIL_DOMAIN_NOTE, shouldSuggestWiscEmail } from "@/lib/auth-email-guidance";
 
 type LoginResponse = {
   user?: {
@@ -175,6 +176,13 @@ export default function LoginForm() {
               </div>
             </div>
 
+            {shouldSuggestWiscEmail(email) && (
+              <Alert role="status" aria-live="polite" className="bg-muted/40">
+                <AlertCircle className="size-4" />
+                <AlertDescription>{AUTH_EMAIL_DOMAIN_NOTE}</AlertDescription>
+              </Alert>
+            )}
+
             <div className="login-rise flex flex-col gap-1.5" style={{ "--rise-index": 3 } as React.CSSProperties}>
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
@@ -291,7 +299,7 @@ export default function LoginForm() {
             href="mailto:erole@athletics.wisc.edu?subject=Wisconsin%20Creative%20gear-tracker%20access"
             className="text-white/80 underline underline-offset-2 hover:text-white transition-colors"
           >
-            Contact an administrator
+            Contact Erik Role
           </a>{" "}
           to request access.
         </p>

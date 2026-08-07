@@ -77,14 +77,14 @@ describe("POST /api/kiosk/resolve-scan", () => {
     expect(json).toMatchObject({ kind: "blocked", code: "wrong_requester", expectedRequester: requester });
   });
 
-  it("blocks pickup at the wrong kiosk and names the expected location", async () => {
+  it("routes pickup from another kiosk location", async () => {
     mocks.findAsset.mockResolvedValue(asset);
     mocks.allocationFindFirst.mockResolvedValue({
       kind: "RESERVATION",
       booking: { ...reservation, locationId: "loc-2", location: { id: "loc-2", name: "Kohl Center" } },
     });
     const json = await (await request({ scanValue: "CAM-1", userId: "user-1" })).json();
-    expect(json).toMatchObject({ kind: "blocked", code: "wrong_location", message: "Pick this reservation up at Kohl Center." });
+    expect(json).toMatchObject({ kind: "action", action: "pickup", booking: { id: "booking-1" } });
   });
 
   it("reports Wiscard and item collisions as ambiguous", async () => {

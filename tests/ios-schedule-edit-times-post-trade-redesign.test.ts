@@ -9,11 +9,11 @@ describe("native Schedule edit times and post trade redesign", () => {
     const addShift = source("ios/Wisconsin/Views/Schedule/AddShiftSheet.swift");
 
     expect(detail).toContain("eventTitle: scheduleEventDisplayTitle(event)");
-    expect(detail).toContain('.navigationTitle("Edit Call Window")');
+    expect(detail).toContain('scope == .allAssigned ? "Set Student Call Time" : "Edit Call Window"');
     expect(detail).toContain('Text("Call Window")');
     expect(detail).toContain('ShiftDateTimeRow(label: "Call", systemImage: "arrow.right"');
     expect(detail).toContain('ShiftDateTimeRow(label: "End", systemImage: "arrow.left"');
-    expect(detail).toContain('Text("Save Call Window")');
+    expect(detail).toContain('scope == .allAssigned ? "Apply to Students" : "Save Call Window"');
     expect(detail).toContain("guard !isSaving, hasChanges, hasValidWindow else { return }");
     expect(detail).toContain('Label("End time must be after call time."');
     expect(detail).toContain('Button("Retry") { Task { await save() } }');

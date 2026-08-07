@@ -1286,7 +1286,7 @@ Indexes and constraints:
 
 ## Model `AllowedEmail`
 
-Fields: 13
+Fields: 17
 
 - `id                   String               @id @default(cuid())`
 - `email                String               @unique`
@@ -1294,6 +1294,10 @@ Fields: 13
 - `affiliation          Affiliation?`
 - `collaboratorProfile  CollaboratorProfile? @map("collaborator_profile")`
 - `collaboratorPolicyId String?              @map("collaborator_policy_id")`
+- `preloadedName        String?              @map("preloaded_name")`
+- `preloadedPrimaryArea ShiftArea?           @map("preloaded_primary_area")`
+- `preloadedAreas       ShiftArea[]          @default([]) @map("preloaded_areas")`
+- `preloadedSportCodes  String[]             @default([]) @map("preloaded_sport_codes")`
 - `createdById          String               @map("created_by_id")`
 - `claimedAt            DateTime?            @map("claimed_at")`
 - `claimedById          String?              @map("claimed_by_id")`
@@ -1517,7 +1521,7 @@ Indexes and constraints:
 
 ## Enum `ShiftArea`
 
-Values: `VIDEO`, `PHOTO`, `GRAPHICS`, `COMMS`, `LIVE_PRODUCTION`
+Values: `VIDEO`, `PHOTO`, `GRAPHICS`, `SOCIAL`, `COMMS`, `LIVE_PRODUCTION`
 
 ## Enum `ShiftWorkerType`
 
@@ -1615,13 +1619,16 @@ Indexes and constraints:
 
 ## Model `ShiftGroupWorkingCopy`
 
-Fields: 12
+Fields: 15
 
 - `shiftGroupId         String     @id @map("shift_group_id")`
 - `version              Int        @default(1)`
 - `basePublishedVersion Int        @map("base_published_version")`
 - `payloadVersion       Int        @default(1) @map("payload_version")`
 - `payload              Json`
+- `autoReleaseAt        DateTime?  @map("auto_release_at")`
+- `autoReleaseRunId     String?    @map("auto_release_run_id")`
+- `autoReleaseError     String?    @map("auto_release_error")`
 - `createdById          String     @map("created_by_id")`
 - `updatedById          String     @map("updated_by_id")`
 - `createdAt            DateTime   @default(now()) @map("created_at")`
@@ -1633,6 +1640,7 @@ Fields: 12
 Indexes and constraints:
 
 - `@@index([updatedById, updatedAt])`
+- `@@index([autoReleaseAt])`
 - `@@map("shift_group_working_copies")`
 
 ## Model `Shift`

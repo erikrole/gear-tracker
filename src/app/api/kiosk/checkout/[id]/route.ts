@@ -5,7 +5,6 @@ import { createAuditEntryTx } from "@/lib/audit";
 import { activeCheckoutAddItemBody, activeCheckoutRemoveItemBody, activeCheckoutUpdateBody } from "@/lib/schemas/kiosk";
 import { findAssetByScanValue } from "@/lib/services/kiosk-scan";
 import { findBulkUnitByScanValue } from "@/lib/services/bulk-unit-scans";
-import { assetLocationEvidence, locationEvidencePayload, reconcileAssetLocationToKiosk } from "@/lib/services/kiosk-location";
 import { CLAIMABLE_BULK_UNIT_WHERE } from "@/lib/bulk-unit-status";
 import { checkAvailability } from "@/lib/services/availability";
 import { upsertBulkBalancesAndMovements } from "@/lib/services/bookings-helpers";
@@ -30,14 +29,13 @@ async function requireActor(tx: Prisma.TransactionClient, actorId: string) {
 
 async function requireEditableCheckout(
   tx: Prisma.TransactionClient,
-  args: { checkoutId: string; locationId: string },
+  args: { checkoutId: string },
 ) {
   const booking = await tx.booking.findFirst({
     where: {
       id: args.checkoutId,
       kind: "CHECKOUT",
       status: "OPEN",
-      locationId: args.locationId,
     },
     select: {
       id: true,
@@ -309,10 +307,7 @@ export const PATCH = withKiosk<{ id: string }>(async (req, { kiosk, params }) =>
 
   const updated = await db.$transaction(async (tx) => {
     const actor = await requireActor(tx, actorId);
-    const booking = await requireEditableCheckout(tx, {
-      checkoutId: params.id,
-      locationId: kiosk.locationId,
-    });
+    const booking = await requireEditableCheckout(tx, { checkoutId: params.id });
 
     if (requestedEndsAt && requestedEndsAt <= new Date()) {
       throw new HttpError(400, "Return time must be in the future");
@@ -421,10 +416,7 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
 
   const result = await db.$transaction(async (tx) => {
     const actor = await requireActor(tx, actorId);
-    const booking = await requireEditableCheckout(tx, {
-      checkoutId: params.id,
-      locationId: kiosk.locationId,
-    });
+    const booking = await requireEditableCheckout(tx, { checkoutId: params.id });
     const now = new Date();
 
     if (bulkUnit) {
@@ -543,15 +535,6 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
       return { success: false, error: "Item is not available for this checkout" };
     }
 
-    const evidence = await assetLocationEvidence(tx, {
-      assetId: asset.id,
-      expectedLocationId: booking.locationId,
-    });
-    await reconcileAssetLocationToKiosk(tx, {
-      assetId: asset.id,
-      kioskLocationId: booking.locationId,
-    });
-
     if (existingInBooking) {
       await tx.bookingSerializedItem.update({
         where: { bookingId_assetId: { bookingId: booking.id, assetId: asset.id } },
@@ -589,14 +572,12 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
         itemName: asset.assetTag,
         kioskDeviceId: kiosk.kioskId,
         kioskName: kiosk.name,
-        ...locationEvidencePayload(evidence),
       },
     });
 
     return {
       success: true,
       message: `${asset.name || asset.assetTag} added`,
-      ...locationEvidencePayload(evidence),
     };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
@@ -609,10 +590,7 @@ export const DELETE = withKiosk<{ id: string }>(async (req, { kiosk, params }) =
 
   const result = await db.$transaction(async (tx) => {
     const actor = await requireActor(tx, actorId);
-    const booking = await requireEditableCheckout(tx, {
-      checkoutId: params.id,
-      locationId: kiosk.locationId,
-    });
+    const booking = await requireEditableCheckout(tx, { checkoutId: params.id });
 
     if (body.assetId) {
       const item = await tx.bookingSerializedItem.findUnique({

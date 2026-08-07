@@ -38,8 +38,8 @@ This plan maps directly to the 24+ focused audit docs at `tasks/audit-*-ios.md` 
 ### Sign in
 
 - [ ] `LoginView` — type a partial email; trailing-whitespace bug from the audit (slice 144) is fixed (login succeeds with a typo'd trailing space). [audit-login-ios.md]
-- [ ] Tap "Forgot password?" → opens `wisconsincreative.com/forgot-password` in Safari.
-- [ ] Tap "Need an account?" → opens `wisconsincreative.com/register`.
+- [ ] Tap "Forgot password?" → the native Reset password form opens. Submit an email and verify the generic in-app response; if email delivery is configured, the emailed reset link opens the canonical web reset form.
+- [ ] Tap "Need an account?" → the native Create account form opens. Submit an administrator-approved email and verify the account enters the normal Welcome flow without leaving the app.
 - [ ] Sign in succeeds; `currentUser` persists across cold launch (kill app, reopen — still signed in).
 
 ---

@@ -82,6 +82,7 @@ export type CurrentCallTimeSyncOptions = {
   now?: Date;
   actor?: { id: string; role: Role } | null;
   dryRun?: boolean;
+  overrideExistingCallTimes?: boolean;
 };
 
 export type PublishedCallTimeChange = {
@@ -97,6 +98,8 @@ export type CurrentCallTimeSyncSummary = {
   workingCopiesUpdated: number;
   publishedGroupsUpdated: number;
   assignmentsAcknowledgementReset: number;
+  shiftCallOverridesCleared: number;
+  assignmentCallOverridesCleared: number;
   allDayEventsSkipped: number;
   missingConfigs: number;
   invalidWorkingCopies: number;
@@ -141,8 +144,9 @@ function syncWorkingCopyPayload(
   group: SyncGroup,
   event: SyncEvent,
   defaultWindow: { startsAt: Date; endsAt: Date },
+  overrideExistingCallTimes: boolean,
 ) {
-  if (!group.workingCopy || event.allDay) {
+  if (!group.workingCopy) {
     return { payload: null, changed: false, invalid: false };
   }
 
@@ -156,10 +160,24 @@ function syncWorkingCopyPayload(
   const startsAt = defaultWindow.startsAt.toISOString();
   const endsAt = defaultWindow.endsAt.toISOString();
   for (const slot of next.slots) {
-    if (slot.startsAt !== startsAt || slot.endsAt !== endsAt) {
-      slot.startsAt = startsAt;
-      slot.endsAt = endsAt;
+    const targetStartsAt = slot.workerType === "ST" ? startsAt : event.startsAt.toISOString();
+    const targetEndsAt = slot.workerType === "ST" ? endsAt : event.endsAt.toISOString();
+    if (!event.allDay && (slot.startsAt !== targetStartsAt || slot.endsAt !== targetEndsAt)) {
+      slot.startsAt = targetStartsAt;
+      slot.endsAt = targetEndsAt;
       changed = true;
+    }
+    if (overrideExistingCallTimes || slot.workerType === "FT") {
+      if (slot.callStartsAt !== null || slot.callEndsAt !== null) {
+        slot.callStartsAt = null;
+        slot.callEndsAt = null;
+        changed = true;
+      }
+      if (slot.assignment && (slot.assignment.callStartsAt !== null || slot.assignment.callEndsAt !== null)) {
+        slot.assignment.callStartsAt = null;
+        slot.assignment.callEndsAt = null;
+        changed = true;
+      }
     }
   }
 
@@ -179,6 +197,7 @@ export async function syncCurrentSportCallTimes(
 ): Promise<CurrentCallTimeSyncSummary> {
   const now = options.now ?? new Date();
   const dryRun = options.dryRun === true;
+  const overrideExistingCallTimes = options.overrideExistingCallTimes === true;
   const uniqueCodes = [...new Set(sportCodes)];
   if (uniqueCodes.length === 0) {
     return {
@@ -189,6 +208,8 @@ export async function syncCurrentSportCallTimes(
       workingCopiesUpdated: 0,
       publishedGroupsUpdated: 0,
       assignmentsAcknowledgementReset: 0,
+      shiftCallOverridesCleared: 0,
+      assignmentCallOverridesCleared: 0,
       allDayEventsSkipped: 0,
       missingConfigs: 0,
       invalidWorkingCopies: 0,
@@ -232,6 +253,8 @@ export async function syncCurrentSportCallTimes(
       workingCopiesUpdated: 0,
       publishedGroupsUpdated: 0,
       assignmentsAcknowledgementReset: 0,
+      shiftCallOverridesCleared: 0,
+      assignmentCallOverridesCleared: 0,
       allDayEventsSkipped: 0,
       missingConfigs: 0,
       invalidWorkingCopies: 0,
@@ -243,10 +266,10 @@ export async function syncCurrentSportCallTimes(
     for (const event of events as SyncEvent[]) {
       if (event.allDay) {
         summary.allDayEventsSkipped += 1;
-        continue;
+        if (!overrideExistingCallTimes) continue;
       }
       const config = event.sportCode ? configByCode.get(event.sportCode) : undefined;
-      if (!config) {
+      if (!event.allDay && !config) {
         summary.missingConfigs += 1;
         continue;
       }
@@ -254,42 +277,87 @@ export async function syncCurrentSportCallTimes(
       if (!group) continue;
       summary.groupsInspected += 1;
 
-      const defaultWindow = sportDefaultShiftWindow(event, config);
+      const defaultWindow = event.allDay
+        ? { startsAt: event.startsAt, endsAt: event.endsAt }
+        : sportDefaultShiftWindow(event, config!);
       let updatedShiftCount = 0;
+      let updatedAssignmentCount = 0;
       const changedAssignments: Array<SyncGroup["shifts"][number]["assignments"][number]> = [];
       const conflictRefreshes: Array<{ id: string; hasConflict: boolean; conflictNote: string | null }> = [];
+      const assignmentCallOverrideIds: string[] = [];
       const changedShiftWindows: Array<{
         shiftId: string;
         startsAt: string;
         endsAt: string;
       }> = [];
+      const changedShiftCallWindows: Array<{
+        shiftId: string;
+        callStartsAt: string | null;
+        callEndsAt: string | null;
+      }> = [];
 
       for (const shift of group.shifts) {
         const beforeShiftWindow = { startsAt: shift.startsAt, endsAt: shift.endsAt };
+        const beforeShiftCallWindow = {
+          startsAt: shift.callStartsAt,
+          endsAt: shift.callEndsAt,
+        };
         const beforeAssignmentWindows = new Map(
           shift.assignments.map((assignment) => [assignment.id, effectiveWindow(shift, assignment)]),
         );
-        const shiftChanged = windowsDiffer(beforeShiftWindow, defaultWindow);
-        if (!shiftChanged) continue;
+        const targetWindow = shift.workerType === "ST"
+          ? defaultWindow
+          : { startsAt: event.startsAt, endsAt: event.endsAt };
+        const shiftWindowChanged = !event.allDay && windowsDiffer(beforeShiftWindow, targetWindow);
+        const shiftCallOverrideChanged = (overrideExistingCallTimes || shift.workerType === "FT")
+          && (shift.callStartsAt !== null || shift.callEndsAt !== null);
+        const shiftChanged = shiftWindowChanged || shiftCallOverrideChanged;
 
-        if (!dryRun) {
+        if (shiftChanged && !dryRun) {
+          const data = {
+            ...(shiftWindowChanged ? { startsAt: targetWindow.startsAt, endsAt: targetWindow.endsAt } : {}),
+            ...(shiftCallOverrideChanged ? { callStartsAt: null, callEndsAt: null } : {}),
+          };
           await tx.shift.update({
             where: { id: shift.id },
-            data: { startsAt: defaultWindow.startsAt, endsAt: defaultWindow.endsAt },
+            data,
           });
         }
-        changedShiftWindows.push({
-          shiftId: shift.id,
-          startsAt: beforeShiftWindow.startsAt.toISOString(),
-          endsAt: beforeShiftWindow.endsAt.toISOString(),
-        });
-        shift.startsAt = defaultWindow.startsAt;
-        shift.endsAt = defaultWindow.endsAt;
-        updatedShiftCount += 1;
+        if (shiftWindowChanged) {
+          changedShiftWindows.push({
+            shiftId: shift.id,
+            startsAt: beforeShiftWindow.startsAt.toISOString(),
+            endsAt: beforeShiftWindow.endsAt.toISOString(),
+          });
+          shift.startsAt = targetWindow.startsAt;
+          shift.endsAt = targetWindow.endsAt;
+        }
+        if (shiftCallOverrideChanged) {
+          changedShiftCallWindows.push({
+            shiftId: shift.id,
+            callStartsAt: beforeShiftCallWindow.startsAt?.toISOString() ?? null,
+            callEndsAt: beforeShiftCallWindow.endsAt?.toISOString() ?? null,
+          });
+          shift.callStartsAt = null;
+          shift.callEndsAt = null;
+          summary.shiftCallOverridesCleared += 1;
+        }
+        if (shiftChanged) updatedShiftCount += 1;
 
         for (const assignment of shift.assignments) {
-          conflictRefreshes.push(conflictRefresh(shift, assignment));
           const before = beforeAssignmentWindows.get(assignment.id)!;
+          const assignmentCallOverrideChanged = (overrideExistingCallTimes || shift.workerType === "FT")
+            && (assignment.callStartsAt !== null || assignment.callEndsAt !== null);
+          if (assignmentCallOverrideChanged) {
+            assignmentCallOverrideIds.push(assignment.id);
+            assignment.callStartsAt = null;
+            assignment.callEndsAt = null;
+            summary.assignmentCallOverridesCleared += 1;
+            updatedAssignmentCount += 1;
+          }
+          if (shiftChanged || assignmentCallOverrideChanged) {
+            conflictRefreshes.push(conflictRefresh(shift, assignment));
+          }
           const after = effectiveWindow(shift, assignment);
           if (windowsDiffer(before, after)) changedAssignments.push(assignment);
         }
@@ -297,6 +365,13 @@ export async function syncCurrentSportCallTimes(
 
       if (conflictRefreshes.length > 0 && !dryRun) {
         await updateShiftAssignmentConflictsTx(tx, conflictRefreshes, false);
+      }
+
+      if (assignmentCallOverrideIds.length > 0 && !dryRun) {
+        await tx.shiftAssignment.updateMany({
+          where: { id: { in: assignmentCallOverrideIds } },
+          data: { callStartsAt: null, callEndsAt: null },
+        });
       }
 
       const affectedUserIds = [...new Set(changedAssignments.map((assignment) => assignment.userId))];
@@ -310,17 +385,23 @@ export async function syncCurrentSportCallTimes(
         summary.assignmentsAcknowledgementReset += changedAssignments.length;
       }
 
-      const workingCopy = syncWorkingCopyPayload(group, event, defaultWindow);
+      const workingCopy = syncWorkingCopyPayload(group, event, defaultWindow, overrideExistingCallTimes);
       if (workingCopy.invalid) {
         summary.invalidWorkingCopies += 1;
-      } else if (workingCopy.changed && workingCopy.payload) {
+      }
+      const relationalChanges = updatedShiftCount > 0 || updatedAssignmentCount > 0;
+      const workingCopyNeedsUpdate = Boolean(
+        workingCopy.payload
+        && (workingCopy.changed || (group.publishedAt && relationalChanges)),
+      );
+      if (workingCopyNeedsUpdate && workingCopy.payload) {
         if (!dryRun) {
           const updated = await tx.shiftGroupWorkingCopy.updateMany({
             where: { shiftGroupId: group.id, version: group.workingCopy!.version },
             data: {
               version: { increment: 1 },
               payload: workingCopy.payload as unknown as Prisma.InputJsonValue,
-              ...(group.publishedAt && updatedShiftCount > 0
+              ...(group.publishedAt && (updatedShiftCount > 0 || updatedAssignmentCount > 0)
                 ? { basePublishedVersion: group.publishedVersion + 1 }
                 : {}),
               ...(options.actor?.id ? { updatedById: options.actor.id } : {}),
@@ -333,12 +414,12 @@ export async function syncCurrentSportCallTimes(
         summary.workingCopiesUpdated += 1;
       }
 
-      if (updatedShiftCount === 0 && !workingCopy.changed) continue;
+      if (!relationalChanges && !workingCopyNeedsUpdate) continue;
       summary.shiftsUpdated += updatedShiftCount;
       summary.groupsUpdated += 1;
       summary.changedGroupIds.push(group.id);
 
-      if (group.publishedAt && updatedShiftCount > 0) {
+      if (group.publishedAt && (updatedShiftCount > 0 || updatedAssignmentCount > 0)) {
         const snapshot = buildSchedulePublicationSnapshot(group);
         if (!dryRun) {
           await tx.shiftGroup.update({
@@ -358,17 +439,21 @@ export async function syncCurrentSportCallTimes(
         actorRole: options.actor?.role ?? null,
         entityType: "shift_group",
         entityId: group.id,
-        action: "shift_call_times_synced_from_sport_settings",
+        action: overrideExistingCallTimes
+          ? "shift_call_times_overridden_from_sport_settings"
+          : "shift_call_times_synced_from_sport_settings",
         before: {
           sportCode: event.sportCode,
           defaultStartsAt: defaultWindow.startsAt.toISOString(),
           defaultEndsAt: defaultWindow.endsAt.toISOString(),
           changedShiftWindows,
+          changedShiftCallWindows,
           publishedVersion: group.publishedVersion,
         },
         after: {
           shiftsUpdated: updatedShiftCount,
-          workingCopyUpdated: Boolean(workingCopy.changed),
+          assignmentsUpdated: updatedAssignmentCount,
+          workingCopyUpdated: workingCopyNeedsUpdate,
           publishedVersion: group.publishedAt ? group.publishedVersion + 1 : group.publishedVersion,
           affectedUserIds,
         },

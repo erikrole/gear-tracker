@@ -106,7 +106,7 @@ beforeEach(() => {
 });
 
 describe("schedule publication state", () => {
-  it("treats acknowledgement changes as unacknowledged state, not schedule changes", () => {
+  it("ignores legacy acknowledgement fields when computing schedule state", () => {
     const snapshot = buildSchedulePublicationSnapshot({ shifts: [shift()] });
 
     const state = getSchedulePublicationState({
@@ -136,9 +136,34 @@ describe("schedule publication state", () => {
       publishedById: "staff-1",
       changedAfterPublish: false,
       activeAssignmentCount: 1,
-      acknowledgedCount: 1,
+      acknowledgedCount: 0,
       unacknowledgedCount: 0,
     });
+  });
+
+  it("does not expose acknowledgement readiness after a later group release", () => {
+    const unchanged = shift({
+      assignments: [{
+        id: "assignment-1",
+        userId: "user-1",
+        status: "DIRECT_ASSIGNED",
+        callStartsAt: null,
+        callEndsAt: null,
+        callNote: null,
+        acknowledgedAt: new Date("2026-10-01T12:05:00.000Z"),
+      }],
+    });
+    const snapshot = buildSchedulePublicationSnapshot({ shifts: [unchanged] });
+
+    const state = getSchedulePublicationState({
+      publishedAt: new Date("2026-10-02T12:00:00.000Z"),
+      publishedById: "staff-1",
+      lastPublishedSnapshot: snapshot,
+      shifts: [unchanged],
+    });
+
+    expect(state.acknowledgedCount).toBe(0);
+    expect(state.unacknowledgedCount).toBe(0);
   });
 
   it("marks a group changed when the worker-facing assignment snapshot differs", () => {
@@ -842,6 +867,25 @@ describe("publish preflight", () => {
     expect(error).toMatchObject({ status: 409, message: expect.stringContaining("2 problems") });
     const codes = ((error as { data: { blockers: Array<{ code: string }> } }).data.blockers).map((b) => b.code);
     expect(codes).toEqual(["active_trade", "linked_booking"]);
+    expect(mockTx.shiftGroup.findUnique).toHaveBeenCalledWith(expect.objectContaining({
+      select: expect.objectContaining({
+        shifts: expect.objectContaining({
+          select: expect.objectContaining({
+            assignments: expect.objectContaining({
+              select: expect.objectContaining({
+                _count: {
+                  select: {
+                    bookings: {
+                      where: { status: { in: ["BOOKED", "PENDING_PICKUP", "OPEN"] } },
+                    },
+                  },
+                },
+              }),
+            }),
+          }),
+        }),
+      }),
+    }));
   });
 
   // A single blocker must keep reading exactly as it did, so existing recovery

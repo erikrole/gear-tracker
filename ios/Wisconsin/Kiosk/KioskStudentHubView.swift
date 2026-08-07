@@ -99,6 +99,10 @@ struct KioskStudentHubView: View {
                     break
                 }
                 guard !Task.isCancelled else { break }
+                // An identified student can leave the hub unattended without
+                // navigating away. Honor the kiosk-wide idle state so this
+                // safety-net refresh does not keep Neon awake overnight.
+                guard !store.isDeviceIdle else { continue }
                 await loadContext()
             }
         }

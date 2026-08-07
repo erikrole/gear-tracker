@@ -254,6 +254,11 @@ describe("kiosk check-in scan route", () => {
       phase: "checkin",
       ok: true,
     }));
+    expect(mocks.scanKioskCheckinBulkUnit).toHaveBeenCalledWith(expect.anything(), {
+      bookingId: "booking-1",
+      scanValue: "FX3-1",
+      kioskLocationId: "loc-1",
+    });
   });
 
   it("reports when a serialized item was already returned", async () => {

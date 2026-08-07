@@ -51,6 +51,7 @@ describe("Users sweeping ownership contracts", () => {
     expect(row).toContain('AREA_LABELS[area]');
     expect(page).toContain('canEdit && stats.missingPhotos > 0');
     expect(types).toContain('LIVE_PRODUCTION: "Live Production"');
+    expect(types).toContain('SOCIAL: "Social"');
   });
 
   it("uses the concise Add users command and omits the roster subtitle", () => {

@@ -1,6 +1,6 @@
 # Tasks Index
 
-Last updated: 2026-07-28
+Last updated: 2026-08-06
 
 ## Start Here
 
@@ -66,6 +66,8 @@ Audit files intentionally remain at root for now because the repo audit skills r
 - Keep references updated when moving a root plan into archive.
 
 ## Recently Archived
+
+- `archive/completed-2026-08-06/2027-sport-assignment-reconciliation-plan.md` - reconciled the 2027 sport roster, prepared ten pending student profiles, deployed Social and registration-time materialization, and verified the production Allowed Emails surface.
 
 - `archive/completed-2026-07/ios-system-hardening-plan.md` - completed the
   full native bug, security, privacy, correctness, accessibility, recovery, and

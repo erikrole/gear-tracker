@@ -28,9 +28,14 @@ vi.mock("@/lib/audit", () => ({
   createAuditEntryTx: vi.fn(),
 }));
 
+vi.mock("@/lib/services/shift-generation", () => ({
+  generateShiftsForEvent: vi.fn(),
+}));
+
 import { requireAuth } from "@/lib/auth";
 import { createAuditEntry, createAuditEntryTx } from "@/lib/audit";
 import { db } from "@/lib/db";
+import { generateShiftsForEvent } from "@/lib/services/shift-generation";
 import { PATCH } from "@/app/api/calendar-events/[id]/route";
 import { GET, POST } from "@/app/api/calendar-events/route";
 
@@ -131,6 +136,11 @@ beforeEach(() => {
   } as Awaited<ReturnType<typeof db.calendarEvent.create>>);
   vi.mocked(createAuditEntry).mockResolvedValue(undefined);
   vi.mocked(createAuditEntryTx).mockResolvedValue(undefined);
+  vi.mocked(generateShiftsForEvent).mockResolvedValue({
+    created: true,
+    shiftGroupId: "cmshiftgroup000000000001",
+    shiftCount: 4,
+  });
   vi.mocked(db.calendarEvent.findUnique).mockResolvedValue({
     id: "cmevent000000000000000001",
     sourceId: null,
@@ -254,6 +264,10 @@ describe("POST /api/calendar-events", () => {
       }),
     );
     expect(createAuditEntry).toHaveBeenCalledOnce();
+    expect(generateShiftsForEvent).toHaveBeenCalledWith("cmevent000000000000000001");
+    await expect(res.json()).resolves.toMatchObject({
+      scheduleGeneration: { created: true, shiftCount: 4 },
+    });
   });
 
   it("persists a manual multi-day all-day event with canonical UTC-midnight date bounds", async () => {

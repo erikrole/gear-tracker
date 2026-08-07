@@ -55,7 +55,7 @@
 | `BlastRecipient` | 12 | 4 |
 | `FavoriteItem` | 6 | 3 |
 | `FavoriteItemFamily` | 6 | 4 |
-| `AllowedEmail` | 13 | 4 |
+| `AllowedEmail` | 17 | 4 |
 | `CollaboratorAffiliation` | 8 | 2 |
 | `CollaboratorPolicy` | 11 | 2 |
 | `CollaboratorPolicyGrant` | 5 | 3 |
@@ -69,7 +69,7 @@
 | `SportConfig` | 8 | 1 |
 | `SportShiftConfig` | 12 | 2 |
 | `ShiftGroup` | 16 | 3 |
-| `ShiftGroupWorkingCopy` | 12 | 2 |
+| `ShiftGroupWorkingCopy` | 15 | 3 |
 | `Shift` | 14 | 4 |
 | `ShiftAssignment` | 26 | 5 |
 | `StudentSportAssignment` | 6 | 3 |
@@ -305,6 +305,7 @@
 - `VIDEO`
 - `PHOTO`
 - `GRAPHICS`
+- `SOCIAL`
 - `COMMS`
 - `LIVE_PRODUCTION`
 

@@ -22,6 +22,7 @@ const shiftConfigs = [
   ShiftArea.VIDEO,
   ShiftArea.PHOTO,
   ShiftArea.GRAPHICS,
+  ShiftArea.SOCIAL,
   ShiftArea.COMMS,
   ShiftArea.LIVE_PRODUCTION,
 ].map((area) => ({ area }));
@@ -155,7 +156,7 @@ describe("shared mutation array bounds", () => {
     })).toThrow(`Number must be less than or equal to ${MAX_BULK_UNIT_NUMBER}`);
   });
 
-  it("accepts all five sport shift areas across each mutation schema", () => {
+  it("accepts all six sport shift areas across each mutation schema", () => {
     expect(shiftConfigs).toHaveLength(MAX_SPORT_SHIFT_CONFIGS_PER_REQUEST);
     expect(() => upsertSportConfigSchema.parse({ sportCode: "FB", shiftConfigs })).not.toThrow();
     expect(() => updateSportConfigSchema.parse({ shiftConfigs })).not.toThrow();
@@ -165,7 +166,7 @@ describe("shared mutation array bounds", () => {
     })).not.toThrow();
   });
 
-  it("rejects the duplicate area required to form a sixth shift config", () => {
+  it("rejects the duplicate area required to form a seventh shift config", () => {
     const overLimit = [...shiftConfigs, { area: ShiftArea.VIDEO }];
 
     expect(() => upsertSportConfigSchema.parse({

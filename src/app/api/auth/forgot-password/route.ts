@@ -21,7 +21,7 @@ export const POST = withHandler(async (req) => {
 
   if (!env.resendApiKey) {
     return ok({
-      message: "Email password reset is not configured yet. Contact an administrator for a temporary password.",
+      message: "Email password reset is not configured yet. Contact Erik Role for a temporary password.",
       resetEmailConfigured: false,
     });
   }

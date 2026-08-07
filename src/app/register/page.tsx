@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { useFormSubmit } from "@/hooks/use-form-submit";
+import { AUTH_EMAIL_DOMAIN_NOTE, shouldSuggestWiscEmail } from "@/lib/auth-email-guidance";
 
 function validateName(name: string): string {
   if (!name.trim()) return "Name is required";
@@ -153,6 +154,12 @@ export default function RegisterPage() {
               <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.email} aria-hidden={!fieldErrors.email}>
                 <p id="email-error" role="alert" className="overflow-hidden text-destructive text-xs">{fieldErrors.email || " "}</p>
               </div>
+              {shouldSuggestWiscEmail(email) && (
+                <Alert role="status" aria-live="polite" className="bg-muted/40">
+                  <AlertCircle className="size-4" />
+                  <AlertDescription>{AUTH_EMAIL_DOMAIN_NOTE}</AlertDescription>
+                </Alert>
+              )}
             </div>
 
             <div className="flex flex-col gap-1.5">

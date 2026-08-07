@@ -22,12 +22,12 @@ describe("iOS Schedule all-day display", () => {
     expect(scheduleView).toContain("return event.displayAllDay ? \"All day\" : eventTimeLabel");
     expect(scheduleView).not.toContain("return Self.cleanSummary(event.summary)");
 
-    expect(eventDetail).toContain("if event.displayAllDay { return nil }");
+    expect(eventDetail).toContain('if event.displayAllDay || myShift?.workerType == "FT" { return nil }');
     expect(eventDetail).toContain("hidesShiftTimes: event.displayAllDay");
     // Both crew row layouts (compact columns, and the stacked one at large
     // Dynamic Type) gate call-time chrome on the same flag, as does the row's
     // accessibility label.
-    expect(eventDetail.match(/if !hidesShiftTimes \{/g)?.length).toBe(3);
+    expect(eventDetail.match(/if !hidesShiftTimes && isStudentSlot \{/g)?.length).toBe(3);
     expect(eventDetail).toContain("VStack(alignment: .trailing, spacing: 2)");
     expect(eventDetail).toContain("private var callWindowText: some View");
   });

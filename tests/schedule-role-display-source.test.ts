@@ -59,7 +59,7 @@ describe("schedule staff/student display source contracts", () => {
     expect(shiftDetail).toContain("formatRoleSlotAssignmentOutcome(json?.meta?.roleSlotOutcome");
   });
 
-  it("shows one editable call time for each filled schedule row", () => {
+  it("shows editable call times only for Student schedule rows", () => {
     const listView = source("src/app/(app)/schedule/_components/ListView.tsx");
     const assignmentCell = source("src/app/(app)/schedule/assign/_components/AssignmentCell.tsx");
     const slotCard = source("src/components/shift-detail/ShiftSlotCard.tsx");
@@ -67,6 +67,8 @@ describe("schedule staff/student display source contracts", () => {
     expect(listView).toContain("const callEditorTarget = activeAssignment");
     expect(listView).toContain('target={callEditorTarget}');
     expect(listView).toContain("commonCallWindow(entry)");
+    expect(listView).toContain('workerKindForShift(shift) !== "ST"');
+    expect(listView).toContain('workerType === "ST"');
     expect(listView).toContain("Most rows");
     expect(listView).toContain("!callMatchesCommon");
     expect(listView).toContain("Crew");
@@ -78,10 +80,32 @@ describe("schedule staff/student display source contracts", () => {
 
     expect(assignmentCell).toContain('target={{ type: "assignment", id: assignment.id }}');
     expect(assignmentCell).toContain('target={{ type: "slot", id: firstOpenShift.id }}');
+    expect(assignmentCell).toContain('shift.workerType === "ST"');
+    expect(assignmentCell).toContain('firstOpenShift.workerType === "ST"');
     expect(assignmentCell).not.toContain('target={{ type: "slot", id: shift.id }}');
 
-    expect(slotCard).toContain("const showSlotWindow = !isAssigned");
+    expect(slotCard).toContain('const isStudentSlot = workerType === "ST"');
+    expect(slotCard).toContain("const showSlotWindow = isStudentSlot && !isAssigned");
     expect(slotCard).toContain('target={canEdit ? { type: "assignment", id: activeAssignment.id } : undefined}');
+  });
+
+  it("never substitutes event time into Staff call-time presentation", () => {
+    const dashboardRoute = source("src/app/api/dashboard/route.ts");
+    const myShiftsRoute = source("src/app/api/my-shifts/route.ts");
+    const dashboardColumn = source("src/app/(app)/dashboard/my-gear-column.tsx");
+    const notifications = source("src/lib/services/notifications.ts");
+    const home = source("ios/Wisconsin/Views/HomeView.swift");
+    const profile = source("ios/Wisconsin/Views/ProfileNextUp.swift");
+
+    expect((dashboardRoute.match(/a\.shift\.workerType === "ST"/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    expect(myShiftsRoute).toContain('a.shift.workerType === "ST"');
+    expect(dashboardColumn).toContain('s.workerType === "ST"');
+    expect(dashboardColumn).toContain("studentCallWindow && !isFullDayDefault");
+    expect(notifications).toContain('dueAt: assignment.workerType === "ST"');
+    expect(notifications).toContain("Student call time:");
+    expect(home).toContain('queueCallTime(workerType: shift.workerType');
+    expect(home).toContain('guard workerType == "ST" else { return nil }');
+    expect(profile).toContain('if shift.workerType == "ST"');
   });
 
   it("keeps historical role-slot repair permissioned and audited", () => {

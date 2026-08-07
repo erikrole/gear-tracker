@@ -135,6 +135,7 @@ struct CrewAreaHeading: View {
         case "VIDEO":    return "video.fill"
         case "PHOTO":    return "camera.fill"
         case "GRAPHICS": return "paintpalette.fill"
+        case "SOCIAL":   return "person.2.fill"
         case "COMMS":    return "dot.radiowaves.left.and.right"
         default:         return "person.fill"
         }

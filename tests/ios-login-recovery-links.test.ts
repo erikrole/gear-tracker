@@ -1,15 +1,33 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-describe("iOS login recovery links", () => {
+describe("iOS native login recovery flows", () => {
   const source = readFileSync("ios/Wisconsin/Views/LoginView.swift", "utf8");
+  const authViews = readFileSync("ios/Wisconsin/Views/NativeAuthViews.swift", "utf8");
   const apiClient = readFileSync("ios/Wisconsin/Core/APIClient.swift", "utf8");
 
-  it("keeps password reset and allowlist registration reachable from native login", () => {
-    expect(source).toContain('private static let forgotPasswordURL = AppEnvironment.url(path: "/forgot-password")');
-    expect(source).toContain('private static let registerURL = AppEnvironment.url(path: "/register")');
-    expect(source).toContain('Link("Forgot password?", destination: Self.forgotPasswordURL)');
-    expect(source).toContain('Link("Need an account?", destination: Self.registerURL)');
+  it("presents native registration and recovery screens from login", () => {
+    expect(source).not.toContain("SafariServices");
+    expect(source).not.toContain("SFSafariViewController");
+    expect(source).toContain("NativeForgotPasswordView()");
+    expect(source).toContain("NativeRegistrationView()");
+    expect(source).toContain(".sheet(item: $authDestination)");
+    expect(source).toContain('Button("Forgot password?")');
+    expect(source).toContain("authDestination = .forgotPassword");
+    expect(source).toContain('Button("Need an account?")');
+    expect(source).toContain("authDestination = .register");
+    expect(source).not.toContain('Link("Forgot password?", destination:');
+    expect(source).not.toContain('Link("Need an account?", destination:');
+  });
+
+  it("uses the existing native auth API contracts", () => {
+    expect(authViews).toContain("struct NativeRegistrationView: View");
+    expect(authViews).toContain("struct NativeForgotPasswordView: View");
+    expect(authViews).toContain("session.register(");
+    expect(authViews).toContain("APIClient.shared.requestPasswordReset");
+    expect(apiClient).toContain('request(path: "/api/auth/register", method: "POST")');
+    expect(apiClient).toContain('request(path: "/api/auth/forgot-password", method: "POST")');
+    expect(apiClient).toContain("prepareAuthHost(for: email)");
   });
 
   it("names the password visibility control by action and state", () => {

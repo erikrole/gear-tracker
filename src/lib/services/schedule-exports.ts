@@ -74,11 +74,21 @@ function eventTitle(event: ExportGroup["event"]) {
 }
 
 function effectiveStartsAt(shift: ExportShift, assignment?: ExportAssignment | null) {
+  if (shift.workerType === "FT") return shift.startsAt;
   return assignment?.callStartsAt ?? shift.callStartsAt ?? shift.startsAt;
 }
 
 function effectiveEndsAt(shift: ExportShift, assignment?: ExportAssignment | null) {
+  if (shift.workerType === "FT") return shift.endsAt;
   return assignment?.callEndsAt ?? shift.callEndsAt ?? shift.endsAt;
+}
+
+function callStartsAt(shift: ExportShift, assignment?: ExportAssignment | null) {
+  return shift.workerType === "ST" ? effectiveStartsAt(shift, assignment) : null;
+}
+
+function callEndsAt(shift: ExportShift, assignment?: ExportAssignment | null) {
+  return shift.workerType === "ST" ? effectiveEndsAt(shift, assignment) : null;
 }
 
 function durationHours(startsAt: Date, endsAt: Date) {
@@ -191,8 +201,8 @@ function rosterRows(groups: ExportGroup[]) {
         shiftWorkerSlotLabel(shift.workerType),
         assignment?.user.name ?? "",
         assignment?.status ?? "OPEN",
-        exportDate(effectiveStartsAt(shift, assignment)),
-        exportDate(effectiveEndsAt(shift, assignment)),
+        exportDate(callStartsAt(shift, assignment)),
+        exportDate(callEndsAt(shift, assignment)),
         publication.status,
         exportDate(publication.publishedAt ? new Date(publication.publishedAt) : null),
         assignment?.acknowledgedAt ? "yes" : "no",
@@ -259,8 +269,8 @@ function openSlotRows(groups: ExportGroup[]) {
         shift.id,
         shift.area,
         shiftWorkerLabel(shift.workerType),
-        exportDate(effectiveStartsAt(shift)),
-        exportDate(effectiveEndsAt(shift)),
+        exportDate(callStartsAt(shift)),
+        exportDate(callEndsAt(shift)),
         shift.assignments.filter((assignment) => assignment.status === ShiftAssignmentStatus.REQUESTED).length,
       ]),
   );
@@ -280,8 +290,8 @@ function conflictRows(groups: ExportGroup[]) {
           shiftWorkerLabelForProfile(assignment.user) ?? "",
           assignment.user.name,
           assignment.status,
-          exportDate(effectiveStartsAt(shift, assignment)),
-          exportDate(effectiveEndsAt(shift, assignment)),
+          exportDate(callStartsAt(shift, assignment)),
+          exportDate(callEndsAt(shift, assignment)),
           assignment.conflictNote ?? "",
         ]),
     ),

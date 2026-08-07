@@ -109,17 +109,16 @@ describe("iOS Home header source contract", () => {
     expect(home).not.toContain('return "Pickup gear for event"');
   });
 
-  it("gives call times only to home games, on every kind of Next Up row", () => {
+  it("gives call times only to Students, on every kind of Next Up row", () => {
     const home = source("ios/Wisconsin/Views/HomeView.swift");
 
-    // Away and neutral crews travel with the team, so a shift start there is
-    // not a call time anyone reports to. One helper so a gear row linked to an
-    // event and a shift row can never disagree about that.
-    expect(home).toContain("private func queueCallTime(isHome: Bool?, at start: Date) -> String?");
-    expect(home).toContain("guard isHome == true else { return nil }");
+    // Staff know their event timing outside Schedule. One helper keeps linked
+    // gear rows and shift rows from substituting event time as a call time.
+    expect(home).toContain("private func queueCallTime(workerType: String, at start: Date) -> String?");
+    expect(home).toContain('guard workerType == "ST" else { return nil }');
     expect(home).toContain('return "Call time \\(start.formatted(date: .omitted, time: .shortened))"');
-    expect(home).toContain("queueCallTime(isHome: work.event.isHome, at: work.shift.startsAt)");
-    expect(home).toContain("queueCallTime(isHome: shift.event.isHome, at: shift.startsAt)");
+    expect(home).toContain("queueCallTime(workerType: work.shift.workerType, at: work.shift.startsAt)");
+    expect(home).toContain("queueCallTime(workerType: shift.workerType, at: shift.startsAt)");
     expect(home).not.toContain('"Call time at \\(');
   });
 

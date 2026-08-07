@@ -50,7 +50,7 @@ export const POST = withHandler(async (req) => {
   }
 
   if (!user.active) {
-    throw new HttpError(403, "Your account has been deactivated. Contact an administrator.");
+    throw new HttpError(403, "Your account has been deactivated. Contact Erik Role.");
   }
 
   requireActiveCollaboratorPolicy(user);

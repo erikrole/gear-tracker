@@ -22,6 +22,10 @@ export type PickerUser = {
   name: string;
   role: string;
   staffingType?: string | null;
+  collaboratorPolicy?: {
+    status: string;
+    capabilities?: string[];
+  } | null;
   primaryArea: string | null;
   avatarUrl?: string | null;
 };

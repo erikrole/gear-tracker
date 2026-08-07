@@ -117,6 +117,7 @@ export const GUIDE_AREA_OPTIONS = [
   { value: "VIDEO", label: "Video" },
   { value: "PHOTO", label: "Photo" },
   { value: "GRAPHICS", label: "Graphics" },
+  { value: "SOCIAL", label: "Social" },
   { value: "COMMS", label: "Comms" },
   { value: "LIVE_PRODUCTION", label: "Live Production" },
 ] as const;
@@ -125,6 +126,7 @@ export const GUIDE_AREA_LABELS = {
   VIDEO: "Video",
   PHOTO: "Photo",
   GRAPHICS: "Graphics",
+  SOCIAL: "Social",
   COMMS: "Comms",
   LIVE_PRODUCTION: "Live Production",
 } as const;

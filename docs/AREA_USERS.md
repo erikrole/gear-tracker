@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-31
+- Last Updated: 2026-08-06
 - Status: Active
 - Version: V1.2
 
@@ -119,6 +119,30 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+
+- 2026-08-06: **2027 creative roster onboarding prepared in production.**
+  Social is now a first-class area in the local Users/onboarding contract, and
+  the live `AllowedEmail` gate now carries the reviewed name, primary/secondary
+  areas, and sport payload for ten unclaimed Student invitations. Five missing
+  invitation rows were created and five existing rows were updated, with no
+  placeholder users or passwords created. The live migration and data apply
+  are audited, and the registration-time materialization path is deployed in
+  production. Authenticated readback confirms all 32 allowlist rows render,
+  including existing Collaborator rows and the ten pending students; no real
+  invitation was claimed during verification.
+
+- 2026-08-04: **Invite-gated auth is native on iOS.** Login now presents
+  native registration and password-recovery request forms. Registration keeps
+  the D-029 `AllowedEmail` gate and establishes the normal cookie-backed
+  session through `/api/auth/register`; recovery uses the existing
+  enumeration-safe `/api/auth/forgot-password` response. The server's reset
+  email and password-reset endpoint are unchanged.
+
+- 2026-08-04: **Auth email-domain guidance preserves collaborator identity.**
+  Login, registration, and password recovery recommend `@wisc.edu` as soon as
+  a user types an `@athletics.wisc.edu` address, but the note is advisory only
+  and never changes the entered email. Collaborators continue using their own
+  addresses.
 
 - 2026-07-31: **Invite-granted users can add passkeys.** Active users retain the existing invite/access boundary and password recovery while web and native iOS Security support current-password-protected passkey enrollment, discoverable passkey login, per-credential metadata, and revocation. Passkey login uses the existing session and active-account checks; kiosk device authentication is unchanged. Production API and AASA probes are live; authenticated browser and real-device proof remain open.
 - 2026-07-23: Added the policy-granted collaborator People directory. Collaborators with `PEOPLE_DIRECTORY_VIEW` can find active, visible teammates by name and open minimized work profiles while private fields and every cross-user action remain denied.

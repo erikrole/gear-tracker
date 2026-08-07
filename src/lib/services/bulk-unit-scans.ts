@@ -391,7 +391,7 @@ export async function stageKioskReservationPickupBulkUnit(
 
 export async function scanKioskCheckinBulkUnit(
   tx: TxClient,
-  args: { bookingId: string; scanValue: string },
+  args: { bookingId: string; scanValue: string; kioskLocationId: string },
 ): Promise<KioskUnitScanResult> {
   const booking = await tx.booking.findUnique({
     where: { id: args.bookingId },
@@ -516,7 +516,7 @@ export async function scanKioskCheckinBulkUnit(
   // every checkedInQuantity increment carries its own movement.
   await upsertBulkBalancesAndMovements(tx, {
     bookingId: booking.id,
-    locationId: booking.locationId,
+    locationId: args.kioskLocationId,
     actorUserId: booking.requesterUserId,
     kind: BulkMovementKind.CHECKIN,
     items: [{ bulkSkuId: bulkItem.bulkSkuId, quantity: 1 }],

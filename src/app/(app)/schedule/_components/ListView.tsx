@@ -171,6 +171,7 @@ function commonCallWindow(entry: CalendarEntry) {
 
   const counts = new Map<string, { count: number; window: ReturnType<typeof effectiveCallWindow> }>();
   for (const shift of entry.shifts) {
+    if (workerKindForShift(shift) !== "ST") continue;
     const window = effectiveCallWindow(shift, activeShiftAssignment(shift));
     if (isInheritedFullDayCallWindow(window)) continue;
     const key = callWindowKey(window);
@@ -286,7 +287,7 @@ function ShiftRowList({
         const callEditorOverride = activeAssignment
           ? { startsAt: activeAssignment.callStartsAt ?? null, endsAt: activeAssignment.callEndsAt ?? null }
           : { startsAt: shift.callStartsAt ?? null, endsAt: shift.callEndsAt ?? null };
-        const showCallWindows = !entry.allDay;
+        const showCallWindows = !entry.allDay && workerType === "ST";
         const showStaffCallEditor = showCallWindows && !isInheritedFullDayCallWindow(visibleWindow);
         const callMatchesCommon = Boolean(commonCall && callWindowKey(visibleWindow) === commonCall.key);
         const showRowCallWindow = showStaffCallEditor && !callMatchesCommon;

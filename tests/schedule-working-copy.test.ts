@@ -57,7 +57,7 @@ describe("working schedule commands", () => {
       {
         type: "adjustSlots",
         area: "PHOTO",
-        workerType: "FT",
+        workerType: "ST",
         delta: 1,
         callStartsAt: "2026-10-06T16:30:00.000Z",
         callEndsAt: "2026-10-06T21:30:00.000Z",
@@ -75,7 +75,7 @@ describe("working schedule commands", () => {
     });
   });
 
-  it("uses the settings-owned window for the first slot in a class", () => {
+  it("uses the event window for the first Staff slot", () => {
     const result = applyWorkingScheduleCommand(
       payload({ slots: [] }),
       { type: "adjustSlots", area: "PHOTO", workerType: "FT", delta: 1 },
@@ -90,8 +90,8 @@ describe("working schedule commands", () => {
       key: "draft:first",
       area: "PHOTO",
       workerType: "FT",
-      startsAt: "2026-10-06T16:30:00.000Z",
-      endsAt: "2026-10-06T22:00:00.000Z",
+      startsAt: "2026-10-06T18:00:00.000Z",
+      endsAt: "2026-10-06T21:00:00.000Z",
       callStartsAt: null,
       callEndsAt: null,
     });

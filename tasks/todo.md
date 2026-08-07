@@ -1,6 +1,6 @@
 # Task Queue
 
-Last updated: 2026-08-04
+Last updated: 2026-08-07
 
 ---
 ## Active: Event shift working schedule and quick crew actions (2026-07-21)
@@ -24,6 +24,8 @@ Plan: `tasks/event-shift-working-schedule-plan.md`
 - [x] Move native staff quick actions and publish review from legacy live mutation routes to the additive working-copy contract; run source contracts and Xcode builds.
 - [ ] Complete authenticated native Event detail draft/publish proof against an isolated runtime before rollout.
 - [x] Add the explicit assigned-slot convert-and-replace flow.
+- [x] Carry the settings-owned default call window through new working-copy slots and native Add Shift while preserving peer and explicit overrides.
+- [x] Preserve unchanged worker acknowledgements when a later publish changes only another assignment.
 
 ### Current verification
 
@@ -35,6 +37,15 @@ Plan: `tasks/event-shift-working-schedule-plan.md`
 - `npm run build:app` compiles the production app, and live migration health reaches Neon with no pending, failed, or DB-only rows.
 - Migration `0099_shift_group_working_copy` is applied and Neon reports 101/101 local migrations with no pending, failed, or DB-only rows. Native rollout proof remains tracked as GAP-60.
 - Native working-copy source contracts, `npm run ios:project:check`, and the Wisconsin iOS simulator target build pass. Authenticated native runtime/device proof remains blocked by the absence of isolated credentials/auth state in this checkout.
+- Assignment-scoped acknowledgement regression coverage passes across Schedule summaries, Event detail, and My Shifts. Focused ESLint, TypeScript, `npm run build:app`, codemap/docs verification, and whitespace checks pass; authenticated browser proof remains blocked by the missing isolated Playwright target and identity.
+
+---
+## Deferred: Kiosk identified-person hub terminology (2026-08-07)
+
+- [ ] Rename the internal `.studentHub`, `KioskStudentHubView`, and `KioskStudentContext` names to person/user terminology so the shared kiosk flow accurately represents staff, students, admins, and eligible collaborators.
+- [ ] Keep `/api/kiosk/student/[userId]` compatible during rollout, or add a compatibility alias before changing the native client endpoint.
+- [ ] Update Xcode project references, audit inventory, source contracts, route maps, docs, and task links; run native/API tests plus iOS drift, gap, and project gates.
+- **Reason deferred:** the current idle behavior is role-neutral. Renaming the endpoint is an API migration, and local Xcode target proof is currently blocked by CoreSimulatorService and kiosk provisioning issues.
 
 ---
 ## Completed: Web booking detail iOS hierarchy alignment (2026-07-21)

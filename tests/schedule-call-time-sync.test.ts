@@ -380,4 +380,72 @@ describe("syncCurrentSportCallTimes", () => {
     });
     expect(buildSnapshot).toHaveBeenCalledOnce();
   });
+
+  it("supports an explicit one-time override that clears shift and personal call windows", async () => {
+    tx.calendarEvent.findMany.mockResolvedValue([{
+      id: "event-override",
+      sportCode: "FB",
+      allDay: false,
+      startsAt: eventStartsAt,
+      endsAt: eventEndsAt,
+      shiftGroup: {
+        id: "group-override",
+        publishedAt: null,
+        publishedVersion: 0,
+        shifts: [{
+          id: "shift-override",
+          area: "VIDEO",
+          workerType: "ST",
+          startsAt: eventStartsAt,
+          endsAt: eventEndsAt,
+          callStartsAt: new Date("2026-08-20T16:00:00Z"),
+          callEndsAt: new Date("2026-08-20T21:00:00Z"),
+          assignments: [{
+            id: "assignment-override",
+            userId: "student-1",
+            status: "DIRECT_ASSIGNED",
+            callStartsAt: new Date("2026-08-20T16:30:00Z"),
+            callEndsAt: new Date("2026-08-20T20:30:00Z"),
+            callNote: "Keep the note",
+            user: assignedUser(),
+          }],
+        }],
+        workingCopy: {
+          version: 3,
+          payload: {
+            eventStartsAt: eventStartsAt.toISOString(),
+            eventEndsAt: eventEndsAt.toISOString(),
+            slots: [workingSlot({
+              callStartsAt: "2026-08-20T16:00:00.000Z",
+              callEndsAt: "2026-08-20T21:00:00.000Z",
+              assignment: {
+                ...workingSlot().assignment,
+                callStartsAt: "2026-08-20T16:30:00.000Z",
+                callEndsAt: "2026-08-20T20:30:00.000Z",
+              },
+            })],
+          },
+        },
+      },
+    }]);
+
+    const result = await syncCurrentSportCallTimes(["FB"], {
+      now: new Date("2026-08-01T00:00:00Z"),
+      dryRun: true,
+      overrideExistingCallTimes: true,
+      actor: { id: "admin-1", role: Role.ADMIN },
+    });
+
+    expect(result).toMatchObject({
+      groupsUpdated: 1,
+      shiftsUpdated: 1,
+      shiftCallOverridesCleared: 1,
+      assignmentCallOverridesCleared: 1,
+      workingCopiesUpdated: 1,
+    });
+    expect(tx.shift.update).not.toHaveBeenCalled();
+    expect(tx.shiftAssignment.updateMany).not.toHaveBeenCalled();
+    expect(tx.shiftGroupWorkingCopy.updateMany).not.toHaveBeenCalled();
+    expect(createAuditEntriesTx).not.toHaveBeenCalled();
+  });
 });

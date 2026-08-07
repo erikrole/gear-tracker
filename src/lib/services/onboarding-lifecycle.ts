@@ -1,8 +1,9 @@
-import { Affiliation, CollaboratorProfile, Prisma, Role } from "@prisma/client";
-import { createAuditEntries, createAuditEntry } from "@/lib/audit";
+import { Affiliation, CollaboratorProfile, Prisma, Role, ShiftArea } from "@prisma/client";
+import { createAuditEntries, createAuditEntry, createAuditEntryTx } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { shiftWorkerTypeForRole } from "@/lib/shift-display";
+import { normalizeSportCode } from "@/lib/sports";
 
 export type OnboardingActor = {
   id: string;
@@ -15,6 +16,17 @@ type InviteProfile = {
   affiliation?: Affiliation | null;
   collaboratorProfile?: CollaboratorProfile | null;
   collaboratorPolicyId?: string | null;
+  preloadedName?: string | null;
+  preloadedPrimaryArea?: ShiftArea | null;
+  preloadedAreas?: ShiftArea[];
+  preloadedSportCodes?: string[];
+};
+
+type NormalizedInviteProfile = {
+  preloadedName: string | null;
+  preloadedPrimaryArea: ShiftArea | null;
+  preloadedAreas: ShiftArea[];
+  preloadedSportCodes: string[];
 };
 
 type AllowedEmailAudit = {
@@ -51,6 +63,10 @@ export type AllowedEmailInvitePreviewRow = {
   requestedAffiliation?: Affiliation | null;
   requestedCollaboratorProfile?: CollaboratorProfile | null;
   requestedCollaboratorPolicyId?: string | null;
+  requestedName?: string | null;
+  requestedPrimaryArea?: ShiftArea | null;
+  requestedAreas?: ShiftArea[];
+  requestedSportCodes?: string[];
   status: AllowedEmailInvitePreviewStatus;
   existingRole?: Role;
 };
@@ -68,12 +84,55 @@ export function assertCanInviteRole(actor: OnboardingActor, role: Role) {
   }
 }
 
+function normalizePendingProfile(role: InviteRole, profile: InviteProfile): NormalizedInviteProfile {
+  const requestedAreas = [...new Set(profile.preloadedAreas ?? [])];
+  const requestedSportCodes = [...new Set((profile.preloadedSportCodes ?? []).map(normalizeSportCode))];
+  const hasPendingProfile = Boolean(
+    profile.preloadedName?.trim() ||
+    profile.preloadedPrimaryArea ||
+    requestedAreas.length > 0 ||
+    requestedSportCodes.length > 0,
+  );
+
+  if (role !== "STUDENT" && hasPendingProfile) {
+    throw new HttpError(400, "Only student invitations can receive preloaded profile data");
+  }
+
+  const primaryArea = profile.preloadedPrimaryArea ?? requestedAreas[0] ?? null;
+  const areas = primaryArea && !requestedAreas.includes(primaryArea)
+    ? [primaryArea, ...requestedAreas]
+    : requestedAreas;
+
+  return {
+    preloadedName: profile.preloadedName?.trim() || null,
+    preloadedPrimaryArea: primaryArea,
+    preloadedAreas: areas,
+    preloadedSportCodes: requestedSportCodes,
+  };
+}
+
+function pendingProfileCreateData(profile: NormalizedInviteProfile) {
+  return {
+    ...(profile.preloadedName ? { preloadedName: profile.preloadedName } : {}),
+    ...(profile.preloadedPrimaryArea ? { preloadedPrimaryArea: profile.preloadedPrimaryArea } : {}),
+    ...(profile.preloadedAreas.length > 0 ? { preloadedAreas: profile.preloadedAreas } : {}),
+    ...(profile.preloadedSportCodes.length > 0 ? { preloadedSportCodes: profile.preloadedSportCodes } : {}),
+  };
+}
+
 async function resolveInviteProfile(role: InviteRole, profile: InviteProfile) {
+  const pendingProfile = normalizePendingProfile(role, profile);
+
   if (role !== "COLLABORATOR") {
     if (profile.collaboratorPolicyId || profile.affiliation || profile.collaboratorProfile) {
       throw new HttpError(400, "Internal invitations cannot receive collaborator policy metadata");
     }
-    return { collaboratorPolicyId: null, affiliation: null, collaboratorProfile: null };
+    return {
+      collaboratorPolicyId: null,
+      affiliation: null,
+      collaboratorProfile: null,
+      ...pendingProfile,
+    };
   }
 
   const policy = profile.collaboratorPolicyId
@@ -98,6 +157,7 @@ async function resolveInviteProfile(role: InviteRole, profile: InviteProfile) {
     collaboratorPolicyId: policy.id,
     affiliation: isLegacyBtn ? Affiliation.BIG_TEN_NETWORK : null,
     collaboratorProfile: isLegacyBtn ? CollaboratorProfile.BTN_STANDARD : null,
+    ...pendingProfile,
   };
 }
 
@@ -108,6 +168,10 @@ function allowedEmailAuditAfter(
     affiliation?: Affiliation | null;
     collaboratorProfile?: CollaboratorProfile | null;
     collaboratorPolicyId?: string | null;
+    preloadedName?: string | null;
+    preloadedPrimaryArea?: ShiftArea | null;
+    preloadedAreas?: ShiftArea[];
+    preloadedSportCodes?: string[];
     claimedAt?: Date | null;
     claimedById?: string | null;
   },
@@ -119,6 +183,10 @@ function allowedEmailAuditAfter(
     affiliation: entry.affiliation ?? null,
     collaboratorProfile: entry.collaboratorProfile ?? null,
     collaboratorPolicyId: entry.collaboratorPolicyId ?? null,
+    preloadedName: entry.preloadedName ?? null,
+    preloadedPrimaryArea: entry.preloadedPrimaryArea ?? null,
+    preloadedAreas: entry.preloadedAreas ?? [],
+    preloadedSportCodes: entry.preloadedSportCodes ?? [],
     claimedById: entry.claimedById ?? null,
     claimedAt: entry.claimedAt?.toISOString() ?? null,
     source,
@@ -345,10 +413,7 @@ export async function createAllowedEmailInvite(input: {
   actor: OnboardingActor;
   email: string;
   role: InviteRole;
-  affiliation?: Affiliation | null;
-  collaboratorProfile?: CollaboratorProfile | null;
-  collaboratorPolicyId?: string | null;
-}): Promise<AllowedEmailInviteResult> {
+} & InviteProfile): Promise<AllowedEmailInviteResult> {
   assertCanInviteRole(input.actor, input.role);
   const resolvedProfile = await resolveInviteProfile(input.role, input);
 
@@ -371,6 +436,7 @@ export async function createAllowedEmailInvite(input: {
           affiliation: existingUser.affiliation,
           collaboratorProfile: existingUser.collaboratorProfile,
           collaboratorPolicyId: existingUser.collaboratorPolicyId,
+          ...pendingProfileCreateData(resolvedProfile),
           createdById: input.actor.id,
           claimedAt: new Date(),
           claimedById: existingUser.id,
@@ -407,6 +473,7 @@ export async function createAllowedEmailInvite(input: {
         affiliation: resolvedProfile.affiliation,
         collaboratorProfile: resolvedProfile.collaboratorProfile,
         collaboratorPolicyId: resolvedProfile.collaboratorPolicyId,
+        ...pendingProfileCreateData(resolvedProfile),
         createdById: input.actor.id,
       },
       include: {
@@ -427,6 +494,10 @@ export async function createAllowedEmailInvite(input: {
         affiliation: resolvedProfile.affiliation,
         collaboratorProfile: resolvedProfile.collaboratorProfile,
         collaboratorPolicyId: resolvedProfile.collaboratorPolicyId,
+        preloadedName: resolvedProfile.preloadedName,
+        preloadedPrimaryArea: resolvedProfile.preloadedPrimaryArea,
+        preloadedAreas: resolvedProfile.preloadedAreas,
+        preloadedSportCodes: resolvedProfile.preloadedSportCodes,
       },
     });
 
@@ -437,6 +508,56 @@ export async function createAllowedEmailInvite(input: {
     }
     throw error;
   }
+}
+
+export async function updatePendingAllowedEmailProfile(input: {
+  actor: OnboardingActor;
+  id: string;
+} & InviteProfile): Promise<{ entry: AllowedEmailWithPeople }> {
+  assertCanInviteRole(input.actor, "STUDENT");
+  const resolvedProfile = await resolveInviteProfile("STUDENT", input);
+
+  return db.$transaction(async (tx) => {
+    const existing = await tx.allowedEmail.findUnique({
+      where: { id: input.id },
+    });
+
+    if (!existing) {
+      throw new HttpError(404, "Allowed email not found");
+    }
+    if (existing.claimedAt) {
+      throw new HttpError(409, "Cannot update a claimed invitation");
+    }
+    if (existing.role !== "STUDENT") {
+      throw new HttpError(400, "Only student invitations can receive preloaded profile data");
+    }
+
+    const updated = await tx.allowedEmail.update({
+      where: { id: existing.id },
+      data: {
+        preloadedName: resolvedProfile.preloadedName,
+        preloadedPrimaryArea: resolvedProfile.preloadedPrimaryArea,
+        preloadedAreas: resolvedProfile.preloadedAreas,
+        preloadedSportCodes: resolvedProfile.preloadedSportCodes,
+      },
+      include: {
+        createdBy: { select: { id: true, name: true } },
+        claimedBy: { select: { id: true, name: true } },
+      },
+    });
+
+    await createAuditEntryTx(tx, {
+      actorId: input.actor.id,
+      actorRole: input.actor.role,
+      entityType: "allowed_email",
+      entityId: updated.id,
+      action: "pending_profile_updated",
+      before: allowedEmailAuditAfter(existing, "pending_profile_update"),
+      after: allowedEmailAuditAfter(updated, "pending_profile_update"),
+    });
+
+    return { entry: updated };
+  });
 }
 
 export async function createAllowedEmailInvitesBulk(input: {
@@ -487,6 +608,7 @@ export async function createAllowedEmailInvitesBulk(input: {
         ...(entry.affiliation ? { affiliation: entry.affiliation } : {}),
         ...(entry.collaboratorProfile ? { collaboratorProfile: entry.collaboratorProfile } : {}),
         ...(entry.collaboratorPolicyId ? { collaboratorPolicyId: entry.collaboratorPolicyId } : {}),
+        ...pendingProfileCreateData(entry),
         createdById: input.actor.id,
       })),
       skipDuplicates: true,
@@ -494,7 +616,18 @@ export async function createAllowedEmailInvitesBulk(input: {
 
     const created = await db.allowedEmail.findMany({
       where: { email: { in: toCreate.map((entry) => entry.email) }, createdById: input.actor.id },
-      select: { id: true, email: true, role: true, affiliation: true, collaboratorProfile: true, collaboratorPolicyId: true },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        affiliation: true,
+        collaboratorProfile: true,
+        collaboratorPolicyId: true,
+        preloadedName: true,
+        preloadedPrimaryArea: true,
+        preloadedAreas: true,
+        preloadedSportCodes: true,
+      },
     });
 
     await createAuditEntries(
@@ -510,6 +643,10 @@ export async function createAllowedEmailInvitesBulk(input: {
           affiliation: entry.affiliation,
           collaboratorProfile: entry.collaboratorProfile,
           collaboratorPolicyId: entry.collaboratorPolicyId,
+          preloadedName: entry.preloadedName,
+          preloadedPrimaryArea: entry.preloadedPrimaryArea,
+          preloadedAreas: entry.preloadedAreas,
+          preloadedSportCodes: entry.preloadedSportCodes,
         },
       })),
     );
@@ -554,6 +691,13 @@ export async function previewAllowedEmailInvitesBulk(input: {
   const usersByEmail = new Map(existingUsers.map((entry) => [entry.email, entry]));
   const seen = new Set<string>();
   const rows: AllowedEmailInvitePreviewRow[] = normalized.map((entry) => {
+    const requestedProfile = {
+      requestedName: entry.preloadedName,
+      requestedPrimaryArea: entry.preloadedPrimaryArea,
+      requestedAreas: entry.preloadedAreas,
+      requestedSportCodes: entry.preloadedSportCodes,
+    };
+
     if (seen.has(entry.email)) {
       return {
         email: entry.email,
@@ -561,6 +705,7 @@ export async function previewAllowedEmailInvitesBulk(input: {
         requestedAffiliation: entry.affiliation ?? null,
         requestedCollaboratorProfile: entry.collaboratorProfile ?? null,
         requestedCollaboratorPolicyId: entry.collaboratorPolicyId ?? null,
+        ...requestedProfile,
         status: "duplicate",
       };
     }
@@ -574,6 +719,7 @@ export async function previewAllowedEmailInvitesBulk(input: {
         requestedAffiliation: entry.affiliation ?? null,
         requestedCollaboratorProfile: entry.collaboratorProfile ?? null,
         requestedCollaboratorPolicyId: entry.collaboratorPolicyId ?? null,
+        ...requestedProfile,
         existingRole: allowed.role,
         status: allowed.claimedAt ? "claimed_invite" : "pending_invite",
       };
@@ -587,6 +733,7 @@ export async function previewAllowedEmailInvitesBulk(input: {
         requestedAffiliation: entry.affiliation ?? null,
         requestedCollaboratorProfile: entry.collaboratorProfile ?? null,
         requestedCollaboratorPolicyId: entry.collaboratorPolicyId ?? null,
+        ...requestedProfile,
         existingRole: user.role,
         status: "existing_user",
       };
@@ -598,6 +745,7 @@ export async function previewAllowedEmailInvitesBulk(input: {
       requestedAffiliation: entry.affiliation ?? null,
       requestedCollaboratorProfile: entry.collaboratorProfile ?? null,
       requestedCollaboratorPolicyId: entry.collaboratorPolicyId ?? null,
+      ...requestedProfile,
       status: "ready",
     };
   });

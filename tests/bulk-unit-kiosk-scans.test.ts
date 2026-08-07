@@ -395,6 +395,7 @@ describe("scanKioskCheckinBulkUnit", () => {
     const result = await scanKioskCheckinBulkUnit(tx, {
       bookingId: "booking-1",
       scanValue: "94e068d1-7",
+      kioskLocationId: "loc-return",
     });
 
     expect(result).toEqual(expect.objectContaining({
@@ -409,7 +410,7 @@ describe("scanKioskCheckinBulkUnit", () => {
     // The unit is physically back — the ledger restock happens at the scan,
     // not at completion (one movement per checkedInQuantity increment).
     expect(tx.bulkStockMovement.createMany).toHaveBeenCalledWith({
-      data: [expect.objectContaining({ bulkSkuId: "sku-1", kind: "CHECKIN", quantity: 1 })],
+      data: [expect.objectContaining({ bulkSkuId: "sku-1", kind: "CHECKIN", quantity: 1, locationId: "loc-return" })],
     });
     expect(tx.bulkSkuUnit.update).toHaveBeenCalledWith({
       where: { id: "unit-7" },
@@ -446,6 +447,7 @@ describe("scanKioskCheckinBulkUnit", () => {
     const result = await scanKioskCheckinBulkUnit(tx, {
       bookingId: "booking-1",
       scanValue: "canon-battery-4",
+      kioskLocationId: "loc-return",
     });
 
     expect(result).toEqual({
@@ -486,6 +488,7 @@ describe("scanKioskCheckinBulkUnit", () => {
     const result = await scanKioskCheckinBulkUnit(tx, {
       bookingId: "booking-1",
       scanValue: "94e068d1-7",
+      kioskLocationId: "loc-return",
     });
 
     expect(result).toEqual({
@@ -519,6 +522,7 @@ describe("scanKioskCheckinBulkUnit", () => {
     const result = await scanKioskCheckinBulkUnit(tx, {
       bookingId: "booking-1",
       scanValue: "94e068d1-7",
+      kioskLocationId: "loc-return",
     });
 
     expect(result).toEqual({
@@ -558,6 +562,7 @@ describe("scanKioskCheckinBulkUnit", () => {
     const result = await scanKioskCheckinBulkUnit(tx, {
       bookingId: "booking-1",
       scanValue: "94e068d1-7",
+      kioskLocationId: "loc-return",
     });
 
     expect(result).toEqual({

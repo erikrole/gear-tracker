@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { Prisma, Role, ShiftAssignmentStatus, ShiftWorkerType } from "@prisma/client";
 import { createAuditEntryTx } from "@/lib/audit";
+import { ACTIVE_BOOKING_STATUSES } from "@/lib/booking-statuses";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
+import { scheduleAssigneeWorkerType } from "@/lib/schedule-assignee";
 import { sportDefaultShiftWindow } from "@/lib/schedule-defaults";
 import {
   applyWorkingScheduleCommand,
@@ -51,7 +53,11 @@ const groupEditorSelect = {
             select: { id: true },
             take: 1,
           },
-          _count: { select: { bookings: true } },
+          _count: {
+            select: {
+              bookings: { where: { status: { in: ACTIVE_BOOKING_STATUSES } } },
+            },
+          },
         },
       },
     },
@@ -62,6 +68,9 @@ const groupEditorSelect = {
       basePublishedVersion: true,
       payloadVersion: true,
       payload: true,
+      autoReleaseAt: true,
+      autoReleaseRunId: true,
+      autoReleaseError: true,
       createdAt: true,
       updatedAt: true,
       updatedById: true,
@@ -76,9 +85,46 @@ function iso(value: Date | null) {
 }
 
 function effectiveSlotWindow(slot: WorkingSchedulePayload["slots"][number]) {
+  if (slot.workerType === "FT") {
+    return { startsAt: slot.startsAt, endsAt: slot.endsAt };
+  }
   return {
     startsAt: slot.assignment?.callStartsAt ?? slot.callStartsAt ?? slot.startsAt,
     endsAt: slot.assignment?.callEndsAt ?? slot.callEndsAt ?? slot.endsAt,
+  };
+}
+
+/**
+ * Working-copy payloads intentionally preserve staff intent, but relationship
+ * facts such as active trades and linked bookings belong to the live rows.
+ * Refresh those facts before guards run so a canceled booking kept for audit
+ * cannot remain a live edit blocker in an older draft.
+ */
+function refreshLiveAssignmentMetadata(
+  payload: WorkingSchedulePayload,
+  group: EditorGroup,
+): WorkingSchedulePayload {
+  const liveAssignments = new Map(
+    group.shifts.flatMap((shift) =>
+      shift.assignments.map((assignment) => [assignment.id, assignment] as const),
+    ),
+  );
+
+  return {
+    ...payload,
+    slots: payload.slots.map((slot) => {
+      const assignment = slot.assignment;
+      if (!assignment?.sourceAssignmentId) return slot;
+      const live = liveAssignments.get(assignment.sourceAssignmentId);
+      return {
+        ...slot,
+        assignment: {
+          ...assignment,
+          activeTradeId: live?.trades[0]?.id ?? null,
+          bookingCount: live?._count.bookings ?? 0,
+        },
+      };
+    }),
   };
 }
 
@@ -113,18 +159,18 @@ export function buildWorkingSchedulePayload(group: EditorGroup): WorkingSchedule
         sourceShiftId: shift.id,
         area: shift.area,
         workerType: shift.workerType,
-        startsAt: shift.startsAt.toISOString(),
-        endsAt: shift.endsAt.toISOString(),
-        callStartsAt: iso(shift.callStartsAt),
-        callEndsAt: iso(shift.callEndsAt),
+        startsAt: shift.workerType === "FT" ? group.event.startsAt.toISOString() : shift.startsAt.toISOString(),
+        endsAt: shift.workerType === "FT" ? group.event.endsAt.toISOString() : shift.endsAt.toISOString(),
+        callStartsAt: shift.workerType === "FT" ? null : iso(shift.callStartsAt),
+        callEndsAt: shift.workerType === "FT" ? null : iso(shift.callEndsAt),
         notes: shift.notes,
         assignmentHistoryCount: shift._count.assignments,
         assignment: assignment ? {
           sourceAssignmentId: assignment.id,
           userId: assignment.userId,
           status: assignment.status === "APPROVED" ? "APPROVED" : "DIRECT_ASSIGNED",
-          callStartsAt: iso(assignment.callStartsAt),
-          callEndsAt: iso(assignment.callEndsAt),
+          callStartsAt: shift.workerType === "FT" ? null : iso(assignment.callStartsAt),
+          callEndsAt: shift.workerType === "FT" ? null : iso(assignment.callEndsAt),
           callNote: assignment.callNote,
           activeTradeId: assignment.trades[0]?.id ?? null,
           bookingCount: assignment._count.bookings,
@@ -144,7 +190,9 @@ function parseStoredPayload(value: Prisma.JsonValue): WorkingSchedulePayload {
 
 async function editorResponse(group: EditorGroup, tx: Prisma.TransactionClient = db) {
   const published = buildWorkingSchedulePayload(group);
-  const working = group.workingCopy ? parseStoredPayload(group.workingCopy.payload) : published;
+  const working = group.workingCopy
+    ? refreshLiveAssignmentMetadata(parseStoredPayload(group.workingCopy.payload), group)
+    : published;
   const defaultWindow = await resolveWorkingScheduleDefaultWindow(group, tx);
   const assignedUserIds = [...new Set(
     working.slots.flatMap((slot) => slot.assignment ? [slot.assignment.userId] : []),
@@ -206,6 +254,9 @@ async function editorResponse(group: EditorGroup, tx: Prisma.TransactionClient =
     hasWorkingCopy: Boolean(group.workingCopy),
     updatedAt: group.workingCopy?.updatedAt.toISOString() ?? null,
     updatedById: group.workingCopy?.updatedById ?? null,
+    autoReleaseAt: group.workingCopy?.autoReleaseAt?.toISOString() ?? null,
+    autoReleaseRunId: group.workingCopy?.autoReleaseRunId ?? null,
+    autoReleaseError: group.workingCopy?.autoReleaseError ?? null,
     changes,
     affectedWorkerCount: group.publishedAt ? affectedWorkerIds.size : initialPublishWorkerCount,
     assignedUsers,
@@ -242,8 +293,8 @@ export async function getWorkingScheduleCandidateScores(
     workerType: workerTypeOverride ?? slot.workerType,
     startsAt: new Date(slot.startsAt),
     endsAt: new Date(slot.endsAt),
-    callStartsAt: slot.callStartsAt ? new Date(slot.callStartsAt) : null,
-    callEndsAt: slot.callEndsAt ? new Date(slot.callEndsAt) : null,
+    callStartsAt: slot.workerType === "ST" && slot.callStartsAt ? new Date(slot.callStartsAt) : null,
+    callEndsAt: slot.workerType === "ST" && slot.callEndsAt ? new Date(slot.callEndsAt) : null,
     sportCode: group.event.sportCode,
   });
 }
@@ -253,6 +304,7 @@ export async function mutateWorkingSchedule(
   expectedVersion: number,
   command: WorkingScheduleCommand,
   actor: { id: string; role: Role },
+  autoRelease?: { at: Date; runId: string },
 ) {
   return db.$transaction(async (tx) => {
     const group = await findEditorGroup(shiftGroupId, tx);
@@ -262,7 +314,7 @@ export async function mutateWorkingSchedule(
     }
 
     const beforePayload = group.workingCopy
-      ? parseStoredPayload(group.workingCopy.payload)
+      ? refreshLiveAssignmentMetadata(parseStoredPayload(group.workingCopy.payload), group)
       : buildWorkingSchedulePayload(group);
     const defaultWindow = command.type === "adjustSlots" && command.delta === 1
       ? await resolveWorkingScheduleDefaultWindow(group, tx)
@@ -286,7 +338,14 @@ export async function mutateWorkingSchedule(
         select: {
           id: true,
           active: true,
+          role: true,
           staffingType: true,
+          collaboratorPolicy: {
+            select: {
+              status: true,
+              grants: { select: { capabilityKey: true } },
+            },
+          },
           availabilityBlocks: {
             select: {
               kind: true,
@@ -306,7 +365,7 @@ export async function mutateWorkingSchedule(
       });
       if (!replacement) throw new HttpError(404, "User not found");
       if (!replacement.active) throw new HttpError(400, "Cannot assign an inactive user");
-      if (replacement.staffingType !== command.workerType) {
+      if (scheduleAssigneeWorkerType(replacement) !== command.workerType) {
         throw new HttpError(409, `Choose a ${command.workerType === "FT" ? "Staff" : "Student"} worker for this slot.`);
       }
       if (beforePayload.slots.some((candidate) =>
@@ -332,7 +391,14 @@ export async function mutateWorkingSchedule(
         select: {
           id: true,
           active: true,
+          role: true,
           staffingType: true,
+          collaboratorPolicy: {
+            select: {
+              status: true,
+              grants: { select: { capabilityKey: true } },
+            },
+          },
           availabilityBlocks: {
             select: {
               kind: true,
@@ -352,7 +418,7 @@ export async function mutateWorkingSchedule(
       });
       if (!assignee) throw new HttpError(404, "User not found");
       if (!assignee.active) throw new HttpError(400, "Cannot assign an inactive user");
-      if (assignee.staffingType !== slot.workerType) {
+      if (scheduleAssigneeWorkerType(assignee) !== slot.workerType) {
         throw new HttpError(409, `Choose a ${slot.workerType === "FT" ? "Staff" : "Student"} worker for this slot.`);
       }
       if (beforePayload.slots.some((candidate) => candidate.assignment?.userId === assignee.id)) {
@@ -378,6 +444,9 @@ export async function mutateWorkingSchedule(
       }
     }
     if (command.type === "adjustSlots" && command.delta === 1) {
+      if (command.workerType === "FT" && (command.callStartsAt || command.callEndsAt)) {
+        throw new HttpError(400, "Call times apply only to Student slots.");
+      }
       if (Boolean(command.callStartsAt) !== Boolean(command.callEndsAt)) {
         throw new HttpError(400, "Call start and release time must both be set or both be cleared.");
       }
@@ -392,6 +461,9 @@ export async function mutateWorkingSchedule(
     if (command.type === "setCallWindow") {
       const slot = beforePayload.slots.find((candidate) => candidate.key === command.slotKey);
       if (!slot) throw new HttpError(404, "Working slot not found");
+      if (slot.workerType !== "ST") {
+        throw new HttpError(400, "Call times apply only to Student slots.");
+      }
       if (Boolean(command.callStartsAt) !== Boolean(command.callEndsAt)) {
         throw new HttpError(400, "Call start and release time must both be set or both be cleared.");
       }
@@ -452,11 +524,9 @@ export async function mutateWorkingSchedule(
       ) {
         throw new HttpError(400, "Release time must be after call time.");
       }
-      // Clearing is validated too. The command wipes every slot window *and*
-      // every personal override, so each assigned worker drops back to the raw
-      // shift window — a move that can push a student into approved time off
-      // just as readily as setting an explicit window can.
-      const assignedSlots = beforePayload.slots.filter((slot) => slot.assignment);
+      // Staff and collaborators follow the event window. This command changes
+      // only Student slots and their personal overrides.
+      const assignedSlots = beforePayload.slots.filter((slot) => slot.workerType === "ST" && slot.assignment);
       const userIds = [...new Set(assignedSlots.map((slot) => slot.assignment!.userId))];
       const users = userIds.length > 0
         ? await tx.user.findMany({
@@ -528,6 +598,9 @@ export async function mutateWorkingSchedule(
       if (error instanceof Error && error.message === "WORKING_SLOT_NOT_ASSIGNED") {
         throw new HttpError(409, "This slot is not assigned");
       }
+      if (error instanceof Error && error.message === "CALL_TIME_STUDENT_ONLY") {
+        throw new HttpError(400, "Call times apply only to Student slots.");
+      }
       throw error;
     }
 
@@ -539,6 +612,11 @@ export async function mutateWorkingSchedule(
           version: nextVersion,
           payload: afterPayload as unknown as Prisma.InputJsonValue,
           updatedById: actor.id,
+          ...(autoRelease ? {
+            autoReleaseAt: autoRelease.at,
+            autoReleaseRunId: autoRelease.runId,
+            autoReleaseError: null,
+          } : {}),
         },
       });
       if (updated.count !== 1) {
@@ -553,6 +631,11 @@ export async function mutateWorkingSchedule(
             basePublishedVersion: group.publishedVersion,
             payloadVersion: 2,
             payload: afterPayload as unknown as Prisma.InputJsonValue,
+            ...(autoRelease ? {
+              autoReleaseAt: autoRelease.at,
+              autoReleaseRunId: autoRelease.runId,
+              autoReleaseError: null,
+            } : {}),
             createdById: actor.id,
             updatedById: actor.id,
           },
@@ -616,6 +699,7 @@ export async function rebaseWorkingSchedule(
   shiftGroupId: string,
   expectedVersion: number,
   actor: { id: string; role: Role },
+  autoRelease?: { at: Date; runId: string },
 ) {
   return db.$transaction(async (tx) => {
     const group = await findEditorGroup(shiftGroupId, tx);
@@ -626,7 +710,7 @@ export async function rebaseWorkingSchedule(
       throw new HttpError(409, "This schedule changed in another session. Refresh before editing again.");
     }
 
-    const draft = parseStoredPayload(group.workingCopy.payload);
+    const draft = refreshLiveAssignmentMetadata(parseStoredPayload(group.workingCopy.payload), group);
     const live = buildWorkingSchedulePayload(group);
     const liveBySourceId = new Map(
       live.slots.flatMap((slot) => slot.sourceShiftId ? [[slot.sourceShiftId, slot] as const] : []),
@@ -729,6 +813,11 @@ export async function rebaseWorkingSchedule(
         // becomes a version 2 draft the moment it is refreshed.
         payloadVersion: 2,
         updatedById: actor.id,
+        ...(autoRelease ? {
+          autoReleaseAt: autoRelease.at,
+          autoReleaseRunId: autoRelease.runId,
+          autoReleaseError: null,
+        } : {}),
       },
     });
     if (updated.count !== 1) {

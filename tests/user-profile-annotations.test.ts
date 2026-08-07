@@ -44,6 +44,7 @@ describe("annotated user profile contract", () => {
 
   it("adds Live Production as an assignment area", () => {
     expect(schema).toContain("LIVE_PRODUCTION");
+    expect(schema).toContain("SOCIAL");
     expect(info).toContain("AREA_OPTIONS");
   });
 });

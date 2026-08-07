@@ -121,6 +121,14 @@ describe("kiosk dashboard route", () => {
     ]);
     expect(body.checkouts).toHaveLength(1);
     expect(body.partialFailures).toEqual([]);
+    expect(mockDb.bookingSerializedItem.findMany.mock.calls[0]?.[0]?.where.booking)
+      .not.toHaveProperty("locationId");
+    expect(mockDb.bookingBulkUnitAllocation.findMany.mock.calls[0]?.[0]?.where.bookingBulkItem.booking)
+      .not.toHaveProperty("locationId");
+    expect(mockDb.booking.findMany.mock.calls[0]?.[0]?.where).not.toHaveProperty("locationId");
+    expect(mockDb.bookingSerializedItem.findMany.mock.calls[0]?.[0]).not.toHaveProperty("take");
+    expect(mockDb.bookingBulkUnitAllocation.findMany.mock.calls[0]?.[0]).not.toHaveProperty("take");
+    expect(mockDb.booking.findMany.mock.calls[0]?.[0]).not.toHaveProperty("take");
   });
 
   it("counts and displays active numbered bulk units on the kiosk dashboard", async () => {

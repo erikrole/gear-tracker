@@ -1,6 +1,6 @@
 # App Store Connect Submission Content — Wisconsin Creative
 
-Drafted: 2026-07-08. Updated: 2026-08-03 for Build 23. Paste-ready copy for the `Wisconsin` app's first Unlisted App Store submission. Kiosk (`WisconsinKiosk`) stays off the Store entirely; this content is for the main app only.
+Drafted: 2026-07-08. Updated: 2026-08-04 for the post-rejection native auth slice. Paste-ready copy for the `Wisconsin` app's first Unlisted App Store submission. Kiosk (`WisconsinKiosk`) stays off the Store entirely; this content is for the main app only.
 
 Sources used: `docs/AREA_PUBLIC_SHOWROOM.md`, `src/lib/public-showroom.ts`, `tasks/app-privacy-data-inventory.md`, `ios/Wisconsin/Supporting/PrivacyInfo.xcprivacy`, `scripts/seed-app-review-demo.mjs`, `ios/project.yml`.
 
@@ -18,9 +18,9 @@ Sources used: `docs/AREA_PUBLIC_SHOWROOM.md`, `src/lib/public-showroom.ts`, `tas
 
 **Notes to reviewer**
 ```
-This submission is intended for unlisted app distribution. The unlisted distribution
-request will be submitted through Apple's request form after this version is submitted to
-App Review.
+This submission is intended for unlisted app distribution. Do not resubmit this
+rejected version while an unlisted distribution request is pending. Resubmit the
+corrected build only after Apple's request outcome is confirmed.
 
 Wisconsin Creative is an internal equipment-management tool for a university athletics
 creative/production department. It is not a public consumer app — access is invitation-only,
@@ -34,6 +34,11 @@ Build 21 adds a native Welcome flow for invited users with incomplete profiles. 
 account intentionally keeps fictional profile data incomplete, so Welcome may appear after
 sign-in. Tap "Remind tomorrow" on the first Welcome step to enter the app without supplying
 any personal information. This bypass is expected and does not change the demo dataset.
+
+The Login screen keeps sign-in, invited account registration, and password-recovery requests
+inside the native iOS app. Registration remains restricted to administrator-approved email
+addresses. If password recovery is configured, the reset email opens the canonical password
+reset form on the web.
 
 What the demo account can see:
 - A staff-role home screen with sample reservations, checked-out gear, and shift context.
@@ -90,8 +95,8 @@ The operational records, internal guides, reservations, and equipment notes in t
 ## Pricing and Availability
 
 **Price:** Free
-**Distribution during submission:** Public and available on the App Store. Apple requires a new app to be submitted to App Review before it will consider the separate unlisted-distribution request.
-**Unlisted request:** After submitting this version to App Review, submit Apple's unlisted app distribution request. If Apple approves it, App Store Connect changes the distribution method to **Unlisted App** and generates the direct App Store link. Do not choose private distribution for this workflow.
+**Distribution during submission:** Intended to be **Unlisted App**. The current rejected submission must not be resubmitted while Apple's unlisted request is pending.
+**Unlisted request:** Submit Apple's unlisted app distribution request and wait for the email outcome. If Apple approves it, update App Store Connect to the approved unlisted distribution method before resubmitting the corrected build. If Apple declines it, do not assume that public distribution with a gated login is acceptable; choose the next distribution path based on Apple's response.
 
 ## URLs
 

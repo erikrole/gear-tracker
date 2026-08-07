@@ -49,7 +49,11 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
   }
 
   const bulkResult = await db.$transaction(
-    (tx) => scanKioskCheckinBulkUnit(tx, { bookingId: params.id, scanValue }),
+    (tx) => scanKioskCheckinBulkUnit(tx, {
+      bookingId: params.id,
+      scanValue,
+      kioskLocationId: kiosk.locationId,
+    }),
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
   if (bulkResult.handled) {

@@ -104,5 +104,8 @@ describe("kiosk student bulk summaries", () => {
       where: { id: "user-1" },
       select: expect.objectContaining({ hiddenFromRoster: true }),
     }));
+    for (const call of mocks.bookingFindMany.mock.calls) {
+      expect(call[0].where).not.toHaveProperty("locationId");
+    }
   });
 });

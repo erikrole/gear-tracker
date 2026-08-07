@@ -179,4 +179,41 @@ describe("sport default rebasing", () => {
       ],
     });
   });
+
+  it("creates neutral-site schedules from Away defaults", async () => {
+    tx.sportConfig.findMany.mockResolvedValue([{
+      sportCode: "FB",
+      active: true,
+      shiftStartOffset: 60,
+      shiftEndOffset: 30,
+      shiftConfigs: [{
+        area: "VIDEO",
+        homeCount: 3,
+        awayCount: 1,
+        homeStaffCount: 2,
+        homeStudentCount: 1,
+        awayStaffCount: 0,
+        awayStudentCount: 1,
+      }],
+    }]);
+    tx.shiftGroup.create.mockResolvedValue({ id: "group-neutral" });
+    tx.calendarEvent.findMany.mockResolvedValue([{
+      id: "neutral",
+      sportCode: "FB",
+      isHome: null,
+      allDay: false,
+      startsAt: eventTime,
+      endsAt: new Date("2026-09-01T21:00:00Z"),
+      shiftGroup: null,
+    }]);
+
+    await expect(rebaseUpcomingShiftsForSportCodes(["FB"])).resolves.toMatchObject({
+      groupsCreated: 1,
+      slotsAdded: 1,
+      neutralSkipped: 0,
+    });
+    expect(tx.shift.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ workerType: "ST", area: "VIDEO" })],
+    });
+  });
 });

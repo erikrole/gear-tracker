@@ -28,7 +28,7 @@ Pre-game checkout creates a 30-minute bottleneck. Multiple students need gear si
 - Scan lookup: quick item status check
 - ScanInput component: hand scanner primary (hidden input), camera fallback, manual entry
 - Inactivity timeout (5 min → idle screen)
-- Location-scoped kiosk operations (filters items and defaults bookings to the kiosk location); person discovery is global for active visible users
+- Global kiosk operations and data; direct checkout uses the kiosk as its booking/availability source, while only check-in transfers returned gear to that kiosk
 - Audit trail: all actions record `source: "KIOSK"` + student actorId + kioskDeviceId
 
 ### Out of Scope (Phase C+)

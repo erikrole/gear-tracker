@@ -55,6 +55,7 @@ beforeEach(() => {
       callEndsAt: null,
       updatedAt: new Date("2026-05-01T12:00:00.000Z"),
       shift: {
+        workerType: "ST",
         startsAt: new Date("2026-05-10T15:00:00.000Z"),
         endsAt: new Date("2026-05-10T17:00:00.000Z"),
         callStartsAt: null,
@@ -66,6 +67,8 @@ beforeEach(() => {
           event: {
             id: "event-1",
             summary: "Wisconsin Athletics Men's Basketball vs Iowa",
+            startsAt: new Date("2026-05-10T15:00:00.000Z"),
+            endsAt: new Date("2026-05-10T17:00:00.000Z"),
             sportCode: "MBB",
             opponent: "Iowa",
             isHome: true,
@@ -130,6 +133,8 @@ describe("shift ICS feed hardening", () => {
                   event: expect.objectContaining({
                     select: expect.objectContaining({
                       id: true,
+                      startsAt: true,
+                      endsAt: true,
                       sportCode: true,
                       opponent: true,
                       isHome: true,
@@ -191,6 +196,7 @@ describe("shift ICS feed hardening", () => {
         callEndsAt: null,
         updatedAt: new Date("2026-05-01T12:00:00.000Z"),
         shift: {
+          workerType: "ST",
           startsAt: new Date("2026-05-10T15:00:00.000Z"),
           endsAt: new Date("2026-05-10T17:00:00.000Z"),
           callStartsAt: null,
@@ -202,6 +208,8 @@ describe("shift ICS feed hardening", () => {
             event: {
               id: "event-1",
               summary: `Wisconsin Athletics Men's Basketball vs ${longOpponent}`,
+              startsAt: new Date("2026-05-10T15:00:00.000Z"),
+              endsAt: new Date("2026-05-10T17:00:00.000Z"),
               sportCode: "MBB",
               opponent: longOpponent,
               isHome: true,
@@ -235,6 +243,7 @@ describe("shift ICS feed hardening", () => {
         callEndsAt: null,
         updatedAt: new Date("2026-05-01T12:00:00.000Z"),
         shift: {
+          workerType: "ST",
           startsAt: new Date("2026-05-10T15:00:00.000Z"),
           endsAt: new Date("2026-05-10T17:00:00.000Z"),
           callStartsAt: null,
@@ -246,6 +255,8 @@ describe("shift ICS feed hardening", () => {
             event: {
               id: "event-1",
               summary: "Wisconsin Athletics Men's Basketball vs Iowa",
+              startsAt: new Date("2026-05-10T15:00:00.000Z"),
+              endsAt: new Date("2026-05-10T17:00:00.000Z"),
               sportCode: "MBB",
               opponent: "Iowa",
               isHome: true,

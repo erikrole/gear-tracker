@@ -11,6 +11,7 @@ import { handleAuthRedirect, classifyError, isAbortError, parseJsonSafely } from
 import type { SportConfig } from "./types";
 import { AREAS, SPORT_GROUPS, defaultShiftConfigs } from "./types";
 import ShiftConfigTable from "./ShiftConfigTable";
+import NonGameScheduleCard from "./NonGameScheduleCard";
 import { SettingsPageShell } from "../SettingsPageShell";
 
 type RebaseSummary = {
@@ -265,7 +266,7 @@ export default function SportsSettingsPage() {
     toast.success("Unsaved staffing changes discarded");
   }
 
-  const description = "Configure Staff and Student shift coverage plus default call times for each sport. Grouped sports share the same settings across men's and women's programs.";
+  const description = "Configure default Staff and Student coverage for games and non-game events. Call times apply only to Students.";
 
   /* ---------- Loading skeleton ---------- */
   if (loading) {
@@ -315,6 +316,8 @@ export default function SportsSettingsPage() {
   /* ---------- Normal render ---------- */
   return (
     <SettingsPageShell title="Sports" description={description}>
+      <div className="flex flex-col gap-4">
+        <NonGameScheduleCard />
         <ShiftConfigTable
           configs={configs}
           saving={saving}
@@ -325,6 +328,7 @@ export default function SportsSettingsPage() {
           onSave={saveConfig}
           onDiscard={discardConfig}
         />
+      </div>
     </SettingsPageShell>
   );
 }

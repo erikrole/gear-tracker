@@ -30,6 +30,7 @@ const AREAS = [
   { value: "VIDEO", label: "Video" },
   { value: "PHOTO", label: "Photo" },
   { value: "GRAPHICS", label: "Graphics" },
+  { value: "SOCIAL", label: "Social" },
   { value: "COMMS", label: "Comms" },
   { value: "LIVE_PRODUCTION", label: "Live Production" },
 ] as const;

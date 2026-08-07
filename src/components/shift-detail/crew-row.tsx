@@ -92,6 +92,7 @@ const AREA_TONE: Record<string, string> = {
   VIDEO: "bg-[var(--green-text)]",
   PHOTO: "bg-[var(--purple-text)]",
   GRAPHICS: "bg-[var(--blue-text)]",
+  SOCIAL: "bg-[var(--red-text)]",
   COMMS: "bg-[var(--orange-text)]",
   LIVE_PRODUCTION: "bg-muted-foreground",
 };

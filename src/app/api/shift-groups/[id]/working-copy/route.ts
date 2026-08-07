@@ -10,6 +10,7 @@ import {
   mutateWorkingSchedule,
   rebaseWorkingSchedule,
 } from "@/lib/services/schedule-working-copy";
+import { enqueuePendingScheduleRelease } from "@/lib/schedule-auto-release";
 
 const mutateSchema = z.object({
   expectedVersion: z.number().int().min(0),
@@ -33,7 +34,11 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "shift", "manage");
   await enforceRateLimit(`shift:working-copy:${user.id}`, { max: 120, windowMs: 60_000 });
   const body = mutateSchema.parse(await req.json());
-  const data = await mutateWorkingSchedule(params.id, body.expectedVersion, body.command, user);
+  const autoRelease = await enqueuePendingScheduleRelease({
+    shiftGroupId: params.id,
+    version: body.expectedVersion + 1,
+  });
+  const data = await mutateWorkingSchedule(params.id, body.expectedVersion, body.command, user, autoRelease);
   return ok({ data });
 });
 
@@ -42,7 +47,11 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "shift", "manage");
   await enforceRateLimit(`shift:working-copy:${user.id}`, { max: 30, windowMs: 60_000 });
   const body = rebaseSchema.parse(await req.json());
-  return ok({ data: await rebaseWorkingSchedule(params.id, body.expectedVersion, user) });
+  const autoRelease = await enqueuePendingScheduleRelease({
+    shiftGroupId: params.id,
+    version: body.expectedVersion + 1,
+  });
+  return ok({ data: await rebaseWorkingSchedule(params.id, body.expectedVersion, user, autoRelease) });
 });
 
 export const DELETE = withAuth<{ id: string }>(async (req, { user, params }) => {

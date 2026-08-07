@@ -342,6 +342,7 @@ private struct TradeCandidateRow: View {
         case "VIDEO": "video.fill"
         case "PHOTO": "camera.fill"
         case "GRAPHICS": "paintpalette.fill"
+        case "SOCIAL": "person.2.fill"
         case "COMMS": "dot.radiowaves.left.and.right"
         default: "person.fill"
         }

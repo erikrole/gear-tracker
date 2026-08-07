@@ -126,7 +126,7 @@ function quantityLabel(name: string, quantity: number) {
 }
 
 /** Kiosk idle screen data: stats, nearby events, active items, and active checkouts. */
-export const GET = withKiosk(async (_req, { kiosk }) => {
+export const GET = withKiosk(async () => {
   const now = new Date();
   const nearPast = new Date(now.getTime() - 2 * 60 * 60 * 1000);
   const nearFuture = new Date(now.getTime() + 90 * 60 * 1000);
@@ -142,7 +142,7 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
     checkoutsResult,
     operationalWindowsResult,
   ] = await Promise.allSettled([
-    // Stats: count active checkouts, items out, overdue (scoped to this kiosk's location).
+    // Stats: every active checkout is operationally visible from every kiosk.
     db.$queryRaw<
       Array<{ checkouts: bigint; items_out: bigint; overdue: bigint }>
     >`
@@ -150,16 +150,14 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
         (
           SELECT COUNT(*)
           FROM bookings b
-          WHERE b.location_id = ${kiosk.locationId}
-            AND b.status = 'OPEN'
+          WHERE b.status = 'OPEN'
             AND b.kind = 'CHECKOUT'
         ) as checkouts,
         (
           SELECT COUNT(*)
           FROM booking_serialized_items bsi
           JOIN bookings b ON b.id = bsi.booking_id
-          WHERE b.location_id = ${kiosk.locationId}
-            AND b.status = 'OPEN'
+          WHERE b.status = 'OPEN'
             AND b.kind = 'CHECKOUT'
             AND bsi.allocation_status = 'active'
         ) + (
@@ -167,8 +165,7 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
           FROM booking_bulk_unit_allocations bua
           JOIN booking_bulk_items bbi ON bbi.id = bua.booking_bulk_item_id
           JOIN bookings b ON b.id = bbi.booking_id
-          WHERE b.location_id = ${kiosk.locationId}
-            AND b.status = 'OPEN'
+          WHERE b.status = 'OPEN'
             AND b.kind = 'CHECKOUT'
             AND bua.checked_out_at IS NOT NULL
             AND bua.checked_in_at IS NULL
@@ -176,8 +173,7 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
         (
           SELECT COUNT(*)
           FROM bookings b
-          WHERE b.location_id = ${kiosk.locationId}
-            AND b.status = 'OPEN'
+          WHERE b.status = 'OPEN'
             AND b.kind = 'CHECKOUT'
             AND b.ends_at < ${now}
         ) as overdue
@@ -232,18 +228,16 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
       },
     }),
 
-    // Active serialized items at this kiosk's location for the Items Out card.
+    // Active serialized items for the Items Out card.
     db.bookingSerializedItem.findMany({
       where: {
         allocationStatus: "active",
         booking: {
           kind: BookingKind.CHECKOUT,
           status: BookingStatus.OPEN,
-          locationId: kiosk.locationId,
         },
       },
       orderBy: { booking: { endsAt: "asc" } },
-      take: 24,
       select: {
         asset: {
           select: {
@@ -264,7 +258,7 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
       },
     }),
 
-    // Active numbered bulk units at this kiosk's location for the Items Out card.
+    // Active numbered bulk units for the Items Out card.
     db.bookingBulkUnitAllocation.findMany({
       where: {
         checkedOutAt: { not: null },
@@ -273,12 +267,10 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
           booking: {
             kind: BookingKind.CHECKOUT,
             status: BookingStatus.OPEN,
-            locationId: kiosk.locationId,
           },
         },
       },
       orderBy: { checkedOutAt: "asc" },
-      take: 24,
       select: {
         bulkSkuUnit: {
           select: {
@@ -308,15 +300,13 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
       },
     }),
 
-    // Active checkouts at this kiosk's location, most overdue first, max 10.
+    // Active checkouts, most overdue first.
     db.booking.findMany({
       where: {
         kind: "CHECKOUT",
         status: "OPEN",
-        locationId: kiosk.locationId,
       },
       orderBy: [{ endsAt: "asc" }],
-      take: 10,
       select: {
         id: true,
         title: true,
@@ -374,7 +364,6 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
         where: {
           kind: BookingKind.CHECKOUT,
           status: { in: [BookingStatus.BOOKED, BookingStatus.PENDING_PICKUP] },
-          locationId: kiosk.locationId,
           startsAt: { lte: nearFuture },
           endsAt: { gte: nearPast },
         },

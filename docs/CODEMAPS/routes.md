@@ -303,6 +303,7 @@
 - `/api/settings/checkout-policies` -> `src/app/api/settings/checkout-policies/route.ts`
 - `/api/settings/escalation` -> `src/app/api/settings/escalation/route.ts`
 - `/api/settings/extend-presets` -> `src/app/api/settings/extend-presets/route.ts`
+- `/api/settings/non-game-schedule` -> `src/app/api/settings/non-game-schedule/route.ts`
 - `/api/settings/reservation-rules` -> `src/app/api/settings/reservation-rules/route.ts`
 - `/api/shift-assignments/[id]/acknowledge` -> `src/app/api/shift-assignments/[id]/acknowledge/route.ts`
 - `/api/shift-assignments/[id]/approve` -> `src/app/api/shift-assignments/[id]/approve/route.ts`

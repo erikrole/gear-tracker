@@ -4,6 +4,7 @@ import { ok } from "@/lib/http";
 import { requireInternalActor } from "@/lib/rbac";
 import { shiftWorkerLabel } from "@/lib/shift-display";
 import { startOfTodayInAppTz } from "@/lib/app-time";
+import { isShiftAssignmentAcknowledged } from "@/lib/schedule-publication-types";
 
 function gearStatusForBooking(status: string) {
   if (status === "OPEN") return "checked_out";
@@ -174,17 +175,20 @@ export const GET = withAuth(async (req, { user }) => {
       workerLabel: shiftWorkerLabel(a.shift.workerType),
       startsAt: a.shift.startsAt.toISOString(),
       endsAt: a.shift.endsAt.toISOString(),
-      callStartsAt: (a.callStartsAt ?? a.shift.callStartsAt ?? a.shift.startsAt).toISOString(),
-      callEndsAt: (a.callEndsAt ?? a.shift.callEndsAt ?? a.shift.endsAt).toISOString(),
+      callStartsAt: a.shift.workerType === "ST"
+        ? (a.callStartsAt ?? a.shift.callStartsAt ?? a.shift.startsAt).toISOString()
+        : null,
+      callEndsAt: a.shift.workerType === "ST"
+        ? (a.callEndsAt ?? a.shift.callEndsAt ?? a.shift.endsAt).toISOString()
+        : null,
       callNote: a.callNote,
       status: a.status,
       acknowledgedAt: a.acknowledgedAt?.toISOString() ?? null,
       acknowledgedById: a.acknowledgedById,
       schedulePublishedAt: a.shift.shiftGroup.publishedAt?.toISOString() ?? null,
-      scheduleAcknowledged: Boolean(
-        a.shift.shiftGroup.publishedAt
-        && a.acknowledgedAt
-        && a.acknowledgedAt >= a.shift.shiftGroup.publishedAt,
+      scheduleAcknowledged: isShiftAssignmentAcknowledged(
+        a.shift.shiftGroup.publishedAt,
+        a.acknowledgedAt,
       ),
       event: {
         id: event.id,

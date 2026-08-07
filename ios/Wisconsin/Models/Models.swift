@@ -332,6 +332,11 @@ struct BookingAvailabilityResult: Decodable {
 // MARK: - Users
 
 struct AppUser: Codable, Identifiable {
+    struct CollaboratorPolicy: Codable {
+        let status: String
+        let capabilities: [String]?
+    }
+
     let id: String
     let name: String
     let email: String
@@ -344,6 +349,7 @@ struct AppUser: Codable, Identifiable {
     let active: Bool?
     let gradYear: Int?
     let studentYearOverride: String?
+    let collaboratorPolicy: CollaboratorPolicy?
 }
 
 struct AppUserDetail: Codable, Identifiable {

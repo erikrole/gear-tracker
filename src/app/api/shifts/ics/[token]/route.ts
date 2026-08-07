@@ -124,6 +124,8 @@ export const GET = withHandler<{ token: string }>(async (req, { params }) => {
                 select: {
                   id: true,
                   summary: true,
+                  startsAt: true,
+                  endsAt: true,
                   sportCode: true,
                   opponent: true,
                   isHome: true,
@@ -162,8 +164,12 @@ export const GET = withHandler<{ token: string }>(async (req, { params }) => {
     const event = shift.shiftGroup.event;
     const location = event.location?.name;
     const activeTrade = a.trades[0];
-    const startsAt = a.callStartsAt ?? shift.callStartsAt ?? shift.startsAt;
-    const endsAt = a.callEndsAt ?? shift.callEndsAt ?? shift.endsAt;
+    const startsAt = shift.workerType === "ST"
+      ? a.callStartsAt ?? shift.callStartsAt ?? shift.startsAt
+      : event.startsAt;
+    const endsAt = shift.workerType === "ST"
+      ? a.callEndsAt ?? shift.callEndsAt ?? shift.endsAt
+      : event.endsAt;
     const title = shiftSummary(shift.area, eventTitle(event), Boolean(activeTrade));
     const dtStart = icsDate(startsAt);
     const dtEnd = icsDate(endsAt);

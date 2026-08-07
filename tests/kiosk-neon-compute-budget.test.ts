@@ -41,11 +41,20 @@ describe("kiosk Neon compute budget", () => {
     expect(idle).toContain(".onChange(of: store.isDeviceIdle)");
   });
 
-  it("stops polling the student hub every 30 seconds", () => {
+  it("keeps the student hub bounded and stops its safety poll while idle", () => {
     const hub = source("ios/Wisconsin/Kiosk/KioskStudentHubView.swift");
+    const poll = hub.slice(
+      hub.indexOf('.task(id: "refresh")'),
+      hub.indexOf('.sheet(item: $selectedCheckout)'),
+    );
 
     expect(hub).toContain("private let refreshInterval: TimeInterval = 180");
     expect(hub).not.toContain("private let refreshInterval: TimeInterval = 30");
+    expect(poll).toContain("guard !Task.isCancelled else { break }");
+    expect(poll).toContain("guard !store.isDeviceIdle else { continue }");
+    expect(poll.indexOf("guard !store.isDeviceIdle else { continue }")).toBeLessThan(
+      poll.indexOf("await loadContext()"),
+    );
   });
 
   it("throttles the per-request lastSeenAt write", () => {

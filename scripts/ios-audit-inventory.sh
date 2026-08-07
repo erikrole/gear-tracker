@@ -65,6 +65,7 @@ EventDetailSheet.swift                 | event-detail                | audit
 NotificationsSheet.swift               | notifications-sheet         | audit
 OverdueReportView.swift                | overdue-report              | audit
 LoginView.swift                        | login                       | audit
+NativeAuthViews.swift                  | login                       | audit
 PasswordSetupView.swift                | login                       | audit
 LaunchView.swift                       |                             | exempt-tiny
 Welcome/ProfileCompletionWelcomeView.swift | welcome                  | audit

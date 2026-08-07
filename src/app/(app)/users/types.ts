@@ -158,6 +158,7 @@ export const AREA_LABELS: Record<string, string> = {
   VIDEO: "Video",
   PHOTO: "Photo",
   GRAPHICS: "Graphics",
+  SOCIAL: "Social",
   COMMS: "Communications",
   LIVE_PRODUCTION: "Live Production",
 };

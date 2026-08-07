@@ -15,7 +15,7 @@ _None._ Auth uses HTTPS, cookies persist via `HTTPCookieStorage.shared`, errors 
 - [x] [Flows] No "Forgot password?" affordance — a student who forgets their password is stranded on iOS. Web has `src/app/forgot-password/` shipped.
       `ios/Wisconsin/Views/LoginView.swift:54-111`.
       Why it matters: gear-tracker is for students; lockouts will happen on game day. iOS has zero recovery path. They can use the web flow but must know the URL — student-hostile.
-      Suggested fix: add a "Forgot password?" link below the Sign In button that opens the canonical AppEnvironment URL, currently `https://wisconsincreative.com/forgot-password`, in `Safari`/`SFSafariViewController`. If a native flow is wanted, reuse `/api/auth/forgot-password` with a tiny sheet (POST email → confirm-sent screen).
+      Suggested fix: add a "Forgot password?" link below the Sign In button that opens the canonical AppEnvironment URL, currently `https://wisconsincreative.com/forgot-password`, in `Safari`/`SFSafariViewController`. If a native flow is wanted, reuse `/api/auth/forgot-password` with a tiny sheet (POST email → confirm-sent screen). Shipped 2026-08-04: the native path is now the default and the external browser handoff is removed.
 
 - [x] [Hardening] Email is not trimmed before submit — a student typing `"jane@uw.edu "` with a trailing space hits a 401 with no clue why.
       `ios/Wisconsin/Views/LoginView.swift:73, 90` (`session.login(email: email, password: password)`); also the on-submit guard at `:72` only checks `isEmpty`.
@@ -35,8 +35,8 @@ _None._ Auth uses HTTPS, cookies persist via `HTTPCookieStorage.shared`, errors 
 
 - [ ] [Hardening] **Deferred.** No biometric (Face ID / Touch ID) re-auth. Cookie persists across launches; Face ID would only shave seconds off post-logout. Needs LocalAuthentication framework + Keychain-backed session marker. Logged for later.
 
-- [x] [Parity] iOS now exposes "Need an account?" Link to web `/register`; register itself stays web-only behind the AllowedEmail allowlist (D-2026-04-03).
-      2026-06-05 refresh: source had drifted from this audit and the device walkthrough; `LoginView` restored the `Need an account?` link. 2026-07-01 domain cutover moved it through `AppEnvironment.url(path:)`, currently `https://wisconsincreative.com/register`.
+- [x] [Parity] iOS now presents native registration and password-recovery request forms from Login. Registration submits to `/api/auth/register` and remains behind the AllowedEmail allowlist (D-2026-04-03); recovery submits to `/api/auth/forgot-password` and preserves the server's enumeration-safe response. The reset email's completion form remains web-owned.
+      2026-06-05 and 2026-07-01 history: `LoginView` restored the account-creation handoff and moved it through `AppEnvironment.url(path:)`. 2026-08-04 follow-up removed that external handoff in favor of native SwiftUI forms.
 
 - [x] [Flows] `SessionStore.clearError()` added; LoginView calls it from `.onChange(of:)` on both fields so a stale 401 disappears the moment the user starts typing.
 
@@ -47,6 +47,8 @@ _None._ Auth uses HTTPS, cookies persist via `HTTPCookieStorage.shared`, errors 
 - [x] [UI polish] Forced-password setup now keeps password requirements visible while the user types: temporary password entered, at least 8 characters, passwords match, and different from the temporary password. This keeps first-login validation from relying on one changing warning line.
 
 - [x] [Accessibility] Password visibility controls now have explicit action and state copy. The native Login eye button speaks as "Show password" or "Hide password" and exposes "Password hidden" or "Password visible." The forced-password setup eye button speaks as "Show passwords" or "Hide passwords" and exposes "Passwords hidden" or "Passwords visible."
+
+- [x] [UI guidance] Native Login, registration, and password recovery show a live advisory as soon as `@athletics.wisc.edu` is typed, recommending `@wisc.edu` without rewriting or blocking the address, preserving collaborator-owned email addresses.
 
 - [ ] [Hardening] **Deferred.** iPad cosmetic: brand header dark band can look cramped at the top safe area. Wait until iPad becomes a launch target.
 
@@ -59,11 +61,13 @@ There is no `AREA_LOGIN.md` or dedicated auth area doc. AC inferred from `AREA_U
 - [x] AC: button disables during request and shows a `ProgressView` (`LoginView.swift:88-110`).
 - [x] AC: no plaintext password storage (`SecureField`, no `@AppStorage`, no UserDefaults writes).
 - [x] AC: HTTPS-only base URL (`APIClient.swift:25`).
-- [x] AC: password recovery reachable from iOS — Link to the canonical AppEnvironment forgot-password URL shipped.
+- [x] AC: password recovery is reachable from iOS through a native email form backed by `/api/auth/forgot-password`.
+- [x] AC: invite-gated account registration is reachable from iOS through a native form backed by `/api/auth/register`.
 - [x] AC: admin-issued temporary-password users can complete forced password setup on iOS without using a computer.
 - [x] AC: forced-password setup gives persistent in-form password requirement guidance.
 - [x] AC: password visibility toggle is understandable to VoiceOver users.
 - [x] AC: forced-password password visibility toggle exposes its hidden/visible state to VoiceOver users.
+- [x] AC: auth email-domain guidance is live, non-blocking, exact-domain matching, and leaves collaborator addresses unchanged.
 
 ## Lenses checked
 - [x] Gaps
@@ -75,6 +79,7 @@ There is no `AREA_LOGIN.md` or dedicated auth area doc. AC inferred from `AREA_U
 
 ## Files read
 - `ios/Wisconsin/Views/LoginView.swift`
+- `ios/Wisconsin/Views/NativeAuthViews.swift`
 - `ios/Wisconsin/Views/PasswordSetupView.swift`
 - `ios/Wisconsin/Core/SessionStore.swift`
 - `ios/Wisconsin/Core/APIClient.swift` (auth methods + URLSession config)
@@ -82,6 +87,7 @@ There is no `AREA_LOGIN.md` or dedicated auth area doc. AC inferred from `AREA_U
 - `docs/AREA_USERS.md` (acceptance + finalized policy decisions)
 - `docs/DECISIONS.md` (D-2026-04-03 AllowedEmail allowlist; kiosk auth)
 - `docs/AREA_MOBILE.md` (no auth-specific ACs)
+- `src/lib/auth-email-guidance.ts` and `tests/auth-email-guidance.test.ts`
 - Web auth surface `src/app/{login,register,forgot-password}` (existence check only)
 
 ## Notes
@@ -90,3 +96,4 @@ There is no `AREA_LOGIN.md` or dedicated auth area doc. AC inferred from `AREA_U
 - Cookie-based session means no keychain needed for tokens — that's correct given the web parity.
 - `HTTPCookieStorage` is unencrypted and persisted in the app sandbox; if a stolen-device threat model becomes relevant, switch session token to keychain. Out of scope for V1.
 - The `.ignoresSafeArea(.keyboard, edges: .bottom)` on the outer container is intentional — keeps the brand header from animating up; the inner ScrollView still scrolls focus into view. Verified the chain reads correctly.
+- 2026-08-04 native auth follow-up: focused source contracts, XcodeGen project membership, iPhone 16 Pro simulator tests, and the generic iOS build pass. The Xcode gate required an outside-sandbox run because the restricted shell could not access CoreSimulatorService and Swift macro plugins.

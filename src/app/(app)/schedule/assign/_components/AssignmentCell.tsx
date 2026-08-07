@@ -316,14 +316,16 @@ export function AssignmentCell({
                     </span>
                   </Badge>
                 )}
-                <CallWindowEditor
-                  target={{ type: "assignment", id: assignment.id }}
-                  effectiveWindow={effectiveCallWindow(shift, assignment)}
-                  overrideWindow={{ startsAt: assignment.callStartsAt ?? null, endsAt: assignment.callEndsAt ?? null }}
-                  onSaved={onRefetch}
-                  disabled={Boolean(acting)}
-                  compact
-                />
+                {shift.workerType === "ST" && (
+                  <CallWindowEditor
+                    target={{ type: "assignment", id: assignment.id }}
+                    effectiveWindow={effectiveCallWindow(shift, assignment)}
+                    overrideWindow={{ startsAt: assignment.callStartsAt ?? null, endsAt: assignment.callEndsAt ?? null }}
+                    onSaved={onRefetch}
+                    disabled={Boolean(acting)}
+                    compact
+                  />
+                )}
               </div>
             ))}
           </div>
@@ -331,7 +333,7 @@ export function AssignmentCell({
 
         {firstOpenShift && (
           <div className="group/open flex min-w-0 flex-col items-center gap-1">
-            {isStaff && (
+            {isStaff && firstOpenShift.workerType === "ST" && (
               <CallWindowEditor
                 target={{ type: "slot", id: firstOpenShift.id }}
                 effectiveWindow={effectiveCallWindow(firstOpenShift)}

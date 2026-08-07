@@ -544,10 +544,7 @@ describe("kiosk checkout complete bulk units", () => {
         pickupKioskDeviceId: "kiosk-1",
       }),
     });
-    expect(mocks.assetUpdateMany).toHaveBeenCalledWith({
-      where: { id: { in: ["asset-1"] } },
-      data: { locationId: "loc-1" },
-    });
+    expect(mocks.assetUpdateMany).not.toHaveBeenCalled();
   });
 
   it("uses the kiosk location when the request omits a location", async () => {

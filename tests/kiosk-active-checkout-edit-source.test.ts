@@ -7,7 +7,7 @@ function source(relativeFile: string) {
 }
 
 describe("kiosk active checkout edits", () => {
-  it("keeps active checkout mutations kiosk-authenticated, scoped, audited, and transactional", () => {
+  it("keeps global active checkout mutations kiosk-authenticated, audited, and transactional", () => {
     const route = source("src/app/api/kiosk/checkout/[id]/route.ts");
     const schemas = source("src/lib/schemas/kiosk.ts");
 
@@ -15,7 +15,7 @@ describe("kiosk active checkout edits", () => {
     expect(route).toContain("export const POST = withKiosk");
     expect(route).toContain("export const DELETE = withKiosk");
     expect(route).toContain("status: \"OPEN\"");
-    expect(route).toContain("locationId: args.locationId");
+    expect(route).not.toContain("locationId: args.locationId");
     expect(route).toContain("Prisma.TransactionIsolationLevel.Serializable");
     expect(route).toContain("createAuditEntryTx(tx");
     expect(route).toContain("itemName:");

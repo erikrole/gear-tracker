@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Shift Calendar & Scheduling
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-05
+- Last Updated: 2026-08-07
 - Status: Active — implemented V1 with ongoing hardening
 
 ## Purpose
@@ -12,12 +12,12 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 
 ## Key Concepts
 
-- **ShiftArea**: VIDEO, PHOTO, GRAPHICS, COMMS
+- **ShiftArea**: VIDEO, PHOTO, GRAPHICS, SOCIAL, COMMS, LIVE_PRODUCTION
 - **ShiftWorkerType**: Internal planned staffing kind; UI and notifications must display Staff or Student, never raw enum abbreviations
 - **SportConfig**: Per-sport Staff and Student shift counts for home/away events per area
-- **Settings-owned default call time**: Sport call-time offsets are the shared fallback for future timed shift coverage; explicit slot and personal overrides remain authoritative, and all-day events retain date-only boundaries.
+- **Settings-owned Student call time**: Sport and Non-game offsets are the shared fallback for Student coverage. Staff and collaborator coverage retains the event window internally but exposes no call-time value or event-time substitute; all-day events retain date-only boundaries.
 - **ShiftGroup**: 1:1 with CalendarEvent, container for all shifts at an event
-- **Working schedule**: One private, versioned staff editing copy per ShiftGroup. Worker-facing relational shifts remain the last published schedule until an explicit publish reconciles the copy.
+- **Pending schedule**: One private, versioned staff editing copy per ShiftGroup. Every edit restarts a durable ten-minute quiet period; the newest version then reconciles automatically while worker-facing reads retain the last released schedule.
 - **Assignment provenance**: `ShiftAssignment.source` distinguishes manual staffing, preview-approved auto-fill, and reservation-managed schedule work. Reservation lifecycle cleanup can release only the last category.
 - **Trade Board**: Area-filtered board where students post shifts they can't work; other students in the same area can claim them
 - **StudentAvailabilityBlock**: Weekly or ad hoc student availability signal used by scheduling. Existing blocks read as approved cannot-work advisory conflicts; newer blocks can express prefer, dislike, pending time off, approved time off, or denied time off.
@@ -44,14 +44,17 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - [x] Shift trade emails: claimed, completed, approved, and declined trade events send best-effort email companions
 - [x] Staff/Student slot planning: sport templates generate separate Staff and Student slots and preserve the planned slot type after assignment
 - [x] Staff/Student display truth: filled Schedule rows/cards derive Staff or Student labels from the assigned user's scheduling class, while Staff slot/Student slot labels are reserved for open planned slots and editing controls
-- [x] Call-time overrides: default sport call windows can be overridden per shift and per assignment, with personal overrides used for conflict checks. Crew rows show one effective call time per slot/person; the full coverage window remains available for editing and conflict checks, and the event time range stays global in the event header.
+- [x] Student-only call times: configured call windows and explicit overrides apply only to Student slots and assignments. Staff and eligible collaborator assignments expose no call-time value or event-time substitute in call-time presentation; their event window remains internal scheduling and calendar integrity data.
+- [x] Neutral-site defaults: games with an opponent and no Home/Away classification use the sport Away staffing template; opponent-free events use the Non-game template.
 - [x] All-day assignment conflicts: all-day event-backed shifts compare by canonical all-day date ranges during assignment conflict checks, so local-midnight or ICS storage offsets do not create false adjacent-day overlaps; explicit shift or personal call windows still use their timed windows.
 - [x] Assignment conflict review: staff/admin can filter assignment work by conflicted, open, and clean states and adjust personal call windows from the conflict context
 - [x] Candidate recommendations: staff/admin assignment pickers can show read-only recommended, good fit, warning, and overloaded candidate groups without changing manual assignment behavior
 - [x] Preview-first auto-fill: staff/admin auto-fill actions show proposed assignments, skipped slots, warnings, and require an explicit apply action before mutating assignments
-- [x] Schedule publish/acknowledgement: staff/admin can publish or republish shift groups, Schedule/Event detail surfaces show Draft, Published, Changed, and Unacknowledged states, and assigned workers can acknowledge published assignments
-- [x] Private working schedule: expanded web Schedule edits for slot counts, worker class, assignment, removal, and call windows stay private until a version-checked publish reconciles them atomically
-- [x] Bundled publish notifications: first publish and changed-worker republish delivery is deduped by published version and limited to one event summary per affected worker
+- [x] Timed schedule release: staff/admin edits remain private for ten minutes after the newest change, then an exact-version durable workflow reconciles them atomically. Manual Publish/Republish and active acknowledgement state are retired.
+- [x] Pending schedule recovery: web and native staff surfaces show the release time, restart the timer on edit, allow Revert before release, and surface permanent validation failures without exposing partial changes.
+- [x] Bundled release notifications: first release and changed-worker delivery is deduped by released version and limited to one event summary per affected worker
+- [x] Collaborator assignment: an active collaborator with published-Schedule access can be assigned deliberately to a Staff slot without entering Student availability, Open Work, Trade Board, or auto-fill.
+- [x] Non-game defaults: Settings owns per-area Staff and Student counts plus Student call offsets for events without an opponent; sync, backfill, and manual event creation use them.
 - [x] Scheduling notification policy: worker-facing assignment, call-time, gear-prep, and trade notifications respect publication state, additive schedule/trade/gear-prep preferences, and event-routable payloads
 - [x] Open Work: Trade Board now also surfaces published open Student shifts, claimable trades, and my trade posts in one Schedule work surface
 - [x] Preferences and time off: Availability blocks now support prefer/dislike/cannot-work signals plus pending/approved/denied time-off lifecycle, feeding candidate scoring, Open Work, assignment, trade, and call-window conflict checks
@@ -70,10 +73,10 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 5. **Data quality queue** — staff/admin Schedule health flags visible events with missing sport context, missing opponents, missing venue/location mapping, future archived status, or shifts without sport metadata. The queue filters the list to affected events and routes cleanup back through existing Event detail, Locations, and Venue Mappings ownership.
 6. **Filter Bar** (`ScheduleFilters`) — quiet `OperationalToolbar` with View, Venue, My Shifts, a Filters popover (Past, Archived, Sport, Area, Coverage), source-signal status, and the active queue banner
 7. **View Toggle** — List | Week | Calendar (persisted to localStorage)
-8. **List View** (`ListView`) — the primary web crew workstation. Multiple events may stay expanded; only areas with actual slots are shown, each slot is one readable assigned or open row, and unused areas live behind one add control. Inline actions cover assignment, removal, empty-slot conversion, call windows, discard, and publish review without repeating Event detail controls.
+8. **List View** (`ListView`) — the primary web crew workstation. Multiple events may stay expanded; only areas with actual slots are shown, each slot is one readable assigned or open row, and unused areas live behind one add control. Inline actions cover assignment, removal, empty-slot conversion, Student call windows, pending release timing, and Revert without repeating Event detail controls.
 9. **Week View** (`WeekView`) — 7-day strip with time-block events, coverage dots, navigation (prev/next/this week)
 10. **Calendar View** (`CalendarView`) — month grid with coverage indicator dots (green/orange/red)
-11. **ShiftDetailPanel** — side sheet for per-event shift management (add/remove shifts, assign users, publish, archive, and preview auto-fill)
+11. **ShiftDetailPanel** — read-only schedule context plus archive and preview-first auto-fill; staff authoring is owned by the Schedule working crew editor.
 12. **Open Work / Trade Board** — sheet overlay with area/status filters for open shifts, posted trades, my trade posts, blocked context, and resolved trade history
 
 ### Event Detail Page (`/events/[id]`)
@@ -99,6 +102,29 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-08-07: **Schedule timing and neutral defaults are explicit.** Neutral-site games with an opponent use the sport Away template. Only Students receive a call time; Staff and collaborators no longer receive or display the event time in the call-time position across Schedule, Dashboard, Event detail, and native Home/Profile surfaces. Event-window storage remains for internal integrity and calendar event boundaries.
+- 2026-08-07: **Schedule authoring now releases after a ten-minute quiet period.** Every versioned edit pre-enqueues its exact durable workflow run; a newer edit supersedes older runs. Manual release and acknowledgement controls are retired, while web and native staff surfaces show pending timing, Revert, and blocked-release recovery. Only Students have call time, and Settings now owns Non-game defaults used by sync, backfill, and manual event creation. Migration `0109_schedule_timed_release` and authenticated runtime proof remain rollout gates.
+- 2026-08-07: **Republishing preserves unchanged worker acknowledgements.**
+  Publication already cleared acknowledgement fields only for assignments whose
+  worker-visible person, call window, or assignment state changed. Schedule
+  summaries, Event detail, and My Shifts now honor that assignment-scoped truth
+  instead of invalidating every older acknowledgement when the group's
+  `publishedAt` advances for a coworker's change.
+- 2026-08-07: **Canceled reservations no longer block working-copy unassign.**
+  Schedule working copies now count only active linked bookings and refresh
+  live booking/trade metadata before unassign or replacement guards. Historical
+  `CANCELLED` rows remain available for audit, while active reservations and
+  checkouts still require an explicit unlink before a worker can be replaced.
+- 2026-08-06: **2027 sport roster reconciliation applied.** The live roster
+  now has 32 rows: 17 reviewed active-user additions and the existing rows
+  preserved, with Usman Syed removed from `WHKY` while `MHKY` remains. Nolan
+  Kromke's golf rows were added; Ryan Dean's cross-country/track request and
+  Erik Role/Nolan Kromke's rowing requests were confirmed as no-ops. All
+  `defaultTraveler` values remain unchanged, and each applied sport batch plus
+  the removal has an admin audit entry. Thirty-three pending sport assignments
+  remain on the ten invitation-backed students until registration. The
+  registration-time materialization path is deployed with the same production
+  release and will create those rows transactionally when each student claims.
 - 2026-08-05: **Refresh merges a staged slot when the adopted live slot already holds that person.** Staff routinely stage someone in a draft and, separately, assign that same person on the live schedule. Adopting the live slot while keeping the staged one put the worker in the event twice, and publish reported them as conflicting with themselves -- an accurate check with no sensible reading. The live slot already carries a real assignment, so the staged duplicate is the redundant one and is now merged away during refresh, matched on the same person in the same area. Read-only replay against the three live drafts: the event whose publish originally failed goes from a dead end to clean, and a second drops from five blockers to one genuine double-booking. Legacy `payloadVersion` 1 drafts still under-adopt because they fall back to the timestamp proxy; refreshing upgrades them, so a second refresh adopts exactly.
 - 2026-08-05: **Draft provenance, open-draft visibility, and forced-delete notification.** Three follow-ups closing the remaining scheduling gaps. (1) The working-copy payload now records `baseShiftIds`, the live shift IDs it was snapshotted from, at `payloadVersion` 2. Publish drift detection and rebase adoption use it instead of comparing a shift's `createdAt` against the working copy's. That timestamp proxy was wrong in a reachable case: a shift adopted by a refresh keeps a `createdAt` later than the draft's, so removing it afterwards was reported as drift forever and the draft could never publish. Drafts written before `payloadVersion` 2 keep the proxy as a fallback and are upgraded the first time they are refreshed. (2) Schedule health gained an `unpublishedDrafts` queue and the attention rail an Unpublished drafts chip, so events held behind an open private working copy are visible -- that draft blocks every legacy edit path on its event and, before a first publish, keeps assigned crew invisible to the workers themselves. (3) A forced shift delete now notifies each worker whose assignment it removes, matching `DELETE /api/shift-assignments/[id]`. `createShiftScheduleNotification` resolved an assignment by id and so silently no-opped once the row had cascaded away; the notification body is now callable from a snapshot captured before the delete. Closes GAP-63.
 - 2026-08-05: **Publish reports every blocker at once instead of one per attempt.** Publish validation was a chain of sequential throws, so staff fixed one slot, clicked Publish, met the next problem, and repeated. `collectPublishBlockers` now gathers the whole set -- active trades, linked bookings, history-bearing conversions and removals, inactive workers, scheduling-class mismatches, overlapping assignments, and approved time off -- and all of it is evaluated before any row is written, so a rejected publish can no longer have created a shift or assignment first. A single blocker keeps its original message so existing recovery copy stays accurate; multiple blockers return a count plus the full list on `HttpError.data.blockers`. `checkTimeConflict` gained a non-throwing `findTimeConflict` form so one conflicted worker cannot cut the sweep short. Staleness stays a separate class because one Refresh clears every instance. `GET /api/shift-groups/[id]/publish` returns the same preflight without attempting a publish; the web publish review reads it on open, lists the problems, offers Refresh from live when the draft is stale, and disables Publish until the list is clear.

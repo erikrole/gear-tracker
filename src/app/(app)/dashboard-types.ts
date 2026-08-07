@@ -132,8 +132,8 @@ export type MyShift = {
   workerLabel: string;
   startsAt: string;
   endsAt: string;
-  callStartsAt: string;
-  callEndsAt: string;
+  callStartsAt: string | null;
+  callEndsAt: string | null;
   callNote: string | null;
   event: {
     id: string;
@@ -172,8 +172,8 @@ export type MyEventWork = {
     workerLabel: string;
     startsAt: string;
     endsAt: string;
-    callStartsAt: string;
-    callEndsAt: string;
+    callStartsAt: string | null;
+    callEndsAt: string | null;
     callNote: string | null;
   };
   gearStatus: string;

@@ -19,7 +19,7 @@ import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
 
 const ACTIVE_STATUSES = new Set<string>(ACTIVE_ASSIGNMENT_STATUSES);
-const AREA_ORDER: ShiftArea[] = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS", "LIVE_PRODUCTION"];
+const AREA_ORDER: ShiftArea[] = ["VIDEO", "PHOTO", "GRAPHICS", "SOCIAL", "COMMS", "LIVE_PRODUCTION"];
 const AREA_RANK = new Map<string, number>(AREA_ORDER.map((area, index) => [area, index]));
 
 type LoadedTargetGroup = NonNullable<Awaited<ReturnType<typeof loadTargetGroup>>>;

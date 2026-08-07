@@ -41,7 +41,7 @@ type Profile = {
   workPhoneNotApplicable: boolean;
   wiscardNumber: string | null;
   avatarUrl: string | null;
-  primaryArea: "VIDEO" | "PHOTO" | "GRAPHICS" | "COMMS" | "LIVE_PRODUCTION" | null;
+  primaryArea: "VIDEO" | "PHOTO" | "GRAPHICS" | "SOCIAL" | "COMMS" | "LIVE_PRODUCTION" | null;
   title: string | null;
   athleticsEmail: string | null;
   slackHandle: string | null;

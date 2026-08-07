@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Mobile Operations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-03
+- Last Updated: 2026-08-07
 - Status: Active
 - Version: V1
 
@@ -132,6 +132,34 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 - **V3 (later)**: Bottom nav badge counts via live `/api/nav-counts` polling, game-day/shift context cards
 
 ## Change Log
+
+- 2026-08-07: **Native Staff timing no longer impersonates a Student call time.** Home, Profile, Schedule rows, and Event detail expose report times only for Student assignments. Staff and collaborator rows retain assignment and event context without inserting event time into the call-time position.
+- 2026-08-07: **Native Schedule adopts automatic release.** Staff Event detail no longer exposes Publish. It shows pending release timing and errors, restarts the ten-minute timer after every edit, and allows Revert before release. Only Student slots expose call-time controls. The collaborator-aware Staff picker filters inactive or policy-ineligible people. The exact iPhone 16 Pro simulator build and native source contracts pass; authenticated runtime and production rollout remain open.
+
+- 2026-08-04: **Native assigned-slot replacement now follows the working-copy boundary.** Staff can choose a replacement person from the target Staff or Student class in Event detail. Candidate scoring, assignment history, conflict checks, active-trade and linked-booking guards, and expected-version mutation remain server-owned; the replacement stays private until native Publish. Simulator and source-contract proof pass; authenticated native runtime/device proof remains open.
+- 2026-08-04: **Native staff Schedule actions now stage private working copies.**
+  Staff Event detail loads the additive versioned working-schedule editor and
+  routes Add Shift, Assign Person, unassign, duplicate, delete, and call-window
+  changes through expected-version commands. Publish and Discard now have an
+  explicit native review step. Student pickup and all worker-facing Schedule,
+  Dashboard, Open Work, Trade Board, ICS, and old-client reads remain published
+  schedule reads. Source contracts, project consistency, and the Wisconsin
+  simulator target build pass; authenticated native runtime and device proof
+  remain rollout gates.
+
+- 2026-08-04: **Native Login account access and recovery.** Login now presents
+  SwiftUI registration and password-recovery request forms instead of sending
+  users to the default browser. Registration continues through the existing
+  invite-gated `/api/auth/register` contract, and password recovery uses
+  `/api/auth/forgot-password` with its enumeration-safe response. The emailed
+  reset-link completion page remains the canonical web flow until a separate
+  universal-link slice is shipped.
+
+- 2026-08-04: **Auth email-domain guidance.** Native Login, registration, and
+  password recovery show a non-blocking note as soon as an
+  `@athletics.wisc.edu` address is typed, recommending `@wisc.edu` before
+  password entry or submit. The entered value is never rewritten, so
+  collaborators can continue using their own addresses.
 
 - 2026-08-03: **Kiosk person discovery is global.** Native kiosk roster and Wiscard identity now include every active, visible internal user regardless of saved profile location, while collaborator eligibility stays policy-granted and physical inventory, reservation pickup, and custody remain kiosk-location scoped.
 

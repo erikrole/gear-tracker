@@ -4,6 +4,23 @@ import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
+import { updateAllowedEmailProfileSchema } from "@/lib/validation";
+import { updatePendingAllowedEmailProfile } from "@/lib/services/onboarding-lifecycle";
+
+/** Replace the preloaded profile for an unclaimed student invitation. */
+export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
+  requirePermission(user.role, "allowed_email", "edit");
+  await enforceRateLimit(`allowed-emails:write:${user.id}`, SETTINGS_MUTATION_LIMIT);
+
+  const profile = updateAllowedEmailProfileSchema.parse(await req.json());
+  const result = await updatePendingAllowedEmailProfile({
+    actor: { id: user.id, role: user.role },
+    id: params.id,
+    ...profile,
+  });
+
+  return ok(result.entry);
+});
 
 /** Delete an allowed email entry (only if unclaimed) */
 export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) => {

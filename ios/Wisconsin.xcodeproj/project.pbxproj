@@ -14,6 +14,7 @@
 		021A7B27623C3C8544FE58BB /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B04517A8131BAA862DB3FF5E /* ProfileView.swift */; };
 		0342D7B9F506A8995685BC69 /* ItemListText.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC04AA628BB1DEA764D7EEAC /* ItemListText.swift */; };
 		03D13CE00A34B9C6DD2AB6EF /* KioskPickupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB5E4D4F3F432CE124DE63A8 /* KioskPickupView.swift */; };
+		045D72067A5662DABE89377E /* NativeAuthViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 050BCD6259A4475915E97169 /* NativeAuthViews.swift */; };
 		0530FB6892E8A44F4C8F967C /* AppIntentsData.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9D82991FC6AE45A56917938 /* AppIntentsData.swift */; };
 		085E8467FC2D0385A67DD157 /* QRScannerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44E5D1DB0C8CBAD5E452E807 /* QRScannerSheet.swift */; };
 		089493883612791C05515FAE /* LicensesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B3D4226E94BA750868A4D0B /* LicensesView.swift */; };
@@ -195,6 +196,7 @@
 		0189482D68508F45B086F46F /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
 		02B29E7150D396D5C8236398 /* KioskModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskModels.swift; sourceTree = "<group>"; };
 		046675A42DFADB1133461EDD /* KioskNativeTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskNativeTextField.swift; sourceTree = "<group>"; };
+		050BCD6259A4475915E97169 /* NativeAuthViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAuthViews.swift; sourceTree = "<group>"; };
 		06C085E7CDEC3CCE6DFDD630 /* KioskBarcodeCameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskBarcodeCameraView.swift; sourceTree = "<group>"; };
 		07116906C1A1FF6F5D10BFA1 /* KioskDesign.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskDesign.swift; sourceTree = "<group>"; };
 		073F98039DAC37B5AC72487C /* AccountAvatar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountAvatar.swift; sourceTree = "<group>"; };
@@ -633,6 +635,7 @@
 				C139D1C1F9A3D2C4AB5EEF42 /* LaunchView.swift */,
 				0B3D4226E94BA750868A4D0B /* LicensesView.swift */,
 				6D6258D04F2CBF34C14EBB69 /* LoginView.swift */,
+				050BCD6259A4475915E97169 /* NativeAuthViews.swift */,
 				C2159F738CA242773EA9D438 /* NotificationSettingsView.swift */,
 				9E58906A0DD7BCF5024161BE /* NotificationsSheet.swift */,
 				1770023701735D8701DCAA5B /* OverdueReportView.swift */,
@@ -985,6 +988,7 @@
 				2DF5EDC0EA7BAAF2547F1035 /* LinkStickerWizard.swift in Sources */,
 				DACC18C0E1181FD912992FEE /* LoginView.swift in Sources */,
 				0FC9DC340824D39EB558E913 /* Models.swift in Sources */,
+				045D72067A5662DABE89377E /* NativeAuthViews.swift in Sources */,
 				4F0A1067946B104FF1220865 /* NetworkMonitor.swift in Sources */,
 				5D716269ED62B3BCD83B904B /* NotificationModels.swift in Sources */,
 				78C02C1D3AEE264D6EA1925B /* NotificationSettingsView.swift in Sources */,

@@ -453,13 +453,14 @@ function shiftScheduleNotificationCopy(args: {
     ? formatShiftNotifyTime(args.callStartsAt)
     : `${formatShiftNotifyTime(args.callStartsAt)} - ${formatShiftNotifyTime(args.callEndsAt)}`;
   const note = args.callNote ? ` ${args.callNote}` : "";
+  const timing = args.workerType === "ST" ? ` Call time: ${callWindow}.` : "";
 
   switch (args.event) {
     case "approved":
       return {
         type: "shift_request_approved",
         title: "Shift request approved",
-        body: `You're approved for the ${args.area} ${role} slot for ${args.eventTitle}. Call time: ${callWindow}.${note}`,
+        body: `You're approved for the ${args.area} ${role} slot for ${args.eventTitle}.${timing}${note}`,
       };
     case "removed":
       return {
@@ -471,7 +472,9 @@ function shiftScheduleNotificationCopy(args: {
       return {
         type: "shift_time_changed",
         title: "Shift time updated",
-        body: `Your ${args.area} ${role} slot for ${args.eventTitle} has an updated call time: ${callWindow}.${note}`,
+        body: args.workerType === "ST"
+          ? `Your ${args.area} ${role} slot for ${args.eventTitle} has an updated call time: ${callWindow}.${note}`
+          : `The event time changed for your ${args.area} ${role} slot for ${args.eventTitle}.${note}`,
       };
     case "personal_call_time_changed":
       return {
@@ -483,7 +486,7 @@ function shiftScheduleNotificationCopy(args: {
       return {
         type: "shift_assigned",
         title: "Shift assigned",
-        body: `You're assigned to the ${args.area} ${role} slot for ${args.eventTitle}. Call time: ${callWindow}.${note}`,
+        body: `You're assigned to the ${args.area} ${role} slot for ${args.eventTitle}.${timing}${note}`,
       };
   }
 }
@@ -617,8 +620,10 @@ export async function createShiftScheduleNotificationFromSnapshot(
           area: assignment.area,
           workerType: shiftWorkerLabel(assignment.workerType),
           startsAt: assignment.shiftStartsAt.toISOString(),
-          callStartsAt: callStartsAt.toISOString(),
-          callEndsAt: callEndsAt.toISOString(),
+          ...(assignment.workerType === "ST" ? {
+            callStartsAt: callStartsAt.toISOString(),
+            callEndsAt: callEndsAt.toISOString(),
+          } : {}),
           sportCode: calendarEvent.sportCode,
           locationId: calendarEvent.locationId,
         },
@@ -643,7 +648,7 @@ export async function createShiftScheduleNotificationFromSnapshot(
           title: copy.title,
           body: copy.body,
           bookingTitle: calendarEvent.summary,
-          dueAt: callStartsAt.toISOString(),
+          dueAt: assignment.workerType === "ST" ? callStartsAt.toISOString() : undefined,
         }),
       }, category);
     }
@@ -671,6 +676,9 @@ export async function createPublishedShiftGroupNotifications(shiftGroupId: strin
       event: { select: { id: true, summary: true, startsAt: true } },
       shifts: {
         select: {
+          workerType: true,
+          startsAt: true,
+          callStartsAt: true,
           assignments: {
             where: {
               status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
@@ -678,6 +686,7 @@ export async function createPublishedShiftGroupNotifications(shiftGroupId: strin
             },
             select: {
               userId: true,
+              callStartsAt: true,
               user: { select: { email: true } },
             },
           },
@@ -687,22 +696,30 @@ export async function createPublishedShiftGroupNotifications(shiftGroupId: strin
   });
 
   if (!group?.publishedAt) return;
-  const assignmentsByUser = new Map<string, { count: number; email: string | null }>();
-  for (const assignment of group.shifts.flatMap((shift) => shift.assignments)) {
+  const assignmentsByUser = new Map<string, { count: number; email: string | null; studentCallStartsAt: Date | null }>();
+  for (const shift of group.shifts) for (const assignment of shift.assignments) {
     const current = assignmentsByUser.get(assignment.userId);
     assignmentsByUser.set(assignment.userId, {
       count: (current?.count ?? 0) + 1,
       email: assignment.user.email,
+      studentCallStartsAt: shift.workerType === "ST"
+        ? [current?.studentCallStartsAt, assignment.callStartsAt ?? shift.callStartsAt ?? shift.startsAt]
+            .filter((value): value is Date => Boolean(value))
+            .sort((a, b) => a.getTime() - b.getTime())[0] ?? null
+        : current?.studentCallStartsAt ?? null,
     });
   }
 
-  const title = "Schedule published";
+  const title = "Schedule ready";
   const payload = scheduleNotificationPayload({ eventId: group.event.id });
 
   await Promise.allSettled(
     [...assignmentsByUser.entries()].map(async ([userId, assignment]) => {
       const shiftLabel = assignment.count === 1 ? "shift" : "shifts";
-      const body = `You're scheduled for ${assignment.count} ${shiftLabel} on ${group.event.summary}. Review your call time and gear details.`;
+      const callCopy = assignment.studentCallStartsAt
+        ? ` Student call time: ${formatShiftNotifyTime(assignment.studentCallStartsAt)}.`
+        : "";
+      const body = `You're scheduled for ${assignment.count} ${shiftLabel} on ${group.event.summary}.${callCopy} Review your gear details.`;
       const dedupeKey = `shift_group_publish:${shiftGroupId}:v${group.publishedVersion}:${userId}`;
       try {
         await db.notification.create({
@@ -731,7 +748,7 @@ export async function createPublishedShiftGroupNotifications(shiftGroupId: strin
             title,
             body,
             bookingTitle: group.event.summary,
-            dueAt: group.event.startsAt.toISOString(),
+            dueAt: assignment.studentCallStartsAt?.toISOString(),
           }),
         }, "schedule");
       }
@@ -754,12 +771,15 @@ export async function notifyPublishedShiftGroupWorkers(
         event: { select: { id: true, summary: true, startsAt: true } },
         shifts: {
           select: {
+            workerType: true,
+            startsAt: true,
+            callStartsAt: true,
             assignments: {
               where: {
                 userId: { in: uniqueUserIds },
                 status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
               },
-              select: { userId: true },
+              select: { userId: true, callStartsAt: true },
             },
           },
         },
@@ -772,18 +792,27 @@ export async function notifyPublishedShiftGroupWorkers(
   ]);
   if (!group?.publishedAt) return;
 
-  const assignmentCounts = new Map<string, number>();
-  for (const assignment of group.shifts.flatMap((shift) => shift.assignments)) {
-    assignmentCounts.set(assignment.userId, (assignmentCounts.get(assignment.userId) ?? 0) + 1);
+  const assignmentsByUser = new Map<string, { count: number; studentCallStartsAt: Date | null }>();
+  for (const shift of group.shifts) for (const assignment of shift.assignments) {
+    const current = assignmentsByUser.get(assignment.userId);
+    assignmentsByUser.set(assignment.userId, {
+      count: (current?.count ?? 0) + 1,
+      studentCallStartsAt: shift.workerType === "ST"
+        ? [current?.studentCallStartsAt, assignment.callStartsAt ?? shift.callStartsAt ?? shift.startsAt]
+            .filter((value): value is Date => Boolean(value))
+            .sort((a, b) => a.getTime() - b.getTime())[0] ?? null
+        : current?.studentCallStartsAt ?? null,
+    });
   }
   const title = "Schedule updated";
   const payload = scheduleNotificationPayload({ eventId: group.event.id });
 
   await Promise.allSettled(users.map(async (user) => {
-    const count = assignmentCounts.get(user.id) ?? 0;
+    const assignment = assignmentsByUser.get(user.id);
+    const count = assignment?.count ?? 0;
     const body = count === 0
       ? `You are no longer scheduled for ${group.event.summary}.`
-      : `Your schedule changed for ${group.event.summary}. You now have ${count} ${count === 1 ? "shift" : "shifts"}. Review your call time and gear details.`;
+      : `Your schedule changed for ${group.event.summary}. You now have ${count} ${count === 1 ? "shift" : "shifts"}.${assignment?.studentCallStartsAt ? ` Student call time: ${formatShiftNotifyTime(assignment.studentCallStartsAt)}.` : ""} Review your gear details.`;
     const dedupeKey = `shift_group_update:${shiftGroupId}:v${group.publishedVersion}:${user.id}`;
     try {
       await db.notification.create({
@@ -812,7 +841,7 @@ export async function notifyPublishedShiftGroupWorkers(
           title,
           body,
           bookingTitle: group.event.summary,
-          dueAt: group.event.startsAt.toISOString(),
+          dueAt: assignment?.studentCallStartsAt?.toISOString(),
         }),
       }, "schedule");
     }
@@ -887,7 +916,6 @@ export async function notifyPublishedScheduleFollowers(shiftGroupId: string): Pr
           title,
           body,
           bookingTitle: group.event.summary,
-          dueAt: group.event.startsAt.toISOString(),
         }),
       }, "schedule");
     }

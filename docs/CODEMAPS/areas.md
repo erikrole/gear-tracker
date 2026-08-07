@@ -159,7 +159,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 
 - Doc: `docs/AREA_SETTINGS.md`
 - Pages: `/settings/allowed-emails`, `/settings/appearance`, `/settings/audit`, `/settings/bookings`, `/settings/calendar-sources`, `/settings/categories`, `/settings/checkout-policies`, `/settings/collaborator-access`
-- APIs: `/api/settings/checkout-policies`, `/api/settings/escalation`, `/api/settings/extend-presets`, `/api/settings/reservation-rules`
+- APIs: `/api/settings/checkout-policies`, `/api/settings/escalation`, `/api/settings/extend-presets`, `/api/settings/non-game-schedule`, `/api/settings/reservation-rules`
 - Services: _none matched_
 - Tests: `tests/ios-settings-detail-menus.test.ts`, `tests/ios-settings-first-class.test.ts`, `tests/settings-allowed-emails-display.test.ts`, `tests/settings-audit-command-surface-source.test.ts`, `tests/settings-audit-filters.test.ts`, `tests/settings-audit-pagination.test.ts`, `tests/settings-calendar-sources-load-state.test.ts`, `tests/settings-kiosk-devices-location-state.test.ts`
 
@@ -167,8 +167,8 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 
 - Doc: `docs/AREA_SHIFTS.md`
 - Pages: `/schedule/assign`, `/schedule`
-- APIs: `/api/my-shifts`, `/api/schedule/automation`, `/api/schedule/export`, `/api/schedule/health`, `/api/schedule/open-work`, `/api/schedule/published/[id]/follow`, `/api/schedule/published/[id]`, `/api/schedule/published`, `/api/shift-assignments/[id]/acknowledge`, `/api/shift-assignments/[id]/approve`
-- Services: `src/lib/services/collaborator-schedule.ts`, `src/lib/services/reservation-schedule.ts`, `src/lib/services/schedule-automation.ts`, `src/lib/services/schedule-call-time-sync.ts`, `src/lib/services/schedule-change-history.ts`, `src/lib/services/schedule-exports.ts`, `src/lib/services/schedule-health.ts`, `src/lib/services/schedule-notification-policy.ts`
+- APIs: `/api/my-shifts`, `/api/schedule/automation`, `/api/schedule/export`, `/api/schedule/health`, `/api/schedule/open-work`, `/api/schedule/published/[id]/follow`, `/api/schedule/published/[id]`, `/api/schedule/published`, `/api/settings/non-game-schedule`, `/api/shift-assignments/[id]/acknowledge`
+- Services: `src/lib/services/collaborator-schedule.ts`, `src/lib/services/non-game-schedule-defaults.ts`, `src/lib/services/reservation-schedule.ts`, `src/lib/services/schedule-automation.ts`, `src/lib/services/schedule-call-time-sync.ts`, `src/lib/services/schedule-change-history.ts`, `src/lib/services/schedule-exports.ts`, `src/lib/services/schedule-health.ts`
 - Tests: `tests/collaborator-schedule-follow.test.ts`, `tests/ios-collaborator-published-schedule-redesign.test.ts`, `tests/ios-schedule-all-day-display.test.ts`, `tests/ios-schedule-availability-trade-redesign.test.ts`, `tests/ios-schedule-calendar-hit-targets.test.ts`, `tests/ios-schedule-dynamic-type.test.ts`, `tests/ios-schedule-edit-times-post-trade-redesign.test.ts`, `tests/ios-schedule-filters-calendar-management-redesign.test.ts`
 
 ## users

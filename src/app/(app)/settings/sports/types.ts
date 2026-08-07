@@ -20,6 +20,16 @@ export type SportConfig = {
   shiftConfigs: ShiftConfig[];
 };
 
+export type NonGameScheduleDefaults = {
+  shiftStartOffset: number;
+  shiftEndOffset: number;
+  shiftConfigs: Array<{
+    area: Area;
+    staffCount: number;
+    studentCount: number;
+  }>;
+};
+
 export { AREAS, AREA_LABELS } from "@/types/areas";
 export type { Area };
 

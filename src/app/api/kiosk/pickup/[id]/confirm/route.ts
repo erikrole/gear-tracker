@@ -191,9 +191,6 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
       }
       throw new HttpError(409, `Cannot confirm pickup — booking is in ${sourceReservation.status} state`);
     }
-    if (sourceReservation.locationId !== kiosk.locationId) {
-      throw new HttpError(404, "Pending pickup not found");
-    }
     if (sourceReservation.requesterUserId !== actorId) {
       throw new HttpError(403, "Only the reservation requester can confirm pickup at the kiosk");
     }

@@ -12,6 +12,7 @@ import { z } from "zod";
 import { normalizeManualEventTitle } from "@/lib/title-normalization";
 import { enforceRateLimit, SCHEDULE_MUTATION_LIMIT } from "@/lib/rate-limit";
 import { requireInternalActor } from "@/lib/rbac";
+import { generateShiftsForEvent } from "@/lib/services/shift-generation";
 
 function canIncludeHiddenEvents(role: string) {
   return role === "ADMIN" || role === "STAFF";
@@ -188,6 +189,8 @@ export const POST = withAuth(async (req, { user }) => {
     },
   });
 
+  const scheduleGeneration = await generateShiftsForEvent(event.id);
+
   await createAuditEntry({
     actorId: user.id,
     actorRole: user.role,
@@ -206,5 +209,5 @@ export const POST = withAuth(async (req, { user }) => {
     },
   });
 
-  return ok({ data: event }, 201);
+  return ok({ data: event, scheduleGeneration }, 201);
 });

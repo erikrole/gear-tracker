@@ -6,9 +6,17 @@ struct LoginView: View {
     @State private var password = ""
     @State private var showPassword = false
     @State private var passkeyLoading = false
+    @State private var authDestination: AuthDestination?
     @FocusState private var focused: Field?
 
     enum Field { case email, password }
+
+    private enum AuthDestination: String, Identifiable {
+        case forgotPassword
+        case register
+
+        var id: String { rawValue }
+    }
 
     private var trimmedEmail: String {
         email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -33,9 +41,6 @@ struct LoginView: View {
             passkeyLoading = false
         }
     }
-
-    private static let forgotPasswordURL = AppEnvironment.url(path: "/forgot-password")
-    private static let registerURL = AppEnvironment.url(path: "/register")
 
     /// Crimson accent for focused field edges — matches the web login's
     /// `#c41230` focus ring rather than the adaptive `brandPrimary`, because
@@ -79,6 +84,18 @@ struct LoginView: View {
                 AccessibilityNotification.Announcement(error).post()
             }
         }
+        .sheet(item: $authDestination) { destination in
+            NavigationStack {
+                switch destination {
+                case .forgotPassword:
+                    NativeForgotPasswordView()
+                case .register:
+                    NativeRegistrationView()
+                }
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        }
     }
 
     // The card is a fixed-light frosted material over the dark scene — same
@@ -100,10 +117,14 @@ struct LoginView: View {
                     .focused($focused, equals: .email)
                     .submitLabel(.next)
                     .onSubmit { focused = .password }
-                    .onChange(of: email) { session.clearError() }
+                    .onChange(of: email) {
+                        session.clearError()
+                    }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 12)
                     .background(fieldFill(for: .email))
+
+                AuthEmailDomainNote(email: email)
             }
 
             // Password
@@ -112,9 +133,13 @@ struct LoginView: View {
                     Text("Password")
                         .font(.subheadline.weight(.medium))
                     Spacer()
-                    Link("Forgot password?", destination: Self.forgotPasswordURL)
+                    Button("Forgot password?") {
+                        authDestination = .forgotPassword
+                    }
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Opens password recovery in the app")
                 }
                 ZStack(alignment: .trailing) {
                     Group {
@@ -249,13 +274,17 @@ struct LoginView: View {
     // Quiet scene-level footer below the card, mirroring the web login.
     private var footer: some View {
         VStack(spacing: 8) {
-            Text("Access is by invitation only.\nContact an administrator to request access.")
+            Text("Access is by invitation only.\nContact Erik Role to request access.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.white.opacity(0.55))
 
-            Link("Need an account?", destination: Self.registerURL)
+            Button("Need an account?") {
+                authDestination = .register
+            }
                 .font(.footnote.weight(.medium))
                 .foregroundStyle(.white.opacity(0.8))
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens account registration in the app")
         }
         .font(.footnote)
     }

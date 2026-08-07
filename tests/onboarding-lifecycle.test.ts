@@ -34,15 +34,17 @@ vi.mock("@/lib/db", () => ({
 vi.mock("@/lib/audit", () => ({
   createAuditEntry: vi.fn(),
   createAuditEntries: vi.fn(),
+  createAuditEntryTx: vi.fn(),
 }));
 
-import { createAuditEntries, createAuditEntry } from "@/lib/audit";
+import { createAuditEntries, createAuditEntry, createAuditEntryTx } from "@/lib/audit";
 import { db } from "@/lib/db";
 import {
   createAllowedEmailInvite,
   createAllowedEmailInvitesBulk,
   createDirectUserAccount,
   previewAllowedEmailInvitesBulk,
+  updatePendingAllowedEmailProfile,
 } from "@/lib/services/onboarding-lifecycle";
 
 const admin = { id: "admin-1", role: "ADMIN" as const };
@@ -375,6 +377,132 @@ describe("onboarding lifecycle service", () => {
         action: "created",
       }),
     ]);
+  });
+
+  it("stores pending student profile and assignment data on the invitation", async () => {
+    vi.mocked(db.allowedEmail.findMany)
+      .mockResolvedValueOnce(allowedEmailRows([]))
+      .mockResolvedValueOnce(allowedEmailRows([{
+        id: "allowed-student",
+        email: "student@uw.edu",
+        role: "STUDENT",
+        affiliation: null,
+        collaboratorProfile: null,
+        collaboratorPolicyId: null,
+        preloadedName: "Student One",
+        preloadedPrimaryArea: "VIDEO",
+        preloadedAreas: ["VIDEO", "SOCIAL"],
+        preloadedSportCodes: ["WBB", "VB"],
+      }]));
+    vi.mocked(db.user.findMany).mockResolvedValue([]);
+    vi.mocked(db.allowedEmail.createMany).mockResolvedValue(createManyResult(1));
+
+    const result = await createAllowedEmailInvitesBulk({
+      actor: admin,
+      emails: [{
+        email: "Student@UW.edu",
+        role: "STUDENT",
+        preloadedName: " Student One ",
+        preloadedPrimaryArea: "VIDEO",
+        preloadedAreas: ["VIDEO", "SOCIAL"],
+        preloadedSportCodes: ["WBB", "VB", "WBB"],
+      }],
+    });
+
+    expect(result).toEqual({ created: 1, skipped: 0 });
+    expect(db.allowedEmail.createMany).toHaveBeenCalledWith({
+      data: [{
+        email: "student@uw.edu",
+        role: "STUDENT",
+        preloadedName: "Student One",
+        preloadedPrimaryArea: "VIDEO",
+        preloadedAreas: ["VIDEO", "SOCIAL"],
+        preloadedSportCodes: ["WBB", "VB"],
+        createdById: "admin-1",
+      }],
+      skipDuplicates: true,
+    });
+    expect(createAuditEntries).toHaveBeenCalledWith([
+      expect.objectContaining({
+        entityType: "allowed_email",
+        after: expect.objectContaining({
+          preloadedName: "Student One",
+          preloadedAreas: ["VIDEO", "SOCIAL"],
+          preloadedSportCodes: ["WBB", "VB"],
+        }),
+      }),
+    ]);
+  });
+
+  it("updates an unclaimed student invitation profile in the transaction and audits the replacement", async () => {
+    tx.allowedEmail.findUnique.mockResolvedValue({
+      id: "allowed-student",
+      email: "student@uw.edu",
+      role: "STUDENT",
+      claimedAt: null,
+      claimedById: null,
+      preloadedName: null,
+      preloadedPrimaryArea: null,
+      preloadedAreas: [],
+      preloadedSportCodes: [],
+    });
+    tx.allowedEmail.update.mockResolvedValue({
+      id: "allowed-student",
+      email: "student@uw.edu",
+      role: "STUDENT",
+      claimedAt: null,
+      claimedById: null,
+      preloadedName: "Student One",
+      preloadedPrimaryArea: "VIDEO",
+      preloadedAreas: ["VIDEO", "SOCIAL"],
+      preloadedSportCodes: ["WBB", "VB"],
+    });
+
+    const result = await updatePendingAllowedEmailProfile({
+      actor: admin,
+      id: "allowed-student",
+      preloadedName: " Student One ",
+      preloadedPrimaryArea: "VIDEO",
+      preloadedAreas: ["VIDEO", "SOCIAL"],
+      preloadedSportCodes: ["WBB", "VB", "WBB"],
+    });
+
+    expect(result.entry.preloadedName).toBe("Student One");
+    expect(tx.allowedEmail.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "allowed-student" },
+      data: {
+        preloadedName: "Student One",
+        preloadedPrimaryArea: "VIDEO",
+        preloadedAreas: ["VIDEO", "SOCIAL"],
+        preloadedSportCodes: ["WBB", "VB"],
+      },
+    }));
+    expect(createAuditEntryTx).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        entityType: "allowed_email",
+        entityId: "allowed-student",
+        action: "pending_profile_updated",
+      }),
+    );
+  });
+
+  it("rejects preloaded profile data for a staff invitation", async () => {
+    await expect(createAllowedEmailInvitesBulk({
+      actor: admin,
+      emails: [{
+        email: "staff@uw.edu",
+        role: "STAFF",
+        preloadedName: "Staff Member",
+        preloadedPrimaryArea: "VIDEO",
+        preloadedAreas: ["VIDEO"],
+        preloadedSportCodes: [],
+      }],
+    })).rejects.toMatchObject({
+      status: 400,
+      message: "Only student invitations can receive preloaded profile data",
+    });
+    expect(db.allowedEmail.createMany).not.toHaveBeenCalled();
   });
 
   it("previews bulk invite account status without creating rows", async () => {

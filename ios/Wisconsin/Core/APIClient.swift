@@ -51,6 +51,11 @@ struct TestPushResult: Decodable {
     let revoked: Int
 }
 
+struct PasswordResetRequestResult: Decodable {
+    let message: String
+    let resetEmailConfigured: Bool
+}
+
 extension Notification.Name {
     /// Fired when an authenticated API call returns 401. The notification
     /// object is the request's captured `AuthSessionBoundary` generation, so a
@@ -92,15 +97,42 @@ final class APIClient {
             let password: String
             let rememberMe: Bool
         }
-        let nextHost = AppEnvironment.apiHost(forLoginEmail: email)
-        if nextHost != AppEnvironment.activeAPIHost {
-            HTTPCookieStorage.shared.removeCookies(since: .distantPast)
-            AppEnvironment.setActiveAPIHost(nextHost)
-        }
+        prepareAuthHost(for: email)
         var req = request(path: "/api/auth/login", method: "POST")
         req.httpBody = try JSONEncoder().encode(Body(email: email, password: password, rememberMe: true))
         let resp: LoginResponse = try await perform(req, broadcastsSessionExpiry: false)
         return resp.user
+    }
+
+    func register(name: String, email: String, password: String) async throws -> CurrentUser {
+        struct Body: Encodable {
+            let name: String
+            let email: String
+            let password: String
+        }
+
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        prepareAuthHost(for: normalizedEmail)
+        var req = request(path: "/api/auth/register", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(
+            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+            email: normalizedEmail,
+            password: password
+        ))
+        let response: LoginResponse = try await perform(req, broadcastsSessionExpiry: false)
+        return response.user
+    }
+
+    func requestPasswordReset(email: String) async throws -> PasswordResetRequestResult {
+        struct Body: Encodable {
+            let email: String
+        }
+
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        prepareAuthHost(for: normalizedEmail)
+        var req = request(path: "/api/auth/forgot-password", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(email: normalizedEmail))
+        return try await perform(req, broadcastsSessionExpiry: false)
     }
 
     func passkeyAuthenticationOptions(rememberMe: Bool = true) async throws -> PasskeyAuthenticationOptions {
@@ -1379,6 +1411,24 @@ final class APIClient {
         )
     }
 
+    func setWorkingScheduleCallWindowForAll(
+        shiftGroupId: String,
+        expectedVersion: Int,
+        callStartsAt: Date?,
+        callEndsAt: Date?
+    ) async throws -> WorkingScheduleEditor {
+        let iso = ISO8601DateFormatter()
+        return try await mutateWorkingSchedule(
+            shiftGroupId: shiftGroupId,
+            expectedVersion: expectedVersion,
+            command: WorkingScheduleCommand(
+                type: "setCallWindowForAll",
+                callStartsAt: callStartsAt.map { iso.string(from: $0) },
+                callEndsAt: callEndsAt.map { iso.string(from: $0) }
+            )
+        )
+    }
+
     func discardWorkingSchedule(shiftGroupId: String, expectedVersion: Int) async throws -> WorkingScheduleEditor {
         let response: DataWrapper<WorkingScheduleEditor> = try await perform(
             request(
@@ -1387,14 +1437,6 @@ final class APIClient {
                 queryItems: [.init(name: "expectedVersion", value: "\(expectedVersion)")]
             )
         )
-        return response.data
-    }
-
-    func publishWorkingSchedule(shiftGroupId: String, expectedWorkingVersion: Int) async throws -> SchedulePublicationState {
-        struct Body: Encodable { let expectedWorkingVersion: Int }
-        var req = request(path: "/api/shift-groups/\(shiftGroupId)/publish", method: "POST")
-        req.httpBody = try JSONEncoder().encode(Body(expectedWorkingVersion: expectedWorkingVersion))
-        let response: DataWrapper<SchedulePublicationState> = try await perform(req)
         return response.data
     }
 

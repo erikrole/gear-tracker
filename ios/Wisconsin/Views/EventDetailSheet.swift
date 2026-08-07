@@ -27,7 +27,7 @@ final class EventDetailViewModel {
 
     var workingVersion: Int { workingEditor?.workingVersion ?? 0 }
     var hasUnpublishedChanges: Bool { workingEditor?.hasUnpublishedChanges == true }
-    var workingChangeSummary: String { workingEditor?.changes.summary ?? "No unpublished changes" }
+    var workingChangeSummary: String { workingEditor?.changes.summary ?? "No pending changes" }
     var displayedShifts: [EventShift] { workingEditor?.eventShifts() ?? shiftGroup?.shifts ?? [] }
 
     func load(includeWorkingCopy: Bool? = nil) async {
@@ -53,7 +53,7 @@ final class EventDetailViewModel {
         isLoading = false
     }
 
-    private static let areaOrder = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"]
+    private static let areaOrder = ["VIDEO", "PHOTO", "GRAPHICS", "SOCIAL", "COMMS"]
 
     private(set) var shiftsByArea: [(area: String, shifts: [EventShift])] = []
 
@@ -99,11 +99,10 @@ struct EventDetailView: View {
     @State private var unassignTarget: ShiftAssignmentRecord?
     @State private var deleteTarget: EventShift?
     @State private var editTimesTarget: EventShift?
+    @State private var showAllCallTimes = false
     @State private var showAddShift = false
     @State private var isCreatingGroup = false
-    @State private var isPublishing = false
     @State private var isDiscarding = false
-    @State private var showPublishReview = false
     @State private var showDiscardReview = false
     @State private var actionError: String?
     @State private var actionErrorTitle = "Couldn't update event"
@@ -152,6 +151,12 @@ struct EventDetailView: View {
             }
         }
         .task { await vm.load(includeWorkingCopy: canManageShifts) }
+        .task(id: vm.workingEditor?.autoReleaseAt) {
+            guard let releaseAt = vm.workingEditor?.autoReleaseAt else { return }
+            let delay = max(0, releaseAt.timeIntervalSinceNow) + 1
+            try? await Task.sleep(for: .seconds(delay))
+            if !Task.isCancelled { await vm.load() }
+        }
         .task { weatherData = await EventWeatherService.shared.weather(for: event) }
         .refreshable { await vm.load() }
         .sheet(item: $assignTarget) { shift in
@@ -166,8 +171,8 @@ struct EventDetailView: View {
                     shiftGroupId: group.id,
                     expectedWorkingVersion: vm.workingVersion,
                     eventTitle: scheduleEventDisplayTitle(event),
-                    defaultStart: event.startsAt,
-                    defaultEnd: event.endsAt,
+                    defaultStart: vm.workingEditor?.defaultWindow?.startsAt ?? event.startsAt,
+                    defaultEnd: vm.workingEditor?.defaultWindow?.endsAt ?? event.endsAt,
                     onAdded: { Task { await vm.load() } }
                 )
             }
@@ -178,6 +183,19 @@ struct EventDetailView: View {
                 eventTitle: scheduleEventDisplayTitle(event)
             ) { newStart, newEnd in
                 await updateShiftTimes(shift, startsAt: newStart, endsAt: newEnd)
+            }
+        }
+        .sheet(isPresented: $showAllCallTimes) {
+            if let shift = vm.displayedShifts.first(where: { $0.workerType == "ST" }), let editor = vm.workingEditor {
+                EditShiftTimesSheet(
+                    shift: shift,
+                    eventTitle: scheduleEventDisplayTitle(event),
+                    scope: .allAssigned,
+                    defaultStart: editor.defaultWindow?.startsAt ?? event.startsAt,
+                    defaultEnd: editor.defaultWindow?.endsAt ?? event.endsAt
+                ) { newStart, newEnd in
+                    await updateAllShiftTimes(startsAt: newStart, endsAt: newEnd)
+                }
             }
         }
         .sheet(item: $postTradeTarget) { candidate in
@@ -259,24 +277,14 @@ struct EventDetailView: View {
             }
         }
         .confirmationDialog(
-            "Publish schedule changes?",
-            isPresented: $showPublishReview,
-            titleVisibility: .visible
-        ) {
-            Button("Publish") { Task { await publishWorkingSchedule() } }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("\(vm.workingChangeSummary). Workers will see the updated crew after publishing.")
-        }
-        .confirmationDialog(
-            "Discard private changes?",
+            "Revert pending changes?",
             isPresented: $showDiscardReview,
             titleVisibility: .visible
         ) {
-            Button("Discard", role: .destructive) { Task { await discardWorkingSchedule() } }
+            Button("Revert", role: .destructive) { Task { await discardWorkingSchedule() } }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("The unpublished crew edits for this event will be removed. The last published schedule will remain.")
+            Text("The pending crew edits for this event will be removed. Workers will keep seeing the current schedule.")
         }
         .alert(
             actionErrorTitle,
@@ -468,6 +476,24 @@ struct EventDetailView: View {
         }
     }
 
+    private func updateAllShiftTimes(startsAt: Date, endsAt: Date) async -> String? {
+        do {
+            guard let groupId = vm.shiftGroup?.id else { return "Crew is unavailable. Refresh and try again." }
+            _ = try await APIClient.shared.setWorkingScheduleCallWindowForAll(
+                shiftGroupId: groupId,
+                expectedVersion: vm.workingVersion,
+                callStartsAt: startsAt,
+                callEndsAt: endsAt
+            )
+            Haptics.success()
+            await vm.load()
+            return nil
+        } catch {
+            Haptics.error()
+            return error.localizedDescription
+        }
+    }
+
     private func duplicateShift(_ shift: EventShift) async {
         guard let groupId = vm.shiftGroup?.id else { return }
         do {
@@ -488,26 +514,6 @@ struct EventDetailView: View {
         }
     }
 
-    private func publishWorkingSchedule() async {
-        guard !isPublishing,
-              let groupId = vm.shiftGroup?.id,
-              vm.hasUnpublishedChanges else { return }
-        isPublishing = true
-        defer { isPublishing = false }
-        do {
-            _ = try await APIClient.shared.publishWorkingSchedule(
-                shiftGroupId: groupId,
-                expectedWorkingVersion: vm.workingVersion
-            )
-            Haptics.success()
-            await vm.load()
-        } catch {
-            presentActionError(title: "Couldn't publish schedule", error: error) {
-                await self.publishWorkingSchedule()
-            }
-        }
-    }
-
     private func discardWorkingSchedule() async {
         guard !isDiscarding,
               let groupId = vm.shiftGroup?.id,
@@ -522,7 +528,7 @@ struct EventDetailView: View {
             Haptics.success()
             await vm.load()
         } catch {
-            presentActionError(title: "Couldn't discard schedule changes", error: error) {
+            presentActionError(title: "Couldn't revert schedule changes", error: error) {
                 await self.discardWorkingSchedule()
             }
         }
@@ -563,7 +569,7 @@ struct EventDetailView: View {
     }
 
     private var callTime: Date? {
-        if event.displayAllDay { return nil }
+        if event.displayAllDay || myShift?.workerType == "FT" { return nil }
         return eventWork?.shift.startsAt ?? myShift?.startsAt
     }
 
@@ -736,6 +742,25 @@ struct EventDetailView: View {
                 showAddShift = true
             } label: {
                 Label("Add Shift", systemImage: "plus")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .frame(minHeight: 44)
+            .tint(Color.statusText(.purple))
+        }
+    }
+
+    @ViewBuilder
+    private var setAllCallTimesButton: some View {
+        if canManageShifts,
+           !event.displayAllDay,
+           vm.workingEditor != nil,
+           vm.displayedShifts.contains(where: { $0.workerType == "ST" }) {
+            Button {
+                showAllCallTimes = true
+            } label: {
+                Label("Set Student call time", systemImage: "person.2")
                     .font(.subheadline.weight(.semibold))
             }
             .buttonStyle(.bordered)
@@ -963,6 +988,7 @@ struct EventDetailView: View {
                     if canManageShifts, let coverage = vm.shiftGroup?.coverage {
                         CoveragePill(coverage: coverage)
                     }
+                    setAllCallTimesButton
                     addShiftButton
                 }
             }
@@ -979,25 +1005,26 @@ struct EventDetailView: View {
                 .foregroundStyle(Color.statusText(.orange))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
-                Text("Private schedule changes")
+                Text("Pending schedule changes")
                     .font(.subheadline.weight(.semibold))
                 Text(vm.workingChangeSummary)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text("Workers still see the last published crew.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if let error = vm.workingEditor?.autoReleaseError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(Color.statusText(.red))
+                } else if let releaseAt = vm.workingEditor?.autoReleaseAt {
+                    Text("Workers see this at \(releaseAt.formatted(date: .omitted, time: .shortened)). Editing again restarts the 10-minute timer.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             VStack(alignment: .trailing, spacing: 4) {
-                Button("Review & Publish") { showPublishReview = true }
+                Button("Revert", role: .destructive) { showDiscardReview = true }
                     .font(.caption.weight(.semibold))
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color.statusText(.purple))
-                    .disabled(isPublishing || isDiscarding)
-                Button("Discard", role: .destructive) { showDiscardReview = true }
-                    .font(.caption.weight(.semibold))
-                    .disabled(isPublishing || isDiscarding)
+                    .disabled(isDiscarding)
             }
         }
         .padding(14)
@@ -1302,7 +1329,7 @@ struct ShiftRow: View {
                 // nothing is clipped or hyphenated.
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        if !hidesShiftTimes {
+                        if !hidesShiftTimes && isStudentSlot {
                             callWindowText
                         }
                         if showsWorkerType {
@@ -1318,7 +1345,7 @@ struct ShiftRow: View {
             } else {
                 HStack(spacing: 12) {
                     // Call time column
-                    if !hidesShiftTimes {
+                    if !hidesShiftTimes && isStudentSlot {
                         VStack(alignment: .trailing, spacing: 2) {
                             Text(shift.effectiveStartsAt.formatted(.dateTime.hour().minute()))
                                 .font(.caption.monospacedDigit().weight(.medium))
@@ -1363,7 +1390,7 @@ struct ShiftRow: View {
         var parts: [String] = []
         if isHighlighted { parts.append("Your shift") }
         parts.append("\(workerTypeLabel) shift")
-        if !hidesShiftTimes {
+        if !hidesShiftTimes && isStudentSlot {
             let timeRange = "\(shift.effectiveStartsAt.formatted(.dateTime.hour().minute())) to \(shift.effectiveEndsAt.formatted(.dateTime.hour().minute()))"
             parts.append(timeRange)
         }
@@ -1470,7 +1497,7 @@ struct ShiftRow: View {
                     Label("Duplicate shift", systemImage: "plus.square.on.square")
                 }
             }
-            if let onEditTimes {
+            if isStudentSlot, let onEditTimes {
                 Button { onEditTimes(shift) } label: {
                     Label("Change call time", systemImage: "clock.badge.checkmark")
                 }
@@ -1618,9 +1645,15 @@ struct ShiftRow: View {
 
 // MARK: - Edit Shift Times Sheet
 
+enum CallWindowEditScope {
+    case slot
+    case allAssigned
+}
+
 struct EditShiftTimesSheet: View {
     let shift: EventShift
     let eventTitle: String
+    let scope: CallWindowEditScope
     let onSave: (Date, Date) async -> String?
 
     @State private var startsAt: Date
@@ -1633,13 +1666,17 @@ struct EditShiftTimesSheet: View {
     init(
         shift: EventShift,
         eventTitle: String,
+        scope: CallWindowEditScope = .slot,
+        defaultStart: Date? = nil,
+        defaultEnd: Date? = nil,
         onSave: @escaping (Date, Date) async -> String?
     ) {
         self.shift = shift
         self.eventTitle = eventTitle
+        self.scope = scope
         self.onSave = onSave
-        _startsAt = State(initialValue: shift.effectiveStartsAt)
-        _endsAt = State(initialValue: shift.effectiveEndsAt)
+        _startsAt = State(initialValue: defaultStart ?? shift.effectiveStartsAt)
+        _endsAt = State(initialValue: defaultEnd ?? shift.effectiveEndsAt)
     }
 
     private var hasChanges: Bool {
@@ -1665,7 +1702,7 @@ struct EditShiftTimesSheet: View {
                 .padding(.vertical, 12)
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("Edit Call Window")
+            .navigationTitle(scope == .allAssigned ? "Set Student Call Time" : "Edit Call Window")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -1690,7 +1727,7 @@ struct EditShiftTimesSheet: View {
                         } else {
                             Image(systemName: "checkmark")
                         }
-                        Text("Save Call Window")
+                        Text(scope == .allAssigned ? "Apply to Students" : "Save Call Window")
                             .fontWeight(.semibold)
                     }
                     .frame(maxWidth: .infinity)
@@ -1729,7 +1766,7 @@ struct EditShiftTimesSheet: View {
                 Text(eventTitle)
                     .font(.headline)
                     .lineLimit(2)
-                Text("\(shift.area.shiftAreaLabel) · \(workerClassLabel)")
+                Text(scope == .allAssigned ? "Every Student slot" : "\(shift.area.shiftAreaLabel) · \(workerClassLabel)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -1745,7 +1782,9 @@ struct EditShiftTimesSheet: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text("Call Window")
                     .font(.headline)
-                Text("Applies only to this crew slot")
+                Text(scope == .allAssigned
+                    ? "Applies to every Student slot and clears Student personal overrides. Staff and collaborators do not have a call time."
+                    : "Applies only to this crew slot")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -1776,7 +1815,7 @@ struct EditShiftTimesSheet: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(Color.statusText(.red))
             VStack(alignment: .leading, spacing: 4) {
-                Text("Couldn't save call window")
+                Text(scope == .allAssigned ? "Couldn't update call times" : "Couldn't save call window")
                     .font(.subheadline.weight(.semibold))
                 Text(message)
                     .font(.caption)

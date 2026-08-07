@@ -40,7 +40,7 @@ import { SettingsPageShell } from "../SettingsPageShell";
 type AllowedEmail = {
   id: string;
   email: string;
-  role: "ADMIN" | "STAFF" | "STUDENT";
+  role: "ADMIN" | "STAFF" | "STUDENT" | "COLLABORATOR";
   claimedAt: string | null;
   createdAt: string;
   createdBy: { id: string; name: string };
@@ -53,6 +53,7 @@ const ROLE_BADGE_META: Record<AllowedEmail["role"], { label: string; variant: Ba
   ADMIN: { label: "Admin", variant: "purple" },
   STAFF: { label: "Staff", variant: "blue" },
   STUDENT: { label: "Student", variant: "gray" },
+  COLLABORATOR: { label: "Collaborator", variant: "blue" },
 };
 
 export default function AllowedEmailsPage() {

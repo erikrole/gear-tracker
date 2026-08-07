@@ -115,13 +115,12 @@ type Props = {
   currentUserRole?: string;
 };
 
-const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS", "LIVE_PRODUCTION"] as const;
+const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "SOCIAL", "COMMS", "LIVE_PRODUCTION"] as const;
 
 function publicationLabel(publication: ShiftGroupDetail["publication"]) {
-  if (!publication?.publishedAt) return { label: "Draft", variant: "gray" as const };
-  if (publication.changedAfterPublish) return { label: "Changed", variant: "orange" as const };
-  if (publication.unacknowledgedCount > 0) return { label: `${publication.unacknowledgedCount} unacknowledged`, variant: "blue" as const };
-  return { label: "Published", variant: "green" as const };
+  if (!publication?.publishedAt) return { label: "Not released", variant: "gray" as const };
+  if (publication.changedAfterPublish) return { label: "Pending sync", variant: "orange" as const };
+  return { label: "Current", variant: "green" as const };
 }
 
 /* ───── Component ───── */
@@ -142,7 +141,6 @@ export default function ShiftDetailPanel({
   const [autoFillApplying, setAutoFillApplying] = useState(false);
   const [autoFillPreview, setAutoFillPreview] = useState<AutoFillPreviewResponse | null>(null);
   const [autoFillPreviewOpen, setAutoFillPreviewOpen] = useState(false);
-  const [publishing, setPublishing] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [tradeDialogAssignmentId, setTradeDialogAssignmentId] = useState<string | null>(null);
   const [tradeNotes, setTradeNotes] = useState("");
@@ -154,7 +152,6 @@ export default function ShiftDetailPanel({
   const usersAbortRef = useRef<AbortController | null>(null);
   const actingRef = useRef<string | null>(null);
   const autoFillingRef = useRef(false);
-  const publishingRef = useRef(false);
   const archivingRef = useRef(false);
   const postingRef = useRef(false);
 
@@ -166,7 +163,9 @@ export default function ShiftDetailPanel({
   const [userSearch, setUserSearch] = useState("");
 
   const isStaff = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
-  const canEditPublishedSchedule = isStaff && !group?.hasWorkingCopy;
+  // Schedule is the only staffing authoring surface. Keeping this detail panel
+  // read-only prevents direct mutations from bypassing the 10-minute buffer.
+  const canEditPublishedSchedule = false;
   const eventTimingLabel = group?.event.allDay
     ? formatCalendarEventDateRange(group.event, { includeYear: true })
     : group
@@ -436,33 +435,6 @@ export default function ShiftDetailPanel({
     }
   }
 
-  async function handlePublish() {
-    if (!canEditPublishedSchedule) {
-      toast.error("Open Schedule to review and publish the private working copy.");
-      return;
-    }
-    if (!group || publishingRef.current) return;
-    publishingRef.current = true;
-    setPublishing(true);
-    try {
-      const res = await fetch(`/api/shift-groups/${group.id}/publish`, { method: "POST" });
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        toast.success(group.publication?.publishedAt ? "Schedule republished" : "Schedule published");
-        await fetchGroup();
-        onUpdated?.();
-      } else {
-        const msg = await parseErrorMessage(res, "Publish failed");
-        toast.error(msg);
-      }
-    } catch {
-      toast.error("Could not reach the server. Schedule was not published.");
-    } finally {
-      publishingRef.current = false;
-      setPublishing(false);
-    }
-  }
-
   async function handleArchive() {
     if (!group || archivingRef.current) return;
     archivingRef.current = true;
@@ -585,10 +557,10 @@ export default function ShiftDetailPanel({
           <div className="p-4 text-muted-foreground">Shift group not found.</div>
         ) : (
           <SheetBody className="px-6 py-4">
-            {group.hasWorkingCopy && isStaff && (
+            {isStaff && (
               <Alert className="mb-4">
                 <AlertDescription>
-                  This event has unpublished Schedule changes. Review them in the <Link href="/schedule" className="font-medium underline">Schedule</Link> workstation before changing or publishing live assignments.
+                  Make crew changes in <Link href="/schedule" className="font-medium underline">Schedule</Link>. Each edit restarts a 10-minute buffer before workers see it.
                 </AlertDescription>
               </Alert>
             )}
@@ -615,17 +587,9 @@ export default function ShiftDetailPanel({
                     size="sm"
                     className="h-9"
                     onClick={handleAutoFill}
-                    disabled={autoFilling || acting !== null || publishing}
+                    disabled={autoFilling || acting !== null}
                   >
                     {autoFilling ? "Building preview..." : "Preview auto-fill"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="h-9"
-                    onClick={handlePublish}
-                    disabled={publishing || acting !== null}
-                  >
-                    {publishing ? "Publishing..." : group.publication?.publishedAt ? "Republish" : "Publish"}
                   </Button>
                 </div>
               )}

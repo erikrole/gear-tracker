@@ -1226,6 +1226,10 @@ model AllowedEmail {
   affiliation          Affiliation?
   collaboratorProfile  CollaboratorProfile? @map("collaborator_profile")
   collaboratorPolicyId String?              @map("collaborator_policy_id")
+  preloadedName        String?              @map("preloaded_name")
+  preloadedPrimaryArea ShiftArea?           @map("preloaded_primary_area")
+  preloadedAreas       ShiftArea[]          @default([]) @map("preloaded_areas")
+  preloadedSportCodes  String[]             @default([]) @map("preloaded_sport_codes")
   createdById          String               @map("created_by_id")
   claimedAt            DateTime?            @map("claimed_at")
   claimedById          String?              @map("claimed_by_id")
@@ -1417,6 +1421,7 @@ enum ShiftArea {
   VIDEO
   PHOTO
   GRAPHICS
+  SOCIAL
   COMMS
   LIVE_PRODUCTION
 }
@@ -1526,6 +1531,9 @@ model ShiftGroupWorkingCopy {
   basePublishedVersion Int        @map("base_published_version")
   payloadVersion       Int        @default(1) @map("payload_version")
   payload              Json
+  autoReleaseAt        DateTime?  @map("auto_release_at")
+  autoReleaseRunId     String?    @map("auto_release_run_id")
+  autoReleaseError     String?    @map("auto_release_error")
   createdById          String     @map("created_by_id")
   updatedById          String     @map("updated_by_id")
   createdAt            DateTime   @default(now()) @map("created_at")
@@ -1535,6 +1543,7 @@ model ShiftGroupWorkingCopy {
   updatedBy            User       @relation("ShiftWorkingCopyUpdater", fields: [updatedById], references: [id], onDelete: Restrict)
 
   @@index([updatedById, updatedAt])
+  @@index([autoReleaseAt])
   @@map("shift_group_working_copies")
 }
 

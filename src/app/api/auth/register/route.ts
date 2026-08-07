@@ -6,7 +6,7 @@ import { registerSchema } from "@/lib/validation";
 import { shiftWorkerTypeForRole } from "@/lib/shift-display";
 import { withHandler } from "@/lib/api";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { createAuditEntry } from "@/lib/audit";
+import { createAuditEntriesTx, createAuditEntry } from "@/lib/audit";
 import { capabilitiesForActor, collaboratorPolicyMetadataForActor, compatibilityCollaboratorProfile } from "@/lib/collaborator-access";
 import { collaboratorPolicyActorSelect } from "@/lib/services/collaborator-policies";
 
@@ -18,7 +18,7 @@ const REGISTER_LIMIT = { max: 40, windowMs: 15 * 60 * 1000 }; // per IP per 15 m
 // so public registration can't be used to probe which emails the system knows
 // about (D-037 membership-enumeration boundary).
 const INVITE_GATE_MESSAGE =
-  "Registration is by invitation only. If you already have an account, sign in. Otherwise contact an administrator to request access.";
+  "Registration is by invitation only. If you already have an account, sign in. Otherwise contact Erik Role to request access.";
 
 export const POST = withHandler(async (req) => {
   const ip = getClientIp(req);
@@ -52,13 +52,14 @@ export const POST = withHandler(async (req) => {
   }
 
   const passwordHash = await hashPassword(body.password);
+  const preloadedPrimaryArea = allowedEntry.preloadedPrimaryArea ?? allowedEntry.preloadedAreas?.[0] ?? null;
   // Atomic: create user + claim invitation in one transaction
   let user;
   try {
     user = await db.$transaction(async (tx) => {
       const created = await tx.user.create({
         data: {
-          name: body.name.trim(),
+          name: allowedEntry.preloadedName?.trim() || body.name.trim(),
           email,
           wiscardNumber: null,
           passwordHash,
@@ -66,6 +67,7 @@ export const POST = withHandler(async (req) => {
           affiliation: allowedEntry.affiliation,
           collaboratorProfile: allowedEntry.collaboratorProfile,
           collaboratorPolicyId: allowedEntry.collaboratorPolicyId,
+          primaryArea: allowedEntry.role === "STUDENT" ? preloadedPrimaryArea : null,
           staffingType: shiftWorkerTypeForRole(allowedEntry.role),
         },
         include: { collaboratorPolicy: { select: collaboratorPolicyActorSelect } },
@@ -75,6 +77,71 @@ export const POST = withHandler(async (req) => {
         where: { id: allowedEntry.id },
         data: { claimedAt: new Date(), claimedById: created.id },
       });
+
+      if (allowedEntry.role === "STUDENT") {
+        const areas = Array.from(new Set([
+          ...(allowedEntry.preloadedAreas ?? []),
+          ...(allowedEntry.preloadedPrimaryArea ? [allowedEntry.preloadedPrimaryArea] : []),
+        ]));
+        const primaryArea = preloadedPrimaryArea ?? areas[0] ?? null;
+        const assignmentAudits: Array<{
+          actorId: string;
+          actorRole: typeof created.role;
+          entityType: string;
+          entityId: string;
+          action: string;
+          after: Record<string, unknown>;
+        }> = [];
+
+        for (const area of areas) {
+          const assignment = await tx.studentAreaAssignment.create({
+            data: {
+              userId: created.id,
+              area,
+              isPrimary: area === primaryArea,
+            },
+          });
+          assignmentAudits.push({
+            actorId: created.id,
+            actorRole: created.role,
+            entityType: "student_area_assignment",
+            entityId: assignment.id,
+            action: "created",
+            after: {
+              userId: created.id,
+              area,
+              isPrimary: area === primaryArea,
+              source: "preloaded_allowed_email",
+            },
+          });
+        }
+
+        for (const sportCode of Array.from(new Set(allowedEntry.preloadedSportCodes ?? []))) {
+          const assignment = await tx.studentSportAssignment.create({
+            data: {
+              userId: created.id,
+              sportCode,
+            },
+          });
+          assignmentAudits.push({
+            actorId: created.id,
+            actorRole: created.role,
+            entityType: "student_sport_assignment",
+            entityId: assignment.id,
+            action: "created",
+            after: {
+              userId: created.id,
+              sportCode,
+              defaultTraveler: assignment.defaultTraveler,
+              source: "preloaded_allowed_email",
+            },
+          });
+        }
+
+        if (assignmentAudits.length > 0) {
+          await createAuditEntriesTx(tx, assignmentAudits);
+        }
+      }
 
       return created;
     });

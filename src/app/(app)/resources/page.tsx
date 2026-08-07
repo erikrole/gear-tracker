@@ -131,6 +131,7 @@ const CONTACT_AREA_FILTERS: { value: ContactAreaFilter; label: string }[] = [
   { value: ShiftArea.VIDEO, label: "Video" },
   { value: ShiftArea.PHOTO, label: "Photo" },
   { value: ShiftArea.GRAPHICS, label: "Graphics" },
+  { value: ShiftArea.SOCIAL, label: "Social" },
   { value: ShiftArea.COMMS, label: "Comms" },
   { value: ShiftArea.LIVE_PRODUCTION, label: "Live Production" },
   { value: "UNASSIGNED", label: "No area" },
@@ -159,6 +160,7 @@ const AREA_FILTERS: (ScopeOption & { area: ShiftArea })[] = [
   { value: "area-video", label: "Video", area: ShiftArea.VIDEO },
   { value: "area-photo", label: "Photo", area: ShiftArea.PHOTO },
   { value: "area-graphics", label: "Graphics", area: ShiftArea.GRAPHICS },
+  { value: "area-social", label: "Social", area: ShiftArea.SOCIAL },
   { value: "area-comms", label: "Comms", area: ShiftArea.COMMS },
   { value: "area-live-production", label: "Live Production", area: ShiftArea.LIVE_PRODUCTION },
 ];
@@ -240,6 +242,7 @@ function formatArea(area: ShiftArea | null) {
     VIDEO: "Video",
     PHOTO: "Photo",
     GRAPHICS: "Graphics",
+    SOCIAL: "Social",
     COMMS: "Comms",
     LIVE_PRODUCTION: "Live Production",
   };

@@ -253,9 +253,9 @@ private struct CollaboratorPublishedScheduleView: View {
                     }
                 } else if events.isEmpty {
                     ContentUnavailableView(
-                        "No upcoming published events",
+                        "No upcoming events",
                         systemImage: "calendar",
-                        description: Text("Published events will appear here when crew assignments are ready.")
+                        description: Text("Events will appear here when crew assignments are ready.")
                     )
                 } else {
                     publishedEventList
@@ -269,7 +269,7 @@ private struct CollaboratorPublishedScheduleView: View {
             }
             .toast($toast)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: refreshError)
-            .navigationTitle("Published Schedule")
+            .navigationTitle("Schedule")
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: PublishedScheduleRoute.self) { route in
                 if let event = events.first(where: { $0.id == route.id }) ?? routedEvents[route.id] {
@@ -283,7 +283,7 @@ private struct CollaboratorPublishedScheduleView: View {
                     ContentUnavailableView(
                         "Event unavailable",
                         systemImage: "calendar.badge.exclamationmark",
-                        description: Text("Return to Published Schedule and refresh to try again.")
+                        description: Text("Return to Schedule and refresh to try again.")
                     )
                 }
             }
@@ -486,7 +486,7 @@ private struct CollaboratorPublishedScheduleView: View {
         } catch {
             appState.pendingPushEventId = nil
             toast = Toast(
-                message: "This published event is no longer available.",
+                message: "This event is no longer available.",
                 icon: "calendar.badge.exclamationmark",
                 role: .error
             )
@@ -524,7 +524,7 @@ private struct PublishedEventRow: View {
 
                 HStack(spacing: 8) {
                     PublishedCrewAvatarStack(crew: event.crew)
-                    Text(event.crew.isEmpty ? "No published crew" : publishedCrewCount(event.crew.count))
+                    Text(event.crew.isEmpty ? "No scheduled crew" : publishedCrewCount(event.crew.count))
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
@@ -559,7 +559,7 @@ private struct PublishedEventRow: View {
     private var accessibilityLabel: String {
         var parts = [event.event.summary, publishedEventType(event.event), publishedEventTime(event.event)]
         if let venue = event.event.venue?.name { parts.append(venue) }
-        parts.append(event.crew.isEmpty ? "No published crew" : publishedCrewCount(event.crew.count))
+        parts.append(event.crew.isEmpty ? "No scheduled crew" : publishedCrewCount(event.crew.count))
         if event.isFollowing { parts.append("Following event updates") }
         return parts.joined(separator: ", ")
     }
@@ -625,7 +625,7 @@ private struct PublishedEventDetailView: View {
             .padding(.vertical, 12)
         }
         .background(Color(.systemGroupedBackground))
-        .navigationTitle("Published Event")
+        .navigationTitle("Event")
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -685,7 +685,7 @@ private struct PublishedEventDetailView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(event.isFollowing ? "Following event updates" : "Event updates are off")
                     .font(.subheadline.weight(.semibold))
-                Text(event.isFollowing ? "Published crew changes will appear in Notifications." : "Follow this event to receive published crew changes.")
+                Text(event.isFollowing ? "Crew changes will appear in Notifications." : "Follow this event to receive crew changes.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -705,7 +705,7 @@ private struct PublishedEventDetailView: View {
     private var crewCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Published Crew")
+                Text("Crew")
                     .font(.title3.weight(.bold))
                 Spacer()
                 Text("\(event.crew.count)")
@@ -715,9 +715,9 @@ private struct PublishedEventDetailView: View {
 
             if crewByArea.isEmpty {
                 ContentUnavailableView(
-                    "No published crew",
+                    "No scheduled crew",
                     systemImage: "person.2",
-                    description: Text("This event has no crew in its published snapshot.")
+                    description: Text("This event has no crew assignments yet.")
                 )
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
@@ -761,15 +761,19 @@ private struct PublishedCrewRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Text("Call \(publishedCallWindow(member))")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                if publishedCrewRole(member.role) == "Student" {
+                    Text("Call \(publishedCallWindow(member))")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, 9)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(member.person.name), \(publishedCrewRole(member.role)), \(member.area.shiftAreaLabel), call \(publishedCallWindow(member))")
+        .accessibilityLabel(publishedCrewRole(member.role) == "Student"
+            ? "\(member.person.name), Student, \(member.area.shiftAreaLabel), call \(publishedCallWindow(member))"
+            : "\(member.person.name), Staff, \(member.area.shiftAreaLabel)")
     }
 }
 
@@ -861,8 +865,9 @@ private func publishedAreaOrder(_ area: String) -> Int {
     case "VIDEO": 0
     case "PHOTO": 1
     case "GRAPHICS": 2
-    case "COMMS": 3
-    default: 4
+    case "SOCIAL": 3
+    case "COMMS": 4
+    default: 5
     }
 }
 
@@ -2362,8 +2367,10 @@ struct EventRow: View {
 
     private func personalWorkText(_ shift: MyShift) -> String {
         var parts: [String] = []
-        if !event.displayAllDay {
+        if !event.displayAllDay && shift.workerType == "ST" {
             parts.append("Call \(shift.startsAt.formatted(date: .omitted, time: .shortened))")
+        } else if shift.workerType == "FT" {
+            parts.append("Assigned")
         }
         parts.append(shift.area.shiftAreaLabel)
         parts.append(shift.gear.gearLabel)
@@ -2384,7 +2391,9 @@ struct EventRow: View {
             let callTime = shift.startsAt.formatted(.dateTime.hour().minute())
             let eventTime = event.startsAt.formatted(.dateTime.hour().minute())
             let endTime = shift.endsAt.formatted(.dateTime.hour().minute())
-            if calendarSame(shift.startsAt, event.startsAt) {
+            if shift.workerType == "FT" {
+                parts.append("Event \(eventTime) to \(endTime)")
+            } else if calendarSame(shift.startsAt, event.startsAt) {
                 parts.append("Event \(eventTime) to \(endTime)")
             } else {
                 parts.append("Call \(callTime), event \(eventTime), end \(endTime)")

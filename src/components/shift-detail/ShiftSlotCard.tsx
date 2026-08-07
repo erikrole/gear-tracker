@@ -118,9 +118,10 @@ export function ShiftSlotCard({
   const shiftWindow = { startsAt, endsAt, callStartsAt, callEndsAt };
   const slotWindow = effectiveCallWindow(shiftWindow);
   const assignmentWindow = activeAssignment ? effectiveCallWindow(shiftWindow, activeAssignment) : null;
-  const showSlotWindow = !isAssigned && !eventAllDay && !isInheritedFullDayCallWindow(slotWindow);
+  const isStudentSlot = workerType === "ST";
+  const showSlotWindow = isStudentSlot && !isAssigned && !eventAllDay && !isInheritedFullDayCallWindow(slotWindow);
   const showAssignmentWindow = Boolean(
-    assignmentWindow && !eventAllDay && !isInheritedFullDayCallWindow(assignmentWindow),
+    isStudentSlot && assignmentWindow && !eventAllDay && !isInheritedFullDayCallWindow(assignmentWindow),
   );
   const roleBadgeLabel = activeAssignment
     ? shiftWorkerLabelForProfile(activeAssignment.user) ?? "Assigned"

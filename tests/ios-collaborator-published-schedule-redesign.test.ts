@@ -30,14 +30,14 @@ describe("iOS collaborator Published Schedule redesign", () => {
     expect(schedule).toContain("PublishedEventRowSkeleton()");
     expect(schedule).toContain("if !events.isEmpty, let refreshError");
     expect(schedule).toContain(".refreshable { await load(forceRefresh: true) }");
-    expect(schedule).toContain("No upcoming published events");
+    expect(schedule).toContain("No upcoming events");
   });
 
   it("opens read-only detail and groups sanitized crew by area", () => {
     expect(schedule).toContain("private struct PublishedScheduleRoute: Hashable");
     expect(schedule).toContain("private struct PublishedEventDetailView: View");
-    expect(schedule).toContain('.navigationTitle("Published Event")');
-    expect(schedule).toContain('Text("Published Crew")');
+    expect(schedule).toContain('.navigationTitle("Event")');
+    expect(schedule).toContain('Text("Crew")');
     expect(schedule).toContain("Dictionary(grouping: event.crew, by: \\.area)");
     expect(schedule).toContain("PublishedCrewRow(member: member)");
     // Staff/Student wording is owned by the shared crew vocabulary so published
@@ -66,7 +66,7 @@ describe("iOS collaborator Published Schedule redesign", () => {
     expect(schedule).toContain("routePendingEventIfNeeded()");
     expect(schedule).toContain("APIClient.shared.publishedScheduleEvent(eventId: eventId)");
     expect(schedule).toContain("navigationPath.append(PublishedScheduleRoute(id: eventId))");
-    expect(schedule).toContain("This published event is no longer available.");
+    expect(schedule).toContain("This event is no longer available.");
   });
 
   it("preserves published-snapshot privacy boundaries", () => {

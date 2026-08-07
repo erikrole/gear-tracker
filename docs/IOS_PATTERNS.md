@@ -304,7 +304,7 @@ Users + kiosk + assign-student all use this. The initials disc rendering preserv
 
 ## Server enum codes → title-cased labels
 
-**Pattern.** Server enum codes (e.g. `ShiftArea`: `VIDEO / PHOTO / GRAPHICS / COMMS`) display in iOS as title-cased via `String.shiftAreaLabel` (in `Models/ScheduleModels.swift`). The helper falls back to `.capitalized` for unknown codes.
+**Pattern.** Server enum codes (e.g. `ShiftArea`: `VIDEO / PHOTO / GRAPHICS / SOCIAL / COMMS`) display in iOS as title-cased via `String.shiftAreaLabel` (in `Models/ScheduleModels.swift`). The helper falls back to `.capitalized` for unknown codes.
 
 ```swift
 // ❌ Bad — renders shouty "VIDEO"

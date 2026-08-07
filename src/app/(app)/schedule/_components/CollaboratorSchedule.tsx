@@ -103,16 +103,16 @@ export function CollaboratorSchedule({ canFollow }: { canFollow: boolean }) {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Published Schedule"
-        description="Published events and crew assignments."
+        title="Schedule"
+        description="Current events and crew assignments."
       />
 
       {loading ? (
-        <OperationalLoadingState variant="page" title="Loading published schedule" rows={4} />
+        <OperationalLoadingState variant="page" title="Loading schedule" rows={4} />
       ) : error ? (
-        <EmptyState icon="wifi-off" title="Could not load the published schedule" description="Retry before relying on this event list." actionLabel="Retry" onAction={() => void load()} />
+        <EmptyState icon="wifi-off" title="Could not load the schedule" description="Retry before relying on this event list." actionLabel="Retry" onAction={() => void load()} />
       ) : events.length === 0 ? (
-        <EmptyState icon="calendar" title="No published events" description="Published events will appear here when crew assignments are ready." />
+        <EmptyState icon="calendar" title="No scheduled events" description="Events will appear here when crew assignments are ready." />
       ) : (
         <div className="space-y-3">
           {events.map((item) => (
@@ -152,7 +152,7 @@ export function CollaboratorSchedule({ canFollow }: { canFollow: boolean }) {
               </CardHeader>
               <CardContent className="p-0">
                 {item.crew.length === 0 ? (
-                  <EmptyState inline compact icon="users" title="No published crew" description="This event has no crew assignments in the published snapshot." />
+                  <EmptyState inline compact icon="users" title="No scheduled crew" description="This event has no crew assignments yet." />
                 ) : (
                   <div className="divide-y">
                     {item.crew.map((member) => (
@@ -160,7 +160,9 @@ export function CollaboratorSchedule({ canFollow }: { canFollow: boolean }) {
                         <UserAvatar name={member.person.name} avatarUrl={member.person.avatarUrl} size="sm" />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium">{member.person.name}</p>
-                          <p className="text-xs text-muted-foreground tabular-nums">Call {formatWindow(member.callStartsAt, member.callEndsAt)}</p>
+                          {member.role === "Student" ? (
+                            <p className="text-xs text-muted-foreground tabular-nums">Call {formatWindow(member.callStartsAt, member.callEndsAt)}</p>
+                          ) : null}
                         </div>
                         <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
                           <Badge variant="secondary" size="sm">{crewRole(member.area)}</Badge>

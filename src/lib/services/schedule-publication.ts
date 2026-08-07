@@ -1,7 +1,9 @@
 import { Prisma, Role, ShiftAssignmentStatus, ShiftArea, ShiftWorkerType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { createAuditEntryTx } from "@/lib/audit";
+import { ACTIVE_BOOKING_STATUSES } from "@/lib/booking-statuses";
 import { HttpError } from "@/lib/http";
+import { scheduleAssigneeWorkerType } from "@/lib/schedule-assignee";
 import { workingSchedulePayloadSchema, type WorkingSchedulePayload } from "@/lib/schedule-working-copy";
 import { withSerializationRetry } from "@/lib/serialization";
 import { checkTimeConflict, findTimeConflict } from "@/lib/services/shift-assignments";
@@ -50,12 +52,16 @@ function stableJson(value: unknown) {
 }
 
 function effectiveWorkingWindow(slot: {
+  workerType: string;
   startsAt: string;
   endsAt: string;
   callStartsAt: string | null;
   callEndsAt: string | null;
   assignment: { callStartsAt: string | null; callEndsAt: string | null } | null;
 }) {
+  if (slot.workerType === "FT") {
+    return { startsAt: slot.startsAt, endsAt: slot.endsAt };
+  }
   return {
     startsAt: slot.assignment?.callStartsAt ?? slot.callStartsAt ?? slot.startsAt,
     endsAt: slot.assignment?.callEndsAt ?? slot.callEndsAt ?? slot.endsAt,
@@ -120,21 +126,14 @@ export function getSchedulePublicationState(group: SnapshotGroup): SchedulePubli
     publishedAt
     && (!publishedSnapshot || stableJson(publishedSnapshot) !== stableJson(currentSnapshot)),
   );
-  const acknowledgedCount = publishedAt
-    ? activeAssignments.filter((assignment) => {
-        const acknowledgedAt = iso(assignment.acknowledgedAt);
-        return acknowledgedAt !== null && acknowledgedAt >= publishedAt;
-      }).length
-    : 0;
-
   return {
     status: !publishedAt ? "draft" : changedAfterPublish ? "changed" : "published",
     publishedAt,
     publishedById: group.publishedById ?? null,
     changedAfterPublish,
     activeAssignmentCount: activeAssignments.length,
-    acknowledgedCount,
-    unacknowledgedCount: publishedAt ? activeAssignments.length - acknowledgedCount : 0,
+    acknowledgedCount: 0,
+    unacknowledgedCount: 0,
   };
 }
 
@@ -182,7 +181,11 @@ async function findGroupForPublication(shiftGroupId: string, tx: Prisma.Transact
                 select: { id: true },
                 take: 1,
               },
-              _count: { select: { bookings: true } },
+              _count: {
+                select: {
+                  bookings: { where: { status: { in: ACTIVE_BOOKING_STATUSES } } },
+                },
+              },
             },
           },
         },
@@ -399,7 +402,14 @@ export async function collectPublishBlockers(
         id: true,
         name: true,
         active: true,
+        role: true,
         staffingType: true,
+        collaboratorPolicy: {
+          select: {
+            status: true,
+            grants: { select: { capabilityKey: true } },
+          },
+        },
         availabilityBlocks: { select: availabilityBlockSelect },
       },
     });
@@ -410,7 +420,7 @@ export async function collectPublishBlockers(
         add("worker_inactive", "An assigned worker is no longer active.", candidate.slot, candidate.userId);
         continue;
       }
-      if (candidate.requireClassMatch && user.staffingType !== candidate.slot.workerType) {
+      if (candidate.requireClassMatch && scheduleAssigneeWorkerType(user) !== candidate.slot.workerType) {
         add(
           "worker_class_mismatch",
           `${user.name} no longer matches this slot's scheduling class.`,
@@ -596,12 +606,16 @@ export async function publishShiftGroup(
       for (const slot of workingSlots) {
         if (!slot.sourceShiftId) continue;
         const current = currentById.get(slot.sourceShiftId)!;
+        const startsAt = slot.workerType === "FT" ? parsed.data.eventStartsAt : slot.startsAt;
+        const endsAt = slot.workerType === "FT" ? parsed.data.eventEndsAt : slot.endsAt;
+        const callStartsAt = slot.workerType === "ST" ? slot.callStartsAt : null;
+        const callEndsAt = slot.workerType === "ST" ? slot.callEndsAt : null;
         const unchanged = current.area === slot.area
           && current.workerType === slot.workerType
-          && current.startsAt.toISOString() === slot.startsAt
-          && current.endsAt.toISOString() === slot.endsAt
-          && current.callStartsAt?.toISOString() === (slot.callStartsAt ?? undefined)
-          && current.callEndsAt?.toISOString() === (slot.callEndsAt ?? undefined)
+          && current.startsAt.toISOString() === startsAt
+          && current.endsAt.toISOString() === endsAt
+          && current.callStartsAt?.toISOString() === (callStartsAt ?? undefined)
+          && current.callEndsAt?.toISOString() === (callEndsAt ?? undefined)
           && (current.notes ?? null) === slot.notes;
         if (unchanged) continue;
         await tx.shift.update({
@@ -609,10 +623,10 @@ export async function publishShiftGroup(
           data: {
             area: slot.area,
             workerType: slot.workerType,
-            startsAt: new Date(slot.startsAt),
-            endsAt: new Date(slot.endsAt),
-            callStartsAt: slot.callStartsAt ? new Date(slot.callStartsAt) : null,
-            callEndsAt: slot.callEndsAt ? new Date(slot.callEndsAt) : null,
+            startsAt: new Date(startsAt),
+            endsAt: new Date(endsAt),
+            callStartsAt: callStartsAt ? new Date(callStartsAt) : null,
+            callEndsAt: callEndsAt ? new Date(callEndsAt) : null,
             notes: slot.notes,
             templateManaged: false,
           },
@@ -624,15 +638,17 @@ export async function publishShiftGroup(
         workingSlots.flatMap((slot) => slot.sourceShiftId ? [[slot.key, slot.sourceShiftId] as const] : []),
       );
       for (const slot of added) {
+        const startsAt = slot.workerType === "FT" ? parsed.data.eventStartsAt : slot.startsAt;
+        const endsAt = slot.workerType === "FT" ? parsed.data.eventEndsAt : slot.endsAt;
         const created = await tx.shift.create({
           data: {
             shiftGroupId,
             area: slot.area,
             workerType: slot.workerType,
-            startsAt: new Date(slot.startsAt),
-            endsAt: new Date(slot.endsAt),
-            callStartsAt: slot.callStartsAt ? new Date(slot.callStartsAt) : null,
-            callEndsAt: slot.callEndsAt ? new Date(slot.callEndsAt) : null,
+            startsAt: new Date(startsAt),
+            endsAt: new Date(endsAt),
+            callStartsAt: slot.workerType === "ST" && slot.callStartsAt ? new Date(slot.callStartsAt) : null,
+            callEndsAt: slot.workerType === "ST" && slot.callEndsAt ? new Date(slot.callEndsAt) : null,
             notes: slot.notes,
           },
           select: { id: true },
@@ -671,7 +687,14 @@ export async function publishShiftGroup(
           select: {
             id: true,
             active: true,
+            role: true,
             staffingType: true,
+            collaboratorPolicy: {
+              select: {
+                status: true,
+                grants: { select: { capabilityKey: true } },
+              },
+            },
             availabilityBlocks: {
               select: {
                 kind: true,
@@ -693,7 +716,7 @@ export async function publishShiftGroup(
         for (const { slot, assignment } of draftAssignments) {
           const user = userById.get(assignment.userId);
           if (!user?.active) throw new HttpError(409, "An assigned worker is no longer active.");
-          if (user.staffingType !== slot.workerType) {
+          if (scheduleAssigneeWorkerType(user) !== slot.workerType) {
             throw new HttpError(409, "An assigned worker no longer matches the slot's scheduling class.");
           }
           const startsAt = new Date(assignment.callStartsAt ?? slot.callStartsAt ?? slot.startsAt);
@@ -715,8 +738,8 @@ export async function publishShiftGroup(
               userId: user.id,
               status: "DIRECT_ASSIGNED",
               assignedBy: actorId,
-              callStartsAt: assignment.callStartsAt ? new Date(assignment.callStartsAt) : null,
-              callEndsAt: assignment.callEndsAt ? new Date(assignment.callEndsAt) : null,
+              callStartsAt: slot.workerType === "ST" && assignment.callStartsAt ? new Date(assignment.callStartsAt) : null,
+              callEndsAt: slot.workerType === "ST" && assignment.callEndsAt ? new Date(assignment.callEndsAt) : null,
               callNote: assignment.callNote,
             },
           });

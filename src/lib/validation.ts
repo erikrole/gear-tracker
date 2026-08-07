@@ -679,6 +679,10 @@ const internalAllowedEmailSchema = z.object({
   affiliation: z.null().optional(),
   collaboratorProfile: z.null().optional(),
   collaboratorPolicyId: z.null().optional(),
+  preloadedName: z.string().trim().min(1).max(100).nullable().optional(),
+  preloadedPrimaryArea: z.nativeEnum(ShiftArea).nullable().optional(),
+  preloadedAreas: z.array(z.nativeEnum(ShiftArea)).max(6).optional().default([]),
+  preloadedSportCodes: z.array(sportCodeSchema).max(30).optional().default([]),
 });
 
 const collaboratorAllowedEmailSchema = z.object({
@@ -698,6 +702,13 @@ export const createAllowedEmailSchema = z.union([
   internalAllowedEmailSchema,
   collaboratorAllowedEmailSchema,
 ]);
+
+export const updateAllowedEmailProfileSchema = z.object({
+  preloadedName: z.string().trim().min(1).max(100).nullable(),
+  preloadedPrimaryArea: z.nativeEnum(ShiftArea).nullable(),
+  preloadedAreas: z.array(z.nativeEnum(ShiftArea)).max(6),
+  preloadedSportCodes: z.array(sportCodeSchema).max(30),
+}).strict();
 
 export const createAllowedEmailBulkSchema = z.object({
   emails: z.array(createAllowedEmailSchema).min(1).max(50),

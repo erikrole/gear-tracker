@@ -150,12 +150,11 @@ struct ProfileNextUpCard: View {
         return "Due \(booking.endsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()))"
     }
 
-    /// The date, then a call time for home games only -- away and neutral crews
-    /// travel with the team, so the shift start there is not a call time anyone
-    /// reports to. Same rule Home's shift rows follow.
+    /// The date, then the explicit Student report time. Staff assignments do
+    /// not substitute the event time into the call-time position.
     private func shiftDetail(_ shift: MyShift) -> String {
         var parts = [shift.event.startsAt.formatted(.dateTime.weekday(.wide).month(.wide).day())]
-        if shift.event.isHome == true {
+        if shift.workerType == "ST" {
             parts.append("Call time \(shift.startsAt.formatted(date: .omitted, time: .shortened))")
         }
         return parts.joined(separator: " · ")

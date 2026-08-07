@@ -48,13 +48,11 @@ describe("crew row standardization", () => {
     expect(eventCrew).not.toContain("const studentTable = (");
     expect(eventCrew).toContain("{crewTable}");
 
-    // Editing is gated on role and the absence of a private working copy;
-    // reading is not.
-    expect(eventCrew).toContain("const canEditPublishedSchedule = isStaffOrAdmin && !shiftGroup.hasWorkingCopy");
+    // Event detail is a shared read; buffered authoring belongs to Schedule.
+    expect(eventCrew).toContain("const canEditPublishedSchedule = false;");
     expect(eventCrew).toContain("const rowCallTarget = !canEditPublishedSchedule");
-    expect(eventCrew).toContain("action={canEditPublishedSchedule ? (");
-    expect(eventCrew).toContain("{canEditPublishedSchedule\n                      ? renderRowActions(shift, activeAssignment)");
-    expect(eventCrew).toContain("Acknowledge");
+    expect(eventCrew).toContain("Make crew changes in");
+    expect(eventCrew).not.toContain("Acknowledge");
   });
 
   it("keeps the crew column order identical across surfaces", () => {

@@ -669,7 +669,7 @@ private struct HomeActionQueue: View {
 
     private func eventDetailLines(for summary: BookingSummary) -> [QueueDetailLine] {
         var lines = [QueueDetailLine(text: gearInstruction(for: summary), tone: queueGearTone(for: summary))]
-        if let shift = shiftLinked(to: summary), let callTime = queueCallTime(isHome: shift.event.isHome, at: shift.startsAt) {
+        if let shift = shiftLinked(to: summary), let callTime = queueCallTime(workerType: shift.workerType, at: shift.startsAt) {
             lines.append(QueueDetailLine(text: callTime, tone: .blue))
         }
         return lines
@@ -867,11 +867,10 @@ private func queueVenueTone(for event: DashboardEventWorkEvent) -> StatusTone {
     venueTone(isHome: event.isHome)
 }
 
-/// "Call time 6:30 PM", and only for a home game. Away and neutral events have
-/// a shift start too, but nobody reports to a call time at Kinnick, so printing
-/// one there would be a time the row cannot vouch for.
-private func queueCallTime(isHome: Bool?, at start: Date) -> String? {
-    guard isHome == true else { return nil }
+/// Students are told when to report. Staff assignments deliberately carry no
+/// call-time line because their timing is established outside Schedule.
+private func queueCallTime(workerType: String, at start: Date) -> String? {
+    guard workerType == "ST" else { return nil }
     return "Call time \(start.formatted(date: .omitted, time: .shortened))"
 }
 
@@ -953,11 +952,10 @@ private struct EventActionQueueRow: View {
         return "\(start) - \(end)"
     }
 
-    /// Home games only. Away and neutral crews travel with the team, so the
-    /// shift start there is not a call time anyone reports to.
+    /// Student assignments have an explicit report time. Staff do not.
     private var callTimeLine: String? {
         guard !isAllDayEvent else { return nil }
-        return queueCallTime(isHome: work.event.isHome, at: work.shift.startsAt)
+        return queueCallTime(workerType: work.shift.workerType, at: work.shift.startsAt)
     }
 
     /// When the event itself starts. The gear a shift needs is stated on its

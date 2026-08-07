@@ -63,8 +63,15 @@ struct AssignStudentSheet: View {
 
     private var targetWorkerType: String { replacementWorkerType ?? shiftWorkerType }
 
-    private func workerType(for user: AppUser) -> String {
-        user.staffingType ?? (user.role == "STUDENT" ? "ST" : "FT")
+    private func workerType(for user: AppUser) -> String? {
+        guard user.active != false else { return nil }
+        if user.role == "COLLABORATOR" {
+            let policy = user.collaboratorPolicy
+            guard policy?.status == "ACTIVE",
+                  policy?.capabilities?.contains("PUBLISHED_SCHEDULE_VIEW") == true else { return nil }
+            return "FT"
+        }
+        return user.staffingType ?? (user.role == "STUDENT" ? "ST" : "FT")
     }
 
     private var eligibleUsers: [AppUser] {

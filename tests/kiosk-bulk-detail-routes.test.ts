@@ -920,7 +920,7 @@ describe("kiosk reservation pickup confirmation", () => {
     }));
   });
 
-  it("blocks reservation pickup at the wrong kiosk location", async () => {
+  it("allows reservation pickup at another kiosk location", async () => {
     mocks.userFindUnique.mockResolvedValue({ id: "user-1", name: "User", role: "STUDENT" });
     mocks.bookingFindUnique
       .mockResolvedValueOnce({
@@ -952,13 +952,14 @@ describe("kiosk reservation pickup confirmation", () => {
         events: [],
       });
 
-    await expect(confirmKioskPickup(new Request("http://test", {
+    const response = await confirmKioskPickup(new Request("http://test", {
       method: "POST",
       body: JSON.stringify({ actorId: "user-1" }),
-    }), routeCtx("reservation-1"))).rejects.toThrow("Pending pickup not found");
+    }), routeCtx("reservation-1"));
 
-    expect(mocks.createBooking).not.toHaveBeenCalled();
-    expect(mocks.badgeOnCheckoutOpened).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(mocks.createBooking).toHaveBeenCalledWith(expect.objectContaining({ locationId: "loc-other" }));
+    expect(mocks.badgeOnCheckoutOpened).toHaveBeenCalledOnce();
   });
 
   it("does not audit or badge when linked checkout creation conflicts", async () => {

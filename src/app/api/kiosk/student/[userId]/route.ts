@@ -29,8 +29,8 @@ export const GET = withKiosk<{ userId: string }>(async (req, { kiosk, params }) 
   }
 
   // Person discovery is global, but collaborators still need explicit kiosk
-  // roster eligibility. The booking reads below keep physical pickup work
-  // scoped to this kiosk's location.
+  // roster eligibility. Kiosk custody data is global too; check-in is the
+  // event that transfers returned gear to this kiosk.
   if (user.role === "COLLABORATOR" && !isGlobalKioskCollaborator(user)) {
     throw new HttpError(404, "User not found");
   }
@@ -75,7 +75,6 @@ export const GET = withKiosk<{ userId: string }>(async (req, { kiosk, params }) 
         requesterUserId: params.userId,
         kind: "CHECKOUT",
         status: "PENDING_PICKUP",
-        locationId: kiosk.locationId,
       },
       orderBy: { createdAt: "desc" },
       select: {
@@ -106,7 +105,6 @@ export const GET = withKiosk<{ userId: string }>(async (req, { kiosk, params }) 
         requesterUserId: params.userId,
         kind: "RESERVATION",
         status: "BOOKED",
-        locationId: kiosk.locationId,
         startsAt: { lte: now },
         endsAt: { gte: now },
       },
@@ -142,7 +140,6 @@ export const GET = withKiosk<{ userId: string }>(async (req, { kiosk, params }) 
           gt: now,
           lte: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
         },
-        locationId: kiosk.locationId,
       },
       orderBy: { startsAt: "asc" },
       take: 5,

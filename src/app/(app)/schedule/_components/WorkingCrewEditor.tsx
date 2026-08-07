@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeftRightIcon, MoreHorizontalIcon, PlusIcon, RefreshCwIcon, SendIcon, UsersRoundIcon, XIcon } from "lucide-react";
+import { ArrowLeftRightIcon, MoreHorizontalIcon, PlusIcon, RefreshCwIcon, UsersRoundIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -69,19 +69,6 @@ function describeRebase(rebase: RebaseSummary | undefined): string {
   return `Refreshed: ${parts.join(", ")}`;
 }
 
-type PublishBlocker = {
-  code: string;
-  message: string;
-  slotKey: string | null;
-  area: string | null;
-  userId: string | null;
-};
-
-type PublishPreflight = {
-  staleness: { code: string; message: string } | null;
-  blockers: PublishBlocker[];
-};
-
 type EditorData = {
   shiftGroupId: string;
   publicationState: "draft" | "published" | "unpublished_changes";
@@ -101,6 +88,8 @@ type EditorData = {
   };
   affectedWorkerCount: number;
   assignedUsers: PickerUser[];
+  autoReleaseAt: string | null;
+  autoReleaseError: string | null;
   schedule: WorkingSchedulePayload;
 };
 
@@ -117,18 +106,24 @@ type Props = {
   compact?: boolean;
 };
 
-const AREA_ORDER = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS", "LIVE_PRODUCTION"] as const;
+const AREA_ORDER = ["VIDEO", "PHOTO", "GRAPHICS", "SOCIAL", "COMMS", "LIVE_PRODUCTION"] as const;
 // Call | Type | Person | row actions, matching the Event detail Crew table.
 const SLOT_ROW_GRID_CLASS = "grid-cols-[4.5rem_4.5rem_minmax(0,1fr)_2.5rem]";
 
 function stateBadge(data: EditorData) {
-  if (data.publicationState === "unpublished_changes") {
-    return <Badge variant="orange" size="sm">Unpublished changes</Badge>;
-  }
-  if (data.publicationState === "draft") {
-    return <Badge variant="gray" size="sm">Draft</Badge>;
-  }
+  if (data.hasWorkingCopy) return <Badge variant="orange" size="sm">Pending changes</Badge>;
   return null;
+}
+
+function candidateWorkerType(candidate: PickerUser): "FT" | "ST" {
+  if (candidate.role === "COLLABORATOR") return "FT";
+  return candidate.staffingType === "ST" ? "ST" : "FT";
+}
+
+function isEligibleScheduleCandidate(candidate: PickerUser) {
+  if (candidate.role !== "COLLABORATOR") return true;
+  return candidate.collaboratorPolicy?.status === "ACTIVE"
+    && candidate.collaboratorPolicy.capabilities?.includes("PUBLISHED_SCHEDULE_VIEW") === true;
 }
 
 function changeSummary(data: EditorData) {
@@ -201,7 +196,7 @@ function CallWindowEditor({
       <PopoverContent className="w-80 space-y-3 p-3" align="start">
         <div>
           <p className="text-sm font-medium">Call window</p>
-          <p className="text-xs text-muted-foreground">Private until this schedule is published.</p>
+          <p className="text-xs text-muted-foreground">The ten-minute release timer restarts when you save.</p>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <label className="space-y-1 text-xs" htmlFor={`${inputId}-call-start`}>
@@ -287,15 +282,15 @@ function SetAllCallTimesEditor({
         onClick={() => setOpen(true)}
       >
         <UsersRoundIcon className="size-3.5" />
-        Set all call times
+        Set Student call time
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Set call time for everyone</DialogTitle>
+            <DialogTitle>Set Student call time</DialogTitle>
             <DialogDescription>
-              Every slot in this event will use this window. Personal call-time overrides will be cleared.
-              The change stays private until you publish the schedule.
+              Every Student slot will use this window and Student personal overrides will be cleared.
+              Staff and collaborators do not have a call time. The ten-minute release timer restarts when you apply it.
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-2 px-6 py-2">
@@ -320,7 +315,7 @@ function SetAllCallTimesEditor({
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="button" onClick={save}>Apply to everyone</Button>
+            <Button type="button" onClick={save}>Apply to Students</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -344,9 +339,6 @@ export function WorkingCrewEditor({
   const [data, setData] = useState<EditorData | null>(null);
   const [loading, setLoading] = useState(true);
   const [actingKey, setActingKey] = useState<string | null>(null);
-  const [publishReviewOpen, setPublishReviewOpen] = useState(false);
-  const [preflight, setPreflight] = useState<PublishPreflight | null>(null);
-  const [preflightLoading, setPreflightLoading] = useState(false);
   const [candidateScoreState, setCandidateScoreState] = useState<{
     slotKey: string;
     scores: Record<string, CandidateRecommendation>;
@@ -382,6 +374,14 @@ export function WorkingCrewEditor({
   useEffect(() => {
     void loadEditor();
   }, [loadEditor]);
+
+  useEffect(() => {
+    if (!data?.hasWorkingCopy) return;
+    const timer = window.setInterval(() => {
+      void loadEditor().then(() => onPublished());
+    }, 15_000);
+    return () => window.clearInterval(timer);
+  }, [data?.hasWorkingCopy, loadEditor, onPublished]);
 
   const loadCandidateScores = useCallback(async (slotKey: string, workerType?: "FT" | "ST") => {
     if (!shiftGroupId) return;
@@ -468,7 +468,7 @@ export function WorkingCrewEditor({
       }
       const json = await parseJsonSafely<{ data?: EditorData }>(response);
       if (json?.data) setData(json.data);
-      toast.success("Unpublished changes discarded");
+      toast.success("Pending changes reverted");
     } catch {
       toast.error("Network error - could not discard changes");
     } finally {
@@ -476,29 +476,6 @@ export function WorkingCrewEditor({
       setActingKey(null);
     }
   }, [data, loadEditor, shiftGroupId]);
-
-  // Load what would block this publish as the review opens, so the whole list
-  // is visible before committing rather than one rejected attempt at a time.
-  useEffect(() => {
-    if (!publishReviewOpen || !shiftGroupId) return;
-    let cancelled = false;
-    setPreflightLoading(true);
-    setPreflight(null);
-    void (async () => {
-      try {
-        const response = await fetch(`/api/shift-groups/${shiftGroupId}/publish`);
-        if (cancelled || handleAuthRedirect(response) || !response.ok) return;
-        const json = await parseJsonSafely<{ data?: PublishPreflight }>(response);
-        if (!cancelled && json?.data) setPreflight(json.data);
-      } catch {
-        // A preflight that cannot load must not block publishing; the publish
-        // attempt itself still reports every blocker.
-      } finally {
-        if (!cancelled) setPreflightLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [publishReviewOpen, shiftGroupId]);
 
   /**
    * Re-seat the draft on the current live schedule. Every "refresh before
@@ -532,36 +509,6 @@ export function WorkingCrewEditor({
     }
   }, [data, loadEditor, shiftGroupId]);
 
-  const publish = useCallback(async () => {
-    if (!shiftGroupId || !data || actingRef.current) return;
-    actingRef.current = true;
-    setActingKey("publish");
-    try {
-      const response = await fetch(`/api/shift-groups/${shiftGroupId}/publish`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...(data.hasWorkingCopy ? { expectedWorkingVersion: data.workingVersion } : {}),
-        }),
-      });
-      if (handleAuthRedirect(response)) return;
-      if (!response.ok) {
-        toast.error(await parseErrorMessage(response, "Failed to publish schedule"));
-        if (response.status === 409) void loadEditor();
-        return;
-      }
-      setPublishReviewOpen(false);
-      toast.success(data.publishedAt ? "Schedule changes published" : "Schedule published");
-      onPublished();
-      await loadEditor();
-    } catch {
-      toast.error("Network error - could not publish schedule");
-    } finally {
-      actingRef.current = false;
-      setActingKey(null);
-    }
-  }, [data, loadEditor, onPublished, shiftGroupId]);
-
   if (!shiftGroupId) {
     return <p className="text-xs text-muted-foreground">Create staffing for this event before editing crew.</p>;
   }
@@ -585,8 +532,8 @@ export function WorkingCrewEditor({
     : null;
   const replacementUsers = replacementTarget
     ? pickerUsers.filter((candidate) => {
-      const staffingType = candidate.staffingType ?? (candidate.role === "STUDENT" ? "ST" : "FT");
-      return staffingType === replacementTarget.workerType;
+      return isEligibleScheduleCandidate(candidate)
+        && candidateWorkerType(candidate) === replacementTarget.workerType;
     })
     : [];
 
@@ -598,8 +545,16 @@ export function WorkingCrewEditor({
           {data.changes.total > 0 && (
             <span className="text-xs text-muted-foreground">{changeSummary(data)}</span>
           )}
+          {data.hasWorkingCopy && data.autoReleaseAt && !data.autoReleaseError && (
+            <span className="text-xs text-muted-foreground">
+              Releases at {formatTimeShort(data.autoReleaseAt)}
+            </span>
+          )}
+          {data.autoReleaseError && (
+            <span className="text-xs text-destructive">Release needs attention: {data.autoReleaseError}</span>
+          )}
           <div className="ml-auto flex items-center gap-1.5">
-            {!data.allDay && data.schedule.slots.length > 0 && (
+            {!data.allDay && data.schedule.slots.some((slot) => slot.workerType === "ST") && (
               <SetAllCallTimesEditor
                 data={data}
                 disabled={Boolean(actingKey)}
@@ -617,7 +572,7 @@ export function WorkingCrewEditor({
                 className="h-10 gap-1.5 px-2 text-xs text-muted-foreground"
                 disabled={Boolean(actingKey)}
                 onClick={() => void refreshFromLive()}
-                title="Pull any changes made to the live schedule into these unpublished changes"
+                title="Pull changes from the last released schedule into these pending changes"
               >
                 <RefreshCwIcon className="size-3.5" />
                 {actingKey === "refresh" ? "Refreshing..." : "Refresh from live"}
@@ -632,19 +587,7 @@ export function WorkingCrewEditor({
                 disabled={Boolean(actingKey)}
                 onClick={() => void discard()}
               >
-                {actingKey === "discard" ? "Discarding..." : "Discard"}
-              </Button>
-            )}
-            {(data.changes.total > 0 || !data.publishedAt) && (
-              <Button
-                type="button"
-                size="sm"
-                className="h-10 px-3 text-xs"
-                disabled={Boolean(actingKey)}
-                onClick={() => setPublishReviewOpen(true)}
-              >
-                <SendIcon data-icon="inline-start" />
-                {data.publishedAt ? "Review & publish" : "Publish schedule"}
+                {actingKey === "discard" ? "Reverting..." : "Revert changes"}
               </Button>
             )}
             {compact && (
@@ -683,19 +626,21 @@ export function WorkingCrewEditor({
                   const otherWorkerType = slot.workerType === "FT" ? "ST" : "FT";
                   const canConvert = !slot.assignment && slot.assignmentHistoryCount === 0;
                   const eligibleUsers = pickerUsers.filter((candidate) => {
-                    const staffingType = candidate.staffingType ?? (candidate.role === "STUDENT" ? "ST" : "FT");
-                    return staffingType === slot.workerType;
+                    return isEligibleScheduleCandidate(candidate)
+                      && candidateWorkerType(candidate) === slot.workerType;
                   });
                   return slot.assignment ? (
                     <div key={slot.key} className={cn(`${CREW_ROW_GROUP} grid min-h-11 min-w-0 items-center gap-2 rounded-md px-1 hover:bg-muted/20`, SLOT_ROW_GRID_CLASS)}>
-                      <CallWindowEditor
-                        slot={slot}
-                        disabled={Boolean(actingKey)}
-                        onSave={(callStartsAt, callEndsAt) => void mutate(
-                          { type: "setCallWindow", slotKey: slot.key, callStartsAt, callEndsAt },
-                          `${slot.key}-call-window`,
-                        )}
-                      />
+                      {slot.workerType === "ST" ? (
+                        <CallWindowEditor
+                          slot={slot}
+                          disabled={Boolean(actingKey)}
+                          onSave={(callStartsAt, callEndsAt) => void mutate(
+                            { type: "setCallWindow", slotKey: slot.key, callStartsAt, callEndsAt },
+                            `${slot.key}-call-window`,
+                          )}
+                        />
+                      ) : <span aria-hidden="true" />}
                       <CrewTypeLabel label={roleLabel} />
                       <div className="flex min-w-0 items-center gap-2">
                         <UserAvatar name={user?.name ?? "Assigned"} avatarUrl={user?.avatarUrl} size="sm" />
@@ -742,14 +687,16 @@ export function WorkingCrewEditor({
                     </div>
                   ) : (
                     <div key={slot.key} className={cn(`${CREW_ROW_GROUP} grid min-h-11 min-w-0 items-center gap-2 rounded-md px-1 hover:bg-muted/20`, SLOT_ROW_GRID_CLASS)}>
-                      <CallWindowEditor
-                        slot={slot}
-                        disabled={Boolean(actingKey)}
-                        onSave={(callStartsAt, callEndsAt) => void mutate(
-                          { type: "setCallWindow", slotKey: slot.key, callStartsAt, callEndsAt },
-                          `${slot.key}-call-window`,
-                        )}
-                      />
+                      {slot.workerType === "ST" ? (
+                        <CallWindowEditor
+                          slot={slot}
+                          disabled={Boolean(actingKey)}
+                          onSave={(callStartsAt, callEndsAt) => void mutate(
+                            { type: "setCallWindow", slotKey: slot.key, callStartsAt, callEndsAt },
+                            `${slot.key}-call-window`,
+                          )}
+                        />
+                      ) : <span aria-hidden="true" />}
                       <CrewTypeLabel label={roleLabel} />
                       <Popover onOpenChange={(open) => {
                         if (open) {
@@ -877,7 +824,7 @@ export function WorkingCrewEditor({
             </DialogTitle>
             <DialogDescription>
               {replacementTarget
-                ? `${replacementTarget.currentWorkerName} will be replaced when this private schedule is published.`
+                ? `${replacementTarget.currentWorkerName} will be replaced after ten minutes without another edit.`
                 : "Choose a replacement worker."}
             </DialogDescription>
           </DialogHeader>
@@ -914,73 +861,6 @@ export function WorkingCrewEditor({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={publishReviewOpen} onOpenChange={setPublishReviewOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{data.publishedAt ? "Publish schedule changes?" : "Publish schedule?"}</DialogTitle>
-            <DialogDescription>
-              Draft edits stay private until this publish completes.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2 px-6 py-1 text-sm">
-            {data.changes.total > 0 ? (
-              <p>{changeSummary(data)}</p>
-            ) : (
-              <p>Publish the current crew schedule for the first time.</p>
-            )}
-            <p className="text-muted-foreground">
-              {data.affectedWorkerCount === 0
-                ? "No workers will be notified."
-                : `${data.affectedWorkerCount} ${data.affectedWorkerCount === 1 ? "person" : "people"} will each receive one event summary.`}
-            </p>
-            {preflightLoading && (
-              <p className="text-xs text-muted-foreground">Checking for problems...</p>
-            )}
-            {preflight?.staleness && (
-              <div className="rounded-md border border-orange-500/40 bg-orange-500/10 p-3 text-xs">
-                <p className="font-medium">This draft is out of date</p>
-                <p className="mt-1 text-muted-foreground">{preflight.staleness.message}</p>
-              </div>
-            )}
-            {preflight && !preflight.staleness && preflight.blockers.length > 0 && (
-              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs">
-                <p className="font-medium">
-                  {preflight.blockers.length === 1
-                    ? "1 problem blocks publishing"
-                    : `${preflight.blockers.length} problems block publishing`}
-                </p>
-                <ul className="mt-1 list-disc space-y-1 pl-4 text-muted-foreground">
-                  {preflight.blockers.map((blocker, index) => (
-                    <li key={`${blocker.code}-${blocker.slotKey ?? index}`}>
-                      {blocker.area ? `${AREA_LABELS[blocker.area] ?? blocker.area}: ` : ""}{blocker.message}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPublishReviewOpen(false)} disabled={actingKey === "publish"}>Cancel</Button>
-            {preflight?.staleness && (
-              <Button
-                variant="outline"
-                onClick={() => { setPublishReviewOpen(false); void refreshFromLive(); }}
-                disabled={Boolean(actingKey)}
-              >
-                <RefreshCwIcon data-icon="inline-start" />
-                Refresh from live
-              </Button>
-            )}
-            <Button
-              onClick={() => void publish()}
-              disabled={actingKey === "publish" || preflightLoading
-                || Boolean(preflight?.staleness) || (preflight?.blockers.length ?? 0) > 0}
-            >
-              {actingKey === "publish" ? "Publishing..." : "Publish"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

@@ -3,7 +3,7 @@
 ## Document Control
 
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-05
+- Last Updated: 2026-08-06
 - Status: Active registry
 - Purpose: Track only open gaps, pending decisions, active risks, and intentionally deferred scope.
 - Historical record: [GAPS_AND_RISKS_HISTORY.md](archive/GAPS_AND_RISKS_HISTORY.md)
@@ -20,9 +20,10 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 | GAP-34 | iOS Bookings list lacks the status scope filters and column sorting available on web | AREA_MOBILE | Expected | iOS currently uses `activeOnly: true`, which is acceptable for the V1 student bar. Power-user parity remains deferred. Source: `tasks/audit-bookings-ios.md`. |
 | GAP-36 | iOS Item detail does not expose AC-8 admin actions: Duplicate, Retire, Delete, and Needs Maintenance | AREA_MOBILE | Expected | These destructive and lifecycle actions remain web-only by design for V1. Track staff-mobile parity separately from student operational work. Source: `tasks/audit-items-ios.md`. |
 | GAP-59 | Firmware watch does not cover every live camera body | AREA_ITEMS | Expected | The inventory-driven seed covers verified Sony pages. DJI, GoPro, Insta360, and JVC remain deferred until official-source adapters exist for each vendor's page format. Source: `tasks/firmware-watch-inventory-report.md`. |
-| GAP-60 | Native staff Schedule rollout proof remains open | AREA_MOBILE / AREA_SHIFTS | Active | iOS staff Event detail now reads the private versioned working schedule and routes Add Shift, Assign Person, unassign, duplicate, delete, call-window, and assigned-slot replacement actions through expected-version working-copy commands, with native Publish and Discard review. Student pickup and existing worker-facing reads remain published-only. Assigned-slot convert-and-replace is implemented in web and native locally; authenticated native runtime/device proof and production rollout remain open. Source: `tasks/event-shift-working-schedule-plan.md`. |
+| GAP-60 | Timed Schedule release rollout proof remains open | AREA_MOBILE / AREA_SHIFTS | Active | Web and iOS staff authoring now use an exact-version ten-minute durable release with pending timing, Revert, Student-only calls, neutral-site Away defaults, and eligible collaborator Staff-slot assignment. The production migration, authenticated web/native timer proof, notification proof, and deployment remain open. Source: `tasks/event-shift-working-schedule-plan.md`. |
 | GAP-61 | Legacy raw `PENDING_PICKUP` checkout rows and enum remain during rollout | AREA_RESERVATIONS | Active | New kiosk custody opens directly as `OPEN`, while Pending Pickup is derived from due `BOOKED` reservations. Keep legacy kiosk confirmation and expiry support until a production zero-row check proves the enum and compatibility branches can be removed safely. Source: `tasks/archive/completed-2026-07/pending-pickup-reservation-consolidation-plan.md`. |
 | GAP-62 | Production WebAuthn rollout proof remains open | AREA_MOBILE / AREA_USERS | Active | Web and native iOS enrollment, discoverable login, and credential management are implemented against the shared session contract. Migration `0106_passkey_auth` is applied and live migration health matches all 111 local migrations. On 2026-07-31, production probes returned AASA `200 application/json`, registration-options `405` for unauthenticated `GET`, and passkey listing `401` for unauthenticated `GET`. Authenticated browser smoke, device-side association refresh, and real-device passkey proof remain before calling passkeys production-ready. Source: `tasks/passkey-auth-plan.md`. |
+| GAP-63 | 2027 pending invitation materialization rollout | AREA_USERS / AREA_SHIFTS | Resolved | Migration `0108_social_pending_invite_profile`, the reviewed live invitation/roster data apply, and the registration-time materialization path are deployed. Production readback confirms the authenticated Allowed Emails page renders all 32 entries, including ten pending students and existing Collaborator rows. A real claim was intentionally not executed because it would create and consume a production student account. |
 
 ## Deferred Product Scope
 
@@ -49,10 +50,21 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 | Audit log growth | Retention deletes continue while export-before-delete evidence is still unavailable | Keep bounded retention observable and plan export-before-delete before the dataset reaches the agreed scale threshold | Engineering |
 | Decision or migration provenance drift | A decision references a migration or constraint that is not present in the local migration chain | Reconcile the decision, schema, live migration health, and runbook before schema work; never recreate history by hand | Engineering |
 | Collaborator rollout skew | A collaborator-aware client or invitation reaches production before server/client smoke proves dynamic policy enforcement | Deploy the People-capability server and clients before migration `0103`, then run `npm run smoke:collaborator` with temporary BTN and Learfield accounts and complete native and kiosk proof before inviting additional collaborators | Engineering |
-| Schedule working-copy rollout skew | Web working-copy editing reaches production while migration `0099`, native staff mutations, or authenticated publish smoke remain incomplete | Apply schema/server first, keep payloads off worker reads, migrate native staff quick actions next, and require authenticated draft/publish/notification proof before enabling the workflow for operators | Engineering |
+| Schedule timed-release rollout skew | A client exposes timed authoring before migration `0109`, Workflow infrastructure, or compatible server responses are live | Apply schema and server first, verify an exact-version ten-minute run plus notification dedupe, then roll out web and native clients; keep pending payloads off worker reads throughout | Engineering |
 | Kiosk landscape enforcement deprecation | Xcode 26 warns that `UIRequiresFullScreen` will be ignored in a future iOS release, allowing an unverified resized or portrait scene | Preserve the current landscape-only mounted-iPad contract for now, keep the adaptive split healthy, and complete a managed-device windowing migration before Apple removes enforcement | Mobile |
 
 ## Change Log
+
+- 2026-08-07: Accepted neutral-site Away defaults and removed Staff event-time substitutes from call-time presentation. GAP-60 now remains open only for migration application, deployment, and authenticated timer/notification proof.
+- 2026-08-07: Reframed GAP-60 around the accepted ten-minute automatic release. Source, focused tests, production-shaped web build, and the exact iPhone 16 Pro simulator build pass locally. Migration application, deployment, and authenticated timer/notification proof remain open.
+
+- 2026-08-06: Applied the reviewed 2027 roster data after migration `0108`
+  reached live health. The active roster and ten invitation-backed student
+  profiles are audited and read back cleanly. Production deployment
+  `dpl_9LsMSfoZtd9cw6jW8CbGzJqc3wUm` now serves the registration-time
+  materialization path and the authenticated Allowed Emails page; GAP-63 is
+  resolved, with real-account claim proof intentionally deferred to the first
+  student who actually registers.
 
 - 2026-08-05: With explicit authorization, the one-time settings-owned call-time override completed against the active visible future-event scope. It changed 2 groups and 2 fallback shifts, cleared 2 shift overrides and 6 assignment overrides, rebased 1 private working copy, refreshed 1 published group, preserved all-day date-only events, skipped 5 missing configurations, and wrote audit records. The web/native code remains local and GAP-60 remains open for deployment plus authenticated browser/native runtime proof.
 - 2026-08-04: Native staff Schedule authoring adopted the additive working-copy API locally. Event detail quick actions now stage private versioned changes and expose native Publish/Discard review; assigned-slot convert-and-replace now has explicit web/native target-class pickers and server guards. No worker-facing notification or published read changes occur before publish. Wisconsin target compilation and source contracts pass. Authenticated native runtime/device proof and production rollout remain open under GAP-60.

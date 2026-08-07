@@ -8,6 +8,12 @@ const tx = {
   allowedEmail: {
     update: vi.fn(),
   },
+  studentAreaAssignment: {
+    create: vi.fn(),
+  },
+  studentSportAssignment: {
+    create: vi.fn(),
+  },
 };
 
 vi.mock("@/lib/db", () => ({
@@ -36,6 +42,7 @@ vi.mock("@/lib/rate-limit", () => ({
 
 vi.mock("@/lib/audit", () => ({
   createAuditEntry: vi.fn(),
+  createAuditEntriesTx: vi.fn(),
 }));
 
 vi.mock("@sentry/nextjs", () => ({
@@ -43,7 +50,7 @@ vi.mock("@sentry/nextjs", () => ({
 }));
 
 import { createSession, hashPassword } from "@/lib/auth";
-import { createAuditEntry } from "@/lib/audit";
+import { createAuditEntriesTx, createAuditEntry } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { POST } from "@/app/api/auth/register/route";
@@ -103,6 +110,9 @@ beforeEach(() => {
   vi.mocked(createAuditEntry).mockResolvedValue(undefined);
   vi.mocked(db.user.findUnique).mockResolvedValue(null);
   tx.allowedEmail.update.mockResolvedValue({});
+  tx.studentAreaAssignment.create.mockReset();
+  tx.studentSportAssignment.create.mockReset();
+  vi.mocked(createAuditEntriesTx).mockResolvedValue(undefined);
 });
 
 describe("POST /api/auth/register", () => {
@@ -157,6 +167,67 @@ describe("POST /api/auth/register", () => {
       expect.objectContaining({
         after: expect.objectContaining({ wiscardLinked: false }),
       }),
+    );
+  });
+
+  it("materializes a pending student profile and assignments inside registration", async () => {
+    vi.mocked(db.allowedEmail.findUnique).mockResolvedValue({
+      ...allowedInvite(Role.STUDENT),
+      preloadedName: "Preloaded Student",
+      preloadedPrimaryArea: "VIDEO",
+      preloadedAreas: ["VIDEO", "SOCIAL"],
+      preloadedSportCodes: ["WBB", "VB"],
+    } as unknown as Awaited<ReturnType<typeof db.allowedEmail.findUnique>>);
+    tx.user.create.mockResolvedValue(createdUser(Role.STUDENT, null));
+    tx.studentAreaAssignment.create
+      .mockResolvedValueOnce({ id: "area-assignment-1" })
+      .mockResolvedValueOnce({ id: "area-assignment-2" });
+    tx.studentSportAssignment.create
+      .mockResolvedValueOnce({ id: "sport-assignment-1", defaultTraveler: false })
+      .mockResolvedValueOnce({ id: "sport-assignment-2", defaultTraveler: false });
+
+    const response = await POST(
+      postRegister({
+        name: "Name Entered At Registration",
+        email: "student@example.com",
+        password: "long-enough-password",
+      }),
+      noParams,
+    );
+
+    expect(response.status).toBe(201);
+    expect(tx.user.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        name: "Preloaded Student",
+        primaryArea: "VIDEO",
+      }),
+    }));
+    expect(tx.studentAreaAssignment.create).toHaveBeenNthCalledWith(1, {
+      data: { userId: "user-student", area: "VIDEO", isPrimary: true },
+    });
+    expect(tx.studentAreaAssignment.create).toHaveBeenNthCalledWith(2, {
+      data: { userId: "user-student", area: "SOCIAL", isPrimary: false },
+    });
+    expect(tx.studentSportAssignment.create).toHaveBeenNthCalledWith(1, {
+      data: { userId: "user-student", sportCode: "WBB" },
+    });
+    expect(tx.studentSportAssignment.create).toHaveBeenNthCalledWith(2, {
+        data: { userId: "user-student", sportCode: "VB" },
+    });
+    expect(createAuditEntriesTx).toHaveBeenCalledWith(
+      tx,
+      expect.arrayContaining([
+        expect.objectContaining({
+          entityType: "student_area_assignment",
+          entityId: "area-assignment-1",
+          after: expect.objectContaining({ area: "VIDEO", isPrimary: true }),
+        }),
+        expect.objectContaining({
+          entityType: "student_sport_assignment",
+          entityId: "sport-assignment-1",
+          after: expect.objectContaining({ sportCode: "WBB", defaultTraveler: false }),
+        }),
+      ]),
     );
   });
 

@@ -37,7 +37,7 @@ struct AddShiftSheet: View {
     }
 
     private var hasValidWindow: Bool {
-        !customizeTimes || endsAt > startsAt
+        workerType == .fullTime || !customizeTimes || endsAt > startsAt
     }
 
     var body: some View {
@@ -46,7 +46,11 @@ struct AddShiftSheet: View {
                 VStack(spacing: 16) {
                     contextCard
                     slotCard
-                    scheduleCard
+                    if workerType == .student {
+                        scheduleCard
+                    } else {
+                        staffScheduleCard
+                    }
 
                     if let error {
                         authoringError(message: error)
@@ -90,6 +94,9 @@ struct AddShiftSheet: View {
             .interactiveDismissDisabled(isSubmitting)
         }
         .presentationDetents([.large])
+        .onChange(of: workerType) { _, next in
+            if next == .fullTime { customizeTimes = false }
+        }
     }
 
     private var contextCard: some View {
@@ -160,7 +167,7 @@ struct AddShiftSheet: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Call Window")
                         .font(.headline)
-                    Text(customizeTimes ? "Custom for this shift" : "Uses the event schedule")
+                    Text(customizeTimes ? "Custom for this shift" : "Uses the configured call time")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -198,6 +205,23 @@ struct AddShiftSheet: View {
         }
     }
 
+    private var staffScheduleCard: some View {
+        Label {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Event time").font(.headline)
+                Text("Staff and collaborators do not have a separate call time.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } icon: {
+            Image(systemName: "calendar.badge.clock")
+                .foregroundStyle(Color.statusText(.purple))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.lg, style: .continuous))
+    }
+
     private func authoringError(message: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -228,8 +252,8 @@ struct AddShiftSheet: View {
                 expectedVersion: expectedWorkingVersion,
                 area: area.rawValue,
                 workerType: workerType.rawValue,
-                callStartsAt: customizeTimes ? startsAt : nil,
-                callEndsAt: customizeTimes ? endsAt : nil
+                callStartsAt: workerType == .student && customizeTimes ? startsAt : nil,
+                callEndsAt: workerType == .student && customizeTimes ? endsAt : nil
             )
             Haptics.success()
             onAdded()
@@ -334,6 +358,7 @@ enum ShiftAreaOption: String, CaseIterable {
     case video = "VIDEO"
     case photo = "PHOTO"
     case graphics = "GRAPHICS"
+    case social = "SOCIAL"
     case comms = "COMMS"
 
     var label: String {
@@ -341,6 +366,7 @@ enum ShiftAreaOption: String, CaseIterable {
         case .video: "Video"
         case .photo: "Photo"
         case .graphics: "Graphics"
+        case .social: "Social"
         case .comms: "Comms"
         }
     }
@@ -350,6 +376,7 @@ enum ShiftAreaOption: String, CaseIterable {
         case .video: "video.fill"
         case .photo: "camera.fill"
         case .graphics: "paintbrush.fill"
+        case .social: "person.2.fill"
         case .comms: "wave.3.right"
         }
     }

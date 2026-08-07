@@ -5,7 +5,6 @@ import { HttpError, ok } from "@/lib/http";
 import { findAssetByScanValue } from "@/lib/services/kiosk-scan";
 import { pickupScanBody } from "@/lib/schemas/kiosk";
 import { scanKioskPickupBulkUnit, stageKioskReservationPickupBulkUnit } from "@/lib/services/bulk-unit-scans";
-import { assetLocationEvidence, locationEvidencePayload, reconcileAssetLocationToKiosk } from "@/lib/services/kiosk-location";
 import { badges } from "@/lib/badges";
 import { badgeScanSourceKey } from "@/lib/badges/scan";
 import type { BadgeScanErrorCode } from "@/lib/badges/types";
@@ -15,7 +14,7 @@ import type { BadgeScanErrorCode } from "@/lib/badges/types";
  * Validates that the scanned item belongs to the PENDING_PICKUP checkout or
  * due BOOKED reservation.
  */
-export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => {
+export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
   const { scanValue } = pickupScanBody.parse(await req.json());
 
   const booking = await db.booking.findUnique({
@@ -105,11 +104,7 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
     return ok({ success: false, error: `${label} already scanned`, errorCode: "duplicate" });
   }
 
-  const scanOutcome = await db.$transaction(async (tx) => {
-    const evidence = await assetLocationEvidence(tx, {
-      assetId: asset.id,
-      expectedLocationId: activeBooking.locationId,
-    });
+  const scanEvent = await db.$transaction(async (tx) => {
     const event = await tx.scanEvent.create({
       data: {
         bookingId: activeBooking.id,
@@ -119,32 +114,16 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
         success: true,
         phase: "CHECKOUT",
         assetId: asset.id,
-        locationMismatch: evidence.locationMismatch || activeBooking.locationId !== kiosk.locationId,
-        expectedLocationId: activeBooking.locationId,
-        actualLocationId: evidence.actualLocationId,
         deviceContext: req.headers.get("user-agent") ?? "kiosk",
       },
     });
-    await reconcileAssetLocationToKiosk(tx, {
-      assetId: asset.id,
-      kioskLocationId: kiosk.locationId,
-    });
-    return { event, evidence };
+    return event;
   });
 
-  await emitScanResult({ ok: true, sourceKey: scanOutcome.event.id });
-
-  const responseEvidence = {
-    ...scanOutcome.evidence,
-    locationMismatch: scanOutcome.evidence.locationMismatch || activeBooking.locationId !== kiosk.locationId,
-  };
-  if (activeBooking.locationId !== kiosk.locationId && !responseEvidence.message) {
-    responseEvidence.message = "Location mismatch: this pickup was expected at another location. Updated to this kiosk.";
-  }
+  await emitScanResult({ ok: true, sourceKey: scanEvent.id });
 
   return ok({
     success: true,
-    ...locationEvidencePayload(responseEvidence),
     item: {
       id: asset.id,
       name: asset.name || asset.assetTag,

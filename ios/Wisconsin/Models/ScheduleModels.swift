@@ -327,7 +327,7 @@ struct WorkingScheduleChanges: Codable {
         if convertedSlots > 0 { parts.append("\(convertedSlots) converted") }
         if assignmentChanges > 0 { parts.append("\(assignmentChanges) assignments") }
         if callWindowChanges > 0 { parts.append("\(callWindowChanges) call windows") }
-        return parts.isEmpty ? "No unpublished changes" : parts.joined(separator: " · ")
+        return parts.isEmpty ? "No pending changes" : parts.joined(separator: " · ")
     }
 }
 
@@ -373,6 +373,11 @@ struct WorkingSchedulePayload: Codable {
     let slots: [WorkingScheduleSlot]
 }
 
+struct WorkingScheduleDefaultWindow: Codable {
+    let startsAt: Date
+    let endsAt: Date
+}
+
 struct WorkingScheduleEditor: Codable, Identifiable {
     let shiftGroupId: String
     let publicationState: String
@@ -383,9 +388,13 @@ struct WorkingScheduleEditor: Codable, Identifiable {
     let hasWorkingCopy: Bool
     let updatedAt: Date?
     let updatedById: String?
+    let autoReleaseAt: Date?
+    let autoReleaseRunId: String?
+    let autoReleaseError: String?
     let changes: WorkingScheduleChanges
     let affectedWorkerCount: Int
     let assignedUsers: [WorkingScheduleUser]
+    let defaultWindow: WorkingScheduleDefaultWindow?
     let schedule: WorkingSchedulePayload
 
     var id: String { shiftGroupId }
@@ -418,8 +427,8 @@ struct WorkingScheduleEditor: Codable, Identifiable {
                 workerType: slot.workerType,
                 startsAt: slot.startsAt,
                 endsAt: slot.endsAt,
-                callStartsAt: slot.assignment?.callStartsAt ?? slot.callStartsAt,
-                callEndsAt: slot.assignment?.callEndsAt ?? slot.callEndsAt,
+                callStartsAt: slot.workerType == "ST" ? slot.assignment?.callStartsAt ?? slot.callStartsAt : nil,
+                callEndsAt: slot.workerType == "ST" ? slot.assignment?.callEndsAt ?? slot.callEndsAt : nil,
                 notes: slot.notes,
                 assignments: assignment.map { [$0] } ?? []
             )
@@ -710,6 +719,7 @@ extension String {
         case "VIDEO":    return "Video"
         case "PHOTO":    return "Photo"
         case "GRAPHICS": return "Graphics"
+        case "SOCIAL":   return "Social"
         case "COMMS":    return "Comms"
         default:         return capitalized
         }

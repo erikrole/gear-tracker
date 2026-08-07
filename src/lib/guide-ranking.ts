@@ -71,6 +71,7 @@ function areaLabel(area: ShiftArea) {
     VIDEO: "Video",
     PHOTO: "Photo",
     GRAPHICS: "Graphics",
+    SOCIAL: "Social",
     COMMS: "Comms",
     LIVE_PRODUCTION: "Live Production",
   };

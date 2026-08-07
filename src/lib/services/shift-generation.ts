@@ -1,6 +1,7 @@
 import { Prisma, ShiftArea, ShiftWorkerType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { sportDefaultShiftWindow } from "@/lib/schedule-defaults";
+import { getNonGameScheduleDefaults } from "@/lib/services/non-game-schedule-defaults";
 
 const WRITE_CHUNK_SIZE = 500;
 
@@ -39,8 +40,8 @@ function addTemplateShifts(
   target: Omit<ShiftToCreate, "shiftGroupId">[],
   sc: TemplateShiftConfig,
   isHome: boolean,
-  startsAt: Date,
-  endsAt: Date,
+  event: { startsAt: Date; endsAt: Date },
+  studentWindow: { startsAt: Date; endsAt: Date },
 ) {
   const counts = sportTemplateCounts(sc, isHome);
   for (const workerType of ["FT", "ST"] as const) {
@@ -48,8 +49,8 @@ function addTemplateShifts(
       target.push({
         area: sc.area,
         workerType,
-        startsAt,
-        endsAt,
+        startsAt: workerType === "ST" ? studentWindow.startsAt : event.startsAt,
+        endsAt: workerType === "ST" ? studentWindow.endsAt : event.endsAt,
       });
     }
   }
@@ -69,13 +70,7 @@ export async function generateShiftsForEvent(eventId: string): Promise<{
     include: { shiftGroup: true },
   });
 
-  if (!event || !event.sportCode) {
-    return { created: false, shiftGroupId: null, shiftCount: 0 };
-  }
-
-  // Neutral and non-game events need an explicit event-level crew decision.
-  // Home/Away defaults must never be selected by guessing.
-  if (event.isHome === null) {
+  if (!event) {
     return { created: false, shiftGroupId: null, shiftCount: 0 };
   }
 
@@ -84,28 +79,39 @@ export async function generateShiftsForEvent(eventId: string): Promise<{
     return { created: false, shiftGroupId: event.shiftGroup.id, shiftCount: 0 };
   }
 
-  const sportConfig = await db.sportConfig.findUnique({
-    where: { sportCode: event.sportCode },
-    include: { shiftConfigs: true },
-  });
-
-  if (!sportConfig || !sportConfig.active || sportConfig.shiftConfigs.length === 0) {
-    return { created: false, shiftGroupId: null, shiftCount: 0 };
-  }
-
-  // Create ShiftGroup + Shifts in one transaction
-  const isHome = event.isHome;
-
   const shiftsData: Omit<ShiftToCreate, "shiftGroupId">[] = [];
-  const defaultWindow = sportDefaultShiftWindow(event, sportConfig);
-  for (const sc of sportConfig.shiftConfigs) {
-    addTemplateShifts(
-      shiftsData,
-      sc,
-      isHome,
-      defaultWindow.startsAt,
-      defaultWindow.endsAt,
-    );
+  const isNonGame = !event.opponent;
+  if (isNonGame) {
+    const defaults = await getNonGameScheduleDefaults();
+    const studentWindow = sportDefaultShiftWindow(event, defaults);
+    for (const row of defaults.shiftConfigs) {
+      for (const workerType of ["FT", "ST"] as const) {
+        const count = workerType === "FT" ? row.staffCount : row.studentCount;
+        for (let index = 0; index < count; index++) {
+          shiftsData.push({
+            area: row.area,
+            workerType,
+            startsAt: workerType === "ST" ? studentWindow.startsAt : event.startsAt,
+            endsAt: workerType === "ST" ? studentWindow.endsAt : event.endsAt,
+          });
+        }
+      }
+    }
+  } else {
+    if (!event.sportCode) {
+      return { created: false, shiftGroupId: null, shiftCount: 0 };
+    }
+    const sportConfig = await db.sportConfig.findUnique({
+      where: { sportCode: event.sportCode },
+      include: { shiftConfigs: true },
+    });
+    if (!sportConfig || !sportConfig.active || sportConfig.shiftConfigs.length === 0) {
+      return { created: false, shiftGroupId: null, shiftCount: 0 };
+    }
+    const defaultWindow = sportDefaultShiftWindow(event, sportConfig);
+    for (const row of sportConfig.shiftConfigs) {
+      addTemplateShifts(shiftsData, row, event.isHome === true, event, defaultWindow);
+    }
   }
 
   if (shiftsData.length === 0) {
@@ -185,6 +191,7 @@ export async function generateShiftsForEvents(opts: {
     select: {
       id: true,
       sportCode: true,
+      opponent: true,
       isHome: true,
       allDay: true,
       startsAt: true,
@@ -203,10 +210,13 @@ export async function generateShiftsForEvents(opts: {
 
   // Load all active sport configs in one query
   const sportCodes = [...new Set(events.filter((e) => e.sportCode).map((e) => e.sportCode!))];
-  const sportConfigs = await db.sportConfig.findMany({
-    where: { sportCode: { in: sportCodes }, active: true },
-    include: { shiftConfigs: true },
-  });
+  const [sportConfigs, nonGameDefaults] = await Promise.all([
+    db.sportConfig.findMany({
+      where: { sportCode: { in: sportCodes }, active: true },
+      include: { shiftConfigs: true },
+    }),
+    getNonGameScheduleDefaults(),
+  ]);
   const configMap = new Map(sportConfigs.map((c) => [c.sportCode, c]));
 
   // Build all shift groups and shifts to create
@@ -221,25 +231,25 @@ export async function generateShiftsForEvents(opts: {
 
   for (let i = 0; i < events.length; i++) {
     const event = events[i]!; // in-bounds by loop condition
-    const config = event.sportCode ? configMap.get(event.sportCode) : undefined;
-    if (!config || config.shiftConfigs.length === 0 || event.isHome === null) continue;
-
-    const isHome = event.isHome;
-
     let hasShifts = false;
-    const defaultWindow = sportDefaultShiftWindow(event, config);
-    const shiftStart = defaultWindow.startsAt;
-    const shiftEnd = defaultWindow.endsAt;
-    for (const sc of config.shiftConfigs) {
-      const counts = sportTemplateCounts(sc, isHome);
+    const isNonGame = !event.opponent;
+    const config = event.sportCode ? configMap.get(event.sportCode) : undefined;
+    if (!isNonGame && (!config || config.shiftConfigs.length === 0)) continue;
+    const defaults = isNonGame ? nonGameDefaults : config!;
+    const defaultWindow = sportDefaultShiftWindow(event, defaults);
+    const rows = isNonGame ? nonGameDefaults.shiftConfigs : config!.shiftConfigs;
+    for (const sc of rows) {
+      const counts = "staffCount" in sc
+        ? { FT: sc.staffCount, ST: sc.studentCount }
+        : sportTemplateCounts(sc, event.isHome === true);
       for (const workerType of ["FT", "ST"] as const) {
         for (let j = 0; j < counts[workerType]; j++) {
           pendingShifts.push({
             eventIndex: groupsToCreate.length,
             area: sc.area,
             workerType,
-            startsAt: shiftStart,
-            endsAt: shiftEnd,
+            startsAt: workerType === "ST" ? defaultWindow.startsAt : event.startsAt,
+            endsAt: workerType === "ST" ? defaultWindow.endsAt : event.endsAt,
           });
           hasShifts = true;
         }
@@ -300,7 +310,6 @@ export async function generateShiftsForNewEvents(sourceId: string): Promise<{
   const result = await generateShiftsForEvents({
     where: {
       sourceId,
-      sportCode: { not: null },
       shiftGroup: null,
       startsAt: { gte: new Date() },
     },
@@ -328,10 +337,6 @@ export async function regenerateShiftsForEvent(eventId: string): Promise<{
     return { added: 0 };
   }
 
-  if (event.isHome === null) {
-    return { added: 0 };
-  }
-
   // Skip regeneration for manually-edited shift groups
   if (event.shiftGroup.manuallyEdited) {
     return { added: 0 };
@@ -346,7 +351,7 @@ export async function regenerateShiftsForEvent(eventId: string): Promise<{
     return { added: 0 };
   }
 
-  const isHome = event.isHome;
+  const isHome = event.isHome === true;
   const existingShifts = event.shiftGroup.shifts;
 
   // Count existing shifts per area and planned worker kind.
@@ -373,11 +378,13 @@ export async function regenerateShiftsForEvent(eventId: string): Promise<{
       const toAdd = Math.max(0, counts[workerType] - currentCount);
 
       for (let i = 0; i < toAdd; i++) {
+        const defaultWindow = sportDefaultShiftWindow(event, sportConfig);
         newShifts.push({
           shiftGroupId: event.shiftGroup.id,
           area: sc.area,
           workerType,
-          ...sportDefaultShiftWindow(event, sportConfig),
+          startsAt: workerType === "ST" ? defaultWindow.startsAt : event.startsAt,
+          endsAt: workerType === "ST" ? defaultWindow.endsAt : event.endsAt,
           templateManaged: true,
         });
       }
@@ -485,11 +492,6 @@ export async function rebaseUpcomingShiftsForSportCodes(
     for (const event of events) {
       const config = event.sportCode ? configByCode.get(event.sportCode) : undefined;
       if (!config) continue;
-      if (event.isHome === null) {
-        summary.neutralSkipped += 1;
-        continue;
-      }
-
       if (event.shiftGroup?.publishedAt) {
         summary.publishedSkipped += 1;
         continue;
@@ -500,11 +502,9 @@ export async function rebaseUpcomingShiftsForSportCodes(
       }
 
       const defaultWindow = sportDefaultShiftWindow(event, config);
-      const startsAt = defaultWindow.startsAt;
-      const endsAt = defaultWindow.endsAt;
       const targets = new Map<string, { area: ShiftArea; workerType: ShiftWorkerType; count: number }>();
       for (const row of config.shiftConfigs) {
-        const counts = sportTemplateCounts(row, event.isHome);
+        const counts = sportTemplateCounts(row, event.isHome === true);
         for (const workerType of ["FT", "ST"] as const) {
           targets.set(`${row.area}:${workerType}`, {
             area: row.area,
@@ -519,8 +519,8 @@ export async function rebaseUpcomingShiftsForSportCodes(
           Array.from({ length: target.count }, () => ({
             area: target.area,
             workerType: target.workerType,
-            startsAt,
-            endsAt,
+            startsAt: target.workerType === "ST" ? defaultWindow.startsAt : event.startsAt,
+            endsAt: target.workerType === "ST" ? defaultWindow.endsAt : event.endsAt,
             templateManaged: true,
           })),
         );
@@ -580,13 +580,15 @@ export async function rebaseUpcomingShiftsForSportCodes(
         summary.protectedOverageSlots += Math.max(0, remainingCount - targetCount);
         const addCount = Math.max(0, targetCount - remainingCount);
         if (target && addCount > 0) {
+          const targetStartsAt = target.workerType === "ST" ? defaultWindow.startsAt : event.startsAt;
+          const targetEndsAt = target.workerType === "ST" ? defaultWindow.endsAt : event.endsAt;
           await tx.shift.createMany({
             data: Array.from({ length: addCount }, () => ({
               shiftGroupId: event.shiftGroup!.id,
               area: target.area,
               workerType: target.workerType,
-              startsAt,
-              endsAt,
+              startsAt: targetStartsAt,
+              endsAt: targetEndsAt,
               templateManaged: true,
             })),
           });
@@ -595,6 +597,8 @@ export async function rebaseUpcomingShiftsForSportCodes(
         }
 
         const removeSet = new Set(removeIds);
+        const targetStartsAt = target?.workerType === "ST" ? defaultWindow.startsAt : event.startsAt;
+        const targetEndsAt = target?.workerType === "ST" ? defaultWindow.endsAt : event.endsAt;
         const retimeIds = current
           .filter((shift) =>
             !removeSet.has(shift.id)
@@ -603,13 +607,13 @@ export async function rebaseUpcomingShiftsForSportCodes(
             && shift.notes === null
             && shift.callStartsAt === null
             && shift.callEndsAt === null
-            && (shift.startsAt.getTime() !== startsAt.getTime() || shift.endsAt.getTime() !== endsAt.getTime())
+            && (shift.startsAt.getTime() !== targetStartsAt.getTime() || shift.endsAt.getTime() !== targetEndsAt.getTime())
           )
           .map((shift) => shift.id);
         if (retimeIds.length > 0) {
           const retimed = await tx.shift.updateMany({
             where: { id: { in: retimeIds }, assignments: { none: {} } },
-            data: { startsAt, endsAt },
+            data: { startsAt: targetStartsAt, endsAt: targetEndsAt },
           });
           summary.slotsRetimed += retimed.count;
           groupChanged ||= retimed.count > 0;

@@ -157,9 +157,6 @@ export const POST = withKiosk(async (req, { kiosk }) => {
       return actionable("return", item, booking);
     }
     if (booking?.kind === BookingKind.RESERVATION && booking.status === BookingStatus.BOOKED && booking.endsAt >= now) {
-      if (booking.locationId !== kiosk.locationId) {
-        return blocked("wrong_location", `Pick this reservation up at ${booking.location.name}.`, item, booking);
-      }
       if (!userId) return pending("booked_reservation", item, booking);
       if (booking.requester.id !== userId) return blocked("wrong_requester", `This pickup requires ${booking.requester.name}.`, item, booking);
       return actionable("pickup", item, booking);
@@ -216,9 +213,6 @@ export const POST = withKiosk(async (req, { kiosk }) => {
   }
   const reservation = reservations[0];
   if (reservation) {
-    if (reservation.locationId !== kiosk.locationId) {
-      return blocked("wrong_location", `Pick this reservation up at ${reservation.location.name}.`, item, reservation);
-    }
     if (!userId) return pending("booked_reservation", item, reservation);
     return actionable("pickup", item, reservation);
   }

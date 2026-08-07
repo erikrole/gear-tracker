@@ -248,15 +248,20 @@ export function applyWorkingScheduleCommand(
       const peer = [...next.slots].reverse().find((slot) =>
         slot.area === command.area && slot.workerType === command.workerType,
       );
+      const isStudentSlot = command.workerType === "ST";
       next.slots.push({
         key: createKey(),
         sourceShiftId: null,
         area: command.area,
         workerType: command.workerType,
-        startsAt: peer?.startsAt ?? defaultWindow.startsAt,
-        endsAt: peer?.endsAt ?? defaultWindow.endsAt,
-        callStartsAt: command.callStartsAt !== undefined ? command.callStartsAt : peer?.callStartsAt ?? null,
-        callEndsAt: command.callEndsAt !== undefined ? command.callEndsAt : peer?.callEndsAt ?? null,
+        startsAt: isStudentSlot ? peer?.startsAt ?? defaultWindow.startsAt : next.eventStartsAt,
+        endsAt: isStudentSlot ? peer?.endsAt ?? defaultWindow.endsAt : next.eventEndsAt,
+        callStartsAt: isStudentSlot
+          ? command.callStartsAt !== undefined ? command.callStartsAt : peer?.callStartsAt ?? null
+          : null,
+        callEndsAt: isStudentSlot
+          ? command.callEndsAt !== undefined ? command.callEndsAt : peer?.callEndsAt ?? null
+          : null,
         notes: null,
         assignmentHistoryCount: 0,
         assignment: null,
@@ -281,6 +286,12 @@ export function applyWorkingScheduleCommand(
       throw new Error("UNASSIGN_BEFORE_CONVERTING");
     }
     slot.workerType = command.workerType;
+    if (command.workerType === "FT") {
+      slot.startsAt = next.eventStartsAt;
+      slot.endsAt = next.eventEndsAt;
+      slot.callStartsAt = null;
+      slot.callEndsAt = null;
+    }
   } else if (command.type === "convertAndReplace") {
     const slot = next.slots.find((candidate) => candidate.key === command.slotKey);
     if (!slot) throw new Error("WORKING_SLOT_NOT_FOUND");
@@ -291,6 +302,12 @@ export function applyWorkingScheduleCommand(
     if (slot.assignment.activeTradeId) throw new Error("CANCEL_TRADE_BEFORE_REPLACING");
     if (slot.assignment.bookingCount > 0) throw new Error("UNLINK_BOOKING_BEFORE_REPLACING");
     slot.workerType = command.workerType;
+    if (command.workerType === "FT") {
+      slot.startsAt = next.eventStartsAt;
+      slot.endsAt = next.eventEndsAt;
+      slot.callStartsAt = null;
+      slot.callEndsAt = null;
+    }
     slot.assignment = {
       ...slot.assignment,
       sourceAssignmentId: null,
@@ -334,6 +351,7 @@ export function applyWorkingScheduleCommand(
   } else if (command.type === "setCallWindow") {
     const slot = next.slots.find((candidate) => candidate.key === command.slotKey);
     if (!slot) throw new Error("WORKING_SLOT_NOT_FOUND");
+    if (slot.workerType !== "ST") throw new Error("CALL_TIME_STUDENT_ONLY");
     if (slot.assignment) {
       slot.assignment.callStartsAt = command.callStartsAt;
       slot.assignment.callEndsAt = command.callEndsAt;
@@ -343,6 +361,7 @@ export function applyWorkingScheduleCommand(
     }
   } else {
     for (const slot of next.slots) {
+      if (slot.workerType !== "ST") continue;
       slot.callStartsAt = command.callStartsAt;
       slot.callEndsAt = command.callEndsAt;
       if (slot.assignment) {
