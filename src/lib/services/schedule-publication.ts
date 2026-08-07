@@ -89,6 +89,81 @@ function normalizeStoredSnapshot(value: Prisma.JsonValue | null | undefined): Sc
   return value as SchedulePublicationSnapshot;
 }
 
+function visibleAssignmentWindow(
+  shift: SchedulePublicationSnapshot["shifts"][number],
+  assignment: SchedulePublicationSnapshot["shifts"][number]["assignments"][number],
+) {
+  // Staff and collaborators do not receive a call time. Their stored event
+  // window is still needed for conflict checks and calendar integrity, but it
+  // must not turn an internal window normalization into a worker notification.
+  if (shift.workerType !== "ST") return null;
+  return {
+    startsAt: assignment.callStartsAt ?? shift.callStartsAt ?? shift.startsAt,
+    endsAt: assignment.callEndsAt ?? shift.callEndsAt ?? shift.endsAt,
+  };
+}
+
+/**
+ * Return only the workers whose published, worker-visible schedule changed.
+ *
+ * A publish can also normalize stored Staff event windows. Those values are
+ * intentionally ignored here because Staff and collaborators already know
+ * when they need to report; only Student call windows are worker-facing. The
+ * full snapshot still records those internal values for publication state and
+ * audit history.
+ */
+export function getAffectedPublishedScheduleWorkerIds(
+  previous: SchedulePublicationSnapshot,
+  current: SchedulePublicationSnapshot,
+): string[] {
+  const previousByShiftId = new Map(previous.shifts.map((shift) => [shift.shiftId, shift]));
+  const currentByShiftId = new Map(current.shifts.map((shift) => [shift.shiftId, shift]));
+  const affected = new Set<string>();
+  const addShiftUsers = (shift: SchedulePublicationSnapshot["shifts"][number] | undefined) => {
+    for (const assignment of shift?.assignments ?? []) affected.add(assignment.userId);
+  };
+
+  for (const shiftId of new Set([...previousByShiftId.keys(), ...currentByShiftId.keys()])) {
+    const before = previousByShiftId.get(shiftId);
+    const after = currentByShiftId.get(shiftId);
+    if (!before || !after) {
+      addShiftUsers(before);
+      addShiftUsers(after);
+      continue;
+    }
+
+    const slotContextChanged = before.area !== after.area || before.workerType !== after.workerType;
+    if (slotContextChanged) {
+      addShiftUsers(before);
+      addShiftUsers(after);
+    }
+
+    const beforeByUserId = new Map(before.assignments.map((assignment) => [assignment.userId, assignment]));
+    const afterByUserId = new Map(after.assignments.map((assignment) => [assignment.userId, assignment]));
+    for (const userId of new Set([...beforeByUserId.keys(), ...afterByUserId.keys()])) {
+      const beforeAssignment = beforeByUserId.get(userId);
+      const afterAssignment = afterByUserId.get(userId);
+      if (!beforeAssignment || !afterAssignment) {
+        affected.add(userId);
+        continue;
+      }
+
+      const beforeWindow = visibleAssignmentWindow(before, beforeAssignment);
+      const afterWindow = visibleAssignmentWindow(after, afterAssignment);
+      if (
+        beforeAssignment.status !== afterAssignment.status
+        || beforeAssignment.callNote !== afterAssignment.callNote
+        || beforeWindow?.startsAt !== afterWindow?.startsAt
+        || beforeWindow?.endsAt !== afterWindow?.endsAt
+      ) {
+        affected.add(userId);
+      }
+    }
+  }
+
+  return [...affected];
+}
+
 export function buildSchedulePublicationSnapshot(group: { shifts: SnapshotShift[] }): SchedulePublicationSnapshot {
   return {
     shifts: group.shifts
@@ -548,7 +623,15 @@ export async function publishShiftGroup(
           || iso(assignment.callEndsAt) !== workingAssignment.callEndsAt
           || (assignment.callNote ?? null) !== workingAssignment.callNote;
         if (!windowChanged && !assignmentFieldsChanged) return [];
-        return [{ slot, assignment, workingAssignment, afterWindow, windowChanged, assignmentFieldsChanged }];
+        return [{
+          slot,
+          assignment,
+          workingAssignment,
+          afterWindow,
+          windowChanged,
+          assignmentFieldsChanged,
+          workerVisibleWindowChanged: slot.workerType === "ST" && windowChanged,
+        }];
       });
       if (changedAssignedWindows.length > 0) {
         const userIds = [...new Set(changedAssignedWindows.map(({ assignment }) => assignment.userId))];
@@ -576,7 +659,15 @@ export async function publishShiftGroup(
           },
         });
         const userById = new Map(users.map((user) => [user.id, user]));
-        for (const { slot, assignment, workingAssignment, afterWindow, windowChanged, assignmentFieldsChanged } of changedAssignedWindows) {
+        for (const {
+          slot,
+          assignment,
+          workingAssignment,
+          afterWindow,
+          windowChanged,
+          assignmentFieldsChanged,
+          workerVisibleWindowChanged,
+        } of changedAssignedWindows) {
           const user = userById.get(assignment.userId);
           if (!user?.active) throw new HttpError(409, "An assigned worker is no longer active.");
           if (windowChanged) {
@@ -595,20 +686,25 @@ export async function publishShiftGroup(
               if (availability.blocking) throw new HttpError(409, availability.blocking.note);
             }
           }
+          const workerVisibleChange = assignmentFieldsChanged || workerVisibleWindowChanged;
           const data = {
             ...(assignmentFieldsChanged ? {
               callStartsAt: workingAssignment.callStartsAt ? new Date(workingAssignment.callStartsAt) : null,
               callEndsAt: workingAssignment.callEndsAt ? new Date(workingAssignment.callEndsAt) : null,
               callNote: workingAssignment.callNote,
             } : {}),
-            acknowledgedAt: null,
-            acknowledgedById: null,
+            ...(workerVisibleChange ? {
+              acknowledgedAt: null,
+              acknowledgedById: null,
+            } : {}),
           };
-          await tx.shiftAssignment.update({
-            where: { id: assignment.id },
-            data,
-          });
-          affectedUserIds.add(user.id);
+          if (Object.keys(data).length > 0) {
+            await tx.shiftAssignment.update({
+              where: { id: assignment.id },
+              data,
+            });
+          }
+          if (workerVisibleChange) affectedUserIds.add(user.id);
         }
       }
 
@@ -627,6 +723,12 @@ export async function publishShiftGroup(
           && current.callEndsAt?.toISOString() === (callEndsAt ?? undefined)
           && (current.notes ?? null) === slot.notes;
         if (unchanged) continue;
+        if (
+          current.assignments[0]
+          && (current.area !== slot.area || current.workerType !== slot.workerType)
+        ) {
+          affectedUserIds.add(current.assignments[0].userId);
+        }
         await tx.shift.update({
           where: { id: slot.sourceShiftId },
           data: {
@@ -762,6 +864,11 @@ export async function publishShiftGroup(
     const snapshot = buildSchedulePublicationSnapshot(group);
     const previousSnapshot = normalizeStoredSnapshot(group.lastPublishedSnapshot);
     const publishedSnapshotChanged = !previousSnapshot || stableJson(previousSnapshot) !== stableJson(snapshot);
+    if (previousSnapshot) {
+      for (const userId of getAffectedPublishedScheduleWorkerIds(previousSnapshot, snapshot)) {
+        affectedUserIds.add(userId);
+      }
+    }
     const publishedAt = new Date();
     const updated = await tx.shiftGroup.update({
       where: { id: shiftGroupId },

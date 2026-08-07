@@ -53,7 +53,7 @@
 | `src/lib/services/schedule-health.ts` | 386 |
 | `src/lib/services/schedule-notification-policy.ts` | 106 |
 | `src/lib/services/schedule-open-work.ts` | 447 |
-| `src/lib/services/schedule-publication.ts` | 899 |
+| `src/lib/services/schedule-publication.ts` | 1006 |
 | `src/lib/services/schedule-template-review.ts` | 554 |
 | `src/lib/services/schedule-working-copy.ts` | 890 |
 | `src/lib/services/shift-assignment-conflicts.ts` | 43 |

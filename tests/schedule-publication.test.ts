@@ -44,6 +44,7 @@ import { db } from "@/lib/db";
 import {
   acknowledgeShiftAssignment,
   buildSchedulePublicationSnapshot,
+  getAffectedPublishedScheduleWorkerIds,
   getSchedulePublicationState,
   publishShiftGroup,
 } from "@/lib/services/schedule-publication";
@@ -106,6 +107,45 @@ beforeEach(() => {
 });
 
 describe("schedule publication state", () => {
+  it("only marks an added worker when Staff event windows are normalized", () => {
+    const staffShift = (shiftId: string, userId: string, startsAt: string, endsAt: string) => ({
+      shiftId,
+      area: "VIDEO",
+      workerType: "FT",
+      startsAt,
+      endsAt,
+      callStartsAt: null,
+      callEndsAt: null,
+      assignments: [{
+        id: `assignment-${shiftId}`,
+        userId,
+        status: "DIRECT_ASSIGNED",
+        callStartsAt: null,
+        callEndsAt: null,
+        callNote: null,
+      }],
+    });
+    const previous = {
+      shifts: [
+        staffShift("shift-1", "user-1", "2026-10-06T17:00:00.000Z", "2026-10-06T21:00:00.000Z"),
+        staffShift("shift-2", "user-2", "2026-10-06T17:00:00.000Z", "2026-10-06T21:00:00.000Z"),
+        staffShift("shift-3", "user-3", "2026-10-06T17:00:00.000Z", "2026-10-06T21:00:00.000Z"),
+        staffShift("shift-4", "user-4", "2026-10-06T17:00:00.000Z", "2026-10-06T21:00:00.000Z"),
+      ],
+    };
+    const current = {
+      shifts: [
+        staffShift("shift-1", "user-1", "2026-10-06T18:00:00.000Z", "2026-10-06T20:00:00.000Z"),
+        staffShift("shift-2", "user-2", "2026-10-06T18:00:00.000Z", "2026-10-06T20:00:00.000Z"),
+        staffShift("shift-3", "user-3", "2026-10-06T18:00:00.000Z", "2026-10-06T20:00:00.000Z"),
+        staffShift("shift-4", "user-4", "2026-10-06T18:00:00.000Z", "2026-10-06T20:00:00.000Z"),
+        staffShift("shift-5", "user-5", "2026-10-06T18:00:00.000Z", "2026-10-06T20:00:00.000Z"),
+      ],
+    };
+
+    expect(getAffectedPublishedScheduleWorkerIds(previous, current)).toEqual(["user-5"]);
+  });
+
   it("ignores legacy acknowledgement fields when computing schedule state", () => {
     const snapshot = buildSchedulePublicationSnapshot({ shifts: [shift()] });
 
@@ -623,6 +663,144 @@ describe("publishShiftGroup", () => {
       }),
     }));
     expect(result.affectedUserIds).toEqual(["user-1"]);
+  });
+
+  it("notifies only the added worker when existing Staff assignments keep their schedule", async () => {
+    const eventStartsAt = "2026-10-06T18:00:00.000Z";
+    const eventEndsAt = "2026-10-06T20:00:00.000Z";
+    const currentShifts = ["user-1", "user-2", "user-3", "user-4"].map((userId, index) => ({
+      ...shift({ id: `shift-${index + 1}`, workerType: "FT" }),
+      createdAt: new Date("2026-09-01T12:00:00.000Z"),
+      startsAt: new Date("2026-10-06T17:00:00.000Z"),
+      endsAt: new Date("2026-10-06T21:00:00.000Z"),
+      notes: null,
+      _count: { assignments: 1 },
+      assignments: [{
+        id: `assignment-${index + 1}`,
+        userId,
+        status: "DIRECT_ASSIGNED",
+        callStartsAt: null,
+        callEndsAt: null,
+        callNote: null,
+        acknowledgedAt: null,
+        trades: [],
+        _count: { bookings: 0 },
+      }],
+    }));
+    const addedShift = {
+      ...shift({ id: "shift-5", workerType: "FT" }),
+      createdAt: new Date("2026-09-01T12:00:00.000Z"),
+      startsAt: new Date(eventStartsAt),
+      endsAt: new Date(eventEndsAt),
+      notes: null,
+      _count: { assignments: 1 },
+      assignments: [{
+        id: "assignment-5",
+        userId: "user-5",
+        status: "DIRECT_ASSIGNED",
+        callStartsAt: null,
+        callEndsAt: null,
+        callNote: null,
+        acknowledgedAt: null,
+        trades: [],
+        _count: { bookings: 0 },
+      }],
+    };
+    const workingSlots = currentShifts.map((currentShift) => ({
+      key: currentShift.id,
+      sourceShiftId: currentShift.id,
+      area: currentShift.area,
+      workerType: "FT" as const,
+      startsAt: eventStartsAt,
+      endsAt: eventEndsAt,
+      callStartsAt: null,
+      callEndsAt: null,
+      notes: null,
+      assignmentHistoryCount: 1,
+      assignment: {
+        sourceAssignmentId: currentShift.assignments[0]!.id,
+        userId: currentShift.assignments[0]!.userId,
+        status: "DIRECT_ASSIGNED" as const,
+        callStartsAt: null,
+        callEndsAt: null,
+        callNote: null,
+        activeTradeId: null,
+        bookingCount: 0,
+      },
+    }));
+    workingSlots.push({
+      key: "draft:shift-5",
+      sourceShiftId: null,
+      area: "VIDEO",
+      workerType: "FT",
+      startsAt: eventStartsAt,
+      endsAt: eventEndsAt,
+      callStartsAt: null,
+      callEndsAt: null,
+      notes: null,
+      assignmentHistoryCount: 0,
+      assignment: {
+        sourceAssignmentId: null,
+        userId: "user-5",
+        status: "DIRECT_ASSIGNED",
+        callStartsAt: null,
+        callEndsAt: null,
+        callNote: null,
+        activeTradeId: null,
+        bookingCount: 0,
+      },
+    });
+    const group = {
+      id: "group-1",
+      publishedAt: new Date("2026-10-01T12:00:00.000Z"),
+      publishedById: "staff-1",
+      publishedVersion: 1,
+      lastPublishedSnapshot: buildSchedulePublicationSnapshot({ shifts: currentShifts }),
+      workingCopy: {
+        version: 2,
+        basePublishedVersion: 1,
+        payload: {
+          eventStartsAt,
+          eventEndsAt,
+          baseShiftIds: currentShifts.map((currentShift) => currentShift.id),
+          slots: workingSlots,
+        },
+      },
+      shifts: currentShifts,
+    };
+    const updatedShifts = currentShifts.map((currentShift) => ({
+      ...currentShift,
+      startsAt: new Date(eventStartsAt),
+      endsAt: new Date(eventEndsAt),
+    }));
+    updatedShifts.push(addedShift);
+    mockTx.shiftGroup.findUnique
+      .mockResolvedValueOnce(group)
+      .mockResolvedValueOnce({ ...group, shifts: updatedShifts });
+    mockTx.user.findMany.mockResolvedValue([
+      ...["user-1", "user-2", "user-3", "user-4", "user-5"].map((id) => ({
+        id,
+        active: true,
+        staffingType: "FT",
+        availabilityBlocks: [],
+      })),
+    ]);
+    mockTx.shift.update.mockResolvedValue({ id: "shift-1" });
+    mockTx.shift.create.mockResolvedValue({ id: "shift-5" });
+    mockTx.shiftAssignment.updateMany.mockResolvedValue({ count: 0 });
+    mockTx.shiftAssignment.create.mockResolvedValue({ id: "assignment-5" });
+    mockTx.shiftGroupWorkingCopy.deleteMany.mockResolvedValue({ count: 1 });
+    mockTx.shiftGroup.update.mockImplementation(async ({ data }) => ({
+      ...group,
+      shifts: updatedShifts,
+      publishedAt: data.publishedAt ?? group.publishedAt,
+      publishedById: data.publishedById ?? group.publishedById,
+      lastPublishedSnapshot: data.lastPublishedSnapshot ?? group.lastPublishedSnapshot,
+    }));
+
+    const result = await publishShiftGroup("group-1", "staff-1", 2);
+
+    expect(result.affectedUserIds).toEqual(["user-5"]);
   });
 });
 
