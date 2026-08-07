@@ -9,9 +9,10 @@ import "dotenv/config";
 
 const migrationsDir = join(process.cwd(), "prisma", "migrations");
 const blankSchemaEnginePattern = /Error:\s*Schema engine error:\s*$/m;
-// P1001: engine can't reach Postgres on 5432 (some networks block direct
-// connections); the Neon HTTP driver still works, so fall back for that too.
-const unreachableDbPattern = /P1001/;
+// P1001/P1011: the engine can't establish a usable Postgres connection on
+// 5432 (some networks block or reset direct TLS connections); the Neon HTTP
+// driver still works, so fall back for those transport failures too.
+const unreachableDbPattern = /P1001|P1011/;
 
 if (isMainModule()) {
   main().catch((error) => {
