@@ -36,8 +36,8 @@ import {
   MAX_BULK_SKU_LINES_PER_REQUEST,
   MAX_EQUIPMENT_SELECTIONS_PER_REQUEST,
 } from "@/lib/request-limits";
-import { POST } from "@/app/api/drafts/route";
-import { DELETE, GET } from "@/app/api/drafts/[id]/route";
+import { GET as GET_DRAFTS, POST } from "@/app/api/drafts/route";
+import { DELETE, GET as GET_DRAFT } from "@/app/api/drafts/[id]/route";
 
 const user = {
   id: "cm000000000000000000000001",
@@ -378,6 +378,54 @@ describe("POST /api/drafts", () => {
     expect(res.status).toBe(400);
     expect(db.$transaction).not.toHaveBeenCalled();
   });
+
+  it("rejects invalid draft timestamps before opening a transaction", async () => {
+    const res = await POST(
+      makePostRequest({ kind: "RESERVATION", startsAt: "not-a-date" }),
+      noParams,
+    );
+
+    expect(res.status).toBe(400);
+    expect(db.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects duplicate serialized and bulk equipment lines before database constraints", async () => {
+    const assetId = "cm000000000000000000000004";
+    const bulkSkuId = "cm000000000000000000000005";
+    const res = await POST(
+      makePostRequest({
+        kind: "RESERVATION",
+        serializedAssetIds: [assetId, assetId],
+        bulkItems: [
+          { bulkSkuId, quantity: 1 },
+          { bulkSkuId, quantity: 2 },
+        ],
+      }),
+      noParams,
+    );
+
+    expect(res.status).toBe(400);
+    expect(db.$transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/drafts", () => {
+  it("lists recent drafts without deleting expired rows from a read request", async () => {
+    vi.mocked(db.booking.findMany).mockResolvedValue([]);
+
+    const res = await GET_DRAFTS(
+      new Request("https://app.example.com/api/drafts", {
+        headers: { host: "app.example.com" },
+      }),
+      noParams,
+    );
+
+    expect(res.status).toBe(200);
+    expect(db.booking.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ status: "DRAFT", createdBy: user.id }),
+      take: 10,
+    }));
+  });
 });
 
 describe("GET /api/drafts/[id]", () => {
@@ -430,7 +478,7 @@ describe("GET /api/drafts/[id]", () => {
       updatedAt: new Date("2026-05-07T02:00:00Z"),
     }));
 
-    const res = await GET(makeGetRequest(), draftParams);
+    const res = await GET_DRAFT(makeGetRequest(), draftParams);
 
     expect(res.status).toBe(200);
     const body = await res.json();

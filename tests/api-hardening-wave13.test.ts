@@ -277,7 +277,7 @@ describe("API hardening wave 13", () => {
     expect(updateCheckout).not.toHaveBeenCalled();
   });
 
-  it("accepts second-precision If-Unmodified-Since headers and writes a full before snapshot", async () => {
+  it("accepts second-precision If-Unmodified-Since headers and delegates canonical audit writes", async () => {
     const res = await patchBooking(
       post(
         "/api/bookings/booking-1",
@@ -288,15 +288,7 @@ describe("API hardening wave 13", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(createAuditEntry).toHaveBeenCalledWith(
-      expect.objectContaining({
-        before: expect.objectContaining({
-          title: "Checkout",
-          serializedAssetIds: ["asset-1"],
-          bulkItems: [{ bulkSkuId: "sku-1", plannedQuantity: 2 }],
-        }),
-      }),
-    );
+    expect(createAuditEntry).not.toHaveBeenCalled();
   });
 
   it("rejects duplicate check-in reports inside the five-second window", async () => {

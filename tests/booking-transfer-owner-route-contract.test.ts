@@ -148,6 +148,7 @@ describe("booking transfer-owner route contract", () => {
         targetUserId: "cm000000000000000000000004",
         reason: "FB MEDIA DAYS booking should sit with the operator running it.",
       },
+      new Date("2026-07-09T16:00:00.000Z"),
     );
   });
 

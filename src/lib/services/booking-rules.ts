@@ -20,7 +20,7 @@ import {
  * |----------|-------------|-------------|----------------|---------------|-----------|-----------|
  * | edit     | staff+/owner | staff+/owner | staff+/owner   | staff+/owner  | ✗         | ✗         |
  * | extend   | ✗            | staff+/owner | ✗              | staff+/owner  | ✗         | ✗         |
- * | cancel   | staff+/owner | staff+/owner | staff+/owner   | staff+ only   | ✗         | ✗         |
+ * | cancel   | staff+/owner | staff+/owner | staff+/owner   | ✗             | ✗         | ✗         |
  * | checkin  | ✗            | ✗            | ✗              | kiosk only    | ✗         | ✗         |
  * | force-complete | ✗       | ✗            | ✗              | admin only    | ✗         | ✗         |
  * | transfer-owner | staff+/owner | staff+/owner | staff+/owner | staff+/owner | ✗         | ✗         |

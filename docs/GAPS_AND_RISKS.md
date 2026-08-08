@@ -3,7 +3,7 @@
 ## Document Control
 
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-06
+- Last Updated: 2026-08-07
 - Status: Active registry
 - Purpose: Track only open gaps, pending decisions, active risks, and intentionally deferred scope.
 - Historical record: [GAPS_AND_RISKS_HISTORY.md](archive/GAPS_AND_RISKS_HISTORY.md)
@@ -52,8 +52,20 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 | Collaborator rollout skew | A collaborator-aware client or invitation reaches production before server/client smoke proves dynamic policy enforcement | Deploy the People-capability server and clients before migration `0103`, then run `npm run smoke:collaborator` with temporary BTN and Learfield accounts and complete native and kiosk proof before inviting additional collaborators | Engineering |
 | Schedule timed-release rollout skew | A client exposes timed authoring before migration `0109`, Workflow infrastructure, or compatible server responses are live | Apply schema and server first, verify an exact-version ten-minute run plus notification dedupe, then roll out web and native clients; keep pending payloads off worker reads throughout | Engineering |
 | Kiosk landscape enforcement deprecation | Xcode 26 warns that `UIRequiresFullScreen` will be ignored in a future iOS release, allowing an unverified resized or portrait scene | Preserve the current landscape-only mounted-iPad contract for now, keep the adaptive split healthy, and complete a managed-device windowing migration before Apple removes enforcement | Mobile |
+| Booking read-path growth | Booking change polling begins scanning or sorting materially more rows, or synchronous 5,000-row CSV exports approach the serverless timeout | Add composite booking/audit cursor indexes through a reviewed Prisma migration, then paginate or move large exports to an artifact-producing job before volume makes the current bounded route unreliable | Engineering |
 
 ## Change Log
+
+- 2026-08-07: Reconciled booking lifecycle and API hardening without adding a
+  product gap. Normal active-checkout cancellation and non-kiosk equipment edits
+  are closed at route, policy, and service boundaries; optimistic snapshot
+  checks now reach the serializable write transaction; bounded change polling
+  has stable per-stream cursors; and draft/export inputs fail at validated API
+  boundaries. Explicit audited cleanup for expired hidden drafts remains
+  maintenance work rather than a user-facing correctness gap.
+  A Vercel-focused review added the booking read-path growth risk: correctness
+  is bounded today, while composite change-feed indexes and batched or
+  asynchronous large exports remain deliberate performance follow-ups.
 
 - 2026-08-07: Accepted neutral-site Away defaults and removed Staff event-time substitutes from call-time presentation. GAP-60 now remains open only for migration application, deployment, and authenticated timer/notification proof.
 - 2026-08-07: Reframed GAP-60 around the accepted ten-minute automatic release. Source, focused tests, production-shaped web build, and the exact iPhone 16 Pro simulator build pass locally. Migration application, deployment, and authenticated timer/notification proof remain open.

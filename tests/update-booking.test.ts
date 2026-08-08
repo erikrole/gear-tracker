@@ -55,8 +55,6 @@ vi.mock("@/lib/services/availability", () => ({
 
 import { db } from "@/lib/db";
 import {
-  MAX_CHECKOUT_BULK_LINE_CHANGES_PER_REQUEST,
-  MAX_CHECKOUT_DISTINCT_BULK_SKUS_PER_REQUEST,
   MAX_EQUIPMENT_SELECTIONS_PER_REQUEST,
 } from "@/lib/request-limits";
 import { checkAvailability } from "@/lib/services/availability";
@@ -76,6 +74,7 @@ function makeExistingReservation(overrides: Record<string, unknown> = {}) {
     locationId: "loc-1",
     startsAt,
     endsAt,
+    updatedAt: new Date("2026-04-10T07:00:00Z"),
     notes: null,
     serializedItems: [{ assetId: "a-1" }],
     bulkItems: [{ bulkSkuId: "sku-1", plannedQuantity: 5 }],
@@ -92,6 +91,7 @@ function makeExistingCheckout(overrides: Record<string, unknown> = {}) {
     locationId: "loc-1",
     startsAt,
     endsAt,
+    updatedAt: new Date("2026-04-10T07:00:00Z"),
     notes: null,
     serializedItems: [{ assetId: "a-1", allocationStatus: "active" }],
     bulkItems: [{
@@ -104,17 +104,6 @@ function makeExistingCheckout(overrides: Record<string, unknown> = {}) {
     }],
     ...overrides,
   };
-}
-
-function makeCheckoutBulkItems(count: number) {
-  return Array.from({ length: count }, (_, index) => ({
-    id: `bbi-${index}`,
-    bulkSkuId: `sku-${index}`,
-    plannedQuantity: 5,
-    checkedOutQuantity: null,
-    checkedInQuantity: 0,
-    unitAllocations: [],
-  }));
 }
 
 const returnedBooking = { id: "r-1", kind: "RESERVATION", status: "BOOKED" };
@@ -158,6 +147,20 @@ describe("updateReservation", () => {
     await updateReservation("r-1", "actor-1", { title: "Updated" });
 
     expectSerializableIsolation(transactionCalls, 0);
+  });
+
+  it("BUG: rejects a snapshot that became stale before the transaction write", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingReservation());
+
+    await expect(updateReservation(
+      "r-1",
+      "actor-1",
+      { title: "Updated" },
+      new Date("2026-04-10T06:59:59Z"),
+    )).rejects.toMatchObject({ status: 409 });
+
+    expect(mockTx.booking.update).not.toHaveBeenCalled();
+    expect(mockTx.auditLog.create).not.toHaveBeenCalled();
   });
 
   it("updates title and creates audit log", async () => {
@@ -402,6 +405,19 @@ describe("updateCheckout", () => {
     expectSerializableIsolation(transactionCalls, 0);
   });
 
+  it("BUG: rejects a checkout snapshot that became stale before the transaction write", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout());
+
+    await expect(updateCheckout(
+      "c-1",
+      "actor-1",
+      { title: "Updated" },
+      new Date("2026-04-10T06:59:59Z"),
+    )).rejects.toMatchObject({ status: 409 });
+
+    expect(mockTx.booking.update).not.toHaveBeenCalled();
+  });
+
   it("updates checkout fields", async () => {
     mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout());
     const newEnd = new Date("2026-04-11T17:00:00Z");
@@ -474,13 +490,18 @@ describe("updateCheckout", () => {
     ).rejects.toThrow("Conflicts");
   });
 
-  it("maps checkout edit allocation races to a booking conflict", async () => {
+  it("rejects checkout equipment edits outside the kiosk service boundary", async () => {
     mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout());
-    mockTx.assetAllocation.createMany.mockRejectedValueOnce({ code: "23P01" });
 
     await expect(
       updateCheckout("c-1", "actor-1", { serializedAssetIds: ["a-1", "a-3"] })
-    ).rejects.toThrow("One or more items are no longer available");
+    ).rejects.toMatchObject({
+      status: 403,
+      message: "Active checkout equipment can only be changed at a kiosk",
+    });
+
+    expect(checkAvailability).not.toHaveBeenCalled();
+    expect(mockTx.bookingSerializedItem.createMany).not.toHaveBeenCalled();
   });
 
   it("throws 404 when checkout not found", async () => {
@@ -501,208 +522,6 @@ describe("updateCheckout", () => {
   it("throws 400 when checkout is COMPLETED", async () => {
     mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout({ status: "COMPLETED" }));
     await expect(updateCheckout("c-1", "actor-1", {})).rejects.toThrow("cancelled or completed");
-  });
-
-  it("adds and removes only the changed serialized items", async () => {
-    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout({
-      serializedItems: [
-        { assetId: "a-1", allocationStatus: "active" },
-        { assetId: "a-2", allocationStatus: "active" },
-      ],
-    }));
-
-    await updateCheckout("c-1", "actor-1", { serializedAssetIds: ["a-1", "a-3"] });
-
-    // a-1 kept untouched, a-2 removed, a-3 added — no full rebuild
-    expect(mockTx.bookingSerializedItem.deleteMany).toHaveBeenCalledWith({
-      where: { bookingId: "c-1", assetId: { in: ["a-2"] } },
-    });
-    expect(mockTx.assetAllocation.deleteMany).toHaveBeenCalledWith({
-      where: { bookingId: "c-1", assetId: { in: ["a-2"] } },
-    });
-    expect(mockTx.bookingSerializedItem.createMany).toHaveBeenCalledWith({
-      data: [expect.objectContaining({ assetId: "a-3", allocationStatus: "active" })],
-    });
-  });
-
-  it("blocks removing an already-returned item from a checkout", async () => {
-    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout({
-      serializedItems: [
-        { assetId: "a-1", allocationStatus: "returned" },
-        { assetId: "a-2", allocationStatus: "active" },
-      ],
-    }));
-
-    await expect(
-      updateCheckout("c-1", "actor-1", { serializedAssetIds: ["a-2"] })
-    ).rejects.toThrow("returned item cannot be removed");
-
-    expect(mockTx.bookingSerializedItem.deleteMany).not.toHaveBeenCalled();
-    expect(mockTx.assetAllocation.deleteMany).not.toHaveBeenCalled();
-  });
-
-  it("dedupes serialized asset IDs", async () => {
-    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout());
-
-    await updateCheckout("c-1", "actor-1", { serializedAssetIds: ["a-1", "a-1", "a-2"] });
-
-    // a-1 already on the checkout; deduped a-2 is the only new row
-    const createCall = mockTx.bookingSerializedItem.createMany.mock.calls[0]![0];
-    expect(createCall.data).toHaveLength(1);
-    expect(createCall.data[0]).toEqual(expect.objectContaining({ assetId: "a-2" }));
-  });
-
-  it("writes ledger movement deltas when bulk quantities change", async () => {
-    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout());
-
-    await updateCheckout("c-1", "actor-1", {
-      bulkItems: [{ bulkSkuId: "sku-1", quantity: 8 }],
-    });
-
-    expect(mockTx.bookingBulkItem.update).toHaveBeenCalledWith({
-      where: { id: "bbi-1" },
-      data: { plannedQuantity: 8 },
-    });
-    // +3 delta must hit the stock ledger as a CHECKOUT movement
-    expect(mockTx.bulkStockMovement.createMany).toHaveBeenCalledWith({
-      data: [expect.objectContaining({ bulkSkuId: "sku-1", kind: "CHECKOUT", quantity: 3 })],
-    });
-    expect(mockTx.bulkStockBalance.upsert).toHaveBeenCalled();
-  });
-
-  it("allows the exact checkout bulk-line change ceiling", async () => {
-    const removedCount = Math.floor(MAX_CHECKOUT_BULK_LINE_CHANGES_PER_REQUEST / 2);
-    const addedCount = MAX_CHECKOUT_BULK_LINE_CHANGES_PER_REQUEST - removedCount;
-    const existingBulkItems = makeCheckoutBulkItems(removedCount);
-    const replacements = Array.from(
-      { length: addedCount },
-      (_, index) => ({ bulkSkuId: `replacement-sku-${index}`, quantity: 1 }),
-    );
-    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout({
-      bulkItems: existingBulkItems,
-    }));
-    mockTx.bulkStockBalance.findMany.mockResolvedValue([
-      ...existingBulkItems.map((item) => ({ bulkSkuId: item.bulkSkuId, onHandQuantity: 50 })),
-      ...replacements.map((item) => ({ bulkSkuId: item.bulkSkuId, onHandQuantity: 50 })),
-    ]);
-
-    await updateCheckout("c-1", "actor-1", {
-      bulkItems: replacements,
-    });
-
-    expect(mockTx.bookingBulkItem.deleteMany).toHaveBeenCalledTimes(removedCount);
-    expect(mockTx.bookingBulkItem.createMany).toHaveBeenCalledWith({
-      data: expect.arrayContaining(
-        replacements.map((item) => expect.objectContaining({ bulkSkuId: item.bulkSkuId })),
-      ),
-    });
-    expect(mockTx.bulkStockBalance.upsert).toHaveBeenCalledTimes(
-      MAX_CHECKOUT_BULK_LINE_CHANGES_PER_REQUEST,
-    );
-  });
-
-  it("rejects checkout bulk-line changes above the ceiling before availability or writes", async () => {
-    const removedCount = Math.floor(MAX_CHECKOUT_BULK_LINE_CHANGES_PER_REQUEST / 2);
-    const addedCount = MAX_CHECKOUT_BULK_LINE_CHANGES_PER_REQUEST - removedCount + 1;
-    const existingBulkItems = makeCheckoutBulkItems(removedCount);
-    const replacements = Array.from(
-      { length: addedCount },
-      (_, index) => ({ bulkSkuId: `replacement-sku-${index}`, quantity: 1 }),
-    );
-    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout({
-      bulkItems: existingBulkItems,
-    }));
-
-    await expect(updateCheckout("c-1", "actor-1", {
-      bulkItems: replacements,
-    })).rejects.toThrow(
-      `Change at most ${MAX_CHECKOUT_BULK_LINE_CHANGES_PER_REQUEST} bulk lines per checkout update`,
-    );
-
-    expect(checkAvailability).not.toHaveBeenCalled();
-    expect(mockTx.booking.update).not.toHaveBeenCalled();
-    expect(mockTx.bookingBulkItem.update).not.toHaveBeenCalled();
-    expect(mockTx.bulkStockBalance.upsert).not.toHaveBeenCalled();
-  });
-
-  it("rejects a checkout update that would exceed 10 distinct bulk SKUs", async () => {
-    const existingBulkItems = makeCheckoutBulkItems(1);
-    const additions = Array.from(
-      { length: MAX_CHECKOUT_DISTINCT_BULK_SKUS_PER_REQUEST },
-      (_, index) => ({ bulkSkuId: `added-sku-${index}`, quantity: 1 }),
-    );
-    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout({
-      bulkItems: existingBulkItems,
-    }));
-
-    await expect(updateCheckout("c-1", "actor-1", {
-      bulkItems: [
-        { bulkSkuId: existingBulkItems[0]!.bulkSkuId, quantity: existingBulkItems[0]!.plannedQuantity },
-        ...additions,
-      ],
-    })).rejects.toThrow(
-      `A checkout may include at most ${MAX_CHECKOUT_DISTINCT_BULK_SKUS_PER_REQUEST} distinct bulk item types`,
-    );
-
-    expect(checkAvailability).not.toHaveBeenCalled();
-    expect(mockTx.booking.update).not.toHaveBeenCalled();
-    expect(mockTx.bookingBulkItem.createMany).not.toHaveBeenCalled();
-    expect(mockTx.bulkStockBalance.upsert).not.toHaveBeenCalled();
-  });
-
-  it("restocks the ledger when a bulk row is removed from a checkout", async () => {
-    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout());
-
-    await updateCheckout("c-1", "actor-1", { bulkItems: [] });
-
-    expect(mockTx.bookingBulkItem.deleteMany).toHaveBeenCalledWith({ where: { id: "bbi-1" } });
-    expect(mockTx.bulkStockMovement.createMany).toHaveBeenCalledWith({
-      data: [expect.objectContaining({ bulkSkuId: "sku-1", kind: "CHECKIN", quantity: 5 })],
-    });
-  });
-
-  it("blocks bulk edits when the SKU has kiosk custody activity", async () => {
-    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout({
-      bulkItems: [{
-        id: "bbi-1",
-        bulkSkuId: "sku-1",
-        plannedQuantity: 5,
-        checkedOutQuantity: 5,
-        checkedInQuantity: 0,
-        unitAllocations: [{ id: "alloc-1" }],
-      }],
-    }));
-
-    await expect(
-      updateCheckout("c-1", "actor-1", { bulkItems: [{ bulkSkuId: "sku-1", quantity: 2 }] })
-    ).rejects.toThrow("kiosk custody activity");
-
-    expect(mockTx.bookingBulkItem.update).not.toHaveBeenCalled();
-    expect(mockTx.bookingBulkItem.deleteMany).not.toHaveBeenCalled();
-    expect(mockTx.bulkStockMovement.createMany).not.toHaveBeenCalled();
-  });
-
-  it("leaves unchanged custody-touched bulk rows alone", async () => {
-    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout({
-      bulkItems: [{
-        id: "bbi-1",
-        bulkSkuId: "sku-1",
-        plannedQuantity: 5,
-        checkedOutQuantity: 5,
-        checkedInQuantity: 2,
-        unitAllocations: [{ id: "alloc-1" }],
-      }],
-    }));
-
-    // Same quantity — the custody-touched row is not being edited
-    await updateCheckout("c-1", "actor-1", {
-      bulkItems: [{ bulkSkuId: "sku-1", quantity: 5 }],
-      serializedAssetIds: ["a-1", "a-3"],
-    });
-
-    expect(mockTx.bookingBulkItem.update).not.toHaveBeenCalled();
-    expect(mockTx.bookingBulkItem.deleteMany).not.toHaveBeenCalled();
-    expect(mockTx.bulkStockMovement.createMany).not.toHaveBeenCalled();
   });
 
   it("rejects an invalid edit window before availability or allocation work", async () => {

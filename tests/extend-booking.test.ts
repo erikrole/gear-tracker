@@ -63,6 +63,7 @@ function openBooking(overrides: Record<string, unknown> = {}) {
     locationId: "loc-1",
     startsAt: new Date("2026-04-01T08:00:00Z"),
     endsAt: currentEnd,
+    updatedAt: new Date("2026-04-01T11:00:00Z"),
     serializedItems: [{ assetId: "a-1" }],
     bulkItems: [{ bulkSkuId: "sku-1", plannedQuantity: 5 }],
     ...overrides,
@@ -96,6 +97,18 @@ describe("extendBooking", () => {
   it("uses SERIALIZABLE isolation", async () => {
     await extendBooking("b-1", "actor-1", newEnd);
     expectSerializableIsolation(transactionCalls, 0);
+  });
+
+  it("BUG: rejects a snapshot that became stale before extension writes", async () => {
+    await expect(extendBooking(
+      "b-1",
+      "actor-1",
+      newEnd,
+      new Date("2026-04-01T10:59:59Z"),
+    )).rejects.toMatchObject({ status: 409 });
+
+    expect(checkAvailability).not.toHaveBeenCalled();
+    expect(mockTx.booking.update).not.toHaveBeenCalled();
   });
 
   it("extends booking and allocation end dates", async () => {

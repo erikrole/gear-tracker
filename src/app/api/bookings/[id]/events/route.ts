@@ -1,10 +1,15 @@
 import { withAuth } from "@/lib/api";
-import { HttpError, ok } from "@/lib/http";
+import { ok } from "@/lib/http";
 import { getAllowedBookingActions, requireBookingAction } from "@/lib/services/booking-rules";
 import { getBookingDetail, updateBookingEvents } from "@/lib/services/bookings";
 import { updateBookingEventsSchema } from "@/lib/validation";
 import { requireCollaboratorCapability } from "@/lib/collaborator-access";
 import { collaboratorBookingResponse } from "@/lib/collaborator-gear";
+import {
+  bookingSnapshotMatches,
+  parseBookingSnapshotHeader,
+  staleBookingError,
+} from "@/lib/booking-concurrency";
 
 function sortedStrings(values: string[]) {
   return [...values].sort((a, b) => a.localeCompare(b));
@@ -30,16 +35,8 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   const current = await getBookingDetail(id);
 
-  const ifUnmodified = req.headers.get("if-unmodified-since");
-  if (!ifUnmodified) {
-    throw new HttpError(428, "Missing If-Unmodified-Since header. Refresh and try again.");
-  }
-  const clientTs = new Date(ifUnmodified).getTime();
-  if (Number.isNaN(clientTs)) {
-    throw new HttpError(400, "Invalid If-Unmodified-Since header.");
-  }
-  const serverTs = Math.floor(new Date(current.updatedAt).getTime() / 1000) * 1000;
-  if (clientTs < serverTs) {
+  const expectedUpdatedAt = parseBookingSnapshotHeader(req);
+  if (!bookingSnapshotMatches(current.updatedAt, expectedUpdatedAt)) {
     if (sameEventSet(body.eventIds, current)) {
       await requireBookingAction(id, user, "edit");
       const allowedActions = getAllowedBookingActions(user, current);
@@ -49,11 +46,11 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
           : { ...current, allowedActions },
       });
     }
-    throw new HttpError(409, "This booking was modified by someone else. Please refresh and try again.");
+    throw staleBookingError();
   }
 
   await requireBookingAction(id, user, "edit");
-  await updateBookingEvents(id, user.id, body.eventIds);
+  await updateBookingEvents(id, user.id, body.eventIds, expectedUpdatedAt);
 
   const refreshed = await getBookingDetail(id);
   const allowedActions = getAllowedBookingActions(user, refreshed);

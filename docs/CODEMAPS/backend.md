@@ -16,7 +16,7 @@
 | `src/lib/services/booking-rules.ts` | 108 |
 | `src/lib/services/bookings-checkin.ts` | 846 |
 | `src/lib/services/bookings-helpers.ts` | 281 |
-| `src/lib/services/bookings-lifecycle.ts` | 2120 |
+| `src/lib/services/bookings-lifecycle.ts` | 2149 |
 | `src/lib/services/bookings-queries.ts` | 289 |
 | `src/lib/services/bookings.ts` | 4 |
 | `src/lib/services/bulk-unit-scans.ts` | 608 |
@@ -85,9 +85,10 @@
 | `src/lib/battery-compatibility.ts` | 166 |
 | `src/lib/bhphoto-image.ts` | 67 |
 | `src/lib/blob.ts` | 160 |
-| `src/lib/booking-action-policy.ts` | 199 |
+| `src/lib/booking-action-policy.ts` | 189 |
 | `src/lib/booking-actions.ts` | 14 |
 | `src/lib/booking-availability-window.ts` | 19 |
+| `src/lib/booking-concurrency.ts` | 37 |
 | `src/lib/booking-status-display.ts` | 142 |
 | `src/lib/booking-statuses.ts` | 9 |
 | `src/lib/breadcrumbs.ts` | 144 |

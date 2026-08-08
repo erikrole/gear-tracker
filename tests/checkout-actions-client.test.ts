@@ -81,11 +81,11 @@ describe("getAllowedActionsClient", () => {
   describe("OPEN state", () => {
     const ctx = booking("OPEN");
 
-    it("staff can edit, extend, cancel, but not checkin", () => {
+    it("staff can edit and extend but cannot cancel or check in", () => {
       const actions = getActions(staff, ctx);
       expect(has(actions, "edit")).toBe(true);
       expect(has(actions, "extend")).toBe(true);
-      expect(has(actions, "cancel")).toBe(true);
+      expect(has(actions, "cancel")).toBe(false);
       expect(has(actions, "checkin")).toBe(false);
       expect(has(actions, "open")).toBe(false);
     });
@@ -145,11 +145,11 @@ describe("getAllowedActionsClient", () => {
   });
 
   describe("mirrors server-side checkout-rules", () => {
-    it("cancel on OPEN requires staff+ (student owner cannot cancel)", () => {
+    it("keeps OPEN checkout cancellation out of normal app and web actions", () => {
       const ctx = booking("OPEN");
       expect(has(getActions(owner, ctx), "cancel")).toBe(false);
-      expect(has(getActions(staff, ctx), "cancel")).toBe(true);
-      expect(has(getActions(admin, ctx), "cancel")).toBe(true);
+      expect(has(getActions(staff, ctx), "cancel")).toBe(false);
+      expect(has(getActions(admin, ctx), "cancel")).toBe(false);
     });
   });
 });

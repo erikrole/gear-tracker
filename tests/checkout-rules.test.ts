@@ -106,19 +106,13 @@ describe("canPerformBookingAction", () => {
   describe("OPEN state", () => {
     const booking = makeCheckout("OPEN");
 
-    it("allows admin to cancel OPEN checkout", () => {
-      expect(canPerformBookingAction(admin, booking, "cancel").allowed).toBe(true);
-    });
-
-    it("allows staff to cancel OPEN checkout", () => {
-      expect(canPerformBookingAction(staff, booking, "cancel").allowed).toBe(true);
-    });
-
-    it("denies student from cancelling OPEN checkout (even owner)", () => {
-      const result = canPerformBookingAction(owner, booking, "cancel");
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toContain("staff or admin");
-    });
+    for (const actor of [admin, staff, owner]) {
+      it(`denies ${actor.role.toLowerCase()} normal cancellation while custody is OPEN`, () => {
+        const result = canPerformBookingAction(actor, booking, "cancel");
+        expect(result.allowed).toBe(false);
+        expect(result.reason).toContain("not available in OPEN state");
+      });
+    }
 
     it("denies app/web checkin because returns are kiosk-only", () => {
       const result = canPerformBookingAction(owner, booking, "checkin");
@@ -159,7 +153,7 @@ describe("getAllowedActions", () => {
     const actions = getAllowedBookingActions(admin, booking);
     expect(actions).toContain("edit");
     expect(actions).toContain("extend");
-    expect(actions).toContain("cancel");
+    expect(actions).not.toContain("cancel");
     expect(actions).not.toContain("checkin");
     expect(actions).not.toContain("open");
   });

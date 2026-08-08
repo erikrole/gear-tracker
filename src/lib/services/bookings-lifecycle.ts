@@ -54,6 +54,7 @@ import {
   type ReservationScheduleAssignment,
   type ReservationScheduleRequester,
 } from "@/lib/services/reservation-schedule";
+import { assertBookingSnapshot } from "@/lib/booking-concurrency";
 
 type CreateBookingInput = {
   kind: BookingKind;
@@ -814,7 +815,8 @@ export async function createBooking(input: CreateBookingInput) {
 export async function updateReservation(
   bookingId: string,
   actorUserId: string,
-  updates: UpdateBookingInput
+  updates: UpdateBookingInput,
+  expectedUpdatedAt?: Date,
 ) {
   const scheduleNotificationAssignmentIds: string[] = [];
   let updated;
@@ -860,6 +862,8 @@ export async function updateReservation(
       if (!existing) {
         throw new HttpError(404, "Reservation not found");
       }
+
+      assertBookingSnapshot(existing.updatedAt, expectedUpdatedAt);
 
       if (existing.kind !== BookingKind.RESERVATION) {
         throw new HttpError(400, "Only reservations can be updated with this endpoint");
@@ -1120,6 +1124,7 @@ export async function updateBookingEvents(
   bookingId: string,
   actorUserId: string,
   eventIds: string[],
+  expectedUpdatedAt?: Date,
 ) {
   assertValidEventLinks(eventIds);
   const scheduleNotificationAssignmentIds: string[] = [];
@@ -1145,6 +1150,7 @@ export async function updateBookingEvents(
             id: true,
             kind: true,
             status: true,
+            updatedAt: true,
             eventId: true,
             requesterUserId: true,
             shiftAssignmentId: true,
@@ -1186,6 +1192,8 @@ export async function updateBookingEvents(
         if (!existing) {
           throw new HttpError(404, "Booking not found");
         }
+
+        assertBookingSnapshot(existing.updatedAt, expectedUpdatedAt);
 
         if (!EVENT_LINK_STATUSES.has(existing.status)) {
           throw new HttpError(400, "Cannot update linked events for a completed or cancelled booking");
@@ -1423,7 +1431,8 @@ export async function cancelReservation(bookingId: string, actorUserId: string) 
 export async function updateCheckout(
   bookingId: string,
   actorUserId: string,
-  updates: UpdateBookingInput
+  updates: UpdateBookingInput,
+  expectedUpdatedAt?: Date,
 ) {
   let updated;
   try {
@@ -1449,12 +1458,18 @@ export async function updateCheckout(
         throw new HttpError(404, "Checkout not found");
       }
 
+      assertBookingSnapshot(existing.updatedAt, expectedUpdatedAt);
+
       if (existing.kind !== BookingKind.CHECKOUT) {
         throw new HttpError(400, "Only checkouts can be updated with this endpoint");
       }
 
       if (existing.status === BookingStatus.CANCELLED || existing.status === BookingStatus.COMPLETED) {
         throw new HttpError(400, "Cannot edit a cancelled or completed checkout");
+      }
+
+      if (updates.serializedAssetIds !== undefined || updates.bulkItems !== undefined) {
+        throw new HttpError(403, "Active checkout equipment can only be changed at a kiosk");
       }
 
       const nextEndsAt = updates.endsAt ?? existing.endsAt;
@@ -1696,6 +1711,7 @@ export async function transferBookingOwner(
   bookingId: string,
   actorUserId: string,
   input: TransferBookingOwnerInput,
+  expectedUpdatedAt?: Date,
 ) {
   const scheduleNotificationAssignmentIds: string[] = [];
   try {
@@ -1707,6 +1723,7 @@ export async function transferBookingOwner(
             id: true,
             kind: true,
             status: true,
+            updatedAt: true,
             requesterUserId: true,
             eventId: true,
             shiftAssignmentId: true,
@@ -1718,6 +1735,8 @@ export async function transferBookingOwner(
         if (!existing) {
           throw new HttpError(404, "Booking not found");
         }
+
+        assertBookingSnapshot(existing.updatedAt, expectedUpdatedAt);
 
         if (!OWNER_TRANSFER_STATUSES.has(existing.status)) {
           throw new HttpError(400, "Cannot transfer ownership for a completed or cancelled booking");
@@ -1869,7 +1888,8 @@ export async function transferBookingOwner(
 export async function extendBooking(
   bookingId: string,
   actorUserId: string,
-  newEndsAt: Date
+  newEndsAt: Date,
+  expectedUpdatedAt?: Date,
 ) {
   let updated;
   try {
@@ -1883,6 +1903,8 @@ export async function extendBooking(
       if (!existing) {
         throw new HttpError(404, "Booking not found");
       }
+
+      assertBookingSnapshot(existing.updatedAt, expectedUpdatedAt);
 
       if (existing.status !== BookingStatus.OPEN && existing.status !== BookingStatus.BOOKED) {
         throw new HttpError(400, "Can only extend active bookings");
@@ -2003,6 +2025,13 @@ export async function cancelBooking(bookingId: string, actorUserId: string) {
 
     if (booking.status === BookingStatus.COMPLETED) {
       throw new HttpError(400, "Cannot cancel a completed booking");
+    }
+
+    if (booking.kind === BookingKind.CHECKOUT && booking.status === BookingStatus.OPEN) {
+      throw new HttpError(
+        409,
+        "Active checkout custody must be returned at a kiosk or closed through the admin exception",
+      );
     }
 
     if (booking.kind === BookingKind.RESERVATION && booking.shiftAssignmentId) {

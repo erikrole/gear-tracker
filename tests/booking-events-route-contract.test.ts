@@ -178,7 +178,12 @@ describe("booking event-link route contract", () => {
 
     expect(res.status).toBe(200);
     expect(requireBookingAction).toHaveBeenCalledWith(baseDetail.id, studentUser, "edit");
-    expect(updateBookingEvents).toHaveBeenCalledWith(baseDetail.id, studentUser.id, eventIds);
+    expect(updateBookingEvents).toHaveBeenCalledWith(
+      baseDetail.id,
+      studentUser.id,
+      eventIds,
+      new Date("2026-07-09T16:00:00.000Z"),
+    );
   });
 
   it("allows clearing linked events", async () => {
@@ -191,7 +196,12 @@ describe("booking event-link route contract", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(updateBookingEvents).toHaveBeenCalledWith(baseDetail.id, studentUser.id, []);
+    expect(updateBookingEvents).toHaveBeenCalledWith(
+      baseDetail.id,
+      studentUser.id,
+      [],
+      new Date("2026-07-09T16:00:00.000Z"),
+    );
   });
 
   it("allows checkout bookings", async () => {
@@ -210,7 +220,12 @@ describe("booking event-link route contract", () => {
 
     expect(res.status).toBe(200);
     expect(requireBookingAction).toHaveBeenCalledWith(baseDetail.id, studentUser, "edit");
-    expect(updateBookingEvents).toHaveBeenCalledWith(baseDetail.id, studentUser.id, eventIds);
+    expect(updateBookingEvents).toHaveBeenCalledWith(
+      baseDetail.id,
+      studentUser.id,
+      eventIds,
+      new Date("2026-07-09T16:00:00.000Z"),
+    );
   });
 
   it("rejects an invalid optimistic-lock header", async () => {

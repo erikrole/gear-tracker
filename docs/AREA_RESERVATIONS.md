@@ -259,6 +259,18 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 
 ## Change Log
 
+- 2026-08-07: **Booking API concurrency and boundary hardening.** Booking edit,
+  extend, event-link, and owner-transfer services now recheck the edited
+  `updatedAt` snapshot inside the same serializable transaction as the write,
+  closing the route-to-service lost-update window while retaining committed
+  retry behavior. Booking edit audit history is written once by the service
+  transaction rather than duplicated after commit. The realtime change cursor
+  now advances booking and audit streams independently with timestamp-plus-ID
+  tie breakers, so bounded bursts and invisible audit rows cannot skip or stall
+  refresh. Draft saves reject invalid timestamps and duplicate equipment lines;
+  draft reads hide expired rows without performing unaudited deletion. Booking
+  exports reject unknown kinds and invalid or inverted date ranges.
+
 - 2026-08-07: **Canceled reservations release Schedule edit blockers.**
   Working-copy and publish guards now treat only active linked booking states
   as gear commitments. Canceled rows remain preserved for audit, and stale
@@ -414,7 +426,11 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - 2026-05-07: **Booking creation Step 2 UX polish** — Reservation creation Step 2 now shows a compact valid/warning/unavailable selection summary and uses state-aware footer copy such as "Review with warnings" or "Remove unavailable item" so requester recovery and staff review paths stay clear.
 - 2026-05-07: **Booking creation final-screen polish** — Reservation confirmation now leads with confirmed-for-later language, location, start timing, and the staff handoff expectation that checkout begins from the reservation when gear changes custody.
 - 2026-05-08: **API hardening Wave 11** — Reservation duplicate now re-checks that the loaded source is still BOOKED before creating a copy, while conversion was re-verified to validate `sourceReservationId` inside `createBooking`'s SERIALIZABLE transaction.
-- 2026-05-08: **API hardening Wave 13** — Shared booking edit hardening now applies to reservations: indexed search, required optimistic-lock headers, full before snapshots in edit audits, and 30-day stale draft pruning.
+- 2026-05-08: **API hardening Wave 13** — Shared booking edit hardening added
+  indexed search, required optimistic-lock headers, full before snapshots in
+  edit audits, and read-triggered stale draft pruning. The pruning behavior was
+  superseded on 2026-08-07: expired drafts remain hidden from reads, while
+  physical deletion is deferred to an explicit audited maintenance path.
 - 2026-05-08: **Busy-day availability stress** — Live API smoke created overlapping checkouts/reservations and confirmed serialized conflicts block against `PENDING_PICKUP` checkouts, non-overlapping same-asset reservations pass under the then-current half-open contract, and overlapping bulk reservations fail once existing `BOOKED` commitments consume available quantity. Superseded 2026-06-26 by the 60-minute serialized turnaround buffer.
 - 2026-05-08: **Future booking context** — Availability checks now return the next future serialized commitment per item, and reservation creation/edit plus reservation equipment rows surface a blue "Back before" badge with the exact next needed time.
 - 2026-05-08: **Turnaround risk guard** — Availability checks now return advisory serialized and bulk turnaround risks, and reservation creation/edit plus reservation equipment rows surface compact "Turnaround" warnings for short handoffs, next-use location transfers, recent damage/lost reports, and tight future bulk bookings.

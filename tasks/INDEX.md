@@ -1,6 +1,6 @@
 # Tasks Index
 
-Last updated: 2026-08-06
+Last updated: 2026-08-07
 
 ## Start Here
 
@@ -66,6 +66,10 @@ Audit files intentionally remain at root for now because the repo audit skills r
 - Keep references updated when moving a root plan into archive.
 
 ## Recently Archived
+
+- `archive/completed-2026-08-07/booking-api-hardening-plan.md` - closed booking
+  lifecycle, transactional concurrency, change-feed, draft, export, audit, and
+  custody-boundary hardening with authenticated local API proof.
 
 - `archive/completed-2026-08-06/2027-sport-assignment-reconciliation-plan.md` - reconciled the 2027 sport roster, prepared ten pending student profiles, deployed Social and registration-time materialization, and verified the production Allowed Emails surface.
 

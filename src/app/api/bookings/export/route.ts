@@ -1,4 +1,6 @@
+import { BookingKind } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
@@ -7,20 +9,36 @@ import { csvField } from "@/lib/csv";
 
 const EXPORT_LIMIT = 5000;
 
+const bookingExportQuerySchema = z.object({
+  from: z.string().datetime({ offset: true }).optional(),
+  to: z.string().datetime({ offset: true }).optional(),
+  kind: z.nativeEnum(BookingKind).optional(),
+}).superRefine((query, ctx) => {
+  if (query.from && query.to && new Date(query.from) > new Date(query.to)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["to"],
+      message: "to must be on or after from",
+    });
+  }
+});
+
 export const GET = withAuth(async (req, { user }) => {
   if (user.role !== "ADMIN") throw new HttpError(403, "Admin access required");
   await enforceRateLimit(`bookings:export:${user.id}`, { max: 5, windowMs: 60_000 });
 
   const { searchParams } = new URL(req.url);
-  const fromParam = searchParams.get("from");
-  const toParam = searchParams.get("to");
-  const kindParam = searchParams.get("kind"); // CHECKOUT | RESERVATION | (all)
+  const query = bookingExportQuerySchema.parse({
+    from: searchParams.get("from") ?? undefined,
+    to: searchParams.get("to") ?? undefined,
+    kind: searchParams.get("kind") ?? undefined,
+  });
 
-  const from = fromParam ? new Date(fromParam) : undefined;
-  const to = toParam ? new Date(toParam) : undefined;
+  const from = query.from ? new Date(query.from) : undefined;
+  const to = query.to ? new Date(query.to) : undefined;
 
   const where = {
-    ...(kindParam === "CHECKOUT" || kindParam === "RESERVATION" ? { kind: kindParam as "CHECKOUT" | "RESERVATION" } : {}),
+    ...(query.kind ? { kind: query.kind } : {}),
     ...(from || to ? {
       createdAt: {
         ...(from ? { gte: from } : {}),
@@ -32,11 +50,25 @@ export const GET = withAuth(async (req, { user }) => {
   const [bookings, totalCount] = await Promise.all([
     db.booking.findMany({
       where,
-      include: {
+      select: {
+        refNumber: true,
+        kind: true,
+        title: true,
+        status: true,
+        startsAt: true,
+        endsAt: true,
+        notes: true,
+        createdAt: true,
+        completedAt: true,
         requester: { select: { name: true, email: true } },
         location: { select: { name: true } },
-        serializedItems: { include: { asset: { select: { assetTag: true, name: true } } } },
-        bulkItems: { include: { bulkSku: { select: { name: true } } } },
+        serializedItems: { select: { asset: { select: { assetTag: true, name: true } } } },
+        bulkItems: {
+          select: {
+            plannedQuantity: true,
+            bulkSku: { select: { name: true } },
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
       take: EXPORT_LIMIT,

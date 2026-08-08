@@ -51,6 +51,7 @@ function reservation(overrides: Record<string, unknown> = {}) {
     id: "reservation-1",
     kind: BookingKind.RESERVATION,
     status: BookingStatus.BOOKED,
+    updatedAt: new Date("2026-07-09T16:00:00Z"),
     eventId: "event-old",
     events: [{ eventId: "event-old" }],
     ...overrides,
@@ -95,6 +96,18 @@ describe("updateBookingEvents", () => {
   it("uses SERIALIZABLE isolation", async () => {
     await updateBookingEvents("reservation-1", "student-1", ["event-late", "event-early"]);
     expectSerializableIsolation(transactionCalls, 0);
+  });
+
+  it("BUG: rejects event links when the edited snapshot changed before the transaction", async () => {
+    await expect(updateBookingEvents(
+      "reservation-1",
+      "student-1",
+      ["event-late", "event-early"],
+      new Date("2026-07-09T15:59:59Z"),
+    )).rejects.toMatchObject({ status: 409 });
+
+    expect(mockTx.calendarEvent.findMany).not.toHaveBeenCalled();
+    expect(mockTx.booking.update).not.toHaveBeenCalled();
   });
 
   it("sorts event links chronologically and preserves primary event compatibility", async () => {

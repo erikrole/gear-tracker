@@ -10,10 +10,12 @@ describe("Snow Leopard website bug regressions", () => {
     const list = source("src/components/BookingListPage.tsx");
     const types = source("src/components/booking-list/types.ts");
     const route = source("src/app/api/bookings/[id]/extend/route.ts");
+    const concurrency = source("src/lib/booking-concurrency.ts");
 
     expect(types).toContain("updatedAt: string;");
     expect(list).toContain('"If-Unmodified-Since": new Date(item.updatedAt).toUTCString()');
-    expect(route).toContain('req.headers.get("if-unmodified-since")');
+    expect(route).toContain("parseBookingSnapshotHeader(req)");
+    expect(concurrency).toContain('req.headers.get("if-unmodified-since")');
   });
 
   it("derives collaborator reservation controls from effective capabilities", () => {

@@ -8,36 +8,62 @@ const BOOKING_CHANGE_LIMIT = { max: 180, windowMs: 60_000 };
 const MAX_CHANGE_ROWS = 100;
 const EMPTY_CURSOR_DATE = new Date(0);
 
-type BookingChangeCursor = {
-  at: string;
+type EncodedBookingChangeCursor = {
+  version: 2;
+  booking: { at: string; id: string };
+  audit: { at: string; id: string };
 };
 
-function encodeCursor(date: Date): string {
-  return Buffer.from(JSON.stringify({ at: date.toISOString() } satisfies BookingChangeCursor), "utf8").toString("base64url");
+type BookingChangeCursor = {
+  booking: { at: Date; id: string };
+  audit: { at: Date; id: string };
+};
+
+function encodeCursor(cursor: BookingChangeCursor): string {
+  const encoded: EncodedBookingChangeCursor = {
+    version: 2,
+    booking: { at: cursor.booking.at.toISOString(), id: cursor.booking.id },
+    audit: { at: cursor.audit.at.toISOString(), id: cursor.audit.id },
+  };
+  return Buffer.from(JSON.stringify(encoded), "utf8").toString("base64url");
 }
 
-function decodeCursor(value: string | null): Date | null {
+function cursorAt(date: Date): BookingChangeCursor {
+  return {
+    booking: { at: date, id: "" },
+    audit: { at: date, id: "" },
+  };
+}
+
+function decodeCursor(value: string | null): BookingChangeCursor | null {
   if (!value) return null;
 
   try {
-    const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as Partial<BookingChangeCursor>;
-    if (typeof parsed.at === "string") return parseDate(parsed.at);
+    const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as Partial<EncodedBookingChangeCursor> & { at?: unknown };
+    if (
+      parsed.version === 2 &&
+      typeof parsed.booking?.at === "string" &&
+      typeof parsed.booking.id === "string" &&
+      typeof parsed.audit?.at === "string" &&
+      typeof parsed.audit.id === "string"
+    ) {
+      return {
+        booking: { at: parseDate(parsed.booking.at), id: parsed.booking.id },
+        audit: { at: parseDate(parsed.audit.at), id: parsed.audit.id },
+      };
+    }
+    if (typeof parsed.at === "string") return cursorAt(parseDate(parsed.at));
   } catch {
     // Accept ISO timestamps too so the route remains easy to probe locally.
   }
 
-  return parseDate(value);
+  return cursorAt(parseDate(value));
 }
 
 function parseDate(value: string): Date {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) throw new HttpError(400, "Invalid booking change cursor");
   return date;
-}
-
-function latestDate(dates: Date[]): Date {
-  if (dates.length === 0) return EMPTY_CURSOR_DATE;
-  return new Date(Math.max(...dates.map((date) => date.getTime())));
 }
 
 export const GET = withAuth(async (req, { user }) => {
@@ -54,33 +80,55 @@ export const GET = withAuth(async (req, { user }) => {
     const [latestBooking, latestAudit] = await Promise.all([
       db.booking.findFirst({
         where: visibleBookingWhere,
-        orderBy: { updatedAt: "desc" },
-        select: { updatedAt: true },
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        select: { id: true, updatedAt: true },
       }),
       db.auditLog.findFirst({
         where: { entityType: "booking" },
-        orderBy: { createdAt: "desc" },
-        select: { createdAt: true },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        select: { id: true, createdAt: true },
       }),
     ]);
-    const cursorDate = latestDate([
-      latestBooking?.updatedAt ?? EMPTY_CURSOR_DATE,
-      latestAudit?.createdAt ?? EMPTY_CURSOR_DATE,
-    ]);
-    return ok({ data: { cursor: encodeCursor(cursorDate), changedBookingIds: [] } });
+    return ok({
+      data: {
+        cursor: encodeCursor({
+          booking: {
+            at: latestBooking?.updatedAt ?? EMPTY_CURSOR_DATE,
+            id: latestBooking?.id ?? "",
+          },
+          audit: {
+            at: latestAudit?.createdAt ?? EMPTY_CURSOR_DATE,
+            id: latestAudit?.id ?? "",
+          },
+        }),
+        changedBookingIds: [],
+      },
+    });
   }
 
   const [bookingRows, auditRows] = await Promise.all([
     db.booking.findMany({
-      where: { ...visibleBookingWhere, updatedAt: { gt: since } },
+      where: {
+        ...visibleBookingWhere,
+        OR: [
+          { updatedAt: { gt: since.booking.at } },
+          { updatedAt: since.booking.at, id: { gt: since.booking.id } },
+        ],
+      },
       orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
       select: { id: true, updatedAt: true },
       take: MAX_CHANGE_ROWS,
     }),
     db.auditLog.findMany({
-      where: { entityType: "booking", createdAt: { gt: since } },
+      where: {
+        entityType: "booking",
+        OR: [
+          { createdAt: { gt: since.audit.at } },
+          { createdAt: since.audit.at, id: { gt: since.audit.id } },
+        ],
+      },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-      select: { entityId: true, createdAt: true },
+      select: { id: true, entityId: true, createdAt: true },
       take: MAX_CHANGE_ROWS,
     }),
   ]);
@@ -93,20 +141,22 @@ export const GET = withAuth(async (req, { user }) => {
         take: MAX_CHANGE_ROWS,
       })
     : [];
-  const visibleAuditBookingIds = new Set(visibleAuditBookings.map((row) => row.id));
-  const visibleAuditRows = auditRows.filter((row) => visibleAuditBookingIds.has(row.entityId));
-
   const changedBookingIds = [
     ...new Set([
       ...bookingRows.map((row) => row.id),
       ...visibleAuditBookings.map((row) => row.id),
     ]),
   ];
-  const cursorDate = latestDate([
-    since,
-    ...bookingRows.map((row) => row.updatedAt),
-    ...visibleAuditRows.map((row) => row.createdAt),
-  ]);
+  const lastBooking = bookingRows.at(-1);
+  const lastAudit = auditRows.at(-1);
+  const nextCursor: BookingChangeCursor = {
+    booking: lastBooking
+      ? { at: lastBooking.updatedAt, id: lastBooking.id }
+      : since.booking,
+    audit: lastAudit
+      ? { at: lastAudit.createdAt, id: lastAudit.id }
+      : since.audit,
+  };
 
-  return ok({ data: { cursor: encodeCursor(cursorDate), changedBookingIds } });
+  return ok({ data: { cursor: encodeCursor(nextCursor), changedBookingIds } });
 });

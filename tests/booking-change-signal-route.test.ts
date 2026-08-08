@@ -66,6 +66,14 @@ function request(query = "") {
   });
 }
 
+function decodeCursor(value: string) {
+  return JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as {
+    version: number;
+    booking: { at: string; id: string };
+    audit: { at: string; id: string };
+  };
+}
+
 async function call(query = "") {
   return GET(request(query), { params: Promise.resolve({}) });
 }
@@ -82,8 +90,8 @@ describe("booking change signal route", () => {
   });
 
   it("establishes an empty baseline cursor without returning historical booking ids", async () => {
-    vi.mocked(db.booking.findFirst).mockResolvedValue({ updatedAt: new Date("2026-06-24T10:00:00.000Z") } as never);
-    vi.mocked(db.auditLog.findFirst).mockResolvedValue({ createdAt: new Date("2026-06-24T10:02:00.000Z") } as never);
+    vi.mocked(db.booking.findFirst).mockResolvedValue({ id: "booking-latest", updatedAt: new Date("2026-06-24T10:00:00.000Z") } as never);
+    vi.mocked(db.auditLog.findFirst).mockResolvedValue({ id: "audit-latest", createdAt: new Date("2026-06-24T10:02:00.000Z") } as never);
 
     const res = await call();
     const body = await res.json();
@@ -91,17 +99,22 @@ describe("booking change signal route", () => {
     expect(res.status).toBe(200);
     expect(body.data.changedBookingIds).toEqual([]);
     expect(typeof body.data.cursor).toBe("string");
+    expect(decodeCursor(body.data.cursor)).toEqual({
+      version: 2,
+      booking: { at: "2026-06-24T10:00:00.000Z", id: "booking-latest" },
+      audit: { at: "2026-06-24T10:02:00.000Z", id: "audit-latest" },
+    });
     expect(requirePermission).toHaveBeenCalledWith(Role.STAFF, "booking", "view");
     expect(checkRateLimit).toHaveBeenCalledWith("bookings:changes:staff-1", { max: 180, windowMs: 60_000 });
     expect(db.booking.findFirst).toHaveBeenCalledWith({
       where: {},
-      orderBy: { updatedAt: "desc" },
-      select: { updatedAt: true },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      select: { id: true, updatedAt: true },
     });
     expect(db.auditLog.findFirst).toHaveBeenCalledWith({
       where: { entityType: "booking" },
-      orderBy: { createdAt: "desc" },
-      select: { createdAt: true },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: { id: true, createdAt: true },
     });
     expect(db.booking.findMany).not.toHaveBeenCalled();
   });
@@ -116,8 +129,8 @@ describe("booking change signal route", () => {
         { id: "audit-visible-1" },
       ] as never);
     vi.mocked(db.auditLog.findMany).mockResolvedValue([
-      { entityId: "audit-visible-1", createdAt: new Date("2026-06-24T10:02:00.000Z") },
-      { entityId: "audit-hidden-1", createdAt: new Date("2026-06-24T10:03:00.000Z") },
+      { id: "audit-row-1", entityId: "audit-visible-1", createdAt: new Date("2026-06-24T10:02:00.000Z") },
+      { id: "audit-row-2", entityId: "audit-hidden-1", createdAt: new Date("2026-06-24T10:03:00.000Z") },
     ] as never);
 
     const res = await call(`?since=${encodeURIComponent(since)}`);
@@ -127,15 +140,26 @@ describe("booking change signal route", () => {
     expect(body.data.changedBookingIds).toEqual(["booking-row-1", "audit-visible-1"]);
     expect(typeof body.data.cursor).toBe("string");
     expect(db.booking.findMany).toHaveBeenNthCalledWith(1, {
-      where: { updatedAt: { gt: new Date(since) } },
+      where: {
+        OR: [
+          { updatedAt: { gt: new Date(since) } },
+          { updatedAt: new Date(since), id: { gt: "" } },
+        ],
+      },
       orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
       select: { id: true, updatedAt: true },
       take: 100,
     });
     expect(db.auditLog.findMany).toHaveBeenCalledWith({
-      where: { entityType: "booking", createdAt: { gt: new Date(since) } },
+      where: {
+        entityType: "booking",
+        OR: [
+          { createdAt: { gt: new Date(since) } },
+          { createdAt: new Date(since), id: { gt: "" } },
+        ],
+      },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-      select: { entityId: true, createdAt: true },
+      select: { id: true, entityId: true, createdAt: true },
       take: 100,
     });
     expect(db.booking.findMany).toHaveBeenNthCalledWith(2, {
@@ -145,12 +169,12 @@ describe("booking change signal route", () => {
     });
   });
 
-  it("does not advance the cursor from audit rows outside the viewer's visible booking set", async () => {
+  it("advances the audit cursor past invisible rows so polling cannot get stuck", async () => {
     vi.mocked(db.booking.findMany)
       .mockResolvedValueOnce([] as never)
       .mockResolvedValueOnce([] as never);
     vi.mocked(db.auditLog.findMany).mockResolvedValue([
-      { entityId: "hidden-booking", createdAt: new Date("2026-06-24T10:03:00.000Z") },
+      { id: "hidden-audit-row", entityId: "hidden-booking", createdAt: new Date("2026-06-24T10:03:00.000Z") },
     ] as never);
 
     const res = await call("?since=2026-06-24T10%3A00%3A00.000Z");
@@ -158,13 +182,10 @@ describe("booking change signal route", () => {
 
     expect(res.status).toBe(200);
     expect(body.data.changedBookingIds).toEqual([]);
-
-    const next = await call(`?since=${encodeURIComponent(body.data.cursor)}`);
-
-    expect(next.status).toBe(200);
-    expect(db.auditLog.findMany).toHaveBeenLastCalledWith(expect.objectContaining({
-      where: { entityType: "booking", createdAt: { gt: new Date("2026-06-24T10:00:00.000Z") } },
-    }));
+    expect(decodeCursor(body.data.cursor).audit).toEqual({
+      at: "2026-06-24T10:03:00.000Z",
+      id: "hidden-audit-row",
+    });
   });
 
   it("scopes student-visible booking evidence to the signed-in requester", async () => {
@@ -173,7 +194,7 @@ describe("booking change signal route", () => {
       .mockResolvedValueOnce([{ id: "student-booking", updatedAt: new Date("2026-06-24T10:01:00.000Z") }] as never)
       .mockResolvedValueOnce([{ id: "student-booking" }] as never);
     vi.mocked(db.auditLog.findMany).mockResolvedValue([
-      { entityId: "student-booking", createdAt: new Date("2026-06-24T10:01:30.000Z") },
+      { id: "student-audit", entityId: "student-booking", createdAt: new Date("2026-06-24T10:01:30.000Z") },
     ] as never);
 
     const res = await call("?since=2026-06-24T10%3A00%3A00.000Z");
@@ -182,7 +203,13 @@ describe("booking change signal route", () => {
     expect(res.status).toBe(200);
     expect(body.data.changedBookingIds).toEqual(["student-booking"]);
     expect(db.booking.findMany).toHaveBeenNthCalledWith(1, expect.objectContaining({
-      where: { requesterUserId: "student-1", updatedAt: { gt: new Date("2026-06-24T10:00:00.000Z") } },
+      where: {
+        requesterUserId: "student-1",
+        OR: [
+          { updatedAt: { gt: new Date("2026-06-24T10:00:00.000Z") } },
+          { updatedAt: new Date("2026-06-24T10:00:00.000Z"), id: { gt: "" } },
+        ],
+      },
     }));
     expect(db.booking.findMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
       where: { requesterUserId: "student-1", id: { in: ["student-booking"] } },

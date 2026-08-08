@@ -161,7 +161,7 @@ describe("booking lifecycle route contract", () => {
     expect(createAuditEntry).not.toHaveBeenCalled();
   });
 
-  it("dispatches checkout edits to updateCheckout and records a full before snapshot", async () => {
+  it("dispatches checkout edits while leaving canonical audit ownership to the service", async () => {
     const res = await PATCH(
       request(
         {
@@ -178,21 +178,36 @@ describe("booking lifecycle route contract", () => {
     expect(updateCheckout).toHaveBeenCalledWith(baseDetail.id, staffUser.id, {
       title: "Updated Checkout",
       endsAt: new Date("2026-06-01T13:00:00.000Z"),
-      serializedAssetIds: undefined,
-      bulkItems: undefined,
       notes: "Updated notes",
-    });
+    }, new Date("2026-06-01T09:00:00.000Z"));
     expect(updateReservation).not.toHaveBeenCalled();
-    expect(createAuditEntry).toHaveBeenCalledWith(
-      expect.objectContaining({
-        before: expect.objectContaining({
-          title: "Camera checkout",
-          serializedAssetIds: ["cm000000000000000000000004"],
-          bulkItems: [{ bulkSkuId: "cm000000000000000000000005", plannedQuantity: 2 }],
-          notes: "Original notes",
-        }),
-      }),
+    expect(createAuditEntry).not.toHaveBeenCalled();
+  });
+
+  it("rejects reservation-only fields on checkout edits instead of silently ignoring them", async () => {
+    const res = await PATCH(
+      request(
+        { requesterUserId: "cm000000000000000000000006" },
+        { "if-unmodified-since": "Mon, 01 Jun 2026 09:00:00 GMT" },
+      ),
+      { params: Promise.resolve({ id: baseDetail.id }) },
     );
+
+    expect(res.status).toBe(400);
+    expect(updateCheckout).not.toHaveBeenCalled();
+  });
+
+  it("rejects active checkout equipment edits outside the kiosk boundary", async () => {
+    const res = await PATCH(
+      request(
+        { serializedAssetIds: ["cm000000000000000000000004"] },
+        { "if-unmodified-since": "Mon, 01 Jun 2026 09:00:00 GMT" },
+      ),
+      { params: Promise.resolve({ id: baseDetail.id }) },
+    );
+
+    expect(res.status).toBe(403);
+    expect(updateCheckout).not.toHaveBeenCalled();
   });
 
   it("dispatches reservation edits to updateReservation", async () => {
@@ -222,7 +237,7 @@ describe("booking lifecycle route contract", () => {
       serializedAssetIds: undefined,
       bulkItems: undefined,
       notes: undefined,
-    });
+    }, new Date("2026-06-01T09:00:00.000Z"));
     expect(updateCheckout).not.toHaveBeenCalled();
   });
 });

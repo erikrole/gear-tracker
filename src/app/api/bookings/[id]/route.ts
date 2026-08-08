@@ -7,10 +7,14 @@ import {
 } from "@/lib/services/bookings";
 import { getAllowedBookingActions, requireBookingAction } from "@/lib/services/booking-rules";
 import { updateBookingSchema, sanitizeBookingFields } from "@/lib/validation";
-import { createAuditEntry } from "@/lib/audit";
 import type { z } from "zod";
 import { requireCollaboratorCapability } from "@/lib/collaborator-access";
 import { collaboratorBookingResponse } from "@/lib/collaborator-gear";
+import {
+  bookingSnapshotMatches,
+  parseBookingSnapshotHeader,
+  staleBookingError,
+} from "@/lib/booking-concurrency";
 
 type BookingPatchBody = z.infer<typeof updateBookingSchema>;
 
@@ -104,16 +108,8 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   }
 
   // Optimistic locking: every edit client must send the snapshot it edited.
-  const ifUnmodified = req.headers.get("if-unmodified-since");
-  if (!ifUnmodified) {
-    throw new HttpError(428, "Missing If-Unmodified-Since header. Refresh and try again.");
-  }
-  const clientTs = new Date(ifUnmodified).getTime();
-  const serverTs = Math.floor(new Date(detail.updatedAt).getTime() / 1000) * 1000;
-  if (Number.isNaN(clientTs)) {
-    throw new HttpError(400, "Invalid If-Unmodified-Since header.");
-  }
-  if (clientTs < serverTs) {
+  const expectedUpdatedAt = parseBookingSnapshotHeader(req);
+  if (!bookingSnapshotMatches(detail.updatedAt, expectedUpdatedAt)) {
     if (isIdempotentStalePatch(body, detail)) {
       await requireBookingAction(id, user, "edit");
       const allowedActions = getAllowedBookingActions(user, detail);
@@ -123,24 +119,10 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
           : { ...detail, allowedActions },
       });
     }
-    throw new HttpError(409, "This booking was modified by someone else. Please refresh and try again.");
+    throw staleBookingError();
   }
 
   await requireBookingAction(id, user, "edit");
-
-  const beforeSnapshot = {
-    title: detail.title,
-    requesterUserId: detail.requesterUserId,
-    locationId: detail.locationId,
-    startsAt: detail.startsAt,
-    endsAt: detail.endsAt,
-    serializedAssetIds: detail.serializedItems.map((item) => item.assetId),
-    bulkItems: detail.bulkItems.map((item) => ({
-      bulkSkuId: item.bulkSkuId,
-      plannedQuantity: item.plannedQuantity,
-    })),
-    notes: detail.notes,
-  };
 
   if (detail.kind === "RESERVATION") {
     await updateReservation(id, user.id, {
@@ -152,26 +134,24 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       serializedAssetIds: body.serializedAssetIds,
       bulkItems: body.bulkItems,
       notes: body.notes
-    });
+    }, expectedUpdatedAt);
   } else {
+    if (
+      body.requesterUserId !== undefined ||
+      body.locationId !== undefined ||
+      body.startsAt !== undefined
+    ) {
+      throw new HttpError(400, "Checkout requester, location, and start time use dedicated custody workflows");
+    }
+    if (body.serializedAssetIds !== undefined || body.bulkItems !== undefined) {
+      throw new HttpError(403, "Active checkout equipment can only be changed at a kiosk");
+    }
     await updateCheckout(id, user.id, {
       title: body.title,
       endsAt: body.endsAt ? new Date(body.endsAt) : undefined,
-      serializedAssetIds: body.serializedAssetIds,
-      bulkItems: body.bulkItems,
       notes: body.notes
-    });
+    }, expectedUpdatedAt);
   }
-
-  await createAuditEntry({
-    actorId: user.id,
-    actorRole: user.role,
-    entityType: "booking",
-    entityId: id,
-    action: "updated",
-    before: beforeSnapshot,
-    after: body as Record<string, unknown>,
-  });
 
   // Re-fetch enriched detail so the UI has full state (auditLogs, allowedActions, etc.)
   const refreshed = await getBookingDetail(id);

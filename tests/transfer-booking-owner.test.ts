@@ -52,6 +52,7 @@ function activeBooking(overrides: Record<string, unknown> = {}) {
   return {
     id: "cm000000000000000000000001",
     status: BookingStatus.BOOKED,
+    updatedAt: new Date("2026-07-09T16:00:00Z"),
     requesterUserId: currentRequester.id,
     createdBy: "staff-1",
     requester: currentRequester,
@@ -78,6 +79,18 @@ describe("transferBookingOwner", () => {
   it("uses SERIALIZABLE isolation", async () => {
     await transferBookingOwner(activeBooking().id, "staff-1", { targetUserId: targetUser.id });
     expectSerializableIsolation(transactionCalls, 0);
+  });
+
+  it("BUG: rejects an owner transfer when the snapshot changed before the transaction", async () => {
+    await expect(transferBookingOwner(
+      activeBooking().id,
+      "staff-1",
+      { targetUserId: targetUser.id },
+      new Date("2026-07-09T15:59:59Z"),
+    )).rejects.toMatchObject({ status: 409 });
+
+    expect(mockTx.user.findUnique).not.toHaveBeenCalled();
+    expect(mockTx.booking.update).not.toHaveBeenCalled();
   });
 
   it("updates requester and writes an owner transfer audit entry", async () => {

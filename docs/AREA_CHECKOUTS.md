@@ -75,7 +75,12 @@ Legacy documentation below describes the retired web wizard contract and is pres
 1. Allowed only by policy and role.
 2. Canceled records remain auditable.
 3. No hard delete.
-4. Cancelling a `PENDING_PICKUP` or `OPEN` checkout releases serialized allocations, cancels open scan sessions, restores outstanding bulk stock with a compensating `CHECKIN` stock movement, and releases any scanned numbered units before the booking moves to `CANCELLED`.
+4. Cancelling a legacy `PENDING_PICKUP` checkout releases serialized allocations,
+   cancels open scan sessions, restores held bulk stock with a compensating
+   `CHECKIN` stock movement, and releases any staged numbered units before the
+   booking moves to `CANCELLED`. An `OPEN` checkout carries physical custody and
+   cannot use normal cancellation; it must be returned at a kiosk or closed by
+   the reasoned admin exception.
 
 ## Equipment Picker (V2 — Multi-Select, Search, Availability Preview, Scan-to-Add)
 
@@ -174,7 +179,6 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[CHECKOUT
   - View
   - Edit (staff+ or owner)
   - Extend (staff+ or owner)
-  - Cancel (staff+ only — students cannot cancel OPEN checkouts even if owner)
   - Transfer owner (staff/admin-only)
   - Check in at kiosk
   - Close without scan (admin-only exception with required reason)
@@ -213,7 +217,11 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - Status badge shows display labels through the shared booking status display helper: `PENDING_PICKUP` -> "Pending Pickup", `OPEN` -> "Checked out".
 - "Due back" countdown rendered as urgency-colored Badge (red/orange/yellow/neutral)
 - Action buttons: `[Actions ▼] [Edit] [Extend]` for app-owned actions. Custody pickup/return scans happen at the kiosk.
-- Actions dropdown contains: Nudge borrower, Close without scan, Transfer owner, Duplicate, and Cancel when each action is allowed. Close without scan is admin-only, requires a reason, records an override event, and must not link to `/scan?checkout=...`.
+- Actions dropdown contains: Nudge borrower, Close without scan, Transfer owner,
+  Duplicate, and legacy staged-checkout Cancel when each action is allowed.
+  `OPEN` custody never exposes normal Cancel. Close without scan is admin-only,
+  requires a reason, records an override event, and must not link to
+  `/scan?checkout=...`.
 - Equipment tab shows returned progress and item context, but standard return execution remains at the kiosk.
 - Equipment rows show hover-reveal "..." menu (View item)
 - Checkin progress bar in equipment header: `████░░░░ 12/30 returned`
@@ -306,6 +314,16 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 5. Add regression coverage for race conditions, partial returns, non-kiosk custody attempts, and permission bypass attempts.
 
 ## Change Log
+
+- 2026-08-07: Reconciled checkout cancellation and edit boundaries with D-012
+  and D-040. Normal `OPEN -> CANCELLED` is now blocked in both action policy and
+  the transaction service; active custody closes only through kiosk return or
+  the reasoned admin exception. Unified web/app PATCH rejects checkout equipment
+  changes and reservation-only requester, location, or start fields instead of
+  silently accepting or mutating custody outside the kiosk. Edit, extend,
+  event-link, and transfer services also recheck the edited snapshot inside the
+  serializable transaction, and shared edit audit history is written once by
+  the service transaction rather than duplicated after commit.
 
 - 2026-08-04: **Booking detail mutation freshness hardened.** Inline title, schedule, and notes saves now apply the server-returned booking snapshot, including `updatedAt`, so a following rename or owner transfer uses the current optimistic-lock value. Owner-transfer retries for the already-committed target now return the committed booking while true stale competing transfers remain conflicts.
 - 2026-07-31: **Snow Leopard web contract hardening.** Booking-list quick extend now sends the required `If-Unmodified-Since` value from the row's `updatedAt`, so the shared optimistic-lock route can accept the action instead of returning a missing-header response. Collaborator booking actions remain individually capability-gated, and `DRAFT` rows stay out of the default active booking work queue while remaining recoverable through the Drafts surface.

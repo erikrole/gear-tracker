@@ -120,6 +120,7 @@ describe("booking extend route contract", () => {
       baseDetail.id,
       staffUser.id,
       new Date("2026-06-01T14:00:00.000Z"),
+      new Date("2026-06-01T09:00:00.000Z"),
     );
   });
 

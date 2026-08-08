@@ -19,8 +19,8 @@ const saveDraftSchema = z.object({
   title: z.string().max(200).default(""),
   requesterUserId: z.string().cuid().optional(),
   locationId: z.string().cuid().optional(),
-  startsAt: z.string().optional(),
-  endsAt: z.string().optional(),
+  startsAt: z.string().datetime({ offset: true }).optional(),
+  endsAt: z.string().datetime({ offset: true }).optional(),
   eventId: z.string().cuid().nullable().optional(),
   eventIds: z.array(z.string().cuid()).max(3).optional(),
   sportCode: optionalSportCodeSchema,
@@ -36,6 +36,22 @@ const saveDraftSchema = z.object({
     }))
     .max(MAX_BULK_SKU_LINES_PER_REQUEST)
     .default([]),
+}).superRefine((body, ctx) => {
+  if (new Set(body.serializedAssetIds).size !== body.serializedAssetIds.length) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["serializedAssetIds"],
+      message: "serializedAssetIds must be unique",
+    });
+  }
+  const bulkSkuIds = body.bulkItems.map((item) => item.bulkSkuId);
+  if (new Set(bulkSkuIds).size !== bulkSkuIds.length) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["bulkItems"],
+      message: "bulkItems must contain unique bulkSkuId values",
+    });
+  }
 });
 
 function dedupeIds(ids: string[]) {
@@ -78,9 +94,6 @@ async function resolveDraftEventLinks(tx: Prisma.TransactionClient, body: z.infe
 /** GET /api/drafts — list current user's drafts */
 export const GET = withAuth(async (_req, { user }) => {
   requirePermissionOrCollaboratorCapability(user, "booking", "view", "MY_GEAR_VIEW");
-  await db.booking.deleteMany({
-    where: { status: "DRAFT", createdBy: user.id, updatedAt: { lt: draftExpiryCutoff() } },
-  });
 
   const drafts = await db.booking.findMany({
     where: { status: "DRAFT", createdBy: user.id, updatedAt: { gte: draftExpiryCutoff() } },

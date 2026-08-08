@@ -44,7 +44,7 @@ const STATE_ACTIONS: Record<BookingKind, Record<BookingStatus, Set<string>>> = {
     DRAFT: new Set(["edit", "cancel", "transfer-owner"]),
     BOOKED: new Set(["edit", "extend", "cancel", "open", "transfer-owner"]),
     PENDING_PICKUP: new Set(["edit", "cancel", "transfer-owner"]),
-    OPEN: new Set(["edit", "extend", "cancel", "force-complete", "nudge", "transfer-owner"]),
+    OPEN: new Set(["edit", "extend", "force-complete", "nudge", "transfer-owner"]),
     COMPLETED: new Set(),
     CANCELLED: new Set(),
   },
@@ -130,16 +130,6 @@ export function canPerformBookingAction(
       allowed: false,
       reason: `Action "${action}" is not available in ${booking.status} state`,
     };
-  }
-
-  if (resolvedKind === "CHECKOUT" && action === "cancel" && booking.status === "OPEN") {
-    if (!isStaffOrAbove(actor.role)) {
-      return {
-        allowed: false,
-        reason: "Only staff or admin can cancel an active checkout",
-      };
-    }
-    return { allowed: true };
   }
 
   if (action === "force-complete") {
