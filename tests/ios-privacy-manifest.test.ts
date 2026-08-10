@@ -1,12 +1,13 @@
-import { execFileSync } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
+import { parse } from "plist";
 import { describe, expect, it } from "vitest";
 
 const appManifestPath = path.join(process.cwd(), "ios/Wisconsin/Supporting/PrivacyInfo.xcprivacy");
 const kioskManifestPath = path.join(process.cwd(), "ios/Wisconsin/KioskOnly/PrivacyInfo.xcprivacy");
 
 function manifestJson(manifestPath: string) {
-  return JSON.parse(execFileSync("plutil", ["-convert", "json", "-o", "-", manifestPath], { encoding: "utf8" })) as {
+  return parse(fs.readFileSync(manifestPath, "utf8")) as {
     NSPrivacyTracking: boolean;
     NSPrivacyTrackingDomains: string[];
     NSPrivacyAccessedAPITypes: Array<{
