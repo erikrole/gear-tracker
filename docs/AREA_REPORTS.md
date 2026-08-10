@@ -109,13 +109,14 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 ### `/accountability`
 - **Access:** ADMIN only through `accountability.view`; its sidebar and global-search entries are hidden from every other role.
 - **Type:** Intervention-oriented late-return ranking with expandable checkout evidence and reversible data-quality exclusions.
-- **Ranking:** Late-event count, then total late hours, then most recent incident. Rank 1 means the pattern most in need of review, not a gamified award.
+- **Ranking:** Selectable through `sort`. `events` (default) ranks by late-event count, then total late hours, then most recent incident; `time` ranks by total late hours first; `recent` ranks by most recent incident first. Rank 1 means the pattern most in need of review, not a gamified award.
 - **Time:** Defaults to the current July 1-June 30 academic year, with four prior years and all-time available.
-- **Filters:** Academic year, location, active/resolved/overdue-extension incident state, and active/inactive user state.
-- **Metrics:** People needing attention, late events, currently overdue checkouts, and excluded records.
+- **Filters:** Academic year, location, active/resolved/overdue-extension incident state, and active/inactive user state. Non-default filters surface as removable toolbar chips.
+- **Metrics:** People needing attention, late events, total late time, currently overdue checkouts, and excluded records.
+- **Presentation:** Shares the report kit (`ReportToolbar`, `MetricCard`, `ReportChartCard`, `ReportSectionCard`, mobile cards). A top-ten horizontal bar chart tracks the active ranking dimension, and the ranked table and mobile cards expose per-person total, worst, typical, and on-time figures with keyboard-expandable checkout evidence.
 - **Semantics:** `OPEN` rows use current time; `COMPLETED` rows use `completedAt`. Both compare against `endsAt + checkout_policies.gracePeriodHours`. An extension made after the prior due time plus grace is a separate late episode, even when the new due time prevents a later late return. On-time rate appears only after three completed checkouts.
 - **Data:** `GET /api/accountability`; `POST /api/accountability/exclusions`; `DELETE /api/accountability/exclusions/{bookingId}`.
-- **Export:** `GET /api/accountability?format=csv` exports the filtered person-level ranking through the shared report-export rate limit.
+- **Export:** `GET /api/accountability?format=csv` exports the filtered person-level ranking in the on-screen sort order through the shared report-export rate limit. Columns cover rank, identity, late events, active overdue, total/median/worst late hours, total and completed checkouts, on-time rate, and last incident.
 - **Cleanup:** Exclusions require a reason, retain the booking and all custody evidence, write audit evidence in the same SERIALIZABLE transaction, and can be restored.
 
 ## Components

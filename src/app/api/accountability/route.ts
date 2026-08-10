@@ -8,11 +8,13 @@ import {
   getAccountabilityReport,
   getCurrentAcademicYearStart,
   type AccountabilityIncidentState,
+  type AccountabilitySort,
   type AccountabilityUserState,
 } from "@/lib/services/accountability";
 
 const INCIDENT_STATES = new Set(["all", "active", "resolved", "extended"]);
 const USER_STATES = new Set(["all", "active", "inactive"]);
+const SORTS = new Set(["events", "time", "recent"]);
 
 function parseFilters(searchParams: URLSearchParams) {
   const year = searchParams.get("year");
@@ -28,12 +30,15 @@ function parseFilters(searchParams: URLSearchParams) {
   if (!INCIDENT_STATES.has(incidentState)) throw new HttpError(400, "Invalid incident state");
   const userState = searchParams.get("users") ?? "all";
   if (!USER_STATES.has(userState)) throw new HttpError(400, "Invalid user state");
+  const sort = searchParams.get("sort") ?? "events";
+  if (!SORTS.has(sort)) throw new HttpError(400, "Invalid sort");
 
   return {
     startYear,
     locationId: searchParams.get("locationId") || undefined,
     incidentState: incidentState as AccountabilityIncidentState,
     userState: userState as AccountabilityUserState,
+    sort: sort as AccountabilitySort,
   };
 }
 
@@ -47,8 +52,11 @@ function toCsv(report: Awaited<ReturnType<typeof getAccountabilityReport>>) {
     "Active Overdue",
     "Total Late Hours",
     "Median Late Hours",
+    "Worst Late Hours",
+    "Total Checkouts",
     "Completed Checkouts",
     "On-Time Rate",
+    "Last Incident",
   ];
   const rows = report.leaderboard.map((person, index) => [
     index + 1,
@@ -59,8 +67,11 @@ function toCsv(report: Awaited<ReturnType<typeof getAccountabilityReport>>) {
     person.activeOverdueCount,
     person.totalLateHours,
     person.medianLateHours,
+    person.worstLateHours,
+    person.checkoutCount,
     person.completedCount,
     person.onTimeRate === null ? "" : `${person.onTimeRate}%`,
+    person.lastIncidentAt,
   ]);
   return [headers, ...rows].map((row) => row.map(csvField).join(",")).join("\n");
 }

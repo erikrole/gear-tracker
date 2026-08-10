@@ -193,6 +193,66 @@ describe("accountability service", () => {
     expect(report.metrics.excludedRecords).toBe(1);
   });
 
+  it("ranks by volume or by total late time depending on the sort", async () => {
+    // Frequent is late four times but briefly; Severe is late once for two days.
+    const rows = bookingRows([
+      ...[1, 2, 3, 4].map((day) => ({
+        id: `frequent-${day}`,
+        kind: "CHECKOUT",
+        title: `Frequent ${day}`,
+        status: "COMPLETED",
+        endsAt: new Date(`2026-08-0${day}T10:00:00.000Z`),
+        completedAt: new Date(`2026-08-0${day}T13:00:00.000Z`),
+        requester: { id: "frequent", name: "Frequent Flyer", active: true, primaryArea: "VIDEO" },
+        location: { id: "main", name: "Main Cage" },
+        accountabilityExclusion: null,
+        dueDateChanges: [],
+        serializedItems: [],
+        bulkItems: [],
+      })),
+      {
+        id: "severe-1",
+        kind: "CHECKOUT",
+        title: "Severe 1",
+        status: "COMPLETED",
+        endsAt: new Date("2026-08-05T10:00:00.000Z"),
+        completedAt: new Date("2026-08-07T10:00:00.000Z"),
+        requester: { id: "severe", name: "Severe Holder", active: true, primaryArea: "VIDEO" },
+        location: { id: "main", name: "Main Cage" },
+        accountabilityExclusion: null,
+        dueDateChanges: [],
+        serializedItems: [],
+        bulkItems: [],
+      },
+    ]);
+
+    vi.mocked(db.booking.findMany).mockResolvedValue(rows);
+    const byVolume = await getAccountabilityReport(
+      { startYear: 2026, sort: "events" },
+      new Date("2026-08-11T14:30:00.000Z"),
+    );
+    expect(byVolume.leaderboard.map((person) => person.name)).toEqual([
+      "Frequent Flyer",
+      "Severe Holder",
+    ]);
+
+    vi.mocked(db.booking.findMany).mockResolvedValue(rows);
+    const byTime = await getAccountabilityReport(
+      { startYear: 2026, sort: "time" },
+      new Date("2026-08-11T14:30:00.000Z"),
+    );
+    expect(byTime.leaderboard.map((person) => person.name)).toEqual([
+      "Severe Holder",
+      "Frequent Flyer",
+    ]);
+    expect(byTime.leaderboard[0]).toMatchObject({
+      totalLateHours: 47,
+      worstLateHours: 47,
+      lateEventCount: 1,
+    });
+    expect(byTime.metrics.totalLateHours).toBe(55);
+  });
+
   it("does not count returns inside the configured grace period as late", async () => {
     vi.mocked(db.booking.findMany).mockResolvedValue(bookingRows([
       {

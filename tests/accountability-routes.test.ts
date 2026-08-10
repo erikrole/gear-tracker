@@ -60,7 +60,25 @@ describe("accountability routes", () => {
       locationId: undefined,
       incidentState: "resolved",
       userState: "inactive",
+      sort: "events",
     });
+  });
+
+  it("accepts the late-time ranking and rejects an unknown sort", async () => {
+    const response = await GET(
+      new Request("https://app.example.com/api/accountability?sort=time"),
+      noParams,
+    );
+    expect(response.status).toBe(200);
+    expect(getAccountabilityReport).toHaveBeenCalledWith(
+      expect.objectContaining({ sort: "time" }),
+    );
+
+    const rejected = await GET(
+      new Request("https://app.example.com/api/accountability?sort=alphabetical"),
+      noParams,
+    );
+    expect(rejected.status).toBe(400);
   });
 
   it("accepts the overdue-extension incident filter", async () => {

@@ -15,12 +15,20 @@ const HOUR_MS = 3_600_000;
 
 export type AccountabilityIncidentState = "all" | "active" | "resolved" | "extended";
 export type AccountabilityUserState = "all" | "active" | "inactive";
+export type AccountabilitySort = "events" | "time" | "recent";
 
 export type AccountabilityFilters = {
   startYear: number | null;
   locationId?: string;
   incidentState?: AccountabilityIncidentState;
   userState?: AccountabilityUserState;
+  sort?: AccountabilitySort;
+};
+
+export const ACCOUNTABILITY_RANKING_DESCRIPTIONS: Record<AccountabilitySort, string> = {
+  events: "Late events, then total late time, then most recent incident",
+  time: "Total late time, then late events, then most recent incident",
+  recent: "Most recent incident, then late events, then total late time",
 };
 
 function localYearMonth(now: Date) {
@@ -57,6 +65,40 @@ export function getAcademicYearWindow(startYear: number | null) {
   return {
     start: localMidnightUtc(startYear, 7, 1),
     end: localMidnightUtc(startYear + 1, 7, 1),
+  };
+}
+
+type RankedPerson = {
+  lateEventCount: number;
+  totalLateHours: number;
+  lastIncidentAt: string;
+};
+
+/**
+ * Ranking is intentionally selectable: volume (late events) and duration (total
+ * late time) tell different stories, and one person can lead on either.
+ */
+function rankComparator(sort: AccountabilitySort) {
+  return (a: RankedPerson, b: RankedPerson) => {
+    if (sort === "time") {
+      return (
+        b.totalLateHours - a.totalLateHours ||
+        b.lateEventCount - a.lateEventCount ||
+        b.lastIncidentAt.localeCompare(a.lastIncidentAt)
+      );
+    }
+    if (sort === "recent") {
+      return (
+        b.lastIncidentAt.localeCompare(a.lastIncidentAt) ||
+        b.lateEventCount - a.lateEventCount ||
+        b.totalLateHours - a.totalLateHours
+      );
+    }
+    return (
+      b.lateEventCount - a.lateEventCount ||
+      b.totalLateHours - a.totalLateHours ||
+      b.lastIncidentAt.localeCompare(a.lastIncidentAt)
+    );
   };
 }
 
@@ -295,6 +337,7 @@ export async function getAccountabilityReport(
         activeOverdueCount: person.incidents.filter((incident) => incident.state === "active").length,
         totalLateHours: lateHours.reduce((sum, hours) => sum + hours, 0),
         medianLateHours: median(lateHours),
+        worstLateHours: Math.max(...lateHours),
         onTimeRate:
           person.completedCount >= MIN_CHECKOUTS_FOR_RATE
             ? Math.round((person.onTimeCount / person.completedCount) * 100)
@@ -303,12 +346,7 @@ export async function getAccountabilityReport(
         incidents: person.incidents.sort((a, b) => b.lateHours - a.lateHours),
       };
     })
-    .sort(
-      (a, b) =>
-        b.lateEventCount - a.lateEventCount ||
-        b.totalLateHours - a.totalLateHours ||
-        b.lastIncidentAt.localeCompare(a.lastIncidentAt),
-    );
+    .sort(rankComparator(filters.sort ?? "events"));
 
   return {
     generatedAt: now.toISOString(),
@@ -324,12 +362,14 @@ export async function getAccountabilityReport(
     methodology: {
       gracePeriodHours: policies.gracePeriodHours,
       minimumCheckoutsForRate: MIN_CHECKOUTS_FOR_RATE,
-      ranking: "Late events, then total late hours, then most recent incident",
+      sort: filters.sort ?? "events",
+      ranking: ACCOUNTABILITY_RANKING_DESCRIPTIONS[filters.sort ?? "events"],
     },
     metrics: {
       peopleNeedingAttention: leaderboard.length,
       lateEvents: leaderboard.reduce((sum, person) => sum + person.lateEventCount, 0),
       activeOverdue: leaderboard.reduce((sum, person) => sum + person.activeOverdueCount, 0),
+      totalLateHours: leaderboard.reduce((sum, person) => sum + person.totalLateHours, 0),
       excludedRecords: excluded.length,
     },
     locations,
