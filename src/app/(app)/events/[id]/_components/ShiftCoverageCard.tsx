@@ -228,12 +228,12 @@ export function ShiftCoverageCard({
 
   function handleApprove(assignmentId: string) {
     setRequestsShiftId(null);
-    mutate(assignmentId, `/api/shift-assignments/${assignmentId}/approve`, { method: "PATCH" }, "Request approved");
+    mutate(assignmentId, `/api/shift-assignments/${assignmentId}/approve`, { method: "PATCH" }, "Legacy request approved");
   }
 
   function handleDecline(assignmentId: string) {
     setRequestsShiftId(null);
-    mutate(assignmentId, `/api/shift-assignments/${assignmentId}/decline`, { method: "PATCH" }, "Request declined");
+    mutate(assignmentId, `/api/shift-assignments/${assignmentId}/decline`, { method: "PATCH" }, "Legacy request declined");
   }
 
   async function handleAutoFill() {
@@ -383,14 +383,14 @@ export function ShiftCoverageCard({
               variant="ghost"
               size="sm"
               className="-ml-1.5 h-8 gap-2 px-1.5 font-normal text-muted-foreground hover:text-foreground"
-              aria-label={`Review ${pendingRequests.length} pending shift request${pendingRequests.length === 1 ? "" : "s"}`}
+              aria-label={`Review ${pendingRequests.length} legacy shift request${pendingRequests.length === 1 ? "" : "s"}`}
             >
               <CrewStateDot state="requested" />
               {crewSlotStateLabel("requested", pendingRequests.length)}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-72 p-3" align="start">
-            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Pending requests</p>
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Legacy requests</p>
             <div className="flex flex-col gap-2">
               {pendingRequests.map((req) => (
                 <div key={req.id} className="flex items-center justify-between gap-2">

@@ -74,6 +74,8 @@ final class HomeViewModel {
             homePerformanceLog.debug("launch.home.dashboardLoad result=skipped reason=fresh ageSeconds=\(ageSeconds, privacy: .public) durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public)")
             return
         }
+        let signpost = AppPerformanceSignposts.begin("HomeDashboardLoad")
+        defer { AppPerformanceSignposts.end("HomeDashboardLoad", signpost) }
         isLoading = true
         do {
             let loadedDashboard = try await APIClient.shared.dashboard()
@@ -113,6 +115,8 @@ final class HomeViewModel {
 
     private static func reconcileCheckoutReturnLiveActivity(requesterId: String?) async {
         let startedAt = Date()
+        let signpost = AppPerformanceSignposts.begin("LiveActivityReconciliation")
+        defer { AppPerformanceSignposts.end("LiveActivityReconciliation", signpost) }
         await CheckoutReturnLiveActivityManager.shared.prepareRemoteStartRegistration()
         await CheckoutReturnLiveActivityManager.shared.reconcileCurrentUserCheckouts(requesterId: requesterId)
         homePerformanceLog.debug("launch.home.liveActivityReconcile durationMs=\(elapsedMilliseconds(since: startedAt), privacy: .public)")
@@ -131,6 +135,7 @@ struct HomeView: View {
     @State private var pendingShowTrades = false
     @State private var selectedEventWork: DashboardEventWork?
     @State private var firstUsefulRenderStartedAt = Date()
+    @State private var firstUsefulRenderSignpost: OSSignpostIntervalState?
     @State private var didLogFirstUsefulRender = false
     @Environment(AppState.self) private var appState
     @Environment(SessionStore.self) private var session
@@ -193,6 +198,10 @@ struct HomeView: View {
     private func logFirstUsefulRender(_ dash: DashboardData) {
         guard !didLogFirstUsefulRender else { return }
         didLogFirstUsefulRender = true
+        if let firstUsefulRenderSignpost {
+            AppPerformanceSignposts.end("FirstUsefulHome", firstUsefulRenderSignpost)
+            self.firstUsefulRenderSignpost = nil
+        }
         homePerformanceLog.info("launch.home.firstUsefulRender durationMs=\(elapsedMilliseconds(since: firstUsefulRenderStartedAt), privacy: .public) checkouts=\(dash.myCheckouts.items.count, privacy: .public) reservations=\(dash.myReservations.count, privacy: .public) pendingPickups=\(dash.pendingPickups.items.count, privacy: .public) eventWork=\(dash.myEventWork.count, privacy: .public)")
     }
 
@@ -333,6 +342,9 @@ struct HomeView: View {
                 await blasts
             }
             .task {
+                if firstUsefulRenderSignpost == nil, !didLogFirstUsefulRender {
+                    firstUsefulRenderSignpost = AppPerformanceSignposts.begin("FirstUsefulHome")
+                }
                 async let blasts: Void = vm.loadBlasts()
                 await vm.load(appState: appState, requesterId: session.currentUser?.id)
                 await blasts

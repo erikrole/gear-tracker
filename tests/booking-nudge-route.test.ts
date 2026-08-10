@@ -29,6 +29,14 @@ vi.mock("@/lib/services/notifications", () => ({
   sendPushToUser: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@/lib/services/checkout-policies", () => ({
+  loadCheckoutPolicies: vi.fn().mockResolvedValue({
+    defaultLoanDays: 1,
+    gracePeriodHours: 0.5,
+    maxItemsPerUser: null,
+  }),
+}));
+
 vi.mock("@sentry/nextjs", () => ({
   captureException: vi.fn(),
 }));
@@ -39,6 +47,7 @@ import { requireBookingAction } from "@/lib/services/booking-rules";
 import { createAuditEntry } from "@/lib/audit";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { deferPush, sendPushToUser } from "@/lib/services/notifications";
+import { loadCheckoutPolicies } from "@/lib/services/checkout-policies";
 import { POST } from "@/app/api/bookings/[id]/nudge/route";
 
 const staffUser = {
@@ -120,5 +129,22 @@ describe("POST /api/bookings/[id]/nudge", () => {
     expect(sendPushToUser).not.toHaveBeenCalled();
     expect(deferPush).not.toHaveBeenCalled();
     expect(createAuditEntry).not.toHaveBeenCalled();
+  });
+
+  it("does not allow a manual nudge during the checkout grace period", async () => {
+    vi.mocked(requireBookingAction).mockResolvedValue({
+      ...overdueCheckout,
+      endsAt: new Date(Date.now() - 10 * 60_000),
+    } as never);
+    vi.mocked(loadCheckoutPolicies).mockResolvedValue({
+      defaultLoanDays: 1,
+      gracePeriodHours: 0.5,
+      maxItemsPerUser: null,
+    });
+
+    const res = await POST(post(), { params: Promise.resolve({ id: overdueCheckout.id }) });
+
+    expect(res.status).toBe(400);
+    expect(db.notification.create).not.toHaveBeenCalled();
   });
 });

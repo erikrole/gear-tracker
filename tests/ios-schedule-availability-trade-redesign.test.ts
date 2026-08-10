@@ -35,6 +35,7 @@ describe("native Schedule availability and Trade Board redesign", () => {
 
   it("prioritizes actionable shifts and keeps My Posts a quiet scope", () => {
     const board = source("ios/Wisconsin/Views/Schedule/TradeBoardSheet.swift");
+    const models = source("ios/Wisconsin/Models/ShiftTradeModels.swift");
 
     expect(board).toContain("@State private var mineOnly = false");
     expect(board).toContain("TradeBoardSummaryCard(");
@@ -46,6 +47,13 @@ describe("native Schedule availability and Trade Board redesign", () => {
     expect(board).toContain(".buttonStyle(.borderedProminent)");
     expect(board).toContain("cancelAction: nil");
     expect(board).not.toContain("} cancelAction: {}");
+    expect(models).toContain("let viewerAvailabilityContext: ShiftAvailabilityContext?");
+    expect(models).toContain("let claimedByAvailabilityContext: ShiftAvailabilityContext?");
+    expect(models).toContain("let availabilityContext: ShiftAvailabilityContext?");
+    expect(models).toContain("let viewerCanClaim: Bool?");
+    expect(board).toContain("var blockedTrades: [ShiftTrade]");
+    expect(board).toContain("trade.viewerCanClaim ?? (!isStaff && trade.viewerAvailabilityContext?.blocking != true)");
+    expect(board).toContain("ShiftAvailabilityContextNote(");
   });
 
   it("prevents duplicate trade mutations and preserves recovery", () => {
@@ -56,5 +64,11 @@ describe("native Schedule availability and Trade Board redesign", () => {
     expect(board).toContain("pendingActionId = trade.id");
     expect(board).toContain(".disabled(isActioning)");
     expect(board).toContain("TradeBoardActionErrorBanner(");
+    expect(board).toContain("var tradeLoadError: String?");
+    expect(board).toContain("var openWorkLoadError: String?");
+    expect(board).toContain("func loadTrades() async");
+    expect(board).toContain("func loadOpenWork() async");
+    expect(board).toContain("TradeBoardSourceErrorRow(");
+    expect(board).toContain("isComplete: !vm.hasSourceFailure");
   });
 });

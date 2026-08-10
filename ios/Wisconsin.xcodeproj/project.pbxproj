@@ -25,6 +25,7 @@
 		12BE5380A72CE66E23CA39CD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 592769886AB12F6A842CC8CF /* Assets.xcassets */; };
 		157E1E0021A0F88C78E3590E /* SidebarWebDestinationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B76322B9A6F0D5B70487D0F2 /* SidebarWebDestinationView.swift */; };
 		16180470B97E979363856F90 /* Gotham-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F79BD5C4616572A064F43254 /* Gotham-Bold.ttf */; };
+		17D60243EEB5E89A81363B3B /* ReportModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 841B755DD26E463F2B624373 /* ReportModelsTests.swift */; };
 		18103A77A1D847F0F42FFDCF /* KioskCheckoutDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 966B6B986CA5E9C123B8EC01 /* KioskCheckoutDetailSheet.swift */; };
 		1AC641AD94A229A52FE17AE0 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ED3D57FAA3E94281C3FF27C /* APIClient.swift */; };
 		1B981CC8085A81571DFAEB49 /* ProfileCompletionModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC88ED41091D463A9A8D5503 /* ProfileCompletionModels.swift */; };
@@ -35,6 +36,7 @@
 		237DD2AF7BCC2631721C737C /* CreateBookingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F3FA2D4C06E966E6BA030B /* CreateBookingSheet.swift */; };
 		2516A89A0CD4284023B38A28 /* ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74157D1DF3F4EF9F53F70494 /* ScheduleView.swift */; };
 		27614B86498B5D98CC600630 /* CreateBookingFormRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = 089FAA6DDBB831B89ED4E5F5 /* CreateBookingFormRows.swift */; };
+		27D9158F06A8D80D8B7C5B53 /* ReportsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4321D991D40907BB2A1819C1 /* ReportsView.swift */; };
 		27ECC333F667B220F460C700 /* GuidesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14DA88A1DF6F8D23066A07BC /* GuidesView.swift */; };
 		28EE6E9E2F95C9BA9B138B38 /* BlastModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5827A13830B73BC3EB57808 /* BlastModels.swift */; };
 		2A37E7B9C1A68005651FAC4A /* CreateBookingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB412E1DD8493D282F261563 /* CreateBookingViewModel.swift */; };
@@ -125,14 +127,17 @@
 		B627C81D60CEF199EE69E537 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB6A309FA698276EE001EE07 /* Preferences.swift */; };
 		B6B0235DB84A35FE3DFF5D6C /* DraftModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DAF420E532759A9116D675B /* DraftModels.swift */; };
 		BA09B1B0BD9687C63E73E59D /* ThumbnailLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6D1B302F1FC5245180A17CD /* ThumbnailLoader.swift */; };
+		BA37275B8E5633BD8007619A /* PerformanceInstrumentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9062A30C344C008E28EAAC29 /* PerformanceInstrumentation.swift */; };
 		BAE863712FA11717C1C77B29 /* NotificationsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E58906A0DD7BCF5024161BE /* NotificationsSheet.swift */; };
 		C3C5D175C583096B0D645F24 /* AssetModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3967BD5EC55792F3B9E94724 /* AssetModels.swift */; };
 		C4B395605B732BF0CA7623DD /* LaunchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C139D1C1F9A3D2C4AB5EEF42 /* LaunchView.swift */; };
 		C72EB6E27A3B853D2B074874 /* KioskNativeTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046675A42DFADB1133461EDD /* KioskNativeTextField.swift */; };
+		CB4CE3E584F6CF6F481E5926 /* ReportsScreenshotUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B697AC8644C31499AB3D7408 /* ReportsScreenshotUITests.swift */; };
 		CB5A9F4D1449DDAFF063E6A6 /* KioskOnlyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B24728E65A42F40EDB0BBCF8 /* KioskOnlyApp.swift */; };
 		CB86127CB5CF65F1921BE695 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 84430D9886900EA2E8F3CB0B /* AppIcon.icon */; };
 		CC0861DE9B9E5C12D3EFFD83 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 911EE1AA37106EDB44B9B2E9 /* PrivacyInfo.xcprivacy */; };
 		CE860A32B56D88E0802D8EFE /* DashboardModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB8C14E1F7005B408A6A4CCD /* DashboardModels.swift */; };
+		D00E7601CEFE39E880ADF85B /* WisconsinPerformanceUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9128816C8E1A251912BD38AB /* WisconsinPerformanceUITests.swift */; };
 		D0BEAE453503EBBEDD922745 /* KioskDateFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = E37E6A8082FFD84EC009BC21 /* KioskDateFormatting.swift */; };
 		D1BE91AB2F76BE372F49B448 /* CheckoutReturnLiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2228C8C2447924ED80ABD8C4 /* CheckoutReturnLiveActivityManager.swift */; };
 		D24677599DC4E06E3E093A81 /* PushPrePromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A2DFDC7A0C7BD6C018D43D2 /* PushPrePromptView.swift */; };
@@ -147,6 +152,7 @@
 		DF903B01D6C6E80FD5ABB03E /* ProfileCompletionDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64AD62D4B6264BA6FE15C183 /* ProfileCompletionDraft.swift */; };
 		E6F51692EA10D1DF6DA5F049 /* KioskSuccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E968BAF46C8E557831F73C27 /* KioskSuccessView.swift */; };
 		E74AB0C45B70B59CEBC79AC4 /* AppTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B208F1EB8DD4DA49DADC1CAB /* AppTabView.swift */; };
+		E9868E704C292CCAE811A6CC /* PerformanceTestHarness.swift in Sources */ = {isa = PBXBuildFile; fileRef = 358BF1EA0D68485F1E260EF1 /* PerformanceTestHarness.swift */; };
 		E9A78D5C1743CBD6CC8AF930 /* HIDScannerField.swift in Sources */ = {isa = PBXBuildFile; fileRef = C22B3A50B4815BC1451C26DD /* HIDScannerField.swift */; };
 		EB431E266D465DDA520852CB /* OverdueReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1770023701735D8701DCAA5B /* OverdueReportView.swift */; };
 		F2A0A3013F3F22792FA32C84 /* KioskComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 348C1E3385689A947929A115 /* KioskComponents.swift */; };
@@ -171,6 +177,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = AE5BC122AAA548CB394E1598;
 			remoteInfo = WisconsinLiveActivities;
+		};
+		BD66B6C0A2BB30B6856054FB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 335BE05E032A4F56E50B98CC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5731E598F30EDA43B52B4002;
+			remoteInfo = Wisconsin;
 		};
 		D55C075B4191C5A96A8CC28F /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -226,12 +239,15 @@
 		33E539B4DF2AE3F73D36C2BA /* BookingModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingModelsTests.swift; sourceTree = "<group>"; };
 		348C1E3385689A947929A115 /* KioskComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskComponents.swift; sourceTree = "<group>"; };
 		3505D284815BD7237ACFED5F /* KioskFlowRouting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskFlowRouting.swift; sourceTree = "<group>"; };
+		3552556B169D8833DE628CF9 /* WisconsinUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = WisconsinUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		358BF1EA0D68485F1E260EF1 /* PerformanceTestHarness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceTestHarness.swift; sourceTree = "<group>"; };
 		3700D2B2FAE801DC2FF0F1ED /* KioskCheckoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskCheckoutView.swift; sourceTree = "<group>"; };
 		38065600FA5A1C1AC4C8CC2F /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		39565FFA7236A61DAD12D9BB /* DateFormats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFormats.swift; sourceTree = "<group>"; };
 		3967BD5EC55792F3B9E94724 /* AssetModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetModels.swift; sourceTree = "<group>"; };
 		40E011969D2B77CA098ECCD1 /* ProfileCompletionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileCompletionStore.swift; sourceTree = "<group>"; };
 		41D51AC00210AD1B6DE0E466 /* LinkStickerWizard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkStickerWizard.swift; sourceTree = "<group>"; };
+		4321D991D40907BB2A1819C1 /* ReportsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportsView.swift; sourceTree = "<group>"; };
 		4461DC62BDB05085191DB129 /* ReservationDraftStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReservationDraftStoreTests.swift; sourceTree = "<group>"; };
 		44E5D1DB0C8CBAD5E452E807 /* QRScannerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerSheet.swift; sourceTree = "<group>"; };
 		468E248680EC5A61BEC1EE38 /* Skeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Skeleton.swift; sourceTree = "<group>"; };
@@ -268,6 +284,7 @@
 		783E3F89AF08A64D8BE2685D /* KioskActivationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskActivationView.swift; sourceTree = "<group>"; };
 		80B4D45C3B7B120931B9ACC0 /* WisconsinKiosk.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = WisconsinKiosk.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		80CA4880F08046F8E23F079B /* ItemDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemDetailView.swift; sourceTree = "<group>"; };
+		841B755DD26E463F2B624373 /* ReportModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportModelsTests.swift; sourceTree = "<group>"; };
 		843772771897AABEF8DD1F93 /* BannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerView.swift; sourceTree = "<group>"; };
 		84430D9886900EA2E8F3CB0B /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		87AF393E027CAF24A08F414E /* WeatherKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WeatherKit.framework; path = System/Library/Frameworks/WeatherKit.framework; sourceTree = SDKROOT; };
@@ -275,7 +292,9 @@
 		88FF0CACAB4BD4886FD0219B /* CreateBookingEventViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateBookingEventViews.swift; sourceTree = "<group>"; };
 		8F93CDFD1D75D7CAC2D88211 /* KioskFlowRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskFlowRoutingTests.swift; sourceTree = "<group>"; };
 		8F94CA79BF538DBB6FF7F225 /* UsersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsersView.swift; sourceTree = "<group>"; };
+		9062A30C344C008E28EAAC29 /* PerformanceInstrumentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceInstrumentation.swift; sourceTree = "<group>"; };
 		911EE1AA37106EDB44B9B2E9 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		9128816C8E1A251912BD38AB /* WisconsinPerformanceUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WisconsinPerformanceUITests.swift; sourceTree = "<group>"; };
 		93A02FB7D1B8ADC547189F1A /* ScanPrePromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanPrePromptView.swift; sourceTree = "<group>"; };
 		96636E404DEEEDA5C6046ADB /* AddShiftSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddShiftSheet.swift; sourceTree = "<group>"; };
 		966B6B986CA5E9C123B8EC01 /* KioskCheckoutDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskCheckoutDetailSheet.swift; sourceTree = "<group>"; };
@@ -296,6 +315,7 @@
 		B04517A8131BAA862DB3FF5E /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		B208F1EB8DD4DA49DADC1CAB /* AppTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTabView.swift; sourceTree = "<group>"; };
 		B24728E65A42F40EDB0BBCF8 /* KioskOnlyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskOnlyApp.swift; sourceTree = "<group>"; };
+		B697AC8644C31499AB3D7408 /* ReportsScreenshotUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportsScreenshotUITests.swift; sourceTree = "<group>"; };
 		B76322B9A6F0D5B70487D0F2 /* SidebarWebDestinationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarWebDestinationView.swift; sourceTree = "<group>"; };
 		B798A9A6A730D69BA6E9597B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		B83DB9EE3ED741F3A11FD83F /* PasskeyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasskeyService.swift; sourceTree = "<group>"; };
@@ -445,6 +465,7 @@
 				663DC1D3F890A7577C4D89D5 /* AppIntents.swift */,
 				B9D82991FC6AE45A56917938 /* AppIntentsData.swift */,
 				FF98C537202359B822B1D752 /* BookingEntity.swift */,
+				358BF1EA0D68485F1E260EF1 /* PerformanceTestHarness.swift */,
 				D3BDE438C8F05EAA14B299BB /* WisconsinApp.swift */,
 			);
 			path = App;
@@ -457,6 +478,7 @@
 				DAD6FF657D1FA5BD866D55A6 /* WisconsinKioskTests */,
 				4000675A530740785C2DA0A8 /* WisconsinLiveActivities */,
 				EDA403CEE6E28FEE6DB3375A /* WisconsinTests */,
+				E4C0BE70BBCA61E06847F9A5 /* WisconsinUITests */,
 				56BA9B99E8BB9A2E7D01253E /* Frameworks */,
 				FAC33595C52A409299C15513 /* Products */,
 			);
@@ -610,6 +632,7 @@
 				2A73B2A1C9B274552CBA7C8B /* Haptics.swift */,
 				2536547429CB16E12CB069C0 /* NetworkMonitor.swift */,
 				B83DB9EE3ED741F3A11FD83F /* PasskeyService.swift */,
+				9062A30C344C008E28EAAC29 /* PerformanceInstrumentation.swift */,
 				EB6A309FA698276EE001EE07 /* Preferences.swift */,
 				40E011969D2B77CA098ECCD1 /* ProfileCompletionStore.swift */,
 				D5FEA50A163963BC17612FB6 /* ReservationDraftStore.swift */,
@@ -619,6 +642,15 @@
 				C6D1B302F1FC5245180A17CD /* ThumbnailLoader.swift */,
 			);
 			path = Core;
+			sourceTree = "<group>";
+		};
+		E4C0BE70BBCA61E06847F9A5 /* WisconsinUITests */ = {
+			isa = PBXGroup;
+			children = (
+				B697AC8644C31499AB3D7408 /* ReportsScreenshotUITests.swift */,
+				9128816C8E1A251912BD38AB /* WisconsinPerformanceUITests.swift */,
+			);
+			path = WisconsinUITests;
 			sourceTree = "<group>";
 		};
 		E5EFEF895EF2453C237A9A5C /* Views */ = {
@@ -649,6 +681,7 @@
 				66242B4730F2C1AF5CF188FF /* ProfileNextUp.swift */,
 				B04517A8131BAA862DB3FF5E /* ProfileView.swift */,
 				6A2DFDC7A0C7BD6C018D43D2 /* PushPrePromptView.swift */,
+				4321D991D40907BB2A1819C1 /* ReportsView.swift */,
 				93A02FB7D1B8ADC547189F1A /* ScanPrePromptView.swift */,
 				74157D1DF3F4EF9F53F70494 /* ScheduleView.swift */,
 				B798A9A6A730D69BA6E9597B /* SettingsView.swift */,
@@ -684,6 +717,7 @@
 				33E539B4DF2AE3F73D36C2BA /* BookingModelsTests.swift */,
 				F7E2243115099DA4F3973F11 /* LatestRequestGenerationTests.swift */,
 				DDD21416289B346FEE851FB9 /* ProfileCompletionModelsTests.swift */,
+				841B755DD26E463F2B624373 /* ReportModelsTests.swift */,
 				4461DC62BDB05085191DB129 /* ReservationDraftStoreTests.swift */,
 				A943ABC3AA353DC3AAEA0B3A /* ScheduleDateMathTests.swift */,
 			);
@@ -698,6 +732,7 @@
 				73A192946D33F875B4A0A772 /* WisconsinKioskTests.xctest */,
 				88F162C9B5233CB44C35E9E5 /* WisconsinLiveActivities.appex */,
 				D2CCD2319C4A2279FAAB048E /* WisconsinTests.xctest */,
+				3552556B169D8833DE628CF9 /* WisconsinUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -779,6 +814,24 @@
 			productReference = 88F162C9B5233CB44C35E9E5 /* WisconsinLiveActivities.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		D18DA3B499674D9B53F251BC /* WisconsinUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7D53FBC779D869349B6E2996 /* Build configuration list for PBXNativeTarget "WisconsinUITests" */;
+			buildPhases = (
+				6D934357CCF0CE181356F169 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				4FF9860A8C7A4FAC1E01E4B5 /* PBXTargetDependency */,
+			);
+			name = WisconsinUITests;
+			packageProductDependencies = (
+			);
+			productName = WisconsinUITests;
+			productReference = 3552556B169D8833DE628CF9 /* WisconsinUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		EB002774201125D2164CE813 /* WisconsinTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 179CEE1BC96BDC8C5316C0E3 /* Build configuration list for PBXNativeTarget "WisconsinTests" */;
@@ -818,6 +871,10 @@
 					AE5BC122AAA548CB394E1598 = {
 						DevelopmentTeam = T26T3G8C7Q;
 					};
+					D18DA3B499674D9B53F251BC = {
+						DevelopmentTeam = T26T3G8C7Q;
+						TestTargetID = 5731E598F30EDA43B52B4002;
+					};
 					EB002774201125D2164CE813 = {
 						DevelopmentTeam = T26T3G8C7Q;
 					};
@@ -840,6 +897,7 @@
 				5731E598F30EDA43B52B4002 /* Wisconsin */,
 				58413BF8F25E6ACC210F6B81 /* WisconsinKiosk */,
 				EB002774201125D2164CE813 /* WisconsinTests */,
+				D18DA3B499674D9B53F251BC /* WisconsinUITests */,
 				305E70CB1F6D374E6234A19C /* WisconsinKioskTests */,
 				AE5BC122AAA548CB394E1598 /* WisconsinLiveActivities */,
 			);
@@ -880,6 +938,7 @@
 				ADB0FD771E094960BDFC5D6B /* BookingModelsTests.swift in Sources */,
 				D90FDB80F8FFF8F2921E26A5 /* LatestRequestGenerationTests.swift in Sources */,
 				4F357F478EDC77FFABCE13B7 /* ProfileCompletionModelsTests.swift in Sources */,
+				17D60243EEB5E89A81363B3B /* ReportModelsTests.swift in Sources */,
 				FBCE9485C52357F314061D25 /* ReservationDraftStoreTests.swift in Sources */,
 				B0583B1951EA442CCD563320 /* ScheduleDateMathTests.swift in Sources */,
 			);
@@ -890,6 +949,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				6D30C6F8EA800382F2619212 /* KioskFlowRoutingTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6D934357CCF0CE181356F169 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CB4CE3E584F6CF6F481E5926 /* ReportsScreenshotUITests.swift in Sources */,
+				D00E7601CEFE39E880ADF85B /* WisconsinPerformanceUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1007,6 +1075,8 @@
 				D622D6499DAFD051C68A9C25 /* PasskeyModels.swift in Sources */,
 				86CFEB3F8DFA7CF275B00991 /* PasskeyService.swift in Sources */,
 				4B5FFF1D1D5E4C8FF671E34F /* PasswordSetupView.swift in Sources */,
+				BA37275B8E5633BD8007619A /* PerformanceInstrumentation.swift in Sources */,
+				E9868E704C292CCAE811A6CC /* PerformanceTestHarness.swift in Sources */,
 				5222CCDEB1C3A451B2B7EDED /* PostTradeSheet.swift in Sources */,
 				B627C81D60CEF199EE69E537 /* Preferences.swift in Sources */,
 				DF903B01D6C6E80FD5ABB03E /* ProfileCompletionDraft.swift in Sources */,
@@ -1019,6 +1089,7 @@
 				021A7B27623C3C8544FE58BB /* ProfileView.swift in Sources */,
 				D24677599DC4E06E3E093A81 /* PushPrePromptView.swift in Sources */,
 				085E8467FC2D0385A67DD157 /* QRScannerSheet.swift in Sources */,
+				27D9158F06A8D80D8B7C5B53 /* ReportsView.swift in Sources */,
 				6A83B2291B4776A186254C0F /* ReservationDraftCard.swift in Sources */,
 				DEF5863F656AD6A5D707FDC1 /* ReservationDraftStore.swift in Sources */,
 				0B3D380ACF389083C083FC5A /* ScanPrePromptView.swift in Sources */,
@@ -1057,6 +1128,11 @@
 			isa = PBXTargetDependency;
 			target = AE5BC122AAA548CB394E1598 /* WisconsinLiveActivities */;
 			targetProxy = 8D1698B724DB02A1A7D0427E /* PBXContainerItemProxy */;
+		};
+		4FF9860A8C7A4FAC1E01E4B5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5731E598F30EDA43B52B4002 /* Wisconsin */;
+			targetProxy = BD66B6C0A2BB30B6856054FB /* PBXContainerItemProxy */;
 		};
 		7F8C5DBF52138F73AC28AB84 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -1107,6 +1183,25 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
+		};
+		2EF2D289CF54C907A26F0B22 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.erikrole.WisconsinUITests;
+				PRODUCT_NAME = WisconsinUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Wisconsin;
+			};
+			name = Debug;
 		};
 		421F863027CCDA1914F9D3F3 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -1365,6 +1460,25 @@
 			};
 			name = Release;
 		};
+		CA8928C53FE84E169C077362 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.erikrole.WisconsinUITests;
+				PRODUCT_NAME = WisconsinUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Wisconsin;
+			};
+			name = Release;
+		};
 		CCE1B43C33D251B822B68631 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1440,6 +1554,15 @@
 			buildConfigurations = (
 				4DDDE64217BAA8B5B397181C /* Debug */,
 				56F244381FE75A5ABD0B08E6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		7D53FBC779D869349B6E2996 /* Build configuration list for PBXNativeTarget "WisconsinUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2EF2D289CF54C907A26F0B22 /* Debug */,
+				CA8928C53FE84E169C077362 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

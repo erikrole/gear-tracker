@@ -149,6 +149,21 @@ targets:
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Wisconsin Creative.app/Wisconsin Creative"
         BUNDLE_LOADER: "$(TEST_HOST)"
 
+  WisconsinUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: WisconsinUITests
+    dependencies:
+      - target: Wisconsin
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: "YES"
+        PRODUCT_NAME: WisconsinUITests
+        PRODUCT_BUNDLE_IDENTIFIER: com.erikrole.WisconsinUITests
+        TEST_TARGET_NAME: Wisconsin
+
   WisconsinKioskTests:
     type: bundle.unit-test
     platform: iOS
@@ -201,6 +216,17 @@ schemes:
         - name: WisconsinTests
           randomExecutionOrder: true
       gatherCoverageData: true
+
+  WisconsinPerformance:
+    build:
+      targets:
+        Wisconsin: all
+        WisconsinLiveActivities: all
+    test:
+      targets:
+        - name: WisconsinUITests
+          randomExecutionOrder: false
+      gatherCoverageData: false
 
   WisconsinKiosk:
     build:

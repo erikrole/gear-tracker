@@ -87,7 +87,8 @@ final class ReportModelsTests: XCTestCase {
         XCTAssertEqual(slices.map(\.status), ["AVAILABLE", "CHECKED_OUT", "RETIRED"])
         XCTAssertEqual(slices.map(\.count), [187, 3, 8])
         XCTAssertEqual(slices.map(\.label), ["Available", "Checked out", "Retired"])
-        XCTAssertEqual(slices.map(\.tone), [.green, .blue, .gray])
+        // Chart roles, not status text tones: these colours fill wedges.
+        XCTAssertEqual(slices.map(\.role), [.available, .active, .neutral])
     }
 
     func testUtilizationReportDecodesAPreCustodyServerPayload() throws {
@@ -118,7 +119,7 @@ final class ReportModelsTests: XCTestCase {
         // A status added on the server later must still appear rather than
         // silently vanishing from the donut.
         XCTAssertEqual(slices.map(\.status), ["AVAILABLE", "QUARANTINED"])
-        XCTAssertEqual(slices.last?.tone, .gray)
+        XCTAssertEqual(slices.last?.role, .neutral)
     }
 
     // MARK: Checkouts

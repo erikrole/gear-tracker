@@ -11,6 +11,7 @@ import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { createShiftScheduleNotification } from "@/lib/services/notifications";
 import { releaseReservationManagedAssignmentTx } from "@/lib/services/reservation-schedule";
+import { revokeCompanionUser } from "@/lib/companion-store";
 
 export type UserDeactivationResult = {
   cancelledIds: string[];
@@ -351,6 +352,9 @@ export async function deactivateUserWithCleanup(args: {
   await Promise.all(releasedAssignmentIds.map((assignmentId) =>
     createShiftScheduleNotification(assignmentId, "removed"),
   ));
+  await revokeCompanionUser(targetUserId).catch((error) => {
+    console.error("[Companion] failed to revoke deactivated user", error);
+  });
 
   return {
     cancelledIds: deactivationResult.cancelledIds,

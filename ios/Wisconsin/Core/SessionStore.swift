@@ -51,6 +51,10 @@ final class SessionStore {
     var usedOptimisticSessionSnapshot: Bool { didSeedFromSnapshot }
 
     init() {
+        if AppRuntimeMode.isPerformanceTesting {
+            isRestoring = false
+            isInitialSessionValidationInFlight = false
+        }
         // Optimistic launch: if the last session left a snapshot, render the
         // app shell immediately (Home shows its own skeleton while fresh data
         // loads) instead of blocking the entire UI on the /me round-trip. No
@@ -58,13 +62,17 @@ final class SessionStore {
         // identity. `restoreSession()` validates in the background and bounces
         // to Login on a confirmed 401. Users mid forced-password-change take
         // the strict path so they can't slip past that gate.
-        if let snapshot = SessionSnapshot.load(), !snapshot.forcePasswordChange {
+        if !AppRuntimeMode.isPerformanceTesting,
+           let snapshot = SessionSnapshot.load(),
+           !snapshot.forcePasswordChange {
             currentUser = snapshot
             isRestoring = false
             didSeedFromSnapshot = true
         }
-        let restoreToken = authRequests.begin()
-        Task { await restoreSession(requestToken: restoreToken) }
+        if !AppRuntimeMode.isPerformanceTesting {
+            let restoreToken = authRequests.begin()
+            Task { await restoreSession(requestToken: restoreToken) }
+        }
         // Listen for global 401s posted from APIClient and route the user back to login.
         NotificationCenter.default.addObserver(
             forName: .sessionDidExpire,
@@ -254,9 +262,11 @@ final class SessionStore {
 
     private func restoreSession(requestToken: UUID) async {
         let startedAt = Date()
+        let signpost = AppPerformanceSignposts.begin("SessionValidation")
         let optimistic = didSeedFromSnapshot
         var result = "superseded"
         defer {
+            AppPerformanceSignposts.end("SessionValidation", signpost)
             isInitialSessionValidationInFlight = false
             if authRequests.owns(requestToken) { isRestoring = false }
             // Distinguish the optimistic path (shell already shown) from a cold

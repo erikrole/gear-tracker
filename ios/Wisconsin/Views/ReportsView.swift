@@ -224,11 +224,12 @@ struct ReportsView: View {
                             x: .value("Day", point.day),
                             y: .value("Checkouts", point.count)
                         )
+                        // Mirrors web's --report-chart-active-soft.
                         .foregroundStyle(
                             .linearGradient(
                                 colors: [
-                                    Color.statusText(.blue).opacity(0.28),
-                                    Color.statusText(.blue).opacity(0.02),
+                                    Color.chartFill(.active).opacity(0.20),
+                                    Color.chartFill(.active).opacity(0.02),
                                 ],
                                 startPoint: .top,
                                 endPoint: .bottom
@@ -240,20 +241,20 @@ struct ReportsView: View {
                             x: .value("Day", point.day),
                             y: .value("Checkouts", point.count)
                         )
-                        .foregroundStyle(Color.statusText(.blue))
+                        .foregroundStyle(Color.chartFill(.active))
                         .lineStyle(StrokeStyle(lineWidth: 2))
                         .interpolationMethod(.monotone)
 
                         if let selectedDay, let match = ReportTrendPoint.nearest(to: selectedDay, in: points) {
                             RuleMark(x: .value("Day", match.day))
-                                .foregroundStyle(Color.statusText(.gray).opacity(0.4))
+                                .foregroundStyle(Color.chartFill(.neutral).opacity(0.4))
                                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
 
                             PointMark(
                                 x: .value("Day", match.day),
                                 y: .value("Checkouts", match.count)
                             )
-                            .foregroundStyle(Color.statusText(.blue))
+                            .foregroundStyle(Color.chartFill(.active))
                             .symbolSize(90)
                         }
                     }
@@ -315,7 +316,7 @@ struct ReportsView: View {
                             angularInset: 1.5
                         )
                         .cornerRadius(3)
-                        .foregroundStyle(Color.statusText(slice.tone))
+                        .foregroundStyle(Color.chartFill(slice.role))
                     }
                     .chartLegend(.hidden)
                     .frame(height: 172)
@@ -325,7 +326,7 @@ struct ReportsView: View {
                     ForEach(slices) { slice in
                         HStack(spacing: 10) {
                             Circle()
-                                .fill(Color.statusText(slice.tone))
+                                .fill(Color.chartFill(slice.role))
                                 .frame(width: 9, height: 9)
                             Text(slice.label)
                                 .font(.subheadline)
@@ -357,7 +358,7 @@ struct ReportsView: View {
                         // hairlines against a ten-band category axis.
                         height: .ratio(0.62)
                     )
-                    .foregroundStyle(Color.statusText(.blue).gradient)
+                    .foregroundStyle(Color.chartFill(.active).gradient)
                     .cornerRadius(3)
                 }
                 .chartXAxis {
@@ -511,7 +512,9 @@ struct ReportStatusSlice: Identifiable {
     let status: String
     let label: String
     let count: Int
-    let tone: StatusTone
+    /// A chart role, not a status text tone — this colour fills a wedge and its
+    /// legend dot. See docs/COLOR_SYSTEM.md.
+    let role: ChartRole
 
     var id: String { status }
 
@@ -526,15 +529,16 @@ struct ReportStatusSlice: Identifiable {
         "RETIRED",
     ]
 
-    static func tone(for status: String) -> StatusTone {
+    /// Same status-to-role mapping the web utilization donut uses.
+    static func role(for status: String) -> ChartRole {
         switch status {
-        case "AVAILABLE": return .green
-        case "CHECKED_OUT": return .blue
-        case "PENDING_PICKUP": return .orange
-        case "RESERVED": return .purple
-        case "MAINTENANCE": return .orange
-        case "RETIRED": return .gray
-        default: return .gray
+        case "AVAILABLE": return .available
+        case "CHECKED_OUT": return .active
+        case "PENDING_PICKUP": return .waiting
+        case "RESERVED": return .reserved
+        case "MAINTENANCE": return .waiting
+        case "RETIRED": return .neutral
+        default: return .neutral
         }
     }
 
@@ -553,13 +557,13 @@ struct ReportStatusSlice: Identifiable {
     static func build(from counts: [String: Int]) -> [ReportStatusSlice] {
         let known = order.compactMap { status -> ReportStatusSlice? in
             guard let count = counts[status], count > 0 else { return nil }
-            return ReportStatusSlice(status: status, label: label(for: status), count: count, tone: tone(for: status))
+            return ReportStatusSlice(status: status, label: label(for: status), count: count, role: role(for: status))
         }
         // Anything the server adds later still shows up rather than vanishing.
         let extras = counts
             .filter { !order.contains($0.key) && $0.value > 0 }
             .sorted { $0.key < $1.key }
-            .map { ReportStatusSlice(status: $0.key, label: label(for: $0.key), count: $0.value, tone: tone(for: $0.key)) }
+            .map { ReportStatusSlice(status: $0.key, label: label(for: $0.key), count: $0.value, role: role(for: $0.key)) }
         return known + extras
     }
 }

@@ -3,6 +3,7 @@ import Foundation
 enum ShiftTradeStatus: String, Codable {
     case open = "OPEN"
     case claimed = "CLAIMED"
+    case approved = "APPROVED"
     case completed = "COMPLETED"
     case cancelled = "CANCELLED"
     case expired = "EXPIRED"
@@ -17,6 +18,7 @@ enum ShiftTradeStatus: String, Codable {
         switch self {
         case .open: "Open"
         case .claimed: "Claimed"
+        case .approved: "Approved"
         case .completed: "Completed"
         case .cancelled: "Cancelled"
         case .expired: "Expired"
@@ -70,6 +72,13 @@ struct ShiftTradeAssignment: Codable {
     let user: ShiftTradeUser
 }
 
+struct ShiftAvailabilityContext: Codable, Hashable {
+    let state: String
+    let label: String
+    let detail: String
+    let blocking: Bool
+}
+
 struct ShiftTrade: Codable, Identifiable, Hashable {
     static func == (lhs: ShiftTrade, rhs: ShiftTrade) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
@@ -83,6 +92,10 @@ struct ShiftTrade: Codable, Identifiable, Hashable {
     let postedAt: Date?
     let claimedAt: Date?
     let createdAt: Date
+    let viewerAvailabilityContext: ShiftAvailabilityContext?
+    let claimedByAvailabilityContext: ShiftAvailabilityContext?
+    let viewerCanClaim: Bool?
+    let viewerClaimReason: String?
 }
 
 struct ShiftTradesResponse: Codable {
@@ -124,6 +137,7 @@ struct OpenWorkShift: Codable, Identifiable, Hashable {
     let bucket: String?
     let advisoryConflict: Bool
     let advisoryConflictNote: String?
+    let availabilityContext: ShiftAvailabilityContext?
     let warnings: [OpenWorkWarning]
     let ownRequestId: String?
     let requestCount: Int

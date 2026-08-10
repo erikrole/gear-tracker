@@ -1,6 +1,24 @@
 # Task Queue
 
-Last updated: 2026-08-07
+Last updated: 2026-08-10
+
+---
+## Completed: Schedule MVP Trade Board and instant-pickup hardening (2026-08-10)
+
+Plan: `tasks/schedule-mvp-end-to-end-plan.md`
+
+- [x] Make the legacy request route an instant-pickup compatibility alias and label surviving approval controls as legacy-only.
+- [x] Return server-owned trade claimability and availability context to web and native clients.
+- [x] Keep Open Work and trade data independently recoverable without false empty or all-clear states.
+- [x] Centralize post-commit trade push/email fanout while preserving transactional durable notifications.
+- [x] Verify focused Schedule contracts, TypeScript, production web build, and the Wisconsin iPhone 16 Pro Simulator build.
+- [ ] Complete authenticated web and native Trade Board runtime inspection without creating production Schedule data solely for proof.
+
+### Review
+
+- **Shipped locally:** the daily open-slot pickup and trade loop now uses one instant-assignment contract, explains server-owned blockers before action, and remains useful when either Trade Board source fails.
+- **Boundary:** no schema, published/working-copy authority, role permission, assignment/trade lifecycle, audit, notification preference, or kiosk custody contract changed.
+- **Verification:** 148 focused Schedule tests, focused ESLint, iOS drift/audit/project checks, the Wisconsin iPhone 16 Pro Simulator build, codemap/docs, whitespace, and authenticated local Trade Board reads pass. The production web build and TypeScript check passed before later concurrent Settings escalation edits introduced an unrelated type error. The full run recorded 3046/3053 before the stale six-area Schedule assertion was repaired; six unrelated App Store, booking notification, kiosk, and Settings failures remain. Native runtime proof remains blocked at Login.
 
 ---
 ## Active: Event shift working schedule and quick crew actions (2026-07-21)

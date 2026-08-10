@@ -1399,7 +1399,7 @@ struct ShiftRow: View {
         } else {
             let names = shift.assignments.map { assignment -> String in
                 if assignment.status == "REQUESTED" {
-                    return "\(assignment.user.name), pending"
+                    return "\(assignment.user.name), legacy request pending"
                 }
                 if assignment.isOnTradeBoard {
                     return "\(assignment.user.name), on the Trade Board"

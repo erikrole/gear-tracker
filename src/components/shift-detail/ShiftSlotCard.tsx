@@ -264,7 +264,7 @@ export function ShiftSlotCard({
             </>
           )}
 
-          {/* Pending requests */}
+          {/* Legacy pending requests remain reviewable until production is empty. */}
           {pendingRequests.length > 0 && (
             <div className="mt-2 flex flex-col gap-1">
               {pendingRequests.map((req) => (
@@ -303,7 +303,7 @@ export function ShiftSlotCard({
             </div>
           )}
 
-          {/* Empty slot - assign staff-side or let students request student slots. */}
+          {/* Empty slot - assign staff-side or let Students claim published Student slots. */}
           {!isAssigned && (
             <div className="mt-1">
               {canEdit && (

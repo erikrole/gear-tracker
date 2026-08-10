@@ -1,6 +1,6 @@
 # Tasks Index
 
-Last updated: 2026-08-09
+Last updated: 2026-08-10
 
 ## Start Here
 
@@ -37,7 +37,9 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Active Follow-up Ledgers
 
-- `ios-app-web-trust-contract-plan.md` - Build 24 is in Internal QA; physical-device acceptance, authenticated production mutation proof, and External Beta remain.
+- `overdue-notification-hardening-plan.md` - durable five-stage checkout escalation is implemented locally; migration, responder configuration, deployment, and authenticated channel/timing proof remain.
+- `schedule-mvp-end-to-end-plan.md` - implementation and source/build verification are complete; authenticated web and native Trade Board runtime inspection remains.
+- `ios-app-web-trust-contract-plan.md` - Build 24 is in Internal QA and External Beta; physical-device acceptance and authenticated production mutation proof remain.
 - `reservation-auto-schedule-plan.md` - event-linked reservations infer internal work and attach the requester to the primary event schedule.
 - `dashboard-pending-pickup-web-parity-plan.md` - Dashboard parity is deployed;
   authenticated confirmation of the production Pending Pickup lane remains.

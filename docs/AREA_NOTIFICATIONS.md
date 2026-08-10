@@ -3,8 +3,8 @@
 ## Document Control
 - Area: Notifications
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-28
-- Status: Active: escalation schedule + iOS booking/event tap-through + APNs native push + calendar sync health alerts + schedule notification policy + staff blasts shipped
+- Last Updated: 2026-08-10
+- Status: Active; durable overdue escalation hardening is implemented locally with migration and production rollout pending
 - Version: V1.3
 
 ## Direction
@@ -12,25 +12,38 @@ Surface custody urgency and overdue situations to the right people at the right 
 
 ## Core Rules
 1. Notifications are triggers for action, not passive information.
-2. Deduplication is mandatory — the same notification type fires at most once per booking per window.
+2. Deduplication is mandatory: one recipient gets one stage for one booking due-date version.
 3. In-app and email channels coexist; dev mode logs to console in place of SMTP.
 4. The 24h overdue trigger reaches the requester and all admins, per accepted D-009.
 5. Notification center supports mark-read and mark-all-read; read mutations must keep the inbox and bell count honest.
 
-## Escalation Schedule (Implemented)
+## Escalation Schedule (Local Candidate; Migration 0111 Pending)
 
 All triggers are relative to `booking.endsAt`:
 
 | Hours from Due | Type | Title |
 |---|---|---|
-| −1h | `checkout_due_1h` | Due back in 1 hour |
+| −2h | `checkout_due_2h` | Due back in 2 hours |
 | 0h | `checkout_due_now` | Checkout is due now |
-| +1h | `checkout_overdue_1h` | 1 hour overdue |
-| +3h | `checkout_overdue_3h` | 3 hours overdue |
-| +8h | `checkout_overdue_8h` | 8 hours overdue |
+| Grace expiry | `checkout_overdue_grace` | Checkout overdue |
+| +4h | `checkout_overdue_4h` | 4 hours overdue |
 | +24h | `checkout_overdue_24h` | Checkout is 24 hours overdue |
 
-Implementation: `src/lib/services/notifications.ts`
+The grace period applies only to `checkout_overdue_grace`. The due-time, +4h, and +24h offsets remain exact relative to `booking.endsAt`.
+
+Recipient and channel policy:
+
+| Stage | Requester | Location responder | Admins |
+|---|---|---|---|
+| -2h | In-app + push | - | - |
+| Due time | In-app + push | - | - |
+| Grace expiry | In-app + push + email | - | - |
+| +4h | In-app + push + email | In-app + push | - |
+| +24h | In-app + push + email | In-app + push | In-app + email |
+
+Location responders are active visible STAFF or ADMIN users configured at `/settings/escalation`. If none are configured, delivery falls back to the active staff/admin booking creator, then active admins. Requester and operational recipient caps are independent and enforced inside fanout.
+
+Implementation: `src/lib/checkout-escalation-policy.ts`, `src/lib/services/notifications.ts`, and `src/workflows/checkout-overdue-notifications.ts`.
 
 ## Reservation Lifecycle Triggers (Implemented 2026-04-23)
 
@@ -90,11 +103,11 @@ Implementation: `src/lib/services/notifications.ts`
 - Delivery respects `User.notificationPrefs.badges`; missing or old preference shapes default to enabled.
 - Implementation: `POST /api/badges/award` and `awardBadgeManually` in `src/lib/badges/queries.ts`.
 
-## Deduplication (Implemented)
-- Key format: `"{bookingId}:{type}"`
+## Deduplication (Local Candidate)
+- Key format: `"{bookingId}:{dueVersion}:{type}:{recipientKind}:{recipientId}"`
 - Stored in `Notification.dedupeKey` (unique index)
-- A notification record is created once per booking per trigger type
-- Job skips re-creation if `dedupeKey` already exists
+- Extending a checkout supersedes the old workflow and gives the new due date an independent notification version
+- A late workflow or repair sweep sends only the highest currently eligible stage instead of replaying every elapsed stage
 - Result: job is idempotent and safe to run on any cadence
 
 ## Native Push (V1.2 — 2026-04-23)
@@ -113,18 +126,28 @@ Implementation: `src/lib/services/notifications.ts`
 - Required env vars: `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_BUNDLE_ID`, `APNS_P8_KEY` (base64-encoded full PEM including headers). Missing = push silently skipped.
 - Source: `src/lib/push/apns.ts` (dispatch/sendPush), `src/lib/services/notifications.ts` (sendPushToUser, deferPush), `src/app/api/devices/route.ts`, `src/app/api/devices/test/route.ts`
 
+### macOS companion invalidation
+
+- Wisconsin Creative registers its macOS APNs token against `/api/companion/devices` with a signed companion credential held in Keychain.
+- Successful operational mutations publish a bounded booking and kiosk projection to Upstash after commit, then send a priority-5 background push on topic `APNS_MACOS_BUNDLE_ID` or `com.erikrole.GearOps`.
+- The push contains no booking details. It only invalidates the local snapshot; the Mac then fetches `/api/companion/projection`, whose authentication and data source are entirely external to Neon.
+- APNs delivery is best-effort and may be throttled by the operating system. Manual refresh uses the same Upstash-only route and cached data remains visible on failure.
+- Account deactivation and role changes revoke that user's external companion sessions and device registrations. Credential expiry is 90 days.
+- Existing production KV/Upstash, session-secret, and APNs provider variables satisfy the server prerequisites. The macOS App ID capability, signed build, deployment, and real delivery remain rollout gates.
+
 ## Channels (V1 + Email)
-- **In-app**: `Notification` record created for the checkout requester; visible in notification center
+- **In-app**: `Notification` records are durable for the requester and configured operational recipients
 - **Email**: Via Resend (`RESEND_API_KEY` env var). Falls back to `console.log` in dev. Non-fatal on failure.
-- **Admin escalation**: +24h trigger notifies requester + all admins via both in-app and email
+- **Admin escalation**: +24h notifies all active visible admins by in-app + email; push is reserved for configured or fallback location responders
+- **Preferences**: requester, responder, and admin outbound delivery all use the checkout due/overdue category plus the recipient's channel and pause preferences
 - **Email service**: `src/lib/email.ts` provides `sendEmail()`, the email-safe shared hex palette, HTML escaping, the common document shell, and notification content. Shift-trade and password-reset email producers reuse the same shell.
 
 ## Cron / Job Runner
 - **Cron endpoint**: `GET /api/cron/notifications` — validates `CRON_SECRET` bearer token, no user session needed
 - **Manual endpoint**: `POST /api/notifications/process` — admin/staff auth required
 - **Schedule**: Daily at 9:00 AM UTC via Vercel Cron (`vercel.json`, schedule: `0 9 * * *`)
-- **Hobby plan constraint**: Vercel Hobby limits crons to once/day. Sub-hourly escalation checks (e.g. `*/15 * * * *`) require upgrading to Pro plan. Current daily cadence means escalation triggers fire with up to ~24h latency relative to their window.
-- Behavior: scans all `OPEN` checkouts, evaluates each trigger against current time, creates in-app notifications + sends email for matching windows
+- **Normal timing**: a durable Workflow run is scheduled when checkout custody opens or its due time changes. Every stage rechecks `OPEN` state and the expected `endsAt` before delivery.
+- **Repair behavior**: the daily cron scans up to 500 `OPEN` checkouts and sends only the highest eligible unsent stage. It does not replay every elapsed stage.
 - Resilience: overdue, license nag, and license-expiry jobs run independently with `Promise.allSettled`. A single failure returns `ok: false` plus `partialFailures`/`errors` metadata while preserving successful job results and safe fallback counts for failed jobs.
 - Job is fully idempotent — safe to call multiple times per hour due to dedup logic
 
@@ -213,14 +236,15 @@ notification that demands an explicit acknowledgment back.
 
 D-009 (Overdue Escalation Policy) is status `Accepted`. Decisions:
 1. **Recipient model**: +24h escalation goes to the requester AND all admins
-2. **Alert fatigue**: Admin-configurable per-booking notification cap (default: 10). Settings at `/settings/escalation`
+2. **Alert fatigue**: Separate requester-stage and operational-row caps per due-date version. Defaults are 5 and 20. Settings at `/settings/escalation`.
 3. **Email channel**: Shipped (2026-03-16 via Resend). Dev mode logs to console; failures are non-fatal
-4. **Schedule**: DB-driven via `EscalationRule` model, currently seeded with -1h/0h/+1h/+3h/+8h/+24h defaults
+4. **Schedule**: DB-driven via `EscalationRule`, seeded with -2h/due/grace/+4h/+24h by migration `0111_checkout_overdue_notification_policy`
 
 Current behavior:
 - All enabled triggers notify the requester
-- +24h trigger also notifies all admins (excluding the requester if they are an admin)
-- Admins can toggle triggers, recipients, and caps at `/settings/escalation`
+- +4h and +24h notify the checkout location's configured responders, with creator/admin fallback
+- +24h also notifies all admins, excluding duplicate requester or responder rows
+- Admins can toggle rules, set separate caps, and assign location responders at `/settings/escalation`
 
 ## Bug Traps and Mitigations
 
@@ -236,19 +260,26 @@ Current behavior:
 ### Trap: Dev environment sends real emails during local testing
 - Mitigation: SMTP credentials absent in dev → console.log fallback; never hard-fails
 
-### Trap: Extended checkout re-triggers already-sent notifications
-- Mitigation: dedupeKey is keyed to booking + type, not due time — extension creates no duplicates for past trigger windows; only future windows with new types would fire
+### Trap: Late delivery replays every elapsed stage
+- Mitigation: workflow and repair processing collapse to the highest currently eligible stage
+
+### Trap: Extension suppresses reminders for the new due date
+- Mitigation: expected `endsAt` supersedes the old workflow, and dedupe keys include the due-date version
+
+### Trap: Admin fanout overshoots the cap
+- Mitigation: requester and operational counters are independent and checked before every recipient insert
 
 ## Edge Cases
-- Checkout extended after overdue trigger already fired — dedup prevents re-fire for same window
+- Checkout extended after an overdue trigger fired: historical rows remain, the old workflow stops, and the new due date receives its own stages
+- Manual staff nudge during grace: rejected until the same grace threshold used by automatic overdue processing has passed
 - User has no email on file — create in-app notification only; skip email silently
 - Admin manually resolves overdue without system notification — no reconciliation needed
 - Notification record exists for a booking that was later cancelled — show in notification center as historical; no re-trigger
 - Notification center shows records for soft-deleted or cancelled bookings — handle gracefully in query (null-safe booking join)
 
 ## Acceptance Criteria (V1 — Implemented)
-- [x] AC-1: All 4 escalation triggers fire at correct relative times.
-- [x] AC-2: Deduplication prevents duplicate notifications per booking per type.
+- [x] AC-1: All five escalation stages resolve from the booking due date and current grace policy.
+- [x] AC-2: Deduplication prevents duplicate notifications per due-date version, stage, and recipient.
 - [x] AC-3: In-app notification records appear in notification center for the requester.
 - [x] AC-4: Dev mode shows console output instead of sending SMTP email.
 - [x] AC-5: Job endpoint is safe to call repeatedly without creating duplicates.
@@ -256,7 +287,10 @@ Current behavior:
 ## Acceptance Criteria (D-009 — Accepted 2026-03-15)
 - [x] AC-6: Escalation recipient model is formally defined and documented (requester + all admins).
 - [x] AC-7: 24h trigger reaches admin recipients in addition to student requester.
-- [x] AC-8: Alert fatigue controls implemented (admin-configurable per-booking cap).
+- [x] AC-8: Alert fatigue controls use separate requester and operational caps enforced inside fanout.
+- [x] AC-10: Late processing sends only the highest eligible stage.
+- [x] AC-11: Due-time changes supersede stale durable workflows.
+- [x] AC-12: Location responders are configurable with creator/admin fallback.
 - [x] AC-9: Email failure path logged without crashing the job runner.
 
 ## Dependencies
@@ -269,15 +303,16 @@ Current behavior:
 1. SMS notifications.
 2. Multi-channel campaign orchestration or template management.
 3. Slack or other shared-channel notification delivery.
-4. Sub-daily checkout escalation cron cadence on Vercel Hobby.
+4. SMS or shared-channel escalation beyond the configured Gear Tracker recipients.
 5. Generic notification authoring tools outside the existing event-specific producers.
 
 ## Developer Brief
-1. Escalation job is implemented; do not modify schedule without updating D-009, `EscalationRule` seed docs, and Settings copy.
+1. Normal checkout escalation timing is Workflow-owned; the daily cron is repair-only. Do not add a second sub-daily sweep.
 2. Dashboard overdue count must query bookings directly for real-time accuracy; do not use notification records as count source.
 3. App-shell bell counts must use `GET /api/notifications/count`, not the paginated inbox route.
 4. In-app rows remain persistent even when email/push/category preferences suppress outbound delivery.
 5. When adding notification types, keep web row styling, iOS payload decoding, and tap-through behavior aligned.
+6. Every stage must recheck `OPEN` and expected `endsAt`; every outbound channel must use checkout category preferences.
 
 ## Environment Variables
 
@@ -288,6 +323,8 @@ Current behavior:
 | `EMAIL_FROM` | No | From address for transactional email. Default: `Wisconsin Creative <noreply@wisconsincreative.com>` |
 
 ## Change Log
+- 2026-08-10: Implemented the durable five-stage overdue policy locally. Checkout open/due-time mutations schedule a due-versioned Workflow; late runs collapse to one current stage; grace only defines the first overdue boundary; +4h routes to location responders with safe fallback; +24h adds all admins without push; separate caps are enforced inside fanout; manual nudges honor grace; and migration `0111` plus production/authenticated proof remain rollout gates.
+- 2026-08-10: Shift-trade claimed, completed, approved, and declined flows now share one post-commit push/email dispatcher. Durable in-app notifications and their event-routable payloads remain inside the serializable trade transaction; best-effort push and email continue only after commit, respect existing preferences, and do not change assignment or trade state when delivery fails.
 - 2026-07-28: Native auth-lifecycle hardening prevents delayed APNs callbacks, permission results, foreground presentation, and notification taps from publishing previous-user state after sign-out or direct identity replacement. Sign-out unregisters the app and clears local token, badge, delivered, pending, search, and image-cache state. Server-side deactivation atomically revokes device and Live Activity start credentials, deletes password-reset tokens, records cleanup evidence in the same serializable transaction, and leaves active Live Activity tokens as a durable end-delivery queue. The bounded Live Activity cron retries inactive or closed-booking ends; only APNs-accepted or permanently revoked tokens are marked ended. Device, push-to-start, and per-booking Live Activity registrations now require even-length hexadecimal APNs tokens, actor rate limits, a transactional active-user recheck, and fixed active-row caps. Blast delivery excludes inactive users, sends at most two current registrations per recipient through bounded HTTP/2 stream batches, and records `SENT` only for tokens APNs accepted. Reservation lifecycle rows are persisted before create or cancel responses return, while APNs fanout remains deferred. Device-token DELETE preserves empty-body revoke-all and rejects malformed JSON with no writes.
 - 2026-07-21: Staff/admin overdue-checkout nudges now pair the durable in-app `overdue_nudge` row with a best-effort iOS push to the requester. Delivery uses the existing `checkoutOverdue` preference, deferred APNs request-path transport, and `bookingId` tap-through; inbox persistence and the existing audit entry remain authoritative when push is disabled, unavailable, or rejected.
 - 2026-07-17: Native Notifications now exposes an authenticated Send Test Notification action when iOS permits push. Physical-device proof found that the original endpoint treated active APNs registrations as distinct named devices and sent the test to all of them. The app now persists its current APNs token, the endpoint verifies ownership and targets only that registration, and the UI distinguishes account-wide normal delivery from a this-device-only self-test. It reports missing registration and delivery failure inline, announces the result to VoiceOver, and preserves OS permission and server registration as separate health signals.

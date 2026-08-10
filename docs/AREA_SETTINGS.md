@@ -51,7 +51,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Notification type toggles (slice 7): Checkout due reminders, Checkout overdue alerts, Reservation updates, License expiry reminders. All on by default; null/missing prefs treated as all-on (no change for existing users). In-app notifications always fire regardless.
 - Persisted server-side in `users.notification_prefs` JSONB (added in migration `0046_user_notification_prefs`). Null = receive everything (matches pre-feature behavior).
 - Enforced in `sendPushToUser` / `sendEmailToUser` wrappers in `src/lib/services/notifications.ts` and `src/lib/services/licenses.ts` via `category` param. Other dispatch sites (shift trades, password reset, low-stock, item reports, system mails) intentionally bypass -- system / operational mails always send.
-- Category assignment: escalation rules with `hoursFromDue < 0` → `checkoutDue`; `hoursFromDue >= 0` → `checkoutOverdue`; reservation lifecycle → `reservation`; license nag → `licenseExpiry`.
+- Category assignment: `checkout_due_*` escalation rules use `checkoutDue`; `checkout_overdue_*` rules use `checkoutOverdue`; reservation lifecycle uses `reservation`; license nag uses `licenseExpiry`.
 - API: `GET/PUT /api/me/notification-preferences` (rate-limited at the standard settings budget). `categories` field added to PUT schema; missing keys default to true.
 
 ### Appearance (`/settings/appearance`) — Personal
@@ -64,7 +64,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 ### Checkout Policies (`/settings/checkout-policies`) -- Inventory, ADMIN
 - **Default loan duration** (`defaultLoanDays`, default 3): used as the fallback `endsAt` when a checkout POST omits the end date. The creation form can use this to prefill the due-date picker.
-- **Overdue grace period** (`gracePeriodHours`, default 0): items only appear in the Overdue filter and trigger escalation notifications after `endsAt + gracePeriodHours`. Applied in both the checkout GET overdue filter and `processOverdueNotifications` (only for rules that fire at/after the due date; pre-due rules are not shifted).
+- **Overdue grace period** (`gracePeriodHours`, default 0): items become overdue and the first overdue notification becomes eligible at `endsAt + gracePeriodHours`. Due-time, +4h, and +24h notification offsets remain exact relative to `endsAt`; manual nudges use the same grace boundary.
 - **Max active checkouts per user** (`maxItemsPerUser`, default null = no limit): enforced at checkout POST time; counts OPEN + PENDING_PICKUP bookings for the requester. Rejects with 409 when at/over cap.
 - `GET/PUT /api/settings/checkout-policies` (ADMIN, rate-limited at `SETTINGS_MUTATION_LIMIT`). Stored in `SystemConfig.checkout_policies`. Missing/null key falls back to defaults -- no behavior change for existing data.
 
@@ -105,9 +105,11 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Mobile: card layout replaces dense table for shift configs.
 
 ### Escalation (`/settings/escalation`)
-- Configure overdue notification triggers (timing, recipients, enabled state).
-- Fatigue controls: max notifications per booking (prevents alert fatigue).
-- Per D-009: escalation schedule is +1h, +3h, +8h, +24h relative to booking.endsAt.
+- Configure the -2h, due-time, grace-expiry, +4h, and +24h checkout notification rules.
+- Assign up to ten active visible STAFF/ADMIN overdue responders per active checkout location. Empty assignments fall back to the active staff/admin booking creator, then active admins.
+- Fatigue controls split requester stages from responder/admin rows per due-date version, so staff fanout cannot silence borrower reminders or exceed its own cap.
+- The +4h and +24h stages reach location responders; +24h also reaches all admins by in-app + email while push remains responder-only.
+- Migration `0111_checkout_overdue_notification_policy` and authenticated production rollout proof remain pending.
 
 ### Audit Log (`/settings/audit`) — System, ADMIN
 - Admin-only live feed of every create, update, and delete action across the system.
@@ -204,6 +206,8 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages. Role-gated Settings sibling menus now wait for the current role before becoming dropdowns, so the loading frame does not expose an empty menu. The global breadcrumb UI now uses a lighter trail treatment with the current Settings sub-page marked by a subtle underline instead of a filled chip.
 
 ## Change Log
+
+- 2026-08-10: Escalation settings now expose the durable five-stage checkout policy, separate requester and operational caps, and audited location-scoped overdue responder assignment with active visible STAFF/ADMIN validation and creator/admin fallback. Migration and production proof remain rollout gates.
 
 - 2026-08-07: **Non-game staffing and Student call time are Settings-owned.** Admins can configure per-area Staff and Student counts plus Student offsets for events without an opponent. Saving backfills missing eligible future schedules; manual event creation and calendar sync use the same defaults. Staff and collaborators have no displayed call time.
 

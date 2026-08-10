@@ -4,6 +4,7 @@ import { HttpError, ok } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
 import { updateUserRoleSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
+import { revokeCompanionUser } from "@/lib/companion-store";
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   requireRole(user.role, ["ADMIN", "STAFF"]);
@@ -74,6 +75,9 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       collaboratorProfile: updated.collaboratorProfile,
       collaboratorPolicyId: updated.collaboratorPolicyId,
     },
+  });
+  await revokeCompanionUser(id).catch((error) => {
+    console.error("[Companion] failed to revoke role-changed user", error);
   });
 
   return ok({

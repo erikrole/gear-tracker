@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth, requireKiosk, type AuthUser, type KioskContext } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { fail, HttpError } from "@/lib/http";
+import { deferCompanionProjectionRefresh } from "@/lib/services/companion-projection";
 
 type AuthCtx<P extends Record<string, string> = Record<string, string>> = {
   user: AuthUser;
@@ -127,7 +128,9 @@ export function withAuth<P extends Record<string, string> = Record<string, strin
         throw new HttpError(403, "Password change required before continuing");
       }
       const params = (context?.params ? await context.params : {}) as P;
-      return await handler(tagRequestJsonParseErrors(req), { user, params });
+      const response = await handler(tagRequestJsonParseErrors(req), { user, params });
+      deferCompanionProjectionRefresh(req, response);
+      return response;
     } catch (error) {
       return failRequest(error);
     }
@@ -155,7 +158,9 @@ export function withKiosk<P extends Record<string, string> = Record<string, stri
       }
       const kiosk = await requireKiosk();
       const params = (context?.params ? await context.params : {}) as P;
-      return await handler(tagRequestJsonParseErrors(req), { kiosk, params });
+      const response = await handler(tagRequestJsonParseErrors(req), { kiosk, params });
+      deferCompanionProjectionRefresh(req, response);
+      return response;
     } catch (error) {
       return failRequest(error);
     }

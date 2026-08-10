@@ -55,7 +55,7 @@ export function crewSlotState(hasAssignment: boolean, requestCount = 0): CrewSlo
 
 export function crewSlotStateLabel(state: CrewSlotState, requestCount = 0): string {
   if (state === "filled") return "Filled";
-  if (state === "requested") return `${requestCount} requested`;
+  if (state === "requested") return `${requestCount} legacy request${requestCount === 1 ? "" : "s"}`;
   return "Open";
 }
 

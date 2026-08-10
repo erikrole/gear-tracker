@@ -42,6 +42,20 @@ The default closeout command is:
 npm run ios:xcode:verify
 ```
 
+## Performance regression tests
+
+The performance harness is DEBUG-only and is not present in TestFlight or App Store Release builds. Run its dedicated scheme on the default stable simulator runtime:
+
+```bash
+xcodebuild \
+  -project ios/Wisconsin.xcodeproj \
+  -scheme WisconsinPerformance \
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=26.5' \
+  test CODE_SIGNING_ALLOWED=NO
+```
+
+Do not substitute an iOS beta runtime when capturing or committing baselines.
+
 ## TestFlight
 
 1. Select **Any iOS Device (arm64)** as destination

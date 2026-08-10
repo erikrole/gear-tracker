@@ -423,7 +423,8 @@ describe("iOS API contracts — kiosk checkout context", () => {
       client.indexOf("func kioskCheckoutDetail("),
     );
 
-    expect(method).toContain("let _: Response = try await perform(req)");
+    expect(method).toContain("let response: Response = try await perform(req)");
+    expect(method).toContain("return response.earnedBadges ?? []");
     expect(method).not.toContain("session.data(for: req)");
     expect(method).not.toContain("HTTPURLResponse");
   });

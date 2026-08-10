@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-08-04
+- Last Updated: 2026-08-10
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -156,25 +156,27 @@
 
 ## D-009: Overdue Escalation Policy
 - Date: 2026-03-01
-- Status: Accepted (2026-03-15)
+- Status: Accepted (2026-03-15); amended 2026-08-10, local rollout pending
 - Context:
   - Overdue notifications need requester urgency, admin escalation, and fatigue controls without duplicate noise.
-- Decision (Implemented):
-  - Escalation schedule: -1h, 0h, +1h, +3h, +8h, +24h relative to `booking.endsAt`
-  - Dedup key: `"{bookingId}:{type}"` — prevents re-fire per booking per window
-  - Current behavior: all enabled triggers notify the checkout requester
-  - +24h escalation recipients: the requester AND all admins
-  - Implementation: `src/lib/services/notifications.ts`
-- Decision (Accepted — Phase B):
-  - Alert fatigue controls: admin-configurable escalation intervals and per-booking caps (settings page)
-  - Email channel shipped 2026-03-16 via Resend; dual-channel (in-app + email) delivery active
+- Decision:
+  - Escalation schedule: -2h, due time, grace expiry, +4h, and +24h relative to `booking.endsAt`. Grace applies only to the first overdue boundary.
+  - Checkout open and due-time mutations schedule a durable Workflow. Every stage rechecks `OPEN` and the expected due date; the daily cron is repair-only.
+  - Late processing sends only the highest currently eligible stage.
+  - Dedup key includes booking, due-date version, stage, recipient kind, and recipient ID. Extensions supersede stale workflows without suppressing the new due date.
+  - All enabled stages notify the requester. +4h and +24h reach configured location responders, with active staff/admin creator then admin fallback. +24h also reaches all active visible admins.
+  - Requester stages and operational fanout use separate per-due-date caps enforced before every insert.
+  - In-app rows remain durable. Outbound requester/responder/admin delivery respects checkout category, channel, and pause preferences. Admin push is suppressed unless that admin is also a responder.
+  - Implementation: `src/lib/checkout-escalation-policy.ts`, `src/lib/services/notifications.ts`, `src/workflows/checkout-overdue-notifications.ts`, and migration `0111_checkout_overdue_notification_policy`.
 - Reference: `AREA_NOTIFICATIONS.md` is the full spec for escalation behavior
 - Consequences:
-  - Faster recovery of missing gear once full escalation is wired.
-  - Admin-configurable controls prevent alert fatigue.
+  - Exact durable timing replaces once-daily alert batches while retaining an idempotent repair path.
+  - Location ownership reaches the smallest useful operational group before organization-wide admin escalation.
 - Guardrails:
-  - Default: requester escalation before and after due time, with admin fanout only on later overdue rules
-  - Per-booking cap enforced server-side to prevent runaway notifications
+  - Do not fan out to all STAFF. Operational escalation is location-scoped with explicit fallback.
+  - Do not replay lower stages after a late wake or extension.
+  - Grace, manual nudge eligibility, and first-overdue copy must share one threshold.
+  - Apply migration and complete authenticated Workflow/push/email proof before calling the amendment production-ready.
 
 ## D-010: Sequencing Priorities
 - Date: 2026-03-01
@@ -1018,7 +1020,32 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Keep assignment conflict, availability, permission, transaction, and audit rules in force.
 - Reference: `tasks/reservation-auto-schedule-plan.md`, `docs/AREA_RESERVATIONS.md`, and `docs/AREA_SHIFTS.md`.
 
+## D-047: The macOS Companion Must Not Wake Neon
+- Date: 2026-08-09
+- Status: Accepted; implemented locally, production rollout pending
+- Context:
+  - A persistent menu bar helper that polls normal Gear Tracker routes would wake a suspended Neon compute even when no operational work is happening.
+  - Booking and kiosk mutations already wake Neon naturally and are the authoritative moments when companion data can change.
+- Decision:
+  - Explicit password enrollment may access Neon because the user initiated it. Enrollment builds the initial companion projection and returns a signed, revocable credential.
+  - Automatic launch, restoration, APNs handling, and manual refresh may access only Upstash-backed companion routes. They must never fall through to a database-backed route.
+  - Successful booking, custody, kiosk, and relevant profile mutations rebuild the bounded companion projection after commit while Neon is already awake. The publisher stores that projection externally and sends a silent APNs invalidation.
+  - Kiosk last-seen publication occurs only after the existing deferred heartbeat write commits.
+  - APNs is an invalidation hint, not the source of truth. Failed or throttled delivery leaves the last trusted local cache visible, and manual refresh reads the same external projection.
+  - Deactivation and role changes revoke external companion sessions so stale role claims cannot retain access.
+- Consequences:
+  - A suspended Neon compute stays suspended when staff launch, restore, view, or refresh the companion.
+  - Companion freshness is event-driven and best-effort. Quiet time is expected and is not itself a health failure.
+  - The projection duplicates a small read model in Upstash and requires signed macOS APNs capability before staff distribution.
+- Guardrails:
+  - Do not add timers, `/api/me`, dashboard, booking, kiosk, diagnostics, or other database-backed fallback reads to the macOS client.
+  - Do not put booking details in the APNs payload.
+  - Preserve the existing custody and role-visibility rules in projection construction.
+- Reference: `plans/062-gearops-menu-bar.md`, `docs/AREA_DASHBOARD.md`, and `docs/AREA_NOTIFICATIONS.md`.
+
 ## Change Log
+- 2026-08-10: Amended D-009 to use durable due-versioned checkout workflows, a five-stage schedule, late-stage collapse, location responders, +24h admin escalation without broad push, separate exact fanout caps, shared grace semantics, and category-aware delivery. Migration `0111` and authenticated production proof remain open.
+- 2026-08-09: Added D-047 for the no-wake macOS companion projection, explicit enrollment exception, post-commit publication, Upstash-only reads, and silent APNs invalidation.
 - 2026-08-07: Added D-046, superseding manual Schedule publication with a durable ten-minute quiet-period release, Student-only call times, Non-game defaults, eligible collaborator Staff-slot assignment, and retirement of active acknowledgement state.
 - 2026-08-04: Added the settings-owned call-time fallback rule to D-042. The same default-window helper now feeds generation, manual creation, template review, settings mutations, and the live repair path, so call-time updates do not diverge between schedule locations.
 - 2026-08-04: Added D-044 for treating internal event-linked gear reservations as schedule-work evidence while preserving explicit assignment links, working-copy isolation, published snapshot coherence, and safe crew-setup boundaries.

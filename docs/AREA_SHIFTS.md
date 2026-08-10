@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Shift Calendar & Scheduling
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-07
+- Last Updated: 2026-08-10
 - Status: Active — implemented V1 with ongoing hardening
 
 ## Purpose
@@ -102,6 +102,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-08-10: **Schedule MVP trade and pickup loop hardened end to end.** The legacy `/api/shift-assignments/request` path is now a compatibility alias for instant pickup and cannot create new approval-first assignments. Web and native Trade Board consume server-owned claimability and availability context, keep successful Open Work or trade data when the other source fails, expose source-specific retry, and suppress false empty or all-clear states. Active request wording is now explicitly legacy-only. Trade durable notifications remain transaction-owned while post-commit push and email fanout use one shared dispatcher.
 - 2026-08-07: **Production rollout completed.** Migration `0109_schedule_timed_release` is applied and migration health reports 114/114 local migrations with no pending, failed, or database-only rows. Vercel deployment `dpl_7oiHWXm3s2A7q3jkTbebXUq2RcN9` is READY at `https://gear.erikrole.com`; public deploy smoke passed. Authenticated ten-minute release and consolidated notification proof remains open.
 - 2026-08-07: **Schedule timing and neutral defaults are explicit.** Neutral-site games with an opponent use the sport Away template. Only Students receive a call time; Staff and collaborators no longer receive or display the event time in the call-time position across Schedule, Dashboard, Event detail, and native Home/Profile surfaces. Event-window storage remains for internal integrity and calendar event boundaries.
 - 2026-08-07: **Schedule authoring now releases after a ten-minute quiet period.** Every versioned edit pre-enqueues its exact durable workflow run; a newer edit supersedes older runs. Manual release and acknowledgement controls are retired, while web and native staff surfaces show pending timing, Revert, and blocked-release recovery. Only Students have call time, and Settings now owns Non-game defaults used by sync, backfill, and manual event creation. Migration `0109_schedule_timed_release` and authenticated runtime proof remain rollout gates.

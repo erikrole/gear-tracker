@@ -75,6 +75,8 @@ type Trade = {
   claimedBy: { id: string; name: string } | null;
   viewerAvailabilityContext?: AvailabilityContext | null;
   claimedByAvailabilityContext?: AvailabilityContext | null;
+  viewerCanClaim?: boolean;
+  viewerClaimReason?: string | null;
 };
 
 type Props = {
@@ -218,6 +220,11 @@ function tradeOutcomeCopy(trade: Trade, args: { currentUserId: string; isStaff: 
     return "Claiming assigns this shift to you immediately.";
   }
   return statusMeta(trade.status).helper;
+}
+
+function canViewerClaimTrade(trade: Trade, isStaff: boolean) {
+  if (typeof trade.viewerCanClaim === "boolean") return trade.viewerCanClaim;
+  return !isStaff && !trade.viewerAvailabilityContext?.blocking;
 }
 
 function tradeCancelContext(trade: Trade) {
@@ -548,7 +555,8 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
       : []),
   ];
   const totalRows = filteredOpenShifts.length + filteredTrades.length;
-  const isLoadingWork = loading || openWorkLoading;
+  const isLoadingWork = loading && openWorkLoading && totalRows === 0;
+  const hasAnyLoadError = loadError || openWorkError;
   const hasLoadError = loadError && openWorkError;
   const countLabel = `${totalRows} ${totalRows === 1 ? "item" : "items"}`;
   const claimableOpenShifts = filteredOpenShifts.filter((item) => item.action === "claim");
@@ -557,11 +565,11 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
     !isStaff
     && trade.status === "OPEN"
     && trade.postedBy.id !== currentUserId
-    && Boolean(trade.viewerAvailabilityContext?.blocking)
+    && !canViewerClaimTrade(trade, isStaff)
   );
   const claimableTrades = filteredTrades.filter((trade) =>
-    !isStaff && trade.status === "OPEN" && trade.postedBy.id !== currentUserId
-    && !trade.viewerAvailabilityContext?.blocking
+    trade.status === "OPEN" && trade.postedBy.id !== currentUserId
+    && canViewerClaimTrade(trade, isStaff)
   );
   const myTradePosts = filteredTrades.filter((trade) =>
     trade.postedBy.id === currentUserId && (trade.status === "OPEN" || trade.status === "CLAIMED")
@@ -633,8 +641,37 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
       <Card elevation="flat" className="overflow-hidden border-border/60 shadow-sm">
         <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
           <CardTitle className="text-sm">Open Shifts</CardTitle>
-          <span className="text-xs font-medium tabular-nums text-muted-foreground">{countLabel}</span>
+          <span className="text-xs font-medium tabular-nums text-muted-foreground">
+            {hasAnyLoadError ? "Partial data" : countLabel}
+          </span>
         </CardHeader>
+
+        {hasAnyLoadError && !hasLoadError && (
+          <div className="divide-y divide-border/50 border-b border-border/60 bg-[var(--orange-bg)]">
+            {loadError && (
+              <div className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+                <span className="flex min-w-0 items-center gap-2 text-[var(--orange-text)]">
+                  <AlertTriangleIcon className="size-4 shrink-0" />
+                  <span>Trade Board posts are unavailable. Visible posts may be stale.</span>
+                </span>
+                <Button variant="outline" size="sm" onClick={loadTrades} disabled={loading}>
+                  {loading ? "Retrying..." : "Retry posts"}
+                </Button>
+              </div>
+            )}
+            {openWorkError && (
+              <div className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+                <span className="flex min-w-0 items-center gap-2 text-[var(--orange-text)]">
+                  <AlertTriangleIcon className="size-4 shrink-0" />
+                  <span>Open Student slots are unavailable. Visible slots may be stale.</span>
+                </span>
+                <Button variant="outline" size="sm" onClick={loadOpenWork} disabled={openWorkLoading}>
+                  {openWorkLoading ? "Retrying..." : "Retry open slots"}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
 
         {isLoadingWork ? (
           <TradeSkeleton />
@@ -645,7 +682,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
               Retry
             </Button>
           </CardContent>
-        ) : totalRows === 0 ? (
+        ) : !hasAnyLoadError && totalRows === 0 ? (
           <EmptyState
             icon="clipboard"
             title={hasFilters ? "No matching work" : "No open shifts"}
@@ -663,7 +700,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
             } : undefined}
             compact
           />
-        ) : (
+        ) : totalRows > 0 ? (
           <div>
             <WorkSection
               title="Available Now"
@@ -824,7 +861,6 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
                         )}
 
                         <AvailabilityContextNote context={trade.viewerAvailabilityContext} />
-
                         <div className="flex flex-wrap items-center gap-2 pt-1">
                           <Button
                             size="sm"
@@ -1055,6 +1091,12 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
                         </div>
 
                         <AvailabilityContextNote context={trade.viewerAvailabilityContext} />
+                        {!trade.viewerAvailabilityContext && trade.viewerClaimReason && (
+                          <p className="flex items-start gap-1.5 rounded-md bg-muted/50 px-2.5 py-2 text-xs leading-relaxed text-muted-foreground">
+                            <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" />
+                            <span>{trade.viewerClaimReason}</span>
+                          </p>
+                        )}
                       </div>
                     </div>
                   </article>
@@ -1197,7 +1239,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
               })}
             </WorkSection>
           </div>
-        )}
+        ) : null}
       </Card>
     </div>
   );

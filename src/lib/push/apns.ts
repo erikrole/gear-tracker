@@ -108,7 +108,8 @@ type TokenOutcome =
 
 interface SendOpts {
   topic: string;
-  pushType: "alert" | "liveactivity";
+  pushType: "alert" | "background" | "liveactivity";
+  priority?: 5 | 10;
 }
 
 function sendOne(
@@ -139,6 +140,7 @@ function sendOne(
         authorization: `bearer ${jwt}`,
         "apns-topic": opts.topic,
         "apns-push-type": opts.pushType,
+        ...(opts.priority ? { "apns-priority": String(opts.priority) } : {}),
         "content-type": "application/json",
       });
     } catch (err) {
@@ -259,12 +261,12 @@ async function sendBatch(
   return outcomes;
 }
 
-function isConfigured(): boolean {
+function isConfigured(topic: string): boolean {
   return !!(
     process.env.APNS_KEY_ID &&
     process.env.APNS_TEAM_ID &&
-    process.env.APNS_BUNDLE_ID &&
-    process.env.APNS_P8_KEY
+    process.env.APNS_P8_KEY &&
+    topic
   );
 }
 
@@ -292,7 +294,7 @@ async function dispatch(
   notification: object,
   opts: SendOpts
 ): Promise<DispatchResult> {
-  if (!isConfigured() || tokens.length === 0) {
+  if (!isConfigured(opts.topic) || tokens.length === 0) {
     return { revoked: [], accepted: [], ok: 0 };
   }
 
@@ -387,6 +389,25 @@ export async function sendPush(
     topic: process.env.APNS_BUNDLE_ID!,
     pushType: "alert",
   });
+}
+
+export async function sendCompanionInvalidation(
+  deviceTokens: string[],
+  projectionVersion: string,
+): Promise<DispatchResult> {
+  const topic = process.env.APNS_MACOS_BUNDLE_ID || "com.erikrole.GearOps";
+  return dispatch(
+    deviceTokens,
+    {
+      aps: { "content-available": 1 },
+      companionProjectionVersion: projectionVersion,
+    },
+    {
+      topic,
+      pushType: "background",
+      priority: 5,
+    },
+  );
 }
 
 const liveActivityOpts = (): SendOpts => ({

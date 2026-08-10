@@ -16,12 +16,13 @@ struct WisconsinApp: App {
     @AppStorage("WisconsinThemeChoice") private var themeChoice: ThemeChoice = .system
 
     init() {
+        AppMetricMonitor.shared.start()
         try? Tips.configure()
     }
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            rootContent
                 .environment(session)
                 .environment(profileCompletion)
                 .environment(appState)
@@ -61,6 +62,19 @@ struct WisconsinApp: App {
                 .tint(.brandPrimary)
         }
         .modelContainer(GearStore.shared.container)
+    }
+
+    @ViewBuilder
+    private var rootContent: some View {
+#if DEBUG
+        if let scenario = AppRuntimeMode.performanceScenario {
+            PerformanceTestRootView(scenario: scenario)
+        } else {
+            RootView()
+        }
+#else
+        RootView()
+#endif
     }
 
     private func handleCurrentUserChange(from oldUser: CurrentUser?, to user: CurrentUser?) {
@@ -190,7 +204,7 @@ struct ScheduleOpenWorkTip: Tip {
     }
 
     var message: Text? {
-        Text("Pick up an open shift, post a trade, or check your requests.")
+        Text("Claim an open shift, post a trade, or review your availability.")
     }
 
     var options: [Option] {

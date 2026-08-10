@@ -13,6 +13,21 @@ import {
   type GearPrepNotificationSource,
 } from "@/lib/services/schedule-notification-policy";
 import { visibleActiveUserWhere } from "@/lib/user-visibility";
+import {
+  checkoutEscalationCategory,
+  checkoutEscalationChannels,
+  checkoutEscalationDedupeKey,
+  checkoutEscalationDueVersion,
+  checkoutEscalationTriggerAt,
+  highestEligibleCheckoutEscalationRule,
+  isCheckoutEscalationStageType,
+  isResponderEscalationStage,
+  normalizeCheckoutEscalationConfig,
+  overdueResponderConfigKey,
+  type CheckoutEscalationConfig,
+  type CheckoutEscalationRecipientKind,
+  type CheckoutEscalationStageType,
+} from "@/lib/checkout-escalation-policy";
 
 /**
  * Defers a push send past the response without letting the serverless
@@ -93,12 +108,11 @@ async function sendEmailToUser(
  * Fallback escalation schedule used when no DB rules exist.
  */
 const DEFAULT_SCHEDULE = [
-  { hoursFromDue: -1, type: "checkout_due_1h",     title: "Due back in 1 hour",  notifyRequester: true,  notifyAdmins: false },
-  { hoursFromDue:  0, type: "checkout_due_now",     title: "Due back now",         notifyRequester: true,  notifyAdmins: false },
-  { hoursFromDue:  1, type: "checkout_overdue_1h",  title: "1 hour overdue",       notifyRequester: true,  notifyAdmins: false },
-  { hoursFromDue:  3, type: "checkout_overdue_3h",  title: "3 hours overdue",      notifyRequester: true,  notifyAdmins: false },
-  { hoursFromDue:  8, type: "checkout_overdue_8h",  title: "8 hours overdue",      notifyRequester: true,  notifyAdmins: true  },
-  { hoursFromDue: 24, type: "checkout_overdue_24h", title: "1 day overdue",        notifyRequester: true,  notifyAdmins: true  },
+  { hoursFromDue: -2, type: "checkout_due_2h", title: "Due back in 2 hours", notifyRequester: true, notifyAdmins: false, enabled: true, sortOrder: 0 },
+  { hoursFromDue: 0, type: "checkout_due_now", title: "Due back now", notifyRequester: true, notifyAdmins: false, enabled: true, sortOrder: 1 },
+  { hoursFromDue: 0, type: "checkout_overdue_grace", title: "Checkout overdue", notifyRequester: true, notifyAdmins: false, enabled: true, sortOrder: 2 },
+  { hoursFromDue: 4, type: "checkout_overdue_4h", title: "4 hours overdue", notifyRequester: true, notifyAdmins: false, enabled: true, sortOrder: 3 },
+  { hoursFromDue: 24, type: "checkout_overdue_24h", title: "1 day overdue", notifyRequester: true, notifyAdmins: true, enabled: true, sortOrder: 4 },
 ];
 
 async function getEscalationRules() {
@@ -109,208 +123,405 @@ async function getEscalationRules() {
   return rules.length > 0 ? rules : DEFAULT_SCHEDULE;
 }
 
-async function getMaxNotificationsPerBooking(): Promise<number> {
+async function getCheckoutEscalationConfig(): Promise<CheckoutEscalationConfig> {
   const config = await db.systemConfig.findUnique({ where: { key: "escalation" } });
-  const value = config?.value as { maxNotificationsPerBooking?: number } | null;
-  return value?.maxNotificationsPerBooking ?? 10;
+  return normalizeCheckoutEscalationConfig(config?.value);
 }
 
-/**
- * Scans all open checkouts and creates notification records for any that
- * match the escalation schedule. Uses dedupeKey to prevent duplicates.
- * Enforces per-booking notification cap from SystemConfig.
- */
-export async function processOverdueNotifications(): Promise<{
-  scanned: number;
-  notificationsCreated: number;
-}> {
-  const now = new Date();
-  const [rules, maxPerBooking, policies] = await Promise.all([
+type EscalationRule = Awaited<ReturnType<typeof getEscalationRules>>[number];
+type OperationsUser = {
+  id: string;
+  name: string;
+  email: string | null;
+  role: string;
+};
+type EscalationCheckout = {
+  id: string;
+  kind: string;
+  status: string;
+  title: string;
+  requesterUserId: string;
+  locationId: string;
+  createdBy: string;
+  endsAt: Date;
+  requester: { id: string; name: string; email: string | null };
+};
+type ExistingEscalationNotification = { dedupeKey: string | null; payload: unknown };
+
+function responderUserIds(raw: unknown): string[] {
+  if (!raw || typeof raw !== "object") return [];
+  const ids = (raw as { userIds?: unknown }).userIds;
+  return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : [];
+}
+
+function isUniqueConflict(error: unknown): boolean {
+  return Boolean(error && typeof error === "object" && "code" in error && error.code === "P2002");
+}
+
+function requesterEscalationBody(args: {
+  type: string;
+  checkoutTitle: string;
+  dueAt: Date;
+  gracePeriodHours: number;
+  now: Date;
+}): string {
+  if (args.type === "checkout_due_2h") {
+    return `"${args.checkoutTitle}" is due ${formatRelative(args.dueAt, args.now)}. Plan your return.`;
+  }
+  if (args.type === "checkout_due_now") {
+    const graceMinutes = Math.round(args.gracePeriodHours * 60);
+    return graceMinutes > 0
+      ? `"${args.checkoutTitle}" is due now. The ${graceMinutes}-minute return grace period has started.`
+      : `"${args.checkoutTitle}" is due now. Please return the gear.`;
+  }
+  if (args.type === "checkout_overdue_grace") {
+    return `"${args.checkoutTitle}" is now overdue. Please return the gear.`;
+  }
+  return `"${args.checkoutTitle}" was due ${formatRelative(args.dueAt, args.now)}. Please return the gear.`;
+}
+
+function operationalEscalationBody(checkout: EscalationCheckout, rule: EscalationRule): string {
+  const timing = rule.type === "checkout_overdue_24h" ? "1 day" : "4 hours";
+  return `${checkout.requester.name}'s checkout "${checkout.title}" is ${timing} overdue.`;
+}
+
+function existingCounts(
+  existing: ExistingEscalationNotification[],
+  dueVersion: string,
+): { requester: number; operational: number } {
+  let requester = 0;
+  let operational = 0;
+  for (const row of existing) {
+    const payload = row.payload && typeof row.payload === "object"
+      ? row.payload as Record<string, unknown>
+      : null;
+    if (payload?.dueVersion !== dueVersion) continue;
+    if (payload.recipientKind === "requester") requester += 1;
+    if (payload.recipientKind === "responder" || payload.recipientKind === "admin") operational += 1;
+  }
+  return { requester, operational };
+}
+
+async function persistCheckoutEscalation(args: {
+  checkout: EscalationCheckout;
+  rule: EscalationRule;
+  recipient: OperationsUser | EscalationCheckout["requester"];
+  recipientKind: CheckoutEscalationRecipientKind;
+  title: string;
+  body: string;
+  now: Date;
+  existingKeys: Set<string>;
+}): Promise<boolean> {
+  const dueVersion = checkoutEscalationDueVersion(args.checkout.endsAt);
+  const dedupeKey = checkoutEscalationDedupeKey({
+    bookingId: args.checkout.id,
+    dueAt: args.checkout.endsAt,
+    type: args.rule.type,
+    recipientKind: args.recipientKind,
+    recipientId: args.recipient.id,
+  });
+  if (args.existingKeys.has(dedupeKey)) return false;
+
+  try {
+    await db.notification.create({
+      data: {
+        userId: args.recipient.id,
+        type: args.rule.type,
+        title: args.title,
+        body: args.body,
+        payload: {
+          bookingId: args.checkout.id,
+          bookingTitle: args.checkout.title,
+          requesterName: args.checkout.requester.name,
+          dueAt: args.checkout.endsAt.toISOString(),
+          dueVersion,
+          recipientKind: args.recipientKind,
+        },
+        channel: "IN_APP",
+        sentAt: args.now,
+        dedupeKey,
+      },
+    });
+    args.existingKeys.add(dedupeKey);
+  } catch (error) {
+    if (isUniqueConflict(error)) return false;
+    throw error;
+  }
+
+  const category = checkoutEscalationCategory(args.rule.type);
+  const channels = checkoutEscalationChannels(args.rule.type, args.recipientKind);
+  if (channels.push) {
+    deferPush(sendPushToUser(args.recipient.id, {
+      title: args.title,
+      body: args.body,
+      payload: { bookingId: args.checkout.id },
+      category,
+    }));
+  }
+  if (channels.email && args.recipient.email) {
+    await sendEmailToUser(args.recipient.id, {
+      to: args.recipient.email,
+      subject: args.title,
+      html: buildNotificationEmail({
+        title: args.title,
+        body: args.body,
+        bookingTitle: args.checkout.title,
+        dueAt: args.checkout.endsAt.toISOString(),
+      }),
+    }, category);
+  }
+  return true;
+}
+
+async function deliverCheckoutEscalation(args: {
+  checkout: EscalationCheckout;
+  rule: EscalationRule;
+  gracePeriodHours: number;
+  config: CheckoutEscalationConfig;
+  operationsUsers: OperationsUser[];
+  configuredResponderIds: string[];
+  existing: ExistingEscalationNotification[];
+  now: Date;
+}): Promise<number> {
+  const existingKeys = new Set(args.existing.map((row) => row.dedupeKey).filter((key): key is string => Boolean(key)));
+  const dueVersion = checkoutEscalationDueVersion(args.checkout.endsAt);
+  const counts = existingCounts(args.existing, dueVersion);
+  let created = 0;
+
+  if (args.rule.notifyRequester && counts.requester < args.config.maxRequesterNotificationsPerDueDate) {
+    const body = requesterEscalationBody({
+      type: args.rule.type,
+      checkoutTitle: args.checkout.title,
+      dueAt: args.checkout.endsAt,
+      gracePeriodHours: args.gracePeriodHours,
+      now: args.now,
+    });
+    if (await persistCheckoutEscalation({
+      checkout: args.checkout,
+      rule: args.rule,
+      recipient: args.checkout.requester,
+      recipientKind: "requester",
+      title: args.rule.title,
+      body,
+      now: args.now,
+      existingKeys,
+    })) created += 1;
+  }
+
+  if (!isResponderEscalationStage(args.rule.type)) return created;
+
+  const operationsById = new Map(args.operationsUsers.map((person) => [person.id, person]));
+  const admins = args.operationsUsers.filter((person) => person.role === "ADMIN");
+  let responders = args.configuredResponderIds
+    .map((id) => operationsById.get(id))
+    .filter((person): person is OperationsUser => Boolean(person))
+    .filter((person) => person.id !== args.checkout.requesterUserId);
+
+  if (responders.length === 0) {
+    const creator = operationsById.get(args.checkout.createdBy);
+    responders = creator && creator.id !== args.checkout.requesterUserId ? [creator] : [];
+  }
+  if (responders.length === 0) {
+    responders = admins.filter((admin) => admin.id !== args.checkout.requesterUserId);
+  }
+
+  const operationalRecipients = new Map<string, { user: OperationsUser; kind: CheckoutEscalationRecipientKind }>();
+  for (const responder of responders) operationalRecipients.set(responder.id, { user: responder, kind: "responder" });
+  if (args.rule.notifyAdmins) {
+    for (const admin of admins) {
+      if (admin.id === args.checkout.requesterUserId || operationalRecipients.has(admin.id)) continue;
+      operationalRecipients.set(admin.id, { user: admin, kind: "admin" });
+    }
+  }
+
+  let operationalCount = counts.operational;
+  for (const { user, kind } of operationalRecipients.values()) {
+    if (operationalCount >= args.config.maxOperationalNotificationsPerDueDate) break;
+    const title = `Overdue: ${args.checkout.title}`;
+    const body = operationalEscalationBody(args.checkout, args.rule);
+    if (await persistCheckoutEscalation({
+      checkout: args.checkout,
+      rule: args.rule,
+      recipient: user,
+      recipientKind: kind,
+      title,
+      body,
+      now: args.now,
+      existingKeys,
+    })) {
+      operationalCount += 1;
+      created += 1;
+    }
+  }
+
+  return created;
+}
+
+async function loadOperationsUsers(): Promise<OperationsUser[]> {
+  return db.user.findMany({
+    where: visibleActiveUserWhere({ role: { in: ["ADMIN", "STAFF"] } }),
+    select: { id: true, name: true, email: true, role: true },
+    orderBy: [{ role: "asc" }, { name: "asc" }],
+  });
+}
+
+export async function getCheckoutEscalationStageTiming(args: {
+  bookingId: string;
+  expectedEndsAt: Date;
+  stageType: CheckoutEscalationStageType;
+}) {
+  const [booking, rules, policies] = await Promise.all([
+    db.booking.findUnique({
+      where: { id: args.bookingId },
+      select: { kind: true, status: true, endsAt: true },
+    }),
     getEscalationRules(),
-    getMaxNotificationsPerBooking(),
     loadCheckoutPolicies(),
   ]);
-  const gracePeriodMs = policies.gracePeriodHours * 3_600_000;
+  if (!booking || booking.kind !== "CHECKOUT" || booking.status !== "OPEN") {
+    return { status: "closed" as const };
+  }
+  if (booking.endsAt.getTime() !== args.expectedEndsAt.getTime()) {
+    return { status: "superseded" as const };
+  }
+  const rule = rules.find((candidate) => candidate.enabled && candidate.type === args.stageType);
+  if (!rule) return { status: "disabled" as const };
+  return {
+    status: "scheduled" as const,
+    triggerAt: checkoutEscalationTriggerAt(rule, booking.endsAt, policies.gracePeriodHours).toISOString(),
+  };
+}
 
-  const [openCheckouts, admins] = await Promise.all([
+export async function processCheckoutEscalationStage(args: {
+  bookingId: string;
+  expectedEndsAt: Date;
+  stageType: CheckoutEscalationStageType;
+  now?: Date;
+}) {
+  const now = args.now ?? new Date();
+  const [checkout, rules, policies, config, operationsUsers] = await Promise.all([
+    db.booking.findUnique({
+      where: { id: args.bookingId },
+      select: {
+        id: true,
+        kind: true,
+        status: true,
+        title: true,
+        requesterUserId: true,
+        locationId: true,
+        createdBy: true,
+        endsAt: true,
+        requester: { select: { id: true, name: true, email: true } },
+      },
+    }),
+    getEscalationRules(),
+    loadCheckoutPolicies(),
+    getCheckoutEscalationConfig(),
+    loadOperationsUsers(),
+  ]);
+  if (!checkout || checkout.kind !== "CHECKOUT" || checkout.status !== "OPEN") {
+    return { status: "closed" as const, notificationsCreated: 0 };
+  }
+  if (checkout.endsAt.getTime() !== args.expectedEndsAt.getTime()) {
+    return { status: "superseded" as const, notificationsCreated: 0 };
+  }
+  const rule = rules.find((candidate) => candidate.enabled && candidate.type === args.stageType);
+  if (!rule) return { status: "disabled" as const, notificationsCreated: 0 };
+  const triggerAt = checkoutEscalationTriggerAt(rule, checkout.endsAt, policies.gracePeriodHours);
+  if (triggerAt > now) {
+    return { status: "not_eligible" as const, triggerAt: triggerAt.toISOString(), notificationsCreated: 0 };
+  }
+  const highest = highestEligibleCheckoutEscalationRule(rules, checkout.endsAt, policies.gracePeriodHours, now);
+  if (highest?.type !== args.stageType) {
+    return { status: "collapsed" as const, collapsedInto: highest?.type ?? null, notificationsCreated: 0 };
+  }
+
+  const [existing, locationResponderConfig] = await Promise.all([
+    db.notification.findMany({
+      where: { dedupeKey: { startsWith: `${checkout.id}:` } },
+      select: { dedupeKey: true, payload: true },
+    }),
+    db.systemConfig.findUnique({ where: { key: overdueResponderConfigKey(checkout.locationId) } }),
+  ]);
+  const notificationsCreated = await deliverCheckoutEscalation({
+    checkout,
+    rule,
+    gracePeriodHours: policies.gracePeriodHours,
+    config,
+    operationsUsers,
+    configuredResponderIds: responderUserIds(locationResponderConfig?.value),
+    existing,
+    now,
+  });
+  return { status: notificationsCreated > 0 ? "sent" as const : "deduped" as const, notificationsCreated };
+}
+
+/** Daily repair sweep. Durable per-checkout workflows own normal delivery. */
+export async function processOverdueNotifications(): Promise<{ scanned: number; notificationsCreated: number }> {
+  const now = new Date();
+  const [openCheckouts, rules, policies, config, operationsUsers, responderConfigs] = await Promise.all([
     db.booking.findMany({
       where: { kind: "CHECKOUT", status: "OPEN" },
-      include: {
-        requester: { select: { id: true, name: true, email: true } }
+      select: {
+        id: true,
+        kind: true,
+        status: true,
+        title: true,
+        requesterUserId: true,
+        locationId: true,
+        createdBy: true,
+        endsAt: true,
+        requester: { select: { id: true, name: true, email: true } },
       },
-      take: 500, // Process in bounded batches to prevent memory issues
-      orderBy: { endsAt: "asc" }, // Most overdue first
+      take: 500,
+      orderBy: { endsAt: "asc" },
     }),
-    db.user.findMany({
-      where: visibleActiveUserWhere({ role: "ADMIN" }),
-      select: { id: true, email: true }
+    getEscalationRules(),
+    loadCheckoutPolicies(),
+    getCheckoutEscalationConfig(),
+    loadOperationsUsers(),
+    db.systemConfig.findMany({
+      where: { key: { startsWith: "overdue_responders:" } },
+      select: { key: true, value: true },
     }),
   ]);
+  if (openCheckouts.length === 0) return { scanned: 0, notificationsCreated: 0 };
 
-  if (openCheckouts.length === 0) {
-    return { scanned: 0, notificationsCreated: 0 };
+  const bookingIds = openCheckouts.map((checkout) => checkout.id);
+  const existingRows = await db.notification.findMany({
+    where: { OR: bookingIds.map((id) => ({ dedupeKey: { startsWith: `${id}:` } })) },
+    select: { dedupeKey: true, payload: true },
+  });
+  const existingByBooking = new Map<string, ExistingEscalationNotification[]>();
+  for (const row of existingRows) {
+    const bookingId = row.payload && typeof row.payload === "object"
+      ? (row.payload as Record<string, unknown>).bookingId
+      : null;
+    if (typeof bookingId !== "string") continue;
+    const rows = existingByBooking.get(bookingId) ?? [];
+    rows.push(row);
+    existingByBooking.set(bookingId, rows);
   }
-
-  // Batch-fetch existing dedupeKeys for relevant bookings only (not entire table)
-  const bookingIds = openCheckouts.map((c) => c.id);
-  const existingNotifications = await db.notification.findMany({
-    where: {
-      dedupeKey: { not: null },
-      OR: bookingIds.map((id) => ({ dedupeKey: { startsWith: id } })),
-    },
-    select: { dedupeKey: true },
-  }).then(
-    (rows) => new Set(rows.map((r) => r.dedupeKey).filter(Boolean)),
-    () => new Set<string>()
+  const respondersByLocation = new Map(
+    responderConfigs.map((row) => [row.key.slice("overdue_responders:".length), responderUserIds(row.value)]),
   );
 
-  // Build per-booking notification count from payload.bookingId
-  // Since JSON filtering with groupBy is tricky, fall back to batch count
-  const bookingNotifCounts = new Map<string, number>();
-  const countRows = await db.notification.findMany({
-    where: {
-      OR: bookingIds.map((id) => ({
-        payload: { path: ["bookingId"], equals: id }
-      }))
-    },
-    select: { payload: true }
-  });
-  for (const row of countRows) {
-    const bid = (row.payload as Record<string, string>)?.bookingId;
-    if (bid) bookingNotifCounts.set(bid, (bookingNotifCounts.get(bid) ?? 0) + 1);
-  }
-
   let notificationsCreated = 0;
-
   for (const checkout of openCheckouts) {
-    const dueAt = new Date(checkout.endsAt);
-    const existingCount = bookingNotifCounts.get(checkout.id) ?? 0;
-    if (existingCount >= maxPerBooking) continue;
-
-    let localCreated = 0;
-
-    for (const rule of rules) {
-      // Grace period shifts the effective overdue threshold for rules that fire after the due date
-      const graceShift = rule.hoursFromDue >= 0 ? gracePeriodMs : 0;
-      const triggerTime = new Date(dueAt.getTime() + graceShift + rule.hoursFromDue * 3600_000);
-      if (now < triggerTime) continue;
-      if (existingCount + localCreated >= maxPerBooking) break;
-
-      if (rule.notifyRequester) {
-        const dedupeKey = `${checkout.id}:${rule.type}`;
-        if (!existingNotifications.has(dedupeKey)) {
-          const isFuture = dueAt > now;
-          const body = isFuture
-            ? `"${checkout.title}" is due ${formatRelative(dueAt, now)}. Wrap up and return items.`
-            : `"${checkout.title}" was due ${formatRelative(dueAt, now)}. Please return items.`;
-          try {
-            await db.notification.create({
-              data: {
-                userId: checkout.requesterUserId,
-                type: rule.type,
-                title: rule.title,
-                body,
-                payload: {
-                  bookingId: checkout.id,
-                  bookingTitle: checkout.title,
-                  dueAt: dueAt.toISOString()
-                },
-                channel: "IN_APP",
-                sentAt: now,
-                dedupeKey
-              }
-            });
-            existingNotifications.add(dedupeKey);
-            localCreated += 1;
-
-            const escalationCategory = rule.hoursFromDue < 0 ? "checkoutDue" as const : "checkoutOverdue" as const;
-            deferPush(sendPushToUser(checkout.requesterUserId, {
-              title: rule.title,
-              body,
-              payload: { bookingId: checkout.id },
-              category: escalationCategory,
-            }));
-
-            if (checkout.requester.email) {
-              await sendEmailToUser(checkout.requesterUserId, {
-                to: checkout.requester.email,
-                subject: rule.title,
-                html: buildNotificationEmail({
-                  title: rule.title,
-                  body,
-                  bookingTitle: checkout.title,
-                  dueAt: dueAt.toISOString(),
-                }),
-              }, escalationCategory);
-            }
-          } catch (err) {
-            console.error(`[NOTIFY] Failed to create notification for checkout ${checkout.id}, rule ${rule.type}:`, err);
-          }
-        }
-      }
-
-      // Admin escalation
-      if (rule.notifyAdmins) {
-        for (const admin of admins) {
-          if (admin.id === checkout.requesterUserId) continue;
-
-          const adminDedupeKey = `${checkout.id}:${rule.type}:admin:${admin.id}`;
-          if (existingNotifications.has(adminDedupeKey)) continue;
-
-          const adminBody = `${checkout.requester.name}'s checkout "${checkout.title}" is ${rule.hoursFromDue} hours overdue.`;
-          try {
-            await db.notification.create({
-              data: {
-                userId: admin.id,
-                type: rule.type,
-                title: `Overdue: ${checkout.title}`,
-                body: adminBody,
-                payload: {
-                  bookingId: checkout.id,
-                  bookingTitle: checkout.title,
-                  requesterName: checkout.requester.name,
-                  dueAt: dueAt.toISOString()
-                },
-                channel: "IN_APP",
-                sentAt: now,
-                dedupeKey: adminDedupeKey
-              }
-            });
-            existingNotifications.add(adminDedupeKey);
-            localCreated += 1;
-
-            deferPush(sendPushToUser(admin.id, {
-              title: `Overdue: ${checkout.title}`,
-              body: adminBody,
-              payload: { bookingId: checkout.id },
-            }));
-
-            if (admin.email) {
-              await sendEmailToUser(admin.id, {
-                to: admin.email,
-                subject: `Overdue: ${checkout.title}`,
-                html: buildNotificationEmail({
-                  title: `Overdue: ${checkout.title}`,
-                  body: adminBody,
-                  bookingTitle: checkout.title,
-                  dueAt: dueAt.toISOString(),
-                }),
-              });
-            }
-          } catch (err) {
-            console.error(`[NOTIFY] Failed to create admin notification for checkout ${checkout.id}, admin ${admin.id}:`, err);
-          }
-        }
-      }
-    }
-
-    notificationsCreated += localCreated;
+    const rule = highestEligibleCheckoutEscalationRule(rules, checkout.endsAt, policies.gracePeriodHours, now);
+    if (!rule || !isCheckoutEscalationStageType(rule.type)) continue;
+    notificationsCreated += await deliverCheckoutEscalation({
+      checkout,
+      rule,
+      gracePeriodHours: policies.gracePeriodHours,
+      config,
+      operationsUsers,
+      configuredResponderIds: respondersByLocation.get(checkout.locationId) ?? [],
+      existing: existingByBooking.get(checkout.id) ?? [],
+      now,
+    });
   }
-
-  return {
-    scanned: openCheckouts.length,
-    notificationsCreated
-  };
+  return { scanned: openCheckouts.length, notificationsCreated };
 }
 
 /**

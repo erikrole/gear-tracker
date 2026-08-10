@@ -85,9 +85,14 @@ final class CreateBookingViewModel {
     private let eventPickupLeadTime: TimeInterval = 60 * 60
     private let eventReturnBuffer: TimeInterval = 2 * 60 * 60
     private let draftPersistence: any ReservationDraftPersistence
+    private let performsRemoteAssetSearch: Bool
 
-    init(draftPersistence: any ReservationDraftPersistence = APIClient.shared) {
+    init(
+        draftPersistence: any ReservationDraftPersistence = APIClient.shared,
+        performsRemoteAssetSearch: Bool = true
+    ) {
         self.draftPersistence = draftPersistence
+        self.performsRemoteAssetSearch = performsRemoteAssetSearch
     }
 
     var title = ""
@@ -1008,6 +1013,7 @@ final class CreateBookingViewModel {
 
     func onSearchChange() {
         searchTask?.cancel()
+        guard performsRemoteAssetSearch else { return }
         searchTask = Task {
             try? await Task.sleep(for: .milliseconds(350))
             guard !Task.isCancelled else { return }

@@ -15,7 +15,16 @@ vi.mock("@/lib/db", () => ({
     },
     systemConfig: {
       findUnique: vi.fn(),
+      findMany: vi.fn(),
       upsert: vi.fn(),
+    },
+    location: {
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+    },
+    user: {
+      findMany: vi.fn(),
+      count: vi.fn(),
     },
     department: {
       findMany: vi.fn(),
@@ -54,6 +63,9 @@ import {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(db.systemConfig.findMany).mockResolvedValue([]);
+  vi.mocked(db.location.findMany).mockResolvedValue([]);
+  vi.mocked(db.user.findMany).mockResolvedValue([]);
 });
 
 const adminUser = {
@@ -172,7 +184,10 @@ describe("GET /api/settings/escalation", () => {
     ]));
     vi.mocked(db.systemConfig.findUnique).mockResolvedValue(systemConfigRow({
       key: "escalation",
-      value: { maxNotificationsPerBooking: 5 },
+      value: {
+        maxRequesterNotificationsPerDueDate: 4,
+        maxOperationalNotificationsPerDueDate: 10,
+      },
     }));
 
     const res = await getEscalation(makeGetRequest(), noParams);
@@ -180,10 +195,11 @@ describe("GET /api/settings/escalation", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data.rules).toHaveLength(1);
-    expect(body.data.config.maxNotificationsPerBooking).toBe(5);
+    expect(body.data.config.maxRequesterNotificationsPerDueDate).toBe(4);
+    expect(body.data.config.maxOperationalNotificationsPerDueDate).toBe(10);
   });
 
-  it("returns default maxNotificationsPerBooking when no config exists", async () => {
+  it("returns separate default requester and operations caps when no config exists", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
     vi.mocked(db.escalationRule.findMany).mockResolvedValue([]);
     vi.mocked(db.systemConfig.findUnique).mockResolvedValue(null);
@@ -192,7 +208,10 @@ describe("GET /api/settings/escalation", () => {
 
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.data.config.maxNotificationsPerBooking).toBe(10);
+    expect(body.data.config).toEqual({
+      maxRequesterNotificationsPerDueDate: 5,
+      maxOperationalNotificationsPerDueDate: 20,
+    });
   });
 
   it("returns 403 for STAFF", async () => {
@@ -216,19 +235,42 @@ describe("GET /api/settings/escalation", () => {
 // PATCH /api/settings/escalation
 // ═════════════════════════════════════════════════════════════════════════════
 describe("PATCH /api/settings/escalation", () => {
-  it("updates maxNotificationsPerBooking", async () => {
+  it("updates requester and operations caps independently", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
     vi.mocked(db.systemConfig.findUnique).mockResolvedValue(null);
     vi.mocked(db.systemConfig.upsert).mockResolvedValue(systemConfigUpsertRow());
 
     const res = await patchEscalation(
-      makePatchRequest({ maxNotificationsPerBooking: 20 }),
+      makePatchRequest({ maxRequesterNotificationsPerDueDate: 4 }),
       noParams
     );
 
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.maxNotificationsPerBooking).toBe(20);
+    expect(body.config).toEqual({
+      maxRequesterNotificationsPerDueDate: 4,
+      maxOperationalNotificationsPerDueDate: 20,
+    });
+  });
+
+  it("persists validated location responders", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(adminUser);
+    vi.mocked(db.location.findFirst).mockResolvedValue({ id: "location-1", name: "Camp Randall" } as never);
+    vi.mocked(db.user.count).mockResolvedValue(1);
+    vi.mocked(db.systemConfig.findUnique).mockResolvedValue(null);
+    vi.mocked(db.systemConfig.upsert).mockResolvedValue(systemConfigUpsertRow());
+
+    const res = await patchEscalation(
+      makePatchRequest({ locationId: "location-1", responderUserIds: ["staff-1"] }),
+      noParams,
+    );
+
+    expect(res.status).toBe(200);
+    expect(db.systemConfig.upsert).toHaveBeenCalledWith({
+      where: { key: "overdue_responders:location-1" },
+      update: { value: { userIds: ["staff-1"] } },
+      create: { key: "overdue_responders:location-1", value: { userIds: ["staff-1"] } },
+    });
   });
 
   it("updates an escalation rule", async () => {
@@ -275,7 +317,7 @@ describe("PATCH /api/settings/escalation", () => {
     vi.mocked(requireAuth).mockResolvedValue(staffUser);
 
     const res = await patchEscalation(
-      makePatchRequest({ maxNotificationsPerBooking: 5 }),
+      makePatchRequest({ maxRequesterNotificationsPerDueDate: 5 }),
       noParams
     );
 

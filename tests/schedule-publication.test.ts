@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { expectSerializableIsolation } from "./_helpers/assert-transaction";
+import type { WorkingSchedulePayload } from "@/lib/schedule-working-copy";
 
 const transactionCalls: Array<{ options: unknown }> = [];
 
@@ -706,10 +707,10 @@ describe("publishShiftGroup", () => {
         _count: { bookings: 0 },
       }],
     };
-    const workingSlots = currentShifts.map((currentShift) => ({
+    const workingSlots = currentShifts.map<WorkingSchedulePayload["slots"][number]>((currentShift) => ({
       key: currentShift.id,
       sourceShiftId: currentShift.id,
-      area: currentShift.area,
+      area: currentShift.area as WorkingSchedulePayload["slots"][number]["area"],
       workerType: "FT" as const,
       startsAt: eventStartsAt,
       endsAt: eventEndsAt,

@@ -342,14 +342,14 @@ export default function ShiftDetailPanel({
   }
 
   const handleApprove = (id: string) =>
-    mutate(id, `/api/shift-assignments/${id}/approve`, { method: "PATCH" }, "Request approved");
+    mutate(id, `/api/shift-assignments/${id}/approve`, { method: "PATCH" }, "Legacy request approved");
   const handleDecline = (id: string) =>
-    mutate(id, `/api/shift-assignments/${id}/decline`, { method: "PATCH" }, "Request declined");
+    mutate(id, `/api/shift-assignments/${id}/decline`, { method: "PATCH" }, "Legacy request declined");
 
   async function handleRemove(id: string) {
     const yes = await confirm({
       title: "Remove shift assignment?",
-      message: "This removes the assigned worker from the shift and reopens the slot for staff assignment or student requests.",
+      message: "This removes the assigned worker from the shift and reopens the slot for staff assignment or instant Student pickup.",
       confirmLabel: "Remove assignment",
       variant: "danger",
     });

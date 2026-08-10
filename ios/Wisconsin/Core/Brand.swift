@@ -91,6 +91,61 @@ enum StatusTone: String, CaseIterable {
     }
 }
 
+/// The five semantic chart roles from docs/COLOR_SYSTEM.md, mirroring web's
+/// `--chart-1` through `--chart-5`.
+///
+/// These exist because a chart fill is not text. `StatusTone`'s text colors
+/// carry typography contrast, so filling a donut wedge or a bar with one reads
+/// far heavier than the same status does on web — obvious in light mode. Use
+/// `Color.chartFill(_:)` for anything the chart paints, and keep `statusText`
+/// for the numbers beside it.
+enum ChartRole {
+    /// Checked out, active use, checkout trends.
+    case active
+    /// Available inventory, successful scans.
+    case available
+    /// Reserved or claimed inventory.
+    case reserved
+    /// Pending pickup and maintenance.
+    case waiting
+    /// Overdue and failed scans.
+    case problem
+    /// Retired or unknown states.
+    case neutral
+}
+
+extension Color {
+    /// Fill color for a chart role. Values are sRGB conversions of the web
+    /// OKLCH tokens; the source oklch() sits beside each pair so the two stay
+    /// auditable when the palette moves.
+    static func chartFill(_ role: ChartRole) -> Color {
+        func adaptive(
+            light: (Double, Double, Double),
+            dark: (Double, Double, Double)
+        ) -> Color {
+            Color(UIColor(dynamicProvider: { trait in
+                let c = trait.userInterfaceStyle == .dark ? dark : light
+                return UIColor(red: c.0, green: c.1, blue: c.2, alpha: 1)
+            }))
+        }
+
+        switch role {
+        case .active: // oklch(0.580 0.150 260) / oklch(0.720 0.095 260) — web --chart-1
+            return adaptive(light: (0.258, 0.470, 0.822), dark: (0.508, 0.649, 0.880))
+        case .available: // oklch(0.580 0.119 145) / oklch(0.720 0.147 145) — web --chart-2
+            return adaptive(light: (0.282, 0.551, 0.297), dark: (0.388, 0.738, 0.408))
+        case .reserved: // oklch(0.580 0.169 295) / oklch(0.720 0.106 295) — web --chart-3
+            return adaptive(light: (0.516, 0.376, 0.823), dark: (0.664, 0.592, 0.879))
+        case .waiting: // oklch(0.580 0.093 55) / oklch(0.720 0.116 55) — web --chart-4
+            return adaptive(light: (0.646, 0.419, 0.258), dark: (0.864, 0.565, 0.354))
+        case .problem: // oklch(0.580 0.153 25) / oklch(0.720 0.113 25) — web --chart-5
+            return adaptive(light: (0.771, 0.306, 0.290), dark: (0.889, 0.532, 0.504))
+        case .neutral: // mirrors web --text-muted
+            return Color.secondary
+        }
+    }
+}
+
 extension Color {
     /// Foreground/text color for a status tone — matches web `--{tone}-text`.
     static func statusText(_ tone: StatusTone) -> Color {

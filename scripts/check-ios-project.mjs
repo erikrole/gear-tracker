@@ -36,6 +36,9 @@ try {
   if (existsSync(join(iosDir, "WisconsinTests"))) {
     cpSync(join(iosDir, "WisconsinTests"), join(workDir, "WisconsinTests"), { recursive: true });
   }
+  if (existsSync(join(iosDir, "WisconsinUITests"))) {
+    cpSync(join(iosDir, "WisconsinUITests"), join(workDir, "WisconsinUITests"), { recursive: true });
+  }
   if (existsSync(join(iosDir, "WisconsinKioskTests"))) {
     cpSync(join(iosDir, "WisconsinKioskTests"), join(workDir, "WisconsinKioskTests"), { recursive: true });
   }

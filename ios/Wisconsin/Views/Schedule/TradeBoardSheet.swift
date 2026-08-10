@@ -7,6 +7,7 @@ final class TradeBoardViewModel {
         var availableOpenShifts: [OpenWorkShift] = []
         var waitingOpenShifts: [OpenWorkShift] = []
         var availableTrades: [ShiftTrade] = []
+        var blockedTrades: [ShiftTrade] = []
         var myTrades: [ShiftTrade] = []
         var resolvedTrades: [ShiftTrade] = []
         var postedTrades: [ShiftTrade] = []
@@ -19,8 +20,10 @@ final class TradeBoardViewModel {
         didSet { rebuildSections() }
     }
     var total = 0
-    var isLoading = false
-    var error: String?
+    var isLoadingTrades = false
+    var isLoadingOpenWork = false
+    var tradeLoadError: String?
+    var openWorkLoadError: String?
     var currentUserId: String = "" {
         didSet { rebuildSections() }
     }
@@ -34,12 +37,14 @@ final class TradeBoardViewModel {
     var availableOpenShifts: [OpenWorkShift] { sections.availableOpenShifts }
     var waitingOpenShifts: [OpenWorkShift] { sections.waitingOpenShifts }
     var availableTrades: [ShiftTrade] { sections.availableTrades }
+    var blockedTrades: [ShiftTrade] { sections.blockedTrades }
     var myTrades: [ShiftTrade] { sections.myTrades }
     var resolvedTrades: [ShiftTrade] { sections.resolvedTrades }
     var postedTrades: [ShiftTrade] { sections.postedTrades }
     var visibleCount: Int {
         sections.availableOpenShifts.count
             + sections.availableTrades.count
+            + sections.blockedTrades.count
             + sections.myTrades.count
             + sections.waitingOpenShifts.count
             + sections.postedTrades.count
@@ -47,6 +52,13 @@ final class TradeBoardViewModel {
     }
     var actionableCount: Int {
         sections.availableOpenShifts.count + sections.availableTrades.count
+    }
+    var isLoading: Bool { isLoadingTrades || isLoadingOpenWork }
+    var hasSourceFailure: Bool { tradeLoadError != nil || openWorkLoadError != nil }
+    var allSourcesFailed: Bool { tradeLoadError != nil && openWorkLoadError != nil }
+    var error: String? {
+        let message = [tradeLoadError, openWorkLoadError].compactMap { $0 }.joined(separator: " ")
+        return message.isEmpty ? nil : message
     }
 
     private func rebuildSections() {
@@ -60,8 +72,15 @@ final class TradeBoardViewModel {
         }
 
         for trade in trades {
-            if !isStaff, trade.status == .open, trade.postedBy.id != currentUserId {
-                next.availableTrades.append(trade)
+            if trade.status == .open, trade.postedBy.id != currentUserId {
+                let canClaim = trade.viewerCanClaim ?? (!isStaff && trade.viewerAvailabilityContext?.blocking != true)
+                if canClaim {
+                    next.availableTrades.append(trade)
+                } else if !isStaff {
+                    next.blockedTrades.append(trade)
+                } else {
+                    next.postedTrades.append(trade)
+                }
             } else if trade.postedBy.id == currentUserId,
                       trade.status == .open || trade.status == .claimed {
                 next.myTrades.append(trade)
@@ -75,19 +94,34 @@ final class TradeBoardViewModel {
     }
 
     func load() async {
-        guard !isLoading else { return }
-        isLoading = true
-        error = nil
-        defer { isLoading = false }
+        async let trades: Void = loadTrades()
+        async let openWork: Void = loadOpenWork()
+        _ = await (trades, openWork)
+    }
+
+    func loadTrades() async {
+        guard !isLoadingTrades else { return }
+        isLoadingTrades = true
+        defer { isLoadingTrades = false }
         do {
-            async let tradeResp = APIClient.shared.shiftTrades(limit: pageSize)
-            async let openWorkResp = APIClient.shared.scheduleOpenWork()
-            let (tradesResult, openWorkResult) = try await (tradeResp, openWorkResp)
-            trades = tradesResult.data
-            total = tradesResult.total
-            openWork = openWorkResult
+            let response = try await APIClient.shared.shiftTrades(limit: pageSize)
+            trades = response.data
+            total = response.total
+            tradeLoadError = nil
         } catch {
-            self.error = error.localizedDescription
+            tradeLoadError = error.localizedDescription
+        }
+    }
+
+    func loadOpenWork() async {
+        guard !isLoadingOpenWork else { return }
+        isLoadingOpenWork = true
+        defer { isLoadingOpenWork = false }
+        do {
+            openWork = try await APIClient.shared.scheduleOpenWork()
+            openWorkLoadError = nil
+        } catch {
+            openWorkLoadError = error.localizedDescription
         }
     }
 
@@ -139,7 +173,7 @@ struct TradeBoardSheet: View {
                 if vm.isLoading && vm.visibleCount == 0 {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let error = vm.error, vm.visibleCount == 0 {
+                } else if vm.allSourcesFailed, let error = vm.error, vm.visibleCount == 0 {
                     ContentUnavailableView {
                         Label("Couldn't load the Trade Board", systemImage: "exclamationmark.triangle")
                     } description: { Text(error) } actions: {
@@ -254,6 +288,7 @@ struct TradeBoardSheet: View {
                     actionableCount: vm.actionableCount,
                     myPostCount: vm.myTrades.count,
                     mineOnly: mineOnly,
+                    isComplete: !vm.hasSourceFailure,
                     onToggleMine: {
                         mineOnly.toggle()
                         Haptics.selection()
@@ -264,13 +299,35 @@ struct TradeBoardSheet: View {
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
 
+            if let tradeLoadError = vm.tradeLoadError {
+                Section {
+                    TradeBoardSourceErrorRow(
+                        title: "Trade posts are unavailable",
+                        detail: tradeLoadError,
+                        retry: { Task { await vm.loadTrades() } }
+                    )
+                }
+                .tradeBoardCardRow()
+            }
+
+            if let openWorkLoadError = vm.openWorkLoadError {
+                Section {
+                    TradeBoardSourceErrorRow(
+                        title: "Open Student slots are unavailable",
+                        detail: openWorkLoadError,
+                        retry: { Task { await vm.loadOpenWork() } }
+                    )
+                }
+                .tradeBoardCardRow()
+            }
+
             if mineOnly {
                 myPostsContent
             } else {
                 availableContent
             }
 
-            if vm.visibleCount == 0 {
+            if vm.visibleCount == 0 && !vm.hasSourceFailure {
                 Section {
                     ContentUnavailableView(
                         "No open shifts",
@@ -315,12 +372,15 @@ struct TradeBoardSheet: View {
                 }
             }
 
-            if !vm.waitingOpenShifts.isEmpty {
+            if !vm.waitingOpenShifts.isEmpty || !vm.blockedTrades.isEmpty {
                 Section {
                     DisclosureGroup(isExpanded: $showBlocked) {
                         VStack(spacing: 10) {
                             ForEach(vm.waitingOpenShifts) { item in
                                 OpenWorkShiftRow(item: item, context: .waiting, isActioning: false, action: nil)
+                            }
+                            ForEach(vm.blockedTrades) { trade in
+                                TradeRow(trade: trade, context: .blocked, isActioning: false, action: nil, cancelAction: nil)
                             }
                         }
                         .padding(.top, 10)
@@ -480,24 +540,35 @@ private struct TradeBoardSummaryCard: View {
     let actionableCount: Int
     let myPostCount: Int
     let mineOnly: Bool
+    let isComplete: Bool
     let onToggleMine: () -> Void
+
+    private var summaryTone: StatusTone {
+        if !isComplete { return .orange }
+        return actionableCount > 0 ? .purple : .green
+    }
+
+    private var summaryIcon: String {
+        if !isComplete { return "exclamationmark.triangle.fill" }
+        return actionableCount > 0 ? "arrow.left.arrow.right" : "checkmark"
+    }
 
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
                 RoundedRectangle(cornerRadius: 13)
-                    .fill(Color.statusBackground(actionableCount > 0 ? .purple : .green))
-                Image(systemName: actionableCount > 0 ? "arrow.left.arrow.right" : "checkmark")
+                    .fill(Color.statusBackground(summaryTone))
+                Image(systemName: summaryIcon)
                     .font(.headline.weight(.semibold))
-                    .foregroundStyle(Color.statusText(actionableCount > 0 ? .purple : .green))
+                    .foregroundStyle(Color.statusText(summaryTone))
             }
             .frame(width: 46, height: 46)
             .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(mineOnly ? "Your trade posts" : actionableCount == 0 ? "Coverage is clear" : "\(actionableCount) \(actionableCount == 1 ? "shift" : "shifts") available")
+                Text(mineOnly ? "Your trade posts" : !isComplete ? "Coverage is incomplete" : actionableCount == 0 ? "Coverage is clear" : "\(actionableCount) \(actionableCount == 1 ? "shift" : "shifts") available")
                     .font(.headline)
-                Text(mineOnly ? "\(myPostCount) active \(myPostCount == 1 ? "post" : "posts")" : "Open shifts and trades you can claim now")
+                Text(mineOnly ? "\(myPostCount) active \(myPostCount == 1 ? "post" : "posts")" : !isComplete ? "Refresh the unavailable source before relying on this board" : "Open shifts and trades you can claim now")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -552,7 +623,9 @@ private struct OpenWorkShiftRow: View {
         default: item.reason
         }
     }
-    private var warning: String? { item.advisoryConflictNote ?? item.warnings.first?.label }
+    private var warning: String? {
+        item.availabilityContext == nil ? item.advisoryConflictNote ?? item.warnings.first?.label : nil
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -586,6 +659,10 @@ private struct OpenWorkShiftRow: View {
                         .foregroundStyle(.secondary)
                 }
 
+                if let availabilityContext = item.availabilityContext {
+                    ShiftAvailabilityContextNote(context: availabilityContext)
+                }
+
                 if let action {
                     Button(action: action) {
                         HStack(spacing: 7) {
@@ -611,6 +688,7 @@ private struct OpenWorkShiftRow: View {
 
 private enum TradeRowContext: Equatable {
     case availableNow
+    case blocked
     case myPost
     case posted
     case resolved
@@ -619,6 +697,8 @@ private enum TradeRowContext: Equatable {
         switch self {
         case .availableNow:
             return "Claiming assigns this shift to you immediately."
+        case .blocked:
+            return trade.viewerAvailabilityContext?.detail ?? "This shift is not available with your current schedule."
         case .myPost:
             return "Canceling removes the post; the shift stays assigned to you."
         case .posted:
@@ -637,6 +717,13 @@ private struct TradeRow: View {
     var cancelAction: (() -> Void)?
 
     private var shift: ShiftTradeShift { trade.shiftAssignment.shift }
+    private var badge: String { context == .blocked ? "Blocked" : trade.status.label }
+    private var tone: StatusTone { context == .blocked ? .red : trade.status.tone }
+    private var availabilityContext: ShiftAvailabilityContext? {
+        if context == .blocked { return trade.viewerAvailabilityContext }
+        if context == .posted, trade.status == .claimed { return trade.claimedByAvailabilityContext }
+        return nil
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -646,7 +733,7 @@ private struct TradeRow: View {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 7) {
-                rowHeader(title: shift.displayTitle, badge: trade.status.label, tone: trade.status.tone)
+                rowHeader(title: shift.displayTitle, badge: badge, tone: tone)
 
                 Text(shift.dateTimeLine)
                     .font(.subheadline.weight(.medium))
@@ -667,6 +754,14 @@ private struct TradeRow: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
+                }
+
+                if let availabilityContext {
+                    ShiftAvailabilityContextNote(context: availabilityContext)
+                } else if context == .blocked, let reason = trade.viewerClaimReason {
+                    Label(reason, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(Color.statusText(.orange))
                 }
 
                 HStack(spacing: 8) {
@@ -758,6 +853,68 @@ private struct TradeBoardActionErrorBanner: View {
     }
 }
 
+private struct TradeBoardSourceErrorRow: View {
+    let title: String
+    let detail: String
+    let retry: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(Color.statusText(.orange))
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 8)
+
+            Button("Retry", action: retry)
+                .font(.subheadline.weight(.semibold))
+                .frame(minHeight: 44)
+        }
+        .padding(14)
+        .background(Color.statusBackground(.orange), in: RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+private struct ShiftAvailabilityContextNote: View {
+    let context: ShiftAvailabilityContext
+
+    private var tone: StatusTone {
+        switch context.state {
+        case "blocked": .red
+        case "preferred": .green
+        default: .orange
+        }
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 7) {
+            Image(systemName: context.blocking ? "exclamationmark.triangle.fill" : "calendar.badge.clock")
+                .font(.caption)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(context.label)
+                    .font(.caption.weight(.semibold))
+                Text(context.detail)
+                    .font(.caption)
+            }
+        }
+        .foregroundStyle(Color.statusText(tone))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Color.statusBackground(tone), in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
 private extension ShiftTradeShift {
     var effectiveStartsAt: Date { callStartsAt ?? startsAt }
     var effectiveEndsAt: Date { callEndsAt ?? endsAt }
@@ -799,6 +956,8 @@ private extension ShiftTradeStatus {
         case .open:
             return StatusTone.green
         case .claimed:
+            return StatusTone.orange
+        case .approved:
             return StatusTone.orange
         case .completed:
             return StatusTone.gray

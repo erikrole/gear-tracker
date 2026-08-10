@@ -5,6 +5,7 @@ import { requireBookingAction } from "@/lib/services/booking-rules";
 import { createAuditEntry } from "@/lib/audit";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { deferPush, sendPushToUser } from "@/lib/services/notifications";
+import { loadCheckoutPolicies } from "@/lib/services/checkout-policies";
 
 const NUDGE_LIMIT = { max: 30, windowMs: 60_000 };
 
@@ -15,13 +16,15 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   // requireBookingAction checks: staff+ role, OPEN status, CHECKOUT kind
   const booking = await requireBookingAction(params.id, user, "nudge");
 
-  const isOverdue = booking.endsAt <= new Date();
+  const policies = await loadCheckoutPolicies();
+  const overdueAt = new Date(booking.endsAt.getTime() + policies.gracePeriodHours * 3_600_000);
+  const isOverdue = overdueAt <= new Date();
   if (!isOverdue) {
-    throw new HttpError(400, "Booking is not overdue");
+    throw new HttpError(400, "Booking is still within its return grace period");
   }
 
   // Create in-app notification for the requester
-  const hours = Math.round((Date.now() - booking.endsAt.getTime()) / 3_600_000);
+  const hours = Math.max(0, Math.round((Date.now() - overdueAt.getTime()) / 3_600_000));
   const title = "Overdue gear reminder";
   const body = `"${booking.title}" is ${hours}h overdue. Please return the gear.`;
   const [, requester] = await Promise.all([

@@ -27,6 +27,7 @@
 | `src/lib/services/checkout-policies.ts` | 40 |
 | `src/lib/services/collaborator-policies.ts` | 400 |
 | `src/lib/services/collaborator-schedule.ts` | 213 |
+| `src/lib/services/companion-projection.ts` | 279 |
 | `src/lib/services/dashboard-counts.ts` | 119 |
 | `src/lib/services/event-defaults.ts` | 69 |
 | `src/lib/services/firmware-watch.ts` | 299 |
@@ -39,7 +40,7 @@
 | `src/lib/services/live-activities.ts` | 632 |
 | `src/lib/services/non-game-schedule-defaults.ts` | 49 |
 | `src/lib/services/notification-prefs.ts` | 103 |
-| `src/lib/services/notifications.ts` | 1143 |
+| `src/lib/services/notifications.ts` | 1354 |
 | `src/lib/services/onboarding-lifecycle.ts` | 766 |
 | `src/lib/services/pending-pickup-expiry.ts` | 281 |
 | `src/lib/services/reports.ts` | 1865 |
@@ -60,10 +61,10 @@
 | `src/lib/services/shift-assignments.ts` | 656 |
 | `src/lib/services/shift-generation.ts` | 628 |
 | `src/lib/services/shift-trade-emails.ts` | 56 |
-| `src/lib/services/shift-trades.ts` | 929 |
+| `src/lib/services/shift-trades.ts` | 931 |
 | `src/lib/services/sport-configs.ts` | 257 |
 | `src/lib/services/status.ts` | 444 |
-| `src/lib/services/user-deactivation.ts` | 360 |
+| `src/lib/services/user-deactivation.ts` | 364 |
 
 ## Key Library Files
 
@@ -71,7 +72,7 @@
 |---|---:|
 | `src/lib/admin-fix-today.ts` | 408 |
 | `src/lib/api-dates.ts` | 32 |
-| `src/lib/api.ts` | 181 |
+| `src/lib/api.ts` | 186 |
 | `src/lib/app-time.ts` | 104 |
 | `src/lib/asset-attachments.ts` | 166 |
 | `src/lib/asset-image.ts` | 26 |
@@ -79,7 +80,7 @@
 | `src/lib/assignment-conflict-review.ts` | 97 |
 | `src/lib/audit.ts` | 168 |
 | `src/lib/auth-email-guidance.ts` | 7 |
-| `src/lib/auth.ts` | 328 |
+| `src/lib/auth.ts` | 338 |
 | `src/lib/auto-fill-preview-types.ts` | 58 |
 | `src/lib/avatar.ts` | 44 |
 | `src/lib/battery-compatibility.ts` | 166 |
@@ -99,8 +100,11 @@
 | `src/lib/calendar-source-freshness.ts` | 259 |
 | `src/lib/candidate-scoring-types.ts` | 26 |
 | `src/lib/category-options.ts` | 34 |
+| `src/lib/checkout-escalation-policy.ts` | 117 |
+| `src/lib/checkout-notification-workflow.ts` | 24 |
 | `src/lib/collaborator-access.ts` | 162 |
 | `src/lib/collaborator-gear.ts` | 151 |
+| `src/lib/companion-store.ts` | 233 |
 | `src/lib/cron.ts` | 35 |
 | `src/lib/crypto.ts` | 17 |
 | `src/lib/csv.ts` | 17 |
@@ -127,7 +131,7 @@
 | `src/lib/item-family-products.ts` | 14 |
 | `src/lib/item-family-state.ts` | 75 |
 | `src/lib/item-image-draft.ts` | 88 |
-| `src/lib/live-activity-workflow.ts` | 29 |
+| `src/lib/live-activity-workflow.ts` | 34 |
 | `src/lib/local-traces.ts` | 28 |
 | `src/lib/media-embed.ts` | 68 |
 | `src/lib/nav-sections.ts` | 268 |
@@ -184,7 +188,7 @@
 | `src/lib/user-list-cache.ts` | 73 |
 | `src/lib/user-visibility.ts` | 71 |
 | `src/lib/utils.ts` | 7 |
-| `src/lib/validation.ts` | 793 |
+| `src/lib/validation.ts` | 794 |
 | `src/lib/venue-mapping-audit.ts` | 56 |
 | `src/lib/venue-mapping-contract.ts` | 46 |
 | `src/lib/venue-tone.ts` | 97 |
@@ -348,6 +352,11 @@
 - `/api/collaborator-affiliations/[id]/restore`
 - `/api/collaborator-affiliations/[id]`
 - `/api/collaborator-affiliations`
+
+### `/api/companion`
+
+- `/api/companion/devices`
+- `/api/companion/projection`
 
 ### `/api/cron`
 

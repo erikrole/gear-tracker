@@ -311,17 +311,27 @@ export async function requireKiosk(): Promise<KioskContext> {
   // Update last seen + slid expiry after the response is sent -- after()
   // keeps the serverless function alive until this completes, unlike
   // fire-and-forget.
-  after(() =>
-    db.kioskDevice
-      .update({
+  after(async () => {
+    try {
+      await db.kioskDevice.update({
         where: { id: device.id },
         data: {
           ...(shouldTouchLastSeen ? { lastSeenAt: now } : {}),
           ...(shouldSlide ? { sessionExpiresAt } : {}),
         },
-      })
-      .catch(() => {}),
-  );
+      });
+
+      // The kiosk request has already woken Neon. Publish only after the
+      // deferred last-seen write commits so the companion never receives an
+      // older heartbeat, and never needs to poll a database-backed route.
+      if (shouldTouchLastSeen && process.env.NODE_ENV !== "test") {
+        const { refreshCompanionProjection } = await import("@/lib/services/companion-projection");
+        await refreshCompanionProjection({ notify: true });
+      }
+    } catch (error) {
+      console.error("[Kiosk] deferred activity update failed", error);
+    }
+  });
 
   return kioskContext;
 }

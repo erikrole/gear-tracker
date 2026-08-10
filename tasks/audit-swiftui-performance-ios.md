@@ -1,8 +1,8 @@
 # Audit: SwiftUI Performance Across Wisconsin iOS
 
 **Date:** 2026-07-23  
-**Status:** SOURCE REMEDIATION COMPLETE; INSTRUMENTS BASELINE PENDING  
-**Verdict:** SOURCE READY; physical-device performance metrics required before closing  
+**Status:** SOURCE REMEDIATION COMPLETE; STABLE-SIMULATOR BASELINES CAPTURED; PHYSICAL INTERACTION BASELINE PENDING
+**Verdict:** APP STORE-SAFE SOURCE READY; representative physical-device interaction metrics required before closing
 **Scope:** Main Wisconsin app, shared native components, profile onboarding, and WisconsinKiosk SwiftUI surfaces  
 **Audit type:** Code-first performance review. Findings are source-backed unless explicitly marked trace-backed.
 
@@ -316,6 +316,65 @@ Launch baseline from the supplied Debug device log:
 | Full-width zero-height image slots | 5 | Pending device capture | 0 |
 | Warm dashboard refresh | 259 ms, one observed run | Pending device capture | No material regression |
 
+### 2026-08-09 Physical-Device Capture Attempt
+
+Build 24 was built from the current source in Release configuration with
+`dwarf-with-dsym`, development-signed, installed over Build 23, and launched on
+Erik's physical iPhone 16 Pro running iOS 27.0. The app executable and dSYM both
+had UUID `1F9DB89E-71EB-328D-AD5F-9C6851E35FFA`.
+
+The SwiftUI Instruments template recorded a 16.83-second attached run, but its
+data provider failed while stopping. The trace container was readable, while
+the SwiftUI updates, update groups, causes, hitches, hangs, and Time Profiler
+tables contained no rows. This trace is not performance evidence.
+
+Two fallback Time Profiler captures completed cleanly:
+
+| Intended workflow | Duration | Running samples | Potential hangs | Result |
+| --- | ---: | ---: | ---: | --- |
+| Home refresh | 16.95 s | 1 ms | 0 | Inconclusive; effectively idle |
+| Items scrolling | 21.84 s | 4 ms | 0 | Inconclusive; no app-owned frames sampled |
+
+The attached-process lifecycle remained `Unknown`, and neither fallback trace
+proved that the intended foreground interaction occurred during its recording
+window. Zero recorded hangs therefore means only that these sparse captures did
+not observe one. It does not establish smooth scrolling, launch latency, or a
+regression budget.
+
+An Xcode 27 beta (`27A5194q`) follow-up rebuilt and installed the same Build 24
+source with the iOS 27 SDK. The app executable and dSYM both had UUID
+`D0C62942-BE6F-3BAB-B2AF-3A08A416DBAA`. A bundle-ID launch under the SwiftUI
+template ran for 21.58 seconds and exited normally, but the SwiftUI data provider
+again failed while stopping. Its SwiftUI updates, causes, hitches, hangs, and
+Time Profiler tables were empty, so changing to the OS-compatible Xcode did not
+produce a usable SwiftUI timeline.
+
+The independent Xcode 27 Time Profiler template did produce a usable 21.65-second
+cold-launch capture:
+
+| Observation | Recorded result | Interpretation |
+| --- | ---: | --- |
+| CPU samples | 774 at 1 ms | Usable cold-launch CPU evidence |
+| Initial frame rendering | 94.69 ms | Launch lifecycle measurement, not first useful Home |
+| Foreground active | 16.14 s | App reached and remained active during the capture |
+| Thermal state | Nominal for 21.65 s | No observed thermal throttling condition |
+| Potential hangs | One 457.89 ms microhang | Began at 18.709 s during forced background/snapshot work at recording shutdown |
+
+The microhang overlaps the lifecycle transition to background at 18.723 seconds,
+and its sampled stacks include `UIApplication` background and scene-snapshot
+work. Treat it as a capture-shutdown boundary event, not evidence of an in-app
+foreground interaction regression. The profile contains symbolicated app-owned
+frames, including `SessionStore.init()`, `HomeView.body`, and
+`APIClient.perform`, but no single app-owned stack dominated the sparse samples.
+
+Artifacts are preserved under
+`~/Documents/Codex/2026-08-09/gear-tracker-swiftui-profile/`. The two 52 KB
+traces whose names contain `incomplete` or `debugger-conflict` are failed setup
+attempts. The 11 MB SwiftUI trace has empty data tables. The two 11 MB Time
+Profiler traces are valid but inconclusive. The Xcode 27 SwiftUI trace also has
+empty tables; `xcode27-build24-cold-launch-time-profiler.trace` is the usable
+cold-launch trace, with exported TOC and schema XML files beside it.
+
 ## Instruments Capture Contract
 
 Use a Release build on a physical device where possible. Record one interaction per capture using the SwiftUI Instruments template with Time Profiler and Hangs/Hitches:
@@ -388,8 +447,13 @@ Implementation slices additionally require the native iOS verification matrix fr
 
 ## Known Limits
 
-- No Instruments trace, XCTest performance baseline, Organizer hitch report, or MetricKit payload was available.
-- Runtime severity remains a hypothesis until captured on a physical device with representative data.
+- No usable physical-device SwiftUI timeline, Organizer hitch report, or
+  MetricKit payload is available.
+- Runtime severity for the named scrolling and refresh workflows remains a
+  hypothesis until captured on a physical device with representative data.
+- The 2026-08-09 physical-device traces produced a usable cold-launch Time
+  Profiler baseline, but no usable SwiftUI timeline or representative
+  foreground-interaction capture.
 - This pass did not mutate user data, exercise kiosk custody, or perform reservation/schedule mutations.
 - Existing unrelated Schedule web work and generated codemap changes were preserved.
 
@@ -405,10 +469,30 @@ Implementation slices additionally require the native iOS verification matrix fr
 - Home constructs one action-queue collection for row and divider rendering.
 - Initial session validation has one request owner and unchanged user values do not invalidate the tab shell.
 - Home defers badge and Live Activity refreshes until after dashboard success.
+- Session validation, Home dashboard load, first useful Home, and Live Activity
+  reconciliation emit paired Points of Interest signposts.
+- MetricKit reports remain protected and capped on device; the app does not
+  upload or print their payloads.
+- A DEBUG-only UI performance harness exercises 300 production `AssetRow`
+  values and the production reservation equipment picker without network or
+  authentication variance.
+- The performance source uses stable `OSSignposter`, `MXMetricManager`, and
+  XCTest APIs. It contains no iOS 27 availability branch or iOS 27
+  `MetricManager` use.
 
 ### Verified
 
-- `npx vitest run tests/ios-swiftui-performance.test.ts tests/ios-runtime-warning-cleanup.test.ts tests/ios-create-booking-picker-parity.test.ts tests/ios-home-afm-header-source.test.ts` passed: 37 tests.
+- Xcode 26.6 with the iOS 26.5 SDK runs the dedicated suite on the iPhone 16 Pro
+  simulator. Cold launch averaged 1.489 seconds over five iterations; the Items
+  scrolling and equipment search/select CPU, memory, and hitch measurements
+  passed.
+- The generic-device Release build succeeds with Xcode 26.6 and the iOS 26.5
+  SDK. Its compiled executable contains no performance scenario environment key,
+  fixture tag, fixture title, or performance harness type name. The earlier
+  Xcode 27 beta trace is historical profiling evidence only and introduces no
+  project setting, source API, or release dependency.
+
+- `npx vitest run tests/ios-swiftui-performance.test.ts tests/ios-runtime-warning-cleanup.test.ts tests/ios-create-booking-picker-parity.test.ts tests/ios-home-afm-header-source.test.ts` passed: 38 tests.
 - Launch lifecycle, session ownership, tab stability, Home, collaborator access, and Live Activity source contracts passed: 49 tests across 9 files.
 - `IOS_SKIP_TESTS=1 npm run ios:xcode:verify` passed simulator and generic-device builds for Wisconsin.
 - `npm run ios:xcode:verify:kiosk` passed static gates, simulator build, kiosk XCTest, and generic-device build.
@@ -416,8 +500,13 @@ Implementation slices additionally require the native iOS verification matrix fr
 
 ### Deferred
 
-- Release-build physical-device Instruments captures and before/after metrics.
+- SwiftUI-template physical-device captures and before/after metrics for the
+  named scrolling and refresh workflows. Both Xcode 26.6 and Xcode 27 beta
+  currently fail to emit SwiftUI tables on the iOS 27 device.
 - Post-fix confirmation for the Liquid Glass and zero-height image-slot warnings on Erik's iPhone.
+- Baselines for the new launch, Items hitch, and equipment search/select UI
+  performance tests. The tests are registered but should only receive committed
+  baselines after repeated runs on the default iPhone 16 Pro destination.
 
 ### Blocked
 
@@ -425,4 +514,6 @@ Implementation slices additionally require the native iOS verification matrix fr
 
 ### Next slice or stop
 
-- Stop source changes. Capture the listed physical-device workflows with the SwiftUI Instruments template before claiming measured performance gains.
+- Stop source changes. Retain the Xcode 27 cold-launch Time Profiler trace as the
+  device baseline, and retry the listed SwiftUI interactions after the
+  Instruments provider can emit SwiftUI tables before claiming measured gains.

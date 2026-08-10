@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Mobile Operations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-09
+- Last Updated: 2026-08-10
 - Status: Active
 - Version: V1
 
@@ -132,6 +132,8 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 - **V3 (later)**: Bottom nav badge counts via live `/api/nav-counts` polling, game-day/shift context cards
 
 ## Change Log
+
+- 2026-08-10: **Native Trade Board now reports claimability and partial data honestly.** Server-owned claimability and availability context move blocked trades out of Available Now and explain the blocker before action. Trade posts and Open Work load independently, preserve the successful half, provide source-specific retry, and never show a false empty or all-clear state while one source is unknown. New response fields remain optional for compatible rollout. The Wisconsin target builds for the iPhone 16 Pro Simulator; authenticated Trade Board runtime inspection remains open.
 
 - 2026-08-09: **Native performance evidence uses App Store-safe APIs and an isolated test harness.** Session validation, Home loading, first useful Home, and Live Activity reconciliation now emit Points of Interest signposts through `OSSignposter`. Stable `MXMetricManager` delivery retains protected, backup-excluded JSON locally with a 12-file cap and no payload logging or upload. A separate `WisconsinPerformance` scheme measures launch, 300-row Items scrolling, and reservation equipment search/select against production views. Its fixture routing is compiled only in DEBUG, leaving TestFlight and App Store Release builds on the normal authenticated root. The source contract rejects iOS 27 availability checks and the iOS 27 `MetricManager` API.
 

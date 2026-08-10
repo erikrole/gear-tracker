@@ -20,11 +20,17 @@ describe("schedule open work source contracts", () => {
     expect(tradeBoard).toContain("AvailabilityContextNote");
     expect(tradeBoard).toContain("viewerAvailabilityContext");
     expect(tradeBoard).toContain("claimedByAvailabilityContext");
+    expect(tradeBoard).toContain("viewerCanClaim");
+    expect(tradeBoard).toContain("viewerClaimReason");
     expect(tradeBoard).toContain("/api/shift-assignments/pickup");
     expect(tradeBoard).toContain("/api/shift-trades/${tradeId}/claim");
     expect(tradeBoard).toContain("/api/shift-trades/${tradeId}/cancel");
     expect(tradeBoard).toContain("Claim shift");
     expect(tradeBoard).toContain("Shift claimed");
+    expect(tradeBoard).toContain("const hasAnyLoadError = loadError || openWorkError");
+    expect(tradeBoard).toContain("Trade Board posts are unavailable");
+    expect(tradeBoard).toContain("Open Student slots are unavailable");
+    expect(tradeBoard).toContain("!hasAnyLoadError && totalRows === 0");
   });
 
   it("keeps the Open Work read model published, student-slot, and permission scoped", () => {
@@ -44,7 +50,7 @@ describe("schedule open work source contracts", () => {
 
   it("keeps pickup mutation audited, publication-safe, and notification-policy wired", () => {
     const service = source("src/lib/services/schedule-open-work.ts");
-    const route = source("src/app/api/shift-assignments/pickup/route.ts");
+    const route = source("src/app/api/shift-assignments/pickup/handler.ts");
 
     expect(route).toContain('requirePermission(user.role, "shift_assignment", "request")');
     expect(route).toContain("pickupOpenShift(body.shiftId, user.id)");
@@ -70,6 +76,8 @@ describe("schedule open work source contracts", () => {
     expect(service).toContain("availabilityContextFromBlocks");
     expect(service).toContain("viewerAvailabilityContext");
     expect(service).toContain("claimedByAvailabilityContext");
+    expect(service).toContain("viewerCanClaim");
+    expect(service).toContain("viewerClaimReason");
   });
 
   it("keeps native iOS on the same Open Work contract as web", () => {
@@ -84,6 +92,11 @@ describe("schedule open work source contracts", () => {
     expect(models).toContain("struct OpenWorkResponse: Codable");
     expect(models).toContain("struct OpenWorkShift: Codable, Identifiable, Hashable");
     expect(models).toContain("struct OpenWorkPickupRequest: Codable, Identifiable, Hashable");
+    expect(models).toContain("struct ShiftAvailabilityContext: Codable, Hashable");
+    expect(models).toContain("let viewerAvailabilityContext: ShiftAvailabilityContext?");
+    expect(models).toContain("let availabilityContext: ShiftAvailabilityContext?");
+    expect(models).toContain("let viewerCanClaim: Bool?");
+    expect(models).toContain("let viewerClaimReason: String?");
     // User-facing iOS title is Trade Board; Open Work remains the API/web term.
     expect(sheet).toContain(".navigationTitle(\"Trade Board\")");
     expect(sheet).toContain("APIClient.shared.scheduleOpenWork()");
@@ -92,5 +105,7 @@ describe("schedule open work source contracts", () => {
     expect(sheet).toContain("Waiting or Blocked");
     expect(sheet).toContain("You will be assigned immediately.");
     expect(sheet).toContain("Canceling removes the post; the shift stays assigned to you.");
+    expect(sheet).toContain("trade.viewerCanClaim ?? (!isStaff && trade.viewerAvailabilityContext?.blocking != true)");
+    expect(sheet).toContain("TradeBoardSourceErrorRow(");
   });
 });

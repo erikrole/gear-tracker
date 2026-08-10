@@ -247,6 +247,19 @@ graphical contrast.
 `27.325`; only lightness and gamut-safe chroma change. Report source files must
 not introduce `hsl()` or `hsla()` literals.
 
+Native iOS mirrors the five semantic chart roles as `ChartRole` in
+`ios/Wisconsin/Core/Brand.swift`, read through `Color.chartFill(_:)`. The Swift
+literals are sRGB conversions of the same OKLCH values, carrying the source
+oklch() in a comment so the pair stays auditable; light and dark follow the web
+lightness split (`0.580` / `0.720`). Neutral resolves to `Color.secondary`,
+matching `--text-muted`.
+
+Chart fills are their own role. Do not fill a chart with `Color.statusText(...)`
+or any other text token: those carry text contrast, so a large wedge or bar
+drawn with one reads far heavier than the same status does on web, most visibly
+in light mode. Text tokens remain correct for metric values, delta labels, and
+any other type.
+
 ### List dot colors (`getStatusVisual`)
 
 List rows use CSS variable dot colors, not Badge variants:

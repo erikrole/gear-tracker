@@ -4,7 +4,14 @@ import { defaultShiftConfigs } from "@/app/(app)/settings/sports/types";
 describe("new sport staffing defaults", () => {
   it("starts empty instead of silently generating one Student slot per area", () => {
     const defaults = defaultShiftConfigs();
-    expect(defaults).toHaveLength(5);
+    expect(defaults.map((row) => row.area)).toEqual([
+      "VIDEO",
+      "PHOTO",
+      "GRAPHICS",
+      "SOCIAL",
+      "COMMS",
+      "LIVE_PRODUCTION",
+    ]);
     expect(defaults.every((row) =>
       row.homeStaffCount === 0
       && row.homeStudentCount === 0

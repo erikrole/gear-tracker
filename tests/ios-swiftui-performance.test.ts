@@ -65,4 +65,23 @@ describe("iOS SwiftUI performance contracts", () => {
     expect(home).toContain("ForEach(Array(entries.enumerated())");
     expect(home).not.toContain("displayedEntries.last?.id");
   });
+
+  it("keeps performance instrumentation on stable pre-iOS-27 APIs", () => {
+    const instrumentation = source(
+      "ios/Wisconsin/Core/PerformanceInstrumentation.swift",
+    );
+    const harness = source(
+      "ios/Wisconsin/App/PerformanceTestHarness.swift",
+    );
+    const project = source("ios/project.yml");
+
+    expect(instrumentation).toContain("OSSignposter(");
+    expect(instrumentation).toContain("MXMetricManager.shared.add(self)");
+    expect(instrumentation).not.toMatch(/\bMetricManager\b/);
+    expect(instrumentation).not.toContain("iOS 27");
+    expect(instrumentation).not.toContain("#available(iOS 27");
+    expect(harness).toContain("#if DEBUG");
+    expect(project).toContain('xcodeVersion: "26.6"');
+    expect(project).toContain('deploymentTarget: "26.0"');
+  });
 });

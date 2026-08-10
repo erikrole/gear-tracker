@@ -322,6 +322,21 @@ describe("claimTrade", () => {
     );
   });
 
+  it("keeps email delivery best-effort when push delivery rejects after commit", async () => {
+    const trade = openTrade();
+    mockTx.shiftTrade.findUnique.mockResolvedValue(trade);
+    mockTx.user.findUnique.mockResolvedValue(makeUser({ primaryArea: "Field" }));
+    mockTx.shiftAssignment.findUnique.mockResolvedValue({ ...trade.shiftAssignment });
+    mockTx.shiftAssignment.update.mockResolvedValue({});
+    mockTx.shiftAssignment.create.mockResolvedValue({});
+    mockTx.shiftTrade.update.mockResolvedValue({ ...trade, claimedByUserId: "claimer-1", status: "COMPLETED" });
+    vi.mocked(sendPushToUser).mockRejectedValueOnce(new Error("APNs unavailable"));
+
+    await expect(claimTrade(trade.id, "claimer-1")).resolves.toMatchObject({ status: "COMPLETED" });
+
+    expect(sendShiftTradeEmail).toHaveBeenCalledTimes(1);
+  });
+
   it("does not retry a non-conflict failure", async () => {
     const transaction = mockDb.$transaction as unknown as MockFn;
     transaction.mockRejectedValueOnce(new Error("boom"));
@@ -883,6 +898,55 @@ describe("listTrades", () => {
         state: "blocked",
         detail: "Approved time off: Family trip (02:00-12:00)",
       }),
+    }));
+  });
+
+  it("returns server-owned trade claimability for scheduling class and area", async () => {
+    const shift = {
+      ...makeShift({ area: "VIDEO" }),
+      shiftGroup: { event: { summary: "Wisconsin vs Iowa" } },
+    };
+    const trade = {
+      ...makeShiftTrade({ id: "trade-1", postedByUserId: "poster-1", status: "OPEN" }),
+      shiftAssignment: {
+        ...makeShiftAssignment(),
+        shift,
+        user: { id: "poster-1", name: "Poster", primaryArea: "VIDEO" },
+      },
+      postedBy: { id: "poster-1", name: "Poster" },
+      claimedBy: null,
+    };
+    mockDb.shiftTrade.findMany.mockResolvedValue([trade]);
+    mockDb.shiftTrade.count.mockResolvedValue(1);
+    mockDb.user.findMany.mockResolvedValue([{
+      id: "viewer-1",
+      role: "STUDENT",
+      staffingType: "ST",
+      active: true,
+      primaryArea: "PHOTO",
+      availabilityBlocks: [],
+    }]);
+
+    const blocked = await listTrades({ userId: "viewer-1", limit: 100, offset: 0 });
+
+    expect(blocked.data[0]).toEqual(expect.objectContaining({
+      viewerCanClaim: false,
+      viewerClaimReason: "Your primary area (PHOTO) does not match this shift's area (VIDEO)",
+    }));
+
+    mockDb.user.findMany.mockResolvedValue([{
+      id: "viewer-1",
+      role: "STAFF",
+      staffingType: "ST",
+      active: true,
+      primaryArea: "VIDEO",
+      availabilityBlocks: [],
+    }]);
+
+    const claimable = await listTrades({ userId: "viewer-1", limit: 100, offset: 0 });
+    expect(claimable.data[0]).toEqual(expect.objectContaining({
+      viewerCanClaim: true,
+      viewerClaimReason: null,
     }));
   });
 });

@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -38,12 +39,29 @@ type EscalationRule = {
 };
 
 type EscalationConfig = {
-  maxNotificationsPerBooking: number;
+  maxRequesterNotificationsPerDueDate: number;
+  maxOperationalNotificationsPerDueDate: number;
+};
+
+type ResponderCandidate = {
+  id: string;
+  name: string;
+  email: string;
+  role: "ADMIN" | "STAFF";
+  locationId: string | null;
+};
+
+type EscalationLocation = {
+  id: string;
+  name: string;
+  responderUserIds: string[];
 };
 
 type EscalationData = {
   rules: EscalationRule[];
   config: EscalationConfig;
+  locations: EscalationLocation[];
+  responderCandidates: ResponderCandidate[];
 };
 
 type EscalationRuleField = "enabled" | "notifyAdmins" | "notifyRequester";
@@ -64,22 +82,35 @@ function describeRuleChange(rule: EscalationRule | undefined, field: EscalationR
 }
 
 export default function EscalationSettingsPage() {
+  const defaultConfig: EscalationConfig = {
+    maxRequesterNotificationsPerDueDate: 5,
+    maxOperationalNotificationsPerDueDate: 20,
+  };
   const { data: escalationData, loading, error, reload } = useFetch<EscalationData>({
     url: "/api/settings/escalation",
     returnTo: "/settings/escalation",
-    transform: (json) => (json.data as EscalationData) ?? { rules: [], config: { maxNotificationsPerBooking: 10 } },
+    transform: (json) => (json.data as EscalationData) ?? {
+      rules: [],
+      config: defaultConfig,
+      locations: [],
+      responderCandidates: [],
+    },
   });
   // Local state for optimistic mutation updates
   const [localRules, setLocalRules] = useState<EscalationRule[] | null>(null);
   const [localConfig, setLocalConfig] = useState<EscalationConfig | null>(null);
+  const [localLocations, setLocalLocations] = useState<EscalationLocation[] | null>(null);
   const rules = localRules ?? escalationData?.rules ?? [];
-  const config = localConfig ?? escalationData?.config ?? { maxNotificationsPerBooking: 10 };
+  const config = localConfig ?? escalationData?.config ?? defaultConfig;
+  const locations = localLocations ?? escalationData?.locations ?? [];
+  const responderCandidates = escalationData?.responderCandidates ?? [];
   // Sync local state when fetch data changes
   const [prevData, setPrevData] = useState(escalationData);
   if (escalationData !== prevData) {
     setPrevData(escalationData);
     setLocalRules(null);
     setLocalConfig(null);
+    setLocalLocations(null);
   }
   const [saving, setSaving] = useState<string | null>(null);
   const savingRef = useRef(false);
@@ -118,7 +149,7 @@ export default function EscalationSettingsPage() {
     }
   }
 
-  async function updateCap(newCap: number) {
+  async function updateCap(field: keyof EscalationConfig, newCap: number) {
     if (savingRef.current) {
       toast.info("Finish the current escalation save before changing the notification cap.");
       return;
@@ -129,12 +160,14 @@ export default function EscalationSettingsPage() {
       const res = await fetch("/api/settings/escalation", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ maxNotificationsPerBooking: newCap }),
+        body: JSON.stringify({ [field]: newCap }),
       });
       if (handleAuthRedirect(res, "/settings/escalation")) return;
       if (res.ok) {
-        setLocalConfig({ maxNotificationsPerBooking: newCap });
-        toast.success(`Notification cap set to ${newCap} per booking.`);
+        setLocalConfig({ ...config, [field]: newCap });
+        toast.success(field === "maxRequesterNotificationsPerDueDate"
+          ? `Requester cap set to ${newCap} per due date.`
+          : `Operations cap set to ${newCap} per due date.`);
       } else {
         const msg = await parseErrorMessage(res, "Update failed");
         toast.error(msg);
@@ -149,7 +182,43 @@ export default function EscalationSettingsPage() {
     }
   }
 
-  function formatHours(h: number): string {
+  async function toggleResponder(location: EscalationLocation, userId: string, checked: boolean) {
+    if (savingRef.current) {
+      toast.info("Finish the current escalation save before changing responders.");
+      return;
+    }
+    const nextIds = checked
+      ? [...new Set([...location.responderUserIds, userId])]
+      : location.responderUserIds.filter((id) => id !== userId);
+    savingRef.current = true;
+    setSaving(`responders:${location.id}`);
+    try {
+      const res = await fetch("/api/settings/escalation", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locationId: location.id, responderUserIds: nextIds }),
+      });
+      if (handleAuthRedirect(res, "/settings/escalation")) return;
+      if (!res.ok) {
+        toast.error(await parseErrorMessage(res, "Responder update failed"));
+        return;
+      }
+      setLocalLocations((current) => (current ?? locations).map((entry) =>
+        entry.id === location.id ? { ...entry, responderUserIds: nextIds } : entry
+      ));
+      toast.success(`${location.name} overdue responders updated.`);
+    } catch (err) {
+      if (isAbortError(err)) return;
+      toast.error(classifyError(err) === "network" ? "You’re offline. Check your connection." : "Responder update failed");
+    } finally {
+      savingRef.current = false;
+      setSaving(null);
+    }
+  }
+
+  function formatHours(rule: EscalationRule): string {
+    if (rule.type === "checkout_overdue_grace") return "When grace ends";
+    const h = rule.hoursFromDue;
     if (h < 0) return `${Math.abs(h)}h before due`;
     if (h === 0) return "At due time";
     return `${h}h after due`;
@@ -240,6 +309,7 @@ export default function EscalationSettingsPage() {
                 <TableHead>Trigger</TableHead>
                 <TableHead>Timing</TableHead>
                 <TableHead>Requester</TableHead>
+                <TableHead>Gear ops</TableHead>
                 <TableHead>Admins</TableHead>
                 <TableHead>Enabled</TableHead>
               </TableRow>
@@ -250,7 +320,7 @@ export default function EscalationSettingsPage() {
                   <TableCell>{rule.title}</TableCell>
                   <TableCell>
                     <span className="text-muted-foreground text-xs font-medium">
-                      {formatHours(rule.hoursFromDue)}
+                      {formatHours(rule)}
                     </span>
                   </TableCell>
                   <TableCell>
@@ -260,6 +330,11 @@ export default function EscalationSettingsPage() {
                       disabled={anySaving}
                       aria-label={`Toggle requester notifications for ${rule.title}`}
                     />
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-xs text-muted-foreground">
+                      {rule.type === "checkout_overdue_4h" || rule.type === "checkout_overdue_24h" ? "Yes" : "No"}
+                    </span>
                   </TableCell>
                   <TableCell>
                     <Switch
@@ -284,32 +359,84 @@ export default function EscalationSettingsPage() {
         </Card>
 
         {/* Fatigue controls */}
-        <Card>
+        <Card className="mb-1">
           <CardHeader><CardTitle>Fatigue Controls</CardTitle></CardHeader>
-          <div className="p-4">
-            <div className="flex gap-3 items-center">
-              <label htmlFor="cap" className="text-sm font-semibold">
-                Max notifications per booking
+          <div className="p-4 grid gap-4 md:grid-cols-2">
+            <div>
+              <label htmlFor="requester-cap" className="text-sm font-semibold">
+                Requester stages per due date
               </label>
               <Select
-                value={String(config.maxNotificationsPerBooking)}
-                onValueChange={(v) => updateCap(Number(v))}
+                value={String(config.maxRequesterNotificationsPerDueDate)}
+                onValueChange={(v) => updateCap("maxRequesterNotificationsPerDueDate", Number(v))}
                 disabled={anySaving}
               >
-                <SelectTrigger id="cap" className="w-20" aria-label="Max notifications per booking">
+                <SelectTrigger id="requester-cap" className="mt-2 w-24" aria-label="Requester notification cap per due date">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {[5, 10, 15, 20, 50].map((n) => (
+                  {[3, 4, 5, 10, 20].map((n) => (
                     <SelectItem key={n} value={String(n)}>{n}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground mt-2 m-0">Counts stages sent to the borrower, not staff fanout rows.</p>
             </div>
-            <p className="text-sm text-muted-foreground mt-2 m-0">
-              Once a booking reaches this limit, no further notifications will be sent for it.
-              This prevents alert fatigue for long-overdue items.
+            <div>
+              <label htmlFor="operations-cap" className="text-sm font-semibold">
+                Operations rows per due date
+              </label>
+              <Select
+                value={String(config.maxOperationalNotificationsPerDueDate)}
+                onValueChange={(v) => updateCap("maxOperationalNotificationsPerDueDate", Number(v))}
+                disabled={anySaving}
+              >
+                <SelectTrigger id="operations-cap" className="mt-2 w-24" aria-label="Operations notification cap per due date">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[5, 10, 20, 50, 100].map((n) => (
+                    <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-2 m-0">Caps responder and admin inbox rows without silencing the requester.</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Overdue Responders</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1 m-0">
+              These staff receive the 4-hour and 24-hour operational escalation for each checkout location. If none are selected, the active staff creator is used, then active admins.
             </p>
+          </CardHeader>
+          <div className="p-4 grid gap-5 lg:grid-cols-2">
+            {locations.map((location) => (
+              <section key={location.id} aria-labelledby={`responders-${location.id}`}>
+                <h3 id={`responders-${location.id}`} className="text-sm font-semibold mb-2">{location.name}</h3>
+                <div className="grid gap-2">
+                  {responderCandidates.map((candidate) => {
+                    const checked = location.responderUserIds.includes(candidate.id);
+                    return (
+                      <label key={candidate.id} className="flex items-start gap-2 rounded-md border p-2.5 text-sm">
+                        <Checkbox
+                          checked={checked}
+                          disabled={anySaving}
+                          onCheckedChange={(value) => toggleResponder(location, candidate.id, value === true)}
+                          aria-label={`${checked ? "Remove" : "Add"} ${candidate.name} as ${location.name} overdue responder`}
+                        />
+                        <span className="min-w-0">
+                          <span className="block font-medium">{candidate.name}</span>
+                          <span className="block truncate text-xs text-muted-foreground">{candidate.role === "ADMIN" ? "Admin" : "Staff"} · {candidate.email}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
         </Card>
     </SettingsPageShell>

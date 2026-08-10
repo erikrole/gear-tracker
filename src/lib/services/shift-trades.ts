@@ -100,6 +100,31 @@ async function notify(
 /** Who is performing a trade mutation. Role gates staff-on-behalf actions. */
 export type TradeActor = { id: string; role?: string | null };
 
+type TradePushJob = {
+  userId: string;
+  title: string;
+  body: string;
+  payload: Record<string, unknown>;
+};
+
+async function dispatchTradeSideEffects({
+  pushJobs,
+  emailJobs,
+}: {
+  pushJobs: TradePushJob[];
+  emailJobs: ShiftTradeEmail[];
+}) {
+  await Promise.allSettled(pushJobs.map((job) =>
+    sendPushToUser(job.userId, {
+      title: job.title,
+      body: job.body,
+      payload: job.payload,
+      category: "trade",
+    }),
+  ));
+  await sendShiftTradeEmails(emailJobs);
+}
+
 function isTradeManager(actor: TradeActor): boolean {
   return actor.role === "STAFF" || actor.role === "ADMIN";
 }
@@ -115,7 +140,7 @@ export async function postTrade(
   actor: TradeActor,
   notes?: string
 ) {
-  const pushJobs: Array<{ userId: string; title: string; body: string; payload: Record<string, unknown> }> = [];
+  const pushJobs: TradePushJob[] = [];
   const emailJobs: ShiftTradeEmail[] = [];
 
   const result = await db.$transaction(async (tx) => {
@@ -205,15 +230,7 @@ export async function postTrade(
     return trade;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
-  await Promise.allSettled(pushJobs.map((job) =>
-    sendPushToUser(job.userId, {
-      title: job.title,
-      body: job.body,
-      payload: job.payload,
-      category: "trade",
-    }),
-  ));
-  await sendShiftTradeEmails(emailJobs);
+  await dispatchTradeSideEffects({ pushJobs, emailJobs });
   return result;
 }
 
@@ -222,7 +239,7 @@ export async function postTrade(
  */
 export async function claimTrade(tradeId: string, userId: string) {
   const emailJobs: ShiftTradeEmail[] = [];
-  const pushJobs: Array<{ userId: string; title: string; body: string; payload: Record<string, unknown> }> = [];
+  const pushJobs: TradePushJob[] = [];
   const badgeJobs: Array<Parameters<typeof badges.onTradeCompleted>[0]> = [];
 
   // Two students claiming the same trade is the expected race here, so a lost
@@ -320,6 +337,12 @@ export async function claimTrade(tradeId: string, userId: string) {
 
     const title = "Your trade is done";
     const body = `${completed.claimedBy?.name ?? "Someone"} took your ${shift.area} shift for ${eventSummary}.`;
+    const payload = scheduleNotificationPayload({
+      tradeId,
+      assignmentId: completed.shiftAssignment.id,
+      shiftId: completed.shiftAssignment.shift.id,
+      eventId: completed.shiftAssignment.shift.shiftGroup.event.id,
+    });
 
     // Notify poster: trade completed
     await notify(
@@ -328,23 +351,13 @@ export async function claimTrade(tradeId: string, userId: string) {
       title,
       body,
       `trade_completed_${tradeId}`,
-      scheduleNotificationPayload({
-        tradeId,
-        assignmentId: completed.shiftAssignment.id,
-        shiftId: completed.shiftAssignment.shift.id,
-        eventId: completed.shiftAssignment.shift.shiftGroup.event.id,
-      }),
+      payload,
     );
     pushJobs.push({
       userId: trade.postedByUserId,
       title,
       body,
-      payload: scheduleNotificationPayload({
-        tradeId,
-        assignmentId: completed.shiftAssignment.id,
-        shiftId: completed.shiftAssignment.shift.id,
-        eventId: completed.shiftAssignment.shift.shiftGroup.event.id,
-      }),
+      payload,
     });
     emailJobs.push({
       userId: trade.postedByUserId,
@@ -364,15 +377,7 @@ export async function claimTrade(tradeId: string, userId: string) {
   });
 
   await Promise.all(badgeJobs.map((event) => badges.onTradeCompleted(event)));
-  await Promise.allSettled(pushJobs.map((job) =>
-    sendPushToUser(job.userId, {
-      title: job.title,
-      body: job.body,
-      payload: job.payload,
-      category: "trade",
-    }),
-  ));
-  await sendShiftTradeEmails(emailJobs);
+  await dispatchTradeSideEffects({ pushJobs, emailJobs });
   return result;
 }
 
@@ -381,7 +386,7 @@ export async function claimTrade(tradeId: string, userId: string) {
  */
 export async function approveTrade(tradeId: string) {
   const emailJobs: ShiftTradeEmail[] = [];
-  const pushJobs: Array<{ userId: string; title: string; body: string; payload: Record<string, unknown> }> = [];
+  const pushJobs: TradePushJob[] = [];
   const badgeJobs: Array<Parameters<typeof badges.onTradeCompleted>[0]> = [];
 
   const result = await db.$transaction(async (tx) => {
@@ -427,6 +432,12 @@ export async function approveTrade(tradeId: string) {
 
     const title = "Trade approved";
     const body = `Your trade for ${area} at ${eventSummary} was approved. You're on the schedule.`;
+    const payload = scheduleNotificationPayload({
+      tradeId,
+      assignmentId: trade.shiftAssignment.id,
+      shiftId: trade.shiftAssignment.shift.id,
+      eventId: trade.shiftAssignment.shift.shiftGroup.event.id,
+    });
 
     // Notify claimer: swap is confirmed
     await notify(
@@ -435,23 +446,13 @@ export async function approveTrade(tradeId: string) {
       title,
       body,
       `trade_approved_${tradeId}`,
-      scheduleNotificationPayload({
-        tradeId,
-        assignmentId: trade.shiftAssignment.id,
-        shiftId: trade.shiftAssignment.shift.id,
-        eventId: trade.shiftAssignment.shift.shiftGroup.event.id,
-      }),
+      payload,
     );
     pushJobs.push({
       userId: trade.claimedByUserId,
       title,
       body,
-      payload: scheduleNotificationPayload({
-        tradeId,
-        assignmentId: trade.shiftAssignment.id,
-        shiftId: trade.shiftAssignment.shift.id,
-        eventId: trade.shiftAssignment.shift.shiftGroup.event.id,
-      }),
+      payload,
     });
     emailJobs.push({
       userId: trade.claimedByUserId,
@@ -465,15 +466,7 @@ export async function approveTrade(tradeId: string) {
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   await Promise.all(badgeJobs.map((event) => badges.onTradeCompleted(event)));
-  await Promise.allSettled(pushJobs.map((job) =>
-    sendPushToUser(job.userId, {
-      title: job.title,
-      body: job.body,
-      payload: job.payload,
-      category: "trade",
-    }),
-  ));
-  await sendShiftTradeEmails(emailJobs);
+  await dispatchTradeSideEffects({ pushJobs, emailJobs });
   return result;
 }
 
@@ -482,7 +475,7 @@ export async function approveTrade(tradeId: string) {
  */
 export async function declineTrade(tradeId: string) {
   const emailJobs: ShiftTradeEmail[] = [];
-  const pushJobs: Array<{ userId: string; title: string; body: string; payload: Record<string, unknown> }> = [];
+  const pushJobs: TradePushJob[] = [];
 
   const result = await db.$transaction(async (tx) => {
     const trade = await tx.shiftTrade.findUnique({
@@ -517,6 +510,12 @@ export async function declineTrade(tradeId: string) {
       const eventSummary = trade.shiftAssignment.shift.shiftGroup?.event?.summary ?? "the event";
       const title = "Trade claim declined";
       const body = `Your claim for ${area} at ${eventSummary} was declined. The shift is back on the trade board.`;
+      const payload = scheduleNotificationPayload({
+        tradeId,
+        assignmentId: trade.shiftAssignment.id,
+        shiftId: trade.shiftAssignment.shift.id,
+        eventId: trade.shiftAssignment.shift.shiftGroup.event.id,
+      });
 
       await notify(
         trade.claimedByUserId,
@@ -524,23 +523,13 @@ export async function declineTrade(tradeId: string) {
         title,
         body,
         `trade_declined_${tradeId}_${Date.now()}`,
-        scheduleNotificationPayload({
-          tradeId,
-          assignmentId: trade.shiftAssignment.id,
-          shiftId: trade.shiftAssignment.shift.id,
-          eventId: trade.shiftAssignment.shift.shiftGroup.event.id,
-        }),
+        payload,
       );
       pushJobs.push({
         userId: trade.claimedByUserId,
         title,
         body,
-        payload: scheduleNotificationPayload({
-          tradeId,
-          assignmentId: trade.shiftAssignment.id,
-          shiftId: trade.shiftAssignment.shift.id,
-          eventId: trade.shiftAssignment.shift.shiftGroup.event.id,
-        }),
+        payload,
       });
       emailJobs.push({
         userId: trade.claimedByUserId,
@@ -554,15 +543,7 @@ export async function declineTrade(tradeId: string) {
     return updated;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
-  await Promise.allSettled(pushJobs.map((job) =>
-    sendPushToUser(job.userId, {
-      title: job.title,
-      body: job.body,
-      payload: job.payload,
-      category: "trade",
-    }),
-  ));
-  await sendShiftTradeEmails(emailJobs);
+  await dispatchTradeSideEffects({ pushJobs, emailJobs });
   return result;
 }
 
@@ -571,7 +552,7 @@ export async function declineTrade(tradeId: string) {
  * staff/admin can remove any post from the Trade Board (the owner is told).
  */
 export async function cancelTrade(tradeId: string, actor: TradeActor) {
-  const pushJobs: Array<{ userId: string; title: string; body: string; payload: Record<string, unknown> }> = [];
+  const pushJobs: TradePushJob[] = [];
   const emailJobs: ShiftTradeEmail[] = [];
 
   const result = await db.$transaction(async (tx) => {
@@ -632,15 +613,7 @@ export async function cancelTrade(tradeId: string, actor: TradeActor) {
     return updated;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
-  await Promise.allSettled(pushJobs.map((job) =>
-    sendPushToUser(job.userId, {
-      title: job.title,
-      body: job.body,
-      payload: job.payload,
-      category: "trade",
-    }),
-  ));
-  await sendShiftTradeEmails(emailJobs);
+  await dispatchTradeSideEffects({ pushJobs, emailJobs });
   return result;
 }
 
@@ -719,11 +692,19 @@ export async function listTrades(filters: {
   const availabilityUsers = availabilityUserIds.size > 0
     ? await db.user.findMany({
       where: { id: { in: [...availabilityUserIds] } },
-      select: { id: true, availabilityBlocks: { select: availabilityBlockSelect } },
+      select: {
+        id: true,
+        role: true,
+        staffingType: true,
+        active: true,
+        primaryArea: true,
+        availabilityBlocks: { select: availabilityBlockSelect },
+      },
     })
     : [];
-  const availabilityByUserId = new Map(availabilityUsers.map((user) => [user.id, user.availabilityBlocks]));
-  const viewerBlocks = filters.userId ? availabilityByUserId.get(filters.userId) ?? [] : [];
+  const usersById = new Map(availabilityUsers.map((user) => [user.id, user]));
+  const viewer = filters.userId ? usersById.get(filters.userId) ?? null : null;
+  const viewerBlocks = viewer?.availabilityBlocks ?? [];
 
   return {
     data: data.map((trade) => {
@@ -732,13 +713,34 @@ export async function listTrades(filters: {
         ? availabilityContextFromBlocks(viewerBlocks, window)
         : null;
       const claimedByAvailabilityContext = trade.claimedByUserId
-        ? availabilityContextFromBlocks(availabilityByUserId.get(trade.claimedByUserId) ?? [], window)
+        ? availabilityContextFromBlocks(usersById.get(trade.claimedByUserId)?.availabilityBlocks ?? [], window)
         : null;
+      let viewerCanClaim = false;
+      let viewerClaimReason: string | null = null;
+      if (trade.status !== "OPEN") {
+        viewerClaimReason = "This trade is not open";
+      } else if (!filters.userId || !viewer) {
+        viewerClaimReason = "Your scheduling profile is unavailable";
+      } else if (trade.postedByUserId === filters.userId) {
+        viewerClaimReason = "You posted this trade";
+      } else if (!viewer.active) {
+        viewerClaimReason = "Inactive users cannot claim shifts";
+      } else if (shiftWorkerTypeForProfile(viewer) !== trade.shiftAssignment.shift.workerType) {
+        viewerClaimReason = "Your scheduling class does not match this shift";
+      } else if (viewer.primaryArea && viewer.primaryArea !== trade.shiftAssignment.shift.area) {
+        viewerClaimReason = `Your primary area (${viewer.primaryArea}) does not match this shift's area (${trade.shiftAssignment.shift.area})`;
+      } else if (viewerAvailabilityContext?.blocking) {
+        viewerClaimReason = viewerAvailabilityContext.detail;
+      } else {
+        viewerCanClaim = true;
+      }
 
       return {
         ...trade,
         viewerAvailabilityContext,
         claimedByAvailabilityContext,
+        viewerCanClaim,
+        viewerClaimReason,
       };
     }),
     total,

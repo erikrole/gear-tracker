@@ -12,6 +12,11 @@ import {
   requireActiveCollaboratorPolicy,
 } from "@/lib/collaborator-access";
 import { collaboratorPolicyActorSelect } from "@/lib/services/collaborator-policies";
+import { issueCompanionSession } from "@/lib/companion-store";
+import {
+  projectionForRole,
+  refreshCompanionProjection,
+} from "@/lib/services/companion-projection";
 
 // Per-account limit is the real brute-force defense; the per-IP ceiling is a
 // generous backstop sized so a shared office/campus NAT (many users behind one
@@ -57,7 +62,10 @@ export const POST = withHandler(async (req) => {
 
   const collaboratorPolicy = collaboratorPolicyMetadataForActor(user);
 
-  await createSession(user.id, body.rememberMe ?? false);
+  const companionLogin = body.companion === true;
+  if (!companionLogin) {
+    await createSession(user.id, body.rememberMe ?? false);
+  }
 
   await createAuditEntry({
     actorId: user.id,
@@ -68,18 +76,34 @@ export const POST = withHandler(async (req) => {
     after: { ip },
   });
 
-  return ok({
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      affiliation: collaboratorPolicy?.affiliationKey ?? user.affiliation,
-      collaboratorProfile: compatibilityCollaboratorProfile(collaboratorPolicy, user.collaboratorProfile),
-      collaboratorPolicy,
-      capabilities: capabilitiesForActor(user),
-      staffingType: user.staffingType,
-      forcePasswordChange: user.forcePasswordChange,
+  const responseUser = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    affiliation: collaboratorPolicy?.affiliationKey ?? user.affiliation,
+    collaboratorProfile: compatibilityCollaboratorProfile(collaboratorPolicy, user.collaboratorProfile),
+    collaboratorPolicy,
+    capabilities: capabilitiesForActor(user),
+    staffingType: user.staffingType,
+    forcePasswordChange: user.forcePasswordChange,
+  };
+
+  if (companionLogin) {
+    if (user.role !== "ADMIN" && user.role !== "STAFF") {
+      throw new HttpError(403, "The companion is available to staff accounts only.");
     }
-  });
+    // Enrollment is an explicit user action that already woke Neon. Build the
+    // external projection before responding so the companion never needs a
+    // database-backed bootstrap request.
+    const projection = await refreshCompanionProjection({ notify: false });
+    const companionToken = await issueCompanionSession(user);
+    return ok({
+      user: responseUser,
+      companionToken,
+      companionProjection: projectionForRole(projection, user.role),
+    });
+  }
+
+  return ok({ user: responseUser });
 });
