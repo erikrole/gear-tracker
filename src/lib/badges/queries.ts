@@ -1,10 +1,17 @@
 import { BadgeCategory, BadgeKind, BadgeStreakType, BookingKind, BookingStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { env } from "@/lib/env";
 import type { AuthUser } from "@/lib/auth";
 import { HttpError } from "@/lib/http";
 import { normalizePrefs } from "@/lib/services/notification-prefs";
 import { ON_TIME_GRACE_MS } from "./types";
 import { getBadgeRarity } from "./display";
+import {
+  automaticCheckoutRuleKeys,
+  automaticMeasuredRuleKeys,
+  checkoutAutomaticRuleCounts,
+  shiftAutomaticRuleCounts,
+} from "./automatic-rules";
 
 type CustomBadgeDefinitionInput = {
   name: string;
@@ -34,6 +41,18 @@ type BadgeProgress = {
   target: number;
 };
 
+export type EarnedBadge = {
+  id: string;
+  definitionId: string;
+  key: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: string;
+  rarity: ReturnType<typeof getBadgeRarity>;
+  awardedAt: string;
+};
+
 export async function listActiveBadgeDefinitions(where?: { trigger?: string }) {
   return db.badgeDefinition.findMany({
     where: { active: true, ...where },
@@ -45,6 +64,74 @@ export async function countEarnedBadges(userId: string) {
   return db.studentBadge.count({
     where: { userId },
   });
+}
+
+export async function listEarnedBadgesSince(args: {
+  userId: string;
+  after: Date;
+  through: Date;
+}): Promise<EarnedBadge[]> {
+  const awards = await db.studentBadge.findMany({
+    where: {
+      userId: args.userId,
+      awardedAt: { gt: args.after, lte: args.through },
+    },
+    orderBy: [{ awardedAt: "asc" }, { id: "asc" }],
+    select: {
+      id: true,
+      awardedAt: true,
+      definition: {
+        select: {
+          id: true,
+          key: true,
+          name: true,
+          description: true,
+          icon: true,
+          category: true,
+          kind: true,
+          trigger: true,
+          threshold: true,
+          createdAt: true,
+        },
+      },
+    },
+  });
+
+  if (awards.length === 0) return [];
+
+  const definitionIds = awards.map((award) => award.definition.id);
+  const [holderCounts, eligibleUsers] = await Promise.all([
+    db.studentBadge.groupBy({
+      by: ["definitionId"],
+      where: { definitionId: { in: definitionIds } },
+      _count: { userId: true },
+    }),
+    db.user.count({ where: { active: true } }),
+  ]);
+  const holdersByDefinition = new Map(
+    holderCounts.map((row) => [row.definitionId, row._count.userId]),
+  );
+
+  return awards.map((award) => ({
+    id: award.id,
+    definitionId: award.definition.id,
+    key: award.definition.key,
+    name: award.definition.name,
+    description: award.definition.description,
+    icon: award.definition.icon,
+    category: award.definition.category,
+    rarity: getBadgeRarity({
+      key: award.definition.key,
+      category: award.definition.category,
+      kind: award.definition.kind,
+      trigger: award.definition.trigger,
+      threshold: award.definition.threshold,
+      holders: holdersByDefinition.get(award.definition.id) ?? 0,
+      eligible: eligibleUsers,
+      createdAt: award.definition.createdAt,
+    }),
+    awardedAt: award.awardedAt.toISOString(),
+  }));
 }
 
 function slugifyBadgeName(name: string) {
@@ -133,35 +220,37 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
   const needsCheckoutOpened = thresholdDefinitions.some((definition) => definition.trigger === "checkout:opened");
   const needsOnTimeReturns = thresholdDefinitions.some((definition) => definition.ruleKey === "on_time_return");
   const needsTrades = thresholdDefinitions.some((definition) => definition.trigger === "trade:completed");
-  const needsCategories = thresholdDefinitions.some((definition) => definition.ruleKey === "category_collector");
+  const needsCheckoutRuleEvidence = thresholdDefinitions.some((definition) => (
+    definition.ruleKey === "category_collector"
+    || (definition.ruleKey !== null && automaticCheckoutRuleKeys.includes(
+      definition.ruleKey as typeof automaticCheckoutRuleKeys[number],
+    ))
+  ));
   const needsDamageFree = thresholdDefinitions.some((definition) => definition.ruleKey === "damage_free_return");
   const needsShifts = thresholdDefinitions.some((definition) => definition.trigger === "shift:completed");
   const streakTypes = new Set<BadgeStreakType>();
 
   for (const definition of thresholdDefinitions) {
-    if (definition.trigger === "scan:success") streakTypes.add(BadgeStreakType.SCAN_SUCCESS_COUNT);
-    if (definition.ruleKey === "zero_errors") streakTypes.add(BadgeStreakType.SCAN_CLEAN);
     if (definition.ruleKey === "on_time_return_streak") streakTypes.add(BadgeStreakType.ON_TIME_RETURN);
   }
 
   const [
-    checkoutOpenedCount,
+    checkoutOpenedReceipts,
     completedCheckouts,
     tradeCount,
     streaks,
-    categoryRows,
     damageFreeCount,
-    shiftsWorkedCount,
+    workedAssignments,
   ] = await Promise.all([
-    needsCheckoutOpened
-      ? db.booking.count({
+    needsCheckoutOpened || needsCheckoutRuleEvidence
+      ? db.badgeEventReceipt.findMany({
           where: {
-            requesterUserId: userId,
-            kind: BookingKind.CHECKOUT,
-            status: { in: [BookingStatus.OPEN, BookingStatus.COMPLETED] },
+            userId,
+            eventType: "checkout_opened",
           },
+          select: { sourceKey: true },
         })
-      : Promise.resolve(0),
+      : Promise.resolve([]),
     needsOnTimeReturns
       ? db.booking.findMany({
           where: {
@@ -192,19 +281,6 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
           select: { streakType: true, current: true, longest: true },
         })
       : Promise.resolve([]),
-    needsCategories
-      ? db.booking.findMany({
-          where: {
-            requesterUserId: userId,
-            kind: BookingKind.CHECKOUT,
-            status: { in: [BookingStatus.OPEN, BookingStatus.COMPLETED] },
-          },
-          select: {
-            serializedItems: { select: { asset: { select: { categoryId: true } } } },
-            bulkItems: { select: { bulkSku: { select: { categoryId: true } } } },
-          },
-        })
-      : Promise.resolve([]),
     needsDamageFree
       ? db.booking.count({
           where: {
@@ -216,24 +292,62 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
         })
       : Promise.resolve(0),
     needsShifts
-      ? db.shiftAssignment.count({
+      ? db.shiftAssignment.findMany({
           where: {
             userId,
             status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
             shift: { shiftGroup: { event: { endsAt: { lt: new Date() }, status: "CONFIRMED" } } },
           },
+          select: {
+            callStartsAt: true,
+            shift: {
+              select: {
+                startsAt: true,
+                callStartsAt: true,
+                shiftGroup: { select: { event: { select: { isHome: true } } } },
+              },
+            },
+          },
         })
-      : Promise.resolve(0),
+      : Promise.resolve([]),
   ]);
 
-  const distinctCategoryCount = new Set(
-    categoryRows.flatMap((booking) =>
-      [
-        ...booking.serializedItems.map((item) => item.asset.categoryId),
-        ...(booking.bulkItems ?? []).map((item) => item.bulkSku.categoryId),
-      ].filter((id): id is string => Boolean(id)),
-    ),
-  ).size;
+  const checkoutOpenedCount = checkoutOpenedReceipts.length;
+  const openedBookingIds = checkoutOpenedReceipts.map((receipt) => receipt.sourceKey);
+  const creditedCheckoutRows = needsCheckoutRuleEvidence && openedBookingIds.length > 0
+    ? await db.booking.findMany({
+        where: {
+          id: { in: openedBookingIds },
+          kind: BookingKind.CHECKOUT,
+          status: { in: [BookingStatus.OPEN, BookingStatus.COMPLETED] },
+        },
+        select: {
+          serializedItems: {
+            select: {
+              asset: {
+                select: {
+                  category: { select: { id: true, name: true, parent: { select: { name: true } } } },
+                },
+              },
+            },
+          },
+          bulkItems: {
+            select: {
+              checkedOutQuantity: true,
+              bulkSku: {
+                select: {
+                  categoryRel: { select: { id: true, name: true, parent: { select: { name: true } } } },
+                },
+              },
+            },
+          },
+        },
+      })
+    : [];
+  const measuredRuleCounts = new Map([
+    ...checkoutAutomaticRuleCounts(creditedCheckoutRows),
+    ...shiftAutomaticRuleCounts(workedAssignments, env.appTimezone),
+  ]);
 
   const onTimeReturnCount = completedCheckouts.filter(
     (booking) => (booking.completedAt ?? booking.updatedAt).getTime() <= booking.endsAt.getTime() + ON_TIME_GRACE_MS,
@@ -248,13 +362,14 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
     // triggers that already mean something else, so testing the trigger first
     // would report a checkout total as category breadth.
     let current: number | null = null;
-    if (definition.ruleKey === "category_collector") current = distinctCategoryCount;
+    if (definition.ruleKey === "category_collector") current = measuredRuleCounts.get("category_collector") ?? 0;
+    else if (definition.ruleKey !== null && automaticMeasuredRuleKeys.has(definition.ruleKey)) {
+      current = measuredRuleCounts.get(definition.ruleKey) ?? 0;
+    }
     else if (definition.ruleKey === "damage_free_return") current = damageFreeCount;
     else if (definition.ruleKey === "on_time_return") current = onTimeReturnCount;
-    else if (definition.trigger === "shift:completed") current = shiftsWorkedCount;
+    else if (definition.trigger === "shift:completed") current = workedAssignments.length;
     else if (definition.trigger === "checkout:opened") current = checkoutOpenedCount;
-    else if (definition.trigger === "scan:success") current = streakMap.get(BadgeStreakType.SCAN_SUCCESS_COUNT)?.current ?? 0;
-    else if (definition.ruleKey === "zero_errors") current = streakMap.get(BadgeStreakType.SCAN_CLEAN)?.current ?? 0;
     else if (definition.ruleKey === "on_time_return_streak") current = streakMap.get(BadgeStreakType.ON_TIME_RETURN)?.current ?? 0;
     else if (definition.trigger === "trade:completed") current = tradeCount;
 
@@ -290,7 +405,7 @@ export async function getUserBadgeProfile(viewer: AuthUser, userId: string) {
     throw new HttpError(403, "Badge visibility is disabled for peers");
   }
 
-  const definitions = await db.badgeDefinition.findMany({
+  const loadDefinitions = () => db.badgeDefinition.findMany({
     where: {
       OR: [
         { active: true },
@@ -313,19 +428,44 @@ export async function getUserBadgeProfile(viewer: AuthUser, userId: string) {
     },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
+  let definitions = await loadDefinitions();
 
   // Rarity is now a fact about how many people hold a badge, so it needs the
   // holder counts and the eligible population alongside the definitions. Both
   // are cheap aggregates and neither depends on the viewer.
-  const [progressByKey, holderCounts, eligibleUsers, streakRows] = await Promise.all([
+  const [progressByKey, eligibleUsers, streakRows] = await Promise.all([
     getProgressByBadgeKey(userId, definitions),
-    db.studentBadge.groupBy({ by: ["definitionId"], _count: { userId: true } }),
     db.user.count({ where: { active: true } }),
     db.badgeStreak.findMany({
       where: { userId },
       select: { streakType: true, current: true, longest: true, lastEventAt: true },
     }),
   ]);
+
+  // An evaluator failure, a newly activated definition, or a nightly shift
+  // delay must never render a completed goal as locked. Repair any automatic
+  // threshold award whose same server-derived progress has reached its target,
+  // then reload the award rows before building the response.
+  const completedUnawardedDefinitionIds = definitions
+    .filter((definition) => {
+      if (!definition.active || definition.awards.length > 0 || definition.trigger === "manual") return false;
+      const progress = progressByKey.get(definition.key);
+      return Boolean(progress && progress.current >= progress.target);
+    })
+    .map((definition) => definition.id);
+
+  if (completedUnawardedDefinitionIds.length > 0) {
+    await db.studentBadge.createMany({
+      data: completedUnawardedDefinitionIds.map((definitionId) => ({ userId, definitionId })),
+      skipDuplicates: true,
+    });
+    definitions = await loadDefinitions();
+  }
+
+  const holderCounts = await db.studentBadge.groupBy({
+    by: ["definitionId"],
+    _count: { userId: true },
+  });
   const holdersByDefinition = new Map(holderCounts.map((row) => [row.definitionId, row._count.userId]));
 
   const badges = definitions.map((definition) => {
@@ -377,7 +517,7 @@ export async function getUserBadgeProfile(viewer: AuthUser, userId: string) {
     // to nobody: `BadgeStreak` has held current and longest per user since the
     // beginning, read only to fill a progress bar.
     streaks: streakRows
-      .filter((row) => row.streakType !== "SCAN_SUCCESS_COUNT")
+      .filter((row) => row.streakType !== "SCAN_SUCCESS_COUNT" && row.streakType !== "SCAN_CLEAN")
       .map((row) => ({
         type: row.streakType,
         current: row.current,

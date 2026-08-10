@@ -4,9 +4,18 @@ import { upsertBulkBalancesAndMovements } from "@/lib/services/bookings-helpers"
 import { effectiveBulkUnitStatus } from "@/lib/bulk-unit-status";
 import { parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
 import { HttpError } from "@/lib/http";
-import type { BadgeScanErrorCode } from "@/lib/badges/types";
 
 type TxClient = Prisma.TransactionClient;
+
+type KioskScanErrorCode =
+  | "not_found"
+  | "not_in_booking"
+  | "duplicate"
+  | "wrong_status"
+  | "already_checked_out"
+  | "already_returned"
+  | "not_checked_out"
+  | "quantity_exceeded";
 
 type NumberedBulkSku = {
   id: string;
@@ -37,7 +46,7 @@ type BulkUnitScanItem = {
 type KioskUnitScanResult =
   | { handled: false }
   | { handled: true; success: true; item: BulkUnitScanItem }
-  | { handled: true; success: false; error: string; errorCode: BadgeScanErrorCode };
+  | { handled: true; success: false; error: string; errorCode: KioskScanErrorCode };
 
 function unitDisplayName(skuName: string, unitNumber: number) {
   return `${skuName} #${unitNumber}`;

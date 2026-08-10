@@ -37,6 +37,10 @@ import { BOOKING_CHANGE_SYNC_EVENT } from "@/hooks/use-booking-change-sync";
 import { NOTIFICATION_COUNT_CHANGED_EVENT } from "@/lib/notification-count-sync";
 import { ProfileCompletionWizard } from "@/components/profile-completion/ProfileCompletionWizard";
 import { hasDashboardCountFailure } from "@/app/(app)/dashboard-types";
+import {
+  BadgeEarnedCelebration,
+  type EarnedBadgeReward,
+} from "@/components/badges/BadgeEarnedCelebration";
 
 type EntitySearchResult = {
   type: "item" | "checkout" | "reservation" | "user";
@@ -95,6 +99,13 @@ type DashboardStatsBadgeResponse = {
     myDueTodayCount?: unknown;
   };
   partialFailures?: unknown[];
+};
+
+type RecentBadgeAwardsResponse = {
+  data?: {
+    awards?: EarnedBadgeReward[];
+    nextCursor?: string;
+  };
 };
 
 function dashboardBadgeCountsAreTrusted(response: DashboardStatsBadgeResponse | null) {
@@ -181,6 +192,7 @@ export default function AppShell({
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [overdueBadgeCount, setOverdueBadgeCount] = useState(0);
   const [dueTodayBadgeCount, setDueTodayBadgeCount] = useState(0);
+  const [earnedBadgeQueue, setEarnedBadgeQueue] = useState<EarnedBadgeReward[]>([]);
 
   useEffect(() => {
     if (!isLoading && !user) router.replace("/login");
@@ -191,6 +203,97 @@ export default function AppShell({
     const allowed = collaboratorCanVisit(pathname, user);
     if (!allowed) router.replace("/");
   }, [isCollaborator, pathname, router, user]);
+
+  useEffect(() => {
+    if (!user || user.role === "COLLABORATOR") return;
+
+    const cursorKey = `gear-tracker:badge-reward-cursor:${user.id}`;
+    let stopped = false;
+    let loading = false;
+    let memoryCursor: string | null = null;
+
+    async function loadEarnedBadges() {
+      if (loading || document.visibilityState === "hidden") return;
+      loading = true;
+
+      try {
+        let after = memoryCursor;
+        try {
+          after = localStorage.getItem(cursorKey) ?? after;
+        } catch {
+          // Keep polling with the in-memory cursor when storage is unavailable.
+        }
+        const search = after ? `?after=${encodeURIComponent(after)}` : "";
+        const response = await fetch(`/api/badges/recent${search}`);
+        if (response.status === 400 && after) {
+          memoryCursor = null;
+          try { localStorage.removeItem(cursorKey); } catch { /* storage unavailable */ }
+          return;
+        }
+        if (handleAuthRedirect(response, pathname) || !response.ok || stopped) return;
+
+        const json = await parseJsonSafely<RecentBadgeAwardsResponse>(response);
+        const nextCursor = json?.data?.nextCursor;
+        if (typeof nextCursor === "string") {
+          memoryCursor = nextCursor;
+          try { localStorage.setItem(cursorKey, nextCursor); } catch { /* storage unavailable */ }
+        }
+
+        const awards = Array.isArray(json?.data?.awards) ? json.data.awards : [];
+        if (awards.length > 0 && !stopped) {
+          setEarnedBadgeQueue((current) => {
+            const seen = new Set(current.map((badge) => badge.id));
+            return [...current, ...awards.filter((badge) => !seen.has(badge.id))];
+          });
+        }
+      } catch {
+        // Reward chrome is ambient. Keep the cursor and retry on the next poll.
+      } finally {
+        loading = false;
+      }
+    }
+
+    function hasRewardCursor() {
+      if (memoryCursor) return true;
+      try {
+        return Boolean(localStorage.getItem(cursorKey));
+      } catch {
+        return false;
+      }
+    }
+
+    async function refreshBadgeRewards() {
+      // Establish the no-replay cursor before a foreground easter egg can
+      // create an award, then immediately read again so the reward cannot be
+      // skipped by first-load cursor initialization.
+      await loadEarnedBadges();
+      if (!hasRewardCursor()) {
+        // A malformed cursor is cleared by the first read. Establish a fresh
+        // boundary before allowing this foreground event to mint an award.
+        await loadEarnedBadges();
+      }
+      if (!hasRewardCursor()) return;
+      try {
+        await fetch("/api/badges/events/app-open", { method: "POST" });
+      } catch {
+        // Easter eggs are ambient. Reward polling continues normally.
+      }
+      await loadEarnedBadges();
+    }
+
+    void refreshBadgeRewards();
+    const interval = window.setInterval(loadEarnedBadges, 15_000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void refreshBadgeRewards();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      stopped = true;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [pathname, user]);
 
   // Badge counts — refresh on navigation so counts stay fresh after user actions
   useEffect(() => {
@@ -475,6 +578,14 @@ export default function AppShell({
 
       {/* Command palette */}
       {pathname !== "/welcome" && <ProfileCompletionWizard />}
+
+      {earnedBadgeQueue[0] && (
+        <BadgeEarnedCelebration
+          reward={earnedBadgeQueue[0]}
+          remaining={earnedBadgeQueue.length - 1}
+          onDismiss={() => setEarnedBadgeQueue((current) => current.slice(1))}
+        />
+      )}
 
       {!isCollaborator && <CommandDialog open={cmdOpen} onOpenChange={(open) => { setCmdOpen(open); if (!open) { setCmdQuery(""); setCmdResults([]); setCmdError(null); setCmdPartialFailures([]); } }}>
         <CommandInput placeholder="Search tag, borrower, page, setting, report..." value={cmdQuery} onValueChange={setCmdQuery} />

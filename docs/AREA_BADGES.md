@@ -1,27 +1,28 @@
-# AREA: Student Badge Achievements
+# AREA: User Badge Achievements
 
 ## Document Control
 - Area: Badges
 - Owner: Wisconsin Athletics Creative Product
 - Created: 2026-05-09
-- Last Updated: 2026-07-31
-- Status: Active, Badge Achievements MVP verified with feature flag off-safe behavior
+- Last Updated: 2026-08-10
+- Status: Active, reward celebrations implemented locally; migration and runtime rollout pending
 - Plan: `tasks/badge-achievements-plan.md`
 - Decision Refs: D-034
 
 ## Direction
-Badges are lightweight recognition for every active user inside the existing ops app. Staff and admins earn badges on the same profile surface as students. Badges are earned from real domain outcomes, not from route visits, timers, or cron jobs.
+Badges are lightweight recognition for every active user inside the existing ops app. Staff and admins earn badges on the same profile surface as students. Automatic badges come only from durable facts Gear Tracker already captures. Hidden easter eggs may come from a signed-in app foreground event only when the server evaluates the condition from trusted time.
 
 ## Core Rules
 1. `BADGES_ENABLED !== "true"` returns before any badge evaluator work, database query, or side effect.
-2. Badge events attach to service-level outcomes: kiosk checkout/pickup open, checkout return completion, kiosk scan result, and trade completion. Badges are never awarded for time passing, a route visit, or a page view. **Narrowed 2026-07-22:** shift work has no request to attach to -- nothing calls the server when a game ends -- so `onShiftsWorked` is evaluated nightly from `morning-refresh`, which already identifies events that have ended. The cron is when the outcome is noticed, not the outcome itself; the shift genuinely happened. This is the only evaluator without a request-scoped trigger, and it is idempotent by construction rather than by `sourceKey`.
+2. Operational badge events attach to service-level outcomes: kiosk checkout/pickup open, checkout return completion, trade completion, and a confirmed assigned shift ending. `onShiftsWorked` is evaluated nightly from `morning-refresh`; the cron is when the completed assignment is noticed, not the earning event. A narrow easter-egg exception accepts authenticated app foreground events, but the server's institution timezone decides whether a hidden rule matches.
 3. Legacy app checkout scan stubs remain non-events. They stay kiosk-gated 403 routes and award nothing.
 4. Badge definitions are seeded by immutable `key`. Typos are fixed by retiring a definition with `active=false` and creating a new key.
 5. User awards are idempotent by `(userId, definitionId)`.
-6. Streak updates are idempotent by `sourceKey`; repeated handling of the same domain event is a no-op.
-7. Launch has no retroactive backfill. Existing history does not award badges until events happen after enablement.
+6. Request-scoped badge events claim a durable `BadgeEventReceipt` keyed by user, event type, and canonical source before changing any counter. Checkout and return use the booking ID, trade uses the trade ID, and app open uses the date plus eligible hour in the configured institution timezone.
+7. Migration and profile reconciliation repair objectively completed automatic thresholds. A returned badge profile never shows completed progress without an award row.
 8. Deactivated users keep historical badges.
 9. Admins are treated as staff for recognition. They can earn badges and compare profiles like everyone else.
+10. Checkout-open credit is immutable across ownership transfer. A pre-open transfer moves future credit; a post-open transfer preserves checkout count, category breadth, gear-family, and single-checkout challenge credit for the original opener while the new custodian owns the return outcome.
 
 ## Source-of-Truth Event Flow
 
@@ -30,16 +31,18 @@ Badges are lightweight recognition for every active user inside the existing ops
 | `onCheckoutOpened` | `src/app/api/kiosk/checkout/complete/route.ts` after an `OPEN` checkout is created | Complete |
 | `onCheckoutOpened` | `src/app/api/kiosk/pickup/[id]/confirm/route.ts` after `PENDING_PICKUP -> OPEN` | Complete |
 | `onCheckoutReturned` | `src/lib/services/bookings-checkin.ts:markCheckoutCompleted` and `maybeAutoComplete` only when status flips into `COMPLETED` | Complete |
-| `onScanResult` | `src/app/api/kiosk/checkout/scan`, `src/app/api/kiosk/pickup/[id]/scan`, `src/app/api/kiosk/checkin/[id]/scan` | Complete |
 | `onTradeCompleted` | `src/lib/services/shift-trades.ts:claimTrade` immediate-complete branch and `approveTrade`, through one transition helper | Complete |
 | `onShiftsWorked` | `src/app/api/cron/morning-refresh/route.ts`, nightly, for anyone whose assignment sat on an event that ended in the last two days | Complete |
+| `onAppOpened` | `POST /api/badges/events/app-open`, called when the signed-in web or iOS app becomes active; server time evaluates hidden rules | Complete |
 
 ## Data Model
 - `BadgeDefinition`: seeded catalog. Uses immutable `key`, display copy, icon name, category, kind, trigger, threshold, rule key, active flag, and sort order. The canonical launch catalog is seeded by migration `0064_seed_badge_definitions`, and `prisma/seed.mjs` mirrors the current post-`0100_badge_catalog_rebalance` catalog so reseeding cannot regress automatic definitions.
 - Custom manual badges are also `BadgeDefinition` rows. Admin-created custom badges use a generated `custom_` key, `trigger="manual"`, `kind=RULE`, `category=MILESTONE`, and no evaluator wiring.
 - `StudentBadge`: legacy-named earned badge row for any user. Unique on `(userId, definitionId)`, supports `AUTO` and `MANUAL`, optional `awardedById`, and optional staff note.
-- `BadgeStreak`: per-user streak state. Unique on `(userId, streakType)` and deduped by `lastSourceKey`. `SCAN_SUCCESS_COUNT` is the durable scan success counter; `SCAN_CLEAN` is the clean-scan streak that resets on failed scans.
+- `BadgeStreak`: per-user streak state. `ON_TIME_RETURN` remains active. Historical `SCAN_SUCCESS_COUNT` and `SCAN_CLEAN` rows are retained but are no longer mutated or returned to clients.
+- `BadgeEventReceipt`: durable request-event and immutable credit ledger. Unique on `(userId, eventType, sourceKey)` and claimed inside the same Serializable evaluator transaction as streak and award writes. Checkout-open receipts use the opened checkout ID, so later `Booking.requesterUserId` changes cannot move credit.
 - `Booking.completedAt`: durable checkout completion timestamp. On-time badge counts use this field with a legacy `updatedAt` fallback for pre-field rows, so later booking edits do not change return eligibility.
+- Automatic fun rules share one derivation module for evaluator writes and profile progress. Checkout rules use credited booking contents, canonical top-level category families, actual bulk `checkedOutQuantity`, and serialized item rows. Shift rules use confirmed ended assignments, `CalendarEvent.isHome`, and effective call time (`ShiftAssignment.callStartsAt`, then `Shift.callStartsAt`, then `Shift.startsAt`) in the institution timezone.
 - `SystemConfig["badges.peerVisible"]`: default `true`; controls peer visibility for another user's badge tab.
 - Badge evaluator transactions run with Serializable isolation and retry once on Prisma write conflicts so duplicate source-key retries re-read streak state before mutating.
 
@@ -47,8 +50,8 @@ Badges are lightweight recognition for every active user inside the existing ops
 - Primary user experience is a `Badges` tab on `/users/{id}` for students, staff, and admins. `/profile` already redirects to user detail.
 - No top-level nav item.
 - No badge count, chip row, or recognition chrome in the profile hero.
-- The badge tab uses shadcn primitives as a flat, medallion-first trophy shelf: one summary band (completion percent, progress bar, earned/remaining/hidden counts), then five always-visible shelf sections — no drill-in level. Each badge lives on exactly one shelf.
-- Shelves group badges into Gear Flow, Reliability, Scans, Teamwork, and Staff Picks (manual/milestone recognition wins over thematic key hints). Each shelf shows a compact header with icon, description, and earned/total tabular count over a responsive grid of tiles.
+- The badge tab uses shadcn primitives as a flat, medallion-first trophy shelf: one summary band, then five shelf sections with no drill-in level. Completion includes only visible automatic goals, so manual recognition, hidden surprises, and retired history cannot lower a user's percentage.
+- Shelves group badges into Gear Flow, Reliability, Legacy Scan Awards, Teamwork, and Staff Picks. Goal shelves show earned/total; legacy and staff recognition shelves show earned count only.
 - Badge tiles lead with the artifact medallion (locked keeps its own icon dimmed rather than a padlock, rarity = rim tone) over the name and one quiet meta line (earned date, progress x/y, requirement, or unlock hint); status/rarity/manual chips live only in the detail dialog. Recent awards keep the one-week glow and a New chip.
 - iOS shares the vocabulary but not the medallion shapes: one ringed disc for every badge, tinted by rarity. The per-category coin/hex/shield/stack silhouettes were removed on 2026-07-22 -- `stack` rendered as a notched square behind an offset second square, which read as a clipping fault rather than a medal. The badge card is a horizontal earned shelf plus live streak rows and a closest-to-earned progress row; the gallery sheet keeps the same five collection sections.
 - A few surprise badges stay hidden from the locked grid until earned; the available section shows how many surprise badges remain hidden.
@@ -57,25 +60,30 @@ Badges are lightweight recognition for every active user inside the existing ops
 - With `BADGES_ENABLED` off, badge APIs return disabled/empty payloads before any badge table query. This keeps un-migrated local or preview databases from failing on badge UI routes.
 - `/reports/badges` is staff analytics only and follows existing report layout patterns. It shows aggregate award metrics, manual award rate, user leaderboard, badge distribution, underused active definitions, recent manual recognition, and recent awards.
 - Manual awards launch from the existing user admin actions menu, not from permanent hero chrome.
-- Manual award selection shows staff guidance for fun/manual badges so admins award them consistently. Admins can also create a custom badge from the same dialog, award it immediately, and reuse that custom definition from the existing badge selector for later users.
+- Manual award selection remains available for the two general recognition badges and admin-created custom badges. The ten new fun badges are automatic and never appear as staff-awarded definitions.
 - Award notifications are persistent inbox entries that link to `/users/{userId}?tab=badges`.
 - Manual awards are admin-only through the existing user admin actions menu. They can target any active user, persist `source=MANUAL`, `awardedById`, and an optional note, and create a persistent inbox notification unless `User.notificationPrefs.badges === false`.
+- Web and the signed-in iOS app show a queued, rarity-tinted reward popup for awards earned after that device establishes its cursor. The initial read establishes a server cursor and intentionally returns no history, so sign-in or migration cannot replay the full catalog as celebrations.
+- Kiosk checkout, pickup, and return completion responses include newly earned awards for the selected user. Individual scan responses no longer award badges. The native kiosk collects completion awards across the flow and extends the success screen into the reward moment without interrupting custody work or requiring a user session on the shared device.
+- Reward presentation is additive and failure-isolated. A failed reward read must never change a committed checkout, pickup, or return result. Reduced Motion removes decorative movement while preserving the award content and accessibility announcement.
 
 ## Rarity
 Rarity is computed from how many people hold a badge, not from a hardcoded list. `getBadgeRarity` in `src/lib/badges/display.ts` buckets holder share among active users: >=50% Common, >=20% Uncommon, >=5% Rare, below that Legendary. Two guards keep scarcity honest -- a badge with zero holders, or a definition younger than 30 days, has not had a chance to be earned, so it falls back to the difficulty-based rating. The API serves `rarity` and `holders` on every badge row; web and iOS render the served value rather than keeping their own tables.
 
 ## Streaks
-`BadgeStreak` has always stored `current` and `longest` per user. The badge profile payload now exposes `ON_TIME_RETURN` and `SCAN_CLEAN` as `streaks[]`, and native Home renders them on the badge card. `SCAN_SUCCESS_COUNT` stays out: it is a durable lifetime counter, not a run, and cannot be broken.
+The badge profile payload exposes `ON_TIME_RETURN` as `streaks[]`, and native Home renders it on the badge card. Historical scan counter and streak rows remain stored but stay out of profile payloads.
 
 ## Starting Badge Set
 - Checkout: `first_checkout`, `checkout_5`, `checkout_10`, `checkout_25`, `checkout_100`
-- On-time return: `on_time_1`, `on_time_10`, `on_time_25`, `on_time_50`, `damage_free_10`, `damage_free_50`
-- Scan: `first_scan`, `scan_25`, `scan_50`, `scan_100`, `zero_errors`
-- Shift: `first_shift`, `shift_10`, `shift_50`
-- Trade: `first_trade`, `trade_10`
+- On-time return: `on_time_1`, `on_time_5`, `on_time_10`, `on_time_25`, `on_time_50`, `damage_free_10`, `damage_free_50`
+- Shift: `first_shift`, `shift_10`, `shift_25`, `shift_50`
+- Trade: `first_trade`, `trade_5`, `trade_10`
 - Streak: `streak_on_time_5`, `streak_on_time_10`
 - Automatic milestone: `category_collector`
-- Fun/manual: `event_hero`, `above_and_beyond`, plus custom manual definitions created by admins
+- Automatic fun: `power_player` (10 battery checkouts), `glass_class` (10 lens checkouts), `sound_check` (5 audio checkouts), `rock_solid` (3 tripod or gimbal checkouts), `bright_spark` (2 lighting checkouts), `kitchen_sink` (5 gear families in one checkout), `three_piece_suit` (camera, lens, and audio together 3 times), `heavy_lifter` (15 actual pieces in one checkout), `road_tested` (3 completed away assignments), `before_sunrise` (2 completed assignments before 7 a.m.)
+- Manual recognition: `event_hero`, `above_and_beyond`, plus custom manual definitions created by admins
+- Hidden easter egg: `go_to_bed`, awarded once when the authenticated app opens during the 2 a.m. hour in the institution timezone
+- Retired history: `first_scan`, `scan_10`, `scan_25`, `scan_50`, `scan_100`, `zero_errors`
 
 ## Acceptance Criteria
 - [x] `BADGES_ENABLED=false` causes zero evaluator work, badge queries, and side effects.
@@ -83,8 +91,7 @@ Rarity is computed from how many people hold a badge, not from a hardcoded list.
 - [x] Kiosk pickup confirmation awards checkout count badges exactly once for reservations moving into active checkout.
 - [x] Checkout return badges award exactly once when a checkout transitions to `COMPLETED`.
 - [x] On-time computation uses `Booking.completedAt` plus a 15-minute UTC grace window after `booking.endsAt`.
-- [x] Kiosk scan successes count toward scan badges and retries do not double-bump streaks.
-- [x] Kiosk scan failures reset the clean-scan streak state.
+- [x] Kiosk scans remain operational evidence but do not emit badge events or mutate scan counters.
 - [x] Legacy app scan stub remains 403 and awards nothing.
 - [x] Trade badges award once per completed trade status flip.
 - [x] Shift badges do not award from request approval.
@@ -94,16 +101,26 @@ Rarity is computed from how many people hold a badge, not from a hardcoded list.
 - [x] User profile badge cards expose manual notes, recent-award state, rarity-aware medallions, surprise-badge count, and real progress where supported.
 - [x] Peer visibility respects `SystemConfig["badges.peerVisible"]`.
 - [x] `/reports/badges` follows existing report layout patterns.
+- [x] Replaying an older request-scoped source key cannot increment a counter after newer events have arrived.
+- [x] Web and signed-in iOS establish a per-user cursor, queue new awards, and never replay award history on first load.
+- [x] Kiosk checkout, pickup, and return keep custody success authoritative while displaying newly earned awards on the success screen.
+- [x] Ownership transfer preserves original checkout-open credit while assigning the eventual return outcome to the current custodian.
+- [x] Completed automatic progress self-heals to a durable award before a profile is returned.
+- [x] The ten fun badges derive from captured checkout or completed-shift data, backfill historical qualifiers, and never require a staff award.
+- [x] App-open easter eggs use authenticated identity and server-authoritative institution time, with no client clock input.
 
 ## Rollout
 1. Slice 1 ships schema, seed, service skeleton, feature flag, and docs with the flag off.
 2. Later slices wire one domain event family at a time and add focused tests.
 3. Preview verification flips `BADGES_ENABLED=true`, exercises kiosk/trade/manual flows, then flips it back off to prove rollback.
 4. Production enablement happens only after preview verification.
+5. Migration `0110_badge_rewards` must deploy before the updated evaluators are enabled. It creates receipts, freezes historical checkout-open ownership from audit history, repairs completed automatic awards, retires scan goals, and seeds the new catalog. Optional reward response fields preserve client compatibility during rollout.
 
 ## Change Log
 | Date | Change |
 |---|---|
+| 2026-08-10 | Ownership, completion, and automatic-fun pass: checkout-open counts and category breadth now read immutable event receipts, with migration backfill reconstructing original holders from transfer audits; return outcomes stay with the current custodian. A read-only production audit found eight completed-but-unawarded goals: six `first_shift`, one `shift_10`, and one `category_collector`. The migration repairs those rows, and profile reads self-heal any future automatic threshold reached without an award. Six scan goals were retired because production has 406 successful and zero failed recorded scans. Ten fun badges now derive from credited checkout contents, actual item quantity, completed away assignments, or early call times; none is staff-awarded. Their thresholds were calibrated against production history so every challenge is already achievable but only one to three current users qualify for each. Shift copy says assigned rather than implying attendance, completion excludes manual/hidden/retired awards, and Legacy Scan Awards preserves history. `Go To Bed` establishes the server-authoritative authenticated app-open easter-egg path for web and iOS. |
+| 2026-08-10 | Reward and reliability pass: added durable request-event receipts so delayed duplicate scans cannot inflate streak counters; added `on_time_5`, `scan_10`, `shift_25`, and `trade_5` bridge milestones; corrected scan badge ordering; added a no-history-replay recent-awards cursor for web and signed-in iOS; and carried newly earned awards through kiosk scan/completion responses into an extended, accessible success celebration. Source contracts and both native targets compile locally; migration deployment, authenticated browser proof, and managed-iPad visual proof remain release gates. |
 | 2026-07-31 | Badge hardening: synchronized `prisma/seed.mjs` with the rebalance migration, included bulk inventory in category breadth, awarded damage-free badges for late clean returns, preserved trusted sidebar counts when dashboard count data is partial, and surfaced badge revoke failures with auth-aware error feedback. |
 | 2026-07-22 | Badge system rethought against live award data (33 definitions, 67 awards, 14 users). **Icons:** every badge on iOS rendered `seal.fill` -- `BadgeDefinition.icon` holds Lucide names and the iOS `sfSymbolName` map knew twelve unrelated ones, overlapping on `Trophy` alone, so 31 of 33 badges collapsed to one glyph. The map now covers the whole catalog, guarded by `tests/ios-badge-icon-coverage.test.ts`; locked badges show their own icon dimmed instead of `lock.fill`; the badge card gained the closest-to-earned progress row and the streak rows. **Rarity:** replaced four hardcoded key lists that had drifted into falsehood (`zero_errors` labelled Uncommon while held by 10 of 14 users; `checkout_25` labelled Common while held by nobody) with holder-share computation served from the API. **Catalog** (`0100_badge_catalog_rebalance`): added `checkout_10`, `on_time_25`, `scan_50`, `damage_free_10`, `damage_free_50`; converted `category_collector` from manual to automatic on distinct checked-out categories; revived `first_shift`/`shift_10`/`shift_50` from assignments to ended events; retired seven manual badges with zero awards since launch (`perfect_handoff`, `clean_loop`, `full_kit_no_misses`, `semester_streak`, `rookie_run`, `reliable_regular`, `clutch_cover`), keeping `above_and_beyond` and `event_hero` as catch-alls. Nothing deleted -- retirement is `active=false` and awarded rows still render. Core rule 2 narrowed to admit the nightly shift evaluation. |
 | 2026-07-02 | Badges awards and sections redesigned on web and iOS around a flat "trophy shelf" model. Web: the two-level collection-card → drill-in navigation was removed; the tab now shows one summary band (completion + progress bar + earned/remaining/hidden) and five always-visible shelf sections of compact medallion-first tiles (each badge on exactly one shelf; staff recognition wins over thematic hints). Tile chip rows were dropped — locked reads as grayscale medallion, rarity as rim tone, chips live in the unchanged detail dialog. iOS: web's coin/hex/shield/stack medallion silhouettes were ported as SwiftUI Shapes with rarity fill/stroke; the profile badge card became a horizontal earned-medallion shelf; the gallery sheet groups into the same five collections with compact tiles (descriptions moved to the detail sheet). Verified with mock-data scratch-route screenshots (light/dark, filters, dialog), `npm run build:app`, vitest, and Wisconsin simulator build. |

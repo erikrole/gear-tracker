@@ -1,167 +1,31 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
 
-const mocks = vi.hoisted(() => ({
-  assetAllocationFindFirst: vi.fn(),
-  findAssetByScanValue: vi.fn(),
-  findBulkUnitByScanValue: vi.fn(),
-  badgeOnScanResult: vi.fn(),
-}));
+function source(relativeFile: string) {
+  return readFileSync(path.join(process.cwd(), relativeFile), "utf8");
+}
 
-type KioskTestHandler = (
-  req: Request,
-  ctx: {
-    kiosk: {
-      kioskId: string;
-      locationId: string;
-      locationName: string;
-    };
-  },
-) => Promise<Response>;
+describe("retired successful-scan badge metric", () => {
+  it("keeps operational scans but emits no badge scan result", () => {
+    for (const route of [
+      "src/app/api/kiosk/checkout/scan/route.ts",
+      "src/app/api/kiosk/pickup/[id]/scan/route.ts",
+      "src/app/api/kiosk/checkin/[id]/scan/route.ts",
+    ]) {
+      const routeSource = source(route);
+      expect(routeSource).not.toContain("onScanResult");
+      expect(routeSource).not.toContain("badgeScanSourceKey");
+    }
 
-vi.mock("@/lib/db", () => ({
-  db: {
-    $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn({})),
-    assetAllocation: {
-      findFirst: mocks.assetAllocationFindFirst,
-    },
-  },
-}));
-
-vi.mock("@/lib/api", () => ({
-  withKiosk: (handler: KioskTestHandler) => (req: Request) =>
-    handler(req, {
-      kiosk: {
-        kioskId: "kiosk-1",
-        locationId: "loc-1",
-        locationName: "Camp Randall",
-      },
-    }),
-}));
-
-vi.mock("@/lib/services/kiosk-scan", () => ({
-  findAssetByScanValue: mocks.findAssetByScanValue,
-}));
-
-vi.mock("@/lib/services/bulk-unit-scans", () => ({
-  findBulkUnitByScanValue: mocks.findBulkUnitByScanValue,
-}));
-
-vi.mock("@/lib/services/kiosk-location", () => ({
-  assetLocationEvidence: vi.fn().mockResolvedValue({
-    locationMismatch: false,
-    expectedLocationId: "loc-1",
-    actualLocationId: "loc-1",
-    expectedLocationName: "Camp Randall",
-    actualLocationName: "Camp Randall",
-  }),
-  reconcileAssetLocationToKiosk: vi.fn().mockResolvedValue(undefined),
-  locationEvidencePayload: (evidence: unknown) => evidence,
-}));
-
-vi.mock("@/lib/badges", () => ({
-  badges: {
-    onScanResult: mocks.badgeOnScanResult,
-  },
-}));
-
-import { POST as scanKioskCheckout } from "@/app/api/kiosk/checkout/scan/route";
-
-const runScanKioskCheckout = scanKioskCheckout as unknown as (req: Request) => Promise<Response>;
-
-beforeEach(() => {
-  vi.clearAllMocks();
-  mocks.findBulkUnitByScanValue.mockResolvedValue(null);
-});
-
-describe("kiosk checkout scan badge events", () => {
-  it("emits a successful scan badge event when the kiosk passes an actor", async () => {
-    mocks.findAssetByScanValue.mockResolvedValue({
-      id: "asset-1",
-      assetTag: "FX3 1",
-      name: "FX3 1",
-      imageUrl: "https://cdn.example.com/fx3.jpg",
-      status: "AVAILABLE",
-      category: { name: "Camera" },
-    });
-    mocks.assetAllocationFindFirst.mockResolvedValue(null);
-
-    const res = await runScanKioskCheckout(new Request("http://test", {
-      method: "POST",
-      body: JSON.stringify({ actorId: "user-1", scanValue: " FX3-001 " }),
-    }));
-    const json = await res.json();
-
-    expect(json.success).toBe(true);
-    expect(json.item).toEqual(expect.objectContaining({
-      id: "asset-1",
-      imageUrl: "https://cdn.example.com/fx3.jpg",
-    }));
-    expect(mocks.badgeOnScanResult).toHaveBeenCalledWith({
-      userId: "user-1",
-      phase: "checkout",
-      ok: true,
-      sourceKey: "checkout:user-1:fx3-001:ok",
-    });
+    expect(source("src/lib/badges/evaluator.ts")).not.toContain("export async function onScanResult");
+    expect(source("src/lib/schemas/kiosk.ts")).not.toContain("scanAttemptId");
   });
 
-  it("does not emit a scan badge event for older clients without actorId", async () => {
-    mocks.findAssetByScanValue.mockResolvedValue({
-      id: "asset-1",
-      assetTag: "FX3 1",
-      name: "FX3 1",
-      imageUrl: null,
-      status: "AVAILABLE",
-      category: { name: "Camera" },
-    });
-    mocks.assetAllocationFindFirst.mockResolvedValue(null);
-
-    const res = await runScanKioskCheckout(new Request("http://test", {
-      method: "POST",
-      body: JSON.stringify({ scanValue: "FX3-001" }),
-    }));
-    const json = await res.json();
-
-    expect(json.success).toBe(true);
-    expect(mocks.badgeOnScanResult).not.toHaveBeenCalled();
-  });
-
-  it("resolves available numbered battery unit scans before serialized lookup", async () => {
-    mocks.findBulkUnitByScanValue.mockResolvedValue({
-      id: "unit-31",
-      name: "Sony Battery #31",
-      tagName: "#31",
-      type: "Batteries",
-      status: "AVAILABLE",
-      bulkSkuName: "Sony Battery",
-      bulkSkuId: "sku-sony",
-      unitNumber: 31,
-      imageUrl: "https://cdn.example.com/sony-battery.jpg",
-    });
-
-    const res = await runScanKioskCheckout(new Request("http://test", {
-      method: "POST",
-      body: JSON.stringify({ actorId: "user-1", scanValue: "94e068d1-31" }),
-    }));
-    const json = await res.json();
-
-    expect(json).toEqual({
-      success: true,
-      item: {
-        id: "bulk:sku-sony:unit:31",
-        name: "Sony Battery #31",
-        tagName: "#31",
-        type: "Batteries",
-        imageUrl: "https://cdn.example.com/sony-battery.jpg",
-        bulkSkuId: "sku-sony",
-        unitNumber: 31,
-      },
-    });
-    expect(mocks.findAssetByScanValue).not.toHaveBeenCalled();
-    expect(mocks.badgeOnScanResult).toHaveBeenCalledWith({
-      userId: "user-1",
-      phase: "checkout",
-      ok: true,
-      sourceKey: "checkout:user-1:94e068d1-31:ok",
-    });
+  it("retires definitions without deleting historical awards", () => {
+    const migration = source("prisma/migrations/0110_badge_rewards/migration.sql");
+    expect(migration).toContain("'first_scan', 'scan_10', 'scan_25', 'scan_50', 'scan_100', 'zero_errors'");
+    expect(migration).toContain('"active" = false');
+    expect(migration).not.toMatch(/DELETE FROM "student_badges"/i);
   });
 });

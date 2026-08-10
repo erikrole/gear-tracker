@@ -18,6 +18,7 @@ struct KioskReturnView: View {
     @State private var lastReturnedId: String?
     @State private var scannerHasFocus = false
     @State private var lastScanAt: Date?
+    @State private var earnedBadges: [EarnedBadgeReward] = []
 
     enum ScanFeedback: Equatable {
         case success(String)
@@ -267,6 +268,7 @@ struct KioskReturnView: View {
         Task {
             do {
                 let result = try await KioskAPI.shared.kioskCheckinScan(bookingId: bookingId, scanValue: value)
+                earnedBadges.appendUnique(contentsOf: result.earnedBadges ?? [])
                 if result.success, let item = result.item {
                     if returnedIds.contains(item.id) {
                         showFeedback(.alreadyReturned("\(item.tagName) already returned"))
@@ -310,9 +312,14 @@ struct KioskReturnView: View {
         Task {
             do {
                 let result = try await KioskAPI.shared.kioskCheckinComplete(bookingId: bookingId, actorId: userId)
+                earnedBadges.appendUnique(contentsOf: result.earnedBadges ?? [])
                 Haptics.success()
                 store.clearIntent(reason: .success)
-                store.screen = .success(KioskSuccessInfo(kind: .returned, message: successMessage(for: result)))
+                store.screen = .success(KioskSuccessInfo(
+                    kind: .returned,
+                    message: successMessage(for: result),
+                    earnedBadges: earnedBadges
+                ))
             } catch {
                 let message = (error as? APIError)?.errorDescription
                     ?? "Return failed. Please try again."

@@ -30,7 +30,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 ## Ownership Rule
 - `Owner` means the user who created the reservation/checkout or the user explicitly assigned as booking owner.
 - Ownership checks apply to `STUDENT` users for edit rights.
-- Booking owner transfer is staff/admin-only, changes the assigned requester/owner, and does not change creator provenance.
+- Booking owner transfer changes the assigned requester/owner and does not change creator provenance. Badge checkout-open credit is also immutable: pre-open transfer moves future credit, while post-open transfer preserves the original opener's count/category credit and gives the new custodian the eventual return outcome.
 
 ## Permission Matrix (V1)
 
@@ -119,6 +119,8 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+
+- 2026-08-10: Badge ownership semantics were made explicit. Checkout-open and category-breadth credit is frozen to the opener through durable receipts; transferring an already-open checkout does not move that history. The current requester still owns the eventual return, on-time, and damage-free outcome. Compatibility pending-pickup confirmation resolves that current requester on the server and rejects stale pre-transfer actor identifiers.
 
 - 2026-08-06: **2027 creative roster onboarding prepared in production.**
   Social is now a first-class area in the local Users/onboarding contract, and

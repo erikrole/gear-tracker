@@ -6,13 +6,18 @@ import {
   Prisma,
 } from "@prisma/client";
 import { db } from "@/lib/db";
+import { env } from "@/lib/env";
 
 import { isSerializationConflict } from "@/lib/serialization";
 import {
+  checkoutAutomaticRuleCounts,
+  shiftAutomaticRuleCounts,
+} from "./automatic-rules";
+import {
   ON_TIME_GRACE_MS,
+  type AppOpenedBadgeEvent,
   type CheckoutOpenedBadgeEvent,
   type CheckoutReturnedBadgeEvent,
-  type ScanResultBadgeEvent,
   type ShiftsWorkedBadgeEvent,
   type TradeCompletedBadgeEvent,
 } from "./types";
@@ -65,6 +70,78 @@ async function awardThresholdBadges(tx: TxClient, args: {
     })),
     skipDuplicates: true,
   });
+}
+
+async function awardRuleBadges(tx: TxClient, args: {
+  userId: string;
+  trigger: string;
+  ruleKey: string;
+}) {
+  const definitions = await tx.badgeDefinition.findMany({
+    where: {
+      active: true,
+      trigger: args.trigger,
+      ruleKey: args.ruleKey,
+    },
+    select: { id: true },
+  });
+
+  if (definitions.length === 0) return;
+
+  await tx.studentBadge.createMany({
+    data: definitions.map((definition) => ({
+      userId: args.userId,
+      definitionId: definition.id,
+    })),
+    skipDuplicates: true,
+  });
+}
+
+async function awardMeasuredRuleBadges(tx: TxClient, args: {
+  userId: string;
+  trigger: string;
+  counts: Map<string, number>;
+}) {
+  const ruleKeys = [...args.counts.keys()];
+  if (ruleKeys.length === 0) return;
+
+  const definitions = await tx.badgeDefinition.findMany({
+    where: {
+      active: true,
+      category: BadgeCategory.MILESTONE,
+      trigger: args.trigger,
+      threshold: { not: null },
+      ruleKey: { in: ruleKeys },
+    },
+    select: { id: true, ruleKey: true, threshold: true },
+  });
+  const earnedDefinitions = definitions.filter((definition) => (
+    definition.ruleKey !== null
+    && definition.threshold !== null
+    && (args.counts.get(definition.ruleKey) ?? 0) >= definition.threshold
+  ));
+
+  if (earnedDefinitions.length === 0) return;
+  await tx.studentBadge.createMany({
+    data: earnedDefinitions.map((definition) => ({
+      userId: args.userId,
+      definitionId: definition.id,
+    })),
+    skipDuplicates: true,
+  });
+}
+
+async function claimEventReceipt(tx: TxClient, args: {
+  userId: string;
+  eventType: string;
+  sourceKey: string;
+}) {
+  const receipt = await tx.badgeEventReceipt.createMany({
+    data: [args],
+    skipDuplicates: true,
+  });
+
+  return receipt.count === 1;
 }
 
 async function incrementStreak(tx: TxClient, args: {
@@ -155,56 +232,81 @@ async function resetStreak(tx: TxClient, args: {
 
 export async function onCheckoutOpened(event: CheckoutOpenedBadgeEvent): Promise<void> {
   await runBadgeTransaction(async (tx) => {
-    const checkoutCount = await tx.booking.count({
-      where: {
-        requesterUserId: event.userId,
-        kind: BookingKind.CHECKOUT,
-        status: { in: [BookingStatus.OPEN, BookingStatus.COMPLETED] },
-      },
+    const isNewEvent = await claimEventReceipt(tx, {
+      userId: event.userId,
+      eventType: "checkout_opened",
+      // The booking is the immutable earning event. Caller-provided keys used
+      // to vary between direct checkout and reservation pickup, which made
+      // ownership-safe history impossible to join back to the checkout.
+      sourceKey: event.bookingId,
     });
+    if (!isNewEvent) return;
+
+    const openedReceipts = await tx.badgeEventReceipt.findMany({
+      where: {
+        userId: event.userId,
+        eventType: "checkout_opened",
+      },
+      select: { sourceKey: true },
+    });
+    const openedBookingIds = openedReceipts.map((receipt) => receipt.sourceKey);
 
     await awardThresholdBadges(tx, {
       userId: event.userId,
       category: BadgeCategory.CHECKOUT,
       trigger: "checkout:opened",
-      count: checkoutCount,
+      count: openedBookingIds.length,
     });
 
-    // Breadth, not volume. `category_collector` was a manual badge nobody ever
-    // awarded, though the fact it recognises -- this person has worked with
-    // most of the inventory -- is sitting in the booking rows.
-    const categories = await tx.booking.findMany({
+    // The receipt freezes credit to the person who actually opened the
+    // checkout. Derive every gear challenge from those same immutable rows so
+    // a later ownership transfer neither steals nor duplicates an award.
+    const creditedCheckouts = await tx.booking.findMany({
       where: {
-        requesterUserId: event.userId,
+        id: { in: openedBookingIds },
         kind: BookingKind.CHECKOUT,
         status: { in: [BookingStatus.OPEN, BookingStatus.COMPLETED] },
       },
       select: {
-        serializedItems: { select: { asset: { select: { categoryId: true } } } },
-        bulkItems: { select: { bulkSku: { select: { categoryId: true } } } },
+        serializedItems: {
+          select: {
+            asset: {
+              select: {
+                category: { select: { id: true, name: true, parent: { select: { name: true } } } },
+              },
+            },
+          },
+        },
+        bulkItems: {
+          select: {
+            checkedOutQuantity: true,
+            bulkSku: {
+              select: {
+                categoryRel: { select: { id: true, name: true, parent: { select: { name: true } } } },
+              },
+            },
+          },
+        },
       },
     });
-    const distinctCategories = new Set(
-      categories.flatMap((booking) =>
-        [
-          ...booking.serializedItems.map((item) => item.asset.categoryId),
-          ...(booking.bulkItems ?? []).map((item) => item.bulkSku.categoryId),
-        ].filter((id): id is string => Boolean(id)),
-      ),
-    );
 
-    await awardThresholdBadges(tx, {
+    await awardMeasuredRuleBadges(tx, {
       userId: event.userId,
-      category: BadgeCategory.MILESTONE,
       trigger: "checkout:opened",
-      count: distinctCategories.size,
-      ruleKey: "category_collector",
+      counts: checkoutAutomaticRuleCounts(creditedCheckouts),
     });
   });
 }
 
 export async function onCheckoutReturned(event: CheckoutReturnedBadgeEvent): Promise<void> {
   await runBadgeTransaction(async (tx) => {
+    const isNewEvent = await claimEventReceipt(tx, {
+      userId: event.userId,
+      eventType: "checkout_returned",
+      sourceKey: event.bookingId,
+    });
+    if (!isNewEvent) return;
+
     // A clean return remains clean even when it is late. Award this independent
     // lane before the on-time streak early return below.
     const damageFreeCount = await tx.booking.count({
@@ -228,7 +330,7 @@ export async function onCheckoutReturned(event: CheckoutReturnedBadgeEvent): Pro
       await resetStreak(tx, {
         userId: event.userId,
         streakType: BadgeStreakType.ON_TIME_RETURN,
-        sourceKey: event.sourceKey,
+        sourceKey: event.bookingId,
         eventAt: event.completedAt,
       });
       return;
@@ -257,7 +359,7 @@ export async function onCheckoutReturned(event: CheckoutReturnedBadgeEvent): Pro
     const streakCount = await incrementStreak(tx, {
       userId: event.userId,
       streakType: BadgeStreakType.ON_TIME_RETURN,
-      sourceKey: event.sourceKey,
+      sourceKey: event.bookingId,
       eventAt: event.completedAt,
     });
 
@@ -273,52 +375,46 @@ export async function onCheckoutReturned(event: CheckoutReturnedBadgeEvent): Pro
   });
 }
 
-export async function onScanResult(event: ScanResultBadgeEvent): Promise<void> {
-  const eventAt = new Date();
+function appDateAndHour(occurredAt: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: env.appTimezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(occurredAt);
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+
+  return {
+    date: `${value("year")}-${value("month")}-${value("day")}`,
+    hour: Number(value("hour")),
+  };
+}
+
+/**
+ * Server-authoritative app-open easter eggs. The client only reports that the
+ * signed-in app became active; the server's institution timezone decides
+ * whether a rule matches, so changing a device clock cannot mint an award.
+ */
+export async function onAppOpened(event: AppOpenedBadgeEvent): Promise<void> {
+  const local = appDateAndHour(event.occurredAt);
+  if (local.hour !== 2) return;
 
   await runBadgeTransaction(async (tx) => {
-    if (!event.ok) {
-      await resetStreak(tx, {
-        userId: event.userId,
-        streakType: BadgeStreakType.SCAN_CLEAN,
-        sourceKey: event.sourceKey,
-        eventAt,
-      });
-      return;
-    }
-
-    const scanCount = await incrementStreak(tx, {
+    const isNewEvent = await claimEventReceipt(tx, {
       userId: event.userId,
-      streakType: BadgeStreakType.SCAN_SUCCESS_COUNT,
-      sourceKey: event.sourceKey,
-      eventAt,
+      eventType: "app_opened",
+      sourceKey: `local-hour-2:${local.date}`,
     });
+    if (!isNewEvent) return;
 
-    if (scanCount !== null) {
-      await awardThresholdBadges(tx, {
-        userId: event.userId,
-        category: BadgeCategory.SCAN,
-        trigger: "scan:success",
-        count: scanCount,
-      });
-    }
-
-    const cleanStreak = await incrementStreak(tx, {
+    await awardRuleBadges(tx, {
       userId: event.userId,
-      streakType: BadgeStreakType.SCAN_CLEAN,
-      sourceKey: event.sourceKey,
-      eventAt,
+      trigger: "app:opened",
+      ruleKey: "local_hour_2",
     });
-
-    if (cleanStreak !== null) {
-      await awardThresholdBadges(tx, {
-        userId: event.userId,
-        category: BadgeCategory.SCAN,
-        trigger: "scan:rule",
-        count: cleanStreak,
-        ruleKey: "zero_errors",
-      });
-    }
   });
 }
 
@@ -343,7 +439,7 @@ export async function onScanResult(event: ScanResultBadgeEvent): Promise<void> {
  */
 export async function onShiftsWorked(event: ShiftsWorkedBadgeEvent): Promise<void> {
   await runBadgeTransaction(async (tx) => {
-    const workedCount = await tx.shiftAssignment.count({
+    const workedAssignments = await tx.shiftAssignment.findMany({
       where: {
         userId: event.userId,
         status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
@@ -356,19 +452,43 @@ export async function onShiftsWorked(event: ShiftsWorkedBadgeEvent): Promise<voi
           },
         },
       },
+      select: {
+        callStartsAt: true,
+        shift: {
+          select: {
+            startsAt: true,
+            callStartsAt: true,
+            shiftGroup: {
+              select: { event: { select: { isHome: true } } },
+            },
+          },
+        },
+      },
     });
 
     await awardThresholdBadges(tx, {
       userId: event.userId,
       category: BadgeCategory.SHIFT,
       trigger: "shift:completed",
-      count: workedCount,
+      count: workedAssignments.length,
+    });
+    await awardMeasuredRuleBadges(tx, {
+      userId: event.userId,
+      trigger: "shift:completed",
+      counts: shiftAutomaticRuleCounts(workedAssignments, env.appTimezone),
     });
   });
 }
 
 export async function onTradeCompleted(event: TradeCompletedBadgeEvent): Promise<void> {
   await runBadgeTransaction(async (tx) => {
+    const isNewEvent = await claimEventReceipt(tx, {
+      userId: event.userId,
+      eventType: "trade_completed",
+      sourceKey: event.tradeId,
+    });
+    if (!isNewEvent) return;
+
     const tradeCount = await tx.shiftTrade.count({
       where: {
         status: "COMPLETED",

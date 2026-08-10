@@ -651,7 +651,9 @@ struct BadgeGallerySheet: View {
                                     Text(section.collection.title)
                                         .font(.subheadline.weight(.semibold))
                                     Spacer(minLength: 8)
-                                    Text("\(section.earnedCount)/\(section.totalCount) earned")
+                                    Text(section.collection.countsTowardCompletion
+                                        ? "\(section.earnedCount)/\(section.totalCount) earned"
+                                        : "\(section.earnedCount) earned")
                                         .font(.caption2.monospacedDigit())
                                         .foregroundStyle(.secondary)
                                 }
@@ -811,7 +813,6 @@ struct BadgeDetailSheet: View {
             BadgeDetailMetric(label: "Category", value: badge.category.displayCategory)
             BadgeDetailMetric(label: "Source", value: badge.source == "MANUAL" ? "Manual award" : badge.earned ? "Automatic" : "Not earned")
             BadgeDetailMetric(label: "Earned", value: badge.earnedDateText)
-            BadgeDetailMetric(label: "Trigger", value: badge.trigger)
         }
     }
 }
@@ -904,7 +905,7 @@ private enum BadgeCollection: String, CaseIterable, Identifiable {
         switch self {
         case .gearFlow: "Gear Flow"
         case .reliability: "Reliability"
-        case .scans: "Scans"
+        case .scans: "Legacy Scan Awards"
         case .teamwork: "Teamwork"
         case .staffPicks: "Staff Picks"
         }
@@ -918,6 +919,10 @@ private enum BadgeCollection: String, CaseIterable, Identifiable {
         case .teamwork: "person.2"
         case .staffPicks: "sparkles"
         }
+    }
+
+    var countsTowardCompletion: Bool {
+        self != .scans && self != .staffPicks
     }
 }
 
@@ -1018,6 +1023,7 @@ private let hiddenBadgeKeys: Set<String> = [
     "above_and_beyond",
     "event_hero",
     "clean_loop",
+    "go_to_bed",
 ]
 
 private let legendaryBadgeKeys: Set<String> = [
@@ -1033,6 +1039,7 @@ private let rareBadgeKeys: Set<String> = [
     "full_kit_no_misses",
     "semester_streak",
     "reliable_regular",
+    "go_to_bed",
 ]
 
 private let uncommonBadgeKeys: Set<String> = [
@@ -1055,8 +1062,12 @@ private extension BadgeProfile {
     }
 
     var completionPercent: Int {
-        guard !visibleBadges.isEmpty else { return 0 }
-        return Int((Double(earnedCount) / Double(visibleBadges.count) * 100).rounded())
+        let goals = badges.filter {
+            $0.active && !$0.isManualRecognition && !hiddenBadgeKeys.contains($0.key)
+        }
+        guard !goals.isEmpty else { return 0 }
+        let completed = goals.filter(\.earned).count
+        return Int((Double(completed) / Double(goals.count) * 100).rounded())
     }
 }
 
@@ -1065,10 +1076,13 @@ private extension UserBadge {
         source == "MANUAL" || (kind == "RULE" && trigger == "manual")
     }
 
-    /// Mirrors the web tab's `primaryCollectionKey`: every badge lives on
-    /// exactly one shelf, and staff recognition wins over thematic hints.
+    /// Mirrors the web tab's `primaryCollectionKey`: every badge lives on one
+    /// shelf, while automatic milestones follow their earning workflow.
     var primaryCollection: BadgeCollection {
-        if isManualRecognition || category == "MILESTONE" { return .staffPicks }
+        if isManualRecognition { return .staffPicks }
+        if category == "MILESTONE" && trigger == "checkout:opened" { return .gearFlow }
+        if category == "MILESTONE" && trigger == "shift:completed" { return .teamwork }
+        if category == "MILESTONE" { return .staffPicks }
         switch category {
         case "CHECKOUT": return .gearFlow
         case "ON_TIME": return .reliability
@@ -1148,7 +1162,7 @@ private extension String {
         switch self {
         case "CHECKOUT": "Checkout"
         case "ON_TIME": "On-time returns"
-        case "SCAN": "Scans"
+        case "SCAN": "Legacy scans"
         case "TRADE": "Trades"
         case "SHIFT": "Shifts"
         case "STREAK": "Streaks"
@@ -1205,6 +1219,25 @@ private extension String {
         case "Repeat2": "arrow.triangle.2.circlepath"
         case "Flame": "flame.fill"
         case "Trophy": "trophy.fill"
+        // Curated automatic awards, manual awards, and app-open easter eggs.
+        case "Cable": "cable.connector"
+        case "BatteryCharging": "battery.100percent.bolt"
+        case "Aperture": "camera.aperture"
+        case "AudioLines": "waveform"
+        case "BusFront": "bus.fill"
+        case "Camera": "camera.fill"
+        case "Focus": "viewfinder"
+        case "HardDrive": "externaldrive.fill"
+        case "Lightbulb": "lightbulb.fill"
+        case "ShoppingCart": "cart.fill"
+        case "Sunrise": "sunrise.fill"
+        case "CloudRain": "cloud.rain.fill"
+        case "Combine": "arrow.triangle.merge"
+        case "Dumbbell": "dumbbell.fill"
+        case "Binoculars": "binoculars.fill"
+        case "LayoutGrid": "square.grid.3x3.fill"
+        case "LifeBuoy": "lifepreserver.fill"
+        case "MoonStar": "moon.stars.fill"
         // Custom-badge picker options that are not already covered above.
         case "Medal": "medal.fill"
         case "Star": "star.fill"

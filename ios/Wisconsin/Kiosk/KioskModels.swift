@@ -586,6 +586,7 @@ struct KioskScanResult: Decodable {
     let expectedLocationName: String?
     let actualLocationName: String?
     let locationMessage: String?
+    let earnedBadges: [EarnedBadgeReward]?
 
     struct ScannedItem: Decodable, Identifiable {
         let id: String
@@ -668,6 +669,7 @@ struct KioskCheckinCompleteResult: Decodable {
     let returnedItems: Int
     let totalItems: Int
     let completed: Bool
+    let earnedBadges: [EarnedBadgeReward]?
 }
 
 // MARK: - Screen State
@@ -710,4 +712,11 @@ enum KioskSuccessKind: String, Equatable {
 struct KioskSuccessInfo: Equatable {
     let kind: KioskSuccessKind
     let message: String
+    let earnedBadges: [EarnedBadgeReward]
+
+    init(kind: KioskSuccessKind, message: String, earnedBadges: [EarnedBadgeReward] = []) {
+        self.kind = kind
+        self.message = message
+        self.earnedBadges = earnedBadges
+    }
 }

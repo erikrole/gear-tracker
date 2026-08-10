@@ -3,18 +3,34 @@
 import { useMemo, useState, type ComponentType } from "react";
 import {
   AlarmClockCheck,
+  Aperture,
   AlertCircle,
+  AudioLines,
   Award,
   BadgeCheck,
+  BatteryCharging,
+  Binoculars,
   Boxes,
+  BusFront,
+  Cable,
+  Camera,
   CalendarCheck2,
   CalendarClock,
   CalendarDays,
   CalendarRange,
   Clock3,
+  CloudRain,
+  Combine,
+  Dumbbell,
   Flame,
+  Focus,
+  HardDrive,
   Handshake,
+  Lightbulb,
   LockKeyhole,
+  LifeBuoy,
+  LayoutGrid,
+  MoonStar,
   PackageCheck,
   PackageOpen,
   QrCode,
@@ -22,8 +38,10 @@ import {
   ScanLine,
   ScanSearch,
   ShieldCheck,
+  ShoppingCart,
   Sparkles,
   Star,
+  Sunrise,
   Trash2,
   Trophy,
   UserCheck,
@@ -105,6 +123,7 @@ type AwardCollectionDefinition = {
   description: string;
   icon: ComponentType<{ className?: string }>;
   shape: BadgeMedallionShape;
+  countsTowardCompletion: boolean;
 };
 
 type BadgeShelf = AwardCollectionDefinition & {
@@ -115,15 +134,31 @@ type BadgeShelf = AwardCollectionDefinition & {
 
 const iconMap: Record<string, ComponentType<{ className?: string }>> = {
   AlarmClockCheck,
+  Aperture,
+  AudioLines,
   BadgeCheck,
+  BatteryCharging,
+  Binoculars,
   Boxes,
+  BusFront,
+  Cable,
+  Camera,
   CalendarCheck2,
   CalendarClock,
   CalendarDays,
   CalendarRange,
   Clock3,
+  CloudRain,
+  Combine,
+  Dumbbell,
   Flame,
+  Focus,
+  HardDrive,
   Handshake,
+  Lightbulb,
+  LifeBuoy,
+  LayoutGrid,
+  MoonStar,
   PackageCheck,
   PackageOpen,
   QrCode,
@@ -131,7 +166,9 @@ const iconMap: Record<string, ComponentType<{ className?: string }>> = {
   ScanLine,
   ScanSearch,
   ShieldCheck,
+  ShoppingCart,
   Sparkles,
+  Sunrise,
   Trophy,
   UserCheck,
   Warehouse,
@@ -162,6 +199,7 @@ const awardCollectionDefinitions: AwardCollectionDefinition[] = [
     description: "Checkout, pickup, full-kit, and clean handoff awards.",
     icon: PackageCheck,
     shape: "stack",
+    countsTowardCompletion: true,
   },
   {
     key: "reliability",
@@ -169,13 +207,15 @@ const awardCollectionDefinitions: AwardCollectionDefinition[] = [
     description: "On-time returns, clean streaks, and no-drama follow-through.",
     icon: AlarmClockCheck,
     shape: "coin",
+    countsTowardCompletion: true,
   },
   {
     key: "scans",
-    title: "Scans",
-    description: "QR scan wins, clean scan streaks, and lookup accuracy.",
+    title: "Legacy Scan Awards",
+    description: "Previously earned scan awards, preserved as history.",
     icon: ScanLine,
     shape: "hex",
+    countsTowardCompletion: false,
   },
   {
     key: "teamwork",
@@ -183,6 +223,7 @@ const awardCollectionDefinitions: AwardCollectionDefinition[] = [
     description: "Trades, coverage, and event help.",
     icon: Handshake,
     shape: "shield",
+    countsTowardCompletion: true,
   },
   {
     key: "staff_picks",
@@ -190,6 +231,7 @@ const awardCollectionDefinitions: AwardCollectionDefinition[] = [
     description: "Manual awards, inside jokes, and custom recognition.",
     icon: Sparkles,
     shape: "hex",
+    countsTowardCompletion: false,
   },
 ];
 
@@ -290,10 +332,13 @@ function isManualBadge(badge: UserBadge) {
 }
 
 /// Every badge lives on exactly one shelf so the flat layout never repeats a
-/// medallion. Staff recognition wins over thematic hints: a manual fun badge
-/// is a Staff Pick first, even when its name references gear or events.
+/// medallion. Staff recognition wins over thematic hints; automatic milestone
+/// badges follow the checkout or shift workflow that actually earned them.
 function primaryCollectionKey(badge: UserBadge): AwardCollectionKey {
-  if (isManualBadge(badge) || badge.category === "MILESTONE") return "staff_picks";
+  if (isManualBadge(badge)) return "staff_picks";
+  if (badge.category === "MILESTONE" && badge.trigger === "checkout:opened") return "gear_flow";
+  if (badge.category === "MILESTONE" && badge.trigger === "shift:completed") return "teamwork";
+  if (badge.category === "MILESTONE") return "staff_picks";
   if (badge.category === "CHECKOUT") return "gear_flow";
   if (badge.category === "ON_TIME") return "reliability";
   if (badge.category === "SCAN") return "scans";
@@ -305,7 +350,8 @@ function primaryCollectionKey(badge: UserBadge): AwardCollectionKey {
 function badgeShape(badge: UserBadge): BadgeMedallionShape {
   if (badge.category === "SCAN") return "hex";
   if (badge.category === "TRADE" || badge.category === "SHIFT") return "shield";
-  if (badge.category === "CHECKOUT" || badge.category === "ON_TIME") return "stack";
+  if (badge.category === "CHECKOUT" || badge.category === "ON_TIME" || badge.trigger === "checkout:opened") return "stack";
+  if (badge.trigger === "shift:completed") return "shield";
   if (isManualBadge(badge)) return "hex";
   return "coin";
 }
@@ -351,14 +397,16 @@ function buildShelves(galleryBadges: UserBadge[], allBadges: UserBadge[]): Badge
 
 function BadgeSummaryBand({
   earned,
-  visible,
+  goalsEarned,
+  goals,
   hidden,
 }: {
   earned: number;
-  visible: number;
+  goalsEarned: number;
+  goals: number;
   hidden: number;
 }) {
-  const completion = visible > 0 ? Math.round((earned / visible) * 100) : 0;
+  const completion = goals > 0 ? Math.round((goalsEarned / goals) * 100) : 0;
 
   return (
     <Card elevation="flat">
@@ -366,7 +414,7 @@ function BadgeSummaryBand({
         <div className="min-w-[180px] flex-1">
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-3xl font-semibold tabular-nums">{completion}%</span>
-            <span className="text-xs text-muted-foreground">of visible catalog</span>
+            <span className="text-xs text-muted-foreground">of automatic goals</span>
           </div>
           <Progress value={completion} className="mt-2 h-1.5" aria-label="Badge catalog completion" />
         </div>
@@ -378,8 +426,8 @@ function BadgeSummaryBand({
           </div>
           <div>
             <dt className="sr-only">Remaining</dt>
-            <dd className="text-xl font-semibold tabular-nums">{Math.max(0, visible - earned)}</dd>
-            <dd className="text-xs text-muted-foreground">Remaining</dd>
+            <dd className="text-xl font-semibold tabular-nums">{Math.max(0, goals - goalsEarned)}</dd>
+            <dd className="text-xs text-muted-foreground">Goals left</dd>
           </div>
           {hidden > 0 ? (
             <div>
@@ -490,7 +538,9 @@ function ShelfSection({
           </div>
         </div>
         <p className="shrink-0 text-xs text-muted-foreground tabular-nums">
-          {shelf.earnedCount}/{shelf.badges.length} earned
+          {shelf.countsTowardCompletion
+            ? `${shelf.earnedCount}/${shelf.badges.length} earned`
+            : `${shelf.earnedCount} earned`}
         </p>
       </div>
       <StaggerList className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
@@ -769,6 +819,10 @@ export default function UserBadgesTab({
   }
 
   const earnedBadges = data.badges.filter((badge) => badge.earned);
+  const automaticGoals = data.badges.filter(
+    (badge) => badge.active && !isManualBadge(badge) && !isHiddenUntilEarnedBadge(badge.key),
+  );
+  const automaticGoalsEarned = automaticGoals.filter((badge) => badge.earned).length;
   const hiddenSurpriseCount = data.badges.filter(
     (badge) => !badge.earned && badge.active && isHiddenUntilEarnedBadge(badge.key),
   ).length;
@@ -780,8 +834,9 @@ export default function UserBadgesTab({
   return (
     <div className="flex flex-col gap-6">
       <BadgeSummaryBand
-        earned={data.earnedCount}
-        visible={galleryBadges.length}
+        earned={earnedBadges.length}
+        goalsEarned={automaticGoalsEarned}
+        goals={automaticGoals.length}
         hidden={hiddenSurpriseCount}
       />
 

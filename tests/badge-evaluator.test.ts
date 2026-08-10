@@ -13,6 +13,10 @@ const { mockTx } = vi.hoisted(() => ({
     studentBadge: {
       createMany: vi.fn(),
     },
+    badgeEventReceipt: {
+      createMany: vi.fn(),
+      findMany: vi.fn(),
+    },
     badgeStreak: {
       findUnique: vi.fn(),
       upsert: vi.fn(),
@@ -22,6 +26,7 @@ const { mockTx } = vi.hoisted(() => ({
     },
     shiftAssignment: {
       count: vi.fn(),
+      findMany: vi.fn(),
     },
   },
 }));
@@ -34,7 +39,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 import { db } from "@/lib/db";
-import { onCheckoutOpened, onCheckoutReturned, onScanResult, onShiftsWorked, onTradeCompleted } from "@/lib/badges/evaluator";
+import { onAppOpened, onCheckoutOpened, onCheckoutReturned, onShiftsWorked, onTradeCompleted } from "@/lib/badges/evaluator";
 
 const dbMock = db as unknown as {
   $transaction: ReturnType<typeof vi.fn>;
@@ -43,16 +48,28 @@ const dbMock = db as unknown as {
 beforeEach(() => {
   vi.clearAllMocks();
   mockTx.studentBadge.createMany.mockResolvedValue({ count: 0 });
+  mockTx.badgeEventReceipt.createMany.mockResolvedValue({ count: 1 });
+  mockTx.badgeEventReceipt.findMany.mockResolvedValue([{ sourceKey: "booking-1" }]);
   mockTx.badgeStreak.upsert.mockResolvedValue({});
   mockTx.booking.findMany.mockResolvedValue([]);
   mockTx.booking.count.mockResolvedValue(0);
   mockTx.badgeDefinition.findMany.mockResolvedValue([]);
+  mockTx.shiftAssignment.findMany.mockResolvedValue([]);
 });
 
 describe("badge evaluator shift work", () => {
   it("awards shift badges from assignments to events that have ended", async () => {
-    mockTx.shiftAssignment.count.mockResolvedValue(10);
-    mockTx.badgeDefinition.findMany.mockResolvedValue([{ id: "first-shift" }, { id: "shift-10" }]);
+    mockTx.shiftAssignment.findMany.mockResolvedValue(Array.from({ length: 10 }, () => ({
+      callStartsAt: null,
+      shift: {
+        startsAt: new Date("2026-08-10T15:00:00.000Z"),
+        callStartsAt: null,
+        shiftGroup: { event: { isHome: true } },
+      },
+    })));
+    mockTx.badgeDefinition.findMany.mockImplementation(async ({ where }) => (
+      where.category === "SHIFT" ? [{ id: "first-shift" }, { id: "shift-10" }] : []
+    ));
 
     await onShiftsWorked({ userId: "user-1" });
 
@@ -79,12 +96,12 @@ describe("badge evaluator shift work", () => {
     // `morning-refresh` stamps archivedAt on events older than four months as
     // list hygiene. Excluding them would make a worked-shift total fall over
     // time and strand someone below a threshold they had already passed.
-    mockTx.shiftAssignment.count.mockResolvedValue(3);
+    mockTx.shiftAssignment.findMany.mockResolvedValue([]);
     mockTx.badgeDefinition.findMany.mockResolvedValue([]);
 
     await onShiftsWorked({ userId: "user-1" });
 
-    const where = mockTx.shiftAssignment.count.mock.calls[0]?.[0]?.where;
+    const where = mockTx.shiftAssignment.findMany.mock.calls[0]?.[0]?.where;
     expect(where).toBeDefined();
     expect(JSON.stringify(where)).not.toContain("archivedAt");
   });
@@ -93,8 +110,17 @@ describe("badge evaluator shift work", () => {
     // There is no sourceKey to dedupe on. Idempotency comes from counting the
     // database and writing with skipDuplicates, so a second pass over the same
     // shifts asks for exactly the same rows and changes nothing.
-    mockTx.shiftAssignment.count.mockResolvedValue(10);
-    mockTx.badgeDefinition.findMany.mockResolvedValue([{ id: "first-shift" }, { id: "shift-10" }]);
+    mockTx.shiftAssignment.findMany.mockResolvedValue(Array.from({ length: 10 }, () => ({
+      callStartsAt: null,
+      shift: {
+        startsAt: new Date("2026-08-10T15:00:00.000Z"),
+        callStartsAt: null,
+        shiftGroup: { event: { isHome: true } },
+      },
+    })));
+    mockTx.badgeDefinition.findMany.mockImplementation(async ({ where }) => (
+      where.category === "SHIFT" ? [{ id: "first-shift" }, { id: "shift-10" }] : []
+    ));
 
     await onShiftsWorked({ userId: "user-1" });
     await onShiftsWorked({ userId: "user-1" });
@@ -105,11 +131,63 @@ describe("badge evaluator shift work", () => {
     expect(second).toEqual(first);
     expect(first?.[0]?.skipDuplicates).toBe(true);
   });
+
+  it("awards away and early-call badges from completed shift data", async () => {
+    process.env.APP_TIMEZONE = "America/Chicago";
+    mockTx.shiftAssignment.findMany.mockResolvedValue([
+      {
+        callStartsAt: new Date("2026-08-10T10:30:00.000Z"),
+        shift: {
+          startsAt: new Date("2026-08-10T13:00:00.000Z"),
+          callStartsAt: null,
+          shiftGroup: { event: { isHome: false } },
+        },
+      },
+      {
+        callStartsAt: new Date("2026-08-11T11:15:00.000Z"),
+        shift: {
+          startsAt: new Date("2026-08-11T13:00:00.000Z"),
+          callStartsAt: null,
+          shiftGroup: { event: { isHome: false } },
+        },
+      },
+      {
+        callStartsAt: new Date("2026-08-12T13:00:00.000Z"),
+        shift: {
+          startsAt: new Date("2026-08-12T14:00:00.000Z"),
+          callStartsAt: null,
+          shiftGroup: { event: { isHome: false } },
+        },
+      },
+    ]);
+    mockTx.badgeDefinition.findMany.mockImplementation(async ({ where }) => {
+      if (where.category === "SHIFT") return [];
+      if (where.category === "MILESTONE") {
+        return [
+          { id: "road-tested", ruleKey: "shift_away_completed", threshold: 3 },
+          { id: "before-sunrise", ruleKey: "shift_before_7", threshold: 2 },
+        ];
+      }
+      return [];
+    });
+
+    await onShiftsWorked({ userId: "user-1" });
+
+    expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
+      data: [
+        { userId: "user-1", definitionId: "road-tested" },
+        { userId: "user-1", definitionId: "before-sunrise" },
+      ],
+      skipDuplicates: true,
+    });
+  });
 });
 
 describe("badge evaluator checkout events", () => {
   it("awards checkout threshold badges from opened checkout count", async () => {
-    mockTx.booking.count.mockResolvedValue(5);
+    mockTx.badgeEventReceipt.findMany.mockResolvedValue(
+      Array.from({ length: 5 }, (_, index) => ({ sourceKey: `booking-${index + 1}` })),
+    );
     mockTx.badgeDefinition.findMany.mockResolvedValue([
       { id: "first-checkout" },
       { id: "checkout-5" },
@@ -119,15 +197,23 @@ describe("badge evaluator checkout events", () => {
       userId: "user-1",
       bookingId: "booking-1",
       source: "kiosk_checkout",
-      sourceKey: "booking-1",
+      sourceKey: "caller-key-is-not-authoritative",
     });
 
-    expect(mockTx.booking.count).toHaveBeenCalledWith({
+    expect(mockTx.badgeEventReceipt.createMany).toHaveBeenCalledWith({
+      data: [{
+        userId: "user-1",
+        eventType: "checkout_opened",
+        sourceKey: "booking-1",
+      }],
+      skipDuplicates: true,
+    });
+    expect(mockTx.badgeEventReceipt.findMany).toHaveBeenCalledWith({
       where: {
-        requesterUserId: "user-1",
-        kind: "CHECKOUT",
-        status: { in: ["OPEN", "COMPLETED"] },
+        userId: "user-1",
+        eventType: "checkout_opened",
       },
+      select: { sourceKey: true },
     });
     expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
       data: [
@@ -142,18 +228,20 @@ describe("badge evaluator checkout events", () => {
   });
 
   it("counts serialized and bulk inventory toward category breadth", async () => {
-    mockTx.booking.count.mockResolvedValue(1);
     mockTx.booking.findMany.mockResolvedValue([
       {
-        serializedItems: [{ asset: { categoryId: "camera" } }],
-        bulkItems: [{ bulkSku: { categoryId: "audio" } }],
+        serializedItems: [{
+          asset: { category: { id: "camera", name: "Cameras", parent: null } },
+        }],
+        bulkItems: [{
+          checkedOutQuantity: 1,
+          bulkSku: { categoryRel: { id: "audio", name: "Audio", parent: null } },
+        }],
       },
     ]);
     mockTx.badgeDefinition.findMany
       .mockResolvedValueOnce([])
-      .mockImplementationOnce(async ({ where }: { where: Record<string, unknown> }) => (
-        where.ruleKey === "category_collector" ? [{ id: "category-collector" }] : []
-      ));
+      .mockResolvedValueOnce([{ id: "category-collector", ruleKey: "category_collector", threshold: 2 }]);
 
     await onCheckoutOpened({
       userId: "user-1",
@@ -164,12 +252,93 @@ describe("badge evaluator checkout events", () => {
 
     expect(mockTx.booking.findMany).toHaveBeenCalledWith(expect.objectContaining({
       select: {
-        serializedItems: { select: { asset: { select: { categoryId: true } } } },
-        bulkItems: { select: { bulkSku: { select: { categoryId: true } } } },
+        serializedItems: {
+          select: {
+            asset: {
+              select: {
+                category: { select: { id: true, name: true, parent: { select: { name: true } } } },
+              },
+            },
+          },
+        },
+        bulkItems: {
+          select: {
+            checkedOutQuantity: true,
+            bulkSku: {
+              select: {
+                categoryRel: { select: { id: true, name: true, parent: { select: { name: true } } } },
+              },
+            },
+          },
+        },
       },
     }));
     expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
       data: [{ userId: "user-1", definitionId: "category-collector" }],
+      skipDuplicates: true,
+    });
+  });
+
+  it("awards automatic checkout challenges from the credited checkout contents", async () => {
+    mockTx.badgeEventReceipt.findMany.mockResolvedValue(
+      Array.from({ length: 10 }, (_, index) => ({ sourceKey: `booking-${index + 1}` })),
+    );
+    mockTx.booking.findMany.mockResolvedValue(Array.from({ length: 10 }, (_, bookingIndex) => {
+      const categories = [
+        { id: `battery-${bookingIndex}`, name: "Batteries" },
+        { id: `lens-${bookingIndex}`, name: "Lenses" },
+        ...(bookingIndex < 5 ? [{ id: `camera-${bookingIndex}`, name: "Cameras" }] : []),
+        ...(bookingIndex < 5 ? [{ id: `audio-${bookingIndex}`, name: "Audio" }] : []),
+        ...(bookingIndex < 3 ? [{ id: `tripod-${bookingIndex}`, name: "Tripods" }] : []),
+        ...(bookingIndex < 2 ? [{ id: `light-${bookingIndex}`, name: "Lighting" }] : []),
+      ];
+      const serializedItems = categories.map((category) => ({
+        asset: { category: { ...category, parent: null } },
+      }));
+      if (bookingIndex === 0) {
+        serializedItems.push(...Array.from({ length: 10 }, (_, itemIndex) => ({
+          asset: {
+            category: {
+              id: `battery-extra-${itemIndex}`,
+              name: "Batteries",
+              parent: null,
+            },
+          },
+        })));
+      }
+      return { serializedItems, bulkItems: [] };
+    }));
+    mockTx.badgeDefinition.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { id: "power-player", ruleKey: "checkout_family_batteries", threshold: 10 },
+        { id: "glass-class", ruleKey: "checkout_family_lenses", threshold: 10 },
+        { id: "sound-check", ruleKey: "checkout_family_audio", threshold: 5 },
+        { id: "rock-solid", ruleKey: "checkout_support", threshold: 3 },
+        { id: "bright-spark", ruleKey: "checkout_family_lighting", threshold: 2 },
+        { id: "kitchen-sink", ruleKey: "checkout_families_5", threshold: 1 },
+        { id: "three-piece-suit", ruleKey: "checkout_full_rig", threshold: 3 },
+        { id: "heavy-lifter", ruleKey: "checkout_items_15", threshold: 1 },
+      ]);
+
+    await onCheckoutOpened({
+      userId: "user-1",
+      bookingId: "booking-1",
+      source: "kiosk_checkout",
+      sourceKey: "booking-1",
+    });
+
+    expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
+      data: [
+        { userId: "user-1", definitionId: "power-player" },
+        { userId: "user-1", definitionId: "glass-class" },
+        { userId: "user-1", definitionId: "sound-check" },
+        { userId: "user-1", definitionId: "rock-solid" },
+        { userId: "user-1", definitionId: "bright-spark" },
+        { userId: "user-1", definitionId: "kitchen-sink" },
+        { userId: "user-1", definitionId: "three-piece-suit" },
+        { userId: "user-1", definitionId: "heavy-lifter" },
+      ],
       skipDuplicates: true,
     });
   });
@@ -233,6 +402,7 @@ describe("badge evaluator checkout events", () => {
   });
 
   it("does not increment the on-time streak twice for the same source key", async () => {
+    mockTx.badgeEventReceipt.createMany.mockResolvedValue({ count: 0 });
     mockTx.booking.findMany.mockResolvedValue([
       {
         endsAt: new Date("2026-05-09T18:00:00.000Z"),
@@ -267,6 +437,35 @@ describe("badge evaluator checkout events", () => {
       },
     );
     expect(ruleKeys).not.toContain("on_time_return_streak");
+  });
+
+  it("ignores a delayed duplicate even after another source became the latest streak event", async () => {
+    mockTx.badgeEventReceipt.createMany.mockResolvedValue({ count: 0 });
+    mockTx.badgeStreak.findUnique.mockResolvedValue({
+      current: 7,
+      longest: 7,
+      lastSourceKey: "newer-booking",
+    });
+
+    await onCheckoutReturned({
+      userId: "user-1",
+      bookingId: "older-booking",
+      completedAt: new Date("2026-05-08T18:00:00.000Z"),
+      wasOnTime: true,
+      sourceKey: "older-booking",
+    });
+
+    expect(mockTx.badgeEventReceipt.createMany).toHaveBeenCalledWith({
+      data: [{
+        userId: "user-1",
+        eventType: "checkout_returned",
+        sourceKey: "older-booking",
+      }],
+      skipDuplicates: true,
+    });
+    expect(mockTx.booking.count).not.toHaveBeenCalled();
+    expect(mockTx.badgeStreak.findUnique).not.toHaveBeenCalled();
+    expect(mockTx.badgeStreak.upsert).not.toHaveBeenCalled();
   });
 
   it("counts on-time returns from completedAt even when later edits move updatedAt", async () => {
@@ -366,96 +565,6 @@ describe("badge evaluator checkout events", () => {
     );
   });
 
-  it("awards scan count and clean-scan rule badges on successful scans", async () => {
-    mockTx.badgeStreak.findUnique
-      .mockResolvedValueOnce({
-        current: 24,
-        longest: 24,
-        lastSourceKey: "older-scan",
-      })
-      .mockResolvedValueOnce({
-        current: 9,
-        longest: 9,
-        lastSourceKey: "older-scan",
-      });
-    mockTx.badgeDefinition.findMany
-      .mockResolvedValueOnce([{ id: "scan-25" }])
-      .mockResolvedValueOnce([{ id: "zero-errors" }]);
-
-    await onScanResult({
-      userId: "user-1",
-      bookingId: "booking-1",
-      phase: "pickup",
-      ok: true,
-      sourceKey: "scan-event-1",
-    });
-
-    expect(mockTx.badgeStreak.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          userId_streakType: {
-            userId: "user-1",
-            streakType: BadgeStreakType.SCAN_SUCCESS_COUNT,
-          },
-        },
-        update: expect.objectContaining({
-          current: 25,
-          longest: 25,
-          lastSourceKey: "scan-event-1",
-        }),
-      }),
-    );
-    expect(mockTx.badgeStreak.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          userId_streakType: {
-            userId: "user-1",
-            streakType: BadgeStreakType.SCAN_CLEAN,
-          },
-        },
-        update: expect.objectContaining({
-          current: 10,
-          longest: 10,
-          lastSourceKey: "scan-event-1",
-        }),
-      }),
-    );
-    expect(mockTx.studentBadge.createMany).toHaveBeenCalledTimes(2);
-  });
-
-  it("resets the clean-scan streak on failed scans", async () => {
-    mockTx.badgeStreak.findUnique.mockResolvedValue({
-      current: 4,
-      longest: 8,
-      lastSourceKey: "older-scan",
-    });
-
-    await onScanResult({
-      userId: "user-1",
-      bookingId: "booking-1",
-      phase: "checkin",
-      ok: false,
-      errorCode: "not_in_booking",
-      sourceKey: "checkin:booking-1:bad:not_in_booking",
-    });
-
-    expect(mockTx.badgeStreak.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          userId_streakType: {
-            userId: "user-1",
-            streakType: BadgeStreakType.SCAN_CLEAN,
-          },
-        },
-        update: expect.objectContaining({
-          current: 0,
-          lastSourceKey: "checkin:booking-1:bad:not_in_booking",
-        }),
-      }),
-    );
-    expect(mockTx.studentBadge.createMany).not.toHaveBeenCalled();
-  });
-
   it("awards trade threshold badges from completed trade count", async () => {
     mockTx.shiftTrade.count.mockResolvedValue(10);
     mockTx.badgeDefinition.findMany.mockResolvedValue([{ id: "trade-10" }]);
@@ -481,38 +590,27 @@ describe("badge evaluator checkout events", () => {
     });
   });
 
-  it("retries serializable conflicts and no-ops duplicate scan source keys", async () => {
-    dbMock.$transaction
-      .mockRejectedValueOnce(
-        new Prisma.PrismaClientKnownRequestError("Serializable conflict", {
-          code: "P2034",
-          clientVersion: "test",
-        }),
-      )
-      .mockImplementationOnce(async (fn: (tx: typeof mockTx) => Promise<unknown>) => fn(mockTx));
-    mockTx.badgeStreak.findUnique
-      .mockResolvedValueOnce({
-        current: 1,
-        longest: 1,
-        lastSourceKey: "scan-event-1",
-      })
-      .mockResolvedValueOnce({
-        current: 1,
-        longest: 1,
-        lastSourceKey: "scan-event-1",
-      });
+  it("awards the hidden 2 a.m. app-open rule from server time", async () => {
+    process.env.APP_TIMEZONE = "America/Chicago";
+    mockTx.badgeDefinition.findMany.mockResolvedValue([{ id: "go-to-bed" }]);
 
-    await onScanResult({
+    await onAppOpened({
       userId: "user-1",
-      bookingId: "booking-1",
-      phase: "pickup",
-      ok: true,
-      sourceKey: "scan-event-1",
+      occurredAt: new Date("2026-08-10T07:30:00.000Z"),
     });
 
-    expect(db.$transaction).toHaveBeenCalledTimes(2);
-    expect(mockTx.badgeStreak.upsert).not.toHaveBeenCalled();
-    expect(mockTx.studentBadge.createMany).not.toHaveBeenCalled();
+    expect(mockTx.badgeEventReceipt.createMany).toHaveBeenCalledWith({
+      data: [{
+        userId: "user-1",
+        eventType: "app_opened",
+        sourceKey: "local-hour-2:2026-08-10",
+      }],
+      skipDuplicates: true,
+    });
+    expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
+      data: [{ userId: "user-1", definitionId: "go-to-bed" }],
+      skipDuplicates: true,
+    });
   });
 });
 

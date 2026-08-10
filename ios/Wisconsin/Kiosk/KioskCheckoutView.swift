@@ -68,6 +68,7 @@ struct KioskCheckoutView: View {
     // is the source of truth the UIKit delegate writes into (same pattern as
     // KioskCheckoutDetailSheet's titleFocused/scanFocused).
     @State private var focusedCheckoutField: KioskCheckoutFocusedField? = nil
+    @State private var earnedBadges: [EarnedBadgeReward] = []
 
     enum ScanFeedback: Equatable {
         case success(String)
@@ -567,6 +568,7 @@ struct KioskCheckoutView: View {
             defer { pendingScanIdentities.remove(normalizedScan) }
             do {
                 let result = try await KioskAPI.shared.kioskCheckoutScan(actorId: userId, scanValue: value)
+                earnedBadges.appendUnique(contentsOf: result.earnedBadges ?? [])
                 if result.success, let item = result.item {
                     // Merge into current MainActor state, not the cart snapshot
                     // captured before this request. Parallel scans may complete
@@ -696,7 +698,7 @@ struct KioskCheckoutView: View {
                 return
             }
             do {
-                try await KioskAPI.shared.kioskCheckoutComplete(
+                let completionBadges = try await KioskAPI.shared.kioskCheckoutComplete(
                     actorId: userId,
                     locationId: locationId,
                     items: cart,
@@ -704,12 +706,17 @@ struct KioskCheckoutView: View {
                     customPurpose: purpose,
                     endsAt: endsAt
                 )
+                earnedBadges.appendUnique(contentsOf: completionBadges)
                 Haptics.success()
                 store.clearCart(for: userId)
                 store.clearCheckoutDraft(for: userId)
                 store.clearIntent(reason: .success)
                 scannerCaptureEnabled = false
-                store.screen = .success(KioskSuccessInfo(kind: .checkout, message: message))
+                store.screen = .success(KioskSuccessInfo(
+                    kind: .checkout,
+                    message: message,
+                    earnedBadges: earnedBadges
+                ))
             } catch {
                 let message = (error as? APIError)?.errorDescription
                     ?? "Checkout failed. Please try again."

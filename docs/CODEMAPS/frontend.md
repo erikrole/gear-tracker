@@ -105,10 +105,10 @@
 | `src/components/TradeBoard.tsx` | 1205 |
 | `src/components/onboarding/OnboardingDialog.tsx` | 884 |
 | `src/components/EquipmentPicker.tsx` | 879 |
+| `src/components/AppShell.tsx` | 860 |
 | `src/components/ShiftDetailPanel.tsx` | 796 |
 | `src/components/ChooseImageModal.tsx` | 770 |
 | `src/components/profile-completion/ProfileCompletionWizard.tsx` | 768 |
-| `src/components/AppShell.tsx` | 749 |
 | `src/components/booking-wizard/BookingWizard.tsx` | 710 |
 | `src/components/ui/sidebar.tsx` | 710 |
 | `src/components/BookingDetailsSheet.tsx` | 684 |

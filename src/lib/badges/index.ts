@@ -1,6 +1,7 @@
 import { captureBadgeError } from "@/lib/observability";
 
 import * as evaluator from "./evaluator";
+import { listEarnedBadgesSince, type EarnedBadge } from "./queries";
 import type { BadgeService } from "./types";
 
 export function badgesEnabled(): boolean {
@@ -28,19 +29,35 @@ function safeCall<Args extends unknown[]>(fn: (...args: Args) => Promise<void>):
 export const badges: BadgeService = {
   onCheckoutOpened: safeCall(evaluator.onCheckoutOpened),
   onCheckoutReturned: safeCall(evaluator.onCheckoutReturned),
-  onScanResult: safeCall(evaluator.onScanResult),
+  onAppOpened: safeCall(evaluator.onAppOpened),
   onTradeCompleted: safeCall(evaluator.onTradeCompleted),
   onShiftsWorked: safeCall(evaluator.onShiftsWorked),
 };
 
+export async function earnedBadgesSince(userId: string, after: Date): Promise<EarnedBadge[]> {
+  if (!badgesEnabled()) return [];
+
+  try {
+    return await listEarnedBadgesSince({
+      userId,
+      after,
+      through: new Date(),
+    });
+  } catch (error) {
+    // Celebration is additive. A read failure must never turn a successful
+    // custody mutation into a failed checkout, pickup, or return.
+    captureBadgeError(error, { reader: "earnedBadgesSince", userId });
+    return [];
+  }
+}
+
 export type {
+  AppOpenedBadgeEvent,
   BadgeEventSource,
-  BadgeScanErrorCode,
-  BadgeScanPhase,
   BadgeService,
   CheckoutOpenedBadgeEvent,
   CheckoutReturnedBadgeEvent,
-  ScanResultBadgeEvent,
   ShiftsWorkedBadgeEvent,
   TradeCompletedBadgeEvent,
 } from "./types";
+export type { EarnedBadge } from "./queries";

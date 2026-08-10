@@ -447,7 +447,10 @@ struct RootView: View {
     @Environment(SessionStore.self) private var session
     @Environment(ProfileCompletionStore.self) private var profileCompletion
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showPushPrePrompt = false
+    @State private var earnedBadgeQueue: [EarnedBadgeReward] = []
+    @State private var badgeRewardPollInFlight = false
 
     var body: some View {
         Group {
@@ -488,6 +491,32 @@ struct RootView: View {
             guard let user = session.currentUser, !user.forcePasswordChange else { return }
             await profileCompletion.load(for: user)
         }
+        .task(id: "badge-rewards-\(session.currentUser?.id ?? "signed-out")") {
+            earnedBadgeQueue.removeAll()
+            guard let user = session.currentUser,
+                  !user.forcePasswordChange,
+                  user.role != "COLLABORATOR" else { return }
+
+            // Establish the no-history-replay cursor before the app-open event
+            // can mint an easter egg, then fetch once more for its reward.
+            await refreshBadgeRewardsForAppOpen(for: user.id)
+
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: .seconds(15))
+                } catch {
+                    return
+                }
+                await pollBadgeRewards(for: user.id)
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active,
+                  let user = session.currentUser,
+                  !user.forcePasswordChange,
+                  user.role != "COLLABORATOR" else { return }
+            Task { await refreshBadgeRewardsForAppOpen(for: user.id) }
+        }
         .onChange(of: profileCompletion.pushPromptEligibleUserId, initial: true) { _, userId in
             guard let userId, session.currentUser?.id == userId else { return }
             let sessionBoundary = authSessionBoundary.capture()
@@ -503,6 +532,53 @@ struct RootView: View {
                 .presentationDetents([.fraction(0.62), .large])
                 .presentationDragIndicator(.visible)
         }
+        .overlay {
+            if session.currentUser != nil, let reward = earnedBadgeQueue.first {
+                BadgeEarnedCelebrationView(
+                    reward: reward,
+                    remaining: earnedBadgeQueue.count - 1,
+                    onDismiss: { earnedBadgeQueue.removeFirst() }
+                )
+                .zIndex(100)
+            }
+        }
+    }
+
+    @MainActor
+    private func pollBadgeRewards(for userId: String) async {
+        guard !badgeRewardPollInFlight else { return }
+        badgeRewardPollInFlight = true
+        defer { badgeRewardPollInFlight = false }
+
+        let cursorKey = "WisconsinBadgeRewardCursor.\(userId)"
+        let after = UserDefaults.standard.string(forKey: cursorKey)
+
+        do {
+            let response = try await APIClient.shared.recentBadgeAwards(after: after)
+            guard session.currentUser?.id == userId else { return }
+            UserDefaults.standard.set(response.nextCursor, forKey: cursorKey)
+            earnedBadgeQueue.appendUnique(contentsOf: response.awards)
+        } catch APIError.httpError(let statusCode, _) where statusCode == 400 {
+            // A stale or damaged cursor must not strand reward polling forever.
+            UserDefaults.standard.removeObject(forKey: cursorKey)
+        } catch {
+            // Reward chrome is additive. Keep the cursor and try again later.
+        }
+    }
+
+    @MainActor
+    private func refreshBadgeRewardsForAppOpen(for userId: String) async {
+        let cursorKey = "WisconsinBadgeRewardCursor.\(userId)"
+        await pollBadgeRewards(for: userId)
+        if UserDefaults.standard.string(forKey: cursorKey) == nil {
+            // A malformed cursor is removed by the first poll. Establish a new
+            // no-replay boundary before creating an award on this foreground.
+            await pollBadgeRewards(for: userId)
+        }
+        guard session.currentUser?.id == userId,
+              UserDefaults.standard.string(forKey: cursorKey) != nil else { return }
+        try? await APIClient.shared.recordBadgeAppOpen()
+        await pollBadgeRewards(for: userId)
     }
 
     @MainActor

@@ -315,6 +315,8 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 
 ## Change Log
 
+- 2026-08-10: **Badge credit now survives owner transfer.** Opening a checkout writes immutable badge credit keyed to that checkout and opener. A transfer before opening moves future credit; a transfer after opening leaves checkout-count and category-breadth credit with the original opener while the current custodian receives return, on-time, and damage-free outcomes. Migration `0110_badge_rewards` reconstructs a prior opener only from the first ownership transfer recorded after the first kiosk-open audit; pre-open and ambiguous legacy transfers remain with the current requester.
+
 - 2026-08-07: Reconciled checkout cancellation and edit boundaries with D-012
   and D-040. Normal `OPEN -> CANCELLED` is now blocked in both action policy and
   the transaction service; active custody closes only through kiosk return or

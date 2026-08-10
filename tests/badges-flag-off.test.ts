@@ -41,12 +41,9 @@ describe("badge flag-off query guard", () => {
         wasOnTime: true,
         sourceKey: "booking-1",
       }),
-      badges.onScanResult({
+      badges.onAppOpened({
         userId: "user-1",
-        bookingId: "booking-1",
-        phase: "pickup",
-        ok: true,
-        sourceKey: "scan-1",
+        occurredAt: new Date("2026-08-10T07:30:00.000Z"),
       }),
       badges.onTradeCompleted({
         userId: "user-1",

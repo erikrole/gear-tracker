@@ -103,7 +103,7 @@ Values: `ACTIVE`, `MAINTENANCE`, `UNKNOWN`
 
 ## Model `User`
 
-Fields: 101
+Fields: 102
 
 - `id                          String                           @id @default(cuid())`
 - `name                        String`
@@ -180,6 +180,7 @@ Fields: 101
 - `badges                      StudentBadge[]`
 - `badgesAwardedByMe           StudentBadge[]                   @relation("BadgeAwardedBy")`
 - `badgeStreaks                BadgeStreak[]`
+- `badgeEventReceipts          BadgeEventReceipt[]`
 - `notificationPrefs           Json?                            @map("notification_prefs")`
 - `icsToken                    String?                          @unique @map("ics_token")`
 - `scheduleEventFollows        ScheduleEventFollow[]`
@@ -1466,6 +1467,23 @@ Indexes and constraints:
 - `@@unique([userId, streakType])`
 - `@@index([userId])`
 - `@@map("badge_streaks")`
+
+## Model `BadgeEventReceipt`
+
+Fields: 6
+
+- `id         String   @id @default(cuid())`
+- `userId     String   @map("user_id")`
+- `eventType  String   @map("event_type")`
+- `sourceKey  String   @map("source_key")`
+- `receivedAt DateTime @default(now()) @map("received_at")`
+- `user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)`
+
+Indexes and constraints:
+
+- `@@unique([userId, eventType, sourceKey])`
+- `@@index([receivedAt])`
+- `@@map("badge_event_receipts")`
 
 ## Enum `LicenseCodeStatus`
 

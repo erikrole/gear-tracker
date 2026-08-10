@@ -11,7 +11,7 @@ import { bulkRequestsFromCheckoutUnits, normalizeCheckoutCompleteItems } from "@
 import { ACTIVE_BULK_UNIT_ALLOCATION_WHERE, CLAIMABLE_BULK_UNIT_WHERE, effectiveBulkUnitStatus } from "@/lib/bulk-unit-status";
 import { checkAvailability, type AvailabilityResult } from "@/lib/services/availability";
 import { parseDateRange } from "@/lib/time";
-import { badges } from "@/lib/badges";
+import { badges, earnedBadgesSince } from "@/lib/badges";
 import { scheduleCheckoutReturnLiveActivity } from "@/lib/live-activity-workflow";
 import { normalizeBookingTitle } from "@/lib/title-normalization";
 import { normalizeCheckoutPolicies } from "@/lib/services/checkout-policies";
@@ -75,6 +75,7 @@ async function withSerializableRetry<T>(operation: () => Promise<T>): Promise<T>
  * now we create the booking and allocations atomically.
  */
 export const POST = withKiosk(async (req, { kiosk }) => {
+  const badgeWindowStart = new Date(Date.now() - 1);
   const body = checkoutCompleteBody.parse(await req.json());
   const actorId = body.actorId;
   const locationId = kiosk.locationId;
@@ -353,14 +354,18 @@ export const POST = withKiosk(async (req, { kiosk }) => {
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
     ));
 
+    // Badge evaluation stays outside the custody transaction, but is awaited
+    // so the additive reward payload can reach the kiosk success screen.
+    await badges.onCheckoutOpened({
+      userId: actorId,
+      bookingId: booking.id,
+      source: "kiosk_checkout",
+      sourceKey: booking.id,
+    });
+    const earnedBadges = await earnedBadgesSince(actorId, badgeWindowStart);
+
     after(async () => {
       await Promise.allSettled([
-        badges.onCheckoutOpened({
-          userId: actorId,
-          bookingId: booking.id,
-          source: "kiosk_checkout",
-          sourceKey: booking.id,
-        }),
         scheduleCheckoutReturnLiveActivity({
           bookingId: booking.id,
           endsAt: booking.endsAt,
@@ -373,6 +378,7 @@ export const POST = withKiosk(async (req, { kiosk }) => {
       refNumber,
       itemCount: assetIds.length + bulkUnitItems.length,
       endsAt: booking.endsAt,
+      ...(earnedBadges.length > 0 ? { earnedBadges } : {}),
     });
   } catch (error) {
     if (isSerializationConflict(error)) {

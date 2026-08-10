@@ -174,7 +174,10 @@ struct KioskAPI {
     func kioskCheckoutScan(actorId: String, scanValue: String) async throws -> KioskScanResult {
         struct Body: Encodable { let actorId: String; let scanValue: String }
         var req = request(path: "/api/kiosk/checkout/scan", method: "POST")
-        req.httpBody = try JSONEncoder().encode(Body(actorId: actorId, scanValue: scanValue))
+        req.httpBody = try JSONEncoder().encode(Body(
+            actorId: actorId,
+            scanValue: scanValue
+        ))
         return try await perform(req)
     }
 
@@ -219,7 +222,7 @@ struct KioskAPI {
         eventId: String?,
         customPurpose: String?,
         endsAt: Date
-    ) async throws {
+    ) async throws -> [EarnedBadgeReward] {
         struct Body: Encodable {
             let actorId: String
             let locationId: String
@@ -237,8 +240,12 @@ struct KioskAPI {
             customPurpose: customPurpose,
             endsAt: isoString(from: endsAt)
         ))
-        struct Response: Decodable { let bookingId: String }
-        let _: Response = try await perform(req)
+        struct Response: Decodable {
+            let bookingId: String
+            let earnedBadges: [EarnedBadgeReward]?
+        }
+        let response: Response = try await perform(req)
+        return response.earnedBadges ?? []
     }
 
     func kioskCheckoutDetail(id: String) async throws -> KioskCheckoutDetail {
@@ -317,16 +324,21 @@ struct KioskAPI {
         return try await perform(req)
     }
 
-    func kioskPickupConfirm(bookingId: String, actorId: String) async throws {
+    func kioskPickupConfirm(bookingId: String, actorId: String) async throws -> [EarnedBadgeReward] {
         struct Body: Encodable { let actorId: String }
-        struct Response: Decodable { let success: Bool; let bookingId: String }
+        struct Response: Decodable {
+            let success: Bool
+            let bookingId: String
+            let earnedBadges: [EarnedBadgeReward]?
+        }
         var req = request(path: "/api/kiosk/pickup/\(bookingId)/confirm", method: "POST")
         req.httpBody = try JSONEncoder().encode(Body(actorId: actorId))
         // Route through `perform` so 401/404/409/5xx propagate as APIError —
         // the prior `try?` swallowed every failure mode and produced phantom
         // successes (booking stayed PENDING_PICKUP server-side, kiosk showed
         // the confirmation screen).
-        let _: Response = try await perform(req)
+        let response: Response = try await perform(req)
+        return response.earnedBadges ?? []
     }
 
     // MARK: - Internals

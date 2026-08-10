@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   nextBookingRef: vi.fn(),
   upsertBulkBalancesAndMovements: vi.fn(),
   badgeOnCheckoutOpened: vi.fn(),
+  earnedBadgesSince: vi.fn(),
   checkAvailability: vi.fn(),
   scheduleCheckoutReturnLiveActivity: vi.fn(),
 }));
@@ -80,6 +81,7 @@ vi.mock("@/lib/badges", () => ({
   badges: {
     onCheckoutOpened: mocks.badgeOnCheckoutOpened,
   },
+  earnedBadgesSince: mocks.earnedBadgesSince,
 }));
 
 vi.mock("@/lib/live-activity-workflow", () => ({
@@ -169,6 +171,7 @@ beforeEach(() => {
   });
   mocks.createAuditEntryTx.mockResolvedValue(undefined);
   mocks.scheduleCheckoutReturnLiveActivity.mockResolvedValue(undefined);
+  mocks.earnedBadgesSince.mockResolvedValue([]);
   mocks.transaction.mockImplementation((handler) => handler(transactionClient()));
 });
 

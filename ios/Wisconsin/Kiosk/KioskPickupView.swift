@@ -20,6 +20,7 @@ struct KioskPickupView: View {
     @State private var lastScanAt: Date?
     @State private var confirmedItemOverrides: [String: KioskScanResult.ScannedItem] = [:]
     @State private var queuedScanValues: [String] = []
+    @State private var earnedBadges: [EarnedBadgeReward] = []
 
     enum ScanFeedback: Equatable {
         case success(String)
@@ -272,6 +273,7 @@ struct KioskPickupView: View {
         Task {
             do {
                 let result = try await KioskAPI.shared.kioskPickupScan(bookingId: bookingId, scanValue: value)
+                earnedBadges.appendUnique(contentsOf: result.earnedBadges ?? [])
                 if result.success, let item = result.item {
                     if confirmedIds.contains(item.id) {
                         showFeedback(.alreadyConfirmed("\(item.tagName) already confirmed"))
@@ -316,12 +318,17 @@ struct KioskPickupView: View {
         isConfirming = true
         Task {
             do {
-                try await KioskAPI.shared.kioskPickupConfirm(bookingId: bookingId, actorId: userId)
+                let confirmationBadges = try await KioskAPI.shared.kioskPickupConfirm(
+                    bookingId: bookingId,
+                    actorId: userId
+                )
+                earnedBadges.appendUnique(contentsOf: confirmationBadges)
                 Haptics.success()
                 let itemWord = confirmedCount == 1 ? "item" : "items"
                 store.screen = .success(KioskSuccessInfo(
                     kind: .pickup,
-                    message: "Pickup confirmed! \(confirmedCount) \(itemWord) checked out."
+                    message: "Pickup confirmed! \(confirmedCount) \(itemWord) checked out.",
+                    earnedBadges: earnedBadges
                 ))
                 store.clearIntent(reason: .success)
             } catch {

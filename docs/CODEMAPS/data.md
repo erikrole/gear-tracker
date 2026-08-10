@@ -11,7 +11,7 @@
 
 | Model | Fields | Model-level indexes/constraints |
 |---|---:|---:|
-| `User` | 101 | 5 |
+| `User` | 102 | 5 |
 | `Session` | 6 | 2 |
 | `PasswordResetToken` | 6 | 2 |
 | `PasskeyCredential` | 12 | 2 |
@@ -64,6 +64,7 @@
 | `BadgeDefinition` | 14 | 3 |
 | `StudentBadge` | 10 | 5 |
 | `BadgeStreak` | 8 | 3 |
+| `BadgeEventReceipt` | 6 | 3 |
 | `LicenseCode` | 15 | 4 |
 | `LicenseCodeClaim` | 10 | 3 |
 | `SportConfig` | 8 | 1 |

@@ -4,7 +4,7 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped — iOS canonical (web kiosk deprecated 2026-04-24)
 - Created: 2026-04-07
-- Last Updated: 2026-08-03
+- Last Updated: 2026-08-10
 - Brief: `BRIEF_KIOSK.md`
 - Decision Refs: D-030, D-032, D-040
 
@@ -44,7 +44,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 - **`KioskCheckoutView.swift`** — a **two-step flow**: step 1 Checkout Details (booking name, return date + time, and event linking with the requester's own shifts listed first), then step 2 Scan Items (shared `KioskScanStage` + scanned-items rail + Complete button). `checkoutContextReady` gates the steps and starts `false`; a restored draft or a scan-initiated checkout resumes directly into scanning. Return time is two always-visible native pickers — one-tap presets were removed deliberately, because an easy default is the one people press to get past the screen.
 - **`KioskPickupView.swift`** — for reservation pickup handoffs and compatibility `PENDING_PICKUP` bookings.
 - **`KioskReturnView.swift`** — return flow.
-- **`KioskSuccessView.swift`** — terminal screen with 5s auto-return to idle.
+- **`KioskSuccessView.swift`** — terminal screen with a 5s auto-return to idle, extended to 9s when the completed flow earned badges so the selected user can see the reward before the shared device resets.
 - **`KioskDesign.swift` / `KioskComponents.swift`** — shared dark operational surface tokens plus the `KioskType` type ramp, the `KioskStatus` status language, and the `kioskButtonRole` button hierarchy. Liquid Glass is used for interactive and floating hierarchy: button styles throughout, the shell scanner pill, and the `KioskScanStage` panel. **Dense custody content stays opaque on purpose** — glass behind a multi-item manifest hurts legibility at counter distance. `Color.kioskRed` is `#A00000` (matching web `--wi-red`) and is brand/action only; statuses come from `KioskStatus`, never from the brand red.
 - **`Shared/HIDScannerField.swift`** — invisible UITextField that captures HID barcode-scanner keystrokes. Shared by the dedicated kiosk target and the main app's Scanner Debugger.
 - **`KioskBarcodeCameraView.swift`** — DataScannerViewController-backed camera fallback for environments without a hand scanner.
@@ -68,6 +68,7 @@ Files under `ios/Wisconsin/Kiosk/`:
   - `POST /checkin/[id]/scan`, `POST /checkin/[id]/complete`
   - `POST /pickup/[id]/scan`, `POST /pickup/[id]/confirm`
   - `POST /scan-lookup` — read-only item-by-tag lookup
+- Successful checkout, pickup, and check-in completion responses may include an additive `earnedBadges` array. Individual scans remain operational evidence but no longer award badges. The native client accumulates and deduplicates completion awards for the current flow; older clients safely ignore the field.
 - Numbered battery units scan through the same pickup/check-in endpoints with derived values like `{binQrCodeValue}-{unitNumber}`. Pickup binds the unit to the booking; check-in returns only the scanned unit.
 - Pickup and return detail payloads include numbered battery units in the same `items` checklist used by serialized assets, plus typed scan-summary metadata so the native iOS screens can show a distinct battery-unit scan step before pickup/return completion.
 - Serialized pickup confirmation now requires a successful `CHECKOUT` scan event for each serialized asset on the booking. Kiosk scan lookup accepts asset tag, primary scan code, QR value, `qr-` fallback, and serial number values.
@@ -77,6 +78,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 - Active kiosk checkouts can be edited from the idle detail drawer. The kiosk-authenticated checkout detail route can update title/return time, add one scanned serialized asset or numbered bulk unit, and remove one unreturned active item on any `OPEN` checkout. Mutations run in `SERIALIZABLE` transactions, re-check availability using the booking's source location when custody changes, update active allocations/bulk unit status, and write audit entries.
 - Standard checkout return remains kiosk-owned. Web can close an `OPEN` checkout without scan only through the admin-only reasoned override route when staff have physically verified every item is back; that path records override/audit evidence and is not a general app/web return flow.
 - Kiosk owns the reservation-to-custody bridge. A booked reservation can enter pickup from the student hub before or after its scheduled start time; the schedule does not disable the handoff. Scan evidence is staged on the source reservation, confirmation creates the linked checkout custody record through `sourceReservationId`, binds exact numbered units, opens checkout custody, and marks the source reservation `COMPLETED` because the reservation was fulfilled.
+- Compatibility `PENDING_PICKUP` confirmation resolves the current booking requester on the server and rejects a stale submitted user after ownership transfer. The client cannot assign checkout-open badge credit to a former owner by carrying an old actor identifier into confirmation.
 - Stale pending-pickup checkouts auto-expire during the scheduled morning refresh after 48 hours past `startsAt`. Expiry cancels the booking, releases serialized allocations, restores held bulk stock, releases any scanned numbered units, cancels open scan sessions, and writes a system audit entry.
 - **Auth helpers:** `withKiosk()` (`src/lib/api.ts`) and `requireKiosk()` (`src/lib/auth.ts`) validate the kiosk-session cookie, enforce the server-side 7-day `sessionExpiresAt`, refresh `lastSeenAt`, throw 401 if expired/inactive/deactivated.
 
@@ -103,6 +105,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 | AC-17 | Stale pending-pickup checkouts auto-expire | ✅ Complete (2026-05-13) |
 | AC-18 | Reservation pickup can be fulfilled into linked checkout custody only through kiosk | ✅ Complete (2026-06-18) |
 | AC-19 | Active kiosk checkouts can be edited without leaving kiosk mode | ✅ Complete (2026-06-22) |
+| AC-20 | Newly earned badges appear on the terminal success screen without weakening custody completion | ✅ Source/build complete (2026-08-10); managed-iPad visual proof pending |
 
 ## Known Gaps
 
@@ -111,11 +114,14 @@ Files under `ios/Wisconsin/Kiosk/`:
 - Activation code lifecycle: codes are single-use and expire 24h after issue. Redeeming a code clears it; an unredeemed code that ages out can no longer activate. Once a device is activated its sliding session keeps it signed in without the code. If a cookie is wiped or a code expires, an admin resets the activation code for the existing device from Settings → Kiosk Devices, which revokes the old kiosk session and moves the device back to pending activation.
 - Domain cutover: kiosk API traffic and cookie rehydration now use the shared `wisconsincreative.com` host. Keep the legacy host aliased during the first rollout if any already-activated kiosk devices need a soft landing; otherwise a development kiosk can be reactivated through Settings → Kiosk Devices.
 - The landscape lock currently depends on `UIRequiresFullScreen`, which Xcode 26 reports as deprecated and subject to being ignored in a future iOS release. The current counter-mounted workflow remains landscape-only. Migrate and verify the orientation/windowing contract on managed iPads before Apple removes enforcement.
+- Badge reward presentation has generic iOS Simulator compile proof, but the iPad-only target excludes the standard iPhone 16 Pro simulator destination and the reward state has not yet been rendered on the managed landscape iPad. Custody remains complete even if reward lookup fails.
 
 ## Change Log
 
 | Date | Change |
 |------|--------|
+| 2026-08-10 | **Successful-scan metric retired and pickup ownership hardened.** Production has only successful recorded scans, so individual checkout, pickup, and check-in scans no longer emit badge events, increment scan counters, or fetch scan rewards. Existing ScanEvent evidence and historical earned scan badges remain intact. Checkout, pickup confirmation, and return completion still carry newly earned awards into the kiosk success moment. Compatibility pending-pickup confirmation now rejects a stale submitted owner and credits only the current booking requester. |
+| 2026-08-10 | **Badge reward handoff.** Scan and completion routes now return newly earned awards as optional additive payloads. Checkout, pickup, and return accumulate those awards through the native flow, and the terminal success screen shows a rarity-aware badge reward with a longer 9-second viewing window. Direct checkout scans send a unique attempt ID so delayed retries cannot double-count badge progress. Custody commits remain authoritative and reward reads are failure-isolated. |
 | 2026-08-03 | **Global kiosk operations and return transfer.** Every staffed kiosk now shows global checkout and reservation data, can pick up and manage open custody from another location, and does not relocate gear during checkout or pickup. Only check-in changes location: serialized assets move to the return kiosk; numbered bulk stock is restored to that kiosk's ledger balance. |
 | 2026-08-03 | **Global kiosk person discovery.** The roster, Wiscard identity, scan identity resolution, and student-hub context no longer require a user's saved location to match the kiosk. Active and hidden-user boundaries remain intact, and collaborators still require `KIOSK_ROSTER_ELIGIBLE`. The later same-day operations amendment supersedes the initial location-scoped custody boundary. |
 

@@ -26,6 +26,7 @@ const HIDDEN_BADGE_KEYS = new Set([
   "above_and_beyond",
   "event_hero",
   "clean_loop",
+  "go_to_bed",
 ]);
 
 const LEGENDARY_BADGE_KEYS = new Set([
@@ -41,6 +42,7 @@ const RARE_BADGE_KEYS = new Set([
   "full_kit_no_misses",
   "semester_streak",
   "reliable_regular",
+  "go_to_bed",
 ]);
 
 const UNCOMMON_BADGE_KEYS = new Set([

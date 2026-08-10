@@ -10,6 +10,8 @@ const migration = source("prisma/migrations/0100_badge_catalog_rebalance/migrati
 const seed = source("prisma/seed.mjs");
 const evaluator = source("src/lib/badges/evaluator.ts");
 const queries = source("src/lib/badges/queries.ts");
+const automaticRules = source("src/lib/badges/automatic-rules.ts");
+const rewardMigration = source("prisma/migrations/0110_badge_rewards/migration.sql");
 
 describe("badge catalog rebalance", () => {
   it("fills the ladder gaps the award data exposed", () => {
@@ -26,7 +28,8 @@ describe("badge catalog rebalance", () => {
     expect(evaluator).toContain('ruleKey: "damage_free_return"');
     expect(evaluator).toContain("checkinReports: { none: {} }");
 
-    expect(evaluator).toContain('ruleKey: "category_collector"');
+    expect(evaluator).toContain("checkoutAutomaticRuleCounts");
+    expect(automaticRules).toContain('counts.set("category_collector", distinctCategoryIds.size)');
     expect(migration).toContain('"trigger" = \'checkout:opened\'');
 
     expect(evaluator).toContain("export async function onShiftsWorked");
@@ -57,8 +60,8 @@ describe("badge catalog rebalance", () => {
     expect(revive).toContain("'first_shift', 'shift_10', 'shift_50'");
     expect(revive).not.toContain("streak_shifts_5'");
 
-    // Counting from the database is what makes the nightly re-run a no-op.
-    expect(evaluator).toContain("tx.shiftAssignment.count");
+    // Deriving from the database is what makes the nightly re-run a no-op.
+    expect(evaluator).toContain("tx.shiftAssignment.findMany");
     // Archived events still count, or a worked-shift total would fall over time
     // and strand someone below a threshold they had already passed.
     const shiftFn = evaluator.slice(evaluator.indexOf("export async function onShiftsWorked"));
@@ -88,7 +91,7 @@ describe("badge catalog rebalance", () => {
     for (const key of ["checkout_10", "on_time_25", "scan_50", "damage_free_10", "damage_free_50"]) {
       expect(seed).toContain(`key: "${key}"`);
     }
-    expect(seed).toContain('description: "Worked a first event shift."');
+    expect(seed).toContain('description: "Was assigned to a first completed event shift."');
     expect(seed).toContain('description: "Checked out gear from five different categories."');
     expect(seed).toContain("kind: BadgeKind.COUNT");
     expect(seed).toContain('trigger: "checkout:opened"');
@@ -115,5 +118,93 @@ describe("badge catalog rebalance", () => {
       expect(definition).toContain("active: false");
       expect(definition).toContain("Retired: replaced by automatic recognition or unused in practice.");
     }
+  });
+
+  it("adds attainable bridge milestones while retiring scan goals", () => {
+    for (const key of ["on_time_5", "scan_10", "shift_25", "trade_5"]) {
+      expect(rewardMigration).toContain(`'${key}'`);
+      expect(seed).toContain(`key: "${key}"`);
+    }
+
+    expect(rewardMigration).toContain("'first_scan', 'scan_10', 'scan_25', 'scan_50', 'scan_100', 'zero_errors'");
+    expect(rewardMigration).toContain('"active" = false');
+    for (const key of ["first_scan", "scan_10", "scan_25", "scan_50", "scan_100", "zero_errors"]) {
+      const definitionStart = seed.indexOf(`key: "${key}"`);
+      const definitionEnd = seed.indexOf("\n  },", definitionStart);
+      expect(seed.slice(definitionStart, definitionEnd)).toContain("active: false");
+    }
+  });
+
+  it("adds ten captured-data automatic awards and one hidden app-open easter egg", () => {
+    for (const key of [
+      "power_player",
+      "glass_class",
+      "sound_check",
+      "rock_solid",
+      "bright_spark",
+      "kitchen_sink",
+      "three_piece_suit",
+      "heavy_lifter",
+      "road_tested",
+      "before_sunrise",
+    ]) {
+      expect(seed).toContain(`key: "${key}"`);
+      expect(rewardMigration).toContain(`'${key}'`);
+    }
+    for (const ruleKey of [
+      "checkout_family_batteries",
+      "checkout_family_lenses",
+      "checkout_family_audio",
+      "checkout_support",
+      "checkout_family_lighting",
+      "checkout_families_5",
+      "checkout_full_rig",
+      "checkout_items_15",
+      "shift_away_completed",
+      "shift_before_7",
+    ]) {
+      expect(seed).toContain(`ruleKey: "${ruleKey}"`);
+      expect(rewardMigration).toContain(`'${ruleKey}'`);
+    }
+    const automaticDefinitions = seed.slice(
+      seed.indexOf('key: "power_player"'),
+      seed.indexOf('key: "go_to_bed"'),
+    );
+    expect(automaticDefinitions).not.toContain('trigger: "manual"');
+    expect(automaticDefinitions).toContain("kind: BadgeKind.COUNT");
+    expect(rewardMigration).toContain("credited_booking_categories");
+    expect(rewardMigration).toContain('i."checked_out_quantity" > 0');
+    for (const [key, threshold] of [
+      ['key: "power_player"', "threshold: 10"],
+      ['key: "glass_class"', "threshold: 10"],
+      ['key: "sound_check"', "threshold: 5"],
+      ['key: "rock_solid"', "threshold: 3"],
+      ['key: "bright_spark"', "threshold: 2"],
+      ['key: "three_piece_suit"', "threshold: 3"],
+      ['key: "road_tested"', "threshold: 3"],
+      ['key: "before_sunrise"', "threshold: 2"],
+    ] as const) {
+      const definitionStart = seed.indexOf(key);
+      const definitionEnd = seed.indexOf("\n  },", definitionStart);
+      expect(seed.slice(definitionStart, definitionEnd)).toContain(threshold);
+    }
+    expect(rewardMigration).toContain("HAVING COUNT(DISTINCT c.family_name) >= 5");
+    expect(rewardMigration).toContain("c.item_total >= 15");
+    expect(rewardMigration).toContain("e.\"is_home\" = false");
+    expect(rewardMigration).toContain("AT TIME ZONE 'America/Chicago'");
+    expect(seed).toContain('key: "go_to_bed"');
+    expect(seed).toContain('trigger: "app:opened"');
+    expect(rewardMigration).toContain("'local_hour_2'");
+  });
+
+  it("freezes checkout credit through owner transfers and repairs completed progress", () => {
+    expect(rewardMigration).toContain("a.\"action\" IN ('kiosk_checkout', 'kiosk_pickup')");
+    expect(rewardMigration).toContain("a.\"action\" = 'owner_transferred'");
+    expect(rewardMigration).toContain("a.\"before_json\" ->> 'requesterUserId'");
+    expect(rewardMigration).toContain("a.\"created_at\" > o.opened_at");
+    expect(rewardMigration).toContain("'checkout_opened'");
+    expect(rewardMigration).toContain("ON CONFLICT (\"user_id\", \"definition_id\") DO NOTHING");
+    expect(rewardMigration).toContain("FROM \"shift_assignments\"");
+    expect(rewardMigration).toContain("category_counts");
   });
 });

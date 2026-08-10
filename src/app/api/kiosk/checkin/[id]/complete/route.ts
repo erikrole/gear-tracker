@@ -4,6 +4,7 @@ import { HttpError, ok } from "@/lib/http";
 import { createAuditEntry } from "@/lib/audit";
 import { kioskCompleteCheckin } from "@/lib/services/bookings-checkin";
 import { checkinCompleteBody } from "@/lib/schemas/kiosk";
+import { earnedBadgesSince } from "@/lib/badges";
 
 /**
  * Complete a kiosk check-in (return).
@@ -15,6 +16,7 @@ import { checkinCompleteBody } from "@/lib/schemas/kiosk";
  * changing the iOS response contract.
  */
 export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => {
+  const badgeWindowStart = new Date(Date.now() - 1);
   const { actorId } = checkinCompleteBody.parse(await req.json());
 
   const user = await db.user.findFirst({
@@ -49,10 +51,12 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
       kioskName: kiosk.name,
     },
   });
+  const earnedBadges = await earnedBadgesSince(actorId, badgeWindowStart);
 
   return ok({
     returnedItems: result.returnedItems,
     totalItems: result.totalItems,
     completed: result.completed,
+    ...(earnedBadges.length > 0 ? { earnedBadges } : {}),
   });
 });

@@ -55,7 +55,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Award, AlertCircle, BadgeCheck, Briefcase, CalendarDays, CameraIcon, ChevronDown, Copy, Flame, GraduationCap, Handshake, KeyRound, PackageCheck, Shield, ShieldCheck, TrashIcon, Trophy, UserCheck, UserRound } from "lucide-react";
+import { Aperture, AudioLines, Award, AlertCircle, BadgeCheck, BatteryCharging, Binoculars, Briefcase, Cable, CalendarDays, CameraIcon, ChevronDown, CloudRain, Copy, Flame, GraduationCap, Handshake, KeyRound, LifeBuoy, MoonStar, PackageCheck, Shield, ShieldCheck, ShoppingCart, TrashIcon, Trophy, UserCheck, UserRound } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { badgeRarityVariant, customBadgeIconOptions, getBadgeRarity, manualAwardGuidance, type BadgeRarity, type CustomBadgeIcon } from "@/lib/badges/display";
 import { cn } from "@/lib/utils";
@@ -103,13 +103,22 @@ type AwardResponse = {
 };
 
 const customIconMap: Record<string, ComponentType<{ className?: string }>> = {
+  Aperture,
+  AudioLines,
   Trophy,
   BadgeCheck,
+  BatteryCharging,
+  Binoculars,
+  Cable,
+  CloudRain,
   ShieldCheck,
   UserCheck,
   Handshake,
   Flame,
+  LifeBuoy,
+  MoonStar,
   PackageCheck,
+  ShoppingCart,
 };
 
 type AwardMode = "existing" | "custom";

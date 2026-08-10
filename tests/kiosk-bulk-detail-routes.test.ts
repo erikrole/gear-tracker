@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   createBooking: vi.fn(),
   badgeOnScanResult: vi.fn(),
   badgeOnCheckoutOpened: vi.fn(),
+  earnedBadgesSince: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -94,6 +95,7 @@ vi.mock("@/lib/badges", () => ({
     onScanResult: mocks.badgeOnScanResult,
     onCheckoutOpened: mocks.badgeOnCheckoutOpened,
   },
+  earnedBadgesSince: mocks.earnedBadgesSince,
 }));
 
 import { GET as getKioskCheckoutDetail } from "@/app/api/kiosk/checkout/[id]/route";
@@ -121,6 +123,7 @@ beforeEach(() => {
   mocks.bookingUpdateMany.mockResolvedValue({ count: 1 });
   mocks.scanEventFindFirst.mockResolvedValue(null);
   mocks.createBooking.mockResolvedValue({ id: "checkout-1" });
+  mocks.earnedBadgesSince.mockResolvedValue([]);
 });
 
 describe("kiosk checkout detail bulk units", () => {
@@ -593,13 +596,7 @@ describe("kiosk pickup serialized scan guard", () => {
         deviceContext: "vitest-kiosk",
       }),
     });
-    expect(mocks.badgeOnScanResult).toHaveBeenCalledWith({
-      userId: "user-1",
-      bookingId: "booking-1",
-      phase: "pickup",
-      ok: true,
-      sourceKey: "scan-1",
-    });
+    expect(mocks.badgeOnScanResult).not.toHaveBeenCalled();
   });
 
   it("returns duplicate feedback for repeated serialized pickup scans", async () => {
@@ -636,13 +633,7 @@ describe("kiosk pickup serialized scan guard", () => {
       errorCode: "duplicate",
     });
     expect(mocks.scanEventCreate).not.toHaveBeenCalled();
-    expect(mocks.badgeOnScanResult).toHaveBeenCalledWith(expect.objectContaining({
-      userId: "user-1",
-      bookingId: "booking-1",
-      phase: "pickup",
-      ok: false,
-      errorCode: "duplicate",
-    }));
+    expect(mocks.badgeOnScanResult).not.toHaveBeenCalled();
   });
 
   it("blocks pickup confirmation until all serialized items are scanned", async () => {
@@ -652,6 +643,7 @@ describe("kiosk pickup serialized scan guard", () => {
       status: "PENDING_PICKUP",
       kind: "CHECKOUT",
       title: "Pickup",
+      requesterUserId: "user-1",
       serializedItems: [{
         assetId: "asset-1",
         asset: { assetTag: "FX3 1", name: "FX3 1" },
@@ -675,6 +667,7 @@ describe("kiosk pickup serialized scan guard", () => {
       status: "PENDING_PICKUP",
       kind: "CHECKOUT",
       title: "Pickup",
+      requesterUserId: "user-1",
       serializedItems: [{
         assetId: "asset-1",
         asset: { assetTag: "FX3 1", name: "FX3 1" },
@@ -712,6 +705,30 @@ describe("kiosk pickup serialized scan guard", () => {
     });
   });
 
+  it("rejects a stale owner after a pre-open transfer", async () => {
+    mocks.userFindUnique.mockResolvedValue({ id: "user-old", name: "Old Owner", role: "STUDENT" });
+    mocks.bookingFindUnique.mockResolvedValue({
+      id: "booking-1",
+      status: "PENDING_PICKUP",
+      kind: "CHECKOUT",
+      title: "Transferred pickup",
+      requesterUserId: "user-new",
+      serializedItems: [],
+      scanEvents: [],
+      bulkItems: [],
+    });
+
+    await expect(confirmKioskPickup(new Request("http://test", {
+      method: "POST",
+      body: JSON.stringify({ actorId: "user-old" }),
+    }), routeCtx("booking-1"))).rejects.toThrow(
+      "Only the current checkout owner can confirm pickup at the kiosk",
+    );
+
+    expect(mocks.bookingUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.badgeOnCheckoutOpened).not.toHaveBeenCalled();
+  });
+
   it("blocks stale repeated pickup confirmation after another request opens it", async () => {
     mocks.userFindUnique.mockResolvedValue({ id: "user-1", name: "User", role: "STUDENT" });
     mocks.bookingFindUnique.mockResolvedValue({
@@ -719,6 +736,7 @@ describe("kiosk pickup serialized scan guard", () => {
       status: "PENDING_PICKUP",
       kind: "CHECKOUT",
       title: "Pickup",
+      requesterUserId: "user-1",
       serializedItems: [{
         assetId: "asset-1",
         asset: { assetTag: "FX3 1", name: "FX3 1" },
@@ -746,6 +764,7 @@ describe("kiosk pickup confirm bulk guard", () => {
       status: "PENDING_PICKUP",
       kind: "CHECKOUT",
       title: "Pickup",
+      requesterUserId: "user-1",
       serializedItems: [],
       scanEvents: [],
       bulkItems: [{
@@ -770,6 +789,7 @@ describe("kiosk pickup confirm bulk guard", () => {
       status: "PENDING_PICKUP",
       kind: "CHECKOUT",
       title: "Pickup",
+      requesterUserId: "user-1",
       serializedItems: [],
       scanEvents: [],
       bulkItems: [{

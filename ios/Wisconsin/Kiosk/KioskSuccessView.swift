@@ -5,8 +5,13 @@ struct KioskSuccessView: View {
     @Environment(KioskStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let info: KioskSuccessInfo
-    @State private var countdown = 5
+    @State private var countdown: Int
     @State private var appeared = false
+
+    init(info: KioskSuccessInfo) {
+        self.info = info
+        _countdown = State(initialValue: info.earnedBadges.isEmpty ? 5 : 9)
+    }
 
     /// Entrance values driven by the keyframe animators below. The icon pops
     /// in with a small overshoot; the checkmark badge follows a beat later.
@@ -44,6 +49,14 @@ struct KioskSuccessView: View {
             }
             .modifier(EntranceFade(visible: appeared || reduceMotion, reduceMotion: reduceMotion, delay: 0.2))
 
+            if let reward = info.earnedBadges.first {
+                KioskBadgeRewardCard(
+                    reward: reward,
+                    additionalCount: max(0, info.earnedBadges.count - 1)
+                )
+                .modifier(EntranceFade(visible: appeared || reduceMotion, reduceMotion: reduceMotion, delay: 0.26))
+            }
+
             countdownView
                 .modifier(EntranceFade(visible: appeared || reduceMotion, reduceMotion: reduceMotion, delay: 0.3))
 
@@ -74,14 +87,14 @@ struct KioskSuccessView: View {
         .contentShape(Rectangle())
         .onTapGesture { skip() }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(info.kind.label): \(info.message)")
+        .accessibilityLabel(accessibilitySummary)
         .accessibilityAction(named: "Return to home") { skip() }
         .accessibilityAddTraits(.isHeader)
         .onAppear { appeared = true }
         .task {
             Haptics.success()
-            UIAccessibility.post(notification: .announcement, argument: "\(info.kind.label). \(info.message)")
-            for i in stride(from: 4, through: 0, by: -1) {
+            UIAccessibility.post(notification: .announcement, argument: accessibilitySummary)
+            for i in stride(from: countdown - 1, through: 0, by: -1) {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 if Task.isCancelled { return }
                 countdown = i
@@ -89,6 +102,16 @@ struct KioskSuccessView: View {
             store.deferSleepMode()
             store.screen = .idle
         }
+    }
+
+    private var countdownDuration: Int {
+        info.earnedBadges.isEmpty ? 5 : 9
+    }
+
+    private var accessibilitySummary: String {
+        let rewards = info.earnedBadges.map(\.name)
+        guard !rewards.isEmpty else { return "\(info.kind.label): \(info.message)" }
+        return "\(info.kind.label): \(info.message) Badge earned: \(rewards.joined(separator: ", "))."
     }
 
     // MARK: - Icon moment
@@ -219,7 +242,7 @@ struct KioskSuccessView: View {
                         .fill(KioskStroke.divider)
                     Capsule()
                         .fill(accent)
-                        .frame(width: 180 * CGFloat(countdown) / 5)
+                        .frame(width: 180 * CGFloat(countdown) / CGFloat(countdownDuration))
                         .animation(.linear(duration: 1), value: countdown)
                 }
                 .frame(width: 180, height: 4)
@@ -233,5 +256,68 @@ struct KioskSuccessView: View {
     private func skip() {
         store.deferSleepMode()
         store.screen = .idle
+    }
+}
+
+private struct KioskBadgeRewardCard: View {
+    let reward: EarnedBadgeReward
+    let additionalCount: Int
+
+    private var color: Color {
+        switch reward.rarity.lowercased() {
+        case "legendary": .purple
+        case "rare": KioskStatus.attention
+        case "uncommon": KioskStatus.scheduled
+        default: Color.kioskRed
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 18) {
+            ZStack {
+                Circle().fill(color.opacity(0.18))
+                Circle().stroke(color.opacity(0.55), lineWidth: 1.5)
+                Image(systemName: reward.symbolName)
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundStyle(color)
+            }
+            .frame(width: 68, height: 68)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text("BADGE EARNED")
+                    .font(KioskType.overline)
+                    .tracking(1.5)
+                    .foregroundStyle(color)
+                Text(reward.name)
+                    .font(.gothamBold(size: 22))
+                    .foregroundStyle(KioskText.primary)
+                Text(reward.description)
+                    .font(KioskType.rowDetail)
+                    .foregroundStyle(KioskText.secondary)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 12)
+
+            if additionalCount > 0 {
+                Text("+\(additionalCount)")
+                    .font(.gothamBold(size: 18))
+                    .foregroundStyle(color)
+                    .padding(10)
+                    .background(color.opacity(0.16), in: Circle())
+                    .accessibilityLabel("\(additionalCount) more badges earned")
+            }
+        }
+        .padding(.horizontal, 22)
+        .padding(.vertical, 16)
+        .frame(maxWidth: 620)
+        .background(KioskSurface.card, in: RoundedRectangle(cornerRadius: KioskRadius.lg))
+        .overlay(
+            RoundedRectangle(cornerRadius: KioskRadius.lg)
+                .stroke(color.opacity(0.4), lineWidth: 1.5)
+        )
+        .shadow(color: color.opacity(0.12), radius: 24, y: 10)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Badge earned. \(reward.name). \(reward.description)")
     }
 }

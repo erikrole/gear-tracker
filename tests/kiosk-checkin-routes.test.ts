@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   scanKioskCheckinBulkUnit: vi.fn(),
   badgeOnCheckoutReturned: vi.fn(),
   badgeOnScanResult: vi.fn(),
+  earnedBadgesSince: vi.fn(),
   endCheckoutReturnLiveActivities: vi.fn(),
 }));
 
@@ -58,6 +59,7 @@ vi.mock("@/lib/badges", () => ({
     onCheckoutReturned: mocks.badgeOnCheckoutReturned,
     onScanResult: mocks.badgeOnScanResult,
   },
+  earnedBadgesSince: mocks.earnedBadgesSince,
 }));
 
 vi.mock("@/lib/badges/scan", () => ({
@@ -118,6 +120,7 @@ beforeEach(() => {
   mocks.scanKioskCheckinBulkUnit.mockResolvedValue({ handled: false });
   mocks.badgeOnScanResult.mockResolvedValue(undefined);
   mocks.badgeOnCheckoutReturned.mockResolvedValue(undefined);
+  mocks.earnedBadgesSince.mockResolvedValue([]);
   mocks.endCheckoutReturnLiveActivities.mockResolvedValue(undefined);
 });
 
@@ -248,12 +251,7 @@ describe("kiosk check-in scan route", () => {
         deviceContext: "vitest-kiosk",
       }),
     });
-    expect(mocks.badgeOnScanResult).toHaveBeenCalledWith(expect.objectContaining({
-      userId: "user-1",
-      bookingId: "booking-1",
-      phase: "checkin",
-      ok: true,
-    }));
+    expect(mocks.badgeOnScanResult).not.toHaveBeenCalled();
     expect(mocks.scanKioskCheckinBulkUnit).toHaveBeenCalledWith(expect.anything(), {
       bookingId: "booking-1",
       scanValue: "FX3-1",
@@ -286,10 +284,7 @@ describe("kiosk check-in scan route", () => {
     const json = await res.json();
 
     expect(json).toEqual({ success: false, error: "FX3 1 already returned" });
-    expect(mocks.badgeOnScanResult).toHaveBeenCalledWith(expect.objectContaining({
-      ok: false,
-      errorCode: "already_returned",
-    }));
+    expect(mocks.badgeOnScanResult).not.toHaveBeenCalled();
   });
 
   it("reports when a serialized item is not in the checkout", async () => {
@@ -317,10 +312,7 @@ describe("kiosk check-in scan route", () => {
     const json = await res.json();
 
     expect(json).toEqual({ success: false, error: "FX3 1 is not in this checkout" });
-    expect(mocks.badgeOnScanResult).toHaveBeenCalledWith(expect.objectContaining({
-      ok: false,
-      errorCode: "not_in_booking",
-    }));
+    expect(mocks.badgeOnScanResult).not.toHaveBeenCalled();
   });
 
   it("reports when the scanned item cannot be found", async () => {
@@ -343,10 +335,7 @@ describe("kiosk check-in scan route", () => {
     const json = await res.json();
 
     expect(json).toEqual({ success: false, error: "Item not found" });
-    expect(mocks.badgeOnScanResult).toHaveBeenCalledWith(expect.objectContaining({
-      ok: false,
-      errorCode: "not_found",
-    }));
+    expect(mocks.badgeOnScanResult).not.toHaveBeenCalled();
   });
 
   it("fires the return badge and ends live activities when the scan auto-completes the checkout", async () => {

@@ -236,6 +236,7 @@ model User {
   badges                      StudentBadge[]
   badgesAwardedByMe           StudentBadge[]                   @relation("BadgeAwardedBy")
   badgeStreaks                BadgeStreak[]
+  badgeEventReceipts          BadgeEventReceipt[]
   notificationPrefs           Json?                            @map("notification_prefs")
   icsToken                    String?                          @unique @map("ics_token")
   scheduleEventFollows        ScheduleEventFollow[]
@@ -1364,6 +1365,19 @@ model BadgeStreak {
   @@unique([userId, streakType])
   @@index([userId])
   @@map("badge_streaks")
+}
+
+model BadgeEventReceipt {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  eventType  String   @map("event_type")
+  sourceKey  String   @map("source_key")
+  receivedAt DateTime @default(now()) @map("received_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventType, sourceKey])
+  @@index([receivedAt])
+  @@map("badge_event_receipts")
 }
 
 // ── Photo Mechanic License Codes ─────────────────────────

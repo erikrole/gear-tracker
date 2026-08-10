@@ -12,6 +12,9 @@ vi.mock("@/lib/db", () => ({
     badgeStreak: {
       findMany: vi.fn(),
     },
+    badgeEventReceipt: {
+      findMany: vi.fn(),
+    },
     booking: {
       count: vi.fn(),
       findMany: vi.fn(),
@@ -19,7 +22,12 @@ vi.mock("@/lib/db", () => ({
     shiftTrade: {
       count: vi.fn(),
     },
+    shiftAssignment: {
+      count: vi.fn(),
+      findMany: vi.fn(),
+    },
     studentBadge: {
+      createMany: vi.fn(),
       groupBy: vi.fn(),
     },
     systemConfig: {
@@ -83,6 +91,10 @@ beforeEach(() => {
   vi.mocked(db.booking.findMany).mockResolvedValue([]);
   vi.mocked(db.shiftTrade.count).mockResolvedValue(0);
   vi.mocked(db.badgeStreak.findMany).mockResolvedValue([]);
+  vi.mocked(db.badgeEventReceipt.findMany).mockResolvedValue([]);
+  vi.mocked(db.shiftAssignment.count).mockResolvedValue(0);
+  vi.mocked(db.shiftAssignment.findMany).mockResolvedValue([]);
+  vi.mocked(db.studentBadge.createMany).mockResolvedValue({ count: 0 });
   // Rarity is served from real holder counts now, so the profile query reads
   // award totals and the eligible population alongside the definitions.
   vi.mocked(db.studentBadge.groupBy).mockResolvedValue([] as never);
@@ -276,7 +288,11 @@ describe("GET /api/badges/user/[userId]", () => {
         awards: [],
       },
     ]));
-    vi.mocked(db.booking.count).mockResolvedValue(3);
+    vi.mocked(db.badgeEventReceipt.findMany).mockResolvedValue([
+      { sourceKey: "booking-1" },
+      { sourceKey: "booking-2" },
+      { sourceKey: "booking-3" },
+    ] as never);
 
     const res = await getUserBadges(makeGetRequest("https://app.example.com/api/badges/user/student-1"), {
       params: Promise.resolve({ userId: "student-1" }),
@@ -343,6 +359,7 @@ describe("GET /api/badges/user/[userId]", () => {
       { streakType: "ON_TIME_RETURN", current: 4, longest: 7, lastEventAt: new Date("2026-07-20T12:00:00.000Z") },
       // Never surfaced: this one is a durable counter, not a run.
       { streakType: "SCAN_SUCCESS_COUNT", current: 31, longest: 31, lastEventAt: null },
+      { streakType: "SCAN_CLEAN", current: 31, longest: 31, lastEventAt: null },
     ] as never);
 
     const res = await getUserBadges(makeGetRequest("https://app.example.com/api/badges/user/student-1"), {
@@ -369,6 +386,129 @@ describe("GET /api/badges/user/[userId]", () => {
     expect(body.data.streaks).toEqual([
       { type: "ON_TIME_RETURN", current: 4, longest: 7, lastEventAt: "2026-07-20T12:00:00.000Z" },
     ]);
+  });
+
+  it("repairs a completed automatic badge before returning the profile", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(studentUser);
+    vi.mocked(db.user.findUnique).mockResolvedValue(userRow({ id: "student-1", role: "STUDENT", active: true }));
+    vi.mocked(db.systemConfig.findUnique).mockResolvedValue(null);
+    const locked = {
+      id: "definition-1",
+      key: "first_shift",
+      name: "On Duty",
+      description: "Was assigned to a first completed event shift.",
+      icon: "CalendarClock",
+      category: "SHIFT",
+      kind: "COUNT",
+      trigger: "shift:completed",
+      threshold: 1,
+      ruleKey: null,
+      active: true,
+      sortOrder: 310,
+      createdAt: new Date("2026-05-09T12:00:00.000Z"),
+      awards: [],
+    };
+    const earned = {
+      ...locked,
+      awards: [{
+        id: "award-1",
+        awardedAt: new Date("2026-08-10T12:00:00.000Z"),
+        source: "AUTO",
+        note: null,
+        awardedBy: null,
+      }],
+    };
+    vi.mocked(db.badgeDefinition.findMany)
+      .mockResolvedValueOnce(badgeDefinitionRows([locked]))
+      .mockResolvedValueOnce(badgeDefinitionRows([earned]));
+    vi.mocked(db.shiftAssignment.findMany).mockResolvedValue([{
+      callStartsAt: null,
+      shift: {
+        startsAt: new Date("2026-08-10T15:00:00.000Z"),
+        callStartsAt: null,
+        shiftGroup: { event: { isHome: true } },
+      },
+    }] as never);
+    vi.mocked(db.studentBadge.createMany).mockResolvedValue({ count: 1 });
+
+    const res = await getUserBadges(makeGetRequest("https://app.example.com/api/badges/user/student-1"), {
+      params: Promise.resolve({ userId: "student-1" }),
+    });
+    const body = await res.json();
+
+    expect(db.studentBadge.createMany).toHaveBeenCalledWith({
+      data: [{ userId: "student-1", definitionId: "definition-1" }],
+      skipDuplicates: true,
+    });
+    expect(body.data.badges[0]).toEqual(expect.objectContaining({
+      key: "first_shift",
+      earned: true,
+      progressCurrent: 1,
+      progressTarget: 1,
+    }));
+  });
+
+  it("repairs a completed captured-data badge instead of returning it locked", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(studentUser);
+    vi.mocked(db.user.findUnique).mockResolvedValue(userRow({ id: "student-1", role: "STUDENT", active: true }));
+    vi.mocked(db.systemConfig.findUnique).mockResolvedValue(null);
+    const locked = {
+      id: "definition-power-player",
+      key: "power_player",
+      name: "Power Player",
+      description: "Checked out gear with batteries ten times.",
+      icon: "BatteryCharging",
+      category: "MILESTONE",
+      kind: "COUNT",
+      trigger: "checkout:opened",
+      threshold: 10,
+      ruleKey: "checkout_family_batteries",
+      active: true,
+      sortOrder: 770,
+      createdAt: new Date("2026-08-10T12:00:00.000Z"),
+      awards: [],
+    };
+    const earned = {
+      ...locked,
+      awards: [{
+        id: "award-power-player",
+        awardedAt: new Date("2026-08-10T13:00:00.000Z"),
+        source: "AUTO",
+        note: null,
+        awardedBy: null,
+      }],
+    };
+    vi.mocked(db.badgeDefinition.findMany)
+      .mockResolvedValueOnce(badgeDefinitionRows([locked]))
+      .mockResolvedValueOnce(badgeDefinitionRows([earned]));
+    vi.mocked(db.badgeEventReceipt.findMany).mockResolvedValue(
+      Array.from({ length: 10 }, (_, index) => ({ sourceKey: `booking-${index + 1}` })) as never,
+    );
+    vi.mocked(db.booking.findMany).mockResolvedValue(
+      Array.from({ length: 10 }, (_, index) => ({
+        serializedItems: [{
+          asset: { category: { id: `battery-${index}`, name: "Batteries", parent: null } },
+        }],
+        bulkItems: [],
+      })) as never,
+    );
+    vi.mocked(db.studentBadge.createMany).mockResolvedValue({ count: 1 });
+
+    const res = await getUserBadges(makeGetRequest("https://app.example.com/api/badges/user/student-1"), {
+      params: Promise.resolve({ userId: "student-1" }),
+    });
+    const body = await res.json();
+
+    expect(db.studentBadge.createMany).toHaveBeenCalledWith({
+      data: [{ userId: "student-1", definitionId: "definition-power-player" }],
+      skipDuplicates: true,
+    });
+    expect(body.data.badges[0]).toEqual(expect.objectContaining({
+      key: "power_player",
+      earned: true,
+      progressCurrent: 10,
+      progressTarget: 10,
+    }));
   });
 
   it("blocks peer students when badge peer visibility is disabled", async () => {

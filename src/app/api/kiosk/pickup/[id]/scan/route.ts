@@ -5,9 +5,6 @@ import { HttpError, ok } from "@/lib/http";
 import { findAssetByScanValue } from "@/lib/services/kiosk-scan";
 import { pickupScanBody } from "@/lib/schemas/kiosk";
 import { scanKioskPickupBulkUnit, stageKioskReservationPickupBulkUnit } from "@/lib/services/bulk-unit-scans";
-import { badges } from "@/lib/badges";
-import { badgeScanSourceKey } from "@/lib/badges/scan";
-import type { BadgeScanErrorCode } from "@/lib/badges/types";
 
 /**
  * Scan an item for kiosk pickup flow.
@@ -33,23 +30,6 @@ export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
   }
   const activeBooking = booking;
 
-  async function emitScanResult(args: { ok: boolean; errorCode?: BadgeScanErrorCode; sourceKey?: string }) {
-    await badges.onScanResult({
-      userId: activeBooking.requesterUserId,
-      bookingId: activeBooking.id,
-      phase: "pickup",
-      ok: args.ok,
-      errorCode: args.errorCode,
-      sourceKey: args.sourceKey ?? badgeScanSourceKey({
-        phase: "pickup",
-        bookingId: activeBooking.id,
-        scanValue,
-        ok: args.ok,
-        errorCode: args.errorCode,
-      }),
-    });
-  }
-
   const bulkResult = await db.$transaction(
     (tx) => activeBooking.kind === "RESERVATION"
       ? stageKioskReservationPickupBulkUnit(tx, {
@@ -61,10 +41,6 @@ export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
   if (bulkResult.handled) {
-    await emitScanResult({
-      ok: bulkResult.success,
-      errorCode: bulkResult.success ? undefined : bulkResult.errorCode,
-    });
     return ok(bulkResult);
   }
 
@@ -75,7 +51,6 @@ export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
   });
 
   if (!asset) {
-    await emitScanResult({ ok: false, errorCode: "not_found" });
     return ok({ success: false, error: "Item not found" });
   }
 
@@ -85,7 +60,6 @@ export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
 
   if (!bookingItem) {
     const error = `${asset.assetTag} is not in this checkout`;
-    await emitScanResult({ ok: false, errorCode: "not_in_booking" });
     return ok({ success: false, error });
   }
 
@@ -100,12 +74,11 @@ export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
   });
   if (existingScan) {
     const label = asset.name || asset.assetTag;
-    await emitScanResult({ ok: false, errorCode: "duplicate" });
     return ok({ success: false, error: `${label} already scanned`, errorCode: "duplicate" });
   }
 
-  const scanEvent = await db.$transaction(async (tx) => {
-    const event = await tx.scanEvent.create({
+  await db.$transaction(async (tx) => {
+    await tx.scanEvent.create({
       data: {
         bookingId: activeBooking.id,
         actorUserId: activeBooking.requesterUserId,
@@ -117,10 +90,7 @@ export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
         deviceContext: req.headers.get("user-agent") ?? "kiosk",
       },
     });
-    return event;
   });
-
-  await emitScanResult({ ok: true, sourceKey: scanEvent.id });
 
   return ok({
     success: true,

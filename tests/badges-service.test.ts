@@ -7,8 +7,8 @@ vi.mock("@/lib/badges/evaluator", () => ({
   onCheckoutReturned: vi.fn(async () => {
     throw new Error("return evaluator should not run");
   }),
-  onScanResult: vi.fn(async () => {
-    throw new Error("scan evaluator should not run");
+  onAppOpened: vi.fn(async () => {
+    throw new Error("app-open evaluator should not run");
   }),
   onTradeCompleted: vi.fn(async () => {
     throw new Error("trade evaluator should not run");
@@ -22,8 +22,13 @@ vi.mock("@/lib/observability", () => ({
   captureBadgeError: vi.fn(),
 }));
 
-import { badges, badgesEnabled } from "@/lib/badges";
+vi.mock("@/lib/badges/queries", () => ({
+  listEarnedBadgesSince: vi.fn(),
+}));
+
+import { badges, badgesEnabled, earnedBadgesSince } from "@/lib/badges";
 import * as evaluator from "@/lib/badges/evaluator";
+import { listEarnedBadgesSince } from "@/lib/badges/queries";
 import { captureBadgeError } from "@/lib/observability";
 
 describe("badge service feature flag", () => {
@@ -63,5 +68,23 @@ describe("badge service feature flag", () => {
 
     expect(evaluator.onCheckoutOpened).toHaveBeenCalledTimes(1);
     expect(captureBadgeError).not.toHaveBeenCalled();
+  });
+
+  it("does not query recent awards while badges are disabled", async () => {
+    process.env.BADGES_ENABLED = "false";
+
+    await expect(earnedBadgesSince("user-1", new Date())).resolves.toEqual([]);
+    expect(listEarnedBadgesSince).not.toHaveBeenCalled();
+  });
+
+  it("keeps a reward read failure from changing the operational response", async () => {
+    process.env.BADGES_ENABLED = "true";
+    vi.mocked(listEarnedBadgesSince).mockRejectedValueOnce(new Error("badge read failed"));
+
+    await expect(earnedBadgesSince("user-1", new Date())).resolves.toEqual([]);
+    expect(captureBadgeError).toHaveBeenCalledWith(
+      expect.any(Error),
+      { reader: "earnedBadgesSince", userId: "user-1" },
+    );
   });
 });

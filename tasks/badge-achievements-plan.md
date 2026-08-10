@@ -1,8 +1,199 @@
-# Student Badge Achievements Plan v4
+# Badge Achievements Plan v6
+
+Revised: 2026-08-10 (v6 ownership, completion, catalog, and easter eggs)
+Status: Implemented locally; migration and runtime rollout remain open
+
+## v6 Goal
+
+- Make checkout badge credit stable across ownership transfer.
+- Retire successful-scan achievement metrics while preserving earned history.
+- Guarantee that server-derived completed progress has a durable award before a
+  badge profile is returned.
+- Add ten automatic, captured-data fun badges and one server-authoritative
+  app-open easter egg across web and native iOS.
+- Improve completion and shelf language so manual, hidden, and retired awards
+  do not behave like required goals.
+
+## v6 Product Rules
+
+- A transfer before a checkout opens transfers future earning opportunity.
+- A transfer after opening leaves checkout count and category breadth with the
+  original opener. The new custodian receives return, on-time, and damage-free
+  outcomes.
+- Scan events remain operational evidence. They no longer drive badge counters,
+  streaks, definitions, or kiosk reward reads.
+- The ten fun badges are automatic. Eight derive from immutable credited
+  checkout contents and two derive from confirmed ended shift assignments.
+  They use no staff-award action or invented client claim. Thresholds are
+  calibrated from current production history so every challenge has proof of
+  attainability while only one to three current users qualify for each. The
+  names stay rooted in gear and production work, not the game that inspired
+  the achievement-system idea. `Go To Bed` is hidden and automatic only when
+  the authenticated app opens during the 2 a.m. hour in the configured
+  institution timezone.
+- Profile completion counts visible automatic goals only.
+
+## v6 Slices
+
+- [x] Use canonical checkout IDs in durable receipts and backfill original
+  opener credit only from the first transfer recorded after a kiosk-open audit;
+  pre-open and ambiguous legacy transfers remain with the current requester.
+- [x] Read checkout progress and category breadth from immutable receipts.
+- [x] Add profile-boundary award reconciliation and migration backfills for
+  currently completed automatic thresholds.
+- [x] Retire all six scan definitions and remove scan badge event wiring while
+  retaining ScanEvent evidence, historical streak rows, and earned awards.
+- [x] Add ten automatic definitions, shared evaluator/profile derivation,
+  historical backfill, web icons, native symbols, and reward-popup coverage.
+- [x] Add hidden `go_to_bed`, an authenticated app-open route, server-time rule
+  evaluation, and cursor-safe web/iOS foreground calls.
+- [x] Rename the scan shelf to Legacy Scan Awards and exclude legacy, manual,
+  and hidden awards from completion percentage.
+- [x] Change shift descriptions from worked to assigned to completed events so
+  copy does not claim attendance evidence the system does not have.
+- [x] Sync D-034, Badge area truth, tests, and this plan.
+
+## v6 Verification
+
+- [x] Focused badge, kiosk, route, catalog, and iOS source-contract Vitest.
+- [x] Prisma format and validation plus migration prefix validation.
+- [x] Focused ESLint for changed web and server files.
+- [ ] Standalone TypeScript remains blocked only by the pre-existing null
+  fixtures in `tests/schedule-publication.test.ts` at lines 733 and 743.
+- [x] Production-shaped web build.
+- [x] Exact Wisconsin iPhone 16 Pro simulator build and kiosk generic simulator
+  build.
+- [ ] Authenticated web, signed-in native, and managed kiosk visual proof.
+- [x] A scoped badge commit was authorized separately on 2026-08-10.
+- [ ] Migration application, deployment, flag changes, distribution, and push
+  remain outside this slice.
+
+---
+
+# Badge Achievements Plan v5
+
+Revised: 2026-08-10 (v5 reward and reliability follow-up)
+Status: Implemented locally; original GA rollout gates remain open
+
+## v5 Goal
+
+- Make a newly earned badge visible at the moment it is earned on web, native
+  iOS, and the staffed kiosk without weakening the operational mutation that
+  caused it.
+- Fix verified earning/idempotency defects before adding presentation polish.
+- Add a few attainable bridge milestones to the existing count ladders without
+  inventing new event sources or changing D-034's profile-first direction.
+
+## v5 Route
+
+- Owner area: Badges.
+- Secondary areas: Kiosk, Mobile, Notifications, Schedule, and Reports.
+- Ledger: this existing active plan remains the badge source of truth; do not
+  create a parallel reward plan.
+- Existing references: D-034, `docs/AREA_BADGES.md`, and
+  `tasks/archive/badges-redesign-plan.md`.
+
+## v5 Source Checks
+
+- Automatic awards are durable `StudentBadge` rows, but evaluator methods
+  currently return `void`, kiosk mutation responses contain no earned-badge
+  metadata, and web/native shells have no recent-award intake path.
+- `BadgeStreak.lastSourceKey` only remembers the latest event. An older event
+  retried after a newer event can mutate the streak again, so the documented
+  "repeated handling is a no-op" rule is not globally true.
+- Direct kiosk checkout scans derive the source key from user plus scan value.
+  A later legitimate checkout can therefore collide with the user's prior
+  final scan of the same item.
+- The current automatic ladders have large early gaps: on-time 1 to 10, scans
+  1 to 25, shifts 10 to 50, and trades 1 to 10.
+- Kiosk already owns a five-second success moment. Badge celebration should
+  extend that moment, not interrupt scan capture or create a second custody
+  confirmation screen.
+
+## v5 Stop Conditions
+
+- Stop if a response change would make custody success depend on celebration
+  rendering or badge evaluation failure.
+- Stop if a new badge cannot be earned from an existing D-034 event and a real
+  database-backed counter.
+- Stop before deployment, migration application, flag enablement, commit,
+  push, or production mutation without separate authorization.
+- Preserve current uncommitted report, iOS performance, companion, and docs
+  work; merge only additive changes in overlapping files.
+
+## v5 Slices
+
+- [x] Slice 8: Add durable event receipts for request-scoped badge events and a
+  per-attempt direct-checkout scan key so delayed/reordered retries cannot
+  change streaks twice or suppress a later legitimate scan.
+- [x] Slice 9: Add an authenticated recent-awards feed plus additive
+  `earnedBadges` fields on kiosk responses, keeping feature-flag-off responses
+  empty and operational success independent from display.
+- [x] Slice 10: Add one shared web earned-badge celebration and a native
+  SwiftUI reward presentation. Queue multiple awards, respect reduced motion,
+  initialize cursors without replaying a user's full history, and include the
+  kiosk success surface.
+- [x] Slice 11: Add `on_time_5`, `scan_10`, `shift_25`, and `trade_5` as bridge
+  milestones through one forward migration plus the canonical seed mirror.
+- [x] Slice 12: Reconcile D-034, sync the Badge and Kiosk area docs plus
+  generated codemaps, add source-contract tests, and complete the review below.
+  D-034 remains compatible without amendment: the profile stays primary, no
+  hero or top-level navigation was added, and reward chrome is post-award.
+
+## v5 Verification
+
+- [x] Focused badge evaluator, service, route, kiosk scan, catalog, web source,
+  and iOS source-contract Vitest suites.
+- [x] `npx prisma format && npx prisma validate`
+- [x] `npm run db:migrate:check`
+- [ ] `npx tsc --noEmit --pretty false` is blocked by two pre-existing
+  `tests/schedule-publication.test.ts` fixture errors at lines 733 and 743;
+  the production Next.js build type gate passes.
+- [x] Focused ESLint for changed web/server files.
+- [x] `npm run ios:project:check`
+- [x] `npm run drift:ios`
+- [x] `npm run audit:ios:gaps` reports 53 of 53 audit-worthy surfaces covered;
+  concurrently added `ReportsView.swift` remains an unrelated unregistered warning.
+- [x] `Wisconsin` builds on `platform=iOS Simulator,name=iPhone 16 Pro`.
+- [x] `WisconsinKiosk` builds for `generic/platform=iOS Simulator`; the required
+  iPhone 16 Pro destination is ineligible because the kiosk target is iPad-only.
+- [x] `npm run codemap` and `npm run verify:docs`
+- [x] `npm run build:app`
+- [x] `git diff --check`
+- [ ] Authenticated web smoke for the celebration and simulator kiosk/main-app
+  proof, or record the exact session/runtime blocker.
+- [ ] Do not run full `npm run build` because deploy-shaped migration work is
+  not authorized in this slice.
+
+## v5 Review
+
+- Shipped locally: durable event receipts, collision-free direct-scan attempt
+  IDs, recent-award cursor API, queued web and native celebrations, kiosk reward
+  success state, and four attainable bridge badges.
+- Verified: 108 focused tests in 18 files, focused ESLint, Prisma format and
+  validation, migration numbering, production Next.js build, codemap/docs
+  verification, XcodeGen parity, iOS drift and gap audits, exact Wisconsin
+  iPhone 16 Pro simulator compile, generic WisconsinKiosk simulator compile,
+  and clean diff whitespace.
+- Deferred: production flag enablement, preview rollback drill, migration
+  application, deployment, physical kiosk proof, and real-device haptics.
+- Blocked: authenticated web reward rendering has no local smoke credential;
+  the iPad-only kiosk cannot use the contract's iPhone 16 Pro destination and
+  still needs its managed landscape-iPad reward walkthrough. Standalone `tsc`
+  remains red only on the two unrelated Schedule test-fixture nullability errors.
+- Proof artifacts: `prisma/migrations/0110_badge_rewards`, focused Vitest output,
+  `npm run build:app`, Xcode build logs, and the updated Badge/Kiosk area docs.
+- Next slice or stop: stop before migration application, deployment, flag
+  enablement, or distribution. Resume with preview migration plus authenticated
+  web and managed-iPad reward acceptance.
+
+---
+
+## v4 Historical Plan
 
 Created: 2026-04-27
 Revised: 2026-05-09 (v4)
-Status: Planning, v4 incorporates Codex-style review of v3
+Status: Implemented baseline with GA rollout gates still open
 
 ---
 

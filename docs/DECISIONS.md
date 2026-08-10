@@ -715,9 +715,11 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Current kiosk and scan flows have clear domain outcome boundaries, while the legacy app scan routes are 403 stubs.
   - Recognition should not compete with operational profile signals such as role, availability, overdue gear, or admin actions.
 - Decision:
-  - Badge events are emitted only from domain outcomes: kiosk checkout or pickup opens a checkout, checkout return completion flips to `COMPLETED`, kiosk scan succeeds or fails, and trade status flips to `COMPLETED`.
+  - Automatic operational badge events are emitted only from durable domain outcomes: kiosk checkout or pickup opens a checkout, checkout return completion flips to `COMPLETED`, a confirmed assigned shift ends, and trade status flips to `COMPLETED`.
+  - Successful kiosk scanning is the expected baseline, not an achievement metric. Existing scan definitions and awards remain as retired history, but scan requests no longer emit badge events or change badge streaks.
+  - Hidden easter eggs may use a signed-in app foreground event when the server, not the client, evaluates the rule. App-open events accept no client clock or timezone and must be idempotent through `BadgeEventReceipt`.
   - `BADGES_ENABLED !== "true"` returns before evaluator work, badge database queries, or side effects.
-  - Launch has no retroactive backfill. Only post-enable domain events can award badges.
+  - Migration and profile reconciliation may backfill an automatic award when the same server-derived progress already meets its threshold. A profile must never present completed progress as a locked badge.
   - On-time return logic uses a 15-minute UTC grace window after `booking.endsAt`.
   - Badge definition `key` values are immutable. Rename display fields in place; retire bad keys with `active=false` and seed replacement keys.
   - `onCheckoutReturned` and `onTradeCompleted` must be emitted from single status-flip helpers so competing call paths do not double-award.
@@ -725,12 +727,13 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - The primary user UI is a `Badges` tab on `/users/{id}` for students, staff, and admins. No top-level nav item and no badge chrome in the profile hero.
   - The legacy `StudentBadge` model/table name remains in place until a dedicated cleanup migration. Product language and UI should say user awards or badge awards.
   - Badge progress is displayed only when it is backed by real counters or streak rows. Manual badges must not show invented progress.
+  - Checkout-open credit is immutable. A transfer before the checkout opens moves the future earning opportunity; a transfer after opening does not move the original opener's checkout count or category breadth. The current custodian receives the eventual return, on-time, and damage-free outcome.
 - Consequences:
   - The system can ship in independent slices with the flag off until preview verification passes.
   - Historical badge data remains stable if users are deactivated or definitions are retired.
   - Reports can aggregate from the legacy-named `StudentBadge` award table without becoming the primary profile experience.
 - Guardrails:
-  - Legacy checkout scan stubs stay non-events.
+  - All checkout scan endpoints stay badge non-events.
   - Shift approval is not a badge event. Attendance-based shift badges are out of scope unless a future product decision reopens them.
   - Award notification delivery is persistent inbox first; push fan-out is deferred.
 
@@ -1064,6 +1067,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-05-05: Updated D-022 for derived numbered bulk unit QR scans using `{binQrCodeValue}-{unitNumber}`.
 - 2026-05-05: Updated D-022 for kiosk-scanned numbered batteries and non-blocking camera-model battery availability warnings.
 - 2026-05-13: Reframed D-022 around first-class item families: `BulkSku` remains the implementation model, but `/items` is the normal discovery/detail surface and `/bulk-inventory` is admin operations.
+- 2026-08-10: Amended D-034: successful scans are an operational baseline rather than an achievement metric; checkout-open credit is immutable across post-open owner transfer; objectively completed automatic progress is repaired to an award; and authenticated app-open easter eggs may use server time without accepting a client clock.
 - 2026-05-09: Added D-034 for badge achievements: event-sourced service boundary, feature flag off path, no retroactive backfill, 15-minute on-time grace, immutable definition keys, single-emit status helpers, peer visibility default, and profile-first UI.
 - 2026-06-11: Extended D-022 consequences for Brother P-Touch label CSV export and printed-label tracking. Printed-label state stored per `BulkSkuUnit` (`labelPrintedAt`/`labelPrintedById`/`labelPrintBatchId`, migration 0077); QR data stays derived and is never stored.
 - 2026-06-12: Added D-039 (kiosk sessions slide on activity server-side; iOS persists the session token in Keychain and rebuilds device info from /api/kiosk/me after reinstalls).

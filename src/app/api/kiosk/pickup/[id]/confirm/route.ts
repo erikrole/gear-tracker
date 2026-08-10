@@ -4,7 +4,7 @@ import { withKiosk } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
 import { createAuditEntry, createAuditEntryTx } from "@/lib/audit";
 import { pickupConfirmBody } from "@/lib/schemas/kiosk";
-import { badges } from "@/lib/badges";
+import { badges, earnedBadgesSince } from "@/lib/badges";
 import { createBooking } from "@/lib/services/bookings";
 import { parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
 
@@ -13,6 +13,7 @@ import { parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
  * Called after student scans their items at the kiosk.
  */
 export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => {
+  const badgeWindowStart = new Date(Date.now() - 1);
   const { actorId } = pickupConfirmBody.parse(await req.json());
   let openedBookingId = params.id;
   let openedSourceKey = params.id;
@@ -35,6 +36,7 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
           status: true,
           kind: true,
           title: true,
+          requesterUserId: true,
           serializedItems: {
             select: {
               assetId: true,
@@ -63,6 +65,10 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
       }
 
       if (booking.kind === "RESERVATION") return;
+
+      if (booking.requesterUserId !== actorId) {
+        throw new HttpError(403, "Only the current checkout owner can confirm pickup at the kiosk");
+      }
 
       if (booking.status !== "PENDING_PICKUP") {
         if (booking.status === "OPEN") {
@@ -181,6 +187,10 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
     },
   });
 
+  if (sourceReservation?.kind === "CHECKOUT") {
+    openedUserId = sourceReservation.requesterUserId;
+  }
+
   if (sourceReservation?.kind === "RESERVATION") {
     if (sourceReservation.status !== "BOOKED") {
       if (sourceReservation.status === "COMPLETED") {
@@ -280,6 +290,11 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
     source: "kiosk_pickup",
     sourceKey: openedSourceKey,
   });
+  const earnedBadges = await earnedBadgesSince(openedUserId, badgeWindowStart);
 
-  return ok({ success: true, bookingId: openedBookingId });
+  return ok({
+    success: true,
+    bookingId: openedBookingId,
+    ...(earnedBadges.length > 0 ? { earnedBadges } : {}),
+  });
 });

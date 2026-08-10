@@ -7,9 +7,7 @@ import { kioskCheckinAsset } from "@/lib/services/bookings-checkin";
 import { scanKioskCheckinBulkUnit } from "@/lib/services/bulk-unit-scans";
 import { locationEvidencePayload } from "@/lib/services/kiosk-location";
 import { checkinScanBody } from "@/lib/schemas/kiosk";
-import { badges } from "@/lib/badges";
-import { badgeScanSourceKey } from "@/lib/badges/scan";
-import type { BadgeScanErrorCode } from "@/lib/badges/types";
+import { badges, earnedBadgesSince } from "@/lib/badges";
 import { endCheckoutReturnLiveActivities } from "@/lib/services/live-activities";
 
 /**
@@ -19,6 +17,7 @@ import { endCheckoutReturnLiveActivities } from "@/lib/services/live-activities"
  * deactivation cannot drift apart under concurrent scans.
  */
 export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => {
+  const badgeWindowStart = new Date(Date.now() - 1);
   const { scanValue } = checkinScanBody.parse(await req.json());
 
   const booking = await db.booking.findUnique({
@@ -31,21 +30,9 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
   }
   const activeBooking = booking;
 
-  async function emitScanResult(args: { ok: boolean; errorCode?: BadgeScanErrorCode }) {
-    await badges.onScanResult({
-      userId: activeBooking.requesterUserId,
-      bookingId: activeBooking.id,
-      phase: "checkin",
-      ok: args.ok,
-      errorCode: args.errorCode,
-      sourceKey: badgeScanSourceKey({
-        phase: "checkin",
-        bookingId: activeBooking.id,
-        scanValue,
-        ok: args.ok,
-        errorCode: args.errorCode,
-      }),
-    });
+  async function rewardPayload() {
+    const earnedBadges = await earnedBadgesSince(activeBooking.requesterUserId, badgeWindowStart);
+    return earnedBadges.length > 0 ? { earnedBadges } : {};
   }
 
   const bulkResult = await db.$transaction(
@@ -57,11 +44,7 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
   if (bulkResult.handled) {
-    await emitScanResult({
-      ok: bulkResult.success,
-      errorCode: bulkResult.success ? undefined : bulkResult.errorCode,
-    });
-    return ok(bulkResult);
+    return ok({ ...bulkResult, ...await rewardPayload() });
   }
 
   const asset = await findAssetByScanValue(scanValue, {
@@ -71,8 +54,7 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
   });
 
   if (!asset) {
-    await emitScanResult({ ok: false, errorCode: "not_found" });
-    return ok({ success: false, error: "Item not found" });
+    return ok({ success: false, error: "Item not found", ...await rewardPayload() });
   }
 
   const result = await db.$transaction(async (tx) => {
@@ -107,15 +89,11 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
   if (!result.ok) {
     if (result.reason === "not_in_booking") {
       const error = `${asset.assetTag} is not in this checkout`;
-      await emitScanResult({ ok: false, errorCode: "not_in_booking" });
-      return ok({ success: false, error });
+      return ok({ success: false, error, ...await rewardPayload() });
     }
     const error = `${asset.assetTag} already returned`;
-    await emitScanResult({ ok: false, errorCode: "already_returned" });
-    return ok({ success: false, error });
+    return ok({ success: false, error, ...await rewardPayload() });
   }
-
-  await emitScanResult({ ok: true });
 
   if (result.completed && result.badgeEvent) {
     await badges.onCheckoutReturned(result.badgeEvent);
@@ -124,6 +102,7 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
 
   return ok({
     success: true,
+    ...await rewardPayload(),
     ...(result.locationEvidence ? locationEvidencePayload(result.locationEvidence) : {}),
     item: {
       id: asset.id,
