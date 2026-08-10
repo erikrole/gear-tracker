@@ -178,15 +178,19 @@ final class GearOpsModel {
         statusMessage = message
     }
 
-    /// This endpoint is backed only by Upstash. Failure preserves the trusted
-    /// local snapshot and never falls through to a Neon-backed route.
-    func refresh() async {
+    /// Automatic refreshes read only Upstash. An explicit user refresh may
+    /// rebuild the projection from source. Either failure preserves the last
+    /// trusted local snapshot.
+    func refresh(fromSource: Bool = false) async {
         guard user != nil, let companionToken, !isRefreshing else { return }
         isRefreshing = true
         defer { isRefreshing = false }
 
         do {
-            let projection = try await client.companionProjection(token: companionToken)
+            let projection = try await client.companionProjection(
+                token: companionToken,
+                refreshFromSource: fromSource
+            )
             await install(projection, deliverNotifications: true)
         } catch GearOpsClientError.unauthorized {
             await credentialStore.deleteToken()

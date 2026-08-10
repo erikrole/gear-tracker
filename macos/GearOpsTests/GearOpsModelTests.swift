@@ -231,7 +231,7 @@ private actor MockGearOpsClient: GearOpsServing {
         )
     }
 
-    func companionProjection(token: String) async throws -> CompanionProjection {
+    func companionProjection(token: String, refreshFromSource: Bool) async throws -> CompanionProjection {
         if let projectionError { throw projectionError }
         return makeProjection(activities: activities, kioskAccess: kioskAccess, checkedOut: checkedOut)
     }

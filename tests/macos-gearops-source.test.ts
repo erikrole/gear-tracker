@@ -31,7 +31,8 @@ describe("GearOps macOS menu bar contracts", () => {
     const client = source("macos/GearOps/GearOpsClient.swift");
     const model = source("macos/GearOps/GearOpsModel.swift");
 
-    expect(client).toContain('makeRequest(path: "/api/companion/projection")');
+    expect(client).toContain('path: "/api/companion/projection"');
+    expect(client).toContain('refreshFromSource ? "POST" : "GET"');
     expect(client).toContain('makeRequest(path: "/api/companion/devices", method: "POST")');
     expect(client).toContain("companion: true");
     expect(client).not.toContain('/api/dashboard/stats');
@@ -41,11 +42,13 @@ describe("GearOps macOS menu bar contracts", () => {
     expect(client).not.toContain('/api/bookings/changes');
     expect(client).not.toContain('/api/db-diagnostics');
     expect(model).toContain("credentialStore.loadToken()");
-    expect(model).toContain("client.companionProjection(token:");
+    expect(model).toContain("client.companionProjection(");
+    expect(model).toContain("refreshFromSource: fromSource");
     expect(model).toContain("Task.sleep(for: .seconds(60))");
     expect(model).toContain("await self?.restoreSession()");
     expect(model).not.toContain("startPolling");
     expect(model).not.toContain('method: "PATCH"');
+    expect(source("macos/GearOps/MenuBarContentView.swift")).toContain("refresh(fromSource: true)");
   });
 
   it("keeps every automatic companion read outside Neon", () => {
@@ -60,6 +63,7 @@ describe("GearOps macOS menu bar contracts", () => {
     expect(projectionRoute).toContain("withHandler");
     expect(projectionRoute).not.toContain("withAuth");
     expect(projectionRoute).not.toContain("@/lib/db");
+    expect(projectionRoute).toContain("refreshCompanionProjection({ notify: false })");
     expect(deviceRoute).toContain("requireCompanion(req)");
     expect(deviceRoute).not.toContain("@/lib/db");
     expect(store).toContain("UPSTASH_REDIS_REST_URL");
@@ -138,13 +142,13 @@ describe("GearOps macOS menu bar contracts", () => {
 
   it("never falls through from the external projection to Neon-backed reads", () => {
     const model = source("macos/GearOps/GearOpsModel.swift");
-    const refresh = model.slice(model.indexOf("func refresh()"), model.indexOf("func openDashboard()"));
+    const refresh = model.slice(model.indexOf("func refresh("), model.indexOf("func openDashboard()"));
     const pickupDerivation = model.slice(
       model.indexOf("func pendingPickupBookings"),
       model.indexOf("func restoreSession")
     );
 
-    expect(refresh).toContain("client.companionProjection(token:");
+    expect(refresh).toContain("client.companionProjection(");
     expect(refresh).not.toContain("dashboardStats");
     expect(refresh).not.toContain("openBookings()");
     expect(refresh).not.toContain("activeBookingActivity()");

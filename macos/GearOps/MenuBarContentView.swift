@@ -68,7 +68,7 @@ struct MenuBarContentView: View {
             }
             Spacer()
             Button {
-                Task { await model.refresh() }
+                Task { await model.refresh(fromSource: true) }
             } label: {
                 if model.isRefreshing {
                     ProgressView()

@@ -4,6 +4,7 @@ import { readCompanionProjection, requireCompanion } from "@/lib/companion-store
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
   projectionForRole,
+  refreshCompanionProjection,
   type CompanionProjection,
 } from "@/lib/services/companion-projection";
 
@@ -17,5 +18,15 @@ export const GET = withHandler(async (req) => {
   if (!projection) {
     throw new HttpError(503, "No companion projection is available yet. Showing cached data.");
   }
+  return ok({ data: projectionForRole(projection, companion.role) });
+});
+
+export const POST = withHandler(async (req) => {
+  const companion = await requireCompanion(req);
+  await enforceRateLimit(`companion:projection:refresh:${companion.userId}`, {
+    max: 6,
+    windowMs: 60 * 60_000,
+  });
+  const projection = await refreshCompanionProjection({ notify: false });
   return ok({ data: projectionForRole(projection, companion.role) });
 });

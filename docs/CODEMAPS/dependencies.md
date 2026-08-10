@@ -33,7 +33,7 @@
 | `lucide-react` | `^0.577.0` |
 | `motion` | `^12.40.0` |
 | `next` | `^15.5.21` |
-| `postcss` | `^8.5.15` |
+| `postcss` | `^8.5.25` |
 | `qrcode` | `^1.5.4` |
 | `radix-ui` | `^1.5.0` |
 | `react` | `^19.2.7` |
@@ -66,6 +66,7 @@
 | `@vitest/coverage-v8` | `^3.2.6` |
 | `eslint` | `^9.39.4` |
 | `eslint-config-next` | `^15.5.16` |
+| `plist` | `^5.0.0` |
 | `prisma` | `^6.19.3` |
 | `typescript` | `5.9.3` |
 | `vitest` | `^3.0.6` |
