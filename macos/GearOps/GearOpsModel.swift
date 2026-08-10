@@ -179,8 +179,8 @@ final class GearOpsModel {
     }
 
     /// Automatic refreshes read only Upstash. An explicit user refresh may
-    /// rebuild the projection from source. Either failure preserves the last
-    /// trusted local snapshot.
+    /// rebuild the projection from source. Failure preserves the trusted local
+    /// snapshot in either case.
     func refresh(fromSource: Bool = false) async {
         guard user != nil, let companionToken, !isRefreshing else { return }
         isRefreshing = true
