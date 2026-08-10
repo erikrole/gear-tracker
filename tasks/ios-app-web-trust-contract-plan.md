@@ -45,9 +45,9 @@
 - [x] `git diff --check`
 
 ## Review
-- Shipped: Source-ready Build 24 candidate with authoritative booking mutations/actions, explicit item clears, complete linked-event detail, and current native auth guardrails.
-- Verified: 97 focused route/native tests and all 422 iOS source-contract tests pass; route/test lint, `build:app`, iOS project/drift/gap checks, the exact iPhone 16 Pro build, XCTest, and generic-device build pass. A native XCTest now proves current and legacy Booking payload decoding.
-- Deferred: Authenticated mutation walkthrough against a deployed server, installed-binary visual proof, archive/export, TestFlight upload, and distribution.
-- Blocked: Repository-wide TypeScript, lint, and docs gates are blocked by unrelated existing generated artifacts, Schedule fixtures, `.tmp` code, and dirty codemaps listed above.
-- Proof artifacts: Command output from this execution; no production mutation, deployment, upload, or distribution occurred.
-- Next slice or stop: Stop at the verified source candidate. Use the normal native shipping workflow when deployment and TestFlight distribution are explicitly authorized.
+- Shipped: Build 24 with authoritative booking mutations/actions, explicit item clears, complete linked-event detail, and current native auth guardrails is committed as `cb3261eb`, deployed to production, and available to Internal QA in TestFlight.
+- Verified: 97 focused route/native tests and all 422 iOS source-contract tests pass; route/test lint, `build:app`, iOS project/drift/gap checks, the exact iPhone 16 Pro build, XCTest, and generic-device build pass. A native XCTest proves current and legacy Booking payload decoding. The signed archive/export passed entitlement inspection, App Store Connect processed build `74261d1c-0f74-4547-8532-71cf055086a6` as `VALID`, the `en-US` notes read back correctly, Internal QA includes it, and both production hosts pass unauthenticated deployment smoke.
+- Deferred: Authenticated mutation walkthrough against the deployed server, installed-binary visual and real-device acceptance, and External Beta distribution.
+- Blocked: Authenticated production smoke lacks a release credential. Repository-wide TypeScript, lint, and docs gates remain blocked by unrelated existing generated artifacts, Schedule fixtures, `.tmp` code, and dirty codemaps listed above.
+- Proof artifacts: Production deployment `dpl_7pXoYfYrAbjLeADNWMXzerqtt8eA`; App Store Connect build `74261d1c-0f74-4547-8532-71cf055086a6`; IPA SHA-256 `71a144beb442e5d5340c786877e5297c0cadb85973bc2986efd473ea1443e37c`.
+- Next slice or stop: Install Build 24 from Internal QA, complete the account, Schedule, Bookings, and Items checklist on a physical device, then add this exact build to External Beta if acceptance passes.
