@@ -130,8 +130,8 @@ struct ItemDetailView: View {
         .refreshable { await loadAsset() }
         .sheet(isPresented: $showEdit) {
             if let asset {
-                EditAssetSheet(asset: asset) {
-                    Task { await loadAsset() }
+                EditAssetSheet(asset: asset) { updated in
+                    self.asset = asset.applying(updated)
                 }
             }
         }
@@ -198,7 +198,7 @@ private struct ReserveButton: View {
 
 struct EditAssetSheet: View {
     let asset: AssetDetail
-    let onSaved: () -> Void
+    let onSaved: (AssetUpdateConfirmation) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var name: String
@@ -208,7 +208,7 @@ struct EditAssetSheet: View {
     @State private var error: String?
     @State private var showDiscardConfirm = false
 
-    init(asset: AssetDetail, onSaved: @escaping () -> Void) {
+    init(asset: AssetDetail, onSaved: @escaping (AssetUpdateConfirmation) -> Void) {
         self.asset = asset
         self.onSaved = onSaved
         _name = State(wrappedValue: asset.name ?? "")
@@ -316,20 +316,25 @@ struct EditAssetSheet: View {
     private func save() async {
         isSaving = true
         do {
-            try await APIClient.shared.updateAsset(
+            let updated = try await APIClient.shared.updateAsset(
                 id: asset.id,
-                name: name != (asset.name ?? "") ? (name.isEmpty ? nil : name) : nil,
-                serialNumber: serialNumber != (asset.serialNumber ?? "") ? (serialNumber.isEmpty ? nil : serialNumber) : nil,
-                notes: notes != (asset.notes ?? "") ? (notes.isEmpty ? nil : notes) : nil
+                name: textMutation(edited: name, original: asset.name),
+                serialNumber: textMutation(edited: serialNumber, original: asset.serialNumber),
+                notes: textMutation(edited: notes, original: asset.notes)
             )
             Haptics.success()
-            onSaved()
+            onSaved(updated)
             dismiss()
         } catch {
             self.error = error.localizedDescription
             Haptics.warning()
         }
         isSaving = false
+    }
+
+    private func textMutation(edited: String, original: String?) -> AssetTextMutation {
+        guard edited != (original ?? "") else { return .unchanged }
+        return edited.isEmpty ? .clear : .value(edited)
     }
 }
 

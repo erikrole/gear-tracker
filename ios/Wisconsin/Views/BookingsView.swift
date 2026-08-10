@@ -161,6 +161,10 @@ final class BookingsViewModel {
         await load()
     }
 
+    func install(_ booking: Booking) {
+        bookings = bookings.map { $0.id == booking.id ? booking : $0 }
+    }
+
     func onSearchChange() {
         searchTask?.cancel()
         searchTask = Task {
@@ -385,16 +389,16 @@ struct BookingsView: View {
             .sheet(item: $presentedAction) { action in
                 switch action {
                 case .edit(let booking):
-                    EditBookingSheet(booking: booking) {
-                        Task { await vm.load(reset: true) }
+                    EditBookingSheet(booking: booking) { updatedBooking in
+                        vm.install(updatedBooking)
                     }
                 case .transfer(let booking):
-                    TransferBookingOwnerSheet(booking: booking) { _ in
-                        Task { await vm.load(reset: true) }
+                    TransferBookingOwnerSheet(booking: booking) { updatedBooking in
+                        vm.install(updatedBooking)
                     }
                 case .extend(let booking):
-                    ExtendBookingSheet(bookingId: booking.id, currentEndsAt: booking.endsAt) {
-                        Task { await vm.load(reset: true) }
+                    ExtendBookingSheet(booking: booking) { updatedBooking in
+                        vm.install(updatedBooking)
                     }
                 }
             }
@@ -458,6 +462,7 @@ struct BookingsView: View {
     }
 
     private func canEdit(_ booking: Booking) -> Bool {
+        if let allowed = booking.allows("edit") { return allowed }
         guard ownsOrManages(booking) else { return false }
         if isCollaborator {
             return booking.kind == .reservation && hasCapability("RESERVATION_EDIT_OWN")
@@ -467,11 +472,13 @@ struct BookingsView: View {
     }
 
     private func canTransfer(_ booking: Booking) -> Bool {
-        !isCollaborator && ownsOrManages(booking)
+        if let allowed = booking.allows("transfer-owner") { return allowed }
+        return !isCollaborator && ownsOrManages(booking)
             && [.draft, .booked, .pendingPickup, .open].contains(booking.status)
     }
 
     private func canExtend(_ booking: Booking) -> Bool {
+        if let allowed = booking.allows("extend") { return allowed }
         guard ownsOrManages(booking), [.booked, .open].contains(booking.status) else { return false }
         if isCollaborator {
             return booking.kind == .reservation && hasCapability("RESERVATION_EXTEND_OWN")
@@ -480,7 +487,9 @@ struct BookingsView: View {
     }
 
     private func canCancelReservation(_ booking: Booking) -> Bool {
-        guard booking.kind == .reservation, ownsOrManages(booking), [.draft, .booked].contains(booking.status) else { return false }
+        guard booking.kind == .reservation else { return false }
+        if let allowed = booking.allows("cancel") { return allowed }
+        guard ownsOrManages(booking), [.draft, .booked].contains(booking.status) else { return false }
         return !isCollaborator || hasCapability("RESERVATION_CANCEL_OWN")
     }
 
@@ -500,9 +509,9 @@ struct BookingsView: View {
 
     private func cancelReservation(_ booking: Booking) async {
         do {
-            try await APIClient.shared.cancelBooking(id: booking.id)
+            let cancelled = try await APIClient.shared.cancelBooking(id: booking.id)
+            vm.install(cancelled)
             Haptics.success()
-            await vm.load(reset: true, clearExistingRows: true)
         } catch {
             vm.error = error.localizedDescription
             Haptics.warning()

@@ -5,7 +5,8 @@ import { HttpError, ok, parsePagination } from "@/lib/http";
 import { BOOKING_SORT_MAP } from "@/lib/services/bookings-queries";
 import { optionalSportCodeSchema } from "@/lib/validation";
 import { requirePermissionOrCollaboratorCapability } from "@/lib/rbac";
-import { sanitizeCollaboratorBooking } from "@/lib/collaborator-gear";
+import { collaboratorBookingResponse } from "@/lib/collaborator-gear";
+import { getAllowedBookingActions } from "@/lib/services/booking-rules";
 
 /* ── Combined bookings list (both CHECKOUT and RESERVATION) ── */
 
@@ -108,8 +109,15 @@ export const GET = withAuth(async (req, { user }) => {
     db.booking.count({ where }),
   ]);
 
+  const responseData = data.map((booking) => {
+    const allowedActions = getAllowedBookingActions(user, booking);
+    return user.role === "COLLABORATOR"
+      ? collaboratorBookingResponse(booking, allowedActions)
+      : { ...booking, allowedActions };
+  });
+
   return ok({
-    data: user.role === "COLLABORATOR" ? data.map(sanitizeCollaboratorBooking) : data,
+    data: responseData,
     total,
     limit,
     offset,

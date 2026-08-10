@@ -461,6 +461,15 @@ struct AssetDetail: Codable, Identifiable, Hashable {
     }
 }
 
+/// The fields returned authoritatively by `PATCH /api/assets/[id]` that the
+/// native edit sheet can change.
+struct AssetUpdateConfirmation: Decodable {
+    let id: String
+    let name: String?
+    let serialNumber: String?
+    let notes: String?
+}
+
 extension AssetDetail {
     private enum SafeCodingKeys: String, CodingKey {
         case id, assetTag, name, brand, model, serialNumber, imageUrl, qrCodeValue, linkUrl
@@ -495,5 +504,35 @@ extension AssetDetail {
         residualValue = try c.decodeIfPresent(String.self, forKey: .residualValue)
         notes = try c.decodeIfPresent(String.self, forKey: .notes)
         isFavorited = try c.decodeIfPresent(Bool.self, forKey: .isFavorited) ?? false
+    }
+
+    func applying(_ update: AssetUpdateConfirmation) -> AssetDetail {
+        guard update.id == id else { return self }
+        return AssetDetail(
+            id: id,
+            assetTag: assetTag,
+            name: update.name,
+            brand: brand,
+            model: model,
+            serialNumber: update.serialNumber,
+            imageUrl: imageUrl,
+            qrCodeValue: qrCodeValue,
+            linkUrl: linkUrl,
+            computedStatus: computedStatus,
+            location: location,
+            category: category,
+            department: department,
+            activeBooking: activeBooking,
+            upcomingReservations: upcomingReservations,
+            history: history,
+            parentAsset: parentAsset,
+            accessories: accessories,
+            metadata: metadata,
+            purchaseDate: purchaseDate,
+            purchasePrice: purchasePrice,
+            residualValue: residualValue,
+            notes: update.notes,
+            isFavorited: isFavorited
+        )
     }
 }

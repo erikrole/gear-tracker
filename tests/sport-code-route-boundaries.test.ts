@@ -120,6 +120,28 @@ describe("sport-code route boundaries", () => {
     );
   });
 
+  it("returns canonical allowed actions with combined booking rows", async () => {
+    vi.mocked(db.booking.findMany).mockResolvedValue([{
+      id: "booking-1",
+      kind: "RESERVATION",
+      status: "BOOKED",
+      requesterUserId: "student-1",
+      createdBy: "student-1",
+    }] as never);
+    vi.mocked(db.booking.count).mockResolvedValue(1);
+
+    const res = await getBookingsRoute(req("/api/bookings"), { params: Promise.resolve({}) });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data[0].allowedActions).toEqual(expect.arrayContaining([
+      "edit",
+      "extend",
+      "cancel",
+      "transfer-owner",
+    ]));
+  });
+
   it("rejects unknown combined booking sport filters before querying", async () => {
     const res = await getBookingsRoute(req("/api/bookings?sport_code=softball"), { params: Promise.resolve({}) });
 

@@ -56,6 +56,12 @@ struct PasswordResetRequestResult: Decodable {
     let resetEmailConfigured: Bool
 }
 
+enum AssetTextMutation {
+    case unchanged
+    case value(String)
+    case clear
+}
+
 extension Notification.Name {
     /// Fired when an authenticated API call returns 401. The notification
     /// object is the request's captured `AuthSessionBoundary` generation, so a
@@ -358,17 +364,10 @@ final class APIClient {
         return resp.data
     }
 
-    func cancelBooking(id: String) async throws {
+    func cancelBooking(id: String) async throws -> Booking {
         let req = request(path: "/api/bookings/\(id)/cancel", method: "POST")
-        let (data, response, requestBoundary) = try await authenticatedData(for: req)
-        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 {
-                broadcastSessionExpiry(for: requestBoundary)
-                throw APIError.unauthorized
-            }
-            let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Cancel failed"
-            throw APIError.serverError(msg)
-        }
+        let response: DataWrapper<Booking> = try await perform(req)
+        return response.data
     }
 
     // MARK: - Booking drafts
@@ -465,26 +464,50 @@ final class APIClient {
         }
     }
 
-    func updateAsset(id: String, name: String? = nil, serialNumber: String? = nil, notes: String? = nil) async throws {
+    func updateAsset(
+        id: String,
+        name: AssetTextMutation = .unchanged,
+        serialNumber: AssetTextMutation = .unchanged,
+        notes: AssetTextMutation = .unchanged
+    ) async throws -> AssetUpdateConfirmation {
         struct Body: Encodable {
-            let name: String?
-            let serialNumber: String?
-            let notes: String?
+            let name: AssetTextMutation
+            let serialNumber: AssetTextMutation
+            let notes: AssetTextMutation
+
+            enum CodingKeys: String, CodingKey {
+                case name, serialNumber, notes
+            }
+
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                switch name {
+                case .unchanged: break
+                case .value(let value): try container.encode(value, forKey: .name)
+                case .clear: try container.encodeNil(forKey: .name)
+                }
+                switch serialNumber {
+                case .unchanged: break
+                case .value(let value): try container.encode(value, forKey: .serialNumber)
+                case .clear: try container.encodeNil(forKey: .serialNumber)
+                }
+                switch notes {
+                case .unchanged: break
+                case .value(let value): try container.encode(value, forKey: .notes)
+                case .clear: try container.encode("", forKey: .notes)
+                }
+            }
         }
         var req = request(path: "/api/assets/\(id)", method: "PATCH")
         req.httpBody = try JSONEncoder().encode(Body(name: name, serialNumber: serialNumber, notes: notes))
-        let (data, response, requestBoundary) = try await authenticatedData(for: req)
-        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 {
-                broadcastSessionExpiry(for: requestBoundary)
-                throw APIError.unauthorized
-            }
-            let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Update failed"
-            throw APIError.serverError(msg)
-        }
+        let response: DataWrapper<AssetUpdateConfirmation> = try await perform(req)
+        return response.data
     }
 
-    func updateBooking(id: String, title: String? = nil, notes: String? = nil, locationId: String? = nil, startsAt: Date? = nil, endsAt: Date? = nil, updatedAt: Date? = nil) async throws {
+    func updateBooking(id: String, title: String? = nil, notes: String? = nil, locationId: String? = nil, startsAt: Date? = nil, endsAt: Date? = nil, updatedAt: Date? = nil) async throws -> Booking {
+        guard let updatedAt else {
+            throw APIError.serverError("Refresh this booking before editing it.")
+        }
         struct Body: Encodable {
             let title: String?
             let notes: String?
@@ -493,9 +516,7 @@ final class APIClient {
             let endsAt: String?
         }
         var req = request(path: "/api/bookings/\(id)", method: "PATCH")
-        if let updatedAt {
-            req.setValue(httpDateString(updatedAt), forHTTPHeaderField: "If-Unmodified-Since")
-        }
+        req.setValue(httpDateString(updatedAt), forHTTPHeaderField: "If-Unmodified-Since")
         let iso = ISO8601DateFormatter()
         iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         req.httpBody = try JSONEncoder().encode(Body(
@@ -505,15 +526,8 @@ final class APIClient {
             startsAt: startsAt.map { iso.string(from: $0) },
             endsAt: endsAt.map { iso.string(from: $0) }
         ))
-        let (data, response, requestBoundary) = try await authenticatedData(for: req)
-        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 {
-                broadcastSessionExpiry(for: requestBoundary)
-                throw APIError.unauthorized
-            }
-            let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Update failed"
-            throw APIError.serverError(msg)
-        }
+        let response: DataWrapper<Booking> = try await perform(req)
+        return response.data
     }
 
     func transferBookingOwner(id: String, targetUserId: String, updatedAt: Date?) async throws -> Booking {
@@ -557,21 +571,18 @@ final class APIClient {
         return try await perform(req)
     }
 
-    func extendBooking(id: String, endsAt: Date) async throws {
+    func extendBooking(id: String, endsAt: Date, updatedAt: Date?) async throws -> Booking {
+        guard let updatedAt else {
+            throw APIError.serverError("Refresh this booking before extending it.")
+        }
         struct Body: Encodable { let endsAt: String }
         var req = request(path: "/api/bookings/\(id)/extend", method: "POST")
+        req.setValue(httpDateString(updatedAt), forHTTPHeaderField: "If-Unmodified-Since")
         let iso = ISO8601DateFormatter()
         iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         req.httpBody = try JSONEncoder().encode(Body(endsAt: iso.string(from: endsAt)))
-        let (data, response, requestBoundary) = try await authenticatedData(for: req)
-        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 {
-                broadcastSessionExpiry(for: requestBoundary)
-                throw APIError.unauthorized
-            }
-            let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Extend failed"
-            throw APIError.serverError(msg)
-        }
+        let response: DataWrapper<Booking> = try await perform(req)
+        return response.data
     }
 
     func createReservation(

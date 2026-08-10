@@ -21,7 +21,12 @@ struct BookingDetailView: View {
     }
 
     private var canEditBooking: Bool {
-        guard let booking, let user = session.currentUser else { return false }
+        guard let booking else { return false }
+        return booking.allows("edit") ?? legacyCanEdit(booking)
+    }
+
+    private func legacyCanEdit(_ booking: Booking) -> Bool {
+        guard let user = session.currentUser else { return false }
         let role = user.role
         if role == "STAFF" || role == "ADMIN" { return true }
         if role == "COLLABORATOR" {
@@ -35,14 +40,8 @@ struct BookingDetailView: View {
             && (booking.status == .draft || booking.status == .booked)
     }
 
-    /// Wider gate than `canEditBooking` — Extend is a legitimate self-help
-    /// action even after a booking transitions to OPEN ("I need it longer
-    /// mid-shoot"). Hides the action panel from non-owners viewing through
-    /// deep nav (Items tab → "out to {Person}" → that booking detail) where
-    /// advertising "Cancel Booking" on someone else's gear is alarming even
-    /// when the server would reject the request.
-    private var canActOnBooking: Bool {
-        guard let booking, let user = session.currentUser else { return false }
+    private func legacyCanAct(on booking: Booking) -> Bool {
+        guard let user = session.currentUser else { return false }
         let role = user.role
         if role == "STAFF" || role == "ADMIN" { return true }
         if role == "COLLABORATOR" {
@@ -55,16 +54,20 @@ struct BookingDetailView: View {
     }
 
     private var canExtendBooking: Bool {
-        guard let booking, canActOnBooking else { return false }
-        return hasCapability("RESERVATION_EXTEND_OWN")
+        guard let booking else { return false }
+        let legacyAllowed = legacyCanAct(on: booking)
+            && hasCapability("RESERVATION_EXTEND_OWN")
             && (booking.status == .booked || booking.status == .open)
+        return (booking.allows("extend") ?? legacyAllowed)
             && !(booking.status == .open && returnInsight.hasUpcomingNeed)
     }
 
     private var canCancelBooking: Bool {
-        guard let booking, canActOnBooking else { return false }
-        return hasCapability("RESERVATION_CANCEL_OWN")
+        guard let booking else { return false }
+        let legacyAllowed = legacyCanAct(on: booking)
+            && hasCapability("RESERVATION_CANCEL_OWN")
             && (booking.status == .booked || booking.status == .pendingPickup)
+        return booking.allows("cancel") ?? legacyAllowed
     }
 
     var body: some View {
@@ -147,15 +150,15 @@ struct BookingDetailView: View {
         .refreshable { await loadBooking() }
         .sheet(isPresented: $showExtend) {
             if let booking {
-                ExtendBookingSheet(bookingId: booking.id, currentEndsAt: booking.endsAt) {
-                    Task { await loadBooking() }
+                ExtendBookingSheet(booking: booking) { updatedBooking in
+                    install(updatedBooking)
                 }
             }
         }
         .sheet(isPresented: $showEdit) {
             if let booking {
-                EditBookingSheet(booking: booking) {
-                    Task { await loadBooking() }
+                EditBookingSheet(booking: booking) { updatedBooking in
+                    install(updatedBooking)
                 }
             }
         }
@@ -233,16 +236,29 @@ struct BookingDetailView: View {
     private func openPendingExtendIfAllowed(for booking: Booking) {
         guard appState.pendingExtendBookingId == booking.id else { return }
         appState.pendingExtendBookingId = nil
-        guard canActOnBooking, hasCapability("RESERVATION_EXTEND_OWN"), booking.status == .open, !returnInsight.hasUpcomingNeed else { return }
+        guard canExtendBooking else { return }
         showExtend = true
+    }
+
+    private func install(_ updatedBooking: Booking) {
+        booking = updatedBooking
+        error = nil
+        Task {
+            await loadConflicts(for: updatedBooking)
+            await loadReturnInsight(for: updatedBooking)
+            await reconcileLiveActivity(afterLoading: updatedBooking)
+        }
     }
 
     private func cancelBooking() async {
         if isActioning { return }
         isActioning = true
         do {
-            try await APIClient.shared.cancelBooking(id: bookingId)
-            await loadBooking()
+            let cancelled = try await APIClient.shared.cancelBooking(id: bookingId)
+            booking = cancelled
+            conflicts = [:]
+            returnInsight = CheckoutReturnInsight(nextNeedAt: nil, hasUpcomingNeed: false)
+            await reconcileLiveActivity(afterLoading: cancelled)
             Haptics.success()
         } catch {
             self.error = error.localizedDescription
@@ -265,7 +281,7 @@ private enum ReturnAvailabilityState: Equatable {
 
 struct EditBookingSheet: View {
     let booking: Booking
-    let onSaved: () -> Void
+    let onSaved: (Booking) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @Environment(SessionStore.self) private var session
@@ -280,7 +296,7 @@ struct EditBookingSheet: View {
     @State private var showTransfer = false
     @State private var didTransfer = false
 
-    init(booking: Booking, onSaved: @escaping () -> Void) {
+    init(booking: Booking, onSaved: @escaping (Booking) -> Void) {
         self.booking = booking
         self.onSaved = onSaved
         _title = State(wrappedValue: booking.title)
@@ -450,7 +466,7 @@ struct EditBookingSheet: View {
                     ownerName = transferred.requester.name
                     ownerAvatarURL = transferred.requester.avatarUrl
                     didTransfer = true
-                    onSaved()
+                    onSaved(transferred)
                 }
             }
             .onChange(of: showTransfer) { _, isPresented in
@@ -510,14 +526,14 @@ struct EditBookingSheet: View {
         isSaving = true
         error = nil
         do {
-            try await APIClient.shared.updateBooking(
+            let updatedBooking = try await APIClient.shared.updateBooking(
                 id: booking.id,
                 title: trimmedTitle != booking.title ? trimmedTitle : nil,
                 endsAt: endsAt != booking.endsAt ? endsAt : nil,
                 updatedAt: booking.updatedAt
             )
             Haptics.success()
-            onSaved()
+            onSaved(updatedBooking)
             dismiss()
         } catch {
             self.error = error.localizedDescription
@@ -761,10 +777,19 @@ private struct BookingOverviewSection: View {
             BrandSectionHeader("Schedule")
                 .padding(.bottom, Brand.Space.xs)
 
-            if let eventSummary = booking.event?.summary?.nonBlankText {
-                overviewRow(icon: "calendar.badge.clock", tone: .orange, title: "Event") {
-                    Text(eventSummary)
-                        .font(.subheadline.weight(.medium))
+            let eventSummaries = booking.linkedEvents.compactMap { $0.summary?.nonBlankText }
+            if !eventSummaries.isEmpty {
+                overviewRow(
+                    icon: "calendar.badge.clock",
+                    tone: .orange,
+                    title: eventSummaries.count == 1 ? "Event" : "Events"
+                ) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(Array(eventSummaries.enumerated()), id: \.offset) { _, summary in
+                            Text(summary)
+                                .font(.subheadline.weight(.medium))
+                        }
+                    }
                 }
                 rowDivider
             }

@@ -1,9 +1,8 @@
 import SwiftUI
 
 struct ExtendBookingSheet: View {
-    let bookingId: String
-    let currentEndsAt: Date
-    let onSuccess: () -> Void
+    let booking: Booking
+    let onSuccess: (Booking) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var newEndsAt: Date
@@ -11,12 +10,13 @@ struct ExtendBookingSheet: View {
     @State private var error: String?
     @State private var showDiscardConfirm = false
 
-    init(bookingId: String, currentEndsAt: Date, onSuccess: @escaping () -> Void) {
-        self.bookingId = bookingId
-        self.currentEndsAt = currentEndsAt
+    init(booking: Booking, onSuccess: @escaping (Booking) -> Void) {
+        self.booking = booking
         self.onSuccess = onSuccess
-        _newEndsAt = State(initialValue: currentEndsAt)
+        _newEndsAt = State(initialValue: booking.endsAt)
     }
+
+    private var currentEndsAt: Date { booking.endsAt }
 
     /// Web parity: +1 day / +3 days / +1 week chips on `BookingDetailPage`.
     private static let quickPresets: [(label: String, days: Int)] = [
@@ -147,8 +147,12 @@ struct ExtendBookingSheet: View {
         isLoading = true
         error = nil
         do {
-            try await APIClient.shared.extendBooking(id: bookingId, endsAt: newEndsAt)
-            onSuccess()
+            let updatedBooking = try await APIClient.shared.extendBooking(
+                id: booking.id,
+                endsAt: newEndsAt,
+                updatedAt: booking.updatedAt
+            )
+            onSuccess(updatedBooking)
             Haptics.success()
             dismiss()
         } catch {

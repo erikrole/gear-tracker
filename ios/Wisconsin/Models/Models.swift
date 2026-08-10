@@ -287,8 +287,21 @@ struct Booking: Codable, Identifiable, Hashable {
     let serializedItems: [BookingSerializedItem]
     let bulkItems: [BookingBulkItem]
     let event: BookingEvent?
+    var events: [BookingEvent]? = nil
+    var allowedActions: [String]? = nil
     let updatedAt: Date?
     let pickupKioskDevice: PickupKioskDevice?
+
+    /// New servers return every linked event. Older list/detail payloads only
+    /// carry the legacy primary event, so keep that as a rollout-safe fallback.
+    var linkedEvents: [BookingEvent] {
+        if let events, !events.isEmpty { return events }
+        return event.map { [$0] } ?? []
+    }
+
+    func allows(_ action: String) -> Bool? {
+        allowedActions.map { $0.contains(action) }
+    }
 }
 
 struct BookingStub: Codable { let id: String }
