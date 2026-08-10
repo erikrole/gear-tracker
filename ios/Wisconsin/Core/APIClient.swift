@@ -881,6 +881,26 @@ final class APIClient {
         return try await perform(req)
     }
 
+    /// `/api/reports/utilization`. `days` must be one of the server's accepted
+    /// windows (30, 90, 365); anything else silently falls back to 90.
+    func utilizationReport(days: Int) async throws -> UtilizationReport {
+        let req = request(
+            path: "/api/reports/utilization",
+            queryItems: [.init(name: "days", value: String(days))]
+        )
+        return try await perform(req)
+    }
+
+    /// `/api/reports/checkouts`. `days` must be 7, 30, or 90 — the route rejects
+    /// anything outside 1...366 with a 400.
+    func checkoutActivityReport(days: Int) async throws -> CheckoutActivityReport {
+        let req = request(
+            path: "/api/reports/checkouts",
+            queryItems: [.init(name: "days", value: String(days))]
+        )
+        return try await perform(req)
+    }
+
     // MARK: - Licenses
 
     func licenses() async throws -> [LicenseCode] {
@@ -1038,6 +1058,28 @@ final class APIClient {
         let req = request(path: "/api/badges/user/\(userId)")
         let resp: DataWrapper<BadgeProfile> = try await perform(req)
         return resp.data
+    }
+
+    func recentBadgeAwards(after: String?) async throws -> RecentBadgeRewards {
+        var queryItems: [URLQueryItem] = []
+        if let after, !after.isEmpty {
+            queryItems.append(.init(name: "after", value: after))
+        }
+        let response: DataWrapper<RecentBadgeRewards> = try await perform(
+            request(path: "/api/badges/recent", queryItems: queryItems)
+        )
+        return response.data
+    }
+
+    func recordBadgeAppOpen() async throws {
+        struct AppOpenResponse: Decodable {
+            let accepted: Bool
+        }
+
+        let response: DataWrapper<AppOpenResponse> = try await perform(
+            request(path: "/api/badges/events/app-open", method: "POST")
+        )
+        _ = response.data.accepted
     }
 
     /// `activeOnly` keeps this to reservations that still stand. The route

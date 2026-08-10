@@ -782,6 +782,62 @@ struct OverdueReport: Codable {
     let leaderboard: [OverdueLeaderboardEntry]
 }
 
+/// Most-used asset over the report window, ranked by days spent in custody.
+struct UtilizationTopUsedAsset: Codable, Identifiable {
+    let assetId: String
+    let assetTag: String
+    let name: String
+    let checkouts: Int
+    let custodyDays: Double
+    let utilizationRate: Double
+
+    var id: String { assetId }
+}
+
+/// Custody half of `/api/reports/utilization`. The web payload also carries
+/// idle-asset rows and breakdown tables; iOS decodes only what it draws, and
+/// Codable ignores the rest.
+struct UtilizationCustody: Codable {
+    let utilizationRate: Double
+    let custodyDays: Double
+    let assetsUsed: Int
+    let checkoutCount: Int
+    let idleCount: Int
+    let neverCheckedOutCount: Int
+    let topUsed: [UtilizationTopUsedAsset]
+}
+
+/// The custody block, `days`, and `activeAssets` arrived with the custody
+/// rebuild of the web report. A shipped build can outrun the server it talks to
+/// — during a deploy window, or after a rollback — so they decode as optional
+/// and the screen renders whatever the server actually knows about. The status
+/// snapshot predates the rebuild and is always present.
+struct UtilizationReport: Codable {
+    let days: Int?
+    let activeAssets: Int?
+    let totalAssets: Int
+    let statusCounts: [String: Int]
+    let custody: UtilizationCustody?
+}
+
+struct CheckoutTrendPoint: Codable, Identifiable {
+    /// `YYYY-MM-DD`, already bucketed per UTC day by the server.
+    let date: String
+    let count: Int
+
+    var id: String { date }
+}
+
+/// Trend half of `/api/reports/checkouts`. The heatmap, requester ranking, and
+/// row list stay on web; iOS shows the activity shape and the period delta.
+struct CheckoutActivityReport: Codable {
+    let days: Int
+    let totalCheckouts: Int
+    let previousTotalCheckouts: Int?
+    let overdueCheckouts: Int
+    let dailyTrend: [CheckoutTrendPoint]?
+}
+
 // MARK: - API Responses
 
 struct PaginatedResponse<T: Codable & Sendable>: Codable, Sendable {

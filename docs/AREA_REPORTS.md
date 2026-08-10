@@ -126,6 +126,16 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - **Export:** `GET /api/accountability?format=csv` exports the filtered person-level ranking in the on-screen sort order through the shared report-export rate limit. Columns cover rank, identity, late events, active overdue, total/median/worst late hours, total and completed checkouts, on-time rate, and last incident.
 - **Cleanup:** Exclusions require a reason, retain the booking and all custody evidence, write audit evidence in the same SERIALIZABLE transaction, and can be restored.
 
+## Native iOS surface
+
+`/reports` on web has no native equivalent; iOS instead carries one glanceable operational report at Browse > Reports (`ios/Wisconsin/Views/ReportsView.swift`), visible only to STAFF/ADMIN.
+
+- **Reads:** `GET /api/reports/utilization?days=` and `GET /api/reports/checkouts?days=`, both unchanged by the native client.
+- **Period:** a single 30d/90d control. Checkouts accepts 7/30/90 and utilization accepts 30/90/365, so the shared picker uses the overlap; a stale in-flight response for a superseded window is discarded.
+- **Content:** utilization rate, checkouts with a prior-period delta, currently overdue, an interactive checkout-activity chart, a status donut, most-used gear by custody days, and idle / never-checked-out counts. Overdue pushes the existing native `OverdueReportView`.
+- **Deliberately web-only:** CSV export, audit, badge analytics, missing units, breakdown drill-downs, and every filter beyond the period. Deep reporting and authoring stay on web per the mobile scope contract.
+- **Version tolerance:** the utilization `custody` block, `days`, and `activeAssets` decode as optional. A shipped build meeting a server that predates the custody rebuild still renders the status snapshot and checkout trend rather than erroring out. `ios/WisconsinTests/ReportModelsTests.swift` pins both payload shapes.
+
 ## Components
 
 **Shared across reports:**

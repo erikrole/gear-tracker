@@ -5,9 +5,16 @@ struct BrowseView: View {
     @Environment(AppState.self) private var appState
     @Environment(SessionStore.self) private var session
 
+    private var isStaffOrAdmin: Bool {
+        let role = session.currentUser?.role ?? ""
+        return role == "STAFF" || role == "ADMIN"
+    }
+
     private var destinations: [BrowseDestination] {
         guard session.currentUser?.role == "COLLABORATOR" else {
-            return [.items, .guides, .licenses, .users]
+            // Reports are staff analytics; the endpoints 403 anyone else, so the
+            // row is hidden rather than offered and refused.
+            return [.items, .guides, .licenses, .users] + (isStaffOrAdmin ? [.reports] : [])
         }
         let capabilities = Set(session.currentUser?.capabilities ?? [])
         return [
@@ -57,6 +64,8 @@ struct BrowseView: View {
             LicensesView(wrapsInNavigationStack: false)
         case .users:
             UsersView(wrapsInNavigationStack: false)
+        case .reports:
+            ReportsView()
         }
     }
 }
@@ -66,6 +75,7 @@ private enum BrowseDestination: String, CaseIterable, Hashable, Identifiable {
     case guides
     case licenses
     case users
+    case reports
 
     var id: String { rawValue }
 
@@ -75,6 +85,7 @@ private enum BrowseDestination: String, CaseIterable, Hashable, Identifiable {
         case .guides: "Guides"
         case .licenses: "Licenses"
         case .users: "Users"
+        case .reports: "Reports"
         }
     }
 
@@ -88,6 +99,8 @@ private enum BrowseDestination: String, CaseIterable, Hashable, Identifiable {
             "Claim, copy, or return a Photo Mechanic license."
         case .users:
             "Find teammates, roles, titles, and work areas."
+        case .reports:
+            "See what is going out, what sits idle, and who is overdue."
         }
     }
 
@@ -97,6 +110,7 @@ private enum BrowseDestination: String, CaseIterable, Hashable, Identifiable {
         case .guides: "book.closed"
         case .licenses: "key"
         case .users: "person.2"
+        case .reports: "chart.bar.xaxis"
         }
     }
 
@@ -106,6 +120,7 @@ private enum BrowseDestination: String, CaseIterable, Hashable, Identifiable {
         case .guides: Color.statusText(.purple)
         case .licenses: Color.statusText(.orange)
         case .users: Color.statusText(.green)
+        case .reports: Color.statusText(.red)
         }
     }
 }
