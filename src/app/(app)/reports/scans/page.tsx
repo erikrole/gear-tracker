@@ -26,6 +26,7 @@ const LazyDailyScanVolumeChart = dynamic(
   { ssr: false }
 );
 import {
+  ReportDataRegion,
   ReportEmptyState,
   ReportErrorState,
   ReportExportButton,
@@ -38,7 +39,9 @@ import {
   ReportTableLink,
   ReportToolbar,
   ReportToolbarGroup,
+  toSparklinePoints,
 } from "../report-ui";
+import { buildPeriodDelta, useReportPeriod } from "../use-report-period";
 import {
   getReportExportCompletionToast,
   getReportExportFilename,
@@ -61,6 +64,8 @@ type ScanEntry = {
 type ScanData = {
   data: ScanEntry[];
   total: number;
+  previousTotal?: number | null;
+  previousSuccessRate?: number | null;
   successCount: number;
   successRate: number;
   dailyScans: { date: string; success: number; fail: number }[];
@@ -79,11 +84,6 @@ function parsePageParam(value: string | null) {
 
 function parsePhaseParam(value: string | null): PhaseFilter {
   return value === "CHECKOUT" || value === "CHECKIN" ? value : PHASE_ALL;
-}
-
-function parsePeriodParam(value: string | null) {
-  const parsed = Number.parseInt(value ?? "", 10);
-  return VALID_PERIODS.includes(parsed as (typeof VALID_PERIODS)[number]) ? parsed : 0;
 }
 
 function ScanMobileCard({ s }: { s: ScanEntry }) {
@@ -183,9 +183,21 @@ export default function ScanHistoryPage() {
   const searchParams = useSearchParams();
   const [page, setPage] = useState(() => parsePageParam(searchParams.get("page")));
   const [phaseFilter, setPhaseFilter] = useState<PhaseFilter>(() => parsePhaseParam(searchParams.get("phase")));
-  const [periodDays, setPeriodDays] = useState(() => parsePeriodParam(searchParams.get("period")));
+  const period = useReportPeriod({
+    defaultValue: 0,
+    paramName: "period",
+    values: VALID_PERIODS,
+  });
+  const periodDays = period.days;
   const [now, setNow] = useState(() => new Date());
   const limit = 50;
+
+  // Any filter change invalidates the current offset.
+  function changePeriod(nextPeriod: number) {
+    period.setDays(nextPeriod);
+    setPage(0);
+    syncUrl({ page: "" });
+  }
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -195,10 +207,8 @@ export default function ScanHistoryPage() {
   useEffect(() => {
     const nextPage = parsePageParam(searchParams.get("page"));
     const nextPhase = parsePhaseParam(searchParams.get("phase"));
-    const nextPeriod = parsePeriodParam(searchParams.get("period"));
     setPage((current) => (current === nextPage ? current : nextPage));
     setPhaseFilter((current) => (current === nextPhase ? current : nextPhase));
-    setPeriodDays((current) => (current === nextPeriod ? current : nextPeriod));
 
     const corrections: Record<string, string | number> = {};
     if (searchParams.get("page") && nextPage === 0) {
@@ -206,9 +216,6 @@ export default function ScanHistoryPage() {
     }
     if (searchParams.get("phase") && nextPhase === PHASE_ALL) {
       corrections.phase = "";
-    }
-    if (searchParams.get("period") && nextPeriod === 0) {
-      corrections.period = "";
     }
     if (Object.keys(corrections).length > 0) {
       syncUrl(corrections);
@@ -223,9 +230,10 @@ export default function ScanHistoryPage() {
     return `/api/reports/scans?${params}`;
   }, [page, phaseFilter, periodDays]);
 
-  const { data, loading, error, lastRefreshed, reload } = useFetch<ScanData>({
+  const { data, loading, refreshing, error, lastRefreshed, reload } = useFetch<ScanData>({
     url: fetchUrl,
     transform: (json) => json as unknown as ScanData,
+    keepPreviousData: true,
   });
 
   const totalPages = data ? Math.ceil(data.total / limit) : 0;
@@ -257,16 +265,13 @@ export default function ScanHistoryPage() {
   if (!data) return null;
 
   const entries = data.data ?? [];
+  const scanVolumeTrend = (data.dailyScans ?? []).map((day) => day.success + day.fail);
   const activeFilters = [
     ...(periodDays > 0
       ? [{
           key: "period",
           label: `Period: ${periodDays}d`,
-          onRemove: () => {
-            setPeriodDays(0);
-            setPage(0);
-            syncUrl({ period: "", page: "" });
-          },
+          onRemove: () => changePeriod(0),
         }]
       : []),
     ...(phaseFilter !== PHASE_ALL
@@ -309,11 +314,7 @@ export default function ScanHistoryPage() {
               { value: 30, label: "30d" },
               { value: 90, label: "90d" },
             ]}
-            onChange={(nextPeriod) => {
-              setPeriodDays(nextPeriod);
-              setPage(0);
-              syncUrl({ period: nextPeriod, page: "" });
-            }}
+            onChange={changePeriod}
           />
         </ReportToolbarGroup>
         <ReportToolbarGroup label="Phase">
@@ -334,13 +335,30 @@ export default function ScanHistoryPage() {
         </ReportToolbarGroup>
       </ReportToolbar>
 
+      <ReportDataRegion refreshing={refreshing}>
       <ReportMetricGrid>
-        <MetricCard value={data.total} label="Total scans" tooltip="Total scan events in the selected period" />
+        <MetricCard
+          value={data.total}
+          label="Total scans"
+          tooltip="Total scan events in the selected period"
+          delta={buildPeriodDelta({
+            current: data.total,
+            days: periodDays,
+            previous: data.previousTotal,
+          })}
+          sparkline={scanVolumeTrend.length > 1 ? toSparklinePoints(scanVolumeTrend) : undefined}
+        />
         <MetricCard
           value={`${data.successRate}%`}
           label="Success rate"
           color={data.successRate < 95 ? "var(--red)" : undefined}
           tooltip="Percentage of scans that matched an asset"
+          delta={buildPeriodDelta({
+            current: data.successRate,
+            days: periodDays,
+            mode: "points",
+            previous: data.previousSuccessRate,
+          })}
         />
       </ReportMetricGrid>
 
@@ -425,6 +443,7 @@ export default function ScanHistoryPage() {
           </>
         )}
       </ReportSectionCard>
+      </ReportDataRegion>
     </FadeUp>
   );
 }

@@ -4,7 +4,11 @@ import { csvField } from "@/lib/csv";
 import { HttpError, ok } from "@/lib/http";
 import { enforceRateLimit, REPORT_EXPORT_LIMIT } from "@/lib/rate-limit";
 import { requirePermission } from "@/lib/rbac";
-import { getCheckoutReport, getCheckoutReportExport } from "@/lib/services/reports";
+import {
+  getCheckoutReport,
+  getCheckoutReportExport,
+  parseCheckoutFocusDate,
+} from "@/lib/services/reports";
 
 const DEFAULT_DAYS = 30;
 const MAX_DAYS = 366;
@@ -49,5 +53,5 @@ export const GET = withAuth(async (req, { user }) => {
     });
   }
 
-  return ok(await getCheckoutReport(days));
+  return ok(await getCheckoutReport(days, parseCheckoutFocusDate(searchParams.get("date"))));
 });

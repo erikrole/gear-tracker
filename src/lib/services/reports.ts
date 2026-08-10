@@ -12,13 +12,212 @@ const BULK_LOSS_REPORT_EXPORT_LIMIT = 5000;
 const UTILIZATION_REPORT_EXPORT_LIMIT = 5000;
 const CHECKOUT_CUSTODY_REPORT_STATUSES = [BookingStatus.OPEN, BookingStatus.COMPLETED] as const;
 
-export async function getUtilizationReport() {
+export const UTILIZATION_REPORT_PERIODS = [30, 90, 365] as const;
+export const UTILIZATION_REPORT_DEFAULT_PERIOD = 90;
+const UTILIZATION_IDLE_LIST_LIMIT = 25;
+const UTILIZATION_TOP_USED_LIMIT = 10;
+
+export function parseUtilizationReportPeriod(value: string | null | undefined) {
+  const parsed = Number.parseInt(value ?? "", 10);
+  return UTILIZATION_REPORT_PERIODS.includes(parsed as (typeof UTILIZATION_REPORT_PERIODS)[number])
+    ? parsed
+    : UTILIZATION_REPORT_DEFAULT_PERIOD;
+}
+
+/**
+ * Custody windows are derived from the booking, not from `AssetAllocation`:
+ * check-in flips allocations to `active: false` without stamping the actual
+ * return time, so the allocation's `endsAt` stays at the planned date. Using
+ * `completedAt` for finished checkouts and "now" for open ones matches how
+ * accountability measures lateness, so the two reports agree.
+ */
+const UTILIZATION_CUSTODY_END_SQL = Prisma.sql`
+  CASE WHEN b.status = 'COMPLETED' THEN COALESCE(b.completed_at, b.ends_at) ELSE w.win_end END
+`;
+
+function utilizationCustodyCte(days: number) {
+  return Prisma.sql`
+    WITH w AS (
+      SELECT (now() - (${days}::int * interval '1 day')) AS win_start, now() AS win_end
+    ),
+    custody AS (
+      SELECT
+        bsi.asset_id,
+        GREATEST(b.starts_at, w.win_start) AS c_start,
+        LEAST(${UTILIZATION_CUSTODY_END_SQL}, w.win_end) AS c_end
+      FROM booking_serialized_items bsi
+      JOIN bookings b ON b.id = bsi.booking_id
+      CROSS JOIN w
+      WHERE b.kind = 'CHECKOUT'
+        AND b.status IN ('OPEN', 'COMPLETED')
+        AND b.starts_at < w.win_end
+        AND ${UTILIZATION_CUSTODY_END_SQL} > w.win_start
+    )
+  `;
+}
+
+type UtilizationCustodyTotalsRow = {
+  custody_days: number | null;
+  assets_used: number;
+  checkout_count: number;
+};
+
+type UtilizationTopUsedRow = {
+  asset_id: string;
+  asset_tag: string;
+  name: string | null;
+  checkouts: number;
+  custody_days: number | null;
+};
+
+type UtilizationIdleRow = {
+  asset_id: string;
+  asset_tag: string;
+  name: string | null;
+  category: string | null;
+  purchase_price: string | number | null;
+  last_checked_out_at: Date | null;
+};
+
+type UtilizationIdleTotalsRow = {
+  idle_count: number;
+  idle_priced_count: number;
+  never_count: number;
+  idle_value: string | number | null;
+};
+
+function toNumber(value: string | number | null | undefined) {
+  if (value === null || value === undefined) return 0;
+  const parsed = typeof value === "number" ? value : Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+async function getUtilizationCustodyMetrics(days: number, activeAssets: number) {
+  const cte = utilizationCustodyCte(days);
+
+  const results = await Promise.allSettled([
+    db.$queryRaw<UtilizationCustodyTotalsRow[]>`
+      ${cte}
+      SELECT
+        SUM(GREATEST(EXTRACT(EPOCH FROM (c_end - c_start)) / 86400.0, 0))::float8 AS custody_days,
+        COUNT(DISTINCT asset_id)::int AS assets_used,
+        COUNT(*)::int AS checkout_count
+      FROM custody
+    `,
+    db.$queryRaw<UtilizationTopUsedRow[]>`
+      ${cte}
+      SELECT
+        a.id AS asset_id,
+        a.asset_tag,
+        a.name,
+        COUNT(*)::int AS checkouts,
+        SUM(GREATEST(EXTRACT(EPOCH FROM (c.c_end - c.c_start)) / 86400.0, 0))::float8 AS custody_days
+      FROM custody c
+      JOIN assets a ON a.id = c.asset_id
+      GROUP BY a.id, a.asset_tag, a.name
+      ORDER BY custody_days DESC NULLS LAST
+      LIMIT ${UTILIZATION_TOP_USED_LIMIT}
+    `,
+    db.$queryRaw<UtilizationIdleTotalsRow[]>`
+      ${cte},
+      idle AS (
+        SELECT a.id, a.purchase_price
+        FROM assets a
+        WHERE a.status <> 'RETIRED'
+          AND NOT EXISTS (SELECT 1 FROM custody c WHERE c.asset_id = a.id)
+      )
+      SELECT
+        (SELECT COUNT(*)::int FROM idle) AS idle_count,
+        (SELECT COUNT(*)::int FROM idle WHERE purchase_price IS NOT NULL) AS idle_priced_count,
+        (SELECT COALESCE(SUM(purchase_price), 0)::float8 FROM idle) AS idle_value,
+        (
+          SELECT COUNT(*)::int
+          FROM assets a
+          WHERE a.status <> 'RETIRED'
+            AND NOT EXISTS (
+              SELECT 1
+              FROM booking_serialized_items bsi
+              JOIN bookings b2 ON b2.id = bsi.booking_id
+              WHERE bsi.asset_id = a.id
+                AND b2.kind = 'CHECKOUT'
+                AND b2.status IN ('OPEN', 'COMPLETED')
+            )
+        ) AS never_count
+    `,
+    db.$queryRaw<UtilizationIdleRow[]>`
+      ${cte}
+      SELECT
+        a.id AS asset_id,
+        a.asset_tag,
+        a.name,
+        cat.name AS category,
+        a.purchase_price::float8 AS purchase_price,
+        (
+          SELECT MAX(b2.starts_at)
+          FROM booking_serialized_items bsi
+          JOIN bookings b2 ON b2.id = bsi.booking_id
+          WHERE bsi.asset_id = a.id
+            AND b2.kind = 'CHECKOUT'
+            AND b2.status IN ('OPEN', 'COMPLETED')
+        ) AS last_checked_out_at
+      FROM assets a
+      LEFT JOIN categories cat ON cat.id = a.category_id
+      WHERE a.status <> 'RETIRED'
+        AND NOT EXISTS (SELECT 1 FROM custody c WHERE c.asset_id = a.id)
+      ORDER BY a.purchase_price DESC NULLS LAST, a.asset_tag ASC
+      LIMIT ${UTILIZATION_IDLE_LIST_LIMIT}
+    `,
+  ]);
+
+  const totals = results[0].status === "fulfilled" ? results[0].value[0] : undefined;
+  const topUsedRows = results[1].status === "fulfilled" ? results[1].value : [];
+  const idleTotals = results[2].status === "fulfilled" ? results[2].value[0] : undefined;
+  const idleRows = results[3].status === "fulfilled" ? results[3].value : [];
+
+  const custodyDays = toNumber(totals?.custody_days);
+  const availableAssetDays = activeAssets * days;
+
+  return {
+    assetsUsed: totals?.assets_used ?? 0,
+    checkoutCount: totals?.checkout_count ?? 0,
+    custodyDays,
+    idleAssets: idleRows.map((row) => ({
+      assetId: row.asset_id,
+      assetTag: row.asset_tag,
+      category: row.category ?? "",
+      lastCheckedOutAt: row.last_checked_out_at ? row.last_checked_out_at.toISOString() : null,
+      name: row.name ?? "",
+      purchasePrice: row.purchase_price === null ? null : toNumber(row.purchase_price),
+    })),
+    idleCount: idleTotals?.idle_count ?? 0,
+    // Purchase price is sparsely recorded, so the value total is only as
+    // complete as `idlePricedCount` says it is.
+    idlePricedCount: idleTotals?.idle_priced_count ?? 0,
+    idleValue: toNumber(idleTotals?.idle_value),
+    neverCheckedOutCount: idleTotals?.never_count ?? 0,
+    topUsed: topUsedRows.map((row) => ({
+      assetId: row.asset_id,
+      assetTag: row.asset_tag,
+      checkouts: row.checkouts,
+      custodyDays: toNumber(row.custody_days),
+      name: row.name ?? "",
+      // Share of the window this one asset spent in someone's hands.
+      utilizationRate: days > 0 ? Math.min(toNumber(row.custody_days) / days, 1) : 0,
+    })),
+    // Share of all available asset-days actually spent in custody.
+    utilizationRate: availableAssetDays > 0 ? custodyDays / availableAssetDays : 0,
+  };
+}
+
+export async function getUtilizationReport(days: number = UTILIZATION_REPORT_DEFAULT_PERIOD) {
   const results = await Promise.allSettled([
     countAssetsByEffectiveStatus(),
     db.asset.count(),
     db.asset.groupBy({ by: ["locationId"], _count: true }),
     db.asset.groupBy({ by: ["type"], _count: true, orderBy: { _count: { type: "desc" } } }),
-    db.asset.groupBy({ by: ["departmentId"], _count: true })
+    db.asset.groupBy({ by: ["departmentId"], _count: true }),
+    db.asset.groupBy({ by: ["categoryId"], _count: true }),
+    db.asset.count({ where: { status: { not: "RETIRED" } } }),
   ]);
 
   const statusCounts = results[0].status === "fulfilled" ? results[0].value : {};
@@ -26,41 +225,58 @@ export async function getUtilizationReport() {
   const byLocation = results[2].status === "fulfilled" ? results[2].value : [];
   const byType = results[3].status === "fulfilled" ? results[3].value : [];
   const byDepartment = results[4].status === "fulfilled" ? results[4].value : [];
+  const byCategory = results[5].status === "fulfilled" ? results[5].value : [];
+  const activeAssets = results[6].status === "fulfilled" ? results[6].value : 0;
 
   const locationIds = byLocation.map((g) => g.locationId);
-  const locations =
-    locationIds.length > 0
-      ? await db.location.findMany({
-          where: { id: { in: locationIds } },
-          select: { id: true, name: true }
-        })
-      : [];
-  const locMap = Object.fromEntries(locations.map((l) => [l.id, l.name]));
-
   const deptIds = byDepartment
     .map((g) => g.departmentId)
     .filter((id): id is string => id !== null);
-  const departments =
+  const categoryIds = byCategory
+    .map((g) => g.categoryId)
+    .filter((id): id is string => id !== null);
+
+  const [locations, departments, categories, custody] = await Promise.all([
+    locationIds.length > 0
+      ? db.location.findMany({ where: { id: { in: locationIds } }, select: { id: true, name: true } })
+      : Promise.resolve([]),
     deptIds.length > 0
-      ? await db.department.findMany({
-          where: { id: { in: deptIds } },
-          select: { id: true, name: true }
-        })
-      : [];
+      ? db.department.findMany({ where: { id: { in: deptIds } }, select: { id: true, name: true } })
+      : Promise.resolve([]),
+    categoryIds.length > 0
+      ? db.category.findMany({ where: { id: { in: categoryIds } }, select: { id: true, name: true } })
+      : Promise.resolve([]),
+    getUtilizationCustodyMetrics(days, activeAssets),
+  ]);
+
+  const locMap = Object.fromEntries(locations.map((l) => [l.id, l.name]));
   const deptMap = Object.fromEntries(departments.map((d) => [d.id, d.name]));
+  const categoryMap = Object.fromEntries(categories.map((c) => [c.id, c.name]));
 
   return {
+    activeAssets,
+    custody,
+    days,
     totalAssets,
     statusCounts,
     byLocation: byLocation.map((g) => ({
       location: locMap[g.locationId] || "Unknown",
+      locationId: g.locationId,
       count: g._count
     })),
     byType: byType.map((g) => ({ type: g.type, count: g._count })),
+    byCategory: byCategory
+      .filter((g) => g.categoryId)
+      .map((g) => ({
+        category: categoryMap[g.categoryId!] || "Unknown",
+        categoryId: g.categoryId!,
+        count: g._count
+      })),
     byDepartment: byDepartment
       .filter((g) => g.departmentId)
       .map((g) => ({
         department: deptMap[g.departmentId!] || "Unknown",
+        departmentId: g.departmentId!,
         count: g._count
       }))
   };
@@ -87,9 +303,17 @@ type UtilizationReportExportAsset = Prisma.AssetGetPayload<{
   select: typeof utilizationReportExportAssetSelect;
 }>;
 
+export type UtilizationExportCustodyStat = {
+  checkouts: number;
+  custodyDays: number;
+  lastCheckedOutAt: string;
+  utilizationRate: number;
+};
+
 function mapUtilizationReportExportAsset(
   asset: UtilizationReportExportAsset,
   computedStatus: string,
+  custody: UtilizationExportCustodyStat | undefined,
 ) {
   return {
     assetTag: asset.assetTag,
@@ -105,18 +329,75 @@ function mapUtilizationReportExportAsset(
     availableForReservation: asset.availableForReservation,
     availableForCheckout: asset.availableForCheckout,
     availableForCustody: asset.availableForCustody,
+    periodCheckouts: custody?.checkouts ?? 0,
+    periodCustodyDays: custody ? custody.custodyDays.toFixed(2) : "0.00",
+    periodUtilizationRate: custody ? `${(custody.utilizationRate * 100).toFixed(1)}%` : "0.0%",
+    lastCheckedOutAt: custody?.lastCheckedOutAt ?? "",
     updatedAt: asset.updatedAt.toISOString(),
   };
 }
 
-export async function getUtilizationReportExport() {
-  const [assets, total] = await Promise.all([
+type UtilizationExportCustodyRow = {
+  asset_id: string;
+  checkouts: number;
+  custody_days: number | null;
+  last_checked_out_at: Date | null;
+};
+
+/** Per-asset custody stats for the window, keyed by asset id. */
+async function getUtilizationExportCustodyStats(days: number) {
+  const rows = await db.$queryRaw<UtilizationExportCustodyRow[]>`
+    ${utilizationCustodyCte(days)},
+    stats AS (
+      SELECT
+        c.asset_id,
+        COUNT(*)::int AS checkouts,
+        SUM(GREATEST(EXTRACT(EPOCH FROM (c.c_end - c.c_start)) / 86400.0, 0))::float8 AS custody_days
+      FROM custody c
+      GROUP BY c.asset_id
+    )
+    SELECT
+      s.asset_id,
+      s.checkouts,
+      s.custody_days,
+      (
+        SELECT MAX(b2.starts_at)
+        FROM booking_serialized_items bsi
+        JOIN bookings b2 ON b2.id = bsi.booking_id
+        WHERE bsi.asset_id = s.asset_id
+          AND b2.kind = 'CHECKOUT'
+          AND b2.status IN ('OPEN', 'COMPLETED')
+      ) AS last_checked_out_at
+    FROM stats s
+  `;
+
+  return new Map<string, UtilizationExportCustodyStat>(
+    rows.map((row) => {
+      const custodyDays = toNumber(row.custody_days);
+      return [
+        row.asset_id,
+        {
+          checkouts: row.checkouts,
+          custodyDays,
+          lastCheckedOutAt: row.last_checked_out_at ? row.last_checked_out_at.toISOString() : "",
+          utilizationRate: days > 0 ? Math.min(custodyDays / days, 1) : 0,
+        },
+      ];
+    }),
+  );
+}
+
+export async function getUtilizationReportExport(
+  days: number = UTILIZATION_REPORT_DEFAULT_PERIOD,
+) {
+  const [assets, total, custodyStats] = await Promise.all([
     db.asset.findMany({
       orderBy: { assetTag: "asc" },
       take: UTILIZATION_REPORT_EXPORT_LIMIT,
       select: utilizationReportExportAssetSelect,
     }),
     db.asset.count(),
+    getUtilizationExportCustodyStats(days).catch(() => new Map<string, UtilizationExportCustodyStat>()),
   ]);
   const statusMap = await deriveAssetStatusesFromLoaded(assets);
 
@@ -125,19 +406,43 @@ export async function getUtilizationReportExport() {
       mapUtilizationReportExportAsset(
         asset,
         statusMap.get(asset.id) ?? "AVAILABLE",
+        custodyStats.get(asset.id),
       ),
     ),
+    days,
     total,
     truncated: total > UTILIZATION_REPORT_EXPORT_LIMIT,
     limit: UTILIZATION_REPORT_EXPORT_LIMIT,
   };
 }
 
-export async function getCheckoutReport(days: number) {
+/** `YYYY-MM-DD`, interpreted as a UTC day to match the daily aggregates. */
+export function parseCheckoutFocusDate(value: string | null | undefined) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(parsed.getTime()) ? null : value;
+}
+
+function checkoutFocusDateRange(focusDate: string) {
+  const start = new Date(`${focusDate}T00:00:00.000Z`);
+  const end = new Date(start.getTime() + 86_400_000);
+  return { gte: start, lt: end };
+}
+
+export async function getCheckoutReport(days: number, focusDate?: string | null) {
   const since = checkoutReportSince(days);
   const now = new Date();
   const heatmapSince = new Date(Date.now() - 365 * 86_400_000);
   const checkoutActivityWhere = buildCheckoutReportWhere(days);
+  // A focused day narrows only the row list; metrics and charts stay on the
+  // selected period so the day keeps its context.
+  const recentWhere = focusDate
+    ? {
+        kind: "CHECKOUT" as const,
+        status: { in: [...CHECKOUT_CUSTODY_REPORT_STATUSES] },
+        createdAt: checkoutFocusDateRange(focusDate),
+      }
+    : checkoutActivityWhere;
 
   const checkoutResults = await Promise.allSettled([
     db.booking.count({
@@ -151,9 +456,9 @@ export async function getCheckoutReport(days: number) {
       }
     }),
     db.booking.findMany({
-      where: checkoutActivityWhere,
+      where: recentWhere,
       orderBy: { createdAt: "desc" },
-      take: 20,
+      take: focusDate ? 50 : 20,
       include: checkoutReportInclude,
     }),
     db.booking.groupBy({
@@ -212,9 +517,20 @@ export async function getCheckoutReport(days: number) {
     .map(([date, value]) => ({ date, value }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
+  // The 365-day aggregate already covers the window before this one, so the
+  // comparison costs no extra query for any supported period.
+  const previousSince = checkoutReportSince(days * 2);
+  const previousSinceKey = previousSince.toISOString().slice(0, 10);
+  let previousTotalCheckouts = 0;
+  for (const [date, count] of dayMap) {
+    if (date >= previousSinceKey && date < sinceKey) previousTotalCheckouts += count;
+  }
+
   return {
     days,
+    focusDate: focusDate ?? null,
     totalCheckouts,
+    previousTotalCheckouts,
     overdueCheckouts,
     dailyTrend,
     heatmap,
@@ -282,14 +598,24 @@ export async function getCheckoutReportExport(days: number) {
   };
 }
 
-export async function getOverdueReport() {
+export async function getOverdueReport(locationId?: string | null) {
   const now = new Date();
 
-  const overdueBookings = await db.booking.findMany({
-    where: buildOverdueReportWhere(now),
-    include: overdueReportInclude,
-    orderBy: { endsAt: "asc" },
-  });
+  const [overdueBookings, locations] = await Promise.all([
+    db.booking.findMany({
+      where: buildOverdueReportWhere(now, locationId),
+      include: overdueReportInclude,
+      orderBy: { endsAt: "asc" },
+    }),
+    // Options come from bookings that are actually overdue, so the filter
+    // never offers a choice that yields an empty report.
+    db.booking.findMany({
+      where: buildOverdueReportWhere(now),
+      distinct: ["locationId"],
+      select: { location: { select: { id: true, name: true } } },
+      orderBy: { locationId: "asc" },
+    }),
+  ]);
 
   const byRequester = new Map<
     string,
@@ -336,14 +662,19 @@ export async function getOverdueReport() {
   return {
     totalOverdueBookings: overdueBookings.length,
     leaderboard,
+    locationId: locationId ?? null,
+    locationOptions: locations
+      .map((row) => ({ id: row.location.id, name: row.location.name }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
   };
 }
 
-function buildOverdueReportWhere(now: Date): Prisma.BookingWhereInput {
+function buildOverdueReportWhere(now: Date, locationId?: string | null): Prisma.BookingWhereInput {
   return {
     kind: "CHECKOUT",
     status: "OPEN",
     endsAt: { lt: now },
+    ...(locationId ? { locationId } : {}),
   };
 }
 
@@ -403,9 +734,9 @@ function mapOverdueReportBooking(
   };
 }
 
-export async function getOverdueReportExport() {
+export async function getOverdueReportExport(locationId?: string | null) {
   const now = new Date();
-  const where = buildOverdueReportWhere(now);
+  const where = buildOverdueReportWhere(now, locationId);
   const [bookings, total] = await Promise.all([
     db.booking.findMany({
       where,
@@ -478,14 +809,56 @@ export async function getScanHistoryReport(
     fail: Number(r.fail),
   }));
 
+  const previous = await getScanHistoryPreviousWindow({ endDate, phase, startDate });
+
   return {
     data: data.map(mapScanReportEntry),
     total,
+    previousTotal: previous?.total ?? null,
+    previousSuccessRate: previous?.successRate ?? null,
     successCount,
     successRate: total > 0 ? Math.round((successCount / total) * 100) : 100,
     dailyScans,
     limit,
     offset,
+  };
+}
+
+/**
+ * Counts for the window immediately preceding the requested one, so the report
+ * can say whether scan health is improving. Returns null for an unbounded
+ * range, which has no prior window to compare against.
+ */
+async function getScanHistoryPreviousWindow({
+  endDate,
+  phase,
+  startDate,
+}: ScanHistoryFilters) {
+  if (!startDate) return null;
+
+  const start = new Date(startDate);
+  const end = endDate ? new Date(endDate) : new Date();
+  const span = end.getTime() - start.getTime();
+  if (!Number.isFinite(span) || span <= 0) return null;
+
+  const previousWhere = buildScanHistoryWhere({
+    endDate: new Date(start.getTime() - 1).toISOString(),
+    phase,
+    startDate: new Date(start.getTime() - span).toISOString(),
+  });
+
+  const results = await Promise.allSettled([
+    db.scanEvent.count({ where: previousWhere }),
+    db.scanEvent.count({ where: { ...previousWhere, success: true } }),
+  ]);
+
+  if (results[0].status !== "fulfilled") return null;
+  const total = results[0].value;
+  const success = results[1].status === "fulfilled" ? results[1].value : 0;
+
+  return {
+    successRate: total > 0 ? Math.round((success / total) * 100) : null,
+    total,
   };
 }
 
@@ -664,14 +1037,47 @@ export async function getAuditReport(
     ? auditResults[3].value.map((g) => ({ entityType: g.entityType, count: g._count }))
     : [];
 
+  const previousTotal = await getAuditReportPreviousTotal({ action, endDate, startDate });
+
   return {
     data: data.map(mapAuditReportEntry),
     total,
+    previousTotal,
     byAction,
     byEntityType,
     limit,
     offset
   };
+}
+
+/** Event count for the window before this one; null for an unbounded range. */
+async function getAuditReportPreviousTotal({
+  action,
+  endDate,
+  startDate,
+}: {
+  action?: string | null;
+  endDate?: string | null;
+  startDate?: string | null;
+}) {
+  if (!startDate) return null;
+
+  const start = new Date(startDate);
+  const end = endDate ? new Date(endDate) : new Date();
+  const span = end.getTime() - start.getTime();
+  if (!Number.isFinite(span) || span <= 0) return null;
+
+  const result = await Promise.allSettled([
+    db.auditLog.count({
+      where: buildAuditReportWhere({
+        action,
+        endDate: new Date(start.getTime() - 1).toISOString(),
+        startDate: new Date(start.getTime() - span).toISOString(),
+      }),
+    }),
+  ]);
+
+  return result[0].status === "fulfilled" ? result[0].value : null;
 }
 
 export async function getAuditReportExport(
@@ -708,13 +1114,14 @@ function daysBetween(start: Date | null | undefined, end: Date | null | undefine
   return Math.max(0, Math.ceil((end.getTime() - start.getTime()) / 86_400_000));
 }
 
-async function getBatteryAuditReport() {
+async function getBatteryAuditReport(filters: BulkLossReportFilters = {}) {
   const now = new Date();
   const [batterySkuResult, allocationHistoryResult] = await Promise.allSettled([
     db.bulkSku.findMany({
       where: {
         active: true,
         trackByNumber: true,
+        ...bulkSkuScopeWhere(filters),
       },
       select: {
         id: true,
@@ -952,15 +1359,72 @@ async function getBatteryAuditReport() {
   };
 }
 
-export async function getBulkLossReport() {
-  const [lostBySkuResult, lostByUserResult, recentLossesResult, batteryAuditResult] = await Promise.allSettled([
+export type BulkLossReportFilters = {
+  categoryId?: string | null;
+  locationId?: string | null;
+};
+
+/**
+ * Missing-unit filtering is by stable SKU attributes, not by date: a unit only
+ * carries `status: LOST`, and its `updatedAt` moves on any later edit, so there
+ * is no trustworthy "went missing on" timestamp to range over.
+ */
+function bulkSkuScopeWhere({ categoryId, locationId }: BulkLossReportFilters) {
+  return {
+    ...(locationId ? { locationId } : {}),
+    ...(categoryId ? { categoryId } : {}),
+  };
+}
+
+function bulkUnitScopeWhere(filters: BulkLossReportFilters) {
+  const skuWhere = bulkSkuScopeWhere(filters);
+  return Object.keys(skuWhere).length > 0 ? { bulkSku: skuWhere } : {};
+}
+
+/** Only offers families that actually have missing units to inspect. */
+async function getBulkLossFilterOptions() {
+  const skus = await db.bulkSku.findMany({
+    where: { units: { some: { status: "LOST" } } },
+    select: {
+      locationId: true,
+      location: { select: { id: true, name: true } },
+      categoryId: true,
+      categoryRel: { select: { id: true, name: true } },
+    },
+  });
+
+  const locations = new Map<string, { id: string; name: string }>();
+  const categories = new Map<string, { id: string; name: string }>();
+  for (const sku of skus) {
+    locations.set(sku.location.id, { id: sku.location.id, name: sku.location.name });
+    if (sku.categoryRel) {
+      categories.set(sku.categoryRel.id, { id: sku.categoryRel.id, name: sku.categoryRel.name });
+    }
+  }
+
+  const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
+  return {
+    categories: Array.from(categories.values()).sort(byName),
+    locations: Array.from(locations.values()).sort(byName),
+  };
+}
+
+export async function getBulkLossReport(filters: BulkLossReportFilters = {}) {
+  const unitScope = bulkUnitScopeWhere(filters);
+  const [
+    lostBySkuResult,
+    lostByUserResult,
+    recentLossesResult,
+    batteryAuditResult,
+    filterOptionsResult,
+  ] = await Promise.allSettled([
     db.bulkSkuUnit.groupBy({
       by: ["bulkSkuId"],
-      where: { status: "LOST" },
+      where: { status: "LOST", ...unitScope },
       _count: { id: true },
     }),
     db.bulkSkuUnit.findMany({
-      where: { status: "LOST" },
+      where: { status: "LOST", ...unitScope },
       select: {
         id: true,
         unitNumber: true,
@@ -999,7 +1463,8 @@ export async function getBulkLossReport() {
         actor: { select: { id: true, name: true, avatarUrl: true } },
       },
     }),
-    getBatteryAuditReport(),
+    getBatteryAuditReport(filters),
+    getBulkLossFilterOptions(),
   ]);
 
   const lostBySku = lostBySkuResult.status === "fulfilled" ? lostBySkuResult.value : [];
@@ -1043,8 +1508,15 @@ export async function getBulkLossReport() {
       }))
     : [];
 
+  const filterOptions = filterOptionsResult.status === "fulfilled"
+    ? filterOptionsResult.value
+    : { categories: [], locations: [] };
+
   return {
     totalLost,
+    categoryId: filters.categoryId ?? null,
+    locationId: filters.locationId ?? null,
+    filterOptions,
     bySku: bySkuSummary,
     byUser: byUserLeaderboard,
     recentLosses,
@@ -1242,8 +1714,8 @@ function buildBulkLossReportExportRows(report: BulkLossReportData): BulkLossRepo
   return rows;
 }
 
-export async function getBulkLossReportExport() {
-  const report = await getBulkLossReport();
+export async function getBulkLossReportExport(filters: BulkLossReportFilters = {}) {
+  const report = await getBulkLossReport(filters);
   const rows = buildBulkLossReportExportRows(report);
 
   return {
@@ -1254,13 +1726,25 @@ export async function getBulkLossReportExport() {
   };
 }
 
-export async function getBadgeReport() {
-  const since = new Date(Date.now() - 30 * 86_400_000);
+export const BADGE_REPORT_PERIODS = [30, 90, 365] as const;
+export const BADGE_REPORT_DEFAULT_PERIOD = 30;
+
+export function parseBadgeReportPeriod(value: string | null | undefined) {
+  const parsed = Number.parseInt(value ?? "", 10);
+  return BADGE_REPORT_PERIODS.includes(parsed as (typeof BADGE_REPORT_PERIODS)[number])
+    ? parsed
+    : BADGE_REPORT_DEFAULT_PERIOD;
+}
+
+export async function getBadgeReport(days: number = BADGE_REPORT_DEFAULT_PERIOD) {
+  const since = new Date(Date.now() - days * 86_400_000);
+  const previousSince = new Date(Date.now() - days * 2 * 86_400_000);
 
   const [
     totalAwards,
     manualAwards,
     recentAwardCount,
+    previousRecentAwardCount,
     activeDefinitions,
     leaderboard,
     distribution,
@@ -1269,6 +1753,7 @@ export async function getBadgeReport() {
     db.studentBadge.count(),
     db.studentBadge.count({ where: { source: "MANUAL" } }),
     db.studentBadge.count({ where: { awardedAt: { gte: since } } }),
+    db.studentBadge.count({ where: { awardedAt: { gte: previousSince, lt: since } } }),
     db.badgeDefinition.findMany({
       where: { active: true },
       select: { id: true, key: true, name: true, category: true, sortOrder: true },
@@ -1341,7 +1826,9 @@ export async function getBadgeReport() {
     manualAwards,
     automaticAwards: totalAwards - manualAwards,
     manualAwardRate: totalAwards > 0 ? manualAwards / totalAwards : 0,
+    days,
     recentAwardCount,
+    previousRecentAwardCount,
     activeDefinitionCount: activeDefinitions.length,
     leaderboard: leaderboard.map((row) => {
       const user = userMap[row.userId];

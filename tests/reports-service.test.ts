@@ -452,6 +452,9 @@ describe("reports service", () => {
           ],
         },
       ]))
+      // getBulkLossFilterOptions runs between the battery audit and the
+      // sku-name lookup, so it needs its own slot in this ordered chain.
+      .mockResolvedValueOnce(bulkSkuRows([]))
       .mockResolvedValueOnce(bulkSkuRows([
         { id: "battery-sku-1", name: "Sony NP-FZ100 Battery" },
       ]));
@@ -603,6 +606,9 @@ describe("reports service", () => {
           ],
         },
       ]))
+      // getBulkLossFilterOptions runs between the battery audit and the
+      // sku-name lookup, so it needs its own slot in this ordered chain.
+      .mockResolvedValueOnce(bulkSkuRows([]))
       .mockResolvedValueOnce(bulkSkuRows([
         { id: "battery-sku-1", name: "Sony NP-FZ100 Battery" },
       ]));

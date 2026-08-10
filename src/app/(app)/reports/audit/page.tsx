@@ -23,6 +23,7 @@ const LazyEntityTypeBreakdownChart = dynamic(
   { ssr: false }
 );
 import {
+  ReportDataRegion,
   ReportEmptyState,
   ReportErrorState,
   ReportExportButton,
@@ -33,6 +34,7 @@ import {
   ReportToolbar,
   ReportToolbarGroup,
 } from "../report-ui";
+import { buildPeriodDelta, useReportPeriod } from "../use-report-period";
 import {
   getReportExportCompletionToast,
   getReportExportFilename,
@@ -55,6 +57,7 @@ type AuditEntry = {
 type AuditData = {
   data: AuditEntry[];
   total: number;
+  previousTotal?: number | null;
   byAction: { action: string; count: number }[];
   byEntityType: { entityType: string; count: number }[];
   limit: number;
@@ -66,11 +69,6 @@ const VALID_PERIODS = [0, 7, 30, 90] as const;
 function parsePageParam(value: string | null) {
   const parsed = Number.parseInt(value ?? "", 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed - 1 : 0;
-}
-
-function parsePeriodParam(value: string | null) {
-  const parsed = Number.parseInt(value ?? "", 10);
-  return VALID_PERIODS.includes(parsed as (typeof VALID_PERIODS)[number]) ? parsed : 0;
 }
 
 /** Convert the report API shape to the shared AuditEntry shape */
@@ -158,9 +156,21 @@ async function downloadAuditCsv(periodDays: number) {
 export default function AuditReportPage() {
   const searchParams = useSearchParams();
   const [page, setPage] = useState(() => parsePageParam(searchParams.get("page")));
-  const [periodDays, setPeriodDays] = useState(() => parsePeriodParam(searchParams.get("period")));
+  const period = useReportPeriod({
+    defaultValue: 0,
+    paramName: "period",
+    values: VALID_PERIODS,
+  });
+  const periodDays = period.days;
   const [now, setNow] = useState(() => new Date());
   const limit = 25;
+
+  // Changing the window invalidates the current offset.
+  function changePeriod(nextPeriod: number) {
+    period.setDays(nextPeriod);
+    setPage(0);
+    syncUrl({ page: "" });
+  }
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -169,16 +179,11 @@ export default function AuditReportPage() {
 
   useEffect(() => {
     const nextPage = parsePageParam(searchParams.get("page"));
-    const nextPeriod = parsePeriodParam(searchParams.get("period"));
     setPage((current) => (current === nextPage ? current : nextPage));
-    setPeriodDays((current) => (current === nextPeriod ? current : nextPeriod));
 
     const corrections: Record<string, string | number> = {};
     if (searchParams.get("page") && nextPage === 0) {
       corrections.page = "";
-    }
-    if (searchParams.get("period") && nextPeriod === 0) {
-      corrections.period = "";
     }
     if (Object.keys(corrections).length > 0) {
       syncUrl(corrections);
@@ -193,9 +198,10 @@ export default function AuditReportPage() {
     return `/api/reports/audit?${params}`;
   }, [page, periodDays]);
 
-  const { data, loading, error, lastRefreshed, reload: loadData } = useFetch<AuditData>({
+  const { data, loading, refreshing, error, lastRefreshed, reload: loadData } = useFetch<AuditData>({
     url: fetchUrl,
     transform: (json) => json as unknown as AuditData,
+    keepPreviousData: true,
   });
 
   const timelineEntries = useMemo(
@@ -238,11 +244,7 @@ export default function AuditReportPage() {
     ? [{
         key: "period",
         label: `Period: ${periodDays}d`,
-        onRemove: () => {
-          setPeriodDays(0);
-          setPage(0);
-          syncUrl({ period: "", page: "" });
-        },
+        onRemove: () => changePeriod(0),
       }]
     : [];
 
@@ -257,7 +259,7 @@ export default function AuditReportPage() {
       <ReportToolbar
         activeFilters={activeFilters}
         lastRefreshed={lastRefreshed}
-        loading={loading}
+        loading={loading || refreshing}
         now={now}
         onRefresh={loadData}
         exportAction={entries.length > 0 ? (
@@ -278,17 +280,24 @@ export default function AuditReportPage() {
               { value: 30, label: "30d" },
               { value: 90, label: "90d" },
             ]}
-            onChange={(nextPeriod) => {
-              setPeriodDays(nextPeriod);
-              setPage(0);
-              syncUrl({ period: nextPeriod, page: "" });
-            }}
+            onChange={changePeriod}
           />
         </ReportToolbarGroup>
       </ReportToolbar>
 
+      <ReportDataRegion refreshing={refreshing}>
       <ReportMetricGrid>
-        <MetricCard value={data.total} label="Total events" tooltip="Total audit entries in the selected period" />
+        <MetricCard
+          value={data.total}
+          label="Total events"
+          tooltip="Total audit entries in the selected period"
+          delta={buildPeriodDelta({
+            current: data.total,
+            days: periodDays,
+            goodDirection: "neutral",
+            previous: data.previousTotal,
+          })}
+        />
       </ReportMetricGrid>
 
       {(data.byAction?.length > 0 || data.byEntityType?.length > 0) && (
@@ -334,6 +343,7 @@ export default function AuditReportPage() {
           </>
         )}
       </ReportSectionCard>
+      </ReportDataRegion>
     </FadeUp>
   );
 }

@@ -26,10 +26,14 @@ import {
   ReportMetaLine,
   ReportMetricGrid,
   ReportMobileCardLink,
+  ReportDataRegion,
   ReportSectionCard,
+  ReportSegmentedControl,
   ReportTableLink,
   ReportToolbar,
+  ReportToolbarGroup,
 } from "../report-ui";
+import { buildPeriodDelta, useReportPeriod } from "../use-report-period";
 
 type BadgeLeaderboardRow = {
   userId: string;
@@ -70,6 +74,7 @@ type BadgeReportData = {
   automaticAwards: number;
   manualAwardRate: number;
   recentAwardCount: number;
+  previousRecentAwardCount?: number | null;
   activeDefinitionCount: number;
   leaderboard: BadgeLeaderboardRow[];
   distribution: BadgeDistributionRow[];
@@ -142,16 +147,25 @@ function RecentAwardMobileCard({ award }: { award: RecentBadgeAward }) {
   );
 }
 
+const BADGE_PERIODS = [30, 90, 365] as const;
+const DEFAULT_BADGE_PERIOD = 30;
+
 export default function BadgeReportPage() {
   const [now, setNow] = useState(() => new Date());
+  const period = useReportPeriod({
+    defaultValue: DEFAULT_BADGE_PERIOD,
+    paramName: "days",
+    values: BADGE_PERIODS,
+  });
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
 
-  const { data, loading, error, lastRefreshed, reload } = useFetch<BadgeReportData>({
-    url: "/api/reports/badges",
+  const { data, loading, refreshing, error, lastRefreshed, reload } = useFetch<BadgeReportData>({
+    url: `/api/reports/badges?days=${period.days}`,
+    keepPreviousData: true,
   });
 
   if (loading && !data) return <ReportLoadingState metricCount={4} rows={7} />;
@@ -173,8 +187,9 @@ export default function BadgeReportPage() {
     <FadeUp>
       <div className="flex flex-col gap-4">
         <ReportToolbar
+          activeFilters={period.activeFilters}
           lastRefreshed={lastRefreshed}
-          loading={loading}
+          loading={loading || refreshing}
           now={now}
           onRefresh={reload}
           exportAction={
@@ -185,8 +200,21 @@ export default function BadgeReportPage() {
               />
             ) : null
           }
-        />
+        >
+          <ReportToolbarGroup label="Period">
+            <ReportSegmentedControl
+              ariaLabel="Badge report period"
+              value={period.days}
+              options={BADGE_PERIODS.map((value) => ({
+                value,
+                label: value === 365 ? "1y" : `${value}d`,
+              }))}
+              onChange={period.setDays}
+            />
+          </ReportToolbarGroup>
+        </ReportToolbar>
 
+        <ReportDataRegion refreshing={refreshing}>
         <ReportMetricGrid>
           <MetricCard
             value={data.totalAwards}
@@ -195,8 +223,13 @@ export default function BadgeReportPage() {
           />
           <MetricCard
             value={data.recentAwardCount}
-            label="Awards in 30d"
-            tooltip="Badge awards created in the past 30 days"
+            label={`Awards in ${period.days}d`}
+            tooltip={`Badge awards created in the past ${period.days} days`}
+            delta={buildPeriodDelta({
+              current: data.recentAwardCount,
+              days: period.days,
+              previous: data.previousRecentAwardCount,
+            })}
           />
           <MetricCard
             value={data.activeDefinitionCount}
@@ -450,6 +483,7 @@ export default function BadgeReportPage() {
             </ReportListRow>
           </div>
         </ReportSectionCard>
+        </ReportDataRegion>
       </div>
     </FadeUp>
   );

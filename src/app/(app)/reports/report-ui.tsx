@@ -14,6 +14,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
@@ -31,6 +38,9 @@ import {
   reportLabelFromFilenameBase,
   type CsvValue,
 } from "./report-export";
+
+/** Radix Select forbids an empty item value, so "no filter" needs a sentinel. */
+const REPORT_SELECT_ALL_VALUE = "__all__";
 
 export const REPORT_CHART_COLORS = [
   "var(--report-chart-1)",
@@ -155,7 +165,7 @@ export function ReportToolbar({
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 flex-wrap items-center gap-2">{children}</div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2 print:hidden">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon-sm" onClick={onRefresh} aria-label="Refresh report">
@@ -220,10 +230,195 @@ export function ReportSegmentedControl<TValue extends string | number>({
   );
 }
 
+/** Toolbar filter for option sets too long for a segmented control. */
+export function ReportSelectControl({
+  allLabel = "All",
+  ariaLabel,
+  onChange,
+  options,
+  value,
+}: {
+  allLabel?: string;
+  ariaLabel: string;
+  onChange: (value: string | null) => void;
+  options: Array<{ id: string; name: string }>;
+  value: string | null;
+}) {
+  return (
+    <Select
+      value={value ?? REPORT_SELECT_ALL_VALUE}
+      onValueChange={(next) => onChange(next === REPORT_SELECT_ALL_VALUE ? null : next)}
+    >
+      <SelectTrigger size="sm" className="min-w-40" aria-label={ariaLabel}>
+        <SelectValue placeholder={allLabel} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={REPORT_SELECT_ALL_VALUE}>{allLabel}</SelectItem>
+        {options.map((option) => (
+          <SelectItem key={option.id} value={option.id}>
+            {option.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 export function ReportMetricGrid({ children }: { children: ReactNode }) {
   return (
     <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3">
       {children}
+    </div>
+  );
+}
+
+/**
+ * Wraps report body content so a background refresh reads as stale rather than
+ * silently current. The toolbar spinner alone is easy to miss when the numbers
+ * below it look settled.
+ */
+export function ReportDataRegion({
+  children,
+  refreshing,
+}: {
+  children: ReactNode;
+  refreshing?: boolean;
+}) {
+  return (
+    <div
+      aria-busy={refreshing || undefined}
+      className={cn(
+        "transition-opacity duration-200 motion-reduce:transition-none",
+        refreshing && "opacity-60",
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Compresses a daily series into a handful of points. A 90-day series drawn
+ * across 64px is noise; averaged buckets keep the shape readable.
+ */
+export function toSparklinePoints(values: number[], buckets = 12) {
+  if (values.length <= buckets) return values;
+
+  const size = values.length / buckets;
+  const points: number[] = [];
+  for (let i = 0; i < buckets; i += 1) {
+    const slice = values.slice(Math.floor(i * size), Math.floor((i + 1) * size));
+    if (slice.length === 0) continue;
+    points.push(slice.reduce((sum, value) => sum + value, 0) / slice.length);
+  }
+  return points;
+}
+
+export type ReportBreakdownRow = {
+  count: number;
+  /** Drill-down target. Rows without one render as plain text. */
+  href?: string;
+  label: string;
+};
+
+/**
+ * Ranked breakdown with share-of-total context. Replaces the older
+ * chart-plus-identical-table pairing: one row carries the label, the count, its
+ * percentage, and a proportional bar, so it is both readable and comparable.
+ */
+export function ReportBreakdownTable({
+  emptyDescription,
+  emptyTitle = "Nothing to break down yet",
+  initialLimit = 8,
+  labelHeading,
+  rows,
+  total,
+  valueHeading = "Count",
+}: {
+  emptyDescription?: string;
+  emptyTitle?: string;
+  initialLimit?: number;
+  labelHeading: string;
+  rows: ReportBreakdownRow[];
+  /** Denominator for the share column. Defaults to the sum of the rows. */
+  total?: number;
+  valueHeading?: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (rows.length === 0) {
+    return <ReportEmptyState compact icon="chart" title={emptyTitle} description={emptyDescription} />;
+  }
+
+  const sorted = [...rows].sort((a, b) => b.count - a.count);
+  const denominator = total ?? sorted.reduce((sum, row) => sum + row.count, 0);
+  const largest = sorted[0]?.count ?? 0;
+  const visible = expanded ? sorted : sorted.slice(0, initialLimit);
+  const hiddenCount = sorted.length - visible.length;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-4 border-b px-4 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <span>{labelHeading}</span>
+        <span>{valueHeading}</span>
+      </div>
+      <ul className="list-none p-0">
+        {visible.map((row) => {
+          const share = denominator > 0 ? row.count / denominator : 0;
+          // Bars are scaled to the largest row so small values stay visible.
+          const barWidth = largest > 0 ? (row.count / largest) * 100 : 0;
+
+          const content = (
+            <>
+              {/* Neutral magnitude track — deliberately not a categorical
+                  palette color, since these bars encode size, not identity. */}
+              <span
+                aria-hidden="true"
+                className="absolute inset-y-0 left-0 rounded-r-sm bg-muted-foreground/15"
+                style={{ width: `${barWidth}%` }}
+              />
+              <span className="relative min-w-0 flex-1 truncate">{row.label}</span>
+              <span className="relative shrink-0 tabular-nums">{row.count.toLocaleString()}</span>
+              <span className="relative w-12 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+                {(share * 100).toFixed(share < 0.1 ? 1 : 0)}%
+              </span>
+            </>
+          );
+
+          const rowClassName =
+            "relative flex min-h-11 items-center gap-3 border-b px-4 py-2.5 text-sm last:border-b-0";
+
+          return (
+            <li key={row.label}>
+              {row.href ? (
+                <Link
+                  href={row.href}
+                  className={cn(
+                    rowClassName,
+                    "no-underline transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                  )}
+                >
+                  {content}
+                </Link>
+              ) : (
+                <div className={rowClassName}>{content}</div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {hiddenCount > 0 || expanded ? (
+        <div className="border-t px-4 py-2 print:hidden">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-xs"
+            onClick={() => setExpanded((current) => !current)}
+          >
+            {expanded ? "Show top rows" : `Show all ${sorted.length}`}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -386,7 +581,7 @@ export function ReportPaginationFooter({
   totalPages: number;
 }) {
   return (
-    <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
       <span className="text-sm text-muted-foreground tabular-nums">
         Page {page + 1} of {totalPages}
       </span>

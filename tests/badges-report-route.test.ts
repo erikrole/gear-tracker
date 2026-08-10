@@ -6,6 +6,10 @@ vi.mock("@/lib/auth", () => ({
 
 vi.mock("@/lib/services/reports", () => ({
   getBadgeReport: vi.fn(),
+  parseBadgeReportPeriod: vi.fn((value: string | null) => {
+    const parsed = Number.parseInt(value ?? "", 10);
+    return [30, 90, 365].includes(parsed) ? parsed : 30;
+  }),
 }));
 
 vi.mock("@sentry/nextjs", () => ({
@@ -51,7 +55,9 @@ describe("GET /api/reports/badges", () => {
       manualAwards: 1,
       automaticAwards: 1,
       manualAwardRate: 0.5,
+      days: 30,
       recentAwardCount: 2,
+      previousRecentAwardCount: 1,
       activeDefinitionCount: 20,
       leaderboard: [],
       distribution: [],

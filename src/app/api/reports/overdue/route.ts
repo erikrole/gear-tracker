@@ -24,10 +24,11 @@ function buildOverdueReportCsv(rows: Awaited<ReturnType<typeof getOverdueReportE
 export const GET = withAuth(async (req, { user }) => {
   requirePermission(user.role, "report", "view");
   const { searchParams } = new URL(req.url);
+  const locationId = searchParams.get("location") || null;
 
   if (searchParams.get("format") === "csv") {
     await enforceRateLimit(`report:export:${user.id}`, REPORT_EXPORT_LIMIT);
-    const exportData = await getOverdueReportExport();
+    const exportData = await getOverdueReportExport(locationId);
     const date = new Date().toISOString().slice(0, 10);
     return new NextResponse(`${buildOverdueReportCsv(exportData.data)}\n`, {
       headers: {
@@ -43,5 +44,5 @@ export const GET = withAuth(async (req, { user }) => {
     });
   }
 
-  return ok(await getOverdueReport());
+  return ok(await getOverdueReport(locationId));
 });

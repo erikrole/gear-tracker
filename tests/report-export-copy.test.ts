@@ -113,7 +113,7 @@ describe("report export helpers", () => {
   it("uses the server-backed export path on the Overdue report", () => {
     const source = readFileSync("src/app/(app)/reports/overdue/page.tsx", "utf8");
 
-    expect(source).toContain('fetch("/api/reports/overdue?format=csv")');
+    expect(source).toContain("/api/reports/overdue?format=csv");
     expect(source).toContain('ariaLabel="Export matching overdue booking rows CSV"');
     expect(source).toContain('label="Export matching rows"');
     expect(source).toContain("readReportExportFailureMessage");
@@ -122,7 +122,7 @@ describe("report export helpers", () => {
   it("uses the server-backed export path on the Missing Units report", () => {
     const source = readFileSync("src/app/(app)/reports/bulk-losses/page.tsx", "utf8");
 
-    expect(source).toContain('fetch("/api/reports/bulk-losses?format=csv")');
+    expect(source).toContain("fetch(`/api/reports/bulk-losses?format=csv${query}`)");
     expect(source).toContain('ariaLabel="Export matching missing-unit evidence CSV"');
     expect(source).toContain('label="Export matching rows"');
     expect(source).toContain("readReportExportFailureMessage");
@@ -131,7 +131,7 @@ describe("report export helpers", () => {
   it("uses the server-backed export path on the Utilization report", () => {
     const source = readFileSync("src/app/(app)/reports/utilization/page.tsx", "utf8");
 
-    expect(source).toContain('fetch("/api/reports/utilization?format=csv")');
+    expect(source).toContain("fetch(`/api/reports/utilization?format=csv&days=${days}`)");
     expect(source).toContain('ariaLabel="Export utilization inventory rows CSV"');
     expect(source).toContain('label="Export inventory rows"');
     expect(source).toContain("readReportExportFailureMessage");

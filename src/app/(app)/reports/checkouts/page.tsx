@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { formatDateFull } from "@/lib/format";
 import MetricCard from "../MetricCard";
@@ -20,9 +19,9 @@ import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, isAbortError } from "@/lib/errors";
 import { statusBadgeVariant, statusLabel } from "@/components/booking-details/helpers";
 import type { BadgeProps } from "@/components/ui/badge";
-import { syncUrl } from "@/lib/url-sync";
 import {
   ReportChartLoading,
+  ReportDataRegion,
   ReportEmptyState,
   ReportErrorState,
   ReportExportButton,
@@ -36,7 +35,9 @@ import {
   ReportTableLink,
   ReportToolbar,
   ReportToolbarGroup,
+  toSparklinePoints,
 } from "../report-ui";
+import { buildPeriodDelta, useReportPeriod } from "../use-report-period";
 import {
   getReportExportCompletionToast,
   getReportExportFilename,
@@ -71,7 +72,9 @@ type CheckoutRow = {
 
 type CheckoutData = {
   days: number;
+  focusDate?: string | null;
   totalCheckouts: number;
+  previousTotalCheckouts?: number | null;
   overdueCheckouts: number;
   dailyTrend?: { date: string; count: number }[];
   heatmap?: { date: string; value: number }[];
@@ -80,11 +83,7 @@ type CheckoutData = {
 };
 
 const VALID_CHECKOUT_PERIODS = [7, 30, 90] as const;
-
-function parseCheckoutDaysParam(value: string | null) {
-  const parsed = Number.parseInt(value ?? "", 10);
-  return VALID_CHECKOUT_PERIODS.includes(parsed as (typeof VALID_CHECKOUT_PERIODS)[number]) ? parsed : 30;
-}
+const DEFAULT_CHECKOUT_PERIOD = 30;
 
 function StatusBadge({ status, isOverdue }: { status: string; isOverdue: boolean }) {
   const variant = (isOverdue ? "red" : statusBadgeVariant(status, "CHECKOUT")) as BadgeProps["variant"];
@@ -164,25 +163,28 @@ async function downloadCheckoutCsv(days: number) {
 }
 
 export default function CheckoutsReportPage() {
-  const searchParams = useSearchParams();
-  const [days, setDays] = useState(() => parseCheckoutDaysParam(searchParams.get("days")));
   const [now, setNow] = useState(() => new Date());
+  const period = useReportPeriod({
+    defaultValue: DEFAULT_CHECKOUT_PERIOD,
+    paramName: "days",
+    values: VALID_CHECKOUT_PERIODS,
+  });
+  const days = period.days;
+  const [focusDate, setFocusDate] = useState<string | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
 
+  // A day selected inside one window is meaningless in another.
   useEffect(() => {
-    const nextDays = parseCheckoutDaysParam(searchParams.get("days"));
-    setDays((current) => (current === nextDays ? current : nextDays));
-    if (searchParams.get("days") && nextDays === 30) {
-      syncUrl({ days: "" });
-    }
-  }, [searchParams]);
+    setFocusDate(null);
+  }, [days]);
 
-  const { data, loading, error, lastRefreshed, reload } = useFetch<CheckoutData>({
-    url: `/api/reports/checkouts?days=${days}`,
+  const { data, loading, refreshing, error, lastRefreshed, reload } = useFetch<CheckoutData>({
+    url: `/api/reports/checkouts?days=${days}${focusDate ? `&date=${focusDate}` : ""}`,
+    keepPreviousData: true,
   });
 
   if (loading && !data) return <ReportLoadingState metricCount={2} rows={6} />;
@@ -199,16 +201,17 @@ export default function CheckoutsReportPage() {
 
   if (!data) return null;
 
-  const activeFilters = days === 30
-    ? []
-    : [{
-        key: "period",
-        label: `Period: ${days}d`,
-        onRemove: () => {
-          setDays(30);
-          syncUrl({ days: "" });
-        },
-      }];
+  const trendCounts = (data.dailyTrend ?? []).map((point) => point.count);
+  const activeFilters = [
+    ...period.activeFilters,
+    ...(focusDate
+      ? [{
+          key: "date",
+          label: `Day: ${formatDateFull(`${focusDate}T00:00:00.000Z`)}`,
+          onRemove: () => setFocusDate(null),
+        }]
+      : []),
+  ];
 
   return (
     <FadeUp>
@@ -216,7 +219,7 @@ export default function CheckoutsReportPage() {
       <ReportToolbar
         activeFilters={activeFilters}
         lastRefreshed={lastRefreshed}
-        loading={loading}
+        loading={loading || refreshing}
         now={now}
         onRefresh={reload}
         exportAction={(data.recentCheckouts ?? []).length > 0 ? (
@@ -236,17 +239,26 @@ export default function CheckoutsReportPage() {
               { value: 30, label: "30d" },
               { value: 90, label: "90d" },
             ]}
-            onChange={(nextDays) => {
-              setDays(nextDays);
-              syncUrl({ days: nextDays });
-            }}
+            onChange={period.setDays}
           />
         </ReportToolbarGroup>
       </ReportToolbar>
 
+      <ReportDataRegion refreshing={refreshing}>
       {/* Summary metrics */}
       <ReportMetricGrid>
-        <MetricCard value={data.totalCheckouts} label={`Checkouts (${days}d)`} tooltip="Checkouts created in the selected period" href="/bookings?tab=checkouts" />
+        <MetricCard
+          value={data.totalCheckouts}
+          label={`Checkouts (${days}d)`}
+          tooltip="Checkouts created in the selected period"
+          href="/bookings?tab=checkouts"
+          delta={buildPeriodDelta({
+            current: data.totalCheckouts,
+            days,
+            previous: data.previousTotalCheckouts,
+          })}
+          sparkline={trendCounts.length > 1 ? toSparklinePoints(trendCounts) : undefined}
+        />
         <MetricCard
           value={data.overdueCheckouts}
           label="Currently overdue"
@@ -259,7 +271,12 @@ export default function CheckoutsReportPage() {
       {/* Charts */}
       <div className="grid gap-4 md:grid-cols-2 mb-4">
         {(data.dailyTrend ?? []).length > 1 && (
-          <LazyCheckoutTrendChart dailyTrend={data.dailyTrend!} days={days} />
+          <LazyCheckoutTrendChart
+            dailyTrend={data.dailyTrend!}
+            days={days}
+            onSelectDate={setFocusDate}
+            selectedDate={focusDate}
+          />
         )}
         {(data.topRequesters ?? []).length > 0 && (
           <LazyTopRequestersChart topRequesters={data.topRequesters} days={days} />
@@ -268,7 +285,11 @@ export default function CheckoutsReportPage() {
 
       {/* Activity heatmap (365 days) */}
       {data.heatmap && data.heatmap.length > 0 && (
-        <ReportSectionCard title="Checkout activity (past year)" contentClassName="overflow-x-auto">
+        <ReportSectionCard
+          title="Checkout activity (past year)"
+          description="Select a day to filter the checkout list"
+          contentClassName="overflow-x-auto"
+        >
             <LazyHeatmap
               data={data.heatmap}
               startDate={new Date(Date.now() - 365 * 86_400_000)}
@@ -277,18 +298,27 @@ export default function CheckoutsReportPage() {
               cellSize={12}
               gap={2}
               valueDisplayFunction={(v) => `${v} checkout${v === 1 ? "" : "s"}`}
+              onSelectDate={(date) => setFocusDate(date === focusDate ? null : date)}
+              selectedDate={focusDate}
             />
         </ReportSectionCard>
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
         {/* Recent checkouts */}
-        <ReportSectionCard title="Recent checkouts" contentClassName="p-0">
+        <ReportSectionCard
+          title={focusDate ? `Checkouts on ${formatDateFull(`${focusDate}T00:00:00.000Z`)}` : "Recent checkouts"}
+          contentClassName="p-0"
+        >
           {(data.recentCheckouts ?? []).length === 0 ? (
             <ReportEmptyState
               icon="clipboard"
-              title="No checkouts in this period"
-              description="Try a longer period or clear filters to inspect older checkout activity."
+              title={focusDate ? "No checkouts on this day" : "No checkouts in this period"}
+              description={
+                focusDate
+                  ? "Pick another day, or clear the day filter to see recent activity."
+                  : "Try a longer period or clear filters to inspect older checkout activity."
+              }
             />
           ) : (
             <>
@@ -370,6 +400,7 @@ export default function CheckoutsReportPage() {
           )}
         </ReportSectionCard>
       </div>
+      </ReportDataRegion>
     </FadeUp>
   );
 }

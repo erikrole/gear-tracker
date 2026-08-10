@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reports & Analytics
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-03
+- Last Updated: 2026-08-09
 - Status: Active
 - Version: V1
 
@@ -13,11 +13,13 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 ## Core Rules
 1. All reports are ADMIN/STAFF only (enforced on routes and endpoints), except the Audit report, which is ADMIN only (`report.audit`) to match the admin-only `/api/audit` browse feed.
 2. Reports are tab-based: users navigate between report types via sidebar link to `/reports` which redirects to `/reports/utilization`.
-3. Each report has filters (date range, status, location) and metrics cards.
+3. Each report has metric cards plus the filters its data can honestly support. Period selectors keep their existing per-report query-param names (`days` on Utilization, Checkouts, and Badges; `period` on Scans and Audit) so existing links stay valid, and the chosen window is remembered across report tabs for the session. A URL param always wins over the remembered window.
 4. Data is cached via React Query with focus refresh.
-5. Empty states and error states handled with EmptyState + retry.
+5. Empty states and error states handled with EmptyState + retry. Report bodies dim and set `aria-busy` while a background refresh is in flight, so stale numbers never read as current.
 6. Report-local CSV exports download only the currently visible report rows and must say that in the action/copy, except Utilization, Checkouts, Overdue, Audit, Scans, and Missing Units where the CSV action exports the full filtered, report-evidence, or row-level inventory result from a bounded server-backed endpoint.
-7. `/reports/overdue` remains the live open-custody queue. `/accountability` owns historical late-return patterns and never replaces or mutates custody evidence.
+7. `/reports/overdue` remains the live open-custody queue and therefore has no period selector. `/accountability` owns historical late-return patterns and never replaces or mutates custody evidence; Overdue links admins across to it without merging the two surfaces.
+8. Prior-period deltas appear only where a comparable preceding window exists. All-time selections show no delta, an empty prior window shows the raw difference instead of an infinite percentage, and metrics that are themselves rates report percentage points.
+9. Report surfaces print without app chrome: sidebar, section nav, refresh/export controls, pagination, and expand toggles are omitted, while active filter chips are retained so a printout states its own scope.
 
 ## Routes
 
@@ -38,21 +40,24 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 
 ### `/reports/utilization`
 - **Page:** `src/app/(app)/reports/utilization/page.tsx`
-- **Type:** Charts + metrics dashboard
-- **Metrics:** Total inventory, checked out, available, maintenance, retired
-- **Charts:** Utilization trends (equipment category breakdown, location breakdown, time-series checkout rate)
-- **Filters:** None — the report is a whole-inventory snapshot; drill-down happens through metric-card links into `/items`.
-- **Data:** `GET /api/reports/utilization`
-- **Export:** `GET /api/reports/utilization?format=csv` returns up to 5,000 inventory rows with derived status, stored status, physical identity fields, location, department, category, availability flags, `X-Exported-Count`, `X-Total-Count`, and `X-Truncated` headers when capped.
+- **Type:** Custody-utilization report over a selected window, plus an inventory snapshot
+- **Metrics:** Utilization rate (share of available asset-days spent in custody), total days in custody, distinct gear used, assets idle for the whole period, and assets never checked out. Idle value is shown only alongside the count of idle assets that actually have a recorded purchase price, since price coverage is partial.
+- **Charts:** Most-used gear ranked by days in custody, and a status-distribution donut whose legend entries are the per-status drill-downs into `/items`.
+- **Tables:** Idle gear (highest recorded value first, with last-checked-out date), and by-location / by-category / by-type / by-department breakdowns rendered as share-of-total rows with proportional bars. Location, category, and department rows link into `/items` using ids the items page parses; `type` is free text with no matching items filter, so those rows stay informational.
+- **Filters:** Period (30d, 90d default, 1y). No all-time option: a utilization rate needs a bounded denominator.
+- **Data:** `GET /api/reports/utilization?days=...`
+- **Export:** `GET /api/reports/utilization?format=csv&days=...` returns up to 5,000 inventory rows with derived status, stored status, physical identity fields, location, department, category, availability flags, and per-asset period columns (checkouts, custody days, utilization, last checked out), plus `X-Exported-Count`, `X-Total-Count`, and `X-Truncated` headers when capped.
+- **Semantics:** Custody windows come from the booking, not from `AssetAllocation`: check-in flips allocations to `active: false` without stamping an actual return time, so an allocation's `endsAt` stays at the planned date. `COMPLETED` checkouts use `completedAt`, `OPEN` checkouts run to now, and both are clamped to the selected window — the same basis accountability uses for lateness. Idle and never-checked-out counts exclude `RETIRED` assets.
 
 ### `/reports/checkouts`
 - **Page:** `src/app/(app)/reports/checkouts/page.tsx`
 - **Type:** Tabular report with filterable list
 - **Columns:** Title, requester, due date, item count, status
-- **Metrics:** Total custody checkout activity in the selected period, currently overdue checkouts
-- **Charts:** Daily checkout trend, top requesters, and a theme-aware blue 365-day heatmap where stronger intensity means more custody activity
-- **Filters:** Period (7d, 30d, 90d)
-- **Data:** `GET /api/reports/checkouts?days=...`
+- **Metrics:** Total custody checkout activity in the selected period (with a prior-period delta and a trend sparkline), currently overdue checkouts
+- **Charts:** Daily checkout trend, top requesters, and a theme-aware blue 365-day heatmap where stronger intensity means more custody activity. Selecting a day in the trend or the heatmap narrows the checkout row list to that day; the metrics and charts stay on the selected period so the day keeps its context.
+- **Filters:** Period (7d, 30d, 90d), plus an optional focused day
+- **Data:** `GET /api/reports/checkouts?days=...&date=YYYY-MM-DD`
+- **Focus day:** `date` is validated as `YYYY-MM-DD` and interpreted as a UTC day to match the daily aggregates. It scopes only `recentCheckouts` (to 50 rows) and is cleared whenever the period changes.
 - **Export:** `GET /api/reports/checkouts?format=csv&days=...` returns up to 5,000 matching custody checkout activity rows with `X-Exported-Count`, `X-Total-Count`, and `X-Truncated` headers when capped.
 - **Semantics:** Checkout activity metrics, charts, heatmap, and CSV exports count actual custody rows only: `OPEN` and `COMPLETED` checkouts. `DRAFT`, `PENDING_PICKUP`, and `CANCELLED` checkout rows are excluded so awaiting pickup does not inflate custody analytics.
 
@@ -60,18 +65,18 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - **Page:** `src/app/(app)/reports/overdue/page.tsx`
 - **Type:** List of overdue bookings with escalation status
 - **Columns:** Requester, overdue bookings, average overdue time, location, outstanding item summary
-- **Metrics:** Total overdue, highest priority escalations, days-overdue distribution
-- **Filters:** Date range, location, escalation count
-- **Behaviors:** Expand requester row to inspect overdue bookings and deep-link to booking detail.
-- **Data:** `GET /api/reports/overdue`
-- **Export:** `GET /api/reports/overdue?format=csv` returns up to 5,000 overdue checkout rows with requester, booking, due time, overdue hours, location, outstanding item count, outstanding item summary, `X-Exported-Count`, `X-Total-Count`, and `X-Truncated` headers when capped.
+- **Metrics:** Total overdue checkouts, number of people holding overdue gear
+- **Filters:** Location. Options are derived from bookings that are currently overdue, so the filter never offers a choice that yields an empty report, and the control is hidden when fewer than two locations are involved. No period filter: this is the live open-custody queue, not a historical window.
+- **Behaviors:** Expand requester row to inspect overdue bookings and deep-link to booking detail. Admins get a cross-link to `/accountability` for repeat patterns.
+- **Data:** `GET /api/reports/overdue?location=...`
+- **Export:** `GET /api/reports/overdue?format=csv&location=...` returns up to 5,000 overdue checkout rows with requester, booking, due time, overdue hours, location, outstanding item count, outstanding item summary, `X-Exported-Count`, `X-Total-Count`, and `X-Truncated` headers when capped.
 - **Semantics:** Only open checkouts past `endsAt` are overdue. Item summaries count active serialized allocations and outstanding bulk quantities, not already-returned gear.
 
 ### `/reports/scans`
 - **Page:** `src/app/(app)/reports/scans/page.tsx`
 - **Type:** Scan activity analytics
 - **Columns:** Timestamp, actor, item, phase, booking, result
-- **Metrics:** Total scans in the selected period, success rate
+- **Metrics:** Total scans in the selected period (with a prior-period delta and volume sparkline), success rate (with a percentage-point delta)
 - **Charts:** Daily scan volume by success/fail
 - **Filters:** Period (all, 7d, 30d, 90d), phase (all, checkout, check-in)
 - **Data:** `GET /api/reports/scans?limit=...&offset=...&startDate=...&endDate=...&phase=...`
@@ -85,15 +90,16 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - **Metrics:** Missing units, item families affected, users involved, battery units, missing batteries, missing rate, repeated battery patterns
 - **Tables:** Missing units by family, missing units by requester, recent missing-unit events, missing rate by family, missing battery units, recent battery checkout history
 - **Signals:** Repeated missing battery patterns by item family and by last known requester
-- **Filters:** Date range, category, location
-- **Data:** `GET /api/reports/bulk-losses`
-- **Export:** `GET /api/reports/bulk-losses?format=csv` returns up to 5,000 report-evidence rows across missing-unit family counts, requester attribution, recent missing-unit events, battery family summaries, missing battery units, battery checkout history, and repeat patterns with `X-Exported-Count`, `X-Total-Count`, and `X-Truncated` headers when capped.
+- **Filters:** Location and category, applied through the owning `BulkSku`. Options are derived from families that actually have missing units, and each control is hidden when fewer than two options exist. There is deliberately **no date-range filter**: a unit only carries `status: LOST`, and its `updatedAt` moves on any later edit, so there is no trustworthy "went missing on" timestamp to range over. Adding one would require a dedicated `lostAt` column and a backfill.
+- **Filter scope:** The filters narrow every SKU-derived section (family counts, requester attribution, battery audit, missing rate, repeat patterns). The "Recent missing-unit events" card is a raw check-in audit feed keyed by booking, not by SKU, so it stays system-wide and says so in its description whenever a filter is active.
+- **Data:** `GET /api/reports/bulk-losses?location=...&category=...`
+- **Export:** `GET /api/reports/bulk-losses?format=csv&location=...&category=...` returns up to 5,000 report-evidence rows across missing-unit family counts, requester attribution, recent missing-unit events, battery family summaries, missing battery units, battery checkout history, and repeat patterns with `X-Exported-Count`, `X-Total-Count`, and `X-Truncated` headers when capped.
 
 ### `/reports/audit`
 - **Page:** `src/app/(app)/reports/audit/page.tsx`
 - **Type:** Audit log viewer (ADMIN only, enforced by `report.audit` on the route and hidden from STAFF nav/search/breadcrumb siblings)
 - **Columns:** Timestamp, actor, action, resource (item/booking/user), details, outcome
-- **Metrics:** Total events (period), events by action type, events by actor role
+- **Metrics:** Total events in the period, with a prior-period delta rendered without a good/bad direction since audit volume is neither
 - **Charts:** Event frequency over time, action breakdown, actor breakdown
 - **Filters:** Period (all, 7d, 30d, 90d)
 - **Data:** `GET /api/reports/audit?limit=...&offset=...&startDate=...&endDate=...&action=...`
@@ -102,9 +108,10 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 ### `/reports/badges`
 - **Page:** `src/app/(app)/reports/badges/page.tsx`
 - **Type:** Staff analytics for badge recognition, not the primary profile experience
-- **Metrics:** Total awards, awards in the past 30 days, active definitions, manual award count/rate
+- **Metrics:** Total awards, awards in the selected period (with a prior-period delta), active definitions, manual award count/rate
 - **Tables:** User leaderboard, badge distribution, underused active definitions, recent manual recognition, recent awards
-- **Data:** `GET /api/reports/badges`
+- **Filters:** Period (30d default, 90d, 1y)
+- **Data:** `GET /api/reports/badges?days=...`
 
 ### `/accountability`
 - **Access:** ADMIN only through `accountability.view`; its sidebar and global-search entries are hidden from every other role.
@@ -122,7 +129,12 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 ## Components
 
 **Shared across reports:**
-- `MetricCard` — report-local adapter around `OperationalMetricCard`, preserving report drill-down links, tooltips, badges, and string values while using the shared operational metric primitive
+- `MetricCard` — report-local adapter around `OperationalMetricCard`, preserving report drill-down links, tooltips, badges, and string values while using the shared operational metric primitive. Optional `delta` and `sparkline` props are additive: `OperationalMetricCard` renders identically without them, so the dashboard and other shared consumers are unaffected.
+- `useReportPeriod` — per-report period state with URL persistence and session-scoped carry-over between tabs; `buildPeriodDelta` derives the comparison shown on metric cards
+- `ReportBreakdownTable` — ranked share-of-total rows with a neutral magnitude bar and optional drill-down, replacing the former pattern of a bar chart above an identical table
+- `ReportSelectControl` — toolbar filter for option sets too long for a segmented control
+- `ReportDataRegion` — dims report content and sets `aria-busy` during background refreshes
+- `ReportPrintHeader` — print-only title and run timestamp, since the section nav is hidden on paper
 - `ReportExportButton` / report export helpers — shared CSV export actions with duplicate-click guards, formula-safe CSV escaping, dated filenames, server-backed filename/error parsing, and completion copy that names the exported scope
 - Charts from `recharts` (line, bar, pie charts as needed per report)
 - `Card` + `CardHeader` + `CardContent` for sections
@@ -157,6 +169,13 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - [x] AC-7: Badge report with leaderboard, distribution, and recent awards
 - [x] AC-8: Missing Units report includes unit-tracked battery missing-unit, missing-rate, custody-history, and repeat-pattern reporting
 - [x] AC-9: Admin accountability ranks current and historical late returns and supports audited, reversible data-quality exclusions without deleting custody history.
+- [x] AC-10: Utilization measures custody over a selected window (utilization rate, custody days, most-used gear, idle and never-checked-out inventory) rather than reporting an inventory snapshot alone.
+- [x] AC-11: Period-scoped reports show a prior-period comparison wherever one can be computed honestly, and suppress it where one cannot.
+- [x] AC-12: A chosen period carries across report tabs for the session while URL params keep precedence and existing per-report param names are unchanged.
+- [x] AC-13: Breakdowns render once, with share-of-total context and drill-down into `/items` by id.
+- [x] AC-14: Checkout trend and heatmap days are selectable and narrow the checkout row list server-side.
+- [x] AC-15: Overdue filters by location and Missing Units filters by location and category; the previously documented date-range filters are removed from the contract because the underlying data cannot support them honestly.
+- [x] AC-16: Report surfaces print without app chrome and carry a title, run timestamp, and their active filter chips.
 
 ## Change Log
 - 2026-08-03: Disabled automatic RSC prefetching for the authenticated sidebar, notification chrome, and report section links after Safari desktop proof showed the viewport prefetch storm failing and falling back to full browser navigations. Click navigation remains client-routed.

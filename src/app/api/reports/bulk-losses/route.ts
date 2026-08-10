@@ -42,10 +42,14 @@ function buildBulkLossReportCsv(rows: Awaited<ReturnType<typeof getBulkLossRepor
 export const GET = withAuth(async (req, { user }) => {
   requirePermission(user.role, "report", "view");
   const { searchParams } = new URL(req.url);
+  const filters = {
+    categoryId: searchParams.get("category") || null,
+    locationId: searchParams.get("location") || null,
+  };
 
   if (searchParams.get("format") === "csv") {
     await enforceRateLimit(`report:export:${user.id}`, REPORT_EXPORT_LIMIT);
-    const exportData = await getBulkLossReportExport();
+    const exportData = await getBulkLossReportExport(filters);
     const date = new Date().toISOString().slice(0, 10);
     return new NextResponse(`${buildBulkLossReportCsv(exportData.data)}\n`, {
       headers: {
@@ -61,5 +65,5 @@ export const GET = withAuth(async (req, { user }) => {
     });
   }
 
-  return ok(await getBulkLossReport());
+  return ok(await getBulkLossReport(filters));
 });

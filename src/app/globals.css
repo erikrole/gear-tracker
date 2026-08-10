@@ -1285,6 +1285,47 @@ a[data-slot="button"]:hover {
     padding: 8px !important;
   }
   body { margin: 0; padding: 8px; }
+
+  /* Reports get shown to leadership, so printing should yield the report and
+     nothing else -- no app shell, no interactive chrome. */
+  [data-slot="sidebar"],
+  [data-slot="sidebar-wrapper"] > [data-slot="sidebar"] {
+    display: none !important;
+  }
+  [data-slot="card"] {
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+  [data-slot="tooltip-content"] {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  /* Keep long report tables readable across page breaks. */
+  thead {
+    display: table-header-group;
+  }
+  tr {
+    break-inside: avoid;
+  }
+  a[href]::after {
+    content: none !important;
+  }
+}
+
+/* Only rendered on paper: gives the printout a title and a run date. */
+.report-print-header {
+  display: none;
+}
+
+@media print {
+  .report-print-header {
+    display: block;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #000;
+    padding-bottom: 6px;
+  }
 }
 
 /* ===== Label print grid ===== */

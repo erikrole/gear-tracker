@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis } from "recharts";
 import {
   ChartContainer,
@@ -28,6 +29,7 @@ export function StatusDonut({ statusCounts }: { statusCounts: Record<string, num
     .filter(([, count]) => count > 0)
     .map(([status, count]) => ({
       status: statusLabelEquipment(status),
+      statusKey: status,
       count,
       fill: STATUS_COLORS[status] ?? REPORT_SEMANTIC_CHART_COLORS.neutral,
     }));
@@ -50,40 +52,68 @@ export function StatusDonut({ statusCounts }: { statusCounts: Record<string, num
             </Pie>
           </PieChart>
         </ChartContainer>
-        <div className="flex flex-wrap justify-center gap-3 mt-2">
+        {/* The legend doubles as the drill-down: a real link per status beats a
+            clickable pie sector for both keyboard and touch targets. */}
+        <div className="mt-2 flex flex-wrap justify-center gap-2">
           {chartData.map((d) => (
-            <div key={d.status} className="flex items-center gap-1.5 text-xs tabular-nums">
-              <span className="size-2.5 rounded-full" style={{ background: d.fill }} />
+            <Link
+              key={d.status}
+              href={`/items?status=${d.statusKey}`}
+              className="inline-flex min-h-8 items-center gap-1.5 rounded-md px-2 py-1 text-xs tabular-nums no-underline transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span aria-hidden="true" className="size-2.5 rounded-full" style={{ background: d.fill }} />
               {d.status} ({d.count})
-            </div>
+            </Link>
           ))}
         </div>
     </ReportChartCard>
   );
 }
 
-export function TopBreakdownChart({ title, data, labelKey }: { title: string; data: { label: string; count: number }[]; labelKey: string }) {
-  if (data.length === 0) return null;
-  const top = [...data].sort((a, b) => b.count - a.count).slice(0, 8);
+export type TopUsedAsset = {
+  assetId: string;
+  assetTag: string;
+  checkouts: number;
+  custodyDays: number;
+  name: string;
+  utilizationRate: number;
+};
 
-  const config: ChartConfig = Object.fromEntries(
-    top.map((d, i) => [d.label, { label: d.label, color: REPORT_CHART_COLORS[i % REPORT_CHART_COLORS.length] }])
-  );
+/**
+ * Ranks the gear that actually earns its shelf space. Custody days is the
+ * measure rather than checkout count, so one long shoot outranks a dozen
+ * same-day grabs.
+ */
+export function TopUsedChart({ assets, days }: { assets: TopUsedAsset[]; days: number }) {
+  if (assets.length === 0) return null;
+
+  const data = assets.map((asset, index) => ({
+    label: asset.assetTag,
+    days: Number(asset.custodyDays.toFixed(2)),
+    fill: REPORT_CHART_COLORS[index % REPORT_CHART_COLORS.length],
+  }));
+
+  const config: ChartConfig = {
+    days: { label: "Days in custody", color: REPORT_CHART_COLORS[0] },
+  };
 
   return (
-    <ReportChartCard title={title}>
-        <ChartContainer config={config} className="w-full" style={{ height: Math.max(150, top.length * 36) }}>
-          <BarChart data={top} layout="vertical" margin={{ left: 0, right: 12 }}>
-            <YAxis dataKey="label" type="category" width={100} tickLine={false} axisLine={false} className="text-xs" />
-            <XAxis type="number" hide />
-            <ChartTooltip content={<ChartTooltipContent />} />
-            <Bar dataKey="count" name={labelKey} radius={[0, 4, 4, 0]}>
-              {top.map((_, i) => (
-                <Cell key={i} fill={REPORT_CHART_COLORS[i % REPORT_CHART_COLORS.length]} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ChartContainer>
+    <ReportChartCard
+      title="Most-used gear"
+      description={`Days in custody over the past ${days} days`}
+    >
+      <ChartContainer config={config} className="w-full" style={{ height: Math.max(150, data.length * 32) }}>
+        <BarChart data={data} layout="vertical" margin={{ left: 0, right: 12 }}>
+          <YAxis dataKey="label" type="category" width={110} tickLine={false} axisLine={false} className="text-xs" />
+          <XAxis type="number" hide />
+          <ChartTooltip content={<ChartTooltipContent />} />
+          <Bar dataKey="days" name="Days in custody" radius={[0, 4, 4, 0]}>
+            {data.map((entry, index) => (
+              <Cell key={index} fill={entry.fill} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ChartContainer>
     </ReportChartCard>
   );
 }

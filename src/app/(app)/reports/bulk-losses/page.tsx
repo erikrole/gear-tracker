@@ -18,6 +18,7 @@ import { FadeUp } from "@/components/ui/motion";
 import { TruncatedText } from "@/components/ui/truncated-text";
 import { useFetch } from "@/hooks/use-fetch";
 import {
+  ReportDataRegion,
   ReportEmptyState,
   ReportErrorState,
   ReportExportButton,
@@ -25,8 +26,12 @@ import {
   ReportLoadingState,
   ReportMetricGrid,
   ReportSectionCard,
+  ReportSelectControl,
   ReportToolbar,
+  ReportToolbarGroup,
 } from "../report-ui";
+import { useSearchParams } from "next/navigation";
+import { syncUrl } from "@/lib/url-sync";
 import { handleAuthRedirect, isAbortError } from "@/lib/errors";
 import {
   getReportExportCompletionToast,
@@ -116,8 +121,14 @@ type BatteryAudit = {
   }[];
 };
 
+type BulkLossFilterOption = { id: string; name: string };
+
 type ReportData = {
   totalLost: number;
+  filterOptions?: {
+    categories: BulkLossFilterOption[];
+    locations: BulkLossFilterOption[];
+  };
   bySku: SkuLoss[];
   byUser: UserLoss[];
   recentLosses: RecentLoss[];
@@ -128,9 +139,9 @@ function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
 }
 
-async function downloadMissingUnitsCsv() {
+async function downloadMissingUnitsCsv(query: string) {
   try {
-    const res = await fetch("/api/reports/bulk-losses?format=csv");
+    const res = await fetch(`/api/reports/bulk-losses?format=csv${query}`);
     if (handleAuthRedirect(res, "/reports/bulk-losses")) return;
 
     if (!res.ok) {
@@ -173,15 +184,28 @@ async function downloadMissingUnitsCsv() {
 }
 
 export default function BulkLossesReportPage() {
+  const searchParams = useSearchParams();
   const [now, setNow] = useState(() => new Date());
+  const [locationId, setLocationId] = useState<string | null>(
+    () => searchParams.get("location") || null,
+  );
+  const [categoryId, setCategoryId] = useState<string | null>(
+    () => searchParams.get("category") || null,
+  );
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
 
-  const { data, loading, error, lastRefreshed, reload } = useFetch<ReportData>({
-    url: "/api/reports/bulk-losses",
+  const filterQuery = [
+    locationId ? `&location=${encodeURIComponent(locationId)}` : "",
+    categoryId ? `&category=${encodeURIComponent(categoryId)}` : "",
+  ].join("");
+
+  const { data, loading, refreshing, error, lastRefreshed, reload } = useFetch<ReportData>({
+    url: `/api/reports/bulk-losses${filterQuery.replace(/^&/, "?")}`,
+    keepPreviousData: true,
   });
 
   if (loading && !data) return <ReportLoadingState metricCount={3} rows={6} />;
@@ -206,23 +230,79 @@ export default function BulkLossesReportPage() {
     || data.batteryAudit.checkoutHistory.length > 0
     || data.batteryAudit.repeatPatterns.length > 0;
 
+  const locationOptions = data.filterOptions?.locations ?? [];
+  const categoryOptions = data.filterOptions?.categories ?? [];
+  const activeFilters = [
+    ...(locationId
+      ? [{
+          key: "location",
+          label: `Location: ${locationOptions.find((o) => o.id === locationId)?.name ?? "Selected"}`,
+          onRemove: () => {
+            setLocationId(null);
+            syncUrl({ location: "" });
+          },
+        }]
+      : []),
+    ...(categoryId
+      ? [{
+          key: "category",
+          label: `Category: ${categoryOptions.find((o) => o.id === categoryId)?.name ?? "Selected"}`,
+          onRemove: () => {
+            setCategoryId(null);
+            syncUrl({ category: "" });
+          },
+        }]
+      : []),
+  ];
+
   return (
     <FadeUp>
     <div className="flex flex-col gap-4">
       <ReportToolbar
+        activeFilters={activeFilters}
         lastRefreshed={lastRefreshed}
-        loading={loading}
+        loading={loading || refreshing}
         now={now}
         onRefresh={reload}
         exportAction={hasExportableEvidence ? (
           <ReportExportButton
             ariaLabel="Export matching missing-unit evidence CSV"
             label="Export matching rows"
-            onClick={downloadMissingUnitsCsv}
+            onClick={() => downloadMissingUnitsCsv(filterQuery)}
           />
         ) : null}
-      />
+      >
+        {locationOptions.length > 1 ? (
+          <ReportToolbarGroup label="Location">
+            <ReportSelectControl
+              ariaLabel="Missing units location"
+              allLabel="All locations"
+              options={locationOptions}
+              value={locationId}
+              onChange={(next) => {
+                setLocationId(next);
+                syncUrl({ location: next ?? "" });
+              }}
+            />
+          </ReportToolbarGroup>
+        ) : null}
+        {categoryOptions.length > 1 ? (
+          <ReportToolbarGroup label="Category">
+            <ReportSelectControl
+              ariaLabel="Missing units category"
+              allLabel="All categories"
+              options={categoryOptions}
+              value={categoryId}
+              onChange={(next) => {
+                setCategoryId(next);
+                syncUrl({ category: next ?? "" });
+              }}
+            />
+          </ReportToolbarGroup>
+        ) : null}
+      </ReportToolbar>
 
+      <ReportDataRegion refreshing={refreshing}>
       {/* Metrics row */}
       <ReportMetricGrid>
         <MetricCard label="Missing units" value={data.totalLost} />
@@ -467,7 +547,14 @@ export default function BulkLossesReportPage() {
 
       {/* Recent missing-unit events */}
       {data.recentLosses.length > 0 && (
-        <ReportSectionCard title="Recent missing-unit events">
+        <ReportSectionCard
+          title="Recent missing-unit events"
+          description={
+            locationId || categoryId
+              ? "Check-in event feed across all families -- not narrowed by the filters above."
+              : undefined
+          }
+        >
             <div className="flex flex-col gap-2">
               {data.recentLosses.map((event) => (
                 <ReportListRow key={event.id} className="px-0 py-2">
@@ -487,6 +574,7 @@ export default function BulkLossesReportPage() {
             </div>
         </ReportSectionCard>
       )}
+      </ReportDataRegion>
     </div>
     </FadeUp>
   );

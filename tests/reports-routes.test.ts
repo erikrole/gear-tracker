@@ -16,6 +16,13 @@ vi.mock("@/lib/services/reports", () => ({
   getOverdueReportExport: vi.fn(),
   getScanHistoryReport: vi.fn(),
   getScanHistoryReportExport: vi.fn(),
+  parseCheckoutFocusDate: vi.fn((value: string | null) =>
+    value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null,
+  ),
+  parseUtilizationReportPeriod: vi.fn((value: string | null) => {
+    const parsed = Number.parseInt(value ?? "", 10);
+    return [30, 90, 365].includes(parsed) ? parsed : 90;
+  }),
 }));
 
 vi.mock("@sentry/nextjs", () => ({
@@ -87,9 +94,14 @@ beforeEach(() => {
         availableForReservation: true,
         availableForCheckout: true,
         availableForCustody: false,
+        periodCheckouts: 4,
+        periodCustodyDays: "6.25",
+        periodUtilizationRate: "6.9%",
+        lastCheckedOutAt: "2026-05-30T09:00:00.000Z",
         updatedAt: "2026-06-02T12:00:00.000Z",
       },
     ],
+    days: 90,
     total: 1,
     truncated: false,
     limit: 5000,
@@ -298,8 +310,29 @@ describe("reports routes", () => {
     expect(res.headers.get("X-Total-Count")).toBe("1");
     expect(getUtilizationReport).not.toHaveBeenCalled();
     expect(getUtilizationReportExport).toHaveBeenCalled();
-    expect(body).toContain("Asset Tag,Name,Type,Brand,Model,Derived Status,Stored Status,Location,Department,Category,Reservable,Checkoutable,Custody,Updated At");
-    expect(body).toContain("'=CAM-001,Camera Kit,Camera,Sony,FX6,CHECKED_OUT,AVAILABLE,Main Cage,Creative,Cinema Cameras,true,true,false,2026-06-02T12:00:00.000Z");
+    expect(body).toContain("Asset Tag,Name,Type,Brand,Model,Derived Status,Stored Status,Location,Department,Category,Reservable,Checkoutable,Custody,Checkouts (period),Custody Days (period),Utilization (period),Last Checked Out,Updated At");
+    expect(body).toContain("'=CAM-001,Camera Kit,Camera,Sony,FX6,CHECKED_OUT,AVAILABLE,Main Cage,Creative,Cinema Cameras,true,true,false,4,6.25,6.9%,2026-05-30T09:00:00.000Z,2026-06-02T12:00:00.000Z");
+  });
+
+  it("scopes the utilization export to the requested period", async () => {
+    const res = await getUtilizationReportRoute(
+      authedGet("/api/reports/utilization?format=csv&days=365"),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(res.status).toBe(200);
+    expect(getUtilizationReportExport).toHaveBeenCalledWith(365);
+    expect(res.headers.get("Content-Disposition")).toContain("utilization-report-365d-");
+  });
+
+  it("falls back to the default utilization period when days is invalid", async () => {
+    const res = await getUtilizationReportRoute(
+      authedGet("/api/reports/utilization?days=notanumber"),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(res.status).toBe(200);
+    expect(getUtilizationReport).toHaveBeenCalledWith(90);
   });
 
   it("sets utilization export truncation headers when the inventory export is capped", async () => {
@@ -326,8 +359,28 @@ describe("reports routes", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(getCheckoutReport).toHaveBeenCalledWith(90);
+    expect(getCheckoutReport).toHaveBeenCalledWith(90, null);
     expect(getCheckoutReportExport).not.toHaveBeenCalled();
+  });
+
+  it("scopes the checkout row list to a focused day", async () => {
+    const res = await getCheckoutReportRoute(
+      authedGet("/api/reports/checkouts?days=90&date=2026-06-01"),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(res.status).toBe(200);
+    expect(getCheckoutReport).toHaveBeenCalledWith(90, "2026-06-01");
+  });
+
+  it("ignores a malformed focus date", async () => {
+    const res = await getCheckoutReportRoute(
+      authedGet("/api/reports/checkouts?days=30&date=not-a-date"),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(res.status).toBe(200);
+    expect(getCheckoutReport).toHaveBeenCalledWith(30, null);
   });
 
   it("exports all matching checkout rows as bounded CSV", async () => {

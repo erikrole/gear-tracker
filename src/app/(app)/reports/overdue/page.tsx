@@ -22,6 +22,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import {
+  ReportDataRegion,
   ReportEmptyState,
   ReportErrorState,
   ReportExportButton,
@@ -32,9 +33,15 @@ import {
   REPORT_OVERDUE_CHART_COLORS,
   REPORT_SEMANTIC_CHART_COLORS,
   ReportSectionCard,
+  ReportSelectControl,
   ReportTableLink,
   ReportToolbar,
+  ReportToolbarGroup,
 } from "../report-ui";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { syncUrl } from "@/lib/url-sync";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { handleAuthRedirect, isAbortError } from "@/lib/errors";
 import {
   getReportExportCompletionToast,
@@ -60,9 +67,13 @@ type LeaderboardEntry = {
   bookings: OverdueBooking[];
 };
 
+type OverdueLocationOption = { id: string; name: string };
+
 type OverdueData = {
   totalOverdueBookings: number;
   leaderboard: LeaderboardEntry[];
+  locationId?: string | null;
+  locationOptions?: OverdueLocationOption[];
 };
 
 function formatOverdue(hours: number): string {
@@ -144,9 +155,11 @@ function LeaderboardMobileCard({
   );
 }
 
-async function downloadOverdueCsv() {
+async function downloadOverdueCsv(locationId: string | null) {
   try {
-    const res = await fetch("/api/reports/overdue?format=csv");
+    const res = await fetch(
+      `/api/reports/overdue?format=csv${locationId ? `&location=${encodeURIComponent(locationId)}` : ""}`,
+    );
     if (handleAuthRedirect(res, "/reports/overdue")) return;
 
     if (!res.ok) {
@@ -189,7 +202,12 @@ async function downloadOverdueCsv() {
 }
 
 export default function OverdueLeaderboardPage() {
+  const { data: currentUser } = useCurrentUser();
+  const searchParams = useSearchParams();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [locationId, setLocationId] = useState<string | null>(
+    () => searchParams.get("location") || null,
+  );
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -197,9 +215,15 @@ export default function OverdueLeaderboardPage() {
     return () => clearInterval(id);
   }, []);
 
-  const { data, loading, error, lastRefreshed, reload } = useFetch<OverdueData>({
-    url: "/api/reports/overdue",
+  function changeLocation(nextLocationId: string | null) {
+    setLocationId(nextLocationId);
+    syncUrl({ location: nextLocationId ?? "" });
+  }
+
+  const { data, loading, refreshing, error, lastRefreshed, reload } = useFetch<OverdueData>({
+    url: `/api/reports/overdue${locationId ? `?location=${encodeURIComponent(locationId)}` : ""}`,
     transform: (json) => json as unknown as OverdueData,
+    keepPreviousData: true,
   });
 
   function toggleExpand(userId: string) {
@@ -226,22 +250,46 @@ export default function OverdueLeaderboardPage() {
   if (!data) return null;
 
   const leaderboard = data.leaderboard ?? [];
+  const locationOptions = data.locationOptions ?? [];
+  const selectedLocationName = locationOptions.find((option) => option.id === locationId)?.name;
+  const activeFilters = locationId
+    ? [{
+        key: "location",
+        label: `Location: ${selectedLocationName ?? "Selected"}`,
+        onRemove: () => changeLocation(null),
+      }]
+    : [];
 
   return (
     <FadeUp>
       <ReportToolbar
+        activeFilters={activeFilters}
         lastRefreshed={lastRefreshed}
-        loading={loading}
+        loading={loading || refreshing}
         now={now}
         onRefresh={reload}
         exportAction={leaderboard.length > 0 ? (
           <ReportExportButton
             ariaLabel="Export matching overdue booking rows CSV"
             label="Export matching rows"
-            onClick={downloadOverdueCsv}
+            onClick={() => downloadOverdueCsv(locationId)}
           />
         ) : null}
-      />
+      >
+        {locationOptions.length > 1 ? (
+          <ReportToolbarGroup label="Location">
+            <ReportSelectControl
+              ariaLabel="Overdue report location"
+              allLabel="All locations"
+              options={locationOptions}
+              value={locationId}
+              onChange={changeLocation}
+            />
+          </ReportToolbarGroup>
+        ) : null}
+      </ReportToolbar>
+
+      <ReportDataRegion refreshing={refreshing}>
       <ReportMetricGrid>
         <MetricCard
           value={data.totalOverdueBookings}
@@ -282,7 +330,22 @@ export default function OverdueLeaderboardPage() {
       ) : (
         <ReportSectionCard
           title="Overdue by person"
-          description="Sorted by total overdue time"
+          description={
+            currentUser?.role === "ADMIN" ? (
+              <>
+                Sorted by total overdue time. For repeat patterns over time, see{" "}
+                <Link
+                  href="/accountability"
+                  className="font-medium text-foreground underline-offset-4 hover:underline"
+                >
+                  Accountability
+                </Link>
+                .
+              </>
+            ) : (
+              "Sorted by total overdue time"
+            )
+          }
           contentClassName="p-0"
         >
           {/* Desktop table */}
@@ -325,6 +388,7 @@ export default function OverdueLeaderboardPage() {
           </div>
         </ReportSectionCard>
       )}
+      </ReportDataRegion>
     </FadeUp>
   );
 }

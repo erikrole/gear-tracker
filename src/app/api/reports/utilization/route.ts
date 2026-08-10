@@ -4,7 +4,11 @@ import { csvField } from "@/lib/csv";
 import { ok } from "@/lib/http";
 import { enforceRateLimit, REPORT_EXPORT_LIMIT } from "@/lib/rate-limit";
 import { requirePermission } from "@/lib/rbac";
-import { getUtilizationReport, getUtilizationReportExport } from "@/lib/services/reports";
+import {
+  getUtilizationReport,
+  getUtilizationReportExport,
+  parseUtilizationReportPeriod,
+} from "@/lib/services/reports";
 
 function buildUtilizationReportCsv(rows: Awaited<ReturnType<typeof getUtilizationReportExport>>["data"]) {
   const headers = [
@@ -21,6 +25,10 @@ function buildUtilizationReportCsv(rows: Awaited<ReturnType<typeof getUtilizatio
     "Reservable",
     "Checkoutable",
     "Custody",
+    "Checkouts (period)",
+    "Custody Days (period)",
+    "Utilization (period)",
+    "Last Checked Out",
     "Updated At",
   ];
   const csvRows = rows.map((asset) => [
@@ -37,6 +45,10 @@ function buildUtilizationReportCsv(rows: Awaited<ReturnType<typeof getUtilizatio
     csvField(asset.availableForReservation),
     csvField(asset.availableForCheckout),
     csvField(asset.availableForCustody),
+    csvField(asset.periodCheckouts),
+    csvField(asset.periodCustodyDays),
+    csvField(asset.periodUtilizationRate),
+    csvField(asset.lastCheckedOutAt),
     csvField(asset.updatedAt),
   ]);
 
@@ -46,16 +58,17 @@ function buildUtilizationReportCsv(rows: Awaited<ReturnType<typeof getUtilizatio
 export const GET = withAuth(async (req, { user }) => {
   requirePermission(user.role, "report", "view");
   const { searchParams } = new URL(req.url);
+  const days = parseUtilizationReportPeriod(searchParams.get("days"));
 
   if (searchParams.get("format") === "csv") {
     await enforceRateLimit(`report:export:${user.id}`, REPORT_EXPORT_LIMIT);
-    const exportData = await getUtilizationReportExport();
+    const exportData = await getUtilizationReportExport(days);
     const date = new Date().toISOString().slice(0, 10);
     return new NextResponse(`${buildUtilizationReportCsv(exportData.data)}\n`, {
       headers: {
         "Cache-Control": "private, no-store",
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="utilization-report-${date}.csv"`,
+        "Content-Disposition": `attachment; filename="utilization-report-${days}d-${date}.csv"`,
         "X-Exported-Count": String(exportData.data.length),
         "X-Total-Count": String(exportData.total),
         ...(exportData.truncated ? {
@@ -65,5 +78,5 @@ export const GET = withAuth(async (req, { user }) => {
     });
   }
 
-  return ok(await getUtilizationReport());
+  return ok(await getUtilizationReport(days));
 });

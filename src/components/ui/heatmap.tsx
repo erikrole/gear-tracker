@@ -44,6 +44,10 @@ type HeatmapProps = HTMLAttributes<HTMLDivElement> &
     displayStyle?: "squares" | "bubbles";
     dateDisplayFunction?: (date: Date) => ReactNode;
     valueDisplayFunction?: (value: number) => ReactNode;
+    /** Makes cells activatable; receives the cell's `YYYY-MM-DD`. */
+    onSelectDate?: (date: string) => void;
+    /** Highlights the cell matching this `YYYY-MM-DD`. */
+    selectedDate?: string | null;
   };
 
 function getAllDays(start: string, end: string): string[] {
@@ -147,6 +151,8 @@ const internalHeatmapPropKeys = new Set<string>([
   "dateDisplayFunction",
   "className",
   "colorMode",
+  "onSelectDate",
+  "selectedDate",
 ]);
 
 function safeHtmlProps(props: HeatmapProps): HTMLAttributes<HTMLDivElement> {
@@ -219,6 +225,7 @@ function ValueIndicator({
   maxValue,
   color,
   style,
+  className,
   ...htmlProps
 }: ValueIndicatorProps) {
   let finalSize = cellSize;
@@ -231,7 +238,7 @@ function ValueIndicator({
 
     return (
       <div
-        className="flex items-center justify-center"
+        className={cn("flex items-center justify-center", className)}
         style={style}
         {...htmlProps}
       >
@@ -249,7 +256,7 @@ function ValueIndicator({
 
   return (
     <div
-      className="transition-colors rounded-md"
+      className={cn("transition-colors rounded-md", className)}
       style={{
         borderRadius: 4,
         backgroundColor: color,
@@ -272,7 +279,9 @@ export default function Heatmap(props: HeatmapProps) {
     valueDisplayFunction,
     dateDisplayFunction,
     className,
-    colorMode
+    colorMode,
+    onSelectDate,
+    selectedDate
   } = props;
 
   const valueByDate = new Map<string, number>(
@@ -368,6 +377,8 @@ export default function Heatmap(props: HeatmapProps) {
                   <ValueIndicator
                     style={{ gridColumn: weekIdx + 2, gridRow: dayIdx + 2 }}
                     tabIndex={0}
+                    role={onSelectDate ? "button" : undefined}
+                    aria-pressed={onSelectDate ? day === selectedDate : undefined}
                     aria-label={`${day}: ${safeValue} event${safeValue !== 1 ? "s" : ""}`}
                     id={`heatmap-cell-${day}`}
                     cellSize={cellSize}
@@ -375,6 +386,20 @@ export default function Heatmap(props: HeatmapProps) {
                     value={safeValue}
                     maxValue={maxValue}
                     color={thisColor}
+                    className={cn(
+                      onSelectDate && "cursor-pointer",
+                      day === selectedDate && "ring-2 ring-ring ring-offset-1",
+                    )}
+                    onClick={onSelectDate ? () => onSelectDate(day) : undefined}
+                    onKeyDown={
+                      onSelectDate
+                        ? (event) => {
+                            if (event.key !== "Enter" && event.key !== " ") return;
+                            event.preventDefault();
+                            onSelectDate(day);
+                          }
+                        : undefined
+                    }
                   />
                 </TooltipTrigger>
                 <TooltipContent>
