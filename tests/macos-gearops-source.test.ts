@@ -172,11 +172,11 @@ describe("GearOps macOS menu bar contracts", () => {
     expect(view).toContain(".help(buildHelp)");
   });
 
-  it("delivers passive booking change notifications without sound", () => {
+  it("delivers visible booking change notifications without sound", () => {
     const notifications = source("macos/GearOps/BookingNotifications.swift");
     const model = source("macos/GearOps/GearOpsModel.swift");
 
-    expect(notifications).toContain("content.interruptionLevel = .passive");
+    expect(notifications).toContain("content.interruptionLevel = .active");
     expect(notifications).toContain("content.sound = nil");
     expect(notifications).toContain('case .open: "Booking checked out"');
     expect(notifications).toContain('case .completed: "Booking checked in"');

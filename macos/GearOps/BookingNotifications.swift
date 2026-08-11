@@ -90,7 +90,7 @@ actor BookingNotificationCenter: BookingNotificationDelivering {
         content.title = change.title
         content.body = change.body
         content.sound = nil
-        content.interruptionLevel = .passive
+        content.interruptionLevel = .active
         content.threadIdentifier = "booking-\(change.bookingID)"
         content.userInfo = ["bookingID": change.bookingID]
 
