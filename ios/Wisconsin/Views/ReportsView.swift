@@ -3,9 +3,18 @@ import SwiftUI
 
 // MARK: - View model
 
+private enum ReportLoadOutcome<Value> {
+    case success(Value)
+    case failure(String)
+    case cancelled
+}
+
 @MainActor
 @Observable
 final class ReportsViewModel {
+    typealias UtilizationLoader = @MainActor (Int) async throws -> UtilizationReport
+    typealias CheckoutLoader = @MainActor (Int) async throws -> CheckoutActivityReport
+
     var utilization: UtilizationReport?
     var checkouts: CheckoutActivityReport?
     var isLoading = false
@@ -17,12 +26,31 @@ final class ReportsViewModel {
             // A window change invalidates freshness: the numbers mean something
             // different now.
             lastLoadedAt = nil
+            utilization = nil
+            checkouts = nil
+            error = nil
         }
     }
 
     private static let freshnessWindow: TimeInterval = 60
+    private let utilizationLoader: UtilizationLoader
+    private let checkoutLoader: CheckoutLoader
+    @ObservationIgnored private var activeLoadID: UUID?
+    @ObservationIgnored private var activeWindow: Int?
 
     var hasAnyData: Bool { utilization != nil || checkouts != nil }
+
+    init(
+        utilizationLoader: @escaping UtilizationLoader = { days in
+            try await APIClient.shared.utilizationReport(days: days)
+        },
+        checkoutLoader: @escaping CheckoutLoader = { days in
+            try await APIClient.shared.checkoutActivityReport(days: days)
+        }
+    ) {
+        self.utilizationLoader = utilizationLoader
+        self.checkoutLoader = checkoutLoader
+    }
 
     func load(forceRefresh: Bool = false) async {
         if !forceRefresh,
@@ -31,30 +59,91 @@ final class ReportsViewModel {
            hasAnyData {
             return
         }
-        guard !isLoading else { return }
+
+        let window = days
+        // A duplicate request for the same window can share the active work.
+        // A new period must become the owner immediately, even while the old
+        // request is still unwinding after SwiftUI cancels its task.
+        guard !isLoading || activeWindow != window else { return }
+
+        let loadID = UUID()
+        activeLoadID = loadID
+        activeWindow = window
         isLoading = true
         if forceRefresh { error = nil }
 
-        let window = days
-        async let utilizationTask = APIClient.shared.utilizationReport(days: window)
-        async let checkoutTask = APIClient.shared.checkoutActivityReport(days: window)
+        async let utilizationTask = loadUtilization(days: window)
+        async let checkoutTask = loadCheckouts(days: window)
+        let (utilizationOutcome, checkoutOutcome) = await (utilizationTask, checkoutTask)
 
-        do {
-            let (utilizationResult, checkoutResult) = try await (utilizationTask, checkoutTask)
-            // Drop a response that landed after the user moved the picker on.
-            guard window == days else {
-                isLoading = false
-                return
-            }
-            utilization = utilizationResult
-            checkouts = checkoutResult
-            error = nil
-            lastLoadedAt = Date()
-        } catch {
-            // Keep stale numbers on screen; the banner says they are stale.
-            self.error = error.localizedDescription
+        // Only the newest request may publish or clear loading state.
+        guard activeLoadID == loadID, window == days else { return }
+        if Task.isCancelled {
+            activeLoadID = nil
+            activeWindow = nil
+            isLoading = false
+            return
         }
+
+        var messages: [String] = []
+        var utilizationComplete = false
+        var checkoutsComplete = false
+
+        switch utilizationOutcome {
+        case .success(let result):
+            utilization = result
+            if let failures = result.partialFailures, !failures.isEmpty {
+                messages.append("Utilization is incomplete: \(failures.joined(separator: ", ")).")
+            } else {
+                utilizationComplete = true
+            }
+        case .failure(let message):
+            messages.append("Utilization could not refresh: \(message)")
+        case .cancelled:
+            break
+        }
+
+        switch checkoutOutcome {
+        case .success(let result):
+            checkouts = result
+            if let failures = result.partialFailures, !failures.isEmpty {
+                messages.append("Checkout activity is incomplete: \(failures.joined(separator: ", ")).")
+            } else {
+                checkoutsComplete = true
+            }
+        case .failure(let message):
+            messages.append("Checkout activity could not refresh: \(message)")
+        case .cancelled:
+            break
+        }
+
+        error = messages.isEmpty ? nil : messages.joined(separator: " ")
+        lastLoadedAt = utilizationComplete && checkoutsComplete ? Date() : nil
+        activeLoadID = nil
+        activeWindow = nil
         isLoading = false
+    }
+
+    private func loadUtilization(days: Int) async -> ReportLoadOutcome<UtilizationReport> {
+        do {
+            return .success(try await utilizationLoader(days))
+        } catch {
+            if Task.isCancelled {
+                return .cancelled
+            }
+            return .failure(error.localizedDescription)
+        }
+    }
+
+    private func loadCheckouts(days: Int) async -> ReportLoadOutcome<CheckoutActivityReport> {
+        do {
+            return .success(try await checkoutLoader(days))
+        } catch {
+            if Task.isCancelled {
+                return .cancelled
+            }
+            return .failure(error.localizedDescription)
+        }
     }
 }
 

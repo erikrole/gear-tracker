@@ -12,8 +12,8 @@
 #   ./scripts/ios-audit-inventory.sh --gaps  # only show NO AUDIT rows
 #   ./scripts/ios-audit-inventory.sh --csv   # machine-readable CSV
 #
-# Exit codes: always 0. Use --gaps + line count to gate CI on "no
-# unaudited surfaces."
+# Exit codes: --gaps exits 1 when an audit doc is missing or a Swift surface
+# is unregistered. Full-table and CSV modes remain informational.
 
 set -eu
 
@@ -64,6 +64,7 @@ ScheduleView.swift                     | schedule                    | audit
 EventDetailSheet.swift                 | event-detail                | audit
 NotificationsSheet.swift               | notifications-sheet         | audit
 OverdueReportView.swift                | overdue-report              | audit
+ReportsView.swift                      | reports                     | audit
 LoginView.swift                        | login                       | audit
 NativeAuthViews.swift                  | login                       | audit
 PasswordSetupView.swift                | login                       | audit
@@ -286,4 +287,6 @@ echo "════════════════════════�
 
 if [ "$MODE" = "gaps" ] && [ "$audit_missing" = "0" ] && [ "$unregistered_total" = "0" ]; then
   echo "✓ no audit gaps"
+elif [ "$MODE" = "gaps" ]; then
+  exit 1
 fi

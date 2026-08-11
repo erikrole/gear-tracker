@@ -81,9 +81,9 @@ describe("native app and web trust contracts", () => {
     expect(detail).toContain("ForEach(Array(eventSummaries.enumerated())");
   });
 
-  it("versions the app and Live Activity extension together as build 24", () => {
+  it("versions the app and Live Activity extension together as build 25", () => {
     const project = source("ios/project.yml");
-    expect(project.match(/CURRENT_PROJECT_VERSION: "24"/g)).toHaveLength(2);
-    expect(project).not.toContain('CURRENT_PROJECT_VERSION: "23"');
+    expect(project.match(/CURRENT_PROJECT_VERSION: "25"/g)).toHaveLength(2);
+    expect(project).not.toContain('CURRENT_PROJECT_VERSION: "24"');
   });
 });

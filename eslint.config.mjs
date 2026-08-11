@@ -22,6 +22,7 @@ export default defineConfig([
     ".claude/**",
     ".codex/**",
     ".agents/**",
+    ".tmp/**",
     "node_modules/**",
     "out/**",
     "build/**",

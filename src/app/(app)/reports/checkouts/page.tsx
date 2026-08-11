@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { FadeUp } from "@/components/ui/motion";
+import { OperationalPartialResultsAlert } from "@/components/OperationalFeedback";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, isAbortError } from "@/lib/errors";
 import { statusBadgeVariant, statusLabel } from "@/components/booking-details/helpers";
@@ -73,6 +74,7 @@ type CheckoutRow = {
 type CheckoutData = {
   days: number;
   focusDate?: string | null;
+  partialFailures?: string[];
   totalCheckouts: number;
   previousTotalCheckouts?: number | null;
   overdueCheckouts: number;
@@ -245,28 +247,36 @@ export default function CheckoutsReportPage() {
       </ReportToolbar>
 
       <ReportDataRegion refreshing={refreshing}>
-      {/* Summary metrics */}
-      <ReportMetricGrid>
-        <MetricCard
-          value={data.totalCheckouts}
-          label={`Checkouts (${days}d)`}
-          tooltip="Checkouts created in the selected period"
-          href="/bookings?tab=checkouts"
-          delta={buildPeriodDelta({
-            current: data.totalCheckouts,
-            days,
-            previous: data.previousTotalCheckouts,
-          })}
-          sparkline={trendCounts.length > 1 ? toSparklinePoints(trendCounts) : undefined}
+        <OperationalPartialResultsAlert
+          className="mb-4"
+          failureLabel="Unavailable sections"
+          failures={data.partialFailures ?? []}
+          noun="section"
+          recoveryCopy="Refresh before treating zeros or empty sections as final."
+          title="Some checkout data did not load"
         />
-        <MetricCard
-          value={data.overdueCheckouts}
-          label="Currently overdue"
-          color={data.overdueCheckouts > 0 ? "var(--red)" : undefined}
-          tooltip="Checkouts currently past their return date"
-          href="/checkouts?filter=overdue"
-        />
-      </ReportMetricGrid>
+        {/* Summary metrics */}
+        <ReportMetricGrid>
+          <MetricCard
+            value={data.totalCheckouts}
+            label={`Checkouts (${days}d)`}
+            tooltip="Checkouts created in the selected period"
+            href="/bookings?tab=checkouts"
+            delta={buildPeriodDelta({
+              current: data.totalCheckouts,
+              days,
+              previous: data.previousTotalCheckouts,
+            })}
+            sparkline={trendCounts.length > 1 ? toSparklinePoints(trendCounts) : undefined}
+          />
+          <MetricCard
+            value={data.overdueCheckouts}
+            label="Currently overdue"
+            color={data.overdueCheckouts > 0 ? "var(--red)" : undefined}
+            tooltip="Checkouts currently past their return date"
+            href="/checkouts?filter=overdue"
+          />
+        </ReportMetricGrid>
 
       {/* Charts */}
       <div className="grid gap-4 md:grid-cols-2 mb-4">

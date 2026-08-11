@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reports & Analytics
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-09
+- Last Updated: 2026-08-10
 - Status: Active
 - Version: V1
 
@@ -15,7 +15,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 2. Reports are tab-based: users navigate between report types via sidebar link to `/reports` which redirects to `/reports/utilization`.
 3. Each report has metric cards plus the filters its data can honestly support. Period selectors keep their existing per-report query-param names (`days` on Utilization, Checkouts, and Badges; `period` on Scans and Audit) so existing links stay valid, and the chosen window is remembered across report tabs for the session. A URL param always wins over the remembered window.
 4. Data is cached via React Query with focus refresh.
-5. Empty states and error states handled with EmptyState + retry. Report bodies dim and set `aria-busy` while a background refresh is in flight, so stale numbers never read as current.
+5. Empty states and error states use EmptyState + retry. Report bodies dim and set `aria-busy` while a background refresh is in flight, so stale numbers never read as current. When independent query groups fail, usable sections remain visible with additive `partialFailures` and a warning that zeros or empty sections are not final.
 6. Report-local CSV exports download only the currently visible report rows and must say that in the action/copy, except Utilization, Checkouts, Overdue, Audit, Scans, and Missing Units where the CSV action exports the full filtered, report-evidence, or row-level inventory result from a bounded server-backed endpoint.
 7. `/reports/overdue` remains the live open-custody queue and therefore has no period selector. `/accountability` owns historical late-return patterns and never replaces or mutates custody evidence; Overdue links admins across to it without merging the two surfaces.
 8. Prior-period deltas appear only where a comparable preceding window exists. All-time selections show no delta, an empty prior window shows the raw difference instead of an infinite percentage, and metrics that are themselves rates report percentage points.
@@ -45,9 +45,9 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - **Charts:** Most-used gear ranked by days in custody, and a status-distribution donut whose legend entries are the per-status drill-downs into `/items`.
 - **Tables:** Idle gear (highest recorded value first, with last-checked-out date), and by-location / by-category / by-type / by-department breakdowns rendered as share-of-total rows with proportional bars. Location, category, and department rows link into `/items` using ids the items page parses; `type` is free text with no matching items filter, so those rows stay informational.
 - **Filters:** Period (30d, 90d default, 1y). No all-time option: a utilization rate needs a bounded denominator.
-- **Data:** `GET /api/reports/utilization?days=...`
+- **Data:** `GET /api/reports/utilization?days=...`. JSON responses include additive `partialFailures` when an independent aggregate or lookup fails; successful sections remain available.
 - **Export:** `GET /api/reports/utilization?format=csv&days=...` returns up to 5,000 inventory rows with derived status, stored status, physical identity fields, location, department, category, availability flags, and per-asset period columns (checkouts, custody days, utilization, last checked out), plus `X-Exported-Count`, `X-Total-Count`, and `X-Truncated` headers when capped.
-- **Semantics:** Custody windows come from the booking, not from `AssetAllocation`: check-in flips allocations to `active: false` without stamping an actual return time, so an allocation's `endsAt` stays at the planned date. `COMPLETED` checkouts use `completedAt`, `OPEN` checkouts run to now, and both are clamped to the selected window — the same basis accountability uses for lateness. Idle and never-checked-out counts exclude `RETIRED` assets.
+- **Semantics:** Custody windows come from the booking, not from `AssetAllocation`: check-in flips allocations to `active: false` without stamping an actual return time, so an allocation's `endsAt` stays at the planned date. `COMPLETED` checkouts use `completedAt`, `OPEN` checkouts run to now, and both are clamped to the selected window, using the same basis accountability uses for lateness. Idle and never-checked-out counts exclude `RETIRED` assets. A failed aggregate may use a safe zero or empty fallback only when its section name also appears in `partialFailures` and both clients render that warning.
 
 ### `/reports/checkouts`
 - **Page:** `src/app/(app)/reports/checkouts/page.tsx`
@@ -56,7 +56,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - **Metrics:** Total custody checkout activity in the selected period (with a prior-period delta and a trend sparkline), currently overdue checkouts
 - **Charts:** Daily checkout trend, top requesters, and a theme-aware blue 365-day heatmap where stronger intensity means more custody activity. Selecting a day in the trend or the heatmap narrows the checkout row list to that day; the metrics and charts stay on the selected period so the day keeps its context.
 - **Filters:** Period (7d, 30d, 90d), plus an optional focused day
-- **Data:** `GET /api/reports/checkouts?days=...&date=YYYY-MM-DD`
+- **Data:** `GET /api/reports/checkouts?days=...&date=YYYY-MM-DD`. JSON responses include additive `partialFailures` when an independent aggregate or requester lookup fails; successful sections remain available.
 - **Focus day:** `date` is validated as `YYYY-MM-DD` and interpreted as a UTC day to match the daily aggregates. It scopes only `recentCheckouts` (to 50 rows) and is cleared whenever the period changes.
 - **Export:** `GET /api/reports/checkouts?format=csv&days=...` returns up to 5,000 matching custody checkout activity rows with `X-Exported-Count`, `X-Total-Count`, and `X-Truncated` headers when capped.
 - **Semantics:** Checkout activity metrics, charts, heatmap, and CSV exports count actual custody rows only: `OPEN` and `COMPLETED` checkouts. `DRAFT`, `PENDING_PICKUP`, and `CANCELLED` checkout rows are excluded so awaiting pickup does not inflate custody analytics.
@@ -131,10 +131,11 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 `/reports` on web has no native equivalent; iOS instead carries one glanceable operational report at Browse > Reports (`ios/Wisconsin/Views/ReportsView.swift`), visible only to STAFF/ADMIN.
 
 - **Reads:** `GET /api/reports/utilization?days=` and `GET /api/reports/checkouts?days=`, both unchanged by the native client.
-- **Period:** a single 30d/90d control. Checkouts accepts 7/30/90 and utilization accepts 30/90/365, so the shared picker uses the overlap; a stale in-flight response for a superseded window is discarded.
+- **Period:** a single 30d/90d control. Checkouts accepts 7/30/90 and utilization accepts 30/90/365, so the shared picker uses the overlap. A period change clears values from the old window, becomes the newest request owner immediately, and rejects any late response from the superseded window.
+- **Reliability:** utilization and checkout activity load as independent failure domains. One successful response remains visible if its peer fails. Additive `partialFailures` keeps usable response data visible with an incomplete-data warning and prevents the result from being marked fresh.
 - **Content:** utilization rate, checkouts with a prior-period delta, currently overdue, an interactive checkout-activity chart, a status donut, most-used gear by custody days, and idle / never-checked-out counts. Overdue pushes the existing native `OverdueReportView`.
 - **Deliberately web-only:** CSV export, audit, badge analytics, missing units, breakdown drill-downs, and every filter beyond the period. Deep reporting and authoring stay on web per the mobile scope contract.
-- **Version tolerance:** the utilization `custody` block, `days`, and `activeAssets` decode as optional. A shipped build meeting a server that predates the custody rebuild still renders the status snapshot and checkout trend rather than erroring out. `ios/WisconsinTests/ReportModelsTests.swift` pins both payload shapes.
+- **Version tolerance:** the utilization `custody` block, `days`, `activeAssets`, and both report `partialFailures` fields decode as optional. A shipped build meeting a server that predates the custody rebuild or failure metadata still renders the response it understands. `ios/WisconsinTests/ReportModelsTests.swift` pins both payload shapes.
 
 ## Components
 
@@ -144,6 +145,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - `ReportBreakdownTable` — ranked share-of-total rows with a neutral magnitude bar and optional drill-down, replacing the former pattern of a bar chart above an identical table
 - `ReportSelectControl` — toolbar filter for option sets too long for a segmented control
 - `ReportDataRegion` — dims report content and sets `aria-busy` during background refreshes
+- `OperationalPartialResultsAlert`: names unavailable report sections while keeping successful results visible
 - `ReportPrintHeader` — print-only title and run timestamp, since the section nav is hidden on paper
 - `ReportExportButton` / report export helpers — shared CSV export actions with duplicate-click guards, formula-safe CSV escaping, dated filenames, server-backed filename/error parsing, and completion copy that names the exported scope
 - Charts from `recharts` (line, bar, pie charts as needed per report)
@@ -186,8 +188,10 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - [x] AC-14: Checkout trend and heatmap days are selectable and narrow the checkout row list server-side.
 - [x] AC-15: Overdue filters by location and Missing Units filters by location and category; the previously documented date-range filters are removed from the contract because the underlying data cannot support them honestly.
 - [x] AC-16: Report surfaces print without app chrome and carry a title, run timestamp, and their active filter chips.
+- [x] AC-17: Utilization and checkout reports preserve successful query groups, identify unavailable groups through additive response metadata, and warn web and native users before fallback zeros or empty sections are treated as final.
 
 ## Change Log
+- 2026-08-10: Utilization and checkout aggregation now preserves successful query groups without silently presenting failed groups as authoritative zeros. Additive `partialFailures` is logged and rendered on web and native; native sources load independently, period changes use newest-request ownership, and partial results never become fresh cache truth. Focused service, route, source-contract, TypeScript, lint, and inventory gates pass. Native simulator compilation and authenticated visual proof remain separate gates.
 - 2026-08-03: Disabled automatic RSC prefetching for the authenticated sidebar, notification chrome, and report section links after Safari desktop proof showed the viewport prefetch storm failing and falling back to full browser navigations. Click navigation remains client-routed.
 - 2026-07-23: Accountability now preserves checkout due-date changes and counts extensions made after the prior deadline plus grace as distinct late episodes. Migration `0102_booking_due_date_history` backfills retained extension audits, while future extensions write durable evidence in the same SERIALIZABLE transaction.
 - 2026-07-23: Added the ADMIN-only Accountability surface. It ranks academic-year late-return incidents using the configured overdue grace period, separates active and resolved evidence, exposes filtered CSV, and adds audited reversible checkout exclusions for test or bad data while preserving D-040 custody history. The existing staff/admin Overdue report remains the live open-checkout queue.

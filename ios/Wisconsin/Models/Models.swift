@@ -815,6 +815,7 @@ struct UtilizationCustody: Codable {
 struct UtilizationReport: Codable {
     let days: Int?
     let activeAssets: Int?
+    let partialFailures: [String]?
     let totalAssets: Int
     let statusCounts: [String: Int]
     let custody: UtilizationCustody?
@@ -832,6 +833,7 @@ struct CheckoutTrendPoint: Codable, Identifiable {
 /// row list stay on web; iOS shows the activity shape and the period delta.
 struct CheckoutActivityReport: Codable {
     let days: Int
+    let partialFailures: [String]?
     let totalCheckouts: Int
     let previousTotalCheckouts: Int?
     let overdueCheckouts: Int

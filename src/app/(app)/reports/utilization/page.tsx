@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { FadeUp } from "@/components/ui/motion";
+import { OperationalPartialResultsAlert } from "@/components/OperationalFeedback";
 import { useFetch } from "@/hooks/use-fetch";
 import { formatDateFull } from "@/lib/format";
 import {
@@ -73,6 +74,7 @@ type TopUsedAsset = {
 type UtilizationData = {
   activeAssets: number;
   days: number;
+  partialFailures?: string[];
   totalAssets: number;
   statusCounts: Record<string, number>;
   byLocation: { location: string; locationId: string; count: number }[];
@@ -317,6 +319,14 @@ export default function UtilizationPage() {
       </ReportToolbar>
 
       <ReportDataRegion refreshing={refreshing}>
+        <OperationalPartialResultsAlert
+          className="mb-4"
+          failureLabel="Unavailable sections"
+          failures={data.partialFailures ?? []}
+          noun="section"
+          recoveryCopy="Refresh before treating zeros or empty sections as final."
+          title="Some utilization data did not load"
+        />
         <ReportMetricGrid>
           <MetricCard
             value={formatPercent(custody.utilizationRate)}

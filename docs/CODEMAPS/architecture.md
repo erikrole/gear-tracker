@@ -14,7 +14,7 @@ Gear Tracker is a Next.js App Router application with a companion native iOS app
 | API route handlers | 267 |
 | Service files | 60 |
 | Component files | 139 |
-| Test files | 471 |
+| Test files | 476 |
 
 ## Oversized Source Watchlist
 
@@ -23,7 +23,7 @@ Informational only. These are the largest TypeScript and TSX files under `src/`;
 | File | Lines |
 |---|---:|
 | `src/lib/services/bookings-lifecycle.ts` | 2149 |
-| `src/lib/services/reports.ts` | 1865 |
+| `src/lib/services/reports.ts` | 1927 |
 | `src/app/(app)/items/[id]/ItemInfoTab.tsx` | 1589 |
 | `src/app/(app)/users/[id]/UserInfoTab.tsx` | 1443 |
 | `src/app/(app)/resources/page.tsx` | 1430 |

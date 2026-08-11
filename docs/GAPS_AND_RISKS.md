@@ -59,6 +59,8 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 
 ## Change Log
 
+- 2026-08-10: Closed the repository-audit findings for report partial-result truth, native report request ownership, audit last-lookup fan-out, iOS audit-registry enforcement, and ignored scratch lint drift without adding a product gap. Utilization and checkout responses name unavailable sections, web and native warn before fallback values are treated as final, a selected native period owns its responses, `/api/audit/last` uses two bounded database queries, and `audit:ios:gaps` now fails on missing or unregistered surfaces. Native simulator compilation and authenticated visual acceptance remain verification boundaries rather than new product scope.
+
 - 2026-08-10: Added GAP-64 and the rollout-skew risk for the locally complete durable overdue checkout notification policy. Production migration, responder configuration, and authenticated delivery proof remain open.
 
 - 2026-08-10: Reconciled GAP-60 with the completed migration and deployment recorded by AREA_SHIFTS. The remaining gap is authenticated timer and consolidated delivery acceptance only. The Trade Board and instant-pickup MVP hardening introduced no new schema, authority, permission, transaction, or delivery gap.

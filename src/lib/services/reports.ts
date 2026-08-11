@@ -16,6 +16,14 @@ export const UTILIZATION_REPORT_PERIODS = [30, 90, 365] as const;
 export const UTILIZATION_REPORT_DEFAULT_PERIOD = 90;
 const UTILIZATION_IDLE_LIST_LIMIT = 25;
 const UTILIZATION_TOP_USED_LIMIT = 10;
+const EMPTY_EFFECTIVE_STATUS_COUNTS = {
+  AVAILABLE: 0,
+  CHECKED_OUT: 0,
+  PENDING_PICKUP: 0,
+  RESERVED: 0,
+  MAINTENANCE: 0,
+  RETIRED: 0,
+};
 
 export function parseUtilizationReportPeriod(value: string | null | undefined) {
   const parsed = Number.parseInt(value ?? "", 10);
@@ -92,8 +100,22 @@ function toNumber(value: string | number | null | undefined) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function settledReportValue<T>(
+  result: PromiseSettledResult<T>,
+  fallback: T,
+  failure: string,
+  partialFailures: string[]
+) {
+  if (result.status === "fulfilled") return result.value;
+
+  partialFailures.push(failure);
+  console.error(`[reports] ${failure} query failed`, result.reason);
+  return fallback;
+}
+
 async function getUtilizationCustodyMetrics(days: number, activeAssets: number) {
   const cte = utilizationCustodyCte(days);
+  const partialFailures: string[] = [];
 
   const results = await Promise.allSettled([
     db.$queryRaw<UtilizationCustodyTotalsRow[]>`
@@ -169,10 +191,30 @@ async function getUtilizationCustodyMetrics(days: number, activeAssets: number) 
     `,
   ]);
 
-  const totals = results[0].status === "fulfilled" ? results[0].value[0] : undefined;
-  const topUsedRows = results[1].status === "fulfilled" ? results[1].value : [];
-  const idleTotals = results[2].status === "fulfilled" ? results[2].value[0] : undefined;
-  const idleRows = results[3].status === "fulfilled" ? results[3].value : [];
+  const totals = settledReportValue(
+    results[0],
+    [],
+    "custody totals",
+    partialFailures
+  )[0];
+  const topUsedRows = settledReportValue(
+    results[1],
+    [],
+    "most-used gear",
+    partialFailures
+  );
+  const idleTotals = settledReportValue(
+    results[2],
+    [],
+    "idle gear totals",
+    partialFailures
+  )[0];
+  const idleRows = settledReportValue(
+    results[3],
+    [],
+    "idle gear list",
+    partialFailures
+  );
 
   const custodyDays = toNumber(totals?.custody_days);
   const availableAssetDays = activeAssets * days;
@@ -204,12 +246,14 @@ async function getUtilizationCustodyMetrics(days: number, activeAssets: number) 
       // Share of the window this one asset spent in someone's hands.
       utilizationRate: days > 0 ? Math.min(toNumber(row.custody_days) / days, 1) : 0,
     })),
+    partialFailures,
     // Share of all available asset-days actually spent in custody.
     utilizationRate: availableAssetDays > 0 ? custodyDays / availableAssetDays : 0,
   };
 }
 
 export async function getUtilizationReport(days: number = UTILIZATION_REPORT_DEFAULT_PERIOD) {
+  const partialFailures: string[] = [];
   const results = await Promise.allSettled([
     countAssetsByEffectiveStatus(),
     db.asset.count(),
@@ -220,13 +264,18 @@ export async function getUtilizationReport(days: number = UTILIZATION_REPORT_DEF
     db.asset.count({ where: { status: { not: "RETIRED" } } }),
   ]);
 
-  const statusCounts = results[0].status === "fulfilled" ? results[0].value : {};
-  const totalAssets = results[1].status === "fulfilled" ? results[1].value : 0;
-  const byLocation = results[2].status === "fulfilled" ? results[2].value : [];
-  const byType = results[3].status === "fulfilled" ? results[3].value : [];
-  const byDepartment = results[4].status === "fulfilled" ? results[4].value : [];
-  const byCategory = results[5].status === "fulfilled" ? results[5].value : [];
-  const activeAssets = results[6].status === "fulfilled" ? results[6].value : 0;
+  const statusCounts = settledReportValue(
+    results[0],
+    EMPTY_EFFECTIVE_STATUS_COUNTS,
+    "status counts",
+    partialFailures
+  );
+  const totalAssets = settledReportValue(results[1], 0, "asset total", partialFailures);
+  const byLocation = settledReportValue(results[2], [], "location breakdown", partialFailures);
+  const byType = settledReportValue(results[3], [], "type breakdown", partialFailures);
+  const byDepartment = settledReportValue(results[4], [], "department breakdown", partialFailures);
+  const byCategory = settledReportValue(results[5], [], "category breakdown", partialFailures);
+  const activeAssets = settledReportValue(results[6], 0, "active asset count", partialFailures);
 
   const locationIds = byLocation.map((g) => g.locationId);
   const deptIds = byDepartment
@@ -236,18 +285,26 @@ export async function getUtilizationReport(days: number = UTILIZATION_REPORT_DEF
     .map((g) => g.categoryId)
     .filter((id): id is string => id !== null);
 
-  const [locations, departments, categories, custody] = await Promise.all([
-    locationIds.length > 0
-      ? db.location.findMany({ where: { id: { in: locationIds } }, select: { id: true, name: true } })
-      : Promise.resolve([]),
-    deptIds.length > 0
-      ? db.department.findMany({ where: { id: { in: deptIds } }, select: { id: true, name: true } })
-      : Promise.resolve([]),
-    categoryIds.length > 0
-      ? db.category.findMany({ where: { id: { in: categoryIds } }, select: { id: true, name: true } })
-      : Promise.resolve([]),
+  const [metadataResults, custody] = await Promise.all([
+    Promise.allSettled([
+      locationIds.length > 0
+        ? db.location.findMany({ where: { id: { in: locationIds } }, select: { id: true, name: true } })
+        : Promise.resolve([]),
+      deptIds.length > 0
+        ? db.department.findMany({ where: { id: { in: deptIds } }, select: { id: true, name: true } })
+        : Promise.resolve([]),
+      categoryIds.length > 0
+        ? db.category.findMany({ where: { id: { in: categoryIds } }, select: { id: true, name: true } })
+        : Promise.resolve([]),
+    ]),
     getUtilizationCustodyMetrics(days, activeAssets),
   ]);
+
+  const locations = settledReportValue(metadataResults[0], [], "location names", partialFailures);
+  const departments = settledReportValue(metadataResults[1], [], "department names", partialFailures);
+  const categories = settledReportValue(metadataResults[2], [], "category names", partialFailures);
+  const { partialFailures: custodyFailures, ...custodyData } = custody;
+  partialFailures.push(...custodyFailures);
 
   const locMap = Object.fromEntries(locations.map((l) => [l.id, l.name]));
   const deptMap = Object.fromEntries(departments.map((d) => [d.id, d.name]));
@@ -255,8 +312,9 @@ export async function getUtilizationReport(days: number = UTILIZATION_REPORT_DEF
 
   return {
     activeAssets,
-    custody,
+    custody: custodyData,
     days,
+    partialFailures,
     totalAssets,
     statusCounts,
     byLocation: byLocation.map((g) => ({
@@ -430,6 +488,7 @@ function checkoutFocusDateRange(focusDate: string) {
 }
 
 export async function getCheckoutReport(days: number, focusDate?: string | null) {
+  const partialFailures: string[] = [];
   const since = checkoutReportSince(days);
   const now = new Date();
   const heatmapSince = new Date(Date.now() - 365 * 86_400_000);
@@ -482,20 +541,22 @@ export async function getCheckoutReport(days: number, focusDate?: string | null)
     `,
   ]);
 
-  const totalCheckouts = checkoutResults[0].status === "fulfilled" ? checkoutResults[0].value : 0;
-  const overdueCheckouts = checkoutResults[1].status === "fulfilled" ? checkoutResults[1].value : 0;
-  const recentCheckouts = checkoutResults[2].status === "fulfilled" ? checkoutResults[2].value : [];
-  const topRequesters = checkoutResults[3].status === "fulfilled" ? checkoutResults[3].value : [];
-  const heatmapRaw = checkoutResults[4].status === "fulfilled" ? checkoutResults[4].value : [];
+  const totalCheckouts = settledReportValue(checkoutResults[0], 0, "checkout total", partialFailures);
+  const overdueCheckouts = settledReportValue(checkoutResults[1], 0, "overdue total", partialFailures);
+  const recentCheckouts = settledReportValue(checkoutResults[2], [], "recent checkouts", partialFailures);
+  const topRequesters = settledReportValue(checkoutResults[3], [], "top requesters", partialFailures);
+  const heatmapRaw = settledReportValue(checkoutResults[4], [], "checkout activity", partialFailures);
 
   const requesterIds = topRequesters.map((r) => r.requesterUserId);
-  const users =
+  const userResults = await Promise.allSettled([
     requesterIds.length > 0
-      ? await db.user.findMany({
+      ? db.user.findMany({
           where: { id: { in: requesterIds } },
           select: { id: true, name: true }
         })
-      : [];
+      : Promise.resolve([]),
+  ]);
+  const users = settledReportValue(userResults[0], [], "requester names", partialFailures);
   const userMap = Object.fromEntries(users.map((u) => [u.id, u.name]));
 
   // Build day → count map from the 365-day aggregate, then derive both series.
@@ -532,6 +593,7 @@ export async function getCheckoutReport(days: number, focusDate?: string | null)
     totalCheckouts,
     previousTotalCheckouts,
     overdueCheckouts,
+    partialFailures,
     dailyTrend,
     heatmap,
     recentCheckouts: recentCheckouts.map((checkout) => mapCheckoutReportEntry(checkout, now)),

@@ -187,6 +187,7 @@ describe("reports service", () => {
     const report = await getCheckoutReport(30);
 
     expect(report.totalCheckouts).toBe(7);
+    expect(report.partialFailures).toEqual([]);
     expect(db.booking.count).toHaveBeenNthCalledWith(1, {
       where: expect.objectContaining({
         kind: "CHECKOUT",

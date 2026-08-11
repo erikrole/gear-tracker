@@ -13,6 +13,7 @@ final class ReportModelsTests: XCTestCase {
     {
       "activeAssets": 190,
       "days": 30,
+      "partialFailures": ["idle gear list"],
       "totalAssets": 198,
       "statusCounts": {
         "AVAILABLE": 187,
@@ -64,6 +65,7 @@ final class ReportModelsTests: XCTestCase {
 
         XCTAssertEqual(report.days, 30)
         XCTAssertEqual(report.activeAssets, 190)
+        XCTAssertEqual(report.partialFailures, ["idle gear list"])
         XCTAssertEqual(report.totalAssets, 198)
         let custody = try XCTUnwrap(report.custody)
         XCTAssertEqual(custody.assetsUsed, 56)
@@ -206,5 +208,125 @@ final class ReportModelsTests: XCTestCase {
 
     func testNearestReturnsNilForAnEmptySeries() {
         XCTAssertNil(ReportTrendPoint.nearest(to: Date(), in: []))
+    }
+}
+
+private actor ReportLoaderGate {
+    private var continuations: [Int: CheckedContinuation<Void, Never>] = [:]
+
+    func wait(for days: Int) async {
+        await withCheckedContinuation { continuation in
+            continuations[days] = continuation
+        }
+    }
+
+    func waitUntilBlocked(_ days: Int) async {
+        while continuations[days] == nil {
+            await Task.yield()
+        }
+    }
+
+    func resume(_ days: Int) {
+        continuations.removeValue(forKey: days)?.resume()
+    }
+}
+
+private func makeUtilizationReport(days: Int, total: Int) -> UtilizationReport {
+    UtilizationReport(
+        days: days,
+        activeAssets: total,
+        partialFailures: nil,
+        totalAssets: total,
+        statusCounts: ["AVAILABLE": total],
+        custody: nil
+    )
+}
+
+private func makeCheckoutActivityReport(days: Int, total: Int) -> CheckoutActivityReport {
+    CheckoutActivityReport(
+        days: days,
+        partialFailures: nil,
+        totalCheckouts: total,
+        previousTotalCheckouts: nil,
+        overdueCheckouts: 0,
+        dailyTrend: []
+    )
+}
+
+@MainActor
+final class ReportsViewModelTests: XCTestCase {
+    private enum StubError: LocalizedError {
+        case unavailable
+
+        var errorDescription: String? { "Stub endpoint unavailable." }
+    }
+
+    func testOneEndpointFailureKeepsTheSuccessfulReport() async {
+        let vm = ReportsViewModel(
+            utilizationLoader: { days in makeUtilizationReport(days: days, total: 7) },
+            checkoutLoader: { _ in throw StubError.unavailable }
+        )
+
+        await vm.load()
+
+        XCTAssertEqual(vm.utilization?.totalAssets, 7)
+        XCTAssertNil(vm.checkouts)
+        XCTAssertEqual(vm.error, "Checkout activity could not refresh: Stub endpoint unavailable.")
+        XCTAssertNil(vm.lastLoadedAt)
+        XCTAssertFalse(vm.isLoading)
+    }
+
+    func testNewestPeriodOwnsPublishedResultsAndLoadingState() async {
+        let gate = ReportLoaderGate()
+        let vm = ReportsViewModel(
+            utilizationLoader: { days in
+                await gate.wait(for: days)
+                return makeUtilizationReport(days: days, total: days)
+            },
+            checkoutLoader: { days in makeCheckoutActivityReport(days: days, total: days) }
+        )
+
+        let oldLoad = Task { await vm.load() }
+        await gate.waitUntilBlocked(30)
+
+        vm.days = 90
+        let newLoad = Task { await vm.load() }
+        await gate.waitUntilBlocked(90)
+        await gate.resume(90)
+        await newLoad.value
+
+        XCTAssertEqual(vm.utilization?.days, 90)
+        XCTAssertEqual(vm.checkouts?.days, 90)
+        XCTAssertFalse(vm.isLoading)
+
+        await gate.resume(30)
+        await oldLoad.value
+
+        XCTAssertEqual(vm.utilization?.days, 90)
+        XCTAssertEqual(vm.checkouts?.days, 90)
+        XCTAssertFalse(vm.isLoading)
+    }
+
+    func testPartialResponseStaysVisibleButDoesNotBecomeFresh() async {
+        let vm = ReportsViewModel(
+            utilizationLoader: { days in
+                UtilizationReport(
+                    days: days,
+                    activeAssets: 4,
+                    partialFailures: ["most-used gear"],
+                    totalAssets: 4,
+                    statusCounts: ["AVAILABLE": 4],
+                    custody: nil
+                )
+            },
+            checkoutLoader: { days in makeCheckoutActivityReport(days: days, total: 2) }
+        )
+
+        await vm.load()
+
+        XCTAssertEqual(vm.utilization?.totalAssets, 4)
+        XCTAssertEqual(vm.checkouts?.totalCheckouts, 2)
+        XCTAssertEqual(vm.error, "Utilization is incomplete: most-used gear.")
+        XCTAssertNil(vm.lastLoadedAt)
     }
 }

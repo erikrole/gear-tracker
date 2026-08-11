@@ -55,30 +55,49 @@ export const POST = withAuth(async (req, { user }) => {
 
   const ids = Array.from(new Set(body.entityIds));
 
-  // Per-id findFirst against the (entityType, entityId, createdAt) index.
-  // Bounds each query to one row instead of scanning every audit row for
-  // the entity set.
-  const rows = await Promise.all(
-    ids.map((entityId) =>
-      db.auditLog.findFirst({
-        where: { entityType: body.entityType, entityId },
-        orderBy: { createdAt: "desc" },
+  // Resolve all requested IDs in two bounded queries. The aggregate finds the
+  // newest timestamp per entity; the second query fetches those rows with
+  // actor context. Ordering by id gives a deterministic winner if two audit
+  // entries for one entity share the same timestamp.
+  const latestTimestamps = await db.auditLog.groupBy({
+    by: ["entityId"],
+    where: {
+      entityType: body.entityType,
+      entityId: { in: ids },
+    },
+    _max: { createdAt: true },
+  });
+  const latestEntries = latestTimestamps.flatMap((entry) =>
+    entry._max.createdAt
+      ? [{ entityId: entry.entityId, createdAt: entry._max.createdAt }]
+      : [],
+  );
+
+  const rows = latestEntries.length > 0
+    ? await db.auditLog.findMany({
+        where: {
+          entityType: body.entityType,
+          OR: latestEntries.map((entry) => ({
+            entityId: entry.entityId,
+            createdAt: entry.createdAt,
+          })),
+        },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         select: {
           entityId: true,
           action: true,
           createdAt: true,
           actor: { select: { id: true, name: true } },
         },
-      }),
-    ),
-  );
+      })
+    : [];
 
   const latestByEntity: Record<
     string,
     { action: string; createdAt: string; actor: { id: string; name: string } | null }
   > = {};
   for (const row of rows) {
-    if (!row) continue;
+    if (latestByEntity[row.entityId]) continue;
     latestByEntity[row.entityId] = {
       action: row.action,
       createdAt: row.createdAt.toISOString(),

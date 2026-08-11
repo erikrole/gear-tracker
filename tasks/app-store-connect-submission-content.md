@@ -1,6 +1,6 @@
 # App Store Connect Submission Content — Wisconsin Creative
 
-Drafted: 2026-07-08. Updated: 2026-08-09 for the Build 24 TestFlight candidate. Paste-ready copy for the `Wisconsin` app's first Unlisted App Store submission. Kiosk (`WisconsinKiosk`) stays off the Store entirely; this content is for the main app only.
+Drafted: 2026-07-08. Updated: 2026-08-10 for the Build 25 TestFlight candidate. Paste-ready copy for the `Wisconsin` app's first Unlisted App Store submission. Kiosk (`WisconsinKiosk`) stays off the Store entirely; this content is for the main app only.
 
 Sources used: `docs/AREA_PUBLIC_SHOWROOM.md`, `src/lib/public-showroom.ts`, `tasks/app-privacy-data-inventory.md`, `ios/Wisconsin/Supporting/PrivacyInfo.xcprivacy`, `scripts/seed-app-review-demo.mjs`, `ios/project.yml`.
 
@@ -129,43 +129,33 @@ No video is required for the initial submission. The written notes, fictional ac
 
 ## Version Information
 
-**Build 24 release notes** (TestFlight/internal candidate):
+**Build 25 release notes** (TestFlight/internal candidate):
 ```
-Schedule changes are safer and clearer: staff can prepare crew updates privately, review
-them before release, and see exactly when assignments will become visible.
+Reports, badge rewards, and clearer shift coverage arrive in this build.
 
 NEW
 
-Account access
-- Create an invited account directly in the app.
-- Request password help without being sent to a browser.
-- Get early guidance when an athletics email address may cause sign-in trouble, without
-  changing the address you entered.
+Reports
+- Staff and Admin can open Reports from Browse.
+- Compare 30-day and 90-day custody utilization, checkout activity, status mix, most-used
+  gear, and idle inventory.
+- Inspect a selected day directly in the checkout activity chart.
 
-Schedule
-- Add, assign, replace, duplicate, and remove shifts inside a private working schedule.
-- Review or revert pending changes before they release automatically after ten quiet minutes.
-- Replace an assigned Staff or Student while conflict, availability, linked-booking, and
-  active-trade checks stay enforced.
-- See call times only where they belong. Student assignments show their report time, while
-  Staff and collaborator assignments keep event context without presenting event time as a
-  personal call time.
+Badges
+- See newly earned automatic badges in a focused celebration without replaying old awards.
 
 IMPROVED
 
-Bookings and gear
-- Extend, edit, cancel, and transfer bookings with the latest saved status and available
-  actions reflected immediately.
-- See every linked event on booking detail.
-- Clear item names, serial numbers, and notes intentionally when those fields no longer apply.
+Schedule and trades
+- Trade Board separates shifts you can claim from shifts blocked by availability.
+- Trade posts and Open Work load independently, with a focused retry when either source fails.
+- Crew rows and booking creation have lighter performance instrumentation and loading work.
 
 FIXED
 
-- Stale booking edits now ask you to refresh instead of overwriting a newer change.
-- Booking actions stay aligned with current permissions and lifecycle state.
-- Successful saves no longer appear to fail because a follow-up refresh had trouble.
-- Registration and password-recovery screens remain fully native and consistent with the
-  current server contract.
+- Report charts use dedicated chart colours for calmer, more consistent light and dark mode
+  contrast.
+- Trade Board no longer reports an all-clear state when one data source is unavailable.
 ```
 
 **Promotional text** (170 char max, editable anytime without re-review):
@@ -214,7 +204,7 @@ gear,equipment,reservation,checkout,inventory,schedule,shift,scan,barcode,athlet
 
 ## Compliance and Legal Fields
 
-- **Export compliance:** No non-exempt encryption. The submitted target declares `ITSAppUsesNonExemptEncryption = false`. Confirm the processed Build 24 record shows the same answer.
+- **Export compliance:** No non-exempt encryption. The submitted target declares `ITSAppUsesNonExemptEncryption = false`. Confirm the processed Build 25 record shows the same answer.
 - **Content rights:** confirm Yes only after the Account Holder confirms rights to the Wisconsin branding, app icon, submitted screenshots, and fictional review assets.
 - **Digital Services Act:** use the organization-level trader status already established by the Account Holder. Do not infer or change this from repository content.
 - **Custom license agreement:** none is required by the app. Use Apple's standard EULA unless the Account Holder has an approved institutional agreement.
@@ -223,40 +213,26 @@ gear,equipment,reservation,checkout,inventory,schedule,shift,scan,barcode,athlet
 
 ## TestFlight
 
-**What to Test** (Build 24, attached to App Store Connect):
+**What to Test** (Build 25, attached to App Store Connect):
 ```
-Account access
-- From Sign In, create an account using a valid invitation.
-- Confirm an @athletics.wisc.edu address shows guidance without rewriting or blocking it.
-- Request password help and confirm the app reports the safe result without opening a browser.
+Reports
+- As Staff or Admin, open Browse > Reports and compare the 30-day and 90-day views.
+- Check custody utilization, checkout activity, status mix, most-used gear, and idle inventory
+  against the web dashboard.
+- Tap a day in the activity chart and confirm its selected count is clear in light and dark mode.
 
-Schedule
-- As Staff or Admin, open an event and add, assign, replace, duplicate, or remove a shift.
-- Confirm edits stay private while pending and the release countdown is visible.
-- Make another edit and confirm the ten-minute countdown restarts.
-- Use Revert and confirm pending changes are discarded without changing the worker-visible
-  schedule.
-- Replace an assigned Staff or Student and confirm conflicts, unavailable people, active
-  trades, and linked bookings are handled clearly.
-- Confirm Students see their call time while Staff and collaborators do not see event time
-  presented as their personal report time.
+Badges
+- Earn an eligible automatic badge and confirm its celebration appears once without replaying
+  earlier awards after relaunch.
 
-Bookings
-- Extend a booking from both the booking list and booking detail.
-- Edit, transfer, and cancel bookings, then confirm status and available actions update
-  immediately.
-- Change the same booking elsewhere first, then try an older edit and confirm the app asks
-  you to refresh instead of overwriting the newer change.
-- Open a booking connected to multiple events and confirm every linked event appears.
+Schedule and trades
+- Open Trade Board and confirm claimable, blocked, claimed, and unavailable shifts are clear.
+- If Trade posts or Open Work fails, confirm the successful section remains visible and the
+  failed section offers its own retry.
+- Confirm the board never says coverage is clear while either source is unavailable.
 
-Items
-- Edit an item and clear its name, serial number, or notes.
-- Reopen the item and confirm the cleared values remain cleared.
-- Confirm a successful save remains successful even if a later refresh is unavailable.
-
-Please report stale booking actions, overwritten changes, incorrect call times, missing
-linked events, item fields that return after being cleared, or Schedule changes that appear
-before release.
+Please report incorrect report totals, chart colours that are hard to read, duplicate badge
+celebrations, stale trade actions, false all-clear states, or slow navigation.
 ```
 
 **Beta App Review Information:** same demo account and notes as App Review Information above — TestFlight external testing also goes through Apple review on first submission.

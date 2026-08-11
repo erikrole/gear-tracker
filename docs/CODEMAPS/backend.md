@@ -43,7 +43,7 @@
 | `src/lib/services/notifications.ts` | 1354 |
 | `src/lib/services/onboarding-lifecycle.ts` | 766 |
 | `src/lib/services/pending-pickup-expiry.ts` | 281 |
-| `src/lib/services/reports.ts` | 1865 |
+| `src/lib/services/reports.ts` | 1927 |
 | `src/lib/services/reservation-rules.ts` | 46 |
 | `src/lib/services/reservation-schedule.ts` | 665 |
 | `src/lib/services/scans.ts` | 671 |
