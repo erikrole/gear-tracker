@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Dashboard
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-08
+- Last Updated: 2026-08-13
 - Status: Active — V3 shipped, reliability + UX polish complete
 - Version: V3
 
@@ -286,4 +286,5 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - 2026-05-06: **DevTools cleanup pass**: Upcoming event titles now keep sport and home/away text separated for both visual and accessibility output. Authenticated Chrome DevTools smoke testing found no dashboard API failures; remaining abort/retry entries are intentional stale-request cancellation during dev remounts.
 - 2026-05-06: **Upcoming Events quick-view parity**: Dashboard upcoming events now carry schedule-style read-only coverage metadata from `/api/dashboard` and render event identity, time/location, home/away state, staffing avatars, coverage count, open-slot warning, and home call time where available. Quick-create booking controls were removed from the widget; `/schedule` remains the full management surface.
 - 2026-05-07: **Avatar stack cleanup**: Dashboard gear previews now use a shared item thumbnail stack, while assigned-staff previews use the shared people avatar group with consistent tooltip and overflow behavior.
+- 2026-08-13: **Team abbreviation display correction.** Dashboard booking rows, event projections, overdue items, drafts, and event-linked work now render known abbreviated team names such as `TCU`, `USC`, and `UCLA` in all caps, including legacy values, without rewriting stored booking or calendar-source data.
 - 2026-05-08: **API hardening Wave 13**: Dashboard stats polling allowance increased to 180/min/user so 30s mobile refresh cadences have headroom without removing abuse protection.

@@ -23,4 +23,15 @@ describe("dashboardEventTitle", () => {
       }),
     ).toBe("Football vs Ohio State");
   });
+
+  it("corrects legacy abbreviated opponent casing in dashboard labels", () => {
+    expect(
+      dashboardEventTitle({
+        title: "Women's Soccer vs Tcu",
+        sportCode: "WSOC",
+        opponent: "Tcu",
+        isHome: true,
+      }),
+    ).toBe("Women's Soccer vs TCU");
+  });
 });

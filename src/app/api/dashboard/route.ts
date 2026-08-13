@@ -4,6 +4,7 @@ import { HttpError, ok } from "@/lib/http";
 import { getInitials } from "@/lib/avatar";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { shiftWorkerLabel } from "@/lib/shift-display";
+import { normalizeTeamAbbreviations } from "@/lib/title-normalization";
 import { readDashboardCounts, zeroDashboardCounts } from "@/lib/services/dashboard-counts";
 import { startOfDayInAppTz } from "@/lib/app-time";
 import { hasCollaboratorCapability } from "@/lib/collaborator-access";
@@ -64,7 +65,7 @@ function toBookingSummary(c: {
   return {
     id: c.id,
     kind: c.kind,
-    title: c.title,
+    title: normalizeTeamAbbreviations(c.title),
     refNumber: c.refNumber,
     eventId: c.eventId ?? null,
     eventIds,
@@ -616,14 +617,14 @@ export const GET = withAuth(async (req, { user }) => {
     }
     return {
       id: e.id,
-      title: e.summary,
+      title: normalizeTeamAbbreviations(e.summary),
       sportCode: e.sportCode ?? null,
       startsAt: e.startsAt.toISOString(),
       endsAt: e.endsAt.toISOString(),
       allDay: e.allDay,
       location: e.location?.name ?? null,
       locationId: e.location?.id ?? null,
-      opponent: e.opponent ?? null,
+      opponent: e.opponent ? normalizeTeamAbbreviations(e.opponent) : null,
       isHome: e.isHome ?? null,
       coverage,
       callTime: e.isHome === true && earliestShift ? earliestShift.toISOString() : null,
@@ -635,7 +636,7 @@ export const GET = withAuth(async (req, { user }) => {
 
   const overdueItems = topOverdue.map((b) => ({
     bookingId: b.id,
-    bookingTitle: b.title,
+    bookingTitle: normalizeTeamAbbreviations(b.title),
     requesterName: b.requester.name,
     requesterInitials: getInitials(b.requester.name),
     requesterAvatarUrl: b.requester.avatarUrl ?? null,
@@ -692,11 +693,11 @@ export const GET = withAuth(async (req, { user }) => {
       callNote: a.callNote,
       event: {
         id: ev.id,
-        summary: ev.summary,
+        summary: normalizeTeamAbbreviations(ev.summary),
         startsAt: ev.startsAt.toISOString(),
         endsAt: ev.endsAt.toISOString(),
         sportCode: ev.sportCode,
-        opponent: ev.opponent,
+        opponent: ev.opponent ? normalizeTeamAbbreviations(ev.opponent) : null,
         isHome: ev.isHome,
         locationId: ev.locationId,
         locationName: ev.location?.name ?? null,
@@ -724,12 +725,12 @@ export const GET = withAuth(async (req, { user }) => {
       id: ev.id,
           event: {
             id: ev.id,
-            summary: ev.summary,
+            summary: normalizeTeamAbbreviations(ev.summary),
             startsAt: ev.startsAt.toISOString(),
             endsAt: ev.endsAt.toISOString(),
             allDay: ev.allDay,
             sportCode: ev.sportCode,
-            opponent: ev.opponent,
+            opponent: ev.opponent ? normalizeTeamAbbreviations(ev.opponent) : null,
             isHome: ev.isHome,
         locationId: ev.locationId,
         locationName: ev.location?.name ?? null,
@@ -799,7 +800,7 @@ export const GET = withAuth(async (req, { user }) => {
       drafts: myDrafts.map((d) => ({
         id: d.id,
         kind: d.kind,
-        title: d.title,
+        title: normalizeTeamAbbreviations(d.title),
         itemCount: d._count.serializedItems + d._count.bulkItems,
         updatedAt: d.updatedAt.toISOString(),
       })),
@@ -813,7 +814,7 @@ export const GET = withAuth(async (req, { user }) => {
           assetTag: r.asset.assetTag,
           assetName: r.asset.name,
           type: r.type as "DAMAGED" | "LOST",
-          bookingTitle: r.booking.title,
+          bookingTitle: normalizeTeamAbbreviations(r.booking.title),
           reportedBy: r.reportedBy.name,
           imageUrl: r.imageUrl ?? null,
           createdAt: r.createdAt.toISOString(),

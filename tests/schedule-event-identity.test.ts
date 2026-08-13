@@ -16,6 +16,11 @@ describe("schedule event identity normalization", () => {
     expect(normalizeOpponentName("#12 Louisville University - Invitational")).toBe("Louisville - Invitational");
   });
 
+  it("keeps abbreviated team names in all caps", () => {
+    expect(normalizeOpponentName("Tcu - Big 12")).toBe("TCU - Big 12");
+    expect(normalizeOpponentName("Usc / Ucla")).toBe("USC / UCLA");
+  });
+
   it("normalizes venue spelling for matching while preserving city context", () => {
     expect(normalizeVenueText("Green Bay, Wis.,  Lambeau Field")).toBe("Green Bay, WI, Lambeau Field");
     expect(buildVenueSearchText("Madison, Wis., Mcclimon Track / Soccer Complex")).toBe(

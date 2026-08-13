@@ -1,3 +1,5 @@
+import { normalizeTeamAbbreviations } from "./title-normalization";
+
 /** Known team-name prefixes to strip from ICS summaries (case-insensitive). */
 const SOURCE_TEAM_PREFIXES = ["Wisconsin Athletics", "Wisconsin Badgers"];
 
@@ -47,7 +49,9 @@ export function normalizeOpponentName(raw: string | null | undefined): string | 
   if (!cleaned) cleaned = primary.trim();
 
   const qualifier = qualifierParts.join(" - ").trim();
-  return [cleaned, qualifier].filter(Boolean).join(" - ") || null;
+  return [normalizeTeamAbbreviations(cleaned), normalizeTeamAbbreviations(qualifier)]
+    .filter(Boolean)
+    .join(" - ") || null;
 }
 
 export function normalizeVenueText(raw: string | null | undefined): string | null {

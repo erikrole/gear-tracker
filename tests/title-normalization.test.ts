@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   normalizeBookingTitle,
   normalizeManualEventTitle,
+  normalizeTeamAbbreviations,
 } from "@/lib/title-normalization";
 import { splitEventsForSync } from "@/lib/services/calendar-sync";
 
@@ -16,6 +17,8 @@ describe("operational title normalization", () => {
     ["WSOC at NORTHWESTERN", "WSOC at Northwestern"],
     ["WBB/MBB PRACTICE", "WBB/MBB Practice"],
     ["iPad and YouTube setup", "iPad and YouTube Setup"],
+    ["Women's Soccer vs Tcu", "Women's Soccer vs TCU"],
+    ["WSOC at Ucla", "WSOC at UCLA"],
   ])("normalizes booking title %j to %j", (input, expected) => {
     expect(normalizeBookingTitle(input)).toBe(expected);
   });
@@ -38,6 +41,13 @@ describe("operational title normalization", () => {
 
   it("uses the same rule for manually authored event titles", () => {
     expect(normalizeManualEventTitle("mbb PRACTICE")).toBe("MBB Practice");
+  });
+
+  it("corrects known team abbreviations in existing display values", () => {
+    expect(normalizeTeamAbbreviations("Women's Soccer vs Tcu / Usc / Ucla")).toBe(
+      "Women's Soccer vs TCU / USC / UCLA",
+    );
+    expect(normalizeTeamAbbreviations("Iowa at UConn")).toBe("Iowa at UConn");
   });
 
   it("preserves non-UW acronyms in imported event summaries", () => {

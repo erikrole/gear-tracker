@@ -30,6 +30,20 @@ describe("scheduleEventTitleParts", () => {
     });
   });
 
+  it("corrects legacy abbreviated opponent casing", () => {
+    expect(
+      scheduleEventTitleParts({
+        summary: "Wisconsin Athletics Women's Soccer vs Tcu",
+        sportCode: "WSOC",
+        opponent: "Tcu",
+        isHome: true,
+      }),
+    ).toEqual({
+      title: "Women's Soccer vs TCU",
+      detail: null,
+    });
+  });
+
   it("uses neutral-site location as the secondary line for structured games", () => {
     expect(
       scheduleEventTitleParts({

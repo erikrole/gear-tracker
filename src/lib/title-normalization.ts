@@ -5,6 +5,16 @@ const LOWERCASE_TITLE_WORDS = new Set([
 ]);
 
 /**
+ * Team abbreviations that are conventionally written as all caps.
+ * Keep this explicit so ordinary team names such as Iowa still title-case.
+ */
+export const TEAM_ABBREVIATION_TERMS = new Set([
+  "ASU", "BYU", "CSU", "ECU", "ETSU", "FAU", "FGCU", "FIU", "LSU", "LIU", "NIU", "NDSU", "ODU",
+  "OSU", "SDSU", "SFA", "SIU", "SIUE", "SMU", "TCU", "UAB", "UCF", "UCLA", "UIC", "UMBC", "UMKC",
+  "UNLV", "USC", "USF", "UTEP", "UTRGV", "UTSA", "VCU", "WKU", "WSU",
+]);
+
+/**
  * Terms that are always written in full caps, regardless of how they were typed or imported.
  * Sport codes are handled separately via SPORT_CODE_SET. Only add terms that are never a
  * normal English word in lowercase, otherwise ordinary titles get shouted at.
@@ -24,6 +34,17 @@ export const ALWAYS_UPPERCASE_TERMS = new Set([
 
 const WORD_PATTERN = /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu;
 
+/** Correct known team abbreviations in legacy display values without changing other words. */
+export function normalizeTeamAbbreviations(value: string): string {
+  return value.replace(WORD_PATTERN, (word) => {
+    const possessive = /^(.+)(['’])s$/iu.exec(word);
+    const stem = possessive?.[1] ?? word;
+    const normalizedStem = stem.toUpperCase();
+    if (!TEAM_ABBREVIATION_TERMS.has(normalizedStem)) return word;
+    return possessive ? `${normalizedStem}${possessive[2]}s` : normalizedStem;
+  });
+}
+
 /** Standardize an operational title while preserving UW sport codes and camel-cased product names. */
 export function normalizeOperationalTitle(value: string): string {
   const title = value.trim().replace(/\s+/g, " ");
@@ -31,14 +52,14 @@ export function normalizeOperationalTitle(value: string): string {
 
   return title.replace(WORD_PATTERN, (word, offset: number) => {
     const normalizedCode = word.toUpperCase();
-    if (SPORT_CODE_SET.has(normalizedCode)) return normalizedCode;
+    if (SPORT_CODE_SET.has(normalizedCode) || TEAM_ABBREVIATION_TERMS.has(normalizedCode)) return normalizedCode;
     if (ALWAYS_UPPERCASE_TERMS.has(normalizedCode)) return normalizedCode;
 
     // "b1g's" / "uw's" keep the term uppercase and the possessive lowercase.
     const possessive = /^(.+)(['’])s$/iu.exec(word);
     if (possessive) {
       const stem = (possessive[1] ?? "").toUpperCase();
-      if (SPORT_CODE_SET.has(stem) || ALWAYS_UPPERCASE_TERMS.has(stem)) {
+      if (SPORT_CODE_SET.has(stem) || TEAM_ABBREVIATION_TERMS.has(stem) || ALWAYS_UPPERCASE_TERMS.has(stem)) {
         return `${stem}${possessive[2]}s`;
       }
     }

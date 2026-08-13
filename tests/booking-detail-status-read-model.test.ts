@@ -49,6 +49,14 @@ describe("getBookingDetail status read model", () => {
     expect(detail.isActive).toBe(true);
   });
 
+  it("corrects legacy abbreviated team casing in the detail read model", async () => {
+    vi.mocked(db.booking.findUnique).mockResolvedValue(booking({ title: "Women's Soccer vs Tcu" }) as never);
+
+    const detail = await getBookingDetail("booking-1");
+
+    expect(detail.title).toBe("Women's Soccer vs TCU");
+  });
+
   it("does not mark pending pickup as overdue from the return due date", async () => {
     vi.mocked(db.booking.findUnique).mockResolvedValue(booking({
       kind: "CHECKOUT",

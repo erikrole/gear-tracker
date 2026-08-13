@@ -5,6 +5,7 @@ import {
 } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError, parsePagination } from "@/lib/http";
+import { normalizeTeamAbbreviations } from "@/lib/title-normalization";
 import { optionalSportCodeSchema } from "@/lib/validation";
 import { bookingInclude } from "./bookings-helpers";
 
@@ -133,7 +134,16 @@ export async function listBookings(
     db.booking.count({ where })
   ]);
 
-  return { data, total, limit, offset };
+  return {
+    data: data.map((booking) => ({
+      ...booking,
+      // Correct legacy display values without rewriting stored/audit data.
+      title: normalizeTeamAbbreviations(booking.title),
+    })),
+    total,
+    limit,
+    offset,
+  };
 }
 
 export async function getBookingDetail(bookingId: string) {
@@ -255,6 +265,8 @@ export async function getBookingDetail(bookingId: string) {
 
   return {
     ...rest,
+    // Correct legacy display values without rewriting stored/audit data.
+    title: normalizeTeamAbbreviations(rest.title),
     events: linkedEvents,
     isOverdue,
     isActive,

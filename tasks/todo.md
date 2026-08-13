@@ -291,11 +291,12 @@ Plan: `tasks/event-shift-working-schedule-plan.md`
 - [x] Add focused utility, persistence, and audit regression coverage.
 - [x] Apply the same rule to manual, edited, restored, and ICS-synced scheduled events while retaining raw source summaries.
 - [x] Correct the event boundary: keep normalization for manual titles, but preserve source casing for ICS sync and calendar-title restore so external acronyms remain intact.
+- [x] Canonicalize known abbreviated team names such as `TCU`, `USC`, and `UCLA` in new/edited titles plus dashboard, booking, and structured-opponent read models.
 
 ### Review
 
 - **Shipped:** New and edited booking titles plus titles on manual event records store one normalized display value. Imported events retain source casing through sync, staff title edits, and calendar-title restore, so acronyms such as `USC`, `UCLA`, and `TCU` remain uppercase. Examples for manual input: `MBB practice` becomes `MBB Practice`; `MBB GOLF` becomes `MBB Golf`; `MBB vs IOWA` becomes `MBB vs Iowa`.
-- **Boundary:** Existing stored bookings and events are not silently rewritten by a read. They normalize the next time their title is edited; synced events also normalize on their next source update. A separate reviewed backfill would be required to rewrite all historical records in bulk.
+- **Boundary:** Existing stored bookings and events are not silently rewritten by a read. Known team abbreviations are corrected in display/read projections, while a separate reviewed backfill would still be required to rewrite all historical records in bulk.
 
 ## Completed: Native iOS Guides repair, reader polish, and Licenses polish (2026-07-15)
 
