@@ -31,12 +31,20 @@ const mocks = vi.hoisted(() => {
     tx,
     db: { $transaction: vi.fn() },
     createAuditEntryTx: vi.fn(),
+    revokeCompanionUser: vi.fn(),
+    refreshCompanionProjection: vi.fn(),
   };
 });
 
 vi.mock("@/lib/db", () => ({ db: mocks.db }));
 vi.mock("@/lib/audit", () => ({
   createAuditEntryTx: mocks.createAuditEntryTx,
+}));
+vi.mock("@/lib/companion-store", () => ({
+  revokeCompanionUser: mocks.revokeCompanionUser,
+}));
+vi.mock("@/lib/services/companion-projection", () => ({
+  refreshCompanionProjection: mocks.refreshCompanionProjection,
 }));
 
 import { deactivateUserWithCleanup } from "@/lib/services/user-deactivation";
@@ -64,6 +72,8 @@ beforeEach(() => {
   mocks.tx.bulkStockBalance.createMany.mockResolvedValue({ count: 1 });
   mocks.tx.bulkStockMovement.createMany.mockResolvedValue({ count: 4 });
   mocks.createAuditEntryTx.mockResolvedValue(undefined);
+  mocks.revokeCompanionUser.mockResolvedValue(undefined);
+  mocks.refreshCompanionProjection.mockResolvedValue({});
 });
 
 describe("user deactivation pending-pickup stock restoration", () => {
@@ -194,5 +204,7 @@ describe("user deactivation pending-pickup stock restoration", () => {
         },
       ],
     });
+    expect(mocks.refreshCompanionProjection).toHaveBeenCalledTimes(1);
+    expect(mocks.refreshCompanionProjection).toHaveBeenCalledWith({ notify: true });
   });
 });

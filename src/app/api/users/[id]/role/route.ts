@@ -46,6 +46,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   )) {
     throw new HttpError(400, "Choose an active collaborator affiliation");
   }
+
   const legacyBtn = collaboratorPolicy?.affiliation.key === "BIG_TEN_NETWORK";
   const updated = await db.user.update({
     where: { id },
@@ -56,6 +57,13 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       collaboratorPolicyId,
     }
   });
+
+  try {
+    await revokeCompanionUser(id);
+  } catch (error) {
+    console.error("[Companion] failed to revoke role-changed user", error);
+    throw new HttpError(503, "The role changed, but companion access could not be revoked. Retry the role update.");
+  }
 
   await createAuditEntry({
     actorId: user.id,
@@ -76,10 +84,6 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       collaboratorPolicyId: updated.collaboratorPolicyId,
     },
   });
-  await revokeCompanionUser(id).catch((error) => {
-    console.error("[Companion] failed to revoke role-changed user", error);
-  });
-
   return ok({
     data: {
       id: updated.id,

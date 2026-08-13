@@ -5,6 +5,7 @@ import { tokenHash, createKioskSession } from "@/lib/auth";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import { activateBody } from "@/lib/schemas/kiosk";
 import { createSystemAuditEntry } from "@/lib/audit";
+import { deferCompanionProjectionRefreshForCommittedMutation } from "@/lib/services/companion-projection-publisher";
 
 /**
  * Activate a kiosk device with a 6-digit code.
@@ -58,6 +59,7 @@ export const POST = withHandler(async (req) => {
   // Create session (sets cookie) and return the raw token to the native app so
   // it can survive app-container wipes by mirroring the token into Keychain.
   const sessionToken = await createKioskSession(device.id);
+  deferCompanionProjectionRefreshForCommittedMutation(req);
 
   // Audit kiosk activation (no user actor — use device ID as entity)
   await createSystemAuditEntry({

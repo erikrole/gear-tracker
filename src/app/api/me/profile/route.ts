@@ -6,6 +6,7 @@ import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 import { createAuditEntry } from "@/lib/audit";
 import { normalizeWiscardNumber } from "@/lib/validation";
 import { normalizeProfilePhone, nullableProfilePhoneSchema, phoneAuditValue } from "@/lib/profile-phone";
+import { deferCompanionProjectionRefreshForCommittedMutation } from "@/lib/services/companion-projection-publisher";
 
 const putSchema = z.object({
   name: z.string().min(1, "Name is required").max(100).transform((s) => s.trim()),
@@ -93,6 +94,7 @@ export const PUT = withAuth(async (req, { user }) => {
       data: { name: body.name },
       select: { id: true, name: true, avatarUrl: true },
     });
+    deferCompanionProjectionRefreshForCommittedMutation(req);
     await createAuditEntry({
       actorId: user.id,
       actorRole: user.role,
@@ -178,6 +180,7 @@ export const PUT = withAuth(async (req, { user }) => {
     }
     throw err;
   }
+  deferCompanionProjectionRefreshForCommittedMutation(req);
 
   await createAuditEntry({
     actorId: user.id,

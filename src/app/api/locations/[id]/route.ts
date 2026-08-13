@@ -5,6 +5,7 @@ import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
+import { deferCompanionProjectionRefreshForCommittedMutation } from "@/lib/services/companion-projection-publisher";
 
 const updateLocationSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
@@ -26,6 +27,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     where: { id },
     data: body,
   });
+  deferCompanionProjectionRefreshForCommittedMutation(req);
 
   await createAuditEntry({
     actorId: user.id,

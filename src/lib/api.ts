@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 import { requireAuth, requireKiosk, type AuthUser, type KioskContext } from "@/lib/auth";
 import { env } from "@/lib/env";
-import { fail, HttpError } from "@/lib/http";
-import { deferCompanionProjectionRefresh } from "@/lib/services/companion-projection";
+import { HttpError } from "@/lib/http";
+import { failRequest, tagRequestJsonParseErrors } from "@/lib/api-handler";
+import { deferCompanionProjectionRefresh } from "@/lib/services/companion-projection-publisher";
+
+export { withHandler } from "@/lib/api-handler";
 
 type AuthCtx<P extends Record<string, string> = Record<string, string>> = {
   user: AuthUser;
-  params: P;
-};
-
-type HandlerCtx<P extends Record<string, string> = Record<string, string>> = {
   params: P;
 };
 
@@ -70,40 +69,6 @@ function isForcePasswordAllowed(req: Request): boolean {
   );
 }
 
-class MalformedRequestJsonError extends Error {
-  constructor(cause: SyntaxError) {
-    super("Request body must be valid JSON", { cause });
-    this.name = "MalformedRequestJsonError";
-  }
-}
-
-function tagRequestJsonParseErrors(req: Request) {
-  const parseJson = req.json.bind(req);
-  Object.defineProperty(req, "json", {
-    configurable: true,
-    value: async () => {
-      try {
-        return await parseJson();
-      } catch (error) {
-        if (error instanceof SyntaxError) {
-          throw new MalformedRequestJsonError(error);
-        }
-        throw error;
-      }
-    },
-  });
-  return req;
-}
-
-function failRequest(error: unknown) {
-  // Only errors tagged at the actual Request.json() boundary are malformed
-  // input. A SyntaxError thrown later by handler code remains a server error.
-  if (error instanceof MalformedRequestJsonError) {
-    return fail(new HttpError(400, "Request body must be valid JSON"));
-  }
-  return fail(error);
-}
-
 /**
  * Authenticated API route handler.
  * Wraps try/catch, calls requireAuth(), and resolves dynamic params.
@@ -161,23 +126,6 @@ export function withKiosk<P extends Record<string, string> = Record<string, stri
       const response = await handler(tagRequestJsonParseErrors(req), { kiosk, params });
       deferCompanionProjectionRefresh(req, response);
       return response;
-    } catch (error) {
-      return failRequest(error);
-    }
-  };
-}
-
-/**
- * Public API route handler (no auth required).
- * Wraps try/catch and resolves dynamic params.
- */
-export function withHandler<P extends Record<string, string> = Record<string, string>>(
-  handler: (req: Request, ctx: HandlerCtx<P>) => Promise<NextResponse>
-) {
-  return async (req: Request, context: { params: Promise<P> }): Promise<NextResponse> => {
-    try {
-      const params = (context?.params ? await context.params : {}) as P;
-      return await handler(tagRequestJsonParseErrors(req), { params });
     } catch (error) {
       return failRequest(error);
     }

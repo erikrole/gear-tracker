@@ -1,15 +1,15 @@
-import { after } from "next/server";
 import { BookingKind, BookingStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import {
   listCompanionDevices,
+  nextCompanionProjectionRevision,
   readCompanionProjection,
   revokeCompanionDeviceTokens,
   writeCompanionProjection,
-  type CompanionRole,
 } from "@/lib/companion-store";
 import { sendCompanionInvalidation } from "@/lib/push/apns";
 import { startOfDayInAppTz } from "@/lib/app-time";
+import type { CompanionProjection } from "@/lib/companion-projection-contract";
 
 const ACTIVE_STATUSES: BookingStatus[] = [
   BookingStatus.BOOKED,
@@ -18,70 +18,9 @@ const ACTIVE_STATUSES: BookingStatus[] = [
 ];
 const RECENT_ACTIVITY_MS = 24 * 60 * 60_000;
 
-export type CompanionProjection = {
-  version: 1;
-  generatedAt: string;
-  stats: {
-    checkedOut: number;
-    overdue: number;
-    reserved: number;
-    dueToday: number;
-  };
-  pendingPickupTotal: number;
-  openBookings: Array<{
-    id: string;
-    title: string;
-    endsAt: Date;
-    refNumber: string | null;
-    requester: { id: string; name: string; avatarUrl: string | null };
-    location: { id: string; name: string };
-    serializedItems: Array<{ id: string }>;
-    bulkItems: Array<{ id: string }>;
-  }>;
-  bookingActivity: Array<{
-    id: string;
-    title: string;
-    kind: BookingKind;
-    status: BookingStatus;
-    startsAt: Date;
-    endsAt: Date;
-    updatedAt: Date;
-    requester: { id: string; name: string; avatarUrl: string | null };
-    location: { id: string; name: string };
-  }>;
-  kioskDevices: Array<{
-    id: string;
-    name: string;
-    location: { id: string; name: string };
-    active: boolean;
-    activated: boolean;
-    lastSeenAt: Date | null;
-    appVersion: string | null;
-    appBuild: string | null;
-    osVersion: string | null;
-    deviceModel: string | null;
-    pendingPickupCount: number;
-    openCheckoutCount: number;
-  }>;
-};
-
-export type CompanionProjectionResponse = Omit<CompanionProjection, "kioskDevices"> & {
-  kioskDevices: CompanionProjection["kioskDevices"];
-  kioskAccess: "available" | "restricted";
-};
-
-export function projectionForRole(
-  projection: CompanionProjection,
-  role: CompanionRole,
-): CompanionProjectionResponse {
-  return {
-    ...projection,
-    kioskDevices: role === "ADMIN" ? projection.kioskDevices : [],
-    kioskAccess: role === "ADMIN" ? "available" : "restricted",
-  };
-}
-
-export async function buildCompanionProjection(now = new Date()): Promise<CompanionProjection> {
+export async function buildCompanionProjection(
+  now = new Date(),
+): Promise<Omit<CompanionProjection, "revision">> {
   const recentCutoff = new Date(now.getTime() - RECENT_ACTIVITY_MS);
   const [bookings, devices] = await Promise.all([
     db.booking.findMany({
@@ -226,7 +165,11 @@ export async function refreshCompanionProjection(options: {
   notify: boolean;
 }): Promise<CompanionProjection> {
   const previous = options.notify ? await readCompanionProjection<CompanionProjection>() : null;
-  const projection = await buildCompanionProjection();
+  // Reserve ordering before the database read. A later-started build receives
+  // a higher revision, so an older overlapping read cannot finish late and
+  // overwrite newer operational truth.
+  const revision = await nextCompanionProjectionRevision();
+  const projection = { ...await buildCompanionProjection(), revision };
   const installed = await writeCompanionProjection(projection);
 
   // Another serverless invocation may have published a newer projection while
@@ -248,31 +191,4 @@ export async function refreshCompanionProjection(options: {
     }
   }
   return projection;
-}
-
-export function shouldPublishCompanionProjection(req: Request, response: Response): boolean {
-  if (!response.ok || req.method === "GET" || req.method === "HEAD") return false;
-  const path = new URL(req.url).pathname;
-  return (
-    path.startsWith("/api/bookings") ||
-    path.startsWith("/api/checkouts") ||
-    path.startsWith("/api/kiosk/checkout") ||
-    path.startsWith("/api/kiosk/pickup") ||
-    path.startsWith("/api/kiosk/checkin") ||
-    path.startsWith("/api/kiosk/heartbeat") ||
-    path.startsWith("/api/kiosk-devices") ||
-    (/^\/api\/users\/[^/]+\/avatar$/.test(path))
-  );
-}
-
-export function deferCompanionProjectionRefresh(req: Request, response: Response): void {
-  if (!shouldPublishCompanionProjection(req, response) || process.env.NODE_ENV === "test") return;
-  const task = () => refreshCompanionProjection({ notify: true }).catch((error) => {
-    console.error("[Companion] projection refresh failed", error);
-  });
-  try {
-    after(task);
-  } catch {
-    void task();
-  }
 }

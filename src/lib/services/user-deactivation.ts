@@ -12,6 +12,7 @@ import { HttpError } from "@/lib/http";
 import { createShiftScheduleNotification } from "@/lib/services/notifications";
 import { releaseReservationManagedAssignmentTx } from "@/lib/services/reservation-schedule";
 import { revokeCompanionUser } from "@/lib/companion-store";
+import { refreshCompanionProjection } from "@/lib/services/companion-projection";
 
 export type UserDeactivationResult = {
   cancelledIds: string[];
@@ -349,12 +350,33 @@ export async function deactivateUserWithCleanup(args: {
     return result;
   }, { isolationLevel: "Serializable" });
 
-  await Promise.all(releasedAssignmentIds.map((assignmentId) =>
-    createShiftScheduleNotification(assignmentId, "removed"),
-  ));
-  await revokeCompanionUser(targetUserId).catch((error) => {
+  let companionRevocationError: unknown;
+  try {
+    await revokeCompanionUser(targetUserId);
+  } catch (error) {
+    companionRevocationError = error;
     console.error("[Companion] failed to revoke deactivated user", error);
-  });
+  }
+  const notificationResults = await Promise.allSettled(
+    releasedAssignmentIds.map((assignmentId) =>
+      createShiftScheduleNotification(assignmentId, "removed"),
+    ),
+  );
+  if (deactivationResult.cancelledIds.length > 0) {
+    await refreshCompanionProjection({ notify: true }).catch((error) => {
+      console.error("[Companion] failed to publish deactivation cancellations", error);
+    });
+  }
+  if (companionRevocationError) {
+    throw new HttpError(
+      503,
+      "The account was deactivated, but companion access could not be revoked. Retry the deactivation cleanup.",
+    );
+  }
+  const notificationFailure = notificationResults.find(
+    (result): result is PromiseRejectedResult => result.status === "rejected",
+  );
+  if (notificationFailure) throw notificationFailure.reason;
 
   return {
     cancelledIds: deactivationResult.cancelledIds,

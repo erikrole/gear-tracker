@@ -13,7 +13,7 @@ const PUBLIC_HANDLER_ROUTES: Record<string, string[]> = {
   "src/app/api/auth/register/route.ts": ["POST"],
   "src/app/api/auth/reset-password/route.ts": ["POST"],
   "src/app/api/companion/devices/route.ts": ["POST", "DELETE"],
-  "src/app/api/companion/projection/route.ts": ["GET", "POST"],
+  "src/app/api/companion/projection/route.ts": ["GET"],
   "src/app/api/kiosk/activate/route.ts": ["POST"],
   "src/app/api/seed/route.ts": ["POST"],
   "src/app/api/shifts/ics/[token]/route.ts": ["GET"],

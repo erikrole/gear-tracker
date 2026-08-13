@@ -9,6 +9,7 @@ import { expirePickupNoShows } from "@/lib/services/pending-pickup-expiry";
 import { pollFirmwareWatchTargets } from "@/lib/services/firmware-watch";
 import { DEFAULT_RESERVATION_RULES } from "@/lib/services/reservation-rules";
 import { getScheduleAutomationDigest } from "@/lib/services/schedule-automation";
+import { refreshCompanionProjection } from "@/lib/services/companion-projection";
 import { badges, badgesEnabled } from "@/lib/badges";
 
 function maintenanceValue<T>(
@@ -199,6 +200,14 @@ export const GET = withCron(async () => {
     "pendingPickups",
     maintenanceFailures,
   );
+  if (pendingPickups.expired > 0) {
+    try {
+      await refreshCompanionProjection({ notify: true });
+    } catch (error) {
+      console.error("morning-refresh: companion projection publication failed", error);
+      maintenanceFailures.push("companionProjection");
+    }
+  }
   const firmwareWatch = maintenanceValue(
     firmwareWatchResult,
     {

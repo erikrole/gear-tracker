@@ -61,6 +61,8 @@ const mocks = vi.hoisted(() => {
     startLiveActivity: vi.fn(),
     updateLiveActivity: vi.fn(),
     endLiveActivity: vi.fn(),
+    revokeCompanionUser: vi.fn(),
+    refreshCompanionProjection: vi.fn(),
   };
 });
 
@@ -92,6 +94,12 @@ vi.mock("@/lib/env", () => ({
   env: { appTimezone: "America/Chicago" },
 }));
 vi.mock("next/server", () => ({ after: vi.fn() }));
+vi.mock("@/lib/companion-store", () => ({
+  revokeCompanionUser: mocks.revokeCompanionUser,
+}));
+vi.mock("@/lib/services/companion-projection", () => ({
+  refreshCompanionProjection: mocks.refreshCompanionProjection,
+}));
 
 import { sendPushToUser } from "@/lib/services/notifications";
 import {
@@ -132,6 +140,8 @@ beforeEach(() => {
   mocks.shouldDeliverCategory.mockReturnValue(true);
   mocks.db.deviceToken.findMany.mockResolvedValue([]);
   mocks.sendPush.mockResolvedValue({ revoked: [] });
+  mocks.revokeCompanionUser.mockResolvedValue(undefined);
+  mocks.refreshCompanionProjection.mockResolvedValue({});
 
   mocks.db.booking.findMany.mockResolvedValue([]);
   mocks.db.booking.findFirst.mockResolvedValue(null);
@@ -206,6 +216,25 @@ describe("iOS notification authorization lifecycle", () => {
     expect(result).toEqual({
       cancelledIds: [],
       directReportsCleared: 0,
+    });
+    expect(mocks.refreshCompanionProjection).not.toHaveBeenCalled();
+  });
+
+  it("reports deactivation when companion access cannot be revoked", async () => {
+    mocks.revokeCompanionUser.mockRejectedValue(new Error("Redis unavailable"));
+
+    await expect(deactivateUserWithCleanup({
+      targetUserId: "user-1",
+      actorId: "admin-1",
+      actorRole: "ADMIN",
+    })).rejects.toMatchObject({
+      status: 503,
+      message: "The account was deactivated, but companion access could not be revoked. Retry the deactivation cleanup.",
+    });
+
+    expect(mocks.tx.user.update).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: { active: false },
     });
   });
 

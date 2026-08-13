@@ -5,6 +5,7 @@ import { put } from "@vercel/blob";
 import { db } from "@/lib/db";
 import { createAuditEntry } from "@/lib/audit";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
+import { deferCompanionProjectionRefreshForCommittedMutation } from "@/lib/services/companion-projection-publisher";
 
 function assertCanManage(actorId: string, actorRole: string, targetId: string) {
   if (actorId === targetId) return;
@@ -56,6 +57,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     await deleteImage(blob.url).catch(() => {});
     throw error;
   }
+  deferCompanionProjectionRefreshForCommittedMutation(req);
 
   if (target.avatarUrl && isBlobUrl(target.avatarUrl)) {
     await deleteImage(target.avatarUrl).catch(() => {});
@@ -76,7 +78,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
 /**
  * DELETE /api/users/[id]/avatar — admins, or the signed-in user, remove a profile photo
  */
-export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) => {
+export const DELETE = withAuth<{ id: string }>(async (req, { user, params }) => {
   const { id } = params;
   assertCanManage(user.id, user.role, id);
 
@@ -94,6 +96,7 @@ export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) =>
     where: { id },
     data: { avatarUrl: null },
   });
+  deferCompanionProjectionRefreshForCommittedMutation(req);
 
   if (isBlobUrl(target.avatarUrl)) {
     await deleteImage(target.avatarUrl).catch(() => {});

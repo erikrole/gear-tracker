@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { withHandler } from "@/lib/api";
+import { withHandler } from "@/lib/api-handler";
 import { ok } from "@/lib/http";
 import {
   registerCompanionDevice,

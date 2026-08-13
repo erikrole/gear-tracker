@@ -50,6 +50,11 @@ vi.mock("@/lib/services/reservation-rules", () => ({
   loadReservationRules: vi.fn(),
 }));
 
+vi.mock("@/lib/services/companion-projection-publisher", () => ({
+  deferCompanionProjectionRefresh: vi.fn(),
+  deferCompanionProjectionRefreshForCommittedMutation: vi.fn(),
+}));
+
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { createBooking, listBookings } from "@/lib/services/bookings";
@@ -57,6 +62,7 @@ import { loadCheckoutPolicies } from "@/lib/services/checkout-policies";
 import { resolveEventDefaults } from "@/lib/services/event-defaults";
 import { loadReservationRules } from "@/lib/services/reservation-rules";
 import { createReservationLifecycleNotification } from "@/lib/services/notifications";
+import { deferCompanionProjectionRefreshForCommittedMutation } from "@/lib/services/companion-projection-publisher";
 import { HttpError } from "@/lib/http";
 import { POST as postCheckouts } from "@/app/api/checkouts/route";
 import { GET as getReservations, POST as postReservations } from "@/app/api/reservations/route";
@@ -125,7 +131,12 @@ beforeEach(() => {
   vi.mocked(db.booking.count).mockResolvedValue(0);
   vi.mocked(db.booking.findFirst).mockResolvedValue(null);
   vi.mocked(db.auditLog.findFirst).mockResolvedValue(null);
-  vi.mocked(createBooking).mockResolvedValue({ id: "booking-1", title: "Event kit", bulkItems: [] } as never);
+  vi.mocked(createBooking).mockResolvedValue({
+    id: "booking-1",
+    title: "Event kit",
+    requesterUserId: "student-1",
+    bulkItems: [],
+  } as never);
 });
 
 describe("booking list routes", () => {
@@ -255,6 +266,29 @@ describe("booking list routes", () => {
         sourceDraftId: "cm000000000000000000000004",
       }),
     );
+  });
+
+  it("schedules projection repair after commit even when notification persistence fails", async () => {
+    const startsAt = new Date(Date.now() + 3_600_000);
+    const endsAt = new Date(startsAt.getTime() + 3_600_000);
+    vi.mocked(createReservationLifecycleNotification).mockRejectedValueOnce(
+      new Error("notification persistence unavailable"),
+    );
+    const req = post("/api/reservations", {
+      title: "Event kit",
+      requesterUserId: "cm000000000000000000000001",
+      locationId: "cm000000000000000000000002",
+      startsAt: startsAt.toISOString(),
+      endsAt: endsAt.toISOString(),
+      serializedAssetIds: ["cm000000000000000000000003"],
+      bulkItems: [],
+    });
+
+    const res = await postReservations(req, { params: Promise.resolve({}) });
+
+    expect(res.status).toBe(500);
+    expect(createBooking).toHaveBeenCalledTimes(1);
+    expect(deferCompanionProjectionRefreshForCommittedMutation).toHaveBeenCalledWith(req);
   });
 
   it("replays the committed reservation and ignores changed payload after a response is lost", async () => {

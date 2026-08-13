@@ -68,7 +68,7 @@ struct MenuBarContentView: View {
             }
             Spacer()
             Button {
-                Task { await model.refresh(fromSource: true) }
+                Task { await model.refresh() }
             } label: {
                 if model.isRefreshing {
                     ProgressView()
@@ -94,6 +94,7 @@ struct MenuBarContentView: View {
                 Button("View all") { model.openCheckouts() }
                     .buttonStyle(.link)
                     .font(.caption)
+                    .accessibilityLabel("View all open bookings")
             }
 
             if model.openBookings.isEmpty {
@@ -145,12 +146,13 @@ struct MenuBarContentView: View {
                     Button("View all") { model.openPendingPickups() }
                         .buttonStyle(.link)
                         .font(.caption)
+                        .accessibilityLabel("View all bookings waiting for pickup")
                 }
 
                 LazyVStack(spacing: 6) {
                     ForEach(bookings.prefix(3)) { booking in
                         PickupBookingRow(booking: booking, now: now) {
-                            model.openBooking(id: booking.id)
+                            model.openBooking(booking)
                         }
                     }
                 }
@@ -159,6 +161,7 @@ struct MenuBarContentView: View {
                     Button("View \(bookings.count - 3) more") { model.openPendingPickups() }
                         .buttonStyle(.link)
                         .font(.caption)
+                        .accessibilityLabel("View \(bookings.count - 3) more bookings waiting for pickup")
                 }
             }
         }
@@ -321,7 +324,7 @@ private struct PickupBookingRow: View {
         }
         .buttonStyle(.plain)
         .background(Color.primary.opacity(0.045), in: .rect(cornerRadius: 10))
-        .accessibilityLabel("\(booking.title), waiting for pickup, \(booking.requester.name), \(booking.location.name)")
+        .accessibilityLabel("\(booking.title), \(pickupLabel), \(booking.requester.name), \(booking.location.name)")
         .help("Opens this booking in Gear Tracker")
     }
 

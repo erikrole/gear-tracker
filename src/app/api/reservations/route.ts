@@ -10,6 +10,7 @@ import { createReservationSchema, sanitizeBookingFields } from "@/lib/validation
 import { createReservationLifecycleNotification } from "@/lib/services/notifications";
 import { loadReservationRules } from "@/lib/services/reservation-rules";
 import { sanitizeCollaboratorBooking } from "@/lib/collaborator-gear";
+import { deferCompanionProjectionRefreshForCommittedMutation } from "@/lib/services/companion-projection-publisher";
 
 async function replayConsumedDraftReservation(sourceDraftId: string, actorUserId: string) {
   const consumption = await db.auditLog.findFirst({
@@ -129,6 +130,9 @@ export const POST = withAuth(async (req, { user }) => {
   }
 
   // Audit entry is written inside createBooking()'s transaction — do not log again here.
+  // Publish from the commit boundary. Notification persistence below can fail
+  // independently and must not leave the external GearOps projection stale.
+  deferCompanionProjectionRefreshForCommittedMutation(req);
 
   await createReservationLifecycleNotification({
     bookingId: reservation.id,

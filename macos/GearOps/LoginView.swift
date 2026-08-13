@@ -13,7 +13,7 @@ struct GearOpsLoginView: View {
     }
 
     private var canSubmit: Bool {
-        email.contains("@") && !password.isEmpty && !model.isSigningIn
+        email.contains("@") && !password.isEmpty && !model.isSigningIn && !model.isSigningOut
     }
 
     var body: some View {
@@ -53,11 +53,11 @@ struct GearOpsLoginView: View {
             Button(action: submit) {
                 HStack {
                     Spacer()
-                    if model.isSigningIn {
+                    if model.isSigningIn || model.isSigningOut {
                         ProgressView()
                             .controlSize(.small)
                     }
-                    Text(model.isSigningIn ? "Signing in…" : "Sign in")
+                    Text(model.isSigningOut ? "Signing out…" : model.isSigningIn ? "Signing in…" : "Sign in")
                     Spacer()
                 }
             }

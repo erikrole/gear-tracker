@@ -224,6 +224,7 @@ struct BookingChangesEnvelope: Decodable, Sendable {
 
 struct CompanionProjection: Codable, Equatable, Sendable {
     let version: Int
+    let revision: Int?
     let generatedAt: Date
     let stats: GearOpsStats
     let pendingPickupTotal: Int

@@ -47,6 +47,10 @@ vi.mock("@/lib/services/schedule-automation", () => ({
   getScheduleAutomationDigest: vi.fn(),
 }));
 
+vi.mock("@/lib/services/companion-projection", () => ({
+  refreshCompanionProjection: vi.fn(),
+}));
+
 import { db } from "@/lib/db";
 import { syncCalendarSource } from "@/lib/services/calendar-sync";
 import { updateCalendarSyncHealth } from "@/lib/services/calendar-sync-health";
@@ -55,6 +59,7 @@ import { expireOpenTrades } from "@/lib/services/shift-trades";
 import { expirePickupNoShows } from "@/lib/services/pending-pickup-expiry";
 import { pollFirmwareWatchTargets } from "@/lib/services/firmware-watch";
 import { getScheduleAutomationDigest } from "@/lib/services/schedule-automation";
+import { refreshCompanionProjection } from "@/lib/services/companion-projection";
 import { GET } from "@/app/api/cron/morning-refresh/route";
 
 const mockDb = db as unknown as {
@@ -132,6 +137,7 @@ describe("morning refresh cron route", () => {
       cards: [],
       partialFailures: [],
     });
+    vi.mocked(refreshCompanionProjection).mockResolvedValue({} as never);
   });
 
   afterEach(() => {
@@ -151,6 +157,8 @@ describe("morning refresh cron route", () => {
       metrics: expect.objectContaining({ tradesExpired: 1, pendingPickupsExpired: 1 }),
     });
     expect(body.maintenanceFailures).toEqual([]);
+    expect(refreshCompanionProjection).toHaveBeenCalledTimes(1);
+    expect(refreshCompanionProjection).toHaveBeenCalledWith({ notify: true });
     expect(getScheduleAutomationDigest).toHaveBeenCalledWith(expect.objectContaining({
       maintenance: expect.objectContaining({
         tradesExpired: 1,
@@ -170,6 +178,36 @@ describe("morning refresh cron route", () => {
     expect(body.tradesExpired).toBe(1);
     expect(body.pendingPickups).toMatchObject({ scanned: 0, expired: 0, failed: 1 });
     expect(body.maintenanceFailures).toEqual(["pendingPickups"]);
+    expect(refreshCompanionProjection).not.toHaveBeenCalled();
+  });
+
+  it("skips projection publication when pickup expiry made no changes", async () => {
+    vi.mocked(expirePickupNoShows).mockResolvedValue({
+      scanned: 2,
+      expired: 0,
+      failed: 0,
+      cutoff: new Date("2026-05-11T12:00:00.000Z"),
+      errors: {},
+    });
+
+    const res = await GET(request(), { params: Promise.resolve({}) });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(refreshCompanionProjection).not.toHaveBeenCalled();
+  });
+
+  it("reports projection publication failure separately from committed expiry", async () => {
+    vi.mocked(refreshCompanionProjection).mockRejectedValue(new Error("Redis unavailable"));
+
+    const res = await GET(request(), { params: Promise.resolve({}) });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(false);
+    expect(body.pendingPickups).toMatchObject({ scanned: 2, expired: 1, failed: 0 });
+    expect(body.maintenanceFailures).toEqual(["companionProjection"]);
   });
 
   it("reports firmware watch failures without blocking other daily maintenance", async () => {

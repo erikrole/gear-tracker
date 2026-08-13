@@ -63,6 +63,10 @@ vi.mock("@/lib/rate-limit", () => ({
   getClientIp: vi.fn(),
 }));
 
+vi.mock("@/lib/companion-store", () => ({
+  revokeCompanionUser: vi.fn(),
+}));
+
 vi.mock("@sentry/nextjs", () => ({
   captureException: vi.fn(),
 }));
@@ -71,6 +75,7 @@ import { requireAuth, tokenHash, hashPassword, verifyPassword } from "@/lib/auth
 import { db } from "@/lib/db";
 import { createAuditEntry, createAuditEntryTx } from "@/lib/audit";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { revokeCompanionUser } from "@/lib/companion-store";
 import { PATCH as patchProfile } from "@/app/api/profile/route";
 import { POST as resetPassword } from "@/app/api/auth/reset-password/route";
 
@@ -106,6 +111,7 @@ function publicPost(path: string, body: Record<string, unknown>) {
 }
 
 beforeEach(() => {
+  vi.clearAllMocks();
   vi.mocked(requireAuth).mockResolvedValue({
     id: "user-1",
     email: "user@example.com",
@@ -123,6 +129,7 @@ beforeEach(() => {
     resetAt: Date.now() + 60_000,
   });
   vi.mocked(getClientIp).mockReturnValue("127.0.0.1");
+  vi.mocked(revokeCompanionUser).mockResolvedValue(undefined);
 
   vi.mocked(db.user.findUniqueOrThrow).mockResolvedValue(userForPassword({
     id: "user-1",
@@ -130,7 +137,6 @@ beforeEach(() => {
   }));
   vi.mocked(db.user.update).mockResolvedValue(userUpdateResult({ id: "user-1" }));
   vi.mocked(db.session.deleteMany).mockResolvedValue(deleteManyResult(2));
-
   mockTx.passwordResetToken.findUnique.mockResolvedValue({
     id: "token-1",
     userId: "user-1",
@@ -169,12 +175,30 @@ describe("auth hardening", () => {
       expect.any(Promise),
       expect.any(Promise),
     ]);
+    expect(revokeCompanionUser).toHaveBeenCalledWith("user-1");
     expect(createAuditEntry).toHaveBeenCalledWith(
       expect.objectContaining({
         actorId: "user-1",
         action: "password_change",
       }),
     );
+  });
+
+  it("reports a committed profile password change when companion revocation fails", async () => {
+    vi.mocked(revokeCompanionUser).mockRejectedValue(new Error("Redis unavailable"));
+
+    const res = await patchProfile(
+      authedRequest("/api/profile", {
+        action: "change_password",
+        currentPassword: "old-password",
+        newPassword: "new-password",
+      }),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(res.status).toBe(503);
+    expect(db.$transaction).toHaveBeenCalled();
+    expect(db.user.update).toHaveBeenCalled();
   });
 
   it("BUG: password reset consumes the token inside a Serializable transaction", async () => {
@@ -191,6 +215,7 @@ describe("auth hardening", () => {
       expect.any(Function),
       { isolationLevel: "Serializable" },
     );
+    expect(revokeCompanionUser).toHaveBeenCalledWith("user-1");
     expect(mockTx.passwordResetToken.findUnique).toHaveBeenCalledWith({
       where: { tokenHash: "hashed-token" },
       include: { user: { select: { id: true, role: true, active: true } } },
@@ -258,6 +283,25 @@ describe("auth hardening", () => {
     );
 
     expect(res.status).toBe(400);
+    expect(revokeCompanionUser).not.toHaveBeenCalled();
+    expect(db.$transaction).toHaveBeenCalled();
     expect(mockTx.user.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("reports when companion revocation fails after a reset commits", async () => {
+    vi.mocked(revokeCompanionUser).mockRejectedValue(new Error("Redis unavailable"));
+
+    const res = await resetPassword(
+      publicPost("/api/auth/reset-password", {
+        token: "raw-token",
+        password: "new-password",
+      }),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(res.status).toBe(503);
+    expect(db.$transaction).toHaveBeenCalled();
+    expect(mockTx.passwordResetToken.deleteMany).toHaveBeenCalled();
+    expect(mockTx.user.updateMany).toHaveBeenCalled();
   });
 });

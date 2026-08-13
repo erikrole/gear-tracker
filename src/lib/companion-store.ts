@@ -1,16 +1,17 @@
 import crypto from "node:crypto";
-import { Role } from "@prisma/client";
+import type { Role } from "@prisma/client";
 import { Redis } from "@upstash/redis";
 import { env } from "@/lib/env";
 import { HttpError } from "@/lib/http";
+import type { CompanionRole } from "@/lib/companion-projection-contract";
 
 const SESSION_TTL_SECONDS = 90 * 24 * 60 * 60;
 const SESSION_PREFIX = "gear-tracker:companion:session:v1:";
 const USER_SESSION_PREFIX = "gear-tracker:companion:user-sessions:v1:";
+const USER_EPOCH_PREFIX = "gear-tracker:companion:user-epoch:v1:";
 const DEVICE_HASH_KEY = "gear-tracker:companion:devices:v1";
 const PROJECTION_KEY = "gear-tracker:companion:projection:v1";
-
-export type CompanionRole = Extract<Role, "ADMIN" | "STAFF">;
+const PROJECTION_REVISION_KEY = "gear-tracker:companion:projection-revision:v1";
 
 type CompanionTokenPayload = {
   version: 1;
@@ -18,12 +19,14 @@ type CompanionTokenPayload = {
   userId: string;
   role: CompanionRole;
   expiresAt: number;
+  epoch: number;
 };
 
 type CompanionSessionRecord = {
   userId: string;
   role: CompanionRole;
   expiresAt: number;
+  epoch: number;
 };
 
 type CompanionDeviceRecord = CompanionSessionRecord & {
@@ -77,7 +80,8 @@ function decode(token: string): CompanionTokenPayload {
     typeof payload.jti !== "string" ||
     typeof payload.userId !== "string" ||
     (payload.role !== "ADMIN" && payload.role !== "STAFF") ||
-    typeof payload.expiresAt !== "number"
+    typeof payload.expiresAt !== "number" ||
+    typeof payload.epoch !== "number"
   ) {
     throw new HttpError(401, "Invalid companion credential.");
   }
@@ -94,7 +98,7 @@ function bearerToken(req: Request): string {
 export async function issueCompanionSession(user: {
   id: string;
   role: Role;
-}): Promise<string> {
+}, expectedEpoch: number): Promise<string> {
   if (user.role !== "ADMIN" && user.role !== "STAFF") {
     throw new HttpError(403, "The companion is available to staff accounts only.");
   }
@@ -105,30 +109,57 @@ export async function issueCompanionSession(user: {
     userId: user.id,
     role: user.role,
     expiresAt: Date.now() + SESSION_TTL_SECONDS * 1000,
+    epoch: expectedEpoch,
   };
   const record: CompanionSessionRecord = {
     userId: payload.userId,
     role: payload.role,
     expiresAt: payload.expiresAt,
+    epoch: payload.epoch,
   };
   const client = getCompanionRedis();
   const userSessionsKey = `${USER_SESSION_PREFIX}${payload.userId}`;
-  await Promise.all([
-    client.set(`${SESSION_PREFIX}${payload.jti}`, record, { ex: SESSION_TTL_SECONDS }),
-    client.sadd(userSessionsKey, payload.jti),
-    client.expire(userSessionsKey, SESSION_TTL_SECONDS),
-  ]);
+  const issued = await client.eval<[string, string, string, string], number>(
+    `
+      local current = redis.call("GET", KEYS[1])
+      local currentEpoch = current and tonumber(current) or 0
+      if currentEpoch ~= tonumber(ARGV[1]) then return 0 end
+      redis.call("SET", KEYS[2], ARGV[2], "EX", tonumber(ARGV[3]))
+      redis.call("SADD", KEYS[3], ARGV[4])
+      redis.call("EXPIRE", KEYS[3], tonumber(ARGV[3]))
+      return 1
+    `,
+    [
+      `${USER_EPOCH_PREFIX}${payload.userId}`,
+      `${SESSION_PREFIX}${payload.jti}`,
+      userSessionsKey,
+    ],
+    [String(expectedEpoch), JSON.stringify(record), String(SESSION_TTL_SECONDS), payload.jti],
+  );
+  if (issued !== 1) {
+    throw new HttpError(409, "Account access changed during companion enrollment. Sign in again.");
+  }
   return encode(payload);
+}
+
+export async function getCompanionUserEpoch(userId: string): Promise<number> {
+  return await getCompanionRedis().get<number>(`${USER_EPOCH_PREFIX}${userId}`) ?? 0;
 }
 
 export async function requireCompanion(req: Request): Promise<CompanionTokenPayload> {
   const payload = decode(bearerToken(req));
-  const record = await getCompanionRedis().get<CompanionSessionRecord>(`${SESSION_PREFIX}${payload.jti}`);
+  const client = getCompanionRedis();
+  const [record, epoch] = await Promise.all([
+    client.get<CompanionSessionRecord>(`${SESSION_PREFIX}${payload.jti}`),
+    client.get<number>(`${USER_EPOCH_PREFIX}${payload.userId}`),
+  ]);
   if (
     !record ||
     record.userId !== payload.userId ||
     record.role !== payload.role ||
-    record.expiresAt !== payload.expiresAt
+    record.expiresAt !== payload.expiresAt ||
+    record.epoch !== payload.epoch ||
+    payload.epoch !== (epoch ?? 0)
   ) {
     throw new HttpError(401, "Companion credential expired.");
   }
@@ -138,10 +169,13 @@ export async function requireCompanion(req: Request): Promise<CompanionTokenPayl
 export async function revokeCompanionSession(req: Request): Promise<void> {
   const payload = await requireCompanion(req);
   const client = getCompanionRedis();
+  // Remove authority before discovering device rows. A concurrent device
+  // registration either lands before this delete and is found below, or sees
+  // the missing session in its Lua guard and is rejected.
+  await client.del(`${SESSION_PREFIX}${payload.jti}`);
   const devices = await listCompanionDevices();
   const ownedTokens = devices.filter((device) => device.jti === payload.jti).map((device) => device.token);
   await Promise.all([
-    client.del(`${SESSION_PREFIX}${payload.jti}`),
     client.srem(`${USER_SESSION_PREFIX}${payload.userId}`, payload.jti),
     ...(ownedTokens.length > 0 ? [client.hdel(DEVICE_HASH_KEY, ...ownedTokens)] : []),
   ]);
@@ -150,16 +184,20 @@ export async function revokeCompanionSession(req: Request): Promise<void> {
 export async function revokeCompanionUser(userId: string): Promise<void> {
   const client = getCompanionRedis();
   const userSessionsKey = `${USER_SESSION_PREFIX}${userId}`;
+  // Fence new enrollment before discovering cleanup targets. A credential
+  // that was already issued is now invalid, while an overlapping issuer sees
+  // the changed epoch and cannot add a new live session after this scan.
+  await client.incr(`${USER_EPOCH_PREFIX}${userId}`);
   const [sessionIds, devices] = await Promise.all([
     client.smembers<string[]>(userSessionsKey),
     listCompanionDevices(),
   ]);
   const ownedTokens = devices.filter((device) => device.userId === userId).map((device) => device.token);
   await Promise.all([
-    client.del(userSessionsKey),
     ...sessionIds.map((id) => client.del(`${SESSION_PREFIX}${id}`)),
     ...(ownedTokens.length > 0 ? [client.hdel(DEVICE_HASH_KEY, ...ownedTokens)] : []),
   ]);
+  await client.del(userSessionsKey);
 }
 
 export async function registerCompanionDevice(
@@ -171,9 +209,26 @@ export async function registerCompanionDevice(
     userId: session.userId,
     role: session.role,
     expiresAt: session.expiresAt,
+    epoch: session.epoch,
     token,
   };
-  await getCompanionRedis().hset(DEVICE_HASH_KEY, { [token]: JSON.stringify(record) });
+  const registered = await getCompanionRedis().eval<[string, string, string], number>(
+    `
+      if redis.call("EXISTS", KEYS[1]) == 0 then return 0 end
+      local current = redis.call("GET", KEYS[2])
+      local currentEpoch = current and tonumber(current) or 0
+      if currentEpoch ~= tonumber(ARGV[1]) then return 0 end
+      redis.call("HSET", KEYS[3], ARGV[2], ARGV[3])
+      return 1
+    `,
+    [
+      `${SESSION_PREFIX}${session.jti}`,
+      `${USER_EPOCH_PREFIX}${session.userId}`,
+      DEVICE_HASH_KEY,
+    ],
+    [String(session.epoch), token, JSON.stringify(record)],
+  );
+  if (registered !== 1) throw new HttpError(401, "Companion credential expired.");
 }
 
 export async function unregisterCompanionDevice(token: string): Promise<void> {
@@ -201,14 +256,14 @@ export async function revokeCompanionDeviceTokens(tokens: string[]): Promise<voi
   await getCompanionRedis().hdel(DEVICE_HASH_KEY, ...tokens);
 }
 
-export async function writeCompanionProjection<T extends { generatedAt: string }>(
+export async function writeCompanionProjection<T extends { revision: number }>(
   projection: T,
 ): Promise<boolean> {
   const script = `
     local current = redis.call("GET", KEYS[1])
     if current then
       local ok, decoded = pcall(cjson.decode, current)
-      if ok and decoded["generatedAt"] and decoded["generatedAt"] > ARGV[2] then
+      if ok and decoded["revision"] and tonumber(decoded["revision"]) >= tonumber(ARGV[2]) then
         return 0
       end
     end
@@ -218,9 +273,13 @@ export async function writeCompanionProjection<T extends { generatedAt: string }
   const installed = await getCompanionRedis().eval<[string, string], number>(
     script,
     [PROJECTION_KEY],
-    [JSON.stringify(projection), projection.generatedAt],
+    [JSON.stringify(projection), String(projection.revision)],
   );
   return installed === 1;
+}
+
+export async function nextCompanionProjectionRevision(): Promise<number> {
+  return getCompanionRedis().incr(PROJECTION_REVISION_KEY);
 }
 
 export async function readCompanionProjection<T>(): Promise<T | null> {

@@ -2,6 +2,7 @@ import { withKiosk } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { refreshCompanionProjection } from "@/lib/services/companion-projection";
 
 /**
  * Heartbeat endpoint — kiosk calls this periodically.
@@ -64,6 +65,7 @@ const handler = withKiosk(async (req, { kiosk }) => {
               appReportedAt: new Date(),
             },
           });
+          await refreshCompanionProjection({ notify: true });
         }
       }
     }

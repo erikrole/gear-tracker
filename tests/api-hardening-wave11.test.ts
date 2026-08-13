@@ -57,6 +57,10 @@ vi.mock("@/lib/audit", () => ({
   createSystemAuditEntry: vi.fn(),
 }));
 
+vi.mock("@/lib/companion-store", () => ({
+  revokeCompanionUser: vi.fn(),
+}));
+
 vi.mock("@/lib/rate-limit", () => ({
   enforceRateLimit: vi.fn(),
   getClientIp: vi.fn(),
@@ -83,6 +87,11 @@ vi.mock("@/lib/services/bulk-unit-scans", () => ({
   findBulkUnitByScanValue: vi.fn(),
 }));
 
+vi.mock("@/lib/services/companion-projection-publisher", () => ({
+  deferCompanionProjectionRefresh: vi.fn(),
+  deferCompanionProjectionRefreshForCommittedMutation: vi.fn(),
+}));
+
 vi.mock("@sentry/nextjs", () => ({
   captureException: vi.fn(),
 }));
@@ -90,12 +99,14 @@ vi.mock("@sentry/nextjs", () => ({
 import { requireAuth, requireKiosk, hashPassword, tokenHash, createKioskSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { createAuditEntry, createSystemAuditEntry } from "@/lib/audit";
+import { revokeCompanionUser } from "@/lib/companion-store";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import { createBooking } from "@/lib/services/bookings";
 import { requireBookingAction } from "@/lib/services/booking-rules";
 import { getCheckoutReport } from "@/lib/services/reports";
 import { findAssetByScanValue } from "@/lib/services/kiosk-scan";
 import { findBulkUnitByScanValue } from "@/lib/services/bulk-unit-scans";
+import { deferCompanionProjectionRefreshForCommittedMutation } from "@/lib/services/companion-projection-publisher";
 import { POST as adminResetPassword } from "@/app/api/users/[id]/reset-password/route";
 import { POST as adjustBulkSku } from "@/app/api/bulk-skus/[id]/adjust/route";
 import { GET as getCheckoutReportRoute } from "@/app/api/reports/checkouts/route";
@@ -221,6 +232,7 @@ beforeEach(() => {
   vi.mocked(hashPassword).mockResolvedValue("hashed-temp");
   vi.mocked(tokenHash).mockResolvedValue("hashed-code");
   vi.mocked(createKioskSession).mockResolvedValue("session-token");
+  vi.mocked(revokeCompanionUser).mockResolvedValue(undefined);
   vi.mocked(enforceRateLimit).mockResolvedValue(undefined);
   vi.mocked(getClientIp).mockReturnValue("203.0.113.10");
   vi.mocked(db.user.findUnique).mockResolvedValue(userFindUniqueResult({ id: "user-1", name: "User One" }));
@@ -287,12 +299,33 @@ describe("API hardening wave 11", () => {
       data: { passwordHash: "hashed-temp", forcePasswordChange: true },
     });
     expect(body.data.forcePasswordChange).toBe(true);
+    expect(revokeCompanionUser).toHaveBeenCalledWith("user-1");
+    expect(vi.mocked(revokeCompanionUser).mock.invocationCallOrder[0])
+      .toBeLessThan(vi.mocked(createAuditEntry).mock.invocationCallOrder[0]!);
     expect(createAuditEntry).toHaveBeenCalledWith(
       expect.objectContaining({
         action: "password_reset",
         after: expect.objectContaining({ forcePasswordChange: true }),
       }),
     );
+  });
+
+  it("reports when a reset cannot revoke existing companion access", async () => {
+    vi.mocked(revokeCompanionUser).mockRejectedValueOnce(new Error("Redis unavailable"));
+
+    const res = await adminResetPassword(
+      authedPost("/api/users/user-1/reset-password"),
+      { params: Promise.resolve({ id: "user-1" }) },
+    );
+
+    expect(res.status).toBe(503);
+    await expect(res.json()).resolves.toEqual({
+      error: "The password was reset, but companion access could not be revoked. Retry the reset before sharing the temporary password.",
+    });
+    expect(revokeCompanionUser).toHaveBeenCalledWith("user-1");
+    expect(db.user.update).toHaveBeenCalled();
+    expect(db.session.deleteMany).toHaveBeenCalled();
+    expect(createAuditEntry).not.toHaveBeenCalled();
   });
 
   it("rejects bulk stock adjustments above the operational cap", async () => {
@@ -379,6 +412,9 @@ describe("API hardening wave 11", () => {
     expect(enforceRateLimit).toHaveBeenCalledWith("kiosk:activate:code:hashed-code", { max: 5, windowMs: 60 * 60_000 });
     expect(createSystemAuditEntry).toHaveBeenCalledWith(
       expect.objectContaining({ action: "kiosk_activated" }),
+    );
+    expect(deferCompanionProjectionRefreshForCommittedMutation).toHaveBeenCalledWith(
+      expect.objectContaining({ method: "POST" }),
     );
   });
 

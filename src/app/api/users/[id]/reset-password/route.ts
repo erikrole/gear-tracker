@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
+import { revokeCompanionUser } from "@/lib/companion-store";
 import crypto from "crypto";
 
 export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
@@ -29,6 +30,16 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
     db.user.update({ where: { id }, data: { passwordHash, forcePasswordChange: true } }),
     db.session.deleteMany({ where: { userId: id } }),
   ]);
+
+  try {
+    await revokeCompanionUser(id);
+  } catch (error) {
+    console.error("[Companion] failed to revoke password-reset user", error);
+    throw new HttpError(
+      503,
+      "The password was reset, but companion access could not be revoked. Retry the reset before sharing the temporary password.",
+    );
+  }
 
   await createAuditEntry({
     actorId: user.id,

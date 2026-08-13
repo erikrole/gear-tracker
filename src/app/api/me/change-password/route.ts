@@ -6,6 +6,7 @@ import { HttpError, ok } from "@/lib/http";
 import { hashPassword, verifyPassword, tokenHash } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { revokeCompanionUser } from "@/lib/companion-store";
 
 const schema = z.object({
   currentPassword: z.string().min(1, "Current password is required."),
@@ -73,6 +74,13 @@ export const POST = withAuth(async (req, { user }) => {
         id: { not: currentSessionId },
       },
     });
+  }
+
+  try {
+    await revokeCompanionUser(user.id);
+  } catch (error) {
+    console.error("[Companion] failed to revoke password-changed user", error);
+    throw new HttpError(503, "The password changed, but companion access could not be revoked. Retry the password change.");
   }
 
   return ok({ success: true });

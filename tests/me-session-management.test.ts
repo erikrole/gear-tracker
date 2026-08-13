@@ -45,8 +45,13 @@ vi.mock("@/lib/rate-limit", () => ({
   enforceRateLimit: vi.fn(),
 }));
 
+vi.mock("@/lib/companion-store", () => ({
+  revokeCompanionUser: vi.fn(),
+}));
+
 import { requireAuth, tokenHash, verifyPassword, hashPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { revokeCompanionUser } from "@/lib/companion-store";
 import { DELETE as revokeOtherSessions } from "@/app/api/me/sessions/route";
 import { POST as changePassword } from "@/app/api/me/change-password/route";
 
@@ -82,6 +87,7 @@ beforeEach(() => {
   dbMock.user.update.mockResolvedValue({ id: "user-1" });
   dbMock.session.findUnique.mockResolvedValue({ id: "current-session" });
   dbMock.session.deleteMany.mockResolvedValue({ count: 2 });
+  vi.mocked(revokeCompanionUser).mockResolvedValue(undefined);
 });
 
 describe("self-service session management", () => {
@@ -97,6 +103,24 @@ describe("self-service session management", () => {
         id: { not: "current-session" },
       },
     });
+    expect(revokeCompanionUser).not.toHaveBeenCalled();
+  });
+
+  it("reports a committed password change when companion revocation fails", async () => {
+    vi.mocked(revokeCompanionUser).mockRejectedValue(new Error("Redis unavailable"));
+
+    const res = await changePassword(
+      request("/api/me/change-password", {
+        currentPassword: "old-password",
+        newPassword: "new-password",
+        revokeOtherSessions: false,
+      }),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(res.status).toBe(503);
+    expect(db.user.update).toHaveBeenCalled();
+    expect(db.session.deleteMany).not.toHaveBeenCalled();
   });
 
   it("does not bulk-delete sessions when the current session cannot be re-identified", async () => {
@@ -129,6 +153,7 @@ describe("self-service session management", () => {
         id: { not: "current-session" },
       },
     });
+    expect(revokeCompanionUser).toHaveBeenCalledWith("user-1");
   });
 
   it("does not change password when revoke-other-sessions cannot verify the current session", async () => {

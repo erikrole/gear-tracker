@@ -6,8 +6,9 @@ import { requireBookingAction } from "@/lib/services/booking-rules";
 import { ok } from "@/lib/http";
 import { createReservationLifecycleNotification } from "@/lib/services/notifications";
 import { requireCollaboratorCapability } from "@/lib/collaborator-access";
+import { deferCompanionProjectionRefreshForCommittedMutation } from "@/lib/services/companion-projection-publisher";
 
-export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
+export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   if (user.role === "COLLABORATOR") {
     requireCollaboratorCapability(user, "RESERVATION_CANCEL_OWN");
   }
@@ -23,6 +24,7 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
   // cancelReservation writes the canonical `cancelled` audit entry inside
   // its SERIALIZABLE transaction — no second audit write here.
   const result = await cancelReservation(id, user.id);
+  deferCompanionProjectionRefreshForCommittedMutation(req);
 
   await createReservationLifecycleNotification({
     bookingId: id,

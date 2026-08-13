@@ -10,7 +10,7 @@ struct GearOpsApp: App {
             MenuBarContentView(model: model)
         } label: {
             HStack(spacing: 4) {
-                Image(systemName: "shippingbox.fill")
+                Image(systemName: model.menuBarSymbol)
                 if let count = model.snapshot?.stats.checkedOut {
                     Text(count, format: .number)
                         .monospacedDigit()

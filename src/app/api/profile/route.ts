@@ -6,6 +6,8 @@ import { hashPassword, verifyPassword } from "@/lib/auth";
 import { changePasswordSchema, normalizeSlackHandle, normalizeSlackProfileUrl, normalizeWiscardNumber, updateProfileSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
 import { normalizeProfilePhone, phoneAuditValue } from "@/lib/profile-phone";
+import { revokeCompanionUser } from "@/lib/companion-store";
+import { deferCompanionProjectionRefreshForCommittedMutation } from "@/lib/services/companion-projection-publisher";
 
 const profilePatchSchema = z.union([
   changePasswordSchema.extend({ action: z.literal("change_password") }),
@@ -99,6 +101,13 @@ export const PATCH = withAuth(async (req, { user }) => {
         where: { userId: user.id },
       }),
     ]);
+
+    try {
+      await revokeCompanionUser(user.id);
+    } catch (error) {
+      console.error("[Companion] failed to revoke password-changed user", error);
+      throw new HttpError(503, "The password changed, but companion access could not be revoked. Retry the password change.");
+    }
 
     await createAuditEntry({
       actorId: user.id,
@@ -204,6 +213,7 @@ export const PATCH = withAuth(async (req, { user }) => {
     }
     throw err;
   }
+  deferCompanionProjectionRefreshForCommittedMutation(req);
 
   const beforeDiff: Record<string, unknown> = {};
   const afterDiff: Record<string, unknown> = {};

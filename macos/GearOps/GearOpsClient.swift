@@ -25,7 +25,7 @@ enum GearOpsClientError: LocalizedError, Equatable, Sendable {
 
 protocol GearOpsServing: Sendable {
     func login(email: String, password: String) async throws -> LoginResponse
-    func companionProjection(token: String, refreshFromSource: Bool) async throws -> CompanionProjection
+    func companionProjection(token: String) async throws -> CompanionProjection
     func registerCompanionDevice(_ deviceToken: String, credential: String) async throws
     func revokeCompanion(credential: String) async
 }
@@ -79,11 +79,8 @@ actor GearOpsClient: GearOpsServing {
         return try await perform(request)
     }
 
-    func companionProjection(token: String, refreshFromSource: Bool = false) async throws -> CompanionProjection {
-        var request = makeRequest(
-            path: "/api/companion/projection",
-            method: refreshFromSource ? "POST" : "GET"
-        )
+    func companionProjection(token: String) async throws -> CompanionProjection {
+        var request = makeRequest(path: "/api/companion/projection")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         let response: CompanionProjectionEnvelope = try await perform(request)
         return response.data

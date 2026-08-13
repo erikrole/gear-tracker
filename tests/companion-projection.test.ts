@@ -12,11 +12,9 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-import {
-  buildCompanionProjection,
-  projectionForRole,
-  shouldPublishCompanionProjection,
-} from "@/lib/services/companion-projection";
+import { projectionForRole } from "@/lib/companion-projection-contract";
+import { buildCompanionProjection } from "@/lib/services/companion-projection";
+import { shouldPublishCompanionProjection } from "@/lib/services/companion-projection-publisher";
 
 const now = new Date("2026-08-09T18:00:00.000Z");
 
@@ -105,6 +103,7 @@ describe("companion projection", () => {
   it("keeps kiosk diagnostics admin-only without changing booking visibility", () => {
     const projection = {
       version: 1 as const,
+      revision: 1,
       generatedAt: now.toISOString(),
       stats: { checkedOut: 0, overdue: 0, reserved: 0, dueToday: 0 },
       pendingPickupTotal: 0,
@@ -124,6 +123,38 @@ describe("companion projection", () => {
     const response = new Response(null, { status: 200 });
     expect(shouldPublishCompanionProjection(
       new Request("https://wisconsincreative.com/api/bookings/1", { method: "PATCH" }),
+      response,
+    )).toBe(true);
+    expect(shouldPublishCompanionProjection(
+      new Request("https://wisconsincreative.com/api/reservations", { method: "POST" }),
+      response,
+    )).toBe(true);
+    expect(shouldPublishCompanionProjection(
+      new Request("https://wisconsincreative.com/api/reservations/1", { method: "DELETE" }),
+      response,
+    )).toBe(true);
+    expect(shouldPublishCompanionProjection(
+      new Request("https://wisconsincreative.com/api/reservations-archive", { method: "POST" }),
+      response,
+    )).toBe(false);
+    expect(shouldPublishCompanionProjection(
+      new Request("https://wisconsincreative.com/api/profile", { method: "PATCH" }),
+      response,
+    )).toBe(true);
+    expect(shouldPublishCompanionProjection(
+      new Request("https://wisconsincreative.com/api/me/profile", { method: "PUT" }),
+      response,
+    )).toBe(true);
+    expect(shouldPublishCompanionProjection(
+      new Request("https://wisconsincreative.com/api/locations/loc-1", { method: "PATCH" }),
+      response,
+    )).toBe(true);
+    expect(shouldPublishCompanionProjection(
+      new Request("https://wisconsincreative.com/api/kiosk/heartbeat", { method: "POST" }),
+      response,
+    )).toBe(false);
+    expect(shouldPublishCompanionProjection(
+      new Request("https://wisconsincreative.com/api/kiosk/activate", { method: "POST" }),
       response,
     )).toBe(true);
     expect(shouldPublishCompanionProjection(

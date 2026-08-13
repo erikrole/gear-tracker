@@ -19,7 +19,7 @@ describe("GearOps macOS menu bar contracts", () => {
     expect(project).not.toContain("../ios/Wisconsin/Core");
     expect(app).toContain("MenuBarExtra");
     expect(app).toContain(".menuBarExtraStyle(.window)");
-    expect(app).toContain('Image(systemName: "shippingbox.fill")');
+    expect(app).toContain("Image(systemName: model.menuBarSymbol)");
     expect(project).toContain("PRODUCT_NAME: Wisconsin Creative");
     expect(project).toContain("../ios/Wisconsin/AppIcons/AppIcon.icon");
     expect(project).toContain("ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon");
@@ -30,9 +30,16 @@ describe("GearOps macOS menu bar contracts", () => {
   it("uses only the external companion projection after explicit enrollment", () => {
     const client = source("macos/GearOps/GearOpsClient.swift");
     const model = source("macos/GearOps/GearOpsModel.swift");
+    const projectionReadStart = client.lastIndexOf("func companionProjection");
+    const projectionRead = client.slice(
+      projectionReadStart,
+      client.indexOf("func registerCompanionDevice", projectionReadStart),
+    );
 
     expect(client).toContain('path: "/api/companion/projection"');
-    expect(client).toContain('refreshFromSource ? "POST" : "GET"');
+    expect(projectionRead).toContain('makeRequest(path: "/api/companion/projection")');
+    expect(projectionRead).not.toContain('method: "POST"');
+    expect(client).not.toContain("refreshFromSource");
     expect(client).toContain('makeRequest(path: "/api/companion/devices", method: "POST")');
     expect(client).toContain("companion: true");
     expect(client).not.toContain('/api/dashboard/stats');
@@ -41,14 +48,14 @@ describe("GearOps macOS menu bar contracts", () => {
     expect(client).not.toContain('/api/checkouts');
     expect(client).not.toContain('/api/bookings/changes');
     expect(client).not.toContain('/api/db-diagnostics');
-    expect(model).toContain("credentialStore.loadToken()");
+    expect(model).toContain("try await credentialStore.loadToken()");
     expect(model).toContain("client.companionProjection(");
-    expect(model).toContain("refreshFromSource: fromSource");
+    expect(model).not.toContain("fromSource");
     expect(model).toContain("Task.sleep(for: .seconds(60))");
     expect(model).toContain("await self?.restoreSession()");
     expect(model).not.toContain("startPolling");
     expect(model).not.toContain('method: "PATCH"');
-    expect(source("macos/GearOps/MenuBarContentView.swift")).toContain("refresh(fromSource: true)");
+    expect(source("macos/GearOps/MenuBarContentView.swift")).toContain("await model.refresh()");
   });
 
   it("keeps every automatic companion read outside Neon", () => {
@@ -56,6 +63,7 @@ describe("GearOps macOS menu bar contracts", () => {
     const deviceRoute = source("src/app/api/companion/devices/route.ts");
     const store = source("src/lib/companion-store.ts");
     const publisher = source("src/lib/services/companion-projection.ts");
+    const contract = source("src/lib/companion-projection-contract.ts");
     const api = source("src/lib/api.ts");
     const app = source("macos/GearOps/GearOpsApp.swift");
     const entitlements = source("macos/GearOps/Supporting/GearOps.entitlements");
@@ -63,12 +71,17 @@ describe("GearOps macOS menu bar contracts", () => {
     expect(projectionRoute).toContain("withHandler");
     expect(projectionRoute).not.toContain("withAuth");
     expect(projectionRoute).not.toContain("@/lib/db");
-    expect(projectionRoute).toContain("refreshCompanionProjection({ notify: false })");
+    expect(projectionRoute).not.toContain("refreshCompanionProjection");
+    expect(projectionRoute).not.toContain("export const POST");
+    expect(projectionRoute).toContain('@/lib/api-handler');
+    expect(projectionRoute).toContain('@/lib/companion-projection-contract');
+    expect(contract).not.toContain("@/lib/db");
     expect(deviceRoute).toContain("requireCompanion(req)");
     expect(deviceRoute).not.toContain("@/lib/db");
     expect(store).toContain("UPSTASH_REDIS_REST_URL");
     expect(store).toContain('createHmac("sha256"');
-    expect(store).toContain('decoded["generatedAt"] > ARGV[2]');
+    expect(store).toContain('decoded["revision"]');
+    expect(store).toContain(">= tonumber(ARGV[2])");
     expect(publisher).toContain("writeCompanionProjection(projection)");
     expect(publisher).toContain("if (!installed)");
     expect(publisher).toContain("sendCompanionInvalidation(");
@@ -181,6 +194,8 @@ describe("GearOps macOS menu bar contracts", () => {
     expect(notifications).toContain('case .open: "Booking checked out"');
     expect(notifications).toContain('case .completed: "Booking checked in"');
     expect(notifications).toContain('title = "Booking extended"');
+    expect(notifications).toContain('"bookingKind": change.bookingKind.rawValue');
+    expect(notifications).toContain("BookingDeepLink.notificationURL");
     expect(model).toContain("CompanionPushBridge.shared.events");
     expect(model).toContain("case .projectionChanged:");
     expect(model).toContain("startAutomaticRefresh()");
@@ -203,11 +218,11 @@ describe("GearOps macOS menu bar contracts", () => {
     const health = source("macos/GearOps/Health.swift");
 
     expect(model).toContain("persistCache()");
-    expect(model).toContain("Failure preserves the trusted");
+    expect(model).toContain("Failure preserves the last trusted");
     expect(model).toContain("KioskAccessState(rawValue:");
     expect(health).toContain("if age <= 5 * 60 { return .online }");
     expect(health).toContain("if age <= 24 * 60 * 60 { return .stale }");
     expect(health).toContain('.caseInsensitiveCompare("Sim iPad")');
-    expect(model).toContain("kioskDevices.filter(\\.isIncludedInMonitoring)");
+    expect(model).toContain(".filter(\\.isIncludedInMonitoring)");
   });
 });

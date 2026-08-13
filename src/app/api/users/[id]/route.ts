@@ -9,6 +9,8 @@ import { normalizeSlackHandle, normalizeSlackProfileUrl, normalizeWiscardNumber,
 import { canReadUserProfile } from "@/lib/user-visibility";
 import { normalizeProfilePhone, nullableProfilePhoneSchema, phoneAuditValue } from "@/lib/profile-phone";
 import { requireCollaboratorCapability } from "@/lib/collaborator-access";
+import { revokeCompanionUser } from "@/lib/companion-store";
+import { deferCompanionProjectionRefreshForCommittedMutation } from "@/lib/services/companion-projection-publisher";
 import { z } from "zod";
 
 const updateUserSchema = z.object({
@@ -375,6 +377,20 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
         },
       });
       deactivationHandled = true;
+    } else if (body.active === false) {
+      // A previous deactivation may have committed while Upstash was
+      // unavailable. Keep the ordinary PATCH retry idempotent so an admin can
+      // finish invalidating companion credentials after the account is already
+      // inactive.
+      try {
+        await revokeCompanionUser(id);
+      } catch (error) {
+        console.error("[Companion] failed to repair deactivated user access", error);
+        throw new HttpError(
+          503,
+          "The account is inactive, but companion access could not be revoked. Retry setting the account to inactive.",
+        );
+      }
     }
 
     updateData.active = body.active;
@@ -469,6 +485,9 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       throw new HttpError(409, "A user with this email already exists");
     }
     throw err;
+  }
+  if (!deactivationHandled) {
+    deferCompanionProjectionRefreshForCommittedMutation(req);
   }
 
   for (const key of Object.keys(updateData)) {

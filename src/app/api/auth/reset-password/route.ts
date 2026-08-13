@@ -6,6 +6,7 @@ import { withHandler } from "@/lib/api";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { createAuditEntryTx } from "@/lib/audit";
 import { Prisma } from "@prisma/client";
+import { revokeCompanionUser } from "@/lib/companion-store";
 
 const RESET_LIMIT = { max: 20, windowMs: 15 * 60 * 1000 }; // per IP; sized for shared NAT
 
@@ -20,7 +21,7 @@ export const POST = withHandler(async (req) => {
   const now = new Date();
   const newPasswordHash = await hashPassword(body.password);
 
-  await db.$transaction(
+  const resetUser = await db.$transaction(
     async (tx) => {
       const resetToken = await tx.passwordResetToken.findUnique({
         where: { tokenHash: hashed },
@@ -96,6 +97,13 @@ export const POST = withHandler(async (req) => {
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
+
+  try {
+    await revokeCompanionUser(resetUser.id);
+  } catch (error) {
+    console.error("[Companion] failed to revoke password-reset user", error);
+    throw new HttpError(503, "The password was reset, but companion access could not be revoked. Contact an administrator.");
+  }
 
   return ok({ message: "Password reset successfully. Please sign in." });
 });

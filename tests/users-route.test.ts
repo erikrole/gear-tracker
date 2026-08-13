@@ -28,6 +28,10 @@ vi.mock("@/lib/services/user-deactivation", () => ({
   deactivateUserWithCleanup: vi.fn(),
 }));
 
+vi.mock("@/lib/companion-store", () => ({
+  revokeCompanionUser: vi.fn(),
+}));
+
 vi.mock("@sentry/nextjs", () => ({
   captureException: vi.fn(),
 }));
@@ -38,6 +42,7 @@ import { db } from "@/lib/db";
 import { GET } from "@/app/api/users/route";
 import { GET as GET_DETAIL, PATCH } from "@/app/api/users/[id]/route";
 import { deactivateUserWithCleanup } from "@/lib/services/user-deactivation";
+import { revokeCompanionUser } from "@/lib/companion-store";
 
 const adminUser = {
   id: "cm000000000000000000000001",
@@ -138,6 +143,7 @@ beforeEach(() => {
   vi.mocked(db.user.count).mockResolvedValue(0);
   vi.mocked(db.user.groupBy).mockResolvedValue([]);
   vi.mocked(db.user.update).mockResolvedValue(updatedUser(makeUser({ directReportId: managerId })));
+  vi.mocked(revokeCompanionUser).mockResolvedValue(undefined);
 });
 
 describe("GET /api/users", () => {
@@ -357,6 +363,30 @@ describe("PATCH /api/users/[id]", () => {
     expect(res.status).toBe(400);
     expect(body.error).toContain("Deactivate the user separately");
     expect(deactivateUserWithCleanup).not.toHaveBeenCalled();
+    expect(db.user.update).not.toHaveBeenCalled();
+  });
+
+  it("retries companion cleanup for an account that is already inactive", async () => {
+    vi.mocked(db.user.findUnique).mockResolvedValueOnce(userRow(makeUser({ active: false })));
+    vi.mocked(db.user.update).mockResolvedValueOnce(updatedUser(makeUser({ active: false })));
+
+    const res = await PATCH(patchRequest({ active: false }), routeParams());
+
+    expect(res.status).toBe(200);
+    expect(revokeCompanionUser).toHaveBeenCalledWith(targetId);
+    expect(deactivateUserWithCleanup).not.toHaveBeenCalled();
+  });
+
+  it("reports when already-inactive companion cleanup still cannot finish", async () => {
+    vi.mocked(db.user.findUnique).mockResolvedValueOnce(userRow(makeUser({ active: false })));
+    vi.mocked(revokeCompanionUser).mockRejectedValueOnce(new Error("Redis unavailable"));
+
+    const res = await PATCH(patchRequest({ active: false }), routeParams());
+
+    expect(res.status).toBe(503);
+    await expect(res.json()).resolves.toEqual({
+      error: "The account is inactive, but companion access could not be revoked. Retry setting the account to inactive.",
+    });
     expect(db.user.update).not.toHaveBeenCalled();
   });
 

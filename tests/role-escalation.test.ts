@@ -19,12 +19,18 @@ vi.mock("@/lib/audit", () => ({
   createAuditEntry: vi.fn(),
 }));
 
+vi.mock("@/lib/companion-store", () => ({
+  revokeCompanionUser: vi.fn(),
+}));
+
 vi.mock("@sentry/nextjs", () => ({
   captureException: vi.fn(),
 }));
 
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { createAuditEntry } from "@/lib/audit";
+import { revokeCompanionUser } from "@/lib/companion-store";
 import { PATCH } from "@/app/api/users/[id]/role/route";
 
 function authUser(id: string, role: Role) {
@@ -58,7 +64,9 @@ function makeRequest(body: Record<string, unknown>) {
 }
 
 beforeEach(() => {
+  vi.clearAllMocks();
   vi.mocked(db.user.update).mockResolvedValue(userRoleUpdateResult("target-1", Role.STAFF));
+  vi.mocked(revokeCompanionUser).mockResolvedValue(undefined);
 });
 
 describe("PATCH /api/users/[id]/role", () => {
@@ -72,6 +80,22 @@ describe("PATCH /api/users/[id]/role", () => {
     );
 
     expect(res.status).toBe(200);
+    expect(revokeCompanionUser).toHaveBeenCalledWith("target-1");
+  });
+
+  it("reports a committed role change when companion revocation fails", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(authUser("admin-1", Role.ADMIN));
+    vi.mocked(db.user.findUnique).mockResolvedValue(userRoleResult("target-1", Role.STAFF));
+    vi.mocked(revokeCompanionUser).mockRejectedValue(new Error("Redis unavailable"));
+
+    const res = await PATCH(
+      makeRequest({ role: "STUDENT" }),
+      { params: Promise.resolve({ id: "target-1" }) },
+    );
+
+    expect(res.status).toBe(503);
+    expect(db.user.update).toHaveBeenCalled();
+    expect(createAuditEntry).not.toHaveBeenCalled();
   });
 
   it("STAFF cannot grant ADMIN role", async () => {
