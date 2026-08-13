@@ -141,7 +141,7 @@ Kiosk/KioskFlowRouting.swift           |                             | exempt-in
 EOF
 
 # ─── Discover Swift files actually present ───
-PRESENT_LIST=$(mktemp -t ios-audit-inv-present)
+PRESENT_LIST=$(mktemp "${TMPDIR:-/tmp}/ios-audit-inv-present.XXXXXX")
 trap 'rm -f "$PRESENT_LIST"' EXIT
 ( cd "$IOS_DIR" && find Views Kiosk -type f -name '*.swift' -print 2>/dev/null \
     | sed 's|^Views/||' \
