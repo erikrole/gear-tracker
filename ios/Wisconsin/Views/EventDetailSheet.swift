@@ -89,7 +89,6 @@ struct EventDetailView: View {
     @Environment(ReservationDraftStore.self) private var drafts
 
     @State private var vm: EventDetailViewModel
-    @State private var weatherData: EventWeatherData?
     @State private var createdGearBookingId: String?
     @State private var assignTarget: EventShift?
     @State private var replaceTarget: EventShift?
@@ -157,7 +156,6 @@ struct EventDetailView: View {
             try? await Task.sleep(for: .seconds(delay))
             if !Task.isCancelled { await vm.load() }
         }
-        .task { weatherData = await EventWeatherService.shared.weather(for: event) }
         .refreshable { await vm.load() }
         .sheet(item: $assignTarget) { shift in
             assignStudentSheet(for: shift)
@@ -961,17 +959,6 @@ struct EventDetailView: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    if let weather = weatherData {
-                        HStack(spacing: 5) {
-                            Image(systemName: weather.symbolName)
-                                .symbolRenderingMode(.multicolor)
-                            Text(weather.temperature)
-                            Link("Weather", destination: URL(string: "https://weatherkit.apple.com/legal-attribution.html")!)
-                                .foregroundStyle(.tertiary)
-                        }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
