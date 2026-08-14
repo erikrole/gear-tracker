@@ -814,6 +814,28 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+model ProductEvent {
+  id             String   @id @default(cuid())
+  actorHash      String   @map("actor_hash")
+  eventName      String   @map("event_name")
+  platform       String
+  surface        String
+  outcome        String?
+  appVersion     String?  @map("app_version")
+  durationBucket String?  @map("duration_bucket")
+  sessionHash    String?  @map("session_hash")
+  properties     Json?
+  occurredAt     DateTime @default(now()) @map("occurred_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([occurredAt])
+  @@index([eventName, occurredAt])
+  @@index([platform, occurredAt])
+  @@index([surface, occurredAt])
+  @@index([actorHash, occurredAt])
+  @@map("product_events")
+}
+
 // ── Kit / Case grouping ──────────────────────────────────
 
 model Kit {

@@ -504,6 +504,7 @@ struct RootView: View {
         .task(id: session.currentUser?.id) {
             guard let user = session.currentUser, !user.forcePasswordChange else { return }
             await profileCompletion.load(for: user)
+            await APIClient.shared.recordProductEvent(eventName: "app_opened", surface: "home")
         }
         .task(id: "badge-rewards-\(session.currentUser?.id ?? "signed-out")") {
             earnedBadgeQueue.removeAll()
@@ -527,9 +528,13 @@ struct RootView: View {
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active,
                   let user = session.currentUser,
-                  !user.forcePasswordChange,
-                  user.role != "COLLABORATOR" else { return }
-            Task { await refreshBadgeRewardsForAppOpen(for: user.id) }
+                  !user.forcePasswordChange else { return }
+            Task {
+                await APIClient.shared.recordProductEvent(eventName: "app_opened", surface: "home")
+                if user.role != "COLLABORATOR" {
+                    await refreshBadgeRewardsForAppOpen(for: user.id)
+                }
+            }
         }
         .onChange(of: profileCompletion.pushPromptEligibleUserId, initial: true) { _, userId in
             guard let userId, session.currentUser?.id == userId else { return }

@@ -9,6 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { requireAuth } from "@/lib/auth";
 import { HttpError } from "@/lib/http";
+import { ProductUsageTracker } from "@/components/ProductUsageTracker";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   let user;
@@ -31,6 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <QueryProvider userId={user.id}>
         <ConfirmProvider>
           <TooltipProvider>
+            <ProductUsageTracker />
             <OfflineBanner />
             <AppShell initialUser={user} defaultSidebarOpen={defaultSidebarOpen}>{children}</AppShell>
           </TooltipProvider>

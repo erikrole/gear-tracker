@@ -1082,6 +1082,38 @@ final class APIClient {
         _ = response.data.accepted
     }
 
+    func recordProductEvent(eventName: String, surface: String) async {
+        struct Body: Encodable {
+            let eventName: String
+            let platform: String
+            let surface: String
+            let appVersion: String?
+            let sessionKey: String
+        }
+        struct Accepted: Decodable { let accepted: Bool }
+
+        let defaultsKey = "WisconsinUsageSessionKey"
+        let sessionKey: String
+        if let existing = UserDefaults.standard.string(forKey: defaultsKey) {
+            sessionKey = existing
+        } else {
+            let created = UUID().uuidString.replacingOccurrences(of: "-", with: "")
+            UserDefaults.standard.set(created, forKey: defaultsKey)
+            sessionKey = created
+        }
+
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+        var req = request(path: "/api/product-events", method: "POST")
+        req.httpBody = try? JSONEncoder().encode(Body(
+            eventName: eventName,
+            platform: "ios",
+            surface: surface,
+            appVersion: version,
+            sessionKey: sessionKey
+        ))
+        let _: DataWrapper<Accepted>? = try? await perform(req, broadcastsSessionExpiry: false)
+    }
+
     /// `activeOnly` keeps this to reservations that still stand. The route
     /// otherwise returns cancelled and completed ones too, so a profile listed
     /// rows stamped "Cancelled" under a heading promising upcoming work.

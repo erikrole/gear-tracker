@@ -16,7 +16,7 @@ const sections = [
       "Operational records such as gear checkouts, reservations, returns, favorites, schedule assignments, availability, notifications, and audit history.",
       "Device information needed for iOS features, including push notification tokens, Live Activity tokens, app version, and basic session state.",
       "Camera access only when you choose to scan a barcode or QR code. Camera frames are used on device for scanning and are not stored by the app.",
-      "Authenticated API diagnostics and server logs used to keep the service reliable, secure, and supportable. The native iOS app does not embed a crash-reporting, session-replay, or advertising analytics SDK.",
+      "Authenticated API diagnostics and server logs used to keep the service reliable, secure, and supportable. We also count a small allowlisted set of product events such as app opens and normalized area views using rotating pseudonymous identifiers. The native iOS app does not embed a third-party crash-reporting, session-replay, or advertising analytics SDK.",
     ],
   },
   {
@@ -26,7 +26,7 @@ const sections = [
       "We do not track users across third-party apps or websites.",
       "We do not collect precise device location for the iOS app.",
       "We do not use booking photo uploads in the iOS launch scope.",
-      "We do not collect native app crash reports, device-performance metrics, generic tap or click analytics, or session replay in the iOS app.",
+      "We do not collect native app crash reports, device-performance metrics, free-form tap or click streams, page URLs containing record identifiers, search text, scanned values, or session replay in the iOS app.",
     ],
   },
   {

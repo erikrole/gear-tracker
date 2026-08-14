@@ -5,6 +5,7 @@ import { requirePermission } from "@/lib/rbac";
 import { HttpError } from "@/lib/http";
 import { ReportPrintHeader } from "./ReportPrintHeader";
 import { ReportsNav } from "./ReportsNav";
+import { canViewUsageAnalytics } from "@/lib/usage-analytics";
 
 export default async function ReportsLayout({ children }: { children: React.ReactNode }) {
   const user = await requireAuth();
@@ -24,7 +25,7 @@ export default async function ReportsLayout({ children }: { children: React.Reac
           className="mb-4"
         />
 
-        <ReportsNav role={user.role} />
+        <ReportsNav role={user.role} canViewUsageAnalytics={canViewUsageAnalytics(user)} />
       </div>
 
       <ReportPrintHeader />

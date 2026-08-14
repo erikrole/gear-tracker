@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		01166B5C08621BBC2D8218F6 /* HIDScannerField.swift in Sources */ = {isa = PBXBuildFile; fileRef = C22B3A50B4815BC1451C26DD /* HIDScannerField.swift */; };
-		0139CC54E3F0164FA19EA25C /* EventWeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D3A73950E2AF7A4B427DAC /* EventWeatherService.swift */; };
 		01C0E89D9110CBB8DA80D650 /* SearchResultRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD7494E64F4395E73A7AA6C1 /* SearchResultRow.swift */; };
 		01DEED9E4C2F825C34D40BC9 /* KioskStudentHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13D2A559654212BD133FB74F /* KioskStudentHubView.swift */; };
 		021A7B27623C3C8544FE58BB /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B04517A8131BAA862DB3FF5E /* ProfileView.swift */; };
@@ -120,7 +119,6 @@
 		AF66ADDE1D3CF5B16155A3BA /* GlobalSearchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5EC344925B5666C2CA8F773 /* GlobalSearchSheet.swift */; };
 		B0583B1951EA442CCD563320 /* ScheduleDateMathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A943ABC3AA353DC3AAEA0B3A /* ScheduleDateMathTests.swift */; };
 		B1DDE3C06BD40F1F8615A227 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64F14676788E6FA7CDD08D48 /* HomeView.swift */; };
-		B276BCB07DEE006B7B4BA266 /* WeatherKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 87AF393E027CAF24A08F414E /* WeatherKit.framework */; };
 		B2FEB545EEB4F42FE18F292F /* BookingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2228A84C3CCBC90ABF9103F1 /* BookingsView.swift */; };
 		B5152EECF15D45DC25BE2D08 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D7348A946664F1C8E265C2A3 /* PrivacyInfo.xcprivacy */; };
 		B5172B28418254E10FE53FCF /* KioskEventDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E476FBFFA1229259FF006C64 /* KioskEventDetailSheet.swift */; };
@@ -254,7 +252,6 @@
 		4A9DAB950F60885A23620BEC /* Brand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Brand.swift; sourceTree = "<group>"; };
 		50023637E6B61A75BF40891B /* CrewRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrewRow.swift; sourceTree = "<group>"; };
 		512445D206E12968A205246E /* KioskIdentityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskIdentityView.swift; sourceTree = "<group>"; };
-		51D3A73950E2AF7A4B427DAC /* EventWeatherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventWeatherService.swift; sourceTree = "<group>"; };
 		552E4A9FC0A2CB73C36F51C6 /* AccountSecuritySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSecuritySettingsView.swift; sourceTree = "<group>"; };
 		5740ABDA01126CBBB53F25EF /* ProfileCompletionWelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileCompletionWelcomeView.swift; sourceTree = "<group>"; };
 		58ABE954706326D6137979FB /* BrowseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseView.swift; sourceTree = "<group>"; };
@@ -287,7 +284,6 @@
 		841B755DD26E463F2B624373 /* ReportModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportModelsTests.swift; sourceTree = "<group>"; };
 		843772771897AABEF8DD1F93 /* BannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerView.swift; sourceTree = "<group>"; };
 		84430D9886900EA2E8F3CB0B /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = AppIcon.icon; sourceTree = "<group>"; };
-		87AF393E027CAF24A08F414E /* WeatherKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WeatherKit.framework; path = System/Library/Frameworks/WeatherKit.framework; sourceTree = SDKROOT; };
 		88F162C9B5233CB44C35E9E5 /* WisconsinLiveActivities.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = WisconsinLiveActivities.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		88FF0CACAB4BD4886FD0219B /* CreateBookingEventViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateBookingEventViews.swift; sourceTree = "<group>"; };
 		8F93CDFD1D75D7CAC2D88211 /* KioskFlowRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskFlowRoutingTests.swift; sourceTree = "<group>"; };
@@ -365,17 +361,6 @@
 		FF98C537202359B822B1D752 /* BookingEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingEntity.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
-/* Begin PBXFrameworksBuildPhase section */
-		4131A75354D9B9C47C13175A /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				B276BCB07DEE006B7B4BA266 /* WeatherKit.framework in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXFrameworksBuildPhase section */
-
 /* Begin PBXGroup section */
 		1414D7CCBD97C717AE465FD0 /* Wisconsin */ = {
 			isa = PBXGroup;
@@ -450,14 +435,6 @@
 			path = Components;
 			sourceTree = "<group>";
 		};
-		56BA9B99E8BB9A2E7D01253E /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				87AF393E027CAF24A08F414E /* WeatherKit.framework */,
-			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
 		597D878F5B57CA4F5E2F5F05 /* App */ = {
 			isa = PBXGroup;
 			children = (
@@ -479,7 +456,6 @@
 				4000675A530740785C2DA0A8 /* WisconsinLiveActivities */,
 				EDA403CEE6E28FEE6DB3375A /* WisconsinTests */,
 				E4C0BE70BBCA61E06847F9A5 /* WisconsinUITests */,
-				56BA9B99E8BB9A2E7D01253E /* Frameworks */,
 				FAC33595C52A409299C15513 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -627,7 +603,6 @@
 				38065600FA5A1C1AC4C8CC2F /* AppState.swift */,
 				4A9DAB950F60885A23620BEC /* Brand.swift */,
 				39565FFA7236A61DAD12D9BB /* DateFormats.swift */,
-				51D3A73950E2AF7A4B427DAC /* EventWeatherService.swift */,
 				FAD4EC3F211EACBB157F7DDE /* GearStore.swift */,
 				2A73B2A1C9B274552CBA7C8B /* Haptics.swift */,
 				2536547429CB16E12CB069C0 /* NetworkMonitor.swift */,
@@ -764,7 +739,6 @@
 			buildPhases = (
 				ABB8BC4733CB796A48A557D1 /* Sources */,
 				028CA1F838882E12487697F8 /* Resources */,
-				4131A75354D9B9C47C13175A /* Frameworks */,
 				E8E4190341EF62FD1DBC213B /* Embed Foundation Extensions */,
 			);
 			buildRules = (
@@ -1047,7 +1021,6 @@
 				7507BE07B0E40EAA31B9DBE9 /* DateFormats.swift in Sources */,
 				B6B0235DB84A35FE3DFF5D6C /* DraftModels.swift in Sources */,
 				713FB9080DFAA1073EE5FA8C /* EventDetailSheet.swift in Sources */,
-				0139CC54E3F0164FA19EA25C /* EventWeatherService.swift in Sources */,
 				904A4A8C645FFEB4CD2AA971 /* ExtendBookingSheet.swift in Sources */,
 				F8198BB80C4CB84C0C12ED6A /* FloatingSearchButton.swift in Sources */,
 				470F79B703DF9EB55FECE070 /* FormModels.swift in Sources */,
@@ -1145,7 +1118,7 @@
 		1BA982764C6C3AA316526245 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CURRENT_PROJECT_VERSION = 25;
+				CURRENT_PROJECT_VERSION = 26;
 				INFOPLIST_FILE = WisconsinLiveActivities/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1166,7 +1139,7 @@
 		1C7A9E3F9981CB6998B50F08 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CURRENT_PROJECT_VERSION = 25;
+				CURRENT_PROJECT_VERSION = 26;
 				INFOPLIST_FILE = WisconsinLiveActivities/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1228,7 +1201,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Wisconsin/Wisconsin.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 25;
+				CURRENT_PROJECT_VERSION = 26;
 				INFOPLIST_FILE = Wisconsin/Supporting/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1252,7 +1225,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Wisconsin/Wisconsin.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 25;
+				CURRENT_PROJECT_VERSION = 26;
 				INFOPLIST_FILE = Wisconsin/Supporting/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (

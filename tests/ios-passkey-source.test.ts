@@ -41,7 +41,8 @@ describe("iOS passkey source contract", () => {
     expect(api).toContain("DataWrapper<PasskeyRegistrationConfirmation>");
     expect(api).toContain("/api/me/passkeys");
     expect(session).toContain("PasskeyService.shared.authenticate");
-    expect(login).toContain("Continue with passkey");
+    expect(login).toContain("Use a passkey");
+    expect(login).toMatch(/if loginStep == \.identity \{[\s\S]*?submitPasskey\(\)/);
     expect(security).toContain('Text("Passkeys")');
     expect(security).toContain("PasskeyService.shared.register");
     expect(security).toContain("revokePasskey");

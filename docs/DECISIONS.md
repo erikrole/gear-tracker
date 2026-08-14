@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-08-10
+- Last Updated: 2026-08-12
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -53,6 +53,8 @@
 - D-043: Passkeys are an additive sign-in method for invite-granted users
 - D-045: A shift's coverage window is a settings-derived fallback, not manual intent
 - D-046: Schedule edits release automatically after a ten-minute quiet period
+- D-047: The macOS companion must not wake Neon
+- D-048: Product usage counting is first-party, pseudonymous, and owner-only
 
 ---
 
@@ -1043,7 +1045,25 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Preserve the existing custody and role-visibility rules in projection construction.
 - Reference: `plans/062-gearops-menu-bar.md`, `docs/AREA_DASHBOARD.md`, and `docs/AREA_NOTIFICATIONS.md`.
 
+## D-048: Product Usage Counting Is First-Party, Pseudonymous, and Owner-Only
+- Date: 2026-08-12
+- Status: Accepted; implemented locally, production configuration and migration pending
+- Decision:
+  - Gear Tracker may collect a small allowlisted set of authenticated product-usage events in its own database.
+  - Raw identity and client session keys are replaced with yearly rotating HMAC values before storage.
+  - The private Usage report is authorized by `USAGE_ANALYTICS_OWNER_EMAILS`; role membership, including ADMIN, never grants access by itself.
+- Guardrails:
+  - Event names, platforms, surfaces, outcomes, duration buckets, app versions, property keys, and property values are server allowlists.
+  - Free-form content, URLs, record identifiers, search terms, scanned values, precise location, advertising identifiers, and device fingerprints are rejected.
+  - Telemetry failure cannot block an operational workflow.
+  - Raw-event retention must remain bounded to 90 days or less before production enablement.
+- Consequences:
+  - Badge progress remains derived from server-authoritative operational evidence, never product telemetry.
+  - Usage reporting exposes aggregates only and stays separate from staff reports, user profiles, accountability, and audit history.
+- Reference: `tasks/private-usage-analytics-plan.md`, `docs/AREA_REPORTS.md`, and `src/app/privacy/page.tsx`.
+
 ## Change Log
+- 2026-08-12: Added D-048 for first-party pseudonymous product usage counting with owner-only report access and a strict data-minimization boundary.
 - 2026-08-10: Amended D-009 to use durable due-versioned checkout workflows, a five-stage schedule, late-stage collapse, location responders, +24h admin escalation without broad push, separate exact fanout caps, shared grace semantics, and category-aware delivery. Migration `0111` and authenticated production proof remain open.
 - 2026-08-09: Added D-047 for the no-wake macOS companion projection, explicit enrollment exception, post-commit publication, Upstash-only reads, and silent APNs invalidation.
 - 2026-08-07: Added D-046, superseding manual Schedule publication with a durable ten-minute quiet-period release, Student-only call times, Non-game defaults, eligible collaborator Staff-slot assignment, and retirement of active acknowledgement state.

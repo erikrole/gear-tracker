@@ -37,6 +37,7 @@
 | `/reports/overdue` | `src/app/(app)/reports/overdue/page.tsx` |
 | `/reports` | `src/app/(app)/reports/page.tsx` |
 | `/reports/scans` | `src/app/(app)/reports/scans/page.tsx` |
+| `/reports/usage` | `src/app/(app)/reports/usage/page.tsx` |
 | `/reports/utilization` | `src/app/(app)/reports/utilization/page.tsx` |
 | `/reservations/[id]` | `src/app/(app)/reservations/[id]/page.tsx` |
 | `/reservations/new` | `src/app/(app)/reservations/new/page.tsx` |
@@ -93,6 +94,7 @@
 |---|---|
 | `/` | `src/app/(app)/layout.tsx` |
 | `/reports` | `src/app/(app)/reports/layout.tsx` |
+| `/reports/usage` | `src/app/(app)/reports/usage/layout.tsx` |
 | `/settings` | `src/app/(app)/settings/layout.tsx` |
 | `/about` | `src/app/(public)/about/layout.tsx` |
 | `/` | `src/app/layout.tsx` |

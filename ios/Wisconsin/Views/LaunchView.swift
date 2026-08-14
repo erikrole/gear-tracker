@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// The shared splash scene behind LaunchView and LoginView — mirrors the web
-/// login's layered background (src/app/globals.css `.login-bg`): a deep
-/// Badger-dark base with a crimson glow from the top leading edge and an
-/// ember glow from the bottom trailing corner. Both screens draw the exact
-/// same scene so the Launch → Login hand-off is a steady-background
-/// cross-dissolve.
+/// The shared splash scene behind LaunchView, LoginView, and PasswordSetupView.
+/// Its base is the exact color used by the system-owned launch screen. The
+/// layered light can fade in after SwiftUI takes over without a first-frame
+/// color jump.
 struct BrandSplashScene: View {
+    var accentOpacity = 1.0
+
     /// Crimson glow — web `rgba(196, 18, 48, 0.55)`.
     private static let crimson = Color(red: 0.769, green: 0.071, blue: 0.188)
     /// Ember glow — web `rgba(160, 0, 0, 0.65)`.
@@ -14,34 +14,40 @@ struct BrandSplashScene: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                stops: [
-                    .init(color: Color(red: 0.078, green: 0.043, blue: 0.063), location: 0),   // #140b10
-                    .init(color: Color(red: 0.133, green: 0.035, blue: 0.051), location: 0.5), // #22090d
-                    .init(color: Color(red: 0.227, green: 0.020, blue: 0.035), location: 1),   // #3a0509
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+            Color.brandSplashTop
 
-            GeometryReader { geo in
-                ZStack {
-                    RadialGradient(
-                        colors: [Self.crimson.opacity(0.55), .clear],
-                        center: UnitPoint(x: 0.15, y: 0),
-                        startRadius: 0,
-                        endRadius: geo.size.height * 0.9
-                    )
-                    RadialGradient(
-                        colors: [Self.ember.opacity(0.65), .clear],
-                        center: UnitPoint(x: 0.9, y: 1),
-                        startRadius: 0,
-                        endRadius: geo.size.height * 0.8
-                    )
+            ZStack {
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: Color.brandSplashMid.opacity(0.85), location: 0.5),
+                        .init(color: .brandSplashBottom, location: 1),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                GeometryReader { geo in
+                    ZStack {
+                        RadialGradient(
+                            colors: [Self.crimson.opacity(0.55), .clear],
+                            center: UnitPoint(x: 0.15, y: 0),
+                            startRadius: 0,
+                            endRadius: geo.size.height * 0.9
+                        )
+                        RadialGradient(
+                            colors: [Self.ember.opacity(0.65), .clear],
+                            center: UnitPoint(x: 0.9, y: 1),
+                            startRadius: 0,
+                            endRadius: geo.size.height * 0.8
+                        )
+                    }
                 }
             }
+            .opacity(accentOpacity)
         }
         .ignoresSafeArea()
+        .accessibilityHidden(true)
     }
 }
 
@@ -56,7 +62,7 @@ struct BrandSplashLockup: View {
             Image("Badgers")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 64, height: 64)
+                .frame(width: 72, height: 72)
                 .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
                 .accessibilityHidden(true)
                 .padding(.bottom, 14)
@@ -76,38 +82,101 @@ struct BrandSplashLockup: View {
     }
 }
 
-/// Branded launch splash shown while the session is being restored and the app
-/// doesn't yet know whether it's headed to Login or the tab shell. It draws
-/// the same `BrandSplashScene` and `BrandSplashLockup` as LoginView, so the
-/// hand-off into LoginView is a seamless cross-dissolve (steady background,
-/// the sign-in card simply fades in) rather than a blank-screen flash. This is
-/// the main-app counterpart to the kiosk's `KioskResumeSplash`.
+/// Branded launch state shown only while the app has no optimistic session
+/// snapshot and is validating `/me`. The lockup stays centered exactly where
+/// the system launch image placed it. Progress appears only when validation
+/// takes long enough to need an explanation.
 struct LaunchView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var showsProgress = false
+    @State private var accentsVisible = false
+    @State private var restoreProgress: RestoreProgress = .hidden
+
+    private enum RestoreProgress {
+        case hidden
+        case checking
+        case stillChecking
+
+        var label: String? {
+            switch self {
+            case .hidden: nil
+            case .checking: "Checking your session"
+            case .stillChecking: "Still checking your session"
+            }
+        }
+    }
+
+    private var accessibilityStatus: String {
+        restoreProgress.label ?? "Opening Wisconsin Creative"
+    }
 
     var body: some View {
         ZStack {
-            BrandSplashScene()
+            BrandSplashScene(accentOpacity: accentsVisible ? 1 : 0)
 
-            VStack(spacing: 0) {
-                BrandSplashLockup()
+            BrandSplashLockup()
+                .accessibilityHidden(true)
 
-                // Only reveal the spinner if restore takes a beat, so a fast
-                // launch never flashes it.
-                ProgressView()
-                    .tint(.white)
-                    .padding(.top, 24)
-                    .opacity(showsProgress ? 1 : 0)
-                    .animation(reduceMotion ? nil : .easeIn(duration: 0.2), value: showsProgress)
+            if let progressLabel = restoreProgress.label {
+                HStack(spacing: 9) {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(.white)
+                        .accessibilityHidden(true)
+
+                    Text(progressLabel)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.82))
+                        .lineLimit(1)
+                }
+                .padding(.horizontal, 14)
+                .frame(minHeight: 34)
+                .background(.white.opacity(0.08), in: Capsule())
+                .overlay {
+                    Capsule()
+                        .strokeBorder(.white.opacity(0.12), lineWidth: 0.5)
+                }
+                .offset(y: 112)
+                .transition(.opacity)
+                .accessibilityHidden(true)
             }
         }
         .preferredColorScheme(.dark)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Loading Wisconsin Creative")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityStatus)
         .task {
-            try? await Task.sleep(for: .milliseconds(500))
-            showsProgress = true
+            if reduceMotion {
+                accentsVisible = true
+            } else {
+                withAnimation(.easeOut(duration: 0.45)) {
+                    accentsVisible = true
+                }
+            }
+
+            do {
+                try await Task.sleep(for: .milliseconds(650))
+            } catch {
+                return
+            }
+            revealProgress(.checking)
+            AccessibilityNotification.Announcement("Checking your session").post()
+
+            do {
+                try await Task.sleep(for: .seconds(3.35))
+            } catch {
+                return
+            }
+            revealProgress(.stillChecking)
+            AccessibilityNotification.Announcement("Still checking your session").post()
+        }
+    }
+
+    private func revealProgress(_ progress: RestoreProgress) {
+        if reduceMotion {
+            restoreProgress = progress
+        } else {
+            withAnimation(.easeIn(duration: 0.2)) {
+                restoreProgress = progress
+            }
         }
     }
 }

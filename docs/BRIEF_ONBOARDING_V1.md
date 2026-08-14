@@ -5,7 +5,7 @@
 - Owner: Wisconsin Athletics Creative Product
 - Status: Active - invite-first V1 shipped and launch-smoked
 - Version: V1
-- Last Updated: 2026-07-17
+- Last Updated: 2026-08-12
 - Decision Reference: D-037
 
 ## Problem
@@ -88,7 +88,7 @@ Public registration and login responses must stay generic where membership discl
 - [x] Native iOS mirrors the role-aware setup contract without caching private profile values on device.
 
 ## Launch Notes
-1. V1 keeps registration web-owned. Native iOS links invited users to `/register`, then owns the authenticated profile-completion experience natively.
+1. Native iOS owns invite-gated registration and password-recovery requests through the existing APIs, while reset-link completion remains web-owned. Native also owns the authenticated profile-completion experience.
 2. First-time direct-create and bulk direct-create endpoints are retired for beta. Operators should add allowlist invitations instead.
 3. Admin password reset stays available as a recovery path and still requires password setup before normal app access.
 4. Production launch smoke passed on June 8, 2026 for invite-to-register, stale invite removal, `/register?email=...` prefill, and forced-password recovery.

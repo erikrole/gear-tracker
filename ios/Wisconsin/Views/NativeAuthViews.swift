@@ -190,7 +190,7 @@ struct NativeRegistrationView: View {
 struct NativeForgotPasswordView: View {
     @Environment(\.dismiss) private var dismiss
 
-    @State private var email = ""
+    @State private var email: String
     @State private var result: PasswordResetRequestResult?
     @State private var formError: String?
     @State private var isSubmitting = false
@@ -198,6 +198,10 @@ struct NativeForgotPasswordView: View {
 
     private var normalizedEmail: String {
         email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    init(initialEmail: String = "") {
+        _email = State(initialValue: initialEmail)
     }
 
     var body: some View {

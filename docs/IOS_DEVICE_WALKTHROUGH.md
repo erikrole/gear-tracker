@@ -24,7 +24,7 @@ This plan maps directly to the 24+ focused audit docs at `tasks/audit-*-ios.md` 
 - [ ] `npm run drift:ios` → `0 violations`.
 - [ ] `npm run audit:ios:gaps` → `✓ no audit gaps`.
 - [ ] `cd ios && xcodegen generate` (if any new files were added).
-- [ ] Restore `Wisconsin/Wisconsin.entitlements` if xcodegen ran (APNs + WeatherKit must be present — see [feedback memory](https://github.com/erikrole/.claude/projects/-Users-erole-GitHub-gear-tracker/memory/feedback_xcodegen_entitlements.md)).
+- [ ] Confirm `Wisconsin/Wisconsin.entitlements` contains production APNs and associated domains after XcodeGen. WeatherKit must remain absent from Build 26 and later candidates.
 - [ ] Build for device target in Xcode. **BUILD SUCCEEDED** with zero warnings (other than "AppIntents.framework dependency" notice).
 - [ ] Install to a real iPhone (16 series or later) and a real iPad (Pro / Air).
 
@@ -272,7 +272,7 @@ Reachable from: Bookings tab `+`, Items list swipe + context menu, Item Detail R
 - [ ] `My shifts` chip filters the list and calendar without relying on an icon-only toolbar toggle.
 - [ ] Toolbar actions read `Trades` and `Calendar`, with the open-trade count still shown on Trades.
 - [ ] Tap an event → EventDetailSheet.
-  - [ ] Header: sport pill, home/away (with mappin.and.ellipse), title, date, location, weather (when applicable; uses WeatherKit).
+  - [ ] Header: sport pill, home/away (with mappin.and.ellipse), title, date, and location. No weather request or weather presentation appears.
   - [ ] **Crew section with CoveragePill** — "0/4 filled" or similar in red token (today's fix). [audit-event-detail-ios.md]
   - [ ] **Per-area shift blocks** — "Video" / "Photo" / "Graphics" / "Comms" headers in title-case (today's title-case sweep), NOT "VIDEO" uppercase.
   - [ ] Each shift row shows time column + worker pill ("Student" blue token / "Staff" muted) + assigned person OR "Assign person" affordance (STAFF) OR "Claim shift" affordance (STUDENT for ST slots).

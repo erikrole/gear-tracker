@@ -69,6 +69,7 @@ beforeEach(() => {
             summary: "Wisconsin Athletics Men's Basketball vs Iowa",
             startsAt: new Date("2026-05-10T15:00:00.000Z"),
             endsAt: new Date("2026-05-10T17:00:00.000Z"),
+            allDay: false,
             sportCode: "MBB",
             opponent: "Iowa",
             isHome: true,
@@ -135,6 +136,7 @@ describe("shift ICS feed hardening", () => {
                       id: true,
                       startsAt: true,
                       endsAt: true,
+                      allDay: true,
                       sportCode: true,
                       opponent: true,
                       isHome: true,
@@ -187,6 +189,96 @@ describe("shift ICS feed hardening", () => {
     expect(body).not.toContain("DESCRIPTION:");
   });
 
+  it("exports inherited all-day windows as date values", async () => {
+    vi.mocked(db.shiftAssignment.findMany).mockResolvedValueOnce(shiftAssignments([
+      {
+        id: "assignment-all-day",
+        callStartsAt: null,
+        callEndsAt: null,
+        updatedAt: new Date("2026-08-11T12:00:00.000Z"),
+        shift: {
+          workerType: "FT",
+          startsAt: new Date("2026-10-03T00:00:00.000Z"),
+          endsAt: new Date("2026-10-04T00:00:00.000Z"),
+          callStartsAt: null,
+          callEndsAt: null,
+          area: "VIDEO",
+          notes: null,
+          updatedAt: new Date("2026-08-11T12:00:00.000Z"),
+          shiftGroup: {
+            event: {
+              id: "event-all-day",
+              summary: "Wisconsin Athletics Football vs Michigan State- Homecoming",
+              startsAt: new Date("2026-10-03T00:00:00.000Z"),
+              endsAt: new Date("2026-10-04T00:00:00.000Z"),
+              allDay: true,
+              sportCode: "FB",
+              opponent: "Michigan State - Homecoming",
+              isHome: true,
+              locationId: "loc-1",
+              updatedAt: new Date("2026-08-11T12:00:00.000Z"),
+              location: { name: "Camp Randall" },
+            },
+          },
+        },
+        trades: [],
+      },
+    ]));
+
+    const res = await GET(request(), { params: Promise.resolve({ token: validToken }) });
+    const body = await res.text();
+
+    expect(body).toContain("DTSTART;VALUE=DATE:20261003");
+    expect(body).toContain("DTEND;VALUE=DATE:20261004");
+    expect(body).toContain(`SEQUENCE:${Math.floor(new Date("2026-08-11T12:00:00.000Z").getTime() / 1000) + 1}`);
+    expect(body).not.toContain("DTSTART:20261003T000000Z");
+    expect(body).not.toContain("DTEND:20261004T000000Z");
+  });
+
+  it("keeps explicit Student call windows timed on all-day events", async () => {
+    vi.mocked(db.shiftAssignment.findMany).mockResolvedValueOnce(shiftAssignments([
+      {
+        id: "assignment-timed-override",
+        callStartsAt: new Date("2026-10-03T17:00:00.000Z"),
+        callEndsAt: new Date("2026-10-03T21:00:00.000Z"),
+        updatedAt: new Date("2026-08-11T12:00:00.000Z"),
+        shift: {
+          workerType: "ST",
+          startsAt: new Date("2026-10-03T00:00:00.000Z"),
+          endsAt: new Date("2026-10-04T00:00:00.000Z"),
+          callStartsAt: null,
+          callEndsAt: null,
+          area: "VIDEO",
+          notes: null,
+          updatedAt: new Date("2026-08-11T12:00:00.000Z"),
+          shiftGroup: {
+            event: {
+              id: "event-all-day",
+              summary: "Wisconsin Athletics Football vs Michigan State- Homecoming",
+              startsAt: new Date("2026-10-03T00:00:00.000Z"),
+              endsAt: new Date("2026-10-04T00:00:00.000Z"),
+              allDay: true,
+              sportCode: "FB",
+              opponent: "Michigan State - Homecoming",
+              isHome: true,
+              locationId: "loc-1",
+              updatedAt: new Date("2026-08-11T12:00:00.000Z"),
+              location: { name: "Camp Randall" },
+            },
+          },
+        },
+        trades: [],
+      },
+    ]));
+
+    const res = await GET(request(), { params: Promise.resolve({ token: validToken }) });
+    const body = await res.text();
+
+    expect(body).toContain("DTSTART:20261003T170000Z");
+    expect(body).toContain("DTEND:20261003T210000Z");
+    expect(body).not.toContain("DTSTART;VALUE=DATE");
+  });
+
   it("folds long content lines per RFC 5545 without splitting multi-byte characters", async () => {
     const longOpponent = "Extremely Long Opponent Name University of the Upper Midwest Conference Champions";
     vi.mocked(db.shiftAssignment.findMany).mockResolvedValueOnce(shiftAssignments([
@@ -210,6 +302,7 @@ describe("shift ICS feed hardening", () => {
               summary: `Wisconsin Athletics Men's Basketball vs ${longOpponent}`,
               startsAt: new Date("2026-05-10T15:00:00.000Z"),
               endsAt: new Date("2026-05-10T17:00:00.000Z"),
+              allDay: false,
               sportCode: "MBB",
               opponent: longOpponent,
               isHome: true,
@@ -257,6 +350,7 @@ describe("shift ICS feed hardening", () => {
               summary: "Wisconsin Athletics Men's Basketball vs Iowa",
               startsAt: new Date("2026-05-10T15:00:00.000Z"),
               endsAt: new Date("2026-05-10T17:00:00.000Z"),
+              allDay: false,
               sportCode: "MBB",
               opponent: "Iowa",
               isHome: true,

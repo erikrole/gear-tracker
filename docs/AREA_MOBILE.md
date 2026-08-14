@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Mobile Operations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-10
+- Last Updated: 2026-08-12
 - Status: Active
 - Version: V1
 
@@ -132,6 +132,12 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 - **V3 (later)**: Bottom nav badge counts via live `/api/nav-counts` polling, game-day/shift context cards
 
 ## Change Log
+
+- 2026-08-14: **The App Store target no longer uses WeatherKit.** Build 26 removes the WeatherKit framework, entitlement, App ID capability, fixed-venue forecast service, event-detail forecast request, and weather presentation. The exported App Store IPA and embedded Store profile both omit WeatherKit, and App Store Connect processed the build as `VALID`. The app does not request or collect device location. Schedule identity, venue, assignment, crew, booking, and reservation behavior are unchanged.
+
+- 2026-08-12: **Native launch and sign-in now share one continuous identity.** The system launch frame uses the approved Motion W and Wisconsin Creative lockup on the same dark base as SwiftUI, with Retina assets keeping the mark sharp. Strict restores reveal labeled session-checking feedback only when needed. Login now asks for email first and reveals Password locally without an account lookup; Change returns safely, passkey stays independent of the displayed email, Forgot password sits directly under Password and prefills the normalized email, and loading and failures stay labeled and accessible. Session authority, optimistic returning-user routing, password, passkey, recovery, forced-password, and kiosk launch behavior are unchanged. Exact iPhone 16 Pro visual/runtime proof captured the system frame, SwiftUI handoff, labeled restore state, and both Login steps through a source-equivalent harness; the repository build remains blocked by the pre-existing `ReportsView.swift` Swift 6 Sendable failure.
+
+- 2026-08-12: Native iOS now sends failure-isolated first-party counts for signed-in app opens and normalized tab destinations. Payloads contain no search text, URLs, record IDs, scanned values, device fingerprint, or free-form interaction stream; the shared server replaces identity and session values with rotating pseudonymous HMACs before storage.
 
 - 2026-08-10: **Native Trade Board now reports claimability and partial data honestly.** Server-owned claimability and availability context move blocked trades out of Available Now and explain the blocker before action. Trade posts and Open Work load independently, preserve the successful half, provide source-specific retry, and never show a false empty or all-clear state while one source is unknown. New response fields remain optional for compatible rollout. The Wisconsin target builds for the iPhone 16 Pro Simulator; authenticated Trade Board runtime inspection remains open.
 

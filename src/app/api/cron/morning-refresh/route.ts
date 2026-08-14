@@ -30,6 +30,7 @@ const SHIFT_BADGE_LOOKBACK_MS = 2 * 24 * 60 * 60 * 1000;
 
 /** Events older than this many months are soft-archived (archivedAt stamped). */
 const EVENT_ARCHIVE_MONTHS = 4;
+const PRODUCT_EVENT_RETENTION_DAYS = 90;
 
 /**
  * Nightly 3 AM Central refresh (08:00 UTC):
@@ -41,8 +42,8 @@ const EVENT_ARCHIVE_MONTHS = 4;
  *   5. Expire stale open trades and pending kiosk pickups
  *   6. Poll official firmware watch targets
  *
- * Nothing is deleted — archiving only sets archivedAt so all records remain
- * available for historical stats (future Wrapped feature).
+ * Operational history is archived rather than deleted. The privacy-bounded
+ * product-event stream is the sole exception and expires after 90 days.
  */
 export const GET = withCron(async () => {
   const now = new Date();
@@ -176,10 +177,12 @@ export const GET = withCron(async () => {
     });
 
   // ── 4. Expire stale open/claimed trades and pickup no-shows ─────────
-  const [tradeResult, pendingPickupResult, firmwareWatchResult] = await Promise.allSettled([
+  const productEventCutoff = new Date(now.getTime() - PRODUCT_EVENT_RETENTION_DAYS * 86_400_000);
+  const [tradeResult, pendingPickupResult, firmwareWatchResult, productEventRetentionResult] = await Promise.allSettled([
     expireOpenTrades(),
     expirePickupNoShows(now),
     pollFirmwareWatchTargets({ now }),
+    Promise.resolve().then(() => db.productEvent.deleteMany({ where: { occurredAt: { lt: productEventCutoff } } })),
   ]);
   const maintenanceFailures: string[] = [];
   const { expired: tradesExpired } = maintenanceValue(
@@ -221,6 +224,12 @@ export const GET = withCron(async () => {
     "firmwareWatch",
     maintenanceFailures,
   );
+  const productEventsDeleted = maintenanceValue(
+    productEventRetentionResult,
+    { count: 0 },
+    "productEventRetention",
+    maintenanceFailures,
+  ).count;
   const automationDigest = await getScheduleAutomationDigest({
     userId: "system",
     includePast: false,
@@ -251,6 +260,7 @@ export const GET = withCron(async () => {
     tradesExpired,
     pendingPickups,
     firmwareWatch,
+    productEventsDeleted,
     scheduleAutomation: automationDigest,
     maintenanceFailures,
   });

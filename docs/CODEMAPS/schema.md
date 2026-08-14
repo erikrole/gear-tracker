@@ -855,6 +855,32 @@ Indexes and constraints:
 - `@@index([createdAt])`
 - `@@map("audit_logs")`
 
+## Model `ProductEvent`
+
+Fields: 12
+
+- `id             String   @id @default(cuid())`
+- `actorHash      String   @map("actor_hash")`
+- `eventName      String   @map("event_name")`
+- `platform       String`
+- `surface        String`
+- `outcome        String?`
+- `appVersion     String?  @map("app_version")`
+- `durationBucket String?  @map("duration_bucket")`
+- `sessionHash    String?  @map("session_hash")`
+- `properties     Json?`
+- `occurredAt     DateTime @default(now()) @map("occurred_at")`
+- `createdAt      DateTime @default(now()) @map("created_at")`
+
+Indexes and constraints:
+
+- `@@index([occurredAt])`
+- `@@index([eventName, occurredAt])`
+- `@@index([platform, occurredAt])`
+- `@@index([surface, occurredAt])`
+- `@@index([actorHash, occurredAt])`
+- `@@map("product_events")`
+
 ## Model `Kit`
 
 Fields: 11

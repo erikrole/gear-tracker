@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reports & Analytics
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-10
+- Last Updated: 2026-08-12
 - Status: Active
 - Version: V1
 
@@ -20,6 +20,8 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 7. `/reports/overdue` remains the live open-custody queue and therefore has no period selector. `/accountability` owns historical late-return patterns and never replaces or mutates custody evidence; Overdue links admins across to it without merging the two surfaces.
 8. Prior-period deltas appear only where a comparable preceding window exists. All-time selections show no delta, an empty prior window shows the raw difference instead of an infinite percentage, and metrics that are themselves rates report percentage points.
 9. Report surfaces print without app chrome: sidebar, section nav, refresh/export controls, pagination, and expand toggles are omitted, while active filter chips are retained so a printout states its own scope.
+10. `/reports/usage` is not role-granted. It is visible only when the signed-in email appears in the default-deny `USAGE_ANALYTICS_OWNER_EMAILS` environment allowlist. ADMIN alone is insufficient.
+11. Product usage events contain only allowlisted event, platform, surface, outcome, version, duration-bucket, session, and enum-property fields. Users and sessions are stored as rotating HMAC values; URLs, record IDs, search text, scan values, and free-form content are rejected.
 
 ## Routes
 
@@ -113,6 +115,14 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - **Filters:** Period (30d default, 90d, 1y)
 - **Data:** `GET /api/reports/badges?days=...`
 
+### `/reports/usage`
+- **Access:** Explicit product-owner email allowlist only. It is absent from report navigation and returns 403 for every other user, including ADMIN users.
+- **Metrics:** Counted events and yearly-pseudonymous active people for 7, 30, or 90 days.
+- **Breakdowns:** Platform, normalized surface, allowlisted event, and app-version adoption.
+- **Data:** `POST /api/product-events` accepts the strict shared event contract; `GET /api/reports/usage?days=...` returns aggregates only.
+- **Collection:** Web records app open plus normalized route-family views. Native iOS records app open plus primary tab destinations. Collection failure never blocks an operational workflow.
+- **Retention:** `morning-refresh` deletes raw events older than 90 days. The private report is bounded to the same maximum window.
+
 ### `/accountability`
 - **Access:** ADMIN only through `accountability.view`; its sidebar and global-search entries are hidden from every other role.
 - **Type:** Intervention-oriented late-return ranking with expandable checkout evidence and reversible data-quality exclusions.
@@ -191,6 +201,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - [x] AC-17: Utilization and checkout reports preserve successful query groups, identify unavailable groups through additive response metadata, and warn web and native users before fallback zeros or empty sections are treated as final.
 
 ## Change Log
+- 2026-08-12: Added private first-party Usage counting. Strict authenticated ingestion stores rotating pseudonymous identifiers and allowlisted enum fields only; web records normalized surface use and iOS records app opens plus tab destinations. The private report is default-deny through `USAGE_ANALYTICS_OWNER_EMAILS`, so ADMIN status alone grants nothing. No third-party analytics, replay, URLs, search text, record IDs, or scanned values are collected.
 - 2026-08-10: Utilization and checkout aggregation now preserves successful query groups without silently presenting failed groups as authoritative zeros. Additive `partialFailures` is logged and rendered on web and native; native sources load independently, period changes use newest-request ownership, and partial results never become fresh cache truth. Focused service, route, source-contract, TypeScript, lint, and inventory gates pass. Native simulator compilation and authenticated visual proof remain separate gates.
 - 2026-08-03: Disabled automatic RSC prefetching for the authenticated sidebar, notification chrome, and report section links after Safari desktop proof showed the viewport prefetch storm failing and falling back to full browser navigations. Click navigation remains client-routed.
 - 2026-07-23: Accountability now preserves checkout due-date changes and counts extensions made after the prior deadline plus grace as distinct late episodes. Migration `0102_booking_due_date_history` backfills retained extension audits, while future extensions write durable evidence in the same SERIALIZABLE transaction.

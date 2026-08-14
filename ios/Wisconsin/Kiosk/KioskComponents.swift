@@ -694,28 +694,30 @@ struct KioskBatteryScanStatus: View {
     }
 }
 
-/// Wrapping row of scanned numbered-unit tag chips.
+/// Wrapping summary of scanned numbered-unit tags.
 struct KioskUnitChips: View {
     let units: [KioskScannedUnit]
 
-    var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 6) { chipContent }
-            VStack(alignment: .leading, spacing: 6) { chipContent }
-        }
+    private var unitSummary: String {
+        units.map(\.tag).joined(separator: "  •  ")
     }
 
-    @ViewBuilder
-    private var chipContent: some View {
-        ForEach(units) { unit in
-            Text(unit.tag)
-                .font(.caption2.monospaced().weight(.semibold))
-                .foregroundStyle(Color.statusText(.green))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.statusText(.green).opacity(0.12), in: Capsule())
-                .overlay(Capsule().stroke(Color.statusText(.green).opacity(0.25), lineWidth: 1))
-        }
+    var body: some View {
+        Text(unitSummary)
+            .font(.caption2.monospaced().weight(.semibold))
+            .foregroundStyle(Color.statusText(.green))
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Color.statusText(.green).opacity(0.12),
+                in: RoundedRectangle(cornerRadius: KioskRadius.sm)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: KioskRadius.sm)
+                    .stroke(Color.statusText(.green).opacity(0.25), lineWidth: 1)
+            )
+            .accessibilityLabel(units.map(\.tag).joined(separator: ", "))
     }
 }
 

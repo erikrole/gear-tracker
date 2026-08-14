@@ -1,6 +1,6 @@
 # App Store Connect Submission Content — Wisconsin Creative
 
-Drafted: 2026-07-08. Updated: 2026-08-10 for the Build 25 TestFlight candidate. Paste-ready copy for the `Wisconsin` app's first Unlisted App Store submission. Kiosk (`WisconsinKiosk`) stays off the Store entirely; this content is for the main app only.
+Drafted: 2026-07-08. Updated: 2026-08-14 for the WeatherKit-free Build 26 replacement candidate. Paste-ready copy for the `Wisconsin` app's first Unlisted App Store submission. Kiosk (`WisconsinKiosk`) stays off the Store entirely; this content is for the main app only.
 
 Sources used: `docs/AREA_PUBLIC_SHOWROOM.md`, `src/lib/public-showroom.ts`, `tasks/app-privacy-data-inventory.md`, `ios/Wisconsin/Supporting/PrivacyInfo.xcprivacy`, `scripts/seed-app-review-demo.mjs`, `ios/project.yml`.
 
@@ -18,9 +18,8 @@ Sources used: `docs/AREA_PUBLIC_SHOWROOM.md`, `src/lib/public-showroom.ts`, `tas
 
 **Notes to reviewer**
 ```
-This submission is intended for unlisted app distribution. Do not resubmit this
-rejected version while an unlisted distribution request is pending. Resubmit the
-corrected build only after Apple's request outcome is confirmed.
+Apple has approved Wisconsin Creative for unlisted app distribution. This submission
+resolves the prior distribution-method rejection and uses the approved Unlisted App path.
 
 Wisconsin Creative is an internal equipment-management tool for a university athletics
 creative/production department. It is not a public consumer app — access is invitation-only,
@@ -30,7 +29,7 @@ When the demo account signs in, the iOS app routes that account to an isolated A
 environment at review.wisconsincreative.com. Normal invited users continue to use the
 production wisconsincreative.com environment.
 
-Build 21 adds a native Welcome flow for invited users with incomplete profiles. The demo
+The app includes a native Welcome flow for invited users with incomplete profiles. The demo
 account intentionally keeps fictional profile data incomplete, so Welcome may appear after
 sign-in. Tap "Remind tomorrow" on the first Welcome step to enter the app without supplying
 any personal information. This bypass is expected and does not change the demo dataset.
@@ -95,8 +94,8 @@ The operational records, internal guides, reservations, and equipment notes in t
 ## Pricing and Availability
 
 **Price:** Free
-**Distribution during submission:** Intended to be **Unlisted App**. The current rejected submission must not be resubmitted while Apple's unlisted request is pending.
-**Unlisted request:** Submit Apple's unlisted app distribution request and wait for the email outcome. If Apple approves it, update App Store Connect to the approved unlisted distribution method before resubmitting the corrected build. If Apple declines it, do not assume that public distribution with a gated login is acceptable; choose the next distribution path based on Apple's response.
+**Distribution during submission:** **Unlisted App**, approved by Apple on 2026-08-12.
+**Unlisted request:** Approved. Resubmit version 1.0 with the current valid candidate build and reviewer notes that identify the approved distribution path.
 
 ## URLs
 
@@ -106,7 +105,7 @@ The operational records, internal guides, reservations, and equipment notes in t
 
 ## Screenshot Capture Set
 
-Capture these from Build 23 while signed into the isolated fictional reviewer account. Use portrait orientation, no alpha channel, no real people, and no production records. Recapture both complete sets even when a screen appears unchanged from earlier builds so every submitted image matches the selected binary.
+Capture these from the App Store candidate while signed into the isolated fictional reviewer account. Use portrait orientation, no alpha channel, no real people, and no production records. Recapture both complete sets when a screen materially differs so submitted images remain truthful to the selected binary.
 
 **Required device sets**
 - iPhone 6.9-inch: `1320 x 2868` pixels using iPhone 17 Pro Max or another accepted 6.9-inch simulator size.
@@ -129,7 +128,9 @@ No video is required for the initial submission. The written notes, fictional ac
 
 ## Version Information
 
-**Build 25 release notes** (TestFlight/internal candidate):
+**Submission status (2026-08-14):** Apple paused review submission `1d932540-4f64-4439-a0cb-f7d30af5f4cb` for information about WeatherKit in Build 25 (`8f1bbbec-3866-4f65-a8eb-8eebb557ffd6`). WeatherKit-free Build 26 (`e5e5505f-9deb-4cc7-b440-df047f8fd9a8`) is processed as `VALID` and attached to version 1.0. The version is `PREPARE_FOR_SUBMISSION`; send the Resolution Center reply below to resolve the outstanding review issue, then resubmit. Release remains manual after approval.
+
+**Build 26 release notes** (replacement candidate):
 ```
 Reports, badge rewards, and clearer shift coverage arrive in this build.
 
@@ -156,6 +157,19 @@ FIXED
 - Report charts use dedicated chart colours for calmer, more consistent light and dark mode
   contrast.
 - Trade Board no longer reports an all-clear state when one data source is unavailable.
+```
+
+**Guideline 2.1 Resolution Center reply:**
+```
+Hello,
+
+Yes, the previously submitted Build 25 included a limited WeatherKit feature that displayed forecast conditions for upcoming scheduled events.
+
+We have since removed this feature. The newly submitted Build 26 does not use WeatherKit and does not include the WeatherKit framework, entitlement, or App ID capability. The app does not request or collect the user's location.
+
+Build 26 has been uploaded, processed successfully, and attached to version 1.0 for review.
+
+Thank you.
 ```
 
 **Promotional text** (170 char max, editable anytime without re-review):
@@ -204,7 +218,7 @@ gear,equipment,reservation,checkout,inventory,schedule,shift,scan,barcode,athlet
 
 ## Compliance and Legal Fields
 
-- **Export compliance:** No non-exempt encryption. The submitted target declares `ITSAppUsesNonExemptEncryption = false`. Confirm the processed Build 25 record shows the same answer.
+- **Export compliance:** No non-exempt encryption. The submitted target declares `ITSAppUsesNonExemptEncryption = false`. Confirm the processed Build 26 record shows the same answer.
 - **Content rights:** confirm Yes only after the Account Holder confirms rights to the Wisconsin branding, app icon, submitted screenshots, and fictional review assets.
 - **Digital Services Act:** use the organization-level trader status already established by the Account Holder. Do not infer or change this from repository content.
 - **Custom license agreement:** none is required by the app. Use Apple's standard EULA unless the Account Holder has an approved institutional agreement.
@@ -213,7 +227,7 @@ gear,equipment,reservation,checkout,inventory,schedule,shift,scan,barcode,athlet
 
 ## TestFlight
 
-**What to Test** (Build 25, attached to App Store Connect):
+**What to Test** (Build 26 replacement candidate):
 ```
 Reports
 - As Staff or Admin, open Browse > Reports and compare the 30-day and 90-day views.
@@ -277,4 +291,4 @@ Code-side readiness, domain cutover verification, and Snow Leopard hardening are
 - `tasks/ios-snow-leopard-release-plan.md`
 - `tasks/ios-testflight-readiness-2026-05-11.md` (remaining hardware-only QA)
 
-This file covers only the App Store Connect *content*. Account-level setup still happens in Connect: keep the new app publicly available for its initial App Review submission, enter this text, upload screenshots, submit the version, and then send Apple's separate unlisted-distribution request.
+This file covers only the App Store Connect *content*. Apple approved the separate Unlisted App request. Build 26 is valid and attached; the Resolution Center reply and resubmission remain. Monitor the replacement review record and release it manually after approval.

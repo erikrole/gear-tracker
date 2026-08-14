@@ -48,6 +48,10 @@ function icsDate(d: Date): string {
   return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 }
 
+function icsDateOnly(d: Date): string {
+  return d.toISOString().slice(0, 10).replace(/-/g, "");
+}
+
 function latestDate(dates: Date[]): Date {
   return new Date(Math.max(...dates.map((d) => d.getTime())));
 }
@@ -126,6 +130,7 @@ export const GET = withHandler<{ token: string }>(async (req, { params }) => {
                   summary: true,
                   startsAt: true,
                   endsAt: true,
+                  allDay: true,
                   sportCode: true,
                   opponent: true,
                   isHome: true,
@@ -170,9 +175,10 @@ export const GET = withHandler<{ token: string }>(async (req, { params }) => {
     const endsAt = shift.workerType === "ST"
       ? a.callEndsAt ?? shift.callEndsAt ?? shift.endsAt
       : event.endsAt;
+    const isInheritedAllDayWindow = event.allDay
+      && startsAt.getTime() === event.startsAt.getTime()
+      && endsAt.getTime() === event.endsAt.getTime();
     const title = shiftSummary(shift.area, eventTitle(event), Boolean(activeTrade));
-    const dtStart = icsDate(startsAt);
-    const dtEnd = icsDate(endsAt);
     const uid = `shift-${a.id}@wisconsin.creative`;
     const lastModified = latestDate([
       a.updatedAt,
@@ -181,7 +187,10 @@ export const GET = withHandler<{ token: string }>(async (req, { params }) => {
       ...(activeTrade ? [activeTrade.updatedAt] : []),
     ]);
     const dtstamp = icsDate(lastModified);
-    const sequence = Math.floor(lastModified.getTime() / 1000);
+    // The date-only representation fixes an existing component without a DB
+    // write, so advance its revision once to make subscribers accept the new
+    // DTSTART/DTEND shape even though the underlying assignment is unchanged.
+    const sequence = Math.floor(lastModified.getTime() / 1000) + (isInheritedAllDayWindow ? 1 : 0);
     // Canonical origin, not the request's Host header — a spoofed Host must
     // not seed poisoned links into a subscribed calendar.
     const eventUrl = `${env.appUrl}/events/${event.id}`;
@@ -191,8 +200,13 @@ export const GET = withHandler<{ token: string }>(async (req, { params }) => {
     lines.push(`DTSTAMP:${dtstamp}`);
     lines.push(`LAST-MODIFIED:${dtstamp}`);
     lines.push(`SEQUENCE:${sequence}`);
-    lines.push(`DTSTART:${dtStart}`);
-    lines.push(`DTEND:${dtEnd}`);
+    if (isInheritedAllDayWindow) {
+      lines.push(`DTSTART;VALUE=DATE:${icsDateOnly(event.startsAt)}`);
+      lines.push(`DTEND;VALUE=DATE:${icsDateOnly(event.endsAt)}`);
+    } else {
+      lines.push(`DTSTART:${icsDate(startsAt)}`);
+      lines.push(`DTEND:${icsDate(endsAt)}`);
+    }
     lines.push(`SUMMARY:${icsEscape(title)}`);
     if (location) lines.push(`LOCATION:${icsEscape(location)}`);
     lines.push(`URL:${eventUrl}`);

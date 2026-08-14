@@ -2,20 +2,40 @@ import SwiftUI
 
 struct LoginView: View {
     @Environment(SessionStore.self) private var session
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var email = ""
     @State private var password = ""
     @State private var showPassword = false
-    @State private var passkeyLoading = false
+    @State private var loginStep: LoginStep = .identity
+    @State private var activeAuthMethod: AuthMethod?
     @State private var authDestination: AuthDestination?
     @FocusState private var focused: Field?
+    @AccessibilityFocusState private var accessibilityFocused: Field?
 
     enum Field { case email, password }
 
-    private enum AuthDestination: String, Identifiable {
-        case forgotPassword
+    private enum LoginStep {
+        case identity
+        case password
+    }
+
+    private enum AuthMethod {
+        case password
+        case passkey
+    }
+
+    private enum AuthDestination: Identifiable {
+        case forgotPassword(email: String)
         case register
 
-        var id: String { rawValue }
+        var id: String {
+            switch self {
+            case .forgotPassword:
+                "forgotPassword"
+            case .register:
+                "register"
+            }
+        }
     }
 
     private var trimmedEmail: String {
@@ -23,22 +43,77 @@ struct LoginView: View {
     }
 
     private var canSubmit: Bool {
-        !trimmedEmail.isEmpty && !password.isEmpty && !session.isLoading
+        !trimmedEmail.isEmpty && !password.isEmpty && !authBusy
+    }
+
+    private var canContinue: Bool {
+        !trimmedEmail.isEmpty && !authBusy
+    }
+
+    private var authBusy: Bool {
+        activeAuthMethod != nil || session.isLoading
+    }
+
+    private var passwordLoading: Bool {
+        activeAuthMethod == .password
+    }
+
+    private var passkeyLoading: Bool {
+        activeAuthMethod == .passkey
+    }
+
+    private var primaryButtonTitle: String {
+        switch loginStep {
+        case .identity:
+            "Continue"
+        case .password:
+            passwordLoading ? "Signing in…" : "Sign in"
+        }
+    }
+
+    private func advanceToPassword() {
+        guard canContinue else { return }
+        focused = nil
+        session.clearError()
+        setLoginStep(.password)
+    }
+
+    private func changeEmail() {
+        guard !authBusy else { return }
+        focused = nil
+        password = ""
+        showPassword = false
+        session.clearError()
+        setLoginStep(.identity)
+    }
+
+    private func setLoginStep(_ step: LoginStep) {
+        if reduceMotion {
+            loginStep = step
+        } else {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                loginStep = step
+            }
+        }
     }
 
     private func submit() {
         guard canSubmit else { return }
         focused = nil
-        Task { await session.login(email: trimmedEmail, password: password) }
+        activeAuthMethod = .password
+        Task {
+            await session.login(email: trimmedEmail, password: password)
+            activeAuthMethod = nil
+        }
     }
 
     private func submitPasskey() {
-        guard !session.isLoading, !passkeyLoading else { return }
+        guard !authBusy else { return }
         focused = nil
-        passkeyLoading = true
+        activeAuthMethod = .passkey
         Task {
             await session.loginWithPasskey()
-            passkeyLoading = false
+            activeAuthMethod = nil
         }
     }
 
@@ -59,13 +134,13 @@ struct LoginView: View {
                         // Lockup lives on the scene, not the card — the card's
                         // only job is the form. Mirrors the web login.
                         BrandSplashLockup(subtitle: "Sign in to your account")
-                            .padding(.bottom, 28)
+                            .padding(.bottom, 22)
 
                         card
-                            .padding(.horizontal, 24)
+                            .padding(.horizontal, 20)
 
                         footer
-                            .padding(.top, 24)
+                            .padding(.top, 18)
                             .padding(.horizontal, 24)
 
                         Spacer(minLength: 24)
@@ -84,11 +159,18 @@ struct LoginView: View {
                 AccessibilityNotification.Announcement(error).post()
             }
         }
+        .onChange(of: loginStep) { _, step in
+            focused = step == .identity ? .email : .password
+            accessibilityFocused = step == .identity ? .email : .password
+            AccessibilityNotification.Announcement(
+                step == .identity ? "Enter your email address" : "Enter your password"
+            ).post()
+        }
         .sheet(item: $authDestination) { destination in
             NavigationStack {
                 switch destination {
-                case .forgotPassword:
-                    NativeForgotPasswordView()
+                case let .forgotPassword(email):
+                    NativeForgotPasswordView(initialEmail: email)
                 case .register:
                     NativeRegistrationView()
                 }
@@ -103,136 +185,92 @@ struct LoginView: View {
     // the user's theme. The `.light` environment makes materials and
     // system colors inside resolve light even though the screen is dark.
     private var card: some View {
-        VStack(spacing: 16) {
-            // Email
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Email")
-                    .font(.subheadline.weight(.medium))
-                TextField(text: $email, prompt: Text("you@example.com").foregroundStyle(.secondary)) { Text("Email") }
-                    .accessibilityLabel("Email")
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.emailAddress)
-                    .textContentType(.username)
-                    .autocorrectionDisabled()
-                    .focused($focused, equals: .email)
-                    .submitLabel(.next)
-                    .onSubmit { focused = .password }
-                    .onChange(of: email) {
-                        session.clearError()
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 12)
-                    .background(fieldFill(for: .email))
-
-                AuthEmailDomainNote(email: email)
-            }
-
-            // Password
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("Password")
-                        .font(.subheadline.weight(.medium))
-                    Spacer()
-                    Button("Forgot password?") {
-                        authDestination = .forgotPassword
-                    }
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .buttonStyle(.plain)
-                        .accessibilityHint("Opens password recovery in the app")
-                }
-                ZStack(alignment: .trailing) {
-                    Group {
-                        if showPassword {
-                            TextField(text: $password, prompt: Text("Enter your password").foregroundStyle(.secondary)) { Text("Password") }
-                        } else {
-                            SecureField(text: $password, prompt: Text("Enter your password").foregroundStyle(.secondary)) { Text("Password") }
-                        }
-                    }
-                    .accessibilityLabel("Password")
-                    .textContentType(.password)
-                    .focused($focused, equals: .password)
-                    .submitLabel(.go)
-                    .onSubmit { submit() }
-                    .onChange(of: password) { session.clearError() }
-                    .padding(.horizontal, 14)
-                    .padding(.trailing, 42)
-                    .padding(.vertical, 12)
-                    .background(fieldFill(for: .password))
-
-                    Button {
-                        showPassword.toggle()
-                    } label: {
-                        Image(systemName: showPassword ? "eye.slash" : "eye")
-                            .foregroundStyle(.secondary)
-                            .frame(width: 44, height: 44)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(showPassword ? "Hide password" : "Show password")
-                    .accessibilityValue(showPassword ? "Password visible" : "Password hidden")
-                }
+        VStack(spacing: 14) {
+            if loginStep == .identity {
+                identityStep
+                    .transition(.opacity)
+            } else {
+                passwordStep
+                    .transition(.opacity)
             }
 
             // Error
             if let error = session.error {
-                Text(error)
-                    .font(.footnote)
+                Label(error, systemImage: "exclamationmark.circle.fill")
+                    .font(.footnote.weight(.medium))
                     .foregroundStyle(Color.statusText(.red))
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Color.statusBackground(.red), in: RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous))
+                    .accessibilityLabel("Sign in failed. \(error)")
             }
 
-            // Sign In — the page's one saturated moment, in native glass.
+            // The page's one saturated moment remains stable across both
+            // local steps so Continue becomes Sign in without layout churn.
             Button {
-                submit()
+                switch loginStep {
+                case .identity:
+                    advanceToPassword()
+                case .password:
+                    submit()
+                }
             } label: {
-                ZStack {
-                    if session.isLoading {
+                HStack(spacing: 8) {
+                    if passwordLoading {
                         ProgressView()
-                    } else {
-                        Text("Sign in")
-                            .fontWeight(.semibold)
+                            .controlSize(.small)
+                            .accessibilityHidden(true)
                     }
+                    Text(primaryButtonTitle)
+                        .fontWeight(.semibold)
                 }
                 .frame(maxWidth: .infinity)
             }
             .buttonStyle(.glassProminent)
             .controlSize(.large)
             .tint(.brandPrimary)
-            .disabled(!canSubmit)
+            .disabled(loginStep == .identity ? !canContinue : !canSubmit)
 
-            HStack(spacing: 12) {
-                Rectangle()
-                    .fill(.secondary.opacity(0.25))
-                    .frame(height: 1)
-                Text("or")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Rectangle()
-                    .fill(.secondary.opacity(0.25))
-                    .frame(height: 1)
-            }
-
-            Button {
-                submitPasskey()
-            } label: {
-                HStack(spacing: 8) {
-                    if passkeyLoading {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Image(systemName: "key.fill")
-                    }
-                    Text(passkeyLoading ? "Waiting for passkey…" : "Continue with passkey")
-                        .fontWeight(.semibold)
+            if loginStep == .identity {
+                HStack(spacing: 12) {
+                    Rectangle()
+                        .fill(.secondary.opacity(0.25))
+                        .frame(height: 1)
+                    Text("or")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Rectangle()
+                        .fill(.secondary.opacity(0.25))
+                        .frame(height: 1)
                 }
-                .frame(maxWidth: .infinity)
+
+                Button {
+                    submitPasskey()
+                } label: {
+                    HStack(spacing: 8) {
+                        if passkeyLoading {
+                            ProgressView()
+                                .controlSize(.small)
+                                .accessibilityHidden(true)
+                        } else {
+                            Image(systemName: "key.fill")
+                                .accessibilityHidden(true)
+                        }
+                        Text(passkeyLoading ? "Waiting for passkey…" : "Use a passkey")
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.glass)
+                .controlSize(.large)
+                .tint(.primary)
+                .disabled(authBusy)
+                .accessibilityHint("Choose an account with a saved passkey")
             }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
-            .disabled(session.isLoading || passkeyLoading)
         }
-        .padding(24)
+        .padding(20)
         .background(
             // Frosted material plus a white wash so the card reads as a light
             // surface (web: rgba(255,255,255,0.88) + blur), not a pink one —
@@ -241,14 +279,14 @@ struct LoginView: View {
                 .fill(.regularMaterial)
                 .overlay(
                     RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous)
-                        .fill(Color.white.opacity(0.72))
+                        .fill(Color.white.opacity(0.58))
                 )
         )
         .overlay(
             RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous)
                 .strokeBorder(
                     LinearGradient(
-                        colors: [.white.opacity(0.55), .white.opacity(0.15)],
+                        colors: [.white.opacity(0.7), .white.opacity(0.22)],
                         startPoint: .top,
                         endPoint: .bottom
                     ),
@@ -256,19 +294,133 @@ struct LoginView: View {
                 )
         )
         .environment(\.colorScheme, .light)
-        .shadow(color: Color(.sRGBLinear, white: 0, opacity: 0.4), radius: 24, y: 12)
+        .shadow(color: Color(.sRGBLinear, white: 0, opacity: 0.35), radius: 20, y: 10)
     }
 
-    // Solid white input wells with a defined resting border and a crimson
-    // focused edge — same treatment as the web login's `.login-field`.
-    private func fieldFill(for field: Field) -> some View {
+    private var identityStep: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Email address")
+                .font(.subheadline.weight(.semibold))
+
+            TextField(
+                text: $email,
+                prompt: Text("you@wisc.edu").foregroundStyle(.secondary)
+            ) {
+                Text("Email address")
+            }
+            .accessibilityLabel("Email address")
+            .textInputAutocapitalization(.never)
+            .keyboardType(.emailAddress)
+            .textContentType(.username)
+            .autocorrectionDisabled()
+            .focused($focused, equals: .email)
+            .accessibilityFocused($accessibilityFocused, equals: .email)
+            .submitLabel(.continue)
+            .onSubmit { advanceToPassword() }
+            .onChange(of: email) { session.clearError() }
+            .padding(.horizontal, 14)
+            .frame(minHeight: 52)
+            .background(fieldFill(isFocused: focused == .email))
+
+            AuthEmailDomainNote(email: email)
+        }
+    }
+
+    private var passwordStep: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Signing in as")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(trimmedEmail)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+
+                Spacer(minLength: 8)
+
+                Button("Change") {
+                    changeEmail()
+                }
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(Self.focusAccent)
+                .buttonStyle(.plain)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
+                .disabled(authBusy)
+                .accessibilityHint("Returns to email entry")
+            }
+
+            Text("Password")
+                .font(.subheadline.weight(.semibold))
+
+            ZStack(alignment: .trailing) {
+                Group {
+                    if showPassword {
+                        TextField(
+                            text: $password,
+                            prompt: Text("Enter your password").foregroundStyle(.secondary)
+                        ) {
+                            Text("Password")
+                        }
+                    } else {
+                        SecureField(
+                            text: $password,
+                            prompt: Text("Enter your password").foregroundStyle(.secondary)
+                        ) {
+                            Text("Password")
+                        }
+                    }
+                }
+                .accessibilityLabel("Password")
+                .textContentType(.password)
+                .focused($focused, equals: .password)
+                .accessibilityFocused($accessibilityFocused, equals: .password)
+                .submitLabel(.go)
+                .onSubmit { submit() }
+                .onChange(of: password) { session.clearError() }
+                .padding(.horizontal, 14)
+                .padding(.trailing, 42)
+                .frame(minHeight: 52)
+
+                Button {
+                    showPassword.toggle()
+                } label: {
+                    Image(systemName: showPassword ? "eye.slash" : "eye")
+                        .foregroundStyle(.secondary)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(showPassword ? "Hide password" : "Show password")
+                .accessibilityValue(showPassword ? "Password visible" : "Password hidden")
+            }
+            .background(fieldFill(isFocused: focused == .password))
+
+            Button("Forgot password?") {
+                authDestination = .forgotPassword(email: trimmedEmail)
+            }
+            .font(.footnote.weight(.medium))
+            .foregroundStyle(.secondary)
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .trailing)
+            .contentShape(Rectangle())
+            .disabled(authBusy)
+            .accessibilityHint("Opens password recovery in the app")
+        }
+    }
+
+    // Each step owns one focused field. The local progression reduces the
+    // visual form load without making an account-discovery request.
+    private func fieldFill(isFocused: Bool) -> some View {
         RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous)
             .fill(Color.white)
             .strokeBorder(
-                focused == field ? Self.focusAccent : Color.black.opacity(0.14),
-                lineWidth: focused == field ? 1.5 : 1
+                isFocused ? Self.focusAccent : Color.black.opacity(0.14),
+                lineWidth: isFocused ? 1.5 : 1
             )
-            .animation(.easeOut(duration: 0.15), value: focused)
+            .animation(.easeOut(duration: 0.15), value: isFocused)
     }
 
     // Quiet scene-level footer below the card, mirroring the web login.
@@ -284,6 +436,9 @@ struct LoginView: View {
                 .font(.footnote.weight(.medium))
                 .foregroundStyle(.white.opacity(0.8))
                 .buttonStyle(.plain)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+                .disabled(authBusy)
                 .accessibilityHint("Opens account registration in the app")
         }
         .font(.footnote)

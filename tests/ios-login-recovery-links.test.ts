@@ -9,7 +9,10 @@ describe("iOS native login recovery flows", () => {
   it("presents native registration and recovery screens from login", () => {
     expect(source).not.toContain("SafariServices");
     expect(source).not.toContain("SFSafariViewController");
-    expect(source).toContain("NativeForgotPasswordView()");
+    expect(source).toContain("NativeForgotPasswordView(initialEmail: email)");
+    expect(source).toContain("authDestination = .forgotPassword(email: trimmedEmail)");
+    expect(authViews).toContain('init(initialEmail: String = "")');
+    expect(authViews).toContain("_email = State(initialValue: initialEmail)");
     expect(source).toContain("NativeRegistrationView()");
     expect(source).toContain(".sheet(item: $authDestination)");
     expect(source).toContain('Button("Forgot password?")');

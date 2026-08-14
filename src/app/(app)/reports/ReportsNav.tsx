@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { SectionNav, SectionNavLink, SectionNavList } from "@/components/SectionNav";
 import { isReportSectionVisible, REPORT_SECTIONS } from "@/lib/nav-sections";
 
-export function ReportsNav({ role }: { role: string }) {
+export function ReportsNav({ role, canViewUsageAnalytics }: { role: string; canViewUsageAnalytics: boolean }) {
   const pathname = usePathname();
 
   return (
@@ -19,6 +19,11 @@ export function ReportsNav({ role }: { role: string }) {
             {section.label}
           </SectionNavLink>
         ))}
+        {canViewUsageAnalytics && (
+          <SectionNavLink href="/reports/usage" active={pathname.startsWith("/reports/usage")}>
+            Usage
+          </SectionNavLink>
+        )}
       </SectionNavList>
     </SectionNav>
   );

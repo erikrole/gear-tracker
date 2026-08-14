@@ -783,7 +783,7 @@ struct OverdueReport: Codable {
 }
 
 /// Most-used asset over the report window, ranked by days spent in custody.
-struct UtilizationTopUsedAsset: Codable, Identifiable {
+struct UtilizationTopUsedAsset: Codable, Identifiable, Sendable {
     let assetId: String
     let assetTag: String
     let name: String
@@ -797,7 +797,7 @@ struct UtilizationTopUsedAsset: Codable, Identifiable {
 /// Custody half of `/api/reports/utilization`. The web payload also carries
 /// idle-asset rows and breakdown tables; iOS decodes only what it draws, and
 /// Codable ignores the rest.
-struct UtilizationCustody: Codable {
+struct UtilizationCustody: Codable, Sendable {
     let utilizationRate: Double
     let custodyDays: Double
     let assetsUsed: Int
@@ -812,7 +812,7 @@ struct UtilizationCustody: Codable {
 /// — during a deploy window, or after a rollback — so they decode as optional
 /// and the screen renders whatever the server actually knows about. The status
 /// snapshot predates the rebuild and is always present.
-struct UtilizationReport: Codable {
+struct UtilizationReport: Codable, Sendable {
     let days: Int?
     let activeAssets: Int?
     let partialFailures: [String]?
@@ -821,7 +821,7 @@ struct UtilizationReport: Codable {
     let custody: UtilizationCustody?
 }
 
-struct CheckoutTrendPoint: Codable, Identifiable {
+struct CheckoutTrendPoint: Codable, Identifiable, Sendable {
     /// `YYYY-MM-DD`, already bucketed per UTC day by the server.
     let date: String
     let count: Int
@@ -831,7 +831,7 @@ struct CheckoutTrendPoint: Codable, Identifiable {
 
 /// Trend half of `/api/reports/checkouts`. The heatmap, requester ranking, and
 /// row list stay on web; iOS shows the activity shape and the period delta.
-struct CheckoutActivityReport: Codable {
+struct CheckoutActivityReport: Codable, Sendable {
     let days: Int
     let partialFailures: [String]?
     let totalCheckouts: Int

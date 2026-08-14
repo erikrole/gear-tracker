@@ -12,6 +12,7 @@ vi.mock("@/lib/db", () => ({
     calendarSource: { findMany: vi.fn() },
     calendarEvent: { updateMany: vi.fn() },
     shiftGroup: { findMany: vi.fn(), updateMany: vi.fn() },
+    productEvent: { deleteMany: vi.fn() },
   },
 }));
 
@@ -66,6 +67,7 @@ const mockDb = db as unknown as {
   calendarSource: { findMany: ReturnType<typeof vi.fn> };
   calendarEvent: { updateMany: ReturnType<typeof vi.fn> };
   shiftGroup: { findMany: ReturnType<typeof vi.fn>; updateMany: ReturnType<typeof vi.fn> };
+  productEvent: { deleteMany: ReturnType<typeof vi.fn> };
 };
 
 function request() {
@@ -80,6 +82,7 @@ describe("morning refresh cron route", () => {
     mockDb.calendarEvent.updateMany.mockResolvedValue({ count: 0 });
     mockDb.shiftGroup.findMany.mockResolvedValue([]);
     mockDb.shiftGroup.updateMany.mockResolvedValue({ count: 0 });
+    mockDb.productEvent.deleteMany.mockResolvedValue({ count: 0 });
     vi.mocked(syncCalendarSource).mockResolvedValue({ added: 0, updated: 0, cancelled: 0, skipped: 0, errors: [] });
     vi.mocked(generateShiftsForNewEvents).mockResolvedValue({ groupsCreated: 0, shiftsCreated: 0 });
     vi.mocked(updateCalendarSyncHealth).mockResolvedValue({

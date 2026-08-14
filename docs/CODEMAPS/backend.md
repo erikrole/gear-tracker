@@ -17,7 +17,7 @@
 | `src/lib/services/bookings-checkin.ts` | 846 |
 | `src/lib/services/bookings-helpers.ts` | 281 |
 | `src/lib/services/bookings-lifecycle.ts` | 2149 |
-| `src/lib/services/bookings-queries.ts` | 289 |
+| `src/lib/services/bookings-queries.ts` | 301 |
 | `src/lib/services/bookings.ts` | 4 |
 | `src/lib/services/bulk-unit-scans.ts` | 617 |
 | `src/lib/services/calendar-sync-health.ts` | 165 |
@@ -27,7 +27,8 @@
 | `src/lib/services/checkout-policies.ts` | 40 |
 | `src/lib/services/collaborator-policies.ts` | 400 |
 | `src/lib/services/collaborator-schedule.ts` | 213 |
-| `src/lib/services/companion-projection.ts` | 279 |
+| `src/lib/services/companion-projection-publisher.ts` | 57 |
+| `src/lib/services/companion-projection.ts` | 196 |
 | `src/lib/services/dashboard-counts.ts` | 119 |
 | `src/lib/services/event-defaults.ts` | 69 |
 | `src/lib/services/firmware-watch.ts` | 299 |
@@ -64,7 +65,8 @@
 | `src/lib/services/shift-trades.ts` | 931 |
 | `src/lib/services/sport-configs.ts` | 257 |
 | `src/lib/services/status.ts` | 444 |
-| `src/lib/services/user-deactivation.ts` | 364 |
+| `src/lib/services/usage-analytics-report.ts` | 33 |
+| `src/lib/services/user-deactivation.ts` | 386 |
 
 ## Key Library Files
 
@@ -72,7 +74,8 @@
 |---|---:|
 | `src/lib/admin-fix-today.ts` | 408 |
 | `src/lib/api-dates.ts` | 32 |
-| `src/lib/api.ts` | 186 |
+| `src/lib/api-handler.ts` | 59 |
+| `src/lib/api.ts` | 134 |
 | `src/lib/app-time.ts` | 104 |
 | `src/lib/asset-attachments.ts` | 166 |
 | `src/lib/asset-image.ts` | 26 |
@@ -104,7 +107,8 @@
 | `src/lib/checkout-notification-workflow.ts` | 24 |
 | `src/lib/collaborator-access.ts` | 162 |
 | `src/lib/collaborator-gear.ts` | 151 |
-| `src/lib/companion-store.ts` | 233 |
+| `src/lib/companion-projection-contract.ts` | 68 |
+| `src/lib/companion-store.ts` | 292 |
 | `src/lib/cron.ts` | 35 |
 | `src/lib/crypto.ts` | 17 |
 | `src/lib/csv.ts` | 17 |
@@ -160,7 +164,7 @@
 | `src/lib/schedule-change-history-types.ts` | 55 |
 | `src/lib/schedule-data-quality.ts` | 128 |
 | `src/lib/schedule-defaults.ts` | 33 |
-| `src/lib/schedule-event-identity.ts` | 78 |
+| `src/lib/schedule-event-identity.ts` | 82 |
 | `src/lib/schedule-event-where.ts` | 46 |
 | `src/lib/schedule-health-types.ts` | 83 |
 | `src/lib/schedule-publication-types.ts` | 46 |
@@ -183,8 +187,9 @@
 | `src/lib/student-profile.ts` | 56 |
 | `src/lib/theme.ts` | 145 |
 | `src/lib/time.ts` | 28 |
-| `src/lib/title-normalization.ts` | 58 |
+| `src/lib/title-normalization.ts` | 79 |
 | `src/lib/url-sync.ts` | 16 |
+| `src/lib/usage-analytics.ts` | 57 |
 | `src/lib/user-list-cache.ts` | 73 |
 | `src/lib/user-visibility.ts` | 71 |
 | `src/lib/utils.ts` | 7 |
@@ -501,6 +506,10 @@
 - `/api/notifications/process`
 - `/api/notifications`
 
+### `/api/product-events`
+
+- `/api/product-events`
+
 ### `/api/profile`
 
 - `/api/profile`
@@ -513,6 +522,7 @@
 - `/api/reports/checkouts`
 - `/api/reports/overdue`
 - `/api/reports/scans`
+- `/api/reports/usage`
 - `/api/reports/utilization`
 
 ### `/api/reservations`

@@ -5,11 +5,13 @@ import { hashPassword, verifyPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
 import { canViewHiddenUsers } from "@/lib/user-visibility";
+import { canViewUsageAnalytics } from "@/lib/usage-analytics";
 
 export const GET = withAuth(async (_req, { user }) => {
   return ok({
     user,
     canViewHiddenUsers: canViewHiddenUsers(user),
+    canViewUsageAnalytics: canViewUsageAnalytics(user),
   });
 });
 

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 function source(path: string): string {
@@ -44,8 +44,8 @@ describe("native app and web trust contracts", () => {
     const list = source("ios/Wisconsin/Views/BookingsView.swift");
 
     expect(route).toContain("getAllowedBookingActions(user, booking)");
-    expect(route).toContain("collaboratorBookingResponse(booking, allowedActions)");
-    expect(route).toContain("{ ...booking, allowedActions }");
+    expect(route).toContain("collaboratorBookingResponse(displayBooking, allowedActions)");
+    expect(route).toContain("{ ...displayBooking, allowedActions }");
     expect(models).toContain("var allowedActions: [String]? = nil");
     expect(models).toContain("func allows(_ action: String) -> Bool?");
     expect(detail).toContain('booking.allows("edit") ?? legacyCanEdit(booking)');
@@ -81,9 +81,23 @@ describe("native app and web trust contracts", () => {
     expect(detail).toContain("ForEach(Array(eventSummaries.enumerated())");
   });
 
-  it("versions the app and Live Activity extension together as build 25", () => {
+  it("versions the app and Live Activity extension together as build 26", () => {
     const project = source("ios/project.yml");
-    expect(project.match(/CURRENT_PROJECT_VERSION: "25"/g)).toHaveLength(2);
-    expect(project).not.toContain('CURRENT_PROJECT_VERSION: "24"');
+    expect(project.match(/CURRENT_PROJECT_VERSION: "26"/g)).toHaveLength(2);
+    expect(project).not.toContain('CURRENT_PROJECT_VERSION: "25"');
+  });
+
+  it("keeps WeatherKit out of the App Store target", () => {
+    const project = source("ios/project.yml");
+    const generatedProject = source("ios/Wisconsin.xcodeproj/project.pbxproj");
+    const entitlements = source("ios/Wisconsin/Wisconsin.entitlements");
+    const eventDetail = source("ios/Wisconsin/Views/EventDetailSheet.swift");
+
+    expect(project).not.toContain("WeatherKit");
+    expect(generatedProject).not.toContain("WeatherKit");
+    expect(entitlements).not.toContain("com.apple.developer.weatherkit");
+    expect(eventDetail).not.toContain("EventWeatherService");
+    expect(eventDetail).not.toContain("weatherkit.apple.com");
+    expect(existsSync("ios/Wisconsin/Core/EventWeatherService.swift")).toBe(false);
   });
 });

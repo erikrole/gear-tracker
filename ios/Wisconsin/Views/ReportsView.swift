@@ -3,7 +3,7 @@ import SwiftUI
 
 // MARK: - View model
 
-private enum ReportLoadOutcome<Value> {
+private enum ReportLoadOutcome<Value: Sendable>: Sendable {
     case success(Value)
     case failure(String)
     case cancelled

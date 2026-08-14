@@ -56,16 +56,7 @@ struct PasswordSetupView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                stops: [
-                    .init(color: .brandSplashTop, location: 0),
-                    .init(color: .brandSplashMid, location: 0.4),
-                    .init(color: .brandPrimary, location: 1),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            BrandSplashScene()
 
             GeometryReader { geo in
                 ScrollView {

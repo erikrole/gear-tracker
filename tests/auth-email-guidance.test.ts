@@ -28,7 +28,7 @@ describe("auth email domain guidance", () => {
     }
     expect(nativeLogin).toContain("AuthEmailDomainNote(email: email)");
     expect(nativeLogin).not.toContain("showEmailDomainTip");
-    expect(nativeLogin.indexOf("AuthEmailDomainNote(email: email)")).toBeLessThan(nativeLogin.indexOf("// Password"));
+    expect(nativeLogin.indexOf("AuthEmailDomainNote(email: email)")).toBeLessThan(nativeLogin.indexOf('Button("Forgot password?")'));
     expect(nativeAuth).toContain("AuthEmailGuidance.shouldSuggestWiscEmail");
     expect(nativeAuth).toContain("AuthEmailDomainNote(email: email)");
     expect(nativeAuth).not.toContain("showEmailDomainTip");

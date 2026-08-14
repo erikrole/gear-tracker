@@ -1,6 +1,6 @@
 # Tasks Index
 
-Last updated: 2026-08-10
+Last updated: 2026-08-12
 
 ## Start Here
 
@@ -21,7 +21,7 @@ Keep root `tasks/` for current work and durable reference ledgers only:
 - Current audit docs used by audit skills, especially `audit-*-ios.md` and route/page audit files.
 - Current roadmap/reference docs that intentionally guide future work.
 
-Move completed plan files to `tasks/archive/completed-2026-06/` instead of leaving them at root.
+Move completed plan files to the current dated `tasks/archive/completed-YYYY-MM-DD/` bucket instead of leaving them at root.
 
 ## Current Root Shape
 
@@ -56,6 +56,7 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Archive Buckets
 
+- `tasks/archive/completed-2026-08-12/` - completed launch and Login visual-polish plan.
 - `tasks/archive/completed-2026-06/` - completed plans and queue cleanup summaries from the June cleanup run.
 - `tasks/archive/completed-2026-07/` - completed plans moved during the July 11 repository cleanup.
 - `tasks/archive/proofs/` - browser-smoke and screenshot proof artifacts.
@@ -71,6 +72,8 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Recently Archived
 
+- `archive/completed-2026-08-12/ios-launch-splash-loading-polish-plan.md` - unified the native system launch, restore state, and identity-first Login around one branded surface while preserving session and auth authority.
+- `archive/completed-2026-08-07/personal-calendar-all-day-export-fix-plan.md` - corrected private worker ICS feeds so inherited all-day assignments use date-only boundaries while explicit Student call windows remain timed.
 - `archive/completed-2026-08-07/booking-api-hardening-plan.md` - closed booking
   lifecycle, transactional concurrency, change-feed, draft, export, audit, and
   custody-boundary hardening with authenticated local API proof.

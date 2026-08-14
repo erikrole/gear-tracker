@@ -99,6 +99,33 @@ The current uncommitted five-minute idle polling and heartbeat changes are not t
 - Current scanner/session/scan-route tests
 - Prior kiosk checkout, pickup, return, battery recovery, debugger, and broad kiosk audit records
 
+## 2026-08-14 numbered-battery crash follow-up
+
+### Crash evidence and bounded route
+
+- The Camp Randall IPS report records `EXC_BREAKPOINT` / `SIGTRAP` on `com.apple.SwiftUI.AsyncRenderer`, not a memory-pressure termination or API failure.
+- The first app frame is `closure #1 in KioskUnitChips.chipContent.getter`, reached from SwiftUI `ForEach` while the numbered-unit summary is being rendered.
+- `KioskUnitChips` is shared by pickup and return after the first numbered battery unit is scanned. Its `ViewThatFits` candidates both defer the same main-actor-inherited `ForEach` content closure.
+- The other kiosk `ViewThatFits` call sites do not embed this dynamic reusable content closure and are outside the crash stack, so this correction stays scoped to `KioskUnitChips`.
+- No scanner transport, API, custody state, or completion behavior changes. Exact scanned unit tags remain visible.
+
+### Planned correction and proof
+
+- [x] Replace the deferred `ViewThatFits` / `ForEach` chip builder with one wrapping unit-tag summary.
+- [x] Add a source-contract regression that bans the async-renderer crash shape from `KioskUnitChips` while preserving pickup and return wiring.
+- [x] Run focused Vitest coverage, iOS drift/gap/project checks, the dedicated kiosk Xcode verification, and `git diff --check`. Docs verification is blocked by unrelated dirty codemaps already present in the worktree.
+- [ ] Re-run numbered-battery pickup and return on the managed M2 iPad Air. Source/build proof does not replace that device confirmation.
+
+### Verification evidence
+
+- `npx vitest run tests/ios-kiosk-numbered-battery-rendering.test.ts tests/ios-kiosk-scanner-focus.test.ts tests/ios-kiosk-reservation-pickup-contract.test.ts tests/kiosk-checkin-routes.test.ts` - 4 files, 21 tests passed.
+- `npm run ios:project:check` - XcodeGen output matches the checked-in project.
+- `npm run drift:ios` - no anti-patterns across 85 Swift files.
+- `npm run audit:ios:gaps` - 54/54 audit-worthy surfaces covered.
+- `npm run ios:xcode:verify:kiosk` - simulator build, kiosk XCTest suite, and generic iOS build passed. The existing `UIRequiresFullScreen` iOS 26 deprecation warning remains.
+- `git diff --check` - passed.
+- `npm run verify:docs` - blocked by pre-existing drift in `docs/CODEMAPS/architecture.md` and `docs/CODEMAPS/areas.md`. Codemap generation was not run because both files contain unrelated user work.
+
 ## Stop recommendation
 
-Do not change API or custody logic for this symptom. The reported checkout scan failure is closed on hardware. Stop after verifying the static scanner-target follow-up on the connected M2 iPad Air; pickup and return transition checks remain a separate hardware regression pass.
+Do not change API or custody logic for this crash. The source/build correction is complete. Stop after replaying numbered-battery pickup and return on the managed M2 iPad Air and confirming no new crash report is produced.

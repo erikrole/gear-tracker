@@ -16,11 +16,14 @@ extension Color {
             : UIColor(red: 0.627, green: 0, blue: 0, alpha: 1)
     }))
 
-    /// Top stop of the login splash gradient — near-black with a violet shift.
-    static let brandSplashTop = Color(red: 0.102, green: 0.063, blue: 0.090)
+    /// Static launch base and top stop of the shared splash scene — `#140B10`.
+    static let brandSplashTop = Color(red: 0.078, green: 0.043, blue: 0.063)
 
-    /// Mid stop of the login splash gradient — deep burgundy.
-    static let brandSplashMid = Color(red: 0.176, green: 0.039, blue: 0.055)
+    /// Mid stop of the shared splash scene — `#22090D`.
+    static let brandSplashMid = Color(red: 0.133, green: 0.035, blue: 0.051)
+
+    /// Bottom stop of the shared splash scene — `#3A0509`.
+    static let brandSplashBottom = Color(red: 0.227, green: 0.020, blue: 0.035)
 
     /// Near-black surface — login hero band, dark splash backgrounds.
     static let brandSurface = Color(red: 0.11, green: 0.11, blue: 0.11)

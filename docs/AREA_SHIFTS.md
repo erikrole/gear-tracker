@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Shift Calendar & Scheduling
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-10
+- Last Updated: 2026-08-11
 - Status: Active — implemented V1 with ongoing hardening
 
 ## Purpose
@@ -61,7 +61,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - [x] In-season automation review: Schedule surfaces read-only automation suggestions for staffing gaps, auto-fill preview, publish readiness, risk blockers, stale sources, and daily cleanup inside the collapsible Schedule details panel without silently mutating worker-facing commitments
 - [x] Auto-fill and manual crew review: staff/admin can preview auto-fill recommendations before applying assignments through existing safety checks. Template-review UI is retired to keep Event detail focused.
 - [x] Gear readiness: Schedule health carries event and assignment gear readiness across primary event, linked-event, and shift-assignment booking paths, while detailed gear prep stays on Event detail and gear queues instead of the main Schedule list
-- [x] Personal calendar subscriptions: worker ICS feeds use the effective personal call window, concise area-plus-matchup titles, event deep links, active trade-board indicators, and remove swapped-away assignments when another worker takes the shift
+- [x] Personal calendar subscriptions: worker ICS feeds use the effective personal call window, preserve inherited all-day assignments as RFC 5545 date values, keep explicit Student call windows timed, include concise area-plus-matchup titles and event deep links, mark active trade-board posts, and remove swapped-away assignments when another worker takes the shift
 
 ## Information Architecture
 
@@ -102,6 +102,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-08-11: **Personal calendar all-day export corrected.** The private worker ICS feed now emits inherited all-day assignment windows as RFC 5545 `VALUE=DATE` boundaries instead of UTC-midnight date-times and advances those components' sequence once so existing subscribers accept the corrected representation. This prevents Apple Calendar in Central time from rendering a one-day event as a 7 PM to 7 PM bar across two dates. Timed events and explicit Student call-window overrides remain date-time events. Focused feed tests and a read-only feed render of the affected Football vs Michigan State Homecoming assignment confirm the corrected date-only output.
 - 2026-08-10: **Schedule MVP trade and pickup loop hardened end to end.** The legacy `/api/shift-assignments/request` path is now a compatibility alias for instant pickup and cannot create new approval-first assignments. Web and native Trade Board consume server-owned claimability and availability context, keep successful Open Work or trade data when the other source fails, expose source-specific retry, and suppress false empty or all-clear states. Active request wording is now explicitly legacy-only. Trade durable notifications remain transaction-owned while post-commit push and email fanout use one shared dispatcher.
 - 2026-08-07: **Production rollout completed.** Migration `0109_schedule_timed_release` is applied and migration health reports 114/114 local migrations with no pending, failed, or database-only rows. Vercel deployment `dpl_7oiHWXm3s2A7q3jkTbebXUq2RcN9` is READY at `https://gear.erikrole.com`; public deploy smoke passed. Authenticated ten-minute release and consolidated notification proof remains open.
 - 2026-08-07: **Schedule timing and neutral defaults are explicit.** Neutral-site games with an opponent use the sport Away template. Only Students receive a call time; Staff and collaborators no longer receive or display the event time in the call-time position across Schedule, Dashboard, Event detail, and native Home/Profile surfaces. Event-window storage remains for internal integrity and calendar event boundaries.

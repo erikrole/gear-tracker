@@ -47,7 +47,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 
 - Doc: `docs/AREA_EVENTS.md`
 - Pages: `/events/[id]`, `/events`
-- APIs: `/api/badges/events/app-open`, `/api/bookings/[id]/events`, `/api/calendar-events/[id]/command-center`, `/api/calendar-events/[id]`, `/api/calendar-events/[id]/travel/[memberId]`, `/api/calendar-events/[id]/travel`, `/api/calendar-events/[id]/visibility`, `/api/calendar-events`, `/api/kiosk/events`
+- APIs: `/api/badges/events/app-open`, `/api/bookings/[id]/events`, `/api/calendar-events/[id]/command-center`, `/api/calendar-events/[id]`, `/api/calendar-events/[id]/travel/[memberId]`, `/api/calendar-events/[id]/travel`, `/api/calendar-events/[id]/visibility`, `/api/calendar-events`, `/api/kiosk/events`, `/api/product-events`
 - Services: _none matched_
 - Tests: `tests/booking-events-route-contract.test.ts`, `tests/calendar-events-route.test.ts`, `tests/kiosk-events-route.test.ts`, `tests/update-booking-events.test.ts`
 
@@ -73,7 +73,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/settings/kiosk-devices`
 - APIs: `/api/kiosk-devices/[id]/regenerate-code`, `/api/kiosk-devices/[id]`, `/api/kiosk-devices`, `/api/kiosk/activate`, `/api/kiosk/checkin/[id]/complete`, `/api/kiosk/checkin/[id]/scan`, `/api/kiosk/checkout/[id]`, `/api/kiosk/checkout/availability`, `/api/kiosk/checkout/complete`, `/api/kiosk/checkout/scan`
 - Services: `src/lib/services/kiosk-checkout-complete.ts`, `src/lib/services/kiosk-location.ts`, `src/lib/services/kiosk-scan.ts`
-- Tests: `tests/bulk-unit-kiosk-scans.test.ts`, `tests/ios-kiosk-all-day-contract.test.ts`, `tests/ios-kiosk-checkout-details-polish.test.ts`, `tests/ios-kiosk-idle-cancellation.test.ts`, `tests/ios-kiosk-idle-sleep-mode.test.ts`, `tests/ios-kiosk-intent-routing-contract.test.ts`, `tests/ios-kiosk-liquid-glass.test.ts`, `tests/ios-kiosk-rapid-scan-atomicity.test.ts`
+- Tests: `tests/bulk-unit-kiosk-scans.test.ts`, `tests/ios-kiosk-all-day-contract.test.ts`, `tests/ios-kiosk-checkout-details-polish.test.ts`, `tests/ios-kiosk-idle-cancellation.test.ts`, `tests/ios-kiosk-idle-sleep-mode.test.ts`, `tests/ios-kiosk-intent-routing-contract.test.ts`, `tests/ios-kiosk-liquid-glass.test.ts`, `tests/ios-kiosk-numbered-battery-rendering.test.ts`
 
 ## kits
 
@@ -118,7 +118,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 ## reports
 
 - Doc: `docs/AREA_REPORTS.md`
-- Pages: `/reports/audit`, `/reports/badges`, `/reports/bulk-losses`, `/reports/checkouts`, `/reports/overdue`, `/reports`, `/reports/scans`, `/reports/utilization`
+- Pages: `/reports/audit`, `/reports/badges`, `/reports/bulk-losses`, `/reports/checkouts`, `/reports/overdue`, `/reports`, `/reports/scans`, `/reports/usage`
 - APIs: `/api/audit/export`, `/api/audit/last`, `/api/audit`, `/api/bookings/[id]/audit-logs`, `/api/cron/audit-archive`, `/api/location-mappings/audit`, `/api/reports/audit`, `/api/reports/badges`, `/api/reports/bulk-losses`, `/api/reports/checkouts`
 - Services: `src/lib/services/reports.ts`
 - Tests: `tests/audit-archive-cron.test.ts`, `tests/audit-helper.test.ts`, `tests/audit-last-route.test.ts`, `tests/booking-audit-history-recovery.test.ts`, `tests/ios-audit-inventory.test.ts`, `tests/ios-reports-resilience.test.ts`, `tests/reports-audit-export-route.test.ts`, `tests/reports-partial-failures.test.ts`
@@ -145,7 +145,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/reports/scans`
 - APIs: `/api/checkouts/[id]/checkin-scan`, `/api/checkouts/[id]/scan-status`, `/api/checkouts/[id]/scan`, `/api/checkouts/[id]/start-scan-session`, `/api/kiosk/checkin/[id]/scan`, `/api/kiosk/checkout/scan`, `/api/kiosk/pickup/[id]/scan`, `/api/kiosk/resolve-scan`, `/api/kiosk/scan-lookup`, `/api/reports/scans`
 - Services: `src/lib/services/bulk-unit-scans.ts`, `src/lib/services/kiosk-scan.ts`, `src/lib/services/scans.ts`
-- Tests: `tests/bulk-scan-race.test.ts`, `tests/bulk-unit-kiosk-scans.test.ts`, `tests/ios-kiosk-rapid-scan-atomicity.test.ts`, `tests/ios-kiosk-scanner-focus.test.ts`, `tests/ios-scan-result-retry.test.ts`, `tests/kiosk-checkout-scan-badges.test.ts`, `tests/kiosk-resolve-scan-route.test.ts`, `tests/scan-route-gate-contract.test.ts`
+- Tests: `tests/bulk-scan-race.test.ts`, `tests/bulk-unit-kiosk-scans.test.ts`, `tests/ios-kiosk-rapid-scan-atomicity.test.ts`, `tests/ios-kiosk-scanner-focus.test.ts`, `tests/ios-scan-result-retry.test.ts`, `tests/kiosk-checkout-scan-badges.test.ts`, `tests/kiosk-resolve-scan-route.test.ts`, `tests/kiosk-scan-lookup-title-projection.test.ts`
 
 ## search
 

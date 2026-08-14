@@ -37,6 +37,7 @@
 | `ScanSession` | 9 | 2 |
 | `OverrideEvent` | 8 | 4 |
 | `AuditLog` | 9 | 4 |
+| `ProductEvent` | 12 | 6 |
 | `Kit` | 11 | 2 |
 | `KitMembership` | 6 | 2 |
 | `KitBulkMembership` | 7 | 3 |

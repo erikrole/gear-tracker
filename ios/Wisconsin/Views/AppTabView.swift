@@ -114,7 +114,9 @@ struct AppTabView: View {
             routePendingAppIntent()
             routePendingEventPush()
             routePendingBookingPush()
+            AppSurface.recordView(for: appState.selectedTab)
         }
+        .modifier(SurfaceViewTracking(selectedTab: appState.selectedTab))
         .onChange(of: appState.pendingAppIntentDestination) { _, _ in
             routePendingAppIntent()
         }
@@ -287,6 +289,30 @@ struct AppTabView: View {
     }
 }
 
+private enum AppSurface {
+    static func name(for tab: Int) -> String {
+        switch tab {
+        case 0: "home"
+        case 1: "bookings"
+        case 2: "other"
+        case 3: "search"
+        case 4: "schedule"
+        case 5: "users"
+        case 6: "resources"
+        case 7: "licenses"
+        default: "other"
+        }
+    }
+
+    @MainActor
+    static func recordView(for tab: Int) {
+        let surface = name(for: tab)
+        Task {
+            await APIClient.shared.recordProductEvent(eventName: "surface_viewed", surface: surface)
+        }
+    }
+}
+
 /// Hosts the minimized-reservation card in the tab bar accessory slot.
 ///
 /// The accessory reserves its container for as long as the modifier is
@@ -332,6 +358,16 @@ private struct ScheduleVisitDonation: ViewModifier {
         content.onChange(of: selectedTab) { _, newValue in
             guard newValue == 4 else { return }
             Task { await ShiftCalendarTip.openedSchedule.donate() }
+        }
+    }
+}
+
+private struct SurfaceViewTracking: ViewModifier {
+    let selectedTab: Int
+
+    func body(content: Content) -> some View {
+        content.onChange(of: selectedTab) { _, newValue in
+            AppSurface.recordView(for: newValue)
         }
     }
 }
