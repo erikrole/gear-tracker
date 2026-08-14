@@ -81,6 +81,43 @@ describe("kiosk student bulk summaries", () => {
     expect(json.checkouts[0].items).toHaveLength(1);
   });
 
+  it("corrects legacy team abbreviation casing in student booking projections", async () => {
+    mocks.bookingFindMany
+      .mockResolvedValueOnce([{
+        id: "checkout-1",
+        title: "Women's Soccer vs Tcu",
+        refNumber: "CO-1001",
+        endsAt: new Date("2026-08-01T12:00:00.000Z"),
+        serializedItems: [],
+        bulkItems: [],
+      }])
+      .mockResolvedValueOnce([{
+        id: "pickup-1",
+        title: "Women's Soccer vs Usc",
+        refNumber: "CO-1002",
+        startsAt: new Date("2026-08-01T12:00:00.000Z"),
+        serializedItems: [],
+        bulkItems: [],
+      }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{
+        id: "reservation-1",
+        title: "Women's Soccer vs Ucla",
+        refNumber: "RV-1001",
+        startsAt: new Date("2026-08-01T12:00:00.000Z"),
+      }]);
+
+    const res = await getKioskStudent(
+      new Request("http://test"),
+      { params: Promise.resolve({ userId: "user-1" }) },
+    );
+    const json = await res.json();
+
+    expect(json.checkouts[0].title).toBe("Women's Soccer vs TCU");
+    expect(json.pendingPickups[0].title).toBe("Women's Soccer vs USC");
+    expect(json.reservations[0].title).toBe("Women's Soccer vs UCLA");
+  });
+
   it("BUG: opens the student hub for an active visible user assigned to another location", async () => {
     mocks.userFindUnique.mockResolvedValue({
       id: "user-1",

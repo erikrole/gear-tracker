@@ -191,6 +191,44 @@ describe("kiosk dashboard route", () => {
     expect(body.partialFailures).toEqual([]);
   });
 
+  it("corrects legacy team abbreviation casing in kiosk display projections", async () => {
+    mockDb.$queryRaw.mockResolvedValue([{ items_out: 1n, checkouts: 1n, overdue: 0n }]);
+    mockDb.calendarEvent.findMany.mockResolvedValue([{
+      id: "event-1",
+      summary: "Women's Soccer vs Tcu",
+      sportCode: "WSOC",
+      startsAt: new Date("2026-06-17T05:00:00.000Z"),
+      endsAt: new Date("2026-06-17T08:00:00.000Z"),
+      allDay: false,
+      shiftGroup: null,
+    }]);
+    mockDb.bookingSerializedItem.findMany.mockResolvedValue([{
+      asset: { id: "asset-1", assetTag: "CAM-1", name: "FX3", imageUrl: null },
+      booking: {
+        id: "booking-1",
+        title: "Women's Soccer vs Usc",
+        endsAt: new Date("2026-06-17T12:00:00.000Z"),
+        requester: { name: "Bucky Badger" },
+      },
+    }]);
+    mockDb.booking.findMany.mockResolvedValue([{
+      id: "booking-1",
+      title: "Women's Soccer vs Ucla",
+      endsAt: new Date("2026-06-17T12:00:00.000Z"),
+      requester: { id: "user-1", name: "Bucky Badger", avatarUrl: null },
+      serializedItems: [],
+      bulkItems: [],
+      _count: { serializedItems: 0 },
+    }]);
+
+    const res = await GET(request(), { params: Promise.resolve({}) });
+    const body = await res.json();
+
+    expect(body.events[0].title).toBe("Women's Soccer vs TCU");
+    expect(body.activeItems[0].checkoutTitle).toBe("Women's Soccer vs USC");
+    expect(body.checkouts[0].title).toBe("Women's Soccer vs UCLA");
+  });
+
   it("shows active bulk checkout quantity even when exact unit allocations are missing", async () => {
     mockDb.$queryRaw.mockResolvedValue([{ items_out: 8n, checkouts: 1n, overdue: 0n }]);
     mockDb.calendarEvent.findMany.mockResolvedValue([]);

@@ -130,7 +130,7 @@ describe("kiosk checkout detail bulk units", () => {
   it("includes pending pickup battery quantity as scan checklist slots", async () => {
     mocks.bookingFindUnique.mockResolvedValue({
       id: "booking-1",
-      title: "Pickup",
+      title: "Women's Soccer vs Tcu",
       refNumber: "CO-1001",
       status: "PENDING_PICKUP",
       kind: "CHECKOUT",
@@ -182,6 +182,7 @@ describe("kiosk checkout detail bulk units", () => {
       numberedBulkTotal: 2,
       numberedBulkCompleted: 0,
     });
+    expect(json.title).toBe("Women's Soccer vs TCU");
   });
 
   it("preserves individual numbered pickup slots at the exact checklist ceiling", async () => {

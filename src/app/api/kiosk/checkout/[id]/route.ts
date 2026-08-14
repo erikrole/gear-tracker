@@ -11,7 +11,7 @@ import { upsertBulkBalancesAndMovements } from "@/lib/services/bookings-helpers"
 import { BookingKind, BulkMovementKind, BulkUnitStatus, Prisma } from "@prisma/client";
 import { scheduleCheckoutReturnLiveActivity } from "@/lib/live-activity-workflow";
 import { updateCheckoutReturnLiveActivities } from "@/lib/services/live-activities";
-import { normalizeBookingTitle } from "@/lib/title-normalization";
+import { normalizeBookingTitle, normalizeTeamAbbreviations } from "@/lib/title-normalization";
 import { MAX_EQUIPMENT_SELECTIONS_PER_REQUEST } from "@/lib/request-limits";
 
 function hasBlockingAvailabilityIssue(result: Awaited<ReturnType<typeof checkAvailability>>) {
@@ -286,7 +286,7 @@ export const GET = withKiosk<{ id: string }>(async (_req, { params }) => {
 
   return ok({
     id: booking.id,
-    title: booking.title,
+    title: normalizeTeamAbbreviations(booking.title),
     refNumber: booking.refNumber,
     status: booking.status,
     requesterId: booking.requesterUserId,
@@ -392,7 +392,13 @@ export const PATCH = withKiosk<{ id: string }>(async (req, { kiosk, params }) =>
     await scheduleCheckoutReturnLiveActivity({ bookingId: updated.id, endsAt: updated.endsAt });
   }
 
-  return ok({ success: true, booking: updated });
+  return ok({
+    success: true,
+    booking: {
+      ...updated,
+      title: normalizeTeamAbbreviations(updated.title),
+    },
+  });
 });
 
 export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => {

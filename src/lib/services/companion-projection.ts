@@ -10,6 +10,7 @@ import {
 import { sendCompanionInvalidation } from "@/lib/push/apns";
 import { startOfDayInAppTz } from "@/lib/app-time";
 import type { CompanionProjection } from "@/lib/companion-projection-contract";
+import { normalizeTeamAbbreviations } from "@/lib/title-normalization";
 
 const ACTIVE_STATUSES: BookingStatus[] = [
   BookingStatus.BOOKED,
@@ -105,7 +106,7 @@ export async function buildCompanionProjection(
     pendingPickupTotal: pendingPickups.length,
     openBookings: openBookings.map((booking) => ({
       id: booking.id,
-      title: booking.title,
+      title: normalizeTeamAbbreviations(booking.title),
       endsAt: booking.endsAt,
       refNumber: booking.refNumber,
       requester: booking.requester,
@@ -115,7 +116,7 @@ export async function buildCompanionProjection(
     })),
     bookingActivity: bookings.filter((booking) => booking.status !== BookingStatus.DRAFT).map((booking) => ({
       id: booking.id,
-      title: booking.title,
+      title: normalizeTeamAbbreviations(booking.title),
       kind: booking.kind,
       status: booking.status,
       startsAt: booking.startsAt,

@@ -28,7 +28,7 @@ describe("companion projection", () => {
     bookingFindMany.mockResolvedValue([
       {
         id: "checkout-1",
-        title: "Camera checkout",
+        title: "Women's Soccer vs Tcu",
         kind: "CHECKOUT",
         status: "OPEN",
         startsAt: new Date("2026-08-09T15:00:00.000Z"),
@@ -94,6 +94,9 @@ describe("companion projection", () => {
     expect(projection.pendingPickupTotal).toBe(1);
     expect(projection.bookingActivity.every((booking) => booking.status !== "DRAFT")).toBe(true);
     expect(projection.openBookings.map((booking) => booking.id)).toEqual(["checkout-1"]);
+    expect(projection.openBookings[0]?.title).toBe("Women's Soccer vs TCU");
+    expect(projection.bookingActivity.find((booking) => booking.id === "checkout-1")?.title)
+      .toBe("Women's Soccer vs TCU");
     expect(projection.kioskDevices[0]).toMatchObject({
       pendingPickupCount: 1,
       openCheckoutCount: 1,

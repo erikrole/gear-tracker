@@ -2,6 +2,7 @@ import { CalendarEventStatus, ShiftAssignmentStatus } from "@prisma/client";
 import { withKiosk } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
+import { normalizeTeamAbbreviations } from "@/lib/title-normalization";
 
 const KIOSK_EVENT_WINDOW_DAYS = 7;
 
@@ -98,8 +99,8 @@ export const GET = withKiosk(async (req) => {
   return ok({
     data: events.map((event) => ({
       id: event.id,
-      title: event.summary,
-      subtitle: event.subtitle,
+      title: normalizeTeamAbbreviations(event.summary),
+      subtitle: event.subtitle ? normalizeTeamAbbreviations(event.subtitle) : event.subtitle,
       sportCode: event.sportCode,
       startsAt: event.startsAt,
       endsAt: event.endsAt,

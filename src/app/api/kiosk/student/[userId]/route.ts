@@ -4,6 +4,7 @@ import { HttpError, ok } from "@/lib/http";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import { isGlobalKioskCollaborator } from "@/lib/collaborator-access";
 import { collaboratorPolicyActorSelect } from "@/lib/services/collaborator-policies";
+import { normalizeTeamAbbreviations } from "@/lib/title-normalization";
 
 /** Get a student's active checkouts, pending pickups, and upcoming reservations */
 export const GET = withKiosk<{ userId: string }>(async (req, { kiosk, params }) => {
@@ -154,7 +155,7 @@ export const GET = withKiosk<{ userId: string }>(async (req, { kiosk, params }) 
   return ok({
     checkouts: checkouts.map((c) => ({
       id: c.id,
-      title: c.title,
+      title: normalizeTeamAbbreviations(c.title),
       refNumber: c.refNumber,
       items: c.serializedItems.map((si) => ({
         name: si.asset.name || si.asset.assetTag,
@@ -171,7 +172,7 @@ export const GET = withKiosk<{ userId: string }>(async (req, { kiosk, params }) 
     })),
     pendingPickups: [...pendingPickups, ...dueReservations].map((p) => ({
       id: p.id,
-      title: p.title,
+      title: normalizeTeamAbbreviations(p.title),
       refNumber: p.refNumber,
       startsAt: p.startsAt,
       serializedItems: p.serializedItems.map((si) => ({
@@ -186,7 +187,7 @@ export const GET = withKiosk<{ userId: string }>(async (req, { kiosk, params }) 
     })),
     reservations: reservations.map((r) => ({
       id: r.id,
-      title: r.title,
+      title: normalizeTeamAbbreviations(r.title),
       startsAt: r.startsAt,
     })),
   });

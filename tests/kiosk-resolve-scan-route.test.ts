@@ -67,6 +67,21 @@ describe("POST /api/kiosk/resolve-scan", () => {
     expect(json).toMatchObject({ kind: "action", action: "pickup", booking: { id: "booking-1" } });
   });
 
+  it("corrects legacy team abbreviation casing in inferred booking context", async () => {
+    mocks.findAsset.mockResolvedValue(asset);
+    mocks.allocationFindFirst.mockResolvedValue({
+      kind: "RESERVATION",
+      booking: { ...reservation, title: "Volleyball vs. Tcu" },
+    });
+
+    const json = await (await request({ scanValue: "CAM-1" })).json();
+
+    expect(json).toMatchObject({
+      kind: "pending_identity",
+      booking: { title: "Volleyball vs. TCU" },
+    });
+  });
+
   it("requires the expected requester for inferred return", async () => {
     mocks.findAsset.mockResolvedValue(asset);
     mocks.allocationFindFirst.mockResolvedValue({

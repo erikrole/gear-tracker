@@ -33,8 +33,8 @@ describe("GET /api/kiosk/events", () => {
     mockDb.calendarEvent.findMany.mockResolvedValue([
       {
         id: "event-1",
-        summary: "Softball vs Iowa",
-        subtitle: "Big Ten",
+        summary: "Softball vs Tcu",
+        subtitle: "Tcu at Goodman",
         rawLocationText: "Goodman Diamond",
         sportCode: "SB",
         startsAt: new Date("2026-06-16T18:00:00.000Z"),
@@ -50,8 +50,8 @@ describe("GET /api/kiosk/events", () => {
     expect(body.data).toEqual([
       expect.objectContaining({
         id: "event-1",
-        title: "Softball vs Iowa",
-        subtitle: "Big Ten",
+        title: "Softball vs TCU",
+        subtitle: "TCU at Goodman",
         sportCode: "SB",
         locationName: "Goodman Diamond",
       }),

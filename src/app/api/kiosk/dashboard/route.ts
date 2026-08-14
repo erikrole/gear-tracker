@@ -3,6 +3,7 @@ import { withKiosk } from "@/lib/api";
 import { ok } from "@/lib/http";
 import { getInitials } from "@/lib/avatar";
 import { env } from "@/lib/env";
+import { normalizeTeamAbbreviations } from "@/lib/title-normalization";
 import { BookingKind, BookingStatus, ShiftAssignmentStatus } from "@prisma/client";
 
 function settledValue<T>(
@@ -530,7 +531,7 @@ export const GET = withKiosk(async () => {
       }
       return {
         id: e.id,
-        title: e.summary,
+        title: normalizeTeamAbbreviations(e.summary),
         sportCode: e.sportCode,
         startsAt: e.startsAt,
         endsAt: e.endsAt,
@@ -551,7 +552,7 @@ export const GET = withKiosk(async () => {
         bulkSkuId: null,
         unitNumber: null,
         checkoutId: entry.booking.id,
-        checkoutTitle: entry.booking.title,
+        checkoutTitle: normalizeTeamAbbreviations(entry.booking.title),
         requesterId: entry.booking.requester.id,
         requesterName: entry.booking.requester.name,
         requesterAvatarUrl: entry.booking.requester.avatarUrl,
@@ -567,7 +568,7 @@ export const GET = withKiosk(async () => {
         bulkSkuId: entry.bulkSkuUnit.bulkSku.id,
         unitNumber: entry.bulkSkuUnit.unitNumber,
         checkoutId: entry.bookingBulkItem.booking.id,
-        checkoutTitle: entry.bookingBulkItem.booking.title,
+        checkoutTitle: normalizeTeamAbbreviations(entry.bookingBulkItem.booking.title),
         requesterId: entry.bookingBulkItem.booking.requester.id,
         requesterName: entry.bookingBulkItem.booking.requester.name,
         requesterAvatarUrl: entry.bookingBulkItem.booking.requester.avatarUrl,
@@ -587,7 +588,7 @@ export const GET = withKiosk(async () => {
             bulkSkuId: item.bulkSku.id,
             unitNumber: null,
             checkoutId: checkout.id,
-            checkoutTitle: checkout.title,
+            checkoutTitle: normalizeTeamAbbreviations(checkout.title),
             requesterId: checkout.requester.id,
             requesterName: checkout.requester.name,
             requesterAvatarUrl: checkout.requester.avatarUrl,
@@ -614,7 +615,7 @@ export const GET = withKiosk(async () => {
 
       return {
         id: c.id,
-        title: c.title,
+        title: normalizeTeamAbbreviations(c.title),
         requesterName: c.requester.name,
         requesterId: c.requester.id,
         requesterAvatarUrl: c.requester.avatarUrl,

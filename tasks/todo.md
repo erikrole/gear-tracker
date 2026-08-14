@@ -292,11 +292,14 @@ Plan: `tasks/event-shift-working-schedule-plan.md`
 - [x] Apply the same rule to manual, edited, restored, and ICS-synced scheduled events while retaining raw source summaries.
 - [x] Correct the event boundary: keep normalization for manual titles, but preserve source casing for ICS sync and calendar-title restore so external acronyms remain intact.
 - [x] Canonicalize known abbreviated team names such as `TCU`, `USC`, and `UCLA` in new/edited titles plus dashboard, booking, and structured-opponent read models.
+- [x] Extend abbreviated-team display correction to native kiosk API projections and the GearOps companion projection, with regression coverage for legacy values.
 
 ### Review
 
 - **Shipped:** New and edited booking titles plus titles on manual event records store one normalized display value. Imported events retain source casing through sync, staff title edits, and calendar-title restore, so acronyms such as `USC`, `UCLA`, and `TCU` remain uppercase. Examples for manual input: `MBB practice` becomes `MBB Practice`; `MBB GOLF` becomes `MBB Golf`; `MBB vs IOWA` becomes `MBB vs Iowa`.
 - **Boundary:** Existing stored bookings and events are not silently rewritten by a read. Known team abbreviations are corrected in display/read projections, while a separate reviewed backfill would still be required to rewrite all historical records in bulk.
+- **Follow-up shipped:** Native kiosk dashboard, event, student, scan, inferred-custody, and checkout-detail projections plus the GearOps companion projection now correct legacy `TCU`, `USC`, and `UCLA` casing without rewriting stored values, raw source summaries, or audit history.
+- **Verified:** 84 focused kiosk and companion tests passed, along with full ESLint, TypeScript, codemap/docs verification, whitespace checks, and `npm run build:app`.
 
 ## Completed: Native iOS Guides repair, reader polish, and Licenses polish (2026-07-15)
 

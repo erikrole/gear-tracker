@@ -4,7 +4,7 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped — iOS canonical (web kiosk deprecated 2026-04-24)
 - Created: 2026-04-07
-- Last Updated: 2026-08-10
+- Last Updated: 2026-08-14
 - Brief: `BRIEF_KIOSK.md`
 - Decision Refs: D-030, D-032, D-040
 
@@ -120,6 +120,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 
 | Date | Change |
 |------|--------|
+| 2026-08-14 | **Team abbreviation casing parity.** Native kiosk API read projections now correct legacy abbreviated team names such as `TCU`, `USC`, and `UCLA` across dashboard, event selection, student context, scan lookup, inferred custody context, and checkout detail. Stored booking/event values, raw source evidence, and audit history remain unchanged. |
 | 2026-08-10 | **Successful-scan metric retired and pickup ownership hardened.** Production has only successful recorded scans, so individual checkout, pickup, and check-in scans no longer emit badge events, increment scan counters, or fetch scan rewards. Existing ScanEvent evidence and historical earned scan badges remain intact. Checkout, pickup confirmation, and return completion still carry newly earned awards into the kiosk success moment. Compatibility pending-pickup confirmation now rejects a stale submitted owner and credits only the current booking requester. |
 | 2026-08-10 | **Badge reward handoff.** Scan and completion routes now return newly earned awards as optional additive payloads. Checkout, pickup, and return accumulate those awards through the native flow, and the terminal success screen shows a rarity-aware badge reward with a longer 9-second viewing window. Direct checkout scans send a unique attempt ID so delayed retries cannot double-count badge progress. Custody commits remain authoritative and reward reads are failure-isolated. |
 | 2026-08-03 | **Global kiosk operations and return transfer.** Every staffed kiosk now shows global checkout and reservation data, can pick up and manage open custody from another location, and does not relocate gear during checkout or pickup. Only check-in changes location: serialized assets move to the return kiosk; numbered bulk stock is restored to that kiosk's ledger balance. |

@@ -7,6 +7,7 @@ import { resolveKioskScanBody } from "@/lib/schemas/kiosk";
 import { findAssetByScanValue } from "@/lib/services/kiosk-scan";
 import { findBulkUnitByScanValue } from "@/lib/services/bulk-unit-scans";
 import { kioskRosterUserWhere } from "@/lib/user-visibility";
+import { normalizeTeamAbbreviations } from "@/lib/title-normalization";
 import { normalizeWiscardNumber } from "@/lib/validation";
 
 const requesterSelect = {
@@ -54,7 +55,7 @@ function displayUser(user: BookingCandidate["requester"]) {
 function displayBooking(booking: BookingCandidate) {
   return {
     id: booking.id,
-    title: booking.title,
+    title: normalizeTeamAbbreviations(booking.title),
     startsAt: booking.startsAt.toISOString(),
     endsAt: booking.endsAt.toISOString(),
     location: booking.location,
