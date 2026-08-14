@@ -84,13 +84,16 @@ beforeEach(() => {
     status: "AVAILABLE",
     notes: null,
   });
-  tx.bulkSkuUnit.update.mockResolvedValue({
-    id: "unit-7",
-    bulkSkuId: "sku-1",
-    unitNumber: 7,
-    status: "LOST",
-    notes: null,
-  });
+    tx.bulkSkuUnit.update.mockResolvedValue({
+      id: "unit-7",
+      bulkSkuId: "sku-1",
+      unitNumber: 7,
+      status: "LOST",
+      notes: null,
+      labelPrintedAt: new Date("2026-06-11T14:30:00.000Z"),
+      labelPrintedById: "staff-1",
+      labelPrintBatchId: "batch-1",
+    });
   tx.bulkStockBalance.upsert.mockResolvedValue({} as any);
   tx.bulkStockBalance.update.mockResolvedValue({} as any);
   tx.bulkStockMovement.create.mockResolvedValue({} as any);
@@ -149,6 +152,21 @@ describe("bulk unit adjustment routes", () => {
       action: "update_status",
       after: expect.objectContaining({ status: "LOST", reason: "Missing after Saturday audit" }),
     }));
+  });
+
+  it("does not clear printed-label fields during status updates", async () => {
+    await updateBulkUnit(
+      request("/api/bulk-skus/sku-1/units/7", "PATCH", { status: "LOST", reason: "Missing after Saturday audit" }),
+      routeParams,
+    );
+
+    expect(tx.bulkSkuUnit.update).toHaveBeenCalledWith({
+      where: { id: "unit-7" },
+      data: {
+        status: "LOST",
+        notes: null,
+      },
+    });
   });
 
   it("blocks any status change while a unit is checked out", async () => {

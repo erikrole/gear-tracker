@@ -30,6 +30,12 @@ export function BulkUnitGrid({ units, onStatusChange, disabled = false }: Props)
         const lastAlloc = u.allocations?.[0]?.bookingBulkItem?.booking;
         const lastUser = lastAlloc?.requester?.name;
         const isCheckedOut = u.status === "CHECKED_OUT";
+        const labelPrintedAt = u.labelPrintedAt ? new Date(u.labelPrintedAt) : null;
+        const labelText = labelPrintedAt
+          ? `Label printed ${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(labelPrintedAt)}`
+          : u.status === "RETIRED"
+            ? "Label not needed"
+            : "Needs label";
 
         const cell = (
           <div
@@ -40,14 +46,23 @@ export function BulkUnitGrid({ units, onStatusChange, disabled = false }: Props)
             ].join(" ")}
             title={[
               `#${u.unitNumber} — ${style.label}`,
+              labelText,
               lastUser && `Last: ${lastUser}`,
               isCheckedOut && "Check in first to change status",
             ].filter(Boolean).join(" · ")}
+            aria-label={`Unit ${u.unitNumber}, ${style.label}, ${labelText}`}
           >
             <div className="flex items-center gap-1">
               <div className={`size-1.5 rounded-full shrink-0 ${style.dot}`} />
               <span style={{ fontFamily: "var(--font-mono)" }}>{u.unitNumber}</span>
             </div>
+            <div
+              aria-hidden="true"
+              className={[
+                "mt-1 h-1 w-5 rounded-full",
+                labelPrintedAt ? "bg-primary/70" : u.status === "RETIRED" ? "bg-muted-foreground/30" : "bg-orange-400",
+              ].join(" ")}
+            />
             {u.status === "LOST" && lastUser && (
               <div className="text-[9px] font-normal text-muted-foreground truncate max-w-full leading-tight">
                 {lastUser.split(" ")[0]}

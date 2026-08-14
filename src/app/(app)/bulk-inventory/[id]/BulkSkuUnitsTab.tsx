@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { PlusIcon } from "lucide-react";
+import { Download, PlusIcon } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,8 @@ export default function BulkSkuUnitsTab({
   const checkedOut = units.filter((u) => u.status === "CHECKED_OUT").length;
   const lost = units.filter((u) => u.status === "LOST").length;
   const retired = units.filter((u) => u.status === "RETIRED").length;
+  const labelPrinted = units.filter((u) => u.labelPrintedAt !== null).length;
+  const labelNeeded = units.filter((u) => u.labelPrintedAt === null && u.status !== "RETIRED").length;
 
   async function handleStatusChange(unitNumber: number, newStatus: "AVAILABLE" | "LOST" | "RETIRED") {
     const key = `${unitNumber}:${newStatus}`;
@@ -92,6 +94,8 @@ export default function BulkSkuUnitsTab({
               {checkedOut > 0 && <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-[var(--blue)]" />{checkedOut} out</span>}
               {lost > 0 && <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-destructive" />{lost} missing</span>}
               {retired > 0 && <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-muted-foreground" />{retired} retired</span>}
+              <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-primary/70" />{labelPrinted} labels printed</span>
+              {labelNeeded > 0 && <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-orange-400" />{labelNeeded} need labels</span>}
             </div>
           </div>
           {canEdit && (
@@ -109,10 +113,18 @@ export default function BulkSkuUnitsTab({
                 <Button size="sm" variant="outline" onClick={() => setAddingUnits(false)} disabled={busy}>Cancel</Button>
               </div>
             ) : (
-              <Button size="sm" variant="outline" onClick={() => setAddingUnits(true)}>
-                <PlusIcon className="size-3.5 mr-1" />
-                Add units
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="outline" asChild>
+                  <a href={`/api/bulk-skus/${sku.id}/units/labels?scope=unprinted`} download>
+                    <Download className="size-3.5 mr-1" />
+                    Brother CSV
+                  </a>
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setAddingUnits(true)}>
+                  <PlusIcon className="size-3.5 mr-1" />
+                  Add units
+                </Button>
+              </div>
             )
           )}
         </CardHeader>

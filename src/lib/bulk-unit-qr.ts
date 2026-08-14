@@ -10,6 +10,10 @@ export type DerivedBulkUnitQrMatch = {
   unitNumber: number;
 };
 
+export function buildDerivedBulkUnitQrValue(binQrCodeValue: string, unitNumber: number): string {
+  return `${binQrCodeValue.trim()}-${unitNumber}`;
+}
+
 export function parseDerivedBulkUnitQr(
   scanValue: string,
   skus: DerivedBulkUnitQrSku[],

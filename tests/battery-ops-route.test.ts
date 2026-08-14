@@ -52,12 +52,24 @@ describe("battery ops live counts", () => {
         categoryRel: { id: "cat-1", name: "Batteries" },
         balances: [{ onHandQuantity: 99 }],
         units: [
-          { id: "unit-1", unitNumber: 1, status: "AVAILABLE", notes: null, allocations: [] },
+          {
+            id: "unit-1",
+            unitNumber: 1,
+            status: "AVAILABLE",
+            notes: null,
+            labelPrintedAt: null,
+            labelPrintedById: null,
+            labelPrintBatchId: null,
+            allocations: [],
+          },
           {
             id: "unit-2",
             unitNumber: 2,
             status: "CHECKED_OUT",
             notes: null,
+            labelPrintedAt: new Date("2026-06-11T14:30:00.000Z"),
+            labelPrintedById: "staff-1",
+            labelPrintBatchId: "batch-1",
             allocations: [{
               checkedOutAt: new Date("2026-05-20T12:00:00.000Z"),
               createdAt: new Date("2026-05-20T12:00:00.000Z"),
@@ -72,8 +84,26 @@ describe("battery ops live counts", () => {
               },
             }],
           },
-          { id: "unit-3", unitNumber: 3, status: "LOST", notes: null, allocations: [] },
-          { id: "unit-4", unitNumber: 4, status: "RETIRED", notes: null, allocations: [] },
+          {
+            id: "unit-3",
+            unitNumber: 3,
+            status: "LOST",
+            notes: null,
+            labelPrintedAt: null,
+            labelPrintedById: null,
+            labelPrintBatchId: null,
+            allocations: [],
+          },
+          {
+            id: "unit-4",
+            unitNumber: 4,
+            status: "RETIRED",
+            notes: null,
+            labelPrintedAt: null,
+            labelPrintedById: null,
+            labelPrintBatchId: null,
+            allocations: [],
+          },
         ],
       },
       {
@@ -86,7 +116,16 @@ describe("battery ops live counts", () => {
         location: { id: "loc-1", name: "Camp Randall" },
         categoryRel: { id: "cat-2", name: "Cables" },
         balances: [{ onHandQuantity: 1 }],
-        units: [{ id: "unit-cable", unitNumber: 1, status: "AVAILABLE", notes: null, allocations: [] }],
+        units: [{
+          id: "unit-cable",
+          unitNumber: 1,
+          status: "AVAILABLE",
+          notes: null,
+          labelPrintedAt: null,
+          labelPrintedById: null,
+          labelPrintBatchId: null,
+          allocations: [],
+        }],
       },
     ] as any);
     vi.mocked(db.asset.findMany).mockResolvedValue([
@@ -121,9 +160,16 @@ describe("battery ops live counts", () => {
         checkedOut: 1,
         lost: 1,
         retired: 1,
+        labelPrintedCount: 1,
+        labelNeededCount: 2,
       },
       isLow: true,
       threshold: 10,
+    }));
+    expect(body.data.skus[0].units[1]).toEqual(expect.objectContaining({
+      labelPrintedAt: "2026-06-11T14:30:00.000Z",
+      labelPrintedById: "staff-1",
+      labelPrintBatchId: "batch-1",
     }));
     expect(body.data.compatibility[0]).toEqual(expect.objectContaining({
       ruleId: "sony-np-fz100",
@@ -172,6 +218,8 @@ describe("battery ops live counts", () => {
         checkedOut: 0,
         lost: 0,
         retired: 0,
+        labelPrintedCount: 0,
+        labelNeededCount: 0,
       },
       units: [],
     }));

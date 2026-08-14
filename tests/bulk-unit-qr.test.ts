@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
+import { buildDerivedBulkUnitQrValue, parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
+
+describe("buildDerivedBulkUnitQrValue", () => {
+  it("formats numbered unit QR values from the parent bin QR and unit number", () => {
+    expect(buildDerivedBulkUnitQrValue("SONY-BATTERY", 7)).toBe("SONY-BATTERY-7");
+  });
+
+  it("trims the parent bin QR value before formatting", () => {
+    expect(buildDerivedBulkUnitQrValue("  BIN-QR  ", 12)).toBe("BIN-QR-12");
+  });
+});
 
 describe("parseDerivedBulkUnitQr", () => {
   it("resolves numbered unit QR values from the parent bin QR", () => {

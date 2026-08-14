@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BatteryCharging, CircleAlert, ExternalLink, Plus, RefreshCw, SlidersHorizontal } from "lucide-react";
+import { BatteryCharging, CircleAlert, Download, ExternalLink, Plus, RefreshCw, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import EmptyState from "@/components/EmptyState";
 import { OperationalMetricCard } from "@/components/OperationalFeedback";
@@ -42,6 +42,9 @@ type BatteryUnit = {
   unitNumber: number;
   status: UnitStatus;
   notes: string | null;
+  labelPrintedAt: string | null;
+  labelPrintedById: string | null;
+  labelPrintBatchId: string | null;
   checkedOutAt: string | null;
   checkedOutDays: number | null;
   booking: {
@@ -68,6 +71,8 @@ type BatterySku = {
     checkedOut: number;
     lost: number;
     retired: number;
+    labelPrintedCount: number;
+    labelNeededCount: number;
   };
   isLow: boolean;
   units: BatteryUnit[];
@@ -120,6 +125,12 @@ type PendingQuantityAdjustment = {
   skuName: string;
   currentAvailable: number;
   currentTotal: number;
+} | null;
+
+type PendingLabelMark = {
+  skuId: string;
+  skuName: string;
+  unitNumbers: number[];
 } | null;
 
 const STATUS_META: Record<UnitStatus, { label: string; className: string; dot: string }> = {
@@ -194,6 +205,9 @@ export default function BatteryCockpitPage() {
   const [quantityReason, setQuantityReason] = useState("Battery count correction");
   const [quantityBusy, setQuantityBusy] = useState(false);
   const quantityBusyRef = useRef(false);
+  const [pendingLabelMark, setPendingLabelMark] = useState<PendingLabelMark>(null);
+  const [labelBusy, setLabelBusy] = useState(false);
+  const labelBusyRef = useRef(false);
 
   async function load({ refresh = false } = {}) {
     if (refresh) setRefreshing(true);
@@ -387,6 +401,75 @@ export default function BatteryCockpitPage() {
     }
   }
 
+  async function downloadBrotherCsv(sku: BatterySku) {
+    if (labelBusyRef.current) return;
+
+    labelBusyRef.current = true;
+    setLabelBusy(true);
+    try {
+      const res = await fetch(`/api/bulk-skus/${sku.id}/units/labels?scope=unprinted`);
+      if (handleAuthRedirect(res, "/bulk-inventory/batteries")) return;
+      if (!res.ok) {
+        toast.error(await parseErrorMessage(res, "Failed to export Brother CSV"));
+        return;
+      }
+
+      const exportedUnitNumbers = parseUnitNumbersHeader(res.headers.get("x-label-unit-numbers"));
+      const blob = await res.blob();
+      const disposition = res.headers.get("content-disposition") ?? "";
+      const filename = disposition.match(/filename="([^"]+)"/)?.[1] ?? `brother-labels-${sku.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.csv`;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+
+      toast.success(`Exported ${exportedUnitNumbers.length} ${sku.name} labels`);
+      setPendingLabelMark({ skuId: sku.id, skuName: sku.name, unitNumbers: exportedUnitNumbers });
+    } catch {
+      toast.error("Network error. Brother CSV was not exported.");
+    } finally {
+      labelBusyRef.current = false;
+      setLabelBusy(false);
+    }
+  }
+
+  async function markExportedLabelsPrinted(action: NonNullable<PendingLabelMark>) {
+    if (labelBusyRef.current) return;
+    if (action.unitNumbers.length === 0) {
+      setPendingLabelMark(null);
+      return;
+    }
+
+    labelBusyRef.current = true;
+    setLabelBusy(true);
+    try {
+      const res = await fetch(`/api/bulk-skus/${action.skuId}/units/labels`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ unitNumbers: action.unitNumbers, printed: true }),
+      });
+      if (handleAuthRedirect(res, "/bulk-inventory/batteries")) return;
+      if (!res.ok) {
+        toast.error(await parseErrorMessage(res, "Failed to mark labels printed"));
+        return;
+      }
+      const json = await parseJsonSafely<{ data?: { updated: number; alreadyPrinted: number; skippedRetired: number } }>(res);
+      const updated = json?.data?.updated ?? action.unitNumbers.length;
+      toast.success(`Marked ${updated} ${action.skuName} labels printed`);
+      setPendingLabelMark(null);
+      void load({ refresh: true });
+    } catch {
+      toast.error("Network error. Labels were not marked printed.");
+    } finally {
+      labelBusyRef.current = false;
+      setLabelBusy(false);
+    }
+  }
+
   if (loading && !data) {
     return (
       <div className="space-y-5">
@@ -547,6 +630,11 @@ export default function BatteryCockpitPage() {
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       {sku.isLow && <Badge variant="orange">Low stock</Badge>}
+                      {sku.counts.labelNeededCount > 0 && <Badge variant="outline">Needs labels {sku.counts.labelNeededCount}</Badge>}
+                      <Button size="sm" variant="outline" onClick={() => void downloadBrotherCsv(sku)} disabled={labelBusy}>
+                        <Download className="size-3.5" />
+                        Brother CSV
+                      </Button>
                       <Button size="sm" variant="outline" onClick={() => openAddUnits(sku)}>
                         <Plus className="size-3.5" />
                         Add
@@ -560,6 +648,10 @@ export default function BatteryCockpitPage() {
                     <Count label="Out" value={sku.counts.checkedOut} dot={STATUS_META.CHECKED_OUT.dot} />
                     <Count label="Missing" value={sku.counts.lost} dot={STATUS_META.LOST.dot} />
                     <Count label="Retired" value={sku.counts.retired} dot={STATUS_META.RETIRED.dot} />
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                    <span>{sku.counts.labelPrintedCount} of {sku.counts.total} labels printed</span>
+                    {sku.counts.labelNeededCount > 0 && <span className="font-medium text-foreground">{sku.counts.labelNeededCount} need labels</span>}
                   </div>
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(74px,1fr))] gap-2">
                     {sku.units.map((unit) => (
@@ -797,6 +889,36 @@ export default function BatteryCockpitPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog
+        open={!!pendingLabelMark}
+        onOpenChange={(open) => {
+          if (!open) setPendingLabelMark(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark exported labels printed</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingLabelMark
+                ? `Mark ${pendingLabelMark.unitNumbers.length} ${pendingLabelMark.skuName} labels printed? Units ${formatUnitNumberPreview(pendingLabelMark.unitNumbers)}.`
+                : "Mark exported labels printed."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={labelBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!pendingLabelMark || labelBusy || pendingLabelMark.unitNumbers.length === 0}
+              onClick={(event) => {
+                event.preventDefault();
+                if (pendingLabelMark) void markExportedLabelsPrinted(pendingLabelMark);
+              }}
+            >
+              {labelBusy ? "Marking..." : "Mark printed"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -851,6 +973,12 @@ function UnitMenu({
   onPendingAction: (action: NonNullable<PendingAction>) => void;
 }) {
   const meta = STATUS_META[unit.status];
+  const labelPrintedAt = unit.labelPrintedAt ? new Date(unit.labelPrintedAt) : null;
+  const labelText = labelPrintedAt
+    ? `Label printed ${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(labelPrintedAt)}`
+    : unit.status === "RETIRED"
+      ? "Label not needed"
+      : "Needs label";
   const content = (
     <div
       className={cn(
@@ -858,9 +986,13 @@ function UnitMenu({
         meta.className,
         unit.status === "CHECKED_OUT" ? "cursor-default opacity-80" : "cursor-pointer",
       )}
+      aria-label={`Unit ${unit.unitNumber}, ${meta.label}, ${labelText}`}
     >
       <span className="font-mono text-sm font-semibold tabular-nums">#{unit.unitNumber}</span>
       <span className="text-[10px] leading-tight">{busy ? "Updating..." : meta.label}</span>
+      <span className={cn("mt-1 text-[10px] leading-tight", labelPrintedAt ? "text-current" : "font-medium")}>
+        {labelText}
+      </span>
     </div>
   );
 
@@ -920,6 +1052,8 @@ function updateUnitStatus(data: BatteryCockpitData | null, action: NonNullable<P
       checkedOut: units.filter((unit) => unit.status === "CHECKED_OUT").length,
       lost: units.filter((unit) => unit.status === "LOST").length,
       retired: units.filter((unit) => unit.status === "RETIRED").length,
+      labelPrintedCount: units.filter((unit) => unit.labelPrintedAt !== null).length,
+      labelNeededCount: units.filter((unit) => unit.labelPrintedAt === null && unit.status !== "RETIRED").length,
     };
     return { ...sku, units, counts, isLow: counts.available < sku.threshold };
   });
@@ -953,4 +1087,18 @@ function updateUnitStatus(data: BatteryCockpitData | null, action: NonNullable<P
       ).filter((item) => item.isLow);
 
   return { totals, skus, compatibility };
+}
+
+function formatUnitNumberPreview(unitNumbers: number[]) {
+  const sorted = [...unitNumbers].sort((a, b) => a - b);
+  const preview = sorted.slice(0, 8).join(", ");
+  return sorted.length > 8 ? `${preview}...` : preview;
+}
+
+function parseUnitNumbersHeader(value: string | null) {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((item) => Number(item.trim()))
+    .filter((unitNumber) => Number.isSafeInteger(unitNumber) && unitNumber > 0);
 }
