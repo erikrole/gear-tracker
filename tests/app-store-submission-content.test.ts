@@ -5,10 +5,10 @@ const submissionSource = readFileSync("tasks/app-store-connect-submission-conten
 
 describe("App Store submission content", () => {
   it("documents Apple's unlisted app request sequence", () => {
-    expect(submissionSource).toContain("intended for unlisted app distribution");
-    expect(submissionSource).toContain("Distribution during submission:** Intended to be **Unlisted App**");
-    expect(submissionSource).toContain("current rejected submission must not be resubmitted");
-    expect(submissionSource).toContain("Submit Apple's unlisted app distribution request");
+    expect(submissionSource).toContain("Apple has approved Wisconsin Creative for unlisted app distribution");
+    expect(submissionSource).toContain("**Distribution during submission:** **Unlisted App**");
+    expect(submissionSource).toContain("Build 26 is valid and attached");
+    expect(submissionSource).toContain("Guideline 2.1 Resolution Center reply");
     expect(submissionSource).not.toContain('Distribution tab → set to "Unlisted"');
   });
 

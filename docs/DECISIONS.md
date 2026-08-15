@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-08-12
+- Last Updated: 2026-08-15
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -55,6 +55,7 @@
 - D-046: Schedule edits release automatically after a ten-minute quiet period
 - D-047: The macOS companion must not wake Neon
 - D-048: Product usage counting is first-party, pseudonymous, and owner-only
+- D-049: Web releases use monthly CalVer tags and GitHub Releases
 
 ---
 
@@ -1062,7 +1063,45 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Usage reporting exposes aggregates only and stays separate from staff reports, user profiles, accountability, and audit history.
 - Reference: `tasks/private-usage-analytics-plan.md`, `docs/AREA_REPORTS.md`, and `src/app/privacy/page.tsx`.
 
+## D-049: Web Releases Use Monthly CalVer Tags and GitHub Releases
+- Date: 2026-08-15
+- Status: Accepted; versioning workflow implemented locally
+- Context:
+  - The web application needs a simple, visible release identity without
+    introducing a second Vercel production-promotion pipeline.
+  - The repository already deploys through Git-connected Vercel changes and
+    has a release script, but its previous `YYYY.MM.DD.N` format was more
+    detailed than the desired monthly release cadence.
+- Decision:
+  - New release versions use `YYYY.M.N`, where `N` starts at `1` and increments
+    within the calendar month. The first August 2026 release is `2026.8.1`.
+  - The same version is written to `package.json`, `package-lock.json`, the Git
+    tag, and the GitHub Release title.
+  - `npm run release` remains an explicit shipping command from a clean,
+    verified `main` worktree. It creates the version commit and annotated tag,
+    then pushes both; a tag-triggered GitHub Action creates the GitHub Release
+    with generated notes.
+  - Vercel continues to deploy `main` as the production line. A GitHub Release
+    is version metadata and does not independently promote a Vercel deployment.
+- Consequences:
+  - Reviewers can identify web milestones consistently in GitHub and source
+    metadata without changing the current deployment path.
+  - Existing historical tags remain readable even though they use the former
+    four-part format.
+  - A future release-gated Vercel promotion can be designed separately if the
+    operational rollout needs it.
+- Guardrails:
+  - Do not run the release command from a dirty worktree or without explicit
+    shipping approval.
+  - Do not create a second production deployment from the GitHub Release
+    workflow.
+- Reference: `scripts/release.sh`, `.github/workflows/release.yml`, and
+  `docs/RELEASE_VERIFICATION.md`.
+
 ## Change Log
+- 2026-08-15: Added D-049 for monthly `YYYY.M.N` web release versioning,
+  GitHub Release creation from pushed tags, and continued Vercel `main`
+  production deployment.
 - 2026-08-12: Added D-048 for first-party pseudonymous product usage counting with owner-only report access and a strict data-minimization boundary.
 - 2026-08-10: Amended D-009 to use durable due-versioned checkout workflows, a five-stage schedule, late-stage collapse, location responders, +24h admin escalation without broad push, separate exact fanout caps, shared grace semantics, and category-aware delivery. Migration `0111` and authenticated production proof remain open.
 - 2026-08-09: Added D-047 for the no-wake macOS companion projection, explicit enrollment exception, post-commit publication, Upstash-only reads, and silent APNs invalidation.

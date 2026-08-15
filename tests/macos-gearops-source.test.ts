@@ -191,9 +191,17 @@ describe("GearOps macOS menu bar contracts", () => {
 
     expect(notifications).toContain("content.interruptionLevel = .active");
     expect(notifications).toContain("content.sound = nil");
-    expect(notifications).toContain('case .open: "Booking checked out"');
-    expect(notifications).toContain('case .completed: "Booking checked in"');
-    expect(notifications).toContain('title = "Booking extended"');
+    expect(notifications).toContain("let bookingTitle: String");
+    expect(notifications).toContain("let statusLabel: String");
+    expect(notifications).toContain("let requesterName: String");
+    expect(notifications).toContain("timestamp: current.updatedAt");
+    expect(notifications).toContain("timestamp.formatted(date: .abbreviated, time: .shortened)");
+    expect(notifications).toContain('content.title = change.bookingTitle');
+    expect(notifications).toContain('content.body = change.summary');
+    expect(notifications).toContain('content.threadIdentifier = "booking-\\(change.bookingID)"');
+    expect(notifications).toContain('case .open: "Checked Out"');
+    expect(notifications).toContain('case .completed: "Checked In"');
+    expect(notifications).toContain('statusLabel = "Extended"');
     expect(notifications).toContain('"bookingKind": change.bookingKind.rawValue');
     expect(notifications).toContain("BookingDeepLink.notificationURL");
     expect(model).toContain("CompanionPushBridge.shared.events");

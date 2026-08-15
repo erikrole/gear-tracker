@@ -1,36 +1,61 @@
 # Gear Tracker
 
-**Gear Tracker** is a production-ready equipment management platform built for sports media and creative operations teams. It replaces spreadsheets and manual sign-out sheets with a scan-enforced, conflict-aware workflow — from reservation through return.
+> Event-driven gear operations for Wisconsin Athletics Creative.
 
-## What It Does
+[Production site](https://wisconsincreative.com) · [Public product overview](https://wisconsincreative.com/about) · [Releases](https://github.com/erikrole/wisconsin-creative/releases)
 
-**Inventory management** — Track serialized and bulk gear side by side. Each item has QR-code identity, full-text search, editable metadata (brand, model, category, location, department), and live status derived from active allocations. Accessories bundle to parent items. Bulk items track individual units with loss reporting.
+Gear Tracker is the operational command system for equipment, reservations,
+game-day schedules, and physical handoffs. It replaces spreadsheets and manual
+sign-out sheets with a scan-enforced, conflict-aware workflow from reservation
+through return.
 
-**Reservations & checkouts** — One unified booking model (`DRAFT → BOOKED → OPEN → COMPLETED`). Staff can create ad-hoc or event-linked checkouts, clone repeat bookings, and extend active ones with overlap detection. Conflict badges surface item-level contention before it becomes a problem.
+The repository is public for review, but the production application is
+invite-only. The public `/about` route set is a static stakeholder overview;
+operational routes require an authenticated account.
 
-**Scan enforcement** — The signed-in app scan surface is lookup-only for finding gear by tag, QR value, serial number, or primary scan code. Physical checkout, reservation pickup, and return custody scans run through the authenticated native kiosk, with numbered bulk unit selection and server-confirmed custody evidence.
+## The product
 
-**Shift scheduling** — Shifts auto-generate from ICS calendar events. Staff get assigned per sport and area. Students can request premier-event shifts and trade via an area-filtered trade board. A month-grid calendar shows coverage health at a glance (green / orange / red).
+Gear Tracker connects the work that normally gets split across an inventory
+tool, a calendar, and a sign-out sheet:
 
-**Smart notifications** — A four-stage escalation schedule fires at +1h, +3h, +8h, and +24h relative to due time. Notifications go in-app, by push where enabled, and via email (Resend), with deduplication and an admin-configurable per-booking fatigue cap. The daily `morning-refresh` maintenance job runs overdue and related notification work with partial-failure isolation.
+- **Inventory** — Serialized gear and bulk item families share one tag-first
+  catalog with QR/serial lookup, accessories, metadata, images, maintenance,
+  and availability derived from active allocations.
+- **Reservations** — Staff and students reserve gear for upcoming work with
+  event context, conflict checks, pickup guidance, and repeat-booking support.
+- **Custody** — The native kiosk owns immediate checkout, reservation pickup,
+  exact serialized scans, numbered bulk-unit selection, returns, and custody
+  evidence.
+- **Schedule** — ICS events, staffing, call windows, open work, availability,
+  trades, publication, and gear readiness meet in one event-driven workflow.
+- **Operations** — Dashboard queues, notifications, reports, audit history,
+  and bounded repair tools keep overdue gear and exceptions visible.
+- **Role-aware access** — Students, staff, admins, and explicitly granted
+  collaborators see the workflows and data appropriate to their role.
 
-**Ops dashboard** — Action-oriented lanes surface what needs attention now: overdue gear, due-today items, upcoming reservations, and in-progress checkouts. A stat strip, sport filter chips, and draft recovery make it the single screen ops staff live in.
+## One clear handoff model
 
-**Role-based access** — Three tiers (ADMIN / STAFF / STUDENT) enforced server-side on every endpoint. Students get a mobile-optimized view of their own gear. Staff manage the floor. Admins configure settings.
+| Surface | Owns |
+| --- | --- |
+| Web control room | Inventory, reservations, Schedule operations, settings, reports, imports, and data-quality work |
+| Native iOS app | Student work, lookup, reservations, Schedule, Settings, notifications, and field workflows |
+| Native kiosk | Person identification, direct checkout, reservation pickup, serialized scans, numbered-unit custody, and return |
+| Public showroom | Static, fictional, public-safe product and trust-model information |
 
-**Admin settings** — Hierarchical category management, sport configuration with per-area shift counts, escalation rule editing, and on-demand database health diagnostics.
+The boundary is intentional: app and web reserve; the kiosk opens, edits, and
+closes physical custody. The signed-in web scan surface is lookup-only.
 
-## Stack
+## Technology
 
-- **Next.js** (App Router, TypeScript)
-- **PostgreSQL** (Neon serverless) via Prisma ORM + `@prisma/adapter-neon`
-- **Vercel** — Node.js serverless functions, Blob storage, Cron Jobs
-- **shadcn/ui** + Tailwind CSS
-- **Resend** for transactional email
-- **Vitest** for unit tests
-- **SwiftUI** native iOS app and dedicated kiosk target
+- Next.js App Router and TypeScript
+- PostgreSQL on Neon with Prisma and `@prisma/adapter-neon`
+- Vercel Node.js serverless functions, Blob storage, and Cron Jobs
+- shadcn/ui and Tailwind CSS
+- Resend transactional email
+- Vitest and Playwright
+- SwiftUI native iOS app with a dedicated kiosk target
 
-## Quick Start
+## Run it locally
 
 ```bash
 cp .env.example .env
@@ -40,24 +65,65 @@ npm run db:migrate:check
 npm run dev
 ```
 
-For Neon connection setup, incremental migrations, production drift checks, or a deliberately empty isolated database, follow [docs/PRISMA_NEON_RUNBOOK.md](docs/PRISMA_NEON_RUNBOOK.md). Do not create a new `init` migration against the existing migration chain.
+For Neon connection setup, incremental migrations, production drift checks, or
+an isolated empty database, follow
+[`docs/PRISMA_NEON_RUNBOOK.md`](docs/PRISMA_NEON_RUNBOOK.md). Do not create a
+new `init` migration against the existing migration chain.
 
-## Repo Map
+## Verify changes
 
-Current source maps live in `docs/CODEMAPS/`.
+Use the smallest gate that proves the slice, then expand it for release or
+deployment work:
 
 ```bash
-npm run codemap        # regenerate route, schema, area, frontend, backend, and dependency maps
-npm run codemap:check  # fail when generated maps drift from source
-npm run verify:docs    # docs verification gate for generated maps
+npm test
+npx tsc --noEmit --pretty false
+npm run lint
+npm run verify:docs
+npm run build:app
 ```
 
-Use `docs/CODEMAPS/routes.md` when orienting in App Router, `docs/CODEMAPS/schema.md` for Prisma model shape, and `docs/CODEMAPS/areas.md` to connect `AREA_*.md` docs to likely routes, services, and tests.
+Authenticated browser checks require an isolated target and dedicated test
+identity. Public/deployment checks use `npm run smoke:deploy`. The complete
+closeout matrix lives in
+[`docs/RELEASE_VERIFICATION.md`](docs/RELEASE_VERIFICATION.md).
 
-Read [docs/NORTH_STAR.md](docs/NORTH_STAR.md) for product direction, [docs/DECISIONS.md](docs/DECISIONS.md) for accepted architecture, and the relevant `docs/AREA_*.md` file for shipped area contracts.
+## Deployment and releases
 
-Release and slice closeout gates live in `docs/RELEASE_VERIFICATION.md`. Use `npm run build:app` for safe local app compile proof; reserve `npm run build` for deploy-shaped checks because it runs the Prisma/Neon migration deploy wrapper before `next build`.
+Vercel remains the deployment system: Git-connected changes produce preview
+deployments, and `main` is the production line. GitHub Releases are deliberate
+CalVer milestone records, not a second production trigger.
 
-## Team Workflow
+Release versions use `YYYY.M.N`, where `N` increments within the calendar
+month. For example, the first two August 2026 releases are `2026.8.1` and
+`2026.8.2`.
 
-We use a dual-agent (Codex + Claude) workflow for parallel implementation. See `docs/AI_COLLABORATION.md` for branch strategy, handoff contracts, and conflict-avoidance conventions.
+After a clean, verified `main` commit and explicit shipping approval:
+
+```bash
+npm run release
+```
+
+The release script updates `package.json` and `package-lock.json`, creates the
+CalVer tag, and pushes the commit and tag. The tag-triggered GitHub Action then
+creates the GitHub Release with generated notes. It is a shipping action, not
+an ordinary development command.
+
+## Repository map
+
+- [`docs/NORTH_STAR.md`](docs/NORTH_STAR.md) — product direction and operating model
+- [`docs/DECISIONS.md`](docs/DECISIONS.md) — accepted architecture and boundaries
+- [`docs/AREA_*.md`](docs) — shipped contracts by product area
+- [`docs/CODEMAPS/`](docs/CODEMAPS) — generated route, schema, area, and dependency maps
+- [`docs/RELEASE_VERIFICATION.md`](docs/RELEASE_VERIFICATION.md) — closeout and release gates
+- [`tasks/`](tasks) — active plans, audits, ledgers, and archived proof
+
+Regenerate and check source maps with:
+
+```bash
+npm run codemap
+npm run codemap:check
+```
+
+Read [`docs/AI_COLLABORATION.md`](docs/AI_COLLABORATION.md) for the Codex +
+Claude workflow and handoff conventions.

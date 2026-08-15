@@ -4,8 +4,8 @@ set -euo pipefail
 # Release script for Gear Tracker
 # Usage: npm run release [-- --dry-run] [-- --yes]
 #
-# Creates a CalVer tag (YYYY.MM.DD.N) and updates package.json.
-# If on main, also creates a GitHub Release with auto-generated notes.
+# Creates a CalVer tag (YYYY.M.N) and updates package.json + package-lock.json.
+# GitHub Actions turns the pushed tag into a GitHub Release with generated notes.
 #
 # Flags:
 #   --dry-run   Show what would happen without creating anything
@@ -39,18 +39,21 @@ if [ "$BRANCH" != "main" ]; then
   fi
 fi
 
-# Calculate today's CalVer tag
-TODAY=$(date +%Y.%m.%d)
-EXISTING=$(git tag -l "${TODAY}.*" | sort -t. -k4 -n | tail -1)
+# Calculate this month's CalVer tag. The final component is the release number
+# within the month: 2026.8.1, 2026.8.2, and so on.
+YEAR=$(date +%Y)
+MONTH=$(date +%m)
+MONTH=${MONTH#0}
+EXISTING=$(git tag -l "${YEAR}.${MONTH}.*" | awk -F. 'NF == 3 && $3 ~ /^[0-9]+$/ { print }' | sort -t. -k3,3n | tail -1)
 
 if [ -z "$EXISTING" ]; then
-  BUILD=1
+  RELEASE_NUMBER=1
 else
-  LAST_BUILD=$(echo "$EXISTING" | awk -F. '{print $4}')
-  BUILD=$((LAST_BUILD + 1))
+  LAST_RELEASE_NUMBER=$(echo "$EXISTING" | awk -F. '{print $3}')
+  RELEASE_NUMBER=$((LAST_RELEASE_NUMBER + 1))
 fi
 
-VERSION="${TODAY}.${BUILD}"
+VERSION="${YEAR}.${MONTH}.${RELEASE_NUMBER}"
 
 echo "Release: ${VERSION}"
 echo ""
@@ -68,7 +71,8 @@ echo ""
 
 if [ "$DRY_RUN" = true ]; then
   echo "[dry-run] Would create tag: ${VERSION}"
-  echo "[dry-run] Would update package.json version to: ${VERSION}"
+  echo "[dry-run] Would update package.json and package-lock.json to: ${VERSION}"
+  echo "[dry-run] Would push main and the tag; GitHub Actions would create the GitHub Release"
   exit 0
 fi
 
@@ -80,15 +84,19 @@ if [ "$AUTO_YES" = false ]; then
   fi
 fi
 
-# Update package.json version
+# Update package.json and package-lock.json versions
 if command -v node &>/dev/null; then
-  node -e "
+  VERSION="${VERSION}" node -e "
     const fs = require('fs');
-    const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-    pkg.version = '${VERSION}';
-    fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+    const version = process.env.VERSION;
+    for (const file of ['package.json', 'package-lock.json']) {
+      const pkg = JSON.parse(fs.readFileSync(file, 'utf8'));
+      pkg.version = version;
+      if (pkg.packages && pkg.packages['']) pkg.packages[''].version = version;
+      fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + '\n');
+    }
   "
-  git add package.json
+  git add package.json package-lock.json
   git commit -m "chore: release ${VERSION}"
 fi
 
@@ -102,21 +110,4 @@ git push origin "${VERSION}"
 echo ""
 echo "Released ${VERSION}"
 echo ""
-
-# Create GitHub Release if gh CLI is available
-if command -v gh &>/dev/null; then
-  if [ -n "$LAST_TAG" ]; then
-    gh release create "${VERSION}" \
-      --title "${VERSION}" \
-      --generate-notes \
-      --notes-start-tag "${LAST_TAG}"
-  else
-    gh release create "${VERSION}" \
-      --title "${VERSION}" \
-      --generate-notes
-  fi
-  echo "GitHub Release created: ${VERSION}"
-else
-  echo "Tip: Install GitHub CLI (gh) to auto-create GitHub Releases."
-  echo "  https://cli.github.com/"
-fi
+echo "GitHub Actions will create the GitHub Release from tag ${VERSION}."

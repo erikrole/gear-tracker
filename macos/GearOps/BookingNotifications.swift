@@ -5,8 +5,14 @@ import UserNotifications
 struct BookingChange: Equatable, Sendable {
     let bookingID: String
     let bookingKind: BookingKind
-    let title: String
-    let body: String
+    let bookingTitle: String
+    let statusLabel: String
+    let requesterName: String
+    let timestamp: Date
+
+    var summary: String {
+        "\(statusLabel) • \(requesterName) • \(timestamp.formatted(date: .abbreviated, time: .shortened))"
+    }
 }
 
 enum BookingDeepLink {
@@ -48,21 +54,21 @@ enum BookingChangeDetector {
         from previous: BookingActivitySnapshot?,
         to current: BookingActivitySnapshot
     ) -> BookingChange? {
-        let title: String
+        let statusLabel: String
 
         if previous?.status != current.status {
-            title = switch current.status {
-            case .draft: "Booking draft updated"
-            case .booked: "Booking reserved"
-            case .pendingPickup: "Booking ready for pickup"
-            case .open: "Booking checked out"
-            case .completed: "Booking checked in"
-            case .cancelled: "Booking cancelled"
+            statusLabel = switch current.status {
+            case .draft: "Updated"
+            case .booked: "Reserved"
+            case .pendingPickup: "Ready for Pickup"
+            case .open: "Checked Out"
+            case .completed: "Checked In"
+            case .cancelled: "Cancelled"
             }
         } else if let previous, current.endsAt > previous.endsAt {
-            title = "Booking extended"
+            statusLabel = "Extended"
         } else if let previous, current.endsAt != previous.endsAt {
-            title = "Booking time changed"
+            statusLabel = "Updated"
         } else if let previous,
                   previous.title == current.title,
                   previous.kind == current.kind,
@@ -71,21 +77,16 @@ enum BookingChangeDetector {
                   previous.location.id == current.location.id {
             return nil
         } else {
-            title = "Booking updated"
-        }
-
-        let body = switch current.status {
-        case .completed, .cancelled:
-            "\(current.title) · \(current.requester.name) · \(current.location.name)"
-        default:
-            "\(current.title) · \(current.requester.name) · Due \(current.endsAt.formatted(date: .abbreviated, time: .shortened))"
+            statusLabel = "Updated"
         }
 
         return BookingChange(
             bookingID: current.id,
             bookingKind: current.kind,
-            title: title,
-            body: body
+            bookingTitle: current.title,
+            statusLabel: statusLabel,
+            requesterName: current.requester.name,
+            timestamp: current.updatedAt
         )
     }
 }
@@ -132,8 +133,8 @@ actor BookingNotificationCenter: BookingNotificationDelivering {
 
     func deliver(_ change: BookingChange) async {
         let content = UNMutableNotificationContent()
-        content.title = change.title
-        content.body = change.body
+        content.title = change.bookingTitle
+        content.body = change.summary
         content.sound = nil
         content.interruptionLevel = .active
         content.threadIdentifier = "booking-\(change.bookingID)"

@@ -1,6 +1,6 @@
 # Tasks Index
 
-Last updated: 2026-08-12
+Last updated: 2026-08-15
 
 ## Start Here
 
@@ -53,6 +53,7 @@ Audit files intentionally remain at root for now because the repo audit skills r
 - `admin-helper-followups.md` - remaining admin helper and low-priority systemic follow-ups.
 - `bulk-battery-followups.md` - remaining battery-adjacent future slices.
 - `internal-public-beta-release-cut-followup.md` - release cut work that requires a clean worktree and explicit shipping approval.
+- `repo-public-surface-plan-2026-08-15.md` - public README, GitHub About metadata, and conservative web-release posture.
 
 ## Archive Buckets
 

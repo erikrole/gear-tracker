@@ -62,7 +62,7 @@ describe("iOS production domain cutover", () => {
     expect(source("ios/Wisconsin/Kiosk/KioskAPIClient.swift")).toContain(
       "private let baseURL = AppEnvironment.baseURL",
     );
-    expect(source("ios/Wisconsin/Views/LoginView.swift")).toContain("NativeForgotPasswordView()");
+    expect(source("ios/Wisconsin/Views/LoginView.swift")).toContain("NativeForgotPasswordView(initialEmail: email)");
     expect(source("ios/Wisconsin/Views/LoginView.swift")).not.toContain("forgotPasswordURL");
     expect(source("ios/Wisconsin/Views/LoginView.swift")).toContain("NativeRegistrationView()");
     expect(source("ios/Wisconsin/Views/LoginView.swift")).not.toContain("registerURL");

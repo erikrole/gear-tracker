@@ -160,8 +160,8 @@ final class GearOpsModelTests: XCTestCase {
         await client.setBookingActivity(makeBookingActivity(status: .open), changed: true)
         await model.refresh()
 
-        let deliveredTitles = await notifications.deliveredChanges().map(\.title)
-        XCTAssertEqual(deliveredTitles, ["Booking checked out"])
+        let deliveredTitles = await notifications.deliveredChanges().map(\.bookingTitle)
+        XCTAssertEqual(deliveredTitles, ["Camera checkout"])
     }
 
     func testPendingPickupLaneIncludesDueReservationsAndStagedCheckouts() async {

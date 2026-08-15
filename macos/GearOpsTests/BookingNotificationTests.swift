@@ -7,26 +7,39 @@ final class BookingNotificationTests: XCTestCase {
         let booked = snapshot(status: .booked)
 
         XCTAssertEqual(
-            BookingChangeDetector.change(from: nil, to: booked)?.title,
-            "Booking reserved"
+            BookingChangeDetector.change(from: nil, to: booked)?.statusLabel,
+            "Reserved"
         )
         XCTAssertEqual(
-            BookingChangeDetector.change(from: booked, to: snapshot(status: .open))?.title,
-            "Booking checked out"
+            BookingChangeDetector.change(from: booked, to: snapshot(status: .open))?.statusLabel,
+            "Checked Out"
         )
         XCTAssertEqual(
-            BookingChangeDetector.change(from: snapshot(status: .open), to: snapshot(status: .completed))?.title,
-            "Booking checked in"
+            BookingChangeDetector.change(from: snapshot(status: .open), to: snapshot(status: .completed))?.statusLabel,
+            "Checked In"
         )
         XCTAssertEqual(
-            BookingChangeDetector.change(from: booked, to: snapshot(status: .cancelled))?.title,
-            "Booking cancelled"
+            BookingChangeDetector.change(from: booked, to: snapshot(status: .cancelled))?.statusLabel,
+            "Cancelled"
         )
-        XCTAssertFalse(
-            BookingChangeDetector.change(
-                from: snapshot(status: .open),
-                to: snapshot(status: .completed)
-            )?.body.contains("Due") ?? true
+    }
+
+    func testChangesCarryServerUpdateTimestamp() {
+        let updatedAt = Date(timeIntervalSince1970: 1_700_123_456)
+
+        XCTAssertEqual(
+            BookingChangeDetector.change(from: nil, to: snapshot(updatedAt: updatedAt))?.timestamp,
+            updatedAt
+        )
+    }
+
+    func testSummaryUsesStackableStatusRequesterTimestampLayout() {
+        let updatedAt = Date(timeIntervalSince1970: 1_700_123_456)
+        let timestamp = updatedAt.formatted(date: .abbreviated, time: .shortened)
+
+        XCTAssertEqual(
+            BookingChangeDetector.change(from: nil, to: snapshot(updatedAt: updatedAt))?.summary,
+            "Reserved • Erik Role • \(timestamp)"
         )
     }
 
@@ -35,8 +48,8 @@ final class BookingNotificationTests: XCTestCase {
         let current = snapshot(endsAt: Date(timeIntervalSince1970: 1_800_086_400))
 
         XCTAssertEqual(
-            BookingChangeDetector.change(from: previous, to: current)?.title,
-            "Booking extended"
+            BookingChangeDetector.change(from: previous, to: current)?.statusLabel,
+            "Extended"
         )
     }
 
@@ -45,8 +58,8 @@ final class BookingNotificationTests: XCTestCase {
         let current = snapshot(title: "Camera and audio")
 
         XCTAssertEqual(
-            BookingChangeDetector.change(from: previous, to: current)?.title,
-            "Booking updated"
+            BookingChangeDetector.change(from: previous, to: current)?.statusLabel,
+            "Updated"
         )
     }
 
@@ -80,6 +93,7 @@ final class BookingNotificationTests: XCTestCase {
         title: String = "Camera checkout",
         status: BookingStatus = .booked,
         endsAt: Date = Date(timeIntervalSince1970: 1_800_000_000),
+        updatedAt: Date = Date(timeIntervalSince1970: 1_700_000_000),
         avatarURL: String? = nil
     ) -> BookingActivitySnapshot {
         BookingActivitySnapshot(
@@ -89,7 +103,7 @@ final class BookingNotificationTests: XCTestCase {
             status: status,
             startsAt: Date(timeIntervalSince1970: 1_799_000_000),
             endsAt: endsAt,
-            updatedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            updatedAt: updatedAt,
             requester: .init(id: "user-1", name: "Erik Role", avatarUrl: avatarURL),
             location: .init(id: "location-1", name: "Kohl Center")
         )

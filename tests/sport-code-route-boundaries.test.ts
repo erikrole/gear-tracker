@@ -125,6 +125,7 @@ describe("sport-code route boundaries", () => {
       id: "booking-1",
       kind: "RESERVATION",
       status: "BOOKED",
+      title: "Equipment reservation",
       requesterUserId: "student-1",
       createdBy: "student-1",
     }] as never);

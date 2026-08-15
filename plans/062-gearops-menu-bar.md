@@ -35,6 +35,7 @@ Staff currently open the web control room to answer two frequent questions: how 
 - The user-facing app name is Wisconsin Creative and its app identity reuses `ios/Wisconsin/AppIcons/AppIcon.icon`; GearOps remains the internal module, project, and bundle identifier.
 - The menu bar uses a compact package SF Symbol; the repository app icon appears in the popover and system-owned app surfaces. The `Sim iPad` development record is excluded from macOS health counts, severity, and rows without changing the server record.
 - Booking changes arrive through silent APNs invalidation and an Upstash-backed projection fetch. Local alerts are passive and silent, establish a no-alert baseline on enrollment, and deep-link to the affected booking.
+- Local booking-change alerts use the booking title as the stackable title and show `Status • Requester • Timestamp` from the projection's server `updatedAt`, so the source event time remains visible when delivery is delayed.
 - Automatic launch, restore, refresh, and push handling must never call a Neon-backed route. Explicit password enrollment may wake Neon because the user initiated it.
 
 ## Scope
@@ -116,6 +117,7 @@ Staff currently open the web control room to answer two frequent questions: how 
 - Replaced the initial metric-card concept with a due-sorted, fully paginated list of `OPEN` checkout rows modeled on the native iOS Bookings tab, followed by one health section.
 - Made the popover size to short content up to a 500-point scrolling cap, moved aggregate severity into System Health, added tested kiosk fleet counts and last-seen-first diagnostics, and used interactive Liquid Glass booking rows on macOS 26 with the prior custom-material fallback.
 - Added passive, soundless native booking notifications backed by silent APNs invalidation and the external projection. The baseline is quiet; later reservations, pickup-ready changes, checkouts, check-ins, cancellations, extensions, time changes, and generic updates are classified from booking snapshots.
+- Added stackable booking-title notifications whose body is `Status • Requester • Timestamp`, using each projection row's server `updatedAt` rather than the local delivery time.
 - Added a conditional waiting-for-pickup lane, compact projection freshness, and location-scoped workload counts on healthy kiosk rows.
 - Added requester profile images to open-booking and waiting-pickup rows with a native asynchronous loader and initials fallback.
 - Performance hardening downsamples profile photos off the main actor to their rendered pixel size, bounds decoded and URL caches, sorts pickup activity only when data changes, and persists each accepted projection once. The former 60-second database polling loop is removed.
