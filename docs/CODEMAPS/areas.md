@@ -55,7 +55,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 
 - Doc: `docs/AREA_IMPORTER.md`
 - Pages: `/import`
-- APIs: `/api/assets/import`
+- APIs: `/api/assets/import`, `/api/signatures/import/apply`, `/api/signatures/import/preview`
 - Services: _none matched_
 - Tests: `tests/import-route.test.ts`
 
@@ -170,6 +170,14 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - APIs: `/api/my-shifts`, `/api/schedule/automation`, `/api/schedule/export`, `/api/schedule/health`, `/api/schedule/open-work`, `/api/schedule/published/[id]/follow`, `/api/schedule/published/[id]`, `/api/schedule/published`, `/api/settings/non-game-schedule`, `/api/shift-assignments/[id]/acknowledge`
 - Services: `src/lib/services/collaborator-schedule.ts`, `src/lib/services/non-game-schedule-defaults.ts`, `src/lib/services/reservation-schedule.ts`, `src/lib/services/schedule-automation.ts`, `src/lib/services/schedule-call-time-sync.ts`, `src/lib/services/schedule-change-history.ts`, `src/lib/services/schedule-exports.ts`, `src/lib/services/schedule-health.ts`
 - Tests: `tests/collaborator-schedule-follow.test.ts`, `tests/ios-collaborator-published-schedule-redesign.test.ts`, `tests/ios-schedule-all-day-display.test.ts`, `tests/ios-schedule-availability-trade-redesign.test.ts`, `tests/ios-schedule-calendar-hit-targets.test.ts`, `tests/ios-schedule-dynamic-type.test.ts`, `tests/ios-schedule-edit-times-post-trade-redesign.test.ts`, `tests/ios-schedule-filters-calendar-management-redesign.test.ts`
+
+## signatures
+
+- Doc: `docs/AREA_SIGNATURES.md`
+- Pages: `/signatures/[id]/capture/[memberId]`, `/signatures/[id]`, `/signatures`
+- APIs: `/api/signatures/artifacts/[revisionId]/[kind]`, `/api/signatures/cleanup`, `/api/signatures/collections/[id]/archive`, `/api/signatures/collections/[id]/capture/[memberId]`, `/api/signatures/collections/[id]/creative-staff`, `/api/signatures/collections/[id]/members/[memberId]/required`, `/api/signatures/collections/[id]/reset`, `/api/signatures/collections/[id]/restore`, `/api/signatures/collections/[id]`, `/api/signatures/collections`
+- Services: `src/lib/services/signatures.ts`
+- Tests: _none matched_
 
 ## users
 

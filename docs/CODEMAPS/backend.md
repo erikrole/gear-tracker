@@ -63,6 +63,7 @@
 | `src/lib/services/shift-generation.ts` | 628 |
 | `src/lib/services/shift-trade-emails.ts` | 56 |
 | `src/lib/services/shift-trades.ts` | 931 |
+| `src/lib/services/signatures.ts` | 937 |
 | `src/lib/services/sport-configs.ts` | 257 |
 | `src/lib/services/status.ts` | 444 |
 | `src/lib/services/usage-analytics-report.ts` | 33 |
@@ -144,14 +145,14 @@
 | `src/lib/operational-health.ts` | 50 |
 | `src/lib/ops-checks.ts` | 176 |
 | `src/lib/passkey.ts` | 328 |
-| `src/lib/permissions.ts` | 184 |
+| `src/lib/permissions.ts` | 197 |
 | `src/lib/profile-completion-events.ts` | 6 |
 | `src/lib/profile-completion.ts` | 157 |
 | `src/lib/profile-phone.ts` | 44 |
 | `src/lib/profile-sizing.ts` | 24 |
 | `src/lib/public-showroom.ts` | 444 |
 | `src/lib/query-client.ts` | 58 |
-| `src/lib/rate-limit.ts` | 187 |
+| `src/lib/rate-limit.ts` | 205 |
 | `src/lib/rbac.ts` | 59 |
 | `src/lib/remark-callouts.ts` | 73 |
 | `src/lib/request-limits.ts` | 15 |
@@ -606,6 +607,21 @@
 - `/api/shifts/ics/[token]`
 - `/api/shifts/my-hours`
 - `/api/shifts`
+
+### `/api/signatures`
+
+- `/api/signatures/artifacts/[revisionId]/[kind]`
+- `/api/signatures/cleanup`
+- `/api/signatures/collections/[id]/archive`
+- `/api/signatures/collections/[id]/capture/[memberId]`
+- `/api/signatures/collections/[id]/creative-staff`
+- `/api/signatures/collections/[id]/members/[memberId]/required`
+- `/api/signatures/collections/[id]/reset`
+- `/api/signatures/collections/[id]/restore`
+- `/api/signatures/collections/[id]`
+- `/api/signatures/collections`
+- `/api/signatures/import/apply`
+- `/api/signatures/import/preview`
 
 ### `/api/sport-configs`
 

@@ -22,6 +22,7 @@
 | `@tanstack/react-table` | `^8.21.3` |
 | `@upstash/ratelimit` | `^2.0.8` |
 | `@upstash/redis` | `^1.38.0` |
+| `@vercel/analytics` | `1.6.1` |
 | `@vercel/blob` | `^2.4.1` |
 | `barcode-detector` | `^3.2.0` |
 | `bcryptjs` | `^3.0.3` |

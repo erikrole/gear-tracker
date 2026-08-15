@@ -70,6 +70,9 @@
 | `/settings/security` | `src/app/(app)/settings/security/page.tsx` |
 | `/settings/sports` | `src/app/(app)/settings/sports/page.tsx` |
 | `/settings/venue-mappings` | `src/app/(app)/settings/venue-mappings/page.tsx` |
+| `/signatures/[id]/capture/[memberId]` | `src/app/(app)/signatures/[id]/capture/[memberId]/page.tsx` |
+| `/signatures/[id]` | `src/app/(app)/signatures/[id]/page.tsx` |
+| `/signatures` | `src/app/(app)/signatures/page.tsx` |
 | `/users/[id]` | `src/app/(app)/users/[id]/page.tsx` |
 | `/users/onboarding-status` | `src/app/(app)/users/onboarding-status/page.tsx` |
 | `/users/org-chart` | `src/app/(app)/users/org-chart/page.tsx` |
@@ -118,7 +121,7 @@
 | `src/components/BookingListPage.tsx` | 523 |
 | `src/components/ui/heatmap.tsx` | 434 |
 | `src/components/booking-details/BookingHeader.tsx` | 417 |
-| `src/components/Sidebar.tsx` | 408 |
+| `src/components/Sidebar.tsx` | 410 |
 | `src/components/ui/chart.tsx` | 389 |
 | `src/components/shift-detail/ShiftSlotCard.tsx` | 358 |
 | `src/components/booking-details/BookingInfoCard.tsx` | 342 |

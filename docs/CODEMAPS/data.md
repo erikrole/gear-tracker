@@ -11,7 +11,7 @@
 
 | Model | Fields | Model-level indexes/constraints |
 |---|---:|---:|
-| `User` | 102 | 5 |
+| `User` | 109 | 5 |
 | `Session` | 6 | 2 |
 | `PasswordResetToken` | 6 | 2 |
 | `PasskeyCredential` | 12 | 2 |
@@ -38,6 +38,12 @@
 | `OverrideEvent` | 8 | 4 |
 | `AuditLog` | 9 | 4 |
 | `ProductEvent` | 12 | 6 |
+| `SignatureCollection` | 21 | 4 |
+| `SignatureRosterSnapshot` | 16 | 4 |
+| `SignatureMember` | 20 | 5 |
+| `SignatureCapture` | 16 | 3 |
+| `SignatureArtifactRevision` | 19 | 4 |
+| `SignatureSaveOperation` | 19 | 4 |
 | `Kit` | 11 | 2 |
 | `KitMembership` | 6 | 2 |
 | `KitBulkMembership` | 7 | 3 |
@@ -237,6 +243,37 @@
 - `ACTIVE`
 - `MAINTENANCE`
 - `UNKNOWN`
+
+### `SignatureCollectionStatus`
+
+- `OPEN`
+- `ARCHIVED`
+
+### `SignatureSnapshotStatus`
+
+- `PREVIEW`
+- `APPLIED`
+
+### `SignatureMemberGroup`
+
+- `PLAYER`
+- `COACHING_STAFF`
+- `CREATIVE_STAFF`
+- `SUPPORT_STAFF`
+
+### `SignatureArtifactState`
+
+- `READY`
+- `PENDING_DELETE`
+- `DELETED`
+- `FAILED`
+
+### `SignatureSaveStatus`
+
+- `UPLOADING`
+- `FINALIZING`
+- `COMMITTED`
+- `FAILED`
 
 ### `PasskeyCeremonyType`
 
