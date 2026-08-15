@@ -1,12 +1,14 @@
 // Gear Tracker Service Worker — lightweight offline support
-const CACHE_NAME = "gear-tracker-v1";
+const CACHE_NAME = "gear-tracker-v2";
 
 // App shell files to precache on install
 const PRECACHE_URLS = [
   "/",
   "/manifest.webmanifest",
-  "/icon-192.svg",
-  "/icon-512.svg",
+  "/favicon.ico",
+  "/apple-touch-icon.png",
+  "/icon-192.png",
+  "/icon-512.png",
 ];
 
 // Install: precache app shell
