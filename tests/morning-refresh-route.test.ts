@@ -52,6 +52,10 @@ vi.mock("@/lib/services/companion-projection", () => ({
   refreshCompanionProjection: vi.fn(),
 }));
 
+vi.mock("@/lib/services/signatures", () => ({
+  cleanupPendingSignatureArtifacts: vi.fn(),
+}));
+
 import { db } from "@/lib/db";
 import { syncCalendarSource } from "@/lib/services/calendar-sync";
 import { updateCalendarSyncHealth } from "@/lib/services/calendar-sync-health";
@@ -61,6 +65,7 @@ import { expirePickupNoShows } from "@/lib/services/pending-pickup-expiry";
 import { pollFirmwareWatchTargets } from "@/lib/services/firmware-watch";
 import { getScheduleAutomationDigest } from "@/lib/services/schedule-automation";
 import { refreshCompanionProjection } from "@/lib/services/companion-projection";
+import { cleanupPendingSignatureArtifacts } from "@/lib/services/signatures";
 import { GET } from "@/app/api/cron/morning-refresh/route";
 
 const mockDb = db as unknown as {
@@ -141,6 +146,7 @@ describe("morning refresh cron route", () => {
       partialFailures: [],
     });
     vi.mocked(refreshCompanionProjection).mockResolvedValue({} as never);
+    vi.mocked(cleanupPendingSignatureArtifacts).mockResolvedValue({ attempted: 0, deleted: 0 });
   });
 
   afterEach(() => {

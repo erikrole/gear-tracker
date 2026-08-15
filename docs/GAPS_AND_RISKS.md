@@ -3,7 +3,7 @@
 ## Document Control
 
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-10
+- Last Updated: 2026-08-15
 - Status: Active registry
 - Purpose: Track only open gaps, pending decisions, active risks, and intentionally deferred scope.
 - Historical record: [GAPS_AND_RISKS_HISTORY.md](archive/GAPS_AND_RISKS_HISTORY.md)
@@ -25,6 +25,7 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 | GAP-62 | Production WebAuthn rollout proof remains open | AREA_MOBILE / AREA_USERS | Active | Web and native iOS enrollment, discoverable login, and credential management are implemented against the shared session contract. Migration `0106_passkey_auth` is applied and live migration health matches all 111 local migrations. On 2026-07-31, production probes returned AASA `200 application/json`, registration-options `405` for unauthenticated `GET`, and passkey listing `401` for unauthenticated `GET`. Authenticated browser smoke, device-side association refresh, and real-device passkey proof remain before calling passkeys production-ready. Source: `tasks/passkey-auth-plan.md`. |
 | GAP-63 | 2027 pending invitation materialization rollout | AREA_USERS / AREA_SHIFTS | Resolved | Migration `0108_social_pending_invite_profile`, the reviewed live invitation/roster data apply, and the registration-time materialization path are deployed. Production readback confirms the authenticated Allowed Emails page renders all 32 entries, including ten pending students and existing Collaborator rows. A real claim was intentionally not executed because it would create and consume a production student account. |
 | GAP-64 | Durable overdue checkout escalation rollout proof | AREA_NOTIFICATIONS / AREA_SETTINGS | Active | The five-stage Workflow policy, due-version dedupe, late-stage collapse, location responders, separate caps, preference alignment, and migration `0111_checkout_overdue_notification_policy` are implemented locally. Apply the migration, deploy compatible server code, configure responders, then prove one exact-timing run, one extension supersession, requester/responder/admin channel behavior, and repair-sweep dedupe before closing. Source: `tasks/overdue-notification-hardening-plan.md`. |
+| GAP-65 | Signature capture rollout proof | AREA_SIGNATURES | Active | The local V1 implementation is bounded to the MBB pilot plus a standalone Creative staff roster. The configured development Neon migration and authenticated in-app browser smoke are verified, including the corrected 14-player / 7-coach / 11-support-staff MBB hierarchy, numeric player order, UWBadgers source-order staff presentation, safe archival of 2025–26 so only 2026–27 is active, and the separate linked Creative staff collection sourced from 12 active full-time Video/Photo/Graphics accounts. Production migration/deployment remains open alongside physical iPad Safari pen/touch proof, private Blob provisioning, and cleanup failure-injection evidence. Source: `tasks/signature-capture-micro-app-plan.md`. |
 
 ## Deferred Product Scope
 
@@ -35,6 +36,8 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 | Advanced behavioral analytics | NORTH_STAR | Phase C; operational workflows and trustworthy history take priority. The private first-party usage counter is intentionally limited to normalized adoption, surface, version, and workflow events and does not authorize broad analytics or replay. |
 | Public accountability publishing | AREA_REPORTS | The ADMIN-only evidence and cleanup workflow must prove trustworthy first. Public identity, anonymization, institutional policy, and the safe public response contract require a separate accepted decision before any unauthenticated route ships. |
 | Multi-source event ingestion beyond UW Badgers ICS | AREA_EVENTS | Defer until another source is operationally required. |
+| Box or external signature-file integration | AREA_SIGNATURES | Deferred by D-050 until the private app-managed workflow proves reliable. |
+| Native PencilKit capture | AREA_SIGNATURES | Deferred by D-050; the V1 surface is authenticated iPad Safari. |
 | Database-configurable equipment guidance rules | AREA_CHECKOUTS | D-016 keeps V1 guidance code-defined. Revisit when operators need direct rule ownership. |
 
 ## Active Risks
@@ -56,8 +59,18 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 | Booking read-path growth | Booking change polling begins scanning or sorting materially more rows, or synchronous 5,000-row CSV exports approach the serverless timeout | Add composite booking/audit cursor indexes through a reviewed Prisma migration, then paginate or move large exports to an artifact-producing job before volume makes the current bounded route unreliable | Engineering |
 | Companion delivery gap | APNs throttling or external-cache failure delays a Wisconsin Creative update | Keep the last trusted local snapshot, make manual refresh Upstash-only, never fall through to Neon, and validate signed macOS APNs delivery before staff distribution | Engineering |
 | Overdue workflow rollout skew | Migration, Workflow code, or responder configuration reaches production without the compatible peers | Deploy migration and server together, configure at least one responder per active checkout location, then verify exact timing and repair dedupe before relying on Workflow delivery | Engineering |
+| Signature input or artifact lifecycle drift | A tile turns green from local draft state, a public URL leaks, or one artifact is missing after a retry | Keep completion server-derived, use private authenticated delivery, persist save-operation state, and run physical-input plus failure-injection acceptance before rollout | Engineering |
+| UWBadgers roster source drift | Duplicate cards/tables or changed profile links create duplicate or misclassified members | Keep the adapter structurally scoped, dedupe by profile identity, persist exact snapshots, surface review suggestions, and require explicit versioned apply | Engineering |
 
 ## Change Log
+
+- 2026-08-15: Added a standalone Creative staff signature collection, version-checked reconciliation from active visible full-time Video/Photo/Graphics accounts, and a separate landing-page roster card. Applied migration `0114_signature_creative_staff` to the configured development Neon database and verified 12 linked Creative staff members, including Erik Role; GAP-65 remains open for production, private storage, cleanup, and physical iPad evidence.
+
+- 2026-08-15: Hardened Signature Capture year management and roster presentation. Players now sort by jersey number, staff follows the UWBadgers source order, the unwanted 2025–26 Preview collection is archived and hidden from active selection, and admin restore remains version-checked. GAP-65 remains open for hardware, private storage, cleanup, and production rollout evidence.
+
+- 2026-08-15: Corrected UWBadgers source-role classification and grouped the Signature roster into Players, Coaching staff, and Support staff. Preview 2026–27 now reads back as 14 players, 7 required coaches, and 11 optional support staff; authenticated browser proof passed without console errors. GAP-65 remains open for hardware, private storage, cleanup, and production rollout evidence.
+
+- 2026-08-15: Applied `0113_signature_capture` to the linked Preview Neon database and verified 118/118 migration health. Authenticated in-app `/signatures` smoke now loads without the missing-table error; production migration/deployment, private Blob, cleanup, and physical iPad acceptance remain open under GAP-65.
 
 - 2026-08-10: Closed the repository-audit findings for report partial-result truth, native report request ownership, audit last-lookup fan-out, iOS audit-registry enforcement, and ignored scratch lint drift without adding a product gap. Utilization and checkout responses name unavailable sections, web and native warn before fallback values are treated as final, a selected native period owns its responses, `/api/audit/last` uses two bounded database queries, and `audit:ios:gaps` now fails on missing or unregistered surfaces. Native simulator compilation and authenticated visual acceptance remain verification boundaries rather than new product scope.
 

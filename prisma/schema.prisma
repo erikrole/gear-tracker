@@ -160,91 +160,129 @@ enum FirmwareSupportMode {
   UNKNOWN
 }
 
+enum SignatureCollectionStatus {
+  OPEN
+  ARCHIVED
+}
+
+enum SignatureSnapshotStatus {
+  PREVIEW
+  APPLIED
+}
+
+enum SignatureMemberGroup {
+  PLAYER
+  COACHING_STAFF
+  CREATIVE_STAFF
+  SUPPORT_STAFF
+}
+
+enum SignatureArtifactState {
+  READY
+  PENDING_DELETE
+  DELETED
+  FAILED
+}
+
+enum SignatureSaveStatus {
+  UPLOADING
+  FINALIZING
+  COMMITTED
+  FAILED
+}
+
 model User {
-  id                          String                           @id @default(cuid())
-  name                        String
-  email                       String                           @unique
-  passwordHash                String                           @map("password_hash")
-  forcePasswordChange         Boolean                          @default(false) @map("force_password_change")
-  role                        Role
-  affiliation                 Affiliation?
-  collaboratorProfile         CollaboratorProfile?             @map("collaborator_profile")
-  collaboratorPolicyId        String?                          @map("collaborator_policy_id")
-  staffingType                ShiftWorkerType                  @default(ST) @map("staffing_type")
-  active                      Boolean                          @default(true)
-  hiddenFromRoster            Boolean                          @default(false) @map("hidden_from_roster")
-  phone                       String?
-  personalPhone               String?                          @map("personal_phone")
-  workPhone                   String?                          @map("work_phone")
-  workPhoneNotApplicable      Boolean                          @default(false) @map("work_phone_not_applicable")
-  wiscardNumber               String?                          @unique @map("wiscard_number")
-  wiscardCardNumber           String?                          @unique @map("wiscard_card_number")
-  wiscardIssueCode            String?                          @map("wiscard_issue_code")
-  profilePromptSnoozedUntil   DateTime?                        @map("profile_prompt_snoozed_until")
-  slackHandle                 String?                          @map("slack_handle")
-  slackProfileUrl             String?                          @map("slack_profile_url")
-  avatarUrl                   String?                          @map("avatar_url")
-  primaryArea                 ShiftArea?                       @map("primary_area")
-  locationId                  String?                          @map("location_id")
-  createdAt                   DateTime                         @default(now()) @map("created_at")
-  updatedAt                   DateTime                         @updatedAt @map("updated_at")
-  lastActiveAt                DateTime?                        @map("last_active_at")
-  location                    Location?                        @relation(fields: [locationId], references: [id], onDelete: SetNull)
-  sessions                    Session[]
-  passkeyCredentials          PasskeyCredential[]
-  passkeyChallenges           PasskeyChallenge[]
-  requested                   Booking[]                        @relation("BookingRequester")
-  createdBookings             Booking[]                        @relation("BookingCreator")
-  scanEvents                  ScanEvent[]
-  scanSessions                ScanSession[]
-  overrides                   OverrideEvent[]
-  bulkMovements               BulkStockMovement[]
-  audits                      AuditLog[]                       @relation("AuditActor")
-  shiftAssignments            ShiftAssignment[]                @relation("ShiftAssignee")
-  shiftAssignedBy             ShiftAssignment[]                @relation("ShiftAssigner")
-  shiftGroupsPublished        ShiftGroup[]                     @relation("ShiftGroupPublisher")
-  shiftWorkingCopiesCreated   ShiftGroupWorkingCopy[]          @relation("ShiftWorkingCopyCreator")
-  shiftWorkingCopiesUpdated   ShiftGroupWorkingCopy[]          @relation("ShiftWorkingCopyUpdater")
-  shiftAcknowledged           ShiftAssignment[]                @relation("ShiftAssignmentAcknowledgedBy")
-  sportAssignments            StudentSportAssignment[]
-  areaAssignments             StudentAreaAssignment[]
-  tradesPosted                ShiftTrade[]                     @relation("TradePostedBy")
-  tradesClaimed               ShiftTrade[]                     @relation("TradeClaimedBy")
-  favorites                   FavoriteItem[]
-  familyFavorites             FavoriteItemFamily[]
-  passwordResetTokens         PasswordResetToken[]
-  notifications               Notification[]
-  deviceTokens                DeviceToken[]
-  liveActivityTokens          LiveActivityToken[]
-  liveActivityStartTokens     LiveActivityStartToken[]
-  liveActivityStarts          LiveActivityStart[]
-  blastsAuthored              Blast[]                          @relation("BlastAuthor")
-  blastsCancelled             Blast[]                          @relation("BlastCanceller")
-  blastsReceived              BlastRecipient[]                 @relation("BlastRecipient")
-  bookingPhotos               BookingPhoto[]                   @relation("BookingPhotoActor")
-  checkinReports              CheckinItemReport[]              @relation("CheckinReports")
-  allowedEmailsCreated        AllowedEmail[]                   @relation("AllowedEmailCreator")
-  allowedEmailsClaimed        AllowedEmail[]                   @relation("AllowedEmailClaimer")
-  licenseCodesHeld            LicenseCode[]                    @relation("LicenseClaimedBy")
-  licenseCodesCreated         LicenseCode[]                    @relation("LicenseCreatedBy")
-  licenseClaims               LicenseCodeClaim[]
-  resources                   Resource[]
-  resourcesVerified           Resource[]                       @relation("ResourceLastVerifiedBy")
-  availabilityBlocks          StudentAvailabilityBlock[]
-  availabilityReviewed        StudentAvailabilityBlock[]       @relation("AvailabilityReviewer")
-  travelMemberships           EventTravelMember[]              @relation("TravelMembers")
-  badges                      StudentBadge[]
-  badgesAwardedByMe           StudentBadge[]                   @relation("BadgeAwardedBy")
-  badgeStreaks                BadgeStreak[]
-  badgeEventReceipts          BadgeEventReceipt[]
-  notificationPrefs           Json?                            @map("notification_prefs")
-  icsToken                    String?                          @unique @map("ics_token")
-  scheduleEventFollows        ScheduleEventFollow[]
-  collaboratorPolicy          CollaboratorPolicy?              @relation(fields: [collaboratorPolicyId], references: [id], onDelete: Restrict)
-  collaboratorPolicyRevisions CollaboratorPolicyRevision[]     @relation("CollaboratorPolicyRevisionActor")
-  accountabilityExclusions    BookingAccountabilityExclusion[] @relation("AccountabilityExcludedBy")
-  accountabilityRestorations  BookingAccountabilityExclusion[] @relation("AccountabilityRestoredBy")
-  bookingDueDateChanges       BookingDueDateChange[]           @relation("BookingDueDateChangeActor")
+  id                           String                           @id @default(cuid())
+  name                         String
+  email                        String                           @unique
+  passwordHash                 String                           @map("password_hash")
+  forcePasswordChange          Boolean                          @default(false) @map("force_password_change")
+  role                         Role
+  affiliation                  Affiliation?
+  collaboratorProfile          CollaboratorProfile?             @map("collaborator_profile")
+  collaboratorPolicyId         String?                          @map("collaborator_policy_id")
+  staffingType                 ShiftWorkerType                  @default(ST) @map("staffing_type")
+  active                       Boolean                          @default(true)
+  hiddenFromRoster             Boolean                          @default(false) @map("hidden_from_roster")
+  phone                        String?
+  personalPhone                String?                          @map("personal_phone")
+  workPhone                    String?                          @map("work_phone")
+  workPhoneNotApplicable       Boolean                          @default(false) @map("work_phone_not_applicable")
+  wiscardNumber                String?                          @unique @map("wiscard_number")
+  wiscardCardNumber            String?                          @unique @map("wiscard_card_number")
+  wiscardIssueCode             String?                          @map("wiscard_issue_code")
+  profilePromptSnoozedUntil    DateTime?                        @map("profile_prompt_snoozed_until")
+  slackHandle                  String?                          @map("slack_handle")
+  slackProfileUrl              String?                          @map("slack_profile_url")
+  avatarUrl                    String?                          @map("avatar_url")
+  primaryArea                  ShiftArea?                       @map("primary_area")
+  locationId                   String?                          @map("location_id")
+  createdAt                    DateTime                         @default(now()) @map("created_at")
+  updatedAt                    DateTime                         @updatedAt @map("updated_at")
+  lastActiveAt                 DateTime?                        @map("last_active_at")
+  location                     Location?                        @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  sessions                     Session[]
+  passkeyCredentials           PasskeyCredential[]
+  passkeyChallenges            PasskeyChallenge[]
+  requested                    Booking[]                        @relation("BookingRequester")
+  createdBookings              Booking[]                        @relation("BookingCreator")
+  scanEvents                   ScanEvent[]
+  scanSessions                 ScanSession[]
+  overrides                    OverrideEvent[]
+  bulkMovements                BulkStockMovement[]
+  audits                       AuditLog[]                       @relation("AuditActor")
+  shiftAssignments             ShiftAssignment[]                @relation("ShiftAssignee")
+  shiftAssignedBy              ShiftAssignment[]                @relation("ShiftAssigner")
+  shiftGroupsPublished         ShiftGroup[]                     @relation("ShiftGroupPublisher")
+  shiftWorkingCopiesCreated    ShiftGroupWorkingCopy[]          @relation("ShiftWorkingCopyCreator")
+  shiftWorkingCopiesUpdated    ShiftGroupWorkingCopy[]          @relation("ShiftWorkingCopyUpdater")
+  shiftAcknowledged            ShiftAssignment[]                @relation("ShiftAssignmentAcknowledgedBy")
+  sportAssignments             StudentSportAssignment[]
+  areaAssignments              StudentAreaAssignment[]
+  tradesPosted                 ShiftTrade[]                     @relation("TradePostedBy")
+  tradesClaimed                ShiftTrade[]                     @relation("TradeClaimedBy")
+  favorites                    FavoriteItem[]
+  familyFavorites              FavoriteItemFamily[]
+  passwordResetTokens          PasswordResetToken[]
+  notifications                Notification[]
+  deviceTokens                 DeviceToken[]
+  liveActivityTokens           LiveActivityToken[]
+  liveActivityStartTokens      LiveActivityStartToken[]
+  liveActivityStarts           LiveActivityStart[]
+  blastsAuthored               Blast[]                          @relation("BlastAuthor")
+  blastsCancelled              Blast[]                          @relation("BlastCanceller")
+  blastsReceived               BlastRecipient[]                 @relation("BlastRecipient")
+  bookingPhotos                BookingPhoto[]                   @relation("BookingPhotoActor")
+  checkinReports               CheckinItemReport[]              @relation("CheckinReports")
+  allowedEmailsCreated         AllowedEmail[]                   @relation("AllowedEmailCreator")
+  allowedEmailsClaimed         AllowedEmail[]                   @relation("AllowedEmailClaimer")
+  licenseCodesHeld             LicenseCode[]                    @relation("LicenseClaimedBy")
+  licenseCodesCreated          LicenseCode[]                    @relation("LicenseCreatedBy")
+  licenseClaims                LicenseCodeClaim[]
+  resources                    Resource[]
+  resourcesVerified            Resource[]                       @relation("ResourceLastVerifiedBy")
+  availabilityBlocks           StudentAvailabilityBlock[]
+  availabilityReviewed         StudentAvailabilityBlock[]       @relation("AvailabilityReviewer")
+  travelMemberships            EventTravelMember[]              @relation("TravelMembers")
+  badges                       StudentBadge[]
+  badgesAwardedByMe            StudentBadge[]                   @relation("BadgeAwardedBy")
+  badgeStreaks                 BadgeStreak[]
+  badgeEventReceipts           BadgeEventReceipt[]
+  notificationPrefs            Json?                            @map("notification_prefs")
+  icsToken                     String?                          @unique @map("ics_token")
+  scheduleEventFollows         ScheduleEventFollow[]
+  collaboratorPolicy           CollaboratorPolicy?              @relation(fields: [collaboratorPolicyId], references: [id], onDelete: Restrict)
+  collaboratorPolicyRevisions  CollaboratorPolicyRevision[]     @relation("CollaboratorPolicyRevisionActor")
+  accountabilityExclusions     BookingAccountabilityExclusion[] @relation("AccountabilityExcludedBy")
+  accountabilityRestorations   BookingAccountabilityExclusion[] @relation("AccountabilityRestoredBy")
+  bookingDueDateChanges        BookingDueDateChange[]           @relation("BookingDueDateChangeActor")
+  signatureCollectionsCreated  SignatureCollection[]            @relation("SignatureCollectionCreator")
+  signatureCollectionsUpdated  SignatureCollection[]            @relation("SignatureCollectionUpdater")
+  signatureCollectionsArchived SignatureCollection[]            @relation("SignatureCollectionArchiver")
+  signatureSnapshotsApplied    SignatureRosterSnapshot[]        @relation("SignatureSnapshotApplier")
+  signatureMembers             SignatureMember[]                @relation("SignatureMemberUser")
+  signatureCaptures            SignatureCapture[]               @relation("SignatureCaptureActor")
+  signatureSaveOperations      SignatureSaveOperation[]         @relation("SignatureSaveActor")
 
   title               String?
   athleticsEmail      String?         @unique @map("athletics_email")
@@ -834,6 +872,167 @@ model ProductEvent {
   @@index([surface, occurredAt])
   @@index([actorHash, occurredAt])
   @@map("product_events")
+}
+
+// ── Signature Capture ──────────────────────────────────
+
+model SignatureCollection {
+  id                String                    @id @default(cuid())
+  sportCode         String                    @map("sport_code")
+  season            String
+  status            SignatureCollectionStatus @default(OPEN)
+  collectionVersion Int                       @default(1) @map("collection_version")
+  penSettings       Json                      @map("pen_settings")
+  settingsVersion   Int                       @default(1) @map("settings_version")
+  firstCaptureAt    DateTime?                 @map("first_capture_at")
+  archivedAt        DateTime?                 @map("archived_at")
+  archivedById      String?                   @map("archived_by_id")
+  createdById       String                    @map("created_by_id")
+  updatedById       String                    @map("updated_by_id")
+  createdAt         DateTime                  @default(now()) @map("created_at")
+  updatedAt         DateTime                  @updatedAt @map("updated_at")
+  createdBy         User                      @relation("SignatureCollectionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy         User                      @relation("SignatureCollectionUpdater", fields: [updatedById], references: [id], onDelete: Restrict)
+  archivedBy        User?                     @relation("SignatureCollectionArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
+  snapshots         SignatureRosterSnapshot[]
+  members           SignatureMember[]
+  captures          SignatureCapture[]
+  saveOperations    SignatureSaveOperation[]
+
+  @@unique([sportCode, season])
+  @@index([status, updatedAt])
+  @@index([sportCode, season])
+  @@map("signature_collections")
+}
+
+model SignatureRosterSnapshot {
+  id             String                  @id @default(cuid())
+  collectionId   String                  @map("collection_id")
+  status         SignatureSnapshotStatus @default(PREVIEW)
+  sourceKey      String                  @map("source_key")
+  sourceUrl      String                  @map("source_url")
+  sourceHash     String                  @map("source_hash")
+  parserVersion  String                  @map("parser_version")
+  fetchedAt      DateTime                @map("fetched_at")
+  candidateCount Int                     @map("candidate_count")
+  entries        Json
+  appliedAt      DateTime?               @map("applied_at")
+  appliedById    String?                 @map("applied_by_id")
+  createdAt      DateTime                @default(now()) @map("created_at")
+  collection     SignatureCollection     @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  appliedBy      User?                   @relation("SignatureSnapshotApplier", fields: [appliedById], references: [id], onDelete: SetNull)
+  members        SignatureMember[]
+
+  @@unique([collectionId, sourceHash])
+  @@index([collectionId, createdAt])
+  @@index([collectionId, status])
+  @@map("signature_roster_snapshots")
+}
+
+model SignatureMember {
+  id               String                   @id @default(cuid())
+  collectionId     String                   @map("collection_id")
+  sourceSnapshotId String?                  @map("source_snapshot_id")
+  sourceExternalId String                   @map("source_external_id")
+  sourceProfileUrl String?                  @map("source_profile_url")
+  name             String
+  normalizedName   String                   @map("normalized_name")
+  jerseyNumber     Int?                     @map("jersey_number")
+  roleGroup        SignatureMemberGroup     @map("role_group")
+  title            String?
+  active           Boolean                  @default(true)
+  required         Boolean                  @default(false)
+  linkedUserId     String?                  @map("linked_user_id")
+  createdAt        DateTime                 @default(now()) @map("created_at")
+  updatedAt        DateTime                 @updatedAt @map("updated_at")
+  collection       SignatureCollection      @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  sourceSnapshot   SignatureRosterSnapshot? @relation(fields: [sourceSnapshotId], references: [id], onDelete: Restrict)
+  linkedUser       User?                    @relation("SignatureMemberUser", fields: [linkedUserId], references: [id], onDelete: SetNull)
+  capture          SignatureCapture?
+  saveOperations   SignatureSaveOperation[]
+
+  @@unique([collectionId, sourceExternalId])
+  @@index([collectionId, active, required])
+  @@index([collectionId, roleGroup, active])
+  @@index([linkedUserId])
+  @@map("signature_members")
+}
+
+model SignatureCapture {
+  id                String                      @id @default(cuid())
+  collectionId      String                      @map("collection_id")
+  memberId          String                      @unique @map("member_id")
+  captureVersion    Int                         @default(0) @map("capture_version")
+  settingsVersion   Int                         @default(1) @map("settings_version")
+  currentRevisionId String?                     @unique @map("current_revision_id")
+  capturedAt        DateTime?                   @map("captured_at")
+  capturedById      String?                     @map("captured_by_id")
+  createdAt         DateTime                    @default(now()) @map("created_at")
+  updatedAt         DateTime                    @updatedAt @map("updated_at")
+  collection        SignatureCollection         @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  member            SignatureMember             @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  currentRevision   SignatureArtifactRevision?  @relation("SignatureCurrentRevision", fields: [currentRevisionId], references: [id], onDelete: SetNull)
+  capturedBy        User?                       @relation("SignatureCaptureActor", fields: [capturedById], references: [id], onDelete: SetNull)
+  revisions         SignatureArtifactRevision[]
+  saveOperations    SignatureSaveOperation[]
+
+  @@index([collectionId, updatedAt])
+  @@index([collectionId, captureVersion])
+  @@map("signature_captures")
+}
+
+model SignatureArtifactRevision {
+  id                String                   @id @default(cuid())
+  captureId         String                   @map("capture_id")
+  revision          Int
+  state             SignatureArtifactState   @default(PENDING_DELETE)
+  pngPath           String                   @map("png_path")
+  svgPath           String                   @map("svg_path")
+  pngHash           String                   @map("png_hash")
+  svgHash           String                   @map("svg_hash")
+  width             Int
+  height            Int
+  cropBounds        Json                     @map("crop_bounds")
+  createdAt         DateTime                 @default(now()) @map("created_at")
+  committedAt       DateTime?                @map("committed_at")
+  replacedAt        DateTime?                @map("replaced_at")
+  deletedAt         DateTime?                @map("deleted_at")
+  errorMessage      String?                  @map("error_message")
+  capture           SignatureCapture         @relation(fields: [captureId], references: [id], onDelete: Cascade)
+  currentForCapture SignatureCapture?        @relation("SignatureCurrentRevision")
+  saveOperations    SignatureSaveOperation[]
+
+  @@unique([captureId, revision])
+  @@index([state, createdAt])
+  @@index([captureId, state])
+  @@map("signature_artifact_revisions")
+}
+
+model SignatureSaveOperation {
+  id                     String                     @id @default(cuid())
+  requestId              String                     @unique @map("request_id")
+  collectionId           String                     @map("collection_id")
+  memberId               String                     @map("member_id")
+  captureId              String                     @map("capture_id")
+  expectedCaptureVersion Int                        @map("expected_capture_version")
+  settingsVersion        Int                        @map("settings_version")
+  status                 SignatureSaveStatus        @default(UPLOADING)
+  revisionId             String?                    @map("revision_id")
+  actorUserId            String                     @map("actor_user_id")
+  errorMessage           String?                    @map("error_message")
+  createdAt              DateTime                   @default(now()) @map("created_at")
+  updatedAt              DateTime                   @updatedAt @map("updated_at")
+  committedAt            DateTime?                  @map("committed_at")
+  collection             SignatureCollection        @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  member                 SignatureMember            @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  capture                SignatureCapture           @relation(fields: [captureId], references: [id], onDelete: Cascade)
+  revision               SignatureArtifactRevision? @relation(fields: [revisionId], references: [id], onDelete: SetNull)
+  actor                  User                       @relation("SignatureSaveActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([collectionId, memberId, createdAt])
+  @@index([status, updatedAt])
+  @@index([revisionId])
+  @@map("signature_save_operations")
 }
 
 // ── Kit / Case grouping ──────────────────────────────────

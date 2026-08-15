@@ -184,3 +184,21 @@ export const IMAGE_MUTATION_LIMIT: RateLimitConfig = {
   max: 60,
   windowMs: 60 * 60_000,
 };
+
+/** Capture saves can upload two artifacts and must stay bounded per operator. */
+export const SIGNATURE_CAPTURE_LIMIT: RateLimitConfig = {
+  max: 30,
+  windowMs: 60_000,
+};
+
+/** Roster fetches are outbound source reads and should not be spammed. */
+export const SIGNATURE_IMPORT_LIMIT: RateLimitConfig = {
+  max: 12,
+  windowMs: 60 * 60_000,
+};
+
+/** Signature collection mutations should be deliberate and bounded. */
+export const SIGNATURE_MUTATION_LIMIT: RateLimitConfig = {
+  max: 60,
+  windowMs: 60_000,
+};

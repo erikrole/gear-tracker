@@ -168,6 +168,19 @@ export const PERMISSIONS: Record<string, Record<string, Role[]>> = {
     release: ["ADMIN", "STAFF", "STUDENT"],
     manage: ["ADMIN", "STAFF"],
   },
+  signature: {
+    view: ["ADMIN", "STAFF"],
+    import: ["ADMIN", "STAFF"],
+    reconcile: ["ADMIN", "STAFF"],
+    capture: ["ADMIN", "STAFF"],
+    download: ["ADMIN", "STAFF"],
+    remove: ["ADMIN", "STAFF"],
+    settings: ["ADMIN"],
+    required: ["ADMIN"],
+    archive: ["ADMIN"],
+    reset: ["ADMIN"],
+    cleanup: ["ADMIN"],
+  },
 };
 
 /**

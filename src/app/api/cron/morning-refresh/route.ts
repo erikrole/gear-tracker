@@ -10,6 +10,7 @@ import { pollFirmwareWatchTargets } from "@/lib/services/firmware-watch";
 import { DEFAULT_RESERVATION_RULES } from "@/lib/services/reservation-rules";
 import { getScheduleAutomationDigest } from "@/lib/services/schedule-automation";
 import { refreshCompanionProjection } from "@/lib/services/companion-projection";
+import { cleanupPendingSignatureArtifacts } from "@/lib/services/signatures";
 import { badges, badgesEnabled } from "@/lib/badges";
 
 function maintenanceValue<T>(
@@ -41,6 +42,7 @@ const PRODUCT_EVENT_RETENTION_DAYS = 90;
  *   4. Archive calendar events older than EVENT_ARCHIVE_MONTHS
  *   5. Expire stale open trades and pending kiosk pickups
  *   6. Poll official firmware watch targets
+ *   7. Retry private signature artifact cleanup
  *
  * Operational history is archived rather than deleted. The privacy-bounded
  * product-event stream is the sole exception and expires after 90 days.
@@ -178,11 +180,12 @@ export const GET = withCron(async () => {
 
   // ── 4. Expire stale open/claimed trades and pickup no-shows ─────────
   const productEventCutoff = new Date(now.getTime() - PRODUCT_EVENT_RETENTION_DAYS * 86_400_000);
-  const [tradeResult, pendingPickupResult, firmwareWatchResult, productEventRetentionResult] = await Promise.allSettled([
+  const [tradeResult, pendingPickupResult, firmwareWatchResult, productEventRetentionResult, signatureCleanupResult] = await Promise.allSettled([
     expireOpenTrades(),
     expirePickupNoShows(now),
     pollFirmwareWatchTargets({ now }),
     Promise.resolve().then(() => db.productEvent.deleteMany({ where: { occurredAt: { lt: productEventCutoff } } })),
+    cleanupPendingSignatureArtifacts(),
   ]);
   const maintenanceFailures: string[] = [];
   const { expired: tradesExpired } = maintenanceValue(
@@ -230,6 +233,12 @@ export const GET = withCron(async () => {
     "productEventRetention",
     maintenanceFailures,
   ).count;
+  const signatureCleanup = maintenanceValue(
+    signatureCleanupResult,
+    { attempted: 0, deleted: 0 },
+    "signatureCleanup",
+    maintenanceFailures,
+  );
   const automationDigest = await getScheduleAutomationDigest({
     userId: "system",
     includePast: false,
@@ -261,6 +270,7 @@ export const GET = withCron(async () => {
     pendingPickups,
     firmwareWatch,
     productEventsDeleted,
+    signatureCleanup,
     scheduleAutomation: automationDigest,
     maintenanceFailures,
   });
