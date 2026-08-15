@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
+import { Analytics } from "@vercel/analytics/next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import "@fontsource/barlow/400.css";
@@ -45,6 +46,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className={`${GeistSans.variable} ${GeistMono.variable}`}>
         {children}
+        <Analytics />
       </body>
     </html>
   );
