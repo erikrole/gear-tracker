@@ -5,7 +5,7 @@
 - Area: Signatures
 - Owner: Wisconsin Athletics Creative Product
 - Last Updated: 2026-08-15
-- Status: Local implementation complete; development migration and authenticated smoke verified; rollout gates remain open
+- Status: Production pilot deployed; physical-input, private-storage, and cleanup acceptance gates remain open
 - Version: V1.0
 
 ## Direction
@@ -35,11 +35,12 @@ Make collecting team signatures a fast, reliable iPad workflow: roster identity 
 
 ## Acceptance State
 
-Local implementation and automated verification are tracked in `tasks/signature-capture-micro-app-plan.md`. The linked Preview database migration and authenticated in-app browser smoke are verified, including separate MBB Players, Coaching staff, and Support staff sections for the current 2026–27 collection, a standalone Creative staff roster sourced from full-time Video/Photo/Graphics accounts, source-order staff presentation with Greg Gard first, and safe archival of the unwanted 2025–26 collection. Physical iPad Safari proof, private Blob provisioning, failure-injection cleanup proof, and production migration/deployment rollout must be completed before this area is called shipped.
+Local implementation and automated verification are tracked in `tasks/signature-capture-micro-app-plan.md`. Production migration health reports 119/119 applied migrations with no pending rows, and the live HTTPS route `https://wisconsincreative.com/signatures` correctly redirects unauthenticated users to `/login`. The MBB Players, Coaching staff, and Support staff sections, standalone Creative staff roster, source-order staff presentation with Greg Gard first, and safe archival of the unwanted 2025–26 collection are all included in the deployed release. Physical iPad Safari proof, private Blob provisioning, and failure-injection cleanup proof remain before this area is called fully accepted.
 
 ## Changelog
 
 - 2026-08-15: Added the V1 area contract for the Men’s Basketball signature-capture pilot.
+- 2026-08-15: Deployed the Signature Capture pilot to production in Vercel deployment `dpl_5WSeBG88rhaBNKKmtfM6ETVX75Um` from commit `03d6452`. The live HTTPS route returns the expected unauthenticated redirect; physical iPad, private Blob, and cleanup failure-injection gates remain open.
 - 2026-08-15: Implemented the local V1 web/API/schema/artifact/storage lifecycle; kept hardware, private-store, browser, and production rollout gates open.
 - 2026-08-15: Applied `0113_signature_capture` to the linked Preview Neon database, verified 118/118 migration health, and recorded authenticated `/signatures` smoke; production rollout, private Blob, and physical iPad gates remain open.
 - 2026-08-15: Corrected UWBadgers source-role classification and reconciled the Preview 2026–27 roster into 14 players, 7 required coaching staff, and 11 optional support staff. The grouped roster UI and readiness summary passed authenticated browser verification with no console errors.
