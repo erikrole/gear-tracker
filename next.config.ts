@@ -13,6 +13,16 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
+  // GitHub CI owns lint and TypeScript verification. Vercel's build container
+  // has repeatedly exhausted its memory during the duplicate checks after
+  // compiling this large App Router surface; keep the deployment build focused
+  // on producing the already-verified application bundle.
+  eslint: {
+    ignoreDuringBuilds: isVercelDeployment,
+  },
+  typescript: {
+    ignoreBuildErrors: isVercelDeployment,
+  },
   experimental: {
     optimizePackageImports: ["date-fns", "motion"],
     devtoolSegmentExplorer: false,
