@@ -179,6 +179,21 @@ describe("UWBadgers signature roster adapter", () => {
       title: "Middle Blocker • Junior",
     });
   });
+
+  it("decodes HTML entities before reading jersey numbers and labels football safeties", () => {
+    const entries = parseUWBadgersRosterHtml([
+      "<h1>2026 Football Roster</h1>",
+      "<a href=\"/sports/football/roster/danny-oneil/501\" aria-label=\"Danny O&#39;Neil jersey number 18 full bio\">Jersey Number 18</a>",
+      "<a href=\"/sports/football/roster/danny-oneil/501\">Danny O&#39;Neil</a>",
+      "<div>Position S Academic Year Fr.</div>",
+    ].join(""), "FB");
+
+    expect(entries[0]).toMatchObject({
+      name: "Danny O'Neil",
+      jerseyNumber: 18,
+      title: "Safety • Freshman",
+    });
+  });
 });
 
 describe("signature roster presentation", () => {

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import {
   getSignatureRosterSourceConfig,
+  SIGNATURE_FOOTBALL_SPORT_CODE,
   SIGNATURE_MBB_SPORT_CODE,
   SIGNATURE_PARSER_VERSION,
   isRequiredSignatureGroup,
@@ -97,7 +98,7 @@ function structuralGroupBefore(html: string, index: number): SignatureMemberGrou
 }
 
 function extractJerseyNumber(context: string): number | null {
-  const match = context.match(/(?:jersey\s*(?:number|no)?|number|no\.?|#)\s*[:#-]?\s*(\d{1,3})/i);
+  const match = stripTags(context).match(/(?:jersey\s*(?:number|no)?|number|no\.?|#)\s*[:#-]?\s*(\d{1,3})/i);
   return match ? Number(match[1]) : null;
 }
 
@@ -150,22 +151,25 @@ function normalizedPlayerLabel(value: string, labels: Record<string, string>): s
   return labels[normalized] ?? value.trim().replace(/\.$/, "");
 }
 
-function extractPlayerTitle(context: string): string | null {
+function extractPlayerTitle(context: string, sportCode: SignatureImportedSportCode): string | null {
   const text = stripTags(context);
   const details = text.match(/position\s*[:\-]?\s*([a-z][a-z0-9/.-]{0,24})\s+academic\s+year\s*[:\-]?\s*([a-z0-9]+(?:-[a-z0-9]+)?\.?)/i);
   if (!details?.[1] || !details[2]) return null;
 
   const rawPosition = details[1].trim().toLocaleUpperCase("en-US");
-  const position = PLAYER_POSITION_LABELS[rawPosition] ?? rawPosition
+  const positionLabels = sportCode === SIGNATURE_FOOTBALL_SPORT_CODE
+    ? { ...PLAYER_POSITION_LABELS, S: "Safety" }
+    : PLAYER_POSITION_LABELS;
+  const position = positionLabels[rawPosition] ?? rawPosition
     .split("/")
-    .map((part) => normalizedPlayerLabel(part, PLAYER_POSITION_LABELS))
+    .map((part) => normalizedPlayerLabel(part, positionLabels))
     .join("/");
   const academicYear = normalizedPlayerLabel(details[2].trim(), PLAYER_YEAR_LABELS);
   return `${position} • ${academicYear}`.slice(0, 160);
 }
 
-function extractTitle(context: string, group: SignatureMemberGroup): string | null {
-  if (group === "PLAYER") return extractPlayerTitle(context);
+function extractTitle(context: string, group: SignatureMemberGroup, sportCode: SignatureImportedSportCode): string | null {
+  if (group === "PLAYER") return extractPlayerTitle(context, sportCode);
 
   const structuredPosition = context.match(/<div\b[^>]*class=["'][^"']*s-person-details__position[^"']*["'][^>]*>([\s\S]*?)<\/div>/i)?.[1];
   if (structuredPosition) {
@@ -212,7 +216,7 @@ export function parseUWBadgersRosterHtml(
       normalizedName: normalizeSignatureName(name),
       jerseyNumber: extractJerseyNumber(context),
       roleGroup,
-      title: extractTitle(context, roleGroup),
+      title: extractTitle(context, roleGroup, sportCode),
     });
     const existing = candidates.get(entry.sourceExternalId);
     if (!existing) {
