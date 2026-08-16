@@ -63,7 +63,7 @@
 | `src/lib/services/shift-generation.ts` | 628 |
 | `src/lib/services/shift-trade-emails.ts` | 56 |
 | `src/lib/services/shift-trades.ts` | 931 |
-| `src/lib/services/signatures.ts` | 937 |
+| `src/lib/services/signatures.ts` | 1180 |
 | `src/lib/services/sport-configs.ts` | 257 |
 | `src/lib/services/status.ts` | 444 |
 | `src/lib/services/usage-analytics-report.ts` | 33 |
@@ -152,7 +152,7 @@
 | `src/lib/profile-sizing.ts` | 24 |
 | `src/lib/public-showroom.ts` | 444 |
 | `src/lib/query-client.ts` | 58 |
-| `src/lib/rate-limit.ts` | 205 |
+| `src/lib/rate-limit.ts` | 217 |
 | `src/lib/rbac.ts` | 59 |
 | `src/lib/remark-callouts.ts` | 73 |
 | `src/lib/request-limits.ts` | 15 |

@@ -1,11 +1,13 @@
 import { createHash } from "node:crypto";
 import {
+  getSignatureRosterSourceConfig,
+  SIGNATURE_MBB_SPORT_CODE,
   SIGNATURE_PARSER_VERSION,
-  SIGNATURE_SOURCE_KEY,
   isRequiredSignatureGroup,
   normalizeSignatureName,
   signatureRosterEntrySchema,
-  signatureSeasonSchema,
+  signatureRosterImportSchema,
+  type SignatureImportedSportCode,
   type SignatureMemberGroup,
   type SignatureRosterEntry,
 } from "./types";
@@ -14,12 +16,12 @@ export const UW_BADGERS_ORIGIN = "https://uwbadgers.com";
 const ALLOWED_HOSTS = new Set(["uwbadgers.com", "www.uwbadgers.com"]);
 const MAX_SOURCE_BYTES = 5 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 10_000;
-const MBB_PATH = "/sports/mens-basketball/roster";
 
 export function buildUWBadgersRosterUrl(sportCode: string, season: string): string {
-  if (sportCode !== "MBB") throw new Error("Only Men’s Basketball is supported");
-  signatureSeasonSchema.parse(season);
-  return `${UW_BADGERS_ORIGIN}${MBB_PATH}/${season}`;
+  const parsed = signatureRosterImportSchema.parse({ sportCode, season });
+  const source = getSignatureRosterSourceConfig(parsed.sportCode);
+  const sourceSeason = source.usesStartYearPath ? parsed.season.slice(0, 4) : parsed.season;
+  return `${UW_BADGERS_ORIGIN}${source.rosterPath}/${sourceSeason}`;
 }
 
 export function isAllowedUWBadgersUrl(value: string): boolean {
@@ -45,11 +47,11 @@ function stripTags(value: string): string {
     .trim();
 }
 
-function canonicalProfileUrl(href: string): string | null {
+function canonicalProfileUrl(href: string, rosterPath: string): string | null {
   try {
     const url = new URL(href, UW_BADGERS_ORIGIN);
     if (!isAllowedUWBadgersUrl(url.toString())) return null;
-    if (!url.pathname.includes(`${MBB_PATH}/`)) return null;
+    if (!url.pathname.includes(`${rosterPath}/`)) return null;
     const segments = url.pathname.split("/").filter(Boolean);
     const rosterIndex = segments.indexOf("roster");
     const profileSegments = rosterIndex >= 0 ? segments.slice(rosterIndex + 1) : [];
@@ -99,18 +101,79 @@ function extractJerseyNumber(context: string): number | null {
   return match ? Number(match[1]) : null;
 }
 
+const PLAYER_POSITION_LABELS: Record<string, string> = {
+  C: "Center",
+  F: "Forward",
+  G: "Guard",
+  ATH: "Athlete",
+  CB: "Cornerback",
+  DB: "Defensive Back",
+  DL: "Defensive Line",
+  K: "Kicker",
+  L: "Libero",
+  LB: "Linebacker",
+  "L/DS": "Libero/Defensive Specialist",
+  MB: "Middle Blocker",
+  OLB: "Outside Linebacker",
+  OH: "Outside Hitter",
+  P: "Punter",
+  QB: "Quarterback",
+  RB: "Running Back",
+  RS: "Right Side",
+  S: "Setter",
+  TE: "Tight End",
+  WR: "Wide Receiver",
+};
+
+const PLAYER_YEAR_LABELS: Record<string, string> = {
+  FR: "Freshman",
+  FRESHMAN: "Freshman",
+  "R-FR": "Redshirt Freshman",
+  SO: "Sophomore",
+  SOPHOMORE: "Sophomore",
+  "R-SO": "Redshirt Sophomore",
+  JR: "Junior",
+  JUNIOR: "Junior",
+  "R-JR": "Redshirt Junior",
+  SR: "Senior",
+  SENIOR: "Senior",
+  "R-SR": "Redshirt Senior",
+  GR: "Graduate",
+  GRAD: "Graduate",
+  GRADUATE: "Graduate",
+  "6TH": "Sixth Year",
+  SIXTH: "Sixth Year",
+};
+
+function normalizedPlayerLabel(value: string, labels: Record<string, string>): string {
+  const normalized = value.trim().replace(/\.$/, "").toLocaleUpperCase("en-US");
+  return labels[normalized] ?? value.trim().replace(/\.$/, "");
+}
+
+function extractPlayerTitle(context: string): string | null {
+  const text = stripTags(context);
+  const details = text.match(/position\s*[:\-]?\s*([a-z][a-z0-9/.-]{0,24})\s+academic\s+year\s*[:\-]?\s*([a-z0-9]+(?:-[a-z0-9]+)?\.?)/i);
+  if (!details?.[1] || !details[2]) return null;
+
+  const rawPosition = details[1].trim().toLocaleUpperCase("en-US");
+  const position = PLAYER_POSITION_LABELS[rawPosition] ?? rawPosition
+    .split("/")
+    .map((part) => normalizedPlayerLabel(part, PLAYER_POSITION_LABELS))
+    .join("/");
+  const academicYear = normalizedPlayerLabel(details[2].trim(), PLAYER_YEAR_LABELS);
+  return `${position} • ${academicYear}`.slice(0, 160);
+}
+
 function extractTitle(context: string, group: SignatureMemberGroup): string | null {
+  if (group === "PLAYER") return extractPlayerTitle(context);
+
   const structuredPosition = context.match(/<div\b[^>]*class=["'][^"']*s-person-details__position[^"']*["'][^>]*>([\s\S]*?)<\/div>/i)?.[1];
   if (structuredPosition) {
     const title = stripTags(structuredPosition);
     if (title) return title.slice(0, 160);
   }
   const text = stripTags(context);
-  if (group === "PLAYER") {
-    const position = text.match(/position\s*[:\-]\s*([^|,;]{1,50})/i)?.[1];
-    return position ? stripTags(position) : null;
-  }
-  const match = text.match(/\b((?:head|assistant|associate|director|strength|athletic|operations|video)[^|,;]{0,55}\b(?:coach|coordinator|director|manager|staff))\b/i);
+  const match = text.match(/\b((?:(?:head|assistant|associate|defensive|offensive|special teams|recruiting|director|strength|athletic|operations|video|graduate)[^|,;]{0,55}\b(?:coach|coordinator|director|manager|analyst|staff)))\b/i);
   return match?.[1] ? stripTags(match[1]).slice(0, 160) : null;
 }
 
@@ -121,8 +184,12 @@ function headingBefore(html: string, index: number): string {
   return headings?.[1] ? stripTags(headings[1]) : "Players";
 }
 
-export function parseUWBadgersRosterHtml(html: string): SignatureRosterEntry[] {
+export function parseUWBadgersRosterHtml(
+  html: string,
+  sportCode: SignatureImportedSportCode = SIGNATURE_MBB_SPORT_CODE,
+): SignatureRosterEntry[] {
   if (html.length > MAX_SOURCE_BYTES) throw new Error("UWBadgers roster response is too large");
+  const source = getSignatureRosterSourceConfig(sportCode);
   const candidates = new Map<string, SignatureRosterEntry>();
   const anchorPattern = /<a\b[^>]*\bhref\s*=\s*(["'])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi;
 
@@ -130,7 +197,7 @@ export function parseUWBadgersRosterHtml(html: string): SignatureRosterEntry[] {
     const href = match[2];
     const anchorText = match[3];
     if (!href || !anchorText) continue;
-    const profileUrl = canonicalProfileUrl(href);
+    const profileUrl = canonicalProfileUrl(href, source.rosterPath);
     if (!profileUrl) continue;
     const name = stripTags(anchorText);
     if (/^(?:jersey\s+number|full\s+bio|expand\s+for|\d+)\b/i.test(name)) continue;
@@ -165,17 +232,20 @@ export function parseUWBadgersRosterHtml(html: string): SignatureRosterEntry[] {
   return [...candidates.values()];
 }
 
-export function normalizedRosterHash(entries: SignatureRosterEntry[]): string {
+export function normalizedRosterHash(
+  entries: SignatureRosterEntry[],
+  parserVersion: string = SIGNATURE_PARSER_VERSION,
+): string {
   const canonical = entries
     .map((entry) => signatureRosterEntrySchema.parse(entry))
     .sort((left, right) => left.sourceExternalId.localeCompare(right.sourceExternalId));
-  return createHash("sha256").update(JSON.stringify({ parserVersion: SIGNATURE_PARSER_VERSION, entries: canonical }), "utf8").digest("hex");
+  return createHash("sha256").update(JSON.stringify({ parserVersion, entries: canonical }), "utf8").digest("hex");
 }
 
 export type UWBadgersRosterSnapshot = {
-  sourceKey: typeof SIGNATURE_SOURCE_KEY;
+  sourceKey: string;
   sourceUrl: string;
-  parserVersion: typeof SIGNATURE_PARSER_VERSION;
+  parserVersion: string;
   fetchedAt: Date;
   sourceHash: string;
   entries: SignatureRosterEntry[];
@@ -205,8 +275,13 @@ async function readBoundedResponse(response: Response): Promise<string> {
   return new TextDecoder().decode(Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))));
 }
 
-export async function fetchUWBadgersRoster(season: string): Promise<UWBadgersRosterSnapshot> {
-  const sourceUrl = buildUWBadgersRosterUrl("MBB", season);
+export async function fetchUWBadgersRoster(
+  sportCode: SignatureImportedSportCode,
+  season: string,
+): Promise<UWBadgersRosterSnapshot> {
+  const parsed = signatureRosterImportSchema.parse({ sportCode, season });
+  const source = getSignatureRosterSourceConfig(parsed.sportCode);
+  const sourceUrl = buildUWBadgersRosterUrl(parsed.sportCode, parsed.season);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
@@ -221,13 +296,13 @@ export async function fetchUWBadgersRoster(season: string): Promise<UWBadgersRos
       throw new Error("UWBadgers roster did not return HTML");
     }
     const html = await readBoundedResponse(response);
-    const entries = parseUWBadgersRosterHtml(html);
+    const entries = parseUWBadgersRosterHtml(html, parsed.sportCode);
     return {
-      sourceKey: SIGNATURE_SOURCE_KEY,
+      sourceKey: source.sourceKey,
       sourceUrl,
-      parserVersion: SIGNATURE_PARSER_VERSION,
+      parserVersion: source.parserVersion,
       fetchedAt: new Date(),
-      sourceHash: normalizedRosterHash(entries),
+      sourceHash: normalizedRosterHash(entries, source.parserVersion),
       entries,
     };
   } finally {

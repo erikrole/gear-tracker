@@ -10,6 +10,7 @@ describe("rate-limit in-memory fallback", () => {
   });
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllEnvs();
   });
 
   it("allows up to max requests then blocks within the window", async () => {
@@ -42,5 +43,17 @@ describe("rate-limit in-memory fallback", () => {
 
     await expect(enforceRateLimit(key, config)).resolves.toBeUndefined();
     await expect(enforceRateLimit(key, config)).rejects.toMatchObject({ status: 429 });
+  });
+
+  it("treats a malformed Redis URL as unconfigured instead of breaking auth", async () => {
+    vi.stubEnv("UPSTASH_REDIS_REST_URL", "redis-placeholder");
+    vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "local-placeholder-token");
+    vi.resetModules();
+    const { checkRateLimit: checkWithInvalidRedis } = await import("@/lib/rate-limit");
+
+    await expect(checkWithInvalidRedis(`test:invalid-redis:${Math.random()}`, {
+      max: 1,
+      windowMs: 60_000,
+    })).resolves.toMatchObject({ allowed: true, remaining: 0 });
   });
 });

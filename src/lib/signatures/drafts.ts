@@ -9,6 +9,8 @@ export type SignatureDraftRecord = {
   collectionId: string;
   memberId: string;
   settingsVersion: number;
+  captureVersion: number;
+  canvasSize: { width: number; height: number };
   strokes: SignatureDraftStroke[];
   savedAt: number;
   expiresAt: number;
@@ -23,8 +25,9 @@ export function signatureDraftKey(
   collectionId: string,
   memberId: string,
   settingsVersion: number,
+  captureVersion: number,
 ): string {
-  return `${userId}:${collectionId}:${memberId}:${settingsVersion}`;
+  return `${userId}:${collectionId}:${memberId}:${settingsVersion}:${captureVersion}`;
 }
 
 export function isFreshSignatureDraft(

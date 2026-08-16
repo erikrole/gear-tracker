@@ -1,11 +1,57 @@
 import { z } from "zod";
 
 export const SIGNATURE_MBB_SPORT_CODE = "MBB" as const;
+export const SIGNATURE_FOOTBALL_SPORT_CODE = "FB" as const;
+export const SIGNATURE_VOLLEYBALL_SPORT_CODE = "VB" as const;
 export const SIGNATURE_CREATIVE_STAFF_SPORT_CODE = "CREATIVE" as const;
-export const SIGNATURE_COLLECTION_SPORT_CODES = [SIGNATURE_MBB_SPORT_CODE, SIGNATURE_CREATIVE_STAFF_SPORT_CODE] as const;
+export const SIGNATURE_AD_HOC_SPORT_CODE = "ADHOC" as const;
+export const SIGNATURE_IMPORTED_SPORT_CODES = [
+  SIGNATURE_MBB_SPORT_CODE,
+  SIGNATURE_FOOTBALL_SPORT_CODE,
+  SIGNATURE_VOLLEYBALL_SPORT_CODE,
+] as const;
+export const SIGNATURE_COLLECTION_SPORT_CODES = [
+  ...SIGNATURE_IMPORTED_SPORT_CODES,
+  SIGNATURE_CREATIVE_STAFF_SPORT_CODE,
+  SIGNATURE_AD_HOC_SPORT_CODE,
+] as const;
 export const DEFAULT_SIGNATURE_SEASON = "2026-27";
 export const SIGNATURE_SOURCE_KEY = "UW_BADGERS_MBB";
-export const SIGNATURE_PARSER_VERSION = "uwbadgers-mbb-v3";
+export const SIGNATURE_PARSER_VERSION = "uwbadgers-mbb-v4";
+
+export type SignatureImportedSportCode = (typeof SIGNATURE_IMPORTED_SPORT_CODES)[number];
+
+export const SIGNATURE_ROSTER_SOURCE_CONFIG: Record<SignatureImportedSportCode, {
+  sourceKey: string;
+  parserVersion: string;
+  rosterPath: string;
+  usesStartYearPath: boolean;
+}> = {
+  [SIGNATURE_MBB_SPORT_CODE]: {
+    sourceKey: "UW_BADGERS_MBB",
+    parserVersion: SIGNATURE_PARSER_VERSION,
+    rosterPath: "/sports/mens-basketball/roster",
+    usesStartYearPath: false,
+  },
+  [SIGNATURE_FOOTBALL_SPORT_CODE]: {
+    sourceKey: "UW_BADGERS_FB",
+    parserVersion: "uwbadgers-fb-v1",
+    rosterPath: "/sports/football/roster",
+    usesStartYearPath: true,
+  },
+  [SIGNATURE_VOLLEYBALL_SPORT_CODE]: {
+    sourceKey: "UW_BADGERS_VB",
+    parserVersion: "uwbadgers-vb-v1",
+    rosterPath: "/sports/womens-volleyball/roster",
+    usesStartYearPath: true,
+  },
+};
+
+export function getSignatureRosterSourceConfig(sportCode: string) {
+  const source = SIGNATURE_ROSTER_SOURCE_CONFIG[sportCode as SignatureImportedSportCode];
+  if (!source) throw new Error(`Unsupported signature roster sport: ${sportCode}`);
+  return source;
+}
 export const SIGNATURE_MAX_PAYLOAD_BYTES = 1_000_000;
 export const SIGNATURE_MAX_STROKES = 32;
 export const SIGNATURE_MAX_POINTS_PER_STROKE = 2_000;
@@ -81,8 +127,19 @@ export const signatureCollectionInputSchema = z.object({
   season: signatureSeasonSchema,
 });
 
+export const signatureRosterImportSchema = z.object({
+  sportCode: z.enum(SIGNATURE_IMPORTED_SPORT_CODES),
+  season: signatureSeasonSchema,
+});
+
 export const signatureCreativeStaffCollectionSchema = z.object({
   season: signatureSeasonSchema,
+});
+
+export const signatureAdHocMemberSchema = z.object({
+  season: signatureSeasonSchema,
+  name: z.string().trim().min(1, "Name is required").max(160),
+  category: z.string().trim().min(1, "Sport or category is required").max(160),
 });
 
 export const signatureSettingsUpdateSchema = penSettingsSchema.extend({

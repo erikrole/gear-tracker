@@ -16,13 +16,17 @@ import { withSerializationRetry } from "@/lib/serialization";
 import { renderSignatureArtifacts } from "@/lib/signatures/artifacts";
 import {
   DEFAULT_SIGNATURE_PEN_SETTINGS,
+  SIGNATURE_AD_HOC_SPORT_CODE,
   SIGNATURE_CREATIVE_STAFF_SPORT_CODE,
   SIGNATURE_MBB_SPORT_CODE,
+  getSignatureRosterSourceConfig,
   normalizeSignatureName,
   penSettingsSchema,
+  signatureAdHocMemberSchema,
   signatureCreativeStaffCollectionSchema,
   signatureRosterEntrySchema,
   type CaptureSaveRequest,
+  type SignatureImportedSportCode,
   type SignaturePenSettings,
   type SignatureRosterEntry,
 } from "@/lib/signatures/types";
@@ -38,24 +42,46 @@ const signatureJson = (value: unknown) => value as Prisma.InputJsonValue;
 type Actor = { id: string; role: Role };
 
 const CREATIVE_STAFF_SOURCE_PREFIX = "creative-staff:";
+const CREATIVE_STAFF_TITLE_MARKERS = ["Creative", "Digital Media"] as const;
+const creativeStaffTitleFilters = CREATIVE_STAFF_TITLE_MARKERS.map((marker) => ({
+  title: { contains: marker, mode: "insensitive" as const },
+}));
+
+const artifactRevisionSelect = {
+  id: true,
+  revision: true,
+  state: true,
+  width: true,
+  height: true,
+  pngHash: true,
+  svgHash: true,
+  pngPath: true,
+  svgPath: true,
+  committedAt: true,
+  replacedAt: true,
+} satisfies Prisma.SignatureArtifactRevisionSelect;
 
 function publicArtifact(revision: {
   id: string;
+  revision: number;
   state: SignatureArtifactState;
   width: number;
   height: number;
   pngHash: string;
   svgHash: string;
   committedAt: Date | null;
+  replacedAt: Date | null;
 }) {
   if (revision.state !== SignatureArtifactState.READY) return null;
   return {
     id: revision.id,
+    revision: revision.revision,
     width: revision.width,
     height: revision.height,
     pngHash: revision.pngHash,
     svgHash: revision.svgHash,
     committedAt: revision.committedAt?.toISOString() ?? null,
+    replacedAt: revision.replacedAt?.toISOString() ?? null,
   };
 }
 
@@ -87,21 +113,57 @@ const collectionInclude = {
       capture: {
         include: {
           currentRevision: {
-            select: {
-              id: true,
-              state: true,
-              width: true,
-              height: true,
-              pngHash: true,
-              svgHash: true,
-              committedAt: true,
-            },
+            select: artifactRevisionSelect,
+          },
+          revisions: {
+            where: { state: SignatureArtifactState.READY },
+            orderBy: { revision: "desc" as const },
+            select: artifactRevisionSelect,
           },
         },
       },
     },
   },
 } satisfies Prisma.SignatureCollectionInclude;
+
+const canonicalCaptureInclude = {
+  collection: {
+    select: { id: true, sportCode: true, season: true, status: true, settingsVersion: true, penSettings: true },
+  },
+  member: { select: { id: true, active: true, linkedUserId: true } },
+  currentRevision: { select: artifactRevisionSelect },
+  revisions: {
+    where: { state: SignatureArtifactState.READY },
+    orderBy: { revision: "desc" as const },
+    select: artifactRevisionSelect,
+  },
+} satisfies Prisma.SignatureCaptureInclude;
+
+type CanonicalSignatureCapture = Prisma.SignatureCaptureGetPayload<{ include: typeof canonicalCaptureInclude }>;
+
+async function resolveSignatureCaptureTarget(collectionId: string, memberId: string) {
+  const requested = await db.signatureCapture.findFirst({
+    where: { collectionId, memberId },
+    include: canonicalCaptureInclude,
+  });
+  if (!requested) throw new HttpError(404, "Signature member is not ready for capture");
+  if (!requested.member.active) throw new HttpError(409, "This roster member is inactive and cannot receive a new signature");
+  if (requested.collection.status === SignatureCollectionStatus.ARCHIVED) throw new HttpError(409, "Archived signature collections are read-only");
+  if (!requested.member.linkedUserId || requested.collection.sportCode === SIGNATURE_CREATIVE_STAFF_SPORT_CODE) {
+    return requested;
+  }
+  const canonical = await db.signatureCapture.findFirst({
+    where: {
+      collection: {
+        sportCode: SIGNATURE_CREATIVE_STAFF_SPORT_CODE,
+        season: requested.collection.season,
+      },
+      member: { active: true, linkedUserId: requested.member.linkedUserId },
+    },
+    include: canonicalCaptureInclude,
+  });
+  return canonical ?? requested;
+}
 
 function visibleSignatureMembers<T extends { roleGroup: SignatureMemberGroup }>(sportCode: string, members: T[]) {
   return sportCode === SIGNATURE_CREATIVE_STAFF_SPORT_CODE
@@ -157,10 +219,24 @@ export async function getSignatureCollection(collectionId: string) {
     include: collectionInclude,
   });
   if (!collection) throw new HttpError(404, "Signature collection not found");
-  return serializeSignatureCollection(collection);
+  const linkedUserIds = [...new Set(collection.members.map((member) => member.linkedUserId).filter((id): id is string => Boolean(id)))];
+  const canonicalCaptures = linkedUserIds.length === 0 ? [] : await db.signatureCapture.findMany({
+    where: {
+      collection: { sportCode: SIGNATURE_CREATIVE_STAFF_SPORT_CODE, season: collection.season },
+      member: { active: true, linkedUserId: { in: linkedUserIds } },
+    },
+    include: canonicalCaptureInclude,
+  });
+  const canonicalByUserId = new Map(canonicalCaptures
+    .filter((capture) => capture.member.linkedUserId)
+    .map((capture) => [capture.member.linkedUserId as string, capture]));
+  return serializeSignatureCollection(collection, canonicalByUserId);
 }
 
-function serializeSignatureCollection(collection: Prisma.SignatureCollectionGetPayload<{ include: typeof collectionInclude }>) {
+function serializeSignatureCollection(
+  collection: Prisma.SignatureCollectionGetPayload<{ include: typeof collectionInclude }>,
+  canonicalByUserId: Map<string, CanonicalSignatureCapture>,
+) {
   const members = visibleSignatureMembers(collection.sportCode, collection.members);
   const sourceOrderByExternalId = new Map<string, number>();
   const latestSnapshotEntries = signatureRosterEntrySchema.array().safeParse(collection.snapshots[0]?.entries);
@@ -178,17 +254,14 @@ function serializeSignatureCollection(collection: Prisma.SignatureCollectionGetP
     }
   }
 
-  return {
-    id: collection.id,
-    sportCode: collection.sportCode,
-    season: collection.season,
-    status: collection.status,
-    collectionVersion: collection.collectionVersion,
-    settingsVersion: collection.settingsVersion,
-    penSettings: penSettingsSchema.parse(collection.penSettings),
-    completeness: collectionCompletenessForSerializedRoster(collection.sportCode, members),
-    members: [...members]
-      .map((member) => ({
+  const serializedMembers = [...members]
+    .map((member) => {
+      const canonicalCapture = member.linkedUserId ? canonicalByUserId.get(member.linkedUserId) : undefined;
+      const capture = canonicalCapture ?? member.capture;
+      const captureSettings = canonicalCapture
+        ? penSettingsSchema.parse(canonicalCapture.collection.penSettings)
+        : penSettingsSchema.parse(collection.penSettings);
+      return {
         id: member.id,
         name: member.name,
         jerseyNumber: member.jerseyNumber,
@@ -198,27 +271,39 @@ function serializeSignatureCollection(collection: Prisma.SignatureCollectionGetP
         required: member.required,
         active: member.active,
         linkedUserId: member.linkedUserId,
-        captureVersion: member.capture?.captureVersion ?? 0,
-        settingsVersion: member.capture?.settingsVersion ?? collection.settingsVersion,
-        artifact: member.capture?.currentRevision ? publicArtifact(member.capture.currentRevision) : null,
-      }))
-      .sort(compareSignatureRosterMembers),
-  };
-}
+        captureVersion: capture?.captureVersion ?? 0,
+        settingsVersion: capture?.settingsVersion ?? collection.settingsVersion,
+        captureSettings,
+        artifact: capture?.currentRevision ? publicArtifact(capture.currentRevision) : null,
+        revisions: capture?.revisions.map((revision) => publicArtifact(revision)).filter((revision) => revision !== null) ?? [],
+      };
+    })
+    .sort(compareSignatureRosterMembers);
+  const requiredActive = serializedMembers.filter((member) => member.active && member.required);
+  const complete = requiredActive.filter((member) => member.artifact).length;
 
-function collectionCompletenessForSerializedRoster(
-  sportCode: string,
-  members: Array<{ active: boolean; required: boolean; capture: { currentRevision: { state: SignatureArtifactState } | null } | null }>,
-) {
-  const completeness = collectionCompleteness(members);
-  if (sportCode === SIGNATURE_CREATIVE_STAFF_SPORT_CODE && !members.some((member) => member.active)) {
-    completeness.percent = 0;
-  }
-  return completeness;
+  return {
+    id: collection.id,
+    sportCode: collection.sportCode,
+    season: collection.season,
+    status: collection.status,
+    collectionVersion: collection.collectionVersion,
+    settingsVersion: collection.settingsVersion,
+    penSettings: penSettingsSchema.parse(collection.penSettings),
+    completeness: {
+      complete,
+      required: requiredActive.length,
+      percent: collection.sportCode === SIGNATURE_CREATIVE_STAFF_SPORT_CODE && !serializedMembers.some((member) => member.active)
+        ? 0
+        : requiredActive.length === 0 ? 100 : Math.round((complete / requiredActive.length) * 100),
+    },
+    members: serializedMembers,
+  };
 }
 
 export async function createSignatureRosterPreview(input: {
   actor: Actor;
+  sportCode?: SignatureImportedSportCode;
   season: string;
   sourceUrl: string;
   sourceHash: string;
@@ -226,12 +311,22 @@ export async function createSignatureRosterPreview(input: {
   fetchedAt: Date;
   entries: SignatureRosterEntry[];
 }) {
-  const { actor, season, sourceUrl, sourceHash, parserVersion, fetchedAt, entries } = input;
+  const {
+    actor,
+    sportCode = SIGNATURE_MBB_SPORT_CODE,
+    season,
+    sourceUrl,
+    sourceHash,
+    parserVersion,
+    fetchedAt,
+    entries,
+  } = input;
+  const source = getSignatureRosterSourceConfig(sportCode);
   return db.$transaction(async (tx) => {
     const collection = await tx.signatureCollection.upsert({
-      where: { sportCode_season: { sportCode: SIGNATURE_MBB_SPORT_CODE, season } },
+      where: { sportCode_season: { sportCode, season } },
       create: {
-        sportCode: SIGNATURE_MBB_SPORT_CODE,
+        sportCode,
         season,
         penSettings: signatureJson(DEFAULT_SIGNATURE_PEN_SETTINGS),
         createdById: actor.id,
@@ -264,7 +359,7 @@ export async function createSignatureRosterPreview(input: {
       data: {
         collectionId: collection.id,
         status: SignatureSnapshotStatus.PREVIEW,
-        sourceKey: "UW_BADGERS_MBB",
+        sourceKey: source.sourceKey,
         sourceUrl,
         sourceHash,
         parserVersion,
@@ -351,10 +446,11 @@ export async function applySignatureRosterSnapshot(input: {
             jerseyNumber: entry.jerseyNumber,
             roleGroup: entry.roleGroup as SignatureMemberGroup,
             title: entry.title,
-            // Preserve an admin's required-state decision on re-import. A
-            // role transition into or out of support staff gets the new
-            // group's default only once; unchanged members keep their choice.
-            required: existingMember.roleGroup === entry.roleGroup
+            // Players always require a signature. Preserve an admin's
+            // readiness decision for unchanged non-player groups.
+            required: entry.roleGroup === SignatureMemberGroup.PLAYER
+              ? true
+              : existingMember.roleGroup === entry.roleGroup
               ? existingMember.required
               : entry.roleGroup === "SUPPORT_STAFF" || existingMember.roleGroup === "SUPPORT_STAFF"
                 ? false
@@ -473,6 +569,78 @@ export async function ensureSignatureCreativeStaffCollection(input: {
   }
 }
 
+export async function createAdHocSignatureMember(input: {
+  actor: Actor;
+  season: string;
+  name: string;
+  category: string;
+}) {
+  const parsed = signatureAdHocMemberSchema.parse(input);
+  return withSerializationRetry(() => db.$transaction(async (tx) => {
+    const collection = await tx.signatureCollection.upsert({
+      where: { sportCode_season: { sportCode: SIGNATURE_AD_HOC_SPORT_CODE, season: parsed.season } },
+      create: {
+        sportCode: SIGNATURE_AD_HOC_SPORT_CODE,
+        season: parsed.season,
+        penSettings: signatureJson(DEFAULT_SIGNATURE_PEN_SETTINGS),
+        createdById: input.actor.id,
+        updatedById: input.actor.id,
+      },
+      update: {},
+      select: { id: true, status: true, collectionVersion: true, settingsVersion: true },
+    });
+    if (collection.status === SignatureCollectionStatus.ARCHIVED) {
+      throw new HttpError(409, "The ad-hoc signature roster for this season is archived");
+    }
+
+    const member = await tx.signatureMember.create({
+      data: {
+        collectionId: collection.id,
+        sourceExternalId: `manual:${randomUUID()}`,
+        name: parsed.name,
+        normalizedName: normalizeSignatureName(parsed.name),
+        roleGroup: SignatureMemberGroup.SUPPORT_STAFF,
+        title: parsed.category,
+        required: true,
+        active: true,
+      },
+      select: { id: true, name: true, title: true },
+    });
+    await tx.signatureCapture.create({
+      data: {
+        collectionId: collection.id,
+        memberId: member.id,
+        settingsVersion: collection.settingsVersion,
+      },
+    });
+    const updated = await tx.signatureCollection.update({
+      where: { id: collection.id },
+      data: { collectionVersion: { increment: 1 }, updatedById: input.actor.id },
+      select: { collectionVersion: true },
+    });
+    await createAuditEntryTx(tx, {
+      actorId: input.actor.id,
+      actorRole: input.actor.role,
+      entityType: "SignatureMember",
+      entityId: member.id,
+      action: "CREATE_AD_HOC",
+      after: {
+        collectionId: collection.id,
+        collectionVersion: updated.collectionVersion,
+        name: member.name,
+        category: member.title,
+      },
+    });
+    return {
+      collectionId: collection.id,
+      collectionVersion: updated.collectionVersion,
+      memberId: member.id,
+      captureVersion: 0,
+      settingsVersion: collection.settingsVersion,
+    };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
+}
+
 export async function syncSignatureCreativeStaff(input: {
   actor: Actor;
   collectionId: string;
@@ -481,7 +649,7 @@ export async function syncSignatureCreativeStaff(input: {
   return withSerializationRetry(() => db.$transaction(async (tx) => {
     const collection = await tx.signatureCollection.findUnique({
       where: { id: input.collectionId },
-      select: { id: true, sportCode: true, status: true, collectionVersion: true, settingsVersion: true },
+      select: { id: true, sportCode: true, season: true, status: true, collectionVersion: true, settingsVersion: true },
     });
     if (!collection) throw new HttpError(404, "Signature collection not found");
     if (collection.sportCode !== SIGNATURE_CREATIVE_STAFF_SPORT_CODE) {
@@ -502,6 +670,7 @@ export async function syncSignatureCreativeStaff(input: {
         OR: [
           { primaryArea: { in: [ShiftArea.VIDEO, ShiftArea.PHOTO, ShiftArea.GRAPHICS] } },
           { areaAssignments: { some: { area: { in: [ShiftArea.VIDEO, ShiftArea.PHOTO, ShiftArea.GRAPHICS] } } } },
+          ...creativeStaffTitleFilters,
         ],
       },
       select: { id: true, name: true, title: true },
@@ -513,6 +682,14 @@ export async function syncSignatureCreativeStaff(input: {
     });
     const existingByUser = new Map(existing.filter((member) => member.linkedUserId).map((member) => [member.linkedUserId as string, member]));
     const activeUserIds = new Set(users.map((user) => user.id));
+    const usersByNormalizedName = new Map<string, Array<(typeof users)[number]>>();
+    for (const user of users) {
+      const normalizedName = normalizeSignatureName(user.name);
+      usersByNormalizedName.set(normalizedName, [...(usersByNormalizedName.get(normalizedName) ?? []), user]);
+    }
+    const uniquelyNamedUsers = new Map([...usersByNormalizedName.entries()]
+      .filter(([, matches]) => matches.length === 1)
+      .map(([normalizedName, matches]) => [normalizedName, matches[0]]));
     let added = 0;
     let reactivated = 0;
     let updated = 0;
@@ -560,6 +737,32 @@ export async function syncSignatureCreativeStaff(input: {
       changed = true;
     }
 
+    const teamMembers = uniquelyNamedUsers.size === 0 ? [] : await tx.signatureMember.findMany({
+      where: {
+        active: true,
+        roleGroup: { not: SignatureMemberGroup.PLAYER },
+        normalizedName: { in: [...uniquelyNamedUsers.keys()] },
+        collection: {
+          season: collection.season,
+          sportCode: { notIn: [SIGNATURE_CREATIVE_STAFF_SPORT_CODE, SIGNATURE_AD_HOC_SPORT_CODE] },
+        },
+      },
+      select: { id: true, normalizedName: true, linkedUserId: true },
+    });
+    let linkedTeamMembers = 0;
+    for (const member of teamMembers) {
+      const matchedUser = uniquelyNamedUsers.get(member.normalizedName);
+      if (!matchedUser || member.linkedUserId === matchedUser.id || member.linkedUserId) continue;
+      const linked = await tx.signatureMember.updateMany({
+        where: { id: member.id, linkedUserId: null },
+        data: { linkedUserId: matchedUser.id },
+      });
+      if (linked.count > 0) {
+        linkedTeamMembers += linked.count;
+        changed = true;
+      }
+    }
+
     const members = await tx.signatureMember.findMany({
       where: { collectionId: collection.id },
       select: { id: true },
@@ -580,15 +783,17 @@ export async function syncSignatureCreativeStaff(input: {
           select: { collectionVersion: true },
         })).collectionVersion
       : collection.collectionVersion;
-    await createAuditEntryTx(tx, {
-      actorId: input.actor.id,
-      actorRole: input.actor.role,
-      entityType: "SignatureCollection",
-      entityId: collection.id,
-      action: "SYNC_CREATIVE_STAFF",
-      before: { collectionVersion: input.expectedCollectionVersion, activeMembers: existing.filter((member) => member.active).length },
-      after: { collectionVersion: nextCollectionVersion, activeMembers: users.length, added, reactivated, updated, deactivated: stale.length },
-    });
+    if (changed) {
+      await createAuditEntryTx(tx, {
+        actorId: input.actor.id,
+        actorRole: input.actor.role,
+        entityType: "SignatureCollection",
+        entityId: collection.id,
+        action: "SYNC_CREATIVE_STAFF",
+        before: { collectionVersion: input.expectedCollectionVersion, activeMembers: existing.filter((member) => member.active).length },
+        after: { collectionVersion: nextCollectionVersion, activeMembers: users.length, added, reactivated, updated, deactivated: stale.length, linkedTeamMembers },
+      });
+    }
     return {
       collectionId: collection.id,
       collectionVersion: nextCollectionVersion,
@@ -597,6 +802,7 @@ export async function syncSignatureCreativeStaff(input: {
       reactivated,
       updated,
       deactivated: stale.length,
+      linkedTeamMembers,
       unchanged: !changed,
     };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
@@ -659,8 +865,11 @@ export async function updateSignatureMemberRequired(input: {
     if (!collection) throw new HttpError(404, "Signature collection not found");
     if (collection.status === SignatureCollectionStatus.ARCHIVED) throw new HttpError(409, "Archived signature collections are read-only");
     if (collection.collectionVersion !== input.expectedCollectionVersion) throw new HttpError(409, "Collection changed since this form was opened");
-    const member = await tx.signatureMember.findFirst({ where: { id: input.memberId, collectionId: input.collectionId }, select: { id: true, required: true } });
+    const member = await tx.signatureMember.findFirst({ where: { id: input.memberId, collectionId: input.collectionId }, select: { id: true, required: true, roleGroup: true } });
     if (!member) throw new HttpError(404, "Signature member not found");
+    if (member.roleGroup === SignatureMemberGroup.PLAYER && !input.required) {
+      throw new HttpError(400, "Players always require a signature");
+    }
     await tx.signatureMember.update({ where: { id: member.id }, data: { required: input.required } });
     const updated = await tx.signatureCollection.update({ where: { id: input.collectionId }, data: { collectionVersion: { increment: 1 }, updatedById: input.actor.id }, select: { collectionVersion: true } });
     await createAuditEntryTx(tx, {
@@ -714,18 +923,30 @@ export async function resetSignatureCollection(input: { actor: Actor; collection
     if (!collection) throw new HttpError(404, "Signature collection not found");
     if (collection.status === SignatureCollectionStatus.ARCHIVED) throw new HttpError(409, "Archived signature collections are read-only");
     if (collection.collectionVersion !== input.expectedCollectionVersion) throw new HttpError(409, "Collection changed since this form was opened");
-    const captures = await tx.signatureCapture.findMany({ where: { collectionId: input.collectionId }, select: { id: true, currentRevisionId: true, captureVersion: true } });
-    const revisions = captures.map((capture) => capture.currentRevisionId).filter((value): value is string => Boolean(value));
+    const captures = await tx.signatureCapture.findMany({
+      where: { collectionId: input.collectionId },
+      select: {
+        id: true,
+        currentRevisionId: true,
+        captureVersion: true,
+        revisions: {
+          where: { state: SignatureArtifactState.READY },
+          select: { id: true, pngPath: true, svgPath: true },
+        },
+      },
+    });
+    const revisions = captures.flatMap((capture) => capture.revisions);
     if (captures.length > 0) {
       // Increment every capture, including currently blank members, so an
       // in-flight save cannot commit after an explicit collection reset.
       await tx.signatureCapture.updateMany({ where: { id: { in: captures.map((capture) => capture.id) } }, data: { currentRevisionId: null, captureVersion: { increment: 1 } } });
-      await tx.signatureArtifactRevision.updateMany({ where: { id: { in: revisions } }, data: { state: SignatureArtifactState.PENDING_DELETE, replacedAt: new Date() } });
+    }
+    if (revisions.length > 0) {
+      await tx.signatureArtifactRevision.updateMany({ where: { id: { in: revisions.map((revision) => revision.id) } }, data: { state: SignatureArtifactState.PENDING_DELETE, replacedAt: new Date() } });
     }
     const updated = await tx.signatureCollection.update({ where: { id: input.collectionId }, data: { firstCaptureAt: null, collectionVersion: { increment: 1 }, updatedById: input.actor.id }, select: { collectionVersion: true } });
     await createAuditEntryTx(tx, { actorId: input.actor.id, actorRole: input.actor.role, entityType: "SignatureCollection", entityId: input.collectionId, action: "RESET", before: { collectionVersion: input.expectedCollectionVersion, captures: captures.length }, after: { collectionVersion: updated.collectionVersion, captures: 0 } });
-    const artifactRows = revisions.length > 0 ? await tx.signatureArtifactRevision.findMany({ where: { id: { in: revisions } }, select: { id: true, pngPath: true, svgPath: true } }) : [];
-    return { collectionVersion: updated.collectionVersion, revisions: artifactRows, captureCount: captures.length };
+    return { collectionVersion: updated.collectionVersion, revisions, captureCount: captures.length };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   await cleanupSignatureRevisions(result.revisions);
   return { collectionVersion: result.collectionVersion, resetCount: result.captureCount };
@@ -737,18 +958,26 @@ export async function removeSignatureCapture(input: {
   memberId: string;
   expectedCaptureVersion: number;
 }) {
+  const target = await resolveSignatureCaptureTarget(input.collectionId, input.memberId);
   const result = await db.$transaction(async (tx) => {
-    const capture = await tx.signatureCapture.findFirst({
-      where: { collectionId: input.collectionId, memberId: input.memberId },
-      include: { currentRevision: true, collection: true },
+    const capture = await tx.signatureCapture.findUnique({
+      where: { id: target.id },
+      include: {
+        currentRevision: true,
+        collection: true,
+        revisions: {
+          where: { state: SignatureArtifactState.READY },
+          select: { id: true, pngPath: true, svgPath: true },
+        },
+      },
     });
     if (!capture) throw new HttpError(404, "Signature member is not ready for capture");
     if (capture.collection.status === SignatureCollectionStatus.ARCHIVED) throw new HttpError(409, "Archived signature collections are read-only");
     if (capture.captureVersion !== input.expectedCaptureVersion) throw new HttpError(409, "This signature changed elsewhere; reload before removing it");
-    if (!capture.currentRevision) return { revision: null, captureVersion: capture.captureVersion };
+    if (!capture.currentRevision) return { revisions: [], captureVersion: capture.captureVersion };
     const revision = capture.currentRevision;
     await tx.signatureCapture.update({ where: { id: capture.id }, data: { currentRevisionId: null, captureVersion: { increment: 1 } } });
-    await tx.signatureArtifactRevision.update({ where: { id: revision.id }, data: { state: SignatureArtifactState.PENDING_DELETE, replacedAt: new Date() } });
+    await tx.signatureArtifactRevision.updateMany({ where: { id: { in: capture.revisions.map((item) => item.id) } }, data: { state: SignatureArtifactState.PENDING_DELETE, replacedAt: new Date() } });
     await createAuditEntryTx(tx, {
       actorId: input.actor.id,
       actorRole: input.actor.role,
@@ -758,10 +987,10 @@ export async function removeSignatureCapture(input: {
       before: { captureVersion: capture.captureVersion, revisionId: revision.id, pngHash: revision.pngHash, svgHash: revision.svgHash },
       after: { captureVersion: capture.captureVersion + 1, revisionId: null },
     });
-    return { revision: { id: revision.id, pngPath: revision.pngPath, svgPath: revision.svgPath }, captureVersion: capture.captureVersion + 1 };
+    return { revisions: capture.revisions, captureVersion: capture.captureVersion + 1 };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-  if (result.revision) await cleanupSignatureRevisions([result.revision]);
-  return { removed: Boolean(result.revision), captureVersion: result.captureVersion };
+  if (result.revisions.length > 0) await cleanupSignatureRevisions(result.revisions);
+  return { removed: result.revisions.length > 0, captureVersion: result.captureVersion };
 }
 
 async function markSaveFailed(revisionId: string, operationId: string, error: unknown) {
@@ -785,11 +1014,12 @@ async function cleanupSignatureRevisions(revisions: Array<{ id: string; pngPath:
 }
 
 export async function saveSignatureCapture(input: { actor: Actor; collectionId: string; memberId: string; request: CaptureSaveRequest }) {
+  const target = await resolveSignatureCaptureTarget(input.collectionId, input.memberId);
   const existingOperation = await db.signatureSaveOperation.findUnique({ where: { requestId: input.request.requestId }, include: { revision: true, capture: { include: { currentRevision: true } } } });
   if (
     existingOperation &&
-    (existingOperation.collectionId !== input.collectionId ||
-      existingOperation.memberId !== input.memberId ||
+    (existingOperation.collectionId !== target.collectionId ||
+      existingOperation.memberId !== target.memberId ||
       existingOperation.actorUserId !== input.actor.id ||
       existingOperation.expectedCaptureVersion !== input.request.expectedCaptureVersion ||
       existingOperation.settingsVersion !== input.request.settingsVersion)
@@ -799,11 +1029,13 @@ export async function saveSignatureCapture(input: { actor: Actor; collectionId: 
   if (existingOperation?.status === SignatureSaveStatus.COMMITTED && existingOperation.revision) {
     return { status: "committed" as const, captureVersion: existingOperation.capture.captureVersion, revision: publicArtifact(existingOperation.revision) };
   }
-  if (existingOperation) throw new HttpError(409, "This save request is already being processed or failed; create a new request to retry");
+  if (existingOperation?.status === SignatureSaveStatus.FAILED) {
+    throw new HttpError(409, "This save request failed; try saving again");
+  }
+  if (existingOperation) {
+    throw new HttpError(425, "This signature is still saving; try again shortly");
+  }
 
-  const target = await db.signatureCapture.findFirst({ where: { collectionId: input.collectionId, memberId: input.memberId }, include: { collection: true, member: true, currentRevision: true } });
-  if (!target) throw new HttpError(404, "Signature member is not ready for capture");
-  if (!target.member.active) throw new HttpError(409, "This roster member is inactive and cannot receive a new signature");
   if (target.collection.status === SignatureCollectionStatus.ARCHIVED) throw new HttpError(409, "Archived signature collections are read-only");
   if (target.captureVersion !== input.request.expectedCaptureVersion) throw new HttpError(409, "This signature changed elsewhere; keep the local draft and reload");
   if (target.collection.settingsVersion !== input.request.settingsVersion) throw new HttpError(409, "Pen settings changed; reload the capture surface");
@@ -818,17 +1050,17 @@ export async function saveSignatureCapture(input: { actor: Actor; collectionId: 
     throw new HttpError(503, "Signature rendering is temporarily unavailable");
   }
   const revisionId = randomUUID();
-  const pngPath = buildSignatureArtifactPath(input.collectionId, input.memberId, revisionId, "png");
-  const svgPath = buildSignatureArtifactPath(input.collectionId, input.memberId, revisionId, "svg");
+  const pngPath = buildSignatureArtifactPath(target.collectionId, target.memberId, revisionId, "png");
+  const svgPath = buildSignatureArtifactPath(target.collectionId, target.memberId, revisionId, "svg");
 
   let operationId: string;
   try {
     const prepared = await withSerializationRetry(() => db.$transaction(async (tx) => {
       const current = await tx.signatureCapture.findUnique({ where: { id: target.id }, select: { captureVersion: true, collectionId: true, memberId: true, settingsVersion: true } });
-      if (!current || current.collectionId !== input.collectionId || current.memberId !== input.memberId || current.captureVersion !== input.request.expectedCaptureVersion || current.settingsVersion !== input.request.settingsVersion) throw new HttpError(409, "This signature changed elsewhere; keep the local draft and reload");
+      if (!current || current.collectionId !== target.collectionId || current.memberId !== target.memberId || current.captureVersion !== input.request.expectedCaptureVersion || current.settingsVersion !== input.request.settingsVersion) throw new HttpError(409, "This signature changed elsewhere; keep the local draft and reload");
       const latest = await tx.signatureArtifactRevision.findFirst({ where: { captureId: target.id }, orderBy: { revision: "desc" }, select: { revision: true } });
       const revision = await tx.signatureArtifactRevision.create({ data: { id: revisionId, captureId: target.id, revision: (latest?.revision ?? 0) + 1, state: SignatureArtifactState.PENDING_DELETE, pngPath, svgPath, pngHash: artifacts.pngHash, svgHash: artifacts.svgHash, width: artifacts.width, height: artifacts.height, cropBounds: signatureJson(artifacts.cropBounds) } });
-      const operation = await tx.signatureSaveOperation.create({ data: { requestId: input.request.requestId, collectionId: input.collectionId, memberId: input.memberId, captureId: target.id, expectedCaptureVersion: input.request.expectedCaptureVersion, settingsVersion: input.request.settingsVersion, status: SignatureSaveStatus.UPLOADING, revisionId: revision.id, actorUserId: input.actor.id } });
+      const operation = await tx.signatureSaveOperation.create({ data: { requestId: input.request.requestId, collectionId: target.collectionId, memberId: target.memberId, captureId: target.id, expectedCaptureVersion: input.request.expectedCaptureVersion, settingsVersion: input.request.settingsVersion, status: SignatureSaveStatus.UPLOADING, revisionId: revision.id, actorUserId: input.actor.id } });
       return { operationId: operation.id, revisionId: revision.id };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
     operationId = prepared.operationId;
@@ -855,7 +1087,7 @@ export async function saveSignatureCapture(input: { actor: Actor; collectionId: 
     finalized = await withSerializationRetry(
       () => finalizeSignatureSave({
         actor: input.actor,
-        collectionId: input.collectionId,
+        collectionId: target.collectionId,
         captureId: target.id,
         operationId,
         revisionId,
@@ -868,10 +1100,6 @@ export async function saveSignatureCapture(input: { actor: Actor; collectionId: 
     throw error;
   }
 
-  if (finalized.oldRevisionId) {
-    const old = await db.signatureArtifactRevision.findUnique({ where: { id: finalized.oldRevisionId }, select: { id: true, pngPath: true, svgPath: true } });
-    if (old) await cleanupSignatureRevisions([old]);
-  }
   return { status: "committed" as const, captureVersion: finalized.captureVersion, revision: publicArtifact(finalized.revision) };
 }
 
@@ -892,7 +1120,7 @@ async function finalizeSignatureSave(input: {
         throw new HttpError(409, "This signature changed while it was saving; the local draft was preserved");
       }
       if (current.currentRevisionId) {
-        await tx.signatureArtifactRevision.update({ where: { id: current.currentRevisionId }, data: { state: SignatureArtifactState.PENDING_DELETE, replacedAt: new Date() } });
+        await tx.signatureArtifactRevision.update({ where: { id: current.currentRevisionId }, data: { replacedAt: new Date() } });
       }
       const now = new Date();
       const revision = await tx.signatureArtifactRevision.update({ where: { id: input.revisionId }, data: { state: SignatureArtifactState.READY, committedAt: now } });
@@ -900,7 +1128,7 @@ async function finalizeSignatureSave(input: {
       await tx.signatureCollection.updateMany({ where: { id: input.collectionId, firstCaptureAt: null }, data: { firstCaptureAt: now, updatedById: input.actor.id } });
       await tx.signatureSaveOperation.update({ where: { id: input.operationId }, data: { status: SignatureSaveStatus.COMMITTED, committedAt: now } });
       await createAuditEntryTx(tx, { actorId: input.actor.id, actorRole: input.actor.role, entityType: "SignatureCapture", entityId: input.captureId, action: "SAVE", before: { captureVersion: input.expectedCaptureVersion, priorRevisionId: current.currentRevisionId, priorPngHash: current.currentRevision?.pngHash ?? null, priorSvgHash: current.currentRevision?.svgHash ?? null }, after: { captureVersion: capture.captureVersion, revisionId: revision.id, pngHash: revision.pngHash, svgHash: revision.svgHash, width: revision.width, height: revision.height } });
-      return { captureVersion: capture.captureVersion, revision, oldRevisionId: current.currentRevisionId };
+      return { captureVersion: capture.captureVersion, revision };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
@@ -909,15 +1137,30 @@ export async function getReadySignatureArtifact(revisionId: string, kind: "png" 
     where: { id: revisionId },
     include: { capture: { include: { member: true } } },
   });
-  if (!revision || revision.state !== SignatureArtifactState.READY || revision.capture.currentRevisionId !== revision.id) {
+  if (!revision || revision.state !== SignatureArtifactState.READY) {
     throw new HttpError(404, "Signature artifact not found");
   }
-  const safeName = revision.capture.member.name.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "signature";
   return {
     path: kind === "png" ? revision.pngPath : revision.svgPath,
     contentType: kind === "png" ? "image/png" : "image/svg+xml",
-    filename: `${safeName}-${revision.capture.member.id}.${kind}`,
+    filename: signatureArtifactFilename(
+      revision.capture.member.name,
+      kind,
+      revision.capture.currentRevisionId === revision.id ? undefined : revision.revision,
+    ),
   };
+}
+
+export function signatureArtifactFilename(name: string, kind: "png" | "svg", revision?: number) {
+  const signer = name
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[’']/g, "")
+    .replace(/[^a-z0-9]+/gi, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase();
+  const version = revision === undefined ? "" : `-v${revision}`;
+  return signer ? `${signer}-signature${version}.${kind}` : `signature${version}.${kind}`;
 }
 
 export async function cleanupPendingSignatureArtifacts(limit = 50) {

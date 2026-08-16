@@ -74,12 +74,12 @@
 
 ## Scripts
 
-- `analyze`: `ANALYZE=true next build`
+- `analyze`: `node scripts/guard-next-build.mjs && ANALYZE=true next build`
 - `audit:ios`: `bash scripts/ios-audit-inventory.sh`
 - `audit:ios:gaps`: `bash scripts/ios-audit-inventory.sh --gaps`
 - `audit:item-data`: `node --env-file=.env scripts/audit-item-data.mjs`
-- `build`: `node scripts/prisma-migrate-deploy.mjs && next build`
-- `build:app`: `next build`
+- `build`: `node scripts/guard-next-build.mjs && node scripts/prisma-migrate-deploy.mjs && next build`
+- `build:app`: `node scripts/guard-next-build.mjs && next build`
 - `cleanup:item-data`: `node --env-file=.env scripts/cleanup-item-data.mjs`
 - `codemap`: `node scripts/generate-codemaps.mjs`
 - `codemap:check`: `node scripts/generate-codemaps.mjs --check`
@@ -97,6 +97,7 @@
 - `demo:cleanup:app-review`: `APP_REVIEW_DEMO_MODE=cleanup node --env-file=.env scripts/seed-app-review-demo.mjs`
 - `demo:seed:app-review`: `node --env-file=.env scripts/seed-app-review-demo.mjs`
 - `dev`: `next dev`
+- `dev:preview`: `npx --yes vercel@latest env run -e preview --project wisconsin-creative --scope erikrole -- node scripts/start-preview-dev.mjs`
 - `drift:ios`: `bash scripts/ios-drift-check.sh`
 - `drift:ios:warn`: `bash scripts/ios-drift-check.sh --warn`
 - `import:cheqroom`: `node scripts/import-cheqroom-items.mjs`
@@ -109,6 +110,7 @@
 - `lint:summary`: `node scripts/lint-summary.mjs`
 - `migrate`: `node scripts/prisma-migrate-deploy.mjs`
 - `postinstall`: `prisma generate`
+- `predev`: `node scripts/ensure-dev-env.mjs`
 - `prisma:generate`: `prisma generate`
 - `prisma:migrate`: `prisma migrate dev`
 - `release`: `bash scripts/release.sh`

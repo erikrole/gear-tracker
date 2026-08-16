@@ -17,6 +17,13 @@ describe("app error recovery surfaces", () => {
       expect(text).not.toContain("Something went wrong");
       expect(text).not.toContain("style={{");
     }
+
+    expect(root).not.toContain("<html");
+    expect(root).not.toContain("<body");
+    expect(app).not.toContain("<html");
+    expect(app).not.toContain("<body");
+    expect(global).toContain("<html");
+    expect(global).toContain("<body");
   });
 
   it("keeps retry and secondary actions on shadcn buttons with operational copy", () => {

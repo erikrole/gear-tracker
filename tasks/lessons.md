@@ -70,6 +70,10 @@
 
 ## UI reliability
 
+- **Error boundary scope follows the document owner**: Route-segment `error.tsx` files render inside the existing document and must not add `<html>` or `<body>`; only `global-error.tsx` owns those tags. A local auth-env failure verified that nested tags create secondary hydration errors.
+- **Keep development credentials isolated**: `npm run dev` can inherit stale provider-generated `.env.local` values. Repair only through a gitignored `.env.development.local` override and keep production/build validation fail-closed.
+- **Never build against a live Next dev server**: Guard `npm run build`, `npm run build:app`, and `npm run analyze` when the configured dev port is occupied; `next dev` and `next build` share `.next`, and a concurrent build can remove runtime manifests or vendor chunks and turn a healthy local route into 500s. Verified during Signature roster browser verification on 2026-08-16.
+- **Use the Preview process boundary for authenticated local signature work**: Start with `npm run dev:preview` so Preview variables, including the dedicated private Signature Blob credential, stay in memory while `.env.development.local` supplies a valid local `SESSION_SECRET`. Never source `.env.preview.local` directly or map the public Blob credential to private signature storage.
 - **Initial load and refresh are different**: Use skeletons for initial load. Keep existing data visible during refresh and show a subtle error or retry state.
 - **Every user-triggered fetch needs recovery**: Include 401 handling, error feedback, cancellation where filters can change, and a double-submit guard.
 - **Guard all mutations on the surface**: Use a ref for the synchronous handler guard and shared state to disable every competing mutation control.

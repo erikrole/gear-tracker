@@ -13,6 +13,43 @@ export type SignatureCropBounds = {
   height: number;
 };
 
+export type SignaturePoint = { x: number; y: number };
+
+export type SignatureCurveSegment =
+  | { type: "L"; to: SignaturePoint }
+  | { type: "Q"; control: SignaturePoint; to: SignaturePoint };
+
+export type SignatureCurve = {
+  start: SignaturePoint;
+  segments: SignatureCurveSegment[];
+};
+
+/**
+ * Builds the shared display/artifact curve for a normalized stroke. Midpoints
+ * keep the curve close to the Pencil path while removing the visible corners
+ * produced by drawing every coalesced point as an independent line segment.
+ */
+export function buildSignatureCurve(points: readonly SignaturePoint[]): SignatureCurve {
+  const [start, ...rest] = points;
+  if (!start) throw new Error("Signature stroke has no first point");
+  if (rest.length === 0) return { start, segments: [{ type: "L", to: start }] };
+  if (rest.length === 1) return { start, segments: [{ type: "L", to: rest[0]! }] };
+
+  const segments: SignatureCurveSegment[] = [];
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const control = points[index]!;
+    const next = points[index + 1]!;
+    segments.push({
+      type: "Q",
+      control,
+      to: { x: (control.x + next.x) / 2, y: (control.y + next.y) / 2 },
+    });
+  }
+  const last = points.at(-1)!;
+  segments.push({ type: "Q", control: last, to: last });
+  return { start, segments };
+}
+
 export function normalizeSignatureStrokes(
   strokes: SignatureStroke[],
 ): SignatureStroke[] {
@@ -72,16 +109,15 @@ export function signaturePathData(
   stroke: SignatureStroke,
   crop: SignatureCropBounds,
 ): string {
-  const [first, ...rest] = stroke.points;
-  if (!first) throw new Error("Signature stroke has no first point");
-  const commands = [`M ${formatSignatureNumber(first.x - crop.x)} ${formatSignatureNumber(first.y - crop.y)}`];
-  if (rest.length === 0) {
-    // A Pencil tap is still ink. A round-capped zero-length path is rendered
-    // consistently by Sharp and preserves the configured stroke width.
-    commands.push(`L ${formatSignatureNumber(first.x - crop.x)} ${formatSignatureNumber(first.y - crop.y)}`);
-  }
-  for (const point of rest) {
-    commands.push(`L ${formatSignatureNumber(point.x - crop.x)} ${formatSignatureNumber(point.y - crop.y)}`);
+  const curve = buildSignatureCurve(stroke.points);
+  const point = (value: SignaturePoint) => `${formatSignatureNumber(value.x - crop.x)} ${formatSignatureNumber(value.y - crop.y)}`;
+  const commands = [`M ${point(curve.start)}`];
+  for (const segment of curve.segments) {
+    if (segment.type === "L") {
+      commands.push(`L ${point(segment.to)}`);
+    } else {
+      commands.push(`Q ${point(segment.control)} ${point(segment.to)}`);
+    }
   }
   return commands.join(" ");
 }

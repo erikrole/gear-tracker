@@ -4,15 +4,14 @@ import { requirePermission } from "@/lib/rbac";
 import { enforceRateLimit, SIGNATURE_IMPORT_LIMIT } from "@/lib/rate-limit";
 import { createSignatureRosterPreview } from "@/lib/services/signatures";
 import { fetchUWBadgersRoster } from "@/lib/signatures/uwbadgers";
-import { signatureSeasonSchema } from "@/lib/signatures/types";
+import { signatureRosterImportSchema } from "@/lib/signatures/types";
 
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "signature", "import");
   await enforceRateLimit(`signature-import:${user.id}`, SIGNATURE_IMPORT_LIMIT);
-  const body = (await req.json()) as { season?: unknown };
-  const season = signatureSeasonSchema.parse(body.season);
-  const snapshot = await fetchUWBadgersRoster(season);
-  const preview = await createSignatureRosterPreview({ actor: user, season, ...snapshot });
+  const body = signatureRosterImportSchema.parse(await req.json());
+  const snapshot = await fetchUWBadgersRoster(body.sportCode, body.season);
+  const preview = await createSignatureRosterPreview({ actor: user, sportCode: body.sportCode, season: body.season, ...snapshot });
   return ok({
     ...preview,
     sourceUrl: snapshot.sourceUrl,

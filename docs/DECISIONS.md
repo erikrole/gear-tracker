@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-08-15
+- Last Updated: 2026-08-16
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -1176,20 +1176,20 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - Date: 2026-08-15
 - Status: Accepted; implementation and rollout proof pending
 - Context:
-  - Signature collection is a team/season workflow for external athletes and coaches, with a separate Creative staff collection backed by linked internal users. It is not an extension of internal Gear Tracker staffing assignments or a group nested in MBB.
+  - Signature collection is a team/season workflow for external athletes and coaches, with a separate Creative staff collection backed by linked internal users. It is not an extension of internal Gear Tracker staffing assignments or a group nested in a team roster.
   - Public-media Blob helpers and client-generated files cannot provide the authorization, reproducibility, or failure compensation required for signatures.
 - Decision:
-  - Use a dedicated signature domain keyed by canonical collection code and season. Men’s Basketball uses `MBB`; Creative staff use a standalone `CREATIVE` collection for the same season. Imported roster members remain separate records with an optional link to a Gear Tracker user. Creative staff are separate signature-member records linked to active, visible full-time Video/Photo/Graphics users; they do not require an external roster snapshot and cannot be nested in MBB.
+  - Use a dedicated signature domain keyed by canonical collection code and season. Men’s Basketball uses `MBB`, Football uses `FB`, and Volleyball uses `VB`; Creative staff use a standalone `CREATIVE` collection for the same season; manually entered one-off signers use a standalone `ADHOC` collection and store their sport/category on the member. Imported roster members remain separate records with an optional link to a Gear Tracker user. Creative staff are separate signature-member records linked to active, visible full-time Video/Photo/Graphics users; they do not require an external roster snapshot and cannot be nested in a team collection. A same-season non-player team member may share that internal identity only through a unique exact normalized-name match among those eligible users; ambiguity, players, ad-hoc members, and existing conflicting links fail closed.
   - Use a pen-class web gate: Safari `pointerType === "pen"` may draw, while touch, mouse, trackpad, and palm input may not. Exact Apple Pencil identity is a physical acceptance concern, not a cryptographic web claim.
-  - Import fixed UWBadgers adapters as immutable normalized snapshots. Parse one structural representation, deduplicate by profile identity, preserve player/coaching/support groups, and apply only with an observed collection version. Reconciliation never deletes members or captures.
+  - Import fixed UWBadgers adapters for MBB, Football, and Volleyball as immutable normalized snapshots. Parse one structural representation, deduplicate by profile identity, preserve player/coaching/support groups, map Football and Volleyball's `2026-27` season to the source site's `2026` URL segment, and apply only with an observed collection version. Reconciliation never deletes members or captures.
   - The client submits normalized strokes. The server creates a sanitized path-only SVG and renders the transparent PNG from that same SVG with matching crop bounds and content hashes.
   - Store artifacts in a private Blob store under immutable ID-based paths. Download and preview go through authenticated routes; SVG is attachment-only. Box and native capture remain deferred.
-  - Track save operations and pending-delete cleanup as durable signature state because database and Blob writes are not atomic. Superseded file contents are not retained after successful cleanup.
-  - Syncing the standalone Creative staff roster is an explicit, version-checked, audited reconciliation. It adds active visible full-time Video/Photo/Graphics users, preserves required-state choices and captures, and deactivates stale linked users without deleting their history. Creative staff are required by default; admins may make individual members optional.
+  - Track save operations and pending-delete cleanup as durable signature state because database and Blob writes are not atomic. Successful recaptures retain immutable prior `READY` revisions for authenticated version-history downloads. Explicit signer removal and collection reset are privacy-erasure actions that queue every retained revision in their scope for deletion.
+  - Mounting the collection landing page automatically invokes the existing standalone Creative staff reconciliation mutation. Collection-list GET remains read-only so framework prefetch cannot alter roster state. Reconciliation remains version-checked and writes an audit entry only when membership or identity links change. It adds active visible full-time Video/Photo/Graphics users, links uniquely matching same-season team staff, preserves required-state choices and captures, and deactivates stale linked users without deleting their history. One canonical Creative staff capture owns the private artifacts for every linked row. Creative staff are required by default; admins may make individual members optional.
 - Consequences:
   - A tile is complete only when the current capture revision is committed and both private artifacts are ready.
   - Physical iPad Safari, private Blob provisioning, deterministic rendering, and cleanup failure-injection tests are release gates.
 - Guardrails:
-  - Do not reuse `StudentSportAssignment`, expose public Blob URLs, trust client filenames or files, reconcile by name/email, or count local drafts as complete.
+  - Do not reuse `StudentSportAssignment`, expose public Blob URLs, trust client filenames or files, use fuzzy or ambiguous identity reconciliation, reconcile by email, or count local drafts as complete. The only name bridge is the exact unique normalized-name rule above.
   - Staff/admin can view, import, reconcile external rosters and Creative staff, capture, replace, remove, and download. Admin alone can configure pen settings, alter required state, archive, and perform collection-wide reset.
 - Reference: `docs/BRIEF_SIGNATURE_CAPTURE_V1.md`, `docs/AREA_SIGNATURES.md`, and `tasks/signature-capture-micro-app-plan.md`.

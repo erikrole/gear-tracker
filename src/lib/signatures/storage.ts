@@ -2,17 +2,28 @@ import { del, get, put, type GetBlobResult } from "@vercel/blob";
 
 export type SignatureArtifactKind = "png" | "svg";
 
+type SignatureBlobAuthOptions = Pick<Parameters<typeof put>[2], "token" | "oidcToken" | "storeId">;
+
+function privateSignatureBlobAuth(): SignatureBlobAuthOptions {
+  const token = process.env.SIGNATURE_BLOB_READ_WRITE_TOKEN;
+  if (token) return { token };
+
+  const storeId = process.env.SIGNATURE_BLOB_STORE_ID;
+  const oidcToken = process.env.VERCEL_OIDC_TOKEN;
+  if (storeId && oidcToken) return { storeId, oidcToken };
+
+  throw new Error("Private Signature Blob storage is not configured");
+}
+
 export function isPrivateSignatureStorageConfigured(): boolean {
   return Boolean(
-    process.env.BLOB_READ_WRITE_TOKEN ||
-      (process.env.VERCEL_OIDC_TOKEN && process.env.BLOB_STORE_ID),
+    process.env.SIGNATURE_BLOB_READ_WRITE_TOKEN ||
+      (process.env.VERCEL_OIDC_TOKEN && process.env.SIGNATURE_BLOB_STORE_ID),
   );
 }
 
 export function assertPrivateSignatureStorageConfigured(): void {
-  if (!isPrivateSignatureStorageConfigured()) {
-    throw new Error("Private signature Blob storage is not configured");
-  }
+  privateSignatureBlobAuth();
 }
 
 export function buildSignatureArtifactPath(
@@ -29,9 +40,10 @@ export async function uploadPrivateSignatureArtifact(input: {
   body: Buffer;
   contentType: "image/png" | "image/svg+xml";
 }): Promise<void> {
-  assertPrivateSignatureStorageConfigured();
+  const auth = privateSignatureBlobAuth();
   await put(input.path, input.body, {
     access: "private",
+    ...auth,
     addRandomSuffix: false,
     allowOverwrite: false,
     contentType: input.contentType,
@@ -41,15 +53,13 @@ export async function uploadPrivateSignatureArtifact(input: {
 
 export async function deletePrivateSignatureArtifacts(paths: string[]): Promise<void> {
   if (paths.length === 0) return;
-  assertPrivateSignatureStorageConfigured();
-  await del(paths);
+  await del(paths, privateSignatureBlobAuth());
 }
 
 export async function getPrivateSignatureArtifact(
   path: string,
 ): Promise<Extract<GetBlobResult, { statusCode: 200 }> | null> {
-  assertPrivateSignatureStorageConfigured();
-  const result = await get(path, { access: "private", useCache: false });
+  const result = await get(path, { access: "private", useCache: false, ...privateSignatureBlobAuth() });
   if (!result || result.statusCode !== 200) return null;
   return result;
 }

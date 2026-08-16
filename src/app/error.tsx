@@ -15,18 +15,14 @@ export default function RootError({
   }, [error]);
 
   return (
-    <html lang="en">
-      <body>
-        <ErrorRecoveryPanel
-          title="Gear Tracker could not recover this page"
-          description="Retry the page before acting on the visible state. If the problem returns, go back to the dashboard and reopen the workflow."
-          reset={reset}
-          retryLabel="Retry page"
-          secondaryHref="/"
-          secondaryLabel="Dashboard"
-          digest={error.digest}
-        />
-      </body>
-    </html>
+    <ErrorRecoveryPanel
+      title="Gear Tracker could not recover this page"
+      description="Retry the page before acting on the visible state. If the problem returns, go back to the dashboard and reopen the workflow."
+      reset={reset}
+      retryLabel="Retry page"
+      secondaryHref="/"
+      secondaryLabel="Dashboard"
+      digest={error.digest}
+    />
   );
 }
