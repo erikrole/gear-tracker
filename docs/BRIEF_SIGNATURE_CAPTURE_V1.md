@@ -42,4 +42,4 @@ Signature members are not `StudentSportAssignment` rows. Imported members are ex
 
 ## Deferred
 
-Box signature-file integration, native PencilKit, ZIP export, scheduled sync, Illustrator asset backfill/matching, and pressure-sensitive width.
+Box signature-file integration, native PencilKit, ZIP export, scheduled sync, Football Illustrator asset backfill/matching, and pressure-sensitive width.

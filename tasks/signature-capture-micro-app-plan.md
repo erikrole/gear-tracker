@@ -476,8 +476,8 @@ Local verification on 2026-08-15: focused signature tests 11/11 plus six signatu
 - [x] Generalize roster URL construction and profile matching for Football and Volleyball, including player position/year labels.
 - [x] Add sport selection to roster preview/apply and label the resulting collections as Football or Volleyball.
 - [x] Add focused parser, collection-preview, and UI contract coverage for `FB` and `VB`.
-- [ ] Preview and explicitly apply the `2026-27` Football and Volleyball rosters in the target environment.
-- [ ] Add and execute the private Illustrator asset backfill/matching flow after the source files and manifest are available.
+- [x] Preview and explicitly apply the `2026-27` Volleyball roster in Production; Football remains intentionally pending for the next slice.
+- [x] Add and execute the guarded private Illustrator asset backfill/matching flow for Volleyball, with jersey #16 retained as a blank roster member.
 
 ### Verification
 
@@ -487,9 +487,12 @@ Local verification on 2026-08-15: focused signature tests 11/11 plus six signatu
 - [x] `npm run build:app`
 - [x] `npm run codemap` and `npm run verify:docs`
 - [x] `git diff --check`
+- [x] Production dry-run matched 18 Volleyball players to 17 RGBA PNG/SVG pairs with jersey #16 as the only expected blank.
+- [x] Production apply/readback verified collection version 2, 17 READY revision-1 artifacts, 19 audit rows, private Blob hashes, and zero pending-delete revisions.
 
 ### Review
 
 - Shipped locally: Staff/admin can select MBB, Football, or Volleyball in the existing UWBadgers roster import panel; previews remain immutable and apply remains collection-version checked and non-destructive.
-- Deferred: No Football or Volleyball roster has been applied or deployed from this slice. Illustrator asset backfill remains intentionally separate so matching can be dry-run and reviewed before private artifact writes.
-- Next slice: preview the two 2026-27 sources, review matched roster identity, then import Illustrator PNG/SVG pairs through a duplicate-safe private artifact path.
+- Shipped to Production: Deployment `dpl_3rg2roHp8uDg8UqsGByJaKaUnQQK` from commit `16f6ea6e` includes the sport-aware import support and guarded backfill operator. The `VB / 2026-27` collection `cmsw5eecw0001p596olf021nx` has 31 applied snapshot members, 18 active players, 17 private revision-1 artifacts, and jersey #16 intentionally blank. All 17 PNG/SVG pairs were matched by jersey number plus normalized name, audited as `IMPORT`, and read back by hash from the private Blob store.
+- Deferred: Football roster preview/apply and Football Illustrator asset matching remain pending. Physical iPad/Apple Pencil acceptance also remains open for the signature area.
+- Next slice or stop: Stop here before Football; when resumed, preview and review the Football 2026–27 source before any apply or artifact write.
