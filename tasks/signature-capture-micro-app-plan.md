@@ -6,15 +6,15 @@ Ship the Men’s Basketball signature-capture pilot as an authenticated staff/ad
 
 ## Current State
 
-The V1 implementation is deployed through the web, API, schema, artifact, storage, and cleanup contracts. Hardened production deployment `dpl_Gspp8EzUCRM9VseLegodTZiXVLV6` reports 119/119 applied migrations with no pending rows, and authenticated `wisconsincreative.com` smoke proves both rosters plus the revised capture route. The 2026–27 MBB roster is reconciled into 14 players, 7 required coaching staff, and 11 optional support staff; players are presented by jersey number and staff follows the UWBadgers source order, with Greg Gard first for Men’s Basketball. Creative staff are a separate `CREATIVE` collection sourced from active full-time Video/Photo/Graphics accounts, with explicit sync and last-name ordering; the readback contains 11 linked active accounts, including Erik Role for capture testing. The unwanted 2025–26 Preview collection is archived and hidden from the active chooser by default, with an admin-only restore path. Dedicated private Blob provisioning, generated-byte application-wrapper proof, partial-upload cleanup failure injection, and authenticated hardened-production read smoke are complete. Rollout remains gated on a physical Pencil save, authenticated artifact delivery, and physical iPad Safari acceptance.
+The V1 implementation is deployed through the web, API, schema, artifact, storage, and cleanup contracts. Latest Production deployment `dpl_D9tYGhkyoHDqnLUupjb2Az1xrMEq` from commit `a5604316` is READY and aliased to `https://wisconsincreative.com`; the live unauthenticated smoke returns the expected redirect and the recent Production error scan is empty. The 2026–27 MBB roster remains reconciled into 14 players, 7 required coaching staff, and 11 optional support staff. Creative staff are a separate `CREATIVE` collection sourced from active full-time Video/Photo/Graphics accounts, with 14 active members and Jerry Mao now carrying a READY revision-1 artifact. The `VB / 2026-27` backfill remains 17/18 players with #16 intentionally blank. The `FB / 2026-27` collection `cmsw6qmyy0001p5ssne5lnfao` is applied at version 2 with 164 active members (112 players, 27 coaching staff, 25 support staff), 112 READY revision-1 player artifacts, 112 import audits, and zero pending-delete revisions. Dedicated private Blob provisioning, generated-byte application-wrapper proof, partial-upload cleanup failure injection, and authenticated roster readback are complete. Rollout remains gated on a physical Pencil save, authenticated artifact delivery, and physical iPad Safari acceptance.
 
 ## Scope
 
-- Canonical collection key: `sportCode + season`, with `MBB` for Men’s Basketball, `CREATIVE` for the standalone Creative staff roster, and `ADHOC` for manually entered one-off signers.
+- Canonical collection key: `sportCode + season`, with `MBB`, `FB`, and `VB` for team rosters, `CREATIVE` for the standalone Creative staff roster, and `ADHOC` for manually entered one-off signers.
 - External roster members are separate from Gear Tracker users and may have a nullable user link. Creative staff use linked full-time Video/Photo/Graphics accounts as separate signature members with no external snapshot and never live in the MBB collection.
-- UWBadgers import is fixed to an allowlisted adapter with structural parsing, profile-identity deduplication, preview persistence, and versioned reconciliation. Creative staff sync is explicit, version-checked, audited, and preserves imported roster state.
-- Required members are active MBB players/coaching staff and standalone Creative staff by default. Support staff are imported but optional.
-- Private app-managed storage is required. Box signature-file integration, native PencilKit, ZIP export, scheduled roster sync, multi-sport adapters, and pressure width are deferred.
+- UWBadgers import is fixed to an allowlisted adapter with structural parsing, profile-identity deduplication, preview persistence, and versioned reconciliation. MBB, Football, and Volleyball use sport-specific source URLs and parser labels; Creative staff sync is explicit, version-checked, audited, and preserves imported roster state.
+- Required members are active MBB, Football, and Volleyball players/coaching staff and standalone Creative staff by default. Support staff are imported but optional.
+- Private app-managed storage is required. Box signature-file integration, native PencilKit, ZIP export, scheduled roster sync, additional sport adapters, and pressure width are deferred.
 
 ## Source Checks
 
@@ -23,6 +23,7 @@ The V1 implementation is deployed through the web, API, schema, artifact, storag
 - `src/lib/audit.ts`: audit rows retain only 90 days, so capture and artifact lifecycle state must be durable in signature tables.
 - `src/lib/blob.ts`: existing helper is public-media oriented and must not be extended for signatures.
 - `src/lib/sports.ts`: `MBB` is the canonical Men’s Basketball code.
+- UWBadgers 2026 roster sources: `https://uwbadgers.com/sports/football/roster/2026` and `https://uwbadgers.com/sports/womens-volleyball/roster/2026`; Gear Tracker retains the canonical `2026-27` season.
 - UWBadgers Men’s Basketball roster: duplicate list/card/table representations and separate coaching/support sections require structural scoping and profile-identity deduplication.
 
 ## Stop Conditions
@@ -36,11 +37,11 @@ Stop before expanding the feature if physical iPad Safari cannot reject accident
 | Contract, brief, decision, permission, risk, and ledger | Complete | Repo contracts recorded in docs and tasks. |
 | Physical-input capture surface and IndexedDB drafts | Implemented locally | Requires target iPad/Safari proof before rollout. |
 | Schema, migration, validation, permissions, and completeness | Deployed | Prisma validation, migration-prefix check, generated client pass, service coverage, and migration health pass. Production reports 119/119 migrations applied with no pending rows. |
-| UWBadgers snapshot adapter and reconciliation | Complete | Fixed MBB adapter, bounded fetch, structural dedupe, immutable preview, explicit apply. |
+| UWBadgers snapshot adapter and reconciliation | Complete | Sport-aware MBB/Football/Volleyball adapters, bounded fetch, structural dedupe, immutable preview, explicit apply. |
 | Deterministic SVG/PNG artifact engine | Complete | Focused tests verify hashes, 1000px minimum transparent RGBA PNG output, and sanitized path-only SVG output. Existing captures regenerate their high-quality PNG download from the stored SVG vector. |
 | Private Blob lifecycle and authenticated delivery | Provider and cleanup proof complete; local authenticated download proof complete | Dedicated private store passes two-artifact application-wrapper privacy/read/delete proof; injected second-artifact failure leaves neither object behind. Authenticated local browser proof downloaded and inspected both production-format files; deployed application save/delivery remains. |
 | Collection, roster, capture, settings, and file library UI | Verified in development | Landing cards show separate MBB and Creative staff rosters. The standalone Creative staff card syncs active full-time Video/Photo/Graphics accounts; MBB remains players/coaches/support only. Collection members render in exact 64px rows with a centered Signature rail: compact theme-aware PNG proof for completed rows and a 160 x 44px centered capture action for incomplete rows. Creative staff titles are omitted on this page while team positions remain. File, requirement, and lifecycle actions remain in the accessible row menu. Authenticated local visual proof covers dark, light, and 1024px responsive states. |
-| Roster hierarchy, source ordering, and active-year management | Verified in Preview | Source-role identity parser v3 reconciled the 2026–27 collection to 14 players, 7 required coaches, and 11 optional support staff; players sort numerically, staff preserves source order with Greg Gard first, and the 2025–26 collection is archived/hidden by default with version-checked restore. |
+| Roster hierarchy, source ordering, and active-year management | Verified in Production | Source-role identity parsing reconciles team snapshots into player/coaching/support groups; players sort numerically, staff preserves source order, and the 2025–26 collection is archived/hidden by default with version-checked restore. Production readback covers MBB, Football, and Volleyball 2026–27 collections. |
 | Operational closeout | Open | Hardened production is Ready and authenticated read smoke passes; a real Pencil save, authenticated artifact delivery, and physical iPad acceptance remain. |
 
 ## Verification
@@ -476,12 +477,13 @@ Local verification on 2026-08-15: focused signature tests 11/11 plus six signatu
 - [x] Generalize roster URL construction and profile matching for Football and Volleyball, including player position/year labels.
 - [x] Add sport selection to roster preview/apply and label the resulting collections as Football or Volleyball.
 - [x] Add focused parser, collection-preview, and UI contract coverage for `FB` and `VB`.
-- [x] Preview and explicitly apply the `2026-27` Volleyball roster in Production; Football remains intentionally pending for the next slice.
+- [x] Preview and explicitly apply the `2026-27` Volleyball and Football rosters in Production.
 - [x] Add and execute the guarded private Illustrator asset backfill/matching flow for Volleyball, with jersey #16 retained as a blank roster member.
+- [x] Correct Football HTML-entity jersey parsing and Football `S` position labeling, match 112 player vectors, and import the separate Jerry Mao Creative Staff vector from the Football source folder.
 
 ### Verification
 
-- [x] Focused Signature Capture/service/storage tests (44/44).
+- [x] Focused Signature Capture/service/storage tests (45/45), including the Football parser regression.
 - [x] `npx tsc --noEmit --pretty false`
 - [x] `npm run lint -- --quiet`
 - [x] `npm run build:app`
@@ -489,10 +491,13 @@ Local verification on 2026-08-15: focused signature tests 11/11 plus six signatu
 - [x] `git diff --check`
 - [x] Production dry-run matched 18 Volleyball players to 17 RGBA PNG/SVG pairs with jersey #16 as the only expected blank.
 - [x] Production apply/readback verified collection version 2, 17 READY revision-1 artifacts, 19 audit rows, private Blob hashes, and zero pending-delete revisions.
+- [x] Production Football dry-run matched 112 players to 112 RGBA PNG/SVG pairs with no missing jersey numbers; source hash `4c6f3ed04010cc419aa77748fdb29627d43204f84d1f0b8474380e5009cdfdba`, parser `uwbadgers-fb-v1`.
+- [x] Production Football apply/readback verified collection `cmsw6qmyy0001p5ssne5lnfao` at version 2, 164 applied snapshot members, 112 READY revision-1 player artifacts, 112 import audits, private Blob hashes, and zero pending-delete revisions; Creative Staff readback verified Jerry Mao READY revision 1 separately.
 
 ### Review
 
 - Shipped locally: Staff/admin can select MBB, Football, or Volleyball in the existing UWBadgers roster import panel; previews remain immutable and apply remains collection-version checked and non-destructive.
-- Shipped to Production: Deployment `dpl_3rg2roHp8uDg8UqsGByJaKaUnQQK` from commit `16f6ea6e` includes the sport-aware import support and guarded backfill operator. The `VB / 2026-27` collection `cmsw5eecw0001p596olf021nx` has 31 applied snapshot members, 18 active players, 17 private revision-1 artifacts, and jersey #16 intentionally blank. All 17 PNG/SVG pairs were matched by jersey number plus normalized name, audited as `IMPORT`, and read back by hash from the private Blob store.
-- Deferred: Football roster preview/apply and Football Illustrator asset matching remain pending. Physical iPad/Apple Pencil acceptance also remains open for the signature area.
-- Next slice or stop: Stop here before Football; when resumed, preview and review the Football 2026–27 source before any apply or artifact write.
+- Shipped to Production: Deployment `dpl_D9tYGhkyoHDqnLUupjb2Az1xrMEq` from commit `a5604316` includes the sport-aware import support, Football parser fix, private artifact delivery, and guarded backfill operator. The `VB / 2026-27` collection `cmsw5eecw0001p596olf021nx` has 31 applied snapshot members, 18 active players, 17 private revision-1 artifacts, and jersey #16 intentionally blank. The `FB / 2026-27` collection `cmsw6qmyy0001p5ssne5lnfao` has 164 applied snapshot members and 112/112 player artifacts. Source matching normalized the two known file-name aliases (`Hilton Jr` → Eugene Hilton Jr.; `Schwenderman` → Ryan Schwendeman), while the 113th source SVG (`Mao, Jerry 01 Artboard 1.svg`) was routed to Jerry Mao’s canonical `CREATIVE` capture.
+- Shipped to Production: The first Football apply attempt rolled back before artifact upload when Prisma’s default 5-second interactive transaction expired while creating the 164-member snapshot. The guarded operator now uses a bounded 30-second serializable window with a 10-second acquisition wait; the rerun completed with private upload/readback verification and no pending-delete rows.
+- Deferred: Physical iPad/Apple Pencil acceptance remains open for the signature area; no other sport was started in this slice.
+- Next slice or stop: Football and Volleyball backfills are complete. Stop here until the physical-input acceptance gate or a separately requested sport is ready.

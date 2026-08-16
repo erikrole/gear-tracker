@@ -16,6 +16,7 @@
 - **Current source beats stale history**: Verify the current route, view, schema, tests, and product direction before following an older plan or session note.
 - **Response shape is a contract**: Read the API route's actual `ok(...)` payload before writing a client consumer. Check nullable fields, envelopes, and rollout tolerance.
 - **Mutations need concurrency protection**: Use transactions and `SERIALIZABLE` isolation where concurrent writes can lose data, violate availability, or corrupt audit history.
+- **Large roster imports need an explicit transaction budget**: Keep snapshot/member reconciliation serializable, but set a bounded interactive timeout above Prisma’s default; the first 164-member Football apply hit the 5-second default and rolled back before artifact upload, then completed with a 30-second timeout and 10-second acquisition wait.
 - **Database constraints are authoritative**: Attempt unique writes directly, catch `P2002`, and return a conflict. Pre-checks do not close a race window.
 - **Every mutation needs the full safety path**: Authentication, permission, CSRF where relevant, validation, audit, transaction, feedback, and 401 handling all belong in the slice.
 - **Preserve visible data on refresh failure**: Keep loaded data visible and show recovery feedback. Initial loading and refresh are different states.
