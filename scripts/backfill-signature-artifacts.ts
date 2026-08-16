@@ -18,6 +18,7 @@ import { del, get, put } from "@vercel/blob";
 import { fetchUWBadgersRoster } from "../src/lib/signatures/uwbadgers";
 import {
   DEFAULT_SIGNATURE_PEN_SETTINGS,
+  SIGNATURE_CREATIVE_STAFF_SPORT_CODE,
   normalizeSignatureName,
   signatureRosterEntrySchema,
   type SignatureImportedSportCode,
@@ -26,7 +27,7 @@ import {
 
 type ArtifactManifestEntry = {
   name: string;
-  jerseyNumber: number;
+  jerseyNumber: number | null;
   png: string;
   svg: string;
   pngHash: string;
@@ -45,7 +46,11 @@ type PreparedArtifact = ArtifactManifestEntry & {
 
 type Actor = { id: string; role: "ADMIN" | "STAFF" };
 
-const SERIALIZABLE = { isolationLevel: Prisma.TransactionIsolationLevel.Serializable } as const;
+const SERIALIZABLE = {
+  isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+  maxWait: 10_000,
+  timeout: 30_000,
+} as const;
 
 function option(name: string): string | null {
   const index = process.argv.indexOf(name);
@@ -96,10 +101,10 @@ async function loadManifest(path: string): Promise<PreparedArtifact[]> {
     assertString(entry.svg, `Manifest entry ${index + 1} svg`);
     assertString(entry.pngHash, `Manifest entry ${index + 1} pngHash`);
     assertString(entry.svgHash, `Manifest entry ${index + 1} svgHash`);
-    if (typeof entry.jerseyNumber !== "number" || !Number.isInteger(entry.jerseyNumber) || entry.jerseyNumber < 0) {
+    if (entry.jerseyNumber !== null && (typeof entry.jerseyNumber !== "number" || !Number.isInteger(entry.jerseyNumber) || entry.jerseyNumber < 0)) {
       throw new Error(`Manifest entry ${index + 1} has an invalid jersey number.`);
     }
-    const jerseyNumber = entry.jerseyNumber;
+    const jerseyNumber = entry.jerseyNumber ?? null;
     const key = `${entry.jerseyNumber}:${normalizeSignatureName(entry.name)}`;
     if (seen.has(key)) throw new Error(`Manifest contains a duplicate signer: ${entry.name} (#${entry.jerseyNumber}).`);
     seen.add(key);
@@ -446,6 +451,25 @@ function assertDatabaseCoverage(
   return { playerCount: players.length, assetCount: assets.length, blankNumbers: missingNumbers };
 }
 
+function assertCreativeStaffCoverage(
+  collection: NonNullable<Awaited<ReturnType<typeof fetchCollection>>>,
+  assets: PreparedArtifact[],
+  memberName: string,
+) {
+  if (assets.length !== 1) throw new Error("Creative Staff artifact imports require exactly one manifest entry.");
+  const asset = assets[0];
+  if (!asset) throw new Error("Creative Staff artifact manifest entry is missing.");
+  if (asset.jerseyNumber !== null) throw new Error("Creative Staff artifact manifests must use a null jersey number.");
+  const normalizedName = normalizeSignatureName(memberName);
+  if (asset.normalizedName !== normalizedName) throw new Error(`Manifest signer ${asset.name} does not match --member-name ${memberName}.`);
+  const matches = collection.members.filter((member) => member.roleGroup === SignatureMemberGroup.CREATIVE_STAFF && member.normalizedName === normalizedName);
+  if (matches.length !== 1) throw new Error(`Expected exactly one active Creative Staff member named ${memberName}; found ${matches.length}.`);
+  const member = matches[0];
+  if (!member) throw new Error(`Creative Staff member ${memberName} is missing after matching.`);
+  if (!member.capture) throw new Error(`Creative Staff capture row is missing for ${memberName}.`);
+  return { member, asset };
+}
+
 async function markRevisionFailed(db: PrismaClient, revisionId: string, error: unknown) {
   const message = error instanceof Error ? error.message.slice(0, 500) : "Signature import failed";
   await db.signatureArtifactRevision.updateMany({
@@ -548,22 +572,66 @@ async function importArtifact(
 }
 
 async function main() {
-  const sportCode = (option("--sport") ?? "VB") as SignatureImportedSportCode;
+  const requestedSportCode = option("--sport") ?? "VB";
   const season = option("--season") ?? "2026-27";
   const manifestPath = option("--manifest");
+  const memberName = option("--member-name");
   const apply = hasFlag("--apply");
   const confirm = hasFlag("--confirm");
   const expectedBlankNumbers = parseExpectedBlankNumbers();
   if (!manifestPath) throw new Error("Provide --manifest <manifest.json>.");
   if (apply && !confirm) throw new Error("Refusing a Production write without --confirm.");
   if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required.");
+  const isCreativeStaffImport = requestedSportCode === SIGNATURE_CREATIVE_STAFF_SPORT_CODE;
+  if (isCreativeStaffImport && !memberName) throw new Error("Creative Staff imports require --member-name <name>.");
+  if (!isCreativeStaffImport && memberName) throw new Error("--member-name is only supported with --sport CREATIVE.");
 
   const db = new PrismaClient({ adapter: new PrismaNeon({ connectionString: process.env.DATABASE_URL }) });
   try {
-    const [snapshot, assets] = await Promise.all([
-      fetchUWBadgersRoster(sportCode, season),
-      loadManifest(manifestPath),
-    ]);
+    const assets = await loadManifest(manifestPath);
+    if (isCreativeStaffImport) {
+      const existingCollection = await fetchCollection(db, SIGNATURE_CREATIVE_STAFF_SPORT_CODE, season);
+      if (!existingCollection) throw new Error(`The Production ${SIGNATURE_CREATIVE_STAFF_SPORT_CODE} collection does not exist.`);
+      const { member, asset } = assertCreativeStaffCoverage(existingCollection, assets, memberName!);
+      const currentRevision = member.capture?.currentRevision ?? null;
+      if (currentRevision && (currentRevision.state !== SignatureArtifactState.READY || currentRevision.pngHash !== asset.pngHash || currentRevision.svgHash !== asset.svgHash)) {
+        throw new Error(`A different current signature already exists for ${member.name}; refusing to replace it.`);
+      }
+      if (!apply) {
+        console.log(JSON.stringify({
+          mode: "dry-run",
+          sportCode: SIGNATURE_CREATIVE_STAFF_SPORT_CODE,
+          season,
+          member: { id: member.id, name: member.name, roleGroup: member.roleGroup, currentRevision: currentRevision ? { id: currentRevision.id, revision: currentRevision.revision, state: currentRevision.state } : null },
+          asset: { name: asset.name, pngHash: asset.pngHash, svgHash: asset.svgHash, width: asset.width, height: asset.height },
+          message: "No Production roster or artifact writes were performed. Re-run with --apply --confirm to execute the guarded import.",
+        }, null, 2));
+        return;
+      }
+
+      const actor = await findActor(db);
+      const result = await importArtifact(db, actor, existingCollection.id, member.id, asset);
+      const finalCollection = await fetchCollection(db, SIGNATURE_CREATIVE_STAFF_SPORT_CODE, season);
+      const finalMember = finalCollection?.members.find((candidate) => candidate.id === member.id);
+      const finalRevision = finalMember?.capture?.currentRevision;
+      if (!finalRevision || finalRevision.state !== SignatureArtifactState.READY || finalRevision.pngHash !== asset.pngHash || finalRevision.svgHash !== asset.svgHash) {
+        throw new Error(`Creative Staff artifact verification failed for ${member.name}.`);
+      }
+      console.log(JSON.stringify({
+        mode: "applied",
+        sportCode: SIGNATURE_CREATIVE_STAFF_SPORT_CODE,
+        season,
+        actorRole: actor.role,
+        collection: { id: existingCollection.id, version: finalCollection?.collectionVersion ?? existingCollection.collectionVersion, status: finalCollection?.status ?? existingCollection.status },
+        member: { id: member.id, name: member.name, roleGroup: member.roleGroup },
+        artifact: result,
+        message: "Production Creative Staff artifact and private readback verification completed.",
+      }, null, 2));
+      return;
+    }
+
+    const sportCode = requestedSportCode as SignatureImportedSportCode;
+    const snapshot = await fetchUWBadgersRoster(sportCode, season);
     const sourceCoverage = assertAssetCoverage(snapshot.entries, assets, expectedBlankNumbers);
     const existingCollection = await fetchCollection(db, sportCode, season);
     if (!apply) {
