@@ -16,7 +16,7 @@ describe("users location options state", () => {
   it("keeps invite-first onboarding independent from location assignment data", () => {
     const source = readFileSync("src/components/onboarding/OnboardingDialog.tsx", "utf8");
 
-    expect(source).toContain("Users set their own password the first time they register.");
+    expect(source).toContain("Users set their own password the first time they sign in.");
     expect(source).toContain("name=\"bulkInvitationRows\"");
     expect(source).toContain("name=\"singleInvitationEmail\"");
     expect(source).not.toContain("locationsLoading");

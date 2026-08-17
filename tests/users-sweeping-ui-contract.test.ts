@@ -61,7 +61,7 @@ describe("Users sweeping ownership contracts", () => {
     expect(page).toContain('<PageHeader title={isCollaboratorDirectory ? "People" : "Users"} className="mb-5">');
     expect(page).not.toContain("Find people, manage access, and review roster health.");
     expect(page).toContain("Add users");
-    expect(dialog).toContain("Grant registration access to one person or paste a roster.");
+    expect(dialog).toContain("Grant app access to one person or paste a roster.");
     expect(dialog).toContain("Invite-only access");
   });
 

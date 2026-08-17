@@ -7,6 +7,7 @@ struct LoginView: View {
     @State private var password = ""
     @State private var showPassword = false
     @State private var loginStep: LoginStep = .identity
+    @State private var identityError: String?
     @State private var activeAuthMethod: AuthMethod?
     @State private var authDestination: AuthDestination?
     @FocusState private var focused: Field?
@@ -20,20 +21,21 @@ struct LoginView: View {
     }
 
     private enum AuthMethod {
+        case discovery
         case password
         case passkey
     }
 
     private enum AuthDestination: Identifiable {
         case forgotPassword(email: String)
-        case register
+        case register(email: String)
 
         var id: String {
             switch self {
             case .forgotPassword:
                 "forgotPassword"
-            case .register:
-                "register"
+            case let .register(email):
+                "register-\(email)"
             }
         }
     }
@@ -54,6 +56,10 @@ struct LoginView: View {
         activeAuthMethod != nil || session.isLoading
     }
 
+    private var discoveryLoading: Bool {
+        activeAuthMethod == .discovery
+    }
+
     private var passwordLoading: Bool {
         activeAuthMethod == .password
     }
@@ -65,7 +71,7 @@ struct LoginView: View {
     private var primaryButtonTitle: String {
         switch loginStep {
         case .identity:
-            "Continue"
+            discoveryLoading ? "Checking…" : "Continue"
         case .password:
             passwordLoading ? "Signing in…" : "Sign in"
         }
@@ -75,7 +81,24 @@ struct LoginView: View {
         guard canContinue else { return }
         focused = nil
         session.clearError()
-        setLoginStep(.password)
+        identityError = nil
+        activeAuthMethod = .discovery
+        let submittedEmail = trimmedEmail
+        Task {
+            defer { activeAuthMethod = nil }
+            do {
+                let result = try await APIClient.shared.discoverAuth(email: submittedEmail)
+                guard !Task.isCancelled else { return }
+                if result.isOnboarding {
+                    authDestination = .register(email: submittedEmail)
+                } else {
+                    setLoginStep(.password)
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                identityError = error.localizedDescription
+            }
+        }
     }
 
     private func changeEmail() {
@@ -83,6 +106,7 @@ struct LoginView: View {
         focused = nil
         password = ""
         showPassword = false
+        identityError = nil
         session.clearError()
         setLoginStep(.identity)
     }
@@ -171,8 +195,8 @@ struct LoginView: View {
                 switch destination {
                 case let .forgotPassword(email):
                     NativeForgotPasswordView(initialEmail: email)
-                case .register:
-                    NativeRegistrationView()
+                case let .register(email):
+                    NativeRegistrationView(initialEmail: email)
                 }
             }
             .presentationDetents([.large])
@@ -195,7 +219,7 @@ struct LoginView: View {
             }
 
             // Error
-            if let error = session.error {
+            if let error = identityError ?? session.error {
                 Label(error, systemImage: "exclamationmark.circle.fill")
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(Color.statusText(.red))
@@ -218,7 +242,7 @@ struct LoginView: View {
                 }
             } label: {
                 HStack(spacing: 8) {
-                    if passwordLoading {
+                    if discoveryLoading || passwordLoading {
                         ProgressView()
                             .controlSize(.small)
                             .accessibilityHidden(true)
@@ -411,8 +435,8 @@ struct LoginView: View {
         }
     }
 
-    // Each step owns one focused field. The local progression reduces the
-    // visual form load without making an account-discovery request.
+    // Each step owns one focused field. The email step performs the account
+    // discovery request and either opens onboarding or continues to password.
     private func fieldFill(isFocused: Bool) -> some View {
         RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous)
             .fill(Color.white)
@@ -425,22 +449,9 @@ struct LoginView: View {
 
     // Quiet scene-level footer below the card, mirroring the web login.
     private var footer: some View {
-        VStack(spacing: 8) {
-            Text("Access is by invitation only.\nContact Erik Role to request access.")
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.white.opacity(0.55))
-
-            Button("Need an account?") {
-                authDestination = .register
-            }
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(.white.opacity(0.8))
-                .buttonStyle(.plain)
-                .frame(minHeight: 44)
-                .contentShape(Rectangle())
-                .disabled(authBusy)
-                .accessibilityHint("Opens account registration in the app")
-        }
-        .font(.footnote)
+        Text("Enter your invited email to get started.\nContact Erik Role to request access.")
+            .multilineTextAlignment(.center)
+            .foregroundStyle(.white.opacity(0.55))
+            .font(.footnote)
     }
 }

@@ -193,7 +193,7 @@ export default function OnboardingStatusPage() {
       id: "pending",
       label: "Pending",
       value: counts.pending,
-      detail: "Invitations waiting for registration.",
+      detail: "Invitations waiting for first sign-in.",
       icon: UserPlus,
       tone: "info" as const,
       onSelect: () => setStatusFilter("pending"),
@@ -208,17 +208,16 @@ export default function OnboardingStatusPage() {
     }] : []),
   ];
 
-  function registrationPath(row: AllowedEmail) {
-    const params = new URLSearchParams({ email: row.email });
-    return `/register?${params.toString()}`;
+  function loginPath() {
+    return "/login";
   }
 
-  async function copyRegistrationLink(row: AllowedEmail) {
+  async function copyLoginLink() {
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}${registrationPath(row)}`);
-      toast.success("Registration link copied");
+      await navigator.clipboard.writeText(`${window.location.origin}${loginPath()}`);
+      toast.success("App login link copied");
     } catch {
-      toast.error("Could not copy the link. Use Open registration and copy the address instead.");
+      toast.error("Could not copy the link. Use Open app login and copy the address instead.");
     }
   }
 
@@ -362,8 +361,8 @@ export default function OnboardingStatusPage() {
                     <OperationalRowActions label={`Actions for ${row.email}`}>
                       {!row.claimedAt ? (
                         <>
-                          <DropdownMenuItem onClick={() => copyRegistrationLink(row)}><Copy />Copy registration link</DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href={registrationPath(row)} target="_blank" rel="noreferrer"><ExternalLink />Open registration</Link></DropdownMenuItem>
+                          <DropdownMenuItem onClick={copyLoginLink}><Copy />Copy app login link</DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href={loginPath()} target="_blank" rel="noreferrer"><ExternalLink />Open app login</Link></DropdownMenuItem>
                           <DropdownMenuItem variant="destructive" onClick={() => removeInvite(row)} disabled={deletingId === row.id}><Trash2 />{deletingId === row.id ? "Removing" : "Remove pending invite"}</DropdownMenuItem>
                         </>
                       ) : (
@@ -420,14 +419,14 @@ export default function OnboardingStatusPage() {
                     <OperationalRowActions label={`Actions for ${row.email}`}>
                       {!row.claimedAt && (
                         <>
-                          <DropdownMenuItem onClick={() => copyRegistrationLink(row)}>
+                          <DropdownMenuItem onClick={copyLoginLink}>
                             <Copy className="size-4" />
-                            Copy registration link
+                            Copy app login link
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
-                            <Link href={registrationPath(row)} target="_blank" rel="noreferrer">
+                            <Link href={loginPath()} target="_blank" rel="noreferrer">
                               <ExternalLink className="size-4" />
-                              Open registration
+                              Open app login
                             </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem

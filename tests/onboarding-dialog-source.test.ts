@@ -5,11 +5,11 @@ describe("onboarding dialog source wiring", () => {
   it("presents one shared invite-first flow without temporary-password onboarding", () => {
     const source = readFileSync("src/components/onboarding/OnboardingDialog.tsx", "utf8");
 
-    expect(source).toContain("Grant registration access");
+    expect(source).toContain("Grant app access");
     expect(source).toContain('fetch("/api/allowed-emails"');
     expect(source).toContain("Max 50 per batch");
     expect(source).toContain("already allowlisted or registered");
-    expect(source).toContain("Users set their own password the first time they register.");
+    expect(source).toContain("Users set their own password the first time they sign in.");
     expect(source).toContain("No shared first-login password is created.");
     expect(source).toContain('className="border-[var(--green)]/40 bg-[var(--green-bg)]"');
     expect(source).not.toContain("border-green-200 bg-green-50");
@@ -38,7 +38,7 @@ describe("onboarding dialog source wiring", () => {
     expect(source).toContain("Authenticated preview checks existing users and invitations before commit.");
     expect(source).toContain("Review account status before saving invitations.");
     expect(source).toContain("serverBlockingRows.length > 0");
-    expect(source).toContain("Share the registration link or send users to the app registration page.");
+    expect(source).toContain("Send users to the app login page. They enter their invited email and are routed to password setup automatically.");
     expect(source).toContain("requested: emails.length");
   });
 

@@ -16,26 +16,29 @@ describe("iOS Login presentation", () => {
     expect(login).toContain('passwordLoading ? "Signing in…" : "Sign in"');
     expect(login).toContain("Text(primaryButtonTitle)");
     expect(login).toMatch(
-      /if passwordLoading \{\s+ProgressView\(\)\s+\.controlSize\(\.small\)\s+\.accessibilityHidden\(true\)/,
+      /if discoveryLoading \|\| passwordLoading \{\s+ProgressView\(\)\s+\.controlSize\(\.small\)\s+\.accessibilityHidden\(true\)/,
     );
     expect(login).toContain(".buttonStyle(.glassProminent)");
     expect(login).toContain(".controlSize(.large)");
   });
 
-  it("stages identity and password locally instead of showing a two-field form", () => {
+  it("discovers the invited identity before choosing onboarding or password", () => {
     expect(login).toContain("@State private var loginStep: LoginStep = .identity");
     expect(login).toContain("private var identityStep: some View");
     expect(login).toContain("private var passwordStep: some View");
     expect(login).toContain("private func advanceToPassword()");
+    expect(login).toContain("activeAuthMethod = .discovery");
+    expect(login).toContain("APIClient.shared.discoverAuth(email: submittedEmail)");
+    expect(login).toContain("authDestination = .register(email: submittedEmail)");
     expect(login).toContain("setLoginStep(.password)");
     expect(login).toContain("setLoginStep(.identity)");
     expect(login).toContain('Text("Email address")');
     expect(login).toContain('Text("Password")');
     expect(login).not.toContain("credentialGroupFill");
 
-    const localAdvance = section("private func advanceToPassword()", "private func changeEmail()");
-    expect(localAdvance).not.toContain("session.login");
-    expect(localAdvance).not.toContain("APIClient");
+    const discoveryAdvance = section("private func advanceToPassword()", "private func changeEmail()");
+    expect(discoveryAdvance).not.toContain("session.login");
+    expect(discoveryAdvance).toContain("APIClient.shared.discoverAuth");
     expect(login).toContain("if reduceMotion");
     expect(login).toContain("@AccessibilityFocusState private var accessibilityFocused: Field?");
     expect(login).toContain('step == .identity ? "Enter your email address" : "Enter your password"');
@@ -75,6 +78,7 @@ describe("iOS Login presentation", () => {
       /private var authBusy: Bool \{\s+activeAuthMethod != nil \|\| session\.isLoading\s+\}/,
     );
     expect(login).toContain("activeAuthMethod = .password");
+    expect(login).toContain("activeAuthMethod = .discovery");
     expect(login).toContain("activeAuthMethod = .passkey");
     expect(login).toContain("!trimmedEmail.isEmpty && !password.isEmpty && !authBusy");
     expect(section('Button("Change")', 'Text("Password")')).toContain(".disabled(authBusy)");
@@ -92,13 +96,13 @@ describe("iOS Login presentation", () => {
 
   it("retains native auth recovery and 44-point utility controls", () => {
     expect(login).toContain('Button("Forgot password?")');
-    expect(login).toContain('Button("Need an account?")');
+    expect(login).toContain("Enter your invited email to get started.");
+    expect(login).not.toContain('Button("Need an account?")');
     expect(section('Button("Change")', 'Text("Password")')).toContain(".frame(minWidth: 44, minHeight: 44)");
     expect(section('Button("Forgot password?")', "private func fieldFill")).toContain(".frame(maxWidth: .infinity, minHeight: 44, alignment: .trailing)");
-    expect(section('Button("Need an account?")', "        .font(.footnote)" )).toContain(".frame(minHeight: 44)");
     expect(section("Button {\n                    showPassword.toggle()", 'Button("Forgot password?")')).toContain(".frame(width: 44, height: 44)");
     expect(login).toContain("NativeForgotPasswordView(initialEmail: email)");
-    expect(login).toContain("NativeRegistrationView()");
+    expect(login).toContain("NativeRegistrationView(initialEmail: email)");
   });
 
   it("preserves normalized password auth and Keychain content types", () => {

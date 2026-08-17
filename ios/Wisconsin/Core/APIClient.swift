@@ -56,6 +56,22 @@ struct PasswordResetRequestResult: Decodable {
     let resetEmailConfigured: Bool
 }
 
+enum AuthDiscoveryFlow: String, Decodable {
+    case onboarding
+    case password
+
+    init(from decoder: Decoder) throws {
+        let value = try decoder.singleValueContainer().decode(String.self)
+        self = AuthDiscoveryFlow(rawValue: value) ?? .password
+    }
+}
+
+struct AuthDiscoveryResult: Decodable {
+    let flow: AuthDiscoveryFlow
+
+    var isOnboarding: Bool { flow == .onboarding }
+}
+
 enum AssetTextMutation {
     case unchanged
     case value(String)
@@ -96,6 +112,18 @@ final class APIClient {
     }()
 
     // MARK: - Auth
+
+    func discoverAuth(email: String) async throws -> AuthDiscoveryResult {
+        struct Body: Encodable {
+            let email: String
+        }
+
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        prepareAuthHost(for: normalizedEmail)
+        var req = request(path: "/api/auth/discover", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(email: normalizedEmail))
+        return try await perform(req, broadcastsSessionExpiry: false)
+    }
 
     func login(email: String, password: String) async throws -> CurrentUser {
         struct Body: Encodable {

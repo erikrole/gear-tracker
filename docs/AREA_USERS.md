@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-06
+- Last Updated: 2026-08-17
 - Status: Active
 - Version: V1.2
 
@@ -119,6 +119,8 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+
+- 2026-08-17: **Invite-first onboarding now starts at app login.** Web and native iOS submit a rate-limited email discovery request, route an unclaimed allowed email into self-chosen password setup, and then reuse the existing registration transaction and role-aware Welcome flow. Existing users, claimed or missing invites, and inactive collaborator policies stay on password sign-in. Onboarding Status now copies the generic app login link, while `/register` redirects there for older links; authenticated rollout proof remains open.
 
 - 2026-08-10: Badge ownership semantics were made explicit. Checkout-open and category-breadth credit is frozen to the opener through durable receipts; transferring an already-open checkout does not move that history. The current requester still owns the eventual return, on-time, and damage-free outcome. Compatibility pending-pickup confirmation resolves that current requester on the server and rejects stale pre-transfer actor identifiers.
 

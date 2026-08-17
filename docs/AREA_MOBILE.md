@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Mobile Operations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-12
+- Last Updated: 2026-08-17
 - Status: Active
 - Version: V1
 
@@ -132,6 +132,8 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 - **V3 (later)**: Bottom nav badge counts via live `/api/nav-counts` polling, game-day/shift context cards
 
 ## Change Log
+
+- 2026-08-17: **Native login now discovers invited identities before sign-in.** The email step calls the shared `/api/auth/discover` contract, opens the existing native registration form with the approved email locked when onboarding is required, and otherwise continues to password sign-in. Registration still uses the existing allowlist-backed session contract and the role-aware Welcome/profile flow; unknown discovery values fall back to password. Source contracts and focused tests pass, while simulator/device rollout proof remains open.
 
 - 2026-08-15: **Web app icons now use the finalized Block W artwork.** The favicon, PNG manifest icons, Apple touch icon, and versioned service-worker app shell now use the white Block W from `ios/IconSources/IconComposerCandidates/vintage-helmet/BlockW.icon` on Wisconsin red instead of the placeholder `G` mark. The existing iOS Icon Composer documents remain unchanged.
 

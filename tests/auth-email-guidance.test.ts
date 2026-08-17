@@ -14,7 +14,6 @@ describe("auth email domain guidance", () => {
   it("wires the live note into web and native auth forms", () => {
     const webSources = [
       readFileSync("src/app/login/LoginForm.tsx", "utf8"),
-      readFileSync("src/app/register/page.tsx", "utf8"),
       readFileSync("src/app/forgot-password/page.tsx", "utf8"),
     ];
     const nativeLogin = readFileSync("ios/Wisconsin/Views/LoginView.swift", "utf8");

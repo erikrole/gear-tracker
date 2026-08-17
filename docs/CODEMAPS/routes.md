@@ -128,6 +128,7 @@
 - `/api/audit/export` -> `src/app/api/audit/export/route.ts`
 - `/api/audit/last` -> `src/app/api/audit/last/route.ts`
 - `/api/audit` -> `src/app/api/audit/route.ts`
+- `/api/auth/discover` -> `src/app/api/auth/discover/route.ts`
 - `/api/auth/forgot-password` -> `src/app/api/auth/forgot-password/route.ts`
 - `/api/auth/login` -> `src/app/api/auth/login/route.ts`
 - `/api/auth/logout` -> `src/app/api/auth/logout/route.ts`

@@ -6,6 +6,7 @@ const API_ROOT = path.join(process.cwd(), "src/app/api");
 const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"] as const;
 const WRAPPER_NAMES = ["withAuth", "withKiosk", "withHandler", "withCron"] as const;
 const PUBLIC_HANDLER_ROUTES: Record<string, string[]> = {
+  "src/app/api/auth/discover/route.ts": ["POST"],
   "src/app/api/auth/forgot-password/route.ts": ["POST"],
   "src/app/api/auth/login/route.ts": ["POST"],
   "src/app/api/auth/passkey/login/options/route.ts": ["POST"],
@@ -20,6 +21,10 @@ const PUBLIC_HANDLER_ROUTES: Record<string, string[]> = {
 };
 const PUBLIC_HANDLER_ALLOWLIST = new Set(Object.keys(PUBLIC_HANDLER_ROUTES));
 const PUBLIC_ROUTE_SAFETY: Record<string, RegExp[]> = {
+  "src/app/api/auth/discover/route.ts": [
+    /\b(?:checkRateLimit|enforceRateLimit)\s*\(/,
+    /\bgetClientIp\s*\(/,
+  ],
   "src/app/api/auth/forgot-password/route.ts": [
     /\b(?:checkRateLimit|enforceRateLimit)\s*\(/,
     /\bgetClientIp\s*\(/,

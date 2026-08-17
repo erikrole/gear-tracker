@@ -338,6 +338,10 @@ export const loginSchema = z.object({
   companion: z.boolean().optional(),
 });
 
+export const authDiscoverySchema = z.object({
+  email: z.string().trim().max(254).email(),
+});
+
 const passkeyResponseSchema = z.object({
   id: z.string().min(1).max(512),
   rawId: z.string().min(1).max(512),

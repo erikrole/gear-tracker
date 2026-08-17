@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Settings
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-07
+- Last Updated: 2026-08-17
 - Status: Active
 - Version: V1
 
@@ -179,8 +179,8 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Admin-managed email allowlist for registration gating (D-029).
 - Add invitations through the shared onboarding dialog with bulk paste, CSV-like `email, role` intake, or one-email intake. STAFF can invite STUDENT only; ADMIN can invite STAFF or STUDENT.
 - Bulk invite preview groups ready, duplicate, invalid, role-blocked, existing-user, pending-invite, and claimed-invite rows before write. Existing registered or already-invited addresses are visible only to authenticated operators through the preview endpoint; final write responses keep generic skip behavior.
-- First-time temporary-password account creation is retired. Operators add allowlist invitations, and users set their own password during registration.
-- Onboarding Status links to `/users/onboarding-status`, where staff/admin can review pending, stale pending, and claimed onboarding access across the allowlist, copy prefilled registration links, and remove unclaimed invites before reissuing access.
+- First-time temporary-password account creation is retired. Operators add allowlist invitations, and users set their own password during email-first app sign-in.
+- Onboarding Status links to `/users/onboarding-status`, where staff/admin can review pending, stale pending, and claimed onboarding access across the allowlist, copy the generic app login link, and remove unclaimed invites before reissuing access.
 - Delete unclaimed entries. Claimed entries preserved (audit trail).
 - Filter by status (all/unclaimed/claimed).
 
@@ -206,6 +206,8 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages. Role-gated Settings sibling menus now wait for the current role before becoming dropdowns, so the loading frame does not expose an empty menu. The global breadcrumb UI now uses a lighter trail treatment with the current Settings sub-page marked by a subtle underline instead of a filled chip.
 
 ## Change Log
+
+- 2026-08-17: **Allowed Emails now hands people to the app login.** Pending invitations are discovered after email entry and route unregistered users into self-chosen password setup on web or native iOS. Status actions copy `/login` instead of row-specific registration links, and the old `/register` route remains only as a compatibility redirect. The allowlist and registration transaction remain authoritative.
 
 - 2026-08-10: Escalation settings now expose the durable five-stage checkout policy, separate requester and operational caps, and audited location-scoped overdue responder assignment with active visible STAFF/ADMIN validation and creator/admin fallback. Migration and production proof remain rollout gates.
 

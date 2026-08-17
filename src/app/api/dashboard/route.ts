@@ -696,6 +696,7 @@ export const GET = withAuth(async (req, { user }) => {
         summary: normalizeTeamAbbreviations(ev.summary),
         startsAt: ev.startsAt.toISOString(),
         endsAt: ev.endsAt.toISOString(),
+        allDay: ev.allDay,
         sportCode: ev.sportCode,
         opponent: ev.opponent ? normalizeTeamAbbreviations(ev.opponent) : null,
         isHome: ev.isHome,

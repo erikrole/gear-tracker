@@ -194,7 +194,7 @@
 | `src/lib/user-list-cache.ts` | 73 |
 | `src/lib/user-visibility.ts` | 71 |
 | `src/lib/utils.ts` | 7 |
-| `src/lib/validation.ts` | 794 |
+| `src/lib/validation.ts` | 798 |
 | `src/lib/venue-mapping-audit.ts` | 56 |
 | `src/lib/venue-mapping-contract.ts` | 46 |
 | `src/lib/venue-tone.ts` | 97 |
@@ -249,6 +249,7 @@
 
 ### `/api/auth`
 
+- `/api/auth/discover`
 - `/api/auth/forgot-password`
 - `/api/auth/login`
 - `/api/auth/logout`

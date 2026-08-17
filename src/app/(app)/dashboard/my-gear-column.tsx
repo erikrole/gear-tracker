@@ -157,6 +157,7 @@ export function MyGearColumn({
                 ? { startsAt: s.callStartsAt, endsAt: s.callEndsAt }
                 : null;
               const isFullDayDefault = studentCallWindow ? isFullDayBoundaryWindow(studentCallWindow) : false;
+              const isAllDayDisplay = studentCallWindow ? isFullDayDefault : s.event.allDay;
               const displayDate = studentCallWindow?.startsAt ?? s.event.startsAt;
               return (
                 <div key={s.id} className="group flex min-h-16 w-full items-center justify-between gap-3 px-4 py-2.5 transition-colors hover:bg-muted/45 [&+&]:border-t [&+&]:border-border/40">
@@ -166,7 +167,7 @@ export function MyGearColumn({
                       <span className="text-muted-foreground font-normal">{eventTitle}</span>
                     </span>
                     <span className="flex items-center gap-1 text-xs text-muted-foreground leading-snug">
-                      {formatDayLabel(displayDate, now, isFullDayDefault)}
+                      {formatDayLabel(displayDate, now, isAllDayDisplay)}
                       {studentCallWindow && !isFullDayDefault && `, Call ${formatCallTime(studentCallWindow)}`}
                       {s.event.locationName && ` \u00B7 ${s.event.locationName}`}
                     </span>

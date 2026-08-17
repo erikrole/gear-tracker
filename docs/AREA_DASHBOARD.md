@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Dashboard
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-13
+- Last Updated: 2026-08-17
 - Status: Active — V3 shipped, reliability + UX polish complete
 - Version: V3
 
@@ -184,6 +184,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 ## Change Log
 
+- 2026-08-17: **Dashboard My Shifts now preserves all-day event dates.** Staff shift rows carry the event's `allDay` flag through `/api/dashboard` and use UTC-safe date-only formatting for UTC-midnight calendar events, while explicit Student call windows remain timed. This closes the remaining non-UTC dashboard path that could show an upcoming shift one calendar day early in Central time.
 - 2026-08-09: **Wisconsin Creative no-wake companion transport.** The menu bar app no longer restores through `/api/me`, polls booking routes, or reads Neon during automatic operation. Explicit password enrollment builds one initial projection while Neon is already awake and returns a signed, revocable companion credential. Successful booking, custody, kiosk, and avatar mutations rebuild a bounded read model after commit, store it in Upstash, and send silent APNs invalidation. Kiosk last-seen publication is chained after the existing deferred heartbeat write. Launch restores only Keychain and the last trusted local cache; APNs and manual refresh fetch only the external projection and never fall through to a database route. Quiet time is not treated as a health failure. The popover keeps the Wisconsin Creative name, shared app icon, package menu-bar symbol, iOS-aligned open booking and pickup rows, requester photos, kiosk diagnostics, passive local change alerts, and read-only web deep links. Production deployment and real APNs delivery remain external proof gates.
 - 2026-07-31: **Snow Leopard collaborator and draft-state hardening.** The active booking API and dashboard totals exclude `DRAFT` records, while draft recovery labels them explicitly as Draft. Collaborator dashboard statistics return zero for private My Gear counts unless `MY_GEAR_VIEW` is granted, preventing a capability-denied account from learning personal booking totals.
 - 2026-07-24: Booking timing now uses calendar-relative labels (`Today`,

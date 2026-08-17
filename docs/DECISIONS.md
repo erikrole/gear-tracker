@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-08-16
+- Last Updated: 2026-08-17
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -57,6 +57,7 @@
 - D-048: Product usage counting is first-party, pseudonymous, and owner-only
 - D-049: Web releases use monthly CalVer tags and GitHub Releases
 - D-050: Signature capture uses external roster members and private deterministic artifacts
+- D-051: Email-first discovery for invite-gated onboarding
 
 ---
 
@@ -588,7 +589,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - First-time user access now flows through the allowlist and registration. Direct temporary-password onboarding through `/api/users` is retired for beta; administrator password reset remains the forced-password recovery path.
 
 **Downstream Effects:**
-- Public `/register` still works but only for pre-approved emails
+- Public `/register` remains a compatibility redirect into `/login`; the existing registration transaction still accepts only pre-approved emails
 - First-time user creation via `/api/users` (POST) no longer bypasses the allowlist for beta onboarding
 - Existing users unaffected (allowlist only gates new registrations)
 
@@ -608,11 +609,11 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Support `Invite to register` by creating or reusing unclaimed allowed-email entries.
   - Retire first-time `Create account with temporary password` onboarding. `/api/users` POST and `/api/users/bulk-create` should no longer mint temporary onboarding credentials.
   - Enforce role boundaries server-side on every preview and commit. STAFF may onboard STUDENT accounts only; ADMIN may onboard STAFF and STUDENT accounts.
-  - Keep public registration and authentication responses safe from membership enumeration. Authenticated staff/admin preview may show operational status for records within their management scope.
+  - Keep public registration and authentication responses safe from membership enumeration. Authenticated staff/admin preview may show operational status for records within their management scope. The bounded two-state email discovery result in D-051 is the deliberate exception for the normal invited-user entry point.
   - Keep native iOS forced-password handling for administrator reset and recovery users before entering the app shell.
   - Audit every create, claim, skip, retry, and follow-up onboarding action.
 - Consequences:
-  - `/api/allowed-emails` and registration remain the first-time onboarding path.
+  - `/api/allowed-emails` remains the access authority, while `/login` is the first-time onboarding entry point. The compatibility `/register` route redirects there for older links.
   - Successful registration enters role-aware Welcome setup on web or native iOS. Operational readiness is derived from role-specific canonical profile fields, while apparel, shoes, and a profile photo determine the separate profile-complete state.
   - Collaborator setup remains limited to welcome and an optional photo; internal contact, Wiscard, student, sizing, area, and location requirements do not apply.
   - First-time onboarding must not generate, export, or require shared temporary passwords.
@@ -1100,6 +1101,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   `docs/RELEASE_VERIFICATION.md`.
 
 ## Change Log
+- 2026-08-17: Added D-051 for rate-limited email-first discovery across web and native iOS. The existing allowlist and registration transaction remain authoritative; discovery returns only onboarding/password flow state, and old registration links now redirect to the app login surface.
 - 2026-08-15: Added D-049 for monthly `YYYY.M.N` web release versioning,
   GitHub Release creation from pushed tags, and continued Vercel `main`
   production deployment.
@@ -1195,3 +1197,25 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Do not reuse `StudentSportAssignment`, expose public Blob URLs, trust client filenames or files, use fuzzy or ambiguous identity reconciliation, reconcile by email, or count local drafts as complete. The only name bridge is the exact unique normalized-name rule above.
   - Staff/admin can view, import, reconcile external rosters and Creative staff, capture, replace, remove, and download. Admin alone can configure pen settings, alter required state, archive, delete collections, and perform collection-wide reset.
 - Reference: `docs/BRIEF_SIGNATURE_CAPTURE_V1.md`, `docs/AREA_SIGNATURES.md`, and `tasks/signature-capture-micro-app-plan.md`.
+
+## D-051: Email-First Discovery for Invite-Gated Onboarding
+
+- Date: 2026-08-17
+- Status: Accepted; implemented locally, rollout proof pending
+- Context:
+  - Email blasts should send people to one app entry point. Separate registration links make web and native iOS behave differently and leave the user to understand an internal registration concept.
+  - `AllowedEmail` is already the source of truth for first-time access, and email delivery is intentionally not a required Gear Tracker dependency.
+- Decision:
+  - The normal web and native sign-in flow starts with an email identity step. A rate-limited `POST /api/auth/discover` normalizes the address and returns only `flow: "onboarding"` for an unclaimed allowed email with no existing user, or `flow: "password"` for every other state.
+  - The discovery response never includes role, name, profile fields, policy grants, or roster data. An inactive or missing collaborator policy stays on password sign-in rather than opening a registration path.
+  - Web onboarding collects name and a self-chosen password in the login surface. Native iOS opens the existing native registration form with the discovered email locked. Both continue through the existing `/api/auth/register` transaction and role-aware Welcome/profile setup; the client-side discovery result is never an authorization bypass.
+  - `/register` remains only as a compatibility alias that redirects to `/login` and preserves an old email query as a prefill. Authenticated onboarding-status actions copy the generic app login link instead of row-specific registration URLs.
+- Consequences:
+  - Email-blast links, copied operator links, web login, and native iOS now share one first-time entry point.
+  - The two-state discovery result is a deliberate, bounded membership signal for the requested onboarding experience. Rate limits, minimal response data, generic failure behavior, and the final registration gate limit its value as an oracle.
+  - No schema, temporary password, email service, or new profile authority is introduced.
+- Guardrails:
+  - Keep discovery IP and normalized-email limits sized for shared campus networks; never return account metadata or collaborator grants.
+  - Registration must continue to re-check the allowlist, claim it transactionally, and handle races through the existing server constraints and generic rejection path.
+  - Unknown future discovery values must fall back to password on native clients so compatible rollout cannot accidentally open onboarding.
+- Reference: `docs/BRIEF_ONBOARDING_V1.md`, `docs/AREA_USERS.md`, `docs/AREA_MOBILE.md`, `src/app/api/auth/discover/route.ts`, and `tasks/email-first-onboarding-plan-2026-08-17.md`.

@@ -111,3 +111,24 @@ describe("dashboard archived-event exclusion", () => {
     expect(myShifts).toContain("Number.isFinite(rawLimit)");
   });
 });
+
+describe("dashboard My Shifts date contract", () => {
+  it("preserves an event's all-day calendar date for staff shift rows", () => {
+    const route = source("src/app/api/dashboard/route.ts");
+    const types = source("src/app/(app)/dashboard-types.ts");
+    const column = source("src/app/(app)/dashboard/my-gear-column.tsx");
+    const myShiftType = types.slice(
+      types.indexOf("export type MyShift ="),
+      types.indexOf("export type MyEventWork ="),
+    );
+    const myShiftsPayload = route.slice(
+      route.indexOf("const myShifts = myShiftsRaw.map"),
+      route.indexOf("const assignmentByEvent =", route.indexOf("const myShifts = myShiftsRaw.map")),
+    );
+
+    expect(myShiftType).toContain("allDay: boolean;");
+    expect(myShiftsPayload).toContain("allDay: ev.allDay");
+    expect(column).toContain(": s.event.allDay;");
+    expect(column).toContain("formatDayLabel(displayDate, now, isAllDayDisplay)");
+  });
+});

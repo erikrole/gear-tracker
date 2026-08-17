@@ -140,6 +140,7 @@ export type MyShift = {
     summary: string;
     startsAt: string;
     endsAt: string;
+    allDay: boolean;
     sportCode: string | null;
     opponent: string | null;
     isHome: boolean | null;

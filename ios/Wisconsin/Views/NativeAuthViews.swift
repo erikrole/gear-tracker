@@ -34,6 +34,7 @@ struct NativeRegistrationView: View {
     @State private var confirmPassword = ""
     @State private var formError: String?
     @State private var isSubmitting = false
+    private let emailIsLocked: Bool
     @FocusState private var focusedField: Field?
 
     private enum Field: Hashable {
@@ -55,10 +56,16 @@ struct NativeRegistrationView: View {
             !isSubmitting
     }
 
+    init(initialEmail: String = "") {
+        let normalizedEmail = initialEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        _email = State(initialValue: normalizedEmail)
+        emailIsLocked = !normalizedEmail.isEmpty
+    }
+
     var body: some View {
         Form {
             Section {
-                Text("Registration is by invitation only. Your email must already be approved by an administrator.")
+                Text("Your invited email is approved. Create a password, then we’ll walk you through the details needed for work.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
@@ -76,6 +83,7 @@ struct NativeRegistrationView: View {
                     .focused($focusedField, equals: .email)
                     .submitLabel(.next)
                     .onSubmit { focusedField = .password }
+                    .disabled(emailIsLocked)
 
                 AuthEmailDomainNote(email: email)
 
@@ -118,7 +126,7 @@ struct NativeRegistrationView: View {
                 .disabled(!canSubmit)
             }
         }
-        .navigationTitle("Create account")
+        .navigationTitle("Set up account")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {

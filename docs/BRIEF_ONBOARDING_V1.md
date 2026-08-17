@@ -5,18 +5,18 @@
 - Owner: Wisconsin Athletics Creative Product
 - Status: Active - invite-first V1 shipped and launch-smoked
 - Version: V1
-- Last Updated: 2026-08-12
-- Decision Reference: D-037
+- Last Updated: 2026-08-17
+- Decision Reference: D-037, D-051
 
 ## Problem
-Onboarding is currently split across separate operator tasks: create access, add an allowed email, tell users where to register, and confirm the first mobile sign-in path works. That is too fragile for roster-sized student and staff onboarding.
+Onboarding is currently split across separate operator tasks: create access, add an allowed email, tell users where to register, and confirm the first mobile sign-in path works. That is too fragile for roster-sized student and staff onboarding, especially when an email blast needs one reliable link.
 
 The security model still needs to prevent unauthorized access. The fix is one first-class onboarding lifecycle that keeps the existing invite gate, makes bulk operations predictable, and lets web and iOS handle first sign-in consistently.
 
 ## Goals
 1. Onboard a large student or staff cohort from one operator workflow.
 2. Preserve invite-gated registration through `AllowedEmail`.
-3. Support invite-to-register as the first-time onboarding path so users set their own password.
+3. Support email-first invite onboarding from the normal app login so users set their own password without a separate registration link.
 4. Make duplicate, existing-user, and already-invited cases visible enough for an authorized operator to resolve without leaking membership through public endpoints.
 5. Keep forced-password handling available for administrator reset/recovery, not first-time onboarding.
 6. Make native iOS account recovery work for forced-password users.
@@ -27,7 +27,7 @@ The security model still needs to prevent unauthorized access. The fix is one fi
 2. Domain-wide automatic access, such as accepting every address from one school domain.
 3. Self-service role requests.
 4. Directory sync, SCIM, SSO, Entra, or Google Workspace automation.
-5. Email delivery as a required dependency for V1. If delivery is not configured, operators can still copy invite links or send users to registration manually.
+5. Email delivery as a required dependency for V1. If delivery is not configured, operators can still send an email blast or copy the generic app login link.
 6. Pre-created user profiles without any password. `User.passwordHash` is required today, so that needs a later schema and setup-token slice.
 
 ## Product Direction
@@ -35,9 +35,9 @@ Onboarding becomes a People workflow with Settings-level configuration roots.
 
 An admin or staff operator should be able to paste a roster or upload CSV rows with email, name, role, and optional fields such as location, area, sport, or student year. The system previews the batch before writing. Preview groups rows into ready, invalid, duplicate-in-batch, existing user, existing pending invite, claimed invite, and role-not-allowed.
 
-For each batch, the operator creates or reuses unclaimed `AllowedEmail` rows. The person completes registration on web and chooses their own password.
+For each batch, the operator creates or reuses unclaimed `AllowedEmail` rows. The person enters their email at the normal app login, is routed into setup when the allowlist recognizes an unclaimed invitation, and chooses their own password. The existing registration transaction remains the final authority.
 
-Public registration and login responses must stay generic where membership disclosure would be unsafe. Authenticated staff/admin onboarding preview may show operational status for records the operator is already authorized to manage.
+Public registration and login responses must stay generic where membership disclosure would be unsafe. D-051 is the bounded exception for the requested email-first entry point: discovery returns only a two-state onboarding/password flow and no account metadata. Authenticated staff/admin onboarding preview may show operational status for records the operator is already authorized to manage.
 
 ## Security Requirements
 1. The allowlist gate remains the source of truth for self-registration.
@@ -62,6 +62,7 @@ Public registration and login responses must stay generic where membership discl
 8. Focused tests for bulk role boundaries, duplicates, existing records, audit writes, and forced-password access.
 9. Role-aware Welcome setup on web and native iOS after registration or sign-in, with a one-day continue-later path.
 10. Derived operational-readiness and profile-completion status for all active accounts in the staff/admin onboarding view.
+11. Email-first discovery on web and native iOS, with the old registration route retained only as a compatibility redirect.
 
 ## Data and API Notes
 1. Keep the existing `AllowedEmail` and `User.forcePasswordChange` models for V1.
@@ -72,6 +73,7 @@ Public registration and login responses must stay generic where membership discl
 6. Registration accepts legacy Wiscard input for rollout compatibility but ignores it; typed card number and issue code belong to authenticated setup.
 7. The current forced-password API exception list must stay narrow: password setup and logout only.
 8. iOS `CurrentUser` keeps `forcePasswordChange` so the native shell can route reset/recovery users correctly after login and `/api/me`.
+9. `POST /api/auth/discover` is rate-limited by IP and normalized email, returns only `onboarding` or `password`, and never replaces the registration allowlist check.
 
 ## Acceptance Criteria
 - [x] Operator can onboard a roster-sized batch without manually switching between Users and Allowed Emails.
@@ -86,12 +88,14 @@ Public registration and login responses must stay generic where membership discl
 - [x] Docs, task plan, web tests, API tests, and iOS verification are updated before shipping.
 - [x] New web registrations enter role-aware setup, and active-account readiness remains derived from canonical profile fields.
 - [x] Native iOS mirrors the role-aware setup contract without caching private profile values on device.
+- [ ] Web and native iOS discover an unclaimed allowed email from the normal login surface and complete password setup through the existing registration transaction.
+- [ ] Legacy `/register` links redirect to `/login`, and onboarding-status operators copy the generic app login link.
 
 ## Launch Notes
 1. Native iOS owns invite-gated registration and password-recovery requests through the existing APIs, while reset-link completion remains web-owned. Native also owns the authenticated profile-completion experience.
 2. First-time direct-create and bulk direct-create endpoints are retired for beta. Operators should add allowlist invitations instead.
 3. Admin password reset stays available as a recovery path and still requires password setup before normal app access.
-4. Production launch smoke passed on June 8, 2026 for invite-to-register, stale invite removal, `/register?email=...` prefill, and forced-password recovery.
+4. The June 8, 2026 launch smoke covered invite-to-register, stale invite removal, `/register?email=...` prefill, and forced-password recovery. The email-first flow supersedes the old prefilled registration handoff; the compatibility alias remains until the new authenticated web/native rollout smoke is complete.
 
 ## Implementation Slices
 1. Brief and decision sync.
@@ -101,7 +105,8 @@ Public registration and login responses must stay generic where membership discl
 5. iOS forced-password setup.
 6. iOS registration and recovery polish.
 7. Native iOS role-aware profile completion and photo crop.
-8. Verification, docs sync, and plan archival.
+8. Email-first discovery, shared login entry, and legacy registration redirect.
+9. Verification, docs sync, and plan archival.
 
 ## Verification Plan
 1. API tests for allowed emails, users, registration, login, and onboarding bulk paths.
@@ -113,7 +118,7 @@ Public registration and login responses must stay generic where membership discl
 7. `npm run drift:ios`.
 8. `npm run audit:ios:gaps`.
 9. iOS simulator build using `generic/platform=iOS Simulator`.
-10. Browser smoke for onboarding preview, commit, status, and registration-link paths.
+10. Browser smoke for email-first discovery, onboarding registration, status, generic app-login links, and the legacy `/register` redirect.
 
 ## Risks and Stop Conditions
 1. Stop if bulk reconciliation cannot avoid unsafe role escalation.
@@ -121,3 +126,4 @@ Public registration and login responses must stay generic where membership discl
 3. Stop if operators still need first-time temporary-password output for usability.
 4. Stop if iOS cannot change forced passwords through a narrowly allowed route.
 5. Stop if email delivery becomes required before the underlying onboarding lifecycle works.
+6. Stop if discovery returns role/profile data, bypasses the final registration gate, or creates a client-only onboarding path that the native and web contracts cannot share.

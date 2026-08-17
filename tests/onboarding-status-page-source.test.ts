@@ -20,20 +20,20 @@ describe("onboarding status page source wiring", () => {
     expect(source).toContain('if (status === "claimed") return <Badge variant="gray">Claimed</Badge>;');
     expect(source).toContain("createdBy.name");
     expect(source).toContain("claimedBy.name");
-    expect(source).toContain("Copy registration link");
+    expect(source).toContain("Copy app login link");
     expect(source).toContain("Remove pending invite");
-    expect(source).toContain("navigator.clipboard.writeText(`${window.location.origin}${registrationPath(row)}`)");
+    expect(source).toContain("navigator.clipboard.writeText(`${window.location.origin}${loginPath()}`)");
     expect(source).toContain("row.collaboratorPolicy?.affiliation.badgeLabel");
     expect(source).not.toContain('params.set("profile", "btn")');
     expect(source).toContain("fetch(`/api/allowed-emails/${row.id}`, { method: \"DELETE\" })");
   });
 
-  it("prefills web registration from copied invitation links", () => {
+  it("keeps old invitation links as a compatibility redirect into app login", () => {
     const source = readFileSync("src/app/register/page.tsx", "utf8");
 
-    expect(source).toContain("new URLSearchParams(window.location.search)");
-    expect(source).toContain("get(\"email\")");
-    expect(source).toContain("setEmail(invitedEmail)");
+    expect(source).toContain("redirect(target)");
+    expect(source).toContain("/login?email=");
+    expect(source).not.toContain("useState");
   });
 
   it("links the status page from onboarding entry points", () => {

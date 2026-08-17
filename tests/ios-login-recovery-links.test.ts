@@ -12,13 +12,14 @@ describe("iOS native login recovery flows", () => {
     expect(source).toContain("NativeForgotPasswordView(initialEmail: email)");
     expect(source).toContain("authDestination = .forgotPassword(email: trimmedEmail)");
     expect(authViews).toContain('init(initialEmail: String = "")');
-    expect(authViews).toContain("_email = State(initialValue: initialEmail)");
-    expect(source).toContain("NativeRegistrationView()");
+    expect(authViews).toContain("_email = State(initialValue: normalizedEmail)");
+    expect(source).toContain("NativeRegistrationView(initialEmail: email)");
     expect(source).toContain(".sheet(item: $authDestination)");
     expect(source).toContain('Button("Forgot password?")');
     expect(source).toContain("authDestination = .forgotPassword");
-    expect(source).toContain('Button("Need an account?")');
-    expect(source).toContain("authDestination = .register");
+    expect(source).not.toContain('Button("Need an account?")');
+    expect(source).toContain("APIClient.shared.discoverAuth(email: submittedEmail)");
+    expect(source).toContain("authDestination = .register(email: submittedEmail)");
     expect(source).not.toContain('Link("Forgot password?", destination:');
     expect(source).not.toContain('Link("Need an account?", destination:');
   });
@@ -29,6 +30,7 @@ describe("iOS native login recovery flows", () => {
     expect(authViews).toContain("session.register(");
     expect(authViews).toContain("APIClient.shared.requestPasswordReset");
     expect(apiClient).toContain('request(path: "/api/auth/register", method: "POST")');
+    expect(apiClient).toContain('request(path: "/api/auth/discover", method: "POST")');
     expect(apiClient).toContain('request(path: "/api/auth/forgot-password", method: "POST")');
     expect(apiClient).toContain("prepareAuthHost(for: email)");
   });

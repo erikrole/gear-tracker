@@ -608,7 +608,7 @@ export default function OnboardingDialog({
             <div className="flex min-w-0 flex-col gap-1">
               <DialogTitle className="text-wrap-balance">Add users</DialogTitle>
               <DialogDescription className="text-wrap-pretty">
-                Grant registration access to one person or paste a roster.
+                  Grant app access to one person or paste a roster.
               </DialogDescription>
             </div>
           </div>
@@ -621,7 +621,7 @@ export default function OnboardingDialog({
                 <CheckCircle2 className="size-4 text-[var(--green-text)]" />
                 <AlertTitle>Invitations saved</AlertTitle>
                 <AlertDescription className="text-muted-foreground">
-                  Share the registration link or send users to the app registration page. No shared first-login password is created.
+                  Send users to the app login page. They enter their invited email and are routed to password setup automatically. No shared first-login password is created.
                 </AlertDescription>
               </Alert>
 
@@ -651,7 +651,7 @@ export default function OnboardingDialog({
                 <ShieldCheck aria-hidden="true" />
                 <AlertTitle>Invite-only access</AlertTitle>
                 <AlertDescription>
-                  Users set their own password the first time they register. Existing registered or already-invited addresses are skipped without exposing private account details.
+                  Users set their own password the first time they sign in. Existing registered or already-invited addresses are skipped without exposing private account details.
                 </AlertDescription>
               </Alert>
 
