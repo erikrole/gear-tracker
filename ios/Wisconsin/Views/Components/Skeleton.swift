@@ -207,3 +207,55 @@ struct BookingDetailSkeleton: View {
         .allowsHitTesting(false)
     }
 }
+
+// MARK: - Event detail crew skeleton
+
+/// Placeholder for the Crew roster while the shift group loads.
+///
+/// Unlike `ItemDetailSkeleton` and `BookingDetailSkeleton`, this one covers a
+/// *region* rather than the whole screen. Event detail is handed a complete
+/// `ScheduleEvent` by its caller, so the header renders on the first frame with
+/// real content — replacing it with a skeleton would trade a genuine advantage
+/// for pattern symmetry. Only the crew below it is actually pending.
+struct EventDetailCrewSkeleton: View {
+    /// Areas to mock. Two blocks read as "a roster is coming" without implying
+    /// a specific crew size.
+    var areaCount: Int = 2
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Brand.Space.lg) {
+            ForEach(0..<areaCount, id: \.self) { _ in
+                VStack(alignment: .leading, spacing: Brand.Space.xs) {
+                    HStack(spacing: 6) {
+                        Skeleton(cornerRadius: 4).frame(width: 16, height: 16)
+                        Skeleton().frame(width: 62, height: 13)
+                        Skeleton().frame(width: 24, height: 11)
+                    }
+                    VStack(spacing: 0) {
+                        ForEach(0..<2, id: \.self) { row in
+                            HStack {
+                                Skeleton().frame(width: 54, height: 13)
+                                Spacer()
+                                Skeleton(cornerRadius: 6).frame(width: 64, height: 15)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                            .frame(minHeight: 44)
+                            if row == 0 {
+                                Divider().padding(.leading, 12)
+                            }
+                        }
+                    }
+                    .background(Color.cardSurface)
+                    .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                            .strokeBorder(Color.hairline, lineWidth: 0.5)
+                    )
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}

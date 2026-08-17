@@ -103,3 +103,12 @@ export function isCurrentDeviceIpad(): boolean {
   if (typeof navigator === "undefined") return false;
   return isIpadDevice(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
 }
+
+/**
+ * A retryable or ambiguous response must keep the durable request ID so the
+ * next tap replays the same server operation. Definite client conflicts keep
+ * the local draft but start a fresh operation after the operator resolves it.
+ */
+export function shouldRetainSignatureSaveRequestId(status: number): boolean {
+  return status === 425 || status === 429 || status >= 500;
+}

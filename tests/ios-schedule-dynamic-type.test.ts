@@ -32,6 +32,7 @@ describe("iOS Schedule Dynamic Type", () => {
 
   it("keeps schedule row microcopy on semantic Dynamic Type styles", () => {
     const scheduleView = source("ios/Wisconsin/Views/ScheduleView.swift");
+    const crewRow = source("ios/Wisconsin/Views/Components/CrewRow.swift");
     const eventRow = sliceBetween(
       scheduleView,
       "struct EventRow: View",
@@ -39,8 +40,11 @@ describe("iOS Schedule Dynamic Type", () => {
     );
 
     expect(eventRow).toContain(".font(.caption.weight(.semibold))");
-    expect(eventRow).toContain(".font(.caption.weight(.semibold).monospacedDigit())");
     expect(eventRow).toContain(".font(.subheadline)");
     expect(eventRow).not.toContain(".font(.system(size:");
+    // The row's coverage chip is now the shared CoverageChip, so its tabular
+    // figures live there -- same semantic style, one definition instead of two.
+    expect(crewRow).toContain(".font(.caption.weight(.semibold).monospacedDigit())");
+    expect(crewRow).not.toContain(".font(.system(size:");
   });
 });

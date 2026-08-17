@@ -2,8 +2,8 @@ import { withAuth } from "@/lib/api";
 import { ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { enforceRateLimit, SIGNATURE_MUTATION_LIMIT } from "@/lib/rate-limit";
-import { getSignatureCollection, updateSignaturePenSettings } from "@/lib/services/signatures";
-import { signatureSettingsUpdateSchema } from "@/lib/signatures/types";
+import { deleteSignatureCollection, getSignatureCollection, updateSignaturePenSettings } from "@/lib/services/signatures";
+import { signatureCollectionVersionSchema, signatureSettingsUpdateSchema } from "@/lib/signatures/types";
 
 export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
   requirePermission(user.role, "signature", "view");
@@ -28,4 +28,11 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     },
   });
   return ok(updated);
+});
+
+export const DELETE = withAuth<{ id: string }>(async (req, { user, params }) => {
+  requirePermission(user.role, "signature", "delete");
+  await enforceRateLimit(`signature-delete:${user.id}`, SIGNATURE_MUTATION_LIMIT);
+  const body = signatureCollectionVersionSchema.parse(await req.json());
+  return ok(await deleteSignatureCollection({ actor: user, collectionId: params.id, expectedCollectionVersion: body.expectedCollectionVersion }));
 });

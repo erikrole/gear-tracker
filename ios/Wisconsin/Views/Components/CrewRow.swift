@@ -141,3 +141,41 @@ struct CrewAreaHeading: View {
         }
     }
 }
+
+// MARK: - Coverage
+
+/// How much of a crew is filled, in one chip.
+///
+/// The Schedule list row and Event detail each had their own version of this —
+/// a private `coverageChip` in `ScheduleView` and a `CoveragePill` on the detail
+/// screen — rendering the same `ShiftCoverage` two different ways, so the same
+/// event reported its staffing one way in the list and another once opened.
+/// Both already tinted from `coverageTone`; this is the merge.
+struct CoverageChip: View {
+    let coverage: ShiftCoverage
+    /// Dense surfaces (a list row) take the bare count. The detail header has
+    /// room for the word, which is what makes "0/5" unambiguous on first read.
+    var showsLabel = false
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "person.2.fill")
+                .font(.caption.weight(.semibold))
+            Text(showsLabel ? "\(coverage.filled)/\(coverage.total) filled" : "\(coverage.filled)/\(coverage.total)")
+                .font(.caption.weight(.semibold).monospacedDigit())
+        }
+        .foregroundStyle(Color.statusText(coverageTone(coverage)))
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(Color.statusBackground(coverageTone(coverage)), in: Capsule())
+        .accessibilityLabel("Crew coverage: \(coverage.filled) of \(coverage.total) filled")
+    }
+}
+
+/// The staffing question in words, for surfaces with room to answer it.
+func crewReadinessSummary(_ coverage: ShiftCoverage?) -> String {
+    guard let coverage, coverage.total > 0 else { return "No crew set up" }
+    let open = max(0, coverage.total - coverage.filled)
+    if open == 0 { return "Fully staffed" }
+    return open == 1 ? "1 slot open" : "\(open) slots open"
+}

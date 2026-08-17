@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Archive, CheckCircle2, ChevronDown, Download, FilePenLine, History, LockKeyhole, RefreshCw, RotateCcw, Settings2, ShieldCheck, Trash2, UserRound, UsersRound } from "lucide-react";
+import { Archive, CheckCircle2, ChevronDown, Download, FilePenLine, History, LockKeyhole, Pencil, RefreshCw, RotateCcw, Settings2, ShieldCheck, Trash2, UserRound, UsersRound } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import { FadeUp } from "@/components/ui/motion";
@@ -16,6 +16,7 @@ import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/co
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -32,6 +33,7 @@ import {
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import EmptyState from "@/components/EmptyState";
 import { OperationalRowActions } from "@/components/OperationalRowActions";
+import { SignatureAthleteProfileForm, type SignatureAthleteProfileValues } from "@/components/signatures/SignatureAthleteProfileForm";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import { isCurrentDeviceIpad } from "@/lib/signatures/capture";
@@ -39,9 +41,7 @@ import { compareSignatureRosterMembers } from "@/lib/signatures/roster";
 import {
   SIGNATURE_AD_HOC_SPORT_CODE,
   SIGNATURE_CREATIVE_STAFF_SPORT_CODE,
-  SIGNATURE_FOOTBALL_SPORT_CODE,
-  SIGNATURE_MBB_SPORT_CODE,
-  SIGNATURE_VOLLEYBALL_SPORT_CODE,
+  signatureCollectionTitle,
 } from "@/lib/signatures/types";
 import { cn } from "@/lib/utils";
 
@@ -58,6 +58,8 @@ type Member = {
   settingsVersion: number;
   artifact: { id: string; revision: number; width: number; height: number; committedAt: string | null; replacedAt: string | null } | null;
   revisions?: Array<{ id: string; revision: number; width: number; height: number; committedAt: string | null; replacedAt: string | null }>;
+  athleteProfile: SignatureAthleteProfileValues | null;
+  athleteProfileComplete: boolean;
 };
 
 type Collection = {
@@ -69,6 +71,7 @@ type Collection = {
   settingsVersion: number;
   penSettings: { strokeColor: string; strokeWidth: number; cropPadding: number; maxWidth: number; maxHeight: number };
   completeness: { complete: number; required: number; percent: number };
+  staffCompleteness?: { complete: number; total: number };
   members: Member[];
 };
 
@@ -89,9 +92,10 @@ const GROUP_META: Record<Member["roleGroup"], { label: string; icon: typeof User
 const CAPTURE_ON_IPAD_TOOLTIP = "Capture can only be done on an iPad with an Apple Pencil.";
 
 function CaptureAction({ collectionId, member, isIpad }: { collectionId: string; member: Member; isIpad: boolean }) {
+  const primaryCapture = member.roleGroup === "PLAYER" || member.roleGroup === "CREATIVE_STAFF";
   if (isIpad) {
     return (
-      <Button size="sm" variant={member.required ? "brand" : "outline"} className="h-11 w-40" asChild>
+      <Button size="sm" variant={primaryCapture ? "brand" : "outline"} className="h-11 w-40" asChild>
         <Link href={`/signatures/${collectionId}/capture/${member.id}`}><FilePenLine data-icon="inline-start" />Capture</Link>
       </Button>
     );
@@ -101,7 +105,7 @@ function CaptureAction({ collectionId, member, isIpad }: { collectionId: string;
     <Tooltip>
       <TooltipTrigger asChild>
         <span tabIndex={0} aria-label="Capture on iPad" className="inline-flex">
-          <Button type="button" size="sm" variant={member.required ? "brand" : "outline"} className="h-11 w-40" disabled>
+          <Button type="button" size="sm" variant={primaryCapture ? "brand" : "outline"} className="h-11 w-40" disabled>
             <FilePenLine data-icon="inline-start" />Capture on iPad
           </Button>
         </span>
@@ -109,15 +113,6 @@ function CaptureAction({ collectionId, member, isIpad }: { collectionId: string;
       <TooltipContent>{CAPTURE_ON_IPAD_TOOLTIP}</TooltipContent>
     </Tooltip>
   );
-}
-
-function collectionTitle(sportCode: string) {
-  if (sportCode === SIGNATURE_MBB_SPORT_CODE) return "Men’s Basketball";
-  if (sportCode === SIGNATURE_FOOTBALL_SPORT_CODE) return "Football";
-  if (sportCode === SIGNATURE_VOLLEYBALL_SPORT_CODE) return "Volleyball";
-  if (sportCode === SIGNATURE_CREATIVE_STAFF_SPORT_CODE) return "Creative Staff";
-  if (sportCode === SIGNATURE_AD_HOC_SPORT_CODE) return "Ad-hoc Signatures";
-  return sportCode;
 }
 
 async function mutate(url: string, method: string, body?: unknown) {
@@ -145,6 +140,8 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
   const [settings, setSettings] = useState<Collection["penSettings"] | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [previewMember, setPreviewMember] = useState<Member | null>(null);
+  const [profileMember, setProfileMember] = useState<Member | null>(null);
+  const [profileSaving, setProfileSaving] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<Member["roleGroup"]>>(new Set());
   const [isIpad, setIsIpad] = useState(false);
   const isCreativeStaffRoster = collection?.sportCode === SIGNATURE_CREATIVE_STAFF_SPORT_CODE;
@@ -165,7 +162,7 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
   }, []);
 
   useEffect(() => {
-    if (collection) setBreadcrumbLabel(collectionTitle(collection.sportCode));
+    if (collection) setBreadcrumbLabel(signatureCollectionTitle(collection.sportCode));
   }, [collection, setBreadcrumbLabel]);
 
   const groupSections = useMemo(() => rosterGroupOrder
@@ -181,7 +178,8 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
     })
     .filter((section) => (group === "ALL" || section.roleGroup === group) && (section.members.length > 0 || (isCreativeStaffRoster && section.roleGroup === "CREATIVE_STAFF"))), [collection?.members, group, isCreativeStaffRoster, rosterGroupOrder]);
   const effectiveSettings = settings ?? collection?.penSettings;
-  const settingsLocked = (collection?.completeness.complete ?? 0) > 0;
+  const hasCapturedSignatures = collection?.members.some((member) => Boolean(member.artifact)) ?? false;
+  const settingsLocked = hasCapturedSignatures;
 
   async function saveSettings() {
     if (!collection || !effectiveSettings) return;
@@ -217,6 +215,24 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
       toast.success(`${member.name} is now ${member.required ? "optional" : "required"}`);
     } catch (requestError) {
       toast.error(requestError instanceof Error ? requestError.message : "Required state was not changed");
+    }
+  }
+
+  async function saveAthleteProfile(values: { birthday: string; hometown: string; instagramHandle: string; tiktokHandle: string; xHandle: string }) {
+    if (!collection || !profileMember) return;
+    setProfileSaving(true);
+    try {
+      await mutate(`/api/signatures/collections/${collection.id}/members/${profileMember.id}/profile`, "PATCH", {
+        expectedCollectionVersion: collection.collectionVersion,
+        ...values,
+      });
+      setProfileMember(null);
+      reload();
+      toast.success(`${profileMember.name}'s website profile saved`);
+    } catch (requestError) {
+      toast.error(requestError instanceof Error ? requestError.message : "Athlete profile was not saved");
+    } finally {
+      setProfileSaving(false);
     }
   }
 
@@ -257,10 +273,13 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
   if (loading) return <Card><CardContent className="p-6 text-sm text-muted-foreground">Loading signature roster…</CardContent></Card>;
   if (error || !collection) return <EmptyState icon="wifi-off" title="Couldn’t load this signature collection" description="The collection may have moved or the connection failed." actionLabel="Retry" onAction={reload} />;
 
+  const teamRoster = !isCreativeStaffRoster && !isAdHocRoster;
+  const staffCompleteness = collection.staffCompleteness ?? { complete: 0, total: 0 };
+
   return (
     <FadeUp>
      <PageHeader
-       title={collectionTitle(collection.sportCode)}
+       title={signatureCollectionTitle(collection.sportCode)}
         description={collection.season}
      >
         <Button variant="outline" size="sm" className="h-10" onClick={reload} disabled={loading}><RefreshCw data-icon="inline-start" />Refresh</Button>
@@ -269,8 +288,17 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
 
       <div className="space-y-4">
        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-         <div>
+         <div className="min-w-0 flex-1">
             <h2 className="text-lg font-semibold">Roster</h2>
+            {teamRoster && (
+              <div className="mt-3 max-w-xl">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                  <p className="text-sm font-semibold tabular-nums">{collection.completeness.complete}/{collection.completeness.required} Student-Athletes</p>
+                  {staffCompleteness.total > 0 && <p className="text-xs text-muted-foreground tabular-nums">{staffCompleteness.complete}/{staffCompleteness.total} Staff</p>}
+                </div>
+                <Progress value={collection.completeness.percent} className="mt-2 h-2" />
+              </div>
+            )}
          </div>
           {!isCreativeStaffRoster && !isAdHocRoster && (
             <Select value={group} onValueChange={(value) => setGroup(value as typeof group)}>
@@ -326,7 +354,8 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
                      {section.members.map((member) => {
                        const priorRevisions = (member.revisions ?? []).filter((revision) => revision.id !== member.artifact?.id);
                        const canChangeRequirement = Boolean(isAdmin && collection.status === "OPEN" && member.roleGroup !== "PLAYER");
-                       const showRowActions = Boolean(member.artifact || priorRevisions.length > 0 || canChangeRequirement);
+                       const canEditProfile = member.roleGroup === "PLAYER" && collection.status === "OPEN";
+                       const showRowActions = Boolean(member.artifact || priorRevisions.length > 0 || canChangeRequirement || canEditProfile);
                        return (
                          <div
                            key={member.id}
@@ -360,7 +389,7 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
                                    </span>
                                  )}
                                </div>
-                               {!isCreativeStaffRoster && <span className="block max-w-full truncate whitespace-nowrap text-xs leading-4 text-muted-foreground" title={member.title || roleLabel(member.roleGroup)}>{member.title || roleLabel(member.roleGroup)}</span>}
+                               {!isCreativeStaffRoster && <span className="block max-w-full truncate whitespace-nowrap text-xs leading-4 text-muted-foreground" title={member.title || roleLabel(member.roleGroup)}>{member.title || roleLabel(member.roleGroup)}{member.roleGroup === "PLAYER" && !member.athleteProfileComplete ? " · Profile needed" : ""}</span>}
                              </div>
                            </div>
 
@@ -385,6 +414,7 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
                            <div className="flex items-center justify-center">
                              {showRowActions && (
                                <OperationalRowActions label={`Actions for ${member.name}'s signature`} triggerClassName="size-11">
+                                 {canEditProfile && <DropdownMenuItem onSelect={() => setProfileMember(member)}><Pencil />Edit athlete profile</DropdownMenuItem>}
                                  {member.artifact && collection.status === "OPEN" && (
                                    <DropdownMenuItem asChild>
                                      <Link href={`/signatures/${collection.id}/capture/${member.id}`}><FilePenLine />Replace signature</Link>
@@ -470,12 +500,12 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
                   <div><p className="text-sm font-semibold text-destructive">Danger zone</p><p className="mt-1 text-xs text-muted-foreground">Remove every saved signature and queue its files for cleanup.</p></div>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="destructive" className="h-10 shrink-0" disabled={collection.completeness.complete === 0 || resettingCollection}><RotateCcw data-icon="inline-start" />Reset all captures</Button>
+                       <Button variant="destructive" className="h-10 shrink-0" disabled={!hasCapturedSignatures || resettingCollection}><RotateCcw data-icon="inline-start" />Reset all captures</Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>Reset every captured signature?</AlertDialogTitle>
-                        <AlertDialogDescription>This removes all saved signatures from {collectionTitle(collection.sportCode)} and queues the current PNG and SVG files for cleanup. This cannot be undone.</AlertDialogDescription>
+                        <AlertDialogDescription>This removes all saved signatures from {signatureCollectionTitle(collection.sportCode)} and queues the current PNG and SVG files for cleanup. This cannot be undone.</AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel disabled={resettingCollection}>Cancel</AlertDialogCancel>
@@ -508,6 +538,23 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
               <Button className="h-11 sm:min-w-40" asChild><a href={`/api/signatures/artifacts/${previewMember.artifact.id}/png?download=1`}><Download data-icon="inline-start" />Download PNG</a></Button>
             </DialogFooter>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(profileMember)} onOpenChange={(open) => { if (!open && !profileSaving) setProfileMember(null); }}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{profileMember?.name} website profile</DialogTitle>
+            <DialogDescription>These details are used for the student-athlete website listing.</DialogDescription>
+          </DialogHeader>
+          <DialogBody>
+            {profileMember && <SignatureAthleteProfileForm
+              initialValues={profileMember.athleteProfile ?? { birthday: null, hometown: null, instagramHandle: null, tiktokHandle: null, xHandle: null }}
+              busy={profileSaving}
+              onSubmit={saveAthleteProfile}
+              onCancel={() => setProfileMember(null)}
+            />}
+          </DialogBody>
         </DialogContent>
       </Dialog>
     </FadeUp>

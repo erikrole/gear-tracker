@@ -57,4 +57,22 @@ describe("private signature Blob storage", () => {
 
     expect(put).toHaveBeenCalledWith("signature.png", expect.any(Buffer), expect.objectContaining({ access: "private", storeId: "store_private", oidcToken: "oidc-token" }));
   });
+
+  it("allows a verified durable save replay to overwrite its immutable operation path", async () => {
+    vi.stubEnv("SIGNATURE_BLOB_READ_WRITE_TOKEN", "private-token");
+    vi.mocked(put).mockResolvedValue({} as never);
+
+    await uploadPrivateSignatureArtifact({
+      path: "signatures/collection/member/revision.png",
+      body: Buffer.from("same-png"),
+      contentType: "image/png",
+      allowOverwrite: true,
+    });
+
+    expect(put).toHaveBeenCalledWith(
+      "signatures/collection/member/revision.png",
+      expect.any(Buffer),
+      expect.objectContaining({ allowOverwrite: true, addRandomSuffix: false }),
+    );
+  });
 });

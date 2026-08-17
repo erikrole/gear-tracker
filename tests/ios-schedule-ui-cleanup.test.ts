@@ -98,20 +98,16 @@ describe("iOS Schedule UI cleanup", () => {
 
   it("routes Event detail full-screen with adaptive actions and retry", () => {
     const eventDetail = source("ios/Wisconsin/Views/EventDetailSheet.swift");
+    const brand = source("ios/Wisconsin/Core/Brand.swift");
     const eventDetailView = sliceBetween(
       eventDetail,
       "struct EventDetailView: View",
-      "// MARK: - Section Header",
+      "// MARK: - Area Block",
     );
     const crewSection = sliceBetween(
       eventDetail,
       "private var crewSection: some View",
       "    @ViewBuilder\n    private var crewBody",
-    );
-    const sectionHeader = sliceBetween(
-      eventDetail,
-      "private struct EventDetailSectionHeader",
-      "// MARK: - Coverage Pill",
     );
     const shiftRow = sliceBetween(
       eventDetail,
@@ -128,19 +124,35 @@ describe("iOS Schedule UI cleanup", () => {
     // Add Shift lives in the Crew section header. The separate "Staffing" card
     // was removed: it restated the coverage the Crew pill already shows.
     expect(eventDetail).not.toContain("staffingActionSection");
-    expect(eventDetail).toContain("addShiftButton");
+    // Add Shift is a screen-level action and now lives in the navigation bar.
+    expect(eventDetail).toContain("addShiftToolbarButton");
     expect(eventDetail).toContain("Label(\"Add Shift\", systemImage: \"plus\")");
     expect(eventDetail).toContain("Button(\"Try Again\")");
     expect(eventDetail).toContain('return "Today, \\(date.formatted');
     expect(eventDetail).toContain('return "Tomorrow, \\(date.formatted');
-    expect(eventDetail).toContain("myShift?.gear.bookings");
-    expect(eventDetail).toContain("BookingDetailView(bookingId: gear.id)");
+    // Gear is gone from this screen; a shift's gear no longer routes anywhere
+    // from here. "Your Shift" keeps only call time and area.
+    expect(eventDetail).not.toContain("myShift?.gear");
+    expect(eventDetail).not.toContain("BookingDetailView");
     expect(eventDetail).not.toContain("ToolbarItem(placement: .bottomBar)");
-    expect(crewSection).toContain("EventDetailSectionHeader(title: \"Crew\", systemImage: \"person.2.fill\")");
-    expect(crewSection).toContain("if canManageShifts, let coverage");
-    expect(sectionHeader).toContain(".foregroundStyle(.secondary)");
-    expect(sectionHeader).toContain(".accessibilityAddTraits(.isHeader)");
-    expect(sectionHeader).not.toContain(".accessibilityElement(children: .combine)");
+    // One section-header vocabulary. This screen carried a private near-clone
+    // of BrandSectionHeader -- same job, different icon tint, no subtitle slot,
+    // and it was the only detail screen not using the shared component.
+    expect(crewSection).toContain('BrandSectionHeader(\n                "Crew"');
+    expect(crewSection).toContain('systemImage: "person.2.fill"');
+    // The shared call window rides in the header's own subtitle slot -- it had
+    // been a full-width line of its own between the header and the roster.
+    expect(crewSection).toContain("subtitle: callWindowIsHoisted ? callWindowSummary : nil");
+    // Coverage moved to the hero, where "is this event ready?" is actually
+    // asked, and is no longer staff-gated -- the Schedule list row had been
+    // showing it to every role while the detail screen hid it.
+    expect(crewSection).not.toContain("coverage");
+    expect(eventDetail).toContain("CoverageChip(coverage: coverage, showsLabel: true)");
+    expect(eventDetail).toContain("crewReadinessSummary(vm.shiftGroup?.coverage)");
+    expect(eventDetail).not.toContain("EventDetailSectionHeader");
+    // The clone carried .isHeader and the shared component didn't, so adopting
+    // it would have been a quiet VoiceOver-rotor regression without this.
+    expect(brand).toContain(".accessibilityAddTraits(.isHeader)");
     expect(shiftRow).toContain("Text(\"You\")");
     expect(shiftRow).toContain("Color.statusBackground(.blue)");
     expect(shiftRow).not.toContain("Color.statusText(.blue).opacity(0.06)");

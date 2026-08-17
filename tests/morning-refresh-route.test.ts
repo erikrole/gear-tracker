@@ -146,7 +146,7 @@ describe("morning refresh cron route", () => {
       partialFailures: [],
     });
     vi.mocked(refreshCompanionProjection).mockResolvedValue({} as never);
-    vi.mocked(cleanupPendingSignatureArtifacts).mockResolvedValue({ attempted: 0, deleted: 0 });
+    vi.mocked(cleanupPendingSignatureArtifacts).mockResolvedValue({ abandoned: 0, attempted: 0, deleted: 0 });
   });
 
   afterEach(() => {

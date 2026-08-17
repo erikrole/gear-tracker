@@ -6,6 +6,14 @@ function source(relativeFile: string) {
   return readFileSync(path.join(process.cwd(), relativeFile), "utf8");
 }
 
+/** The text between two markers, so an assertion can be scoped to one member. */
+function sliceBetween(haystack: string, start: string, end: string) {
+  const from = haystack.indexOf(start);
+  const to = haystack.indexOf(end, from + start.length);
+  if (from === -1 || to === -1) return "";
+  return haystack.slice(from, to);
+}
+
 function createBookingSource() {
   return [
     "ios/Wisconsin/Views/CreateBookingSheet.swift",
@@ -152,19 +160,120 @@ describe("student field mobile contracts", () => {
     const postTrade = source("ios/Wisconsin/Views/Schedule/PostTradeSheet.swift");
 
     expect(eventDetail).toContain("Label(\"Add Shift\", systemImage: \"plus\")");
-    expect(eventDetail).toContain("Label(\"Assign person\", systemImage: \"plus.circle.fill\")");
-    expect(eventDetail).toContain("Label(\"Claim shift\", systemImage: \"hand.raised.fill\")");
+    // An open crew row is itself the button -- the action used to sit in a
+    // tinted pill, which turned an unstaffed event into a column of five
+    // identical filled controls competing with the section's own. The row keeps
+    // a 44pt target, states its action in words, and shows a chevron; VoiceOver
+    // reads the row label and takes the action title as its hint.
+    expect(eventDetail).toContain("private var primaryRowAction: (() -> Void)?");
+    expect(eventDetail).toContain("Button(action: primaryRowAction) { rowContent }");
+    expect(eventDetail).toContain(".accessibilityHint(openSlotActionTitle)");
+    expect(eventDetail).toContain('if canManageShifts { return "Assign" }');
+    expect(eventDetail).toContain('return isStudent && isStudentSlot ? "Claim shift" : "Open"');
+    expect(eventDetail).toContain('Image(systemName: "chevron.right")');
+    expect(eventDetail).not.toContain('Label("Assign", systemImage: "plus.circle.fill")');
+
+    // Grouping by proximity: an area heading binds tighter to its own card than
+    // areas bind to each other. Near-equal gaps left the headings floating
+    // between two cards and the crew list reading as unrelated islands.
+    expect(eventDetail).toContain("VStack(alignment: .leading, spacing: Brand.Space.lg) {");
+    expect(eventDetail).toContain("VStack(alignment: .leading, spacing: Brand.Space.xs) {");
+    // Staff commands live in the navigation bar, not the content column. Add
+    // Shift spent two rounds homeless there -- first too narrow beside the Crew
+    // title and pill, then alone on a full-width line attached to nothing.
+    expect(eventDetail).toContain("private var addShiftToolbarButton: some View");
+    expect(eventDetail).toContain("ToolbarItem(placement: .topBarTrailing)");
+    expect(eventDetail).toContain('.accessibilityLabel("Add shift")');
+    expect(eventDetail).toContain('.accessibilityLabel("More event actions")');
+    expect(eventDetail).not.toContain("crewControlRow");
+    expect(eventDetail).not.toContain("crewActionBar");
+    // Exactly one dominant action, in a bottom bar, state-driven.
+    expect(eventDetail).toContain("private enum PrimaryAction");
+    expect(eventDetail).toContain(".safeAreaInset(edge: .bottom) { primaryActionBar }");
+    expect(eventDetail).toContain('case .setUpCrew: "Set up crew"');
+    expect(eventDetail).toContain('openCount == 1 ? "Assign — 1 open" : "Assign — \\(openCount) open"');
+    // One confirmation dialog for five confirmable actions, each of which used
+    // to carry its own @State target and hand-rolled Binding(get:set:).
+    expect(eventDetail).toContain("enum EventConfirmation: Identifiable");
+    expect(eventDetail).toContain("presenting: confirmation");
+    expect(eventDetail).not.toContain("claimTarget");
+    expect(eventDetail).not.toContain("deleteTarget");
+    expect(eventDetail).not.toContain("showDiscardReview");
+    // A cancelled event no longer looks identical to a confirmed one, and it
+    // can't be staffed -- ScheduleEvent.status was read nowhere in the app.
+    expect(eventDetail).toContain('event.status.uppercased() == "CANCELLED"');
+    expect(eventDetail).toContain('Text("Cancelled")');
+    expect(eventDetail).toContain("guard !eventIsCancelled, !eventHasEnded else { return nil }");
+    // Free-text crew notes arrive on every load and used to render nowhere.
+    expect(eventDetail).toContain('BrandSectionHeader("Notes", systemImage: "note.text")');
+    expect(eventDetail).toContain("vm.shiftGroup?.notes");
+    // Your own shift card agrees with the tint the list row and ShiftRow use.
+    expect(eventDetail).toContain(".brandCard(fill: Color.statusBackground(.blue))");
+    // The pending-changes card says how many people a revert would touch.
+    expect(eventDetail).toContain("vm.workingEditor?.affectedWorkerCount");
+    // An empty slot is two things and one gutter -- no placeholder avatar
+    // stranded in the middle standing in for the person who isn't there.
+    expect(eventDetail).not.toContain("openSlotAvatar");
+
+    // Long-pressing a crew row gives grouped actions, not one flat list with
+    // destructive entries scattered through it. Everything that takes a person
+    // off a shift, or removes the shift, lives in the last group.
+    expect(eventDetail).toContain("Section { primaryMenuActions }");
+    expect(eventDetail).toContain("Section { tradeBoardMenuActions }");
+    expect(eventDetail).toContain("Section { shiftManagementMenuActions }");
+    expect(eventDetail).toContain("Section { destructiveMenuActions }");
+    const destructiveGroup = sliceBetween(
+      eventDetail,
+      "private var destructiveMenuActions: some View",
+      "// MARK: - Edit Shift Times Sheet",
+    );
+    expect(destructiveGroup).toContain('Label("Decline \\(assignment.user.name)"');
+    expect(destructiveGroup).toContain('Label("Remove \\(assignment.user.name)"');
+    expect(destructiveGroup).toContain('Label("Delete shift", systemImage: "trash")');
+    // ...and nothing destructive is left behind in the other groups.
+    const managementGroup = sliceBetween(
+      eventDetail,
+      "private var shiftManagementMenuActions: some View",
+      "private var destructiveMenuActions",
+    );
+    expect(managementGroup).not.toContain("role: .destructive");
+
+    // Long-pressing the event card passes the event along; that is the one
+    // thing the card holds that is not reachable any other way.
+    expect(eventDetail).toContain("ShareLink(item: eventShareText)");
+    expect(eventDetail).toContain('Label("Copy Event Details", systemImage: "doc.on.doc")');
+    // The venue is a caption, not a destination. Directions were tried and
+    // turned down -- the crew knows where its own venues are, so a tappable
+    // venue and a Maps action are both noise. Keep them out.
+    expect(eventDetail).toContain('Label(eventVenueName, systemImage: "mappin.and.ellipse")');
+    expect(eventDetail).not.toContain("maps.apple.com");
+    expect(eventDetail).not.toContain("Open in Maps");
+    expect(eventDetail).not.toContain("@Environment(\\.openURL)");
     // The buttons carry short visible titles -- the full name wrapped them to
     // four lines and swallowed the row -- with the name in the a11y label.
     expect(eventDetail).toContain('Button("Approve") { onApprove(assignment) }');
     expect(eventDetail).toContain('Button("Decline") { onDecline(assignment) }');
     expect(eventDetail).toContain('accessibilityLabel("Approve \\(assignment.user.name)")');
     expect(eventDetail).toContain('accessibilityLabel("Decline \\(assignment.user.name)")');
-    expect(eventDetail).toContain("Text(\"Event\")");
-    // Time-aware reserve copy: "now" only when the event is today/underway.
-    expect(eventDetail).toContain("Label(reserveGearTitle, systemImage: \"shippingbox.and.arrow.backward.fill\")");
-    expect(eventDetail).toContain("return \"Reserve gear now\"");
-    expect(eventDetail).toContain("return \"Reserve gear for \\(event.startsAt.formatted(.dateTime.month(.abbreviated).day()))\"");
+    // The system owns the title. A hand-rolled `.principal` toolbar item stood
+    // in for it, which cost large-title collapse and automatic back-button
+    // labelling and used a font the platform didn't choose.
+    expect(eventDetail).toContain('.navigationTitle("Event")');
+    expect(eventDetail).not.toContain("ToolbarItem(placement: .principal)");
+    // Loading and failure use the house vocabulary, not one-off cards.
+    expect(eventDetail).toContain("EventDetailCrewSkeleton()");
+    expect(eventDetail).toContain("ContentUnavailableView {");
+    // isLoading starts true, so a staffed event never flashes "No crew
+    // scheduled" before the fetch lands. Reentrancy guards on its own flag --
+    // guarding on isLoading would make the first load return without fetching.
+    expect(eventDetail).toContain("var isLoading = true");
+    expect(eventDetail).toContain("guard !isFetching else { return }");
+    // "Your Shift" states when to report and which area, and stops there.
+    // Gear left this screen entirely -- see the Event detail gear contract in
+    // ios-create-booking-picker-parity.test.ts.
+    expect(eventDetail).toContain('BrandSectionHeader("Your Shift"');
+    expect(eventDetail).not.toContain("reserveGearTitle");
+    expect(eventDetail).not.toContain("Reserve gear");
     expect(eventDetail).not.toContain("ToolbarItem(placement: .bottomBar)");
     expect(eventDetail).not.toContain("Label(\"Prep gear\", systemImage: \"archivebox\")");
     expect(tradeBoard).toContain(".accessibilityLabel(\"Post trade\")");

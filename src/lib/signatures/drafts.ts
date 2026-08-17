@@ -10,11 +10,17 @@ export type SignatureDraftRecord = {
   memberId: string;
   settingsVersion: number;
   captureVersion: number;
+  saveRequestId?: string;
   canvasSize: { width: number; height: number };
   strokes: SignatureDraftStroke[];
   savedAt: number;
   expiresAt: number;
 };
+
+export type SignatureDraftIdentity = Pick<
+  SignatureDraftRecord,
+  "userId" | "collectionId" | "memberId" | "settingsVersion"
+>;
 
 const DB_NAME = "gear-tracker-signatures";
 const STORE_NAME = "drafts";
@@ -28,6 +34,16 @@ export function signatureDraftKey(
   captureVersion: number,
 ): string {
   return `${userId}:${collectionId}:${memberId}:${settingsVersion}:${captureVersion}`;
+}
+
+export function signatureDraftMatchesMember(
+  draft: SignatureDraftIdentity,
+  identity: SignatureDraftIdentity,
+): boolean {
+  return draft.userId === identity.userId
+    && draft.collectionId === identity.collectionId
+    && draft.memberId === identity.memberId
+    && draft.settingsVersion === identity.settingsVersion;
 }
 
 export function isFreshSignatureDraft(
@@ -85,11 +101,26 @@ export async function saveSignatureDraft(record: SignatureDraftRecord): Promise<
 export async function loadSignatureDraft(
   key: string,
   now = Date.now(),
+  identity?: SignatureDraftIdentity,
 ): Promise<SignatureDraftRecord | null> {
+  const loaded = await readSignatureDraft(key);
+  let record: SignatureDraftRecord | null = loaded ?? null;
+  if (record && identity && !signatureDraftMatchesMember(record, identity)) record = null;
+  if ((!record || !isFreshSignatureDraft(record, now)) && identity) {
+    record = await findFreshSignatureDraft(identity, now);
+  }
+
+  if (!record || !isFreshSignatureDraft(record, now)) {
+    if (record) await deleteSignatureDraft(key);
+    return null;
+  }
+  return record;
+}
+
+async function readSignatureDraft(key: string): Promise<SignatureDraftRecord | undefined> {
   const db = await openDraftDb();
-  let record: SignatureDraftRecord | undefined;
   try {
-    record = await new Promise<SignatureDraftRecord | undefined>((resolve, reject) => {
+    return await new Promise<SignatureDraftRecord | undefined>((resolve, reject) => {
       const transaction = db.transaction(STORE_NAME, "readonly");
       const request = transaction.objectStore(STORE_NAME).get(key);
       request.onsuccess = () => resolve(request.result as SignatureDraftRecord | undefined);
@@ -99,12 +130,29 @@ export async function loadSignatureDraft(
   } finally {
     db.close();
   }
+}
 
-  if (!record || !isFreshSignatureDraft(record, now)) {
-    if (record) await deleteSignatureDraft(key);
-    return null;
+async function findFreshSignatureDraft(
+  identity: SignatureDraftIdentity,
+  now: number,
+): Promise<SignatureDraftRecord | null> {
+  const db = await openDraftDb();
+  let records: SignatureDraftRecord[] = [];
+  try {
+    records = await new Promise<SignatureDraftRecord[]>((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, "readonly");
+      const request = transaction.objectStore(STORE_NAME).getAll();
+      request.onsuccess = () => resolve((request.result as SignatureDraftRecord[]) ?? []);
+      request.onerror = () => reject(request.error ?? new Error("Draft recovery failed"));
+      transaction.onabort = () => reject(transaction.error ?? new Error("Draft recovery aborted"));
+    });
+  } finally {
+    db.close();
   }
-  return record;
+
+  return records
+    .filter((record) => signatureDraftMatchesMember(record, identity) && isFreshSignatureDraft(record, now))
+    .sort((left, right) => right.savedAt - left.savedAt)[0] ?? null;
 }
 
 export async function deleteSignatureDraft(key: string): Promise<void> {
@@ -116,6 +164,28 @@ export async function deleteSignatureDraft(key: string): Promise<void> {
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error ?? new Error("Draft delete failed"));
       transaction.onabort = () => reject(transaction.error ?? new Error("Draft delete aborted"));
+    });
+  } finally {
+    db.close();
+  }
+}
+
+export async function deleteSignatureDraftsForMember(identity: SignatureDraftIdentity): Promise<void> {
+  const db = await openDraftDb();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, "readwrite");
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.getAll();
+      request.onsuccess = () => {
+        for (const record of (request.result as SignatureDraftRecord[]) ?? []) {
+          if (signatureDraftMatchesMember(record, identity)) store.delete(record.key);
+        }
+      };
+      request.onerror = () => reject(request.error ?? new Error("Draft cleanup failed"));
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error ?? new Error("Draft cleanup failed"));
+      transaction.onabort = () => reject(transaction.error ?? new Error("Draft cleanup aborted"));
     });
   } finally {
     db.close();

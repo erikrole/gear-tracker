@@ -40,7 +40,7 @@
 | `ProductEvent` | 12 | 6 |
 | `SignatureCollection` | 21 | 4 |
 | `SignatureRosterSnapshot` | 16 | 4 |
-| `SignatureMember` | 20 | 5 |
+| `SignatureMember` | 25 | 5 |
 | `SignatureCapture` | 16 | 3 |
 | `SignatureArtifactRevision` | 19 | 4 |
 | `SignatureSaveOperation` | 19 | 4 |

@@ -11,11 +11,13 @@ const app = readFileSync("ios/Wisconsin/App/WisconsinApp.swift", "utf8");
 const reservationRoute = readFileSync("src/app/api/reservations/route.ts", "utf8");
 const draftModels = readFileSync("ios/Wisconsin/Models/DraftModels.swift", "utf8");
 
+// Every surface that starts a reservation hands off to the shared draft store.
+// Event detail is deliberately absent: gear left that screen when it became a
+// staffing console, so it no longer starts reservations at all.
 const CALL_SITES = [
   "ios/Wisconsin/Views/BookingsView.swift",
   "ios/Wisconsin/Views/ItemsView.swift",
   "ios/Wisconsin/Views/ItemDetailView.swift",
-  "ios/Wisconsin/Views/EventDetailSheet.swift",
   "ios/Wisconsin/Views/DevTools/ScannerDebuggerView.swift",
 ];
 

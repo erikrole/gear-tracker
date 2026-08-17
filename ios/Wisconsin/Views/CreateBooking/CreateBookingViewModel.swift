@@ -713,6 +713,16 @@ final class CreateBookingViewModel {
         scheduleConflictCheck()
     }
 
+    /// Currently unreferenced, and kept deliberately.
+    ///
+    /// Event detail was its only caller until gear moved off that screen. This
+    /// is the sole path that stamps `shiftAssignmentId` on a new reservation —
+    /// the precise "this booking is for *this person's* shift" link, as opposed
+    /// to the event link the composer's own picker still sets. Nothing is broken
+    /// without it (my-shifts resolves gear through the event paths, and web's
+    /// Missing Gear keys on requester, not assignment), but the web crew row's
+    /// per-assignment `linkedBookingId` stays null for iOS-created reservations.
+    /// Deleting this would foreclose restoring that link.
     func prefill(title: String, startsAt: Date, endsAt: Date, userId: String, eventId: String?, shiftAssignmentId: String?) {
         self.title = title
         self.startsAt = startsAt

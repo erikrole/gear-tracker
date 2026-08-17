@@ -971,7 +971,7 @@ Indexes and constraints:
 
 ## Model `SignatureMember`
 
-Fields: 20
+Fields: 25
 
 - `id               String                   @id @default(cuid())`
 - `collectionId     String                   @map("collection_id")`
@@ -986,6 +986,11 @@ Fields: 20
 - `active           Boolean                  @default(true)`
 - `required         Boolean                  @default(false)`
 - `linkedUserId     String?                  @map("linked_user_id")`
+- `birthday         DateTime?                @db.Date`
+- `hometown         String?`
+- `instagramHandle  String?                  @map("instagram_handle")`
+- `tiktokHandle     String?                  @map("tiktok_handle")`
+- `xHandle          String?                  @map("x_handle")`
 - `createdAt        DateTime                 @default(now()) @map("created_at")`
 - `updatedAt        DateTime                 @updatedAt @map("updated_at")`
 - `collection       SignatureCollection      @relation(fields: [collectionId], references: [id], onDelete: Cascade)`

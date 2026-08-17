@@ -152,6 +152,10 @@ struct MyShiftEvent: Codable {
     let sportCode: String?
     let isHome: Bool?
     let opponent: String?
+    /// `/api/my-shifts` sends both halves of the mapped pickup location. The id
+    /// is decoded so `asScheduleEvent` can rebuild a real `EventLocation`
+    /// instead of dropping the venue on the floor.
+    let locationId: String?
     let locationName: String?
 }
 
@@ -174,6 +178,15 @@ struct ShiftGear: Codable {
 extension MyShift {
     /// Lets a shift be titled and routed with the same helpers the Schedule tab
     /// uses, so "Football vs Notre Dame" is constructed once.
+    ///
+    /// `location` was hardcoded nil here while `MyShiftEvent` was already
+    /// decoding the venue, so an event opened from Profile or a user's roster
+    /// rendered with no venue line at all — the same event showed its venue from
+    /// the Schedule tab and lost it from Profile. `DashboardEventWork` does this
+    /// correctly and is the reference.
+    ///
+    /// `allDay` and `status` stay hardcoded because `MyShiftEvent` carries
+    /// neither; fixing those needs `/api/my-shifts` to send them.
     var asScheduleEvent: ScheduleEvent {
         ScheduleEvent(
             id: event.id,
@@ -185,7 +198,7 @@ extension MyShift {
             sportCode: event.sportCode,
             opponent: event.opponent,
             isHome: event.isHome,
-            location: nil
+            location: event.locationId.map { EventLocation(id: $0, name: event.locationName ?? "") }
         )
     }
 }
@@ -691,6 +704,67 @@ func scheduleEventDisplayTitle(_ event: ScheduleEvent) -> String {
     if !title.isEmpty { return title }
     if let code = event.sportCode { return sportLabel(code) ?? code }
     return "Event"
+}
+
+// MARK: - Venue display
+
+/// The venue every schedule surface shows: the mapped Gear Tracker location
+/// name when the event has one, otherwise the imported calendar text with its
+/// city/state qualifier stripped.
+///
+/// Schedule rows and Event detail derived this separately and disagreed — the
+/// dense row stripped the qualifier while the detail header printed the raw
+/// string, so the same event read "McClimon Track/Soccer Complex" in the list
+/// and "Madison, WI, McClimon Track/Soccer Complex" (wrapped over two lines)
+/// once opened.
+func scheduleEventVenueName(_ event: ScheduleEvent) -> String? {
+    if let name = event.location?.name, !name.isEmpty { return name }
+    guard let raw = event.rawLocationText?.trimmingCharacters(in: .whitespacesAndNewlines),
+          !raw.isEmpty else { return nil }
+    return scheduleVenueDisplayName(raw)
+}
+
+/// The venue component of an imported calendar location.
+///
+/// Every venue this feed produces is a single comma component wrapped in a
+/// "City, ST" qualifier — "Madison, WI, Camp Randall Stadium",
+/// "Green Bay, Wis., Lambeau Field", "Iowa City, IA, Carver-Hawkeye Arena".
+/// Some sources trail the qualifier instead ("Camp Randall Stadium, Madison,
+/// WI"). Only the venue belongs on a schedule surface — the qualifier is what
+/// pushes the real name into truncation — so this returns the venue alone,
+/// never a venue with trailing detail attached.
+///
+/// The one shape that keeps its qualifier is a location with no venue at all
+/// ("Iowa City, IA"). The city is then the only location there is, and dropping
+/// the state would leave it reading like a truncation.
+func scheduleVenueDisplayName(_ raw: String) -> String {
+    let parts = raw
+        .split(separator: ",")
+        .map { $0.trimmingCharacters(in: .whitespaces) }
+        .filter { !$0.isEmpty }
+
+    guard let venueOrCity = parts.first else { return raw }
+    guard parts.count >= 2 else { return venueOrCity }
+
+    // "City, ST" and nothing else.
+    if parts.count == 2, isVenueStateToken(parts[1]) {
+        return parts.joined(separator: ", ")
+    }
+    // "City, ST, <venue>".
+    if parts.count >= 3, isVenueStateToken(parts[1]) {
+        return parts[2]
+    }
+    // "<venue>, City, ST" — and every other shape, where the venue leads.
+    return venueOrCity
+}
+
+/// Matches both postal codes ("WI") and the AP-style abbreviations the
+/// imported feed uses ("Wis.", "Minn.", "Calif.").
+private func isVenueStateToken(_ token: String) -> Bool {
+    if token.count == 2, token.allSatisfy({ $0.isUppercase && $0.isLetter }) { return true }
+    return token.hasSuffix(".")
+        && token.count <= 7
+        && token.dropLast().allSatisfy(\.isLetter)
 }
 
 func cleanScheduleEventSummary(_ raw: String) -> String {

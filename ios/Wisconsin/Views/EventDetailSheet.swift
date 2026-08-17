@@ -16,8 +16,18 @@ final class EventDetailViewModel {
             shiftsByArea = Self.makeShiftsByArea(from: workingEditor?.eventShifts() ?? shiftGroup?.shifts ?? [])
         }
     }
-    var isLoading = false
+    /// Starts `true`, before `.task` has fired.
+    ///
+    /// At `false` the very first render fell through to the `shiftGroup == nil`
+    /// branch, so every open of a staffed event flashed "No crew scheduled" and
+    /// a prominent "Set up crew" button for at least one frame — the console
+    /// answering "is this ready?" with the wrong answer before it had asked.
+    /// All three house detail views start `true` for the same reason.
+    var isLoading = true
     var error: String?
+    /// False until the first `load()` settles, so the crew region can tell
+    /// "nothing here yet" from "genuinely no crew".
+    private(set) var hasLoaded = false
     private var loadsWorkingCopy = false
 
     init(event: ScheduleEvent, myShift: MyShift?) {
@@ -30,11 +40,22 @@ final class EventDetailViewModel {
     var workingChangeSummary: String { workingEditor?.changes.summary ?? "No pending changes" }
     var displayedShifts: [EventShift] { workingEditor?.eventShifts() ?? shiftGroup?.shifts ?? [] }
 
+    /// Reentrancy is guarded separately from `isLoading`, which is now a display
+    /// state that starts `true`. Guarding on `isLoading` itself would have made
+    /// the very first `load()` return immediately and never fetch anything.
+    private var isFetching = false
+
     func load(includeWorkingCopy: Bool? = nil) async {
-        guard !isLoading else { return }
+        guard !isFetching else { return }
+        isFetching = true
         if let includeWorkingCopy { loadsWorkingCopy = includeWorkingCopy }
         isLoading = true
         error = nil
+        defer {
+            isFetching = false
+            isLoading = false
+            hasLoaded = true
+        }
         do {
             let group = try await APIClient.shared.shiftGroup(eventId: event.id)
             shiftGroup = group
@@ -45,12 +66,10 @@ final class EventDetailViewModel {
             }
         } catch APIError.unauthorized {
             // SessionStore handles the global routing on 401.
-            isLoading = false
             return
         } catch {
             self.error = error.localizedDescription
         }
-        isLoading = false
     }
 
     private static let areaOrder = ["VIDEO", "PHOTO", "GRAPHICS", "SOCIAL", "COMMS"]
@@ -79,6 +98,71 @@ final class EventDetailViewModel {
     }
 }
 
+// MARK: - Confirmable actions
+
+/// Every action on this screen that asks before it acts.
+///
+/// These were five separate `@State` targets, each with its own
+/// `confirmationDialog` and its own hand-rolled `Binding(get:set:)`. Only one
+/// can ever be presented, so they are one value with five cases: the dialog
+/// becomes a single call site, and adding a confirmable action means adding a
+/// case rather than another dialog and another piece of state.
+enum EventConfirmation: Identifiable {
+    case claim(EventShift)
+    case cancelTrade(ShiftAssignmentRecord)
+    case unassign(ShiftAssignmentRecord)
+    case delete(EventShift)
+    case revertWorkingSchedule
+
+    var id: String {
+        switch self {
+        case .claim(let shift): "claim-\(shift.id)"
+        case .cancelTrade(let assignment): "cancel-trade-\(assignment.id)"
+        case .unassign(let assignment): "unassign-\(assignment.id)"
+        case .delete(let shift): "delete-\(shift.id)"
+        case .revertWorkingSchedule: "revert-working-schedule"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .claim(let shift): "Claim \(shift.area.shiftAreaLabel) shift?"
+        case .cancelTrade: "Remove from Trade Board?"
+        case .unassign(let assignment): "Remove \(assignment.user.name)?"
+        case .delete(let shift): "Delete \(shift.area.shiftAreaLabel) shift?"
+        case .revertWorkingSchedule: "Revert pending changes?"
+        }
+    }
+
+    var confirmTitle: String {
+        switch self {
+        case .claim: "Claim shift"
+        case .cancelTrade: "Remove from Trade Board"
+        case .unassign: "Remove assignment"
+        case .delete: "Delete shift"
+        case .revertWorkingSchedule: "Revert"
+        }
+    }
+
+    /// The cancel button says what keeping the status quo means, rather than a
+    /// uniform "Cancel" that reads ambiguously next to "Remove from Trade Board".
+    var cancelTitle: String {
+        switch self {
+        case .cancelTrade: "Keep it posted"
+        case .unassign: "Keep"
+        default: "Cancel"
+        }
+    }
+
+    var isDestructive: Bool {
+        switch self {
+        case .claim: false
+        case .cancelTrade: false
+        case .unassign, .delete, .revertWorkingSchedule: true
+        }
+    }
+}
+
 // MARK: - Detail
 
 struct EventDetailView: View {
@@ -86,23 +170,17 @@ struct EventDetailView: View {
     let myShift: MyShift?
     let eventWork: DashboardEventWork?
     @Environment(SessionStore.self) private var session
-    @Environment(ReservationDraftStore.self) private var drafts
 
     @State private var vm: EventDetailViewModel
-    @State private var createdGearBookingId: String?
     @State private var assignTarget: EventShift?
     @State private var replaceTarget: EventShift?
-    @State private var claimTarget: EventShift?
     @State private var postTradeTarget: TradePostCandidate?
-    @State private var cancelTradeTarget: ShiftAssignmentRecord?
-    @State private var unassignTarget: ShiftAssignmentRecord?
-    @State private var deleteTarget: EventShift?
     @State private var editTimesTarget: EventShift?
+    @State private var confirmation: EventConfirmation?
     @State private var showAllCallTimes = false
     @State private var showAddShift = false
     @State private var isCreatingGroup = false
     @State private var isDiscarding = false
-    @State private var showDiscardReview = false
     @State private var actionError: String?
     @State private var actionErrorTitle = "Couldn't update event"
     @State private var actionRetry: (() -> Void)?
@@ -134,21 +212,26 @@ struct EventDetailView: View {
                     openShiftSection
                 }
                 crewSection
+                crewNotesSection
             }
             .padding(.horizontal, Brand.Space.md)
             .padding(.top, Brand.Space.sm)
-            .padding(.bottom, Brand.Space.xl)
+            // Clears the primary action bar.
+            .padding(.bottom, 88)
         }
         .background(Color(.systemGroupedBackground))
-        .navigationTitle("")
+        // A hand-rolled `.principal` item stood in for this, which meant the
+        // system never owned the title: no large-title collapse, no automatic
+        // back-button labelling, and a font the platform didn't pick.
+        .navigationTitle("Event")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text("Event")
-                    .font(.headline)
-                    .lineLimit(1)
+            ToolbarItem(placement: .topBarTrailing) { addShiftToolbarButton }
+            if hasOverflowActions {
+                ToolbarItem(placement: .topBarTrailing) { overflowMenu }
             }
         }
+        .safeAreaInset(edge: .bottom) { primaryActionBar }
         .task { await vm.load(includeWorkingCopy: canManageShifts) }
         .task(id: vm.workingEditor?.autoReleaseAt) {
             guard let releaseAt = vm.workingEditor?.autoReleaseAt else { return }
@@ -201,88 +284,28 @@ struct EventDetailView: View {
                 Task { await vm.load() }
             }
         }
+        // One dialog for every confirmable action. This was five separate
+        // `confirmationDialog`s, each bound through a hand-rolled
+        // `Binding(get:set:)` against its own `@State` target, each repeating
+        // the same nil-out-on-dismiss dance. The action-error alert below stays
+        // separate — it reports a failure rather than confirming an intent.
         .confirmationDialog(
-            claimDialogTitle,
+            confirmation?.title ?? "",
             isPresented: Binding(
-                get: { claimTarget != nil },
-                set: { if !$0 { claimTarget = nil } }
+                get: { confirmation != nil },
+                set: { if !$0 { confirmation = nil } }
             ),
-            titleVisibility: .visible
-        ) {
-            Button("Claim shift") {
-                guard let shift = claimTarget else { return }
-                Task { await claimShift(shift) }
-                claimTarget = nil
+            titleVisibility: .visible,
+            presenting: confirmation
+        ) { pending in
+            Button(pending.confirmTitle, role: pending.isDestructive ? .destructive : nil) {
+                perform(pending)
             }
-            Button("Cancel", role: .cancel) { claimTarget = nil }
-        } message: {
-            Text("You will be assigned immediately.")
-        }
-        .confirmationDialog(
-            "Remove from Trade Board?",
-            isPresented: Binding(
-                get: { cancelTradeTarget != nil },
-                set: { if !$0 { cancelTradeTarget = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button("Remove from Trade Board") {
-                guard let assignment = cancelTradeTarget else { return }
-                Task { await removeTradeFromBoard(assignment) }
-                cancelTradeTarget = nil
+            Button(pending.cancelTitle, role: .cancel) { confirmation = nil }
+        } message: { pending in
+            if let message = message(for: pending) {
+                Text(message)
             }
-            Button("Keep it posted", role: .cancel) { cancelTradeTarget = nil }
-        } message: {
-            if let assignment = cancelTradeTarget {
-                let owner = assignment.user.id == session.currentUser?.id ? "You stay" : "\(assignment.user.name) stays"
-                Text("The post is withdrawn. \(owner) on the shift.")
-            }
-        }
-        .confirmationDialog(
-            unassignDialogTitle,
-            isPresented: Binding(
-                get: { unassignTarget != nil },
-                set: { if !$0 { unassignTarget = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button("Remove assignment", role: .destructive) {
-                guard let assignment = unassignTarget else { return }
-                Task { await unassign(assignment) }
-                unassignTarget = nil
-            }
-            Button("Keep", role: .cancel) { unassignTarget = nil }
-        }
-        .confirmationDialog(
-            deleteDialogTitle,
-            isPresented: Binding(
-                get: { deleteTarget != nil },
-                set: { if !$0 { deleteTarget = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button("Delete shift", role: .destructive) {
-                guard let shift = deleteTarget else { return }
-                Task { await deleteShift(shift) }
-                deleteTarget = nil
-            }
-            Button("Cancel", role: .cancel) { deleteTarget = nil }
-        } message: {
-            if let shift = deleteTarget, !shift.assignments.isEmpty {
-                Text("This shift has someone assigned. They'll be removed too.")
-            } else {
-                Text("This cannot be undone.")
-            }
-        }
-        .confirmationDialog(
-            "Revert pending changes?",
-            isPresented: $showDiscardReview,
-            titleVisibility: .visible
-        ) {
-            Button("Revert", role: .destructive) { Task { await discardWorkingSchedule() } }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("The pending crew edits for this event will be removed. Workers will keep seeing the current schedule.")
         }
         .alert(
             actionErrorTitle,
@@ -343,14 +366,44 @@ struct EventDetailView: View {
         )
     }
 
-    private var claimDialogTitle: String {
-        guard let shift = claimTarget else { return "Claim shift?" }
-        return "Claim \(shift.area.shiftAreaLabel) shift?"
+    /// Runs the confirmed action and clears the dialog. Every case dismisses the
+    /// same way, which is what five separate dialogs each had to remember.
+    private func perform(_ pending: EventConfirmation) {
+        confirmation = nil
+        switch pending {
+        case .claim(let shift):
+            Task { await claimShift(shift) }
+        case .cancelTrade(let assignment):
+            Task { await removeTradeFromBoard(assignment) }
+        case .unassign(let assignment):
+            Task { await unassign(assignment) }
+        case .delete(let shift):
+            Task { await deleteShift(shift) }
+        case .revertWorkingSchedule:
+            Task { await discardWorkingSchedule() }
+        }
     }
 
-    private var unassignDialogTitle: String {
-        guard let assignment = unassignTarget else { return "Remove assignment?" }
-        return "Remove \(assignment.user.name)?"
+    /// The consequence, in the caller's own terms. Nil where the title already
+    /// says everything (removing one named person from one shift).
+    private func message(for pending: EventConfirmation) -> String? {
+        switch pending {
+        case .claim:
+            return "You will be assigned immediately."
+        case .cancelTrade(let assignment):
+            let owner = assignment.user.id == session.currentUser?.id
+                ? "You stay"
+                : "\(assignment.user.name) stays"
+            return "The post is withdrawn. \(owner) on the shift."
+        case .unassign:
+            return nil
+        case .delete(let shift):
+            return shift.assignments.isEmpty
+                ? "This cannot be undone."
+                : "This shift has someone assigned. They'll be removed too."
+        case .revertWorkingSchedule:
+            return "The pending crew edits for this event will be removed. Workers will keep seeing the current schedule."
+        }
     }
 
     private func presentActionError(
@@ -375,11 +428,6 @@ struct EventDetailView: View {
                 await removeTradeFromBoard(assignment)
             }
         }
-    }
-
-    private var deleteDialogTitle: String {
-        guard let shift = deleteTarget else { return "Delete shift?" }
-        return "Delete \(shift.area.shiftAreaLabel) shift?"
     }
 
     private func claimShift(_ shift: EventShift) async {
@@ -532,40 +580,6 @@ struct EventDetailView: View {
         }
     }
 
-    /// Hands the prepped composer to the app-level store. The completion only
-    /// records the new booking for this screen's "Gear reserved" line —
-    /// navigation to the reservation is handled centrally, because the composer
-    /// can outlive this view once it is minimized.
-    private func startPrepGearReservation() {
-        drafts.start(makePrepGearVM()) { newId in
-            createdGearBookingId = newId
-        }
-    }
-
-    private func makePrepGearVM() -> CreateBookingViewModel {
-        let bookingVM = CreateBookingViewModel()
-        if let work = eventWork, let userId = session.currentUser?.id {
-            bookingVM.prefill(
-                title: event.shortBookingEventTitle,
-                startsAt: work.shift.startsAt,
-                endsAt: event.endsAt,
-                userId: userId,
-                eventId: event.id,
-                shiftAssignmentId: work.shift.id
-            )
-        } else if let shift = myShift, let userId = session.currentUser?.id {
-            bookingVM.prefill(
-                title: event.shortBookingEventTitle,
-                startsAt: shift.startsAt,
-                endsAt: event.endsAt,
-                userId: userId,
-                eventId: event.id,
-                shiftAssignmentId: shift.id
-            )
-        }
-        return bookingVM
-    }
-
     private var callTime: Date? {
         if event.displayAllDay || myShift?.workerType == "FT" { return nil }
         return eventWork?.shift.startsAt ?? myShift?.startsAt
@@ -573,10 +587,17 @@ struct EventDetailView: View {
 
     private var eventHasEnded: Bool { event.endsAt < Date() }
 
+    /// `ScheduleEvent.status` was decoded and read nowhere in the whole iOS app,
+    /// so a cancelled event looked exactly like a confirmed one.
+    private var eventIsCancelled: Bool {
+        event.status.uppercased() == "CANCELLED"
+    }
+
+    /// Only worth a card while the shift is still ahead of you. It used to
+    /// survive past the event to keep gear links reachable; with gear gone,
+    /// a finished shift has nothing left to say.
     private var showsYourEventSection: Bool {
-        guard eventWork != nil || myShift != nil else { return false }
-        if eventHasEnded { return hasKnownGearBookings }
-        return true
+        (eventWork != nil || myShift != nil) && !eventHasEnded
     }
 
     private var claimableStudentShifts: [EventShift] {
@@ -590,22 +611,13 @@ struct EventDetailView: View {
         !claimableStudentShifts.isEmpty
     }
 
-    private var hasKnownGearBookings: Bool {
-        createdGearBookingId != nil
-            || !reservedGearBookings.isEmpty
-            || !(myShift?.gear.bookings.isEmpty ?? true)
-    }
-
-    /// Gear bookings linked to my event work; empty when gear still needs
-    /// reserving (or when opened from a bare shift with no gear context).
-    private var reservedGearBookings: [BookingSummary] {
-        guard let work = eventWork, !work.needsGear else { return [] }
-        return work.gearBookings
-    }
-
+    /// Your own shift on this event: when to report and which area. Gear used to
+    /// live here too — booking links, readiness tone, and a prefilled composer
+    /// CTA. It moved out wholesale: this screen is a staffing console, and gear
+    /// is Bookings' job. See `docs/AREA_SHIFTS.md`.
     private var assignmentSection: some View {
         VStack(alignment: .leading, spacing: Brand.Space.sm) {
-            EventDetailSectionHeader("Your Assignment", systemImage: "person.crop.circle.badge.checkmark")
+            BrandSectionHeader("Your Shift", systemImage: "person.crop.circle.badge.checkmark")
 
             VStack(alignment: .leading, spacing: 12) {
                 if let callTime {
@@ -625,75 +637,21 @@ struct EventDetailView: View {
                         tone: .blue
                     )
                 }
-
-                Divider()
-
-                if let createdGearBookingId {
-                    NavigationLink {
-                        BookingDetailView(bookingId: createdGearBookingId)
-                    } label: {
-                        detailLine(
-                            icon: "shippingbox.fill",
-                            title: "Gear reserved",
-                            subtitle: "Open reservation",
-                            tone: .green,
-                            showsChevron: true
-                        )
-                    }
-                    .buttonStyle(.plain)
-                } else if !reservedGearBookings.isEmpty {
-                    ForEach(reservedGearBookings) { gear in
-                        NavigationLink {
-                            BookingDetailView(bookingId: gear.id)
-                        } label: {
-                            detailLine(
-                                icon: "shippingbox.fill",
-                                title: gearInstruction(for: gear),
-                                subtitle: gearSubtitle(for: gear),
-                                tone: gear.status == .pendingPickup && gear.startsAt < Date() ? .orange : .green,
-                                showsChevron: true
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                } else if let shiftGear = myShift?.gear, !shiftGear.bookings.isEmpty {
-                    ForEach(shiftGear.bookings) { gear in
-                        NavigationLink {
-                            BookingDetailView(bookingId: gear.id)
-                        } label: {
-                            detailLine(
-                                icon: "shippingbox.fill",
-                                title: shiftGear.gearLabel,
-                                subtitle: gear.itemCount == 1 ? "1 item" : "\(gear.itemCount) items",
-                                tone: shiftGearTone(shiftGear),
-                                showsChevron: true
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                } else if !eventHasEnded {
-                    Button {
-                        startPrepGearReservation()
-                    } label: {
-                        Label(reserveGearTitle, systemImage: "shippingbox.and.arrow.backward.fill")
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color.statusText(.purple))
-                }
             }
-            .brandCard()
+            // The same blue the Schedule list row uses to mark your own shift,
+            // and the same one `ShiftRow` already uses on the roster row. The
+            // detail screen was the only surface not making that agreement.
+            .brandCard(fill: Color.statusBackground(.blue))
         }
     }
 
     private var openShiftSection: some View {
         VStack(alignment: .leading, spacing: Brand.Space.sm) {
-            EventDetailSectionHeader("Open Shifts", systemImage: "person.badge.plus")
+            BrandSectionHeader("Open Shifts", systemImage: "person.badge.plus")
             VStack(spacing: 0) {
                 ForEach(Array(claimableStudentShifts.enumerated()), id: \.element.id) { index, shift in
                     Button {
-                        claimTarget = shift
+                        confirmation = .claim(shift)
                     } label: {
                         HStack(spacing: 12) {
                             Image(systemName: "hand.raised.fill")
@@ -730,48 +688,185 @@ struct EventDetailView: View {
         }
     }
 
-    /// Add Shift lives in the Crew header rather than its own "Staffing" card.
-    /// That card restated the same coverage the Crew pill already shows, under a
-    /// near-identical people icon, so managers read the number twice.
+    /// Adding a slot is a screen-level action, so it sits in the navigation bar
+    /// like every other add on iOS.
+    ///
+    /// It spent two rounds homeless in the content column: first sharing the
+    /// Crew header with the title and coverage pill (too narrow — its sibling
+    /// wrapped to three lines), then on its own full-width line beside an empty
+    /// gutter, attached to nothing. The toolbar is where it belonged.
     @ViewBuilder
-    private var addShiftButton: some View {
+    private var addShiftToolbarButton: some View {
         if canManageShifts, vm.shiftGroup != nil {
             Button {
                 showAddShift = true
             } label: {
                 Label("Add Shift", systemImage: "plus")
-                    .font(.subheadline.weight(.semibold))
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .frame(minHeight: 44)
-            .tint(Color.statusText(.purple))
+            .accessibilityLabel("Add shift")
         }
+    }
+
+    /// Staff commands that are neither the primary action nor a row action.
+    /// Gated as a whole so students never see an empty ellipsis.
+    private var hasOverflowActions: Bool {
+        canEditCallWindow || (canManageShifts && vm.hasUnpublishedChanges)
     }
 
     @ViewBuilder
-    private var setAllCallTimesButton: some View {
-        if canManageShifts,
-           !event.displayAllDay,
-           vm.workingEditor != nil,
-           vm.displayedShifts.contains(where: { $0.workerType == "ST" }) {
-            Button {
-                showAllCallTimes = true
-            } label: {
-                Label("Set Student call time", systemImage: "person.2")
-                    .font(.subheadline.weight(.semibold))
+    private var overflowMenu: some View {
+        Menu {
+            Section {
+                ShareLink(item: eventShareText) {
+                    Label("Share Event", systemImage: "square.and.arrow.up")
+                }
+                Button {
+                    UIPasteboard.general.string = eventShareText
+                    Haptics.success()
+                } label: {
+                    Label("Copy Event Details", systemImage: "doc.on.doc")
+                }
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .frame(minHeight: 44)
-            .tint(Color.statusText(.purple))
+            if canEditCallWindow {
+                Section {
+                    Button {
+                        showAllCallTimes = true
+                    } label: {
+                        Label("Set Student call time", systemImage: "person.2")
+                    }
+                }
+            }
+            if canManageShifts, vm.hasUnpublishedChanges {
+                Section {
+                    Button(role: .destructive) {
+                        confirmation = .revertWorkingSchedule
+                    } label: {
+                        Label("Revert pending changes", systemImage: "arrow.uturn.backward")
+                    }
+                }
+            }
+        } label: {
+            Label("More", systemImage: "ellipsis.circle")
+        }
+        .accessibilityLabel("More event actions")
+    }
+
+    // MARK: - Primary action
+
+    /// Open slots in the order the roster shows them, so "next open slot" means
+    /// the next one the eye would land on rather than an arbitrary one.
+    private var openSlotsInRosterOrder: [EventShift] {
+        vm.shiftsByArea.flatMap { $0.shifts }.filter(\.isOpen)
+    }
+
+    /// The one dominant action, in the house pattern's single bottom bar.
+    ///
+    /// The screen's job is getting an event from 0/5 to 5/5, and every other
+    /// route to that made you scroll and aim at a specific row. There is at most
+    /// one of these at a time; when the event is fully staffed the bar is gone
+    /// and the coverage pill is the whole answer.
+    private enum PrimaryAction {
+        case setUpCrew
+        case assign(EventShift, openCount: Int)
+        case claim(EventShift)
+
+        var title: String {
+            switch self {
+            case .setUpCrew: "Set up crew"
+            case .assign(_, let openCount): openCount == 1 ? "Assign — 1 open" : "Assign — \(openCount) open"
+            case .claim: "Claim shift"
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .setUpCrew: "person.2.badge.plus"
+            case .assign: "person.badge.plus"
+            case .claim: "hand.raised.fill"
+            }
         }
     }
 
-    private func gearSubtitle(for gear: BookingSummary) -> String {
-        let items = gear.itemCount == 1 ? "1 item reserved" : "\(gear.itemCount) items reserved"
-        // With multiple linked bookings, the booking title tells them apart.
-        return reservedGearBookings.count > 1 ? "\(gear.title) · \(items)" : items
+    private var primaryAction: PrimaryAction? {
+        // A cancelled event should not be staffed; the hero says why.
+        guard !eventIsCancelled, !eventHasEnded else { return nil }
+        if canManageShifts {
+            if vm.shiftGroup == nil { return vm.isLoading ? nil : .setUpCrew }
+            guard let next = openSlotsInRosterOrder.first else { return nil }
+            return .assign(next, openCount: openSlotsInRosterOrder.count)
+        }
+        if let claimable = claimableStudentShifts.first { return .claim(claimable) }
+        return nil
+    }
+
+    @ViewBuilder
+    private var primaryActionBar: some View {
+        if let primaryAction {
+            Button {
+                switch primaryAction {
+                case .setUpCrew:
+                    Task { await createShiftGroup() }
+                case .assign(let shift, _):
+                    assignTarget = shift
+                case .claim(let shift):
+                    confirmation = .claim(shift)
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    if isCreatingGroup {
+                        ProgressView().tint(.white)
+                    } else {
+                        Image(systemName: primaryAction.systemImage)
+                    }
+                    Text(primaryAction.title).fontWeight(.semibold)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .tint(Color.statusText(.purple))
+            .disabled(isCreatingGroup)
+            .padding(.horizontal, Brand.Space.md)
+            .padding(.vertical, Brand.Space.sm)
+            .background(.bar)
+        }
+    }
+
+    private var studentShifts: [EventShift] {
+        vm.displayedShifts.filter { $0.workerType == "ST" }
+    }
+
+    /// The call window every Student slot shares, or nil when they differ.
+    ///
+    /// In practice a whole event is called at one time — "Set Student call time"
+    /// exists to set them together — so the window was identical on every
+    /// Student row and printed once per row, in the leftmost column, three or
+    /// four times down the screen.
+    private var sharedStudentCallWindow: (start: Date, end: Date)? {
+        guard !event.displayAllDay, let first = studentShifts.first else { return nil }
+        let start = first.effectiveStartsAt
+        let end = first.effectiveEndsAt
+        let uniform = studentShifts.allSatisfy {
+            $0.effectiveStartsAt == start && $0.effectiveEndsAt == end
+        }
+        return uniform ? (start, end) : nil
+    }
+
+    /// True once the call window is stated once for the whole crew, which is
+    /// what lets the rows drop their call column.
+    private var callWindowIsHoisted: Bool {
+        !event.displayAllDay && !studentShifts.isEmpty
+    }
+
+    private var callWindowSummary: String {
+        guard let window = sharedStudentCallWindow else { return "Students · mixed call times" }
+        let start = window.start.formatted(date: .omitted, time: .shortened)
+        let end = window.end.formatted(date: .omitted, time: .shortened)
+        return "Students \(start) – \(end)"
+    }
+
+    private var canEditCallWindow: Bool {
+        canManageShifts && vm.workingEditor != nil && callWindowIsHoisted
     }
 
     /// Today: "Call time at 3:30 PM" (countdown lives in the subtitle).
@@ -805,24 +900,6 @@ struct EventDetailView: View {
         return parts.joined(separator: " · ")
     }
 
-    private func shiftGearTone(_ gear: ShiftGear) -> StatusTone {
-        switch gear.status {
-        case "checked_out", "pickup_ready": return .orange
-        case "reserved": return .green
-        case "draft": return .purple
-        default: return .gray
-        }
-    }
-
-    /// "now" only when the event is actually today (or underway) — five days
-    /// out it states the deadline instead of shouting.
-    private var reserveGearTitle: String {
-        if event.startsAt < Date() || Calendar.current.isDateInToday(event.startsAt) {
-            return "Reserve gear now"
-        }
-        return "Reserve gear for \(event.startsAt.formatted(.dateTime.month(.abbreviated).day()))"
-    }
-
     private func detailLine(icon: String, title: String, subtitle: String, tone: StatusTone, showsChevron: Bool = false) -> some View {
         HStack(spacing: 10) {
             Image(systemName: icon)
@@ -846,17 +923,6 @@ struct EventDetailView: View {
             }
         }
         .contentShape(Rectangle())
-    }
-
-    private func gearInstruction(for gear: BookingSummary) -> String {
-        if gear.status == .pendingPickup && gear.startsAt < Date() {
-            return "Pickup gear now"
-        }
-        if event.displayAllDay {
-            // All-day gear rows start at local midnight; "at 12:00 AM" is noise.
-            return "Pickup gear for this event"
-        }
-        return "Pickup gear at \(gear.startsAt.formatted(date: .omitted, time: .shortened))"
     }
 
     // MARK: - Event Header
@@ -906,14 +972,91 @@ struct EventDetailView: View {
         }
     }
 
+    /// Sport for the header eyebrow, or nil when the title already carries it.
+    /// `scheduleEventDisplayTitle` leads opponent events with the sport, so an
+    /// unconditional eyebrow printed "Women's Soccer · Home" directly above
+    /// "Women's Soccer vs BYU" — the sport twice, in the two largest type sizes
+    /// on the card. Non-game events keep the eyebrow, since their summary title
+    /// rarely names the sport.
+    private var eyebrowSportLabel: String? {
+        guard let sport = sportLabel(event.sportCode) else { return nil }
+        return scheduleEventDisplayTitle(event).hasPrefix(sport) ? nil : sport
+    }
+
+    /// How far out the event is, for events close enough that the answer changes
+    /// what you do about them. "0/5 filled" in red says a crew is missing but not
+    /// whether that is a crisis or next month's problem; "in 3 days" is what
+    /// makes the red mean something.
+    ///
+    /// Today and tomorrow already read that way in `eventDateText`, so they are
+    /// left alone rather than restated, and anything past two weeks out is not
+    /// urgent enough to spend a line on.
+    private var eventCountdownText: String? {
+        let calendar = Calendar.current
+        guard !eventHasEnded,
+              !calendar.isDateInToday(event.startsAt),
+              !calendar.isDateInTomorrow(event.startsAt) else { return nil }
+        let today = calendar.startOfDay(for: .now)
+        let eventDay = calendar.startOfDay(for: event.startsAt)
+        guard let days = calendar.dateComponents([.day], from: today, to: eventDay).day,
+              days > 1, days <= 14 else { return nil }
+        return "in \(days) days"
+    }
+
+    /// The staffing answer, in the hero, for everyone.
+    ///
+    /// Coverage was a small pill in a section header and staff-only — while the
+    /// Schedule *list* row showed a coverage chip to every role. So the surface
+    /// with the most room and the most reason to answer "is this ready?" was the
+    /// one hiding it. Suppressed while loading rather than flashing "No crew set
+    /// up" at a staffed event.
+    @ViewBuilder
+    private var readinessLine: some View {
+        if !vm.isLoading, !eventIsCancelled {
+            HStack(spacing: 8) {
+                if let coverage = vm.shiftGroup?.coverage, coverage.total > 0 {
+                    CoverageChip(coverage: coverage, showsLabel: true)
+                }
+                Text(crewReadinessSummary(vm.shiftGroup?.coverage))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.top, 2)
+            .accessibilityElement(children: .combine)
+        }
+    }
+
     private var eventRailColor: Color {
         venueRailColor(isHome: event.isHome)
     }
 
     private var eventVenueName: String? {
-        if let name = event.location?.name, !name.isEmpty { return name }
-        if let raw = event.rawLocationText?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty { return raw }
-        return nil
+        scheduleEventVenueName(event)
+    }
+
+    /// The event as something you can paste into a message to a crew member.
+    private var eventShareText: String {
+        var lines = [scheduleEventDisplayTitle(event)]
+        lines.append(event.displayAllDay ? "\(eventDateText) · All day" : "\(eventDateText) · \(eventTimeText)")
+        if let eventVenueName { lines.append(eventVenueName) }
+        return lines.joined(separator: "\n")
+    }
+
+    /// Long-pressing the event card. HIG asks for the few actions actually
+    /// relevant to the object under the finger; here that is passing the event
+    /// along to someone, which is the one thing this card holds that you cannot
+    /// get at any other way.
+    @ViewBuilder
+    private var eventHeaderContextMenu: some View {
+        ShareLink(item: eventShareText) {
+            Label("Share Event", systemImage: "square.and.arrow.up")
+        }
+        Button {
+            UIPasteboard.general.string = eventShareText
+            Haptics.success()
+        } label: {
+            Label("Copy Event Details", systemImage: "doc.on.doc")
+        }
     }
 
     private var eventHeader: some View {
@@ -922,17 +1065,23 @@ struct EventDetailView: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 6) {
-                    if let sport = sportLabel(event.sportCode) {
-                        Text(sport)
+                    if let eyebrowSportLabel {
+                        Text(eyebrowSportLabel)
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
-                    }
-                    if event.sportCode != nil {
                         Text("·").foregroundStyle(.tertiary)
                     }
                     Text(eventTypeLabel)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(eventRailColor)
+                    if eventIsCancelled {
+                        Text("Cancelled")
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.statusBackground(.red), in: Capsule())
+                            .foregroundStyle(Color.statusText(.red))
+                    }
                 }
 
                 Text(scheduleEventDisplayTitle(event))
@@ -942,10 +1091,17 @@ struct EventDetailView: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Label(
-                        eventDateText,
-                        systemImage: event.isMultiDay ? "calendar.day.timeline.left" : "calendar"
-                    )
+                    Label {
+                        HStack(spacing: 6) {
+                            Text(eventDateText)
+                            if let countdown = eventCountdownText {
+                                Text("·").foregroundStyle(.tertiary)
+                                Text(countdown).foregroundStyle(.secondary)
+                            }
+                        }
+                    } icon: {
+                        Image(systemName: event.isMultiDay ? "calendar.day.timeline.left" : "calendar")
+                    }
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.primary)
 
@@ -959,30 +1115,60 @@ struct EventDetailView: View {
                             .foregroundStyle(.secondary)
                     }
 
+                    readinessLine
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .brandCard()
+        .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous))
+        .contextMenu { eventHeaderContextMenu }
     }
 
     // MARK: - Crew Section
 
+    /// Header, then roster. The call window rides in the header's own subtitle
+    /// slot and Add Shift moved to the toolbar, so nothing floats between the
+    /// two on a line of its own any more.
     private var crewSection: some View {
         VStack(alignment: .leading, spacing: Brand.Space.sm) {
-            EventDetailSectionHeader(title: "Crew", systemImage: "person.2.fill") {
-                HStack(spacing: Brand.Space.sm) {
-                    if canManageShifts, let coverage = vm.shiftGroup?.coverage {
-                        CoveragePill(coverage: coverage)
-                    }
-                    setAllCallTimesButton
-                    addShiftButton
-                }
-            }
+            // Coverage answers "is this event ready?", so it belongs in the hero
+            // where that question is asked, not tucked into a section header
+            // halfway down.
+            BrandSectionHeader(
+                "Crew",
+                subtitle: callWindowIsHoisted ? callWindowSummary : nil,
+                systemImage: "person.2.fill"
+            )
             if canManageShifts, vm.hasUnpublishedChanges {
                 workingScheduleReviewCard
             }
             crewBody
+        }
+    }
+
+    private var crewNotes: String? {
+        guard let notes = vm.shiftGroup?.notes?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !notes.isEmpty else { return nil }
+        return notes
+    }
+
+    /// `EventShiftGroup.notes` arrives on every load and was rendered nowhere.
+    /// On a staffing console this is where "wear blacks, park in Lot 60" lives —
+    /// exactly the kind of instruction that otherwise gets passed around in a
+    /// side channel the app can't see.
+    @ViewBuilder
+    private var crewNotesSection: some View {
+        if let crewNotes {
+            VStack(alignment: .leading, spacing: Brand.Space.sm) {
+                BrandSectionHeader("Notes", systemImage: "note.text")
+                Text(crewNotes)
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+                    .brandCard()
+            }
         }
     }
 
@@ -997,6 +1183,13 @@ struct EventDetailView: View {
                 Text(vm.workingChangeSummary)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                // How many people this actually touches — the fact that decides
+                // whether reverting is safe. It was decoded and never shown.
+                if let affected = vm.workingEditor?.affectedWorkerCount, affected > 0 {
+                    Text(affected == 1 ? "1 worker affected" : "\(affected) workers affected")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.statusText(.orange))
+                }
                 if let error = vm.workingEditor?.autoReleaseError {
                     Text(error)
                         .font(.caption)
@@ -1009,43 +1202,39 @@ struct EventDetailView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             VStack(alignment: .trailing, spacing: 4) {
-                Button("Revert", role: .destructive) { showDiscardReview = true }
+                Button("Revert", role: .destructive) { confirmation = .revertWorkingSchedule }
                     .font(.caption.weight(.semibold))
                     .disabled(isDiscarding)
             }
         }
-        .padding(14)
-        .background(Color.statusBackground(.orange), in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+        // The one card surface, tinted — this was hand-rolled chrome that missed
+        // the hairline edge and the continuous-corner radius every other card
+        // on the screen has.
+        .brandCard(fill: Color.statusBackground(.orange))
         .accessibilityElement(children: .contain)
     }
 
+    /// The crew region's three states.
+    ///
+    /// The house detail screens gate the *whole* screen because they have no
+    /// content until their fetch lands. This one is handed a complete
+    /// `ScheduleEvent` by its caller, so the header is real on the first frame —
+    /// gating the screen would trade that for pattern symmetry. The house
+    /// vocabulary (a skeleton, then `ContentUnavailableView` with a prominent
+    /// Retry) applies to the region that is actually pending.
     @ViewBuilder
     private var crewBody: some View {
         if vm.isLoading {
-            HStack(spacing: 10) {
-                ProgressView()
-                Text("Loading crew…")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .brandCard()
+            EventDetailCrewSkeleton()
         } else if let err = vm.error {
-            VStack(spacing: 8) {
+            ContentUnavailableView {
                 Label("Couldn't load crew", systemImage: "exclamationmark.triangle")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(Color.statusText(.orange))
+            } description: {
                 Text(err)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+            } actions: {
                 Button("Retry") { Task { await vm.load() } }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                    .buttonStyle(.borderedProminent)
             }
-            .frame(maxWidth: .infinity)
-            .brandCard(alignment: .center)
         } else if vm.shiftGroup == nil {
             VStack(spacing: 10) {
                 Image(systemName: "person.2.slash")
@@ -1058,22 +1247,10 @@ struct EventDetailView: View {
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
-                if canManageShifts {
-                    Button {
-                        Task { await createShiftGroup() }
-                    } label: {
-                        if isCreatingGroup {
-                            ProgressView()
-                                .controlSize(.small)
-                        } else {
-                            Label("Set up crew", systemImage: "plus.circle")
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.regular)
-                    .padding(.top, 2)
-                    .disabled(isCreatingGroup)
-                }
+                // "Set up crew" used to live here as a second prominent button.
+                // The primary action bar owns it now — one dominant action per
+                // screen, and this card states the situation rather than
+                // competing to resolve it.
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
@@ -1097,7 +1274,12 @@ struct EventDetailView: View {
     }
 
     private var crewList: some View {
-        VStack(alignment: .leading, spacing: Brand.Space.md) {
+        // Areas are separated more than a heading is separated from its own
+        // card (`lg` here against `xs` inside `AreaBlock`), so each area reads
+        // as one block. At the old near-equal gaps the headings floated between
+        // two cards, belonging to neither, and the crew list read as a stack of
+        // unrelated islands rather than one roster.
+        VStack(alignment: .leading, spacing: Brand.Space.lg) {
             // Per-area shift blocks (the "Crew" header lives in crewSection).
             ForEach(vm.shiftsByArea, id: \.area) { group in
                 AreaBlock(
@@ -1113,7 +1295,7 @@ struct EventDetailView: View {
                     isStudent: isStudent && !showsOpenShiftSection,
                     onAssign: { shift in assignTarget = shift },
                     onConvertAndReplace: { shift in replaceTarget = shift },
-                    onRequest: { shift in claimTarget = shift },
+                    onRequest: { shift in confirmation = .claim(shift) },
                     onPostTrade: { shift, assignment in
                         postTradeTarget = TradePostCandidate(
                             assignment: assignment,
@@ -1122,8 +1304,8 @@ struct EventDetailView: View {
                             currentUserId: session.currentUser?.id
                         )
                     },
-                    onCancelTrade: { assignment in cancelTradeTarget = assignment },
-                    onUnassign: { assignment in unassignTarget = assignment },
+                    onCancelTrade: { assignment in confirmation = .cancelTrade(assignment) },
+                    onUnassign: { assignment in confirmation = .unassign(assignment) },
                     onApprove: { assignment in Task { await approveRequest(assignment) } },
                     onDecline: { assignment in Task { await declineRequest(assignment) } },
                     onDuplicate: { shift in Task { await duplicateShift(shift) } },
@@ -1132,64 +1314,15 @@ struct EventDetailView: View {
                         if shift.assignments.isEmpty {
                             Task { await deleteShift(shift) }
                         } else {
-                            deleteTarget = shift
+                            confirmation = .delete(shift)
                         }
                     },
-                    hidesShiftTimes: event.displayAllDay
+                    hidesShiftTimes: event.displayAllDay,
+                    callWindowIsHoisted: callWindowIsHoisted
                 )
             }
         }
     }
-}
-
-// MARK: - Section Header
-
-private struct EventDetailSectionHeader<Trailing: View>: View {
-    let title: String
-    var systemImage: String? = nil
-    @ViewBuilder var trailing: () -> Trailing
-
-    var body: some View {
-        HStack(alignment: .center, spacing: Brand.Space.sm) {
-            if let systemImage {
-                Image(systemName: systemImage)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
-            }
-            Text(title)
-                .font(.headline)
-                .foregroundStyle(.primary)
-                .accessibilityAddTraits(.isHeader)
-            Spacer(minLength: Brand.Space.sm)
-            trailing()
-        }
-    }
-}
-
-private extension EventDetailSectionHeader where Trailing == EmptyView {
-    init(_ title: String, systemImage: String? = nil) {
-        self.init(title: title, systemImage: systemImage, trailing: { EmptyView() })
-    }
-}
-
-// MARK: - Coverage Pill
-
-struct CoveragePill: View {
-    let coverage: ShiftCoverage
-
-    var body: some View {
-        Text("\(coverage.filled)/\(coverage.total) filled")
-            .font(.caption.weight(.semibold))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(Color.statusBackground(tone))
-            .foregroundStyle(Color.statusText(tone))
-            .clipShape(Capsule())
-            .accessibilityLabel("Crew coverage: \(coverage.filled) of \(coverage.total) filled")
-    }
-
-    private var tone: StatusTone { coverageTone(coverage) }
 }
 
 // MARK: - Area Block
@@ -1214,9 +1347,15 @@ struct AreaBlock: View {
     var onEditTimes: ((EventShift) -> Void)? = nil
     var onDelete: ((EventShift) -> Void)? = nil
     var hidesShiftTimes = false
+    /// Set when the Crew header already states the call window for the whole
+    /// event, which is the normal case. The rows then drop their call column
+    /// instead of reprinting one identical time per row.
+    var callWindowIsHoisted = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        // Tight: the heading names the card directly under it. `crewList`
+        // separates whole areas by `lg` so this pairing reads unambiguously.
+        VStack(alignment: .leading, spacing: Brand.Space.xs) {
             // Area header — title-cased ("Video" / "Photo") so the row's
             // ALL-CAPS server token doesn't shout, with the area's icon and the
             // same filled count the web Crew table shows. The worker-type label
@@ -1235,6 +1374,7 @@ struct AreaBlock: View {
                         isWorkingCopy: isWorkingCopy,
                         isStudent: isStudent,
                         hidesShiftTimes: hidesShiftTimes,
+                        showsCallColumn: showsCallColumn,
                         showsWorkerType: true,
                         onAssign: onAssign,
                         onConvertAndReplace: onConvertAndReplace,
@@ -1249,7 +1389,11 @@ struct AreaBlock: View {
                         onDelete: onDelete
                     )
                     if idx < shifts.count - 1 {
-                        Divider().padding(.leading, 44)
+                        // Flush with the row's own content inset. The old 44pt
+                        // indent lined up with nothing in either row layout —
+                        // with a call column, content starts past 100pt; without
+                        // one, it starts at 12.
+                        Divider().padding(.leading, ShiftRow.horizontalPadding)
                     }
                 }
             }
@@ -1265,6 +1409,18 @@ struct AreaBlock: View {
     /// Slots in this area with someone actually on them.
     private var filledCount: Int {
         shifts.filter { !$0.isOpen }.count
+    }
+
+    /// Whether this area reserves the leading call-time column. Staff slots have
+    /// no call time, but when the block also holds Student slots every row still
+    /// reserves the column: dropping it on the Staff rows slid their crew type,
+    /// avatar, and Assign control left, so no two adjacent rows in the same card
+    /// shared a left edge.
+    ///
+    /// The column disappears entirely once the header states the window — at
+    /// that point it held one repeated time and a column of em dashes.
+    private var showsCallColumn: Bool {
+        !hidesShiftTimes && !callWindowIsHoisted && shifts.contains { $0.workerType == "ST" }
     }
 
     private func isMyShift(_ shift: EventShift) -> Bool {
@@ -1283,6 +1439,10 @@ struct ShiftRow: View {
     var isWorkingCopy: Bool = false
     var isStudent: Bool = false
     var hidesShiftTimes = false
+    /// Set by `AreaBlock` when this area reserves the leading call-time column.
+    /// Every row in the block agrees, so the crew-type, name, and action columns
+    /// share a left edge even though only Student slots carry a call time.
+    var showsCallColumn: Bool = false
     /// Per-row Student/Staff badge. Suppressed when the whole area block is one
     /// worker type (it's shown once on the area header instead), so an all-staff
     /// crew isn't a column of identical "Staff" pills.
@@ -1307,7 +1467,41 @@ struct ShiftRow: View {
     @ScaledMetric(relativeTo: .caption) private var callColumnWidth: CGFloat = 66
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
+    /// Row content inset. `AreaBlock` reads it so its dividers start exactly
+    /// where row content does.
+    static let horizontalPadding: CGFloat = 12
+
+    /// The row's own primary action, when it has one. Open slots are the only
+    /// rows with an unambiguous next step, so they become the tap target.
+    private var primaryRowAction: (() -> Void)? {
+        guard shift.isOpen else { return nil }
+        if canManageShifts, let onAssign { return { onAssign(shift) } }
+        if isStudent, isStudentSlot, let onRequest { return { onRequest(shift) } }
+        return nil
+    }
+
     var body: some View {
+        // An open slot's action belongs to the whole row, the way Calendar and
+        // Contacts hand a row's action to the row. It used to live in a tinted
+        // pill, which meant an unstaffed event was a column of five identical
+        // filled buttons competing with the section's own controls — every
+        // control shouting, so none of them leading. The row now carries the
+        // target and the trailing text plus chevron carries the affordance.
+        if let primaryRowAction {
+            Button(action: primaryRowAction) { rowContent }
+                .buttonStyle(.plain)
+                .contextMenu { rowContextMenu }
+                .accessibilityLabel(rowAccessibilityLabel)
+                .accessibilityHint(openSlotActionTitle)
+        } else {
+            rowContent
+                .contextMenu { rowContextMenu }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(rowAccessibilityLabel)
+        }
+    }
+
+    private var rowContent: some View {
         Group {
             if dynamicTypeSize >= .xxLarge {
                 // Three columns plus an action stop fitting a phone well before
@@ -1331,16 +1525,11 @@ struct ShiftRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 HStack(spacing: 12) {
-                    // Call time column
-                    if !hidesShiftTimes && isStudentSlot {
-                        VStack(alignment: .trailing, spacing: 2) {
-                            Text(shift.effectiveStartsAt.formatted(.dateTime.hour().minute()))
-                                .font(.caption.monospacedDigit().weight(.medium))
-                            Text(shift.effectiveEndsAt.formatted(.dateTime.hour().minute()))
-                                .font(.caption2.monospacedDigit())
-                                .foregroundStyle(.tertiary)
-                        }
-                        .frame(width: callColumnWidth, alignment: .trailing)
+                    // Call time column — reserved for every row in an area that
+                    // has any Student slot, so the columns to its right line up.
+                    if showsCallColumn {
+                        callTimeColumn
+                            .frame(width: callColumnWidth, alignment: .trailing)
 
                         Divider().frame(height: 36)
                     }
@@ -1359,12 +1548,32 @@ struct ShiftRow: View {
                 }
             }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, Self.horizontalPadding)
         .padding(.vertical, 10)
+        // 44pt even after the tinted pill that used to guarantee it is gone.
+        .frame(minHeight: 44)
         .contentShape(.contextMenuPreview, Rectangle())
-        .contextMenu { rowContextMenu }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(rowAccessibilityLabel)
+        .contentShape(Rectangle())
+    }
+
+    /// The call window, or an em dash for slots that don't have one. Staff and
+    /// collaborators are never given a call time, so their rows state that
+    /// rather than leaving a silent gap where the times sit on every row above.
+    @ViewBuilder
+    private var callTimeColumn: some View {
+        if isStudentSlot {
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(shift.effectiveStartsAt.formatted(.dateTime.hour().minute()))
+                    .font(.caption.monospacedDigit().weight(.medium))
+                Text(shift.effectiveEndsAt.formatted(.dateTime.hour().minute()))
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.tertiary)
+            }
+        } else {
+            Text("—")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.tertiary)
+        }
     }
 
     /// Call window on one line, for the stacked accessibility layout.
@@ -1380,6 +1589,9 @@ struct ShiftRow: View {
         if !hidesShiftTimes && isStudentSlot {
             let timeRange = "\(shift.effectiveStartsAt.formatted(.dateTime.hour().minute())) to \(shift.effectiveEndsAt.formatted(.dateTime.hour().minute()))"
             parts.append(timeRange)
+        } else if showsCallColumn {
+            // Matches the em dash the row draws in the reserved call column.
+            parts.append("No call time")
         }
         if shift.isOpen {
             parts.append("Open slot")
@@ -1398,8 +1610,34 @@ struct ShiftRow: View {
         return parts.joined(separator: ". ")
     }
 
+    private var pendingRequests: [ShiftAssignmentRecord] {
+        shift.assignments.filter { $0.status == "REQUESTED" }
+    }
+
+    private var activeAssignments: [ShiftAssignmentRecord] {
+        shift.assignments.filter { $0.status != "REQUESTED" }
+    }
+
+    /// Long-pressing a crew row.
+    ///
+    /// HIG asks for grouped, ordered actions with destructive ones gathered at
+    /// the end. This was one flat list of up to seven items with destructive
+    /// entries scattered through it in three separate places — Decline near the
+    /// top, Remove in the middle, Delete at the bottom — so the two actions that
+    /// take a person off a shift sat directly beside the ones that don't. The
+    /// items are unchanged; the grouping and order are not.
     @ViewBuilder
     private var rowContextMenu: some View {
+        Section { primaryMenuActions }
+        Section { tradeBoardMenuActions }
+        Section { shiftManagementMenuActions }
+        Section { destructiveMenuActions }
+    }
+
+    /// What this row is actually for: fill it, claim it, or settle the request
+    /// waiting on it.
+    @ViewBuilder
+    private var primaryMenuActions: some View {
         if shift.isOpen {
             if canManageShifts, let onAssign {
                 Button { onAssign(shift) } label: {
@@ -1412,52 +1650,13 @@ struct ShiftRow: View {
                 }
             }
         } else {
-            // Pending request actions come first
-            ForEach(shift.assignments.filter { $0.status == "REQUESTED" }, id: \.id) { assignment in
-                if canManageShifts {
-                    if let onApprove {
-                        Button { onApprove(assignment) } label: {
-                            Label("Approve \(assignment.user.name)", systemImage: "checkmark.circle")
-                        }
-                    }
-                    if let onDecline {
-                        Button(role: .destructive) { onDecline(assignment) } label: {
-                            Label("Decline \(assignment.user.name)", systemImage: "xmark.circle")
-                        }
+            if canManageShifts, let onApprove {
+                ForEach(pendingRequests, id: \.id) { assignment in
+                    Button { onApprove(assignment) } label: {
+                        Label("Approve \(assignment.user.name)", systemImage: "checkmark.circle")
                     }
                 }
             }
-            // Trade Board: owners post their own shift; staff post student
-            // shifts. Started shifts can't be traded (server enforces too).
-            if !isWorkingCopy {
-            ForEach(shift.assignments.filter { $0.status != "REQUESTED" }, id: \.id) { assignment in
-                let isMine = currentUserId == assignment.user.id
-                if shift.startsAt > Date() {
-                    if assignment.isOnTradeBoard {
-                        if isMine || canManageShifts, let onCancelTrade {
-                            Button { onCancelTrade(assignment) } label: {
-                                Label(
-                                    shift.assignments.count > 1
-                                        ? "Remove \(assignment.user.name) from Trade Board"
-                                        : "Remove from Trade Board",
-                                    systemImage: "arrow.uturn.backward"
-                                )
-                            }
-                        }
-                    } else if isMine || (canManageShifts && assignment.user.isStudentSchedulingClass), let onPostTrade {
-                        Button { onPostTrade(shift, assignment) } label: {
-                            Label(
-                                shift.assignments.count > 1
-                                    ? "Post \(assignment.user.name) to Trade Board"
-                                    : "Post to Trade Board",
-                                systemImage: "arrow.left.arrow.right"
-                            )
-                        }
-                    }
-                }
-            }
-            }
-            // Replace / Remove for assigned slots
             if canManageShifts {
                 if isWorkingCopy, let onConvertAndReplace {
                     Button { onConvertAndReplace(shift) } label: {
@@ -1468,25 +1667,77 @@ struct ShiftRow: View {
                         Label("Replace…", systemImage: "person.2.badge.gearshape.fill")
                     }
                 }
-                ForEach(shift.assignments, id: \.id) { assignment in
-                    if let onUnassign {
-                        Button(role: .destructive) { onUnassign(assignment) } label: {
-                            Label("Remove \(assignment.user.name)", systemImage: "person.fill.xmark")
+            }
+        }
+    }
+
+    /// Trade Board: owners post their own shift; staff post student shifts.
+    /// Started shifts can't be traded (the server enforces this too).
+    @ViewBuilder
+    private var tradeBoardMenuActions: some View {
+        if !isWorkingCopy, shift.startsAt > Date() {
+            ForEach(activeAssignments, id: \.id) { assignment in
+                let isMine = currentUserId == assignment.user.id
+                if assignment.isOnTradeBoard {
+                    if isMine || canManageShifts, let onCancelTrade {
+                        Button { onCancelTrade(assignment) } label: {
+                            Label(
+                                shift.assignments.count > 1
+                                    ? "Remove \(assignment.user.name) from Trade Board"
+                                    : "Remove from Trade Board",
+                                systemImage: "arrow.uturn.backward"
+                            )
                         }
+                    }
+                } else if isMine || (canManageShifts && assignment.user.isStudentSchedulingClass), let onPostTrade {
+                    Button { onPostTrade(shift, assignment) } label: {
+                        Label(
+                            shift.assignments.count > 1
+                                ? "Post \(assignment.user.name) to Trade Board"
+                                : "Post to Trade Board",
+                            systemImage: "arrow.left.arrow.right"
+                        )
                     }
                 }
             }
         }
-        // Duplicate / Edit times / Delete always available to staff
+    }
+
+    /// Edits to the slot itself rather than to who is on it. Call time leads:
+    /// changing when someone is needed is far commoner than cloning a slot.
+    @ViewBuilder
+    private var shiftManagementMenuActions: some View {
         if canManageShifts {
+            if isStudentSlot, let onEditTimes {
+                Button { onEditTimes(shift) } label: {
+                    Label("Change call time", systemImage: "clock.badge.checkmark")
+                }
+            }
             if let onDuplicate {
                 Button { onDuplicate(shift) } label: {
                     Label("Duplicate shift", systemImage: "plus.square.on.square")
                 }
             }
-            if isStudentSlot, let onEditTimes {
-                Button { onEditTimes(shift) } label: {
-                    Label("Change call time", systemImage: "clock.badge.checkmark")
+        }
+    }
+
+    /// Everything that takes someone off a shift or removes the shift, gathered
+    /// in one group at the end where a slip is least likely.
+    @ViewBuilder
+    private var destructiveMenuActions: some View {
+        if canManageShifts {
+            if let onDecline {
+                ForEach(pendingRequests, id: \.id) { assignment in
+                    Button(role: .destructive) { onDecline(assignment) } label: {
+                        Label("Decline \(assignment.user.name)", systemImage: "xmark.circle")
+                    }
+                }
+            }
+            if !shift.isOpen, let onUnassign {
+                ForEach(shift.assignments, id: \.id) { assignment in
+                    Button(role: .destructive) { onUnassign(assignment) } label: {
+                        Label("Remove \(assignment.user.name)", systemImage: "person.fill.xmark")
+                    }
                 }
             }
             if let onDelete {
@@ -1500,10 +1751,18 @@ struct ShiftRow: View {
     @ViewBuilder
     private var assignedPersonView: some View {
         if shift.isOpen {
+            // Two things, one gutter: the crew type on the left, the action at
+            // the trailing edge where a row's chevron belongs. The dashed
+            // placeholder avatar that used to sit between them existed to stop
+            // the action jumping to the left edge — which the trailing-edge
+            // layout already does. Left in place it became a third element
+            // stranded in its own gap, standing in for a person who is exactly
+            // the point of the row being empty.
             HStack(spacing: 8) {
-                openSlotAvatar
+                Spacer(minLength: 8)
                 openSlotView
             }
+            .frame(maxWidth: .infinity)
         } else {
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(shift.assignments, id: \.id) { assignment in
@@ -1581,47 +1840,29 @@ struct ShiftRow: View {
         }
     }
 
-    /// Dashed placeholder so an open slot's row aligns with the avatars on
-    /// filled rows instead of the name/button jumping to the left edge.
-    private var openSlotAvatar: some View {
-        Circle()
-            .strokeBorder(Color.secondary.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [3]))
-            .frame(width: 28, height: 28)
-            .overlay(
-                Image(systemName: "person")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            )
-            .accessibilityHidden(true)
+    /// What tapping this open row does, in the row's own words.
+    private var openSlotActionTitle: String {
+        if canManageShifts { return "Assign" }
+        return isStudent && isStudentSlot ? "Claim shift" : "Open"
     }
 
     @ViewBuilder
     private var openSlotView: some View {
-        // Open slots are where the primary call-to-action lives — surface it as a
-        // real tinted button, not accent-colored text, so it reads as tappable and
-        // gives a comfortable hit area for both staff (Assign) and students (Claim).
-        if canManageShifts, let onAssign {
-            Button { onAssign(shift) } label: {
-                Label("Assign person", systemImage: "plus.circle.fill")
+        // The row is the button now (see `body`), so this is the affordance, not
+        // the target: accent text plus a chevron, the same shape every other
+        // tappable row in the app uses. As a tinted pill it out-shouted the
+        // section's real controls and repeated itself once per empty slot.
+        if primaryRowAction != nil {
+            HStack(spacing: 4) {
+                Text(openSlotActionTitle)
                     .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Color.statusText(.purple))
+                    .lineLimit(1)
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.tertiary)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .frame(minHeight: 44)
-            // Purple, matching Add Shift. Brand red on an additive action read
-            // as destructive next to the other add controls.
-            .tint(Color.statusText(.purple))
-            .accessibilityLabel("Assign \(shift.area.shiftAreaLabel) shift")
-        } else if isStudent && isStudentSlot, let onRequest {
-            Button { onRequest(shift) } label: {
-                Label("Claim shift", systemImage: "hand.raised.fill")
-                    .font(.subheadline.weight(.medium))
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .frame(minHeight: 44)
-            .tint(Color.statusText(.purple))
-            .accessibilityLabel("Claim \(shift.area.shiftAreaLabel) shift")
+            .accessibilityHidden(true)
         } else {
             CrewSlotStatusLabel(state: .open)
         }

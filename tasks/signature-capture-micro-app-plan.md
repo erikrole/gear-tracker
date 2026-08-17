@@ -6,15 +6,15 @@ Ship the Men’s Basketball signature-capture pilot as an authenticated staff/ad
 
 ## Current State
 
-The V1 implementation is deployed through the web, API, schema, artifact, storage, and cleanup contracts. Latest Production deployment `dpl_D9tYGhkyoHDqnLUupjb2Az1xrMEq` from commit `a5604316` is READY and aliased to `https://wisconsincreative.com`; the live unauthenticated smoke returns the expected redirect and the recent Production error scan is empty. The 2026–27 MBB roster remains reconciled into 14 players, 7 required coaching staff, and 11 optional support staff. Creative staff are a separate `CREATIVE` collection sourced from active full-time Video/Photo/Graphics accounts, with 14 active members and Jerry Mao now carrying a READY revision-1 artifact. The `VB / 2026-27` backfill remains 17/18 players with #16 intentionally blank. The `FB / 2026-27` collection `cmsw6qmyy0001p5ssne5lnfao` is applied at version 2 with 164 active members (112 players, 27 coaching staff, 25 support staff), 112 READY revision-1 player artifacts, 112 import audits, and zero pending-delete revisions. Dedicated private Blob provisioning, generated-byte application-wrapper proof, partial-upload cleanup failure injection, and authenticated roster readback are complete. Rollout remains gated on a physical Pencil save, authenticated artifact delivery, and physical iPad Safari acceptance.
+The V1 implementation is deployed through the web, API, schema, artifact, storage, and cleanup contracts. Latest Production deployment `dpl_D9tYGhkyoHDqnLUupjb2Az1xrMEq` from commit `a5604316` is READY and aliased to `https://wisconsincreative.com`; the live unauthenticated smoke returns the expected redirect and the recent Production error scan is empty. The 2026–27 MBB roster remains reconciled into 14 players, 7 coaching staff, and 11 support staff; team readiness now counts only the 14 student-athletes while staff remains a secondary optional count. Creative staff are a separate `CREATIVE` collection sourced from active full-time Video/Photo/Graphics accounts, with 14 active members and Jerry Mao now carrying a READY revision-1 artifact. The `VB / 2026-27` backfill remains 17/18 players with #16 intentionally blank. The `FB / 2026-27` collection `cmsw6qmyy0001p5ssne5lnfao` is applied at version 2 with 164 active members (112 players, 27 coaching staff, 25 support staff), 112 READY revision-1 player artifacts, 112 import audits, and zero pending-delete revisions. Dedicated private Blob provisioning, generated-byte application-wrapper proof, partial-upload cleanup failure injection, and authenticated roster readback are complete. Rollout remains gated on a physical Pencil save, authenticated artifact delivery, and physical iPad Safari acceptance.
 
 ## Scope
 
-- Canonical collection key: `sportCode + season`, with `MBB`, `FB`, and `VB` for team rosters, `CREATIVE` for the standalone Creative staff roster, and `ADHOC` for manually entered one-off signers.
+- Canonical collection key: `sportCode + season`, with `MBB`, `FB`, `VB`, `MHKY`, `WHKY`, `WBB`, and `WRES` for team rosters, `CREATIVE` for the standalone Creative staff roster, and `ADHOC` for manually entered one-off signers.
 - External roster members are separate from Gear Tracker users and may have a nullable user link. Creative staff use linked full-time Video/Photo/Graphics accounts as separate signature members with no external snapshot and never live in the MBB collection.
-- UWBadgers import is fixed to an allowlisted adapter with structural parsing, profile-identity deduplication, preview persistence, and versioned reconciliation. MBB, Football, and Volleyball use sport-specific source URLs and parser labels; Creative staff sync is explicit, version-checked, audited, and preserves imported roster state.
-- Required members are active MBB, Football, and Volleyball players/coaching staff and standalone Creative staff by default. Support staff are imported but optional.
-- Private app-managed storage is required. Box signature-file integration, native PencilKit, ZIP export, scheduled roster sync, additional sport adapters, and pressure width are deferred.
+- UWBadgers import is fixed to an allowlisted adapter with structural parsing, profile-identity deduplication, preview persistence, and versioned reconciliation. MBB, Football, Volleyball, Men’s Hockey, Women’s Hockey, Women’s Basketball, and Wrestling use sport-specific source URLs and parser labels; Creative staff sync is explicit, version-checked, audited, and preserves imported roster state.
+- Required members are active players from the seven supported team rosters; coaching and support staff are imported as optional secondary work. Standalone Creative staff retain their existing default-required behavior; wrestling weight classes are metadata and jersey numbers remain nullable.
+- Private app-managed storage is required. Box signature-file integration, native PencilKit, ZIP export, scheduled roster sync, additional sport adapters beyond the 2026-27 target set, and pressure width are deferred.
 
 ## Source Checks
 
@@ -22,8 +22,8 @@ The V1 implementation is deployed through the web, API, schema, artifact, storag
 - `src/lib/permissions.ts`: signature access needs a dedicated resource.
 - `src/lib/audit.ts`: audit rows retain only 90 days, so capture and artifact lifecycle state must be durable in signature tables.
 - `src/lib/blob.ts`: existing helper is public-media oriented and must not be extended for signatures.
-- `src/lib/sports.ts`: `MBB` is the canonical Men’s Basketball code.
-- UWBadgers 2026 roster sources: `https://uwbadgers.com/sports/football/roster/2026` and `https://uwbadgers.com/sports/womens-volleyball/roster/2026`; Gear Tracker retains the canonical `2026-27` season.
+- `src/lib/sports.ts`: `MBB`, `MHKY`, `WHKY`, `WBB`, `VB`, and `WRES` are the canonical codes for the requested media-day sports; Football remains `FB`.
+- UWBadgers 2026-27 roster sources: Football and Volleyball use starting-year paths; Men’s Hockey, Women’s Hockey, Women’s Basketball, and Wrestling use full-season paths; Gear Tracker retains the canonical `2026-27` season.
 - UWBadgers Men’s Basketball roster: duplicate list/card/table representations and separate coaching/support sections require structural scoping and profile-identity deduplication.
 
 ## Stop Conditions
@@ -37,11 +37,11 @@ Stop before expanding the feature if physical iPad Safari cannot reject accident
 | Contract, brief, decision, permission, risk, and ledger | Complete | Repo contracts recorded in docs and tasks. |
 | Physical-input capture surface and IndexedDB drafts | Implemented locally | Requires target iPad/Safari proof before rollout. |
 | Schema, migration, validation, permissions, and completeness | Deployed | Prisma validation, migration-prefix check, generated client pass, service coverage, and migration health pass. Production reports 119/119 migrations applied with no pending rows. |
-| UWBadgers snapshot adapter and reconciliation | Complete | Sport-aware MBB/Football/Volleyball adapters, bounded fetch, structural dedupe, immutable preview, explicit apply. |
+| UWBadgers snapshot adapter and reconciliation | Complete locally for seven target team sports | Sport-aware MBB/Football/Volleyball/Men’s Hockey/Women’s Hockey/Women’s Basketball/Wrestling adapters, bounded fetch, structural dedupe, immutable preview, explicit apply. Production readback remains limited to MBB, Football, and Volleyball. |
 | Deterministic SVG/PNG artifact engine | Complete | Focused tests verify hashes, 1000px minimum transparent RGBA PNG output, and sanitized path-only SVG output. Existing captures regenerate their high-quality PNG download from the stored SVG vector. |
 | Private Blob lifecycle and authenticated delivery | Provider and cleanup proof complete; local authenticated download proof complete | Dedicated private store passes two-artifact application-wrapper privacy/read/delete proof; injected second-artifact failure leaves neither object behind. Authenticated local browser proof downloaded and inspected both production-format files; deployed application save/delivery remains. |
-| Collection, roster, capture, settings, and file library UI | Verified in development | Landing cards show separate MBB and Creative staff rosters. The standalone Creative staff card syncs active full-time Video/Photo/Graphics accounts; MBB remains players/coaches/support only. Collection members render in exact 64px rows with a centered Signature rail: compact theme-aware PNG proof for completed rows and a 160 x 44px centered capture action for incomplete rows. Creative staff titles are omitted on this page while team positions remain. File, requirement, and lifecycle actions remain in the accessible row menu. Authenticated local visual proof covers dark, light, and 1024px responsive states. |
-| Roster hierarchy, source ordering, and active-year management | Verified in Production | Source-role identity parsing reconciles team snapshots into player/coaching/support groups; players sort numerically, staff preserves source order, and the 2025–26 collection is archived/hidden by default with version-checked restore. Production readback covers MBB, Football, and Volleyball 2026–27 collections. |
+| Collection, roster, capture, settings, and file library UI | Verified in development | Landing cards and the import selector now label MBB, Football, Volleyball, Men’s Hockey, Women’s Hockey, Women’s Basketball, Wrestling, and Creative staff. The standalone Creative staff card syncs active full-time Video/Photo/Graphics accounts; team collections remain players/coaches/support only. Collection members render in exact 64px rows with a centered Signature rail: compact theme-aware PNG proof for completed rows and a 160 x 44px centered capture action for incomplete rows. Creative staff titles are omitted on this page while team positions and wrestling weight-class metadata remain. File, requirement, and lifecycle actions remain in the accessible row menu. Authenticated local visual proof covers dark, light, and 1024px responsive states. |
+| Roster hierarchy, source ordering, and active-year management | Verified in Production for existing collections; locally verified for new adapters | Source-role identity parsing reconciles team snapshots into player/coaching/support groups; players with jersey numbers sort numerically, wrestling players retain nullable jersey numbers, staff preserves source order, and the 2025–26 collection is archived/hidden by default with version-checked restore. Production readback covers MBB, Football, and Volleyball 2026–27 collections; the four new adapters are not yet applied in Production. |
 | Operational closeout | Open | Hardened production is Ready and authenticated read smoke passes; a real Pencil save, authenticated artifact delivery, and physical iPad acceptance remain. |
 
 ## Verification
@@ -496,8 +496,199 @@ Local verification on 2026-08-15: focused signature tests 11/11 plus six signatu
 
 ### Review
 
-- Shipped locally: Staff/admin can select MBB, Football, or Volleyball in the existing UWBadgers roster import panel; previews remain immutable and apply remains collection-version checked and non-destructive.
+- Shipped locally: Staff/admin can select MBB, Football, Volleyball, Men’s Hockey, Women’s Hockey, Women’s Basketball, or Wrestling in the existing UWBadgers roster import panel; previews remain immutable and apply remains collection-version checked and non-destructive. Hockey and women’s basketball position labels are normalized, and wrestling weight classes remain metadata with nullable jersey numbers.
 - Shipped to Production: Deployment `dpl_D9tYGhkyoHDqnLUupjb2Az1xrMEq` from commit `a5604316` includes the sport-aware import support, Football parser fix, private artifact delivery, and guarded backfill operator. The `VB / 2026-27` collection `cmsw5eecw0001p596olf021nx` has 31 applied snapshot members, 18 active players, 17 private revision-1 artifacts, and jersey #16 intentionally blank. The `FB / 2026-27` collection `cmsw6qmyy0001p5ssne5lnfao` has 164 applied snapshot members and 112/112 player artifacts. Source matching normalized the two known file-name aliases (`Hilton Jr` → Eugene Hilton Jr.; `Schwenderman` → Ryan Schwendeman), while the 113th source SVG (`Mao, Jerry 01 Artboard 1.svg`) was routed to Jerry Mao’s canonical `CREATIVE` capture.
 - Shipped to Production: The first Football apply attempt rolled back before artifact upload when Prisma’s default 5-second interactive transaction expired while creating the 164-member snapshot. The guarded operator now uses a bounded 30-second serializable window with a 10-second acquisition wait; the rerun completed with private upload/readback verification and no pending-delete rows.
-- Deferred: Physical iPad/Apple Pencil acceptance remains open for the signature area; no other sport was started in this slice.
-- Next slice or stop: Football and Volleyball backfills are complete. Stop here until the physical-input acceptance gate or a separately requested sport is ready.
+- Deferred: Physical iPad/Apple Pencil acceptance remains open for the signature area. The four new adapters have not been deployed or applied in Production, and their Illustrator exports have not yet been matched.
+- Next slice or stop: Promote the adapter expansion when explicitly requested, then preview/apply the published 2026-27 rosters and backfill each media-day export folder.
+
+## Follow-up: Additional 2026-27 Media-Day Roster Acceptance — 2026-08-16
+
+### Goal
+
+- Open the existing roster snapshot/import flow to Men’s Hockey (`MHKY`), Women’s Hockey (`WHKY`), Women’s Basketball (`WBB`), and Wrestling (`WRES`) ahead of the early-September media days, without adding a schema or changing the private artifact contract.
+
+### Source Checks
+
+- The canonical athletics sport catalog already defines `MHKY`, `WHKY`, `WBB`, and `WRES`; `SignatureCollection.sportCode` is a string keyed by season, so no migration is needed.
+- The official UWBadgers paths use `/sports/mens-ice-hockey/roster`, `/sports/womens-ice-hockey/roster`, `/sports/womens-basketball/roster`, and `/sports/wrestling/roster`. The 2026-27 pages use the full season segment for the four adapters; Football and Volleyball retain their existing starting-year paths.
+- Hockey source positions may be coded as `D/F/G`; WBB includes `PG`; wrestling exposes weight classes such as `149` and `HWT` instead of jersey numbers. The parser now normalizes those labels and keeps wrestling jersey numbers `null`.
+
+### Slices
+
+- [x] Add allowlisted source keys, parser versions, URL paths, typed sport codes, and import-selector labels for the four sports.
+- [x] Extend shared player-title parsing for hockey, `PG`, `HWT`, and numeric wrestling weight classes.
+- [x] Add focused URL, source-code allowlist, parser metadata, and UI-label regression coverage.
+- [ ] Deploy the adapter expansion after explicit release approval.
+- [ ] Preview/apply each published 2026-27 roster in Production.
+- [ ] Match and backfill each media-day Illustrator export folder with the guarded private artifact importer.
+
+### Verification
+
+- [x] Focused Signature Capture/service/storage tests pass 46/46.
+- [ ] TypeScript, lint, production-shaped app build, codemap/docs checks, and diff checks after the documentation update.
+- [ ] Authenticated Production import-selector smoke after deployment.
+
+### Review
+
+- Shipped locally: the existing immutable, version-checked roster flow now accepts all seven target team-sport codes. No schema, permission, storage, or capture lifecycle change was made.
+- Deferred: Production promotion, source roster applies, Illustrator matching, and physical iPad acceptance remain separate gates.
+
+## Follow-up: Multi-iPad Intake Hardening — 2026-08-16
+
+### Goal
+
+- Make three or four concurrent iPads safe for media-day intake so independent signatures can save in parallel and a duplicate signer cannot overwrite a newer capture or lose the local draft.
+
+### Source Checks
+
+- Each iPad has its own IndexedDB draft record; cross-device draft sharing is intentionally not required for this workflow.
+- Capture saves already carry an expected capture version and durable request ID; this slice extends that contract through browser retries, durable operation races, artifact recovery, and cleanup.
+- Private PNG/SVG paths are immutable per revision, so recovery must reuse the same operation paths and must not delete them after an ambiguous response if another worker has committed them.
+
+### Slices
+
+- [x] Persist the save request ID with the device-local draft and retain it across network, `425`, `429`, and server-error retries while clearing it on definitive client conflicts.
+- [x] Enforce first-writer-wins capture versions with explicit stale-device conflict copy that preserves the second iPad's local draft.
+- [x] Recover a prior-version local draft when the roster advances, clear its old request ID before deliberate recapture, and remove same-member draft records after clear or successful save.
+- [x] Make duplicate request replay idempotent, including the Prisma unique-race/P2002 path and concurrent finalization response.
+- [x] Reclaim stale upload/finalize operations safely, reuse their immutable artifact paths, and mark abandoned work failed before pending-artifact cleanup.
+- [x] Prevent an ambiguous upload/status response from deleting artifacts that may already be committed.
+- [x] Add adversarial service, capture, storage, and cleanup-route coverage without adding a schema migration.
+
+### Verification
+
+- [x] Focused signature and cleanup tests (65/65).
+- [x] `npx tsc --noEmit --pretty false`
+- [x] `npm run lint -- --quiet`
+- [x] `npm run build:app`
+- [x] `npm run codemap` and `npm run verify:docs`
+- [x] `git diff --check`
+- [ ] Authenticated multi-iPad browser/device acceptance with physical Apple Pencil input.
+
+### Review
+
+- Shipped locally: different members can be saved concurrently; the first committed capture wins for a member, same-request retries return the durable result, and a stale second iPad receives a clear conflict while its draft remains available locally. Abandoned operations are recoverable and cleanup reports them separately from artifact deletion.
+- Verified: the hardening tests cover stale operation recovery, duplicate/P2002 races, concurrent finalization, second-iPad conflicts, draft request-ID retention, cleanup ownership, and ambiguous-response artifact preservation. No schema or migration change was needed.
+- Deferred: production promotion, authenticated artifact delivery, and physical iPad/Apple Pencil acceptance remain open release gates.
+
+## Follow-up: Student-Athlete-First Readiness — 2026-08-16
+
+### Goal
+
+- Make active student-athletes the only required members that drive team-roster progress, while keeping coaching and support staff visible as quieter optional work.
+
+### Source Checks
+
+- Team imports use `isRequiredSignatureGroup` at the roster boundary; standalone Creative Staff and ad-hoc collections have separate semantics.
+- Linked team staff signatures resolve to the canonical Creative Staff capture, so the landing-card staff count must include ready canonical captures rather than only team-local capture rows.
+- The detail route already receives serialized canonical artifacts, allowing the header summary and staff count to share the same readiness rule without a schema change.
+
+### Slices
+
+- [x] Make student-athletes required by default and coaching/support staff optional by default for new imports.
+- [x] Calculate team completeness from active student-athletes only and expose a separate staff signed/total summary.
+- [x] Render the player-first progress bar and quiet staff count on both the roster landing cards and detail header.
+- [x] Keep staff capture actions available with neutral styling and preserve existing admin include/exclude controls.
+- [x] Add focused requiredness/source-contract coverage and run TypeScript and lint gates.
+
+### Verification
+
+- [x] `npx vitest run tests/signature-capture.test.ts tests/signature-service.test.ts` (56/56)
+- [x] `npx tsc --noEmit --pretty false`
+- [x] `npm run lint -- --quiet`
+- [x] `npm run build:app`
+- [x] `npm run verify:docs`
+- [x] `git diff --check`
+
+### Review
+
+- Shipped locally: team collections now expose player-only completeness, a separate optional staff count, and canonical linked-staff readiness on the landing surface. Standalone Creative Staff and ad-hoc collection behavior remains unchanged.
+- Deferred: production promotion, authenticated browser proof, and physical iPad/Apple Pencil acceptance remain separate release gates.
+
+## Follow-up: Signature Collection Card Actions — 2026-08-16
+
+### Goal
+
+- Give each signature collection card a compact overflow menu for downloading the current roster SVGs as a cleanly named ZIP, archiving/restoring the collection, and deleting the collection with confirmation only when captured signatures exist.
+
+### Source Checks
+
+- Collection lifecycle already uses version-checked archive/restore mutations and private, authenticated artifact delivery.
+- Collection cards already expose the collection version, archive state, and primary/staff completeness counts through the shared signatures page.
+- Signature artifacts are private and server-owned; bulk export must include only current committed SVG revisions and must not expose storage paths or internal IDs.
+
+### Stop Conditions
+
+- Stop if ZIP export can include a non-current revision, public/private storage fallback, internal identifiers, or an unsafe filename.
+- Stop if deletion can leave downloadable artifacts, race a capture mutation, or remove a collection without the required admin permission.
+- Do not change the sport/import registry or roster required-count semantics in this slice.
+
+### Slices
+
+- [x] Add authenticated, deterministic ZIP export for current roster SVG artifacts.
+- [x] Add admin-only, version-checked collection deletion with retryable private-artifact cleanup.
+- [x] Add the card overflow menu and captured-signature-only delete confirmation.
+- [x] Verify focused tests, TypeScript, lint, app build, docs, and diff checks.
+
+### Verification
+
+- [x] ZIP naming, duplicate-name handling, empty-export, permission, and current-revision coverage.
+- [x] Delete cleanup, concurrency/version, cascade, and audit coverage.
+- [x] `npx tsc --noEmit --pretty false`
+- [x] `npm run lint -- --quiet`
+- [x] `npm run build:app`
+- [x] `npm run codemap` and `npm run verify:docs`
+- [x] `git diff --check`
+- [ ] Authenticated browser proof for download, archive/restore, and both delete branches; the connected in-app browser had no open authenticated tab, and the local preview process did not bind localhost before it was stopped.
+
+### Review
+
+- Shipped locally: collection-card overflow actions now use private current-SVG ZIP export, version-checked archive/restore, and admin-only collection deletion. Captured rosters open the explicit destructive confirmation; empty rosters delete directly. Artifact cleanup completes before the dependency-safe database cascade, and failures leave the collection archived and retryable.
+- Verified: focused Signature, RBAC, capture, storage, and route-contract tests pass 82/82; TypeScript, lint, production-shaped app build, codemap/docs verification, and diff checks pass.
+- Deferred: authenticated browser proof, production promotion, and physical iPad/Apple Pencil acceptance remain separate gates.
+
+## Follow-up: Student-Athlete Website Profiles — 2026-08-16
+
+### Goal
+
+- Collect the website details that belong to a student-athlete immediately after a successful signature capture, while keeping non-athlete signature groups on the existing flow.
+
+### Source Checks
+
+- `SignatureMember` is the durable external roster identity and already owns season-specific metadata, so athlete profile details belong there rather than on `SignatureCapture` or `User`.
+- The repository has no public athlete-profile route; the authenticated Signature collection response is the current website-facing member contract and now returns normalized athlete profile data.
+- Signature capture commits the private artifact before profile collection, so a partial profile can be visibly identified and completed from the roster without invalidating the signature.
+
+### Stop Conditions
+
+- Do not collect profile fields for coaching staff, support staff, Creative Staff, or ad-hoc signers.
+- Do not accept social URLs; handles are platform-specific and normalized without a leading `@`.
+- Do not let profile completion change the existing signature artifact readiness or private storage lifecycle.
+
+### Slices
+
+- [x] Add nullable athlete-profile columns and migration fields for full birthday, hometown, Instagram, TikTok, and X/Twitter handles.
+- [x] Add date/handle validation, normalization, version-checked persistence, audit metadata, and the authenticated profile route.
+- [x] Add the post-capture iPad profile step and roster edit/backfill flow for player members only.
+- [x] Return profile data and profile-complete state in the Signature collection member contract.
+- [x] Add focused schema, service, permission, and source-contract coverage.
+- [ ] Complete authenticated browser proof for first-capture profile completion and existing-player backfill.
+- [ ] Apply the migration and deploy the compatible web/API release through the normal release gate.
+
+### Verification
+
+- [x] `npx vitest run tests/signature-capture.test.ts tests/signature-service.test.ts` (64/64)
+- [x] `npx tsc --noEmit --pretty false`
+- [x] `npm run lint -- --quiet`
+- [x] `npx prisma validate` with placeholder database variables
+- [x] `npm run db:migrate:check` (120 migration directories)
+- [x] `git diff --check`
+- [x] `npm run build:app`
+- [ ] Authenticated iPad/browser proof and migration health after applying `0115_signature_athlete_profiles`.
+
+### Review
+
+- Shipped locally: player captures now hand off to a required website-profile form; roster rows show `Profile needed` until birthday and hometown are present; existing players have an `Edit athlete profile` action. Social handles accept usernames only and are returned without `@` prefixes.
+- Shipped locally: staff/admin profile writes use the Signature permission map, an optimistic collection version, a serializable transaction, and audit metadata that records completion/handle presence without copying profile values.
+- Deferred: this repository does not contain the public athlete website route, so the normalized collection response is the integration contract rather than a new unauthenticated page. Migration application, deployment, authenticated browser proof, and physical iPad acceptance remain open.

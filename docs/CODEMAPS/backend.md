@@ -63,7 +63,7 @@
 | `src/lib/services/shift-generation.ts` | 628 |
 | `src/lib/services/shift-trade-emails.ts` | 56 |
 | `src/lib/services/shift-trades.ts` | 931 |
-| `src/lib/services/signatures.ts` | 1180 |
+| `src/lib/services/signatures.ts` | 1737 |
 | `src/lib/services/sport-configs.ts` | 257 |
 | `src/lib/services/status.ts` | 444 |
 | `src/lib/services/usage-analytics-report.ts` | 33 |
@@ -145,7 +145,7 @@
 | `src/lib/operational-health.ts` | 50 |
 | `src/lib/ops-checks.ts` | 176 |
 | `src/lib/passkey.ts` | 328 |
-| `src/lib/permissions.ts` | 197 |
+| `src/lib/permissions.ts` | 199 |
 | `src/lib/profile-completion-events.ts` | 6 |
 | `src/lib/profile-completion.ts` | 157 |
 | `src/lib/profile-phone.ts` | 44 |
@@ -615,6 +615,8 @@
 - `/api/signatures/collections/[id]/archive`
 - `/api/signatures/collections/[id]/capture/[memberId]`
 - `/api/signatures/collections/[id]/creative-staff`
+- `/api/signatures/collections/[id]/download`
+- `/api/signatures/collections/[id]/members/[memberId]/profile`
 - `/api/signatures/collections/[id]/members/[memberId]/required`
 - `/api/signatures/collections/[id]/reset`
 - `/api/signatures/collections/[id]/restore`

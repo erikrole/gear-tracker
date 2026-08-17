@@ -175,7 +175,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 
 - Doc: `docs/AREA_SIGNATURES.md`
 - Pages: `/signatures/[id]/capture/[memberId]`, `/signatures/[id]`, `/signatures`
-- APIs: `/api/signatures/artifacts/[revisionId]/[kind]`, `/api/signatures/cleanup`, `/api/signatures/collections/[id]/archive`, `/api/signatures/collections/[id]/capture/[memberId]`, `/api/signatures/collections/[id]/creative-staff`, `/api/signatures/collections/[id]/members/[memberId]/required`, `/api/signatures/collections/[id]/reset`, `/api/signatures/collections/[id]/restore`, `/api/signatures/collections/[id]`, `/api/signatures/collections`
+- APIs: `/api/signatures/artifacts/[revisionId]/[kind]`, `/api/signatures/cleanup`, `/api/signatures/collections/[id]/archive`, `/api/signatures/collections/[id]/capture/[memberId]`, `/api/signatures/collections/[id]/creative-staff`, `/api/signatures/collections/[id]/download`, `/api/signatures/collections/[id]/members/[memberId]/profile`, `/api/signatures/collections/[id]/members/[memberId]/required`, `/api/signatures/collections/[id]/reset`, `/api/signatures/collections/[id]/restore`
 - Services: `src/lib/services/signatures.ts`
 - Tests: _none matched_
 
@@ -183,6 +183,6 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 
 - Doc: `docs/AREA_USERS.md`
 - Pages: `/profile`, `/settings/allowed-emails`, `/settings/profile`, `/users/[id]`, `/users/onboarding-status`, `/users/org-chart`, `/users`
-- APIs: `/api/allowed-emails/[id]`, `/api/allowed-emails/preview`, `/api/allowed-emails`, `/api/kiosk/users`, `/api/me/profile-completion`, `/api/me/profile`, `/api/profile`, `/api/users/[id]/activity`, `/api/users/[id]/availability/[blockId]`, `/api/users/[id]/availability`
+- APIs: `/api/allowed-emails/[id]`, `/api/allowed-emails/preview`, `/api/allowed-emails`, `/api/kiosk/users`, `/api/me/profile-completion`, `/api/me/profile`, `/api/profile`, `/api/signatures/collections/[id]/members/[memberId]/profile`, `/api/users/[id]/activity`, `/api/users/[id]/availability/[blockId]`
 - Services: `src/lib/services/hidden-users-cleanup.ts`, `src/lib/services/onboarding-lifecycle.ts`
 - Tests: `tests/allowed-emails-preview.test.ts`, `tests/allowed-emails.test.ts`, `tests/hidden-users-cleanup.test.ts`, `tests/ios-notification-categories-profile.test.ts`, `tests/onboarding-dialog-source.test.ts`, `tests/onboarding-lifecycle.test.ts`, `tests/onboarding-readiness-route.test.ts`, `tests/onboarding-status-page-source.test.ts`

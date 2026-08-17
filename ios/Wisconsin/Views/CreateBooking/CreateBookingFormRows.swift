@@ -89,16 +89,18 @@ extension ScheduleEvent {
             .replacingOccurrences(of: "\(month) ", with: "\(month). ")
     }
 
+    /// The same venue Schedule rows and Event detail name — see
+    /// `scheduleEventVenueName`.
+    ///
+    /// This used to keep only the last comma component and rewrite
+    /// "Track/Soccer" to "Soccer". That read correctly for the one feed shape it
+    /// was written against ("Madison, WI, McClimon Track/Soccer Complex") and
+    /// wrongly for the others: a venue-last string like "Camp Randall Stadium,
+    /// Madison, WI" named the venue "WI". The venue-specific rewrite went with
+    /// it — the row is one truncating line and was never short on the six
+    /// characters it bought.
     var bookingEventPickerVenue: String? {
-        let source = location?.name ?? rawLocationText
-        guard var venue = source?
-            .split(separator: ",")
-            .last?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-              !venue.isEmpty else { return nil }
-
-        venue = venue.replacingOccurrences(of: "Track/Soccer", with: "Soccer")
-        return venue
+        scheduleEventVenueName(self)
     }
 
     var bookingEventPickerDetail: String {

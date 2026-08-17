@@ -223,8 +223,14 @@ describe("iOS create booking picker parity", () => {
     expect(createSheet).toContain("Text(venue)");
     expect(createSheet).toContain(".weekday(.abbreviated).month(.abbreviated).day().hour().minute()");
     expect(createSheet).toContain('return "\\(bookingEventPickerDate), \\(venue)"');
-    expect(createSheet).toContain("let source = location?.name ?? rawLocationText");
-    expect(createSheet).toContain('replacingOccurrences(of: "Track/Soccer", with: "Soccer")');
+    // The picker names the venue through the one shared helper every schedule
+    // surface uses. It used to keep only the last comma component and rewrite
+    // "Track/Soccer" to "Soccer", which named a venue-last string ("Camp Randall
+    // Stadium, Madison, WI") simply "WI". Both the bespoke parse and the
+    // venue-specific rewrite are gone.
+    expect(createSheet).toContain("scheduleEventVenueName(self)");
+    expect(createSheet).not.toContain("let source = location?.name ?? rawLocationText");
+    expect(createSheet).not.toContain('replacingOccurrences(of: "Track/Soccer", with: "Soccer")');
     expect(scheduleModels).toContain("var rawLocationText: String?");
     expect(createSheet).not.toContain("sportLabel(event.sportCode)");
   });
@@ -373,7 +379,9 @@ describe("iOS create booking picker parity", () => {
     expect(formRows).not.toContain("(Neutral)");
     expect(viewModel).toContain("title = first.shortBookingEventTitle");
     expect(viewModel).not.toContain("title = \"Gear - \\(first.summary)\"");
-    expect(eventDetail).toContain("title: event.shortBookingEventTitle");
+    // Event detail no longer prefills a reservation at all -- gear left that
+    // screen entirely (see the Event detail gear contract below), so the
+    // composer's own event picker is the only place event titles are derived.
     expect(eventDetail).not.toContain('title: "Gear - \\(event.summary)"');
     expect(viewModel).not.toContain("first.location?.id");
     expect(sheet).toContain('BrandSectionHeader("Pickup Location")');
@@ -434,14 +442,22 @@ describe("iOS create booking picker parity", () => {
     expect(sheet).toContain("vm.scheduleConflictCheck()");
   });
 
-  it("opens an event-created reservation and replaces the stale reserve prompt", () => {
+  it("keeps gear off the Event detail staffing console", () => {
     const eventDetail = source("ios/Wisconsin/Views/EventDetailSheet.swift");
 
-    expect(eventDetail).toContain("private func startPrepGearReservation()");
-    expect(eventDetail).toContain("drafts.start(makePrepGearVM()) { newId in");
-    expect(eventDetail).toContain("createdGearBookingId = newId");
-    expect(eventDetail).toContain("BookingDetailView(bookingId: createdGearBookingId)");
-    expect(eventDetail).toContain("if let createdGearBookingId");
-    expect(eventDetail).toContain('title: "Gear reserved"');
+    // Accepted product direction: Event detail is a staff staffing console and
+    // gear is Bookings' job, so this screen neither reports gear state nor
+    // starts a reservation. It previously prefilled a composer with event +
+    // shift-assignment context; reservations now carry event context through
+    // the composer's own event picker instead.
+    expect(eventDetail).not.toContain("startPrepGearReservation");
+    expect(eventDetail).not.toContain("makePrepGearVM");
+    expect(eventDetail).not.toContain("createdGearBookingId");
+    expect(eventDetail).not.toContain("drafts.start(");
+    expect(eventDetail).not.toContain("ReservationDraftStore");
+    expect(eventDetail).not.toContain("BookingDetailView");
+    expect(eventDetail).not.toContain("Reserve gear");
+    expect(eventDetail).not.toContain("reservedGearBookings");
+    expect(eventDetail).not.toContain("shiftGearTone");
   });
 });

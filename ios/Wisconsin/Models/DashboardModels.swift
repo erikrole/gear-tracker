@@ -271,10 +271,15 @@ extension DashboardUpcomingEvent {
 }
 
 extension DashboardShift {
-    /// Convert the shift's event to ScheduleEvent so EventDetailSheet can be presented.
+    /// Convert the shift's event to ScheduleEvent so Event detail can be presented.
     /// Uses shift.endsAt as a proxy for event end time (close enough for the detail view to load).
+    ///
+    /// `DashboardShiftEvent` carries the venue name but no location id, so the
+    /// name rides in on `rawLocationText` — `scheduleEventVenueName` falls back
+    /// to it, which is the same path an unmapped calendar venue takes. Dropping
+    /// it left the detail header with no venue line.
     var asScheduleEvent: ScheduleEvent {
-        ScheduleEvent(
+        var scheduleEvent = ScheduleEvent(
             id: event.id,
             summary: event.summary,
             startsAt: event.startsAt,
@@ -286,6 +291,8 @@ extension DashboardShift {
             isHome: event.isHome,
             location: nil
         )
+        scheduleEvent.rawLocationText = event.locationName
+        return scheduleEvent
     }
 }
 

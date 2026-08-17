@@ -3,12 +3,12 @@ import { readFileSync } from "node:fs";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 import { getAllowedRoles } from "@/lib/permissions";
-import { appendDistinctSignaturePoints, isIpadDevice, signatureCanvasViewport, signaturePointFromClient } from "@/lib/signatures/capture";
-import { buildSignatureDraft, isFreshSignatureDraft, signatureDraftKey } from "@/lib/signatures/drafts";
+import { appendDistinctSignaturePoints, isIpadDevice, shouldRetainSignatureSaveRequestId, signatureCanvasViewport, signaturePointFromClient } from "@/lib/signatures/capture";
+import { buildSignatureDraft, isFreshSignatureDraft, signatureDraftKey, signatureDraftMatchesMember } from "@/lib/signatures/drafts";
 import { renderSignatureArtifacts, SIGNATURE_PNG_MIN_WIDTH } from "@/lib/signatures/artifacts";
 import { buildSignatureCurve, signaturePathData } from "@/lib/signatures/geometry";
 import { acceptsSignaturePointer, appendCoalescedPointerEvents } from "@/lib/signatures/pointer";
-import { captureSaveRequestSchema, DEFAULT_SIGNATURE_PEN_SETTINGS, signatureAdHocMemberSchema, signatureCollectionVersionSchema } from "@/lib/signatures/types";
+import { captureSaveRequestSchema, DEFAULT_SIGNATURE_PEN_SETTINGS, isRequiredSignatureGroup, SIGNATURE_IMPORTED_SPORT_CODES, SIGNATURE_SPORT_REGISTRY, signatureAdHocMemberSchema, signatureAthleteProfileSchema, signatureCollectionTitle, signatureCollectionVersionSchema } from "@/lib/signatures/types";
 import { compareSignatureRosterMembers } from "@/lib/signatures/roster";
 import { buildUWBadgersRosterUrl, isAllowedUWBadgersUrl, normalizedRosterHash, parseUWBadgersRosterHtml } from "@/lib/signatures/uwbadgers";
 
@@ -57,6 +57,38 @@ describe("signature input and draft contracts", () => {
     expect(isFreshSignatureDraft(draft, draft.expiresAt)).toBe(false);
   });
 
+  it("keeps one save request ID with a device-local draft across an ambiguous reload", () => {
+    const draft = buildSignatureDraft({
+      key: signatureDraftKey("operator", "collection", "member", 1, 0),
+      userId: "operator",
+      collectionId: "collection",
+      memberId: "member",
+      settingsVersion: 1,
+      captureVersion: 0,
+      saveRequestId: "request-ambiguous-1234",
+      canvasSize: { width: 1024, height: 640 },
+      strokes: [{ points: [{ x: 4, y: 8 }] }],
+    });
+
+    expect(draft.saveRequestId).toBe("request-ambiguous-1234");
+    expect(draft.key).toBe("operator:collection:member:1:0");
+  });
+
+  it("finds a prior device-local draft without treating its request as current", () => {
+    const identity = { userId: "operator", collectionId: "collection", memberId: "member", settingsVersion: 1 };
+    expect(signatureDraftMatchesMember(identity, identity)).toBe(true);
+    expect(signatureDraftMatchesMember(identity, { ...identity, memberId: "other-member" })).toBe(false);
+  });
+
+  it("retains the same operation for retryable responses while making a 409 retry fresh", () => {
+    expect(shouldRetainSignatureSaveRequestId(425)).toBe(true);
+    expect(shouldRetainSignatureSaveRequestId(429)).toBe(true);
+    expect(shouldRetainSignatureSaveRequestId(500)).toBe(true);
+    expect(shouldRetainSignatureSaveRequestId(503)).toBe(true);
+    expect(shouldRetainSignatureSaveRequestId(409)).toBe(false);
+    expect(shouldRetainSignatureSaveRequestId(400)).toBe(false);
+  });
+
   it("preserves logical signature proportions when the display rotates", () => {
     const viewport = signatureCanvasViewport(
       { width: 500, height: 1_000 },
@@ -103,7 +135,13 @@ describe("signature input and draft contracts", () => {
     expect(source).toContain('window.addEventListener("pagehide"');
     expect(source).toContain("appendPointerSamples(event.nativeEvent");
     expect(source).toContain("saveRequestIdRef.current ?? crypto.randomUUID()");
-    expect(source).toContain("if (response.status < 500 && response.status !== 425) saveRequestIdRef.current = null");
+    expect(source).toContain("persistDraftSnapshot(snapshot, draftRevisionRef.current, requestId)");
+    expect(source).toContain("shouldRetainSignatureSaveRequestId(response.status)");
+    expect(source).toContain("persistDraftSnapshot(snapshot, draftRevisionRef.current, null)");
+    expect(source).toContain("deleteSignatureDraftsForMember");
+    expect(source).toContain("draft && draft.captureVersion === member?.captureVersion");
+    expect(source).toContain("loadSignatureDraft(draftKey, Date.now()");
+    expect(source).toContain("draft.captureVersion === member?.captureVersion");
     expect(source).toContain("if (!draftLoaded)");
     expect(source).toContain("draftLoaded && !saving");
     expect(source).toContain("strokesRef.current.length === 0 && (clearedStrokes || redoStack.length > 0)");
@@ -134,6 +172,11 @@ describe("UWBadgers signature roster adapter", () => {
     expect(buildUWBadgersRosterUrl("MBB", "2025-26")).toBe("https://uwbadgers.com/sports/mens-basketball/roster/2025-26");
     expect(buildUWBadgersRosterUrl("FB", "2026-27")).toBe("https://uwbadgers.com/sports/football/roster/2026");
     expect(buildUWBadgersRosterUrl("VB", "2026-27")).toBe("https://uwbadgers.com/sports/womens-volleyball/roster/2026");
+    expect(buildUWBadgersRosterUrl("MHKY", "2026-27")).toBe("https://uwbadgers.com/sports/mens-ice-hockey/roster/2026-27");
+    expect(buildUWBadgersRosterUrl("WHKY", "2026-27")).toBe("https://uwbadgers.com/sports/womens-ice-hockey/roster/2026-27");
+    expect(buildUWBadgersRosterUrl("WBB", "2026-27")).toBe("https://uwbadgers.com/sports/womens-basketball/roster/2026-27");
+    expect(buildUWBadgersRosterUrl("WRES", "2026-27")).toBe("https://uwbadgers.com/sports/wrestling/roster/2026-27");
+    expect(SIGNATURE_IMPORTED_SPORT_CODES).toEqual(["MBB", "FB", "VB", "MHKY", "WHKY", "WBB", "WRES"]);
     expect(() => buildUWBadgersRosterUrl("CREATIVE", "2026-27")).toThrow();
     expect(isAllowedUWBadgersUrl("https://www.uwbadgers.com/sports/mens-basketball/roster/2025-26")).toBe(true);
     expect(isAllowedUWBadgersUrl("https://example.com/roster")).toBe(false);
@@ -148,6 +191,12 @@ describe("UWBadgers signature roster adapter", () => {
     expect(entries.find((entry) => entry.sourceExternalId === "200")?.roleGroup).toBe("COACHING_STAFF");
     expect(entries.find((entry) => entry.sourceExternalId === "300")?.roleGroup).toBe("SUPPORT_STAFF");
     expect(normalizedRosterHash(entries)).toBe(normalizedRosterHash([...entries]));
+  });
+
+  it("requires student-athletes while treating team staff as optional by default", () => {
+    expect(isRequiredSignatureGroup("PLAYER")).toBe(true);
+    expect(isRequiredSignatureGroup("COACHING_STAFF")).toBe(false);
+    expect(isRequiredSignatureGroup("SUPPORT_STAFF")).toBe(false);
   });
 
   it("parses football and volleyball player metadata from the shared roster structure", () => {
@@ -178,6 +227,34 @@ describe("UWBadgers signature roster adapter", () => {
       jerseyNumber: 4,
       title: "Middle Blocker • Junior",
     });
+  });
+
+  it("parses hockey, women’s basketball, and wrestling-specific player metadata", () => {
+    const mensHockeyEntries = parseUWBadgersRosterHtml([
+      "<h1>2026-27 Men's Hockey Roster</h1>",
+      "<a href=\"/sports/mens-ice-hockey/roster/goalie/700\">Luke Goalie</a>",
+      "<div>Position G Academic Year So.Height 6' 1''</div>",
+    ].join(""), "MHKY");
+    const womensHockeyEntries = parseUWBadgersRosterHtml([
+      "<h1>2026-27 Women's Hockey Roster</h1>",
+      "<a href=\"/sports/womens-ice-hockey/roster/defender/701\">Ava Defender</a>",
+      "<div>Position D Academic Year Jr.Height 5' 9''</div>",
+    ].join(""), "WHKY");
+    const womensBasketballEntries = parseUWBadgersRosterHtml([
+      "<h1>2026-27 Women's Basketball Roster</h1>",
+      "<a href=\"/sports/womens-basketball/roster/point-guard/702\">Giselle Guard</a>",
+      "<div>Position PG Academic Year Fr.Height 5' 9''</div>",
+    ].join(""), "WBB");
+    const wrestlingEntries = parseUWBadgersRosterHtml([
+      "<h1>2026 Wrestling Roster</h1>",
+      "<a href=\"/sports/wrestling/roster/wrestler/703\">Elliott Wrestler</a>",
+      "<div>Position 149 Academic Year R-So.Height 5' 9''</div>",
+    ].join(""), "WRES");
+
+    expect(mensHockeyEntries[0]).toMatchObject({ title: "Goaltender • Sophomore" });
+    expect(womensHockeyEntries[0]).toMatchObject({ title: "Defenseman • Junior" });
+    expect(womensBasketballEntries[0]).toMatchObject({ title: "Point Guard • Freshman" });
+    expect(wrestlingEntries[0]).toMatchObject({ jerseyNumber: null, title: "149 • Redshirt Sophomore" });
   });
 
   it("decodes HTML entities before reading jersey numbers and labels football safeties", () => {
@@ -215,7 +292,7 @@ describe("signature roster presentation", () => {
     expect(sorted.filter((member) => member.roleGroup === "CREATIVE_STAFF").map((member) => member.name)).toEqual(["Alex Creative", "Erik Role"]);
   });
 
-  it("requires a collection version for archive and restore mutations", () => {
+  it("requires a collection version for archive, restore, and delete mutations", () => {
     expect(() => signatureCollectionVersionSchema.parse({})).toThrow();
     expect(() => signatureCollectionVersionSchema.parse({ expectedCollectionVersion: 0 })).toThrow();
     expect(signatureCollectionVersionSchema.parse({ expectedCollectionVersion: 3 })).toEqual({ expectedCollectionVersion: 3 });
@@ -228,6 +305,30 @@ describe("signature roster presentation", () => {
       category: "Alumni",
     });
     expect(() => signatureAdHocMemberSchema.parse({ season: "2026", name: "", category: "" })).toThrow();
+  });
+
+  it("validates the student-athlete website profile contract", () => {
+    expect(signatureAthleteProfileSchema.parse({
+      expectedCollectionVersion: 4,
+      birthday: "2004-02-29",
+      hometown: "Madison, WI",
+      instagramHandle: "@badger",
+      tiktokHandle: "court.star",
+      xHandle: "",
+    })).toEqual({
+      expectedCollectionVersion: 4,
+      birthday: "2004-02-29",
+      hometown: "Madison, WI",
+      instagramHandle: "badger",
+      tiktokHandle: "court.star",
+      xHandle: null,
+    });
+    expect(() => signatureAthleteProfileSchema.parse({
+      expectedCollectionVersion: 4,
+      birthday: "2003-02-29",
+      hometown: "Madison, WI",
+      instagramHandle: "https://instagram.com/badger",
+    })).toThrow();
   });
 
   it("keeps roster rows uniform and aligns the signature rail without hiding team positions", () => {
@@ -249,7 +350,8 @@ describe("signature roster presentation", () => {
     expect(source).toContain("!isCreativeStaffRoster && <span");
     expect(source).toContain("member.title || roleLabel(member.roleGroup)");
     expect(source).toContain('title={member.title || roleLabel(member.roleGroup)}');
-    expect(source).toContain('variant={member.required ? "brand" : "outline"}');
+    expect(source).toContain('const primaryCapture = member.roleGroup === "PLAYER" || member.roleGroup === "CREATIVE_STAFF";');
+    expect(source).toContain('variant={primaryCapture ? "brand" : "outline"}');
     expect(source).not.toContain('<span>Requirement</span>');
     expect(source).not.toContain('<span>Status</span>');
     expect(source).not.toContain("Collection readiness");
@@ -268,6 +370,9 @@ describe("signature roster presentation", () => {
     expect(source).toContain("Capture on iPad");
     expect(source).toContain("Capture can only be done on an iPad with an Apple Pencil.");
     expect(source).toContain("disabled");
+    expect(source).toContain("SignatureAthleteProfileForm");
+    expect(source).toContain("member.roleGroup === \"PLAYER\"");
+    expect(source).toContain("/profile");
     expect(source).not.toContain("syncCreativeStaff");
     expect(source).toContain("<AlertDialogTitle>Reset every captured signature?</AlertDialogTitle>");
     expect(source).toContain("/png?download=1");
@@ -279,22 +384,49 @@ describe("signature roster presentation", () => {
     const detailSource = readFileSync("src/app/(app)/signatures/[id]/SignatureCollectionPage.tsx", "utf8");
     const collectionRouteSource = readFileSync("src/app/api/signatures/collections/route.ts", "utf8");
 
-    expect(landingSource).toContain('return "Creative Staff"');
-    expect(landingSource).toContain('return "Football"');
-    expect(landingSource).toContain('return "Volleyball"');
+    expect(Object.values(SIGNATURE_SPORT_REGISTRY).map((definition) => definition.label)).toEqual([
+      "Men’s Basketball",
+      "Football",
+      "Volleyball",
+      "Men’s Hockey",
+      "Women’s Hockey",
+      "Women’s Basketball",
+      "Wrestling",
+      "Creative Staff",
+      "Ad-hoc signatures",
+    ]);
+    expect(signatureCollectionTitle("MBB")).toBe("Men’s Basketball");
+    expect(signatureCollectionTitle("CREATIVE")).toBe("Creative Staff");
+    expect(signatureCollectionTitle("UNKNOWN")).toBe("UNKNOWN");
+    expect(SIGNATURE_SPORT_REGISTRY.FB.source).toMatchObject({
+      sourceKey: "UW_BADGERS_FB",
+      rosterPath: "/sports/football/roster",
+      usesStartYearPath: true,
+    });
+    expect(landingSource).toContain("signatureCollectionTitle(collection.sportCode)");
+    expect(landingSource).toContain("signatureCollectionTitle(importSportCode)");
+    expect(landingSource).not.toContain("function collectionLabel");
     expect(landingSource).toContain('id="signature-import-sport"');
     expect(landingSource).toContain('sportCode: importSportCode');
     expect(landingSource).toContain('"Automatically synced"');
     expect(landingSource).not.toContain("Sync staff");
-    expect(detailSource).toContain('return "Men’s Basketball"');
-    expect(detailSource).toContain('return "Football"');
-    expect(detailSource).toContain('return "Volleyball"');
+    expect(detailSource).toContain("signatureCollectionTitle(collection.sportCode)");
+    expect(detailSource).not.toContain("function collectionTitle");
     expect(detailSource).toContain('PLAYER: { label: "Student-Athletes"');
     expect(detailSource).toContain('COACHING_STAFF: { label: "Coaching Staff"');
     expect(detailSource).toContain('SUPPORT_STAFF: { label: "Support Staff"');
+    expect(detailSource).toContain("Edit athlete profile");
+    expect(detailSource).toContain("Profile needed");
+    expect(detailSource).toContain("SignatureAthleteProfileForm");
+    expect(detailSource).toContain("/profile");
     expect(detailSource).toContain('className="h-11 sm:min-w-40"');
     expect(landingSource).toContain("automaticSyncAttempt");
     expect(landingSource).toContain("/creative-staff");
+    expect(landingSource).toContain("Download All");
+    expect(landingSource).toContain("downloadableCount");
+    expect(landingSource).toContain("/download");
+    expect(landingSource).toContain('method: "DELETE"');
+    expect(landingSource).toContain("Delete this signature roster?");
     expect(collectionRouteSource).not.toContain("syncSignatureCreativeStaff");
   });
 
@@ -372,7 +504,9 @@ describe("signature permissions", () => {
   it("keeps student and collaborator access closed while staff can capture", () => {
     expect(getAllowedRoles("signature", "capture")).toEqual(["ADMIN", "STAFF"]);
     expect(getAllowedRoles("signature", "settings")).toEqual(["ADMIN"]);
+    expect(getAllowedRoles("signature", "delete")).toEqual(["ADMIN"]);
     expect(getAllowedRoles("signature", "download")).not.toContain("STUDENT");
     expect(getAllowedRoles("signature", "download")).not.toContain("COLLABORATOR");
+    expect(getAllowedRoles("signature", "profile")).toEqual(["ADMIN", "STAFF"]);
   });
 });

@@ -2325,31 +2325,10 @@ struct EventRow: View {
         }
     }
 
+    /// Shared with Event detail via `scheduleEventVenueName` — the row and the
+    /// detail header must name the same venue the same way.
     private var venueName: String? {
-        if let name = event.location?.name, !name.isEmpty { return name }
-        guard let raw = event.rawLocationText?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !raw.isEmpty else { return nil }
-        return Self.strippingCityPrefix(raw)
-    }
-
-    /// Imported events carry a full "City, ST, Venue Name" string in
-    /// `rawLocationText`. Only the venue reads usefully in a dense row, and the
-    /// city prefix is what pushes the real name into truncation. Strip it only
-    /// when the second component is unambiguously a state token, so a string
-    /// already in "Venue, City, ST" order is left alone.
-    private static func strippingCityPrefix(_ raw: String) -> String {
-        let parts = raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-        guard parts.count >= 3, isStateToken(parts[1]) else { return raw }
-        return parts.dropFirst(2).joined(separator: ", ")
-    }
-
-    /// Matches both postal codes ("WI") and the AP-style abbreviations the
-    /// imported feed uses ("Wis.", "Minn.", "Calif.").
-    private static func isStateToken(_ token: String) -> Bool {
-        if token.count == 2, token.allSatisfy({ $0.isUppercase && $0.isLetter }) { return true }
-        return token.hasSuffix(".")
-            && token.count <= 7
-            && token.dropLast().allSatisfy(\.isLetter)
+        scheduleEventVenueName(event)
     }
 
     private func personalWorkLine(_ shift: MyShift) -> some View {
@@ -2412,19 +2391,12 @@ struct EventRow: View {
         return parts.joined(separator: ", ")
     }
 
+    /// Shared with Event detail's hero via `CoverageChip` — the list and the
+    /// detail screen must report the same staffing the same way.
     @ViewBuilder
     private func coverageChip(_ cov: ShiftCoverage) -> some View {
-        HStack(spacing: 3) {
-            Image(systemName: "person.2.fill")
-                .font(.caption.weight(.semibold))
-            Text("\(cov.filled)/\(cov.total)")
-                .font(.caption.weight(.semibold).monospacedDigit())
-        }
-        .foregroundStyle(Color.statusText(coverageTone(cov)))
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .background(Color.statusBackground(coverageTone(cov)), in: Capsule())
-        .accessibilityHidden(true) // surfaced via the combined row label
+        CoverageChip(coverage: cov)
+            .accessibilityHidden(true) // surfaced via the combined row label
     }
 
     /// The left rail always encodes the venue (home/away/neutral); "my shift"

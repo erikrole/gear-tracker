@@ -39,13 +39,14 @@ export async function uploadPrivateSignatureArtifact(input: {
   path: string;
   body: Buffer;
   contentType: "image/png" | "image/svg+xml";
+  allowOverwrite?: boolean;
 }): Promise<void> {
   const auth = privateSignatureBlobAuth();
   await put(input.path, input.body, {
     access: "private",
     ...auth,
     addRandomSuffix: false,
-    allowOverwrite: false,
+    allowOverwrite: input.allowOverwrite ?? false,
     contentType: input.contentType,
     cacheControlMaxAge: 60,
   });

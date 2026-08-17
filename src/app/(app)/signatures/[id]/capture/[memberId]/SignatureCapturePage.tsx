@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Check, Eraser, Redo2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { SignatureAthleteProfileForm, type SignatureAthleteProfileValues } from "@/components/signatures/SignatureAthleteProfileForm";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import {
@@ -14,15 +15,18 @@ import {
   isCurrentDeviceIpad,
   signatureCanvasViewport,
   signaturePointFromClient,
+  shouldRetainSignatureSaveRequestId,
   type SignatureCanvasSize,
 } from "@/lib/signatures/capture";
 import { buildSignatureCurve } from "@/lib/signatures/geometry";
 import { acceptsSignaturePointer, appendCoalescedPointerEvents } from "@/lib/signatures/pointer";
-import { buildSignatureDraft, deleteSignatureDraft, loadSignatureDraft, saveSignatureDraft, signatureDraftKey, type SignatureDraftStroke } from "@/lib/signatures/drafts";
+import { buildSignatureDraft, deleteSignatureDraftsForMember, loadSignatureDraft, saveSignatureDraft, signatureDraftKey, type SignatureDraftStroke } from "@/lib/signatures/drafts";
+import { signatureSaveRequestIdSchema } from "@/lib/signatures/types";
 
 type PenSettings = { strokeColor: string; strokeWidth: number; cropPadding: number; maxWidth: number; maxHeight: number };
-type Member = { id: string; name: string; jerseyNumber: number | null; title: string | null; roleGroup: string; active: boolean; captureVersion: number; settingsVersion: number; captureSettings?: PenSettings; artifact: { id: string } | null };
-type Collection = { id: string; season: string; status: "OPEN" | "ARCHIVED"; settingsVersion: number; penSettings: PenSettings; members: Member[] };
+type AthleteProfile = SignatureAthleteProfileValues;
+type Member = { id: string; name: string; jerseyNumber: number | null; title: string | null; roleGroup: string; active: boolean; captureVersion: number; settingsVersion: number; captureSettings?: PenSettings; artifact: { id: string } | null; athleteProfile: AthleteProfile | null; athleteProfileComplete: boolean };
+type Collection = { id: string; season: string; status: "OPEN" | "ARCHIVED"; collectionVersion: number; settingsVersion: number; penSettings: PenSettings; members: Member[] };
 type DraftStatus = "loading" | "empty" | "saving" | "saved" | "unavailable";
 
 function pointForEvent(event: PointerEvent, canvas: HTMLCanvasElement, logicalSize: SignatureCanvasSize) {
@@ -106,6 +110,8 @@ export default function SignatureCapturePage({ collectionId, memberId, userId }:
   const [isIpad, setIsIpad] = useState<boolean | null>(null);
   const [drawing, setDrawing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [profileStep, setProfileStep] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
   const [message, setMessage] = useState("Checking this iPad for a saved draft…");
 
   useEffect(() => {
@@ -144,7 +150,7 @@ export default function SignatureCapturePage({ collectionId, memberId, userId }:
     });
   }, [drawCurrentStrokes]);
 
-  const persistDraftSnapshot = useCallback((snapshot: SignatureDraftStroke[], revision: number) => {
+  const persistDraftSnapshot = useCallback((snapshot: SignatureDraftStroke[], revision: number, saveRequestId: string | null = saveRequestIdRef.current) => {
     if (!draftKey || !draftLoaded || !member) return Promise.resolve();
     const canvas = canvasRef.current;
     const canvasSize = logicalCanvasSizeRef.current ?? (canvas ? ensureLogicalCanvasSize(canvas) : null);
@@ -155,7 +161,12 @@ export default function SignatureCapturePage({ collectionId, memberId, userId }:
       .catch(() => undefined)
       .then(async () => {
         if (snapshot.length === 0) {
-          await deleteSignatureDraft(draftKey);
+          await deleteSignatureDraftsForMember({
+            userId,
+            collectionId,
+            memberId,
+            settingsVersion: member.settingsVersion,
+          });
           return;
         }
         await saveSignatureDraft(buildSignatureDraft({
@@ -165,6 +176,7 @@ export default function SignatureCapturePage({ collectionId, memberId, userId }:
           memberId,
           settingsVersion: member.settingsVersion,
           captureVersion: member.captureVersion,
+          ...(saveRequestId ? { saveRequestId } : {}),
           canvasSize,
           strokes: snapshot,
         }));
@@ -242,14 +254,21 @@ export default function SignatureCapturePage({ collectionId, memberId, userId }:
     setDraftStatus("loading");
     setMessage("Checking this iPad for a saved draft…");
     let cancelled = false;
-    loadSignatureDraft(draftKey).then((draft) => {
+    loadSignatureDraft(draftKey, Date.now(), {
+      userId,
+      collectionId,
+      memberId,
+      settingsVersion: member?.settingsVersion ?? 1,
+    }).then((draft) => {
       if (cancelled) return;
       if (draft) {
         logicalCanvasSizeRef.current = draft.canvasSize;
         strokesRef.current = draft.strokes;
         setStrokes(draft.strokes);
         setDraftStatus("saved");
-        setMessage("Recovered a saved draft from this iPad");
+        setMessage(draft.captureVersion === member?.captureVersion
+          ? "Recovered a saved draft from this iPad"
+          : "Recovered a draft from before another iPad saved this signer — review it before saving");
       } else {
         strokesRef.current = [];
         setStrokes([]);
@@ -257,7 +276,11 @@ export default function SignatureCapturePage({ collectionId, memberId, userId }:
         setMessage("Use Apple Pencil or compatible pen input to sign");
       }
       draftRevisionRef.current = 0;
-      saveRequestIdRef.current = null;
+      saveRequestIdRef.current = draft && draft.captureVersion === member?.captureVersion
+        && draft.saveRequestId
+        && signatureSaveRequestIdSchema.safeParse(draft.saveRequestId).success
+        ? draft.saveRequestId
+        : null;
       setDraftLoaded(true);
       scheduleCanvasDraw();
     }).catch(() => {
@@ -267,7 +290,7 @@ export default function SignatureCapturePage({ collectionId, memberId, userId }:
       setDraftLoaded(true);
     });
     return () => { cancelled = true; };
-  }, [draftKey, scheduleCanvasDraw]);
+  }, [collectionId, draftKey, member?.captureVersion, member?.settingsVersion, memberId, scheduleCanvasDraw, userId]);
 
   const appendPointerSamples = useCallback((event: PointerEvent, canvas: HTMLCanvasElement) => {
     const logicalSize = ensureLogicalCanvasSize(canvas);
@@ -415,6 +438,7 @@ export default function SignatureCapturePage({ collectionId, memberId, userId }:
     setSaving(true);
     setMessage("Saving both private signature files…");
     try {
+      await persistDraftSnapshot(snapshot, draftRevisionRef.current, requestId).catch(() => undefined);
       const response = await fetch(`/api/signatures/collections/${collection.id}/capture/${member.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -427,22 +451,56 @@ export default function SignatureCapturePage({ collectionId, memberId, userId }:
       });
       if (handleAuthRedirect(response)) return;
       if (!response.ok) {
-        if (response.status < 500 && response.status !== 425) saveRequestIdRef.current = null;
+        if (!shouldRetainSignatureSaveRequestId(response.status)) {
+          saveRequestIdRef.current = null;
+          await persistDraftSnapshot(snapshot, draftRevisionRef.current, null).catch(() => undefined);
+        }
         throw new Error(await parseErrorMessage(response, "Signature was not saved"));
       }
       if (draftKey) {
         const deletion = draftQueueRef.current
           .catch(() => undefined)
-          .then(() => deleteSignatureDraft(draftKey));
+          .then(() => deleteSignatureDraftsForMember({
+            userId,
+            collectionId,
+            memberId,
+            settingsVersion: member.settingsVersion,
+          }));
         draftQueueRef.current = deletion;
         await deletion.catch(() => undefined);
       }
       toast.success(`${member.name}'s signature saved`);
-      router.push(`/signatures/${collection.id}`);
+      if (member.roleGroup === "PLAYER") {
+        setProfileStep(true);
+        setMessage("Signature saved. Add this athlete’s website profile details.");
+      } else {
+        router.push(`/signatures/${collection.id}`);
+      }
     } catch (requestError) {
       setMessage(requestError instanceof Error ? requestError.message : "Signature was not saved");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveAthleteProfile(values: { birthday: string; hometown: string; instagramHandle: string; tiktokHandle: string; xHandle: string }) {
+    if (!collection || !member || member.roleGroup !== "PLAYER") return;
+    setProfileSaving(true);
+    setMessage("Saving website profile…");
+    try {
+      const response = await fetch(`/api/signatures/collections/${collection.id}/members/${member.id}/profile`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expectedCollectionVersion: collection.collectionVersion, ...values }),
+      });
+      if (handleAuthRedirect(response)) return;
+      if (!response.ok) throw new Error(await parseErrorMessage(response, "Athlete profile was not saved"));
+      toast.success(`${member.name}'s website profile saved`);
+      router.push(`/signatures/${collection.id}`);
+    } catch (requestError) {
+      setMessage(requestError instanceof Error ? requestError.message : "Athlete profile was not saved");
+    } finally {
+      setProfileSaving(false);
     }
   }
 
@@ -486,8 +544,21 @@ export default function SignatureCapturePage({ collectionId, memberId, userId }:
             <Button variant="ghost" size="sm" className="h-11" asChild><Link href={`/signatures/${collection.id}`}><ArrowLeft data-icon="inline-start" />Roster</Link></Button>
           )}
           <div className="min-w-0 text-center"><p className="truncate text-lg font-semibold">{member.name}</p><p className="text-xs text-muted-foreground">{member.jerseyNumber !== null ? `#${member.jerseyNumber} · ` : ""}{member.title || member.roleGroup.replaceAll("_", " ")} · {collection.season}</p></div>
-          <div className="w-[104px] text-right text-xs text-muted-foreground" aria-live="polite">{draftLabel}</div>
+          <div className="w-[104px] text-right text-xs text-muted-foreground" aria-live="polite">{profileStep ? "Profile details" : draftLabel}</div>
         </header>
+        {profileStep ? (
+          <section className="flex min-h-0 flex-1 flex-col justify-center rounded-xl border bg-card p-4 shadow-sm sm:p-8" aria-label={`Website profile for ${member.name}`}>
+            <div className="mx-auto w-full max-w-3xl">
+              <SignatureAthleteProfileForm
+                initialValues={member.athleteProfile ?? { birthday: null, hometown: null, instagramHandle: null, tiktokHandle: null, xHandle: null }}
+                busy={profileSaving}
+                onSubmit={saveAthleteProfile}
+                onCancel={() => router.push(`/signatures/${collection.id}`)}
+              />
+              <p role="status" aria-live="polite" className="mt-4 text-sm text-muted-foreground">{message}</p>
+            </div>
+          </section>
+        ) : (
         <section className="flex min-h-0 flex-1 flex-col gap-3 rounded-xl border bg-card p-3 shadow-sm sm:p-5" aria-label={`Signature canvas for ${member.name}`}>
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
             <p id="signature-capture-status" role="status" aria-live="polite" className="text-sm text-muted-foreground">{message}</p>
@@ -530,6 +601,7 @@ export default function SignatureCapturePage({ collectionId, memberId, userId }:
             </div>
           </div>
         </section>
+        )}
       </div>
     </main>
   );

@@ -2,7 +2,9 @@ import { createHash } from "node:crypto";
 import {
   getSignatureRosterSourceConfig,
   SIGNATURE_FOOTBALL_SPORT_CODE,
+  SIGNATURE_MENS_HOCKEY_SPORT_CODE,
   SIGNATURE_MBB_SPORT_CODE,
+  SIGNATURE_WOMENS_HOCKEY_SPORT_CODE,
   SIGNATURE_PARSER_VERSION,
   isRequiredSignatureGroup,
   normalizeSignatureName,
@@ -124,6 +126,8 @@ const PLAYER_POSITION_LABELS: Record<string, string> = {
   S: "Setter",
   TE: "Tight End",
   WR: "Wide Receiver",
+  PG: "Point Guard",
+  HWT: "Heavyweight",
 };
 
 const PLAYER_YEAR_LABELS: Record<string, string> = {
@@ -153,13 +157,15 @@ function normalizedPlayerLabel(value: string, labels: Record<string, string>): s
 
 function extractPlayerTitle(context: string, sportCode: SignatureImportedSportCode): string | null {
   const text = stripTags(context);
-  const details = text.match(/position\s*[:\-]?\s*([a-z][a-z0-9/.-]{0,24})\s+academic\s+year\s*[:\-]?\s*([a-z0-9]+(?:-[a-z0-9]+)?\.?)/i);
+  const details = text.match(/position\s*[:\-]?\s*([a-z0-9][a-z0-9/.-]{0,24})\s+academic\s+year\s*[:\-]?\s*([a-z0-9]+(?:-[a-z0-9]+)?\.?)/i);
   if (!details?.[1] || !details[2]) return null;
 
   const rawPosition = details[1].trim().toLocaleUpperCase("en-US");
   const positionLabels = sportCode === SIGNATURE_FOOTBALL_SPORT_CODE
     ? { ...PLAYER_POSITION_LABELS, S: "Safety" }
-    : PLAYER_POSITION_LABELS;
+    : sportCode === SIGNATURE_MENS_HOCKEY_SPORT_CODE || sportCode === SIGNATURE_WOMENS_HOCKEY_SPORT_CODE
+      ? { ...PLAYER_POSITION_LABELS, D: "Defenseman", G: "Goaltender", F: "Forward" }
+      : PLAYER_POSITION_LABELS;
   const position = positionLabels[rawPosition] ?? rawPosition
     .split("/")
     .map((part) => normalizedPlayerLabel(part, positionLabels))

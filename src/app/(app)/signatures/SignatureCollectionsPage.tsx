@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Archive, ArrowRight, Eye, EyeOff, FilePenLine, FolderPen, Plus, RefreshCw, UsersRound } from "lucide-react";
+import { Archive, ArrowRight, Download, Eye, EyeOff, FilePenLine, FolderPen, Plus, RefreshCw, Trash2, UsersRound } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { OperationalRowActions } from "@/components/OperationalRowActions";
 import { FadeUp } from "@/components/ui/motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +16,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import EmptyState from "@/components/EmptyState";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
@@ -22,10 +25,9 @@ import {
   DEFAULT_SIGNATURE_SEASON,
   SIGNATURE_AD_HOC_SPORT_CODE,
   SIGNATURE_CREATIVE_STAFF_SPORT_CODE,
-  SIGNATURE_FOOTBALL_SPORT_CODE,
   SIGNATURE_IMPORTED_SPORT_CODES,
   SIGNATURE_MBB_SPORT_CODE,
-  SIGNATURE_VOLLEYBALL_SPORT_CODE,
+  signatureCollectionTitle,
   type SignatureImportedSportCode,
 } from "@/lib/signatures/types";
 
@@ -37,6 +39,8 @@ type Collection = {
   collectionVersion: number;
   activeMemberCount: number;
   completeness: { complete: number; required: number; percent: number };
+  staffCompleteness?: { complete: number; total: number };
+  downloadableCount?: number;
   updatedAt: string;
 };
 
@@ -56,18 +60,20 @@ const SIGNATURE_SEASON_OPTIONS = Array.from({ length: 9 }, (_, index) => {
   return `${startYear}-${String(startYear + 1).slice(-2)}`;
 });
 
-function collectionLabel(sportCode: string) {
-  if (sportCode === SIGNATURE_MBB_SPORT_CODE) return "Men’s Basketball";
-  if (sportCode === SIGNATURE_FOOTBALL_SPORT_CODE) return "Football";
-  if (sportCode === SIGNATURE_VOLLEYBALL_SPORT_CODE) return "Volleyball";
-  if (sportCode === SIGNATURE_CREATIVE_STAFF_SPORT_CODE) return "Creative Staff";
-  if (sportCode === SIGNATURE_AD_HOC_SPORT_CODE) return "Ad-hoc signatures";
-  return sportCode;
-}
-
 async function postJson(url: string, body: unknown) {
   const response = await fetch(url, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (handleAuthRedirect(response)) throw new Error("Session expired");
+  if (!response.ok) throw new Error(await parseErrorMessage(response, "Signature request failed"));
+  return response.json() as Promise<Record<string, unknown>>;
+}
+
+async function deleteJson(url: string, body: unknown) {
+  const response = await fetch(url, {
+    method: "DELETE",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
@@ -88,12 +94,13 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
   const [adHocName, setAdHocName] = useState("");
   const [adHocCategory, setAdHocCategory] = useState("");
   const [addingAdHoc, setAddingAdHoc] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Collection | null>(null);
   const automaticSyncAttempt = useRef<string | null>(null);
   const { data, loading, error, reload } = useFetch<Collection[]>({
     url: "/api/signatures/collections" + (showArchived ? "?includeArchived=true" : ""),
     transform: (json) => (json.collections as Collection[]) ?? [],
   });
-  const collections = data ?? [];
+  const collections = useMemo(() => data ?? [], [data]);
 
   useEffect(() => {
     if (loading) return;
@@ -196,6 +203,53 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
     }
   }
 
+  async function downloadAll(collection: Collection) {
+    setWorkingCollectionId(collection.id);
+    try {
+      const response = await fetch(`/api/signatures/collections/${collection.id}/download`);
+      if (handleAuthRedirect(response)) throw new Error("Session expired");
+      if (!response.ok) throw new Error(await parseErrorMessage(response, "Signature archive could not be downloaded"));
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `${collection.sportCode.toLowerCase()}-${collection.season}-signatures.zip`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+      toast.success(`${signatureCollectionTitle(collection.sportCode)} signatures downloaded`);
+    } catch (requestError) {
+      toast.error(requestError instanceof Error ? requestError.message : "Signature archive could not be downloaded");
+    } finally {
+      setWorkingCollectionId(null);
+    }
+  }
+
+  function requestDelete(collection: Collection) {
+    if ((collection.downloadableCount ?? 0) > 0) {
+      setDeleteTarget(collection);
+      return;
+    }
+    void deleteCollection(collection);
+  }
+
+  async function deleteCollection(collection: Collection) {
+    setWorkingCollectionId(collection.id);
+    try {
+      await deleteJson(`/api/signatures/collections/${collection.id}`, {
+        expectedCollectionVersion: collection.collectionVersion,
+      });
+      setDeleteTarget(null);
+      await reload();
+      toast.success(`${signatureCollectionTitle(collection.sportCode)} was deleted`);
+    } catch (requestError) {
+      toast.error(requestError instanceof Error ? requestError.message : "Collection was not deleted");
+    } finally {
+      setWorkingCollectionId(null);
+    }
+  }
+
   return (
     <FadeUp>
       <PageHeader title="Signatures">
@@ -251,7 +305,7 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
               )}
               <Select onValueChange={(value) => router.push("/signatures/" + value)}>
                 <SelectTrigger className="h-10 w-44" aria-label="Choose a signature roster"><SelectValue placeholder="Choose roster" /></SelectTrigger>
-                <SelectContent>{collections.map((collection) => <SelectItem key={collection.id} value={collection.id}>{collectionLabel(collection.sportCode)} · {collection.season}</SelectItem>)}</SelectContent>
+                <SelectContent>{collections.map((collection) => <SelectItem key={collection.id} value={collection.id}>{signatureCollectionTitle(collection.sportCode)} · {collection.season}</SelectItem>)}</SelectContent>
               </Select>
               <Badge variant="outline">{collections.length} {collections.length === 1 ? "roster" : "rosters"}</Badge>
             </div>
@@ -277,6 +331,8 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
                 const isCreativeStaffRoster = collection.sportCode === SIGNATURE_CREATIVE_STAFF_SPORT_CODE;
                 const isAdHocRoster = collection.sportCode === SIGNATURE_AD_HOC_SPORT_CODE;
                 const hasSyncedMembers = collection.activeMemberCount > 0;
+                const staffCompleteness = collection.staffCompleteness ?? { complete: 0, total: 0 };
+                const downloadableCount = collection.downloadableCount ?? 0;
                 return (
                   <Card key={collection.id} className={collection.status === "ARCHIVED" ? "h-full opacity-75" : "h-full"}>
                     <CardHeader className="flex-row items-start justify-between gap-3 pb-3">
@@ -285,14 +341,35 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
                           <Link href={"/signatures/" + collection.id} className="inline-flex items-center gap-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                             {isCreativeStaffRoster && <UsersRound className="size-4 text-muted-foreground" aria-hidden="true" />}
                             {isAdHocRoster && <FilePenLine className="size-4 text-muted-foreground" aria-hidden="true" />}
-                            {collectionLabel(collection.sportCode)}
+                            {signatureCollectionTitle(collection.sportCode)}
                           </Link>
                         </CardTitle>
                         {!isCreativeStaffRoster && (
                           <p className="mt-1 text-sm text-muted-foreground">{isAdHocRoster ? `${collection.season} one-off captures` : collection.season}</p>
                         )}
                       </div>
-                      <Badge variant={collection.status === "OPEN" ? "default" : "outline"}>{collection.status === "OPEN" ? "Open" : "Archived"}</Badge>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Badge variant={collection.status === "OPEN" ? "default" : "outline"}>{collection.status === "OPEN" ? "Open" : "Archived"}</Badge>
+                        <OperationalRowActions label={`Actions for ${signatureCollectionTitle(collection.sportCode)} ${collection.season}`}>
+                          <DropdownMenuItem disabled={isWorking || downloadableCount === 0} onSelect={() => void downloadAll(collection)}>
+                            <Download />
+                            Download All{downloadableCount === 0 ? " (none yet)" : ""}
+                          </DropdownMenuItem>
+                          {isAdmin && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem disabled={isWorking} onSelect={() => void (collection.status === "OPEN" ? archiveCollection(collection) : restoreCollection(collection))}>
+                                <Archive />
+                                {collection.status === "OPEN" ? "Archive" : "Restore"}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem variant="destructive" disabled={isWorking} onSelect={() => requestDelete(collection)}>
+                                <Trash2 />
+                                Delete
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </OperationalRowActions>
+                      </div>
                     </CardHeader>
                     <CardContent className="pt-0">
                       <div className="flex items-center justify-between text-sm">
@@ -300,25 +377,17 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
                         <span className="font-semibold tabular-nums">{isCreativeStaffRoster && !hasSyncedMembers ? "Not synced" : `${collection.completeness.complete}/${collection.completeness.required}`}</span>
                       </div>
                       <Progress value={collection.completeness.percent} className="mt-2 h-2" />
+                      {!isCreativeStaffRoster && !isAdHocRoster && staffCompleteness.total > 0 && (
+                        <div className="mt-2 text-right text-xs text-muted-foreground tabular-nums">
+                          {staffCompleteness.complete}/{staffCompleteness.total} Staff
+                        </div>
+                      )}
                       <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
                         <span>{isCreativeStaffRoster ? (hasSyncedMembers ? "Automatically synced" : "Syncing automatically") : `${collection.completeness.percent}% ready`}</span>
                         <Link href={"/signatures/" + collection.id} className="inline-flex items-center gap-1 font-medium text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                           Open roster <ArrowRight className="size-3.5" aria-hidden="true" />
                         </Link>
                       </div>
-                      {isAdmin && (
-                        <div className="mt-3 border-t pt-3">
-                          {collection.status === "OPEN" ? (
-                            <Button variant="ghost" size="sm" className="h-10 px-0 text-muted-foreground hover:text-foreground" onClick={() => archiveCollection(collection)} disabled={isWorking}>
-                              <Archive data-icon="inline-start" />{isWorking ? "Archiving…" : "Archive year"}
-                            </Button>
-                          ) : (
-                            <Button variant="ghost" size="sm" className="h-10 px-0 text-muted-foreground hover:text-foreground" onClick={() => restoreCollection(collection)} disabled={isWorking}>
-                              <Archive data-icon="inline-start" />{isWorking ? "Restoring…" : "Restore year"}
-                            </Button>
-                          )}
-                        </div>
-                      )}
                     </CardContent>
                   </Card>
                 );
@@ -330,7 +399,7 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
         <Card className="h-fit">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base"><FolderPen className="size-4 text-[var(--wi-red)]" />Import roster</CardTitle>
-            <p className="text-sm text-muted-foreground">UWBadgers · {collectionLabel(importSportCode)}</p>
+            <p className="text-sm text-muted-foreground">UWBadgers · {signatureCollectionTitle(importSportCode)}</p>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="space-y-2">
@@ -341,7 +410,7 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
                 </SelectTrigger>
                 <SelectContent>
                   {SIGNATURE_IMPORTED_SPORT_CODES.map((sportCode) => (
-                    <SelectItem key={sportCode} value={sportCode}>{collectionLabel(sportCode)}</SelectItem>
+                    <SelectItem key={sportCode} value={sportCode}>{signatureCollectionTitle(sportCode)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -364,7 +433,7 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
             </Button>
             {preview && (
               <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-                <p className="font-medium">{preview.candidateCount} {collectionLabel(preview.sportCode)} members found</p>
+                <p className="font-medium">{preview.candidateCount} {signatureCollectionTitle(preview.sportCode)} members found</p>
                 <p className="mt-1 text-xs text-muted-foreground">{preview.alreadyApplied ? "This roster is already applied." : "Duplicates are removed by source profile."}</p>
                 <div className="mt-3 flex gap-2">
                   <Button size="sm" className="h-10" onClick={applyPreview} disabled={working || preview.alreadyApplied}>Apply roster</Button>
@@ -375,6 +444,30 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => { if (!open && !workingCollectionId) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this signature roster?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget ? `${signatureCollectionTitle(deleteTarget.sportCode)} · ${deleteTarget.season} and its captured signatures will be permanently removed. This cannot be undone.` : "This signature roster will be permanently removed."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={Boolean(workingCollectionId)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={!deleteTarget || workingCollectionId === deleteTarget.id}
+              onClick={(event) => {
+                event.preventDefault();
+                if (deleteTarget) void deleteCollection(deleteTarget);
+              }}
+            >
+              {deleteTarget && workingCollectionId === deleteTarget.id ? "Deleting…" : "Delete roster"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </FadeUp>
   );
 }

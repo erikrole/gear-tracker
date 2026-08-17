@@ -363,6 +363,11 @@ struct BrandSectionHeader<Trailing: View>: View {
             trailing()
         }
         .accessibilityElement(children: .combine)
+        // Lets VoiceOver's rotor jump between sections. Event detail's private
+        // clone of this header carried the trait and the shared one didn't, so
+        // adopting the shared component would otherwise have been a quiet
+        // accessibility regression on that screen.
+        .accessibilityAddTraits(.isHeader)
     }
 }
 

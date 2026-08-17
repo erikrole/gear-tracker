@@ -123,3 +123,175 @@ struct ScheduleDateMathTests {
         }
     }
 }
+
+/// Locks in the venue name Schedule rows and Event detail both render.
+///
+/// Imported events wrap the venue in a "City, ST" qualifier on either end. Only
+/// the venue is useful on either surface, but the qualifier must come off only
+/// when the component beside the city really is a state, so a venue that
+/// legitimately contains commas is not truncated into nonsense.
+struct ScheduleVenueNameTests {
+
+    private func event(location: EventLocation?, rawLocationText: String?) -> ScheduleEvent {
+        var event = ScheduleEvent(
+            id: "e", summary: "Game", startsAt: .now, endsAt: .now, allDay: false,
+            status: "CONFIRMED", sportCode: "WSOC", opponent: "BYU", isHome: true,
+            location: location
+        )
+        event.rawLocationText = rawLocationText
+        return event
+    }
+
+    // MARK: Leading "City, ST" — the shape the live feed sends
+
+    @Test func namesVenueAfterPostalStateQualifier() {
+        #expect(scheduleVenueDisplayName("Madison, WI, Camp Randall Stadium") == "Camp Randall Stadium")
+        #expect(scheduleVenueDisplayName("Madison, WI, Goodman Diamond") == "Goodman Diamond")
+        #expect(scheduleVenueDisplayName("Minneapolis, MN, Target Field") == "Target Field")
+        #expect(scheduleVenueDisplayName("Iowa City, IA, Carver-Hawkeye Arena") == "Carver-Hawkeye Arena")
+    }
+
+    @Test func namesVenueAfterApStyleStateQualifier() {
+        #expect(scheduleVenueDisplayName("Green Bay, Wis., Lambeau Field") == "Lambeau Field")
+        #expect(scheduleVenueDisplayName("Madison, Wis., McClimon Track/Soccer Complex")
+            == "McClimon Track/Soccer Complex")
+    }
+
+    /// A slash inside the venue is part of its name, not a separator.
+    @Test func keepsSlashesInsideTheVenueName() {
+        #expect(scheduleVenueDisplayName("Madison, WI, McClimon Track/Soccer Complex")
+            == "McClimon Track/Soccer Complex")
+    }
+
+    @Test func toleratesRaggedFeedWhitespace() {
+        #expect(scheduleVenueDisplayName("Green Bay, Wis.,  Lambeau Field") == "Lambeau Field")
+    }
+
+    // MARK: Trailing "City, ST"
+
+    @Test func namesVenueBeforePostalStateQualifier() {
+        #expect(scheduleVenueDisplayName("Camp Randall Stadium, Madison, WI") == "Camp Randall Stadium")
+    }
+
+    @Test func namesVenueBeforeApStyleStateQualifier() {
+        #expect(scheduleVenueDisplayName("Lambeau Field, Green Bay, Wis.") == "Lambeau Field")
+    }
+
+    // MARK: The venue is one component
+
+    /// Trailing detail after the venue is not part of its name. Whatever the
+    /// separator arrangement, a schedule surface names the venue and stops.
+    @Test func dropsDetailTrailingTheVenue() {
+        #expect(scheduleVenueDisplayName("Madison, WI, Kohl Center, Section 118") == "Kohl Center")
+        #expect(scheduleVenueDisplayName("Kohl Center, Section 118") == "Kohl Center")
+        #expect(scheduleVenueDisplayName("Kohl Center, Section 118, Madison, WI") == "Kohl Center")
+    }
+
+    // MARK: No venue to name
+
+    /// An away location with no venue keeps its state — "Iowa City" alone reads
+    /// like a truncation.
+    @Test func keepsCityAndStateWhenThereIsNoVenue() {
+        #expect(scheduleVenueDisplayName("Iowa City, IA") == "Iowa City, IA")
+        #expect(scheduleVenueDisplayName("Madison, WI") == "Madison, WI")
+    }
+
+    @Test func passesThroughABareVenue() {
+        #expect(scheduleVenueDisplayName("Camp Randall Stadium") == "Camp Randall Stadium")
+        #expect(scheduleVenueDisplayName("UW Volleyball Arena Alias") == "UW Volleyball Arena Alias")
+    }
+
+    /// The sync feed has produced malformed venue text; it must survive intact
+    /// rather than be parsed into something confidently wrong.
+    @Test func passesThroughMalformedVenueText() {
+        #expect(scheduleVenueDisplayName("Field (north") == "Field (north")
+    }
+
+    // MARK: Event resolution
+
+    /// A mapped Gear Tracker location is admin-entered and shown verbatim — it
+    /// is already the name the team uses, and it never carries a feed qualifier.
+    @Test func mappedLocationWins() {
+        let subject = event(
+            location: EventLocation(id: "l", name: "McClimon Complex"),
+            rawLocationText: "Madison, WI, McClimon Track/Soccer Complex"
+        )
+        #expect(scheduleEventVenueName(subject) == "McClimon Complex")
+    }
+
+    @Test func fallsBackToNamedRawVenue() {
+        let subject = event(location: nil, rawLocationText: "Madison, WI, McClimon Track/Soccer Complex")
+        #expect(scheduleEventVenueName(subject) == "McClimon Track/Soccer Complex")
+    }
+
+    @Test func returnsNilWithoutAnyVenue() {
+        #expect(scheduleEventVenueName(event(location: nil, rawLocationText: nil)) == nil)
+        #expect(scheduleEventVenueName(event(location: nil, rawLocationText: "   ")) == nil)
+    }
+
+    // MARK: Venue survives the entry point
+
+    /// A shift opened from Profile or a user's roster goes through
+    /// `MyShift.asScheduleEvent`, which hardcoded `location: nil` while
+    /// `MyShiftEvent` was already decoding the venue. The same event showed its
+    /// venue from the Schedule tab and lost it from Profile.
+    @Test func myShiftCarriesItsVenueIntoTheDetailEvent() {
+        let shift = MyShift(
+            id: "s1", area: "VIDEO", workerType: "ST",
+            startsAt: .now, endsAt: .now, status: "ASSIGNED",
+            event: MyShiftEvent(
+                id: "e1", summary: "Women's Soccer vs BYU",
+                startsAt: .now, endsAt: .now,
+                sportCode: "WSOC", isHome: true, opponent: "BYU",
+                locationId: "loc-1", locationName: "McClimon Track/Soccer Complex"
+            ),
+            gear: ShiftGear(status: "none", bookings: [])
+        )
+        #expect(scheduleEventVenueName(shift.asScheduleEvent) == "McClimon Track/Soccer Complex")
+    }
+
+    /// An unmapped shift has a name but no location id; the venue still has to
+    /// reach the header rather than being dropped for want of an id.
+    @Test func myShiftWithoutALocationIdHasNoVenueRatherThanACrash() {
+        let shift = MyShift(
+            id: "s2", area: "PHOTO", workerType: "ST",
+            startsAt: .now, endsAt: .now, status: "ASSIGNED",
+            event: MyShiftEvent(
+                id: "e2", summary: "Practice",
+                startsAt: .now, endsAt: .now,
+                sportCode: nil, isHome: nil, opponent: nil,
+                locationId: nil, locationName: nil
+            ),
+            gear: ShiftGear(status: "none", bookings: [])
+        )
+        #expect(scheduleEventVenueName(shift.asScheduleEvent) == nil)
+    }
+
+    // MARK: Every surface agrees
+
+    /// Schedule rows, Event detail, and the booking event picker all resolve the
+    /// venue through the same helper. The picker previously kept only the last
+    /// comma component, so these are exactly the cases where it disagreed.
+    @Test func bookingPickerNamesVenueLastStringsCorrectly() {
+        let subject = event(location: nil, rawLocationText: "Camp Randall Stadium, Madison, WI")
+        #expect(subject.bookingEventPickerVenue == "Camp Randall Stadium")
+        #expect(subject.bookingEventPickerVenue == scheduleEventVenueName(subject))
+    }
+
+    @Test func bookingPickerShowsMappedLocationVerbatim() {
+        let subject = event(
+            location: EventLocation(id: "l", name: "Kohl Center"),
+            rawLocationText: "Madison, WI, Kohl Center"
+        )
+        #expect(subject.bookingEventPickerVenue == "Kohl Center")
+        #expect(subject.bookingEventPickerVenue == scheduleEventVenueName(subject))
+    }
+
+    /// The picker used to rewrite this venue's real name to "McClimon Soccer
+    /// Complex" to save six characters on a line that truncates anyway.
+    @Test func bookingPickerKeepsTheRealVenueName() {
+        let subject = event(location: nil, rawLocationText: "Madison, WI, McClimon Track/Soccer Complex")
+        #expect(subject.bookingEventPickerVenue == "McClimon Track/Soccer Complex")
+        #expect(subject.bookingEventPickerVenue == scheduleEventVenueName(subject))
+    }
+}

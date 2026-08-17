@@ -235,7 +235,7 @@ export const GET = withCron(async () => {
   ).count;
   const signatureCleanup = maintenanceValue(
     signatureCleanupResult,
-    { attempted: 0, deleted: 0 },
+    { abandoned: 0, attempted: 0, deleted: 0 },
     "signatureCleanup",
     maintenanceFailures,
   );
