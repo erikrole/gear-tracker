@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import { MoreHorizontalIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +53,8 @@ const SCHEDULE_EXPORTS = [
   { type: "gear-readiness", label: "Gear readiness" },
 ] as const;
 
+type CrewTemplateSide = "HOME" | "AWAY" | "EMPTY";
+
 export default function SchedulePage() {
   const { data: user, isLoading } = useCurrentUser();
   if (isLoading) {
@@ -73,6 +74,8 @@ function InternalSchedulePage() {
   const hidingRef = useRef<Set<string>>(new Set());
   const [hidingEventIds, setHidingEventIds] = useState<Set<string>>(() => new Set());
   const [newEventOpen, setNewEventOpen] = useState(false);
+  const settingUpRef = useRef<Set<string>>(new Set());
+  const [settingUpEventIds, setSettingUpEventIds] = useState<Set<string>>(() => new Set());
 
   const handleSetEventVisibility = useCallback(async (eventId: string, isHidden: boolean) => {
     if (hidingRef.current.has(eventId)) return;
@@ -124,6 +127,37 @@ function InternalSchedulePage() {
   const handleHideEvent = useCallback((eventId: string) => {
     void handleSetEventVisibility(eventId, true);
   }, [handleSetEventVisibility]);
+
+  const handleSetupCrew = useCallback(async (eventId: string, templateSide: CrewTemplateSide) => {
+    if (settingUpRef.current.has(eventId)) return;
+    settingUpRef.current.add(eventId);
+    setSettingUpEventIds((current) => new Set(current).add(eventId));
+    try {
+      const res = await fetch("/api/shift-groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId, templateSide }),
+      });
+      if (handleAuthRedirect(res)) return;
+      if (res.ok) {
+        const templateLabel = templateSide === "EMPTY" ? "Empty" : templateSide === "HOME" ? "Home" : "Away";
+        toast.success(`${templateLabel} crew setup created. Open Manage crew to assign staff.`);
+        loadData();
+      } else {
+        toast.error(await parseErrorMessage(res, "Failed to set up crew"));
+      }
+    } catch (error) {
+      if (isAbortError(error)) return;
+      toast.error(error instanceof TypeError ? "You're offline - crew setup was not created" : "Failed to set up crew");
+    } finally {
+      settingUpRef.current.delete(eventId);
+      setSettingUpEventIds((current) => {
+        const next = new Set(current);
+        next.delete(eventId);
+        return next;
+      });
+    }
+  }, [loadData]);
 
   const openTradeBoard = useCallback(() => {
     setTradeSheetOpen(true);
@@ -182,9 +216,6 @@ function InternalSchedulePage() {
       <PageHeader title="Schedule">
         {isStaff ? (
           <>
-            <Button size="sm" className="h-10" asChild>
-              <Link href="/schedule/assign">Assign shifts</Link>
-            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-10" aria-label="More schedule actions">
@@ -302,6 +333,8 @@ function InternalSchedulePage() {
           onSelectGroup={data.setSelectedGroupId}
           hidingEventIds={hidingEventIds}
           onHideEvent={isStaff ? handleHideEvent : undefined}
+          onSetupCrew={isStaff ? handleSetupCrew : undefined}
+          settingUpEventIds={settingUpEventIds}
         />
       )}
 

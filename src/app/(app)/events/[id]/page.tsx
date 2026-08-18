@@ -34,7 +34,6 @@ import { effectiveCallWindow, summarizeEffectiveCallWindows } from "@/lib/shift-
 
 type LocationOption = { id: string; name: string };
 type EventTypeDraft = VenueTone;
-type CrewTemplateSide = "HOME" | "AWAY" | "EMPTY";
 
 function opponentLabel(event: CalendarEvent) {
   if (!event.opponent) return null;
@@ -99,9 +98,6 @@ export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { setBreadcrumbLabel } = useBreadcrumbLabel();
   const [acting, setActing] = useState<string | null>(null);
-  const [creatingGroup, setCreatingGroup] = useState(false);
-  const [crewSetupError, setCrewSetupError] = useState("");
-  const [crewTemplateOpen, setCrewTemplateOpen] = useState(false);
 
   // Edit modal state
   const [editOpen, setEditOpen] = useState(false);
@@ -115,7 +111,6 @@ export default function EventDetailPage() {
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [locationsLoading, setLocationsLoading] = useState(false);
   const savingRef = useRef(false);
-  const creatingGroupRef = useRef(false);
   const nudgeRef = useRef(false);
 
   const {
@@ -285,48 +280,6 @@ export default function EventDetailPage() {
     }
   }
 
-  function beginCrewSetup() {
-    if (!event) return;
-    if (event.isHome === null) {
-      setCrewTemplateOpen(true);
-      return;
-    }
-    void handleCreateShiftGroup(event.isHome ? "HOME" : "AWAY");
-  }
-
-  async function handleCreateShiftGroup(templateSide: CrewTemplateSide) {
-    if (!event) return;
-    if (creatingGroupRef.current) return;
-    creatingGroupRef.current = true;
-    setCreatingGroup(true);
-    setCrewSetupError("");
-    try {
-      const res = await fetch("/api/shift-groups", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventId: id, templateSide }),
-      });
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        setCrewTemplateOpen(false);
-        toast.success(templateSide === "EMPTY" ? "Empty crew setup created" : `${templateSide === "HOME" ? "Home" : "Away"} crew defaults applied`);
-        reloadShiftGroup();
-        if (isStaffOrAdmin) reloadCommandCenter();
-      } else {
-        const msg = await parseErrorMessage(res, "Failed to create shift group");
-        setCrewSetupError(msg);
-        toast.error(msg);
-      }
-    } catch (err) {
-      if (isAbortError(err)) return;
-      setCrewSetupError("Network error - check your connection");
-      toast.error(err instanceof TypeError ? "You’re offline. Check your connection." : "Failed to set up crew");
-    } finally {
-      creatingGroupRef.current = false;
-      setCreatingGroup(false);
-    }
-  }
-
   if (fetchError && !event) {
     return (
       <div className="py-10 px-5 max-w-md mx-auto">
@@ -383,7 +336,6 @@ export default function EventDetailPage() {
   const missingGearCount = commandCenter?.missingGear.length ?? 0;
   const linkedGearCount = commandCenter?.shifts.filter((shift) => shift.assignment?.linkedBookingId).length ?? 0;
   const hasTravel = event.isHome === false && Boolean(event.sportCode);
-  const crewNeedsSetup = isStaffOrAdmin && !shiftGroup;
   const linkSummaryItems = [
     {
       label: "Crew",
@@ -463,33 +415,6 @@ export default function EventDetailPage() {
           </Tooltip>
         </TooltipProvider>
       </PageHeader>
-
-      <Dialog open={crewTemplateOpen} onOpenChange={(open) => !creatingGroup && setCrewTemplateOpen(open)}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Choose a crew template</DialogTitle>
-            <DialogDescription>
-              {eventType === "neutral"
-                ? "Neutral-site games do not automatically use Home or Away staffing. Choose the closest saved template for this event."
-                : "This event does not map to Home or Away staffing. Choose a saved template or start with an empty crew."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <Button onClick={() => void handleCreateShiftGroup("HOME")} disabled={creatingGroup}>
-              Use Home defaults
-            </Button>
-            <Button variant="outline" onClick={() => void handleCreateShiftGroup("AWAY")} disabled={creatingGroup}>
-              Use Away defaults
-            </Button>
-          </div>
-          <DialogFooter className="sm:justify-between">
-            <Button variant="ghost" onClick={() => setCrewTemplateOpen(false)} disabled={creatingGroup}>Cancel</Button>
-            <Button variant="outline" onClick={() => void handleCreateShiftGroup("EMPTY")} disabled={creatingGroup}>
-              {creatingGroup ? "Setting up..." : "Start empty"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {event.subtitle && (
         <p className="text-sm font-medium text-muted-foreground -mt-3 mb-3">{event.subtitle}</p>
@@ -796,18 +721,11 @@ export default function EventDetailPage() {
       ) : isStaffOrAdmin ? (
         <Card className="mt-4">
           <CardContent className="py-8 flex flex-col items-center gap-3 text-center">
-            {crewSetupError && (
-              <Alert variant="destructive" className="text-left">
-                <AlertDescription>{crewSetupError}</AlertDescription>
-              </Alert>
-            )}
             <p className="text-sm text-muted-foreground">
-              {event.isHome === null
-                ? "No crew scheduled. Choose a saved crew template or start empty."
-                : "No crew scheduled. Set it up from this sport's saved defaults."}
+              No crew is set up. Use the Schedule event menu to choose a crew template.
             </p>
-            <Button size="sm" onClick={beginCrewSetup} disabled={creatingGroup}>
-              {creatingGroup ? "Setting up..." : "Set up crew"}
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/schedule">Open Schedule</Link>
             </Button>
           </CardContent>
         </Card>
@@ -818,29 +736,11 @@ export default function EventDetailPage() {
       )}
 
       <div className="flex gap-2 mt-6 max-sm:flex-col sm:flex-row flex-wrap">
-        {crewNeedsSetup ? (
-          <Button
-            type="button"
-            className="min-h-11 px-5 active:scale-[0.96] transition-transform"
-            onClick={beginCrewSetup}
-            disabled={creatingGroup}
-          >
-            {creatingGroup ? "Setting up..." : "Set up crew"}
-          </Button>
-        ) : (
-          <Button asChild className="min-h-11 px-5 active:scale-[0.96] transition-transform">
-            <Link href={`/reservations?title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}${eventParam}`}>
-              Reserve gear for this event
-            </Link>
-          </Button>
-        )}
-        {crewNeedsSetup && (
-          <Button variant="outline" asChild className="min-h-11 px-5 active:scale-[0.96] transition-transform">
-            <Link href={`/reservations?title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}${eventParam}`}>
-              Reserve gear for this event
-            </Link>
-          </Button>
-        )}
+        <Button asChild className="min-h-11 px-5 active:scale-[0.96] transition-transform">
+          <Link href={`/reservations?title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}${eventParam}`}>
+            Reserve gear for this event
+          </Link>
+        </Button>
         {isStaffOrAdmin && (
           <Button variant="outline" asChild className="min-h-11 px-5 active:scale-[0.96] transition-transform">
             <Link href="/schedule">

@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
+import { encodeLicenseExpiryDate } from "@/lib/license-dates";
 
 type Props = {
   open: boolean;
@@ -50,7 +51,7 @@ export function BulkAddSheet({ open, onOpenChange, onCreated }: Props) {
         body: JSON.stringify({
           codes,
           accountEmail: accountEmail.trim() || undefined,
-          expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
+          expiresAt: expiresAt ? encodeLicenseExpiryDate(expiresAt) : undefined,
         }),
       });
       if (handleAuthRedirect(res)) return;

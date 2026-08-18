@@ -12,7 +12,7 @@ describe("Schedule interaction-detail contracts", () => {
     const list = source("src/app/(app)/schedule/_components/ListView.tsx");
     const sourceSignal = source("src/app/(app)/schedule/_components/ScheduleSourceSignal.tsx");
 
-    expect(page).toContain('<Button size="sm" className="h-10" asChild>');
+    expect(page).not.toContain("Assign shifts");
     expect(page).toContain('className="h-10" aria-label="More schedule actions"');
     expect(calendar).toContain('className="h-10" onClick={onSwitchToList}');
     expect(list).toContain('className="h-10" onClick={loadData}');
@@ -33,13 +33,19 @@ describe("Schedule interaction-detail contracts", () => {
     expect(week).toContain("flex min-h-14 w-full items-center justify-between");
   });
 
-  it("keeps crew avatars beside coverage and moves open-slot assignment into row actions", () => {
+  it("keeps crew avatars beside coverage and routes crew ownership through row actions", () => {
     const list = source("src/app/(app)/schedule/_components/ListView.tsx");
 
     expect(list).toContain("<span>Coverage</span>");
     expect(list).toContain('<span className="text-right">Crew</span>');
     expect(list).toContain("<CrewSummary entry={entry} />");
-    expect(list).toContain("Assign {openCount} open {openCount === 1 ? \"slot\" : \"slots\"}");
+    expect(list).toContain("Manage crew");
+    expect(list).toContain("Set up crew");
+    expect(list).toContain("Use Home defaults");
+    expect(list).toContain("Use Away defaults");
+    expect(list).toContain("Start empty");
+    expect(list).not.toContain("Assign {openCount} open");
+    expect(list).not.toContain("WorkingCrewEditor");
     expect(list).not.toContain("onSelectGroup();\n          }}\n        >\n          Assign {openCount}");
   });
 

@@ -100,6 +100,8 @@ describe("schedule source-of-truth and browser smoke contracts", () => {
     expect(route).not.toContain("export const PATCH");
     expect(route).not.toContain("export const DELETE");
     expect(service).toContain("action:");
+    expect(service).toContain('firstHref(autoFillCandidateEventIds)');
+    expect(service).not.toContain('href: "/schedule/assign"');
   });
 
   it("keeps manual assignment, scoring, and auto-fill preview-first without surfacing template review", () => {
@@ -115,19 +117,16 @@ describe("schedule source-of-truth and browser smoke contracts", () => {
     expect(picker).toContain("candidateScores");
     expect(picker).toContain("Scoring candidates");
 
-    for (const file of [eventCrew, shiftPanel]) {
-      expect(file).toContain("/auto-assign/preview");
-      expect(file).toContain("setAutoFillPreviewOpen(true)");
-      expect(file).toContain("Apply recommended assignments");
-    }
-    expect(eventCrew).toContain("Review the proposed crew changes before applying them.");
+    expect(eventCrew).toContain("<WorkingCrewEditor");
+    expect(eventCrew).not.toContain("/auto-assign/preview");
+    expect(eventCrew).not.toContain("Apply recommended assignments");
     expect(shiftPanel).toContain("Review suggested assignments before applying them.");
     expect(eventCrew).toContain("rowCallWindow");
     // One table for every role means one call-time control, staff-editable via
     // rowCallTarget and read-only for everyone else.
     expect(eventCrew.match(/<CallWindowEditor/g)?.length).toBe(1);
     expect(eventCrew).toContain('variant="bare"');
-    expect(eventCrew).toContain("const rowCallTarget = !canEditPublishedSchedule");
+    expect(eventCrew).not.toContain("const rowCallTarget");
 
     expect(eventCrew).not.toContain("CrewTemplateReviewButton");
     expect(shiftPanel).not.toContain("CrewTemplateReviewButton");
@@ -184,7 +183,9 @@ describe("schedule source-of-truth and browser smoke contracts", () => {
     expect(listView).toContain("EVENT_GRID_CLASS");
     expect(listView).toContain("grid-cols-[44px_72px_minmax(180px,1fr)_80px_minmax(100px,140px)_136px_40px]");
     expect(listView).toContain("const openCount =");
-    expect(listView).toContain("Assign {openCount}");
+    expect(listView).toContain("Manage crew");
+    expect(listView).toContain("Set up crew");
+    expect(listView).not.toContain("Assign {openCount}");
     expect(listView).toContain('weekday: "short"');
     expect(listView).toContain('month: "short"');
     expect(listView).toContain('day: "numeric"');
@@ -192,8 +193,8 @@ describe("schedule source-of-truth and browser smoke contracts", () => {
     expect(mobile).toContain("groupedEntries.map");
     expect(mobile).toContain("groupEntries.map");
     expect(mobile).not.toContain("filteredEntries.map");
-    expect(mobile).toContain("<OperationalRowActions");
-    expect(mobile).toContain("Hide event");
+    expect(mobile).toContain("<CrewRowActions");
+    expect(listView).toContain("Hide event");
     expect(mobile).toContain("onHideEvent(entry.id)");
     expect(mobile).toContain("hidingEventIds?.has(entry.id)");
     expect(listView).toContain('"group/row border-l-[3px] transition-colors"');

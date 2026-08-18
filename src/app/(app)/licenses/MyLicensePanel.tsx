@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatRelativeTime } from "@/lib/format";
+import { isLicenseExpired, licenseDaysUntilExpiry } from "@/lib/license-dates";
 import type { MyLicense } from "./types";
 import { ReleaseDialog } from "./ReleaseDialog";
 import { MyLicenseHistoryDialog } from "./MyLicenseHistoryDialog";
@@ -32,9 +33,8 @@ export function MyLicensePanel({ license, isStaff, onReleased }: Props) {
     }
   }
 
-  const expiryMs = license.expiresAt ? new Date(license.expiresAt).getTime() : null;
-  const isExpired = expiryMs != null && expiryMs < Date.now();
-  const daysLeft = expiryMs != null ? Math.ceil((expiryMs - Date.now()) / 86_400_000) : null;
+  const daysLeft = license.expiresAt ? licenseDaysUntilExpiry(license.expiresAt) : null;
+  const isExpired = license.expiresAt ? isLicenseExpired(license.expiresAt) : false;
   const isExpiringSoon = daysLeft != null && daysLeft >= 0 && daysLeft <= 30;
 
   const headerLabel = isStaff ? "Custody" : "Your license";

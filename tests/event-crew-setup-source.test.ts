@@ -2,14 +2,20 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("event crew setup recovery", () => {
-  it("asks Neutral and Non-game events which saved crew template to use", () => {
+  it("keeps setup on Schedule and points an unconfigured detail page back there", () => {
     const page = readFileSync("src/app/(app)/events/[id]/page.tsx", "utf8");
+    const schedule = readFileSync("src/app/(app)/schedule/page.tsx", "utf8");
+    const list = readFileSync("src/app/(app)/schedule/_components/ListView.tsx", "utf8");
 
-    expect(page).toContain("Choose a crew template");
-    expect(page).toContain("Use Home defaults");
-    expect(page).toContain("Use Away defaults");
-    expect(page).toContain("Start empty");
-    expect(page).toContain('event.isHome ? "HOME" : "AWAY"');
+    expect(schedule).toContain("/api/shift-groups");
+    expect(list).toContain("Set up crew");
+    expect(list).toContain("Use Home defaults");
+    expect(list).toContain("Use Away defaults");
+    expect(list).toContain("Start empty");
+    expect(list).toContain("Manage crew");
+    expect(page).not.toContain("Choose a crew template");
+    expect(page).toContain("Use the Schedule event menu to choose a crew template.");
+    expect(page).toContain('href="/schedule"');
   });
 
   it("keeps the shift-group request additive for older clients", () => {

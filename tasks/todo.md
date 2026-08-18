@@ -3,6 +3,24 @@
 Last updated: 2026-08-18
 
 ---
+## Completed: License expiry local-calendar correction (2026-08-18)
+
+Plan: `tasks/archive/completed-2026-08-18/license-expiry-date-only-plan.md`
+
+- [x] Confirm the annual license expiry contract is a date-only value encoded at UTC midnight.
+- [x] Use one local-calendar helper for table display, expiry status, renewal scope, admin inspection, date inputs, and CSV filenames.
+- [x] Add regression and source-contract coverage for Central-time date decoding and the 30-day boundary.
+- [x] Reconcile the Photo Mechanic Licenses area documentation and preserve the separate Plan 053 claim-eligibility policy gap.
+- [ ] Complete authenticated browser proof of `/licenses` after the local shared Next development process is stopped or isolated.
+
+### Review
+
+- **Shipped locally:** A renewal entered as 8/18/27 now renders as Aug 18, 2027; expiry-day and 30-day status calculations use the local calendar date, and date-input storage remains explicit and stable.
+- **Boundary:** No schema, API, claim-eligibility, notification, or production data behavior changed. The existing UTC-midnight representation remains a date-only storage encoding, not a displayed instant.
+- **Verification:** Focused license tests (9 tests), focused ESLint, `npx tsc --noEmit --pretty false`, full `npm run lint`, `npm run build:app`, and `git diff --check` pass. The build passed before the pre-existing dev process invalidated the shared `.next` runtime directory.
+- **Blocked proof:** Authenticated browser proof could not complete: the existing port-3000 Next process returned 500, and a separate port-3001 process stalled while sharing `.next`; the agent did not stop the unrelated process or mutate any license data.
+
+---
 ## Completed: Schedule activity counts audit coverage (2026-08-18)
 
 Plan: `tasks/archive/completed-2026-08-18/schedule-activity-counts-plan.md`

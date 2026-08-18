@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Photo Mechanic license pool
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-07-15
+- Last Updated: 2026-08-18
 - Status: Active — 2-slot model, expiry tracking, unknown occupants, CSV export, and native iOS self-service shipped
 - Version: V2
 
@@ -126,6 +126,7 @@ Implementation: `processLicenseNags` and `processExpiryWarnings` in `src/lib/ser
 - No full admin per-user license usage report beyond the user's own recent history and per-code admin history
 
 ## Change Log
+- 2026-08-18: **Local calendar dates for annual expiry.** Date-only renewal values such as `2027-08-18` now display as August 18 in Central/local browser time instead of shifting to August 17 through UTC-midnight conversion. Expired, expiring-soon, renewal-scope, admin-sheet, and CSV filename calculations use the same local calendar-day contract; storage encoding, claim eligibility, and notification policy are unchanged.
 - 2026-07-29: **Staff assignment.** Staff and admins can assign an open Photo Mechanic slot to an active internal user from the license detail sheet. The audited management route rejects retired or full licenses and users who already hold an active slot. Unknown-occupant recording remains available as a separate fallback.
 - 2026-07-15: **Native iOS Licenses hierarchy and capacity polish.** The self-service page now opens with a shared-capacity summary, gives the holder's code a clearer active-license card, presents open capacity directly on each pool row, hides other student identities behind neutral occupancy copy, and aligns partial/full use to the established blue operational state. Claim, copy, return, masking, expiry, two-slot capacity, and web-owned administration are unchanged.
 - 2026-07-10: **License expiry warnings unified to orange (shadcn audit follow-up).** The admin claim sheet expiring badge and the personal panel expiring-soon text drop off-system yellow for the shared orange warning tokens, matching the license table. Expired remains destructive red.

@@ -14,6 +14,7 @@ import {
 import { UserAvatar } from "@/components/UserAvatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { formatLicenseExpiryDate, licenseDaysUntilExpiry } from "@/lib/license-dates";
 import { cn } from "@/lib/utils";
 import type { LicenseCode, ActiveClaim } from "./types";
 
@@ -22,12 +23,10 @@ const MAX_SLOTS = 2;
 const MASKED_CODE = "••••-••••-••••-••••";
 
 function ExpiryDisplay({ expiresAt }: { expiresAt: string }) {
-  const expiry = new Date(expiresAt);
-  const diff = expiry.getTime() - Date.now();
-  const days = Math.ceil(diff / 86_400_000);
-  const dateStr = expiry.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  const days = licenseDaysUntilExpiry(expiresAt);
+  const dateStr = formatLicenseExpiryDate(expiresAt);
 
-  if (diff < 0) {
+  if (days < 0) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>

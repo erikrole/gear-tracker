@@ -62,7 +62,7 @@ function primaryControl(page: Page, path: string): Locator {
     case "/schedule":
       return role === "STUDENT"
         ? page.getByRole("button", { name: /Trade Board/ })
-        : page.getByRole("link", { name: "Assign shifts" });
+        : page.getByRole("button", { name: "More schedule actions" });
     case "/settings":
       return page.getByRole("button", { name: "Search settings" });
     case "/settings/profile":

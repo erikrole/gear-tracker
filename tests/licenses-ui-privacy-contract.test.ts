@@ -45,4 +45,21 @@ describe("licenses UI and privacy contracts", () => {
     expect(service).toContain('role: { in: ["ADMIN", "STAFF", "STUDENT"] }');
     expect(service).toContain("already has an active Photo Mechanic license");
   });
+
+  it("uses the local calendar date for date-only expiry values across the license page", () => {
+    const page = source("src/app/(app)/licenses/page.tsx");
+    const table = source("src/app/(app)/licenses/LicenseTable.tsx");
+    const banner = source("src/app/(app)/licenses/MyLicensePanel.tsx");
+    const renew = source("src/app/(app)/licenses/BulkRenewDialog.tsx");
+    const sheet = source("src/app/(app)/licenses/AdminClaimSheet.tsx");
+
+    expect(page).toContain("licenseDaysUntilExpiry");
+    expect(page).toContain("localDateKey");
+    expect(table).toContain("formatLicenseExpiryDate");
+    expect(table).toContain("licenseDaysUntilExpiry");
+    expect(banner).toContain("isLicenseExpired");
+    expect(renew).toContain("licenseDaysUntilExpiry");
+    expect(sheet).toContain("licenseExpiryInputValue");
+    expect(sheet).toContain("isLicenseExpired");
+  });
 });

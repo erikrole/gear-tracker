@@ -74,6 +74,7 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Recently Archived
 
+- `archive/completed-2026-08-18/license-expiry-date-only-plan.md` - corrected Photo Mechanic annual expiry display and local-calendar status handling while preserving the date-only storage, claim-eligibility, and notification boundaries; authenticated browser proof remains deferred by the shared local Next runtime blocker.
 - `archive/completed-2026-08-18/schedule-activity-counts-plan.md` - restored audit-backed Schedule activity counts for imported calendar and staff working-copy changes while preserving the worker-facing release boundary.
 - `archive/completed-2026-08-18/schedule-activity-preview-plan.md` - made audit-backed Schedule activity counts actionable through read-only previews linked to Event detail.
 - `archive/completed-2026-08-18/schedule-local-date-ordering-plan.md` - keeps Schedule list entries in Central/local chronological order when encoded all-day events mix with timed events.

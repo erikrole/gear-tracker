@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { encodeLicenseExpiryDate } from "@/lib/license-dates";
 
 type Props = {
   open: boolean;
@@ -43,7 +44,7 @@ export function AddLicenseDialog({ open, onOpenChange, onCreated }: Props) {
           code: code.trim(),
           label: label.trim() || undefined,
           accountEmail: accountEmail.trim() || undefined,
-          expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
+          expiresAt: expiresAt ? encodeLicenseExpiryDate(expiresAt) : undefined,
         }),
       });
       if (handleAuthRedirect(res)) return;

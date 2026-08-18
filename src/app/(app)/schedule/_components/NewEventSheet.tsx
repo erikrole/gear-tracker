@@ -271,13 +271,13 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
             <div className="flex flex-col gap-4">
               <Alert>
                 <AlertDescription>
-                  Event {createdEvent.summary} was added. Open the event to set up staff, or return to the refreshed schedule.
+                  Event {createdEvent.summary} was added. Return to the refreshed schedule to choose its crew template.
                 </AlertDescription>
               </Alert>
               <div className="rounded-md border bg-muted/30 px-4 py-3 text-sm">
                 <p className="font-medium">Next step</p>
                 <p className="mt-1 text-muted-foreground">
-                  Staffing setup, shifts, and gear handoff live on the event detail page.
+                  Use the event row menu for Home, Away, or empty crew setup. Open Event detail to assign staff, manage slots, and set call windows.
                 </p>
               </div>
             </div>

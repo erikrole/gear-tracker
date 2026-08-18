@@ -174,8 +174,8 @@ describe("getScheduleAutomationDigest", () => {
       queue: "needs-staffing",
     });
     expect(digest.cards.find((card) => card.id === "auto-fill")?.action).toEqual({
-      label: "Open assign",
-      href: "/schedule/assign",
+      label: "Review event",
+      href: "/events/event-open",
     });
     expect(digest.cards.find((card) => card.id === "publish")?.action?.href).toBe("/events/event-ready");
     expect(digest.cards.find((card) => card.id === "sources")?.action?.href).toBe("/settings/calendar-sources");

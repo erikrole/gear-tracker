@@ -30,6 +30,12 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { formatRelativeTime } from "@/lib/format";
 import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
+import {
+  encodeLicenseExpiryDate,
+  isLicenseExpired,
+  licenseDaysUntilExpiry,
+  licenseExpiryInputValue,
+} from "@/lib/license-dates";
 import type { LicenseCode } from "./types";
 
 type ClaimRecord = {
@@ -117,7 +123,7 @@ export function AdminClaimSheet({ license, isAdmin, hasMyLicense, onOpenChange, 
     // refreshes in place after list reloads and must not clobber in-progress edits.
     if (lastLicenseIdRef.current === license.id) return;
     lastLicenseIdRef.current = license.id;
-    setEditExpiry(license.expiresAt ? license.expiresAt.slice(0, 10) : "");
+    setEditExpiry(license.expiresAt ? licenseExpiryInputValue(license.expiresAt) : "");
     setEditAccount(license.accountEmail ?? "");
     setEditLabel(license.label ?? "");
     setHistory([]);
@@ -243,7 +249,7 @@ export function AdminClaimSheet({ license, isAdmin, hasMyLicense, onOpenChange, 
         body: JSON.stringify({
           label: editLabel.trim(),
           accountEmail: editAccount.trim() || null,
-          expiresAt: editExpiry ? new Date(editExpiry).toISOString() : null,
+          expiresAt: editExpiry ? encodeLicenseExpiryDate(editExpiry) : null,
         }),
       });
       if (await throwLicenseError(res, "Could not save license details")) return;
@@ -294,9 +300,9 @@ export function AdminClaimSheet({ license, isAdmin, hasMyLicense, onOpenChange, 
 
   const activeClaims = license?.claims ?? [];
   const canAddOccupant = isAdmin && activeClaims.length < 2;
-  const expiryMs = license?.expiresAt ? new Date(license.expiresAt).getTime() : null;
-  const isExpired = expiryMs != null && expiryMs < Date.now();
-  const isExpiringSoon = expiryMs != null && !isExpired && expiryMs - Date.now() < 30 * 86_400_000;
+  const daysLeft = license?.expiresAt ? licenseDaysUntilExpiry(license.expiresAt) : null;
+  const isExpired = license?.expiresAt ? isLicenseExpired(license.expiresAt) : false;
+  const isExpiringSoon = daysLeft != null && !isExpired && daysLeft <= 30;
 
   return (
     <Sheet open={!!license} onOpenChange={onOpenChange}>

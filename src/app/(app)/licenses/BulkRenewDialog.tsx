@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
+import { encodeLicenseExpiryDate, licenseDaysUntilExpiry } from "@/lib/license-dates";
 import type { LicenseCode } from "./types";
 
 type Props = {
@@ -35,8 +36,7 @@ type BulkRenewResponse = {
 
 function isExpiringOrExpired(code: LicenseCode) {
   if (!code.expiresAt || code.status === "RETIRED") return false;
-  const diff = new Date(code.expiresAt).getTime() - Date.now();
-  return diff <= 30 * 86_400_000;
+  return licenseDaysUntilExpiry(code.expiresAt) <= 30;
 }
 
 export function BulkRenewDialog({ open, onOpenChange, codes, onRenewed }: Props) {
@@ -68,7 +68,7 @@ export function BulkRenewDialog({ open, onOpenChange, codes, onRenewed }: Props)
         body: JSON.stringify({
           action: "renew",
           ids: targetCodes.map((code) => code.id),
-          expiresAt: new Date(expiresAt).toISOString(),
+          expiresAt: encodeLicenseExpiryDate(expiresAt),
         }),
       });
       if (handleAuthRedirect(res)) return;

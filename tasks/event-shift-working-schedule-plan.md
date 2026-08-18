@@ -6,13 +6,15 @@ Started: 2026-07-21
 
 ## Outcome
 
-Make the expanded web Schedule list the primary crew workstation: fast Staff and Student slot changes, assignment, removal, worker-class conversion, and a trustworthy ten-minute staging window. Pending edits stay private and quiet until ten minutes have passed without another edit; then the newest version releases automatically to worker-facing Schedule reads and sends one consolidated notification. Existing iOS clients continue reading the last released schedule while current web and native staff surfaces expose the timer and recovery state without manual Draft or Publish actions.
+Make the main web Schedule the event triage and crew-setup surface, with Home, Away, and empty crew setup available from each staff event row. Event detail is the primary staff/admin crew workstation for assignment, removal, worker-class conversion, replacement, slot, and call-window management through one trustworthy ten-minute staging window. Pending edits stay private and quiet until ten minutes have passed without another edit; then the newest version releases automatically to worker-facing Schedule reads and sends one consolidated notification. Existing iOS clients continue reading the last released schedule while current web and native staff surfaces expose the timer and recovery state without manual Draft or Publish actions.
 
 ## Product contract
 
 > Superseding direction accepted 2026-08-07: the timed-release contract below replaces the earlier deliberate manual-publish contract wherever they conflict. D-046 records the accepted architecture; D-042 remains historical context for the staging data model.
 
-- Web is the high-volume editing surface. Multiple events may stay expanded.
+- Web Schedule is the high-volume event triage and setup surface. Multiple events may stay expanded for read-only crew context; Event detail is the high-volume editing surface for one event.
+- Staff choose a Home, Away, or empty crew template from the Schedule event-row overflow menu. Once a group exists, Manage crew routes to Event detail.
+- Staff/admin assignment, removal, conversion, replacement, slot, call-window, and revert actions use the Event detail working-copy editor. Expanded Schedule rows do not author crew.
 - The last released relational schedule remains the worker-facing source for My Shifts, Dashboard, ICS, Open Work, Trade Board, collaborator Schedule, and existing iOS clients.
 - Every staff edit writes a versioned pending copy and pre-enqueues a durable ten-minute release. Another edit creates a newer version and restarts the quiet period; an older workflow must no-op when it wakes.
 - Automatic release validates and reconciles the newest pending copy atomically, increments the released version, and sends at most one event summary per affected worker. A permanent validation blocker becomes visible recovery state rather than an indefinitely silent pending copy.
@@ -50,13 +52,13 @@ Make the expanded web Schedule list the primary crew workstation: fast Staff and
 - [x] Bundle publish delivery to one event summary per affected worker and make retry dedupe version-based.
 - [x] Confirm My Shifts, Dashboard, ICS, Open Work, Trade Board, collaborator Schedule, and old iOS clients remain published-only.
 
-### 4. Expanded Schedule workstation
+### 4. Schedule triage and setup surface
 
 - [x] Allow multiple expanded events.
-- [x] Group rows by operational area with visible `Staff - count +` and `Student - count +` controls.
-- [x] Keep assigned people, open Assign actions, removal, conversion, and call-time editing inline.
-- [x] Add Draft, Published, and Unpublished changes state plus Preview, Discard, and Publish review controls.
-- [x] Keep Event detail for deeper context instead of duplicating the primary quick-action workflow.
+- [x] Keep event rows grouped by date with coverage, crew summary, and row-level setup/manage actions.
+- [x] Keep Home, Away, and empty crew setup in the staff Schedule row overflow menu.
+- [x] Keep expanded crew rows read-only so the list remains triage context rather than a second authoring surface.
+- [x] Route staff/admin assignment, removal, conversion, replacement, slot, call-window, timed-release, and revert actions through Event detail's working-copy editor.
 - [ ] Verify the authenticated desktop route and narrow responsive behavior.
 
 ### 5. Default staffing hardening
@@ -197,6 +199,23 @@ Make the expanded web Schedule list the primary crew workstation: fast Staff and
 - [x] Preserve working-copy/API storage and release semantics; this is a presentation-only correction for all-day event rows.
 - [x] Add a focused source-contract regression and run the web and docs verification gates.
 - [ ] Authenticated browser smoke of the expanded `/schedule` row; blocked by the local missing `SESSION_COOKIE_NAME` environment variable.
+
+### 24. Schedule setup and Event detail crew ownership
+
+- [x] Keep crew setup available from staff Schedule row overflow menus, with Home, Away, and empty template choices.
+- [x] Remove staff assignment and working-copy editing controls from expanded Schedule rows; keep the main list focused on event triage and read-only crew context.
+- [x] Move the versioned working-copy crew editor to staff/admin Event detail so assignment, slot management, replacement, and call-window changes remain available from the event's operational context.
+- [x] Preserve the existing timed-release, permission, rate-limit, audit, and worker-facing publication boundaries.
+- [x] Add focused source contracts; authenticated Schedule/Event detail browser proof remains gated by an available local browser session.
+
+## Review: Slice 24
+
+- Shipped: Schedule row overflow menus now create Home, Away, or empty crew; Manage crew links to Event detail; expanded Schedule crew rows are read-only; staff/admin Event detail renders the versioned working-copy editor; legacy direct assignment and auto-fill controls were removed from the Event detail read table; automation auto-fill review links now open the first affected Event detail instead of `/schedule/assign`.
+- Verified: 36 focused source-contract tests, all 497 test files / 3,252 tests with a process-local placeholder `DIRECT_URL`, `npx tsc --noEmit --pretty false`, `npm run lint` (one pre-existing warning in `scripts/backfill-signature-artifacts.ts`), `npm run build:app`, codemap/docs verification, and `git diff --check` pass.
+- Deferred: Authenticated visual/browser acceptance of Schedule row setup and Event detail assignment/manage.
+- Blocked: Local development now starts cleanly with the documented `SESSION_COOKIE_NAME`, but both connected browser surfaces reach the sign-in page without an authenticated local session. No schedule data was mutated.
+- Proof artifacts: `tests/event-crew-setup-source.test.ts`, `tests/schedule-ui-polish-source.test.ts`, `tests/crew-row-standardization-source.test.ts`, `tests/schedule-source-truth-smoke-contract.test.ts`, `tests/schedule-working-copy-route-source.test.ts`, and `tests/schedule-working-copy-mutation-guard.test.ts`.
+- Next slice or stop: Sign in to the prepared local browser tab, then run the desktop and responsive Schedule/Event detail smoke before shipping.
 
 ## Review: Slice 23 (2026-08-18)
 

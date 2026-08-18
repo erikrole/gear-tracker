@@ -67,23 +67,23 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 ## Information Architecture
 
 ### Schedule Page (`/schedule`)
-1. **Page Header** — title, primary "Assign shifts" (staff), and a "More" overflow menu for New event, Trade Board (with open-trade count), and Export CSV; students keep a direct Trade Board button
+1. **Page Header** — title and a "More" overflow menu for New event, Trade Board (with open-trade count), and Export CSV; students keep a direct Trade Board button
 2. **Schedule attention bar** (`ScheduleReadiness` + shared `OperationalStatusRail`) — compact strip with next call plus up to three priority-ordered clickable exceptions for the nonzero staffing, gear-gap, data-quality, conflict, request, trade, source, and personal-shift queues. Additional exceptions remain accounted for in Details, and a calm all-clear state appears only when health data is complete.
 3. **Details panel** — one collapsed-by-default expander (shared `OperationalMetricCard` grid) holding the full readiness metrics and, for staff/admin, the review-first Automation review cards: staffing, auto-fill preview, publish readiness, blockers, sources, and cleanup
 4. **Work queues** — URL-backed `queue` state for Needs staffing, Conflicts, Pending requests, Trade approval, Gear gaps, My calls today, and Stale source
 5. **Data quality queue** — staff/admin Schedule health flags visible events with missing sport context, missing opponents, missing venue/location mapping, future archived status, or shifts without sport metadata. The queue filters the list to affected events and routes cleanup back through existing Event detail, Locations, and Venue Mappings ownership.
 6. **Filter Bar** (`ScheduleFilters`) — quiet `OperationalToolbar` with View, Venue, My Shifts, a Filters popover (Past, Archived, Sport, Area, Coverage), source-signal status, and the active queue banner
 7. **View Toggle** — List | Week | Calendar (persisted to localStorage)
-8. **List View** (`ListView`) — the primary web crew workstation. Multiple events may stay expanded; only areas with actual slots are shown, each slot is one readable assigned or open row, and unused areas live behind one add control. Inline actions cover assignment, removal, empty-slot conversion, Student call windows, pending release timing, and Revert without repeating Event detail controls.
+8. **List View** (`ListView`) — the event triage and crew-setup workstation. Staff use each event row's overflow menu to choose Home, Away, or empty crew setup, or to open Manage crew once a group exists. Expanded rows remain read-only schedule context; assignment, replacement, slot management, call windows, pending release timing, and Revert live on Event detail.
 9. **Week View** (`WeekView`) — 7-day strip with time-block events, coverage dots, navigation (prev/next/this week)
 10. **Calendar View** (`CalendarView`) — month grid with coverage indicator dots (green/orange/red)
-11. **ShiftDetailPanel** — read-only schedule context plus archive and preview-first auto-fill; staff authoring is owned by the Schedule working crew editor.
+11. **ShiftDetailPanel** — read-only schedule context plus archive and preview-first auto-fill; crew assignment management lives on Event detail.
 12. **Open Work / Trade Board** — sheet overlay with area/status filters for open shifts, posted trades, my trade posts, blocked context, and resolved trade history
 
 ### Event Detail Page (`/events/[id]`)
 1. Event identity card — status plus Synced, Manual, or Edited source state, event timing, opponent, venue, and source context
 2. Link summary — crew fill, gear links/gaps, travel state, and source edit state
-3. Shift Coverage card — merged with Command Center (staff: gear summary + 5-col table; students: 4-col table)
+3. Shift Coverage card — merged with Command Center (staff/admin: versioned working-copy crew editor plus gear summary; students: read-only 5-col table)
 4. Crew gear state — staff/admin can distinguish assignment-linked gear, event reservations, pickup-ready gear, checked-out gear, and missing gear from the Crew table
 5. Action CTAs — "Reserve gear for this event" and staff/admin "Review schedule"; normal web checkout creation is not exposed because kiosk owns custody
 
@@ -104,6 +104,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 
 ## Change Log
 
+- 2026-08-18: **Crew setup and crew management now have separate homes.** Staff choose Home, Away, or empty crew setup from the main Schedule event-row menu. Once a crew exists, Manage crew opens Event detail, where the versioned working-copy editor owns assignment, replacement, slot, call-window, and release-buffer changes; expanded Schedule rows remain read-only context. Automation auto-fill review links now open the first affected Event detail instead of the legacy assignment grid.
 - 2026-08-18: **Expanded all-day Schedule crew rows no longer show Student call times.** The working-crew editor now applies the owning event's all-day guard to per-slot call-time controls as well as the event-level action, while preserving working-copy storage and release semantics.
 - 2026-08-18: **Schedule list dates now stay in Central/local chronological order.** The list decodes all-day UTC-midnight values as date-only calendar days before sorting them alongside timed events, so a late prior-day timed event can no longer appear below the following day's all-day row with repeated date headers. Stored event timestamps, calendar sync, and timed call-window behavior are unchanged.
 - 2026-08-18: **Schedule activity counts now reflect audit-backed changes.** Staff/admin Schedule readiness and Event command-center history now include scoped `shift_group_working_copy` rows for private draft assignee and slot edits, while student Schedule health remains published-only. ICS creates and updates, including imported cancellations, now write system `calendar_event_created` or `calendar_event_updated` audit rows atomically with event writes, so the existing 24-hour Synced calendar and Assignee changes cards reflect actual activity. No schema, timed-release, or worker-facing schedule authority changed.

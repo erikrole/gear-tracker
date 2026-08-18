@@ -247,7 +247,7 @@ export async function getScheduleAutomationDigest(input: ScheduleAutomationInput
         : "No preview-ready staffing gaps",
       tone: metrics.autoFillCandidates > 0 ? "attention" : "neutral",
       action: metrics.autoFillCandidates > 0
-        ? { label: "Open assign", href: "/schedule/assign" }
+        ? { label: "Review event", href: firstHref(autoFillCandidateEventIds) }
         : undefined,
       eventIds: autoFillCandidateEventIds,
     }),

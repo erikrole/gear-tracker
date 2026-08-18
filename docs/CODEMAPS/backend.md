@@ -138,6 +138,7 @@
 | `src/lib/item-family-products.ts` | 14 |
 | `src/lib/item-family-state.ts` | 75 |
 | `src/lib/item-image-draft.ts` | 88 |
+| `src/lib/license-dates.ts` | 59 |
 | `src/lib/live-activity-workflow.ts` | 34 |
 | `src/lib/local-traces.ts` | 28 |
 | `src/lib/media-embed.ts` | 68 |

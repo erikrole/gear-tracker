@@ -14,6 +14,7 @@ import { OperationalToolbar } from "@/components/OperationalToolbar";
 import { useFetch } from "@/hooks/use-fetch";
 import { formatRelativeTime } from "@/lib/format";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { licenseDaysUntilExpiry, localDateKey } from "@/lib/license-dates";
 import { LicenseTable } from "./LicenseTable";
 import { MyLicensePanel } from "./MyLicensePanel";
 import { ConfirmClaimDialog } from "./ConfirmClaimDialog";
@@ -134,8 +135,7 @@ export default function LicensesPage() {
   const retiredCount = allCodes.length - activeCodes.length;
   const expiringCount = activeCodes.filter((c) => {
     if (!c.expiresAt) return false;
-    const diff = new Date(c.expiresAt).getTime() - Date.now();
-    return diff <= 30 * 86_400_000;
+    return licenseDaysUntilExpiry(c.expiresAt) <= 30;
   }).length;
   const hasRetired = allCodes.some((c) => c.status === "RETIRED");
   const hasExpiry = allCodes.some((c) => c.expiresAt);
@@ -167,7 +167,7 @@ export default function LicensesPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `licenses-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `licenses-${localDateKey()}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ArchiveIcon, ChevronDownIcon, ChevronRightIcon, EyeOffIcon, UserIcon, UserPlusIcon, XIcon } from "lucide-react";
+import { ArchiveIcon, ChevronDownIcon, ChevronRightIcon, EyeOffIcon, UserIcon, UsersRoundIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
@@ -14,7 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+} from "@/components/ui/dropdown-menu";
 import { OperationalRowActions } from "@/components/OperationalRowActions";
 import {
   Dialog,
@@ -52,7 +58,8 @@ import {
   userShiftStatus,
 } from "./types";
 import { CoverageBadge } from "./Coverage";
-import { WorkingCrewEditor } from "./WorkingCrewEditor";
+
+type CrewTemplateSide = "HOME" | "AWAY" | "EMPTY";
 
 type ListViewProps = {
   entries: CalendarEntry[];
@@ -75,6 +82,8 @@ type ListViewProps = {
   onSelectGroup: (groupId: string | null) => void;
   hidingEventIds?: Set<string>;
   onHideEvent?: (eventId: string) => void;
+  onSetupCrew?: (eventId: string, templateSide: CrewTemplateSide) => void;
+  settingUpEventIds?: Set<string>;
 };
 
 const EVENT_GRID_CLASS = "grid-cols-[44px_72px_minmax(180px,1fr)_80px_minmax(100px,140px)_136px_40px]";
@@ -90,6 +99,66 @@ function activeShiftAssignment(shift: Shift) {
 
 function openShiftCount(entry: CalendarEntry) {
   return entry.shifts.reduce((count, shift) => count + (shiftAssignee(shift) ? 0 : 1), 0);
+}
+
+function CrewRowActions({
+  entry,
+  isHiding,
+  onHide,
+  onSetupCrew,
+  isSettingUp,
+}: {
+  entry: CalendarEntry;
+  isHiding: boolean;
+  onHide?: () => void;
+  onSetupCrew?: (eventId: string, templateSide: CrewTemplateSide) => void;
+  isSettingUp: boolean;
+}) {
+  const hasCrew = Boolean(entry.shiftGroupId);
+  const openCount = openShiftCount(entry);
+
+  if (!hasCrew && !onSetupCrew && !onHide) return null;
+
+  return (
+    <OperationalRowActions
+      label={`Actions for ${scheduleEventTitleParts(entry).title}`}
+      triggerClassName={isHiding || isSettingUp ? "opacity-100" : undefined}
+    >
+      {hasCrew ? (
+        <DropdownMenuItem asChild>
+          <Link href={`/events/${entry.id}`}>
+            <UsersRoundIcon className="size-4" />
+            Manage crew{openCount > 0 ? ` · ${openCount} open` : ""}
+          </Link>
+        </DropdownMenuItem>
+      ) : onSetupCrew ? (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger disabled={isSettingUp}>
+            <UsersRoundIcon className="size-4" />
+            {isSettingUp ? "Setting up..." : "Set up crew"}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            <DropdownMenuItem onSelect={() => onSetupCrew(entry.id, "HOME")}>
+              Use Home defaults
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onSetupCrew(entry.id, "AWAY")}>
+              Use Away defaults
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onSetupCrew(entry.id, "EMPTY")}>
+              Start empty
+            </DropdownMenuItem>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      ) : null}
+      {onHide && (hasCrew || onSetupCrew) && <DropdownMenuSeparator />}
+      {onHide && (
+        <DropdownMenuItem disabled={isHiding} onSelect={onHide}>
+          <EyeOffIcon className="size-4" />
+          Hide event
+        </DropdownMenuItem>
+      )}
+    </OperationalRowActions>
+  );
 }
 
 function workerKindForShift(shift: Shift): ShiftWorkerKind {
@@ -457,6 +526,8 @@ export function ListView({
   onSelectGroup,
   hidingEventIds,
   onHideEvent,
+  onSetupCrew,
+  settingUpEventIds,
 }: ListViewProps) {
   const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(() =>
     expandedRowId ? new Set([expandedRowId]) : new Set(),
@@ -785,6 +856,8 @@ export function ListView({
                             onRemoveAssignment={handleRemoveAssignment}
                             onCallWindowSaved={loadData}
                             onPostTrade={isStaff ? undefined : openTradeDialog}
+                            onSetupCrew={isStaff ? onSetupCrew : undefined}
+                            isSettingUp={settingUpEventIds?.has(entry.id) ?? false}
                           />
                         );
                       })}
@@ -893,50 +966,23 @@ export function ListView({
                     </div>
                   </button>
 
-                  {isStaff && (openShiftCount(entry) > 0 || onHideEvent) && (
+                  {isStaff && (Boolean(entry.shiftGroupId) || onSetupCrew || onHideEvent) && (
                     <div className="absolute right-2 top-2">
-                      <OperationalRowActions label={`Actions for ${titleParts.title}`}>
-                        {openShiftCount(entry) > 0 && (
-                          <DropdownMenuItem onSelect={() => onSelectGroup(entry.shiftGroupId)}>
-                            <UserPlusIcon className="size-4" />
-                            Assign {openShiftCount(entry)} open {openShiftCount(entry) === 1 ? "slot" : "slots"}
-                          </DropdownMenuItem>
-                        )}
-                        {onHideEvent && (
-                          <DropdownMenuItem
-                            disabled={hidingEventIds?.has(entry.id) ?? false}
-                            onSelect={() => onHideEvent(entry.id)}
-                          >
-                            <EyeOffIcon className="size-4" />
-                            Hide event
-                          </DropdownMenuItem>
-                        )}
-                      </OperationalRowActions>
+                      <CrewRowActions
+                        entry={entry}
+                        isHiding={hidingEventIds?.has(entry.id) ?? false}
+                        onHide={onHideEvent ? () => onHideEvent(entry.id) : undefined}
+                        onSetupCrew={onSetupCrew}
+                        isSettingUp={settingUpEventIds?.has(entry.id) ?? false}
+                      />
                     </div>
                   )}
 
                   {isExpanded && canExpand && (
                     <div className="border-t border-border/40 px-4 py-3 pl-8">
-                      {isStaff ? (
-                        <WorkingCrewEditor
-                          entry={entry}
-                          pickerUsers={filteredUsers}
-                          pickerLoading={usersLoading}
-                          pickerSearch={userSearch}
-                          onOpenPicker={() => {
-                            setUserSearch("");
-                            loadUsers();
-                          }}
-                          onClosePicker={() => setUserSearch("")}
-                          onPickerSearchChange={setUserSearch}
-                          onPublished={loadData}
-                          onManageEvent={() => onSelectGroup(entry.shiftGroupId)}
-                          compact
-                        />
-                      ) : (
                       <ShiftRowList
                         entry={entry}
-                        isStaff={isStaff}
+                        isStaff={false}
                         pickerUsers={filteredUsers}
                         pickerLoading={usersLoading}
                         pickerSearch={userSearch}
@@ -959,7 +1005,6 @@ export function ListView({
                         onSelectGroup={() => onSelectGroup(entry.shiftGroupId)}
                         compact
                       />
-                      )}
                     </div>
                   )}
                 </div>
@@ -1058,6 +1103,8 @@ function EventRows({
   onRemoveAssignment,
   onCallWindowSaved,
   onPostTrade,
+  onSetupCrew,
+  isSettingUp,
 }: {
   entry: CalendarEntry;
   isExpanded: boolean;
@@ -1084,9 +1131,10 @@ function EventRows({
   onRemoveAssignment?: (assignmentId: string) => void;
   onCallWindowSaved: () => void;
   onPostTrade?: (assignmentId: string) => void;
+  onSetupCrew?: (eventId: string, templateSide: CrewTemplateSide) => void;
+  isSettingUp: boolean;
 }) {
   const titleParts = scheduleEventTitleParts(entry);
-  const openCount = openShiftCount(entry);
 
   const venueTone = VENUE_TONES[venueToneFromEvent(entry)];
 
@@ -1155,21 +1203,14 @@ function EventRows({
                 </span>
               )}
             </div>
-            {isStaff && (openCount > 0 || onHide) ? (
-              <OperationalRowActions label={`Actions for ${titleParts.title}`} triggerClassName={isHiding ? "opacity-100" : undefined}>
-                {openCount > 0 && (
-                  <DropdownMenuItem onSelect={onSelectGroup}>
-                    <UserPlusIcon className="size-4" />
-                    Assign {openCount} open {openCount === 1 ? "slot" : "slots"}
-                  </DropdownMenuItem>
-                )}
-                {onHide && (
-                  <DropdownMenuItem disabled={isHiding} onSelect={onHide}>
-                    <EyeOffIcon className="size-4" />
-                    Hide event
-                  </DropdownMenuItem>
-                )}
-              </OperationalRowActions>
+            {isStaff && (Boolean(entry.shiftGroupId) || onSetupCrew || onHide) ? (
+              <CrewRowActions
+                entry={entry}
+                isHiding={isHiding}
+                onHide={onHide}
+                onSetupCrew={onSetupCrew}
+                isSettingUp={isSettingUp}
+              />
             ) : (
               <span aria-hidden="true" />
             )}
@@ -1182,22 +1223,9 @@ function EventRows({
         <tr className="bg-muted/10">
           <td className="border-b border-border/15 px-4 py-2">
             <div className="pl-[116px] pr-10">
-              {isStaff ? (
-                <WorkingCrewEditor
-                  entry={entry}
-                  pickerUsers={pickerUsers}
-                  pickerLoading={pickerLoading}
-                  pickerSearch={pickerSearch}
-                  onOpenPicker={() => onOpenPicker(entry.shifts[0]?.id ?? "")}
-                  onClosePicker={onClosePicker}
-                  onPickerSearchChange={onPickerSearchChange}
-                  onPublished={onCallWindowSaved}
-                  onManageEvent={onSelectGroup}
-                />
-              ) : (
               <ShiftRowList
                 entry={entry}
-                isStaff={isStaff}
+                isStaff={false}
                 pickerUsers={pickerUsers}
                 pickerLoading={pickerLoading}
                 pickerSearch={pickerSearch}
@@ -1214,7 +1242,6 @@ function EventRows({
                 onSelectGroup={onSelectGroup}
                 onCallWindowSaved={onCallWindowSaved}
               />
-              )}
             </div>
           </td>
         </tr>

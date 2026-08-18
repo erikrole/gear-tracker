@@ -37,8 +37,7 @@ import {
   CrewAreaHeading,
   CrewTypeLabel,
 } from "@/components/shift-detail/crew-row";
-import type { CalendarEntry } from "./types";
-import { AREA_LABELS } from "./types";
+import { AREA_LABELS } from "@/types/areas";
 
 function formatNotificationCountdown(iso: string, now = Date.now()) {
   return formatScheduleReleaseCountdown(iso, now, "Assignees");
@@ -69,8 +68,22 @@ type EditorData = {
   schedule: WorkingSchedulePayload;
 };
 
+type WorkingCrewAssignedUser = Pick<PickerUser, "id" | "name" | "role"> & {
+  staffingType?: string | null;
+  primaryArea?: string | null;
+  avatarUrl?: string | null;
+};
+
+export type WorkingCrewEntry = {
+  shiftGroupId: string | null;
+  allDay: boolean;
+  shifts: Array<{
+    assignments: Array<{ user: WorkingCrewAssignedUser }>;
+  }>;
+};
+
 type Props = {
-  entry: CalendarEntry;
+  entry: WorkingCrewEntry;
   pickerUsers: PickerUser[];
   pickerLoading: boolean;
   pickerSearch: string;
@@ -78,8 +91,9 @@ type Props = {
   onClosePicker: () => void;
   onPickerSearchChange: (value: string) => void;
   onPublished: () => void;
-  onManageEvent: () => void;
+  onManageEvent?: () => void;
   compact?: boolean;
+  showReleaseCountdown?: boolean;
 };
 
 const AREA_ORDER = ["VIDEO", "PHOTO", "GRAPHICS", "SOCIAL", "COMMS", "LIVE_PRODUCTION"] as const;
@@ -294,6 +308,7 @@ export function WorkingCrewEditor({
   onPublished,
   onManageEvent,
   compact = false,
+  showReleaseCountdown = true,
 }: Props) {
   const shiftGroupId = entry.shiftGroupId;
   const [data, setData] = useState<EditorData | null>(null);
@@ -377,7 +392,13 @@ export function WorkingCrewEditor({
     for (const user of data?.assignedUsers ?? []) users.set(user.id, user);
     for (const user of pickerUsers) users.set(user.id, user);
     for (const shift of entry.shifts) {
-      for (const assignment of shift.assignments) users.set(assignment.user.id, assignment.user);
+      for (const assignment of shift.assignments) {
+        users.set(assignment.user.id, {
+          ...assignment.user,
+          primaryArea: assignment.user.primaryArea ?? null,
+          avatarUrl: assignment.user.avatarUrl ?? null,
+        });
+      }
     }
     return users;
   }, [data?.assignedUsers, entry.shifts, pickerUsers]);
@@ -399,7 +420,10 @@ export function WorkingCrewEditor({
         return;
       }
       const json = await parseJsonSafely<{ data?: EditorData }>(response);
-      if (json?.data) setData(json.data);
+      if (json?.data) {
+        setData(json.data);
+        onPublished();
+      }
       onPickerSearchChange("");
     } catch {
       toast.error("Network error - could not update working schedule");
@@ -407,7 +431,7 @@ export function WorkingCrewEditor({
       actingRef.current = false;
       setActingKey(null);
     }
-  }, [data, loadEditor, onPickerSearchChange, shiftGroupId]);
+  }, [data, loadEditor, onPickerSearchChange, onPublished, shiftGroupId]);
 
   const discard = useCallback(async () => {
     if (!shiftGroupId || !data?.hasWorkingCopy || actingRef.current) return;
@@ -515,15 +539,15 @@ export function WorkingCrewEditor({
 
   return (
     <div className="flex flex-col gap-2">
-      {(data.hasWorkingCopy || data.autoReleaseError || compact) && (
+      {(data.hasWorkingCopy || (showReleaseCountdown && data.autoReleaseError) || compact) && (
         <div className="flex min-h-10 flex-wrap items-center gap-2 pb-1">
-          {data.hasWorkingCopy && data.autoReleaseAt && !data.autoReleaseError && (
+          {showReleaseCountdown && data.hasWorkingCopy && data.autoReleaseAt && !data.autoReleaseError && (
             <span className="text-xs text-muted-foreground">{formatNotificationCountdown(data.autoReleaseAt, clock)}</span>
           )}
-          {data.hasWorkingCopy && !data.autoReleaseAt && !data.autoReleaseError && (
+          {showReleaseCountdown && data.hasWorkingCopy && !data.autoReleaseAt && !data.autoReleaseError && (
             <span className="text-xs text-muted-foreground">Assignees notified after this change is released</span>
           )}
-          {data.autoReleaseError && (
+          {showReleaseCountdown && data.autoReleaseError && (
             <span className="text-xs text-destructive">Release needs attention: {data.autoReleaseError}</span>
           )}
           <div className="ml-auto flex items-center gap-1.5">
@@ -550,7 +574,7 @@ export function WorkingCrewEditor({
               </Button>
             )}
             {compact && (
-              <Button type="button" variant="ghost" size="sm" className="h-10 px-2 text-xs text-muted-foreground" onClick={onManageEvent}>
+              <Button type="button" variant="ghost" size="sm" className="h-10 px-2 text-xs text-muted-foreground" onClick={() => onManageEvent?.()}>
                 Event detail
               </Button>
             )}
