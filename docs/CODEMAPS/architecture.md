@@ -31,12 +31,12 @@ Informational only. These are the largest TypeScript and TSX files under `src/`;
 | `src/app/(app)/resources/page.tsx` | 1430 |
 | `src/components/ActivityTimeline.tsx` | 1369 |
 | `src/app/(app)/bulk-inventory/batteries/page.tsx` | 1342 |
-| `src/app/(app)/schedule/_components/ListView.tsx` | 1252 |
 | `src/components/TradeBoard.tsx` | 1247 |
 | `src/app/api/assets/route.ts` | 1212 |
 | `src/app/(app)/users/[id]/page.tsx` | 1107 |
 | `src/lib/services/schedule-publication.ts` | 1007 |
 | `src/components/onboarding/OnboardingDialog.tsx` | 996 |
+| `src/app/(app)/schedule/_components/ListView.tsx` | 992 |
 | `src/app/(app)/kits/[id]/page.tsx` | 979 |
 | `src/app/(app)/items/[id]/ItemBookingsTab.tsx` | 946 |
 | `src/app/(app)/accountability/AccountabilityClient.tsx` | 939 |

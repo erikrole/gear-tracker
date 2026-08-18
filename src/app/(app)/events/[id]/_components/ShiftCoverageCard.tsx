@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { AlertTriangleIcon } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -8,9 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
-import { toast } from "sonner";
-import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
-import type { PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import { CallWindowEditor } from "@/components/shift-detail/CallWindowEditor";
 import { ScheduleReleaseNotice } from "@/components/ScheduleReleaseNotice";
 import { WorkingCrewEditor, type WorkingCrewEntry } from "@/app/(app)/schedule/_components/WorkingCrewEditor";
@@ -64,49 +61,6 @@ export function ShiftCoverageCard({
   const { titleParam, dateParam, endParam, locationParam, eventParam } = linkParams;
   const isStaffOrAdmin = currentUserRole === "STAFF" || currentUserRole === "ADMIN";
   const groupId = shiftGroup.id;
-
-  // ── User picker ──
-  const [allUsers, setAllUsers] = useState<PickerUser[]>([]);
-  const [usersLoading, setUsersLoading] = useState(false);
-  const [usersLoaded, setUsersLoaded] = useState(false);
-  const [userSearch, setUserSearch] = useState("");
-  const usersAbortRef = useRef<AbortController | null>(null);
-
-  const loadUsers = useCallback(async () => {
-    if (usersLoaded) return;
-    usersAbortRef.current?.abort();
-    const ctrl = new AbortController();
-    usersAbortRef.current = ctrl;
-    setUsersLoading(true);
-    try {
-      const res = await fetch("/api/users?limit=200&active=true", { signal: ctrl.signal });
-      if (ctrl.signal.aborted) return;
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        const json = await parseJsonSafely<{ data?: PickerUser[]; users?: PickerUser[] }>(res);
-        const users = json?.data ?? json?.users;
-        if (!users) {
-          toast.error("User response was incomplete. Refresh and try again.");
-          return;
-        }
-        setAllUsers(users);
-        setUsersLoaded(true);
-      } else {
-        toast.error(await parseErrorMessage(res, "Failed to load users"));
-      }
-    } catch (err) {
-      if (isAbortError(err)) return;
-      toast.error(err instanceof TypeError ? "You’re offline. Check your connection." : "Failed to load users");
-    } finally {
-      if (!ctrl.signal.aborted) setUsersLoading(false);
-    }
-  }, [usersLoaded]);
-
-  const filteredUsers = useMemo(() => {
-    if (!userSearch) return allUsers;
-    const q = userSearch.toLowerCase();
-    return allUsers.filter((u) => u.name.toLowerCase().includes(q));
-  }, [allUsers, userSearch]);
 
   // ── Derived data ──
 
@@ -290,7 +244,7 @@ export function ShiftCoverageCard({
     <>
     <Card className="mt-4">
       <CardHeader className="flex-row items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <CardTitle>Crew</CardTitle>
           {coverage && (
             <Badge variant={coverageVariant} size="sm" className="tabular-nums">
@@ -336,15 +290,6 @@ export function ShiftCoverageCard({
               allDay: eventAllDay,
               shifts: shiftGroup.shifts,
             } satisfies WorkingCrewEntry}
-            pickerUsers={filteredUsers}
-            pickerLoading={usersLoading}
-            pickerSearch={userSearch}
-            onOpenPicker={() => {
-              setUserSearch("");
-              void loadUsers();
-            }}
-            onClosePicker={() => setUserSearch("")}
-            onPickerSearchChange={setUserSearch}
             onPublished={() => onUpdated?.()}
             showReleaseCountdown={false}
           />

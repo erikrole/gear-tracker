@@ -44,8 +44,12 @@ describe("Schedule interaction-detail contracts", () => {
     expect(list).toContain("Use Home defaults");
     expect(list).toContain("Use Away defaults");
     expect(list).toContain("Start empty");
+    expect(list).toContain("<WorkingCrewEditor");
+    expect(list).toContain("onQuickManageCrew");
+    expect(list).toContain("Open Event detail");
+    expect(list).toContain("eventDetailHref");
     expect(list).not.toContain("Assign {openCount} open");
-    expect(list).not.toContain("WorkingCrewEditor");
+    expect(list).not.toContain("/api/shift-assignments");
     expect(list).not.toContain("onSelectGroup();\n          }}\n        >\n          Assign {openCount}");
   });
 
@@ -53,7 +57,7 @@ describe("Schedule interaction-detail contracts", () => {
     const editor = source("src/app/(app)/schedule/_components/WorkingCrewEditor.tsx");
 
     // Call | Type | Person | row actions, matching the Event detail Crew table.
-    expect(editor).toContain('const SLOT_ROW_GRID_CLASS = "grid-cols-[4.5rem_4.5rem_minmax(0,1fr)_2.5rem]"');
+    expect(editor).toContain('const SLOT_ROW_GRID_CLASS = "grid-cols-[4rem_minmax(0,1fr)_2.5rem] sm:grid-cols-[4.5rem_4.5rem_minmax(0,1fr)_2.5rem]"');
     // The call trigger is bare time in its own column: no clock glyph, no chip.
     expect(editor).not.toContain("Clock3Icon");
     expect(editor).toContain("CREW_CALL_TRIGGER_CLASS");
@@ -68,6 +72,10 @@ describe("Schedule interaction-detail contracts", () => {
     expect(editor).not.toContain("Tooltip");
     expect(editor).not.toContain('<Badge variant="green" size="sm">Published</Badge>');
     expect(editor).not.toContain('size="icon-xs"');
+    expect(editor).toContain("Revert all pending crew changes?");
+    expect(editor).toContain("loadError={usersLoadError}");
+    expect(editor).toContain('editorLoadError === "network"');
+    expect(editor).toContain("!assignedUserIds.has(candidate.id)");
   });
 
   it("does not expose call-time controls for all-day expanded events", () => {

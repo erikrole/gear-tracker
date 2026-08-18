@@ -1,10 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { ArrowLeftRightIcon, MoreHorizontalIcon, PlusIcon, UsersRoundIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -21,8 +33,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { UserAvatar } from "@/components/UserAvatar";
+import { OperationalLoadingState } from "@/components/OperationalLoadingState";
 import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/UserAvatarPicker";
-import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
+import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { formatTimeShort } from "@/lib/format";
 import { formatScheduleReleaseCountdown } from "@/lib/schedule-release";
 import type { WorkingScheduleCommand, WorkingSchedulePayload } from "@/lib/schedule-working-copy";
@@ -84,21 +97,15 @@ export type WorkingCrewEntry = {
 
 type Props = {
   entry: WorkingCrewEntry;
-  pickerUsers: PickerUser[];
-  pickerLoading: boolean;
-  pickerSearch: string;
-  onOpenPicker: () => void;
-  onClosePicker: () => void;
-  onPickerSearchChange: (value: string) => void;
   onPublished: () => void;
-  onManageEvent?: () => void;
   compact?: boolean;
   showReleaseCountdown?: boolean;
+  eventDetailHref?: string;
 };
 
 const AREA_ORDER = ["VIDEO", "PHOTO", "GRAPHICS", "SOCIAL", "COMMS", "LIVE_PRODUCTION"] as const;
 // Call | Type | Person | row actions, matching the Event detail Crew table.
-const SLOT_ROW_GRID_CLASS = "grid-cols-[4.5rem_4.5rem_minmax(0,1fr)_2.5rem]";
+const SLOT_ROW_GRID_CLASS = "grid-cols-[4rem_minmax(0,1fr)_2.5rem] sm:grid-cols-[4.5rem_4.5rem_minmax(0,1fr)_2.5rem]";
 
 function candidateWorkerType(candidate: PickerUser): "FT" | "ST" {
   if (candidate.role === "COLLABORATOR") return "FT";
@@ -172,7 +179,7 @@ function CallWindowEditor({
           <p className="text-sm font-medium">Call window</p>
           <p className="text-xs text-muted-foreground">The ten-minute release timer restarts when you save.</p>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <label className="space-y-1 text-xs" htmlFor={`${inputId}-call-start`}>
             <span className="text-muted-foreground">Call</span>
             <Input
@@ -267,7 +274,7 @@ function SetAllCallTimesEditor({
               Staff and collaborators do not have a call time. The ten-minute release timer restarts when you apply it.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-2 px-6 py-2">
+          <div className="grid grid-cols-1 gap-2 px-6 py-2 sm:grid-cols-2">
             <label className="space-y-1 text-xs" htmlFor="all-call-time-start">
               <span className="text-muted-foreground">Call time</span>
               <Input
@@ -299,20 +306,15 @@ function SetAllCallTimesEditor({
 
 export function WorkingCrewEditor({
   entry,
-  pickerUsers,
-  pickerLoading,
-  pickerSearch,
-  onOpenPicker,
-  onClosePicker,
-  onPickerSearchChange,
   onPublished,
-  onManageEvent,
   compact = false,
   showReleaseCountdown = true,
+  eventDetailHref,
 }: Props) {
   const shiftGroupId = entry.shiftGroupId;
   const [data, setData] = useState<EditorData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editorLoadError, setEditorLoadError] = useState<false | "network" | "server">(false);
   const [clock, setClock] = useState(() => Date.now());
   const [actingKey, setActingKey] = useState<string | null>(null);
   const [candidateScoreState, setCandidateScoreState] = useState<{
@@ -326,34 +328,102 @@ export function WorkingCrewEditor({
     workerType: "FT" | "ST";
     currentWorkerName: string;
   } | null>(null);
+  const [revertConfirmOpen, setRevertConfirmOpen] = useState(false);
   const actingRef = useRef(false);
+  const [allUsers, setAllUsers] = useState<PickerUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const usersLoadedRef = useRef(false);
+  const usersAbortRef = useRef<AbortController | null>(null);
+  const editorAbortRef = useRef<AbortController | null>(null);
+  const [usersLoadError, setUsersLoadError] = useState<false | "network" | "server">(false);
+  const [userSearch, setUserSearch] = useState("");
+
+  const loadUsers = useCallback(async () => {
+    if (usersLoadedRef.current) return;
+    usersLoadedRef.current = true;
+    usersAbortRef.current?.abort();
+    const controller = new AbortController();
+    usersAbortRef.current = controller;
+    setUsersLoading(true);
+    setUsersLoadError(false);
+    try {
+      const response = await fetch("/api/users?limit=200&active=true", { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      if (handleAuthRedirect(response)) return;
+      if (!response.ok) {
+        usersLoadedRef.current = false;
+        setUsersLoadError("server");
+        return;
+      }
+      const json = await parseJsonSafely<{ data?: PickerUser[]; users?: PickerUser[] }>(response);
+      const users = json?.data ?? json?.users;
+      if (!Array.isArray(users)) {
+        usersLoadedRef.current = false;
+        setUsersLoadError("server");
+        return;
+      }
+      setAllUsers(users);
+    } catch (error) {
+      if (isAbortError(error)) return;
+      usersLoadedRef.current = false;
+      setUsersLoadError(error instanceof TypeError ? "network" : "server");
+    } finally {
+      if (!controller.signal.aborted) setUsersLoading(false);
+    }
+  }, []);
+
+  const filteredUsers = useMemo(() => {
+    if (!userSearch) return allUsers;
+    const query = userSearch.toLowerCase();
+    return allUsers.filter((user) => user.name.toLowerCase().includes(query));
+  }, [allUsers, userSearch]);
+
+  const openPicker = useCallback(() => {
+    setUserSearch("");
+    void loadUsers();
+  }, [loadUsers]);
+
+  const closePicker = useCallback(() => {
+    setUserSearch("");
+  }, []);
 
   const loadEditor = useCallback(async (): Promise<EditorData | null> => {
     if (!shiftGroupId) return null;
+    editorAbortRef.current?.abort();
+    const controller = new AbortController();
+    editorAbortRef.current = controller;
     setLoading(true);
     try {
-      const response = await fetch(`/api/shift-groups/${shiftGroupId}/working-copy`);
+      const response = await fetch(`/api/shift-groups/${shiftGroupId}/working-copy`, { signal: controller.signal });
+      if (controller.signal.aborted) return null;
       if (handleAuthRedirect(response)) return null;
       if (!response.ok) {
-        toast.error(await parseErrorMessage(response, "Failed to load working schedule"));
+        setEditorLoadError("server");
         return null;
       }
       const json = await parseJsonSafely<{ data?: EditorData }>(response);
       if (json?.data) {
+        setEditorLoadError(false);
         setData(json.data);
         return json.data;
       }
+      setEditorLoadError("server");
       return null;
-    } catch {
-      toast.error("Network error - could not load working schedule");
+    } catch (error) {
+      if (isAbortError(error)) return null;
+      setEditorLoadError(error instanceof TypeError ? "network" : "server");
       return null;
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   }, [shiftGroupId]);
 
   useEffect(() => {
     void loadEditor();
+    return () => {
+      editorAbortRef.current?.abort();
+      usersAbortRef.current?.abort();
+    };
   }, [loadEditor]);
 
   const loadCandidateScores = useCallback(async (slotKey: string, workerType?: "FT" | "ST") => {
@@ -390,7 +460,7 @@ export function WorkingCrewEditor({
   const userById = useMemo(() => {
     const users = new Map<string, PickerUser>();
     for (const user of data?.assignedUsers ?? []) users.set(user.id, user);
-    for (const user of pickerUsers) users.set(user.id, user);
+    for (const user of allUsers) users.set(user.id, user);
     for (const shift of entry.shifts) {
       for (const assignment of shift.assignments) {
         users.set(assignment.user.id, {
@@ -401,10 +471,10 @@ export function WorkingCrewEditor({
       }
     }
     return users;
-  }, [data?.assignedUsers, entry.shifts, pickerUsers]);
+  }, [allUsers, data?.assignedUsers, entry.shifts]);
 
-  const mutate = useCallback(async (command: WorkingScheduleCommand, key: string) => {
-    if (!shiftGroupId || !data || actingRef.current) return;
+  const mutate = useCallback(async (command: WorkingScheduleCommand, key: string): Promise<boolean> => {
+    if (!shiftGroupId || !data || actingRef.current) return false;
     actingRef.current = true;
     setActingKey(key);
     try {
@@ -413,25 +483,30 @@ export function WorkingCrewEditor({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ expectedVersion: data.workingVersion, command }),
       });
-      if (handleAuthRedirect(response)) return;
+      if (handleAuthRedirect(response)) return false;
       if (!response.ok) {
         toast.error(await parseErrorMessage(response, "Failed to update working schedule"));
         if (response.status === 409) void loadEditor();
-        return;
+        return false;
       }
       const json = await parseJsonSafely<{ data?: EditorData }>(response);
       if (json?.data) {
         setData(json.data);
-        onPublished();
+      } else {
+        toast.error("The change was saved, but the editor response was incomplete. Refreshing crew.");
+        void loadEditor();
       }
-      onPickerSearchChange("");
+      onPublished();
+      setUserSearch("");
+      return true;
     } catch {
       toast.error("Network error - could not update working schedule");
+      return false;
     } finally {
       actingRef.current = false;
       setActingKey(null);
     }
-  }, [data, loadEditor, onPickerSearchChange, onPublished, shiftGroupId]);
+  }, [data, loadEditor, onPublished, shiftGroupId]);
 
   const discard = useCallback(async () => {
     if (!shiftGroupId || !data?.hasWorkingCopy || actingRef.current) return;
@@ -450,14 +525,17 @@ export function WorkingCrewEditor({
       }
       const json = await parseJsonSafely<{ data?: EditorData }>(response);
       if (json?.data) setData(json.data);
+      else void loadEditor();
+      onPublished();
       toast.success("Changes reverted");
+      setRevertConfirmOpen(false);
     } catch {
       toast.error("Network error - could not discard changes");
     } finally {
       actingRef.current = false;
       setActingKey(null);
     }
-  }, [data, loadEditor, shiftGroupId]);
+  }, [data, loadEditor, onPublished, shiftGroupId]);
 
   const refreshFromLive = useCallback(async (sourceData: EditorData | null = data, silent = false) => {
     if (!shiftGroupId || !sourceData?.hasWorkingCopy || actingRef.current) return;
@@ -477,6 +555,7 @@ export function WorkingCrewEditor({
       }
       const json = await parseJsonSafely<{ data?: EditorData }>(response);
       if (json?.data) setData(json.data);
+      onPublished();
       if (!silent) toast.success("Schedule refreshed from live");
     } catch {
       toast.error("Network error - could not refresh from the live schedule");
@@ -484,7 +563,7 @@ export function WorkingCrewEditor({
       actingRef.current = false;
       setActingKey(null);
     }
-  }, [data, loadEditor, shiftGroupId]);
+  }, [data, loadEditor, onPublished, shiftGroupId]);
 
   useEffect(() => {
     if (!data?.hasWorkingCopy || !data.autoReleaseAt) return;
@@ -513,13 +592,22 @@ export function WorkingCrewEditor({
     return <p className="text-xs text-muted-foreground">Create staffing for this event before editing crew.</p>;
   }
   if (loading && !data) {
-    return <div className="h-24 animate-pulse rounded-md bg-muted/30" />;
+    return <OperationalLoadingState title="Loading crew editor" rows={2} className="max-w-none" />;
   }
   if (!data) {
     return (
-      <Button variant="outline" size="sm" className="h-10" onClick={() => void loadEditor()}>
-        Retry crew editor
-      </Button>
+      <Alert variant="destructive">
+        <AlertDescription className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <span>
+            {editorLoadError === "network"
+              ? "Could not reach the server. Crew editing is unavailable until this reconnects."
+              : "Could not load the crew editor. No schedule changes were made."}
+          </span>
+          <Button variant="outline" size="sm" className="h-10 shrink-0" onClick={() => void loadEditor()}>
+            Retry crew editor
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
 
@@ -530,16 +618,33 @@ export function WorkingCrewEditor({
   const replacementSlot = replacementTarget
     ? data.schedule.slots.find((slot) => slot.key === replacementTarget.slotKey) ?? null
     : null;
+  const assignedUserIds = new Set(
+    data.schedule.slots.flatMap((slot) => slot.assignment ? [slot.assignment.userId] : []),
+  );
   const replacementUsers = replacementTarget
-    ? pickerUsers.filter((candidate) => {
+    ? filteredUsers.filter((candidate) => {
       return isEligibleScheduleCandidate(candidate)
+        && !assignedUserIds.has(candidate.id)
         && candidateWorkerType(candidate) === replacementTarget.workerType;
     })
     : [];
 
   return (
     <div className="flex flex-col gap-2">
-      {(data.hasWorkingCopy || (showReleaseCountdown && data.autoReleaseError) || compact) && (
+      {editorLoadError && (
+        <Alert variant="destructive" className="py-2.5">
+          <AlertDescription className="flex flex-col items-start gap-2 text-xs sm:flex-row sm:items-center sm:justify-between">
+            <span>Could not refresh crew. The visible editor may be stale; retry before making another change.</span>
+            <Button variant="outline" size="sm" className="h-10 shrink-0" onClick={() => void loadEditor()}>
+              Retry refresh
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      {(data.hasWorkingCopy
+        || (showReleaseCountdown && data.autoReleaseError)
+        || compact
+        || (!data.allDay && data.schedule.slots.some((slot) => slot.workerType === "ST"))) && (
         <div className="flex min-h-10 flex-wrap items-center gap-2 pb-1">
           {showReleaseCountdown && data.hasWorkingCopy && data.autoReleaseAt && !data.autoReleaseError && (
             <span className="text-xs text-muted-foreground">{formatNotificationCountdown(data.autoReleaseAt, clock)}</span>
@@ -550,7 +655,7 @@ export function WorkingCrewEditor({
           {showReleaseCountdown && data.autoReleaseError && (
             <span className="text-xs text-destructive">Release needs attention: {data.autoReleaseError}</span>
           )}
-          <div className="ml-auto flex items-center gap-1.5">
+          <div className="flex w-full flex-wrap items-center justify-end gap-1.5 sm:ml-auto sm:w-auto">
             {!data.allDay && data.schedule.slots.some((slot) => slot.workerType === "ST") && (
               <SetAllCallTimesEditor
                 data={data}
@@ -568,14 +673,15 @@ export function WorkingCrewEditor({
                 size="sm"
                 className="h-10 px-2 text-xs text-muted-foreground"
                 disabled={Boolean(actingKey)}
-                onClick={() => void discard()}
+                loading={actingKey === "discard"}
+                onClick={() => setRevertConfirmOpen(true)}
               >
-                {actingKey === "discard" ? "Reverting..." : "Revert changes"}
+                Revert changes
               </Button>
             )}
-            {compact && (
-              <Button type="button" variant="ghost" size="sm" className="h-10 px-2 text-xs text-muted-foreground" onClick={() => onManageEvent?.()}>
-                Event detail
+            {compact && eventDetailHref && (
+              <Button asChild type="button" variant="ghost" size="sm" className="h-10 px-2 text-xs text-muted-foreground">
+                <Link href={eventDetailHref}>Open Event detail</Link>
               </Button>
             )}
           </div>
@@ -609,8 +715,9 @@ export function WorkingCrewEditor({
                   const otherWorkerType = slot.workerType === "FT" ? "ST" : "FT";
                   const showCallWindow = !data.allDay && slot.workerType === "ST";
                   const canConvert = !slot.assignment && slot.assignmentHistoryCount === 0;
-                  const eligibleUsers = pickerUsers.filter((candidate) => {
+                  const eligibleUsers = filteredUsers.filter((candidate) => {
                     return isEligibleScheduleCandidate(candidate)
+                      && !assignedUserIds.has(candidate.id)
                       && candidateWorkerType(candidate) === slot.workerType;
                   });
                   return slot.assignment ? (
@@ -625,10 +732,11 @@ export function WorkingCrewEditor({
                           )}
                         />
                       ) : <span aria-hidden="true" />}
-                      <CrewTypeLabel label={roleLabel} />
+                      <CrewTypeLabel label={roleLabel} className="hidden sm:block" />
                       <div className="flex min-w-0 items-center gap-2">
                         <UserAvatar name={user?.name ?? "Assigned"} avatarUrl={user?.avatarUrl} size="sm" />
                         <span className="min-w-0 truncate text-sm">{user?.name ?? "Assigned worker"}</span>
+                        <CrewTypeLabel label={roleLabel} className="ml-auto shrink-0 sm:hidden" />
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -652,7 +760,7 @@ export function WorkingCrewEditor({
                                 currentWorkerName: user?.name ?? "assigned worker",
                               };
                               setReplacementTarget(target);
-                              onOpenPicker();
+                              openPicker();
                               void loadCandidateScores(slot.key, target.workerType);
                             }}
                           >
@@ -681,13 +789,13 @@ export function WorkingCrewEditor({
                           )}
                         />
                       ) : <span aria-hidden="true" />}
-                      <CrewTypeLabel label={roleLabel} />
+                      <CrewTypeLabel label={roleLabel} className="hidden sm:block" />
                       <Popover onOpenChange={(open) => {
                         if (open) {
-                          onOpenPicker();
+                          openPicker();
                           void loadCandidateScores(slot.key);
                         } else {
-                          onClosePicker();
+                          closePicker();
                         }
                       }}>
                         <PopoverTrigger asChild>
@@ -699,9 +807,11 @@ export function WorkingCrewEditor({
                         <PopoverContent className="w-80 max-w-[calc(100vw-2rem)] p-2 sm:w-96" align="start">
                           <UserAvatarPicker
                             users={eligibleUsers}
-                            loading={pickerLoading}
-                            search={pickerSearch}
-                            onSearchChange={onPickerSearchChange}
+                            loading={usersLoading}
+                            loadError={usersLoadError}
+                            onRetry={() => void loadUsers()}
+                            search={userSearch}
+                            onSearchChange={setUserSearch}
                             onSelect={(userId) => void mutate({ type: "assign", slotKey: slot.key, userId }, `${slot.key}-assign`)}
                             disabled={Boolean(actingKey)}
                             slotWorkerType={slot.workerType}
@@ -797,7 +907,7 @@ export function WorkingCrewEditor({
         onOpenChange={(open) => {
           if (!open) {
             setReplacementTarget(null);
-            onClosePicker();
+            closePicker();
           }
         }}
       >
@@ -816,21 +926,27 @@ export function WorkingCrewEditor({
             {replacementSlot && replacementTarget ? (
               <UserAvatarPicker
                 users={replacementUsers}
-                loading={pickerLoading}
-                search={pickerSearch}
-                onSearchChange={onPickerSearchChange}
+                loading={usersLoading}
+                loadError={usersLoadError}
+                onRetry={() => void loadUsers()}
+                search={userSearch}
+                onSearchChange={setUserSearch}
                 onSelect={(userId) => {
-                  void mutate(
-                    {
-                      type: "convertAndReplace",
-                      slotKey: replacementTarget.slotKey,
-                      workerType: replacementTarget.workerType,
-                      userId,
-                    },
-                    `${replacementTarget.slotKey}-convert-replace`,
-                  );
-                  setReplacementTarget(null);
-                  onClosePicker();
+                  void (async () => {
+                    const succeeded = await mutate(
+                      {
+                        type: "convertAndReplace",
+                        slotKey: replacementTarget.slotKey,
+                        workerType: replacementTarget.workerType,
+                        userId,
+                      },
+                      `${replacementTarget.slotKey}-convert-replace`,
+                    );
+                    if (succeeded) {
+                      setReplacementTarget(null);
+                      closePicker();
+                    }
+                  })();
                 }}
                 disabled={Boolean(actingKey)}
                 slotWorkerType={replacementTarget.workerType}
@@ -844,6 +960,31 @@ export function WorkingCrewEditor({
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={revertConfirmOpen} onOpenChange={setRevertConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revert all pending crew changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the pending version and restores the last released crew. The {data.changes.total} pending
+              {data.changes.total === 1 ? " change" : " changes"} will not be released or sent to assignees.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={Boolean(actingKey)}>Keep changes</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={Boolean(actingKey)}
+              onClick={(event) => {
+                event.preventDefault();
+                void discard();
+              }}
+            >
+              Revert changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   );

@@ -48,7 +48,7 @@ describe("crew row standardization", () => {
     expect(eventCrew).not.toContain("const studentTable = (");
     expect(eventCrew).toContain(": crewTable");
 
-    // Event detail owns buffered staff authoring while workers keep a shared read.
+    // Schedule and Event detail share buffered staff authoring while workers keep a shared read.
     expect(eventCrew).toContain("<WorkingCrewEditor");
     expect(eventCrew).toContain("showReleaseCountdown={false}");
     expect(eventCrew).not.toContain("canEditPublishedSchedule");
@@ -69,7 +69,7 @@ describe("crew row standardization", () => {
     expect(eventCrew.indexOf("Call</TableHead>")).toBeLessThan(eventCrew.indexOf("Type</TableHead>"));
     expect(eventCrew.indexOf("Type</TableHead>")).toBeLessThan(eventCrew.indexOf("Person</TableHead>"));
 
-    expect(scheduleStaff).toContain('const SLOT_ROW_GRID_CLASS = "grid-cols-[4.5rem_4.5rem_minmax(0,1fr)_2.5rem]"');
+    expect(scheduleStaff).toContain('const SLOT_ROW_GRID_CLASS = "grid-cols-[4rem_minmax(0,1fr)_2.5rem] sm:grid-cols-[4.5rem_4.5rem_minmax(0,1fr)_2.5rem]"');
     // The flat worker list prefixes the same order with an area column.
     expect(scheduleWorker).toContain("grid-cols-[104px_72px_72px_minmax(0,1fr)_auto]");
     expect(scheduleWorker).toContain("<CrewAreaDot");

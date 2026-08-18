@@ -49,23 +49,30 @@ describe("schedule staff/student display source contracts", () => {
 
   it("surfaces assignment reroute outcomes in staff assignment toasts", () => {
     const listView = source("src/app/(app)/schedule/_components/ListView.tsx");
+    const workingEditor = source("src/app/(app)/schedule/_components/WorkingCrewEditor.tsx");
     const assignmentCell = source("src/app/(app)/schedule/assign/_components/AssignmentCell.tsx");
     const shiftDetail = source("src/components/ShiftDetailPanel.tsx");
     const route = source("src/app/api/shift-assignments/route.ts");
 
     expect(route).toContain("roleSlotOutcome");
-    expect(listView).toContain("formatRoleSlotAssignmentOutcome(json?.meta?.roleSlotOutcome");
+    expect(listView).toContain("<WorkingCrewEditor");
+    expect(listView).not.toContain("formatRoleSlotAssignmentOutcome");
+    expect(workingEditor).toContain('type: "assign"');
     expect(assignmentCell).toContain("formatRoleSlotAssignmentOutcome(json?.meta?.roleSlotOutcome");
     expect(shiftDetail).toContain("formatRoleSlotAssignmentOutcome(json?.meta?.roleSlotOutcome");
   });
 
   it("shows editable call times only for Student schedule rows", () => {
     const listView = source("src/app/(app)/schedule/_components/ListView.tsx");
+    const workingEditor = source("src/app/(app)/schedule/_components/WorkingCrewEditor.tsx");
     const assignmentCell = source("src/app/(app)/schedule/assign/_components/AssignmentCell.tsx");
     const slotCard = source("src/components/shift-detail/ShiftSlotCard.tsx");
 
-    expect(listView).toContain("const callEditorTarget = activeAssignment");
-    expect(listView).toContain('target={callEditorTarget}');
+    expect(listView).toContain("<WorkingCrewEditor");
+    expect(workingEditor).toContain('const showCallWindow = !data.allDay && slot.workerType === "ST"');
+    expect(workingEditor).toContain('{ type: "setCallWindow"');
+    expect(workingEditor).toContain('{ type: "setCallWindowForAll"');
+    expect(workingEditor).toContain("Staff and collaborators do not have a call time.");
     expect(listView).toContain("commonCallWindow(entry)");
     expect(listView).toContain('workerKindForShift(shift) !== "ST"');
     expect(listView).toContain('workerType === "ST"');
